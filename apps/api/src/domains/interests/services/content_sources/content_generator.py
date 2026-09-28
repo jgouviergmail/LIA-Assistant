@@ -31,7 +31,7 @@ from typing import Any
 
 from src.core.config import settings
 from src.core.constants import INTEREST_CONTENT_DIVERSITY_ANGLES
-from src.domains.interests.helpers import normalize_language_code
+from src.core.i18n import resolve_language
 from src.domains.interests.services.content_sources.base import (
     ContentGenerationContext,
     ContentResult,
@@ -133,7 +133,7 @@ class InterestContentGenerator:
         sources_tried: list[str] = []
 
         # P9 — local anchoring: enrich the topic ONCE so every source
-        # strategy searches locally ("jazz près de Lyon cette semaine").
+        # strategy searches locally ("jazz near Lyon this week").
         if context.locality:
             from src.domains.interests.helpers import anchor_topic_locally
 
@@ -382,8 +382,9 @@ class InterestContentGenerator:
             ContentResult if successful, None otherwise
         """
         # The ONE place every source runs, so the one place they are recorded.
-        # These call Brave, Perplexity and Wikipedia through their clients
-        # directly, never through the tool layer — so the tool gate that fills
+        # These call Brave and Perplexity through their clients directly (the
+        # Wikipedia source is instantiated by nobody), never through the tool
+        # layer — so the tool gate that fills
         # the consultation register never sees them, and the same search LIA
         # performs in a conversation was invisible when it ran alone.
         started = perf_counter()
@@ -526,10 +527,7 @@ class InterestContentGenerator:
         Returns:
             Random angle string, or None if no angles available
         """
-        base_lang = normalize_language_code(user_language)
-        angles = INTEREST_CONTENT_DIVERSITY_ANGLES.get(
-            base_lang, INTEREST_CONTENT_DIVERSITY_ANGLES.get("en")
-        )
+        angles = INTEREST_CONTENT_DIVERSITY_ANGLES[resolve_language(user_language)]
 
         if not angles:
             return None
@@ -539,14 +537,17 @@ class InterestContentGenerator:
     @staticmethod
     def _apply_angle_to_topic(topic: str, angle: str) -> str:
         """
-        Append a diversity angle to a topic.
+        Append a diversity angle to a topic — the SEARCH the sources run.
+
+        Never shown to the person (the notification names the topic alone),
+        so it is not a label and its value: no reader's punctuation applies.
 
         Args:
             topic: Original interest topic
-            angle: Diversity angle to append
+            angle: Diversity angle to append, in the person's language
 
         Returns:
-            Modified topic string (e.g., "Films de SF : perspectives futures")
+            The query (e.g., "Sci-fi films : future perspectives")
         """
         return f"{topic} : {angle}"
 

@@ -47,6 +47,7 @@ from pydantic import BaseModel
 
 from src.core.config import get_settings, settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import get_locale_for_language
 from src.core.time_utils import normalize_to_rfc3339, now_utc
 from src.domains.agents.calendar.event_search import (
     QUERY_CONTRACT,
@@ -319,7 +320,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
                 logger.warning("calendar_preference_resolution_failed", error=str(e))
 
         # Resolve calendar name to ID (case-insensitive)
-        # "famille" -> ID of "Famille" calendar
+        # "family" -> ID of "Family" calendar
         # "primary" stays "primary"
         calendar_id = await resolve_calendar_name(
             client=client,
@@ -408,7 +409,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         time_max = result.get("time_max")
         from_cache = result.get("from_cache", False)
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
+        locale = result.get("locale", get_locale_for_language(None))
         calendar_id = result.get("calendar_id")  # Pass calendar_id for update/delete
         truncated = bool(result.get("truncated", False))
 
@@ -465,7 +466,7 @@ async def search_events_tool(
     ] = None,
     calendar_id: Annotated[
         str,
-        "Calendar ID to search. Use 'primary' for main calendar, or calendar ID/name for specific calendars (e.g., 'famille', 'work')",
+        "Calendar ID to search. Use 'primary' for main calendar, or calendar ID/name for specific calendars (e.g., 'family', 'work')",
     ] = "primary",
     fields: Annotated[
         list[str] | None,
@@ -488,7 +489,7 @@ async def search_events_tool(
 
     **Calendar Selection:**
     - "primary" = User's main calendar (default)
-    - Calendar name (e.g., "famille", "work") = Specific calendar by name
+    - Calendar name (e.g., "family", "work") = Specific calendar by name
     - Full calendar ID (e.g., "abc123@group.calendar.google.com")
 
     **Field Projection (optimization):**
@@ -499,7 +500,7 @@ async def search_events_tool(
     **Examples:**
     - Next 3 events: max_results=3 (time_min defaults to NOW)
     - Search by text: query="meeting"
-    - Specific calendar: calendar_id="famille", max_results=3
+    - Specific calendar: calendar_id="family", max_results=3
     - Search by date range: time_min="2025-01-01T00:00:00Z", time_max="2025-01-31T23:59:59Z"
     - Optimized search: fields=["summary", "start", "end"]
 
@@ -751,7 +752,7 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         mode = result.get("mode", "single")
         from_cache = result.get("from_cache", False)
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
+        locale = result.get("locale", get_locale_for_language(None))
 
         # Handle single vs batch mode
         errors = None
@@ -779,7 +780,7 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             # Batch summary
             summary_lines = [f"Event details retrieved: {len(events)} event(s)"]
             for i, evt in enumerate(events[:5], 1):  # Limit to 5 for summary
-                summary = evt.get("summary", "Sans titre")
+                summary = evt.get("summary", "Untitled")
                 start = evt.get("start", {})
                 start_dt = start.get("dateTime") or start.get("date", "")
                 summary_lines.append(f'{i}. "{summary}" - {start_dt}')
@@ -795,7 +796,7 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         elif events:
             # Single event summary
             event = events[0]
-            summary = event.get("summary", "Sans titre")
+            summary = event.get("summary", "Untitled")
             start = event.get("start", {})
             start_dt = start.get("dateTime") or start.get("date", "")
             location = event.get("location", "")
@@ -854,7 +855,7 @@ async def get_event_details_tool(
     - Batch: event_ids=["abc123", "def456"] → fetch multiple events in parallel
 
     MULTI-ORDINAL FIX (2026-01-01): Added batch mode for multi-reference queries.
-    Example: "detail du 1 et du 2" → event_ids=["id1", "id2"]
+    Example: "details of 1 and 2" → event_ids=["id1", "id2"]
 
     Returns complete event data including:
     - Title (summary)
@@ -1120,9 +1121,9 @@ async def create_event_tool(
     Returns:
         UnifiedToolOutput with DRAFT registry item (requires user confirmation)
 
-    Example response summary:
-        "Brouillon créé: Événement 'Team Meeting' le 15/01/2025 [draft_abc123]
-         Action requise: confirmez, modifiez ou annulez."
+    Example response summary (written in the user's language):
+        "📄 **Draft created**: Event: Team Meeting on 2025-01-15 10:00 …
+         **Action required**: confirm, edit, or cancel."
     """
     return await _create_event_draft_tool_instance.execute(
         runtime=runtime,
@@ -1655,11 +1656,11 @@ class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             show_hidden=show_hidden,
         )
 
-        # Get user preferences for locale, falling back to the default locale
+        # Get user preferences for locale, falling back to the declared language's
         try:
             _, _, locale = await get_user_preferences(self.runtime)
         except ValueError, KeyError, AttributeError:
-            locale = settings.default_language
+            locale = get_locale_for_language(None)
 
         return {
             "calendars": calendars,
@@ -1686,7 +1687,7 @@ class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
 
         for cal in calendars:
             cal_id = cal.get("id", "")
-            summary = cal.get("summary", "Sans nom")
+            summary = cal.get("summary", "")
             access_role = cal.get("accessRole", "reader")
             primary = cal.get("primary", False)
             background_color = cal.get("backgroundColor", "#4285f4")
@@ -1715,18 +1716,18 @@ class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             )
 
             # Build summary line
-            primary_marker = " (principal)" if primary else ""
-            summary_parts.append(f"- {summary}{primary_marker} [{registry_id}]")
+            primary_marker = " (primary)" if primary else ""
+            summary_parts.append(f"- {summary or 'Unnamed'}{primary_marker} [{registry_id}]")
 
         # Build LLM message
         if calendars:
-            message = f"[calendars] {total} calendrier(s) disponible(s):\n" + "\n".join(
+            message = f"[calendars] {total} calendar(s) available:\n" + "\n".join(
                 summary_parts[:10]
             )
             if total > 10:
-                message += f"\n... et {total - 10} autre(s)"
+                message += f"\n... and {total - 10} more"
         else:
-            message = "[calendars] Aucun calendrier trouvé"
+            message = "[calendars] No calendar found"
 
         return UnifiedToolOutput.data_success(
             message=message,
@@ -1770,7 +1771,7 @@ async def list_calendars_tool(
     - Subscribed calendars (public calendars)
 
     **Use Cases:**
-    - User asks "quels sont mes calendriers ?"
+    - User asks "what calendars do I have?"
     - User wants to know available calendars before creating/searching events
     - User needs calendar ID for specific calendar operations
 
@@ -1790,7 +1791,7 @@ async def list_calendars_tool(
         UnifiedToolOutput with CALENDAR registry items for frontend rendering
 
     Example:
-        User: "Quels sont mes calendriers disponibles ?"
+        User: "Which calendars can I use?"
         -> Returns list of all calendars with their IDs and properties
     """
     return await _list_calendars_tool_instance.execute(

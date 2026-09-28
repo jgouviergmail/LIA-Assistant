@@ -4,7 +4,7 @@
 
 **Version**: 2.2
 **Datum**: 2026-09-24
-**Anwendung**: LIA v1.47.4
+**Anwendung**: LIA v2.0.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 51 Fachdomänen | **720.000+** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **41.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **317** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **269** |
+| Quellcodezeilen (ohne Tests) — 53 Fachdomänen | **781.000+** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **46.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **323** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **270** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 317 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 323 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -66,6 +66,8 @@ Ein System, das nach Instrumenten geflogen wird:
 - **Lieferung**: containerisiertes Deployment, automatisierte Schemamigrationen, Images für zwei Hardwarearchitekturen (amd64/arm64) veröffentlicht.
 - **Kosten**: bewusst frugale Infrastruktur — etwa 150 € Hardware, null Lizenzen, Open-Source-Bausteine, dimensioniert nach dem realen Bedarf.
 - **Compliance**: Sicherheit Endpunkt für Endpunkt überprüft; personenbezogene Daten verschlüsselt; Konto-Lebenszyklus an der DSGVO ausgerichtet.
+
+Das Produkt zeigt seine technischen Entscheidungen im Maßstab eines Menschen. Der Chat begleitet ihn über Geräte hinweg, ohne die Lektüre zu stören; das Radio beginnt, wenn er zuhören möchte, und nennt Quellen und Kosten seiner Nachrichten. Die Lebensdauer einer erzeugten Datei lässt sich bewusst verlängern. Geplante Arbeit und Bedingungsprüfungen haben getrennte Uhren. Das sind kleine, beobachtbare Zusagen, getragen von Quellen, Grenzen und Tests, statt der Behauptung, die Assistentin wisse einfach, was jemand will.
 
 ## 6. Der Beweis
 

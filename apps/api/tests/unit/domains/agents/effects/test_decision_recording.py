@@ -15,7 +15,9 @@ in the parent's context, and silently loses every pipeline turn.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import uuid
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -138,6 +140,67 @@ class TestTheRowIsWrittenWHATEVERHappens:
             "src.domains.agents.effects.decision_repository.DecisionRepository"
         ) as repository:
             await module._write(_turn(user_id=None))
+
+        repository.assert_not_called()
+
+
+class TestARunFiledOnce:
+    """An out-of-turn act that cannot be resumed is filed ONCE (ADR-263 amendment 2026-09-27)."""
+
+    @staticmethod
+    def _database() -> tuple[object, list[object]]:
+        sessions: list[object] = []
+
+        @contextlib.asynccontextmanager
+        async def get_db_context() -> AsyncIterator[object]:
+            session = object()
+            sessions.append(session)
+            yield session
+
+        return get_db_context, sessions
+
+    async def test_it_writes_through_the_insert_that_ignores_a_second_filing(self) -> None:
+        from src.domains.agents.effects import decision_recorder as module
+
+        get_db_context, sessions = self._database()
+        decision = _turn()
+        with (
+            patch(
+                "src.domains.agents.effects.decision_repository.DecisionRepository"
+            ) as repository,
+            patch("src.infrastructure.database.session.get_db_context", get_db_context),
+        ):
+            repository.return_value.record_once = AsyncMock()
+            repository.return_value.record = AsyncMock()
+            await module.record_decision_once(decision)
+
+        repository.assert_called_once_with(sessions[0])
+        repository.return_value.record_once.assert_awaited_once()
+        assert repository.return_value.record_once.await_args.args == (decision,)
+        repository.return_value.record.assert_not_awaited()
+
+    async def test_a_failed_write_is_logged_never_raised(self) -> None:
+        from src.domains.agents.effects import decision_recorder as module
+
+        get_db_context, _sessions = self._database()
+        with (
+            patch(
+                "src.domains.agents.effects.decision_repository.DecisionRepository"
+            ) as repository,
+            patch("src.infrastructure.database.session.get_db_context", get_db_context),
+        ):
+            repository.return_value.record_once = AsyncMock(side_effect=RuntimeError("down"))
+            await module.record_decision_once(_turn())
+
+        repository.return_value.record_once.assert_awaited_once()
+
+    async def test_a_run_with_no_account_writes_nothing(self) -> None:
+        from src.domains.agents.effects import decision_recorder as module
+
+        with patch(
+            "src.domains.agents.effects.decision_repository.DecisionRepository"
+        ) as repository:
+            await module.record_decision_once(_turn(user_id=None))
 
         repository.assert_not_called()
 

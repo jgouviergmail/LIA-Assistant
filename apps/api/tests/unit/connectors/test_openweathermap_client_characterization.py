@@ -21,6 +21,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
+from src.core.i18n import language_scope
 from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
 from tests.unit.connectors.characterization_harness import transport_patches
 
@@ -53,7 +54,7 @@ class TestCurrentWeather:
             return httpx.Response(200, json={"name": "Paris", "main": {"temp": 21.5}})
 
         p1, p2 = transport_patches(handler)
-        with p1, p2:
+        with p1, p2, language_scope("zh-CN"):
             result = await client.get_current_weather(lat=48.85, lon=2.35, units="metric")
             await client.close()
 
@@ -65,7 +66,8 @@ class TestCurrentWeather:
         assert params["lat"] == "48.85"
         assert params["lon"] == "2.35"
         assert params["units"] == "metric"
-        assert params["lang"] == "en"  # default
+        # No lang passed: the declared one, in OpenWeatherMap's spelling (ADR-323).
+        assert params["lang"] == "zh_cn"
 
     async def test_city_country_becomes_q_param(self, client):
         """city+country request uses q=city,country."""

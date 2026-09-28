@@ -18,7 +18,7 @@ import uuid
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -158,6 +158,7 @@ def _executor_env(
 
     run_repo = MagicMock()
     run_repo.record = AsyncMock(side_effect=_record)
+    run_repo.count_fires_since = AsyncMock(return_value=0)
 
     user_service = MagicMock()
     user_service.get_user_by_id = AsyncMock(return_value=user)
@@ -172,7 +173,13 @@ def _executor_env(
     agent_service._ensure_graph_built = AsyncMock()
     agent_service.graph = MagicMock()
     agent_service.graph.aget_state = AsyncMock(return_value=SimpleNamespace(tasks=[]))
-    agent_service.stream_chat_response = Mock(side_effect=_make_stream(chunks))
+    stream = _make_stream(chunks)
+
+    def _traced_stream(*args: Any, **kwargs: Any) -> Any:
+        calls.append("stream")
+        return stream(*args, **kwargs)
+
+    agent_service.stream_chat_response = Mock(side_effect=_traced_stream)
 
     fcm = MagicMock(send_to_user=AsyncMock())
     redis = MagicMock(publish=AsyncMock())
@@ -186,6 +193,7 @@ def _executor_env(
             ("src.domains.agents.api.service.AgentService", agent_service),
             ("src.domains.notifications.service.FCMNotificationService", fcm),
             ("src.domains.scheduled_actions.runs.ScheduledActionRunRepository", run_repo),
+            ("src.domains.scheduled_actions.run_repository.ScheduledActionRunRepository", run_repo),
         ):
             stack.enter_context(patch(target, return_value=replacement))
 
@@ -461,8 +469,9 @@ class TestRunHistory:
                 False,
                 None,
             )
-            # Flushed inside the routine's transaction, before its commit.
-            assert env.calls.index("record") < env.calls.index("commit")
+            # Flushed inside the transaction whose commit makes the routine's
+            # marking durable (the first commit only ended the reads, ADR-304).
+            assert "commit" in env.calls[env.calls.index("record") :]
 
     @pytest.mark.asyncio
     async def test_a_manual_run_after_the_slot_is_marked_manual_and_serves_it(self) -> None:
@@ -488,7 +497,7 @@ class TestRunHistory:
             assert recorded["outcome"] is ScheduledRunOutcome.FAILURE
             assert recorded["attempts"] == 2  # one retry on a transient error
             assert "provider down" in recorded["error"]
-            assert env.calls.index("record") < env.calls.index("commit")
+            assert "commit" in env.calls[env.calls.index("record") :]
 
     @pytest.mark.asyncio
     async def test_a_non_retryable_failure_counts_one_attempt(self) -> None:
@@ -503,24 +512,18 @@ class TestRunHistory:
             assert recorded["attempts"] == 1
 
     @pytest.mark.asyncio
-    async def test_a_condition_not_met_is_recorded_as_skipped_and_runs_nothing(self) -> None:
+    async def test_a_check_that_finds_nothing_new_writes_no_row_and_runs_nothing(self) -> None:
         with _executor_env(chunks=[_chunk("token", "never")]) as env:
-            env.action.trigger_kind = "condition"
-            env.action.condition_config = {"type": "task_overdue"}
-            verdict = SimpleNamespace(met=False, fingerprint=None, note=None)
-            with patch(
-                "src.infrastructure.scheduler.condition_evaluators.evaluate_condition",
-                AsyncMock(return_value=verdict),
-            ):
+            _as_watch(env)
+            with _verdict(env, ConditionVerdict(note_prefix="Overdue tasks: ")):
                 result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
 
             assert result == ""
             env.agent_service.stream_chat_response.assert_not_called()
-            recorded = _recorded(env)
-            assert recorded["outcome"] is ScheduledRunOutcome.SKIPPED_CONDITION
-            assert recorded["attempts"] == 0
-            assert recorded["slot_at"] == env.action.next_trigger_at
-            assert env.calls.index("record") < env.calls.index("commit")
+            env.run_repo.record.assert_not_awaited()
+            # The check itself is recorded — on the routine's ledger.
+            state = env.repo.reschedule.await_args.kwargs["condition_state"]
+            assert state["last_checked_at"] == NOW.isoformat()
 
     @pytest.mark.asyncio
     async def test_a_proposal_is_recorded_as_proposed(self) -> None:
@@ -554,6 +557,10 @@ class TestRunHistory:
             recorded = _recorded(env)
             assert recorded["outcome"] is ScheduledRunOutcome.SKIPPED_HITL
             assert recorded["attempts"] == 0
+            # Nothing ran: the slot is re-armed, never counted as an execution
+            # (it used to raise execution_count and last_executed_at).
+            env.repo.reschedule.assert_awaited_once()
+            env.repo.mark_execution_success.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_a_failed_history_write_never_costs_the_routine_its_marking(self) -> None:
@@ -596,8 +603,6 @@ class TestRetentionPurge:
             stats = await mod.process_scheduled_actions()
 
         assert stats["runs_purged"] == 3
-        from datetime import timedelta
-
         run_repo.purge_older_than.assert_awaited_once_with(
             NOW - timedelta(days=settings.scheduled_actions_runs_retention_days)
         )
@@ -647,7 +652,7 @@ class TestTheReArmIsComputedInOnePlace:
     they cannot drift apart.
     """
 
-    def test_the_executor_calls_the_engine_from_a_single_site(self) -> None:
+    def test_the_executor_asks_the_plan_from_a_single_site(self) -> None:
         import ast
         import inspect
         from pathlib import Path
@@ -655,14 +660,220 @@ class TestTheReArmIsComputedInOnePlace:
         from src.infrastructure.scheduler import scheduled_action_executor
 
         source = Path(inspect.getfile(scheduled_action_executor)).read_text(encoding="utf-8")
+        tree = ast.parse(source)
         calls = [
             node
-            for node in ast.walk(ast.parse(source))
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"after_tick", "first"}
+        ]
+        engine = [
+            node
+            for node in ast.walk(tree)
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
-            and node.func.id == "rearm_after"
+            and node.func.id in {"rearm_after", "next_occurrence", "next_check"}
         ]
         assert len(calls) == 1, (
-            f"`rearm_after` is called from {len(calls)} sites; route every exit through the "
-            "single helper so the five exits cannot re-arm differently"
+            f"the routine's plan is asked from {len(calls)} sites; route every exit through "
+            "the single helper so the exits cannot re-arm differently"
         )
+        assert engine == [], "the executor must re-arm through the plan, never the engine"
+
+
+# =============================================================================
+# Condition routines on the system's clock (ADR-322)
+# =============================================================================
+
+from src.domains.scheduled_actions.trigger import check_interval  # noqa: E402
+from src.infrastructure.scheduler.condition_evaluators import (  # noqa: E402
+    ConditionFact,
+    ConditionVerdict,
+)
+
+_SEEN = ConditionFact(key="k-seen", label="Old invoice")
+_NEW = ConditionFact(key="k-new", label="New invoice")
+
+
+def _as_watch(env: _Env, *, seen: tuple[str, ...] = ()) -> None:
+    """Turn the harness routine into a condition routine."""
+    env.action.trigger_kind = "condition"
+    env.action.recurrence_spec = None
+    env.action.condition_config = {"type": "mail_match", "query": "invoice"}
+    env.action.condition_state = {"seen": list(seen)} if seen else None
+
+
+@contextmanager
+def _verdict(env: _Env, verdict: ConditionVerdict) -> Iterator[AsyncMock]:
+    """The check answers ``verdict``; the trace records when it ran."""
+
+    async def _evaluate(*_args: Any, **_kwargs: Any) -> ConditionVerdict:
+        env.calls.append("evaluate")
+        return verdict
+
+    evaluate = AsyncMock(side_effect=_evaluate)
+    with patch("src.infrastructure.scheduler.condition_evaluators.evaluate_condition", evaluate):
+        yield evaluate
+
+
+class TestAConditionRoutine:
+    @pytest.mark.asyncio
+    async def test_a_new_fact_runs_the_pipeline_on_that_fact_alone(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "done")]) as env:
+            _as_watch(env, seen=("k-seen",))
+            verdict = ConditionVerdict(facts=(_SEEN, _NEW), note_prefix="Matching mails: ")
+            with _verdict(env, verdict):
+                result = await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            assert result == "done"
+            prompt = env.agent_service.stream_chat_response.call_args.kwargs["user_message"]
+            assert prompt.endswith("[Trigger context] Matching mails: New invoice")
+            state = env.repo.mark_execution_success.await_args.kwargs["condition_state"]
+            assert set(state["seen"]) == {"k-seen", "k-new"}
+            recorded = _recorded(env)
+            assert recorded["outcome"] is ScheduledRunOutcome.SUCCESS
+            # The run serves the check that fired: its own start.
+            assert recorded["slot_at"] == NOW
+
+    @pytest.mark.asyncio
+    async def test_nothing_is_held_open_while_the_source_or_the_model_answers(self) -> None:
+        # ADR-304: every wait starts after a commit.
+        with _executor_env(chunks=[_chunk("token", "done")]) as env:
+            _as_watch(env)
+            with _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")):
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            assert env.calls[env.calls.index("evaluate") - 1] == "commit"
+            assert env.calls[env.calls.index("stream") - 1] == "commit"
+            # And the outcome is durable before the push.
+            assert "commit" in env.calls[env.calls.index("record") :]
+
+    @pytest.mark.asyncio
+    async def test_the_daily_cap_keeps_the_fact_new_for_tomorrow(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            _as_watch(env)
+            env.run_repo.count_fires_since = AsyncMock(
+                return_value=settings.scheduled_actions_condition_max_fires_per_day
+            )
+            with _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")):
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            env.agent_service.stream_chat_response.assert_not_called()
+            env.run_repo.record.assert_not_awaited()
+            state = env.repo.reschedule.await_args.kwargs["condition_state"]
+            assert "k-new" not in state["seen"]
+
+    @pytest.mark.asyncio
+    async def test_the_cap_counts_from_the_routines_own_midnight(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "done")]) as env:
+            _as_watch(env)
+            with _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")):
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            # 08:00:05 in Paris: the day began at 22:00 UTC the evening before.
+            action_id, since = env.run_repo.count_fires_since.await_args.args
+            assert action_id == env.action_id
+            assert since == datetime(2026, 8, 2, 22, 0, tzinfo=UTC)
+
+    @pytest.mark.asyncio
+    async def test_a_failed_run_leaves_the_fact_new(self) -> None:
+        with _executor_env(chunks=[]) as env:
+            _as_watch(env)
+            env.agent_service.stream_chat_response = Mock(
+                side_effect=_raising_stream(RuntimeError("HITL interrupt"))
+            )
+            with _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")):
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            state = env.repo.mark_execution_failure.await_args.kwargs["condition_state"]
+            assert "k-new" not in state["seen"]
+            assert _recorded(env)["outcome"] is ScheduledRunOutcome.FAILURE
+
+    @pytest.mark.asyncio
+    async def test_a_pending_question_writes_no_row_and_keeps_the_fact_new(self) -> None:
+        with (
+            _executor_env(chunks=[_chunk("token", "never")]) as env,
+            patch(
+                "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
+                AsyncMock(return_value={"action_requests": [{"type": "clarification"}]}),
+            ),
+        ):
+            _as_watch(env)
+            with _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")):
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            env.agent_service.stream_chat_response.assert_not_called()
+            env.run_repo.record.assert_not_awaited()
+            state = env.repo.reschedule.await_args.kwargs["condition_state"]
+            assert "k-new" not in state["seen"]
+
+    @pytest.mark.asyncio
+    async def test_an_unreadable_source_is_said_on_the_ledger_and_runs_nothing(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            _as_watch(env, seen=("k-seen",))
+            with _verdict(env, ConditionVerdict(error="unavailable")):
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            env.agent_service.stream_chat_response.assert_not_called()
+            state = env.repo.reschedule.await_args.kwargs["condition_state"]
+            assert state["last_check_error"] == "unavailable"
+            assert state["seen"] == ["k-seen"]
+
+    @pytest.mark.asyncio
+    async def test_the_proposal_push_waits_for_no_open_transaction(self) -> None:
+        # ADR-304: the cap's count is a read — committed before the push leaves.
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            _as_watch(env)
+            env.action.requires_approval = True
+
+            async def _count(*_args: Any) -> int:
+                env.calls.append("count")
+                return 0
+
+            async def _notify(*_args: Any, **_kwargs: Any) -> None:
+                env.calls.append("notify")
+
+            env.run_repo.count_fires_since = AsyncMock(side_effect=_count)
+            with (
+                _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")),
+                patch(
+                    "src.infrastructure.scheduler.scheduled_action_executor"
+                    "._send_approval_notification",
+                    AsyncMock(side_effect=_notify),
+                ),
+            ):
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            assert env.calls.index("count") < env.calls.index("notify")
+            assert env.calls[env.calls.index("notify") - 1] == "commit"
+
+    @pytest.mark.asyncio
+    async def test_a_proposal_serves_the_fact(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            _as_watch(env)
+            env.action.requires_approval = True
+            with (
+                _verdict(env, ConditionVerdict(facts=(_NEW,), note_prefix="Mails: ")),
+                patch(
+                    "src.infrastructure.scheduler.scheduled_action_executor"
+                    "._send_approval_notification",
+                    AsyncMock(),
+                ),
+            ):
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            state = env.repo.reschedule.await_args.kwargs["condition_state"]
+            assert "k-new" in state["seen"]
+            assert _recorded(env)["outcome"] is ScheduledRunOutcome.PROPOSED
+
+    @pytest.mark.asyncio
+    async def test_it_re_arms_on_the_systems_next_check(self) -> None:
+        with _executor_env(chunks=[_chunk("token", "never")]) as env:
+            _as_watch(env)
+            with _verdict(env, ConditionVerdict(note_prefix="Mails: ")):
+                await execute_single_action(action_id=env.action_id, user_id=env.user_id)
+
+            next_trigger = env.repo.reschedule.await_args.args[1]
+            # The published interval of the type, never a figure typed here.
+            assert NOW < next_trigger <= NOW + check_interval("mail_match")

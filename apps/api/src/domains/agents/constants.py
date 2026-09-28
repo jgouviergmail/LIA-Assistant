@@ -208,6 +208,9 @@ CONTEXT_DOMAIN_EMAILS = "emails"
 CONTEXT_DOMAIN_EVENTS = "events"
 CONTEXT_DOMAIN_CALENDARS = "calendars"  # List of calendars (distinct from events)
 CONTEXT_DOMAIN_FILES = "files"
+# A Drive file payload whose content is not text: written by the Drive tools,
+# read by the file card, which names it in its reader's language.
+FILE_CONTENT_TYPE_BINARY = "binary"
 CONTEXT_DOMAIN_TASKS = "tasks"
 CONTEXT_DOMAIN_WEATHER = "weathers"  # Aligned with result_key (was "weather_forecast")
 
@@ -289,6 +292,8 @@ STATE_KEY_VALIDATION_RESULT = "validation_result"  # Phase 8: ValidationResult f
 # {step_id: result} written by the task orchestrator — the only record of what
 # the turn actually ran, and the counterweight to a stale validation verdict.
 STATE_KEY_COMPLETED_STEPS = "completed_steps"
+# The planner's PlanningResult of the turn (``success`` False = no plan).
+STATE_KEY_PLANNING_RESULT = "planning_result"
 STATE_KEY_SEMANTIC_VALIDATION = "semantic_validation"  # Phase 2 OPTIMPLAN: SemanticValidationResult
 STATE_KEY_CLARIFICATION_RESPONSE = "clarification_response"  # Phase 2 OPTIMPLAN: User clarification
 STATE_KEY_CLARIFICATION_FIELD = (
@@ -345,7 +350,7 @@ STATE_KEY_RESOLVED_REFERENCES = "resolved_references"  # ResolvedReferences from
 TURN_TYPE_ACTION = "action"  # Turn with agent execution
 TURN_TYPE_REFERENCE = "reference"  # Follow-up referencing previous results (legacy)
 TURN_TYPE_REFERENCE_PURE = "reference_pure"  # Pure detail query ("detail of the first")
-TURN_TYPE_REFERENCE_ACTION = "reference_action"  # Action with reference ("envoie-lui")
+TURN_TYPE_REFERENCE_ACTION = "reference_action"  # Action with reference ("send it to her")
 TURN_TYPE_CONVERSATIONAL = "conversational"  # Pure conversation
 
 # ============================================================================
@@ -758,6 +763,8 @@ __all__ = [
     "STATE_KEY_PLANNER_METADATA",
     "STATE_KEY_PLANNER_ERROR",
     "STATE_KEY_VALIDATION_RESULT",
+    "STATE_KEY_COMPLETED_STEPS",
+    "STATE_KEY_PLANNING_RESULT",
     "STATE_KEY_SEMANTIC_VALIDATION",
     "STATE_KEY_CLARIFICATION_RESPONSE",
     "STATE_KEY_CLARIFICATION_FIELD",

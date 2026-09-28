@@ -26,6 +26,7 @@ import httpx
 import structlog
 
 from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 
 logger = structlog.get_logger(__name__)
@@ -86,9 +87,18 @@ async def close_geocoding_client() -> None:
 # ============================================================================
 
 
+def _provider_language(language: str | None) -> str:
+    """The code sent to Google: an explicit one verbatim, else the declared one.
+
+    A provider speaks codes of its own, so an explicit value is never
+    normalised to the backend's canon (ADR-323).
+    """
+    return language or resolve_language()
+
+
 async def forward_geocode(
     address: str,
-    language: str = "en",
+    language: str | None = None,
 ) -> tuple[float, float, str, str] | None:
     """
     Geocode an address to coordinates using Google Geocoding API.
@@ -100,7 +110,7 @@ async def forward_geocode(
 
     Args:
         address: Full address string
-        language: Language code for results (default: en for internal processing)
+        language: Language code for results (default: the declared language)
 
     Returns:
         Tuple of (lat, lon, locality_name, country_code) if successful,
@@ -118,7 +128,7 @@ async def forward_geocode(
         params = {
             "address": address,
             "key": settings.google_api_key,
-            "language": language,
+            "language": _provider_language(language),
         }
 
         client = _get_geocoding_client()
@@ -207,7 +217,7 @@ async def forward_geocode(
 async def reverse_geocode(
     lat: float,
     lon: float,
-    language: str = "fr",
+    language: str | None = None,
     simplify: bool = True,
 ) -> str | None:
     """
@@ -218,7 +228,7 @@ async def reverse_geocode(
     Args:
         lat: Latitude
         lon: Longitude
-        language: Language code for address formatting (default: fr)
+        language: Language code for address formatting (default: the declared language)
         simplify: If True, simplify address by removing postal code and country
 
     Returns:
@@ -236,7 +246,7 @@ async def reverse_geocode(
         params = {
             "latlng": f"{lat},{lon}",
             "key": settings.google_api_key,
-            "language": language,
+            "language": _provider_language(language),
             "result_type": "street_address|route|locality",  # Prefer street addresses
         }
 

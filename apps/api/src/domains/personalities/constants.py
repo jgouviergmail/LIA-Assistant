@@ -2,15 +2,27 @@
 Constants for the personalities domain.
 """
 
+from functools import lru_cache
+
+from src.core.prompt_store import read_prompt_file
+
 # Default personality code (used when user has no preference)
 DEFAULT_PERSONALITY_CODE = "normal"
 
-# Default personality prompt (fallback if no personality found)
-DEFAULT_PERSONALITY_PROMPT = """Tu es un assistant equilibre et professionnel.
-- Reponds de maniere claire et concise.
-- Adapte ton ton au contexte de la conversation.
-- Sois utile sans etre excessif.
-- Tutoie l'utilisateur."""
+
+@lru_cache(maxsize=1)
+def default_personality_prompt() -> str:
+    """The personality instruction used when none is configured.
+
+    The versioned prompt itself, never a copy — an inline copy had drifted from
+    the file (ADR-284). Read on first use: importing a constants module must not
+    read a file.
+
+    Returns:
+        The instruction text.
+    """
+    return read_prompt_file("default_personality_prompt").strip()
+
 
 # Personality code validation pattern
 PERSONALITY_CODE_PATTERN = r"^[a-z][a-z0-9_]*$"

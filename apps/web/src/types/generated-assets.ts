@@ -26,10 +26,23 @@ export interface GeneratedAsset {
   /** Where it was produced; null when that conversation is gone or there was none. */
   conversation_id: string | null;
   created_at: string;
-  /** When the cleanup removes it — stated, never implied. */
-  expires_at: string;
+  /** When the cleanup removes it — stated, never implied. `null`: the person
+   *  kept it from the gallery, and no cleanup will (ADR-319). */
+  expires_at: string | null;
   /** Who shared this image, for a copy a connection sent (ADR-316); null otherwise. */
   shared_by_name: string | null;
+}
+
+/** What the account keeps past the deadline, against what it may (ADR-319). */
+export interface GeneratedAssetKeepUsage {
+  /** EXACT count of the account's kept files, every family. */
+  kept_files: number;
+  /** EXACT bytes those files hold. */
+  kept_bytes: number;
+  /** Most files the account may keep — 0 means keeping is off. */
+  max_files: number;
+  /** Most bytes the account may keep. */
+  max_bytes: number;
 }
 
 /** One page, its EXACT total (ADR-185) and the bounds the API enforces. */
@@ -41,6 +54,8 @@ export interface GeneratedAssetList {
   offset: number;
   /** Largest page the API serves — published because it is enforced (ADR-184). */
   max_limit: number;
+  /** The keeping ceilings, published with the page because they are enforced. */
+  keep: GeneratedAssetKeepUsage;
 }
 
 /** What the reader narrowed a gallery to. */
@@ -57,4 +72,11 @@ export interface GeneratedAssetFilters {
 export interface GeneratedAssetsDeleteResult {
   deleted: string[];
   skipped: string[];
+}
+
+/** What a keep or a release actually changed, and the usage after it. */
+export interface GeneratedAssetsKeepResult {
+  updated: string[];
+  skipped: string[];
+  keep: GeneratedAssetKeepUsage;
 }

@@ -821,6 +821,43 @@
             }
           },
           "description": "Query duration for message retrieval with token summaries. Shown: p95 percentile."
+        },
+        {
+          "id": 114,
+          "title": "Conversation sync signals (ADR-320)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Signals telling a person's open tabs that their conversation changed, sent once the transaction that wrote the message commits (by kind and outcome, 1h). failed / no_redis / no_loop mean the tabs catch up only at their next foreground return or reconnection.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 42
+          },
+          "targets": [
+            {
+              "expr": "sum by (kind, outcome) (increase(conversation_sync_signals_total[1h])) or vector(0)",
+              "legendFormat": "{{kind}} — {{outcome}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "decimals": 0,
+              "noValue": "0",
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          }
         }
       ]
     },
@@ -1338,7 +1375,7 @@
         },
         {
           "id": 26,
-          "title": "Cost per Successful Conversation",
+          "title": "Cost per Successful Turn",
           "type": "timeseries",
           "datasource": "$datasource",
           "gridPos": {
@@ -1356,7 +1393,7 @@
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "currencyEUR",
+              "unit": "currencyUSD",
               "custom": {
                 "drawStyle": "line",
                 "lineInterpolation": "smooth",
@@ -1385,7 +1422,7 @@
               "placement": "bottom"
             }
           },
-          "description": "Cost per successful conversation (only conversations that achieved goal). Shown: p50 percentile."
+          "description": "Model cost of each successful turn, from its run's own ledger (USD). Shown: p50 percentile."
         }
       ]
     },
@@ -1822,6 +1859,73 @@
             },
             "tooltip": {
               "mode": "multi"
+            }
+          }
+        },
+        {
+          "id": 113,
+          "title": "Kept generated files (ADR-319)",
+          "type": "stat",
+          "datasource": "$datasource",
+          "description": "Generated files people kept past their deadline from the gallery, instance-wide: the cleanup never reclaims their disk. Bounded per account by GENERATED_ASSETS_KEEP_MAX_FILES / _MB. Set by each cleanup sweep.",
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 102
+          },
+          "targets": [
+            {
+              "expr": "attachments_kept_count or vector(0)",
+              "legendFormat": "files",
+              "refId": "A"
+            },
+            {
+              "expr": "attachments_kept_bytes or vector(0)",
+              "legendFormat": "bytes",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "decimals": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "bytes"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "bytes"
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "graphMode": "area",
+            "colorMode": "value",
+            "textMode": "value_and_name",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
             }
           }
         }

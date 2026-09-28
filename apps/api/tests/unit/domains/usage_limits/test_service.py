@@ -440,3 +440,52 @@ class TestBuildLimitDetail:
         detail = UsageLimitService._build_limit_detail(0, 0)
         assert detail.usage_pct == 0.0
         assert detail.exceeded is True  # 0 >= 0
+
+
+# ============================================================================
+# Tests: an admin's change is committed before the cache forgets the old verdict
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestAdminChangesCommitBeforeInvalidating:
+    """A limit check running between the invalidation and the commit, on its own
+    session, re-cached the verdict the change replaced: a manual block was then
+    ignored until the cache TTL ran out."""
+
+    @staticmethod
+    async def _steps(call: str, data: object) -> list[str]:
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from uuid import uuid4
+
+        steps: list[str] = []
+        db = MagicMock()
+        db.commit = AsyncMock(side_effect=lambda: steps.append("commit"))
+        service = UsageLimitService(db)
+        service.repo = MagicMock()
+        service.repo.get_or_create_for_user = AsyncMock(return_value=SimpleNamespace())
+        response = object()
+        with (
+            patch.object(
+                UsageLimitService,
+                "invalidate_cache_static",
+                AsyncMock(side_effect=lambda _user: steps.append("invalidate")),
+            ),
+            patch.object(service, "_build_admin_response", AsyncMock(return_value=response)),
+        ):
+            result = await getattr(service, call)(uuid4(), data, uuid4())
+        assert result is response
+        return steps
+
+    async def test_a_manual_block(self) -> None:
+        from src.domains.usage_limits.schemas import UsageBlockUpdate
+
+        data = UsageBlockUpdate(is_usage_blocked=True, blocked_reason="abuse")
+        assert await self._steps("toggle_block", data) == ["commit", "invalidate"]
+
+    async def test_new_limits(self) -> None:
+        from src.domains.usage_limits.schemas import UsageLimitUpdate
+
+        data = UsageLimitUpdate(token_limit_per_cycle=1000)
+        assert await self._steps("update_limits", data) == ["commit", "invalidate"]

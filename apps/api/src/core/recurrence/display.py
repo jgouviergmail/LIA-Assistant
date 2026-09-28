@@ -248,12 +248,40 @@ def _end_clause(spec: RecurrenceSpec, language: str) -> str:
         The clause, or an empty string.
     """
     if spec.end.kind == "on_date" and spec.end.on_date is not None:
-        return get_recurrence_part("end_on_date", language).format(
-            date=_format_date(spec.end.on_date)
-        )
+        return describe_until(spec.end.on_date, language)
     if spec.end.kind == "after_count" and spec.end.after_count is not None:
         return get_recurrence_part("end_after_count", language).format(n=spec.end.after_count)
     return ""
+
+
+def describe_until(day: date, language: str) -> str:
+    """The clause that stops something on a local day, that day included.
+
+    Public because a condition routine has no recurrence yet may still stop on
+    a day (ADR-322): one wording and one date format for « until », wherever a
+    person reads it.
+
+    Args:
+        day: The last local day.
+        language: The reader's language.
+
+    Returns:
+        The clause, e.g. « jusqu'au 12/10/2026 ».
+    """
+    return get_recurrence_part("end_on_date", language).format(date=_format_date(day))
+
+
+def join_clauses(clauses: list[str], language: str) -> str:
+    """Clauses joined with the reader's separator, empty ones dropped.
+
+    Args:
+        clauses: The clauses, in reading order.
+        language: The reader's language — Chinese joins with a full-width comma.
+
+    Returns:
+        One sentence.
+    """
+    return get_recurrence_part("clause_join", language).join(clause for clause in clauses if clause)
 
 
 def describe(spec: RecurrenceSpec, language: str) -> str:
@@ -285,6 +313,4 @@ def describe(spec: RecurrenceSpec, language: str) -> str:
     )
     one_phrase = every_day and spec.interval == 1 and spec.times.mode == "at"
     sentence = f"{calendar}{tight if one_phrase else join}{times}" if times else calendar
-    if ending:
-        sentence = f"{sentence}{join}{ending}"
-    return sentence
+    return join_clauses([sentence, ending], language)

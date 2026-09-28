@@ -17,33 +17,11 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
-import { getApiErrorDetail } from '@/lib/api-error';
-import { ApiError } from '@/lib/api-client';
+import { refusalSentence } from '@/lib/api-error';
 import { useBookmarkState } from '@/lib/bookmark-state-context';
 import { logger } from '@/lib/logger';
 
 import { ActionChipButton } from './ActionChipButton';
-
-/**
- * The refusals whose `detail` the API translated (the cap, the operator's
- * switch). Any other failure shows this component's own sentence: a 404's
- * detail is an English fallback nobody should read in the chat.
- */
-const TRANSLATED_REFUSALS: ReadonlySet<number> = new Set([403, 409]);
-
-/**
- * The sentence to show for a failed toggle.
- *
- * @param error - What the toggle rejected with.
- * @param fallback - This component's own translated sentence.
- * @returns The server's translated sentence when it carries one, else the fallback.
- */
-export function refusalSentence(error: unknown, fallback: string): string {
-  if (error instanceof ApiError && TRANSLATED_REFUSALS.has(error.status)) {
-    return getApiErrorDetail(error) ?? fallback;
-  }
-  return fallback;
-}
 
 export interface BookmarkButtonProps {
   /** The archived message id the bubble carries (`metadata.message_db_id`). */

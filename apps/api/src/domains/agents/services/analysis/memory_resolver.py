@@ -8,7 +8,7 @@ This service encapsulates memory-related operations extracted from QueryAnalyzer
 4. Memory reference resolution via MemoryReferenceResolutionService
 
 Architecture (3-phase reference resolution):
-    Phase 1: LLM nano extracts references ("ma femme", "mon fils") from query
+    Phase 1: LLM nano extracts references ("my wife", "my son") from query
     Phase 2: Embed each reference separately → targeted memory search (parallel)
     Phase 3: LLM resolves references using targeted facts
 
@@ -62,10 +62,10 @@ class MemoryResolution:
     Attributes:
         facts: Relevant memory facts from broad semantic search, or None on
             error / no results. Injected into the planner context.
-        resolved: Resolved references (mappings like {"mon frère": "Jean"}),
+        resolved: Resolved references (mappings like {"my brother": "Jean"}),
             or None when resolution was skipped or failed.
         references: Relational references extracted in Phase 1 exactly as they
-            appear in the query (e.g. "mon frère", "le voisin"). Preserved even
+            appear in the query (e.g. "my brother", "the neighbour"). Preserved even
             when resolution finds no memory fact: a non-empty list is
             deterministic evidence that the query references a person (or a
             personal place) and is consumed by semantic domain expansion.
@@ -152,8 +152,8 @@ class MemoryResolver:
         """
         Extract personal/relational references that need identity resolution.
 
-        Uses a lightweight LLM call to identify references like "ma femme",
-        "mon fils", "le voisin" in the query. Language-agnostic (LLM handles
+        Uses a lightweight LLM call to identify references like "my wife",
+        "my son", "the neighbour" in the query. Language-agnostic (LLM handles
         any language).
 
         Args:

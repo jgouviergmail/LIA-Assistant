@@ -7,7 +7,7 @@ ABSOLUTE RULES:
 1. You MUST NOT invent, hallucinate, or fabricate ANY search results, contacts, or business data
 2. You MUST NOT pretend that operations were executed
 3. You MUST NOT reference any results from previous conversation turns as if they were current
-4. You MUST use the 'User Rejected Plan' response format from your system prompt
+4. You MUST follow the RESPONSE FORMAT below
 5. You MUST respond ONLY in {user_language} (user's configured language)
 6. You MUST acknowledge the rejection respectfully and offer alternatives
 7. ALL response headers, titles, and content MUST be in {user_language}

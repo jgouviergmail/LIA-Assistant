@@ -21,6 +21,7 @@ import {
   LifeBuoy,
   Phone,
   AudioLines,
+  Radio,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -672,6 +673,40 @@ function ExchangeRhythmScene({ active, labels }: SceneProps) {
   );
 }
 
+type RadioPhase = 'news' | 'day' | 'source' | 'timer';
+const RADIO_STEPS: readonly TimelineStep<RadioPhase>[] = [
+  { at: 0, state: 'news' },
+  { at: 1000, state: 'day' },
+  { at: 2200, state: 'source' },
+  { at: 3400, state: 'timer' },
+];
+
+/** A listening session moves from public news to the person's day and signs off. */
+function RadioCompanionScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(RADIO_STEPS, { active });
+  const order: readonly RadioPhase[] = ['news', 'day', 'source', 'timer'];
+  return (
+    <div className={cn(STAGE, 'justify-center gap-2')}>
+      <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-primary">
+        <Radio className="h-4 w-4 motion-safe:animate-pulse" aria-hidden="true" />
+        <span className="text-[10px] font-semibold">{labels[phase]}</span>
+      </div>
+      <div className="flex items-end gap-1" aria-hidden="true">
+        {[2, 4, 3, 5, 2, 4, 3].map((height, index) => (
+          <span
+            key={index}
+            className={cn(
+              'w-1 rounded-full bg-primary/60 transition-all duration-500 motion-reduce:transition-none',
+              index <= order.indexOf(phase) + 2 ? 'opacity-100' : 'opacity-30'
+            )}
+            style={{ height: `${height * 3}px` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
@@ -684,5 +719,6 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   pwa: PwaScene,
   phone_channel: PhoneChannelScene,
   live_band: LiveBandScene,
+  radio_companion: RadioCompanionScene,
   server_escape_hatch: ServerEscapeHatchScene,
 };

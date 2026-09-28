@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.constants import MAX_UNREAD_BROADCASTS
 from src.core.exceptions import raise_invalid_input
 from src.core.exceptions_domains import raise_usage_limit_exceeded
-from src.core.i18n import _, get_language_name
+from src.core.i18n import _, get_language_name, normalize_language, resolve_language
 from src.core.i18n_types import Language
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.notifications.models import AdminBroadcast
@@ -34,6 +34,7 @@ from src.domains.usage_limits.instance_spend import (
 )
 from src.domains.users.repository import UserRepository
 from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.cache.user_channel import user_notifications_channel
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.usage_metadata import model_name_of
 
@@ -41,9 +42,6 @@ if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
 
 logger = structlog.get_logger(__name__)
-
-# Default source language for admin broadcasts
-DEFAULT_SOURCE_LANGUAGE: Language = "fr"
 
 
 @dataclass
@@ -86,7 +84,7 @@ class BroadcastService:
         message: str,
         admin_user_id: UUID,
         expires_in_days: int | None = None,
-        source_language: Language = DEFAULT_SOURCE_LANGUAGE,
+        source_language: str | None = None,
         user_ids: list[UUID] | None = None,
     ) -> BroadcastResult:
         """
@@ -109,7 +107,9 @@ class BroadcastService:
             message: The broadcast message content
             admin_user_id: Admin user ID who is sending
             expires_in_days: Optional expiration in days (null = never)
-            source_language: Language of the original message (default: fr)
+            source_language: Language of the original message; the declared
+                one — the sending admin's own — when absent (ADR-323). Stored
+                with the broadcast: a late read translates from it.
             user_ids: Accounts to target; None = all active users
 
         Returns:
@@ -118,6 +118,7 @@ class BroadcastService:
         Raises:
             ValidationError: A selection that addresses no active account.
         """
+        source_language = resolve_language(source_language)
         expires_at = None
         if expires_in_days:
             expires_at = datetime.now(UTC) + timedelta(days=expires_in_days)
@@ -134,6 +135,7 @@ class BroadcastService:
             sent_by=admin_user_id,
             expires_at=expires_at,
             recipient_ids=addressed if is_targeted else None,
+            source_language=source_language,
         )
         await self.db.commit()
 
@@ -397,8 +399,10 @@ class BroadcastService:
         total_fcm_failed = 0
 
         for language, user_ids in users_by_language.items():
-            message = translations.get(language, translations.get(DEFAULT_SOURCE_LANGUAGE, ""))
-            fcm_title = _("Important message", language)  # type: ignore[arg-type]
+            # Every group has its entry: its translation, the original for the
+            # source's own group, the original again when a translation failed.
+            message = translations[language]
+            fcm_title = _("Important message", language)
             payload = json.dumps(
                 {
                     "type": "admin_broadcast",
@@ -409,7 +413,7 @@ class BroadcastService:
 
             # Publish to each user's SSE channel with the translated message
             for user_id in user_ids:
-                await redis.publish(f"user_notifications:{user_id}", payload)
+                await redis.publish(user_notifications_channel(user_id), payload)
 
             # Send FCM batch for this language group
             fcm_tokens = tokens_by_language.get(language, [])
@@ -433,7 +437,7 @@ class BroadcastService:
     async def get_unread_broadcasts(
         self,
         user_id: UUID,
-        user_language: Language = DEFAULT_SOURCE_LANGUAGE,
+        user_language: str | None = None,
         user_created_at: datetime | None = None,
     ) -> list[BroadcastInfo]:
         """
@@ -460,7 +464,7 @@ class BroadcastService:
 
         result = []
         for broadcast in broadcasts:
-            info = await self._to_broadcast_info(broadcast, user_language)
+            info = await self._to_broadcast_info(broadcast, resolve_language(user_language))
             result.append(info)
 
         return result
@@ -490,7 +494,7 @@ class BroadcastService:
     async def _to_broadcast_info(
         self,
         broadcast: AdminBroadcast,
-        user_language: Language = DEFAULT_SOURCE_LANGUAGE,
+        user_language: str | None = None,
     ) -> BroadcastInfo:
         """
         Convert AdminBroadcast model to BroadcastInfo schema with translation.
@@ -507,13 +511,15 @@ class BroadcastService:
         Returns:
             BroadcastInfo schema with translated message
         """
+        user_language = resolve_language(user_language)
         sender_name = None
         if broadcast.sender:
             sender_name = broadcast.sender.full_name or broadcast.sender.email
 
         # Translate message if user's language differs from source
         message = broadcast.message
-        if user_language != DEFAULT_SOURCE_LANGUAGE:
+        source_language = normalize_language(broadcast.source_language)
+        if user_language != source_language:
             cached = (broadcast.message_translations or {}).get(user_language)
             if cached:
                 message = cached
@@ -521,7 +527,7 @@ class BroadcastService:
                 try:
                     translations = await self._translate_to_languages(
                         message=message,
-                        source_language=DEFAULT_SOURCE_LANGUAGE,
+                        source_language=source_language,
                         target_languages=[user_language],
                     )
                     translated = translations.get(user_language)

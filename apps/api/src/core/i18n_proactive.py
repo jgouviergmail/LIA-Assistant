@@ -205,7 +205,7 @@ class ProactiveMessages:
     #: « 1 tickets » is the kind of seam a reader notices immediately, and zh
     #: has no plural form so both of its entries are the same sentence.
     _PEER_REMOVED_RELEASED_ONE: dict[str, str] = {
-        "fr": " {count} ticket du tableau vous est revenu.",
+        "fr": " {count} ticket du tableau t'est revenu.",
         "en": " {count} workboard ticket has come back to you.",
         "es": " {count} ticket del tablero ha vuelto a ti.",
         "de": " {count} Workboard-Ticket ist an dich zurückgegangen.",
@@ -214,7 +214,7 @@ class ProactiveMessages:
     }
 
     _PEER_REMOVED_RELEASED_MANY: dict[str, str] = {
-        "fr": " {count} tickets du tableau vous sont revenus.",
+        "fr": " {count} tickets du tableau te sont revenus.",
         "en": " {count} workboard tickets have come back to you.",
         "es": " {count} tickets del tablero han vuelto a ti.",
         "de": " {count} Workboard-Tickets sind an dich zurückgegangen.",
@@ -329,7 +329,7 @@ class ProactiveMessages:
         "es": "Tu rutina «{title}» está lista para ejecutarse. [Ejecutarla ahora]({intent_url})",
         "de": "Deine Routine „{title}“ ist bereit zur Ausführung. [Jetzt ausführen]({intent_url})",
         "it": "La tua routine «{title}» è pronta per essere eseguita. [Eseguila ora]({intent_url})",
-        "zh-CN": "您的例行任务“{title}”已准备好执行。[立即执行]({intent_url})",
+        "zh-CN": "你的例行任务“{title}”已准备好执行。[立即执行]({intent_url})",
     }
 
     @staticmethod

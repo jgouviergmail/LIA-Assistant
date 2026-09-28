@@ -1,5 +1,5 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 79 cards in
+ * Single source of truth for the "/more" small-attentions page: 80 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
@@ -198,6 +198,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'pwa',
       'phone_channel',
       'live_band',
+      'radio_companion',
       'server_escape_hatch',
     ],
   },
@@ -289,6 +290,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   pwa: MonitorSmartphone,
   phone_channel: PhoneIncoming,
   live_band: AudioLines,
+  radio_companion: Radio,
   server_escape_hatch: LifeBuoy,
   background_response: Radio,
   activity_timeline: ListTree,
@@ -377,6 +379,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   pwa: [],
   phone_channel: ['calling', 'spoken', 'answer'],
   live_band: ['status', 'you', 'working', 'lia', 'meter'],
+  radio_companion: ['news', 'day', 'source', 'timer'],
   server_escape_hatch: [],
   background_response: ['ready'],
   activity_timeline: ['entry1', 'entry2', 'entry3'],

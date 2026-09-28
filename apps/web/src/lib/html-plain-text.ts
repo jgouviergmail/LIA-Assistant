@@ -11,6 +11,8 @@
  * nothing may be fed to `dangerouslySetInnerHTML`.
  */
 
+import { decodeReference } from './markdown-references';
+
 /**
  * Recognised HTML element tags emitted by the response/display layer.
  *
@@ -20,9 +22,9 @@
  */
 const TAGS =
   'div|p|span|style|script|h[1-6]|ul|ol|li|table|thead|tbody|tr|td|th|a|strong|em|b|i|blockquote|code|pre';
-const OPEN_TAG_RE = new RegExp(`<(${TAGS})\\b[^>]*>`, 'gi');
+const OPEN_TAG_RE = new RegExp(`<(${TAGS})\\b[^<>]*>`, 'gi');
 const CLOSE_TAG_RE = new RegExp(`</(${TAGS})\\s*>`, 'gi');
-const VOID_TAG_RE = /<(?:br|hr|img)\b[^>]*\/?>/i;
+const VOID_TAG_RE = /<(?:br|hr|img)\b[^<>]*\/?>/i;
 const ATTR_TAG_RE = new RegExp(`<(?:${TAGS})\\s+[a-z-]+\\s*=\\s*["']`, 'i');
 
 /**
@@ -58,7 +60,7 @@ export function looksLikeHtml(text: string): boolean {
  * otherwise find no closing tag and swallow the rest of the document. The `\1`
  * backreference stops a `<style>` from being closed by a `</script>`.
  */
-export const BLOCK_RE = /<(head|style|script)\b[^>]*(?<!\/)>[\s\S]*?(?:<\/\1\s*>|$)/gi;
+export const BLOCK_RE = /<(head|style|script)\b[^<>]*(?<!\/)>[\s\S]*?(?:<\/\1\s*>|$)/gi;
 
 /**
  * Material Symbols icons render as `<span class="material-symbols-outlined">NAME</span>`,
@@ -69,13 +71,14 @@ export const BLOCK_RE = /<(head|style|script)\b[^>]*(?<!\/)>[\s\S]*?(?:<\/\1\s*>
  * Mirrors `_ICON_SPAN_RE` in `apps/api/src/domains/agents/display/plain_text.py`.
  */
 export const ICON_SPAN_RE =
-  /<span[^>]*class=["'][^"']*material-symbols-outlined[^"']*["'][^>]*>[^<]*<\/span\s*>/gi;
+  /<span[^<>]*class=["'][^"']*material-symbols-outlined[^"']*["'][^<>]*>[^<]*<\/span\s*>/gi;
 
 /**
- * The entities worth decoding on a client surface. Deliberately a fixed set,
- * NOT full parity with the backend's `html.unescape` — this layer is a
- * defense-in-depth net, so an exotic entity surviving verbatim is acceptable
- * where pulling in a full entity table is not.
+ * The named entities worth decoding on a client surface. Deliberately a fixed
+ * set, NOT full parity with the backend's `html.unescape` — an exotic named
+ * entity surviving verbatim is acceptable where pulling in a full entity table
+ * is not. Numeric references are all decoded (`decodeReference`): a card's
+ * escaped apostrophe is `&#x27;`, which a voice read out as typed.
  */
 export const ENTITIES: Record<string, string> = {
   '&nbsp;': ' ',
@@ -86,6 +89,9 @@ export const ENTITIES: Record<string, string> = {
   '&#39;': "'",
   '&apos;': "'",
 };
+
+/** A reference `htmlToPlainText` decodes: a numeric one, or a name of `ENTITIES`. */
+const REFERENCE_RE = /&(?:#([0-9]{1,7})|#[xX]([0-9A-Fa-f]{1,6})|(nbsp|amp|lt|gt|quot|apos));/g;
 
 /**
  * Flatten rich assistant HTML to readable MULTI-LINE plain text.
@@ -98,42 +104,61 @@ export const ENTITIES: Record<string, string> = {
  * ADR-177 vocabulary the email-oriented backend set lacks: dl/dt/dd
  * ("key : value"), details/summary, caption/figcaption.
  *
- * One deliberate divergence: entities are decoded AFTER tag stripping (the
- * historical frontend order) so a message QUOTING markup as `&lt;div&gt;`
- * keeps its literal text instead of being eaten by the strip.
+ * Entities are decoded AFTER tag stripping, in ONE pass — the server's
+ * order too since review 14: a message QUOTING markup as `&lt;div&gt;` keeps
+ * its literal text instead of being eaten by the strip, and `&amp;lt;` reads
+ * `&lt;`, never `<` (one entity after the other decoded it twice).
  *
  * A strict no-op on Markdown and plain prose (guarded by `looksLikeHtml`).
  */
 export function htmlToPlainText(text: string): string {
   if (!text || !looksLikeHtml(text)) return text;
   let out = text.replace(BLOCK_RE, ' ').replace(ICON_SPAN_RE, ' ');
-  // Links: keep the text only (backend preserve_links=False).
-  out = out.replace(/<a\s+[^>]*>([\s\S]*?)<\/a>/gi, '$1');
-  // Block structure BEFORE the generic strip — mirrors base.py steps 4-7.
-  out = out.replace(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi, '\n\n$1\n\n');
+  // Links: keep the text only (backend preserve_links=False) — each tag on
+  // its own, as the server does: paired lazily, every unclosed « <a »
+  // rescanned the text to its end.
+  out = out.replace(/<\/?a\b[^<>]*>/gi, '');
+  // Block structure BEFORE the generic strip — base.py steps 4-7, rule for
+  // rule and in their order: the voice twins read a stray « < » of the text
+  // the same way only if every tag is gone at the same step.
+  out = out.replace(/<\/?h[1-6]\b[^<>]*>/gi, '\n\n');
   out = out.replace(/<\/p>/gi, '\n\n');
+  out = out.replace(/<p[^<>]*>/gi, '');
   out = out.replace(/<\/div>/gi, '\n');
+  out = out.replace(/<div[^<>]*>/gi, '');
   out = out.replace(/<br\s*\/?>/gi, '\n');
-  out = out.replace(/<hr\b[^>]*\/?>/gi, '\n---\n');
-  out = out.replace(/<li[^>]*>/gi, '\n• ');
-  out = out.replace(/<\/?[ou]l[^>]*>/gi, '\n');
-  out = out.replace(/<tr[^>]*>/gi, '\n');
-  out = out.replace(/<t[dh][^>]*>/gi, ' ');
+  out = out.replace(/<hr\s*\/?>/gi, '\n---\n');
+  out = out.replace(/<li[^<>]*>/gi, '\n• ');
+  out = out.replace(/<\/li>/gi, '');
+  out = out.replace(/<\/?[ou]l[^<>]*>/gi, '\n');
+  out = out.replace(/<tr[^<>]*>/gi, '\n');
+  out = out.replace(/<\/tr>/gi, '');
+  out = out.replace(/<t[dh][^<>]*>/gi, ' ');
   out = out.replace(/<\/t[dh]>/gi, ' | ');
-  out = out.replace(/<\/?table[^>]*>/gi, '\n');
-  out = out.replace(/<blockquote[^>]*>/gi, '\n> ');
+  out = out.replace(/<\/?table[^<>]*>/gi, '\n');
+  out = out.replace(/<\/?t(?:body|head)[^<>]*>/gi, '');
+  out = out.replace(/<blockquote[^<>]*>/gi, '\n> ');
   out = out.replace(/<\/blockquote>/gi, '\n');
-  // ADR-177 vocabulary (absent from the backend's email-oriented set):
+  // The response vocabulary (ADR-177), base.py step 7b:
   out = out.replace(/<\/dt>/gi, ' : ');
   out = out.replace(/<\/(?:dd|dl|summary|details|figcaption|caption)>/gi, '\n');
   // Two adjacent spans (a stat's value and its label) keep a space between
   // them, or « 0créneau » is what a voice reads (mirrors base.py step 7b).
   out = out.replace(/<\/span>\s*(?=<span)/gi, ' ');
-  // Generic strip — remaining tags (incl. inline strong/em/span) drop to ''.
-  out = out.replace(/<[^>]+>/g, '');
-  for (const [entity, char] of Object.entries(ENTITIES)) {
-    out = out.split(entity).join(char);
-  }
+  // Inline emphasis tags drop BEFORE the generic strip (base.py step 8): a
+  // stray « < » of the text would otherwise run to the next tag's « > » and
+  // take the words between with it, where the server's twin keeps them.
+  out = out.replace(/<\/?(?:b|strong|i|em|u|s|strike)[^<>]*>/gi, '');
+  // Generic strip — remaining tags (incl. span) drop to ''; a tag never
+  // holds a « < », so a run of unclosed ones is read once.
+  out = out.replace(/<[^<>]+>/g, '');
+  out = out.replace(
+    REFERENCE_RE,
+    (whole: string, decimal?: string, hexadecimal?: string, name?: string) =>
+      name !== undefined
+        ? ENTITIES[`&${name};`]
+        : (decodeReference(decimal, hexadecimal, undefined) ?? whole)
+  );
   // Whitespace normalization — mirrors base.py step 10.
   out = out.replace(/[ \t]+/g, ' ');
   out = out.replace(/\n{3,}/g, '\n\n');

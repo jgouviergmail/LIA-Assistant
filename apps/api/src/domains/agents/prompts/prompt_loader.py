@@ -70,6 +70,7 @@ PromptVersion = str  # Accept any version string, validated at runtime
 # an entry without a file (or a file without an entry) fails CI.
 PromptName = Literal[
     "response_system_prompt_base",
+    "response_plan_rejection_notice",
     "response_context_sections",
     "response_prompt_lines",
     "hitl_item_filter_prompt",
@@ -134,6 +135,7 @@ PromptName = Literal[
     "interest_llm_reflection_prompt",
     "interest_subject_clustering_prompt",
     # Domain agent prompts
+    "agent_context_domain_instructions",
     "brave_agent_prompt",
     "calendar_agent_prompt",
     "contacts_agent_prompt",
@@ -230,8 +232,9 @@ PromptName = Literal[
     "psyche_legacy_compact_prompt",
     "psyche_embodied_faint",
     "psyche_embodied_proactive",
-    # HTML response formatting (when cards are disabled)
+    # Rich HTML response formatting, optionally followed by selected data cards.
     "html_response_directive",
+    "html_cards_response_directive",
     # Health Metrics — assistant agent (v1.17.2)
     "health_agent_prompt",
     # Agentic telephony (ADR-127) — LIA-side domain agent prompt, plus the
@@ -288,6 +291,13 @@ PromptName = Literal[
     "workboard_brief_approved_action",
     "workboard_brief_parent_step",
     "workboard_brief_substeps",
+    # Personal radio (ADR-324): READ BY PATH from `radio/prompting.py` and
+    # `radio/delivery.py` (`core.prompt_store`), like every domain outside agents.
+    "radio_writer_prompt",
+    "radio_analyst_prompt",
+    "radio_verifier_prompt",
+    "radio_translator_prompt",
+    "radio_delivery_lines",
 ]
 
 
@@ -314,7 +324,7 @@ def calculate_prompt_hash(content: str) -> str:
         Hexadecimal SHA256 hash string
 
     Example:
-        >>> content = "Tu es un agent..."
+        >>> content = "You are an agent..."
         >>> hash_value = calculate_prompt_hash(content)
         >>> len(hash_value)
         64

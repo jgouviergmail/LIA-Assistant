@@ -71,9 +71,9 @@ def test_summary_text_takes_the_first_paragraph_then_the_first_bullets() -> None
     paragraph = ReportSection(
         key="summary", label="S", kind=SectionKind.PARAGRAPH, paragraph="Résumé."
     )
-    assert _summary_text(MeetingReport(title="T", sections=[bullets, paragraph])) == "Résumé."
-    assert _summary_text(MeetingReport(title="T", sections=[bullets])) == "- a\n- b"
-    assert _summary_text(MeetingReport(title="T", sections=[])) == ""
+    assert _summary_text(MeetingReport(title="T", sections=[bullets, paragraph]), "en") == "Résumé."
+    assert _summary_text(MeetingReport(title="T", sections=[bullets]), "en") == "- a\n- b"
+    assert _summary_text(MeetingReport(title="T", sections=[]), "en") == ""
 
 
 def test_completion_values_carry_every_derived_fact_and_encrypt_the_transcript(
@@ -268,7 +268,18 @@ def _outcome(*, cost_eur: float | None) -> TranscriptionOutcome:
     )
 
 
-def test_summary_text_falls_back_to_the_head_of_a_transcript_section() -> None:
+@pytest.mark.parametrize(
+    ("language", "head"),
+    [
+        ("en", "S1: Première phrase."),
+        ("fr", "S1\u00a0: Première phrase."),
+        ("zh-CN", "S1：Première phrase."),
+    ],
+)
+def test_summary_text_falls_back_to_the_head_of_a_transcript_section(
+    language: str, head: str
+) -> None:
+    """Each speaker is joined to their words by the reader's punctuation."""
     transcript = ReportSection(
         key="transcript",
         label="T",
@@ -278,6 +289,6 @@ def test_summary_text_falls_back_to_the_head_of_a_transcript_section() -> None:
             TranscriptLine(speaker="S2", start=5.0, text="Seconde phrase. " * 40),
         ],
     )
-    text = _summary_text(MeetingReport(title="T", sections=[transcript]))
-    assert text.startswith("S1 : Première phrase.")
+    text = _summary_text(MeetingReport(title="T", sections=[transcript]), language)
+    assert text.startswith(head)
     assert len(text) <= 300

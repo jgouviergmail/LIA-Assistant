@@ -18,7 +18,7 @@ Usage:
                 contacts=result["contacts"],
                 query=result.get("query"),
                 user_timezone=result.get("user_timezone", "UTC"),
-                locale=result.get("locale", "fr"),
+                locale=result.get("locale", get_locale_for_language(None)),
             )
 """
 
@@ -29,7 +29,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.core.time_utils import (
     convert_email_dates_in_payload,
     convert_event_dates_in_payload,
@@ -87,7 +87,7 @@ class ToolOutputMixin:
 
     def get_user_language(self, default: str | None = None) -> str:
         """
-        Extract user_language from runtime config.
+        Read the user's language from the typed runtime context (ADR-231).
 
         Used by draft creation tools to localize HITL content in user's language.
         The runtime is resolved through ``ConnectorTool.runtime`` (task-local
@@ -95,19 +95,16 @@ class ToolOutputMixin:
         when composed with classes that expose no runtime at all.
 
         Args:
-            default: Default language if not found in config (uses settings.default_language if None)
+            default: Language returned when the runtime carries none; the
+                declared language when None (ADR-323).
 
         Returns:
             User's language code (fr, en, es, de, it, zh-CN)
         """
-        fallback = default if default is not None else settings.default_language
-        runtime = getattr(self, "runtime", None)
-        if runtime and runtime.config:
-            context = getattr(runtime, "context", None)
-            if isinstance(context, LiaRuntimeContext):
-                return context.language
-            return fallback
-        return fallback
+        context = getattr(getattr(self, "runtime", None), "context", None)
+        if isinstance(context, LiaRuntimeContext):
+            return context.language
+        return resolve_language(default)
 
     def create_registry_item(
         self,
@@ -362,12 +359,12 @@ class ToolOutputMixin:
                 radius_str = f"{radius} m"
 
             # Clear instruction for response_node
-            summary_parts.append(f"RAYON_RECHERCHE={radius_str}")
-            summary_parts.append("INSTRUCTION: Mentionner le rayon dans la réponse")
+            summary_parts.append(f"SEARCH_RADIUS={radius_str}")
+            summary_parts.append("INSTRUCTION: mention the search radius in the answer")
 
             # Add hint to widen radius if no results
             if len(places) == 0:
-                summary_parts.append("AUCUN_RESULTAT: Suggérer d'élargir le rayon")
+                summary_parts.append("NO_RESULTS: suggest widening the radius")
 
         if item_names:
             summary_parts.append(f"items: {self._build_item_preview(item_names)}")
@@ -527,7 +524,7 @@ class ToolOutputMixin:
         query: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = settings.default_language,
+        locale: str | None = None,
         **extra: Any,
     ) -> UnifiedToolOutput:
         """
@@ -601,7 +598,7 @@ class ToolOutputMixin:
                 email["from"] = sender
 
             # Convert dates to user's timezone
-            convert_email_dates_in_payload(email, user_timezone, locale)
+            convert_email_dates_in_payload(email, user_timezone, locale or resolve_language())
             # Every reader of the raw tree ran above; from here it is dead weight.
             email.pop("payload", None)
 
@@ -654,7 +651,7 @@ class ToolOutputMixin:
         time_max: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = settings.default_language,
+        locale: str | None = None,
         calendar_id: str | None = None,
         truncated: bool = False,
     ) -> UnifiedToolOutput:
@@ -679,6 +676,7 @@ class ToolOutputMixin:
         Returns:
             UnifiedToolOutput with events in registry and minimal summary for debug
         """
+        locale = locale or resolve_language()
         registry_updates: dict[str, RegistryItem] = {}
         item_ids: list[str] = []
         item_names: list[str] = []
@@ -825,7 +823,7 @@ class ToolOutputMixin:
         task_list_id: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = settings.default_language,
+        locale: str | None = None,
     ) -> UnifiedToolOutput:
         """
         Build UnifiedToolOutput for task results.
@@ -865,7 +863,7 @@ class ToolOutputMixin:
                 task["tasklist_id"] = task_list_id
 
             # Convert dates to user's timezone
-            convert_task_dates_in_payload(task, user_timezone, locale)
+            convert_task_dates_in_payload(task, user_timezone, locale or resolve_language())
 
             item_id, registry_item = self.create_registry_item(
                 item_type=RegistryItemType.TASK,
@@ -913,7 +911,7 @@ class ToolOutputMixin:
         folder_id: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = settings.default_language,
+        locale: str | None = None,
     ) -> UnifiedToolOutput:
         """
         Build UnifiedToolOutput for Drive file results.
@@ -950,7 +948,7 @@ class ToolOutputMixin:
             file["index"] = idx
 
             # Convert dates to user's timezone
-            convert_file_dates_in_payload(file, user_timezone, locale)
+            convert_file_dates_in_payload(file, user_timezone, locale or resolve_language())
 
             item_id, registry_item = self.create_registry_item(
                 item_type=RegistryItemType.FILE,
@@ -1000,7 +998,7 @@ class ToolOutputMixin:
         location: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = settings.default_language,
+        locale: str | None = None,
     ) -> UnifiedToolOutput:
         """
         Build UnifiedToolOutput for weather results.
@@ -1020,7 +1018,7 @@ class ToolOutputMixin:
         registry_updates: dict[str, RegistryItem] = {}
 
         # Convert dates to user's timezone
-        convert_weather_dates_in_payload(weather_data, user_timezone, locale)
+        convert_weather_dates_in_payload(weather_data, user_timezone, locale or resolve_language())
 
         # Generate unique key from location or coordinates
         unique_key = location or f"{weather_data.get('coord', {})}"

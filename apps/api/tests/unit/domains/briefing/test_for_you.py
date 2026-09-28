@@ -32,13 +32,16 @@ def _loop(subject="rappeler le plombier", due=None, direction="user_owes"):
     )
 
 
-def _action(title="Revue de presse IA", executed=None, next_at=None, enabled=True):
+def _action(
+    title="Revue de presse IA", executed=None, next_at=None, enabled=True, trigger_kind="time"
+):
     return SimpleNamespace(
         id=uuid4(),
         title=title,
         last_executed_at=executed,
         next_trigger_at=next_at or NOW + timedelta(hours=20),
         is_enabled=enabled,
+        trigger_kind=trigger_kind,
     )
 
 
@@ -179,6 +182,37 @@ class TestFetchForYou:
             data = await fetch_for_you(user_id=uuid4(), user_tz=TZ)
 
         assert data.next_automation is None
+
+    async def test_a_condition_routine_is_never_the_next_automation(self):
+        """Its trigger is the system's next CHECK, minutes away (ADR-322).
+
+        « Next automation in 6 min » would announce a run that only happens if
+        the awaited fact does — the scheduled routine hours later is the true
+        next one.
+        """
+        watch = _action(title="Watch", next_at=NOW + timedelta(minutes=6), trigger_kind="condition")
+        daily = _action(title="Daily", next_at=NOW + timedelta(hours=5))
+        sched_service = MagicMock()
+        sched_service.list_for_user = AsyncMock(return_value=[watch, daily])
+        with (
+            patch("src.domains.briefing.fetchers.get_db_context", new=_db_ctx()),
+            patch(
+                "src.domains.scheduled_actions.service.ScheduledActionService",
+                return_value=sched_service,
+            ),
+            patch(
+                "src.domains.briefing.fetchers.settings",
+                SimpleNamespace(
+                    open_loops_enabled=False,
+                    briefing_max_open_loops_items=3,
+                    briefing_max_mails_items=5,
+                ),
+            ),
+        ):
+            data = await fetch_for_you(user_id=uuid4(), user_tz=TZ)
+
+        assert data.next_automation is not None
+        assert data.next_automation.title == "Daily"
 
 
 @pytest.mark.unit

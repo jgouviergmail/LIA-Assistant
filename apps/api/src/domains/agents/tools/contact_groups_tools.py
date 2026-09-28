@@ -315,7 +315,7 @@ async def list_contact_groups_tool(
 async def get_contact_group_members_tool(
     group_name: Annotated[
         str,
-        "Contact group name as the user says it (e.g. 'famille', 'Collègues'). "
+        "Contact group name as the user says it (e.g. 'family', 'Colleagues'). "
         "Matched case-insensitively against the user's groups.",
     ],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,

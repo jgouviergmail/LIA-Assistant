@@ -168,7 +168,7 @@ def filter_registry_by_current_turn(
 
     # BugFix 2025-12-19: For REFERENCE turns without registry_updates,
     # use resolved_context items to filter the registry.
-    # This handles cases like "detail du premier" where the item already exists
+    # This handles cases like "details of the first" where the item already exists
     # in the registry from a previous turn and no new registry_updates are created.
     if resolved_context and resolved_context.get("items"):
         resolved_item_ids: set[str] = set()

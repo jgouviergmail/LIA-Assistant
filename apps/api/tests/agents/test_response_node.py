@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+from src.core.i18n import language_scope
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.response_node import format_agent_results_for_prompt, response_node
 from src.domains.agents.orchestration.schemas import ContactsResultData
@@ -304,7 +305,8 @@ async def test_response_node_error_handling():
                 mock_get_prompt.return_value = "mock system prompt"
                 mock_get_llm.return_value = Mock()
 
-                result = await response_node(state, config)
+                with language_scope("fr"):  # the assertion reads the French wording
+                    result = await response_node(state, config)
 
                 assert result["messages"] is not None
                 assert len(result["messages"]) == 1

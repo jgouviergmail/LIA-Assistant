@@ -18,7 +18,7 @@ def test_telephony_connector_type_exists():
 @pytest.mark.unit
 def test_telephony_is_its_own_category_and_has_display_name():
     assert get_functional_category(ConnectorType.ELEVENLABS_TELEPHONY) == "telephony"
-    assert get_connector_display_name(ConnectorType.ELEVENLABS_TELEPHONY) == "Telephony"
+    assert get_connector_display_name(ConnectorType.ELEVENLABS_TELEPHONY) == "ElevenLabs Telephony"
 
 
 @pytest.mark.unit

@@ -254,7 +254,6 @@ class RePlanContext:
 
     # Original request
     user_request: str
-    user_language: str
 
     # Plan information
     execution_plan: ExecutionPlan

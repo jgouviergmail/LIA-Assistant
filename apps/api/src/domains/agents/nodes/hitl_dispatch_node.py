@@ -42,6 +42,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
 from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import (
     DEFAULT_CONTACT_NAME,
     PEOPLE_API_FIELD_DISPLAY_NAME,
@@ -236,7 +237,7 @@ async def _build_contact_context(
 
 def _build_draft_critique_payload(
     pending_draft: PendingDraftInfo,
-    user_language: str = "fr",
+    user_language: str | None = None,
     batch_total: int = 1,
     batch_drafts: list[dict[str, Any]] | None = None,
     clarification_question: str | None = None,
@@ -303,7 +304,7 @@ def _build_draft_critique_payload(
     return {
         "action_requests": [action_request],
         "generate_question_streaming": True,
-        "user_language": user_language,
+        "user_language": resolve_language(user_language),
         "hitl_type": HitlInteractionType.DRAFT_CRITIQUE.value,
     }
 
@@ -377,7 +378,7 @@ def _process_draft_action(
 
 def _build_entity_disambiguation_payload(
     pending_disambiguation: dict[str, Any],
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> dict[str, Any]:
     """
     Build interrupt payload for entity disambiguation HITL.
@@ -403,7 +404,7 @@ def _build_entity_disambiguation_payload(
             }
         ],
         "generate_question_streaming": True,
-        "user_language": user_language,
+        "user_language": resolve_language(user_language),
         "hitl_type": HitlInteractionType.ENTITY_DISAMBIGUATION.value,
     }
 
@@ -471,7 +472,7 @@ def _process_entity_disambiguation_decision(
 
 def _build_tool_confirmation_payload(
     pending_confirmation: dict[str, Any],
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> dict[str, Any]:
     """
     Build interrupt payload for tool confirmation HITL.
@@ -494,7 +495,7 @@ def _build_tool_confirmation_payload(
             }
         ],
         "generate_question_streaming": True,
-        "user_language": user_language,
+        "user_language": resolve_language(user_language),
         "hitl_type": HitlInteractionType.TOOL_CONFIRMATION.value,
     }
 
@@ -574,7 +575,7 @@ async def hitl_dispatch_node(state: MessagesState, config: RunnableConfig) -> di
     """
     start_time = time.time()
 
-    user_language = state.get("user_language", "fr")
+    user_language = resolve_language(state.get("user_language"))
 
     # =========================================================================
     # PRIORITY 1: Draft Critique

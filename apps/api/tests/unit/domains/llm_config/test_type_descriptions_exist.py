@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from src.domains.llm_config.constants import LLM_TYPES_REGISTRY
+from src.domains.llm_config.constants import LLM_CATEGORIES_ORDER, LLM_TYPES_REGISTRY
 from tests._repo_paths import repo_root_or_skip
 
 pytestmark = pytest.mark.unit
@@ -63,6 +63,29 @@ def test_every_llm_type_description_resolves(language: str) -> None:
         f"{language}: {len(missing)} LLM type(s) whose description_key resolves to "
         f"nothing — the admin screen would render the raw key: {sorted(missing)}"
     )
+
+
+@pytest.mark.parametrize("language", LOCALES)
+def test_every_category_heading_resolves(language: str) -> None:
+    """The admin screen groups the types under ``categories.<category>``: a
+    category with no label heads its types with the raw key."""
+    tree = _translations(language)
+    missing = [
+        category
+        for category in LLM_CATEGORIES_ORDER
+        if not str(_resolve(tree, f"settings.admin.llmConfig.categories.{category}") or "").strip()
+    ]
+    assert not missing, f"{language}: categories with no heading: {missing}"
+
+
+def test_every_type_belongs_to_a_declared_category() -> None:
+    """A type in an undeclared category is drawn after all the others, under a raw key."""
+    undeclared = {
+        llm_type: meta.category
+        for llm_type, meta in LLM_TYPES_REGISTRY.items()
+        if meta.category not in LLM_CATEGORIES_ORDER
+    }
+    assert not undeclared, undeclared
 
 
 def test_the_key_is_derived_from_the_type_name() -> None:

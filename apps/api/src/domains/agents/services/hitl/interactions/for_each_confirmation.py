@@ -12,9 +12,9 @@ Features:
     - Streaming question generation
 
 Use Cases:
-    - "Envoie un email à tous mes contacts"
-    - "Crée un événement pour chaque participant"
-    - "Supprime tous les emails de Jean"
+    - "Send an e-mail to all my contacts"
+    - "Create an event for each participant"
+    - "Delete all the e-mails from Jean"
 
 Architecture:
     ScopeDetector.detect_for_each_scope() → requires_approval=True
@@ -37,14 +37,17 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_CONVERSATION_ID
-from src.core.i18n_drafts import format_hitl_item_preview
+from src.core.i18n_drafts import format_hitl_item_preview, label_separator
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
+from src.core.text_clip import clip_spelled, one_line, spell_unseen
 from src.core.time_utils import format_value_if_iso_datetime
+from src.domains.shared.markdown_literal import markdown_data_literal
 from src.infrastructure.observability.logging import get_logger
 
 from ..protocols import HitlInteractionType
 from ..registry import HitlInteractionRegistry
 from ..schemas import HitlSeverity
+from .text_tokens import text_tokens
 
 if TYPE_CHECKING:
     from langchain_core.callbacks.base import BaseCallbackHandler
@@ -52,6 +55,9 @@ if TYPE_CHECKING:
     from ..question_generator import HitlQuestionGenerator
 
 logger = get_logger(__name__)
+
+#: The longest a value of the generic item preview may be, ellipsis included.
+_PREVIEW_VALUE_MAX_CHARS = 50
 
 
 @HitlInteractionRegistry.register(HitlInteractionType.FOR_EACH_CONFIRMATION)
@@ -151,22 +157,12 @@ class ForEachConfirmationInteraction:
             item_previews=item_previews,
         )
 
-        # Stream word by word, preserving newlines
-        # Split by lines first, then by words within each line
-        token_index = 0
-        for line in message.split("\n"):
-            if line:
-                words = line.split()
-                for word in words:
-                    if token_index == 0:
-                        ttft = time.time() - start_time
-                        hitl_question_ttft_seconds.labels(type="for_each_confirmation").observe(
-                            ttft
-                        )
-                    token_index += 1
-                    yield word + " "
-            # Preserve newline after each line (except last empty splits)
-            yield "\n"
+        # Stream token by token, its lines and no-break spaces kept
+        for token_index, token in enumerate(text_tokens(message)):
+            if token_index == 0:
+                ttft = time.time() - start_time
+                hitl_question_ttft_seconds.labels(type="for_each_confirmation").observe(ttft)
+            yield token
 
         logger.debug(
             "for_each_confirmation_question_complete",
@@ -186,9 +182,7 @@ class ForEachConfirmationInteraction:
         Returns:
             The singular form for a count of one, the plural otherwise.
         """
-        if count == 1:
-            return translations.get("items_suffix_one", translations["items_suffix"])
-        return translations["items_suffix"]
+        return translations["items_suffix_one" if count == 1 else "items_suffix"]
 
     def _build_confirmation_message(
         self,
@@ -220,8 +214,7 @@ class ForEachConfirmationInteraction:
         mutation_type = self._detect_mutation_type(steps, user_language)
 
         # Build body — a count of one reads in the singular ("1 élément",
-        # never "1 éléments"; prod 2026-08-17). `.get` fallback keeps any
-        # stale translation dict from a checkpointed context harmless.
+        # never "1 éléments"; prod 2026-08-17).
         body = (
             f"{translations['operation_prefix']} {mutation_type} "
             f"**{total_affected}** {self._items_suffix(translations, total_affected)}.\n\n"
@@ -241,17 +234,23 @@ class ForEachConfirmationInteraction:
 
         # Add step details if multiple
         if len(steps) > 1:
-            body += f"**{translations['operations_header']} :**\n"
+            separator = label_separator(user_language)
+            body += f"**{translations['operations_header']}{separator.rstrip()}**\n"
             for step in steps[:5]:  # Max 5 steps displayed
-                tool_name = step.get("tool_name", "unknown")
+                # A tool's name may be a third party's (an MCP server's): data.
+                tool_name = markdown_data_literal(
+                    spell_unseen(one_line(str(step.get("tool_name") or "?")))
+                )
                 # `item_count` is the MEASURED count, stamped by the
                 # orchestrator after pre-execution (ADR-185: a count shown is
                 # a claim — exact, or absent); for_each_max is only the cap,
                 # kept as fallback for steps that never got a measurement.
                 count = step.get("item_count", step.get("for_each_max", 0))
-                body += f"- {tool_name}: {count} {self._items_suffix(translations, count)}\n"
+                body += (
+                    f"- {tool_name}{separator}{count} {self._items_suffix(translations, count)}\n"
+                )
             if len(steps) > 5:
-                body += f"- ... +{len(steps) - 5} {translations['more_suffix']}\n"
+                body += f"- {translations['and_more'].format(count=len(steps) - 5)}\n"
             body += "\n"
 
         # Confirmation question
@@ -281,7 +280,8 @@ class ForEachConfirmationInteraction:
             item_previews: List of preview dicts with key fields per item.
             total_affected: Total number of items targeted by the operation.
             translations: Localized UI strings for the FOR_EACH dialog.
-            user_language: Language code for date formatting.
+            user_language: The reader's language — the rows' nouns, dates and
+                label punctuation.
             user_timezone: User's IANA timezone for date formatting.
             steps: Optional FOR_EACH step descriptors — used to synthesize a
                 ``DraftType`` candidate from the first step's ``tool_name``.
@@ -289,7 +289,7 @@ class ForEachConfirmationInteraction:
         Returns:
             Formatted previews section string.
         """
-        section = f"**{translations['affected_items']} :**\n"
+        section = f"**{translations['affected_items']}{label_separator(user_language).rstrip()}**\n"
 
         # Try to resolve the operation to a known DraftType so the unified
         # registry-driven renderer applies. Returns ``None`` when the tool
@@ -315,7 +315,7 @@ class ForEachConfirmationInteraction:
                 for _key, value in preview.items():
                     if value is None:
                         continue
-                    str_value = " ".join(str(value).split())
+                    str_value = one_line(str(value))
                     # Format ISO datetime strings for display.
                     str_value = format_value_if_iso_datetime(
                         str_value,
@@ -324,15 +324,17 @@ class ForEachConfirmationInteraction:
                         include_time=True,
                         include_day_name=False,
                     )
-                    if len(str_value) > 50:
-                        str_value = str_value[:47] + "..."
-                    preview_parts.append(str_value)
+                    # The item's own data, on a Markdown row: drawn as itself,
+                    # spelled before it is cut so the bound holds.
+                    clipped = clip_spelled(str_value, _PREVIEW_VALUE_MAX_CHARS)
+                    preview_parts.append(markdown_data_literal(clipped))
 
                 if not preview_parts:
                     continue
 
                 if len(preview_parts) >= 2:
-                    connector = translations.get("item_date_connector", "|")
+                    # Every language declares its connector (Chinese: none).
+                    connector = translations["item_date_connector"]
                     if connector:
                         row = f"{preview_parts[0]} {connector} {preview_parts[1]}"
                     else:
@@ -346,7 +348,7 @@ class ForEachConfirmationInteraction:
         # (can happen if provider returns more items than extracted previews)
         remaining = total_affected - len(item_previews)
         if remaining > 0:
-            and_more_text = translations.get("and_more", "and {count} more...")
+            and_more_text = translations["and_more"]
             section += f"- *{and_more_text.format(count=remaining)}*\n"
 
         section += "\n"

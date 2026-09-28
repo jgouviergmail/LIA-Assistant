@@ -41,10 +41,12 @@ import structlog
 from src.core.config import settings
 from src.core.constants import (
     REMINDER_MESSAGE_MAX_TOKENS,
+    REMINDER_NOTIFICATION_MESSAGE_TYPE,
 )
 from src.core.constants import (
     REMINDER_NOTIFICATION_BATCH_LIMIT as REMINDER_BATCH_LIMIT,
 )
+from src.core.i18n import get_language_name, normalize_language
 from src.core.i18n_dates import format_elapsed, format_short_stamp, neutral_persona
 from src.core.i18n_proactive import ProactiveMessages
 from src.core.recurrence import RecurrenceSpec, describe
@@ -58,6 +60,7 @@ from src.domains.agents.prompts.prompt_loader import (
 # is resolved during the first DB query.
 from src.domains.reminders.models import Reminder  # noqa: F401
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
+from src.infrastructure.cache.user_channel import user_notifications_channel
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.output_truncation import is_output_truncated
 from src.infrastructure.llm.usage_metadata import (
@@ -262,7 +265,7 @@ async def generate_reminder_message(
         created_at_text=created_at_text,
         trigger_text=trigger_text,
         memory_section=memory_section,
-        user_language=language,
+        user_language=get_language_name(language),
         psyche_context=psyche_block,
         origin_context=origin_context,
     )
@@ -704,7 +707,7 @@ async def _notify(reminder: Reminder) -> str:
         await _settle(reminder.id, _release)
         return "skipped"
 
-    language = user.language or settings.default_language
+    language = normalize_language(user.language)
     result = await generate_reminder_message(
         original_message=reminder.original_message,
         reminder_content=reminder.content,
@@ -809,7 +812,7 @@ async def _archive(
                 role="assistant",
                 content=message,
                 metadata={
-                    "type": "reminder_notification",
+                    "type": REMINDER_NOTIFICATION_MESSAGE_TYPE,
                     "reminder_id": str(reminder.id),
                     "original_trigger_at": reminder.trigger_at.isoformat(),
                     "created_at": reminder.created_at.isoformat(),
@@ -838,7 +841,7 @@ async def _publish(reminder: Reminder, *, title: str, message: str) -> None:
         redis = await get_redis_cache()
         if redis:
             await redis.publish(
-                f"user_notifications:{reminder.user_id}",
+                user_notifications_channel(reminder.user_id),
                 json.dumps(
                     {
                         "type": "reminder",

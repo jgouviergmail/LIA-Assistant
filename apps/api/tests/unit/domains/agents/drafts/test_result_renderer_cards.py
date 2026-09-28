@@ -14,13 +14,18 @@ from typing import Any
 import pytest
 
 from src.core.constants import DRAFT_RESULT_EXCERPT_MAX_CHARS
+from src.core.i18n_drafts import EXCERPT_QUOTES
 from src.domains.agents.drafts.card_html import CardSurface
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.drafts.result_renderer import render_execution_result
+from src.domains.shared.markdown_literal import read_as_markdown
 
 pytestmark = pytest.mark.unit
 
 BODY = "Bonjour,\n\nJe voulais juste te dire que tout va bien.\n\nÀ bientôt,\nJérôme"
+#: The rows below are written in French.
+OPEN, CLOSE = EXCERPT_QUOTES["fr"]
+_NBSP = chr(0xA0)
 
 
 def _row(status: str, draft_type: str, content: dict[str, Any]) -> dict[str, Any]:
@@ -84,18 +89,34 @@ class TestARowSaysToWhomAndWhat:
         lines = rendered.splitlines()
         first = next(line for line in lines if "Tout va bien" in line)
         assert first.startswith("- ✅ **Tout va bien**")
-        assert "paul@example.org" in first
-        assert "« Bonjour, Je voulais juste te dire que tout va bien." in first
+        assert "paul@example.org" in read_as_markdown(first)
+        assert f"{OPEN}Bonjour, Je voulais juste te dire que tout va bien." in first
 
     def test_the_excerpt_is_one_bounded_line(self) -> None:
         long_body = "Ligne une.\n\n" + "mot " * 200
         rows = [_row("success", "email", {"to": "a@x", "subject": "S", "body": long_body})]
         rendered = render_execution_result(_batch("email", rows))
         row = next(line for line in rendered.splitlines() if line.startswith("- ✅"))
-        excerpt = row.split("« ", 1)[1].rsplit(" »", 1)[0]
+        excerpt = row.split(OPEN, 1)[1].rsplit(CLOSE, 1)[0]
         assert "\n" not in excerpt
         assert len(excerpt) <= DRAFT_RESULT_EXCERPT_MAX_CHARS
         assert excerpt.endswith("…")
+
+    def test_the_excerpt_is_cut_on_a_word(self) -> None:
+        """Cut at 119 characters, then an ellipsis: the last word lost its end."""
+        body = (
+            "Bonjour Paul,\n\nJe te confirme que la réunion de lundi est maintenue à dix "
+            "heures dans la grande salle, avec toute l'équipe du projet et nos deux partenaires."
+        )
+        rows = [_row("success", "email", {"to": "a@x", "subject": "S", "body": body})]
+        rendered = render_execution_result(_batch("email", rows))
+        row = next(line for line in rendered.splitlines() if line.startswith("- ✅"))
+        excerpt = row.split(OPEN, 1)[1].rsplit(CLOSE, 1)[0]
+
+        assert excerpt == (
+            "Bonjour Paul, Je te confirme que la réunion de lundi est maintenue à dix "
+            "heures dans la grande salle, avec toute…"
+        )
 
     def test_an_event_row_carries_its_place_and_its_date(self) -> None:
         rows = [
@@ -117,11 +138,11 @@ class TestARowSaysToWhomAndWhat:
     @pytest.mark.parametrize(
         ("language", "opening", "closing"),
         [
-            ("fr", "« ", " »"),
+            ("fr", f"«{_NBSP}", f"{_NBSP}»"),
             ("en", "“", "”"),
             ("de", "„", "“"),
-            ("es", "« ", " »"),
-            ("it", "« ", " »"),
+            ("es", "«", "»"),
+            ("it", "«", "»"),
             ("zh-CN", "“", "”"),
         ],
     )
@@ -144,7 +165,7 @@ class TestARowSaysToWhomAndWhat:
         ]
         rendered = render_execution_result(_batch("peer_message", rows))
         row = next(line for line in rendered.splitlines() if "Anne" in line)
-        assert "« On se voit lundi ? »" in row
+        assert f"{OPEN}On se voit lundi ?{CLOSE}" in row
 
     def test_the_label_field_is_not_repeated_among_the_fields(self) -> None:
         rendered = render_execution_result(_batch("email", TWO_MAILS))

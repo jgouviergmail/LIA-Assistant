@@ -58,6 +58,7 @@ CATEGORY_HITL = "hitl"
 CATEGORY_MEMORY = "memory"
 CATEGORY_BACKGROUND = "background"
 CATEGORY_BRIEFING = "briefing"
+CATEGORY_RADIO = "radio"
 CATEGORY_SPECIALIZED = "specialized"
 
 # Ordered category list for UI display
@@ -69,6 +70,7 @@ LLM_CATEGORIES_ORDER = [
     CATEGORY_MEMORY,
     CATEGORY_BACKGROUND,
     CATEGORY_BRIEFING,
+    CATEGORY_RADIO,
     CATEGORY_SPECIALIZED,
 ]
 
@@ -550,7 +552,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         power_tier=POWER_TIER_LOW,
     ),
     # E-mail digest (ADR-287): one short structured call per NEW message, then
-    # cached -- what "résume mes non lus" and a morning routine reason over.
+    # cached -- what "summarise my unread e-mails" and a morning routine reason over.
     "email_digest": LLMTypeMetadata(
         llm_type="email_digest",
         display_name="Email Digest",
@@ -602,6 +604,52 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         display_name="Voice Synthesis (TTS)",
         category=CATEGORY_SPECIALIZED,
         description_key="settings.admin.llmConfig.types.voice_tts",
+        required_capabilities=[],  # TTS API, not chat completions
+        required_kind=LLMModelKindEnum.tts,
+    ),
+    # Personal radio (ADR-324): a segment is written, checked and voiced by
+    # the radio's OWN slots, so an administrator tunes the station apart from
+    # the chat. The three model slots ask for a schema (verified at the call
+    # site); the voice slot names the engine a session is cast from.
+    "radio_writer": LLMTypeMetadata(
+        llm_type="radio_writer",
+        display_name="Radio Script Writer",
+        category=CATEGORY_RADIO,
+        description_key="settings.admin.llmConfig.types.radio_writer",
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_MEDIUM,
+    ),
+    "radio_analyst": LLMTypeMetadata(
+        llm_type="radio_analyst",
+        display_name="Radio Expert Analyst",
+        category=CATEGORY_RADIO,
+        description_key="settings.admin.llmConfig.types.radio_analyst",
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_HIGH,
+    ),
+    "radio_verifier": LLMTypeMetadata(
+        llm_type="radio_verifier",
+        display_name="Radio Fact Verifier",
+        category=CATEGORY_RADIO,
+        description_key="settings.admin.llmConfig.types.radio_verifier",
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_MEDIUM,
+    ),
+    # The radio page's article, translated when the listener opens it: one
+    # schema-bound answer per article, billed to that listener (ADR-324).
+    "radio_translator": LLMTypeMetadata(
+        llm_type="radio_translator",
+        display_name="Radio Article Translator",
+        category=CATEGORY_RADIO,
+        description_key="settings.admin.llmConfig.types.radio_translator",
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_LOW,
+    ),
+    "radio_voice": LLMTypeMetadata(
+        llm_type="radio_voice",
+        display_name="Radio Voices (TTS)",
+        category=CATEGORY_RADIO,
+        description_key="settings.admin.llmConfig.types.radio_voice",
         required_capabilities=[],  # TTS API, not chat completions
         required_kind=LLMModelKindEnum.tts,
     ),
@@ -1337,6 +1385,81 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=1000,
         timeout_seconds=30.0,
     ),
+    # Personal radio (ADR-324). Each call is ONE schema-bound answer; the output
+    # caps are sized for a model that bills its thinking inside them (the
+    # telephony_synthesis measurement above), so a slot routed to one still
+    # returns a whole script rather than a truncated refusal (ADR-275). The
+    # verifier's verdict grows with the lines it reads, an analysis the most:
+    # measured 2026-09-26 on dev, a verifier slot left at its provider's default
+    # reasoning stopped at exactly 4 000 tokens on three analyses of six, and
+    # each refusal threw away the paid script, analysis and voices before it —
+    # it now has the writer's room. The verifier judges and the analyst
+    # explains: both run cool; the writer writes for the ear, a little warmer.
+    # The writer's room is sized for its LONGEST programmes, thinking included:
+    # measured 2026-09-27 on dev (a writer slot reasoning « low »), a dossier, a
+    # debate or a discussion is a script of 1 to 2 k tokens, yet their calls used
+    # 3.6 to 8 k — and 7 of 12 were cut at exactly the former 8 000. A cap is
+    # billed only as far as it is used.
+    "radio_writer": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.6,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=16000,
+        timeout_seconds=90.0,
+    ),
+    "radio_analyst": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.3,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=6000,
+        timeout_seconds=90.0,
+    ),
+    "radio_verifier": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=16000,
+        timeout_seconds=60.0,
+    ),
+    # The radio page's article translator: a whole article in, a whole article
+    # out — the cap leaves room for the longest text the newsroom keeps
+    # (``newsroom.fulltext.ARTICLE_MAX_CHARS``) and for a model that bills its
+    # thinking inside it.
+    # The reader WAITS for this call (a plain request, no stream), so it ends
+    # under the edge proxy's documented 100 s read timeout: past it the page
+    # would receive the edge's error, never the original said as such.
+    "radio_translator": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.2,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=16000,
+        timeout_seconds=90.0,
+    ),
+    # The radio's voices: the free engine by default, like the chat's. A session
+    # is cast from the engine's own catalogue in the listener's language, so no
+    # voice is fixed here (``provider_config`` stays empty).
+    "radio_voice": LLMAgentConfig(
+        provider="edge",
+        model="edge-tts",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1000,  # placeholder; TTS does not produce token output
+        timeout_seconds=60.0,
+    ),
 }
 
 # NOTE: The legacy ``IMAGE_GENERATION_MODELS`` constant was removed in the
@@ -1345,7 +1468,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
 # on ``image_generation_pricing``). To declare a new image model an admin
 # adds its 9 (model, quality, size) pricing rows in Tarification LLM Image —
 # the model becomes immediately selectable in Configuration LLM and in the
-# user-facing Préférences via ``GET /image-generation/options``.
+# user-facing Preferences via ``GET /image-generation/options``.
 
 
 # Validate that REGISTRY and DEFAULTS are synchronized

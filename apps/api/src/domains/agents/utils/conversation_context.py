@@ -82,11 +82,11 @@ def format_conversation_history(
         [USER]: Another message...
 
     Example:
-        >>> messages = [HumanMessage("Bonjour"), AIMessage("Salut!")]
+        >>> messages = [HumanMessage("Hello"), AIMessage("Hi!")]
         >>> text = format_conversation_history(messages)
         >>> print(text)
-        [USER]: Bonjour
-        [ASSISTANT]: Salut!
+        [USER]: Hello
+        [ASSISTANT]: Hi!
     """
     if not messages:
         return ""

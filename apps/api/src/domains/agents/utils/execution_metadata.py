@@ -277,7 +277,6 @@ def build_execution_step_event(
     step_type: Literal["tool", "node"],
     step_name: str,
     status: Literal["started", "completed", "failed"] = "started",
-    additional_data: dict | None = None,
 ) -> dict | None:
     """
     Build a complete SSE event payload for an execution step.
@@ -288,7 +287,6 @@ def build_execution_step_event(
         step_type: Type of step ("tool" or "node")
         step_name: Name of the tool or node
         status: Status of the step ("started", "completed", "failed")
-        additional_data: Optional additional data to include in event
 
     Returns:
         SSE event dict if step should be emitted, None otherwise
@@ -334,9 +332,5 @@ def build_execution_step_event(
         "i18n_key": metadata.i18n_key,
         "category": metadata.category,
     }
-
-    # Merge additional data if provided
-    if additional_data:
-        event.update(additional_data)
 
     return event

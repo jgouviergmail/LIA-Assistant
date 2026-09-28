@@ -1,7 +1,7 @@
 """The ticket as the context system sees it (ADR-276, lot 3).
 
 Two declarations the chat needs to point at a ticket AFTER the turn that
-listed it — « passe le deuxième en cours », « celui-là » — and both live here
+listed it — « move the second one to in progress », « that one » — and both live here
 rather than in the tool module, because they are the CONTEXT's business, not
 the tools': every reader of ``CONTEXT_DOMAIN_TICKETS`` finds them in one place.
 

@@ -40,6 +40,7 @@ export async function generateMetadata({ params }: DemoPageProps): Promise<Metad
   const title = t('landing.meta.title');
   const description = t('landing.chat_mockup.aria');
   const canonicalUrl = buildLangUrl('/demo', lng);
+  const socialImage = getSiteOrigin()?.concat('/Title.png');
 
   const langAlternates: Record<string, string> = {};
   for (const l of languages) {
@@ -60,12 +61,12 @@ export async function generateMetadata({ params }: DemoPageProps): Promise<Metad
       url: canonicalUrl,
       locale: LOCALE_MAP[lng],
       alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
-      images: [{ url: '/Title.png', width: 2125, height: 1193, alt: title }],
+      images: socialImage ? [{ url: socialImage, width: 2125, height: 1193, alt: title }] : undefined,
     },
     twitter: {
       title,
       description,
-      images: ['/Title.png'],
+      images: socialImage ? [socialImage] : undefined,
     },
   };
 }

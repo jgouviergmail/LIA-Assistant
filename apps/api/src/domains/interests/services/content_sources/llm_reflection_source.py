@@ -9,7 +9,11 @@ Features:
 - Original AI-generated content
 - No external API dependencies (uses configured LLM)
 - Always available (fallback)
-- Token tracking via TrackingContext
+- Its tokens travel with the content (``ContentResult.tokens_in/out``) and are
+  billed ONCE, by the run that asked for it: the interest sweep and the
+  heartbeat enrichment both add them to what they hand the runner. Billing them
+  here too, under a run of its own, charged every reflection twice (measured on
+  dev 2026-09-27, ADR-263 amendment 2026-09-27).
 
 References:
     - Prompt: prompts/v1/interest_llm_reflection_prompt.txt
@@ -17,9 +21,6 @@ References:
 
 import uuid
 from datetime import UTC, datetime
-from uuid import UUID
-
-from langchain_core.messages import AIMessage
 
 from src.core.config import settings
 from src.core.i18n import get_language_name
@@ -29,7 +30,6 @@ from src.domains.interests.services.content_sources.base import ContentResult
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.llm.token_utils import extract_llm_tokens
-from src.infrastructure.llm.usage_metadata import tokens_from_response
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -140,16 +140,8 @@ class LLMReflectionContentSource:
             if len(content) > 500:
                 content = content[:500] + "..."
 
-            # Extract token usage from LLM response
+            # The caller bills them, under its own run (see the module docstring).
             tokens_in, tokens_out = extract_llm_tokens(result)
-
-            if user_id:
-                await self._persist_tokens(
-                    user_id=user_id,
-                    session_id=session_id,
-                    result=result,
-                    model_name=get_llm_config_for_agent(settings, "interest_content").model,
-                )
 
             logger.info(
                 "llm_reflection_source_content_generated",
@@ -185,64 +177,6 @@ class LLMReflectionContentSource:
                 error_type=type(e).__name__,
             )
             return None
-
-    async def _persist_tokens(
-        self,
-        user_id: str,
-        session_id: str,
-        result: AIMessage,
-        model_name: str,
-    ) -> None:
-        """
-        Persist token usage from LLM reflection to database.
-
-        Args:
-            user_id: User ID for statistics
-            session_id: Session ID for tracking
-            result: AIMessage with usage_metadata
-            model_name: LLM model used
-        """
-        from src.domains.chat.service import TrackingContext
-
-        try:
-            usage = tokens_from_response(result)
-            input_tokens, output_tokens = usage.prompt, usage.completion
-            if usage.is_empty:
-                return
-
-            run_id = f"llm_reflection_{uuid.uuid4().hex[:12]}"
-
-            async with TrackingContext(
-                run_id=run_id,
-                user_id=UUID(user_id),
-                session_id=session_id,
-                conversation_id=None,
-                auto_commit=False,
-            ) as tracker:
-                await tracker.record_node_tokens(
-                    node_name="interest_llm_reflection",
-                    model_name=model_name,
-                    prompt_tokens=input_tokens,
-                    completion_tokens=output_tokens,
-                    cached_tokens=usage.cached,
-                    cache_write_tokens=usage.cache_write,
-                )
-                await tracker.commit()
-
-            logger.debug(
-                "llm_reflection_tokens_persisted",
-                user_id=user_id,
-                run_id=run_id,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-            )
-
-        except Exception as e:
-            logger.error(
-                "llm_reflection_tokens_persistence_failed",
-                user_id=user_id,
-                error=str(e),
-            )
 
     def is_available(self, user_id: str | None = None) -> bool:
         """

@@ -238,13 +238,20 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     # Google Gemini series
     # A seeded model stays ``declared`` on a fresh install, so its window is
     # read HERE (see the Qwen series below).
+    # The models the pricing page lists carry their model page's input limit
+    # (ai.google.dev/gemini-api/docs/models/<name>, read 2026-09-26).
     "gemini-3.8-flash": 1_048_576,
-    "gemini-3.1-pro-preview": 1_000_000,
+    "gemini-3.7-flash": 1_048_576,
+    "gemini-3.6-flash": 1_048_576,
+    "gemini-3.5-flash-lite": 1_048_576,
+    "gemini-3.5-flash": 1_048_576,
+    "gemini-3.1-flash-lite": 1_048_576,
+    "gemini-3.1-pro-preview": 1_048_576,
     "gemini-3-pro-preview": 1_000_000,
-    "gemini-3-flash-preview": 1_000_000,
-    "gemini-2.5-pro": 1_000_000,
-    "gemini-2.5-flash": 1_000_000,
-    "gemini-2.5-flash-lite": 1_000_000,
+    "gemini-3-flash-preview": 1_048_576,
+    "gemini-2.5-pro": 1_048_576,
+    "gemini-2.5-flash": 1_048_576,
+    "gemini-2.5-flash-lite": 1_048_576,
     "gemini-2.0-flash": 1_000_000,
     "gemini-2.0-flash-lite": 1_000_000,
     "gemini-1.5-pro": 1_000_000,

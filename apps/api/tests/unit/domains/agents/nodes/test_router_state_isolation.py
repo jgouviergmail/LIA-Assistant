@@ -150,8 +150,16 @@ class TestRouterClearsPerTurnState:
             ("validation_result", None),
             ("semantic_validation", None),
             ("planner_iteration", 0),
+            ("clarification_response", None),
+            ("clarification_field", None),
+            ("needs_replan", False),
             ("initiative_iteration", 0),
             ("initiative_results", []),
+            # A plan, its steps and the planner's verdict: kept, a later turn
+            # restated the plan's failures and was judged on its verdict.
+            ("execution_plan", None),
+            ("completed_steps", {}),
+            ("planning_result", None),
         ],
     )
     async def test_per_turn_key_is_reset(self, key: str, expected: Any) -> None:
@@ -163,8 +171,14 @@ class TestRouterClearsPerTurnState:
                 "validation_result": {"stale": True},
                 "semantic_validation": {"stale": True},
                 "planner_iteration": 3,
+                "clarification_response": "the previous turn's answer",
+                "clarification_field": "subject",
+                "needs_replan": True,
                 "initiative_iteration": 2,
                 "initiative_results": [{"stale": True}],
+                "execution_plan": {"stale": True},
+                "completed_steps": {"step_1": {"success": False}},
+                "planning_result": {"success": False},
             }
         )
 
@@ -194,6 +208,8 @@ class TestRouterResetsTheReactTurn:
             "react_scripts": [{"purpose": "last turn's script", "code": "print(1)"}],
             # ADR-310: a pass of the previous turn would forbid this turn's own.
             "react_recovery_passes": [{"anchor_id": "t9", "draft": "old", "unresolved": ["A"]}],
+            # ADR-275: a cut output of the previous turn would end this one at once.
+            "react_output_truncated": True,
         }
         state = _state(HumanMessage(content="cherche jean"))
         state.update(stale)

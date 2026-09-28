@@ -7,8 +7,8 @@ the personal journals nor the psyche engine — whatever the user had enabled, a
 whatever the database said (both columns default to true). The skip was logged
 at ``debug``: nothing surfaced it.
 
-These tests pin the propagation at every hop of the chain, and the fail-closed
-behaviour when the user row cannot be loaded.
+These tests pin the propagation at every hop of the chain. A row that cannot
+be loaded never reaches the resolver: both callers answer and refuse first.
 """
 
 from __future__ import annotations
@@ -229,23 +229,12 @@ class TestPreferenceResolver:
         assert prefs.journals_enabled is False
         assert prefs.psyche_enabled is False
 
-    def test_unloadable_user_fails_closed_on_long_term_state(self) -> None:
-        """Nothing is ever written to the journals of someone we cannot identify."""
-        from src.domains.channels.preferences import resolve_channel_preferences
-
-        prefs = resolve_channel_preferences(None)
-
-        assert prefs.journals_enabled is False
-        assert prefs.psyche_enabled is False
-        assert prefs.display_name is None
-
     def test_language_fallback_is_configured_not_hardcoded(self) -> None:
         """A hardcoded "fr" was the D6 defect on the callback route."""
         from src.core.config import settings
         from src.domains.channels.preferences import resolve_channel_preferences
 
-        assert resolve_channel_preferences(None).language == settings.default_language
-        # An empty language on the row must fall back the same way.
+        # An empty language on the row falls back to the configured default.
         blank = SimpleNamespace(
             language=None,
             timezone=None,
@@ -261,7 +250,16 @@ class TestPreferenceResolver:
         from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
         from src.domains.channels.preferences import resolve_channel_preferences
 
-        assert resolve_channel_preferences(None).timezone == DEFAULT_USER_DISPLAY_TIMEZONE
+        blank = SimpleNamespace(
+            language=None,
+            timezone=None,
+            memory_enabled=True,
+            journals_enabled=True,
+            psyche_enabled=True,
+            full_name=None,
+            email=None,
+        )
+        assert resolve_channel_preferences(blank).timezone == DEFAULT_USER_DISPLAY_TIMEZONE
 
 
 @pytest.mark.unit

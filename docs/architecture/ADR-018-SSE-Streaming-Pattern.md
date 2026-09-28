@@ -1,6 +1,8 @@
 # ADR-018: SSE Streaming Pattern
 
-**Status**: ✅ IMPLEMENTED (2025-12-21)
+**Status**: ✅ IMPLEMENTED (2025-12-21) — `SSEErrorMessages.generic_error` and seven
+siblings no production code called were deleted by [ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md); `stream_error`
+classifies a failure by its HTTP status first (ADR-220)
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Real-time response streaming
 **Related Documentation**: `docs/technical/SSE_STREAMING.md`
@@ -494,19 +496,11 @@ Emitted for every node completion (pipeline + ReAct) via `stream_mode="updates"`
 }
 ```
 
-**With reasoning detail** (ReAct only):
-```json
-{
-  "type": "execution_step",
-  "metadata": {
-    "type": "execution_step",
-    "step_type": "node",
-    "step_name": "react_call_model",
-    "status": "started",
-    "detail": "I need to check the user's calendar events for Saturday..."
-  }
-}
-```
+**Reasoning detail — removed** ([ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md)):
+a ReAct step used to carry a `detail` excerpt of the model's reasoning. No writer
+produced it any more, and the frontend's readers of it went too: an execution step
+carries its node, its status and the display fields above, and no excerpt of any
+reasoning.
 
 The frontend accumulates these events in a multi-line progress message, cleared when the first response token arrives.
 

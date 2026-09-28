@@ -154,13 +154,21 @@ def test_im_clients_need_protocol_and_username(card, ctx):
         ctx,
         {"imClients": [{"protocol": "Signal", "username": "alice"}, {"protocol": "X"}]},
     )
-    assert "Signal: alice" in out
+    assert "Signal\u00a0: alice" in out  # the reader's (French) punctuation
     assert out.count("Signal") == 1  # the incomplete second entry is dropped
 
 
 def test_im_clients_snake_case_alias(card, ctx):
     out = _render(card, ctx, {"im_clients": [{"type": "XMPP", "value": "bob@x"}]})
-    assert "XMPP: bob@x" in out
+    assert "XMPP\u00a0: bob@x" in out
+
+
+def test_a_label_is_joined_to_its_value_by_the_reader_s_punctuation(card):
+    data = {"skills": [{"value": "Python"}], "imClients": [{"protocol": "Signal", "username": "a"}]}
+    english = _render(card, RenderContext(language="en"), data)
+    chinese = _render(card, RenderContext(language="zh-CN"), data)
+    assert "Signal: a" in english
+    assert "Signal：a" in chinese
 
 
 def test_events_render_formatted_date(card, ctx):
@@ -224,7 +232,7 @@ def test_maximal_output_is_nonempty_and_covers_all_sections(card, ctx):
         "Python",
         "Chess",
         "Engineer",
-        "Signal: alice",
+        "Signal\u00a0: alice",
         "Anniversary",
         "Building A",
         "Work Cal",
@@ -235,7 +243,10 @@ def test_maximal_output_is_nonempty_and_covers_all_sections(card, ctx):
 # SHA256 of the maximal render captured against the pre-decomposition code. The
 # decomposition must be pure code-motion, so this hash MUST stay identical — a
 # byte-level guard the per-section behavior tests above complement.
-_GOLDEN_MAXIMAL_SHA256 = "2749fa88a44b7d19e3ba6ed9e0592c6f068c689e198a86701388694d1c5484b5"
+# Re-captured 2026-09-26 when a label and its value became joined by the reader's
+# punctuation (ADR-323): the nine French separators put back to ": " give the
+# previous digest (2749fa88…c5484b5) exactly — nothing else moved.
+_GOLDEN_MAXIMAL_SHA256 = "f1d4a9d894bb359912bd97ef1bb046064ec016b50fc43d30b7bacc1be9eba7d4"
 
 
 def test_maximal_output_is_byte_identical_to_golden(card, ctx):

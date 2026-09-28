@@ -26,7 +26,14 @@ from src.core.field_names import (
     FIELD_RUN_ID,
     FIELD_TARGET_ID,
 )
-from src.domains.agents.display.plain_text import markdown_links_to_plain, strip_html_if_markup
+from src.core.i18n import normalize_language
+from src.domains.agents.display.plain_text import (
+    markdown_links_to_plain,
+    markdown_to_plain_text,
+    strip_html_if_markup,
+)
+from src.domains.shared.markdown_literal import read_as_markdown
+from src.infrastructure.cache.user_channel import user_notifications_channel
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
     channel_notification_errors_total,
@@ -51,7 +58,10 @@ def plain_text_for_notification(text: str) -> str:
 
     Order is load-bearing:
 
-    1. strip HTML first (Markdown/plain prose passes through untouched),
+    0. read character references as the chat reads them
+       (``read_as_markdown``) — a peer's comment quoted as « &#60;3 » reads
+       « <3 » on the lock screen, never « &#60;3 » —, then
+    1. strip HTML (Markdown/plain prose passes through untouched),
     2. flatten Markdown links to ``label (url)``,
     3. collapse the newlines the HTML stripper introduces for block elements,
        since a notification body is a single line.
@@ -74,7 +84,8 @@ def plain_text_for_notification(text: str) -> str:
     """
     if not text:
         return text
-    return _WHITESPACE_RE.sub(" ", markdown_links_to_plain(strip_html_if_markup(text))).strip()
+    flat = read_as_markdown(text, lambda part: markdown_links_to_plain(strip_html_if_markup(part)))
+    return _WHITESPACE_RE.sub(" ", flat).strip()
 
 
 @dataclass
@@ -301,7 +312,7 @@ class NotificationDispatcher:
         # Generate title if not provided
         if title is None:
             title = self._get_localized_title(
-                task_type, getattr(user, "language", settings.default_language)
+                task_type, normalize_language(getattr(user, "language", None))
             )
 
         # Build complete metadata
@@ -354,7 +365,7 @@ class NotificationDispatcher:
                 fcm_result = await self._send_fcm(
                     user=user,
                     title=title,
-                    body=self._truncate_for_notification(markdown_links_to_plain(content)),
+                    body=self._truncate_for_notification(plain_text_for_notification(content)),
                     task_type=task_type,
                     target_id=target_id,
                     db=db,
@@ -396,7 +407,10 @@ class NotificationDispatcher:
                 channel_result = await self._send_channels(
                     user_id=user.id,
                     title=title,
-                    body=markdown_links_to_plain(content),
+                    # A channel's body is escaped text (``format_notification``):
+                    # it renders neither Markdown nor HTML, so it is flattened by
+                    # the one door for such a surface, lines kept.
+                    body=markdown_to_plain_text(content),
                     task_type=f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{task_type}",
                     target_id=target_id,
                 )
@@ -525,7 +539,7 @@ class NotificationDispatcher:
             )
             return
 
-        channel = f"user_notifications:{user_id}"
+        channel = user_notifications_channel(user_id)
         payload = {
             "type": f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{task_type}",
             "content": content,

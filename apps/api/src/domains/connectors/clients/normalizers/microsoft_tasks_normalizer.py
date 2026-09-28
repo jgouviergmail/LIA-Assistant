@@ -48,7 +48,7 @@ def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
     if body_data.get("contentType") == "html" and notes:
         import re
 
-        notes = re.sub(r"<[^>]+>", "", notes).strip()
+        notes = re.sub(r"<[^<>]+>", "", notes).strip()
 
     # Status mapping
     ms_status = task.get("status", "notStarted")

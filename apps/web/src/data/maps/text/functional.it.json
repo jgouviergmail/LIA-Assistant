@@ -317,6 +317,12 @@
       "goal": "Raggiungere LIA senza schermo.",
       "src": "4fe7ee13e992"
     },
+    "f.radio": {
+      "name": "Radio personale",
+      "role": "Un'emittente su richiesta nella tua lingua: la tua giornata e le notizie dal mondo, scritte, verificate e lette per te mentre ascolti, ogni frase con la sua fonte.",
+      "goal": "Ascoltare la propria giornata e il mondo senza leggere, sapendo quanto costa.",
+      "src": "3518a88aef30"
+    },
     "f.security": {
       "name": "Account e sicurezza",
       "role": "Sessioni tramite cookie lato server, doppio fattore, attivazione da parte di un amministratore, indirizzo del chiamante impossibile da falsificare.",

@@ -27,6 +27,7 @@ from src.core.constants import (
     HTTP_MAX_KEEPALIVE_CONNECTIONS,
 )
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
+from src.core.i18n import resolve_language
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.connectors.models import ConnectorType
 
@@ -96,7 +97,9 @@ class GoogleEnvironmentClient:
                 )
             return dict(response.json())
 
-    async def get_air_quality(self, lat: float, lon: float, language: str = "en") -> dict[str, Any]:
+    async def get_air_quality(
+        self, lat: float, lon: float, language: str | None = None
+    ) -> dict[str, Any]:
         """Current air quality at a point (UAQI + local national index).
 
         Args:
@@ -113,7 +116,7 @@ class GoogleEnvironmentClient:
             GOOGLE_AIR_QUALITY_API_URL,
             json_data={
                 "location": {"latitude": lat, "longitude": lon},
-                "languageCode": language,
+                "languageCode": language or resolve_language(),
                 # The local (national) index matters to the user as much as
                 # the universal one — both are requested explicitly.
                 "extraComputations": ["LOCAL_AQI"],
@@ -139,7 +142,7 @@ class GoogleEnvironmentClient:
         }
 
     async def get_pollen_forecast(
-        self, lat: float, lon: float, days: int = 3, language: str = "en"
+        self, lat: float, lon: float, days: int = 3, language: str | None = None
     ) -> dict[str, Any]:
         """Pollen forecast at a point (grass/tree/weed types with indices).
 
@@ -161,7 +164,7 @@ class GoogleEnvironmentClient:
                 "location.latitude": lat,
                 "location.longitude": lon,
                 "days": max(1, min(days, GOOGLE_POLLEN_MAX_DAYS)),
-                "languageCode": language,
+                "languageCode": language or resolve_language(),
             },
         )
         track_google_api_call("pollen", "/v1/forecast:lookup", cached=False)

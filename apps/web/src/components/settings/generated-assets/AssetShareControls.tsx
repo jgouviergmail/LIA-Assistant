@@ -1,21 +1,24 @@
 'use client';
 
 /**
- * What the gallery says about sharing an image (ADR-316).
+ * What the gallery says about sharing a file (ADR-316, ADR-321).
  *
- * Two self-gated pieces, kept out of the grid so its render stays flat (the
+ * Three self-gated pieces, kept out of the grid so its render stays flat (the
  * complexity ratchet): the « share with a connection » action on one of the
- * person's generated images, and the line naming who shared a copy they
- * received. Each renders nothing where it does not apply.
+ * person's generated images, « send by e-mail » on any generated file, and
+ * the line naming who shared a copy they received. Each renders nothing where
+ * it does not apply.
  */
 
 import { useState } from 'react';
 import { Send } from 'lucide-react';
 
+import { EmailShareButton } from '@/components/email-share/EmailShareButton';
 import { ShareImageDialog } from '@/components/peers/ShareImageDialog';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { classifyImageExpiry } from '@/lib/image-expiry';
 import { usePeersAvailable } from '@/lib/peers/availability-context';
 import type { GeneratedAsset } from '@/types/generated-assets';
 
@@ -54,6 +57,28 @@ export function ShareAssetButton({ lng, asset, label }: AssetShareProps) {
         />
       )}
     </>
+  );
+}
+
+/**
+ * « Send by e-mail » (ADR-321), for any generated file still before its
+ * deadline: a file past it is about to be removed, and the API would refuse it.
+ */
+export function EmailAssetButton({ asset, label }: Omit<AssetShareProps, 'lng'>) {
+  // A kept file has no deadline, which reads as « unknown », never « expired ».
+  if (classifyImageExpiry(asset.expires_at, new Date()).kind === 'expired') return null;
+  return (
+    <EmailShareButton
+      variant="ghost"
+      labelName={label}
+      getSource={() => ({
+        kind: 'file',
+        attachmentId: asset.id,
+        name: asset.original_filename,
+        sizeBytes: asset.file_size,
+      })}
+      defaultSubject={label}
+    />
   );
 }
 

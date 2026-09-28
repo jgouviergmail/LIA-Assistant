@@ -507,6 +507,27 @@ class DisplayMetadata:
             raise ValueError(f"emoji should be a single emoji character: {self.emoji}")
 
 
+@dataclass(frozen=True)
+class UnattendedStandIn:
+    """The DRAFT tool a confirmation-free tool can stand in for, and when.
+
+    Declared by the stand-in itself (ADR-314, amended 2026-09-27). Where a turn
+    runs unattended (a routine), the draft tool is refused — nobody can confirm
+    its draft — and, inside a ReAct loop, its refusal names this tool and the
+    case it covers, so the loop can switch within the turn instead of reporting
+    an action it could have taken. ``effects.gate.assert_unattended_stand_ins``
+    checks at boot that the declaration can actually help.
+
+    Attributes:
+        tool: The draft tool this one stands in for.
+        when: The case it covers, in the technical English the model reads
+            (« the recipient is the user themselves »).
+    """
+
+    tool: str
+    when: str
+
+
 # ============================================================================
 # Tool Manifest
 # ============================================================================
@@ -532,7 +553,7 @@ class ToolManifest:
     - Documentation: automatic docs generation
 
     Attributes:
-        name: Unique tool name (e.g., "search_contacts_tool")
+        name: Unique tool name (e.g., "get_contacts_tool")
         agent: Owning agent name
         description: Complete description for LLM
         parameters: Parameter list with validation
@@ -665,6 +686,13 @@ class ToolManifest:
     # (POLICIES_REQUIRING_REASON): one English sentence saying why the user is
     # not asked. An exemption nobody wrote down is an omission nobody can audit.
     mutation_policy_reason: str | None = None
+
+    # ADR-314 (amended 2026-09-27): the draft tool this confirmation-free tool
+    # stands in for where nobody can confirm, and in which case — named in that
+    # draft's unattended refusal inside a ReAct loop. Measured 2026-09-27: told
+    # only that the send waited for the user, a routine that had picked
+    # send_email_tool sent nothing, while send_email_to_me_tool would have.
+    stands_in_unattended_for: UnattendedStandIn | None = None
 
     # Initiative eligibility: whether this tool can be used during the initiative phase.
     # The initiative phase performs proactive cross-domain enrichment after plan execution.

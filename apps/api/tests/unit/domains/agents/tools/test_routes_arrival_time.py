@@ -283,7 +283,7 @@ class TestI18nArrivalMessages:
         from src.core.i18n_v3 import V3Messages
 
         result = V3Messages.get_to_arrive_by("fr", "14:00", "12:30")
-        assert result == "Pour arriver à 14:00, partez à 12:30"
+        assert result == "Pour arriver à 14:00, pars à 12:30"
 
     def test_get_to_arrive_by_english(self):
         """Test English message for arrival-based route."""

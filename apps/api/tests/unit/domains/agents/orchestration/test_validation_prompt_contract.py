@@ -61,11 +61,13 @@ def test_human_message_language_constraint_targets_tool_payload_only() -> None:
     )
     human = str(messages[1].content)
     # The contradictory free-text instruction is gone…
-    assert "Respond in fr" not in human
-    # …replaced by the A/B-proven tool-only mandate + payload-language rule.
+    assert "Respond in" not in human
+    # …replaced by the A/B-proven tool-only mandate + payload-language rule,
+    # the language told by its NAME, never its code (ADR-323).
     assert "ONLY by calling the structured validation tool" in human
     assert "never as a text answer" in human
-    assert "(issues, questions) in fr" in human
+    assert "(issues, questions) in French." in human
+    assert "- User Language: French\n" in human
 
 
 def test_system_prompt_keeps_tool_only_mandate() -> None:

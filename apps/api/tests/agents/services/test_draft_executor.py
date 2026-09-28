@@ -28,6 +28,7 @@ import pytest
 pytestmark = pytest.mark.unit
 from langchain_core.runnables import RunnableConfig  # noqa: E402
 
+from src.core.i18n import language_scope  # noqa: E402
 from src.core.i18n_drafts import (  # noqa: E402
     get_draft_cancel_message,
     get_draft_success_message,
@@ -194,7 +195,16 @@ def draft_action_edit():
 
 
 class TestDraftExecutionResult:
-    """Tests for DraftExecutionResult dataclass."""
+    """Tests for DraftExecutionResult dataclass.
+
+    A result built without a language speaks the DECLARED one; the class
+    declares French, which the assertions read (ADR-323).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _french_reader(self) -> Iterator[None]:
+        with language_scope("fr"):
+            yield
 
     def test_success_result_to_dict(self):
         """Test converting success result to dict."""

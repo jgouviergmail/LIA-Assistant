@@ -1,13 +1,14 @@
 """
 Knowledge Enrichment Service - Brave Search API integration.
 
-Enrichit les réponses avec des données actualisées (Web + News) via Brave Search.
+Enriches answers with up-to-date data (Web + News) through Brave Search.
 
 Architecture:
-- Singleton service avec lazy Redis init
-- User Connector pattern: API key par utilisateur (comme Perplexity)
-- Non-bloquant: retourne None si connecteur non configuré/désactivé
-- Cache global: mêmes résultats pour tous les utilisateurs (clé basée sur query+endpoint)
+- Singleton service with lazy Redis init
+- User Connector pattern: one API key per user (like Perplexity)
+- Non-blocking: returns None when the connector is not configured or disabled
+- Global cache: the same results for every user (key built on the endpoint,
+  the language and a hash of the query)
 
 Usage:
     service = get_knowledge_enrichment_service()
@@ -37,6 +38,7 @@ from src.core.constants import (
     BRAVE_SEARCH_MAX_CONTEXT_CHARS,
     BRAVE_SEARCH_MAX_RESULTS,
 )
+from src.core.i18n import resolve_language
 from src.domains.connectors.models import ConnectorType
 from src.infrastructure.cache.base import create_cache_entry, make_query_hash, parse_cache_entry
 from src.infrastructure.observability.logging import get_logger
@@ -109,14 +111,15 @@ class KnowledgeContext:
 
 class KnowledgeEnrichmentService:
     """
-    Service singleton pour l'enrichissement des connaissances via Brave Search.
+    Singleton service enriching knowledge through Brave Search.
 
-    Pattern: Singleton avec lazy Redis init (comme PlanPatternLearner).
-    Note: Utilise ToolDependencies injecté via config pour accès DB (pas de session propre).
+    Pattern: singleton with lazy Redis init (like PlanPatternLearner).
+    Note: uses the ToolDependencies injected through the config for database
+    access (no session of its own).
 
     Thread Safety:
-        Le service utilise ToolDependencies qui fournit ConcurrencySafeConnectorService,
-        garantissant la sérialisation des accès DB concurrent.
+        The service uses ToolDependencies, which provides
+        ConcurrencySafeConnectorService and so serialises concurrent database access.
     """
 
     def __init__(self, redis_provider: RedisProvider | None = None) -> None:
@@ -124,8 +127,6 @@ class KnowledgeEnrichmentService:
         # None => fetch the process-wide client fresh on each call (never
         # cached, so close_redis() is honoured — AC-010). Tests inject a mock.
         self._redis_provider = redis_provider
-        # Per-user per-language clients (user_id:language → client)
-        self._clients: dict[str, BraveSearchClient] = {}
 
     async def _ensure_redis(self) -> Any:
         """Resolve the Redis client via the provider (never cached — AC-010)."""
@@ -143,54 +144,56 @@ class KnowledgeEnrichmentService:
             )
             return None
 
-    async def _get_client(
-        self,
+    @staticmethod
+    def _new_client(
         credentials: APIKeyCredentials,
         user_id: UUID,
-        language: str = "fr",
+        language: str | None = None,
     ) -> BraveSearchClient:
         """
-        Get or create Brave Search client for user.
+        A Brave Search client for ONE search — the caller closes it.
+
+        Never cached: the service is a process singleton, and a cache keyed
+        by person kept a rotated key for the life of the process, never
+        closed its connection pools and grew without bound.
 
         Args:
             credentials: Pre-fetched credentials from ConnectorService
             user_id: User ID for logging
-            language: Language code for search
+            language: Language code for search; the declared language
+                when absent (ADR-323)
 
         Returns:
-            BraveSearchClient instance (cached by user+language)
+            A new BraveSearchClient.
         """
-        # Cache key: user_id:language
-        cache_key = f"{user_id}:{language}"
-        if cache_key not in self._clients:
-            from src.domains.connectors.clients.brave_search_client import BraveSearchClient
+        from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 
-            self._clients[cache_key] = BraveSearchClient(
-                api_key=credentials.api_key,
-                language=language,
-                user_id=user_id,
-            )
-        return self._clients[cache_key]
+        return BraveSearchClient(
+            api_key=credentials.api_key,
+            language=language or resolve_language(),
+            user_id=user_id,
+        )
 
     async def enrich(
         self,
         keywords: list[str],
         is_news_query: bool = False,
         user_id: UUID | None = None,
-        language: str = "fr",
+        language: str | None = None,
         tool_deps: ToolDependencies | None = None,
     ) -> KnowledgeContext | None:
         """
-        Enrichir via Brave Search (Web ou News selon is_news_query).
+        Enrich through Brave Search (Web or News, per is_news_query).
 
-        Non-bloquant: retourne None si connecteur non configuré/désactivé.
+        Non-blocking: returns None when the connector is not configured or is disabled.
 
         Args:
-            keywords: Liste de keywords extraits par QueryAnalyzer
-            is_news_query: True si query demande des actualités (utilise News endpoint)
+            keywords: Keywords extracted by the QueryAnalyzer
+            is_news_query: True when the query asks for news (uses the News endpoint)
             user_id: User ID (required for user-specific API key)
-            language: Language code (fr, en, etc.)
-            tool_deps: ToolDependencies injecté depuis config (pour accès ConnectorService)
+            language: The person's language code; the declared language when
+                absent (ADR-323)
+            tool_deps: ToolDependencies injected from config (for ConnectorService access)
 
         Returns:
             KnowledgeContext or None if no enrichment available
@@ -200,6 +203,7 @@ class KnowledgeEnrichmentService:
             (feature disabled, no user_id, no tool_deps, connector not configured),
             it returns None immediately without raising exceptions.
         """
+        language = language or resolve_language()
         # Check if feature enabled globally
         if not settings.knowledge_enrichment_enabled:
             logger.debug("knowledge_enrichment_disabled")
@@ -345,8 +349,8 @@ class KnowledgeEnrichmentService:
                 )
                 return None
 
-            # Get or create client
-            client = await self._get_client(credentials, user_id, language)
+            # One client for this search, closed right after it.
+            client = self._new_client(credentials, user_id, language)
 
             # Call API with timeout + auto-set freshness for news queries (last 7 days)
             freshness = "pw" if is_news_query else None
@@ -357,7 +361,7 @@ class KnowledgeEnrichmentService:
             # brave_search_tool and silent when a node decides to run it. The
             # capability is what the register names, never the query.
             _started = perf_counter()
-            _search_failed = False
+            _search_succeeded = False
             try:
                 api_response = await asyncio.wait_for(
                     client.search(
@@ -368,18 +372,30 @@ class KnowledgeEnrichmentService:
                     ),
                     timeout=settings.brave_search_enrichment_timeout_seconds,
                 )
-            except Exception:
-                _search_failed = True
-                raise
+                # The client answers None for a refusal it swallowed — a 403, a
+                # 429, a 5xx, a network error (its None-on-error contract) — so
+                # an answer is a response, never merely a return.
+                _search_succeeded = api_response is not None
             finally:
+                # Recorded BEFORE the close: a close that fails, or a second
+                # cancellation arriving during it, must not lose the row. A
+                # cancelled search did not succeed either — success is only
+                # ever set by an answer.
                 from src.domains.agents.effects.treatments import record_treatment
 
                 record_treatment(
                     "enrichment:brave",
                     None,
-                    succeeded=not _search_failed,
+                    succeeded=_search_succeeded,
                     duration_ms=int((perf_counter() - _started) * 1000),
                 )
+                try:
+                    await client.close()
+                except Exception as exc:  # noqa: BLE001 — the answer is already in hand
+                    logger.warning(
+                        "knowledge_enrichment_client_close_failed",
+                        error_type=type(exc).__name__,
+                    )
 
             if not api_response:
                 logger.info(
@@ -522,7 +538,7 @@ class KnowledgeEnrichmentService:
 
             # If no config exists, assume enabled (default)
             if config and not config.is_enabled:
-                logger.info("brave_search_connector_disabled", reason=config.disabled_reason)
+                logger.info("brave_search_connector_disabled")
                 return False
 
             return True

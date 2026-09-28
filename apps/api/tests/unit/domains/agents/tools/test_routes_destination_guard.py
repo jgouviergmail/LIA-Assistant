@@ -44,7 +44,9 @@ class TestResolveDestinationUnresolved:
         monkeypatch.setattr(settings, "google_api_key", "test-key", raising=False)
 
         with patch("httpx.AsyncClient", _httpx_client_returning({"places": []})):
-            result = await _resolve_destination(PERSON, runtime=MagicMock(), origin_location=ORIGIN)
+            result = await _resolve_destination(
+                PERSON, runtime=MagicMock(), origin_location=ORIGIN, language="en"
+            )
 
         assert isinstance(result, _UnresolvedDestination)
         assert result.query == PERSON
@@ -64,7 +66,7 @@ class TestResolveDestinationUnresolved:
 
         with patch("httpx.AsyncClient", _httpx_client_returning(payload)):
             result = await _resolve_destination(
-                "parc de la tête d'or", runtime=MagicMock(), origin_location=ORIGIN
+                "parc de la tête d'or", runtime=MagicMock(), origin_location=ORIGIN, language="en"
             )
 
         assert isinstance(result, dict)
@@ -77,7 +79,10 @@ class TestResolveDestinationUnresolved:
 
         with patch("httpx.AsyncClient") as mock_client:
             result = await _resolve_destination(
-                "10 rue de la Paix, Paris", runtime=MagicMock(), origin_location=ORIGIN
+                "10 rue de la Paix, Paris",
+                runtime=MagicMock(),
+                origin_location=ORIGIN,
+                language="en",
             )
 
         assert result == "10 rue de la Paix, Paris"
@@ -92,7 +97,9 @@ class TestResolveDestinationUnresolved:
         failing.__aexit__ = AsyncMock(return_value=False)
 
         with patch("httpx.AsyncClient", MagicMock(return_value=failing)):
-            result = await _resolve_destination(PERSON, runtime=MagicMock(), origin_location=ORIGIN)
+            result = await _resolve_destination(
+                PERSON, runtime=MagicMock(), origin_location=ORIGIN, language="en"
+            )
 
         assert result == PERSON
 

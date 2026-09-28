@@ -11,7 +11,6 @@ Responsibilities:
 """
 
 import asyncio
-import re
 import time
 import uuid
 from collections.abc import AsyncGenerator
@@ -29,11 +28,12 @@ from src.core.field_names import (
     FIELD_RUN_ID,
     FIELD_STATUS,
 )
-from src.domains.agents.api.error_messages import SupportedLanguage
+from src.core.i18n import resolve_language
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.data_registry.message_widgets import (
     extract_persistable_widgets,
 )
+from src.domains.agents.services.hitl.interactions.text_tokens import text_tokens
 from src.domains.agents.services.streaming.trace_capture import TraceCapture
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics_agents import (
@@ -281,6 +281,10 @@ class StreamingService:
         self._cached_query_intelligence: Any | None = None
         self._cached_filtered_catalogue: Any | None = None
         self._cached_tool_scores: dict[str, Any] | None = None
+        # The draft the person acted on THIS run. The response node clears
+        # draft_action_result once it executed the draft, so the final state
+        # never carries it: captured on its way through (B8).
+        self._cached_draft_action_result: dict[str, Any] | None = None
         # Debug panel enabled flag (pre-computed by api/service.py based on user role)
         # Controls ALL debug processing: caching, building, and emitting debug_metrics
         self._debug_panel_enabled: bool = debug_panel_enabled
@@ -900,7 +904,7 @@ class StreamingService:
         task_orchestrator_node AFTER the node executes; with stream_mode
         ["values", "messages"] there is no "__end__" chunk, so the final registry is
         emitted here from the accumulated ``state``. Uses current_turn_registry
-        (filtered) with a fallback to the full registry for DISPLAY, and
+        (filtered) with a fallback only when no selection exists for DISPLAY, and
         current_turn_registry ONLY for VOICE. Mutates ``sent_registry_ids`` and
         ``self.voice_context_registry`` exactly as the inline version did.
         """
@@ -909,7 +913,11 @@ class StreamingService:
             # For VOICE: ONLY use current_turn_registry (no fallback)
             # This ensures chat mode (no tools) gets Direct TTS, not Voice LLM
             current_turn_registry = state.get("current_turn_registry")
-            display_registry = current_turn_registry or state.get("registry")
+            display_registry = (
+                current_turn_registry
+                if current_turn_registry is not None
+                else state.get("registry")
+            )
 
             if display_registry:
                 # Find new items not yet sent (for display)
@@ -944,8 +952,8 @@ class StreamingService:
                     # Capture the frame-rendering widgets for message-level
                     # persistence (same serialized shape the client merges).
                     # CURRENT TURN ONLY — never `serialized_items`: `display_registry`
-                    # above falls back to the cross-turn `registry` when this turn
-                    # produced nothing, and that fallback carries up to
+                    # above falls back to the cross-turn `registry` when no
+                    # selection exists, and that fallback carries up to
                     # REGISTRY_MAX_ITEMS entries (70 observed in production). Persisting
                     # those would attach widgets from earlier turns to a message that
                     # never displayed them — pure metadata bloat, and a stale payload
@@ -1033,8 +1041,10 @@ class StreamingService:
             # The graph checkpoint state (first values chunk) may contain a stale
             # planning_result with skill_name from the previous turn. Resetting here
             # (on the first new router decision) ensures the indicator is cleared before
-            # any new planning_result is processed for the current turn.
+            # any new planning_result is processed for the current turn. The same
+            # replay can carry a draft decision a failed response never cleared.
             self.activated_skill_name = None
+            self._cached_draft_action_result = None
 
         # 3b. Capture the CURRENT turn's primary domain (product seam, habits
         # Lot 0). Gated on routing_history_changed: the first values chunk
@@ -1320,6 +1330,13 @@ class StreamingService:
                     tools_count=len(tool_selection_result.get("all_scores", {})),
                 )
 
+            # The response clears it, so it is captured as the run goes. A
+            # stale one the checkpoint replays first (a response that failed
+            # never cleared it) is dropped on the turn's first router decision.
+            draft_action_result = chunk.get("draft_action_result")
+            if isinstance(draft_action_result, dict):
+                self._cached_draft_action_result = draft_action_result
+
             # Cache filtered_catalogue from planning_result
             # (skill_name capture moved to _capture_activated_skill — it is a
             # user-facing feature and must not be gated by the debug panel)
@@ -1347,21 +1364,21 @@ class StreamingService:
         badge). Runs on every values chunk, unconditionally — unlike
         ``_cache_debug_data`` this is NOT gated by the debug panel flag.
 
-        Guard against stale planning_result from the previous turn: the plan
-        persists in LangGraph state when the current turn skips the planner
-        (route=response). Only trust plan.metadata.skill_name when this turn
-        actually routed through the planner (state.query_intelligence.route_to).
-        Stale captures from the checkpoint chunk are cleared by the
-        activated_skill_name reset on fresh router decisions.
+        Guard against the previous turn's planning_result: the router resets
+        it on every turn, but the first values chunk replays the checkpoint
+        from BEFORE the router. Only trust plan.metadata.skill_name when the
+        turn routed through the planner (state.query_intelligence.route_to);
+        a capture from that replay is cleared by the activated_skill_name
+        reset on the turn's first router decision.
 
         Args:
             chunk: State dict from the "values" stream mode.
         """
         try:
-            # ReAct mode never runs the planner: planning_result in state is a
-            # leftover from a previous pipeline turn (route_to only knows
-            # "planner"/"response", so it cannot discriminate) — never trust it
-            # here. The legitimate ReAct badge comes from the Route 3 fallback
+            # ReAct mode never runs the planner: a planning_result seen here is
+            # a previous pipeline turn's, replayed before the router (route_to
+            # only knows "planner"/"response", so it cannot discriminate) —
+            # never trust it here. The legitimate ReAct badge comes from the Route 3 fallback
             # (activate_skill_tool calls detected in the turn's messages).
             if chunk.get("execution_mode") == "react":
                 return
@@ -1508,13 +1525,12 @@ class StreamingService:
             return sse_chunks
 
         # --- Node-level execution_step ---
-        # NOTE (reasoning streaming): react_call_model now streams its live
+        # NOTE (reasoning streaming): react_call_model streams its live
         # chain-of-thought through the dedicated "reasoning" custom channel
-        # (see infrastructure/llm/reasoning_stream.py + react_nodes.py). The
-        # post-hoc ``_extract_react_enrichment`` detail (read from the final
-        # AIMessage content in "updates" mode) is intentionally NOT attached
-        # here anymore, to avoid showing the reasoning twice (live block +
-        # trailing detail). The node-level step (emoji/label) is still emitted.
+        # (see infrastructure/llm/reasoning_stream.py + react_nodes.py). No
+        # post-hoc detail is read from the final AIMessage here: shown twice,
+        # the reasoning would repeat itself (live block + trailing detail).
+        # The node-level step (emoji/label) is still emitted.
         node_step = self._emit_execution_step(node_name)
         if node_step:
             sse_chunks.append((node_step, ""))
@@ -1536,37 +1552,6 @@ class StreamingService:
         )
 
         return sse_chunks
-
-    def _extract_react_enrichment(self, state_delta: dict[str, Any]) -> dict[str, Any] | None:
-        """
-        Extract reasoning detail from react_call_model's AIMessage.
-
-        DEPRECATED (reasoning streaming): no longer called from the hot path.
-        react_call_model now streams its live chain-of-thought via the dedicated
-        "reasoning" custom channel (infrastructure/llm/reasoning_stream.py), which
-        supersedes this post-hoc single-detail extraction. Kept for now to allow a
-        quick revert if live reasoning streaming is disabled; remove once the
-        feature is confirmed stable in production.
-
-        Args:
-            state_delta: State delta from react_call_model containing messages.
-
-        Returns:
-            Dict with "detail" key if reasoning found, None otherwise.
-        """
-        from langchain_core.messages import AIMessage
-
-        messages = state_delta.get("messages", [])
-        for msg in messages:
-            if isinstance(msg, AIMessage) and msg.content:
-                detail = self._extract_reasoning_detail(msg.content)
-                if detail:
-                    logger.debug(
-                        "react_reasoning_detail_extracted",
-                        detail_length=len(detail),
-                    )
-                    return {"detail": detail}
-        return None
 
     def _extract_react_tool_steps(
         self, state_delta: dict[str, Any]
@@ -1651,42 +1636,6 @@ class StreamingService:
             )
 
         return tool_steps
-
-    def _extract_reasoning_detail(
-        self, content: str | list[str | dict[str, Any]] | None
-    ) -> str | None:
-        """
-        Extract a truncated reasoning snippet from AIMessage content.
-
-        Handles both OpenAI format (str) and Anthropic format (list of content blocks).
-
-        Args:
-            content: AIMessage.content — str or list[dict] (Anthropic content blocks).
-
-        Returns:
-            Truncated reasoning text (max 120 chars) or None if empty.
-        """
-        if not content:
-            return None
-
-        # Normalize str (most providers) and list[dict] blocks (Gemini 3.x/Anthropic).
-        text = coerce_content_to_text(content)
-        if not text or not text.strip():
-            return None
-
-        # Strip markdown formatting
-        text = re.sub(r"[*#`_~]", "", text).strip()
-        # Collapse whitespace
-        text = re.sub(r"\s+", " ", text).strip()
-
-        if not text:
-            return None
-
-        # Truncate to 120 chars
-        if len(text) > 120:
-            text = text[:117] + "..."
-
-        return text
 
     def _emit_tool_execution_step(self, tool_name: str) -> ChatStreamChunk | None:
         """
@@ -1908,17 +1857,12 @@ class StreamingService:
 
         return sse_chunks
 
-    def _emit_execution_step(
-        self,
-        node_name: str,
-        additional_data: dict | None = None,
-    ) -> ChatStreamChunk | None:
+    def _emit_execution_step(self, node_name: str) -> ChatStreamChunk | None:
         """
         Emit execution_step event for node transition.
 
         Args:
             node_name: Name of the node (router, planner, response, etc.)
-            additional_data: Optional extra fields (e.g., {"detail": "reasoning..."})
 
         Returns:
             ChatStreamChunk with execution_step metadata or None if not visible
@@ -1929,7 +1873,6 @@ class StreamingService:
             step_type="node",
             step_name=node_name,
             status="started",
-            additional_data=additional_data,
         )
 
         if execution_event:
@@ -2018,31 +1961,6 @@ class StreamingService:
         return ChatStreamChunk(
             type="done",
             content={"message": final_message, FIELD_METADATA: metadata or {}},
-        )
-
-    def format_error_chunk(
-        self,
-        error: Exception,
-        context: dict[str, Any] | None = None,
-        language: SupportedLanguage = "fr",
-    ) -> ChatStreamChunk:
-        """Format error chunk with user-friendly message.
-
-        Never exposes raw exception types or messages to the end user.
-
-        Args:
-            error: Exception that occurred
-            context: Optional error context
-            language: User's language for localized message
-
-        Returns:
-            ChatStreamChunk with type="error" and sanitized message
-        """
-        from src.domains.agents.api.error_messages import SSEErrorMessages
-
-        return ChatStreamChunk(
-            type="error",
-            content=SSEErrorMessages.stream_error(error, language=language),
         )
 
     def format_registry_update_chunk(self, registry_items: dict[str, Any]) -> ChatStreamChunk:
@@ -2145,7 +2063,7 @@ class StreamingService:
 
         # Phase 1 HITL Streaming: Check if streaming generation is requested
         generate_streaming = interrupt_data.get("generate_question_streaming", False)
-        user_language = interrupt_data.get("user_language", settings.default_language)
+        user_language = resolve_language(interrupt_data.get("user_language"))
         # Extract user_timezone from interrupt_data or fallback to state's user_timezone
         user_timezone = interrupt_data.get("user_timezone") or chunk.get(
             "user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE
@@ -2354,11 +2272,11 @@ class StreamingService:
 
                 generated_question = fallback_question
 
-                # Stream fallback question word by word (legacy behavior)
-                for token in fallback_question.split():
+                # Stream the fallback question word by word, its typography kept
+                for token in text_tokens(fallback_question):
                     question_token_chunk = ChatStreamChunk(
                         type="hitl_question_token",
-                        content=token + " ",
+                        content=token,
                         metadata={"message_id": message_id},
                     )
                     event_type = _get_chunk_event_type(question_token_chunk.type)
@@ -2373,10 +2291,10 @@ class StreamingService:
             hitl_question = first_action.get("user_message", default_question)
             generated_question = hitl_question
 
-            for token in hitl_question.split():
+            for token in text_tokens(hitl_question):
                 question_token_chunk = ChatStreamChunk(
                     type="hitl_question_token",
-                    content=token + " ",
+                    content=token,
                     metadata={"message_id": message_id},
                 )
 
@@ -2459,7 +2377,8 @@ class StreamingService:
 
         Args:
             debug_metrics: Base debug metrics dict (from query_intelligence.to_debug_metrics())
-            state: Final state dict with all data
+            state: Final state dict with all data — the draft decision this run
+                captured is put back, since the response node clears it
             run_id: Run ID for logging
             db_aggregated: Optional DB-aggregated token summary (includes prior HITL requests)
         """
@@ -2467,6 +2386,9 @@ class StreamingService:
             DebugMetricsBuilder,
         )
 
+        # The run's view: the draft decision the response node cleared.
+        if self._cached_draft_action_result and not state.get("draft_action_result"):
+            state = {**state, "draft_action_result": self._cached_draft_action_result}
         DebugMetricsBuilder(
             tracker=self.tracker,
             cached_filtered_catalogue=self._cached_filtered_catalogue,

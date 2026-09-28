@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { makeScheduledAction } from '@/__tests__/factories';
+import { makeConditionRoutine, makeScheduledAction } from '@/__tests__/factories';
 
 import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 
@@ -41,10 +41,8 @@ import { numberByTriggerTime } from '@/lib/scheduled-actions';
 
 import { ScheduledActionsTimeline } from '../ScheduledActionsTimeline';
 
-
 /** Wednesday 5 August 2026, 12:00 Paris. */
 const NOW = new Date('2026-08-05T10:00:00Z');
-
 
 /**
  * A routine firing Monday and Wednesday at 08:05.
@@ -64,6 +62,11 @@ function routine(over: Partial<ScheduledAction> = {}): ScheduledAction {
     ],
     ...over,
   });
+}
+
+/** A condition routine: no schedule of its own — its chips come from `/week`. */
+function watch(over: Partial<ScheduledAction> = {}): ScheduledAction {
+  return makeConditionRoutine({ id: 'r', title: 'Morning brief', ...over });
 }
 
 function week(over: Partial<ScheduledActionWeekResponse['actions'][number]> = {}) {
@@ -248,13 +251,43 @@ describe('ScheduledActionsTimeline — the chips', () => {
   });
 
   it('marks a condition routine on its chip', () => {
-    render(
-      [routine({ trigger_kind: 'condition', condition_config: { type: 'task_overdue' } })],
-      null
-    );
+    render([watch()], week());
 
     const [first] = screen.getAllByRole('button', { name: /Morning brief/ });
     expect(first?.querySelector('[data-kind]')).toHaveAttribute('data-kind', 'condition');
+  });
+
+  it('draws a watch where it FIRED, never on a schedule it does not have (ADR-322)', () => {
+    // The two cells of `week()` are this watch's fires: Monday a run that
+    // answered, Wednesday one whose outcome is not in yet.
+    render([watch()], week());
+
+    const chips = screen.getAllByRole('button', { name: /Morning brief/ });
+    expect(chips.map(chip => chip.getAttribute('data-tone'))).toEqual(['success', 'idle']);
+  });
+
+  it('a watch that never fired this week draws no chip', () => {
+    render([watch()], week({ cells: [] }));
+
+    expect(screen.queryByRole('button', { name: /Morning brief/ })).not.toBeInTheDocument();
+  });
+
+  it('two fires in one hour are two chips', () => {
+    // Keyed by routine, React folded them into one.
+    const fire = (minute: number) => ({
+      day: 1,
+      date: '2026-08-03',
+      slot_at: `2026-08-03T07:${String(minute).padStart(2, '0')}:00Z`,
+      hour: 9,
+      minute,
+      outcome: 'success' as const,
+      run_at: null,
+      error: null,
+      manual: false,
+    });
+    render([watch()], week({ cells: [fire(10), fire(40)] }));
+
+    expect(screen.getAllByRole('button', { name: /Morning brief/ })).toHaveLength(2);
   });
 
   it('takes the reader to the card when a chip is activated', async () => {
@@ -325,22 +358,22 @@ describe('ScheduledActionsTimeline — the legend', () => {
 describe('ScheduledActionsTimeline — the grid is one tab stop', () => {
   const two = () => [
     routine({
-          id: 'early',
-          title: 'Early',
-          times_of_day: ['08:00'],
-          week_slots: [
-            { day: 1, date: '2026-08-03', slot_at: '2026-08-03T06:00:00Z', hour: 8, minute: 0 },
-            { day: 3, date: '2026-08-05', slot_at: '2026-08-05T06:00:00Z', hour: 8, minute: 0 },
-          ],
-        }),
+      id: 'early',
+      title: 'Early',
+      times_of_day: ['08:00'],
+      week_slots: [
+        { day: 1, date: '2026-08-03', slot_at: '2026-08-03T06:00:00Z', hour: 8, minute: 0 },
+        { day: 3, date: '2026-08-05', slot_at: '2026-08-05T06:00:00Z', hour: 8, minute: 0 },
+      ],
+    }),
     routine({
-          id: 'late',
-          title: 'Late',
-          times_of_day: ['09:00'],
-          week_slots: [
-            { day: 1, date: '2026-08-03', slot_at: '2026-08-03T07:00:00Z', hour: 9, minute: 0 },
-          ],
-        }),
+      id: 'late',
+      title: 'Late',
+      times_of_day: ['09:00'],
+      week_slots: [
+        { day: 1, date: '2026-08-03', slot_at: '2026-08-03T07:00:00Z', hour: 9, minute: 0 },
+      ],
+    }),
   ];
 
   it('puts only the first chip in the tab order', () => {

@@ -26,7 +26,7 @@ Usage (New - UnifiedToolOutput):
     async def create_reminder_tool(...) -> UnifiedToolOutput:
         reminder = await create_reminder(...)
         return UnifiedToolOutput.action_success(
-            message=f"🔔 Rappel créé pour {formatted_time}",
+            message=APIMessages.reminder_created(formatted_time, locale),
             structured_data={"reminder_id": str(reminder.id)},
         )
 
@@ -389,7 +389,7 @@ class UnifiedToolOutput(BaseModel):
     Examples:
         # Action confirmation (reminders, etc.)
         >>> output = UnifiedToolOutput.action_success(
-        ...     message="🔔 Rappel créé pour demain à 10h",
+        ...     message="🔔 Reminder set for tomorrow at 10:00",
         ...     structured_data={"reminder_id": "abc123"},
         ... )
 
@@ -505,7 +505,7 @@ class UnifiedToolOutput(BaseModel):
 
         Example:
             >>> output = UnifiedToolOutput.action_success(
-            ...     message="🔔 Rappel créé pour demain à 10h",
+            ...     message="🔔 Reminder set for tomorrow at 10:00",
             ...     structured_data={"reminder_id": "abc123", "trigger_at": "2025-12-30T10:00:00"},
             ... )
         """

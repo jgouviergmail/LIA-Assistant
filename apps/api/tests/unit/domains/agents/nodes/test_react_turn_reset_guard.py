@@ -11,9 +11,9 @@ anywhere. ``react_productive_iterations`` (ADR-248) had the same gap, pointing
 the other way: the adaptive budget of ADR-238 was silently extended to the
 ceiling from the first turns on.
 
-A routine (one thread per ``scheduled_action`` for its whole life) and a
-workboard ticket (one thread per ticket) would have reached the same wall,
-slower, and then run every execution without doing anything.
+The thread is the account's ONE conversation: the chat, the voice relays,
+every routine and every workboard ticket run in it, so all of them reached
+the same wall and ran every later execution without doing anything.
 
 The rule this module keeps: **what a ReAct turn starts with is declared ONCE**
 (:func:`react_turn_reset`), the router spreads the declaration, and any key the

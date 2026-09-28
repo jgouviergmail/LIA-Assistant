@@ -290,6 +290,20 @@ class TestEntityResolutionServiceResolveForAction:
         assert result.disambiguation_context is not None
         assert result.disambiguation_context["disambiguation_type"] == "multiple_fields"
         assert len(result.disambiguation_context["candidates"]) == 2
+        assert result.disambiguation_context["target_field"] == "email"
+
+    def test_the_field_is_named_as_the_question_names_it(self, service):
+        """``phoneNumbers`` stripped of its « s » named ``phoneNumber``, a field
+        the question has no sentence for."""
+        result = service.resolve_for_action(
+            items=[{"name": "Jean Dupont", "phoneNumbers": ["+33 1", "+33 2"]}],
+            domain="contacts",
+            original_query="Jean Dupont",
+            intended_action="call",
+        )
+
+        assert result.status == ResolutionStatus.DISAMBIGUATION_NEEDED
+        assert result.disambiguation_context["target_field"] == "phone"
 
     @patch("src.domains.agents.context.entity_resolution.ContextTypeRegistry")
     def test_disambiguation_for_multiple_items(self, mock_registry, service):

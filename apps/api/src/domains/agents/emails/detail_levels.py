@@ -1,7 +1,7 @@
 """What a message carries at each detail level, and how a long body is served (ADR-287).
 
-The assistant REASONS over e-mails — « résume mes non lus », « synthèse des
-newsletters de la semaine », a morning routine — so ``get_emails_tool`` serves
+The assistant REASONS over e-mails — « summarise my unread e-mails », « digest of
+this week's newsletters », a morning routine — so ``get_emails_tool`` serves
 three levels chosen by the question:
 
 - ``metadata``: sender, subject, date, snippet, labels, attachments; no body,

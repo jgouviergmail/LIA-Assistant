@@ -38,7 +38,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
+from src.core.i18n import language_scope, normalize_language
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import (
@@ -488,7 +488,11 @@ class ProactiveTaskRunner:
 
             # Eligibility passed all checks
             _record_eligibility("eligible")
-            return await self._serve_user(user, db, stats, run_id)
+            # A sweep has no request: whatever it writes for this person without
+            # an explicit language speaks theirs (ADR-323). Scoped — the sweep
+            # serves its users one after the other in one task.
+            with language_scope(getattr(user, "language", None)):
+                return await self._serve_user(user, db, stats, run_id)
 
     def _count_content_source(self, result: Any) -> None:
         """Count the content source (wikipedia, perplexity, llm_reflection…).
@@ -581,9 +585,7 @@ class ProactiveTaskRunner:
             return False
 
         # 4. Generate content
-        user_language = (
-            getattr(user, "language", settings.default_language) or settings.default_language
-        )
+        user_language = normalize_language(getattr(user, "language", None))
         result = await self.task.generate_content(user.id, target, user_language)
 
         if not result.success or not result.content:
@@ -595,6 +597,9 @@ class ProactiveTaskRunner:
                 error=result.error,
             )
             stats.record_failure("content_generation_failed")
+            # A generation that broke after its model call still spent: billed,
+            # and filed as failed (a result that spent nothing bills nothing).
+            await self._bill(user, result, target, run_id, conversation_id=None, failed=True)
             return False
 
         self._count_content_source(result)
@@ -604,7 +609,6 @@ class ProactiveTaskRunner:
         # what makes the LEFT JOIN in get_messages_with_token_summaries()
         # resolve for history queries. The run id itself was minted above, so
         # what the sweep READ and what it COST point at each other.
-        target_id_for_tracking = result.target_id or str(getattr(target, "id", "unknown"))
         cost_eur = self._stamp_cost_metadata(result, run_id, user_id=str(user.id))
 
         # 5. Dispatch notification
@@ -647,6 +651,15 @@ class ProactiveTaskRunner:
                 error=notification_result.error,
             )
             stats.record_failure("dispatch_failed")
+            # Written and paid for, delivered to nobody: billed all the same.
+            await self._bill(
+                user,
+                result,
+                target,
+                run_id,
+                conversation_id=notification_result.conversation_id,
+                failed=True,
+            )
             return False
 
         # Track per-channel notification delivery + tokens/cost (dashboard 13).
@@ -674,18 +687,13 @@ class ProactiveTaskRunner:
             )
 
         # 6. Track tokens (autonomous transaction - each component manages its own)
-        tracked_run_id = await track_proactive_tokens(
-            user_id=user.id,
-            task_type=self.task.task_type,
-            target_id=target_id_for_tracking,
+        tracked_run_id = await self._bill(
+            user,
+            result,
+            target,
+            run_id,
             conversation_id=notification_result.conversation_id,
-            tokens_in=result.tokens_in,
-            tokens_out=result.tokens_out,
-            tokens_cache=result.tokens_cache,
-            tokens_cache_write=result.tokens_cache_write,
-            model_name=result.model_name,
-            run_id=run_id,
-            source="proactive",
+            failed=False,
         )
 
         # 7. Call task's on_notification_sent hook
@@ -711,6 +719,49 @@ class ProactiveTaskRunner:
         )
 
         return True
+
+    async def _bill(
+        self,
+        user: Any,
+        result: Any,
+        target: Any,
+        run_id: str,
+        *,
+        conversation_id: UUID | None,
+        failed: bool,
+    ) -> str | None:
+        """Bill what the service of this account spent, under its run — never raises.
+
+        Every path that reached a model call goes through here, delivered or
+        not (ADR-272: a euro the provider billed is recorded whatever happened
+        next), and the funnel files the run in the decision register — as
+        ``failed`` when it did not deliver.
+
+        Args:
+            user: The account served.
+            result: The task's generation, with the tokens it spent.
+            target: What the task selected (its id names the run's session).
+            run_id: The correlation key the service's reads are filed under.
+            conversation_id: The conversation the notification reached, if any.
+            failed: Whether the service spent without delivering.
+
+        Returns:
+            The run id when something was billed, else None.
+        """
+        return await track_proactive_tokens(
+            user_id=user.id,
+            task_type=self.task.task_type,
+            target_id=result.target_id or str(getattr(target, "id", "unknown")),
+            conversation_id=conversation_id,
+            tokens_in=result.tokens_in,
+            tokens_out=result.tokens_out,
+            tokens_cache=result.tokens_cache,
+            tokens_cache_write=result.tokens_cache_write,
+            model_name=result.model_name,
+            run_id=run_id,
+            source="proactive",
+            failed=failed,
+        )
 
     async def _dispatch_notification(
         self,

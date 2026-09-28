@@ -78,8 +78,12 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     # --- Out of turn, billed to the account that benefits ------------------
     "domains/agents/services/open_loop_extractor.py": SpendRoad.ACCOUNTED,
     "domains/briefing/llm.py": SpendRoad.ACCOUNTED,
-    "domains/interests/services/content_sources/llm_reflection_source.py": SpendRoad.ACCOUNTED,
     "domains/psyche/service.py": SpendRoad.ACCOUNTED,
+    # The personal radio (ADR-324): a session's own TrackingContext, committed
+    # after every production — the run's row is the live cost the player shows.
+    # ``bound_call`` also serves the radio page's article translation
+    # (``radio/articles.py``), which opens a TrackingContext of its own per reading.
+    "domains/radio/adapters.py": SpendRoad.ACCOUNTED,
     # The two telephony syntheses spend through ONE usage record whose
     # tracking door lives in ``telephony/synthesis_usage.py`` (extracted in
     # lot 4 so the owner path never imports the third-party one).
@@ -94,6 +98,11 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     # --- Spends through a caller that accounts for it ----------------------
     "domains/heartbeat/prompts.py": SpendRoad.CALLER,
     "domains/interests/proactive_task.py": SpendRoad.CALLER,
+    # A reflection's tokens travel with its content to the sweep that asked for
+    # it — the interest sweep or the heartbeat's enrichment — and are billed
+    # there, once: billed here as well, every reflection was charged twice
+    # (ADR-263 amendment 2026-09-27).
+    "domains/interests/services/content_sources/llm_reflection_source.py": SpendRoad.CALLER,
     "domains/journals/consolidation_service.py": SpendRoad.CALLER,
     "domains/meetings/synthesis.py": SpendRoad.CALLER,
     "domains/meetings/template_resolution.py": SpendRoad.CALLER,
@@ -163,6 +172,9 @@ INSTANCE_GATE_EXEMPT: dict[str, str] = {
 CALLER_ROAD_ACCOUNTANTS: dict[str, str] = {
     "domains/heartbeat/prompts.py": "domains/heartbeat/proactive_task.py",
     "domains/interests/proactive_task.py": "infrastructure/proactive/runner.py",
+    "domains/interests/services/content_sources/llm_reflection_source.py": (
+        "infrastructure/proactive/runner.py"
+    ),
     "domains/journals/consolidation_service.py": "domains/journals/extraction_service.py",
     "domains/meetings/synthesis.py": "domains/meetings/processing.py",
     "domains/meetings/template_resolution.py": "domains/meetings/processing.py",

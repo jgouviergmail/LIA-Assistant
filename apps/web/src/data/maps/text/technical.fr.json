@@ -272,6 +272,11 @@
       "role": "LIA lit sa propre télémétrie, rassemble les preuves d'un incident au moment où il survient et en garde la mémoire.",
       "stack": ["Lecture Prometheus / Loki / Alertmanager", "Preuves par recette"]
     },
+    "t.radio": {
+      "name": "Radio : rédaction et antenne",
+      "role": "Une rédaction d'instance lit les flux publics sans modèle ; une antenne par auditeur décide par une grille déterministe, fait écrire et vérifier chaque segment, le fait dire et le mixe — seulement tant que quelqu'un écoute.",
+      "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"]
+    },
     "t.postgres": {
       "name": "PostgreSQL et pgvector",
       "role": "La source de vérité : comptes, conversations, checkpoints du graphe, vecteurs ; migrations en chaîne unique, sessions qui ne vivent pas plus longtemps que leurs requêtes.",

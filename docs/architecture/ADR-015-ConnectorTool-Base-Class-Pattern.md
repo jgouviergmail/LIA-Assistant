@@ -1,6 +1,8 @@
 # ADR-015: ConnectorTool Base Class Pattern
 
-**Status**: ✅ IMPLEMENTED (2025-12-21)
+**Status**: ✅ IMPLEMENTED (2025-12-21) — the sample below shows the base class
+calling a `create_client_factory` hook; no released version of the class called
+it (v1.0.0 already did not), and the unused hook was deleted by [ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md)
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Refactoring tools pour éliminer duplication
 **Related Documentation**: `docs/technical/CONNECTORS_PATTERNS.md`

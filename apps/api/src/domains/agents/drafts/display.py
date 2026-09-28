@@ -36,6 +36,7 @@ Created: 2026-05-17 (ADR-085: Draft Display Registry)
 from dataclasses import dataclass
 from typing import NamedTuple
 
+from src.core.text_clip import one_line, spell_unseen
 from src.domains.agents.drafts.models import DraftType
 
 
@@ -52,12 +53,16 @@ class DraftDisplayField(NamedTuple):
         is_datetime: When True, the value is formatted via
             :func:`src.core.time_utils.format_datetime_for_display` using the
             user's locale and timezone.
+        is_link: When True, a value that is a URL a card may draw as a link
+            (``card_spec.linkable``) is drawn as one, its words the label;
+            any other field shows its value as data, a URL included.
     """
 
     content_key: str
     emoji: str
     label_key: str
     is_datetime: bool = False
+    is_link: bool = False
 
 
 @dataclass(frozen=True)
@@ -177,7 +182,7 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
             DraftDisplayField("attendees", "\U0001f465", "attendees"),
             # Filled by execute_event_draft from the provider response (the
             # join URL actually created — never the requested flag).
-            DraftDisplayField("conference_link", "\U0001f3a5", "video_conference"),
+            DraftDisplayField("conference_link", "\U0001f3a5", "video_conference", is_link=True),
             DraftDisplayField("description", "\U0001f4dd", "body"),
         ),
         noun_key="event",
@@ -366,10 +371,7 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         emoji="🛠",  # 🛠
         item_label_fields=("tool_label",),
         item_secondary_datetime_key=None,
-        detail_fields=(
-            DraftDisplayField("tool_label", "🛠", "tool"),
-            DraftDisplayField("args_summary", "📝", "details"),
-        ),
+        detail_fields=(DraftDisplayField("tool_label", "🛠", "tool"),),
         noun_key="action",
         verb_past_key="executed",
     ),
@@ -566,6 +568,32 @@ def resolve_nested_value(content: dict, dotted_key: str) -> object | None:
     return current
 
 
+def item_label(config: DraftDisplayConfig | None, content: dict) -> str:
+    """The name of ONE draft, as every surface draws it.
+
+    The first of the registry's ``item_label_fields`` whose value, on one line
+    (``one_line``), says something — spelled where it would mislead
+    (``spell_unseen``: a bidirectional override, or nothing visible at all).
+    One reading for a confirmation card's
+    title, a batch row's label and a result's item label: three copies of this
+    loop named one draft three ways, and a value of spaces alone titled a card
+    with nothing.
+
+    Args:
+        config: The type's display configuration (None: no label).
+        content: The draft's stored content.
+
+    Returns:
+        The label on one line, or ``""`` when no field names the draft.
+    """
+    for key in config.item_label_fields if config else ():
+        value = resolve_nested_value(content, key)
+        label = spell_unseen(one_line(str(value))) if value else ""
+        if label:
+            return label
+    return ""
+
+
 def assert_registry_completeness() -> None:
     """Assert every ``DraftType`` value has a display configuration.
 
@@ -594,5 +622,6 @@ __all__ = [
     "assert_registry_completeness",
     "get_draft_display_config",
     "get_draft_emoji",
+    "item_label",
     "resolve_nested_value",
 ]

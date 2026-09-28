@@ -206,6 +206,10 @@ def configure_logging() -> None:
     # (seen in the dev API log, 2026-09-22). A secret never reaches a log line,
     # whatever LOG_LEVEL an operator sets for debugging.
     logging.getLogger("telegram").setLevel(logging.INFO)
+    # readability-lxml logs a full traceback at ERROR for every page it cannot
+    # parse, then raises it as `Unparseable`; the radio newsroom reads that as
+    # an ordinary outcome (the page holds no article), so the line is noise.
+    logging.getLogger("readability").setLevel(logging.CRITICAL)
 
     logger = structlog.get_logger(__name__)
     logger.info(

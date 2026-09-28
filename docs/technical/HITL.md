@@ -287,6 +287,10 @@ class HitlInterruptPayload(BaseModel):
 **Fichier** : `apps/api/src/domains/agents/services/hitl/scope_detector.py`
 
 Détecte les opérations à scope dangereux nécessitant une confirmation renforcée.
+`detect_for_each_scope` est lu par la préparation FOR_EACH, l'orchestrateur et
+l'exécuteur parallèle ; dans `src/`, `detect_dangerous_scope` n'est atteint que par
+`should_escalate_to_destructive_confirm`, qu'aucun code de production n'appelle (voir le statut de
+Destructive Confirm ci-dessous).
 
 **Critères de détection** :
 - Opérations bulk (3+ items)
@@ -317,13 +321,15 @@ scope = detect_dangerous_scope(
     affected_count=15,
 )
 if scope.requires_confirmation:
-    # Déclencher DESTRUCTIVE_CONFIRM HITL
+    # Intention d'origine : déclencher DESTRUCTIVE_CONFIRM — jamais câblée
     ...
 ```
 
 ### Destructive Confirm (destructive_confirm.py)
 
 **Fichier** : `apps/api/src/domains/agents/services/hitl/interactions/destructive_confirm.py`
+
+> **Statut ([ADR-323](../architecture/ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md), 2026-09-26)** : l'interaction est enregistrée et **aucun nœud ne produit le type `destructive_confirm`**. Aucun code de production n'appelle `should_trigger_destructive_confirm` ni `should_escalate_to_destructive_confirm`, seul appelant de `detect_dangerous_scope` dans `src/`. Le flux ci-dessous décrit l'intention, pas le code : l'ADR-323 range la chaîne parmi celles, sans producteur, à supprimer ensemble. Seuls son titre et trois clés de sa table sont lus, par la critique de brouillon.
 
 > **v1.21.9 Change — HITL localization, EDIT and REJECT branches ([ADR-103](../architecture/ADR-103-HITL-Backend-i18n.md))**: EDIT reformulations (`HitlMessages.get_reformulation`, keyed by a `ReformulationKind` StrEnum), the REJECT enriched message (`get_reject_enriched_message`) and the rejection-summary fallback (`get_user_refused_action`) are localized; the response classifier's few-shot examples were externalized to a versioned **English** prompt (`hitl_classifier_examples.txt`) to remove the French-only classification bias, and the draft-modifier prompt scaffolding is English (LLM-facing; output stays in the user's language). The user language is read from the checkpointed `MessagesState.user_language` via `resolve_user_language`.
 >
@@ -608,7 +614,7 @@ Multi-step modification :
 async def generate_plan_approval_question(
     plan_summary: PlanSummary,
     approval_reasons: list[str],
-    user_language: str = "fr",
+    user_language: str | None = None,  # the declared language when absent (ADR-323)
 ) -> str:
     """
     Génère une question d'approbation avec LLM.
@@ -673,15 +679,15 @@ async def generate_plan_approval_question(
 
 **Fichier** : `apps/api/src/domains/agents/nodes/approval_gate_node.py`
 
-> **v1.14.5 Change — Passthrough Mode**: The approval_gate_node no longer interrupts for plan-level HITL approval. It auto-approves all plans unconditionally because every mutation tool already has downstream HITL protection: FOR_EACH confirmation for bulk operations and draft_critique for individual actions (email sends, etc.). The plan-level approval was causing redundant double/triple confirmation prompts (plan approval + FOR_EACH + draft critique) which degraded UX. The node remains in the graph as a passthrough to preserve the architecture for future re-enablement if needed, but currently sets `plan_approved=True` immediately without evaluating strategies or generating LLM questions.
+> **v1.14.5 Change — Passthrough Mode**: The approval_gate_node no longer interrupts for plan-level HITL approval. It never asks the person to approve a plan, because every mutation tool already has downstream HITL protection: FOR_EACH confirmation for bulk operations and draft_critique for individual actions (email sends, etc.). The plan-level approval was causing redundant double/triple confirmation prompts (plan approval + FOR_EACH + draft critique) which degraded UX. The node remains in the graph as a passthrough to preserve the architecture for future re-enablement if needed: it never interrupts and never refuses, sets `plan_approved=True` for a plan that carries a validation result, and leaves it `None` (« nobody looked », ADR-263) when there is no plan or no validation result — without evaluating strategies or generating LLM questions.
 
 **Current Flow (pass-through)** :
 ```python
 @track_metrics(node_name="approval_gate", ...)
 async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> dict[str, Any]:
     # 1. Already approved from clarification? -> return {"plan_approved": True}
-    # 2. No execution_plan  -> {"plan_approved": False, "plan_rejection_reason": ...}
-    # 3. No validation_result -> {"plan_approved": True}
+    # 2. No execution_plan  -> {"plan_approved": None}  (nothing to approve is no refusal)
+    # 3. No validation_result -> {"plan_approved": None}  (ADR-263: nobody looked)
     # 4. Otherwise: auto-approve (tool-level HITL supersedes plan-level)
     return {"plan_approved": True}
 ```
@@ -777,42 +783,31 @@ TOOL_APPROVAL_ENABLED = settings.tool_approval_enabled  # Default: True
 
 **Fichier** : `apps/api/src/domains/agents/utils/hitl_store.py`
 
+La question en attente vit sous `hitl_pending:{thread_id}`, dans la base Redis « cache »
+(le client que le moteur lui passe), avec un TTL fixé à la construction :
+
 ```python
 class HITLStore:
-    def __init__(self, redis: Redis):
-        self.redis = redis
+    def __init__(self, redis_client: HitlStoreClient, ttl_seconds: int) -> None: ...
 
-    async def save_interrupt(
-        self,
-        conversation_id: str,
-        interrupt_data: dict,
-        schema_version: str = "1.0",
-    ):
-        """Save interrupt avec schema_version pour migrations."""
-        key = f"hitl_interrupt:{conversation_id}"
-        data = {
-            **interrupt_data,
-            "schema_version": schema_version,
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
-        await self.redis.setex(key, 3600, json.dumps(data))  # TTL 1h
+    async def save_interrupt(self, thread_id: str, interrupt_data: dict[str, Any]) -> None:
+        # {"schema_version": SCHEMA_VERSION (int), "interrupt_ts": ISO,
+        #  "interrupt_data": interrupt_data} — SET … EX ttl_seconds
 
-    async def get_interrupt(self, conversation_id: str) -> dict | None:
-        """Retrieve + auto-migration (v0→v1)."""
-        key = f"hitl_interrupt:{conversation_id}"
-        data = await self.redis.get(key)
+    async def get_interrupt(self, thread_id: str) -> dict[str, Any] | None:
+        # l'enveloppe ; un enregistrement sans schema_version (ancien format, la
+        # charge seule) est migré vers l'enveloppe et réécrit
 
-        if not data:
-            return None
-
-        interrupt = json.loads(data)
-
-        # Auto-migration
-        if interrupt.get("schema_version") == "0.0":
-            interrupt = migrate_interrupt_0_to_1(interrupt)
-
-        return interrupt
+    async def get_pending(self, thread_id: str) -> dict[str, Any] | None:
+        # la charge à plat + interrupt_ts : la forme que le chat, la délégation
+        # vocale et les canaux lisent (run_id compris)
 ```
+
+`HitlStoreClient` est le `Protocol` des quatre commandes que le store envoie
+(`get`, `set`, `delete`, `exists`) : le moteur lui passe le client « cache »
+(`get_redis_cache`), un test un espace de clés d'un serveur en mémoire
+(`tests/helpers/redis_databases`), qui épingle chaque porte à la base où le
+moteur écrit.
 
 ### Database - plan_approvals Table
 
@@ -1230,14 +1225,20 @@ STATE_KEY_SEMANTIC_VALIDATION = "semantic_validation"        # Validation result
 ### Iteration Protection
 
 ```python
-# Prevent infinite clarification loops
+# Bounds the validator <-> planner AUTO-REPLAN loop. A person's answer is
+# always processed; the first lifts the counter from 0 to 1, so the plan it
+# makes goes through the validator — one auto-replan of the budget
 STATE_KEY_PLANNER_ITERATION = "planner_iteration"
 
-# Max replans before forcing execution
-PLANNER_MAX_REPLANS = 5  # From settings
+# Max auto-replans (settings.planner_max_replans, env PLANNER_MAX_REPLANS,
+# default PLANNER_MAX_REPLANS_DEFAULT in core/constants.py). At exhaustion
+# a still-invalid READ-ONLY plan goes to the gate as it is; a still-invalid
+# MUTATION plan is asked to the person as a clarification instead — never
+# run wrong (semantic_validator_node's safety net).
 
-# NOTE: User clarifications do NOT increment planner_iteration
-# Only auto-replans (semantic_validator fixes) increment it
+# NOTE: the clarification node never increments planner_iteration; the
+# planner raises it from 0 to 1 when it plans from an answer, and the
+# semantic validator adds one per auto-replan
 ```
 
 ---
@@ -1361,7 +1362,15 @@ async def clarification_node(
 # apps/api/src/domains/agents/nodes/routing.py
 
 def route_from_semantic_validator(state: dict) -> str:
-    """Route after semantic validation."""
+    """Route after semantic validation (simplified: the replan budget is omitted)."""
+    # Only the person's EXPLICIT confirmation skips the verdict: the router
+    # resets plan_approved to None at every turn start, and None skips nothing.
+    if state.get("plan_approved") is True:
+        return "approval_gate"
+
+    if state.get("needs_replan"):  # the person answered a clarification
+        return "planner"
+
     validation = state.get("semantic_validation")
 
     if validation and validation.get("requires_clarification"):
@@ -1374,6 +1383,22 @@ def route_from_semantic_validator(state: dict) -> str:
     return "approval_gate"
 ```
 
+> **Exécutions sans personne (routines, tickets — ADR-323)** : le
+> `plan_approved=True` que `stream_chat_response(auto_approve_plan=True)`
+> injecte est remis à `None` par le routeur au début du tour, avant tout
+> lecteur — il est inerte depuis la v1.0.0. Une exécution sans personne en
+> mode pipeline (le mode d'une exécution hors tour est ReAct par défaut)
+> rencontre donc les clarifications du validateur comme un tour tapé.
+> Une routine s'arrête sur la question (comptée en échec, et pour sa
+> désactivation automatique) et la question attend dans la conversation,
+> où la garde de l'exécuteur — qui lit l'enregistrement de la question dans
+> Redis — reporte les routines suivantes tant que cet enregistrement vit
+> (`HITL_PENDING_DATA_TTL_SECONDS`). Un ticket, lui, porte sa question : le
+> run la déplace sur le ticket (ADR-276, lot 7). Depuis le 2026-09-05 (ADR-263)
+> et jusqu'à ce changement (ADR-323), le routage ignorait le verdict pour tout
+> le monde : aucune question n'était posée, à personne. Une politique propre aux exécutions
+> sans personne reste à décider (proposition d'ADR-323).
+
 ---
 
 ## Telegram HITL (evolution F3)
@@ -1382,26 +1407,36 @@ def route_from_semantic_validator(state: dict) -> str:
 
 ### Types HITL et Inline Keyboards
 
-Les 6 types HITL se divisent en deux catégories pour Telegram :
+Chaque type d'interaction HITL relève de l'une de deux catégories pour Telegram :
 
 | Type HITL | Mode Telegram | Boutons |
 |-----------|--------------|---------|
 | `plan_approval` | Inline Keyboard | Approuver / Rejeter |
 | `destructive_confirm` | Inline Keyboard | Confirmer / Annuler |
-| `for_each_confirm` | Inline Keyboard | Continuer / Arrêter |
+| `for_each_confirmation` | Inline Keyboard | Continuer / Arrêter |
+| `draft_critique` | Inline Keyboard | Confirmer / Annuler |
+| `tool_confirmation` | Inline Keyboard | Confirmer / Annuler |
 | `clarification` | Texte libre | — (réponse texte) |
-| `draft_critique` | Texte libre | — (réponse texte) |
-| `modifier_review` | Texte libre | — (réponse texte) |
+| `entity_disambiguation` | Texte libre | — (réponse texte) |
+| `edit_confirmation` | Texte libre | — (déclaré, aucun producteur) |
+
+Chaque type d'interaction déclare sa réponse — deux boutons ou du texte libre — dans `hitl_keyboard._HITL_TYPE_BUTTONS`, vérifié au démarrage (`assert_keyboard_completeness`) : un brouillon et une confirmation d'outil prennent [Confirmer] [Annuler], et un appui envoie la même décision structurée qu'un clic sur la carte du chat ; `plan_approval`, `destructive_confirm` et `edit_confirmation` n'ont aujourd'hui aucun producteur — déclarés, jamais dessinés.
+
+Le type est celui qu'écrit l'interaction, `action_requests[0].type` de la métadonnée d'interruption (`inbound_handler.interaction_type_of`) : jusqu'à la revue 12 du lot ADR-323, une clé `type` qu'aucune interaction n'écrit était lue, et chaque question portait [Approuver] [Rejeter], une clarification comprise. La question en attente est lue là où le moteur l'écrit, la base Redis « cache » (`message_router.read_pending_question`) — les deux portes la lisaient dans la base « session » où elles prennent le verrou de tour, si bien que chaque appui répondait « question expirée » ; une réponse tapée reprenait bien le graphe (le checkpoint le décide), mais laissait la question enregistrée jusqu'à son expiration. Elle est lue à plat, comme le chat la lit (`HITLStore.get_pending`), et la réponse reprend le run où la question a été posée (`run_id`) : le canal cherchait une clé `original_run_id` que personne n'écrit, et chaque réponse repartait sous un run neuf — ses jetons, sa ligne du registre des décisions et les marqueurs de son archive séparés du tour auquel elle répondait.
+
+La question envoyée est celle que le moteur diffuse — les morceaux `hitl_question_token`, et le `generated_question` de `hitl_interrupt_complete`, qui l'emporte — et le flux est lu jusqu'à son terme : sa queue enregistre la question en attente et commite les jetons du tour. Jusqu'à la revue 14 du lot ADR-323, le canal cherchait la question dans les morceaux `token` (elle partait vide, refusée par Telegram) et quittait le flux avant l'enregistrement : aucune question posée sur Telegram n'était enregistrée, aucun appui ne pouvait y répondre.
 
 ### Callback Data Format
 
 ```
-hitl:{action}:{conversation_id}
+hitl:{action}:{conversation_id}:{empreinte}
 ```
 
+L'empreinte nomme la question à laquelle répond le bouton : les huit premiers chiffres hexadécimaux du SHA-256 de son `message_id` (`hitl_keyboard.question_fingerprint`) — le `message_id` entier ne tient pas dans les 64 octets d'un `callback_data` à côté de l'identifiant de conversation. Un appui ne reprend la question en attente que si l'empreinte est la sienne : un clavier resté sous une question précédente répondait à celle qui attend. Un bouton dessiné avant les empreintes (`hitl:{action}:{conversation_id}`) se lit avec une empreinte vide et reçoit « question expirée ».
+
 Exemples :
-- `hitl:approve:550e8400-e29b-41d4-a716-446655440000`
-- `hitl:reject:550e8400-e29b-41d4-a716-446655440000`
+- `hitl:confirm:550e8400-e29b-41d4-a716-446655440000:0a1b2c3d`
+- `hitl:cancel:550e8400-e29b-41d4-a716-446655440000:0a1b2c3d`
 
 ### Boutons Localisés (6 langues)
 
@@ -1420,14 +1455,22 @@ HITL_BUTTON_LABELS = {
 ### Flow Telegram HITL
 
 ```
-1. Agent pipeline atteint ApprovalGateNode
-2. InboundMessageHandler détecte pending_hitl dans le state
-3. build_hitl_keyboard() génère InlineKeyboardMarkup
-4. TelegramSender envoie le message + keyboard au chat
-5. Utilisateur clique un bouton → Telegram envoie callback_query
-6. Webhook handler → parse_hitl_callback_data() → extrait (action, conversation_id)
-7. Router background task → resume_hitl() avec la réponse utilisateur
-8. Pipeline agent reprend depuis le checkpoint
+1. Une interaction interrompt le graphe (brouillon, confirmation d'outil,
+   boucle FOR_EACH, clarification…)
+2. Le moteur diffuse hitl_interrupt_metadata, la question (hitl_question_token),
+   puis hitl_interrupt_complete ; la queue du flux enregistre la question en
+   attente (HITLStore, base « cache »)
+3. InboundMessageHandler lit le flux jusqu'à son terme, puis envoie la question
+   avec le clavier de son type (build_hitl_keyboard, empreinte dans chaque bouton)
+4. L'utilisateur appuie → Telegram envoie callback_query
+5. parse_hitl_callback_data() → HitlPress(action, conversation_id, empreinte)
+6. Sous le verrou de tour, la question en attente doit être celle du bouton
+   (conversation de la personne + empreinte), sinon « question expirée »
+7. Clavier retiré, texte conservé (remove_keyboard) ; reprise par
+   InboundMessageHandler.handle(hitl_decision={message_id, action}) →
+   build_structured_decision, sans modèle, comme un clic sur la carte du chat
+8. Le graphe reprend depuis le checkpoint ; la réponse du tour dit ce que la
+   décision a fait
 ```
 
 > Voir [CHANNELS_INTEGRATION.md](./CHANNELS_INTEGRATION.md) pour l'architecture complète du module channels.
@@ -1436,20 +1479,19 @@ HITL_BUTTON_LABELS = {
 
 ## 📊 HITL Services Summary
 
-| Service | Lines | Purpose |
-|---------|-------|---------|
-| ~~hitl_orchestrator.py~~ | — | **SUPPRIMÉ (ADR-107)** — ghost service jamais câblé (cf. §ADR-107 plus haut). La coordination HITL passe par `hitl_classifier.py` + le contrat de resume, pas par un orchestrateur central. |
-| hitl_classifier.py | 762 | User response classification (action-type derivation extracted to `hitl/action_taxonomy.py` — ADR-153) |
-| hitl/action_taxonomy.py | 256 | Tool name → action type announced to the classifier, + few-shot coverage assert |
-| question_generator.py | 809 | LLM question generation |
-| resumption_strategies.py | 1,527 | **Plan resumption logic** |
-| draft_modifier.py | 554 | Draft editing during HITL (v1.11.4: recipient override post-processing, debug logging) |
-| validator.py | 464 | HITL security validation |
-| schema_validator.py | 314 | Schema compliance |
-| parameter_enrichment.py | 312 | Parameter enrichment |
-| registry.py | 267 | HITL interaction registry |
-| hitl_keyboard.py | 157 | Telegram inline keyboards (evolution F3) |
-| **Total** | **5,422** | Recompté le 2026-07-26 (`wc -l` sur chaque fichier listé) |
+| Service | Purpose |
+|---------|---------|
+| ~~hitl_orchestrator.py~~ | **SUPPRIMÉ (ADR-107)** — ghost service jamais câblé (cf. §ADR-107 plus haut). La coordination HITL passe par `hitl_classifier.py` + le contrat de resume, pas par un orchestrateur central. |
+| hitl_classifier.py | User response classification (action-type derivation extracted to `hitl/action_taxonomy.py` — ADR-153) |
+| hitl/action_taxonomy.py | Tool name → action type announced to the classifier, + few-shot coverage assert |
+| question_generator.py | LLM question generation |
+| resumption_strategies.py | **Plan resumption logic** |
+| draft_modifier.py | Draft editing during HITL (v1.11.4: recipient override post-processing, debug logging) |
+| validator.py | HITL security validation |
+| schema_validator.py | Schema compliance |
+| parameter_enrichment.py | Parameter enrichment |
+| registry.py | HITL interaction registry |
+| hitl_keyboard.py | Telegram inline keyboards (evolution F3) |
 
 ---
 

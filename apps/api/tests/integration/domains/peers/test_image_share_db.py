@@ -184,6 +184,29 @@ class TestTheCopy:
         assert shared.comment == "Pour ton anniversaire !"
         assert shared.url == f"/api/v1/attachments/{copy.id}"
 
+    async def test_a_kept_image_is_still_shareable(
+        self, async_session: AsyncSession, pair: Any, storage: Path
+    ) -> None:
+        # ADR-319: an image the sender kept from the gallery has NO deadline.
+        # The shareable check compared it with « now » and would have raised on
+        # None; a kept image is exactly the one someone wants to hand on.
+        sender, _recipient, connection, image = pair
+        image.expires_at = None
+        await async_session.commit()
+
+        shared = await image_share.share_image(
+            async_session,
+            sender_id=sender.id,
+            connection_id=connection.id,
+            attachment_id=image.id,
+            comment=None,
+        )
+
+        copy = await async_session.get(Attachment, shared.attachment_id)
+        assert copy is not None and copy.expires_at is not None
+        # The recipient's copy is a fresh file with its own lifetime, never kept.
+        assert shared.expires_at == copy.expires_at
+
     async def test_the_longest_name_an_account_can_carry_travels_whole(
         self, async_session: AsyncSession, pair: Any
     ) -> None:
@@ -431,6 +454,94 @@ class TestAFailedWriteKeepsNothing:
             )
 
         assert await _files_under(storage, recipient_id) == []
+
+
+class _Recorder:
+    """The action register as the seam sees it: what was claimed, how it settled."""
+
+    def __init__(self) -> None:
+        self.claimed: list[tuple[Any, str]] = []
+        self.settled: list[bool] = []
+
+    async def claim(self, *, user_id: Any, capability: str, arguments: dict[str, str]) -> Any:
+        self.claimed.append((user_id, capability))
+        return "ticket"
+
+    async def settle(self, ticket: Any, *, succeeded: bool) -> None:
+        self.settled.append(succeeded)
+
+
+@pytest.fixture
+def register() -> Any:
+    """A register installed in the seam for the test; the previous one put back."""
+    from src.domains.shared import action_sink
+
+    previous = action_sink._recorder
+    recorder = _Recorder()
+    action_sink.install_action_recorder(recorder)
+    yield recorder
+    action_sink._recorder = previous
+
+
+class TestTheShareIsAnAction:
+    """ADR-263: the sender's act is claimed before the copy, settled from its result."""
+
+    async def test_a_share_is_recorded_as_the_senders_act(
+        self, async_session: AsyncSession, pair: Any, register: _Recorder
+    ) -> None:
+        sender, _recipient, connection, image = pair
+        sender_id = sender.id
+
+        await image_share.share_image(
+            async_session,
+            sender_id=sender_id,
+            connection_id=connection.id,
+            attachment_id=image.id,
+            comment=None,
+        )
+
+        assert register.claimed == [(sender_id, "peer_image_share")]
+        assert register.settled == [True]
+
+    async def test_a_share_whose_rows_cannot_be_written_settles_as_a_failure(
+        self, async_session: AsyncSession, pair: Any, register: _Recorder
+    ) -> None:
+        sender, _recipient, connection, image = pair
+        sender_id, connection_id, image_id = sender.id, connection.id, image.id
+
+        with (
+            patch.object(image_share, "_record", side_effect=RuntimeError("write failed")),
+            pytest.raises(RuntimeError),
+        ):
+            await image_share.share_image(
+                async_session,
+                sender_id=sender_id,
+                connection_id=connection_id,
+                attachment_id=image_id,
+                comment=None,
+            )
+
+        assert register.claimed == [(sender_id, "peer_image_share")]
+        assert register.settled == [False]
+
+    async def test_a_share_refused_before_anything_happened_is_no_act(
+        self, async_session: AsyncSession, pair: Any, register: _Recorder
+    ) -> None:
+        sender, _recipient, connection, _image = pair
+
+        status, _detail = await _code_of(
+            image_share.share_image(
+                async_session,
+                sender_id=sender.id,
+                connection_id=connection.id,
+                attachment_id=uuid4(),
+                comment=None,
+            )
+        )
+
+        assert status in {400, 404}
+        assert register.claimed == []
+        assert register.settled == []
 
 
 @pytest_asyncio.fixture

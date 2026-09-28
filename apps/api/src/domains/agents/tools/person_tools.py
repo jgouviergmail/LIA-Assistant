@@ -96,7 +96,7 @@ async def get_person_overview_tool(
     ],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """360° overview of ONE person, across the CRM and the connected accounts.
 

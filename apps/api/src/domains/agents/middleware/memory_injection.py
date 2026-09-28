@@ -22,7 +22,7 @@ from becoming a "Drama Queen" - emotional context is subtext, not the focus.
 
 Example:
     >>> profile = await build_psychological_profile(
-    ...     user_id="user-123", query="réunion demain",
+    ...     user_id="user-123", query="meeting tomorrow",
     ...     query_embedding=precomputed_vector,
     ... )
     >>> if profile:
@@ -431,7 +431,7 @@ async def get_memory_facts_for_query(
 
     Extracts memory content as a list for use by QueryAnalyzerService
     and MemoryReferenceResolutionService to resolve personal references
-    like "ma femme", "mon frère" before planning.
+    like "my wife", "my brother" before planning.
 
     The query differs from the user message (a clarification response, an
     initiative context, a resolver query), so it is a LOOKUP: it goes through
@@ -476,7 +476,7 @@ async def get_memory_facts_for_query(
 
     # Semantic similarity is the most critical signal when retrieving facts for
     # a specific query — usage_count as primary key caused targeted reference
-    # resolution to miss specific facts (e.g., "mon fils") in favor of more
+    # resolution to miss specific facts (e.g., "my son") in favor of more
     # frequently used but less relevant memories.
     sorted_results = sorted(
         results,

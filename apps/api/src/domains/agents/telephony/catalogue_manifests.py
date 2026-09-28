@@ -106,8 +106,9 @@ place_phone_call_catalogue_manifest = ToolManifest(
             type="string",
             required=False,
             description=(
-                "Optional free-text availability window to pre-fetch the user's free/busy "
-                "for (e.g. 'this week', 'Tuesday afternoon')."
+                "Optional availability window the user stated (e.g. '2026-09-15 full day'). "
+                "Recorded with the draft only: the availability pre-fetch covers the next "
+                "days whatever it says, so a date the callee must hear belongs in `objective`."
             ),
         ),
     ],

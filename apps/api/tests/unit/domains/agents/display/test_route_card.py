@@ -129,6 +129,17 @@ class TestCoreRendering:
         html = card.render(self.ROUTE, ctx)
         assert "google.com/maps" in html
 
+    def test_the_map_link_is_named_in_the_reader_s_language(
+        self, card: RouteCard, ctx: RenderContext
+    ) -> None:
+        """The image is the link's only content: its alt text is the link's name."""
+        from src.core.i18n_v3 import V3Messages
+
+        html = card.render({**self.ROUTE, "static_map_url": "/static-map?r=1"}, ctx)
+
+        assert f'alt="{V3Messages.get_open_in_maps(ctx.language)}"' in html
+        assert "Route map" not in html
+
 
 class TestDurationFormatting:
     @pytest.mark.parametrize(

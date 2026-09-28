@@ -646,6 +646,78 @@ class TestContentFieldRedactionAtInfo:
         assert result == event_dict
 
 
+class TestContentFieldNamesKeepFacts:
+    """An exact content name withholds words, never a count, a flag or an absence.
+
+    Measured 2026-09-25: the semantic type registry logs its census per category
+    (``by_category``), and two categories are named ``location`` and ``content``
+    — their counts read ``[REDACTED]`` above DEBUG. A coordinate is the one
+    content whose NUMBERS are the content, so a coordinate name keeps its net
+    whatever it holds.
+    """
+
+    @pytest.mark.parametrize("level", ["info", "warning", "error"])
+    def test_counts_under_content_names_stay_readable(self, level: str) -> None:
+        """A census keyed by category keeps every count, nested or not."""
+        event_dict = {
+            "event": "core_types_loaded",
+            "by_category": {"location": 3, "content": 5, "temporal": 2},
+            "recipients": 2,
+            "content": 0,
+        }
+
+        result = add_pii_filter(None, level, event_dict)
+
+        assert result == event_dict
+
+    def test_flags_and_absences_stay_readable(self) -> None:
+        """A boolean or a None says nothing of the words it stands for."""
+        event_dict = {"event": "e", "content": True, "address": False, "title": None}
+
+        assert add_pii_filter(None, "info", event_dict) == event_dict
+
+    def test_facts_logged_under_their_own_names_stay_readable(self) -> None:
+        """The call-site convention: an identifier is named after what it is."""
+        event_dict = {"event": "e", "origin_id": "phone_call_0a1b", "bundle_id": "com.x.app"}
+
+        assert add_pii_filter(None, "info", event_dict) == event_dict
+
+    def test_coordinates_stay_withheld_whatever_their_type(self) -> None:
+        """Even a rounded coordinate places a person on a map — Google's `lng` too."""
+        event_dict = {
+            "event": "e",
+            "lat": 48,
+            "lng": 2,
+            "lon": 2.3522,
+            "latitude": 48.8566,
+            "longitude": None,
+            "viewport": {"lat": 48.85, "lng": 2.35},
+        }
+
+        result = add_pii_filter(None, "info", event_dict)
+
+        for key in ("lat", "lng", "lon", "latitude", "longitude"):
+            assert result[key] == "[REDACTED]", key
+        assert result["viewport"] == {"lat": "[REDACTED]", "lng": "[REDACTED]"}
+        assert add_pii_filter(None, "debug", {"event": "e", "lng": 2.35})["lng"] == 2.35
+
+    def test_words_and_floats_under_content_names_stay_withheld(self) -> None:
+        """Text, containers, and a float that may be a coordinate are not counts."""
+        event_dict = {
+            "event": "e",
+            "location": 48.8566,
+            "content": "the person's words",
+            "origin": "phone_call_0a1b",
+            "destination": {"lat": 1, "lng": 2},
+            "recipients": ["someone@example.com"],
+        }
+
+        result = add_pii_filter(None, "info", event_dict)
+
+        for key in ("location", "content", "origin", "destination", "recipients"):
+            assert result[key] == "[REDACTED]", key
+
+
 class TestContentFieldNetHardening:
     """CA-1 (audit S9): residual PII leaks where user content is logged at INFO
     under field names the content-field net did not yet cover.
@@ -829,23 +901,26 @@ class TestContentFieldNetHardening:
         # Non-content siblings stay readable.
         assert result["context"]["attempt"] == 2
 
-    def test_content_field_value_type_agnostic_at_info(self):
-        """Redaction ignores the value type — a dict/None/number under a net
-        field name is redacted wholesale at INFO (fail-closed)."""
+    def test_content_field_withholds_every_shape_but_a_count_at_info(self) -> None:
+        """A dict, a list or a float under a net field name is withheld wholesale
+        at INFO (fail-closed); only a count, a flag or an absence is not words
+        (``TestContentFieldNamesKeepFacts``)."""
         result = add_pii_filter(
             None,
             "info",
             {
                 "event": "e",
                 "content": {"secret_body": "x"},  # dict, not str
-                "summary": None,  # None
-                "title": 42,  # number
+                "summary": ["first line", "second line"],  # list
+                "title": 4.2,  # float
+                "body": 42,  # a count
             },
         )
 
         assert result["content"] == "[REDACTED]"
         assert result["summary"] == "[REDACTED]"
         assert result["title"] == "[REDACTED]"
+        assert result["body"] == 42
 
     def test_content_field_at_debug_still_pattern_scrubs_embedded_email(self):
         """At DEBUG the net is off, but pattern-based scrubbing still runs:

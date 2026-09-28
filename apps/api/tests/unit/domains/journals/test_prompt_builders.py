@@ -34,7 +34,7 @@ INTROSPECTION_FIELDS: dict[str, object] = {
     "current_chars": 120,
     "max_chars": 30000,
     "size_warning": "",
-    "user_language": "fr",
+    "language_name": "French",
     "max_entry_chars": 300,
     "health_context": "",
     "inner_state_section": "",
@@ -49,7 +49,7 @@ CONSOLIDATION_FIELDS: dict[str, object] = {
     "current_datetime": "2026-07-27 00:00 UTC",
     "conversation_history_section": "",
     "usage_patterns_section": "",
-    "user_language": "fr",
+    "language_name": "French",
     "max_entry_chars": 300,
     "size_management_instruction": "within limit",
     "health_signals_section": "",
@@ -153,7 +153,9 @@ class TestIntrospectionLayout:
     def test_two_turns_share_the_fixed_part(self) -> None:
         first = split_at_marker(self._prompt())
         second = split_at_marker(
-            self._prompt(conversation="USER: autre chose", current_chars=999, user_language="en")
+            self._prompt(
+                conversation="USER: autre chose", current_chars=999, language_name="English"
+            )
         )
         assert first is not None and second is not None
         assert first.static == second.static

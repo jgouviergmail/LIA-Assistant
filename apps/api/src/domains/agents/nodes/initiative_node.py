@@ -44,6 +44,7 @@ from src.core.constants import (
     STATE_KEY_INITIATIVE_SKIPPED_REASON,
     STATE_KEY_INITIATIVE_SUGGESTION,
 )
+from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
 from src.core.run_config import run_id_of
@@ -644,7 +645,7 @@ async def _initiative_core(
 
     # ── 5. Load user context (memory + interests) in parallel ────────
     user_id = runtime_user_id_str()
-    user_language = state.get("user_language", "fr")
+    user_language = resolve_language(state.get("user_language"))
     user_timezone = state.get("user_timezone", "UTC")
 
     agent_results = state.get(STATE_KEY_AGENT_RESULTS, {})
@@ -679,7 +680,7 @@ async def _initiative_core(
         user_interests=interests_text,
         semantic_dependencies=semantic_dependencies,
         connection_candidates=connection_candidates,
-        user_language=user_language,
+        user_language=get_language_name(user_language),
         user_timezone=user_timezone,
         original_query=original_query,
         current_datetime=get_prompt_datetime_formatted(),

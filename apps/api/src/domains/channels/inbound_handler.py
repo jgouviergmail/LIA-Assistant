@@ -11,12 +11,22 @@ Created: 2026-03-03
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from contextlib import suppress
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from src.core.constants import CHANNEL_TYPE_TELEGRAM, TELEGRAM_TYPING_INTERVAL_SECONDS
+from src.core.field_names import (
+    FIELD_ACTION_REQUESTS,
+    FIELD_ERROR_CODE,
+    FIELD_RUN_ID,
+    FIELD_TYPE,
+)
+from src.core.i18n import resolve_language
 from src.domains.channels.abstractions import ChannelInboundMessage
+from src.infrastructure.channels.telegram.formatter import strip_html_cards
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
     channel_hitl_decisions_total,
@@ -25,9 +35,118 @@ from src.infrastructure.observability.metrics_channels import (
 )
 
 if TYPE_CHECKING:
+    from src.domains.agents.api.schemas import ChatStreamChunk
     from src.domains.channels.abstractions import BaseChannelSender
 
 logger = get_logger(__name__)
+
+
+#: The interaction type of a question whose metadata names none.
+_UNKNOWN_INTERACTION = "unknown"
+#: The key under which the engine's HITL chunks name the question
+#: (``hitl_{conversation_id}_{interrupt_id}``).
+_QUESTION_MESSAGE_ID = "message_id"
+#: The key under which the completion chunk carries the whole question.
+_GENERATED_QUESTION = "generated_question"
+
+
+def interaction_type_of(hitl_metadata: Mapping[str, Any]) -> str:
+    """The interaction a pending question is, as the HITL interactions WRITE it.
+
+    Every interaction names itself in its first action request
+    (``action_requests[0]["type"]``: ``draft_critique``,
+    ``for_each_confirmation``…). A top-level ``type`` was read here and written
+    by no interaction, so every question drew Approve / Reject — a clarification
+    included — and the questions metric counted each as a plan approval
+    (review 12).
+
+    Args:
+        hitl_metadata: The ``hitl_interrupt_metadata`` chunk's metadata.
+
+    Returns:
+        The interaction type, or ``unknown`` when the metadata names none.
+    """
+    requests = hitl_metadata.get(FIELD_ACTION_REQUESTS)
+    first = requests[0] if isinstance(requests, list) and requests else None
+    kind = first.get(FIELD_TYPE) if isinstance(first, Mapping) else None
+    return kind if isinstance(kind, str) and kind else _UNKNOWN_INTERACTION
+
+
+def _text_of(value: Any) -> str:
+    """A chunk field read as text: the value when it is a string, else ``""``."""
+    return value if isinstance(value, str) else ""
+
+
+@dataclass
+class _ChannelTurn:
+    """What one turn's stream said, read chunk by chunk.
+
+    The stream is read to its END, whatever it announced: its tail saves the
+    question the turn stopped on, commits the turn's token accounting and
+    closes its clients. A reader that left at the question closed the
+    generator before any of it ran, so no question asked on a channel was ever
+    saved and no answer could resume one (review 14; the out-of-turn reader's
+    own rule, ``out_of_turn_run._one_attempt``).
+
+    Attributes:
+        tokens: The answer's deltas.
+        replacement: The post-processed answer, cards stripped, when sent.
+        asked: The ``hitl_interrupt_metadata`` chunk's metadata, when the turn
+            stopped on a question.
+        question_tokens: The question's own deltas (``hitl_question_token``).
+        question: The question the completion chunk settled on, when it said.
+        error_code: The code of the error the stream announced (``""`` for an
+            error with none), None when it announced none.
+    """
+
+    tokens: list[str] = field(default_factory=list)
+    replacement: str | None = None
+    asked: Mapping[str, Any] | None = None
+    question_tokens: list[str] = field(default_factory=list)
+    question: str = ""
+    error_code: str | None = None
+
+    def feed(self, chunk: ChatStreamChunk) -> None:
+        """Read one chunk.
+
+        Args:
+            chunk: A chunk of the turn's stream.
+        """
+        text = _text_of(chunk.content)
+        metadata = chunk.metadata or {}
+        if chunk.type == "token" and text:
+            self.tokens.append(text)
+        elif chunk.type == "content_replacement" and text:
+            # Sent after the response node injects its cards: the AUTHORITATIVE
+            # answer (the token stream can repeat the final message), kept
+            # without its HTML.
+            self.replacement = strip_html_cards(text)
+        elif chunk.type == "hitl_interrupt_metadata":
+            self.asked = metadata
+        elif chunk.type == "hitl_question_token" and text:
+            self.question_tokens.append(text)
+        elif chunk.type == "hitl_interrupt_complete":
+            self.question = _text_of(metadata.get(_GENERATED_QUESTION))
+        elif chunk.type == "error":
+            self.error_code = _text_of(metadata.get(FIELD_ERROR_CODE))
+
+    @property
+    def question_text(self) -> str:
+        """The question as the completion settled it, else as it was streamed.
+
+        Stripped: the stream's tokens end every word on a space and every
+        line on a newline, which a message has no use for.
+        """
+        return (self.question or "".join(self.question_tokens)).strip()
+
+    @property
+    def answer(self) -> str:
+        """The answer: the post-processed one when sent, else the deltas."""
+        if self.replacement:
+            return self.replacement
+        # Defense in depth: residual HTML leaked into the token stream.
+        response = "".join(self.tokens)
+        return strip_html_cards(response) if response else ""
 
 
 class InboundMessageHandler:
@@ -65,6 +184,7 @@ class InboundMessageHandler:
         *,
         user_journals_enabled: bool,
         user_psyche_enabled: bool,
+        hitl_decision: Mapping[str, str] | None = None,
     ) -> None:
         """
         Process an inbound message through the agent pipeline.
@@ -76,7 +196,9 @@ class InboundMessageHandler:
             user_timezone: User's IANA timezone (e.g., "Europe/Paris").
             user_memory_enabled: Whether long-term memory is enabled.
             conversation_id: Active conversation ID (None if no conversation).
-            pending_hitl: Pending HITL interrupt data (None if no pending HITL).
+            pending_hitl: The pending question as ``read_pending_question``
+                returns it (flattened; ``run_id`` is the run it was asked on),
+                None when nothing waits.
             user_display_name: User's friendly first name for sender/signature
                 context (None = unknown).
             user_journals_enabled: Whether personal journals are enabled. Required
@@ -86,12 +208,13 @@ class InboundMessageHandler:
                 same omission happen again on the next caller.
             user_psyche_enabled: Whether the psyche engine is enabled. Same
                 contract, same reason.
+            hitl_decision: The structured decision a button press carries
+                (``{"message_id": …, "action": …}``), exactly as the chat's card
+                sends it: the pending question is resumed on it, never on the
+                classification of the message's words. None for a typed answer.
         """
         from src.domains.channels.abstractions import ChannelOutboundMessage
-        from src.infrastructure.channels.telegram.formatter import (
-            get_bot_message,
-            markdown_to_telegram_html,
-        )
+        from src.infrastructure.channels.telegram.formatter import get_bot_message
 
         channel_user_id = message.channel_user_id
 
@@ -117,16 +240,21 @@ class InboundMessageHandler:
         # === Determine if this is a HITL response ===
         original_run_id: str | None = None
         if pending_hitl is not None:
-            # This message is a response to a pending HITL interrupt
-            interrupt_data = pending_hitl.get("interrupt_data", {})
-            # Extract original_run_id for token aggregation continuity
-            original_run_id = interrupt_data.get("original_run_id")
+            # The answer resumes the run its question was asked on, read where
+            # the streaming service WRITES it (FIELD_RUN_ID, as the chat router
+            # reads it). An ``original_run_id`` key nobody writes was read here,
+            # so every answer given on a channel resumed under a fresh run — its
+            # tokens, its decision row and its archive flags split from the turn
+            # it answered (review 12).
+            asked_on = pending_hitl.get(FIELD_RUN_ID)
+            original_run_id = asked_on if isinstance(asked_on, str) and asked_on else None
 
             logger.info(
                 "channel_inbound_hitl_response",
                 user_id=str(user_id),
                 conversation_id=conversation_id,
                 has_original_run_id=original_run_id is not None,
+                by_button=hitl_decision is not None,
             )
 
         # === Start typing indicator ===
@@ -136,7 +264,7 @@ class InboundMessageHandler:
             # === Call agent pipeline ===
             session_id = f"channel_{message.channel_type.value}_{user_id}"
 
-            response_text = await self._stream_and_collect(
+            turn = await self._stream_and_collect(
                 user_message=user_text,
                 user_id=user_id,
                 session_id=session_id,
@@ -147,21 +275,16 @@ class InboundMessageHandler:
                 user_psyche_enabled=user_psyche_enabled,
                 original_run_id=original_run_id,
                 channel_user_id=channel_user_id,
-                conversation_id=conversation_id,
                 user_display_name=user_display_name,
+                hitl_decision=hitl_decision,
             )
-
-            if response_text:
-                # Format markdown → Telegram HTML and send
-                html_response = markdown_to_telegram_html(response_text)
-                outbound = ChannelOutboundMessage(text=html_response, parse_mode="HTML")
-                await self.sender.send_message(channel_user_id, outbound)
-            else:
-                logger.warning(
-                    "channel_inbound_empty_response",
-                    user_id=str(user_id),
-                    channel_user_id=channel_user_id,
-                )
+            await self._deliver(
+                turn,
+                user_id=user_id,
+                channel_user_id=channel_user_id,
+                conversation_id=conversation_id,
+                user_language=user_language,
+            )
 
         except asyncio.CancelledError:
             raise
@@ -195,43 +318,43 @@ class InboundMessageHandler:
         user_memory_enabled: bool,
         original_run_id: str | None,
         channel_user_id: str,
-        conversation_id: str | None = None,
         user_display_name: str | None = None,
         *,
         user_journals_enabled: bool,
         user_psyche_enabled: bool,
-    ) -> str:
+        hitl_decision: Mapping[str, str] | None = None,
+    ) -> _ChannelTurn:
         """
-        Stream agent response and collect tokens into a single string.
+        Run the turn and read its WHOLE stream.
 
-        Follows the same pattern as scheduled_action_executor.py:
-        collect "token" chunks, detect HITL interrupts.
+        The stream is consumed to its end, like the out-of-turn reader's: its
+        tail saves the question the turn stopped on, commits the token
+        accounting and closes the turn's clients (see :class:`_ChannelTurn`).
+        What reaches the person is decided afterwards, from what was read.
 
-        When a HITL interrupt is detected, sends the collected content
-        with an inline keyboard for button-based HITL types, or as a
-        plain question for text-based types.
-
-        Important: The streaming pipeline emits a ``content_replacement`` chunk
-        after the response_node injects HTML cards (weather widgets, etc.).
-        This chunk contains the full text WITH HTML cards.  When available,
-        it is the **authoritative** source: we strip HTML and use it as the
-        primary response.  This avoids text duplication caused by LangGraph
-        stream ordering (the final AIMessage may be re-emitted as tokens on
-        top of the incremental token stream).
-        When no ``content_replacement`` is emitted (simple responses without
-        cards), we fall back to the token-collected text.
+        Args:
+            user_message: What the person said (or the label of the button).
+            user_id: The person.
+            session_id: The channel's session id.
+            user_timezone: The person's IANA timezone.
+            user_language: The person's language.
+            user_memory_enabled: Whether long-term memory is enabled.
+            original_run_id: The run a pending question was asked on, when
+                this message answers one.
+            channel_user_id: The chat, for the logs.
+            user_display_name: The person's friendly first name, when known.
+            user_journals_enabled: Whether personal journals are enabled.
+            user_psyche_enabled: Whether the psyche engine is enabled.
+            hitl_decision: The structured decision of a button press, or None.
 
         Returns:
-            Complete response text (may be empty if HITL keyboard was sent).
+            What the stream said.
         """
         from src.domains.agents.api.run_origin import plain_surface_ctx
         from src.domains.agents.api.service import AgentService
-        from src.infrastructure.channels.telegram.formatter import strip_html_cards
 
         agent_service = AgentService()
-        content_parts: list[str] = []
-        hitl_metadata: dict[str, Any] | None = None
-        content_replacement_text: str | None = None
+        turn = _ChannelTurn()
 
         # ADR-289: a channel renders no card — the draft question and the
         # execution result are drawn as text for the WHOLE stream; the
@@ -249,121 +372,134 @@ class InboundMessageHandler:
                 user_memory_enabled=user_memory_enabled,
                 user_journals_enabled=user_journals_enabled,
                 user_psyche_enabled=user_psyche_enabled,
+                hitl_decision=dict(hitl_decision) if hitl_decision is not None else None,
             ):
-                if chunk.type == "token" and chunk.content and isinstance(chunk.content, str):
-                    content_parts.append(chunk.content)
-
-                elif chunk.type == "content_replacement":
-                    # The streaming service emits this after response_node injects
-                    # HTML cards.  Store the clean version (HTML stripped) — this
-                    # is the AUTHORITATIVE response text, used as primary source
-                    # in the post-loop logic (avoids token duplication).
-                    if isinstance(chunk.content, str) and chunk.content:
-                        content_replacement_text = strip_html_cards(chunk.content)
-
-                elif chunk.type == "hitl_interrupt_metadata":
-                    hitl_metadata = chunk.metadata
-                    logger.info(
-                        "channel_inbound_hitl_interrupt",
-                        user_id=str(user_id),
-                        channel_user_id=channel_user_id,
-                    )
-
-                elif chunk.type == "hitl_interrupt_complete":
-                    if hitl_metadata:
-                        await self._send_hitl_keyboard(
-                            channel_user_id=channel_user_id,
-                            content_parts=content_parts,
-                            hitl_metadata=hitl_metadata,
-                            conversation_id=conversation_id,
-                            user_language=user_language,
-                        )
-                        # Return empty — keyboard message was already sent
-                        return ""
-                    break
-
-                elif chunk.type == "error":
-                    error_content = (
-                        chunk.content if isinstance(chunk.content, str) else str(chunk.content)
-                    )
-                    logger.error(
-                        "channel_inbound_stream_error",
-                        user_id=str(user_id),
-                        error=error_content,
-                    )
-                    break
-
-                elif chunk.type == "done":
-                    break
-
+                turn.feed(chunk)
         finally:
             plain_surface_ctx.reset(surface_token)
 
-        # Primary: prefer content_replacement when available.
-        # The streaming pipeline emits a content_replacement chunk after
-        # response_node processes the final text.  It is the AUTHORITATIVE
-        # full response.  The token stream can contain duplicated text
-        # (incremental tokens + the full final AIMessage re-emitted as tokens)
-        # due to LangGraph stream ordering.  content_replacement, once
-        # HTML-stripped, gives exactly the clean text without duplication.
-        if content_replacement_text:
-            logger.debug(
-                "channel_inbound_using_content_replacement",
+        if turn.error_code is not None:
+            # The code, never the content: some refusals carry technical text.
+            logger.warning(
+                "channel_inbound_stream_error",
                 user_id=str(user_id),
-                replacement_length=len(content_replacement_text),
-                token_parts_count=len(content_parts),
+                error_code=turn.error_code or None,
             )
-            return content_replacement_text
+        if turn.asked is not None:
+            logger.info(
+                "channel_inbound_hitl_interrupt",
+                user_id=str(user_id),
+                channel_user_id=channel_user_id,
+            )
+        return turn
 
-        # Fallback: use token-collected text (when no content_replacement
-        # was emitted, e.g. simple responses without registry items/cards)
-        response = "".join(content_parts)
+    async def _deliver(
+        self,
+        turn: _ChannelTurn,
+        *,
+        user_id: UUID,
+        channel_user_id: str,
+        conversation_id: str | None,
+        user_language: str,
+    ) -> None:
+        """Send the person what the turn said: its question, or its answer.
 
-        # Defense-in-depth: strip any residual HTML that might have leaked
-        # into the token stream (e.g., final AIMessage emitted before state update)
-        return strip_html_cards(response) if response else ""
+        A structured decision the pending question no longer matched is
+        answered « expired », as the chat's card flips to its expired state.
 
-    async def _send_hitl_keyboard(
+        Args:
+            turn: What the stream said.
+            user_id: The person, for the logs.
+            channel_user_id: The chat.
+            conversation_id: The person's conversation (None when none).
+            user_language: The person's language.
+        """
+        from src.domains.agents.api.hitl_pending import HITL_DECISION_STALE_ERROR_CODE
+        from src.domains.channels.abstractions import ChannelOutboundMessage
+        from src.infrastructure.channels.telegram.formatter import (
+            get_bot_message,
+            markdown_to_telegram_html,
+        )
+
+        if turn.asked is not None:
+            await self._send_hitl_question(
+                channel_user_id=channel_user_id,
+                turn=turn,
+                conversation_id=conversation_id,
+                user_language=user_language,
+            )
+            return
+
+        if turn.error_code == HITL_DECISION_STALE_ERROR_CODE:
+            text = get_bot_message("hitl_expired", user_language)
+        else:
+            text = turn.answer
+        if not text:
+            logger.warning(
+                "channel_inbound_empty_response",
+                user_id=str(user_id),
+                channel_user_id=channel_user_id,
+            )
+            return
+        outbound = ChannelOutboundMessage(text=markdown_to_telegram_html(text), parse_mode="HTML")
+        await self.sender.send_message(channel_user_id, outbound)
+
+    async def _send_hitl_question(
         self,
         channel_user_id: str,
-        content_parts: list[str],
-        hitl_metadata: dict[str, Any],
+        turn: _ChannelTurn,
         conversation_id: str | None,
         user_language: str,
     ) -> None:
         """
-        Send HITL interrupt message with inline keyboard (if applicable).
+        Send the question the turn stopped on, with its keyboard when it has one.
 
-        For button-based HITL types (plan_approval, destructive_confirm,
-        for_each_confirm), sends content + inline keyboard buttons.
-        For text-based types (clarification, draft_critique, modifier_review),
-        sends content as a plain message — user responds with free text.
+        The keyboard's declaration decides (``hitl_keyboard._HITL_TYPE_BUTTONS``):
+        a type answered by buttons is sent with its inline keyboard, a type
+        answered in words as a plain message. No keyboard is drawn without the
+        person's conversation or without the question's id: a button names both,
+        and a press that named neither could answer nothing. A question the
+        stream left empty is sent as the engine's own last-resort question —
+        the Bot API refuses an empty message, and a question nobody saw would
+        make the person's next words an answer to it. The question is counted
+        and logged once Telegram took it, never before.
+
+        Args:
+            channel_user_id: The chat.
+            turn: The turn that stopped on a question.
+            conversation_id: The person's conversation (None when none).
+            user_language: The person's language.
         """
+        from src.domains.agents.api.error_messages import SSEErrorMessages
         from src.domains.channels.abstractions import ChannelOutboundMessage
         from src.infrastructure.channels.telegram.formatter import markdown_to_telegram_html
         from src.infrastructure.channels.telegram.hitl_keyboard import build_hitl_keyboard
 
-        hitl_type = hitl_metadata.get("type", "plan_approval")
-        text = "".join(content_parts)
-        html_text = markdown_to_telegram_html(text) if text else ""
+        asked = turn.asked or {}
+        hitl_type = interaction_type_of(asked)
+        question = turn.question_text or SSEErrorMessages.confirmation_required(
+            language=resolve_language(user_language)
+        )
+        question_id = _text_of(asked.get(_QUESTION_MESSAGE_ID))
 
-        keyboard = {}
-        if conversation_id:
-            keyboard = build_hitl_keyboard(hitl_type, conversation_id, user_language)
+        keyboard: dict = {}
+        if conversation_id and question_id:
+            keyboard = build_hitl_keyboard(hitl_type, conversation_id, question_id, user_language)
 
-        if keyboard:
-            # Button-based HITL: send with inline keyboard
-            outbound = ChannelOutboundMessage(
-                text=html_text,
-                parse_mode="HTML",
-                reply_markup=keyboard,
+        outbound = ChannelOutboundMessage(
+            text=markdown_to_telegram_html(question),
+            parse_mode="HTML",
+            reply_markup=keyboard or None,
+        )
+        sent = await self.sender.send_message(channel_user_id, outbound)
+        if sent is None:
+            logger.warning(
+                "channel_hitl_question_unsent",
+                channel_user_id=channel_user_id,
+                hitl_type=hitl_type,
+                conversation_id=conversation_id,
             )
-            await self.sender.send_message(channel_user_id, outbound)
-        else:
-            # Text-based HITL: send as plain message (user replies with text)
-            if html_text:
-                outbound = ChannelOutboundMessage(text=html_text, parse_mode="HTML")
-                await self.sender.send_message(channel_user_id, outbound)
+            return
 
         channel_hitl_decisions_total.labels(
             channel_type=CHANNEL_TYPE_TELEGRAM,
@@ -423,12 +559,37 @@ class InboundMessageHandler:
         Returns:
             Transcribed text, or None if failed.
         """
+        from src.domains.channels.abstractions import ChannelOutboundMessage
         from src.infrastructure.channels.telegram.bot import get_bot
-        from src.infrastructure.channels.telegram.voice import transcribe_voice_message
+        from src.infrastructure.channels.telegram.formatter import get_bot_message
+        from src.infrastructure.channels.telegram.voice import (
+            MAX_VOICE_DURATION_SECONDS,
+            transcribe_voice_message,
+        )
 
         bot = get_bot()
         if bot is None:
             logger.warning("channel_voice_bot_unavailable", channel_user_id=channel_user_id)
+            return None
+
+        # Every voice message is measured, the refused ones included.
+        duration = message.voice_duration_seconds
+        if duration:
+            channel_voice_duration_seconds.labels(
+                channel_type=message.channel_type.value,
+            ).observe(duration)
+
+        # Too long is its own answer: the transcription would refuse it, and
+        # « I could not understand you » would send the person to repeat it.
+        if duration and duration > MAX_VOICE_DURATION_SECONDS:
+            channel_voice_transcriptions_total.labels(
+                channel_type=message.channel_type.value,
+                status="too_long",
+            ).inc()
+            too_long = get_bot_message("voice_too_long", user_language).format(
+                max_minutes=MAX_VOICE_DURATION_SECONDS // 60
+            )
+            await self.sender.send_message(channel_user_id, ChannelOutboundMessage(text=too_long))
             return None
 
         text = await transcribe_voice_message(
@@ -444,15 +605,8 @@ class InboundMessageHandler:
             channel_type=channel_type,
             status=status,
         ).inc()
-        if message.voice_duration_seconds:
-            channel_voice_duration_seconds.labels(
-                channel_type=channel_type,
-            ).observe(message.voice_duration_seconds)
 
         if not text:
-            from src.domains.channels.abstractions import ChannelOutboundMessage
-            from src.infrastructure.channels.telegram.formatter import get_bot_message
-
             error_msg = ChannelOutboundMessage(
                 text=get_bot_message("voice_empty", user_language),
             )

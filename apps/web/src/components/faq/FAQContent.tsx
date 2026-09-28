@@ -168,6 +168,7 @@ export const featureIcons = {
   observability: Activity,
   voice: Volume2,
   liveVoice: AudioLines,
+  personalRadio: Radio,
   expressiveEyes: Eye,
   costTransparency: DollarSign,
   scheduledActions: CalendarClock,
@@ -244,6 +245,7 @@ export const featureKeys = [
   'voice',
   // Wired at v1.47.0 with ADR-299/300 — the real-time Live mode on the person's own key.
   'liveVoice',
+  'personalRadio',
   // v1.30.16 (ADR-240): the signal-driven companion widget on the chat page.
   'expressiveEyes',
   'costTransparency',

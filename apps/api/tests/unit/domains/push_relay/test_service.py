@@ -154,7 +154,7 @@ class TestTheOnlyThingItMaySay:
         await service.wake(_handle(language="de"))
 
         payload = apns.send.await_args.args[1]
-        assert payload["aps"]["alert"]["body"] == "Es gibt Neues für Sie. Zum Ansehen öffnen."
+        assert payload["aps"]["alert"]["body"] == "Es gibt Neues für dich. Zum Ansehen öffnen."
 
     async def test_nothing_in_the_payload_comes_from_the_caller(self) -> None:
         apns = _apns()

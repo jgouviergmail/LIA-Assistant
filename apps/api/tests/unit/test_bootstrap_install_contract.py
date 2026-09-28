@@ -128,6 +128,41 @@ async def test_ensure_admin_validates_before_any_query() -> None:
     db.execute.assert_not_awaited()
 
 
+async def test_a_new_admin_speaks_the_instance_s_configured_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Left to the DDL default, the first administrator was French whatever
+    DEFAULT_LANGUAGE said (ADR-323)."""
+    from scripts.data.create_admin import ensure_admin
+    from src.core.config import settings
+    from src.core.constants import (
+        PASSWORD_MIN_DIGITS,
+        PASSWORD_MIN_LENGTH,
+        PASSWORD_MIN_SPECIAL,
+        PASSWORD_MIN_UPPERCASE,
+        PASSWORD_SPECIAL_CHARS,
+    )
+
+    configured = "de"  # not "fr", the DDL default
+    monkeypatch.setattr(settings, "default_language", configured)
+    nobody = MagicMock()
+    nobody.fetchone.return_value = None
+    db = MagicMock()
+    db.execute = AsyncMock(side_effect=[nobody, MagicMock()])
+    db.flush = AsyncMock()
+
+    required = (
+        "A" * PASSWORD_MIN_UPPERCASE
+        + "1" * PASSWORD_MIN_DIGITS
+        + PASSWORD_SPECIAL_CHARS[0] * PASSWORD_MIN_SPECIAL
+    )
+    password = required + "a" * max(0, PASSWORD_MIN_LENGTH - len(required))
+    await ensure_admin(db, email="admin@example.com", password=password, full_name="Admin")
+
+    insert_params = db.execute.await_args_list[1].args[1]
+    assert insert_params["language"] == configured
+
+
 # ---------------------------------------------------------------------------
 # Payload validation (stable non-secret codes)
 # ---------------------------------------------------------------------------

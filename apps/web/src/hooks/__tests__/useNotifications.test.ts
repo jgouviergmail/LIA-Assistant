@@ -4,8 +4,13 @@
  * The `EventSource` is replaced by a controllable fake, so the properties that
  * only show up in the field are driven explicitly here:
  *
- *  - a dropped connection **reconnects with a growing delay**, and gives up
- *    after a bounded number of attempts instead of hammering the server;
+ *  - a dropped connection **reconnects with a growing delay** that stops
+ *    growing at a ceiling — it is never given up on while the tab is looked
+ *    at, pauses while it is hidden, and resumes at once back online; a
+ *    reopened stream is announced, since what was published meanwhile is
+ *    lost (ADR-320);
+ *  - the thread's own sync signals reach their callback and never the
+ *    notification list;
  *  - the same notification arriving twice (SSE retry, FCM duplicate) is
  *    counted once, and the backlog is capped;
  *  - logging out or unmounting closes the stream **and** cancels a pending
@@ -23,7 +28,12 @@ vi.mock('@/lib/logger', () => ({
 const { onForegroundMessage } = vi.hoisted(() => ({ onForegroundMessage: vi.fn(() => vi.fn()) }));
 vi.mock('@/lib/firebase', () => ({ onForegroundMessage }));
 
-import { useNotifications, routeNotification } from '../useNotifications';
+import {
+  RECONNECT_DELAY_MS,
+  RECONNECT_MAX_DELAY_MS,
+  routeNotification,
+  useNotifications,
+} from '../useNotifications';
 import type { Notification } from '@/hooks/useNotifications';
 
 /** A controllable EventSource: the test decides when it opens, fails, emits. */
@@ -85,9 +95,14 @@ beforeEach(() => {
   vi.stubGlobal('EventSource', FakeEventSource);
 });
 
+function setVisibility(state: DocumentVisibilityState) {
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  setVisibility('visible');
 });
 
 describe('useNotifications — connection lifecycle', () => {
@@ -158,19 +173,60 @@ describe('useNotifications — reconnection', () => {
     expect(FakeEventSource.instances).toHaveLength(3);
   });
 
-  it('gives up after the bounded number of attempts and says so', () => {
+  it('never gives up while the tab is looked at — the delay stops growing instead', () => {
+    // Five failures used to end the channel until a manual reload (ADR-320).
     const { result } = connected();
 
-    for (let attempt = 1; attempt <= 5; attempt++) {
+    for (let attempt = 1; attempt <= 30; attempt++) {
       act(() => live().fail());
-      act(() => void vi.advanceTimersByTime(3_000 * attempt));
+      act(() => void vi.advanceTimersByTime(RECONNECT_MAX_DELAY_MS));
     }
-    // The sixth failure exhausts the budget.
-    act(() => live().fail());
-    act(() => void vi.advanceTimersByTime(120_000));
+    expect(FakeEventSource.instances).toHaveLength(31);
+    expect(result.current.error).toBeNull();
 
-    expect(FakeEventSource.instances).toHaveLength(6);
-    expect(result.current.error).toMatch(/refresh the page/i);
+    // Past the ceiling, one more minute is the longest any retry waits.
+    act(() => live().fail());
+    act(() => void vi.advanceTimersByTime(RECONNECT_MAX_DELAY_MS - 1));
+    expect(FakeEventSource.instances).toHaveLength(31);
+    act(() => void vi.advanceTimersByTime(1));
+    expect(FakeEventSource.instances).toHaveLength(32);
+  });
+
+  it('does not retry for a hidden tab, and reconnects when it is looked at again', () => {
+    connected();
+    setVisibility('hidden');
+
+    act(() => live().fail());
+    act(() => void vi.advanceTimersByTime(10 * 60_000));
+    expect(FakeEventSource.instances).toHaveLength(1);
+
+    setVisibility('visible');
+    act(() => void document.dispatchEvent(new Event('visibilitychange')));
+    expect(FakeEventSource.instances).toHaveLength(2);
+  });
+
+  it('reconnects at once when the device is back online', () => {
+    connected();
+
+    act(() => live().fail());
+    act(() => void window.dispatchEvent(new Event('online')));
+
+    // No backoff computed while the network was down is waited for.
+    expect(FakeEventSource.instances).toHaveLength(2);
+    act(() => void vi.advanceTimersByTime(RECONNECT_DELAY_MS));
+    expect(FakeEventSource.instances).toHaveLength(2);
+  });
+
+  it('announces a stream that is open again after a drop — not the first open', () => {
+    const onReconnected = vi.fn();
+    connected({ onReconnected });
+    expect(onReconnected).not.toHaveBeenCalled();
+
+    act(() => live().fail());
+    act(() => void vi.advanceTimersByTime(RECONNECT_DELAY_MS));
+    act(() => live().onopen?.());
+
+    expect(onReconnected).toHaveBeenCalledTimes(1);
   });
 
   it('resets the attempt budget once a connection succeeds again', () => {
@@ -203,15 +259,6 @@ describe('useNotifications — eviction (superseded)', () => {
   // evicted stream so with an `superseded` SSE event before closing it.
   // Eviction is a deliberate verdict, not a failure: no retry budget burned,
   // no user-facing error — and only a VISIBLE tab retakes a slot immediately.
-
-  function setVisibility(state: DocumentVisibilityState) {
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => state,
-    });
-  }
-
-  afterEach(() => setVisibility('visible'));
 
   it('reconnects immediately when the tab is visible', () => {
     const { result, source } = connected();
@@ -252,6 +299,25 @@ describe('useNotifications — eviction (superseded)', () => {
 
     // A surviving listener would open a stream for a user who is gone.
     expect(FakeEventSource.instances).toHaveLength(1);
+  });
+});
+
+describe('useNotifications — the thread sync signals (ADR-320)', () => {
+  it('hands them to their callback, never to the notification list', () => {
+    const onConversationEvent = vi.fn();
+    const onNotification = vi.fn();
+    const { result } = connected({ onConversationEvent, onNotification });
+
+    act(() => live().emit({ type: 'conversation_updated', conversation_id: 'c1' }));
+    act(() => live().emit({ type: 'conversation_reset', conversation_id: 'c1' }));
+
+    expect(onConversationEvent.mock.calls).toEqual([
+      ['conversation_updated'],
+      ['conversation_reset'],
+    ]);
+    expect(onNotification).not.toHaveBeenCalled();
+    expect(result.current.notifications).toHaveLength(0);
+    expect(result.current.unreadCount).toBe(0);
   });
 });
 

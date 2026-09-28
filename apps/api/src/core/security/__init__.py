@@ -11,7 +11,6 @@ from src.core.security.authorization import (
 # Password validation utilities
 from src.core.security.password_validation import (
     PasswordValidationResult,
-    get_password_requirements_message,
     validate_password,
     validate_password_strict,
 )
@@ -51,7 +50,6 @@ __all__ = [
     "validate_password",
     "validate_password_strict",
     "PasswordValidationResult",
-    "get_password_requirements_message",
     # Encryption
     "cipher_suite",
     "encrypt_data",

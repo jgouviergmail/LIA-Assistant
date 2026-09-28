@@ -1018,3 +1018,46 @@ tests:
       - eval_time: 40m
         alertname: PushWakeSweepStalled
         exp_alerts: []
+
+  # ===== RadioNewsroomStalled: no newsroom tick ended for over 30 minutes (ADR-324) =====
+  # The stamp is a Unix time and promtool's clock starts at 0: a stamp frozen at
+  # 0 is exactly as old as the evaluation instant. Past 30 minutes the rule
+  # pends, ten minutes later it fires.
+  - interval: 1m
+    input_series:
+      - series: 'radio_newsroom_last_run_timestamp_seconds'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: RadioNewsroomStalled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: radio
+              tier: core
+            exp_annotations:
+              summary: "The radio newsroom last ran to its end 45m 0s ago"
+              description: "No newsroom tick has ended for longer than 1800 seconds: every pass failed, or the job is not running (no scheduler leader, a pass blocked on the database). No new story is filed: sessions air what the newsroom already holds, then no news at all. Read radio_newsroom_passes_total by outcome — failed means radio_newsroom_pass_failed in the API log, with the database facts; nothing at all means the scheduler."
+              runbook: "docs/runbooks/alerts/RadioNewsroomStalled.md"
+
+  # ===== …a newsroom that keeps ticking stays silent =====
+  # The same clock, the stamp renewed every five minutes (a pass, or a tick
+  # with the radio switched off): its age never passes the threshold.
+  - interval: 5m
+    input_series:
+      - series: 'radio_newsroom_last_run_timestamp_seconds'
+        values: '0+300x12'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: RadioNewsroomStalled
+        exp_alerts: []
+
+  # ===== …a deployment without the radio has no stamp and never fires =====
+  - interval: 1m
+    input_series:
+      - series: 'up{job="lia-api"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: RadioNewsroomStalled
+        exp_alerts: []

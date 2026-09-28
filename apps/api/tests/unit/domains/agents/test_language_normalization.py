@@ -3,24 +3,20 @@
 The system has two legitimate spellings for Chinese: ``zh`` (frontend
 locales/URLs) and ``zh-CN`` (backend ``User.language``, ``SUPPORTED_LANGUAGES``,
 i18n table keys). The single chokepoint is
-``utils/i18n_location.normalize_language`` — every consumer must accept BOTH
+``core.i18n.normalize_language`` — every consumer must accept BOTH
 spellings and reach the ``zh-CN``-keyed tables.
 
 Criterion: a user whose language arrives as "zh" OR "zh-CN" receives Chinese
-in labels (contacts) and in text summaries.
+in text summaries.
 """
 
 import pytest
 
+from src.core.i18n import normalize_language
 from src.domains.agents.formatters.text_summary import (
     DOMAIN_LABELS,
     generate_text_summary_for_items,
 )
-from src.domains.agents.tools.labels import (
-    translate_field_type,
-    translate_relation_type,
-)
-from src.domains.agents.utils.i18n_location import normalize_language
 
 
 class TestNormalizeLanguageChokepoint:
@@ -45,19 +41,6 @@ class TestNormalizeLanguageChokepoint:
     def test_unsupported_language_falls_back(self):
         # Fallback must be a supported language (settings-driven default)
         assert normalize_language("xx") in ("fr", "en", "es", "de", "it", "zh-CN")
-
-
-class TestLabelsChineseReachable:
-    """tools/labels.py: 'zh' and 'zh-CN' both reach the zh-CN tables."""
-
-    @pytest.mark.parametrize("locale", ["zh", "zh-CN", "zh_CN"])
-    def test_field_type_translated_to_chinese(self, locale: str):
-        assert translate_field_type("home", locale) == "住宅"
-        assert translate_field_type("work", locale) == "工作"
-
-    @pytest.mark.parametrize("locale", ["zh", "zh-CN"])
-    def test_relation_type_translated_to_chinese(self, locale: str):
-        assert translate_relation_type("spouse", locale) == "配偶"
 
 
 class TestTextSummaryChineseReachable:

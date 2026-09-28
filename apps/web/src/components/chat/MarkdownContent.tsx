@@ -7,8 +7,11 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import rehypeKatex from 'rehype-katex';
 import { markdownSanitizeSchema } from '@/lib/markdown-sanitize-schema';
+import rehypeRestoreDollars, { protectReferencedDollars } from '@/lib/markdown-dollars';
 import rehypeMathInText from '@/lib/rehype-math-in-text';
 import rehypeSearchHighlight from '@/lib/rehype-search-highlight';
+import rehypeTableLabels from '@/lib/rehype-table-labels';
+import rehypeContactPhotos from '@/lib/rehype-contact-photos';
 import { useTranslation } from 'react-i18next';
 import { cn, GOOGLE_IMAGE_DOMAINS, proxyGoogleImageUrl } from '@/lib/utils';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
@@ -19,6 +22,14 @@ import { isImageLoaded, markImageLoaded } from '@/lib/image-cache';
 import { apiImageProps } from '@/lib/utils/api-resource-url';
 import { logger } from '@/lib/logger';
 import { codeBlockOf } from '@/lib/markdown-code-block';
+import {
+  MarkdownTable,
+  MarkdownTableBody,
+  MarkdownTableCell,
+  MarkdownTableHead,
+  MarkdownTableHeaderCell,
+  MarkdownTableRow,
+} from '@/components/chat/markdown-table';
 
 // MCP Apps widget — lazy loaded (only needed when MCP App sentinel divs are present)
 const McpAppWidget = lazy(() =>
@@ -115,7 +126,9 @@ function resolveMarkdownImage(srcProp: React.ImgHTMLAttributes<HTMLImageElement>
   crossOrigin?: 'use-credentials';
 } {
   if (typeof srcProp !== 'string') return {};
-  return apiImageProps(srcProp);
+  // All Google photos need the proxy, including structured card images. The
+  // preload and rendered image must use this same authenticated request.
+  return apiImageProps(proxyGoogleImageUrl(srcProp) || srcProp);
 }
 
 /**
@@ -227,7 +240,8 @@ const MarkdownImage = memo(
       !isPlacePhoto &&
       (() => {
         try {
-          const parsed = new URL(src);
+          // Classification uses the original URL; `src` is already proxied.
+          const parsed = new URL(typeof srcProp === 'string' ? srcProp : src);
           return GOOGLE_IMAGE_DOMAINS.includes(parsed.hostname);
         } catch {
           return alt?.toLowerCase().includes('photo') ?? false;
@@ -280,11 +294,6 @@ const MarkdownImage = memo(
     // Profile photo (Google Contacts) - Single contact detail view
     // Uses contact-photo CSS class for consistent styling with vignette effect
     if (isProfilePhoto) {
-      // `proxyGoogleImageUrl` answers a RELATIVE `/api/v1/...` path,
-      // which resolves against the FRONTEND origin: it only works
-      // where a proxy re-routes the API, and it is embedded, so it
-      // needs its credentials like every other API image.
-      const proxied = apiImageProps(proxyGoogleImageUrl(src) || src);
       return (
         <>
           <span
@@ -302,7 +311,8 @@ const MarkdownImage = memo(
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                {...proxied}
+                src={src}
+                crossOrigin={crossOrigin}
                 alt={alt || 'Photo de profil'}
                 className="contact-photo"
                 referrerPolicy="no-referrer"
@@ -316,8 +326,8 @@ const MarkdownImage = memo(
           {typeof document !== 'undefined' &&
             createPortal(
               <ImageLightbox
-                src={proxied.src}
-                crossOrigin={proxied.crossOrigin}
+                src={src}
+                crossOrigin={crossOrigin}
                 alt={alt || 'Photo de profil'}
                 isOpen={isLightboxOpen}
                 onClose={() => setIsLightboxOpen(false)}
@@ -479,7 +489,17 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
         rehypeRaw,
         [rehypeSanitize, markdownSanitizeSchema],
         rehypeMathInText,
+        // A referenced dollar is a literal one (`lib/markdown-dollars.ts`):
+        // written back once the math step ran, before KaTeX renders.
+        rehypeRestoreDollars,
         rehypeKatex,
+        // Names every body cell after its column, for the stacked-card layout
+        // of an overflowing table on a narrow screen (B2). After KaTeX, so a
+        // formula in a header reads as its source; before the search marks.
+        rehypeTableLabels,
+        // Saved contact photos predate the explicit structured-image class.
+        // Restore only that fixed class on the already-sanitized AST.
+        rehypeContactPhotos,
       ];
       if (searchTerm) base.push([rehypeSearchHighlight, { query: searchTerm }]);
       return base;
@@ -502,9 +522,11 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
     // into KaTeX markers at the hast level by rehypeMathInText (below), which
     // — unlike remark-math — also sees math inside the raw HTML the assistant
     // emits. Currency `$` needs no escaping anymore: rehypeMathInText applies
-    // MathJax rules and simply leaves non-math `$` as literal text.
+    // MathJax rules and simply leaves non-math `$` as literal text. A
+    // REFERENCED dollar (`&#36;`, a card value drawn as itself) is never a
+    // delimiter: it waits as a marker until `rehypeRestoreDollars`.
     const mathNormalizedContent = useMemo(
-      () => normalizeMathDelimiters(sanitizedContent),
+      () => normalizeMathDelimiters(protectReferencedDollars(sanitizedContent)),
       [sanitizedContent]
     );
 
@@ -528,10 +550,14 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
           // the XSS boundary (schema audited against all legitimate card /
           // rich-HTML markup). rehypeMathInText then converts `$…$`/`$$…$$`
           // found in the (now expanded) HTML text into math markers, and
-          // rehypeKatex runs LAST so its generated markup is not stripped while
-          // the math nodes it consumes survive sanitization (className allowed
-          // globally). Both math steps are sanitize-exempt by design: they only
-          // read already-sanitized text and emit fixed-class spans.
+          // rehypeKatex runs AFTER sanitize so its generated markup is not
+          // stripped while the math nodes it consumes survive sanitization
+          // (className allowed globally). Every step after sanitize is exempt
+          // by design: the math steps read already-sanitized text and emit
+          // fixed-class spans, rehypeTableLabels only writes attribute VALUES
+          // (a column's name, a role) computed from that text, contact-photo
+          // repair only adds a fixed class to an existing image, and the search
+          // marks wrap it in a fixed-class <mark>.
           rehypePlugins={rehypePlugins}
           // Custom URL transform to allow tel: and mailto: protocols
           // Default only allows: http, https, irc, ircs, mailto, xmpp
@@ -733,25 +759,15 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             // Horizontal rule
             hr: () => <hr className="my-4 border-t border-border/50" />,
 
-            // Tables - responsive with scroll indicator on mobile
-            table: ({ children }) => (
-              <div className="table-wrapper my-3 overflow-x-auto rounded-lg border border-border/50 shadow-sm">
-                <table className="divide-y divide-border/50">{children}</table>
-              </div>
-            ),
-            thead: ({ children }) => <thead className="bg-muted/30">{children}</thead>,
-            tbody: ({ children }) => (
-              <tbody className="divide-y divide-border/30 bg-card/30">{children}</tbody>
-            ),
-            tr: ({ children }) => (
-              <tr className="hover:bg-muted/20 transition-colors">{children}</tr>
-            ),
-            th: ({ children }) => (
-              <th className="px-4 py-2 text-left font-semibold uppercase tracking-wider text-foreground">
-                {children}
-              </th>
-            ),
-            td: ({ children }) => <td className="px-3 py-2 text-foreground sm:px-4">{children}</td>,
+            // Tables: a table where it fits, a scroll box with a visible cue
+            // where it does not, stacked cards on a narrow screen (B2). Stable
+            // module-level components — see `markdown-table.tsx`.
+            table: MarkdownTable,
+            thead: MarkdownTableHead,
+            tbody: MarkdownTableBody,
+            tr: MarkdownTableRow,
+            th: MarkdownTableHeaderCell,
+            td: MarkdownTableCell,
 
             // Task lists (GFM extension)
             input: ({ checked, ...props }) => (

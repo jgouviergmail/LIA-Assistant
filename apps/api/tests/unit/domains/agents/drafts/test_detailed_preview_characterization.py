@@ -15,11 +15,22 @@ written by hand), never substring checks. The table is regenerated ONLY on a
 deliberate, reviewed behavior change, with the old/new tables diffed to prove
 the change is surgical.
 
-Two regenerations so far: the 2026-07-11 fallback fixes (localized
-``no_subject``, ``None`` body, reminder ``"?"``), and ADR-276 lot 13, where
+Five regenerations so far: the 2026-07-11 fallback fixes (localized
+``no_subject``, ``None`` body, reminder ``"?"``), ADR-276 lot 13, where
 the vocabulary itself changed from HTML to Markdown — all 85 cases, each
-diffed. A net that pins EVERY case is what makes such a change reviewable
-rather than merely tested: the diff IS the change.
+diffed —, ADR-323, where a tool call's argument value is clipped to its
+bound, its ellipsis counted IN the bound: one case, one character —,
+ADR-323's thirteenth review, where a card draws a value as the characters
+it holds: the six e-mail cases, one line each, the ``<br/>`` of a
+plain-text body now shown as the recipient will read it (the chat's card
+already showed it; the Markdown form alone drew a line break) — and its
+fourteenth, where a value never becomes a link the chat's tokenizer could
+cut: 29 cases of 88, each ``@`` drawn as ``&#64;`` and nothing else
+changed (proved case by case) — then one more, the sublabels a label
+deletion leaves out counted after the ellipsis every card uses (« … »,
+never « ... »).
+A net that pins EVERY case is what makes such a change reviewable rather
+than merely tested: the diff IS the change.
 
 Branch coverage encoded in the case table:
 - Email send/reply/forward shared branch: cc/bcc present and absent, forward
@@ -38,13 +49,14 @@ Branch coverage encoded in the case table:
   ``current_task`` fallbacks.
 - File delete: ``mimeType`` present/absent, missing file dict.
 - Label delete: ``children_only`` mode, 0 / few / more-than-5 sublabels
-  (``... (+N)`` truncation), sublabel ``name`` fallback to ``"?"``.
+  (``… (+N)`` truncation), sublabel ``name`` fallback to ``"?"``.
 - Forward body ``None``: shows NO message block at all (2026-07-11 it stopped
   rendering the literal string ``"None"``; lot 13 stopped heading an empty
   block, since a label above emptiness states less than silence).
 - All 6 supported languages on the email branch, zh-CN datetime formatting,
   timezone conversion (Europe/Paris vs America/New_York), and the default
-  argument binding (fr + DEFAULT_USER_DISPLAY_TIMEZONE).
+  argument binding (the instance's default language +
+  DEFAULT_USER_DISPLAY_TIMEZONE).
 - Unknown draft type: fallback to ``get_summary`` → ``"Draft (<value>)"``.
 - MIXED cases (one field modified, the others preserved/absent) on every
   update type and on multi-optional create types: all-new/all-preserved pairs
@@ -60,6 +72,8 @@ from typing import Any, NamedTuple
 
 import pytest
 
+from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_drafts import get_draft_preview_labels
 from src.domains.agents.drafts.models import Draft, DraftType
 
@@ -615,7 +629,7 @@ CASES: tuple[PreviewCase, ...] = (
             "sublabels": [{"name": f"pro/archive/{year}"} for year in range(2019, 2026)],
         },
     ),
-    # Truncation boundary: exactly 5 sublabels → all listed, no "... (+N)".
+    # Truncation boundary: exactly 5 sublabels → all listed, no "… (+N)".
     PreviewCase(
         "label_delete_five_sublabels_fr",
         DraftType.LABEL_DELETE,
@@ -867,30 +881,33 @@ CASES: tuple[PreviewCase, ...] = (
 # Regenerate ONLY on a deliberate, reviewed behavior change, and diff the
 # old/new tables to prove the change touches exactly the intended cases.
 #
-# Last regeneration: 2026-09-09, ADR-276 lot 13 — the vocabulary became
-# Markdown (85 cases, all 85 changed, each diffed). Four defects the old table
-# had pinned went with it: an empty « Message » block on a forward with no
+# Last regeneration: 2026-09-27, ADR-323 review 14 — 29 cases of 88, each
+# ``@`` drawn as ``&#64;`` (the chat's tokenizer no longer links a value),
+# and one more, a label deletion's « ... (+2) » now « … (+2) ».
+# Before it, 2026-09-09, ADR-276 lot 13 — the vocabulary became Markdown
+# (85 cases, all 85 changed, each diffed). Four defects the old table had
+# pinned went with it: an empty « Message » block on a forward with no
 # added words, an event with no times showing « Start: » over nothing, the
 # attachments row landing AFTER the body block, and the leading break every
 # single preview opened with.
 EXPECTED: dict[str, str] = {
-    "email_full_fr": "- **Destinataire**\xa0: alice@example.com\n- **Cc**\xa0: bob@example.com\n- **Cci**\xa0: carol@example.com\n- **Objet**\xa0: Projet LIA — point d'étape\n\n**Message**\n\nBonjour Alice,<br/>voici le point d'étape.",
-    "email_minimal_en": "- **To**: dave@example.com\n- **Subject**: Quick sync\n\n**Message**\n\nSee you at 10.",
-    "email_labels_en": "- **To**: alice@example.com\n- **Cc**: bob@example.com\n- **Bcc**: carol@example.com\n- **Subject**: Projet LIA — point d'étape\n\n**Message**\n\nBonjour Alice,<br/>voici le point d'étape.",
-    "email_labels_es": "- **Destinatario**: alice@example.com\n- **Cc**: bob@example.com\n- **Cco**: carol@example.com\n- **Asunto**: Projet LIA — point d'étape\n\n**Mensaje**\n\nBonjour Alice,<br/>voici le point d'étape.",
-    "email_labels_de": "- **An**: alice@example.com\n- **Cc**: bob@example.com\n- **Bcc**: carol@example.com\n- **Betreff**: Projet LIA — point d'étape\n\n**Nachricht**\n\nBonjour Alice,<br/>voici le point d'étape.",
-    "email_labels_it": "- **Destinatario**: alice@example.com\n- **Cc**: bob@example.com\n- **Ccn**: carol@example.com\n- **Oggetto**: Projet LIA — point d'étape\n\n**Messaggio**\n\nBonjour Alice,<br/>voici le point d'étape.",
-    "email_labels_zh": "- **收件人**：alice@example.com\n- **抄送**：bob@example.com\n- **密送**：carol@example.com\n- **主题**：Projet LIA — point d'étape\n\n**内容**\n\nBonjour Alice,<br/>voici le point d'étape.",
-    "email_reply_fr": "- **Destinataire**\xa0: erin@example.com\n- **Objet**\xa0: Re: Devis\n\n**Message**\n\nMerci, c'est validé.",
-    "email_reply_with_cc_fr": "- **Destinataire**\xa0: erin@example.com\n- **Cc**\xa0: frank@example.com\n- **Objet**\xa0: Re: Devis\n\n**Message**\n\nMerci, c'est validé.",
-    "email_forward_attachments_fr": "- **Destinataire**\xa0: greg@example.com\n- **Cc**\xa0: clara@example.com\n- **Objet**\xa0: Fwd: Contrat\n- **Pièces jointes**\xa0: contrat.pdf, annexe.docx, ?\n\n**Message**\n\nPour info.",
-    "email_forward_no_attachments_en": "- **To**: ivan@example.com\n- **Subject**: Fwd: Report\n\n**Message**\n\nFYI.",
-    "email_forward_none_body_fr": "- **Destinataire**\xa0: judy@example.com\n- **Objet**\xa0: Fwd: Photos",
-    "email_forward_bcc_no_cc_fr": "- **Destinataire**\xa0: greg@example.com\n- **Cci**\xa0: mallory@example.com\n- **Objet**\xa0: Fwd: Contrat\n\n**Message**\n\nPour info.",
-    "email_delete_full_fr": "- **De**\xa0: jane@example.com\n- **Objet**\xa0: Newsletter\n- **Date**\xa0: samedi 16 mai 2026 à 14:00",
-    "email_delete_from_addr_fallback_en": "- **From**: kyle@example.com\n- **Subject**: (no subject)",
-    "email_delete_no_subject_en": "- **From**: liam@example.com\n- **Subject**: (no subject)",
-    "email_delete_empty_subject_fr": "- **De**\xa0: nina@example.com\n- **Objet**\xa0: (sans objet)",
+    "email_full_fr": "- **Destinataire**\xa0: alice&#64;example.com\n- **Cc**\xa0: bob&#64;example.com\n- **Cci**\xa0: carol&#64;example.com\n- **Objet**\xa0: Projet LIA — point d'étape\n\n**Message**\n\nBonjour Alice,&#60;br/&#62;voici le point d'étape.",
+    "email_minimal_en": "- **To**: dave&#64;example.com\n- **Subject**: Quick sync\n\n**Message**\n\nSee you at 10.",
+    "email_labels_en": "- **To**: alice&#64;example.com\n- **Cc**: bob&#64;example.com\n- **Bcc**: carol&#64;example.com\n- **Subject**: Projet LIA — point d'étape\n\n**Message**\n\nBonjour Alice,&#60;br/&#62;voici le point d'étape.",
+    "email_labels_es": "- **Destinatario**: alice&#64;example.com\n- **Cc**: bob&#64;example.com\n- **Cco**: carol&#64;example.com\n- **Asunto**: Projet LIA — point d'étape\n\n**Mensaje**\n\nBonjour Alice,&#60;br/&#62;voici le point d'étape.",
+    "email_labels_de": "- **An**: alice&#64;example.com\n- **Cc**: bob&#64;example.com\n- **Bcc**: carol&#64;example.com\n- **Betreff**: Projet LIA — point d'étape\n\n**Nachricht**\n\nBonjour Alice,&#60;br/&#62;voici le point d'étape.",
+    "email_labels_it": "- **Destinatario**: alice&#64;example.com\n- **Cc**: bob&#64;example.com\n- **Ccn**: carol&#64;example.com\n- **Oggetto**: Projet LIA — point d'étape\n\n**Messaggio**\n\nBonjour Alice,&#60;br/&#62;voici le point d'étape.",
+    "email_labels_zh": "- **收件人**：alice&#64;example.com\n- **抄送**：bob&#64;example.com\n- **密送**：carol&#64;example.com\n- **主题**：Projet LIA — point d'étape\n\n**内容**\n\nBonjour Alice,&#60;br/&#62;voici le point d'étape.",
+    "email_reply_fr": "- **Destinataire**\xa0: erin&#64;example.com\n- **Objet**\xa0: Re: Devis\n\n**Message**\n\nMerci, c'est validé.",
+    "email_reply_with_cc_fr": "- **Destinataire**\xa0: erin&#64;example.com\n- **Cc**\xa0: frank&#64;example.com\n- **Objet**\xa0: Re: Devis\n\n**Message**\n\nMerci, c'est validé.",
+    "email_forward_attachments_fr": "- **Destinataire**\xa0: greg&#64;example.com\n- **Cc**\xa0: clara&#64;example.com\n- **Objet**\xa0: Fwd: Contrat\n- **Pièces jointes**\xa0: contrat.pdf, annexe.docx, ?\n\n**Message**\n\nPour info.",
+    "email_forward_no_attachments_en": "- **To**: ivan&#64;example.com\n- **Subject**: Fwd: Report\n\n**Message**\n\nFYI.",
+    "email_forward_none_body_fr": "- **Destinataire**\xa0: judy&#64;example.com\n- **Objet**\xa0: Fwd: Photos",
+    "email_forward_bcc_no_cc_fr": "- **Destinataire**\xa0: greg&#64;example.com\n- **Cci**\xa0: mallory&#64;example.com\n- **Objet**\xa0: Fwd: Contrat\n\n**Message**\n\nPour info.",
+    "email_delete_full_fr": "- **De**\xa0: jane&#64;example.com\n- **Objet**\xa0: Newsletter\n- **Date**\xa0: samedi 16 mai 2026 à 14:00",
+    "email_delete_from_addr_fallback_en": "- **From**: kyle&#64;example.com\n- **Subject**: (no subject)",
+    "email_delete_no_subject_en": "- **From**: liam&#64;example.com\n- **Subject**: (no subject)",
+    "email_delete_empty_subject_fr": "- **De**\xa0: nina&#64;example.com\n- **Objet**\xa0: (sans objet)",
     "email_delete_no_sender_fr": "- **De**\xa0: ?\n- **Objet**\xa0: Spam",
     "reminder_delete_full_fr": "- **Événement**\xa0: Appeler le médecin\n- **Date**\xa0: dimanche 17 mai 2026 à 19:00",
     "reminder_delete_content_only_fr": "- **Événement**\xa0: Arroser les plantes",
@@ -900,28 +917,28 @@ EXPECTED: dict[str, str] = {
     "ticket_delete_alone_fr": "- **Titre**\xa0: Réserver la salle",
     "ticket_delete_empty_fr": "- **Titre**\xa0: ?",
     "ticket_delete_full_en": "- **Title**: Book the room\n- **Steps**: 1",
-    "event_full_fr": "- **Événement**\xa0: Réunion projet\n- **Début**\xa0: lundi 01 juin 2026 à 09:00\n- **Fin**\xa0: lundi 01 juin 2026 à 10:30\n- **Lieu**\xa0: Salle B\n- **Participants**\xa0: alice@example.com, bob@example.com\n\n**Message**\n\nOrdre du jour : budget.",
+    "event_full_fr": "- **Événement**\xa0: Réunion projet\n- **Début**\xa0: lundi 01 juin 2026 à 09:00\n- **Fin**\xa0: lundi 01 juin 2026 à 10:30\n- **Lieu**\xa0: Salle B\n- **Participants**\xa0: alice&#64;example.com, bob&#64;example.com\n\n**Message**\n\nOrdre du jour : budget.",
     "event_minimal_en": "- **Event**: Standup",
     "event_location_only_en": "- **Event**: Demo\n- **Start**: Monday 08 June 2026 at 15:00\n- **End**: Monday 08 June 2026 at 16:00\n- **Location**: Room A",
     "event_full_zh": "- **事件**：项目会议\n- **开始**：2026年6月1日 星期一 09:00\n- **结束**：2026年6月1日 星期一 10:30\n- **地点**：B会议室",
-    "event_update_new_times_fr": "- **Événement**\xa0: Réunion déplacée\n- **Début**\xa0: mardi 02 juin 2026 à 14:00 ✏️\n- **Fin**\xa0: mardi 02 juin 2026 à 15:00 ✏️\n- **Lieu**\xa0: Salle C ✏️\n- **Participants**\xa0: alice@example.com",
-    "event_update_preserved_fr": "- **Événement**\xa0: Réunion projet\n- **Début**\xa0: lundi 01 juin 2026 à 09:00\n- **Fin**\xa0: lundi 01 juin 2026 à 10:30\n- **Lieu**\xa0: Salle B\n- **Participants**\xa0: alice@example.com, Bob",
+    "event_update_new_times_fr": "- **Événement**\xa0: Réunion déplacée\n- **Début**\xa0: mardi 02 juin 2026 à 14:00 ✏️\n- **Fin**\xa0: mardi 02 juin 2026 à 15:00 ✏️\n- **Lieu**\xa0: Salle C ✏️\n- **Participants**\xa0: alice&#64;example.com",
+    "event_update_preserved_fr": "- **Événement**\xa0: Réunion projet\n- **Début**\xa0: lundi 01 juin 2026 à 09:00\n- **Fin**\xa0: lundi 01 juin 2026 à 10:30\n- **Lieu**\xa0: Salle B\n- **Participants**\xa0: alice&#64;example.com, Bob",
     "event_update_allday_fr": "- **Événement**\xa0: Anniversaire\n- **Début**\xa0: mercredi 03 juin 2026 à 02:00\n- **Fin**\xa0: jeudi 04 juin 2026 à 02:00",
-    "event_update_new_attendees_fr": "- **Événement**\xa0: Point équipe\n- **Participants**\xa0: carol@example.com ✏️",
-    "event_update_mixed_new_start_only_fr": "- **Événement**\xa0: Réunion projet\n- **Début**\xa0: lundi 01 juin 2026 à 09:30 ✏️\n- **Fin**\xa0: lundi 01 juin 2026 à 10:30\n- **Lieu**\xa0: Salle B\n- **Participants**\xa0: alice@example.com",
+    "event_update_new_attendees_fr": "- **Événement**\xa0: Point équipe\n- **Participants**\xa0: carol&#64;example.com ✏️",
+    "event_update_mixed_new_start_only_fr": "- **Événement**\xa0: Réunion projet\n- **Début**\xa0: lundi 01 juin 2026 à 09:30 ✏️\n- **Fin**\xa0: lundi 01 juin 2026 à 10:30\n- **Lieu**\xa0: Salle B\n- **Participants**\xa0: alice&#64;example.com",
     "event_update_empty_fr": "- **Événement**\xa0: ?",
     "event_delete_full_fr": "- **Événement**\xa0: Dentiste\n- **Date**\xa0: vendredi 05 juin 2026 à 11:00",
     "event_delete_allday_en": "- **Event**: Holiday\n- **Date**: Saturday 06 June 2026 at 02:00",
     "event_delete_empty_fr": "- **Événement**\xa0: ?",
-    "contact_full_fr": "- **Contact**\xa0: Marie Dupont\n- **Email**\xa0: marie@example.com\n- **Téléphone**\xa0: +33612345678\n- **Organisation**\xa0: ACME",
+    "contact_full_fr": "- **Contact**\xa0: Marie Dupont\n- **Email**\xa0: marie&#64;example.com\n- **Téléphone**\xa0: +33612345678\n- **Organisation**\xa0: ACME",
     "contact_minimal_en": "- **Contact**: John Smith",
-    "contact_email_only_fr": "- **Contact**\xa0: Luc Bernard\n- **Email**\xa0: luc@example.com",
-    "contact_update_new_fields_fr": "- **Contact**\xa0: Marie Durand ✏️\n- **Email**\xa0: marie.d@example.com ✏️\n- **Téléphone**\xa0: +33699999999 ✏️\n- **Organisation**\xa0: NewCorp ✏️",
-    "contact_update_preserved_fr": "- **Contact**\xa0: Marie Dupont\n- **Email**\xa0: marie@example.com\n- **Téléphone**\xa0: +33612345678\n- **Organisation**\xa0: ACME",
-    "contact_update_mixed_new_email_only_fr": "- **Contact**\xa0: Marie Dupont\n- **Email**\xa0: marie.durand@example.com ✏️\n- **Téléphone**\xa0: +33612345678\n- **Organisation**\xa0: ACME",
+    "contact_email_only_fr": "- **Contact**\xa0: Luc Bernard\n- **Email**\xa0: luc&#64;example.com",
+    "contact_update_new_fields_fr": "- **Contact**\xa0: Marie Durand ✏️\n- **Email**\xa0: marie.d&#64;example.com ✏️\n- **Téléphone**\xa0: +33699999999 ✏️\n- **Organisation**\xa0: NewCorp ✏️",
+    "contact_update_preserved_fr": "- **Contact**\xa0: Marie Dupont\n- **Email**\xa0: marie&#64;example.com\n- **Téléphone**\xa0: +33612345678\n- **Organisation**\xa0: ACME",
+    "contact_update_mixed_new_email_only_fr": "- **Contact**\xa0: Marie Dupont\n- **Email**\xa0: marie.durand&#64;example.com ✏️\n- **Téléphone**\xa0: +33612345678\n- **Organisation**\xa0: ACME",
     "contact_update_no_names_en": "- **Contact**: ?",
     "contact_update_names_no_displayname_en": "- **Contact**: ?",
-    "contact_delete_full_fr": "- **Contact**\xa0: Paul Martin\n- **Email**\xa0: paul@example.com",
+    "contact_delete_full_fr": "- **Contact**\xa0: Paul Martin\n- **Email**\xa0: paul&#64;example.com",
     "contact_delete_empty_en": "- **Contact**: ?",
     "task_full_fr": "- **Tâche**\xa0: Préparer le rapport\n- **Échéance**\xa0: mercredi 10 juin 2026 à 02:00\n\n**Message**\n\nInclure les chiffres Q2.",
     "task_minimal_en": "- **Task**: Buy milk",
@@ -935,7 +952,7 @@ EXPECTED: dict[str, str] = {
     "file_delete_full_fr": "- **Fichier**\xa0: rapport.pdf\n- **Type**\xa0: application/pdf",
     "file_delete_empty_en": "- **File**: ?",
     "label_delete_children_only_fr": "- **Label parent**\xa0: pro/clients\n- **Sous-labels à supprimer**\xa0: 2",
-    "label_delete_many_sublabels_fr": "- **Label**\xa0: pro/archive\n- **Sous-labels inclus**\xa0: 7\n- pro/archive/2019, pro/archive/2020, pro/archive/2021, pro/archive/2022, pro/archive/2023, ... (+2)",
+    "label_delete_many_sublabels_fr": "- **Label**\xa0: pro/archive\n- **Sous-labels inclus**\xa0: 7\n- pro/archive/2019, pro/archive/2020, pro/archive/2021, pro/archive/2022, pro/archive/2023, … (+2)",
     "label_delete_five_sublabels_fr": "- **Label**\xa0: pro/projets\n- **Sous-labels inclus**\xa0: 5\n- pro/projets/p1, pro/projets/p2, pro/projets/p3, pro/projets/p4, pro/projets/p5",
     "label_delete_few_sublabels_en": "- **Label**: personal\n- **Sub-labels included**: 2\n- personal/travel, ?",
     "label_delete_no_sublabels_fr": "- **Label**\xa0: perso",
@@ -945,7 +962,7 @@ EXPECTED: dict[str, str] = {
     "devops_task_with_context_fr": "- **Serveur**\xa0: prod-rpi5\n- **Tâche**\xa0: Vérifie les logs\n- **Consignes**\xa0: reste en lecture seule",
     "devops_task_minimal_en": "- **Server**: staging",
     "tool_call_full_fr": "- **Outil**\xa0: era: cancel subscription\n- **Détails**\xa0: plan: premium, immediate: true",
-    "tool_call_hostile_values_fr": '- **Outil**\xa0: era: cancel subscription\n- **Détails**\xa0: flag: false, nothing: null, nested: {"k": "v"}, body: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…',
+    "tool_call_hostile_values_fr": '- **Outil**\xa0: era: cancel subscription\n- **Détails**\xa0: flag: false, nothing: null, nested: {"k": "v"}, body: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…',
     "tool_call_minimal_en": "- **Tool**: era: cancel subscription",
     "sandbox_egress_full_fr": "- **Hôtes à autoriser**\xa0: status.example.org\n- **Déjà permis**\xa0: api.search.brave.com\n- **Motif**\xa0: vérifier si le service répond\n- **Données du tour**\xa0: 2 Contacts, 4 E-mails",
     "sandbox_egress_no_data_en": "- **Hosts to allow**: status.example.org\n- **Purpose**: check the service\n- **Turn data**: none",
@@ -958,7 +975,7 @@ EXPECTED: dict[str, str] = {
     "spreadsheet_append_fr": "- **Fichier**\xa0: Budget 2026\n- **Feuille**\xa0: Dépenses\n- Loyer | 1200\n- EDF | 80",
     "spreadsheet_update_en": "- **File**: Budget 2026\n- **Sheet**: Dépenses\n- **Range**: B2:B3\n- 1300\n- 90",
     "document_append_fr": "- **Fichier**\xa0: Compte-rendu\n\n**Texte**\n\nDécision: reporter la réunion.",
-    "email_filter_full_fr": "- **De**\xa0: news@x.com\n- **Objet**\xa0: promo\n- **Label**\xa0: Newsletters\n- Les messages seront archivés\n- Les messages seront marqués comme lus",
+    "email_filter_full_fr": "- **De**\xa0: news&#64;x.com\n- **Objet**\xa0: promo\n- **Label**\xa0: Newsletters\n- Les messages seront archivés\n- Les messages seront marqués comme lus",
     "email_filter_query_en": "- **Query**: has:attachment larger:5M",
     "scheduled_action_full_fr": "- **Titre**\xa0: Revue de presse IA\n- **Planification**\xa0: Lun, Mer à 08:00\n- **Instruction**\xa0: Fais-moi une revue de presse IA",
     "scheduled_action_minimal_en": "- **Title**: Daily digest",
@@ -988,10 +1005,13 @@ def test_every_draft_type_is_covered() -> None:
     ), f"DraftType(s) without characterization case: {sorted(t.value for t in missing)}"
 
 
-def test_default_arguments_bind_fr_and_default_timezone() -> None:
-    """Calling without args equals the explicit (fr, Europe/Paris) rendering."""
+def test_default_arguments_bind_the_default_language_and_timezone() -> None:
+    """Calling without args equals the explicit rendering in the instance's
+    default language (nothing declared) and the default display timezone."""
     draft = Draft(type=DraftType.EMAIL, content=_EMAIL_FULL_CONTENT)
-    assert draft.get_detailed_preview() == draft.get_detailed_preview("fr", "Europe/Paris")
+    assert draft.get_detailed_preview() == draft.get_detailed_preview(
+        settings.default_language, DEFAULT_USER_DISPLAY_TIMEZONE
+    )
 
 
 class TestOneVocabulary:

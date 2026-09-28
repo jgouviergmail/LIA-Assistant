@@ -1687,6 +1687,36 @@
       "title": "LIA rechnet, statt zu schätzen, und findet wieder, was sie getan hat",
       "summary": "Eine Rechnung, ein Datum oder eine Währungsumrechnung wird nicht mehr über den Daumen gepeilt: LIA rechnet sie exakt, zum Referenzkurs des Tages, den sie nennt. Sie kann außerdem in ihrem Tagebuch nach einem unterwegs entdeckten Thema suchen, dir sagen, was sie in einem Zeitraum getan und eingesehen hat — mit exakten Summen —, und dir eine von ihr erzeugte Datei erneut zeigen, solange es sie noch gibt.",
       "src": "deff5cf96b72"
+    },
+    "319": {
+      "title": "Eine erzeugte Datei lässt sich aufbewahren",
+      "summary": "In der Galerie kannst du ein Bild, ein Dokument oder ein Bildschirmfoto aufbewahren: Die automatische Bereinigung löscht sie nicht mehr, innerhalb einer Grenze pro Konto, die vor jeder Ablehnung angezeigt wird. Gibst du sie frei, erhält sie wieder eine Frist, nie eine sofortige Löschung, und der Chat sagt bei jedem Lesen, ob die Datei aufbewahrt ist oder nicht mehr existiert.",
+      "src": "3308a856fb58"
+    },
+    "320": {
+      "title": "Der Chat aktualisiert sich selbst",
+      "summary": "Eine Nachricht, die von anderswo kommt – ein anderer Tab, Telegram, eine Routine, eine Erinnerung –, erscheint ohne Neuladen der Seite: Der Server meldet sie, sobald sie gespeichert ist, und der Chat ergänzt, was fehlt, ohne das Angezeigte anzutasten. Nichts bewegt sich, während eine Antwort geschrieben wird, und wer nach oben gescrollt hat, wird nicht verschoben.",
+      "src": "72479652f740"
+    },
+    "321": {
+      "title": "Eine Datei oder eine Antwort geht per E-Mail",
+      "summary": "Ein Bild, ein Dokument, ein Screenshot oder eine Antwort geht per E-Mail als Anhang hinaus, mit dem Betreff und den Worten, die die Person gewählt hat – LIA schreibt nichts an ihrer Stelle. Er geht von ihrem verbundenen Postfach an wen sie will oder, ohne Postfach, an ihre eigene bestätigte Adresse. Jedes Postfach hat seine Höchstgröße, aus der Dokumentation seines Anbieters übernommen und vor dem Senden genannt.",
+      "src": "aedeef641fe1"
+    },
+    "322": {
+      "title": "Eine Routine hat nur eine Uhr",
+      "summary": "Eine Routine folgt entweder einem Zeitplan oder einer Bedingung – nie beidem: Zuerst wählt man, wann sie läuft, und nur die Felder dieser Wahl werden angezeigt. Eine Routine, die auf etwas wartet, hat keine Uhrzeiten mehr: LIA prüft die Bedingung selbst, Tag und Nacht, bis zu einem optionalen letzten Tag. Sie läuft nur bei etwas Neuem, nie zweimal für dasselbe, innerhalb eines Tageslimits.",
+      "src": "6e761628bbd0"
+    },
+    "323": {
+      "title": "Jeder Satz in deiner Sprache",
+      "summary": "E-Mails, der Telegram-Bot, Fehlermeldungen und die Kataloge der Anwendung werden jetzt in der Sprache der Person geschrieben, die sie liest: kein französischer Satz mehr, der einem deutschen oder chinesischen Konto standardmäßig geliefert wird, keine Bestätigungs-E-Mail mehr auf Englisch. Jede Übersetzungstabelle enthält die sechs Sprachen – eine automatische Prüfung stellt das bei jeder Änderung sicher. Die fest im Code geschriebenen französischen Texte, die nur das Modell las, sind jetzt in technischem Englisch verfasst, damit keine Sprache bevorzugt wird; was bleibt – einige Prompts und Bezeichnungen auf Französisch, an das Modell gerichtete Texte in den sechs Sprachen –, wartet auf eine Messung, was ihre Übersetzung verändert.",
+      "src": "f2631fabc850"
+    },
+    "324": {
+      "title": "Ein Radio nur für dich",
+      "summary": "LIA wird zu einem Radiosender auf Abruf in deiner Sprache: dein Tag, dann die Nachrichten der verfolgten Medien und der Websites, die du hinzufügst, für dich geschrieben, geprüft und gesprochen, während du zuhörst. Ein festes Raster entscheidet, was läuft, die Modelle schreiben nur, und jeder Satz zeigt seine Quelle. Nichts wird produziert, wenn niemand zuhört, nichts wird danach behalten, und was die Sitzung kostet, ist zu sehen, während sie Kosten verursacht.",
+      "src": "338514497561"
     }
   }
 }

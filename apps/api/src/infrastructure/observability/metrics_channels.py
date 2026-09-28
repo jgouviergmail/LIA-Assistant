@@ -5,7 +5,7 @@ Implements RED metrics (Rate, Errors, Duration) for:
 - Inbound message processing
 - Outbound message delivery
 - OTP generation and verification
-- HITL decisions via channels
+- HITL questions sent via channels (counted once the channel took them)
 - Voice transcription
 - Channel binding state
 
@@ -36,7 +36,9 @@ channel_message_processing_duration_seconds = Histogram(
 
 channel_messages_rejected_total = Counter(
     "channel_messages_rejected_total",
-    "Total inbound messages rejected (rate limited, locked, unbound)",
+    "Total inbound messages and button presses rejected, by reason (lookup_failed, "
+    "unbound, account_inactive, channel_disabled, rate_limited, lock_failed, locked, "
+    "claim_lost)",
     ["channel_type", "reason"],
 )
 
@@ -89,7 +91,7 @@ channel_otp_verified_total = Counter(
 
 channel_hitl_decisions_total = Counter(
     "channel_hitl_decisions_total",
-    "Total HITL decisions made via channels",
+    "HITL questions sent via channels, by interaction type (the decision label)",
     ["channel_type", "decision"],
 )
 

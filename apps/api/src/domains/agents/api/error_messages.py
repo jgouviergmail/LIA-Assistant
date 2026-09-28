@@ -13,10 +13,8 @@ Best Practices:
 - Error codes for programmatic handling
 """
 
-from typing import Literal
-
-# Type alias for supported languages (from core.constants.SUPPORTED_LANGUAGES)
-SupportedLanguage = Literal["fr", "en", "es", "de", "it", "zh-CN"]
+from src.core.i18n import resolve_language
+from src.core.i18n_types import SupportedLanguage
 
 
 class SSEErrorMessages:
@@ -26,45 +24,12 @@ class SSEErrorMessages:
     Supports: French, English, Spanish, German, Italian, Chinese (Simplified)
 
     Usage:
-        >>> msg = SSEErrorMessages.generic_error(ValueError("Invalid input"), language="fr")
-        >>> msg
-        "Une erreur s'est produite : ValueError. Veuillez réessayer."
+        >>> SSEErrorMessages.stream_error(ValueError("Invalid input"), language="en")
+        'A problem occurred while generating the response. Please try again.'
     """
 
     @staticmethod
-    def generic_error(exception: Exception, language: SupportedLanguage = "fr") -> str:
-        """
-        Generic error message for unexpected exceptions.
-
-        Classifies errors into user-friendly categories and never exposes
-        raw error types or technical details to end users.
-
-        Args:
-            exception: The exception that occurred
-            language: Target language (fr/en/es/de/it/zh-CN)
-
-        Returns:
-            User-friendly error message with recovery guidance
-        """
-        categorized = SSEErrorMessages._categorized_message(
-            SSEErrorMessages._classify_error(exception), language
-        )
-        if categorized is not None:
-            return categorized
-
-        messages = {
-            "fr": "Une erreur inattendue s'est produite. Veuillez réessayer ou contacter le support si le problème persiste.",
-            "en": "An unexpected error occurred. Please try again or contact support if the problem persists.",
-            "es": "Se produjo un error inesperado. Por favor, inténtelo de nuevo o contacte con soporte si el problema persiste.",
-            "de": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut oder wenden Sie sich an den Support.",
-            "it": "Si è verificato un errore imprevisto. Si prega di riprovare o contattare il supporto se il problema persiste.",
-            "zh-CN": "发生意外错误。请重试，如果问题仍然存在，请联系支持人员。",
-        }
-
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def stream_error(exception: Exception, language: SupportedLanguage = "fr") -> str:
+    def stream_error(exception: Exception, language: SupportedLanguage | None = None) -> str:
         """
         Error message for SSE stream failures (router-level).
 
@@ -73,11 +38,12 @@ class SSEErrorMessages:
 
         Args:
             exception: The exception that occurred
-            language: Target language (fr/en/es/de/it/zh-CN)
+            language: Target language (fr/en/es/de/it/zh-CN); the declared language when None
 
         Returns:
             User-friendly error message for stream errors
         """
+        language = resolve_language(language)
         categorized = SSEErrorMessages._categorized_message(
             SSEErrorMessages._classify_error(exception), language
         )
@@ -85,18 +51,18 @@ class SSEErrorMessages:
             return categorized
 
         messages = {
-            "fr": "Un problème est survenu lors de la génération de la réponse. Veuillez réessayer.",
+            "fr": "Un problème est survenu lors de la génération de la réponse. Réessaie.",
             "en": "A problem occurred while generating the response. Please try again.",
-            "es": "Ocurrió un problema al generar la respuesta. Por favor, inténtelo de nuevo.",
-            "de": "Bei der Erstellung der Antwort ist ein Problem aufgetreten. Bitte versuchen Sie es erneut.",
-            "it": "Si è verificato un problema durante la generazione della risposta. Si prega di riprovare.",
+            "es": "Ocurrió un problema al generar la respuesta. Por favor, inténtalo de nuevo.",
+            "de": "Bei der Erstellung der Antwort ist ein Problem aufgetreten. Bitte versuche es erneut.",
+            "it": "Si è verificato un problema durante la generazione della risposta. Riprova.",
             "zh-CN": "生成回复时出现问题。请重试。",
         }
 
-        return messages.get(language, messages["en"])
+        return messages[language]
 
     @staticmethod
-    def run_orphaned(language: SupportedLanguage = "fr") -> str:
+    def run_orphaned(language: SupportedLanguage | None = None) -> str:
         """
         Error message for an orphaned background run (ADR-117 hard-kill path).
 
@@ -106,7 +72,7 @@ class SSEErrorMessages:
         period. The generation is genuinely gone — the user must retry.
 
         Args:
-            language: Target language (fr/en/es/de/it/zh-CN)
+            language: Target language (fr/en/es/de/it/zh-CN); the declared language when None
 
         Returns:
             User-friendly error message for interrupted background runs
@@ -114,7 +80,7 @@ class SSEErrorMessages:
         messages = {
             "fr": (
                 "La génération a été interrompue de manière inattendue "
-                "(redémarrage du serveur). Veuillez réessayer."
+                "(redémarrage du serveur). Réessaie."
             ),
             "en": (
                 "The response generation was unexpectedly interrupted "
@@ -122,28 +88,28 @@ class SSEErrorMessages:
             ),
             "es": (
                 "La generación de la respuesta se interrumpió de forma inesperada "
-                "(reinicio del servidor). Por favor, inténtelo de nuevo."
+                "(reinicio del servidor). Por favor, inténtalo de nuevo."
             ),
             "de": (
                 "Die Antwortgenerierung wurde unerwartet unterbrochen "
-                "(Serverneustart). Bitte versuchen Sie es erneut."
+                "(Serverneustart). Bitte versuche es erneut."
             ),
             "it": (
                 "La generazione della risposta è stata interrotta in modo imprevisto "
-                "(riavvio del server). Si prega di riprovare."
+                "(riavvio del server). Riprova."
             ),
             "zh-CN": "回复生成意外中断（服务器重启）。请重试。",
         }
 
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def _llm_provider_busy(language: SupportedLanguage = "fr") -> str:
+    def _llm_provider_busy(language: SupportedLanguage | None = None) -> str:
         """
         User-friendly message when LLM provider is overloaded or rate-limited.
 
         Args:
-            language: Target language (fr/en/es/de/it/zh-CN)
+            language: Target language (fr/en/es/de/it/zh-CN); the declared language when None
 
         Returns:
             Friendly message asking user to retry in a moment
@@ -152,7 +118,7 @@ class SSEErrorMessages:
             "fr": (
                 "Le fournisseur du modèle d'IA rencontre actuellement des difficultés techniques. "
                 "Ce problème est indépendant de notre service et devrait se résoudre rapidement. "
-                "Veuillez réessayer dans quelques instants."
+                "Réessaie dans quelques instants."
             ),
             "en": (
                 "The AI model provider is currently experiencing technical difficulties. "
@@ -162,12 +128,12 @@ class SSEErrorMessages:
             "es": (
                 "El proveedor del modelo de IA está experimentando dificultades técnicas. "
                 "Este problema es independiente de nuestro servicio y debería resolverse pronto. "
-                "Por favor, inténtelo de nuevo en unos momentos."
+                "Por favor, inténtalo de nuevo en unos momentos."
             ),
             "de": (
                 "Der KI-Modellanbieter hat derzeit technische Schwierigkeiten. "
                 "Dieses Problem ist unabhängig von unserem Dienst und sollte sich bald beheben. "
-                "Bitte versuchen Sie es in einigen Augenblicken erneut."
+                "Bitte versuche es in einigen Augenblicken erneut."
             ),
             "it": (
                 "Il fornitore del modello di IA sta riscontrando difficoltà tecniche. "
@@ -181,7 +147,7 @@ class SSEErrorMessages:
             ),
         }
 
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
     def _extract_status_code(exception: Exception) -> int | None:
@@ -349,12 +315,12 @@ class SSEErrorMessages:
 
     @staticmethod
     def _categorized_message(category: str, language: SupportedLanguage) -> str | None:
-        """The shared category ladder (ADR-220): one dispatch, four callers.
+        """The category ladder (ADR-220), one dispatch.
 
         Returns the localized message for a named category, or ``None`` for
-        "unknown" — each public method then falls back to its own generic
-        text. Four hand-copied ladders drifted before (hitl_resumption_error
-        had silently lost the timeout branch).
+        "unknown" — the caller then falls back to its own generic text. Four
+        hand-copied ladders drifted before (one had silently lost the timeout
+        branch); three of their entry points had no caller and went (ADR-323).
         """
         if category == "transient":
             return SSEErrorMessages._llm_provider_busy(language)
@@ -371,7 +337,7 @@ class SSEErrorMessages:
         return None
 
     @staticmethod
-    def _auth_error(language: SupportedLanguage = "fr") -> str:
+    def _auth_error(language: SupportedLanguage | None = None) -> str:
         """Key absent/invalid or model not allowed — fixed in settings, not by retrying."""
         messages = {
             "fr": (
@@ -386,12 +352,12 @@ class SSEErrorMessages:
             ),
             "es": (
                 "El proveedor del modelo de IA rechazó la conexión: la clave API falta, "
-                "no es válida o no autoriza este modelo. Verifique la configuración en "
+                "no es válida o no autoriza este modelo. Verifica la configuración en "
                 "Configuración → Administración → Configuración LLM."
             ),
             "de": (
                 "Der KI-Modellanbieter hat die Verbindung abgelehnt: Der API-Schlüssel "
-                "fehlt, ist ungültig oder erlaubt dieses Modell nicht. Prüfen Sie die "
+                "fehlt, ist ungültig oder erlaubt dieses Modell nicht. Prüfe die "
                 "Konfiguration unter Einstellungen → Verwaltung → LLM-Konfiguration."
             ),
             "it": (
@@ -404,10 +370,10 @@ class SSEErrorMessages:
                 "请在 设置 → 管理 → LLM 配置 中检查配置。"
             ),
         }
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def _quota_error(language: SupportedLanguage = "fr") -> str:
+    def _quota_error(language: SupportedLanguage | None = None) -> str:
         """Provider credit or billing exhausted — retrying will not refill it."""
         messages = {
             "fr": (
@@ -419,13 +385,13 @@ class SSEErrorMessages:
                 "check billing with the provider, then try again."
             ),
             "es": (
-                "El crédito del proveedor del modelo de IA está agotado. Recargue la "
-                "cuenta o verifique la facturación con el proveedor y vuelva a intentarlo."
+                "El crédito del proveedor del modelo de IA está agotado. Recarga la "
+                "cuenta o verifica la facturación con el proveedor y vuelve a intentarlo."
             ),
             "de": (
-                "Das Guthaben des KI-Modellanbieters ist aufgebraucht. Laden Sie das "
-                "Konto auf oder prüfen Sie die Abrechnung beim Anbieter und versuchen "
-                "Sie es erneut."
+                "Das Guthaben des KI-Modellanbieters ist aufgebraucht. Lade das "
+                "Konto auf oder prüfe die Abrechnung beim Anbieter und versuche "
+                "es erneut."
             ),
             "it": (
                 "Il credito del fornitore del modello di IA è esaurito. Ricarica "
@@ -433,10 +399,10 @@ class SSEErrorMessages:
             ),
             "zh-CN": ("AI模型提供商的额度已用尽。" "请充值账户或检查提供商的账单，然后重试。"),
         }
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def _model_not_found_error(language: SupportedLanguage = "fr") -> str:
+    def _model_not_found_error(language: SupportedLanguage | None = None) -> str:
         """The configured model does not exist upstream (typo after an admin edit)."""
         messages = {
             "fr": (
@@ -448,11 +414,11 @@ class SSEErrorMessages:
                 "model name in Settings → Administration → LLM Configuration."
             ),
             "es": (
-                "El modelo de IA configurado no existe en el proveedor. Verifique el "
+                "El modelo de IA configurado no existe en el proveedor. Verifica el "
                 "nombre del modelo en Configuración → Administración → Configuración LLM."
             ),
             "de": (
-                "Das konfigurierte KI-Modell existiert beim Anbieter nicht. Prüfen Sie "
+                "Das konfigurierte KI-Modell existiert beim Anbieter nicht. Prüfe "
                 "den Modellnamen unter Einstellungen → Verwaltung → "
                 "LLM-Konfiguration."
             ),
@@ -465,10 +431,10 @@ class SSEErrorMessages:
                 "配置的AI模型在提供商处不存在。" "请在 设置 → 管理 → LLM 配置 中检查模型名称。"
             ),
         }
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def _content_filter_error(language: SupportedLanguage = "fr") -> str:
+    def _content_filter_error(language: SupportedLanguage | None = None) -> str:
         """User-friendly message when a provider content filter blocks the response.
 
         Args:
@@ -480,7 +446,7 @@ class SSEErrorMessages:
         messages = {
             "fr": (
                 "Le fournisseur du modèle d'IA n'a pas pu générer de réponse pour cette demande. "
-                "Essayez de reformuler votre question."
+                "Essaie de reformuler ta question."
             ),
             "en": (
                 "The AI model provider could not generate a response for this request. "
@@ -488,22 +454,22 @@ class SSEErrorMessages:
             ),
             "es": (
                 "El proveedor del modelo de IA no pudo generar una respuesta para esta solicitud. "
-                "Intente reformular su pregunta."
+                "Intenta reformular tu pregunta."
             ),
             "de": (
                 "Der KI-Modellanbieter konnte keine Antwort auf diese Anfrage generieren. "
-                "Versuchen Sie, Ihre Frage umzuformulieren."
+                "Versuche, deine Frage umzuformulieren."
             ),
             "it": (
                 "Il fornitore del modello di IA non è riuscito a generare una risposta per questa richiesta. "
                 "Prova a riformulare la tua domanda."
             ),
-            "zh-CN": ("AI模型提供商无法为此请求生成回复。" "请尝试重新措辞您的问题。"),
+            "zh-CN": ("AI模型提供商无法为此请求生成回复。" "请尝试重新措辞你的问题。"),
         }
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def _timeout_error(language: SupportedLanguage = "fr") -> str:
+    def _timeout_error(language: SupportedLanguage | None = None) -> str:
         """User-friendly message for request timeouts.
 
         Args:
@@ -515,7 +481,7 @@ class SSEErrorMessages:
         messages = {
             "fr": (
                 "La demande a pris trop de temps. "
-                "Veuillez réessayer — si le problème persiste, essayez une question plus simple."
+                "Réessaie — si le problème persiste, essaie une question plus simple."
             ),
             "en": (
                 "The request took too long. "
@@ -523,171 +489,28 @@ class SSEErrorMessages:
             ),
             "es": (
                 "La solicitud tardó demasiado. "
-                "Por favor, inténtelo de nuevo — si el problema persiste, pruebe con una pregunta más sencilla."
+                "Por favor, inténtalo de nuevo — si el problema persiste, prueba con una pregunta más sencilla."
             ),
             "de": (
                 "Die Anfrage hat zu lange gedauert. "
-                "Bitte versuchen Sie es erneut — wenn das Problem weiterhin besteht, versuchen Sie eine einfachere Frage."
+                "Bitte versuche es erneut — wenn das Problem weiterhin besteht, versuche eine einfachere Frage."
             ),
             "it": (
                 "La richiesta ha richiesto troppo tempo. "
-                "Si prega di riprovare — se il problema persiste, provare con una domanda più semplice."
+                "Riprova — se il problema persiste, prova con una domanda più semplice."
             ),
             "zh-CN": ("请求耗时过长。" "请重试——如果问题仍然存在，请尝试更简单的问题。"),
         }
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def hitl_security_error(
-        action_count: int,
-        max_allowed: int,
-        language: SupportedLanguage = "fr",
-    ) -> str:
-        """
-        Security error for HITL max actions exceeded (DoS protection).
-
-        Args:
-            action_count: Number of actions requested
-            max_allowed: Maximum allowed actions
-            language: Target language (fr/en/es/de/it/zh-CN)
-
-        Returns:
-            Detailed error message with security context
-        """
-        messages = {
-            "fr": (
-                f"Trop d'actions à approuver ({action_count} actions). "
-                f"Maximum autorisé : {max_allowed}. "
-                "Cette limite protège le système contre les surcharges. "
-                "Si tu penses avoir besoin de plus d'actions simultanées, "
-                "contacte le support technique."
-            ),
-            "en": (
-                f"Too many actions to approve ({action_count} actions). "
-                f"Maximum allowed: {max_allowed}. "
-                "This limit protects the system from overload. "
-                "If you need more simultaneous actions, contact technical support."
-            ),
-            "es": (
-                f"Demasiadas acciones para aprobar ({action_count} acciones). "
-                f"Máximo permitido: {max_allowed}. "
-                "Este límite protege el sistema contra sobrecarga. "
-                "Si necesita más acciones simultáneas, contacte con soporte técnico."
-            ),
-            "de": (
-                f"Zu viele Aktionen zum Genehmigen ({action_count} Aktionen). "
-                f"Maximal erlaubt: {max_allowed}. "
-                "Diese Grenze schützt das System vor Überlastung. "
-                "Wenn Sie mehr gleichzeitige Aktionen benötigen, wenden Sie sich an den technischen Support."
-            ),
-            "it": (
-                f"Troppe azioni da approvare ({action_count} azioni). "
-                f"Massimo consentito: {max_allowed}. "
-                "Questo limite protegge il sistema dal sovraccarico. "
-                "Se hai bisogno di più azioni simultanee, contatta il supporto tecnico."
-            ),
-            "zh-CN": (
-                f"要批准的操作过多（{action_count} 个操作）。"
-                f"最大允许：{max_allowed}。"
-                "此限制保护系统免受过载。"
-                "如果您需要更多同时操作，请联系技术支持。"
-            ),
-        }
-
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def hitl_resumption_error(exception: Exception, language: SupportedLanguage = "fr") -> str:
-        """
-        Error message for HITL resumption failures.
-
-        Uses _classify_error to provide category-specific messages.
-
-        Args:
-            exception: The exception that occurred
-            language: Target language (fr/en/es/de/it/zh-CN)
-
-        Returns:
-            User-friendly error message for HITL resumption
-        """
-        categorized = SSEErrorMessages._categorized_message(
-            SSEErrorMessages._classify_error(exception), language
-        )
-        if categorized is not None:
-            return categorized
-
-        messages = {
-            "fr": "Un problème est survenu lors de la reprise. Veuillez reformuler votre demande ou recommencer.",
-            "en": "A problem occurred during resumption. Please rephrase your request or start over.",
-            "es": "Ocurrió un problema durante la reanudación. Por favor, reformule su solicitud o comience de nuevo.",
-            "de": "Bei der Wiederaufnahme ist ein Problem aufgetreten. Bitte formulieren Sie Ihre Anfrage um oder beginnen Sie von vorne.",
-            "it": "Si è verificato un problema durante la ripresa. Si prega di riformulare la richiesta o ricominciare.",
-            "zh-CN": "恢复时出现问题。请重新表述您的请求或重新开始。",
-        }
-
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def graph_execution_error(exception: Exception, language: SupportedLanguage = "fr") -> str:
-        """
-        Error message for graph execution failures (main agent flow).
-
-        Uses _classify_error to provide category-specific messages.
-
-        Args:
-            exception: The exception that occurred
-            language: Target language (fr/en/es/de/it/zh-CN)
-
-        Returns:
-            User-friendly error message for graph errors
-        """
-        categorized = SSEErrorMessages._categorized_message(
-            SSEErrorMessages._classify_error(exception), language
-        )
-        if categorized is not None:
-            return categorized
-
-        messages = {
-            "fr": "Un problème est survenu lors du traitement. Veuillez réessayer avec une demande différente.",
-            "en": "A problem occurred during processing. Please try again with a different request.",
-            "es": "Ocurrió un problema durante el procesamiento. Por favor, inténtelo de nuevo con una solicitud diferente.",
-            "de": "Bei der Verarbeitung ist ein Problem aufgetreten. Bitte versuchen Sie es mit einer anderen Anfrage erneut.",
-            "it": "Si è verificato un problema durante l'elaborazione. Si prega di riprovare con una richiesta diversa.",
-            "zh-CN": "处理过程中出现问题。请使用不同的请求重试。",
-        }
-
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def classification_error(language: SupportedLanguage = "fr") -> str:
-        """
-        Error message for HITL classification failures.
-
-        Args:
-            language: Target language (fr/en/es/de/it/zh-CN)
-
-        Returns:
-            User-friendly error message for classification errors
-        """
-        messages = {
-            "fr": "Je n'ai pas bien compris ta réponse. Peux-tu reformuler plus clairement ? (Exemple: 'oui', 'non', 'modifie le nom', etc.)",
-            "en": "I didn't understand your response. Can you rephrase more clearly? (Example: 'yes', 'no', 'change the name', etc.)",
-            "es": "No entendí tu respuesta. ¿Puedes reformular más claramente? (Ejemplo: 'sí', 'no', 'cambiar el nombre', etc.)",
-            "de": "Ich habe Ihre Antwort nicht verstanden. Können Sie es klarer formulieren? (Beispiel: 'ja', 'nein', 'Namen ändern', usw.)",
-            "it": "Non ho capito la tua risposta. Puoi riformulare più chiaramente? (Esempio: 'sì', 'no', 'cambia il nome', ecc.)",
-            "zh-CN": "我没有理解你的回答。你能更清楚地重新表述吗？（例如：'是'、'否'、'更改名称'等）",
-        }
-
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def validation_error(field_name: str, language: SupportedLanguage = "fr") -> str:
+    def validation_error(field_name: str, language: SupportedLanguage | None = None) -> str:
         """
         Error message for parameter validation failures.
 
         Args:
             field_name: Name of the field that failed validation
-            language: Target language (fr/en/es/de/it/zh-CN)
+            language: Target language (fr/en/es/de/it/zh-CN); the declared language when None
 
         Returns:
             User-friendly error message for validation errors
@@ -695,105 +518,23 @@ class SSEErrorMessages:
         messages = {
             "fr": f"Paramètre invalide : {field_name}. Vérifie la valeur et réessaie.",
             "en": f"Invalid parameter: {field_name}. Check the value and try again.",
-            "es": f"Parámetro inválido: {field_name}. Compruebe el valor e inténtelo de nuevo.",
-            "de": f"Ungültiger Parameter: {field_name}. Überprüfen Sie den Wert und versuchen Sie es erneut.",
+            "es": f"Parámetro inválido: {field_name}. Comprueba el valor e inténtalo de nuevo.",
+            "de": f"Ungültiger Parameter: {field_name}. Überprüfe den Wert und versuche es erneut.",
             "it": f"Parametro non valido: {field_name}. Controlla il valore e riprova.",
             "zh-CN": f"无效参数：{field_name}。检查值并重试。",
         }
 
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def hitl_rejection_message(reasoning: str, language: SupportedLanguage = "fr") -> str:
-        """
-        HITL rejection message with user reasoning (PHASE 3.2.2 - i18n gap fix).
-
-        Replaces hardcoded French in:
-        - hitl_management.py:258
-        - resumption_strategies.py:462-468
-
-        Args:
-            reasoning: User's rejection reasoning
-            language: Target language (fr/en/es/de/it/zh-CN)
-
-        Returns:
-            Formatted rejection message with reasoning
-
-        Example:
-            >>> msg = SSEErrorMessages.hitl_rejection_message("Mauvais contact", language="fr")
-            >>> assert "Action refusée" in msg
-        """
-        messages = {
-            "fr": f"Action refusée par l'utilisateur : {reasoning}",
-            "en": f"Action rejected by user: {reasoning}",
-            "es": f"Acción rechazada por el usuario: {reasoning}",
-            "de": f"Aktion vom Benutzer abgelehnt: {reasoning}",
-            "it": f"Azione rifiutata dall'utente: {reasoning}",
-            "zh-CN": f"用户拒绝操作：{reasoning}",
-        }
-
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def plan_approval_fallback(step_count: int, language: SupportedLanguage = "fr") -> str:
-        """
-        Fallback message for plan approval when LLM question generation fails.
-
-        Args:
-            step_count: Number of steps requiring approval
-            language: Target language (fr/en/es/de/it/zh-CN)
-
-        Returns:
-            User-friendly plan approval message
-        """
-        # Step word pluralization
-        step_words = {
-            "fr": ("étape", "étapes"),
-            "en": ("step", "steps"),
-            "es": ("paso", "pasos"),
-            "de": ("Schritt", "Schritte"),
-            "it": ("passaggio", "passaggi"),
-            "zh-CN": ("步骤", "步骤"),  # Chinese doesn't have plural
-        }
-
-        words = step_words.get(language, step_words["en"])
-        step_word = words[0] if step_count == 1 else words[1]
-
-        messages = {
-            "fr": (
-                f"Ce plan contient {step_count} {step_word} nécessitant ton approbation. "
-                f"Merci de valider pour continuer."
-            ),
-            "en": (
-                f"This plan contains {step_count} {step_word} that require your approval. "
-                f"Please review and approve to proceed."
-            ),
-            "es": (
-                f"Este plan contiene {step_count} {step_word} que requieren tu aprobación. "
-                f"Por favor revisa y aprueba para continuar."
-            ),
-            "de": (
-                f"Dieser Plan enthält {step_count} {step_word}, die Ihre Genehmigung erfordern. "
-                f"Bitte überprüfen und genehmigen Sie, um fortzufahren."
-            ),
-            "it": (
-                f"Questo piano contiene {step_count} {step_word} che richiedono la tua approvazione. "
-                f"Per favore rivedi e approva per continuare."
-            ),
-            "zh-CN": (f"此计划包含 {step_count} 个{step_word}需要您的批准。请审核并批准以继续。"),
-        }
-
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def confirmation_required(language: SupportedLanguage = "fr") -> str:
+    def confirmation_required(language: SupportedLanguage | None = None) -> str:
         """
         Generic confirmation required message.
 
         Used as ultimate fallback when HITL question generation fails.
 
         Args:
-            language: Target language (fr/en/es/de/it/zh-CN)
+            language: Target language (fr/en/es/de/it/zh-CN); the declared language when None
 
         Returns:
             User-friendly confirmation message
@@ -807,10 +548,10 @@ class SSEErrorMessages:
             "zh-CN": "需要确认才能继续。",
         }
 
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def hitl_decision_stale(language: SupportedLanguage = "fr") -> str:
+    def hitl_decision_stale(language: SupportedLanguage | None = None) -> str:
         """
         Error message when a one-click HITL decision no longer matches the
         pending interrupt (expired, already answered, or superseded).
@@ -819,7 +560,7 @@ class SSEErrorMessages:
         "expired" state — the click is never processed as a new turn.
 
         Args:
-            language: Target language (fr/en/es/de/it/zh-CN)
+            language: Target language (fr/en/es/de/it/zh-CN); the declared language when None
 
         Returns:
             User-friendly staleness message
@@ -833,64 +574,33 @@ class SSEErrorMessages:
             "zh-CN": "此确认请求已失效。如有需要，请重新表述你的请求。",
         }
 
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def hitl_resumption_error_simple(error: Exception, language: SupportedLanguage = "fr") -> str:
-        """
-        Simple error message for HITL resumption failures (used in prompts.py).
-
-        Args:
-            error: The exception that occurred
-            language: Target language (fr/en/es/de/it/zh-CN)
-
-        Returns:
-            Formatted error message for resumption errors
-        """
-        category = SSEErrorMessages._classify_error(error)
-
-        if category == "transient":
-            return SSEErrorMessages._llm_provider_busy(language)
-        if category == "content_filter":
-            return SSEErrorMessages._content_filter_error(language)
-
-        messages = {
-            "fr": "Un problème est survenu lors de la reprise. Veuillez reformuler votre demande.",
-            "en": "A problem occurred during resumption. Please rephrase your request.",
-            "es": "Ocurrió un problema durante la reanudación. Por favor, reformule su solicitud.",
-            "de": "Bei der Wiederaufnahme ist ein Problem aufgetreten. Bitte formulieren Sie Ihre Anfrage um.",
-            "it": "Si è verificato un problema durante la ripresa. Si prega di riformulare la richiesta.",
-            "zh-CN": "恢复时出现问题。请重新表述您的请求。",
-        }
-
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def simple_fallback(language: SupportedLanguage = "fr") -> str:
+    def simple_fallback(language: SupportedLanguage | None = None) -> str:
         """
         Last-resort fallback when the pipeline AND the fallback LLM both fail.
 
         Args:
-            language: Target language (fr/en/es/de/it/zh-CN)
+            language: Target language (fr/en/es/de/it/zh-CN); the declared language when None
 
         Returns:
             User-friendly message asking the user to rephrase
         """
         messages = {
             "fr": (
-                "Je n'ai pas trouvé les informations demandées. "
-                "Pouvez-vous reformuler votre question ?"
+                "Je n'ai pas trouvé les informations demandées. " "Peux-tu reformuler ta question ?"
             ),
             "en": (
                 "I could not find the requested information. " "Could you rephrase your question?"
             ),
-            "es": ("No encontré la información solicitada. " "¿Puede reformular su pregunta?"),
+            "es": ("No encontré la información solicitada. " "¿Puedes reformular tu pregunta?"),
             "de": (
                 "Ich konnte die angeforderten Informationen nicht finden. "
-                "Können Sie Ihre Frage umformulieren?"
+                "Kannst du deine Frage umformulieren?"
             ),
             "it": ("Non ho trovato le informazioni richieste. " "Puoi riformulare la tua domanda?"),
-            "zh-CN": "我没有找到所需的信息。您能重新表述您的问题吗？",
+            "zh-CN": "我没有找到所需的信息。你能重新表述你的问题吗？",
         }
 
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]

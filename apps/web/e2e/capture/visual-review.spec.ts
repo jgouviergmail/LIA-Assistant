@@ -6,9 +6,13 @@
  * at what shipped instead of inferring it from the DOM. Run it explicitly
  * against a standalone build when a change is visual.
  */
-import { test } from '../fixtures';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
-import { dashboardShellMocks } from '../fixtures/dashboard-shell';
+import { test } from '../fixtures';
+import type { MockRoute } from '../fixtures/api-mock';
+
+import { briefingCardsMock, dashboardShellMocks } from '../fixtures/dashboard-shell';
 
 const OUT = 'test-results/visual-review';
 
@@ -649,5 +653,131 @@ test.describe('visual review', () => {
     await page.goto('/fr/dashboard/capabilities');
     await page.waitForTimeout(4000);
     await page.screenshot({ path: `${OUT}/capability-constellation.png`, fullPage: false });
+  });
+
+  // ADR-324: the radio's bar on air — the station, what airs, the minutes left,
+  // the cost and its estimate, pause and stop — then its page with the articles.
+  const RADIO_SESSION = 'a1b2c3d4-0000-4000-8000-00000000ra09';
+  const RADIO_ARTICLE = 'a1b2c3d4-0000-4000-8000-00000000ra10';
+  function radioMocks(stopAt: string): MockRoute[] {
+    const segment = {
+      seq: 1,
+      format: 'bulletin',
+      mood: 'news',
+      title: 'L’Espagne renverse l’Angleterre, Beaugrand sacrée',
+      duration_s: 79,
+      transcript: [
+        {
+          role: 'anchor',
+          text: 'À Wembley, l’Espagne renverse l’Angleterre en Ligue des nations, rapporte France 24.',
+          offset_s: 0,
+          sources: [
+            {
+              label: 'France 24',
+              url: 'https://www.france24.com/fr/sports/wembley',
+              published_at: '2026-09-26T20:00:00Z',
+              article_id: RADIO_ARTICLE,
+            },
+          ],
+        },
+      ],
+    };
+    const session = {
+      session_id: RADIO_SESSION,
+      status: 'on_air',
+      segments: [segment],
+      cost_eur: 0.0123,
+      stop_at: stopAt,
+      startup_estimate_s: 12,
+      end_reason: null,
+      mood: 'news',
+      station_name: 'Radio Matin',
+      cost_estimate_eur: 0.0512,
+      cost_estimate_s: 1800,
+    };
+    const audio = readFileSync(
+      path.join(__dirname, '..', '..', 'public', 'radio', 'music', 'news', 'news-01.mp3')
+    );
+    return [
+      {
+        url: '**/api/v1/config',
+        json: {
+          sse: { heartbeat_interval_seconds: 30 },
+          rate_limits: { enabled: false, per_minute: 60, burst: 10 },
+          i18n: { supported_languages: ['fr'], default_language: 'fr' },
+          features: { radio_enabled: true },
+          capabilities: { radio: { enabled: true, family: 'media' } },
+          api_version: 'v1',
+        },
+      },
+      { url: '**/api/v1/radio/sessions', method: 'POST', status: 201, json: session },
+      { url: `**/api/v1/radio/sessions/${RADIO_SESSION}/playhead`, method: 'POST', json: session },
+      {
+        url: `**/api/v1/radio/sessions/${RADIO_SESSION}/segments/1/audio`,
+        handler: async route => {
+          await route.fulfill({ status: 200, contentType: 'audio/mpeg', body: audio });
+        },
+      },
+    ];
+  }
+
+  test('radio — the bar on air, on a desktop and on a phone', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    await mockApi(radioMocks(new Date(Date.now() + 23 * 60_000).toISOString()));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/fr/dashboard/radio');
+    await page.getByRole('main').getByRole('button', { name: 'Lancer la radio' }).click();
+    const bar = page.getByRole('status').filter({ hasText: 'Beaugrand' }).first();
+    await bar.waitFor({ timeout: 20_000 });
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: `${OUT}/radio-bar-desktop.png`, fullPage: false });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${OUT}/radio-bar-phone.png`, fullPage: false });
+  });
+
+  // ADR-324 decision 30: on the home page the radio sits under the quick-access
+  // bar, right above « My dashboard » — never above the hero.
+  test('home — the radio under the quick-access bar, on a desktop and on a phone', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    await mockApi([
+      ...radioMocks(new Date(Date.now() + 23 * 60_000).toISOString()),
+      briefingCardsMock,
+      {
+        url: '**/api/v1/briefing/synthesis',
+        json: { greeting: 'Bonjour', synthesis: null, generated_at: null, llm_usage: null },
+      },
+      {
+        url: '**/api/v1/radio/preferences',
+        json: {
+          frequencies: {},
+          disabled_sources: [],
+          news_categories: null,
+          news_languages: null,
+          voices: {},
+          verification: null,
+          timer_minutes: null,
+          public_mode: false,
+          personality_id: null,
+          station_name: 'Radio Matin',
+        },
+      },
+    ]);
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    await page.goto('/fr/dashboard');
+    await page.getByRole('heading', { name: 'Radio Matin' }).waitFor({ timeout: 30_000 });
+    await page.waitForTimeout(1200);
+    await page.screenshot({ path: `${OUT}/home-radio-desktop.png`, fullPage: false });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${OUT}/home-radio-phone.png`, fullPage: true });
   });
 });

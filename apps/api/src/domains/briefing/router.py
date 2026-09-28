@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_internal_error, raise_invalid_input
+from src.core.i18n import normalize_language
 from src.core.session_dependencies import get_current_active_session
 from src.domains.briefing.companion import CompanionEnvironment, project_weather
 from src.domains.briefing.preferences import (
@@ -231,7 +232,7 @@ async def synthesis_audio(
     try:
         audio = await synthesize_user_text(
             user_id=current_user.id,
-            user_language=current_user.language or settings.default_language,
+            user_language=normalize_language(current_user.language),
             text=payload.text,
             lia_gender=payload.lia_gender,
             max_sentences=settings.briefing_audio_max_sentences,

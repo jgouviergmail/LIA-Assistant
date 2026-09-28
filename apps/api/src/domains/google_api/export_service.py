@@ -8,6 +8,7 @@ to avoid code duplication.
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
@@ -15,7 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import raise_invalid_input
 from src.core.export_utils import create_csv_response
-from src.domains.chat.models import TokenUsageLog
+from src.core.field_names import FIELD_RUN_ID
+from src.domains.chat.models import MessageTokenSummary, TokenUsageLog
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.google_api.models import GoogleApiUsageLog
 from src.domains.users.models import User as UserModel
@@ -178,7 +180,8 @@ async def export_consumption_summary_csv(
     """
     Build and execute consumption summary export query, return CSV response.
 
-    Aggregates token usage, Google API usage and remote-STT usage per user.
+    Aggregates token usage, Google API usage, remote-STT usage and paid
+    speech synthesis per user.
 
     Args:
         db: Async database session.
@@ -253,28 +256,25 @@ async def export_consumption_summary_csv(
     stt_result = await db.execute(stt_stmt)
     stt_rows = {row[0]: row for row in stt_result.all()}
 
-    # Query paid-TTS usage aggregated by user (joined via Conversation.user_id).
-    # Mirror of STT: assistant messages synthesised by Edge stay NULL and are
-    # excluded; OpenAI / ElevenLabs rows count.
-    tts_stmt = (
-        select(
-            Conversation.user_id,
-            func.sum(ConversationMessage.tts_characters).label("total_tts_chars"),
-            func.sum(ConversationMessage.tts_cost_eur).label("total_tts_cost_eur"),
-            func.count().label("total_tts_calls"),
-        )
-        .join(Conversation, ConversationMessage.conversation_id == Conversation.id)
-        .where(ConversationMessage.tts_provider.is_not(None))
-    )
+    # Paid speech synthesis per user, from the runs' own rows (ADR-324): a chat
+    # answer read aloud and a radio session alike (a free engine records
+    # nothing). A chat bubble carries its answer's share too, so it is never
+    # added on top of the run's.
+    tts_stmt = select(
+        MessageTokenSummary.user_id,
+        func.sum(MessageTokenSummary.tts_characters).label("total_tts_chars"),
+        func.sum(MessageTokenSummary.tts_cost_eur).label("total_tts_cost_eur"),
+        func.count().label("total_tts_runs"),
+    ).where(MessageTokenSummary.tts_characters > 0)
 
     if start_dt:
-        tts_stmt = tts_stmt.where(ConversationMessage.created_at >= start_dt)
+        tts_stmt = tts_stmt.where(MessageTokenSummary.created_at >= start_dt)
     if end_dt:
-        tts_stmt = tts_stmt.where(ConversationMessage.created_at <= end_dt)
+        tts_stmt = tts_stmt.where(MessageTokenSummary.created_at <= end_dt)
     if user_id:
-        tts_stmt = tts_stmt.where(Conversation.user_id == user_id)
+        tts_stmt = tts_stmt.where(MessageTokenSummary.user_id == user_id)
 
-    tts_stmt = tts_stmt.group_by(Conversation.user_id)
+    tts_stmt = tts_stmt.group_by(MessageTokenSummary.user_id)
     tts_result = await db.execute(tts_stmt)
     tts_rows = {row[0]: row for row in tts_result.all()}
 
@@ -314,7 +314,7 @@ async def export_consumption_summary_csv(
         tts_data = tts_rows.get(uid)
         total_tts_chars = int(tts_data[1] or 0) if tts_data else 0
         total_tts_cost_eur = float(tts_data[2] or 0) if tts_data else 0.0
-        total_tts_calls = int(tts_data[3] or 0) if tts_data else 0
+        total_tts_runs = int(tts_data[3] or 0) if tts_data else 0
 
         total_cost_eur = (
             total_llm_cost_eur + total_google_cost_eur + total_stt_cost_eur + total_tts_cost_eur
@@ -333,7 +333,7 @@ async def export_consumption_summary_csv(
                 "total_stt_calls": total_stt_calls,
                 "total_stt_audio_seconds": round(total_stt_seconds, 2),
                 "total_stt_cost_eur": round(total_stt_cost_eur, 6),
-                "total_tts_calls": total_tts_calls,
+                "total_tts_runs": total_tts_runs,
                 "total_tts_characters": total_tts_chars,
                 "total_tts_cost_eur": round(total_tts_cost_eur, 6),
                 "total_cost_eur": round(total_cost_eur, 6),
@@ -423,12 +423,12 @@ async def export_tts_usage_csv(
     """
     Build and execute paid-TTS usage export query, return CSV response.
 
-    One row per assistant message synthesised by a paid TTS provider
-    (OpenAI tts-1/-hd, ElevenLabs eleven_*). Edge synthesis is excluded by
-    the ``tts_provider IS NOT NULL`` filter (Edge is free, never tracked).
-
-    Mirrors :func:`export_stt_usage_csv` for symmetry — same shape, different
-    columns adapted to the per-character billing axis of TTS.
+    One row per paid synthesis the platform billed (a free engine records
+    nothing). A chat answer read aloud is its bubble's row — provider, model,
+    dollars. A run whose speech no bubble carries — a radio session
+    (ADR-324), or a chat answer whose bubble could not be stamped — is its own
+    row in the runs' ledger, which names no provider: the two sets never
+    overlap, so no euro is listed twice.
 
     Args:
         db: Async database session.
@@ -441,42 +441,66 @@ async def export_tts_usage_csv(
     """
     start_dt, end_dt = _parse_date_range(start_date, end_date)
 
-    stmt = (
-        select(
-            ConversationMessage,
-            Conversation.user_id,
-            UserModel.email,
-        )
+    bubbles = (
+        select(ConversationMessage, UserModel.email)
         .join(Conversation, ConversationMessage.conversation_id == Conversation.id)
         .join(UserModel, Conversation.user_id == UserModel.id)
         .where(ConversationMessage.tts_provider.is_not(None))
     )
+    carried = select(ConversationMessage.id).where(
+        ConversationMessage.message_metadata[FIELD_RUN_ID].astext == MessageTokenSummary.run_id,
+        ConversationMessage.tts_provider.is_not(None),
+    )
+    runs = (
+        select(MessageTokenSummary, UserModel.email)
+        .join(UserModel, MessageTokenSummary.user_id == UserModel.id)
+        .where(MessageTokenSummary.tts_characters > 0, ~carried.exists())
+    )
 
     if start_dt:
-        stmt = stmt.where(ConversationMessage.created_at >= start_dt)
+        bubbles = bubbles.where(ConversationMessage.created_at >= start_dt)
+        runs = runs.where(MessageTokenSummary.created_at >= start_dt)
     if end_dt:
-        stmt = stmt.where(ConversationMessage.created_at <= end_dt)
+        bubbles = bubbles.where(ConversationMessage.created_at <= end_dt)
+        runs = runs.where(MessageTokenSummary.created_at <= end_dt)
     if user_id:
-        stmt = stmt.where(Conversation.user_id == user_id)
+        bubbles = bubbles.where(Conversation.user_id == user_id)
+        runs = runs.where(MessageTokenSummary.user_id == user_id)
 
-    stmt = stmt.order_by(ConversationMessage.created_at.desc())
-
-    result = await db.execute(stmt)
-    rows = result.all()
-
-    data = [
-        {
-            "date": msg.created_at.isoformat(),
-            "user_email": email,
-            "conversation_id": str(msg.conversation_id),
-            "message_id": str(msg.id),
-            "tts_provider": msg.tts_provider,
-            "tts_model": msg.tts_model or "",
-            "characters": int(msg.tts_characters or 0),
-            "cost_usd": float(msg.tts_cost_usd) if msg.tts_cost_usd is not None else 0.0,
-            "cost_eur": float(msg.tts_cost_eur) if msg.tts_cost_eur is not None else 0.0,
-        }
-        for msg, _uid, email in rows
-    ]
+    data = [_bubble_tts_row(msg, email) for msg, email in (await db.execute(bubbles)).all()]
+    data += [_run_tts_row(run, email) for run, email in (await db.execute(runs)).all()]
+    data.sort(key=lambda row: str(row["date"]), reverse=True)
 
     return create_csv_response(data, "tts_usage"), len(data)
+
+
+def _bubble_tts_row(msg: ConversationMessage, email: str) -> dict[str, Any]:
+    """A chat answer's synthesis, as its bubble recorded it."""
+    return {
+        "date": msg.created_at.isoformat(),
+        "user_email": email,
+        "run_id": (msg.message_metadata or {}).get(FIELD_RUN_ID, ""),
+        "conversation_id": str(msg.conversation_id),
+        "message_id": str(msg.id),
+        "tts_provider": msg.tts_provider,
+        "tts_model": msg.tts_model or "",
+        "characters": int(msg.tts_characters or 0),
+        "cost_usd": float(msg.tts_cost_usd) if msg.tts_cost_usd is not None else 0.0,
+        "cost_eur": float(msg.tts_cost_eur) if msg.tts_cost_eur is not None else 0.0,
+    }
+
+
+def _run_tts_row(run: MessageTokenSummary, email: str) -> dict[str, Any]:
+    """A run's synthesis, as its ledger row recorded it: no provider, no dollars."""
+    return {
+        "date": run.created_at.isoformat(),
+        "user_email": email,
+        "run_id": run.run_id,
+        "conversation_id": str(run.conversation_id) if run.conversation_id else "",
+        "message_id": "",
+        "tts_provider": "",
+        "tts_model": "",
+        "characters": int(run.tts_characters or 0),
+        "cost_usd": "",
+        "cost_eur": float(run.tts_cost_eur or 0),
+    }

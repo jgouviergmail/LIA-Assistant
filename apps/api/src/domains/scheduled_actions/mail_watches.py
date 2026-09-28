@@ -1,11 +1,12 @@
 """Serve mail watches from the push wake's own delta (ADR-281, lot 5).
 
 A « watch » is a CONDITION routine somebody posts for a fact they await:
-« tell me when Marie replies ». Its condition is evaluated at its own cron
-tick, capped at twelve a day (ADR-268), so the answer can be two hours late —
-while the push wake sweep (ADR-261) already holds the fresh Gmail delta, to the
-minute, and does nothing with it. ``TriggerKind`` calls the real event-driven
-path « a documented phase 2 »; this module is it.
+« tell me when Marie replies ». The system checks its condition on its own
+cadence, every ten minutes by default (ADR-322; it used to be the routine's own
+schedule, twice a day for a watch from the briefing) — while the push wake
+sweep (ADR-261) already holds the fresh Gmail delta, to the minute. This module
+brings the check forward on that delta: the event-driven half of a watch's
+clock.
 
 Four rules it turns on, none of them conventions:
 
@@ -14,17 +15,18 @@ Four rules it turns on, none of them conventions:
   routine — how to claim it, retry it, record its run, settle its effect — and
   a second runner would be a second authority on what runs for somebody's
   account.
-- **No second deduplication.** The executor's ``condition_state`` fingerprint
-  already decides whether a fact is new, so arming twice fires once. A ledger
-  here would be a second answer to a question that has one.
+- **No second deduplication.** The executor's fact ledger
+  (``condition_state``) already decides whether a mail is new, so arming twice
+  fires once. A ledger here would be a second answer to a question that has
+  one.
 - **A trigger is pulled FORWARD, never resurrected.** ``next_trigger_at`` NULL
-  means nothing follows — an exhausted series, a consumed single occurrence —
-  and arming it would restart what ended.
+  means nothing follows — a watch past its last day — and arming it would
+  restart what ended.
 - **The arming clears the read it depends on.** The executor re-evaluates
   through ``fetch_mails``, whose Gmail search is cached for
   ``emails_cache_search_ttl_seconds``: a cache filled seconds before the mail
   arrived answers « not met », and that verdict CONSUMES the arming — the
-  routine moves on to its next cron slot and the wake is lost. Arming past the
+  routine moves on to its next check and the wake is lost. Arming past the
   published TTL makes the evaluation live by construction. The delay is read
   from the setting that owns it, never restated here (ADR-184).
 
@@ -33,8 +35,8 @@ heartbeat », a watch answers « is this the thing I am waiting for ». A mail t
 pre-filter calls unimportant is exactly what a watch may be for — so this runs
 on the delta BEFORE that verdict.
 
-Best-effort throughout: arming is an improvement on the executor's own cadence,
-never a dependency of it, so no failure here may cost the wake.
+Best-effort throughout: arming is an improvement on the system's own checks,
+never a dependency of them, so no failure here may cost the wake.
 """
 
 from __future__ import annotations
@@ -117,13 +119,14 @@ def _due_watches_statement(user_id: UUID) -> Any:
 
     The NARROWING is deliberately looser than the decider in
     :func:`arm_mail_watches`: it excludes what can never be armed (another
-    account, a paused or closed routine, another condition type, a series with
+    account, a paused or closed routine, another condition type, a watch with
     nothing left) and leaves the instant comparison to Python, where it is
     provable. A narrowing filter is never stricter than the decider it feeds.
 
-    A finished series carries a NULL trigger — the model's own definition of
-    « nothing follows » — which is also how a watch past its ``SeriesEnd``
-    date is excluded here, with no second column to read.
+    A finished watch carries a NULL trigger — the model's own definition of
+    « nothing follows » — which is also how a watch past its last day
+    (``condition_config.until``) is excluded here, with no second column to
+    read.
 
     ``SKIP LOCKED`` because the executor claims its batch with ``FOR UPDATE``:
     a row it is holding is one this pass must not arm anyway (its run will
@@ -190,7 +193,7 @@ async def arm_mail_watches(user_id: UUID, messages: list[dict[str, Any]]) -> int
 
     Never raises and never runs anything: it pulls ``next_trigger_at`` to just
     past the published search-cache TTL, and the executor takes the routine at
-    its next tick, evaluates the condition itself and decides.
+    its next tick, checks the condition itself and decides.
 
     Args:
         user_id: Whose mailbox the wake just read.

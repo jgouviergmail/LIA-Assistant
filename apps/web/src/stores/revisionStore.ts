@@ -16,7 +16,22 @@
 import { create } from 'zustand';
 
 /** The resources a reader may follow — one entry per resource that has a writer elsewhere. */
-export type RevisedResource = 'live_connectors';
+export type RevisedResource = 'live_connectors' | 'radio_voices';
+
+/**
+ * The Configuration LLM slots whose save changes what a reader elsewhere shows: the
+ * radio's settings offer the voices of the engine the `radio_voice` slot names (dev
+ * 2026-09-27: the engine changed, and the settings kept listing the old one's voices).
+ */
+export const SLOT_REVISIONS: Readonly<Partial<Record<string, RevisedResource>>> = {
+  radio_voice: 'radio_voices',
+};
+
+/** Every resource at its first revision: where the store starts, and where a test resets it. */
+export const INITIAL_REVISIONS: Readonly<Record<RevisedResource, number>> = {
+  live_connectors: 0,
+  radio_voices: 0,
+};
 
 interface RevisionStore {
   revisions: Record<RevisedResource, number>;
@@ -24,7 +39,7 @@ interface RevisionStore {
 }
 
 export const useRevisionStore = create<RevisionStore>(set => ({
-  revisions: { live_connectors: 0 },
+  revisions: { ...INITIAL_REVISIONS },
   bump: resource =>
     set(state => ({
       revisions: { ...state.revisions, [resource]: state.revisions[resource] + 1 },

@@ -52,7 +52,8 @@ def build_runtime_context(
     Every argument comes from the same value the chokepoint puts in
     ``configurable``, so the two planes cannot disagree while they coexist.
     ``None`` is treated as "not supplied" for the string preferences, letting the
-    context's own defaults (settings-driven, never inline literals) apply.
+    context's own defaults apply — the declared language (ADR-323) and UTC for
+    the timezone (``DEFAULT_TIMEZONE``), never an inline literal.
 
     Args:
         state: Graph state; the display name, timezone and language are read

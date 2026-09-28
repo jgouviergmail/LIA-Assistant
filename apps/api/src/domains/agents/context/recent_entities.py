@@ -135,7 +135,6 @@ def build_recent_entities_context(
     full_registry: dict[str, Any] | None,
     agent_results: dict[str, Any] | None,
     current_turn_id: int | None,
-    user_language: str,
 ) -> str:
     """Build the recent-entity grounding block for the response prompt.
 
@@ -144,7 +143,6 @@ def build_recent_entities_context(
         agent_results: Agent results keyed ``"{turn_id}:{agent}"``.
         current_turn_id: Current turn id (None disables the feature — recency
             cannot be established, and injecting unbounded history is unsafe).
-        user_language: Language used by the shared payload serializer.
 
     Returns:
         The serialized entity block, or ``""`` when nothing recent applies.
@@ -186,7 +184,7 @@ def build_recent_entities_context(
     from src.domains.agents.formatters.text_summary import generate_data_for_filtering
 
     try:
-        block = generate_data_for_filtering(selected, user_language)
+        block = generate_data_for_filtering(selected)
     except Exception as exc:  # pragma: no cover - defensive
         logger.debug("recent_entities_serialization_failed", error=str(exc))
         return ""

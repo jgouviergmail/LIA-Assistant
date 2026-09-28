@@ -15,6 +15,16 @@ export const COOKIE_MAX_AGE_SECONDS = 31536000;
 export type Language = (typeof languages)[number];
 
 /**
+ * Whether a raw locale (`i18n.language`) is one of the supported languages.
+ *
+ * @param value - A locale as i18next reports it.
+ * @returns True when it is a {@link Language}, narrowing it without a cast.
+ */
+export function isLanguage(value: string): value is Language {
+  return (languages as readonly string[]).includes(value);
+}
+
+/**
  * Language display names (native and English)
  * Centralized to avoid duplication across components
  */

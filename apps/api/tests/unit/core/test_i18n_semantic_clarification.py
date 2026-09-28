@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.config import settings
 from src.core.i18n_hitl import (
     _CONTENT_TOO_LONG_QUESTION,
     _SEMANTIC_ISSUE_QUESTIONS,
@@ -136,13 +136,13 @@ class TestAccessor:
     def test_unsupported_language_falls_back_to_the_application_default(self) -> None:
         """The module's contract, shared by its ~20 sibling accessors.
 
-        ``_normalize_language`` maps anything unsupported to DEFAULT_LANGUAGE,
-        NOT to English. An accessor behaving differently from all the others
-        would be a trap for the next reader.
+        ``normalize_language`` maps anything unsupported to the instance's
+        configured default language, NOT to English. An accessor behaving
+        differently from all the others would be a trap for the next reader.
         """
         assert (
             HitlMessages.get_semantic_issue_question("cardinality_mismatch", "ja")
-            == _SEMANTIC_ISSUE_QUESTIONS["cardinality_mismatch"][DEFAULT_LANGUAGE]
+            == _SEMANTIC_ISSUE_QUESTIONS["cardinality_mismatch"][settings.default_language]
         )
 
     def test_unknown_issue_type_yields_the_generic_clarification_fallback(self) -> None:
@@ -191,7 +191,7 @@ class TestContentTooLongQuestion:
     def test_unsupported_language_falls_back_to_the_application_default(self) -> None:
         assert HitlMessages.get_content_too_long_question(
             10, 5, "ja"
-        ) == _CONTENT_TOO_LONG_QUESTION[DEFAULT_LANGUAGE].format(length=10, max=5)
+        ) == _CONTENT_TOO_LONG_QUESTION[settings.default_language].format(length=10, max=5)
 
 
 class TestBootAssertActuallyGuards:

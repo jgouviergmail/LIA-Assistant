@@ -6,8 +6,9 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.config import settings
 from src.domains.channels.models import ChannelType
-from src.domains.channels.service import ChannelService
+from src.domains.channels.service import ChannelService, OtpAttemptsExhaustedError
 
 
 @pytest.fixture
@@ -157,21 +158,25 @@ class TestVerifyOTP:
 
     @pytest.mark.asyncio
     async def test_verify_otp_brute_force_blocked(self) -> None:
-        """Should return None when chat_id is blocked (too many attempts)."""
+        """A blocked chat is told so — distinct from an invalid code."""
         mock_redis = AsyncMock()
-        mock_redis.get = AsyncMock(return_value=b"5")  # 5 attempts (max reached)
+        # The threshold is a setting: the test reads it, never re-types it.
+        mock_redis.get = AsyncMock(return_value=str(settings.channel_otp_max_attempts).encode())
 
-        with patch(
-            "src.infrastructure.cache.redis.get_redis_session",
-            return_value=mock_redis,
+        with (
+            patch(
+                "src.infrastructure.cache.redis.get_redis_session",
+                return_value=mock_redis,
+            ),
+            pytest.raises(OtpAttemptsExhaustedError),
         ):
-            result = await ChannelService.verify_otp(
+            await ChannelService.verify_otp(
                 code="123456",
                 channel_type="telegram",
                 channel_user_id="999",
             )
-
-        assert result is None
+        # No code was consumed while blocked.
+        mock_redis.pipeline.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_verify_otp_type_mismatch(self) -> None:

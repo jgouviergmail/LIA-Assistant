@@ -155,9 +155,15 @@ def _resolve_dns_sync(hostname: str) -> list[str]:
     Resolve hostname to IP addresses (synchronous, run via asyncio.to_thread).
 
     Returns list of resolved IP strings.
-    Raises socket.gaierror on DNS failure.
+    Raises socket.gaierror on DNS failure — including a hostname no IDNA
+    encoder accepts (a label past 63 characters), which getaddrinfo reports
+    as a UnicodeError before asking any resolver: the callers' contract is
+    a verdict, never an exception.
     """
-    results = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+    try:
+        results = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+    except UnicodeError as exc:
+        raise socket.gaierror(socket.EAI_NONAME, "hostname cannot be encoded") from exc
     # sockaddr[0] is typed str | int (typeshed widens for non-IP families); for
     # AF_INET/AF_INET6 it is always the IP string — keep only those.
     ips: set[str] = set()

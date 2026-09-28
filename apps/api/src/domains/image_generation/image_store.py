@@ -35,11 +35,16 @@ class PendingImage:
             disappears — it used to vanish silently. ``None`` when the caller
             does not know the deadline; the UI then says nothing rather than
             guess a duration.
+        kept: The person kept the file from the gallery (ADR-319): it has no
+            deadline, and the card says so. The history read path restates
+            the same flag from the file's row, so the card reads the same
+            live and after a reload.
     """
 
     url: str
     alt_text: str
     expires_at: str | None = None
+    kept: bool = False
 
 
 # Module-level store: conversation_id → list of PendingImage
@@ -73,6 +78,7 @@ def store_pending_image(
     url: str,
     alt_text: str,
     expires_at: str | None = None,
+    kept: bool = False,
 ) -> None:
     """Store a generated image URL for later SSE injection.
 
@@ -83,9 +89,10 @@ def store_pending_image(
         url: Relative URL (e.g., "/api/v1/attachments/{id}").
         alt_text: Raw prompt text (sanitized internally).
         expires_at: ISO-8601 UTC deadline after which the attachment is purged.
+        kept: The person kept the file (ADR-319) — it then has no deadline.
     """
     sanitized_alt = sanitize_alt_text(alt_text)
-    image = PendingImage(url=url, alt_text=sanitized_alt, expires_at=expires_at)
+    image = PendingImage(url=url, alt_text=sanitized_alt, expires_at=expires_at, kept=kept)
 
     with _lock:
         _pending_images.setdefault(conversation_id, []).append(image)
@@ -139,7 +146,7 @@ def get_and_clear_pending_images(conversation_id: str) -> list[PendingImage]:
     return images
 
 
-def to_wire_metadata(images: Sequence[PendingImage]) -> list[dict[str, str | None]]:
+def to_wire_metadata(images: Sequence[PendingImage]) -> list[dict[str, str | bool | None]]:
     """Serialize pending images for the client.
 
     The SSE ``done`` chunk and the archived ``message_metadata`` row must carry
@@ -156,6 +163,11 @@ def to_wire_metadata(images: Sequence[PendingImage]) -> list[dict[str, str | Non
         One JSON-serializable dict per image, in order.
     """
     return [
-        {"url": image.url, "alt": image.alt_text, "expires_at": image.expires_at}
+        {
+            "url": image.url,
+            "alt": image.alt_text,
+            "expires_at": image.expires_at,
+            "kept": image.kept,
+        }
         for image in images
     ]

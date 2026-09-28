@@ -17,6 +17,7 @@ from sqlalchemy import select
 
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_DIAGNOSTICS_NOTIFY_PREFIX
+from src.core.i18n import normalize_language
 from src.core.i18n_diagnostics import get_incident_notification
 from src.domains.diagnostics.repository import DiagnosticsRepository
 from src.infrastructure.cache.redis import get_redis_cache
@@ -106,7 +107,11 @@ async def notify_admins_of_incident(
     sent = 0
     for admin in admins:
         notif_title, body = get_incident_notification(
-            getattr(admin, "language", None), severity=severity, title=title
+            # A known person's stored language, never the declared one — the
+            # tick that notifies may run inside someone else's request.
+            normalize_language(getattr(admin, "language", None)),
+            severity=severity,
+            title=title,
         )
         try:
             await dispatcher.dispatch(

@@ -40,7 +40,7 @@ LIA supporte les **canaux de messagerie externes** comme complement a l'interfac
 | HITL (Human-in-the-Loop) | Boutons inline Telegram pour approuver/rejeter des plans |
 | Messages vocaux | OGG/Opus -> PCM 16kHz -> Sherpa STT -> texte |
 | Liaison OTP | Code 6 chiffres via Redis, TTL 5min, single-use |
-| Multi-langue | 6 langues (fr, en, es, de, it, zh) pour les messages bot et boutons HITL |
+| Multi-langue | 6 langues (fr, en, es, de, it, zh-CN -- le code backend du chinois) pour les messages du bot et les boutons HITL : la langue du compte lie, celle que declare le client Telegram tant que personne n'est connu (ADR-323) |
 
 L'architecture est **generique** : les abstractions `BaseChannelSender` et `BaseChannelWebhookHandler` permettent d'ajouter d'autres canaux (Discord, WhatsApp...) sans modifier le domaine.
 
@@ -96,7 +96,7 @@ class BaseChannelSender(ABC):
     async def send_notification(self, channel_user_id: str, title: str, body: str, data: dict[str, Any] | None = None) -> bool: ...
 
     @abstractmethod
-    async def edit_message(self, channel_user_id: str, message_id: str, new_text: str, parse_mode: str = "HTML") -> bool: ...
+    async def remove_keyboard(self, channel_user_id: str, message_id: str) -> bool: ...
 ```
 
 **`BaseChannelWebhookHandler`** (`domains/channels/abstractions.py`) -- 2 methodes obligatoires :
@@ -140,7 +140,7 @@ class ChannelInboundMessage:
     channel_user_id: str          # Telegram chat_id
     text: str | None = None
     voice_file_id: str | None = None
-    voice_tts_latency_seconds: int | None = None
+    voice_duration_seconds: int | None = None
     callback_data: str | None = None    # HITL button press
     message_id: str | None = None
     raw_data: dict[str, Any] = field(default_factory=dict)
@@ -201,7 +201,7 @@ Toutes les variables sont definies dans `core/config/channels.py` via la classe 
 | `CHANNEL_OTP_BLOCK_TTL_SECONDS` | `900` | Duree blocage brute-force |
 | `CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE` | `10` | Rate limit inbound par utilisateur |
 | `CHANNEL_RATE_LIMIT_GLOBAL_PER_SECOND` | `25` | Rate limit global bot |
-| `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` | `120` | Lock Redis per-user |
+| `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` | `120` | Borne de crash du verrou de tour (rearme pendant le tour) |
 
 ### 3.3 Mode Dev vs Prod
 
@@ -264,9 +264,14 @@ Le processus de liaison d'un compte LIA a Telegram utilise un code OTP (One-Time
 5. [Frontend] Affiche le code + lien deep-link @BotName
 6. [User]     Ouvre Telegram, envoie /start {code} au bot
 7. [Backend]  Webhook -> parse -> detecte /start {otp} -> _handle_otp_verification()
+              (jusque-la, la langue declaree est celle du client Telegram)
 8. [Backend]  ChannelService.verify_otp() -> Redis GET+DELETE atomique (pipeline)
-9. [Backend]  ChannelService.create_binding() -> INSERT UserChannelBinding
-10. [Bot]     Repond "Compte lie avec succes !" dans la langue de l'utilisateur
+9. [Backend]  Dans UNE session courte : le compte que nomme le code est lu,
+              desactive compris (desactive, il recoit "account_inactive" et
+              n'est jamais lie) ...
+10. [Backend] ... puis ChannelService.create_binding() -> INSERT UserChannelBinding ;
+              compte introuvable, lecture ou ecriture en echec -> "error", rien n'est lie
+11. [Bot]     Repond "otp_success" dans la langue du compte, session fermee (ADR-304)
 ```
 
 ### 4.2 Generation OTP
@@ -383,6 +388,13 @@ async def process_telegram_update(payload: dict) -> None:
     if message is None:
         return
 
+    # Tant que la personne n'est pas connue, la langue declaree est celle du
+    # client Telegram (from.language_code) ; celle du compte l'emporte ensuite
+    with language_scope(client_language_of(message.raw_data)):
+        await _dispatch_update(message)
+
+
+async def _dispatch_update(message: ChannelInboundMessage) -> None:
     # OTP : /start {code}
     if message.text and message.text.startswith("/start "):
         await _handle_otp_verification(...)
@@ -402,19 +414,20 @@ async def process_telegram_update(payload: dict) -> None:
 
 Le `ChannelMessageRouter` applique les controles suivants dans l'ordre :
 
-1. **Binding lookup** : `(channel_type, channel_user_id)` -> `UserChannelBinding`
-2. **Rate limit** : Redis rate limiter, max 10 messages/user/minute
-3. **Redis lock per-user** : `SET NX EX 120s` -- non-bloquant, envoie "busy" si deja verrouille
-4. **Load User** : timezone, language, memory_enabled
-5. **HITL check** : verifie si un HITL est en attente via `HITLStore`
-6. **Dispatch** : `InboundMessageHandler.handle()`
-7. **Release lock** : dans le bloc `finally`
+1. **Liaison et personne** : `read_binding_and_person()` lit `(channel_type, channel_user_id)` -> `UserChannelBinding` et la ligne `User` qu'elle nomme, dans une session courte, desactivees comprises -- une lecture echouee repond "error" et une liaison absente "unbound" dans la langue declaree (celle du client Telegram) ; les preferences (langue, fuseau, memoire, journaux, psyche) sont lues sur la ligne du compte
+2. **Refus** : `refusal_for()` repond "account_inactive" a un compte desactive et "channel_disabled" a une liaison coupee, puis le `RedisRateLimiter` partage (`CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE` messages par minute et par personne) repond "busy", dans SA langue (ADR-323). Chaque message refuse est compte ; la personne n'est avertie qu'une fois par fenetre de debit (cle `channel_rate:notice:*`, partagee avec les boutons HITL par `answer_refusal()`), jamais une fois par message -- et un cache qui ne peut pas noter l'avertissement la previent quand meme (`channel_refusal_notice_unavailable`), comme le limiteur de debit laisse passer quand il ne peut pas compter
+3. **Redis lock per-user** : un verrou a jeton de proprietaire (`try_claim`) -- non-bloquant, envoie "busy" dans la langue de la personne si deja verrouille ; tenu pendant tout le tour par `held_claim`, rearme plusieurs fois par `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` (une simple borne en cas de crash : un tour dure bien plus)
+4. **HITL check** : verifie si un HITL est en attente via `HITLStore`
+5. **Dispatch** : `InboundMessageHandler.handle()`, sous la langue de la personne (`language_scope`)
+6. **Release lock** : a la sortie de `held_claim`, en comparant le jeton -- un verrou pris par un autre tour n'est jamais libere (la liberation n'est meme pas demandee quand le gardien a vu la reprise ; si la reprise suit son dernier rafraichissement, la comparaison repond 0), et le tour qui l'a perdu est arrete au rafraichissement suivant -- tant que le cache repond, les deux tours coexistent au plus une periode de rafraichissement ; un cache injoignable ne decide rien -- (`ClaimLost`, compte `claim_lost`, reponse "error") ; un tour plus long que `BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS` est arrete et le verrou rendu
+
+Un bouton HITL (`_handle_hitl_callback`) lit la liaison et la personne par les memes fonctions : il ne reprend jamais un compte desactive ni une liaison coupee. Un compte refuse n'est averti qu'une fois par fenetre, par la meme cle que ses messages. Il prend aussi le meme verrou de tour, tenu pendant la reprise : un double appui, ou un bouton presse pendant un tour, recoit "busy". Sa conversation doit etre celle de la personne et sa question encore en attente (sinon "hitl_expired") ; une lecture en echec recoit "error".
 
 **Session DB** : Le background task utilise `async with get_db_context() as db:` (pas `Depends(get_db)`) car il s'execute hors du lifecycle de la requete FastAPI.
 
 ### 5.6 Deduplication `content_replacement`
 
-Le streaming LangGraph peut emettre le texte final de deux facons -- incrementalement via des chunks `token`, puis en bloc via un chunk `content_replacement`. L'`InboundMessageHandler._stream_and_collect()` utilise `content_replacement` comme source **autoritaire** : quand present, il remplace les tokens collectes (apres `strip_html_cards()` pour retirer le HTML des cards web). En fallback, les tokens collectes sont utilises directement.
+Le streaming LangGraph peut emettre le texte final de deux facons -- incrementalement via des chunks `token`, puis en bloc via un chunk `content_replacement`. L'`InboundMessageHandler._stream_and_collect()`, qui lit le flux par `_ChannelTurn`, retient `content_replacement` comme source **autoritaire** : quand present, il remplace les tokens collectes (apres `strip_html_cards()` pour retirer le HTML des cards web). En fallback, les tokens collectes sont utilises directement.
 
 ---
 
@@ -422,56 +435,73 @@ Le streaming LangGraph peut emettre le texte final de deux facons -- incremental
 
 ### 6.1 Types HITL et patterns
 
-6 types HITL, repartis en 2 patterns d'interaction :
+Chaque type d'interaction HITL relève de l'un de 2 patterns :
 
 **Pattern boutons inline** (inline keyboard) :
 
 | Type HITL | Boutons | callback_data |
 |-----------|---------|---------------|
-| `plan_approval` | [Approuver] [Rejeter] | `hitl:approve:{conv_id}` / `hitl:reject:{conv_id}` |
-| `destructive_confirm` | [Confirmer] [Annuler] | `hitl:confirm:{conv_id}` / `hitl:cancel:{conv_id}` |
-| `for_each_confirm` | [Continuer] [Arreter] | `hitl:continue:{conv_id}` / `hitl:stop:{conv_id}` |
+| `plan_approval` | [Approuver] [Rejeter] | `hitl:approve:{conv_id}:{empreinte}` / `hitl:reject:…` |
+| `destructive_confirm` | [Confirmer] [Annuler] | `hitl:confirm:{conv_id}:{empreinte}` / `hitl:cancel:…` |
+| `for_each_confirmation` | [Continuer] [Arreter] | `hitl:continue:{conv_id}:{empreinte}` / `hitl:stop:…` |
+| `draft_critique` | [Confirmer] [Annuler] | `hitl:confirm:{conv_id}:{empreinte}` / `hitl:cancel:…` |
+| `tool_confirmation` | [Confirmer] [Annuler] | `hitl:confirm:{conv_id}:{empreinte}` / `hitl:cancel:…` |
+
+L'empreinte nomme la question à laquelle répond le bouton : les huit premiers
+chiffres hexadécimaux du SHA-256 de son `message_id`
+(`hitl_{conversation_id}_{interrupt_id}`, trop long pour les 64 octets d'un
+`callback_data` à côté de l'identifiant de conversation —
+`hitl_keyboard.question_fingerprint`).
+
+Chaque type d'interaction déclare sa réponse — deux boutons ou du texte libre — dans `hitl_keyboard._HITL_TYPE_BUTTONS`, vérifié au démarrage (`assert_keyboard_completeness`) : un brouillon et une confirmation d'outil prennent [Confirmer] [Annuler], et un appui envoie la même décision structurée qu'un clic sur la carte du chat (6.4) ; `plan_approval`, `destructive_confirm` et `edit_confirmation` n'ont aujourd'hui aucun producteur — déclarés, jamais dessinés.
+
+Le type est celui qu'écrit l'interaction, `action_requests[0].type` de la métadonnée d'interruption (`inbound_handler.interaction_type_of`) : jusqu'à la revue 12 du lot ADR-323, une clé `type` qu'aucune interaction n'écrit était lue, et chaque question portait [Approuver] [Rejeter], une clarification comprise. La question en attente est lue là où le moteur l'écrit, la base Redis « cache » (`message_router.read_pending_question`) — les deux portes la lisaient dans la base « session » où elles prennent le verrou de tour, si bien que chaque appui répondait « question expirée » ; une réponse tapée reprenait bien le graphe (le checkpoint le décide), mais laissait la question enregistrée jusqu'à son expiration. Elle est lue à plat, comme le chat la lit (`HITLStore.get_pending`), et la réponse reprend le run où la question a été posée (`run_id`) : le canal cherchait une clé `original_run_id` que personne n'écrit, et chaque réponse repartait sous un run neuf — ses jetons, sa ligne du registre des décisions et les marqueurs de son archive séparés du tour auquel elle répondait.
+
+La question envoyée est celle que le moteur diffuse : les morceaux `hitl_question_token`, et le `generated_question` du morceau `hitl_interrupt_complete`, qui l'emporte. Le flux est lu jusqu'à son terme (`inbound_handler._ChannelTurn`), comme le lit une exécution hors tour : sa queue enregistre la question en attente, commite les jetons du tour et ferme ses clients, et la question ne part qu'ensuite. Jusqu'à la revue 14 du lot ADR-323, le canal cherchait la question dans les morceaux `token` — elle partait vide, et Telegram refuse un message vide — et quittait le flux à `hitl_interrupt_complete`, avant l'enregistrement : aucune question posée sur Telegram n'était enregistrée, aucun appui ne pouvait y répondre, et une réponse tapée repartait comme une nouvelle demande. Une question que le flux laisse vide part comme la question de dernier recours du moteur (`SSEErrorMessages.confirmation_required`), et `channel_hitl_decisions_total` ne la compte qu'une fois acceptée par Telegram. Un clavier n'est dessiné qu'avec la conversation de la personne et le `message_id` de la question : un bouton nomme les deux.
 
 **Pattern reponse texte libre** (pas de keyboard) :
 
 | Type HITL | Comportement |
 |-----------|-------------|
 | `clarification` | L'utilisateur repond en texte libre |
-| `draft_critique` | L'utilisateur repond en texte libre |
-| `modifier_review` | L'utilisateur repond en texte libre |
+| `entity_disambiguation` | L'utilisateur repond en texte libre |
+
+`edit_confirmation` y est déclaré aussi, sans producteur aujourd'hui.
 
 ### 6.2 Construction du keyboard
 
 ```python
 # apps/api/src/infrastructure/channels/telegram/hitl_keyboard.py
-def build_hitl_keyboard(hitl_type: str, conversation_id: str, language: str = "fr") -> dict:
+def build_hitl_keyboard(
+    hitl_type: str, conversation_id: str, question_id: str, language: str | None = None
+) -> dict:
+    # An absent language is the declared one: the person's (ADR-323).
     button_pair = _HITL_TYPE_BUTTONS.get(hitl_type)
     if not button_pair:
         return {}  # Text-based HITL, pas de keyboard
 
-    action_positive, action_negative = button_pair
+    question = question_fingerprint(question_id)
     return {
         "inline_keyboard": [[
             {
-                "text": get_button_label(action_positive, language),
-                "callback_data": f"hitl:{action_positive}:{conversation_id}",
-            },
-            {
-                "text": get_button_label(action_negative, language),
-                "callback_data": f"hitl:{action_negative}:{conversation_id}",
-            },
+                "text": get_button_label(action, language),
+                "callback_data": ":".join(("hitl", action, conversation_id, question)),
+            }
+            for action in button_pair
         ]]
     }
 ```
 
 ### 6.3 Labels localises (6 langues)
 
-Les labels des boutons HITL sont definis dans `HITL_BUTTON_LABELS` :
+Les labels des boutons HITL sont definis dans `HITL_BUTTON_LABELS`, sur les six
+codes canoniques du backend — `zh-CN`, jamais le `zh` du frontend, qui servait la
+langue de repli a tout compte chinois (ADR-323) :
 
 ```python
 HITL_BUTTON_LABELS = {
-    "approve": {"fr": "Approuver", "en": "Approve", "es": "Aprobar", "de": "Genehmigen", "it": "Approvare", "zh": "批准"},
-    "reject":  {"fr": "Rejeter",   "en": "Reject",  "es": "Rechazar", "de": "Ablehnen",  "it": "Rifiutare", "zh": "拒绝"},
+    "approve": {"fr": "Approuver", "en": "Approve", "es": "Aprobar", "de": "Genehmigen", "it": "Approvare", "zh-CN": "批准"},
+    "reject":  {"fr": "Rejeter",   "en": "Reject",  "es": "Rechazar", "de": "Ablehnen",  "it": "Rifiutare", "zh-CN": "拒绝"},
     # ... confirm, cancel, continue, stop
 }
 ```
@@ -481,11 +511,11 @@ HITL_BUTTON_LABELS = {
 Quand l'utilisateur appuie sur un bouton inline :
 
 1. Telegram envoie un `callback_query` au webhook
-2. `parse_hitl_callback_data("hitl:approve:conv-123")` -> `("approve", "conv-123")`
-3. Lookup binding par `(telegram, chat_id)` -> user_id
-4. Verification HITL encore pending via `HITLStore.get_interrupt(conversation_id)`
-5. Edition du message original : suppression des boutons, affichage de la decision
-6. Reprise du pipeline agent via `InboundMessageHandler.handle()` avec `pending_hitl` et `original_run_id`
+2. `parse_hitl_callback_data("hitl:confirm:{conv_id}:{empreinte}")` -> `HitlPress(action, conversation_id, question)` ; un bouton dessiné avant l'empreinte (`hitl:{action}:{conv_id}`, encore dans l'historique des discussions) se lit avec une empreinte vide, qu'aucune question n'a
+3. Lookup binding par `(telegram, chat_id)` -> user_id, puis prise du verrou de tour de la personne
+4. La question en attente est lue là où le moteur l'enregistre (`message_router.read_pending_question`, base Redis « cache », `HITLStore.get_pending`) ; l'appui n'y répond que si la conversation est celle de la personne ET si l'empreinte du bouton est celle de la question (`question_fingerprint` de son `message_id`) — sinon « question expirée », clavier retiré : un clavier resté sous une question précédente répondait à celle qui attend
+5. Le clavier est retiré du message (`TelegramSender.remove_keyboard`) ; son texte reste lisible — le brouillon approuvé ne disparaît plus derrière un « libellé ✓ »
+6. Reprise via `InboundMessageHandler.handle()` : le libellé du bouton, dans la langue de la personne, est archivé comme son message, et la question reprend sur la décision structurée `hitl_decision = {"message_id", "action"}`, comme un clic sur la carte du chat — appliquée par `build_structured_decision` sans modèle (`continue` / `stop` y valent `confirm` / `cancel`), jamais par la classification du libellé : neuf appuis sur douze passaient par le classifieur. La réponse du tour repris dit ce que la décision a fait
 
 ---
 
@@ -562,9 +592,10 @@ Telegram voice message (OGG/Opus)
 
 ```python
 # apps/api/src/infrastructure/channels/telegram/voice.py
-async def transcribe_voice_message(bot, voice_file_id, voice_tts_latency_seconds=None) -> str | None:
-    # 1. Rejet messages trop longs (> 120 secondes)
-    if voice_tts_latency_seconds and voice_tts_latency_seconds > _MAX_VOICE_DURATION_SECONDS:
+async def transcribe_voice_message(bot, voice_file_id, voice_duration_seconds=None) -> str | None:
+    # 1. Rejet messages trop longs (garde de securite : InboundMessageHandler repond
+    #    deja "voice_too_long" a la personne avant d'appeler cette fonction)
+    if voice_duration_seconds and voice_duration_seconds > MAX_VOICE_DURATION_SECONDS:
         return None
 
     # 2. Download OGG bytes (avec validation taille)
@@ -624,7 +655,7 @@ class DiscordSender(BaseChannelSender):
     async def send_notification(self, channel_user_id: str, title: str, body: str, data=None) -> bool:
         ...
 
-    async def edit_message(self, channel_user_id: str, message_id: str, new_text: str, parse_mode: str = "HTML") -> bool:
+    async def remove_keyboard(self, channel_user_id: str, message_id: str) -> bool:
         ...
 ```
 
@@ -696,7 +727,7 @@ Ajouter les settings Discord dans `core/config/channels.py` et les constantes da
 |--------|-----------|----------------|
 | Webhook forge | `X-Telegram-Bot-Api-Secret-Token` avec `hmac.compare_digest` | `TelegramWebhookHandler.validate_signature()` |
 | Spam / flooding | Rate limit per-user (10/min) + global (25/sec) | `ChannelMessageRouter` + `RedisRateLimiter` |
-| Messages concurrents | Redis lock per-user (`SET NX EX 120s`) | `ChannelMessageRouter.route_message()` |
+| Messages concurrents | Verrou Redis par personne a jeton de proprietaire, pris par le message comme par le bouton (`try_claim`), tenu pendant le tour et libere par son jeton (`held_claim` ; `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` borne un crash) | `ChannelMessageRouter.route_message()`, `_handle_hitl_callback()` |
 | Usurpation d'identite | OTP single-use + TTL + contraintes UNIQUE bidirectionnelles | `ChannelService.verify_otp()` + `UserChannelBinding` |
 | Brute-force OTP | Max 5 tentatives par `chat_id`, blocage 15min | `ChannelService.verify_otp()` + Redis counter |
 | Bot bloque par user | Auto-disable binding sur `telegram.error.Forbidden` | `TelegramSender._auto_disable_binding()` |
@@ -740,7 +771,7 @@ Index("ix_channel_bindings_active_lookup", "channel_type", "channel_user_id",
 
 ### 11.1 Metriques Prometheus
 
-Le module `metrics_channels.py` expose 9 metriques suivant le pattern RED (Rate, Errors, Duration) :
+Le module `metrics_channels.py` expose, suivant le pattern RED (Rate, Errors, Duration) :
 
 | Metrique | Type | Labels |
 |----------|------|--------|
@@ -750,9 +781,13 @@ Le module `metrics_channels.py` expose 9 metriques suivant le pattern RED (Rate,
 | `channel_messages_sent_total` | Counter | `channel_type`, `message_type` |
 | `channel_send_errors_total` | Counter | `channel_type`, `error_type` |
 | `channel_active_bindings` | Gauge | `channel_type` |
-| `channel_hitl_decisions_total` | Counter | `channel_type`, `decision` |
+| `channel_otp_generated_total` | Counter | `channel_type` |
+| `channel_otp_verified_total` | Counter | `channel_type`, `status` |
+| `channel_hitl_decisions_total` (questions HITL envoyées, par type d'interaction) | Counter | `channel_type`, `decision` |
 | `channel_voice_transcriptions_total` | Counter | `channel_type`, `status` |
-| `channel_notifications_sent_total` | Counter | `channel_type` |
+| `channel_voice_duration_seconds` | Histogram | `channel_type` |
+| `channel_notifications_sent_total` | Counter | `channel_type`, `task_type` |
+| `channel_notification_errors_total` | Counter | `channel_type`, `error_type` |
 
 ### 11.2 Evenements structlog
 
@@ -761,15 +796,29 @@ Les evenements de logging suivent les conventions structlog du projet :
 | Evenement | Contexte |
 |-----------|---------|
 | `telegram_bot_initialized` | Demarrage du bot (polling ou webhook) |
-| `telegram_webhook_received` | Reception d'un Update brut |
-| `channel_message_routed` | Message dispatche au handler |
 | `channel_otp_generated` | Code OTP genere |
 | `channel_otp_verified` | Code OTP valide avec succes |
-| `channel_notification_sent` | Notification sortante envoyee |
+| `telegram_otp_verification_failed` | Le cache des codes est illisible : "error" repondu |
+| `telegram_otp_account_missing` / `telegram_otp_account_inactive` | Le code nomme un compte disparu / desactive : jamais lie |
+| `telegram_otp_binding_creation_failed` | Lecture, insertion ou commit en echec : "error" repondu, rien de lie |
+| `channel_message_lookup_failed` / `channel_message_no_binding` | Liaison illisible / absente |
+| `channel_message_refused` | Compte desactive ou liaison coupee (`reason` : le code du refus), averti une fois par fenetre |
+| `channel_message_rate_limited` | Message rejete (rate limit), averti une fois par fenetre |
+| `telegram_hitl_callback_invalid` | Donnees de bouton illisibles, ou action qu'aucun clavier ne dessine : seule leur longueur est journalisee (`callback_data_length`), rien n'est repris |
+| `telegram_hitl_callback_lookup_failed` | La liaison d'un bouton HITL est illisible : "error" repondu |
+| `telegram_hitl_callback_refused` | Bouton d'un compte desactive ou d'une liaison coupee (`reason`), averti une fois par fenetre |
+| `channel_refusal_notice_unavailable` | L'avertissement de la fenetre n'a pas pu etre note (cache injoignable) : la personne est avertie quand meme |
+| `channel_message_locked` / `channel_message_lock_failed` | Un tour tourne deja / verrou impossible a prendre |
+| `telegram_hitl_callback_locked` / `telegram_hitl_callback_lock_failed` | Les memes, pour un bouton HITL (meme code de prise du verrou que les messages) |
+| `channel_message_claim_lost` / `telegram_hitl_callback_claim_lost` | Tour arrete (`claim_loss` : `taken_over` ou `hold_exhausted`) |
+| `telegram_hitl_callback_expired` | Question expirée, d'une autre conversation, ou bouton d'une autre question que celle qui attend (empreinte ; `question_pending`) : « hitl_expired » répondu, clavier retiré |
+| `telegram_keyboard_removal_refused` | Telegram n'a pas retiré le clavier (déjà retiré par un appui précédent, le plus souvent) : `error_type` seul |
+| `telegram_hitl_callback_resume_failed` | La lecture de la conversation ou de la question en attente, ou la reprise, a echoue : "error" repondu |
 | `telegram_hitl_callback_processed` | Callback HITL traite |
 | `telegram_bot_blocked` | Bot bloque par l'utilisateur (Forbidden) |
-| `channel_message_rate_limited` | Message rejete (rate limit) |
 | `channel_inbound_hitl_interrupt` | Interruption HITL detectee pendant le streaming |
+| `channel_hitl_keyboard_sent` / `channel_hitl_question_unsent` | Question HITL acceptée par Telegram (et comptée) / refusée par Telegram (jamais comptée) |
+| `channel_inbound_stream_error` | Le flux a annoncé une erreur : son code seul (`error_code`), jamais son texte |
 
 ---
 
@@ -778,38 +827,33 @@ Les evenements de logging suivent les conventions structlog du projet :
 ### 12.1 Commandes de test
 
 ```bash
-# Tous les tests channels (164 tests)
-task test:backend:unit:fast -- \
-  tests/unit/domains/channels/ \
-  tests/unit/infrastructure/channels/ \
-  tests/unit/infrastructure/proactive/test_notification_channels.py
+# Tous les tests channels, canaux de notification compris
+# (--no-cov : le plancher de couverture de pyproject.toml vaut pour la suite
+# entiere ; un sous-ensemble vert sortirait en echec)
+cd apps/api
+.venv/Scripts/pytest tests/unit/domains/channels/ tests/unit/infrastructure/channels/ \
+  tests/unit/infrastructure/proactive/test_notification_channels.py -v --no-cov
 
 # Tests specifiques par fichier
-cd apps/api
-.venv/Scripts/pytest tests/unit/domains/channels/test_service.py -v
-.venv/Scripts/pytest tests/unit/domains/channels/test_message_router.py -v
-.venv/Scripts/pytest tests/unit/domains/channels/test_inbound_handler.py -v
-.venv/Scripts/pytest tests/unit/infrastructure/channels/telegram/test_formatter.py -v
-.venv/Scripts/pytest tests/unit/infrastructure/channels/telegram/test_webhook_handler.py -v
-.venv/Scripts/pytest tests/unit/infrastructure/channels/telegram/test_hitl_keyboard.py -v
-.venv/Scripts/pytest tests/unit/infrastructure/channels/telegram/test_voice.py -v
+.venv/Scripts/pytest tests/unit/domains/channels/test_service.py -v --no-cov
+.venv/Scripts/pytest tests/unit/domains/channels/test_message_router.py -v --no-cov
+.venv/Scripts/pytest tests/unit/domains/channels/test_inbound_handler.py -v --no-cov
+.venv/Scripts/pytest tests/unit/infrastructure/channels/telegram/test_formatter.py -v --no-cov
+.venv/Scripts/pytest tests/unit/infrastructure/channels/telegram/test_webhook_handler.py -v --no-cov
+.venv/Scripts/pytest tests/unit/infrastructure/channels/telegram/test_hitl_keyboard.py -v --no-cov
+.venv/Scripts/pytest tests/unit/infrastructure/channels/telegram/test_voice.py -v --no-cov
 ```
 
 ### 12.2 Repartition des tests
 
-| Suite | Nombre |
-|-------|--------|
-| `test_models.py` | 10 |
-| `test_schemas.py` | 9 |
-| `test_service.py` | 15 |
-| `test_message_router.py` | 9 |
-| `test_inbound_handler.py` | 16 |
-| `test_formatter.py` | 37 |
-| `test_webhook_handler.py` | 19 |
-| `test_hitl_keyboard.py` | 24 |
-| `test_voice.py` | 13 |
-| `test_notification_channels.py` | 12 |
-| **Total** | **164** |
+Les suites de tests du canal sont `tests/unit/domains/channels/`,
+`tests/unit/infrastructure/channels/` et les canaux de notification
+(`tests/unit/infrastructure/proactive/test_notification_channels.py`). Leur nombre
+se lit, il ne se recopie pas :
+
+```bash
+cd apps/api && .venv/Scripts/pytest --collect-only --no-cov tests/unit/domains/channels tests/unit/infrastructure/channels tests/unit/infrastructure/proactive/test_notification_channels.py | tail -1
+```
 
 ### 12.3 Mocker le webhook en test
 
@@ -849,7 +893,7 @@ def create_mock_sender() -> BaseChannelSender:
     sender.send_message.return_value = "msg_123"
     sender.send_notification.return_value = True
     sender.send_typing_indicator.return_value = None
-    sender.edit_message.return_value = True
+    sender.remove_keyboard.return_value = True
     return sender
 ```
 
@@ -863,7 +907,7 @@ async def test_parse_hitl_callback():
         "update_id": 123457,
         "callback_query": {
             "id": "cb_123",
-            "data": "hitl:approve:conv-uuid-here",
+            "data": "hitl:confirm:conv-uuid-here:0a1b2c3d",
             "message": {
                 "message_id": 42,
                 "chat": {"id": 98765, "type": "private"},
@@ -873,7 +917,7 @@ async def test_parse_hitl_callback():
     }
     message = await handler.parse_update(payload)
     assert message is not None
-    assert message.callback_data == "hitl:approve:conv-uuid-here"
+    assert message.callback_data == "hitl:confirm:conv-uuid-here:0a1b2c3d"
 ```
 
 ---
@@ -903,14 +947,16 @@ async def test_parse_hitl_callback():
 
 - Verifier que `ffmpeg` est installe dans le container Docker
 - Verifier les logs : `telegram_voice_transcription_failed` avec le stack trace
-- Limite de duree : 120 secondes maximum (`telegram_voice_too_long`)
+- Limite de duree : `MAX_VOICE_DURATION_SECONDS` -- le bot repond "voice_too_long" avant
+  toute transcription et compte `channel_voice_transcriptions_total{status="too_long"}` ;
+  l'evenement `telegram_voice_too_long` n'apparait que si la garde de `voice.py` sert
 - Limite de taille : 20 MB maximum (`telegram_voice_file_too_large`)
 
 ### Probleme : HITL buttons ne fonctionnent pas
 
 - Verifier que `callback_query` est dans `allowed_updates` du webhook
 - Verifier les logs : `telegram_hitl_callback_invalid` si le format `callback_data` est incorrect
-- `telegram_hitl_callback_expired` : l'interruption HITL a expire cote serveur
+- `telegram_hitl_callback_expired` : l'interruption HITL a expire cote serveur (une reinitialisation la purge aussi : la conversation garde son identifiant, `owner_match` reste `true`), ou le bouton n'appartient pas a la conversation de la personne (`owner_match=false` : le chat a ete lie depuis a un autre compte, le compte n'a plus de conversation active, ou des donnees de rappel forgees), ou le bouton appartient à une autre question que celle qui attend (`question_pending=true` : un clavier resté sous une question précédente, ou dessiné avant les empreintes)
 
 ### Probleme : Notifications non recues
 
@@ -925,8 +971,9 @@ async def test_parse_hitl_callback():
 - Si `telegram_send_bad_request` : le HTML genere est invalide, le sender retente en texte brut (fallback)
 - Verifier `TELEGRAM_MESSAGE_MAX_LENGTH` (defaut 4000, max Telegram 4096)
 
-### Probleme : "Je traite encore votre message precedent"
+### Probleme : le bot repond "busy" (message precedent encore en cours)
 
-- Le Redis lock per-user est actif pendant 120 secondes
-- Si le message precedent est encore en cours de traitement, le nouveau message recoit "busy"
-- Verifier `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` si le pipeline agent est systematiquement trop lent
+- Le verrou Redis par personne est tenu tant que le tour precedent tourne (rearme pendant le tour) : le nouveau message recoit "busy", et c'est voulu -- deux tours sur la meme conversation ecriraient l'un a cote de l'autre
+- Une personne au-dela de son debit (`CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE`) recoit aussi "busy", une fois par fenetre : `channel_message_rate_limited` dans les logs
+- Apres un crash du worker, le verrou expire au plus `CHANNEL_MESSAGE_LOCK_TTL_SECONDS` plus tard
+- `channel_message_claim_lost` dans les logs : `claim_loss=taken_over`, un autre tour a pris le verrou (cache injoignable plus longtemps que le TTL) ; `claim_loss=hold_exhausted`, le tour a depasse `BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS` ; dans les deux cas il a ete arrete et la personne a recu "error"

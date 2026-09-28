@@ -223,6 +223,15 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
                 events=("push_wake_timed_out", "push_wake_failed", "push_wake_served"),
             ),
         ),
+        # ---- radio newsroom (ADR-324) ------------------------------------
+        # No tick ended: the tick census says whether passes FAIL (then the
+        # failure line carries the database facts) or nothing runs at all (the
+        # scheduler); the feed census tells a dead network from a dead store.
+        EvidenceRecipe(
+            "RadioNewsroomStalled",
+            prom_queries=("radio_newsroom_ticks", "radio_newsroom_feed_readings"),
+            logs=LogRecipe(events=("radio_newsroom_pass_failed", "radio_newsroom_pass")),
+        ),
         # ---- sandbox egress (ADR-298) -----------------------------------
         # The proxy is the only door a network sandbox run has: down, every
         # such run is refused (counted proxy_unavailable) and the model is told

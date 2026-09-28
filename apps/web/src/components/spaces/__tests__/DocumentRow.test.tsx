@@ -68,7 +68,7 @@ describe('DocumentRow', () => {
       'This PDF is a scanned document with no text layer, and character recognition is not available here. To index it, put it on Google Drive, open it with Google Docs (the text is recognised automatically), then add that Google Doc to the space through its Drive source.'
     );
     expect(fr.spaces.documents.errors.scanned_pdf_no_text_layer).toBe(
-      'Ce PDF est un document scanné sans couche texte, et la reconnaissance de caractères n\'est pas disponible ici. Pour l\'indexer, déposez-le sur Google Drive, ouvrez-le avec Google Docs (le texte est reconnu automatiquement), puis ajoutez ce Google Doc à l\'espace via sa source Drive.'
+      'Ce PDF est un document scanné sans couche texte, et la reconnaissance de caractères n\'est pas disponible ici. Pour l\'indexer, dépose-le sur Google Drive, ouvre-le avec Google Docs (le texte est reconnu automatiquement), puis ajoute ce Google Doc à l\'espace via sa source Drive.'
     );
   });
 

@@ -341,7 +341,7 @@ async def _drive_under_lease(
         except ActiveRunLockLost:
             # The person started talking while the relay ran: their turn wins,
             # and the relay's words are still in the fallback notification.
-            logger.info("voice_relay_conversation_taken_over", origin=session.origin_id)
+            logger.info("voice_relay_conversation_taken_over", origin_id=session.origin_id)
             return RelayOutcome.BUSY
         if attempt < settings.telephony_relay_busy_retries:
             await asyncio.sleep(settings.telephony_relay_busy_delay_seconds)
@@ -389,7 +389,7 @@ async def run_voice_relay(
         return RelayOutcome.PENDING_QUESTION
 
     if conversation_id is None:
-        logger.warning("voice_relay_unlocked_thread", origin=request.session.origin_id)
+        logger.warning("voice_relay_unlocked_thread", origin_id=request.session.origin_id)
         return await _drive(request, context)
     return await _drive_under_lease(request, context, conversation_id)
 

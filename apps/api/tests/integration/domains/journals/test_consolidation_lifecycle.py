@@ -432,6 +432,126 @@ class TestCooldownStamp:
         assert fresh.id not in eligible
 
 
+class TestTheConsolidationIsOneActOfLia:
+    """One run, one row in the decision register (ADR-263 amendment 2026-09-27).
+
+    Measured on dev over twelve days: 84 consolidations billed their model call
+    under a run of their own and every embedding it wrote under yet another —
+    82 ``embed_*`` runs — and not one of them reached the decision register.
+    """
+
+    async def test_it_is_filed_once_as_lias_own_initiative_under_its_run(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        from src.domains.agents.effects.models import AgentDecision, DecisionOutcome, EffectSource
+
+        user = await _make_user(async_session, journal_last_consolidated_at=None)
+        entry = await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+        billed: list[str | None] = []
+        embedded: list[str | None] = []
+
+        async def persist(**kwargs: Any) -> None:
+            billed.append(kwargs.get("parent_run_id"))
+
+        def embedding_context(**kwargs: Any) -> None:
+            embedded.append(kwargs.get("run_id"))
+
+        monkeypatch.setattr(consolidation_service, "_persist_journal_tokens", persist)
+        monkeypatch.setattr(
+            "src.infrastructure.llm.embedding_context.set_embedding_context", embedding_context
+        )
+        monkeypatch.setattr(
+            consolidation_service,
+            "invoke_with_instrumentation",
+            _fake_llm(actions=[{"action": "delete", "entry_id": str(entry.id)}]),
+        )
+
+        await consolidation_service.consolidate_journals_for_user(
+            user_id=user.id,
+            personality_instruction=None,
+            personality_code=None,
+            user_language="fr",
+        )
+
+        decision = (
+            await async_session.execute(
+                select(AgentDecision).where(AgentDecision.user_id == user.id)
+            )
+        ).scalar_one()
+        assert decision.route == "journal_consolidation"
+        assert decision.source is EffectSource.PROACTIVE
+        assert decision.outcome is DecisionOutcome.ANSWERED
+        assert decision.execution_mode == "direct"
+        assert billed == [decision.run_id], "the model call billed apart from the act"
+        assert embedded == [decision.run_id], "the embeddings billed apart from the act"
+
+    async def test_a_consolidation_that_broke_after_its_model_call_is_filed_failed(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        from src.domains.agents.effects.models import AgentDecision, DecisionOutcome
+
+        user = await _make_user(async_session, journal_last_consolidated_at=None)
+        await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+
+        async def persist(**_kwargs: Any) -> None:
+            raise RuntimeError("the ledger went away")
+
+        monkeypatch.setattr(consolidation_service, "_persist_journal_tokens", persist)
+        monkeypatch.setattr(consolidation_service, "invoke_with_instrumentation", _fake_llm())
+
+        applied = await consolidation_service.consolidate_journals_for_user(
+            user_id=user.id,
+            personality_instruction=None,
+            personality_code=None,
+            user_language="fr",
+        )
+
+        assert applied == 0
+        decision = (
+            await async_session.execute(
+                select(AgentDecision).where(AgentDecision.user_id == user.id)
+            )
+        ).scalar_one()
+        assert decision.outcome is DecisionOutcome.FAILED
+
+    async def test_a_model_call_that_never_answered_files_nothing(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        """No answer, no known spend: no turn (the register's own rule)."""
+        from src.domains.agents.effects.models import AgentDecision
+
+        user = await _make_user(async_session, journal_last_consolidated_at=None)
+        await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+
+        async def refuse(**_kwargs: Any) -> AIMessage:
+            raise RuntimeError("provider down")
+
+        monkeypatch.setattr(consolidation_service, "invoke_with_instrumentation", refuse)
+
+        await consolidation_service.consolidate_journals_for_user(
+            user_id=user.id,
+            personality_instruction=None,
+            personality_code=None,
+            user_language="fr",
+        )
+
+        rows = (
+            await async_session.execute(
+                select(AgentDecision).where(AgentDecision.user_id == user.id)
+            )
+        ).all()
+        assert rows == []
+
+
 class TestConsolidationDeletesCounter:
     """The pruning counter must actually count — it feeds a live Grafana panel."""
 

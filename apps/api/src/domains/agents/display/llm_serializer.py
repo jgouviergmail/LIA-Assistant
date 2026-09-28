@@ -187,7 +187,7 @@ def _extract_display_name(payload: dict[str, Any]) -> str:
         if value and isinstance(value, str):
             return str(value[:60] + "..." if len(value) > 60 else value)
 
-    return "(sans nom)"
+    return "(unnamed)"
 
 
 def _should_skip(key: str, value: Any = None) -> bool:

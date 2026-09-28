@@ -356,7 +356,7 @@ def test_format_reminder_item_tomorrow() -> None:
     reminder = SimpleNamespace(
         id=uuid4(), content="Wake up early", trigger_at=now_utc, recurrence_spec=_once()
     )
-    item = format_reminder_item(reminder, PARIS)
+    item = format_reminder_item(reminder, PARIS, "en")
     # New format: "HH:MM tomorrow" (time first, then relative day marker).
     assert item.trigger_at_local.endswith(" tomorrow")
     assert ":" in item.trigger_at_local

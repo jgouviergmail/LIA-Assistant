@@ -39,7 +39,7 @@ async def search_user_documents_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     max_results: Annotated[int, "Max document excerpts to return (1-10)"] = 5,
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """Search the user's uploaded document spaces by meaning (hybrid RAG).
 

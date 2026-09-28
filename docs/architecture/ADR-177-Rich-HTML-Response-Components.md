@@ -118,6 +118,51 @@ vierge puis suite salutation → fiche → météo → chiffres, en pipeline com
 chaque réponse à données porte `<h2>` + callout + tuiles ou chips, la salutation reste un
 `<p>`. Coût : la directive passe de 74 à 80 lignes (~+150 jetons par tour `html`).
 
+## Amendement 2026-09-25 — un tableau garde des colonnes lisibles, et devient des cartes sur un écran étroit
+
+Constat propriétaire : des tableaux trop larges pour l'écran, des colonnes trop étroites
+pour leur contenu, sur ordinateur comme sur téléphone. **La cause était la feuille de
+style, pas le modèle.** `globals.css` imposait `white-space: nowrap` aux trois premières
+colonnes et n'autorisait le retour à la ligne qu'à partir de la quatrième, en coupant les
+mots ; la règle `.lia-response table` (hors couche) imposait la largeur mais n'annulait
+jamais ce `nowrap`. Mesuré au navigateur sur une comparaison à cinq colonnes : 908 px dans
+une bulle de 341 px, « Prix » et « Avis » écrasées à 40 px, une ligne haute de 869 px ;
+dans une bulle de bureau de 976 px, « Prix » encore à 42 px. La position d'une colonne ne
+dit rien de son contenu.
+
+- **Les cellules passent à la ligne aux frontières de mots** et aucune colonne n'est plus
+  étroite que `8em` ; une URL ou un identifiant (`a`, `code`) peut se couper n'importe où
+  plutôt que d'élargir sa colonne. La police des tableaux Markdown passe de 10 px à `0.9em`.
+  Un garde de feuille de style (`styles/__tests__/chat-tables.guard.test.ts`) refuse tout
+  retour du `nowrap` sur une cellule et toute règle décidée par la position d'une colonne.
+- **Un tableau qui déborde un conteneur de moins de 480 px devient une pile de cartes**
+  (arbitrage propriétaire) : une carte par ligne, chaque valeur sous le nom de sa colonne.
+  `ResponsiveTable` décide (`data-stacked` sur le cadre, écrit avant la première peinture
+  par un effet de mise en page) ; le plugin `rehype-table-labels`, après l'assainissement,
+  écrit le nom de la colonne sur chaque cellule (`data-label`, `colspan`/`rowspan` suivis
+  sur une grille bornée) et les rôles ARIA explicites, qu'un tableau `display: block` perd
+  sous WebKit. La décision a une hystérésis : dessiné en cartes, le tableau tient, et le
+  relire comme « il tient » le ferait clignoter — la largeur naturelle est celle mesurée
+  quand il était encore un tableau. Au-delà de 480 px, un tableau qui déborde encore défile
+  avec le repère du bloc de code (barre visible, fondu en bord).
+- **La bulle d'un tableau a une largeur définie.** Elle est un élément transversal d'une
+  colonne flex (`flex-col items-end`) : `flex: 0 0 95%` réglait sa HAUTEUR, sa largeur
+  suivait son contenu, et un tableau empilé — étroit — gardait sa bulle étroite et restait
+  empilé à toute largeur (mesuré : 381 px sur un écran de 1280 px après un aller-retour
+  téléphone). La règle devient `width: 95%`.
+- Au passage : les éléments de tableau transmettent enfin `colspan`, `rowspan`, la classe
+  du modèle et l'alignement GFM (porté par `data-align`, jamais par un style inline, qu'une
+  carte ne pourrait pas défaire) ; un `style` libre du modèle n'est pas transmis
+  (`white-space: nowrap` inline recréerait le défaut). Ces éléments sont définis au niveau
+  du module : dans la table `components` reconstruite à chaque rendu, un tableau changeait
+  de type à chaque jeton streamé et se remontait. La légende (`caption`), titre du tableau,
+  prend la couleur du texte : le ton secondaire mesurait 4,4:1 sous le plancher de 4,5:1.
+
+Aucun jeton de plus : la directive n'a pas bougé. Vérifié dans l'application de dev à 360,
+390 (clair et sombre), 768 et 1280 px : aucun débordement de page, aucune violation axe,
+aucune colonne sous 94 px en tableau ; spec e2e `chat-html-mode-rendering.spec.ts` étendue
+(bureau, téléphone, aller-retour).
+
 ## Alternatives considérées
 
 - **Composants React interceptés** (tabs, accordéons animés — pattern

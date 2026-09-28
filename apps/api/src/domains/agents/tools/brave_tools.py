@@ -227,9 +227,9 @@ class BraveSearchToolImpl(APIKeyConnectorTool[BraveSearchClient]):
             registry_updates[item_id] = registry_item
 
         # Build summary for LLM
-        endpoint_label = "web" if endpoint == "web" else "actualités"
+        endpoint_label = "web" if endpoint == "web" else "news"
         summary_parts = [
-            f"Résultats Brave Search ({endpoint_label}) pour '{query}' - {len(formatted_results)} résultat(s):\n"
+            f"Brave Search results ({endpoint_label}) for '{query}' - {len(formatted_results)} result(s):\n"
         ]
 
         for i, item in enumerate(formatted_results, 1):
@@ -317,7 +317,7 @@ async def brave_search_tool(
     If the user asks for "5 results", use count=5. Do not request more than needed.
 
     Args:
-        query: Search query (e.g., "Python programming", "recette pates")
+        query: Search query (e.g., "Python programming", "pasta recipe")
         count: Number of results to return (bounded by the API maximum, default: 5).
             Match the user's request.
         freshness: Optional freshness filter:

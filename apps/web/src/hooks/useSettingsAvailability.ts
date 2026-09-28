@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
+import { radioAvailable } from '@/lib/radio/availability';
 import type { SettingsSearchAvailability } from '@/lib/settings-search';
 
 export function useSettingsAvailability(): SettingsSearchAvailability {
@@ -28,6 +29,9 @@ export function useSettingsAvailability(): SettingsSearchAvailability {
   // object, and a fresh one per render would rebuild fifty entries every
   // keystroke. While `/config` is in flight the gated sections are genuinely
   // absent, and every consumer rebuilds by itself when the answer lands.
+  // The effective state (the operator's switch included), read like the
+  // radio's other surfaces: a section whose routes refuse is not offered.
+  const radioEnabled = radioAvailable(config);
   return useMemo<SettingsSearchAvailability>(
     () => ({
       isSuperuser: !!user?.is_superuser,
@@ -36,6 +40,7 @@ export function useSettingsAvailability(): SettingsSearchAvailability {
       peersEnabled: !!config?.features?.peers_enabled,
       sandboxEgressEnabled: !!config?.features?.python_sandbox_egress_enabled,
       liveEnabled: !!config?.features?.live_enabled,
+      radioEnabled,
       debugUserAccess: userAccessAvailable,
     }),
     [
@@ -45,6 +50,7 @@ export function useSettingsAvailability(): SettingsSearchAvailability {
       config?.features?.peers_enabled,
       config?.features?.python_sandbox_egress_enabled,
       config?.features?.live_enabled,
+      radioEnabled,
       userAccessAvailable,
     ]
   );

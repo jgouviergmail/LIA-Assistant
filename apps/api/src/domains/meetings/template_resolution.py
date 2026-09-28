@@ -29,6 +29,7 @@ from src.core.constants import (
     MEETINGS_TEMPLATE_AUTO_EXCERPT_CHARS,
 )
 from src.core.exceptions import BaseAPIException
+from src.core.i18n import get_language_name
 from src.core.i18n_meeting_templates import get_template_name
 from src.core.i18n_meetings import get_selection_fallback_reason
 from src.core.llm_config_helper import get_llm_config_for_agent
@@ -216,7 +217,7 @@ async def _select_automatically(
     by_ref = {str(candidate.ref): candidate for candidate in candidates}
     excerpt = transcript_excerpt(render_transcript(turns), MEETINGS_TEMPLATE_AUTO_EXCERPT_CHARS)
     human = (
-        f"LANGUAGE: {language}\n"
+        f"LANGUAGE: {get_language_name(language)}\n"
         f"CALENDAR EVENT: {calendar_title or 'none'}\n\n"
         f"CANDIDATES:\n{render_candidates(candidates)}\n\n"
         f"EXCERPT:\n{excerpt}"

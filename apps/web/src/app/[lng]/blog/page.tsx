@@ -31,6 +31,7 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
   const title = t('blog.meta.title');
   const description = t('blog.meta.description');
   const canonicalUrl = buildLangUrl('/blog', lng);
+  const socialImage = getSiteOrigin()?.concat('/Title.png');
 
   const langAlternates: Record<string, string> = {};
   for (const l of languages) {
@@ -52,13 +53,13 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
       locale: LOCALE_MAP[lng],
       alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
       type: 'website',
-      images: [{ url: '/Title.png', width: 2125, height: 1193, alt: title }],
+      images: socialImage ? [{ url: socialImage, width: 2125, height: 1193, alt: title }] : undefined,
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/Title.png'],
+      images: socialImage ? [socialImage] : undefined,
     },
   };
 }

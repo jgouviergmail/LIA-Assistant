@@ -18,6 +18,7 @@ from uuid import uuid4
 import pytest
 from langgraph.prebuilt.tool_node import ToolRuntime
 
+from src.core.i18n import language_scope
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.schemas import ConnectorCredentials
@@ -267,14 +268,15 @@ class TestSearchPlacesTool:
 
         # is_connector_active -> False: the instance does not provide Places
         mock_deps = create_mock_oauth_dependencies(credentials=None)
-        runtime = create_mock_runtime(user_id)
 
-        with patch(
-            "src.domains.agents.tools.base.get_dependencies",
-            return_value=mock_deps,
+        # The assertions read the English wording of a message written in the
+        # run's language — its runtime context is built inside the scope.
+        with (
+            language_scope("en"),
+            patch("src.domains.agents.tools.base.get_dependencies", return_value=mock_deps),
         ):
             result = await _search_places_tool_instance.execute(
-                runtime,
+                create_mock_runtime(user_id),
                 query="Test query",
             )
 
@@ -376,14 +378,15 @@ class TestGetPlaceDetailsTool:
 
         # is_connector_active -> False: the instance does not provide Places
         mock_deps = create_mock_oauth_dependencies(credentials=None)
-        runtime = create_mock_runtime(user_id)
 
-        with patch(
-            "src.domains.agents.tools.base.get_dependencies",
-            return_value=mock_deps,
+        # The assertions read the English wording of a message written in the
+        # run's language — its runtime context is built inside the scope.
+        with (
+            language_scope("en"),
+            patch("src.domains.agents.tools.base.get_dependencies", return_value=mock_deps),
         ):
             result = await _get_place_details_tool_instance.execute(
-                runtime,
+                create_mock_runtime(user_id),
                 place_id="ChIJLU7jZClu5kcR4PcOy",
             )
 

@@ -91,6 +91,7 @@ from src.core.exceptions_domains import (
     raise_websocket_rate_limit as raise_websocket_rate_limit,
 )
 from src.core.field_names import FIELD_USER_ID
+from src.core.i18n import resolve_language
 
 if TYPE_CHECKING:
     from src.core.i18n_api_messages import SupportedLanguage
@@ -529,7 +530,7 @@ def raise_token_invalid(token_type: str = "token") -> NoReturn:
 
 def raise_token_already_used(
     token_type: str = "token",
-    language: SupportedLanguage = "fr",
+    language: SupportedLanguage | None = None,
 ) -> NoReturn:
     """
     Raise authentication error for already used token (single-use tokens).
@@ -539,7 +540,7 @@ def raise_token_already_used(
 
     Args:
         token_type: Type of token (verification, password_reset)
-        language: User language for i18n message (default: en)
+        language: User language for i18n message (default: the declared language)
 
     Raises:
         AuthenticationError: 401 Unauthorized
@@ -547,7 +548,7 @@ def raise_token_already_used(
     from src.core.i18n_api_messages import APIMessages
 
     raise AuthenticationError(
-        detail=APIMessages.token_already_used(language),
+        detail=APIMessages.token_already_used(resolve_language(language)),
         token_type=token_type,
         reason="token_already_used",
     )

@@ -93,6 +93,17 @@ describe('toPlainPreview', () => {
     expect(toPlainPreview('<p>Tom &amp; Jerry &lt;3</p>')).toBe('Tom & Jerry <3');
   });
 
+  it('reads character references as the chat reads them', () => {
+    // A peer's comment quoted as « &#60;3 » showed « &#60;3 » in the toast
+    // while the chat drew « <3 » (review 14); code shows them as typed.
+    expect(toPlainPreview('Merci &#60;3 &#91;photo&#93;')).toBe('Merci <3 [photo]');
+    expect(toPlainPreview('tape `&#91;` puis &#91;')).toBe('tape `&#91;` puis [');
+  });
+
+  it('keeps an ampersand that opens no reference', () => {
+    expect(toPlainPreview('<p>Panier</p> ?id=7&copy=2')).toBe('Panier ?id=7&copy=2');
+  });
+
   it('drops Material Symbols ligature names', () => {
     // Regression: a data card read "event Déjeuner avec Marie" in the toast.
     const out = toPlainPreview(

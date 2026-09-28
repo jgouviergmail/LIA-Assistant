@@ -27,6 +27,7 @@ from src.core.constants import (
     HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
     HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
 )
+from src.core.i18n import normalize_language
 from src.domains.habits.presence import last_seen_at
 from src.domains.habits.tick_scoring import TickSurface, should_defer_tick_for_rhythm
 from src.domains.heartbeat.context_aggregator import ContextAggregator
@@ -217,7 +218,7 @@ class HeartbeatProactiveTask:
                 return None
 
             # LLM Decision (structured output, cheap model)
-            user_language = getattr(user, "language", settings.default_language)
+            user_language = normalize_language(getattr(user, "language", None))
             decision, tok_in, tok_out, tok_cache, tok_write = await get_heartbeat_decision(
                 context, user_language=user_language
             )
@@ -437,16 +438,19 @@ class HeartbeatProactiveTask:
             if facts is not None:
                 facts_block, citations, enrich_tok_in, enrich_tok_out = facts
 
-        message, msg_tok_in, msg_tok_out, msg_tok_cache, msg_tok_write = (
-            await generate_heartbeat_message(
-                message_draft=draft,
-                context=target.context,
-                user_language=user_language,
-                personality_instruction=personality,
-                user_id=user_id,
-                facts_block=facts_block,
+        try:
+            message, msg_tok_in, msg_tok_out, msg_tok_cache, msg_tok_write = (
+                await generate_heartbeat_message(
+                    message_draft=draft,
+                    context=target.context,
+                    user_language=user_language,
+                    personality_instruction=personality,
+                    user_id=user_id,
+                    facts_block=facts_block,
+                )
             )
-        )
+        except Exception as exc:  # noqa: BLE001 — what was spent must still be billed
+            return self._failed_after_spending(target, enrich_tok_in, enrich_tok_out, exc)
 
         if citations:
             from src.domains.interests.sources import build_sources_block
@@ -509,6 +513,34 @@ class HeartbeatProactiveTask:
                 # present in the context is not an offer.
                 "habit_offer_id": _offered_habit_id(target),
             },
+        )
+
+    @staticmethod
+    def _failed_after_spending(
+        target: HeartbeatTarget, enrich_tok_in: int, enrich_tok_out: int, error: Exception
+    ) -> ProactiveTaskResult:
+        """A message that could not be written, carrying what was paid for before it.
+
+        The decision and the enrichment were billed by their providers when the
+        message model failed; the runner bills a sweep from the result it gets
+        back, so a raise would have taken their tokens with it (ADR-272). Priced
+        at the decision's model, the bulk of what was spent.
+        """
+        logger.warning(
+            "heartbeat_message_generation_failed",
+            error_type=type(error).__name__,
+        )
+        from src.core.llm_config_helper import get_llm_config_for_agent
+
+        return ProactiveTaskResult(
+            success=False,
+            error=f"message generation failed: {type(error).__name__}",
+            source=ContentSource.HEARTBEAT,
+            tokens_in=target.decision_tokens_in + enrich_tok_in,
+            tokens_out=target.decision_tokens_out + enrich_tok_out,
+            tokens_cache=target.decision_tokens_cache,
+            tokens_cache_write=target.decision_tokens_cache_write,
+            model_name=get_llm_config_for_agent(get_settings(), "heartbeat_decision").model,
         )
 
     async def on_feedback(
@@ -669,15 +701,21 @@ class HeartbeatProactiveTask:
     ) -> None:
         """Track decision phase tokens when the LLM decides to skip.
 
-        Without this, skip decision tokens are silently lost because
-        the runner's track_proactive_tokens() only runs after successful dispatch.
+        Without this, skip decision tokens are silently lost because the runner
+        bills a sweep from the content it returns, and a skip returns none. They
+        are filed under the SWEEP's run — the one its reads were collected in —
+        so the decision to say nothing and what it read point at one another
+        (ADR-263 amendment 2026-09-27); outside a sweep, a run of their own.
         """
         if tokens_in == 0 and tokens_out == 0:
             return
 
         try:
             from src.core.llm_config_helper import get_llm_config_for_agent
-            from src.infrastructure.proactive.tracking import track_proactive_tokens
+            from src.infrastructure.proactive.tracking import (
+                ambient_run_id,
+                track_proactive_tokens,
+            )
 
             settings = get_settings()
             model_name = get_llm_config_for_agent(settings, "heartbeat_decision").model
@@ -693,6 +731,7 @@ class HeartbeatProactiveTask:
                 tokens_cache_write=tokens_cache_write,
                 model_name=model_name,
                 source="proactive",
+                run_id=ambient_run_id(),
             )
         except Exception as e:
             # Non-fatal: token tracking failure shouldn't prevent the skip

@@ -751,11 +751,11 @@ class SearchContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
                 query_length=len(query),
                 reason="Google API does not index addresses",
             )
-            # Inform user about the limitation
+            # The limitation, for the model to explain in the person's language.
             address_search_notice = (
-                f"⚠️ La recherche par adresse « {query} » n'est pas supportée par Google. "
-                "L'API Google Contacts permet uniquement de rechercher par nom, email ou téléphone. "
-                "Essayez de rechercher par le nom du contact."
+                f"⚠️ Searching contacts by address ('{query}') is not supported by Google: "
+                "the Google Contacts API searches by name, e-mail or phone only. "
+                "Suggest searching by the contact's name."
             )
 
         contacts_results_count.labels(operation="search").observe(len(contacts_list))
@@ -804,11 +804,9 @@ class SearchContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
         The message is designed for LLM reasoning while registry
         provides complete data for rich frontend display.
 
-        Example message:
-            Trouvé 3 contacts pour "Jean":
-            - Jean Dupont (jean.dupont@email.com) [contact_abc123]
-            - Jean Martin (jean.martin@corp.com) [contact_def456]
-            - Jeanne Petit (jeanne.petit@mail.fr) [contact_ghi789]
+        Example message (the compact summary the model reads; the person sees
+        the registry):
+            [search] 3 contact(s): Jean Dupont, Jean Martin, Jeanne Petit
         """
         contacts = result.get("contacts", [])
         query = result.get(FIELD_QUERY, "")
@@ -859,10 +857,10 @@ async def search_contacts_tool(
     force_refresh: bool = False,
 ) -> UnifiedToolOutput:
     """
-    Recherche des contacts Google par nom, email ou téléphone.
+    Search Google contacts by name, e-mail or phone number.
 
-    Utilise l'API Google People pour rechercher des contacts correspondant à la requête.
-    Supporte la projection de champs pour optimiser les performances.
+    Queries the Google People API for the contacts matching the query, and
+    supports field projection to keep responses small.
 
     **Phase 3.2 Migration:** This tool now uses the new architecture (ConnectorTool base class).
     All boilerplate (DI, OAuth, error handling, formatting) is eliminated.
@@ -1123,8 +1121,8 @@ class ListContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
         output.metadata["has_more"] = has_more
         if has_more:
             output.metadata["pagination_note"] = (
-                f"Affichage des {len(contacts)} premiers contacts. "
-                "Précisez votre recherche pour des résultats plus ciblés."
+                f"Showing the first {len(contacts)} contacts. "
+                "A narrower search returns more targeted results."
             )
 
         return output
@@ -2118,17 +2116,17 @@ async def get_contact_details_tool(
         you MUST call resolve_reference() FIRST to get the resource_name:
 
         REQUIRED flow for references:
-          User: "affiche le détail du 4"
+          User: "show the details of the 4th"
           1. resolve_reference(reference="4", domain="contacts")
-             → Retourne: {"success": true, "item": {"resource_name": "people/c123...", ...}}
-          2. Extraire item.resource_name du résultat
+             → Returns: {"success": true, "item": {"resource_name": "people/c123...", ...}}
+          2. Take item.resource_name from the result
           3. get_contact_details_tool(resource_name="people/c123...")
 
-        ❌ NE JAMAIS deviner le resource_name à partir d'une référence:
-           "4" → "people/c4" ← FAUX (format invalide)
-           Utilise TOUJOURS resolve_reference() pour les références utilisateur.
+        ❌ NEVER guess the resource_name from a reference:
+           "4" → "people/c4" ← WRONG (invalid format)
+           ALWAYS use resolve_reference() for the user's references.
 
-        Le cache Redis est utilisé par défaut (5 min TTL), sauf si force_refresh=True.
+        Results are served from the cache unless force_refresh=True.
 
         **Phase 3.2 Migration:** This tool now uses the new architecture.
         All boilerplate (DI, OAuth, error handling, formatting) is eliminated.
@@ -2387,9 +2385,9 @@ async def create_contact_tool(
     Returns:
         UnifiedToolOutput with DRAFT registry item and requires_confirmation=True in metadata
 
-    Example response message:
-        "Brouillon créé: Contact 'Jean Dupont' [draft_abc123]
-         Action requise: confirmez, modifiez ou annulez."
+    Example response message (written in the user's language):
+        "📄 **Draft created**: Contact: Jean Dupont …
+         **Action required**: confirm, edit, or cancel."
     """
     # Delegate to draft tool instance (Data Registry mode)
     return await _create_contact_draft_tool_instance.execute(

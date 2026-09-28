@@ -15,6 +15,9 @@
  * Keyboard: from the page body, Tab must reach visibly-focusable controls —
  * a minimal reachability check complementing the per-component RTL tests.
  */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { test, expect, briefingCardsMock, type MockRoute } from '../fixtures';
 import { relationsData } from '../fixtures/relations';
 import { scanPage } from './scan';
@@ -216,16 +219,37 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
                 bymonthday: [],
                 nth_weekday: null,
                 bymonth: [],
-                times: { mode: 'at', at: [{ hour: 8, minute: 0 }, { hour: 18, minute: 0 }], step_minutes: null, start: null, end: null },
+                times: {
+                  mode: 'at',
+                  at: [
+                    { hour: 8, minute: 0 },
+                    { hour: 18, minute: 0 },
+                  ],
+                  step_minutes: null,
+                  start: null,
+                  end: null,
+                },
                 end: { kind: 'never', on_date: null, after_count: null },
               },
               times_of_day: ['08:00', '18:00'],
               runs_per_day: 2,
               week_slots: [
                 { day: 1, date: '2026-10-19', hour: 8, minute: 0, slot_at: '2026-10-19T06:00:00Z' },
-                { day: 1, date: '2026-10-19', hour: 18, minute: 0, slot_at: '2026-10-19T16:00:00Z' },
+                {
+                  day: 1,
+                  date: '2026-10-19',
+                  hour: 18,
+                  minute: 0,
+                  slot_at: '2026-10-19T16:00:00Z',
+                },
                 { day: 2, date: '2026-10-20', hour: 8, minute: 0, slot_at: '2026-10-20T06:00:00Z' },
-                { day: 2, date: '2026-10-20', hour: 18, minute: 0, slot_at: '2026-10-20T16:00:00Z' },
+                {
+                  day: 2,
+                  date: '2026-10-20',
+                  hour: 18,
+                  minute: 0,
+                  slot_at: '2026-10-20T16:00:00Z',
+                },
                 { day: 3, date: '2026-10-21', hour: 8, minute: 0, slot_at: '2026-10-21T06:00:00Z' },
               ],
               user_timezone: 'Europe/Paris',
@@ -261,15 +285,39 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
                 bymonthday: [],
                 nth_weekday: null,
                 bymonth: [],
-                times: { mode: 'at', at: [{ hour: 19, minute: 30 }], step_minutes: null, start: null, end: null },
+                times: {
+                  mode: 'at',
+                  at: [{ hour: 19, minute: 30 }],
+                  step_minutes: null,
+                  start: null,
+                  end: null,
+                },
                 end: { kind: 'never', on_date: null, after_count: null },
               },
               times_of_day: ['19:30'],
               runs_per_day: 1,
               week_slots: [
-                { day: 1, date: '2026-10-19', hour: 19, minute: 30, slot_at: '2026-10-19T17:30:00Z' },
-                { day: 3, date: '2026-10-21', hour: 19, minute: 30, slot_at: '2026-10-21T17:30:00Z' },
-                { day: 5, date: '2026-10-23', hour: 19, minute: 30, slot_at: '2026-10-23T17:30:00Z' },
+                {
+                  day: 1,
+                  date: '2026-10-19',
+                  hour: 19,
+                  minute: 30,
+                  slot_at: '2026-10-19T17:30:00Z',
+                },
+                {
+                  day: 3,
+                  date: '2026-10-21',
+                  hour: 19,
+                  minute: 30,
+                  slot_at: '2026-10-21T17:30:00Z',
+                },
+                {
+                  day: 5,
+                  date: '2026-10-23',
+                  hour: 19,
+                  minute: 30,
+                  slot_at: '2026-10-23T17:30:00Z',
+                },
               ],
               user_timezone: 'Europe/Paris',
               trigger_kind: 'time',
@@ -287,33 +335,24 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               schedule_display: 'Toutes les semaines, le lundi, mercredi et vendredi, à 19:30',
               next_occurrences: [],
             },
+            // A condition routine as the API serves it since ADR-322: no
+            // schedule, the system's cadence as its sentence, and a last check
+            // that could not read its source — the warning line it draws is
+            // measured here.
             {
               id: '00000000-0000-4000-8000-00000000ac03',
               user_id: '00000000-0000-4000-8000-000000000001',
               title: 'Factures en retard',
               action_prompt: 'Signale les factures en retard',
-              recurrence: {
-                freq: 'weekly',
-                interval: 1,
-                anchor_date: '2026-10-19',
-                byweekday: [2, 4],
-                bymonthday: [],
-                nth_weekday: null,
-                bymonth: [],
-                times: { mode: 'at', at: [{ hour: 8, minute: 0 }], step_minutes: null, start: null, end: null },
-                end: { kind: 'never', on_date: null, after_count: null },
-              },
-              times_of_day: ['08:00'],
-              runs_per_day: 1,
-              week_slots: [
-                { day: 2, date: '2026-10-20', hour: 8, minute: 0, slot_at: '2026-10-20T06:00:00Z' },
-                { day: 4, date: '2026-10-22', hour: 8, minute: 0, slot_at: '2026-10-22T06:00:00Z' },
-              ],
+              recurrence: null,
+              times_of_day: [],
+              runs_per_day: 0,
+              week_slots: [],
               user_timezone: 'Europe/Paris',
               trigger_kind: 'condition',
-              condition_config: { type: 'task_overdue' },
+              condition_config: { type: 'task_overdue', until: '2026-12-31' },
               requires_approval: true,
-              next_trigger_at: '2026-10-27T07:00:00Z',
+              next_trigger_at: '2026-10-23T10:10:00Z',
               is_enabled: true,
               status: 'active',
               last_executed_at: null,
@@ -322,8 +361,11 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               last_error: null,
               created_at: '2026-08-01T10:00:00Z',
               updated_at: '2026-08-01T10:00:00Z',
-              schedule_display: 'Toutes les semaines, le mardi et jeudi, à 08:00',
-              next_occurrences: ['2026-10-27T07:00:00Z'],
+              schedule_display: 'Checked about every 10 min, until 12/31/2026',
+              next_occurrences: [],
+              check_interval_minutes: 10,
+              last_checked_at: '2026-10-23T10:00:00Z',
+              last_check_error: 'unavailable',
             },
           ],
           total: 3,
@@ -342,11 +384,51 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               week_start: '2026-10-19',
               today: 5,
               cells: [
-                { day: 1, date: '2026-10-19', slot_at: '2026-10-19T06:00:00Z', outcome: 'success', run_at: '2026-10-19T06:00:04Z', error: null, manual: false },
-                { day: 2, date: '2026-10-20', slot_at: '2026-10-20T06:00:00Z', outcome: 'failure', run_at: '2026-10-20T06:00:03Z', error: 'TimeoutError: Execution timed out after 300s', manual: false },
-                { day: 3, date: '2026-10-21', slot_at: '2026-10-21T06:00:00Z', outcome: 'success', run_at: '2026-10-21T06:00:05Z', error: null, manual: false },
-                { day: 4, date: '2026-10-22', slot_at: '2026-10-22T06:00:00Z', outcome: 'skipped_hitl', run_at: '2026-10-22T06:00:02Z', error: null, manual: false },
-                { day: 5, date: '2026-10-23', slot_at: '2026-10-23T06:00:00Z', outcome: 'success', run_at: '2026-10-23T06:00:04Z', error: null, manual: false },
+                {
+                  day: 1,
+                  date: '2026-10-19',
+                  slot_at: '2026-10-19T06:00:00Z',
+                  outcome: 'success',
+                  run_at: '2026-10-19T06:00:04Z',
+                  error: null,
+                  manual: false,
+                },
+                {
+                  day: 2,
+                  date: '2026-10-20',
+                  slot_at: '2026-10-20T06:00:00Z',
+                  outcome: 'failure',
+                  run_at: '2026-10-20T06:00:03Z',
+                  error: 'TimeoutError: Execution timed out after 300s',
+                  manual: false,
+                },
+                {
+                  day: 3,
+                  date: '2026-10-21',
+                  slot_at: '2026-10-21T06:00:00Z',
+                  outcome: 'success',
+                  run_at: '2026-10-21T06:00:05Z',
+                  error: null,
+                  manual: false,
+                },
+                {
+                  day: 4,
+                  date: '2026-10-22',
+                  slot_at: '2026-10-22T06:00:00Z',
+                  outcome: 'skipped_hitl',
+                  run_at: '2026-10-22T06:00:02Z',
+                  error: null,
+                  manual: false,
+                },
+                {
+                  day: 5,
+                  date: '2026-10-23',
+                  slot_at: '2026-10-23T06:00:00Z',
+                  outcome: 'success',
+                  run_at: '2026-10-23T06:00:04Z',
+                  error: null,
+                  manual: false,
+                },
               ],
             },
             {
@@ -355,9 +437,33 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               week_start: '2026-10-19',
               today: 5,
               cells: [
-                { day: 1, date: '2026-10-19', slot_at: '2026-10-19T17:30:00Z', outcome: null, run_at: null, error: null, manual: null },
-                { day: 3, date: '2026-10-21', slot_at: '2026-10-21T17:30:00Z', outcome: null, run_at: null, error: null, manual: null },
-                { day: 5, date: '2026-10-23', slot_at: '2026-10-23T17:30:00Z', outcome: null, run_at: null, error: null, manual: null },
+                {
+                  day: 1,
+                  date: '2026-10-19',
+                  slot_at: '2026-10-19T17:30:00Z',
+                  outcome: null,
+                  run_at: null,
+                  error: null,
+                  manual: null,
+                },
+                {
+                  day: 3,
+                  date: '2026-10-21',
+                  slot_at: '2026-10-21T17:30:00Z',
+                  outcome: null,
+                  run_at: null,
+                  error: null,
+                  manual: null,
+                },
+                {
+                  day: 5,
+                  date: '2026-10-23',
+                  slot_at: '2026-10-23T17:30:00Z',
+                  outcome: null,
+                  run_at: null,
+                  error: null,
+                  manual: null,
+                },
               ],
             },
             {
@@ -366,8 +472,29 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
               week_start: '2026-10-19',
               today: 5,
               cells: [
-                { day: 2, date: '2026-10-20', slot_at: '2026-10-20T06:00:00Z', outcome: 'proposed', run_at: '2026-10-20T06:00:01Z', error: null, manual: false },
-                { day: 4, date: '2026-10-22', slot_at: '2026-10-22T06:00:00Z', outcome: 'skipped_condition', run_at: '2026-10-22T06:00:01Z', error: null, manual: false },
+                // The checks that FIRED, each at its own instant (ADR-322).
+                {
+                  day: 2,
+                  date: '2026-10-20',
+                  hour: 8,
+                  minute: 17,
+                  slot_at: '2026-10-20T06:17:42Z',
+                  outcome: 'proposed',
+                  run_at: '2026-10-20T06:17:42Z',
+                  error: null,
+                  manual: false,
+                },
+                {
+                  day: 4,
+                  date: '2026-10-22',
+                  hour: 14,
+                  minute: 7,
+                  slot_at: '2026-10-22T12:07:42Z',
+                  outcome: 'success',
+                  run_at: '2026-10-22T12:07:42Z',
+                  error: null,
+                  manual: false,
+                },
               ],
             },
           ],
@@ -383,8 +510,8 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
     // content too, and the marker must actually be on screen, or this scans a
     // page that happens not to contain the thing it was written for.
     // The card is addressed by its title, not by position: the list sorts by
-    // trigger time (ADR-265), and the first card is now the 08:00 condition
-    // routine, whose upcoming runs straddle no clock change.
+    // trigger time (ADR-265), and a condition routine — which has none — sorts
+    // after the scheduled ones.
     const morningCard = page.locator('[data-routine-card]').filter({ hasText: 'Revue du matin' });
     await morningCard.locator('summary').filter({ hasText: 'Details' }).click();
     await expect(page.getByText('(clocks change)', { exact: false }).first()).toBeVisible();
@@ -531,8 +658,11 @@ ${summary}`
         timeout: 20_000,
       });
       const scan = await scanPage(page, testInfo, `/dashboard/settings#${section}-phone`);
-      expect(scan.blocking, `axe violations on ${section}:
-${scan.summary}`).toHaveLength(0);
+      expect(
+        scan.blocking,
+        `axe violations on ${section}:
+${scan.summary}`
+      ).toHaveLength(0);
       await page.getByRole('button', { name: 'Back to settings' }).click();
       await expect(page.getByRole('navigation', { name: 'Settings sections' })).toBeVisible();
     }
@@ -772,5 +902,234 @@ ${summary}`
     await page.setViewportSize({ width: 640, height: 720 });
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard/chat@640px');
     expect(blocking, `axe violations on /dashboard/chat @640px:\n${summary}`).toHaveLength(0);
+  });
+
+  test('the radio page scans clean before and on air, its bar included, and reflows', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    // ADR-324: the start card (a select, a switch, a button), then the bar
+    // under the header and the programme on air with its transcript and its
+    // sources, then the article the programme cited, opened and translated —
+    // the shapes where a name or a contrast is easiest to lose. The segment's
+    // audio is the repository's own MP3, so the player really plays it and the
+    // page really shows what is on air.
+    const sessionId = 'a1b2c3d4-0000-4000-8000-00000000ra02';
+    const articleId = 'a1b2c3d4-0000-4000-8000-00000000ra03';
+    const segment = {
+      seq: 1,
+      format: 'opening',
+      mood: 'calm',
+      title: 'Good morning',
+      duration_s: 20,
+      transcript: [
+        {
+          role: 'host',
+          text: 'Good morning, this is your radio.',
+          offset_s: 0,
+          sources: [
+            {
+              label: 'Example News',
+              url: 'https://news.example/a',
+              published_at: null,
+              article_id: articleId,
+            },
+          ],
+        },
+      ],
+    };
+    const session = {
+      session_id: sessionId,
+      status: 'on_air',
+      segments: [segment],
+      cost_eur: 0.01,
+      stop_at: null,
+      startup_estimate_s: 12,
+      end_reason: null,
+      mood: 'calm',
+      station_name: 'Morning Radio',
+      cost_estimate_eur: 0.04,
+      cost_estimate_s: 3600,
+    };
+    // Any real MP3 plays as the segment's voice: the station's own music will do.
+    const audio = readFileSync(
+      path.join(__dirname, '..', '..', 'public', 'radio', 'music', 'calm', 'calm-01.mp3')
+    );
+    await authenticate({ language: 'en' });
+    await mockApi([
+      {
+        url: '**/api/v1/config',
+        json: {
+          sse: { heartbeat_interval_seconds: 30 },
+          rate_limits: { enabled: false, per_minute: 60, burst: 10 },
+          i18n: { supported_languages: ['en'], default_language: 'en' },
+          features: { radio_enabled: true },
+          capabilities: { radio: { enabled: true, family: 'media' } },
+          api_version: 'v1',
+        },
+      },
+      { url: '**/api/v1/radio/sessions', method: 'POST', status: 201, json: session },
+      { url: `**/api/v1/radio/sessions/${sessionId}/playhead`, method: 'POST', json: session },
+      {
+        url: `**/api/v1/radio/sessions/${sessionId}/segments/1/audio`,
+        handler: async route => {
+          await route.fulfill({ status: 200, contentType: 'audio/mpeg', body: audio });
+        },
+      },
+      {
+        url: `**/api/v1/radio/articles/${articleId}`,
+        json: {
+          id: articleId,
+          outlet: 'Example News',
+          url: 'https://news.example/a',
+          published_at: '2026-09-26T08:00:00Z',
+          title: 'Rain over the capital',
+          text: 'Rain is expected over the capital tonight.\n\nThe river may rise by morning.',
+          complete: true,
+          cut: false,
+          translated: true,
+          source_language: 'fr',
+          translation_failed: false,
+          cost_eur: 0.0021,
+        },
+      },
+    ]);
+    await page.goto('/en/dashboard/radio');
+
+    const start = page.getByRole('main').getByRole('button', { name: 'Start the radio' });
+    await expect(start).toBeVisible();
+    const before = await scanPage(page, testInfo, '/dashboard/radio (start)');
+    expect(before.blocking, `axe violations before the start:\n${before.summary}`).toHaveLength(0);
+
+    await start.click();
+    await expect(page.getByRole('heading', { name: 'Good morning' })).toBeVisible({
+      timeout: 20_000,
+    });
+    // The bar carries the listener's name for the station and, beside what the
+    // session has cost, what an hour of it costs (no timer stops it).
+    await expect(page.getByRole('region', { name: 'Morning Radio' })).toContainText(
+      '≈ €0.040 per hour'
+    );
+    const onAir = await scanPage(page, testInfo, '/dashboard/radio (on air)');
+    expect(onAir.blocking, `axe violations on air:\n${onAir.summary}`).toHaveLength(0);
+
+    // The original is one click away while folded: reaching it asks for no translation.
+    await expect(
+      page.getByRole('link', { name: 'Original — Example News, in a new tab' })
+    ).toHaveAttribute('href', 'https://news.example/a');
+
+    // The article the programme cited, folded under it: opened, it is read.
+    await page
+      .getByRole('region', { name: 'Articles of this session' })
+      .getByText('Example News')
+      .click();
+    await expect(page.getByRole('article', { name: 'Rain over the capital' })).toBeVisible();
+    const article = await scanPage(page, testInfo, '/dashboard/radio (article)');
+    expect(article.blocking, `axe violations on the article:\n${article.summary}`).toHaveLength(0);
+
+    await page.setViewportSize({ width: 320, height: 900 });
+    await assertNoHorizontalScroll(page);
+  });
+
+  test('the radio settings scan clean, the station’s own name included', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    // ADR-324: the radio's densest form — programmes and their frequencies,
+    // personal sources, kinds of news, languages, the station's name, the
+    // personality and the voices, the timer, the sites a listener adds — and
+    // the one surface no other journey opens.
+    await authenticate({ language: 'en' });
+    await mockApi([
+      {
+        url: '**/api/v1/config',
+        json: {
+          sse: { heartbeat_interval_seconds: 30 },
+          rate_limits: { enabled: false, per_minute: 60, burst: 10 },
+          i18n: { supported_languages: ['en'], default_language: 'en' },
+          features: { radio_enabled: true },
+          capabilities: { radio: { enabled: true, family: 'media' } },
+          api_version: 'v1',
+        },
+      },
+      {
+        url: '**/api/v1/radio/options',
+        json: {
+          formats: [
+            {
+              format: 'headlines',
+              default_frequency: 'normal',
+              label_key: 'radio.formats.headlines',
+              stories_max: 5,
+            },
+            {
+              format: 'column',
+              default_frequency: 'rare',
+              label_key: 'radio.formats.column',
+              stories_max: 1,
+            },
+          ],
+          frequencies: ['off', 'rare', 'normal', 'often'],
+          sources: ['agenda', 'mails', 'health'],
+          categories: ['world', 'investigation', 'voices'],
+          news_languages: ['de', 'en', 'fr'],
+          default_news_languages: ['en'],
+          news_languages_max: 3,
+          verification_modes: ['off', 'news', 'all'],
+          verification_default: 'news',
+          verification_checked: {
+            off: [],
+            news: ['headlines', 'column'],
+            all: ['headlines', 'column', 'journal'],
+          },
+          roles: ['host', 'anchor', 'expert', 'columnist'],
+          voices: [
+            { voice_id: 'en-A', label: 'Aria', gender: 'female', language: 'en' },
+            { voice_id: 'en-B', label: 'Bruno', gender: 'male', language: 'en' },
+          ],
+          voice_id_max_chars: 100,
+          station_name_max_chars: 40,
+          timer_default_minutes: 30,
+          timer_max_minutes: 120,
+          custom_sources_max: 10,
+          source_address_max_chars: 2048,
+          category_outlets: {
+            world: [{ name: 'BBC News', language: 'en' }],
+            investigation: [{ name: 'OCCRP', language: 'en' }],
+            voices: [{ name: 'Global Voices', language: 'en' }],
+          },
+          recent_stories: { world: { en: 40 }, investigation: { en: 2 }, voices: { en: 5 } },
+          recent_window_hours: 48,
+          noon_from_hour: 12,
+          evening_from_hour: 18,
+        },
+      },
+      {
+        url: '**/api/v1/radio/preferences',
+        json: {
+          frequencies: {},
+          disabled_sources: [],
+          news_categories: null,
+          news_languages: null,
+          voices: {},
+          verification: null,
+          timer_minutes: null,
+          public_mode: false,
+          personality_id: null,
+          station_name: 'Morning Radio',
+        },
+      },
+      { url: '**/api/v1/radio/sources', json: [] },
+    ]);
+    await page.goto('/en/dashboard/settings?section=radio');
+    const name = page.getByRole('textbox', { name: 'Station name' });
+    await expect(name).toBeVisible({ timeout: 20_000 });
+    await expect(name).toHaveValue('Morning Radio');
+    await expect(name).toHaveAccessibleDescription(/Leave it empty for “LIA Radio”/);
+
+    const scan = await scanPage(page, testInfo, '/dashboard/settings#radio');
+    expect(scan.blocking, `axe violations on the radio settings:\n${scan.summary}`).toHaveLength(0);
   });
 });

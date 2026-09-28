@@ -19,6 +19,7 @@ No authentication required - just follow rate limit guidelines:
 """
 
 import asyncio
+import re
 from typing import Any
 from uuid import UUID
 
@@ -27,8 +28,43 @@ import structlog
 
 from src.core.config import settings
 from src.core.exceptions import MaxRetriesExceededError
+from src.core.i18n import resolve_language
 
 logger = structlog.get_logger(__name__)
+
+#: The Wikipedia edition of a canonical language whose code is not its
+#: subdomain: ``zh-CN.wikipedia.org`` does not resolve, the edition is ``zh``
+#: (keyed lower-case: a subdomain has no case).
+_EDITION_OF: dict[str, str] = {"zh-cn": "zh"}
+
+#: An edition is ONE subdomain label (``en``, ``zh``, ``simple``, ``zh-min-nan``).
+#: The code is interpolated into the host, and a model writes it: anything else
+#: — ``attacker.example#`` names another host — never reaches a URL.
+_EDITION_LABEL = re.compile(r"[a-z][a-z0-9-]{1,30}")
+
+
+def wikipedia_edition(language: str | None) -> str:
+    """Return the Wikipedia edition (the subdomain) a language reads.
+
+    An explicit code is the caller's choice of edition and passes verbatim
+    (lower-cased), except the backend's canonical ``zh-CN``, which names the
+    ``zh`` edition. An absent one is the declared language's edition (ADR-323).
+    A code that is not one subdomain label is refused for the declared
+    language's edition: it would be interpolated into the host.
+
+    Args:
+        language: An edition or language code, or None.
+
+    Returns:
+        The edition code, usable as ``https://{edition}.wikipedia.org``.
+    """
+    code = (language or resolve_language()).lower()
+    edition = _EDITION_OF.get(code, code)
+    if _EDITION_LABEL.fullmatch(edition):
+        return edition
+    logger.info("wikipedia_edition_refused", length=len(code))
+    declared = resolve_language().lower()
+    return _EDITION_OF.get(declared, declared)
 
 
 class WikipediaClient:
@@ -50,7 +86,7 @@ class WikipediaClient:
 
     def __init__(
         self,
-        language: str = "en",
+        language: str | None = None,
         user_id: UUID | None = None,
         rate_limit_per_second: float | None = None,
     ) -> None:
@@ -58,11 +94,13 @@ class WikipediaClient:
         Initialize Wikipedia client.
 
         Args:
-            language: Wikipedia language code (e.g., "en", "fr", "de", "es")
+            language: The Wikipedia edition (e.g., "en", "fr", "de", "es"); the
+                canonical ``zh-CN`` reads the ``zh`` edition, and an absent one the
+                declared language's (ADR-323).
             user_id: Optional user ID for logging
             rate_limit_per_second: Max requests per second (None = use settings)
         """
-        self.language = language
+        self.language = wikipedia_edition(language)
         self.user_id = user_id
         # Use settings if not explicitly provided
         effective_rate_limit = (
@@ -606,37 +644,3 @@ class WikipediaClient:
             operation="wikipedia_opensearch_request",
             max_retries=3,
         )
-
-    def set_language(self, language: str) -> None:
-        """
-        Change the Wikipedia language.
-
-        Args:
-            language: Wikipedia language code (e.g., "en", "fr", "de")
-        """
-        self.language = language
-
-    @staticmethod
-    def get_supported_languages() -> list[str]:
-        """
-        Get list of commonly supported Wikipedia languages.
-
-        Returns:
-            List of language codes
-        """
-        return [
-            "en",  # English
-            "fr",  # French
-            "de",  # German
-            "es",  # Spanish
-            "it",  # Italian
-            "pt",  # Portuguese
-            "ru",  # Russian
-            "ja",  # Japanese
-            "zh",  # Chinese
-            "ar",  # Arabic
-            "nl",  # Dutch
-            "pl",  # Polish
-            "sv",  # Swedish
-            "ko",  # Korean
-        ]

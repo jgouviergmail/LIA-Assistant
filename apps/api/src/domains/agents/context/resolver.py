@@ -17,6 +17,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from src.core.config import settings
+from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_patterns import (
     get_keyword_map,
     get_ordinal_map,
@@ -173,8 +174,7 @@ class ReferenceResolver:
 
         return ResolutionResult.error_result(
             error="not_found",
-            message=f"'{reference}' non trouvé dans la liste. "
-            f"Utilisez un numéro (1-{len(items)}), un nom, ou 'premier'/'dernier'.",
+            message=APIMessages.reference_not_in_list(reference, len(items)),
         )
 
     def _parse_numeric_index(self, ref: str, max_index: int) -> int | None:
@@ -324,8 +324,9 @@ class ReferenceResolver:
 
             return ResolutionResult.error_result(
                 error="ambiguous",
-                message=f"Plusieurs correspondances trouvées pour '{reference}'. "
-                f"Précisez: {', '.join(c['name'] for c in candidates)}",
+                message=APIMessages.reference_ambiguous(
+                    reference, [str(c["name"]) for c in candidates]
+                ),
                 candidates=candidates,
             )
 

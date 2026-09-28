@@ -54,7 +54,7 @@ from src.core.constants import (
     INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH,
     REDIS_KEY_INTEREST_ANALYSIS_PREFIX,
 )
-from src.core.i18n import get_language_name
+from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
@@ -467,7 +467,7 @@ async def _analyze_interests_core(
     user_id: str,
     messages: list[BaseMessage],
     session_id: str,
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
     use_cache: bool = True,
 ) -> InterestAnalysisResult:
     """
@@ -484,12 +484,13 @@ async def _analyze_interests_core(
         user_id: Target user ID
         messages: Conversation messages to analyze
         session_id: Session ID for logging
-        user_language: User's preferred language (default: fr)
+        user_language: User's preferred language (default: the declared language)
         use_cache: Whether to use Redis cache (default True)
 
     Returns:
         InterestAnalysisResult with extracted interests and metadata
     """
+    user_language = resolve_language(user_language)
     # The DEPLOYMENT ceiling and the operator's switch, composed (B7). The
     # interests router stays open either way: switching this off stops LIA
     # learning new interests, it does not hide the ones already learned.
@@ -653,7 +654,7 @@ async def extract_interests_background(
     messages: list[BaseMessage],
     session_id: str,
     conversation_id: str | None = None,
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
     parent_run_id: str | None = None,
 ) -> int:
     """
@@ -677,7 +678,7 @@ async def extract_interests_background(
         messages: Conversation messages to analyze
         session_id: Current session ID for logging
         conversation_id: Optional conversation UUID for linking token costs
-        user_language: User's preferred language for LLM output (default: fr)
+        user_language: User's preferred language for LLM output (default: the declared language)
 
     Returns:
         Number of new interests extracted and stored
@@ -698,7 +699,7 @@ async def extract_interests_background(
             user_id=user_id,
             messages=messages,
             session_id=session_id,
-            user_language=user_language,
+            user_language=resolve_language(user_language),
             use_cache=True,
         )
 
@@ -789,7 +790,7 @@ async def analyze_interests_for_debug(
     user_id: str,
     messages: list[BaseMessage],
     session_id: str,
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
 ) -> dict:
     """
     Analyze conversation for interests (debug panel - LLM-based).
@@ -805,7 +806,7 @@ async def analyze_interests_for_debug(
         user_id: Target user ID
         messages: Conversation messages to analyze
         session_id: Session ID for logging
-        user_language: User's preferred language for LLM output (default: fr)
+        user_language: User's preferred language for LLM output (default: the declared language)
 
     Returns:
         Dict with:
@@ -846,7 +847,7 @@ async def analyze_interests_for_debug(
             user_id=user_id,
             messages=messages,
             session_id=session_id,
-            user_language=user_language,
+            user_language=resolve_language(user_language),
             use_cache=True,
         )
 

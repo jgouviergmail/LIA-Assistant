@@ -82,6 +82,14 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         # ADR-299 — the live voice mode: a new way to reach every capability by
         # voice, so an operator must be able to close it without a deployment.
         "live",
+        # ADR-321 — a file or an answer sent by e-mail: a new way out of the
+        # instance, through the operator's relay when the person has no
+        # mailbox, so an operator must be able to close it.
+        "email_share",
+        # ADR-324 — the personal radio: model calls and voices billed per
+        # listener, and a newsroom reading public sites for the instance, so
+        # an operator must be able to close both without a deployment.
+        "radio",
     }
 )
 

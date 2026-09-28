@@ -470,7 +470,7 @@ export const HitlSchema = z.object({
   interrupted: z.boolean(),
   interrupt_action_type: z.string().nullable(),
   interrupt_tool_name: z.string().nullable(),
-  plan_approved: z.boolean(),
+  plan_approved: z.boolean().nullable(),
   clarification_response: z.string().nullable(),
   clarification_field: z.string().nullable(),
   for_each_cancelled: z.boolean(),

@@ -1,17 +1,23 @@
 """
-Tests unitaires pour PartialErrorHandler.
+Unit tests for PartialErrorHandler.
 
-Ces tests vérifient :
-- Classification des erreurs
-- Génération de messages utilisateur
-- Suggestions de récupération
-- Gestion des erreurs partielles
+They check:
+- error classification
+- the user messages it writes
+- recovery suggestions
+- partial-error handling
+
+The assertions read the French wordings, so the module declares French rather
+than depend on the instance's configured default language (ADR-323).
 
 Phase: Multi-Domain Architecture v1.0
 """
 
+from collections.abc import Iterator
+
 import pytest
 
+from src.core.i18n import language_scope
 from src.core.partial_error_handler import (
     DomainErrorContext,
     ErrorCategory,
@@ -24,6 +30,13 @@ from src.core.partial_error_handler import (
 # =============================================================================
 # FIXTURES
 # =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _french_reader() -> Iterator[None]:
+    """Every sentence below is written for a French reader."""
+    with language_scope("fr"):
+        yield
 
 
 @pytest.fixture

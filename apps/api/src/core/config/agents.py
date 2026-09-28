@@ -2015,9 +2015,8 @@ class AgentsSettings(BaseSettings):
         ge=1,
         le=100,
         description=(
-            "Minimum number of mutations to trigger HITL confirmation. "
-            "Default=1 means ANY mutation FOR_EACH requires approval. "
-            "Set to 3 for less intrusive behavior (only 3+ items trigger HITL)."
+            "Iterations of a mutation from which a FOR_EACH asks for HITL approval; "
+            "at 1, any mutation FOR_EACH asks."
         ),
     )
     for_each_approval_threshold: int = Field(
@@ -2025,18 +2024,16 @@ class AgentsSettings(BaseSettings):
         ge=1,
         le=100,
         description=(
-            "Threshold for non-mutation for_each to require HITL approval. "
-            "Default=5 means 5+ iterations on read-only operations need approval."
+            "Iterations of a read-only for_each from which an ADVISORY is noted; "
+            "despite its name, no approval is asked at this threshold "
+            "(FOR_EACH_WARNING_THRESHOLD asks for it)."
         ),
     )
     for_each_warning_threshold: int = Field(
         default=FOR_EACH_WARNING_THRESHOLD,
         ge=1,
         le=1000,
-        description=(
-            "Warning level threshold for non-mutation for_each iterations. "
-            "Default=10 means 10+ iterations trigger warning-level HITL."
-        ),
+        description=("Iterations of a read-only for_each from which HITL approval is asked."),
     )
     planner_prompt_version: str = Field(
         default=PLANNER_PROMPT_VERSION_DEFAULT,
@@ -2047,7 +2044,7 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     context_reference_resolution_enabled: bool = Field(
         default=True,
-        description="Enable reference resolution for follow-up questions (e.g., 'et le deuxième?')",
+        description="Enable reference resolution for follow-up questions (e.g., 'and the second one?')",
     )
     context_reference_confidence_threshold: float = Field(
         default=CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT,

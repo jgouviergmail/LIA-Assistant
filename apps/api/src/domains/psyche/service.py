@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import normalize_language
 from src.core.prompt_store import read_prompt_file
 from src.domains.psyche.constants import (
     MOOD_BEHAVIORAL_DIRECTIVES,
@@ -913,7 +914,7 @@ class PsycheService:
         user_result = await self.db.execute(
             select(UserModel.language).where(UserModel.id == user_id)
         )
-        user_language = user_result.scalar_one_or_none() or "fr"
+        user_language = normalize_language(user_result.scalar_one_or_none())
 
         # Compile profile for mood label
         profile = PsycheEngine.compile_expression_profile(

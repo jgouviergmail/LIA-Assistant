@@ -3,7 +3,7 @@
 Validates that Hue tool messages are rendered in the user's language by:
 
 1. ``ConnectorTool._fetch_language`` falling back safely when ``self.runtime``
-   is absent (no crash, returns default).
+   is absent (no crash, answers the declared language — ADR-323).
 2. ``ConnectorTool._language_from_result`` reading the language stashed by
    ``execute_api_call`` via ``_LANGUAGE_RESULT_KEY``.
 3. ``format_registry_response`` of each Hue tool honouring the language code
@@ -15,10 +15,13 @@ only the pure formatters + the base class helpers.
 
 from __future__ import annotations
 
+import contextvars
 from typing import Any
 
 import pytest
 
+from src.core.config import settings
+from src.core.i18n import _, language_scope
 from src.domains.agents.tools.hue_tools import (
     ActivateHueSceneTool,
     ControlHueLightTool,
@@ -43,35 +46,43 @@ class TestLanguageHelpers:
         result = {"success": True, list_lights_tool._LANGUAGE_RESULT_KEY: "de"}
         assert list_lights_tool._language_from_result(result) == "de"
 
-    def test_language_from_result_falls_back_to_default_when_missing(
+    def test_language_from_result_falls_back_to_the_declared_language_when_missing(
         self, list_lights_tool: ListHueLightsTool
     ) -> None:
-        assert list_lights_tool._language_from_result({}) == "fr"
+        with language_scope("de"):
+            assert list_lights_tool._language_from_result({}) == "de"
 
-    def test_language_from_result_custom_default(self, list_lights_tool: ListHueLightsTool) -> None:
-        assert list_lights_tool._language_from_result({}, default="en") == "en"
+    def test_language_from_result_with_nothing_declared_reads_the_instance_default(
+        self, list_lights_tool: ListHueLightsTool
+    ) -> None:
+        # A fresh context holds no declaration, whatever the runner's own holds;
+        # a copy of the current one would carry a scope an earlier fixture left.
+        answer = contextvars.Context().run(list_lights_tool._language_from_result, {})
+        assert answer == settings.default_language
 
     def test_language_from_result_ignores_non_string(
         self, list_lights_tool: ListHueLightsTool
     ) -> None:
         """Non-string values under the key must not break the contract."""
         result = {list_lights_tool._LANGUAGE_RESULT_KEY: 42}
-        assert list_lights_tool._language_from_result(result) == "fr"
+        with language_scope("it"):
+            assert list_lights_tool._language_from_result(result) == "it"
 
     def test_language_from_result_ignores_empty_string(
         self, list_lights_tool: ListHueLightsTool
     ) -> None:
         result = {list_lights_tool._LANGUAGE_RESULT_KEY: ""}
-        assert list_lights_tool._language_from_result(result) == "fr"
+        with language_scope("it"):
+            assert list_lights_tool._language_from_result(result) == "it"
 
     @pytest.mark.asyncio
-    async def test_fetch_language_no_runtime_returns_default(
+    async def test_fetch_language_no_runtime_returns_the_declared_language(
         self, list_lights_tool: ListHueLightsTool
     ) -> None:
-        """When runtime is unset, fetch_language returns the default without crashing."""
+        """When runtime is unset, fetch_language answers the declared language (ADR-323)."""
         list_lights_tool.runtime = None
-        assert await list_lights_tool._fetch_language() == "fr"
-        assert await list_lights_tool._fetch_language(default="en") == "en"
+        with language_scope("es"):
+            assert await list_lights_tool._fetch_language() == "es"
 
 
 class TestListHueLightsFormatting:
@@ -98,21 +109,19 @@ class TestListHueLightsFormatting:
             ListHueLightsTool._LANGUAGE_RESULT_KEY: language,
         }
 
-    def test_default_language_fr_produces_non_empty_message(
-        self, list_lights_tool: ListHueLightsTool
-    ) -> None:
+    def test_french_reads_the_french_catalog(self, list_lights_tool: ListHueLightsTool) -> None:
         output = list_lights_tool.format_registry_response(self._sample_result("fr"))
-        # Message always contains the count; translation may or may not exist
-        # in the .po yet but a non-empty fallback must always be returned.
-        assert output.message
-        assert "2" in output.message
+        # The catalogs are guarded complete (ADR-323): French never falls back
+        # to the English msgid.
+        french = _("{count} light(s) found", "fr").format(count=2)
+        assert french != "2 light(s) found"
+        assert french in output.message
 
-    def test_english_language_produces_english_fallback(
-        self, list_lights_tool: ListHueLightsTool
-    ) -> None:
+    def test_english_renders_the_source_sentence(self, list_lights_tool: ListHueLightsTool) -> None:
         output = list_lights_tool.format_registry_response(self._sample_result("en"))
-        # English is the gettext source language — falls back to the literal.
-        assert "light(s) found" in output.message
+        # English is the source language: its catalog translates every msgid
+        # to itself.
+        assert "2 light(s) found" in output.message
 
     def test_registry_contains_every_light(self, list_lights_tool: ListHueLightsTool) -> None:
         output = list_lights_tool.format_registry_response(self._sample_result("fr"))

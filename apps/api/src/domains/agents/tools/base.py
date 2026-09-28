@@ -61,7 +61,7 @@ from uuid import UUID
 import structlog
 from langchain.tools import ToolRuntime
 
-from src.core.config import settings
+from src.core.i18n import get_locale_for_language, resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_types import SupportedLanguage
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
@@ -73,7 +73,6 @@ from src.domains.agents.tools.runtime_helpers import (
     parse_user_id,
     validate_runtime_config,
 )
-from src.domains.agents.utils.i18n_location import _normalize_language
 from src.domains.connectors.models import (
     CATEGORY_DISPLAY_NAMES,
     ConnectorType,
@@ -85,17 +84,17 @@ if TYPE_CHECKING:
 
 
 def _extract_runtime_language(runtime: Any) -> SupportedLanguage:
-    """Read the user's language from the runtime config (sync, no DB call).
+    """Read the user's language from the runtime (sync, no DB call).
 
-    The graph puts ``user_language`` in ``config["configurable"]`` (see
-    AgentService); tools read it there — never from ``self`` (singleton tool
-    instances must not hold per-request state; see CLAUDE.md concurrency rule).
-    Normalizes to a supported i18n code ("zh" -> "zh-CN"), defaulting to the
-    configured default language when absent or on any malformed runtime.
+    The graph carries it on the typed runtime context
+    (``LiaRuntimeContext.language``, ADR-231); tools read it there — never from
+    ``self`` (singleton tool instances must not hold per-request state; see
+    CLAUDE.md concurrency rule). Normalizes to a supported i18n code
+    ("zh" -> "zh-CN"), defaulting to the declared language when absent or on
+    any malformed runtime (ADR-323).
     """
     context = getattr(runtime, "context", None)
-    raw = context.language if isinstance(context, LiaRuntimeContext) else settings.default_language
-    return _normalize_language(raw)
+    return resolve_language(context.language if isinstance(context, LiaRuntimeContext) else None)
 
 
 def _inactive_platform_key_error(
@@ -168,7 +167,7 @@ class LanguagePropagationMixin:
     # since tool instances are singletons across concurrent requests.
     _LANGUAGE_RESULT_KEY: str = "_language"
 
-    def _language_from_result(self, result: dict[str, Any], default: str = "fr") -> str:
+    def _language_from_result(self, result: dict[str, Any]) -> str:
         """Extract the user language stashed by ``execute_api_call``.
 
         Keeps subclasses free of magic string keys and keeps the contract
@@ -176,14 +175,13 @@ class LanguagePropagationMixin:
 
         Args:
             result: Dict returned by ``execute_api_call``.
-            default: Language code returned if the key is missing.
 
         Returns:
-            Language code found in ``result[_LANGUAGE_RESULT_KEY]`` or
-            ``default``.
+            Language code found in ``result[_LANGUAGE_RESULT_KEY]``, or the
+            declared language when the key is missing (ADR-323).
         """
-        value = result.get(self._LANGUAGE_RESULT_KEY, default)
-        return value if isinstance(value, str) and value else default
+        value = result.get(self._LANGUAGE_RESULT_KEY)
+        return value if isinstance(value, str) and value else resolve_language()
 
 
 class _ToolLoggerMixin:
@@ -221,7 +219,6 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
     - execute_api_call(): Business logic for API interaction
 
     Optional overrides:
-    - create_client_factory(): Custom client instantiation logic
     - format_response(): Custom response formatting (legacy mode)
     - format_registry_response(): Data Registry response formatting (registry mode)
     - handle_error(): Custom error handling
@@ -464,31 +461,6 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
         """
         pass
 
-    def create_client_factory(
-        self,
-        user_uuid: UUID,
-        credentials: dict[str, Any],
-        connector_service: Any,
-    ) -> Any:
-        """
-        Create an async factory for API client instantiation (OAuth mode).
-
-        Override this if your client requires custom initialization logic.
-
-        Args:
-            user_uuid: User UUID
-            credentials: OAuth credentials dict
-            connector_service: ConnectorService instance
-
-        Returns:
-            Async callable that creates API client
-        """
-
-        async def create_client() -> ClientType:
-            return self.client_class(user_uuid, credentials, connector_service)
-
-        return create_client
-
     @staticmethod
     def _client_cache_key(
         user_uuid: UUID, connector_type: ConnectorType, client_class: type
@@ -686,21 +658,23 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
         return parse_user_id(user_id)
 
     def _format_connector_not_activated_error(
-        self, language: SupportedLanguage = "fr"
+        self, language: SupportedLanguage | None = None
     ) -> UnifiedToolOutput:
         """Format standard error for connector not activated (localized)."""
         return UnifiedToolOutput.failure(
-            message=APIMessages.connector_not_activated(self.connector_type.value, language),
+            message=APIMessages.connector_not_activated(
+                self.connector_type.value, resolve_language(language)
+            ),
             error_code="connector_not_activated",
         )
 
     def _format_category_not_activated_error(
-        self, category: str, language: SupportedLanguage = "fr"
+        self, category: str, language: SupportedLanguage | None = None
     ) -> UnifiedToolOutput:
         """Format standard error when no provider is active for a functional category."""
         label = CATEGORY_DISPLAY_NAMES.get(category, category)
         return UnifiedToolOutput.failure(
-            message=APIMessages.category_not_activated(label, language),
+            message=APIMessages.category_not_activated(label, resolve_language(language)),
             error_code="category_not_activated",
         )
 
@@ -719,7 +693,8 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
         in 25+ tool execute_api_call() methods for user preferences fetching.
 
         Returns:
-            Tuple of (user_timezone, locale) with defaults ("UTC", "fr") on any error
+            Tuple of (user_timezone, locale); on any error, "UTC" and the BCP 47
+            locale of the declared language (ADR-323)
 
         Example:
             >>> # In execute_api_call method:
@@ -736,10 +711,8 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
             - Falls back silently to defaults on any error
             - Uses get_user_preferences() from runtime_helpers
         """
-        from src.core.config import settings
-
         user_timezone = "UTC"
-        locale = settings.default_language
+        locale = get_locale_for_language(None)
 
         if self.runtime:
             # Silent fallback to defaults
@@ -753,7 +726,7 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
 
         return user_timezone, locale
 
-    async def _fetch_language(self, default: str = "fr") -> str:
+    async def _fetch_language(self) -> str:
         """Fetch user language from runtime with safe fallback.
 
         Use this in ``execute_api_call`` to retrieve the user's language
@@ -761,17 +734,15 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
         ``_LANGUAGE_RESULT_KEY`` so that ``format_registry_response`` can
         read it without re-calling async helpers (that method is sync).
 
-        Args:
-            default: Language code returned when runtime is unavailable.
-
         Returns:
-            Two-letter (or IETF) language code such as "fr", "en", "de".
+            Two-letter (or IETF) language code such as "fr", "en", "de"; the
+            declared language when the runtime is unavailable (ADR-323).
         """
         if not self.runtime:
-            return default
+            return resolve_language()
         from src.domains.agents.tools.runtime_helpers import get_user_language_safe
 
-        return await get_user_language_safe(self.runtime, default=default)
+        return await get_user_language_safe(self.runtime)
 
 
 class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC):
@@ -1031,7 +1002,7 @@ class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin
         return parse_user_id(user_id)
 
     def _format_connector_not_activated_error(
-        self, language: SupportedLanguage = "fr"
+        self, language: SupportedLanguage | None = None
     ) -> UnifiedToolOutput:
         """Format standard error for connector not activated (localized).
 
@@ -1050,7 +1021,9 @@ class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin
         name = connector_names.get(self.connector_type, self.connector_type.value)
 
         return UnifiedToolOutput.failure(
-            message=APIMessages.connector_not_activated(name, language, needs_api_key=True),
+            message=APIMessages.connector_not_activated(
+                name, resolve_language(language), needs_api_key=True
+            ),
             error_code="connector_not_activated",
         )
 

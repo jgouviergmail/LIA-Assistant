@@ -1,28 +1,17 @@
 """
-Loader pour les manifestes du catalogue Phase 5 + LOT 9/10.
+Loader of the Phase 5 + LOT 9/10 catalogue manifests.
 
 NAMING CONVENTION (2026-01 Unification):
   - domain = entity (singular): contact, email, event, file, task, place, route
   - result_key = domain + "s": contacts, emails, events, files, tasks, places, routes
   - agent_name = domain + "_agent": contact_agent, email_agent, etc.
 
-Ce module charge les manifestes de production depuis:
-- 14 agent manifests:
-  * contact_agent (Google Contacts)
-  * context_agent (Cross-domain utilities)
-  * email_agent (Gmail)
-  * event_agent (Google Calendar)
-  * file_agent (Google Drive)
-  * task_agent (Google Tasks)
-  * weather_agent (OpenWeatherMap)
-  * wikipedia_agent (Wikipedia)
-  * query_agent (INTELLIA LocalQueryEngine)
-  * perplexity_agent (Web Search)
-  * place_agent (Google Places)
-  * route_agent (Google Routes)
-  * reminder_agent (Internal reminders)
-  * web_fetch_agent (Web Page Content Extraction)
-- 30+ tool manifests across all domains
+This module loads the production manifests: the agent manifests of
+``agent_manifest_definitions`` — one per functional category, served by whichever
+provider is connected —, the optional families registered only when their
+feature flag is on, the program manifests of ``program_manifests.py``, and the
+tool manifests of each. The registry holds the count: a hand-kept list here
+drifted.
 
 Usage:
     from .catalogue_loader import initialize_catalogue
@@ -70,24 +59,9 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
 
     NAMING CONVENTION: domain=entity(singular), result_key=domain+"s", agent=domain+"_agent"
 
-    This function loads and registers:
-    - 14 agent manifests:
-      * contact_agent (Google Contacts)
-      * context_agent (Cross-domain utilities)
-      * email_agent (Gmail)
-      * event_agent (Google Calendar)
-      * file_agent (Google Drive)
-      * task_agent (Google Tasks)
-      * weather_agent (OpenWeatherMap)
-      * wikipedia_agent (Wikipedia)
-      * query_agent (INTELLIA LocalQueryEngine)
-      * perplexity_agent (Web Search)
-      * place_agent (Google Places)
-      * route_agent (Google Routes)
-      * reminder_agent (Internal reminders)
-      * web_fetch_agent (Web Page Content Extraction)
-
-    - 30+ tool manifests across all domains
+    This function loads and registers every agent manifest of
+    ``agent_manifest_definitions`` (the optional families only when their feature
+    flag is on), the program manifests, and the tool manifests of each.
 
     Args:
         registry: AgentRegistry instance
@@ -98,9 +72,8 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         >>> initialize_catalogue(registry)
 
     Note:
-        Les manifestes de tools sont maintenant définis dans des fichiers séparés
-        pour améliorer la maintenabilité et permettre une évolution indépendante
-        de chaque domaine.
+        Tool manifests are defined in separate files, for maintainability and
+        so that each domain evolves on its own.
     """
     from src.infrastructure.observability.logging import get_logger
 

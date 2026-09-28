@@ -1,6 +1,7 @@
 # ADR-011: Utility Tools vs Connector Tools Pattern
 
-**Status**: ✅ ACCEPTED (2025-12-21)
+**Status**: ✅ ACCEPTED (2025-12-21) — the `entity_resolution_tool` module below,
+imported by nothing, was deleted by [ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md)
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Question architecture - Organisation des outils utilitaires
 

@@ -440,7 +440,11 @@ if (Test-Path $envProdInProd) {
     }
     Write-Success ".env.prod renomme en .env"
 } else {
-    Write-Warning ".env.prod non trouve dans PROD"
+    if ($DryRun -and (Test-Path (Join-Path $ProjectRoot ".env.prod"))) {
+        Write-Info "[DRY RUN] .env.prod serait copie dans PROD puis renomme en .env"
+    } else {
+        Write-Warning ".env.prod non trouve dans PROD"
+    }
 }
 
 # ============================================================================

@@ -26,8 +26,8 @@ from src.core.constants import (
     PASSWORD_MIN_UPPERCASE,
     PASSWORD_SPECIAL_CHARS,
 )
+from src.core.i18n import language_scope
 from src.core.security.password_validation import (
-    get_password_requirements_message,
     validate_password,
     validate_password_strict,
 )
@@ -174,9 +174,9 @@ class TestCharacterClasses:
 # ============================================================================
 
 
-class TestRequirementsMessage:
-    def test_message_quotes_every_threshold(self) -> None:
-        message = get_password_requirements_message()
+class TestViolationMessages:
+    def test_every_threshold_is_quoted(self) -> None:
+        message = validate_password("").error_message
         for threshold in (
             PASSWORD_MIN_LENGTH,
             PASSWORD_MIN_UPPERCASE,
@@ -184,6 +184,16 @@ class TestRequirementsMessage:
             PASSWORD_MIN_SPECIAL,
         ):
             assert str(threshold) in message
+
+    def test_violations_speak_the_declared_language(self) -> None:
+        """A 422 reached every account in French (ADR-323)."""
+        with language_scope("de"):
+            german = validate_password("").errors
+        with language_scope("en"):
+            english = validate_password("").errors
+        assert german[0] == f"Das Passwort muss mindestens {PASSWORD_MIN_LENGTH} Zeichen lang sein."
+        assert english[0] == f"Password must be at least {PASSWORD_MIN_LENGTH} characters long."
+        assert len(german) == len(english)
 
 
 # ============================================================================

@@ -17,7 +17,7 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
-from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+from src.core.i18n import resolve_language
 from src.domains.product.constants import (
     ProductEventType,
     derive_channel,
@@ -128,7 +128,7 @@ async def record_outcome_produced(
         result_type = derive_result_type(intention, channel)
         _, os_family = parse_user_agent(user_agent)
         device_class = derive_device_class(os_family)
-        locale = normalize_language(user_language) if user_language else DEFAULT_LANGUAGE
+        locale = resolve_language(user_language)
         bounded_domain = domain if domain and isinstance(domain, str) else "unknown"
 
         async with get_db_context() as db:

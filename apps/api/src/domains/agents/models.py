@@ -21,6 +21,7 @@ from src.core.field_names import (
     FIELD_SESSION_ID,
     FIELD_USER_ID,
 )
+from src.core.i18n import resolve_language
 from src.domains.agents.data_registry.models import RegistryItem
 from src.domains.agents.data_registry.state import merge_registry
 from src.domains.agents.utils.message_filters import remove_orphan_tool_messages
@@ -344,7 +345,7 @@ class MessagesState(TypedDict):
 
     # Phase 8: Plan-level HITL approval support
     validation_result: Any | None  # ValidationResult from planner (contains requires_hitl flag)
-    plan_approved: bool | None  # Approval gate decision (True = approved, False = rejected)
+    plan_approved: bool | None  # True = approved, False = refused, None = no verdict (ADR-263)
     plan_rejection_reason: str | None  # Rejection reason if plan_approved = False
 
     # Phase 2 OPTIMPLAN: Semantic Validation (Issue #60)
@@ -585,6 +586,10 @@ class MessagesState(TypedDict):
     # ADR-310: the recovery passes of this turn, one record per pass — the id of
     # the draft's predecessor, the draft (removed from the thread) and its gaps.
     react_recovery_passes: list[dict[str, Any]]
+    # ADR-275 (amended): the provider cut the loop's last model output at its
+    # budget. The cut message is never written to `messages`; this flag is what
+    # ends the loop and tells the finalize node why.
+    react_output_truncated: bool
 
 
 class AgentMessagesState(TypedDict):
@@ -633,7 +638,7 @@ def create_initial_state(
     session_id: str,
     run_id: str,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    user_language: str = "fr",
+    user_language: str | None = None,
     oauth_scopes: list[str] | None = None,
     personality_instruction: str | None = None,
     user_display_name: str | None = None,
@@ -646,7 +651,7 @@ def create_initial_state(
         session_id: Session identifier.
         run_id: Unique run identifier for tracing.
         user_timezone: User's IANA timezone (default: "Europe/Paris").
-        user_language: User's language code (default: "fr").
+        user_language: User's language code (default: the declared language).
         oauth_scopes: OAuth scopes from active connectors (default: empty list).
         personality_instruction: LLM personality prompt instruction (default: None = use default).
         user_display_name: User's friendly first name for sender/signature context
@@ -681,7 +686,9 @@ def create_initial_state(
         current_turn_id=0,  # Start at turn 0
         session_id=session_id,  # Session identifier for context isolation (Phase 5)
         user_timezone=user_timezone,  # User's IANA timezone for temporal context
-        user_language=user_language,  # User's language code for localized responses
+        user_language=resolve_language(
+            user_language
+        ),  # User's language code for localized responses
         user_display_name=user_display_name,  # Friendly first name for sender/signature context
         personality_instruction=personality_instruction,  # LLM personality prompt instruction
         oauth_scopes=oauth_scopes or [],  # OAuth scopes from active connectors

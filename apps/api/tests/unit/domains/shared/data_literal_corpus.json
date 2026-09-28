@@ -1,0 +1,147 @@
+{
+  "_doc": "Values a draft card draws as themselves (markdown_data_literal, ADR-323 review 14): pytest pins how each is drawn (test_markdown_literal.py), vitest renders it through the chat's own pipeline (data-literal-corpus.test.tsx) and checks the chat shows the value's characters, draws no emphasis, loads no image, and links nothing but an address reading as itself. The `html` list is the same promise for an HTML card of the chat: each value drawn by `escape_html` (`display/components/base.py`) and rendered inside a `lia-card` by the browser test.",
+  "cases": [
+    {
+      "id": "address",
+      "value": "jean_dupont@example.com",
+      "drawn": "jean_dupont&#64;example.com"
+    },
+    {
+      "id": "address-leading-underscore",
+      "value": "_jean@example.com",
+      "drawn": "&#95;jean&#64;example.com"
+    },
+    {
+      "id": "url-underscores",
+      "value": "https://drive.example/file/d/1a_B2c_D3/view",
+      "drawn": "https&#58;//drive.example/file/d/1a_B2c_D3/view"
+    },
+    {
+      "id": "url-tilde",
+      "value": "https://host.example/~marie/cv",
+      "drawn": "https&#58;//host.example/&#126;marie/cv"
+    },
+    {
+      "id": "url-angle-brackets",
+      "value": "<https://a.example/x>",
+      "drawn": "&#60;https&#58;//a.example/x&#62;"
+    },
+    {
+      "id": "url-square-brackets",
+      "value": "[https://a.example/x]",
+      "drawn": "&#91;https&#58;//a.example/x&#93;"
+    },
+    {
+      "id": "url-then-mark",
+      "value": "https://a.example/p*q* et https://b.example/b_",
+      "drawn": "https&#58;//a.example/p&#42;q&#42; et https&#58;//b.example/b&#95;"
+    },
+    {
+      "id": "url-query",
+      "value": "http://a.example/?a=1&b=2&copy=3",
+      "drawn": "http&#58;//a.example/?a=1&b=2&copy=3"
+    },
+    {
+      "id": "www",
+      "value": "www.example.com/x_y",
+      "drawn": "www&#46;example.com/x_y"
+    },
+    {
+      "id": "emphasis",
+      "value": "2*3*4 et ~~barré~~ et _souligné_",
+      "drawn": "2&#42;3&#42;4 et &#126;&#126;barré&#126;&#126; et &#95;souligné&#95;"
+    },
+    {
+      "id": "identifiers",
+      "value": "max_results: 10, page_token",
+      "drawn": "max_results: 10, page_token"
+    },
+    {
+      "id": "dollars",
+      "value": "rm -rf $BACKUP_DIR/$OLD",
+      "drawn": "rm -rf &#36;BACKUP_DIR/&#36;OLD"
+    },
+    {
+      "id": "escaped-dollar",
+      "value": "prix \\$5 et \\(x+y\\) et \\[z\\]",
+      "drawn": "prix &#92;&#36;5 et &#92;(x+y&#92;) et &#92;&#91;z&#92;&#93;"
+    },
+    {
+      "id": "image",
+      "value": "![x](https://evil.example/p.png)",
+      "drawn": "!&#91;x&#93;(https&#58;//evil.example/p.png)"
+    },
+    {
+      "id": "link",
+      "value": "[click](https://evil.example/login)",
+      "drawn": "&#91;click&#93;(https&#58;//evil.example/login)"
+    },
+    {
+      "id": "tag",
+      "value": "<b>gras</b> & <img src=x onerror=alert(1)>",
+      "drawn": "&#60;b&#62;gras&#60;/b&#62; & &#60;img src=x onerror=alert(1)&#62;"
+    },
+    {
+      "id": "references",
+      "value": "&amp; &#60; &copy=2 &lt;b&gt;",
+      "drawn": "&#38;amp; &#38;#60; &copy=2 &#38;lt;b&#38;gt;"
+    },
+    {
+      "id": "code",
+      "value": "`code` et ``double``",
+      "drawn": "&#96;code&#96; et &#96;&#96;double&#96;&#96;"
+    },
+    {
+      "id": "mention",
+      "value": "@john et a.b@c.example",
+      "drawn": "&#64;john et a.b&#64;c.example"
+    },
+    {
+      "id": "title",
+      "value": "Rapport_final [v2] *urgent*",
+      "drawn": "Rapport_final &#91;v2&#93; &#42;urgent&#42;"
+    },
+    {
+      "id": "colon-and-dot",
+      "value": "Objet : v2.1 à 10:30",
+      "drawn": "Objet : v2.1 à 10:30"
+    },
+    {
+      "id": "cjk",
+      "value": "中文_测试 et 会议：下午三点",
+      "drawn": "中文_测试 et 会议：下午三点"
+    }
+  ],
+  "html": [
+    {
+      "id": "dollars",
+      "value": "rm -rf $BACKUP_DIR/$OLD",
+      "drawn": "rm -rf &#36;BACKUP_DIR/&#36;OLD"
+    },
+    {
+      "id": "escaped-dollar",
+      "value": "prix \\$5 et \\(x+y\\) et \\[z\\]",
+      "drawn": "prix &#92;&#36;5 et &#92;(x+y&#92;) et &#92;[z&#92;]"
+    },
+    {
+      "id": "backticks",
+      "value": "x `a < b` y",
+      "drawn": "x &#96;a &lt; b&#96; y"
+    },
+    {
+      "id": "markup",
+      "value": "<b>gras</b> & <img src=x onerror=alert(1)> \"q\" 'a'",
+      "drawn": "&lt;b&gt;gras&lt;/b&gt; &amp; &lt;img src=x onerror=alert(1)&gt; &quot;q&quot; &#x27;a&#x27;"
+    },
+    {
+      "id": "references",
+      "value": "&amp; &#60; &copy=2 &lt;b&gt;",
+      "drawn": "&amp;amp; &amp;#60; &amp;copy=2 &amp;lt;b&amp;gt;"
+    },
+    {
+      "id": "markdown",
+      "value": "![x](https://evil.example/p.png) *a* _b_ ~~c~~",
+      "drawn": "![x](https://evil.example/p.png) *a* _b_ ~~c~~"
+    }
+  ]
+}

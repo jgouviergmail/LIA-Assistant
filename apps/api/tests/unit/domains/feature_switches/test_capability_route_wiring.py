@@ -11,6 +11,8 @@ this survive a refactor: move a route to another file and the test follows.
 
 from __future__ import annotations
 
+import importlib
+
 import pytest
 
 from src.domains.feature_switches.registry import CAPABILITY_SPECS, PlatformCapability
@@ -43,49 +45,45 @@ def _guarded_capabilities(router: object) -> set[str]:
     return names
 
 
-def _router_for(capability: PlatformCapability) -> object:
-    """The router each route-enforced capability is expected to guard."""
-    if capability is PlatformCapability.ATTACHMENTS:
-        from src.domains.attachments.router import router
-    elif capability is PlatformCapability.RAG_SPACES:
-        from src.domains.rag_spaces.router import router
-    elif capability is PlatformCapability.SKILLS:
-        from src.domains.skills.router import router
-    elif capability is PlatformCapability.MCP:
-        from src.domains.user_mcp.router import router
-    elif capability is PlatformCapability.TELEPHONY:
-        from src.domains.telephony.router import router
-    elif capability is PlatformCapability.MEETINGS:
-        from src.domains.meetings.router import router
-    elif capability is PlatformCapability.STT:
-        from src.domains.voice.router import router
-    elif capability is PlatformCapability.IMAGE_GENERATION:
-        from src.domains.image_generation.options_router import router
+# The module holding the router each route-enforced capability is expected to
+# guard — a table, so the next capability is one line rather than one more
+# branch of a dispatch that had reached a strict complexity of 19.
+_ROUTER_MODULES: dict[PlatformCapability, str] = {
+    PlatformCapability.ATTACHMENTS: "src.domains.attachments.router",
+    PlatformCapability.RAG_SPACES: "src.domains.rag_spaces.router",
+    PlatformCapability.SKILLS: "src.domains.skills.router",
+    PlatformCapability.MCP: "src.domains.user_mcp.router",
+    PlatformCapability.TELEPHONY: "src.domains.telephony.router",
+    PlatformCapability.MEETINGS: "src.domains.meetings.router",
+    PlatformCapability.STT: "src.domains.voice.router",
+    PlatformCapability.IMAGE_GENERATION: "src.domains.image_generation.options_router",
     # B7 — the features whose router IS the ability (habits and the heartbeat
     # moved to the act with the ADR-280 amendment of 2026-09-11).
-    elif capability is PlatformCapability.WORKBOARD:
-        from src.domains.workboard.router import router
-    elif capability is PlatformCapability.JOURNALS:
-        from src.domains.journals.router import router
-    elif capability is PlatformCapability.PEERS:
-        from src.domains.peers.router import router
-    elif capability is PlatformCapability.PSYCHE:
-        from src.domains.psyche.router import router
-    elif capability is PlatformCapability.CHANNELS:
-        from src.domains.channels.router import router
-    elif capability is PlatformCapability.OPEN_LOOPS:
-        from src.domains.open_loops.router import router
+    PlatformCapability.WORKBOARD: "src.domains.workboard.router",
+    PlatformCapability.JOURNALS: "src.domains.journals.router",
+    PlatformCapability.PEERS: "src.domains.peers.router",
+    PlatformCapability.PSYCHE: "src.domains.psyche.router",
+    PlatformCapability.CHANNELS: "src.domains.channels.router",
+    PlatformCapability.OPEN_LOOPS: "src.domains.open_loops.router",
     # ADR-282 — guarded at the ROUTE like uploads: keeping is the act, the
     # kept answers are the record.
-    elif capability is PlatformCapability.BOOKMARKS:
-        from src.domains.bookmarks.router import router
+    PlatformCapability.BOOKMARKS: "src.domains.bookmarks.router",
     # ADR-299 — the live voice mode: the routes ARE the ability (credential
     # minting, the session record); a delegated turn goes through the chat's door.
-    elif capability is PlatformCapability.LIVE:
-        from src.domains.live.router import router
-    else:  # pragma: no cover - defensive
-        raise AssertionError(f"no router mapped for {capability}")
-    return router
+    PlatformCapability.LIVE: "src.domains.live.router",
+    # ADR-321 — sending by e-mail: the router IS the ability, and it keeps no
+    # record (the file stays in the gallery, the answer in the chat).
+    PlatformCapability.EMAIL_SHARE: "src.domains.email_share.router",
+    # ADR-324 — the radio's routes ARE the listening and its settings.
+    PlatformCapability.RADIO: "src.domains.radio.router",
+}
+
+
+def _router_for(capability: PlatformCapability) -> object:
+    """The router each route-enforced capability is expected to guard (imported lazily)."""
+    module = _ROUTER_MODULES.get(capability)
+    assert module is not None, f"no router mapped for {capability}"
+    return importlib.import_module(module).router
 
 
 ROUTE_ENFORCED = [

@@ -196,7 +196,7 @@ class ProviderAdapter:
     - DeepSeek: Cost-effective provider (deepseek-chat supports tools, deepseek-reasoner doesn't)
     - Perplexity: Search-augmented models via OpenAI-compatible API
     - Ollama: Local deployment via OpenAI-compatible API
-    - Gemini: Google AI models (gemini-2.0-flash, gemini-1.5-pro, etc.)
+    - Gemini: Google AI models (the catalogue lists the ones Google still serves)
     - Qwen: Alibaba Cloud models via DashScope OpenAI-compatible API
     """
 
@@ -718,23 +718,13 @@ class ProviderAdapter:
         requests read ~12.3K (ADR-309). Explicit caching is a separate
         ``cachedContents`` resource with an hourly storage price (not used here).
 
-        Gemini models (2025):
-        - Gemini 3 Series (Preview):
-          - gemini-3-pro-preview: Advanced reasoning (preview)
-
-        - Gemini 2.5 Series:
-          - gemini-2.5-pro: State-of-the-art, coding & complex reasoning ($1.25/$10 per 1M tokens)
-          - gemini-2.5-flash: Fast, large-scale processing, agentic use ($0.30/$2.50 per 1M tokens)
-          - gemini-2.5-flash-lite: Cost-effective high-throughput ($0.10/$0.40 per 1M tokens)
-
-        - Gemini 2.0 Series:
-          - gemini-2.0-flash: Next-gen features, 1M context ($0.10/$0.40 per 1M tokens)
-          - gemini-2.0-flash-lite: Optimized for cost/latency ($0.075/$0.30 per 1M tokens)
-
-        Note: Gemini 1.5 series deprecated as of April 2025.
+        Which Gemini models exist, what they accept and what they cost is not
+        restated here: the catalogue (``llm_models``) and the tariff table hold
+        it, aligned on Google's own pages (migration ``70fd39bf9e8d``). Gemini
+        3.x reasons by ``thinking_level``, Gemini 2.5 by ``thinking_budget``.
 
         Args:
-            model: Gemini model name (e.g., "gemini-2.5-flash", "gemini-2.0-flash")
+            model: Gemini model name (e.g., "gemini-3.8-flash", "gemini-2.5-flash")
             temperature: Temperature parameter (0.0-2.0)
             max_tokens: Maximum tokens to generate
             streaming: Enable streaming

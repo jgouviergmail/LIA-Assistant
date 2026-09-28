@@ -64,7 +64,7 @@ Ordres de grandeur mesurés le 2026-09-24 (`git ls-files`) ; les valeurs exactes
 
 | Métrique | Valeur |
 |----------|--------|
-| **Lignes de Code** | 720 000+ hors tests (Python, TypeScript, CSS — mesure du README) |
+| **Lignes de Code** | 781 000+ hors tests (Python, TypeScript, CSS — mesure du README) |
 | **Modules Python** | 1 700+ (`apps/api/src`) |
 | **Fichiers TypeScript** | 1 000+ hors tests (`apps/web/src`) |
 | **Tests** | 1 850+ fichiers pytest, 700+ fichiers vitest |
@@ -89,7 +89,7 @@ Chaque domaine est un **bounded context** isolé avec :
 - Son service layer (business logic)
 - Ses schemas Pydantic (API contracts)
 
-**23 domaines principaux** (sur **51 bounded contexts fonctionnels** que compte
+**23 domaines principaux** (sur **53 bounded contexts fonctionnels** que compte
 `apps/api/src/domains/`, hors `shared/` — la liste ci-dessous est une sélection
 des plus structurants, pas un inventaire) :
 1. **agents** - Orchestration multi-agents, 15 agents actifs, 56+ tools (cœur du système)
@@ -2285,20 +2285,23 @@ class EmailService:
         self,
         user_email: str,
         user_name: str | None,
-        reason: str,
-        user_language: str = "fr"  # i18n support
+        reason: str | None,  # no line at all when none was given
+        user_language: str,  # required: the account's, never the declared one (ADR-323)
     ) -> bool:
         """Send notification when admin deactivates user account."""
-        # Internationalized email (6 languages: fr, en, es, de, it, zh-CN)
-        subject = _("Your LIA account has been deactivated", user_language)
+        # Internationalized email (6 languages: fr, en, es, de, it, zh-CN) — ADR-323
+        lang = normalize_language(user_language)
+        subject = _("Your LIA account has been deactivated", lang)
+        greeting = _("Hello {name},", lang).format(name=user_name or user_email)
+        reason_html, reason_text = _reason_lines(reason, lang)  # the label + label_separator(lang)
 
         html_body = f"""
         <html>
         <body>
-            <h2>{_("Account deactivated", user_language)}</h2>
-            <p>{_("Hello", user_language)} {user_name},</p>
-            <p>{_("We inform you that your LIA account has been deactivated...", user_language)}</p>
-            <p><strong>{_("Reason", user_language)}:</strong> {reason}</p>
+            <h2>{_("Account deactivated", lang)}</h2>
+            <p>{html.escape(greeting)}</p>
+            <p>{_("We inform you that your LIA account has been deactivated by an administrator.", lang)}</p>
+            {reason_html}
             ...
         </body>
         </html>
@@ -2315,9 +2318,10 @@ class EmailService:
 ```
 
 **Email Templates** :
-- **Deactivation** : Red theme, reason required, no action button
+- **Deactivation** : Red theme, the reason line (the admin API refuses a deactivation without one — the helper prints no line for an empty reason), no action button
 - **Activation** : Green theme, login button with `frontend_url/login`
-- **Connector Disabled** : Orange theme, connector label mapping
+- **Connector Disabled** : Orange theme, the connector named by the registry's display name
+- Every e-mail speaks its reader's language (the account's for the person, the administrator's for the registration notice), in the application's informal register; the greeting is a msgid of its own, a label joins its value through `label_separator(language)` — the reader's punctuation — and every value a person typed is escaped in the HTML part ([ADR-323](architecture/ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md)). The six gettext catalogs hold exactly the msgids the code names (`test_gettext_catalog_guard.py`), kept equal to the code by `apps/api/scripts/i18n/sync_catalogs.py`.
 
 ### Context Resolution Avancé
 
@@ -3885,6 +3889,7 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 | Un tour ReAct est jugé sur son résultat : ce que la boucle entreprend finit obtenu ou déclaré (`<unresolved>`), un écart déclaré achète une passe de reprise bornée par un nœud sans modèle, des dates absolues avant tout paramètre, un outil qui refuse une valeur illisible | [ADR-310](./architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md) | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) |
 | Une identité fédérée ne donne aucun droit (la liaison Google ne change jamais le statut d'un compte) et « qui appelle ? » n'a qu'une réponse (`resolve_client_ip`, garde AST) ; le run id d'une config de graphe n'a qu'un lecteur et les actes d'un tour ReAct sont dits comme les siens ; le cache des prix reconstruit depuis la base et publié par chaque écrivain | [ADR-002](./architecture/ADR-002-BFF-Pattern-Authentication.md), [ADR-213](./architecture/ADR-213-L-Identite-De-L-Appelant-Vient-D-Un-En-Tete-Qu-Il-Ne-Peut-Pas-Ecrire.md), [ADR-263 §23](./architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md), [ADR-063](./architecture/ADR-063-Cross-Worker-Cache-Invalidation.md) (amendements) | [AUTHENTICATION.md](./technical/AUTHENTICATION.md) |
 | Le rythme d'échanges appartient à la personne : échanges fréquents (tous les outils, le contexte après la question, l'historique par blocs de tours entiers ancrés sur le compteur de tours) ou ponctuels (sélection par pertinence, coût stable), choisi par compte et lu une fois par tour ; le drapeau d'instance n'est plus que le défaut d'un compte qui n'a pas choisi, et l'historique d'un tour ne bouge plus quand le réducteur rogne la tête du fil | [ADR-311](./architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md) | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) |
+| Une radio personnelle à la demande, dans la langue de chacun : une rédaction d'instance qui lit les flux publics sans modèle et seulement pour des auditeurs récents, une antenne par auditeur qui ne tourne que pendant qu'il écoute, une grille déterministe qui décide, des postes de modèle qui n'écrivent que ce que des faits citent, chaque euro sur la ligne du tour de la session, un plafond d'instance pris sans course, des refus codés traduits, une alerte sur l'âge de la dernière passe, un bandeau qui publie sa hauteur au chat | [ADR-324](./architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md) | [RADIO.md](./technical/RADIO.md) |
 
 ---
 

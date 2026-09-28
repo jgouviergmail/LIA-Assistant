@@ -24,6 +24,11 @@ routine and a studio-created one are the SAME object — the studio is simply
 where condition triggers and propose-first mode are configured. Growing this
 tool's signature to author conditions in chat is deferred (the natural-language
 surface for "run X only when a task is overdue" is a whole design of its own).
+
+The LISTING reads both kinds (ADR-322): a condition routine has no schedule,
+so it is described by the system's check cadence and carries no next run — its
+trigger is the next CHECK, and « next run in 6 minutes » would announce a run
+that only happens if the awaited fact does.
 """
 
 from __future__ import annotations
@@ -38,6 +43,7 @@ from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RECURRENCE_ROUTINE_LIMITS
+from src.core.i18n import resolve_language
 from src.core.recurrence import (
     RecurrenceError,
     RecurrenceSpec,
@@ -57,6 +63,7 @@ from src.domains.agents.tools.runtime_helpers import (
     validate_runtime_config,
 )
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate
+from src.domains.scheduled_actions.trigger import TriggerPlan, schedule_sentence
 from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
@@ -77,11 +84,11 @@ class ScheduledActionDraftInput(BaseModel):
 @write_tool(name="create_scheduled_action", agent_name=AGENT_AUTOMATION)
 @with_user_preferences
 async def create_scheduled_action_tool(
-    title: Annotated[str, "Short user-facing title, e.g. 'Revue de presse IA'"],
+    title: Annotated[str, "Short user-facing title, e.g. 'AI press review'"],
     action_prompt: Annotated[
         str,
         "The instruction LIA will execute on each run, in the user's own words "
-        "(e.g. 'fais-moi une revue de presse IA'). Full agent capabilities apply.",
+        "(e.g. 'give me an AI press review'). Full agent capabilities apply.",
     ],
     repeat: Annotated[str, RECURRENCE_DOCS["repeat"]],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
@@ -98,7 +105,7 @@ async def create_scheduled_action_tool(
     max_occurrences: Annotated[int | None, RECURRENCE_DOCS["max_occurrences"]] = None,
     starting_on: Annotated[str | None, RECURRENCE_DOCS["starting_on"]] = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """Create a recurring automation (returns a confirmation draft).
 
@@ -132,6 +139,7 @@ async def create_scheduled_action_tool(
         UnifiedToolOutput carrying the draft (requires_confirmation=True),
         or a validation failure the LLM can relay.
     """
+    locale = locale or resolve_language()
     config = validate_runtime_config(runtime, "create_scheduled_action_tool")
     if isinstance(config, UnifiedToolOutput):
         return config
@@ -189,7 +197,7 @@ async def create_scheduled_action_tool(
 async def list_scheduled_actions_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """List the user's recurring automations (id, title, schedule, state).
 
@@ -210,27 +218,39 @@ async def list_scheduled_actions_tool(
 
     async with get_db_context() as db:
         actions = await ScheduledActionService(db).list_for_user(user_id)
-        items: list[dict[str, Any]] = [
-            {
-                "id": str(action.id),
-                "title": action.title,
-                "schedule": describe(action.recurrence_spec, locale),
-                "is_enabled": action.is_enabled,
-                "status": action.status,
-                "last_executed_at": (
-                    action.last_executed_at.isoformat() if action.last_executed_at else None
-                ),
-                "next_trigger_at": (
-                    action.next_trigger_at.isoformat() if action.next_trigger_at else None
-                ),
-            }
-            for action in actions
-        ]
+        items = [_listed(action, locale or resolve_language()) for action in actions]
 
     return UnifiedToolOutput.data_success(
         message=f"{len(items)} automation(s) found",
         structured_data={"automations": items, "count": len(items)},
     )
+
+
+def _listed(action: Any, language: str) -> dict[str, Any]:
+    """One routine as the listing tool shows it to the model.
+
+    Args:
+        action: The routine row.
+        language: The reader's language, for the schedule sentence.
+
+    Returns:
+        Its identity, its clock in words, and its state. A condition routine's
+        ``next_trigger_at`` is null: its trigger is a check, not a run.
+    """
+    plan = TriggerPlan.of(action)
+    next_run = None if plan.is_condition else action.next_trigger_at
+    return {
+        "id": str(action.id),
+        "title": action.title,
+        "trigger_kind": action.trigger_kind,
+        "schedule": schedule_sentence(plan, language),
+        "is_enabled": action.is_enabled,
+        "status": action.status,
+        "last_executed_at": (
+            action.last_executed_at.isoformat() if action.last_executed_at else None
+        ),
+        "next_trigger_at": next_run.isoformat() if next_run else None,
+    }
 
 
 @write_tool(name="toggle_scheduled_action", agent_name=AGENT_AUTOMATION)
@@ -239,7 +259,7 @@ async def toggle_scheduled_action_tool(
     action_id: Annotated[str, "Automation id from list_scheduled_actions"],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """Enable/disable an automation (direct — reversible, no draft).
 

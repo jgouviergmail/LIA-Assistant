@@ -29,7 +29,7 @@ from src.core.field_names import (
     FIELD_INJECTED_JOURNAL_IDS,
     FIELD_RUN_ID,
 )
-from src.core.i18n import normalize_language
+from src.core.i18n import normalize_language, resolve_language
 from src.core.turn_verdicts import verdict_collector
 from src.domains.agents.api.archive_first import (
     archive_user_message_first,
@@ -39,6 +39,7 @@ from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
     build_hitl_question_metadata,
     persist_psyche_snapshot,
+    with_archived_message_ids,
     with_performed_effects,
 )
 from src.domains.agents.api.attachments_injection import inject_attachments_into_state
@@ -384,7 +385,7 @@ class AgentService(
         user_id: uuid.UUID,
         session_id: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-        user_language: str = "fr",
+        user_language: str | None = None,
         user_display_name: str | None = None,
         original_run_id: str | None = None,
         run_id: str | None = None,
@@ -418,7 +419,7 @@ class AgentService(
             user_id: User UUID.
             session_id: Session identifier.
             user_timezone: User's IANA timezone for temporal context (default: "Europe/Paris").
-            user_language: User's language code for localized responses (default: "fr").
+            user_language: User's language code for localized responses (default: the declared language).
             user_display_name: User's friendly first name for sender/signature context
                 (default: None = unknown).
             original_run_id: Optional run_id from HITL resumption (for token aggregation).
@@ -433,11 +434,12 @@ class AgentService(
             user_memory_enabled: User's preference for long-term memory (default: True).
             user_journals_enabled: User's preference for personal journals (default: False).
             user_psyche_enabled: User's preference for psyche engine (default: False).
-            user_display_mode: Response display mode — 'cards', 'html', or 'markdown'.
+            user_display_mode: Response display mode — 'cards', 'html', 'html_cards', or 'markdown'.
             is_automated_source: If True, the run is automated (e.g. scheduled action) —
                 response_node then skips memory/interest/journal/psyche extraction so
                 only direct user inputs feed those subsystems (default: False).
-            auto_approve_plan: If True, bypass HITL plan approval gate (for scheduled actions).
+            auto_approve_plan: Injects ``plan_approved=True`` — inert: the router resets
+                it at the turn start, before any reader (ADR-323).
             attachment_ids: Optional list of attachment UUIDs for the current message.
 
         Yields:
@@ -470,7 +472,7 @@ class AgentService(
             user_id,
             session_id,
             user_timezone,
-            user_language,
+            resolve_language(user_language),
             user_display_name,
             original_run_id,
             browser_context,
@@ -551,11 +553,13 @@ class AgentService(
             user_memory_enabled: User's preference for long-term memory (extraction + injection).
             user_journals_enabled: User's preference for personal journals (extraction + injection).
             user_psyche_enabled: User's preference for psyche engine (default: False).
-            user_display_mode: Response display mode — 'cards', 'html', or 'markdown'.
+            user_display_mode: Response display mode — 'cards', 'html', 'html_cards', or 'markdown'.
             is_automated_source: If True, the run is automated (e.g. scheduled action) —
                 propagated to RunnableConfig.configurable so response_node skips
                 memory/interest/journal/psyche extraction (default: False).
-            auto_approve_plan: If True, inject plan_approved=True into state to bypass HITL gate.
+            auto_approve_plan: Injects ``plan_approved=True`` into the input state —
+                inert: the router resets it at the turn start, before any reader
+                (ADR-323); an unattended run meets the validator's questions.
             attachment_ids: Optional list of attachment UUIDs for the current message.
             run_id: Optional externally-generated run identifier (ADR-117 detached
                 producer path). Falls back to original_run_id, then to a fresh id.
@@ -797,8 +801,9 @@ class AgentService(
                             db=db,
                         )
 
-                    # === AUTO-APPROVE: Bypass HITL plan approval gate ===
-                    # Used by scheduled actions executor to skip human approval
+                    # === AUTO-APPROVE: inert since v1.0.0 — the router resets the
+                    # flag at the turn start, before any reader (ADR-323). Kept until
+                    # a policy for unattended runs is decided. ===
                     if auto_approve_plan:
                         state["plan_approved"] = True
                         logger.info(
@@ -839,8 +844,8 @@ class AgentService(
                     # === TRACKING: Count user message ===
                     # Count ALL user messages (initial AND HITL responses)
                     # Each user message is a distinct interaction that should be counted:
-                    # - Initial message: "recherche jean" → count=1
-                    # - HITL response: "oui" → count=1
+                    # - Initial message: "search jean" → count=1
+                    # - HITL response: "yes" → count=1
                     # This ensures accurate message_count in user_statistics for billing/analytics.
                     await tracker.increment_message_count()
 
@@ -932,7 +937,7 @@ class AgentService(
                                 user_voice_enabled=voice_listens(
                                     user_obj, live_session_id=live_session_id
                                 ),
-                                user_display_mode=user_display_mode,  # User display mode (cards/html/markdown)
+                                user_display_mode=user_display_mode,  # User display preference
                                 user_execution_mode=user_execution_mode,  # Execution mode (pipeline/react)
                                 user_exchange_rhythm=(  # ADR-311: the stored choice, or None
                                     user_obj.exchange_rhythm if user_obj else None
@@ -1397,7 +1402,7 @@ class AgentService(
                 # Why cleanup here:
                 # 1. Graph completed successfully without new interrupt
                 # 2. User's next message should be treated as NEW conversation, not HITL response
-                # 3. Prevents bug where "recherche jean" after "recherche jean + HITL" is
+                # 3. Prevents bug where "search jean" after "search jean + HITL" is
                 #    misinterpreted as HITL response
                 #
                 # CRITICAL FIX: Only clear if NO new interrupt was generated during resumption.
@@ -1512,11 +1517,15 @@ class AgentService(
                         "total_tokens": final_total_tokens,
                         **final_summary_dto.to_metadata(),  # tokens_in/out/cache, cost_eur (includes TTS)
                     }
-                    # QW-5 (ADR-138): DB id of the archived assistant row so the
-                    # live bubble can target the feedback endpoint immediately
-                    # (history rows already carry their DB id).
-                    if archived_assistant_msg_id is not None:
-                        done_metadata["archived_message_id"] = str(archived_assistant_msg_id)
+                    # QW-5 (ADR-138) and ADR-320: the DB ids of the rows this
+                    # turn archived — the answer, so the live bubble can target
+                    # the feedback endpoint at once, and the question, so a
+                    # later sync recognises both live bubbles as those rows.
+                    done_metadata = with_archived_message_ids(
+                        done_metadata,
+                        user_message_id=archived_user_msg_id,
+                        assistant_message_id=archived_assistant_msg_id,
+                    )
                     # UXR Lot 4 (A2): follow-up chips of this run (ADR-117:
                     # mirrored in BOTH frontend DoneMetadata types).
                     if followup_suggestions:

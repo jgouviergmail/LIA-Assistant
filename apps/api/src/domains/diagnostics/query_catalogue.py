@@ -315,6 +315,29 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
+            query_id="radio_newsroom_ticks",
+            title="Radio newsroom ticks by outcome (ADR-324)",
+            promql_template=(
+                "sum by (outcome) (increase(radio_newsroom_passes_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("radio_newsroom_passes_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="radio_newsroom_feed_readings",
+            title="Radio newsroom feed readings by outcome (ADR-324)",
+            promql_template=(
+                "sum by (outcome) "
+                "(increase(radio_newsroom_feed_readings_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("radio_newsroom_feed_readings_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
             query_id="sandbox_egress_proxy_probe",
             title="Egress proxy liveness (blackbox probe of /healthz)",
             promql_template='probe_success{job="blackbox-egress"}',

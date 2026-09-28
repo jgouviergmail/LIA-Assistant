@@ -317,6 +317,12 @@
       "goal": "LIA ohne Bildschirm erreichen.",
       "src": "4fe7ee13e992"
     },
+    "f.radio": {
+      "name": "Persönliches Radio",
+      "role": "Ein Sender auf Abruf in deiner Sprache: dein Tag und die Nachrichten der Welt, für dich geschrieben, geprüft und gesprochen, während du zuhörst, jeder Satz mit seiner Quelle.",
+      "goal": "Den eigenen Tag und die Welt hören, ohne zu lesen, und wissen, was es kostet.",
+      "src": "3518a88aef30"
+    },
     "f.security": {
       "name": "Konten und Sicherheit",
       "role": "Serverseitige Sitzungen per Cookie, Zwei-Faktor-Authentifizierung, Freischaltung durch einen Administrator, eine Aufruferadresse, die sich nicht fälschen lässt.",

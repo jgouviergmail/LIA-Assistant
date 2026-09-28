@@ -20,8 +20,12 @@ import pytest
 from langchain.tools import ToolRuntime
 
 from src.core.config import settings
+from src.core.i18n import get_locale_for_language, language_scope
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.tools.base import ConnectorTool
+from src.domains.agents.tools.decorators import with_user_preferences
 from src.domains.agents.tools.runtime_helpers import get_user_preferences
+from src.domains.connectors.models import ConnectorType
 from src.domains.users.preferences_cache import UserPreferencesCache
 from tests.helpers.runtime_context import make_tool_runtime
 
@@ -102,7 +106,7 @@ class TestLocaleMapping:
 
         assert timezone == "UTC"
         assert lang == settings.default_language
-        assert locale == "fr-FR"
+        assert locale == get_locale_for_language(settings.default_language)
 
 
 @pytest.mark.unit
@@ -161,3 +165,65 @@ class TestPreferencesCache:
             await get_user_preferences(_make_runtime())
 
         assert get_user_by_id.await_count == 2
+
+
+#: A language that is not the instance default: declaring the default would
+#: pass by falling back, and prove nothing about the declaration.
+_NOT_DEFAULT = next(code for code in ("de", "it") if code != settings.default_language)
+
+
+class _Probe(ConnectorTool[Any]):
+    """The smallest concrete ConnectorTool, for ``get_user_preferences_safe``."""
+
+    connector_type = ConnectorType.GOOGLE_CONTACTS
+    client_class = object
+
+    async def execute_api_call(self, client: Any, user_id: UUID, **kwargs: Any) -> dict:
+        return {}
+
+    def format_response(self, result: dict) -> str:
+        return ""
+
+
+@pytest.mark.unit
+class TestDeclaredLanguageFallback:
+    """Nobody known: the DECLARED language; a known person: their own (ADR-323).
+
+    The helpers used to fall back to the instance default whatever the request
+    declared, so a German request that reached no stored preference was
+    answered with the default's locale.
+    """
+
+    async def test_an_unknown_user_reads_the_declared_language(self) -> None:
+        service_patch, db_patch, _ = _patch_user_service(None)
+        with service_patch, db_patch, language_scope(_NOT_DEFAULT):
+            preferences = await get_user_preferences(_make_runtime(uuid4()))
+
+        assert preferences == ("UTC", _NOT_DEFAULT, get_locale_for_language(_NOT_DEFAULT))
+
+    async def test_a_known_person_without_a_language_reads_the_instance_default(self) -> None:
+        """A stored empty language is the person's, not the requester's."""
+        service_patch, db_patch, _ = _patch_user_service(_make_user("Europe/Paris", None))
+        with service_patch, db_patch, language_scope(_NOT_DEFAULT):
+            _, language, _ = await get_user_preferences(_make_runtime(uuid4()))
+
+        assert language == settings.default_language
+
+    async def test_the_decorator_injects_the_declared_language_s_locale(self) -> None:
+        @with_user_preferences
+        async def tool(**kwargs: Any) -> dict[str, Any]:
+            return kwargs
+
+        with language_scope(_NOT_DEFAULT):
+            injected = await tool(runtime=None)
+
+        assert injected["locale"] == get_locale_for_language(_NOT_DEFAULT)
+        assert injected["user_timezone"] == "UTC"
+
+    async def test_the_tool_helper_falls_back_to_the_declared_language_s_locale(self) -> None:
+        probe = _Probe(tool_name="probe_tool", operation="probe")
+
+        with language_scope(_NOT_DEFAULT):
+            preferences = await probe.get_user_preferences_safe()
+
+        assert preferences == ("UTC", get_locale_for_language(_NOT_DEFAULT))

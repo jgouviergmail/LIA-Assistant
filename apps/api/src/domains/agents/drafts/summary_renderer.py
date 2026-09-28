@@ -28,7 +28,9 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 from src.core.i18n_drafts import get_draft_summary_label
+from src.core.text_clip import one_line, spell_unseen
 from src.domains.agents.drafts.models import DraftType
 
 if TYPE_CHECKING:
@@ -64,6 +66,23 @@ def _text(content: dict[str, Any], key: str, default: str = _UNKNOWN) -> str:
         value = ", ".join(str(item) for item in value)
     text = str(value) if value not in (None, "") else ""
     return text or default
+
+
+def _shown(value: object) -> str:
+    """One parameter of the sentence, on one line; blank reads as unknown.
+
+    A title of line breaks alone was quoted as is: the card's bold header
+    broke across three lines and never closed; one of zero-width spaces
+    headed it with nothing, and an override read it backwards.
+
+    Args:
+        value: What a renderer read for the placeholder.
+
+    Returns:
+        The value on one line, spelled where it would mislead
+        (``spell_unseen``), or the shared unknown mark.
+    """
+    return (spell_unseen(one_line(str(value))) if value is not None else "") or _UNKNOWN
 
 
 def _display_name(names: Any) -> str:
@@ -297,14 +316,15 @@ _SUMMARY_RENDERERS: dict[DraftType, _SummaryRenderer] = {
 
 def render_summary(
     draft: Draft,
-    user_language: str = "fr",
+    user_language: str | None = None,
     user_timezone: str | None = None,
 ) -> str:
     """Render the one-line summary of a draft.
 
     Args:
         draft: The draft to name.
-        user_language: Language for the sentence (fr, en, es, de, it, zh-CN).
+        user_language: Language for the sentence (fr, en, es, de, it, zh-CN);
+            the declared language when absent.
         user_timezone: IANA timezone for datetime formatting; defaults to the
             one stored in the draft content, then to the instance default.
 
@@ -313,6 +333,7 @@ def render_summary(
         no renderer — defense in depth only, since the startup completeness
         assert makes that unreachable for a ``DraftType``.
     """
+    user_language = resolve_language(user_language)
     from src.core.time_utils import format_datetime_for_display
 
     timezone = user_timezone or draft.content.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
@@ -327,7 +348,8 @@ def render_summary(
     if renderer is None:
         return f"Draft ({draft.type.value})"
     label_key, parameters = renderer(draft.content, format_dt)
-    return get_draft_summary_label(label_key, user_language, **parameters)
+    shown = {key: _shown(value) for key, value in parameters.items()}
+    return get_draft_summary_label(label_key, user_language, **shown)
 
 
 def assert_summary_renderer_completeness() -> None:

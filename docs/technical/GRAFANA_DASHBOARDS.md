@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.7** | 2026-09-24 | 30 dashboards, 787 panels (rows excluded)
+> **Version 4.8** | 2026-09-26 | 31 dashboards, 811 panels (rows excluded)
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **30 dashboards Grafana** fournissent une observabilite complete pour :
+Les **31 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -146,13 +146,14 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 28 | Effect Ledger & Registers | `28-effect-ledger` | lia, ledger, transparency, ai-act || 27 | Effets reclames / clos / abandonnes, consultations par domaine, lacunes du registre, retard de scellement de la chaine, croissance des registres (ADR-263, ADR-270) |
 | 29 | Workboard | `29-workboard` | lia, workboard, adr-276 | 13 | Ce que LIA fait du tableau (tickets aboutis, rendus, echecs, runs ecartes faute de quota ou conversation occupee, duree et issues des runs), notifications du tableau dans le chat, poids des transcriptions cachees (ADR-276) |
 | 30 | Live | `30-live` | lia, live, voice | 13 | Sessions Live par issue, sessions actives, cles frappees et refusees, duree des sessions, echanges vocaux archives, prolongations, echantillons de voix, echanges d'offre WebRTC, consultations et relais des sessions directes (ADR-299, ADR-300, ADR-301) |
+| 31 | Radio | `31-radio` | lia, radio, voice | 16 | Radio personnelle : departs et refus par code, fins de session par raison, segments par format et par issue, duree de production (p50/p95), boucles cassees, redaction (tics par issue, age du dernier tic, flux lus, sujets classes et purges, textes integraux), recherches de sites, audio orphelin balaye (ADR-324) |
 
 ---
 
 ## Lecture par tiers (audience)
 
 Le catalogue ci-dessus est ordonne par numero ; celui-ci l'est par **qui ouvre
-quoi**. Les deux vues portent sur les memes 30 dashboards — elles vivent dans ce
+quoi**. Les deux vues portent sur les memes 31 dashboards — elles vivent dans ce
 document, et non dans un second fichier, parce que la version enveloppe qui les
 separait a derive quatre fois du catalogue qu'elle resumait (elle annoncait
 encore 25 dashboards apres l'ajout du 26).
@@ -161,7 +162,7 @@ encore 25 dashboards apres l'ajout du 26).
 |------|----------|------------|----------|
 | 1 — Vue d'ensemble | Tous | 01, 02 | Sante globale, SLOs, budget d'erreurs |
 | 2 — Plateforme | Ops / Dev | 03, 04, 05, 06 | Infra, HTTP, couts LLM, logs/traces |
-| 3 — Fonctionnalites | Feature Dev | 07-13, 18-25, 27 | Agents, HITL, conversations, OAuth/MCP, voix, canaux, proactif, RAG, sub-agents, ReAct/browser, sante, compaction, journaux, telephonie, briefing, reunions |
+| 3 — Fonctionnalites | Feature Dev | 07-13, 18-25, 27, 29-31 | Agents, HITL, conversations, OAuth/MCP, voix, canaux, proactif, RAG, sub-agents, ReAct/browser, sante, compaction, journaux, telephonie, briefing, reunions, tableau de tickets, mode Live, radio |
 | 4 — Avance | SRE | 14, 15, 16, 28 | Registry/checkpoints, LangGraph deep (latence par etage TTFT), sante des recording rules et du registre d'outils, registres de transparence et scellement |
 | 5 — Analytics / Produit | Product | 17, 26 | Engagement et geolocalisation ; cockpit produit ADR-178 (North Star, activation, retention) |
 
@@ -316,6 +317,12 @@ Le tableau de tickets (ADR-276) : ce que LIA fait des tickets qu'elle tient (abo
 ### 30 - Live (13 panels)
 
 Le mode Live (ADR-299, ADR-300, ADR-301) : sessions terminees par issue, sessions actives, cles frappees et frappes refusees, duree des sessions (p50/p95), echanges purement vocaux archives, prolongations, echantillons de voix, echanges d'offre WebRTC, consultations des sessions directes et relais de leurs mots a la fin.
+
+**Datasource** : Prometheus.
+
+### 31 - Radio (16 panels)
+
+La radio personnelle (ADR-324), en trois lignes. **Sessions** : departs qui ont pris leur place et departs refuses par code (`radio_session_starts_total{outcome}` — `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`), fins de session par raison (`radio_sessions_ended_total{reason}` : un worker qui s'arrete ne termine rien), boucles cassees par un defaut (`radio_loop_failures_total`, attendu 0). **Production** : segments par issue et par format (`radio_segments_total{format, outcome}` — `produced`, `nothing_to_say`, les refus du redacteur et du verificateur, `voice_failed`, `mix_failed`, `error`) et duree de production d'un segment diffuse (p50/p95, `radio_segment_production_seconds`) : un p95 tres au-dessus des reglages `RADIO_STAGE_*` veut dire qu'un auditeur attend. **Redaction** : tics par issue (`completed`, `cut`, `failed`, `off`), age du dernier tic mene a son terme (`radio_newsroom_last_run_timestamp_seconds`, que lit l'alerte noyau `RadioNewsroomStalled`), flux lus ou en echec, sujets classes et purges, textes integraux, recherches de sites par issue, repertoires audio orphelins balayes (attendu 0). Tous les compteurs lisent `or vector(0)` : un compteur qui n'a jamais tire n'expose aucune serie.
 
 **Datasource** : Prometheus.
 

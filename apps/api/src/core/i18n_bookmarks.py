@@ -7,16 +7,15 @@ into, and the header lines of the Markdown document that projection renders
 notification answered no request, the answered-on label).
 
 Six supported languages, keyed by the backend-canonical code (``zh-CN``);
-``normalize_language`` from ``core.i18n`` is the only entry point for raw
-locale strings. Data module (like the other ``core/i18n_*``): no domain
-imports, exempt from the size ratchet.
+every lookup goes through ``resolve_language`` from ``core.i18n`` — a raw
+locale normalised, an absent one the declared language (ADR-323). Data module
+(like the other ``core/i18n_*``): no domain imports, exempt from the size
+ratchet.
 """
 
 from __future__ import annotations
 
-from src.core.i18n import normalize_language
-
-_DEFAULT = "en"
+from src.core.i18n import resolve_language
 
 #: Default name of the auto-created knowledge space. The person may rename it;
 #: the bookmarks domain finds it by ``kind``.
@@ -37,11 +36,11 @@ SPACE_DESCRIPTION: dict[str, str] = {
         "them again when a question recalls one."
     ),
     "fr": (
-        "Les réponses que vous avez conservées avec le bouton signet, indexées "
+        "Les réponses que tu as conservées avec le bouton signet, indexées "
         "pour que LIA les retrouve quand une question les rappelle."
     ),
     "de": (
-        "Die Antworten, die Sie mit der Lesezeichen-Schaltfläche aufbewahrt haben, "
+        "Die Antworten, die du mit der Lesezeichen-Schaltfläche aufbewahrt hast, "
         "indexiert, damit LIA sie wiederfindet, wenn eine Frage daran erinnert."
     ),
     "es": (
@@ -52,7 +51,7 @@ SPACE_DESCRIPTION: dict[str, str] = {
         "Le risposte che hai conservato con il pulsante segnalibro, indicizzate "
         "perché LIA le ritrovi quando una domanda le richiama."
     ),
-    "zh-CN": "您用书签按钮收藏的回答，已建立索引，当提问涉及时 LIA 可以再次找到它们。",
+    "zh-CN": "你用书签按钮收藏的回答，已建立索引，当提问涉及时 LIA 可以再次找到它们。",
 }
 
 #: Header lines of the rendered document. ``name`` opens the display name;
@@ -118,24 +117,24 @@ DOCUMENT_LABELS: dict[str, dict[str, str]] = {
 
 
 def _lang(language: str | None) -> str:
-    """Resolve a raw locale to a table key through the single chokepoint."""
-    code = normalize_language(language or "")
-    return code if code in SPACE_NAME else _DEFAULT
+    """Resolve a raw locale to a table key: normalised when given, the declared
+    language when absent (ADR-323)."""
+    return resolve_language(language)
 
 
 def get_space_name(language: str | None) -> str:
     """Default name of the auto-created « Kept answers » knowledge space."""
-    return SPACE_NAME.get(_lang(language), SPACE_NAME[_DEFAULT])
+    return SPACE_NAME.get(_lang(language), SPACE_NAME["en"])
 
 
 def get_space_description(language: str | None) -> str:
     """Default description of the auto-created knowledge space."""
-    return SPACE_DESCRIPTION.get(_lang(language), SPACE_DESCRIPTION[_DEFAULT])
+    return SPACE_DESCRIPTION.get(_lang(language), SPACE_DESCRIPTION["en"])
 
 
 def get_document_labels(language: str | None) -> dict[str, str]:
     """Header labels of the rendered document, in the person's language."""
-    return DOCUMENT_LABELS.get(_lang(language), DOCUMENT_LABELS[_DEFAULT])
+    return DOCUMENT_LABELS.get(_lang(language), DOCUMENT_LABELS["en"])
 
 
 __all__ = [

@@ -19,7 +19,7 @@ Phase: PHASE 2.1 - Config Split
 Created: 2025-11-20
 """
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -60,6 +60,7 @@ from src.core.constants import (
     WEB_SEARCH_CACHE_TTL_DEFAULT,
     WEB_SEARCH_SYNTHESIS_PREVIEW_CHARS_DEFAULT,
 )
+from src.core.i18n_types import Language, canonical_language
 
 
 class SupportedCurrency:
@@ -170,14 +171,98 @@ class AdvancedSettings(BaseSettings):
     # ========================================================================
     # Internationalization (i18n) - UI messages only (not LLM prompts)
     # ========================================================================
-    default_language: str = Field(
+    default_language: Language = Field(
         default=DEFAULT_LANGUAGE_DEFAULT,
-        description="Default language for error messages and API responses (fr/en/es/de/it)",
+        description=(
+            "Language of every sentence written for nobody known: no explicit "
+            "language and none declared by the request, turn or job (ADR-323)"
+        ),
     )
     supported_languages: str | list[str] = Field(
         default=SUPPORTED_LANGUAGES,
         description="List of supported languages for UI (comma-separated or list)",
     )
+
+    @field_validator("default_language", mode="before")
+    @classmethod
+    def canonical_default_language(cls, value: object) -> Language:
+        """Canonicalise the instance's default language, refusing one it cannot name.
+
+        Every sentence written without an explicit or declared language falls
+        back to this value (ADR-323), and the i18n tables are keyed on the
+        canonical codes: ``zh`` is stored as ``zh-CN``, ``fr-FR`` as ``fr``, and
+        an unsupported code stops the boot instead of reaching every table.
+
+        Args:
+            value: The configured value, as the environment spelled it.
+
+        Returns:
+            The canonical language code.
+
+        Raises:
+            ValueError: The value names no supported language.
+        """
+        canonical = canonical_language(value if isinstance(value, str) else None)
+        if canonical is None:
+            raise ValueError(
+                f"DEFAULT_LANGUAGE must name one of {', '.join(SUPPORTED_LANGUAGES)}, got {value!r}"
+            )
+        return canonical
+
+    @field_validator("supported_languages", mode="after")
+    @classmethod
+    def canonical_supported_languages(cls, value: str | list[str]) -> list[str]:
+        """Canonicalise the languages a request may declare, refusing one nobody speaks.
+
+        The list is compared with canonical codes — an Accept-Language entry, a
+        personality's translation language — so written ``zh`` (the frontend's
+        spelling) it switched Chinese off in silence.
+
+        Args:
+            value: The configured list, or its comma-separated spelling.
+
+        Returns:
+            The canonical codes, in the configured order, without duplicates.
+
+        Raises:
+            ValueError: An entry names no supported language.
+        """
+        entries = value.split(",") if isinstance(value, str) else value
+        canonical: list[str] = []
+        for entry in entries:
+            if not entry.strip():
+                continue
+            code = canonical_language(entry)
+            if code is None:
+                raise ValueError(
+                    "SUPPORTED_LANGUAGES entries must each name one of "
+                    f"{', '.join(SUPPORTED_LANGUAGES)}, got {entry!r}"
+                )
+            if code not in canonical:
+                canonical.append(code)
+        return canonical
+
+    @model_validator(mode="after")
+    def _default_language_is_supported(self) -> AdvancedSettings:
+        """Refuse a default language the instance does not offer.
+
+        Every sentence written for nobody known falls back to DEFAULT_LANGUAGE:
+        outside SUPPORTED_LANGUAGES, it would be a language no request can
+        declare and no personality can be translated into.
+
+        Returns:
+            The settings, unchanged.
+
+        Raises:
+            ValueError: DEFAULT_LANGUAGE is not one of SUPPORTED_LANGUAGES.
+        """
+        if self.default_language not in self.supported_languages:
+            raise ValueError(
+                f"DEFAULT_LANGUAGE {self.default_language!r} must be one of "
+                f"SUPPORTED_LANGUAGES {self.supported_languages!r}"
+            )
+        return self
+
     user_preferences_cache_ttl_seconds: int = Field(
         default=USER_PREFERENCES_CACHE_TTL_SECONDS_DEFAULT,
         ge=0,

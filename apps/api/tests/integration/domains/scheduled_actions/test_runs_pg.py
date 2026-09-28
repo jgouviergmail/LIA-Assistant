@@ -189,3 +189,31 @@ class TestPurge:
             .all()
         )
         assert remaining == [T0]
+
+
+class TestTheDailyCapsCount:
+    """What a condition routine's cap counts: its FIRES, since its local midnight."""
+
+    async def test_it_counts_the_fires_of_one_routine_from_the_bound(
+        self, db_session: AsyncSession
+    ) -> None:
+        user_id = await _make_user(db_session)
+        action_id = await _make_action(db_session, user_id)
+        other_action = await _make_action(db_session, user_id)
+        midnight = T0 - timedelta(hours=6)
+        for started, outcome in (
+            (midnight - timedelta(minutes=1), ScheduledRunOutcome.SUCCESS),  # yesterday
+            (midnight, ScheduledRunOutcome.SUCCESS),  # the bound itself counts
+            (T0, ScheduledRunOutcome.FAILURE),  # a failed run still ran
+            (T0 + timedelta(hours=1), ScheduledRunOutcome.PROPOSED),  # a proposal was sent
+            (T0 + timedelta(hours=2), ScheduledRunOutcome.SKIPPED_HITL),  # nothing ran
+            (T0 + timedelta(hours=3), ScheduledRunOutcome.SKIPPED_CONDITION),  # legacy row
+        ):
+            await _record(db_session, action_id, user_id, started=started, outcome=outcome)
+        await _record(db_session, other_action, user_id, started=T0)
+
+        count = await ScheduledActionRunRepository(db_session).count_fires_since(
+            action_id, midnight
+        )
+
+        assert count == 3

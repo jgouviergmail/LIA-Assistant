@@ -5,8 +5,8 @@ Each entry carries a stable ``voice_id`` (sent verbatim to the provider
 when synthesising) plus optional metadata (display label, language tag,
 gender hint) used by the dropdown to help the admin pick.
 
-For Edge and OpenAI the catalogue is hard-coded — both providers have
-fixed, well-known voice sets that almost never change. For ElevenLabs
+For Edge, OpenAI and Gemini the catalogue is hard-coded — these providers
+have fixed, well-known voice sets that almost never change. For ElevenLabs
 the live API is queried (``GET /v1/voices``) since custom voice IDs are
 account-scoped and impossible to predict.
 """
@@ -80,12 +80,57 @@ _OPENAI_VOICES: tuple[VoiceOption, ...] = (
 )
 
 
+# ----------------------------------------------------------------------
+# Gemini TTS — the 30 prebuilt voices, every one multilingual (the model
+# detects the language from the text). Genders as Google's own Chirp 3 HD
+# voice table states them for the same names (read 2026-09-26); the label
+# carries the descriptor Google publishes for each voice.
+# ----------------------------------------------------------------------
+
+_GEMINI_VOICES: tuple[VoiceOption, ...] = (
+    VoiceOption("Achernar", "Achernar (soft)", "female"),
+    VoiceOption("Achird", "Achird (friendly)", "male"),
+    VoiceOption("Algenib", "Algenib (gravelly)", "male"),
+    VoiceOption("Algieba", "Algieba (smooth)", "male"),
+    VoiceOption("Alnilam", "Alnilam (firm)", "male"),
+    VoiceOption("Aoede", "Aoede (breezy)", "female"),
+    VoiceOption("Autonoe", "Autonoe (bright)", "female"),
+    VoiceOption("Callirrhoe", "Callirrhoe (easy-going)", "female"),
+    VoiceOption("Charon", "Charon (informative)", "male"),
+    VoiceOption("Despina", "Despina (smooth)", "female"),
+    VoiceOption("Enceladus", "Enceladus (breathy)", "male"),
+    VoiceOption("Erinome", "Erinome (clear)", "female"),
+    VoiceOption("Fenrir", "Fenrir (excitable)", "male"),
+    VoiceOption("Gacrux", "Gacrux (mature)", "female"),
+    VoiceOption("Iapetus", "Iapetus (clear)", "male"),
+    VoiceOption("Kore", "Kore (firm)", "female"),
+    VoiceOption("Laomedeia", "Laomedeia (upbeat)", "female"),
+    VoiceOption("Leda", "Leda (youthful)", "female"),
+    VoiceOption("Orus", "Orus (firm)", "male"),
+    VoiceOption("Puck", "Puck (upbeat)", "male"),
+    VoiceOption("Pulcherrima", "Pulcherrima (forward)", "female"),
+    VoiceOption("Rasalgethi", "Rasalgethi (informative)", "male"),
+    VoiceOption("Sadachbia", "Sadachbia (lively)", "male"),
+    VoiceOption("Sadaltager", "Sadaltager (knowledgeable)", "male"),
+    VoiceOption("Schedar", "Schedar (even)", "male"),
+    VoiceOption("Sulafat", "Sulafat (warm)", "female"),
+    VoiceOption("Umbriel", "Umbriel (easy-going)", "male"),
+    VoiceOption("Vindemiatrix", "Vindemiatrix (gentle)", "female"),
+    VoiceOption("Zephyr", "Zephyr (bright)", "female"),
+    VoiceOption("Zubenelgenubi", "Zubenelgenubi (casual)", "male"),
+)
+
+
 def get_edge_voices() -> list[VoiceOption]:
     return list(_EDGE_VOICES)
 
 
 def get_openai_voices() -> list[VoiceOption]:
     return list(_OPENAI_VOICES)
+
+
+def get_gemini_voices() -> list[VoiceOption]:
+    return list(_GEMINI_VOICES)
 
 
 async def get_elevenlabs_voices(

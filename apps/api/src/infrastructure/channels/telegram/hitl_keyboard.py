@@ -10,6 +10,13 @@ Created: 2026-03-03
 
 from __future__ import annotations
 
+import hashlib
+import re
+from collections.abc import Iterable
+from typing import NamedTuple
+
+from src.core.i18n import resolve_language
+
 # HITL button labels in 6 supported languages
 HITL_BUTTON_LABELS: dict[str, dict[str, str]] = {
     "approve": {
@@ -18,7 +25,7 @@ HITL_BUTTON_LABELS: dict[str, dict[str, str]] = {
         "es": "Aprobar",
         "de": "Genehmigen",
         "it": "Approvare",
-        "zh": "批准",
+        "zh-CN": "批准",
     },
     "reject": {
         "fr": "Rejeter",
@@ -26,7 +33,7 @@ HITL_BUTTON_LABELS: dict[str, dict[str, str]] = {
         "es": "Rechazar",
         "de": "Ablehnen",
         "it": "Rifiutare",
-        "zh": "拒绝",
+        "zh-CN": "拒绝",
     },
     "confirm": {
         "fr": "Confirmer",
@@ -34,7 +41,7 @@ HITL_BUTTON_LABELS: dict[str, dict[str, str]] = {
         "es": "Confirmar",
         "de": "Bestätigen",
         "it": "Confermare",
-        "zh": "确认",
+        "zh-CN": "确认",
     },
     "cancel": {
         "fr": "Annuler",
@@ -42,7 +49,7 @@ HITL_BUTTON_LABELS: dict[str, dict[str, str]] = {
         "es": "Cancelar",
         "de": "Abbrechen",
         "it": "Annullare",
-        "zh": "取消",
+        "zh-CN": "取消",
     },
     "continue": {
         "fr": "Continuer",
@@ -50,7 +57,7 @@ HITL_BUTTON_LABELS: dict[str, dict[str, str]] = {
         "es": "Continuar",
         "de": "Fortfahren",
         "it": "Continuare",
-        "zh": "继续",
+        "zh-CN": "继续",
     },
     "stop": {
         "fr": "Arrêter",
@@ -58,37 +65,132 @@ HITL_BUTTON_LABELS: dict[str, dict[str, str]] = {
         "es": "Detener",
         "de": "Stoppen",
         "it": "Fermare",
-        "zh": "停止",
+        "zh-CN": "停止",
     },
 }
 
-# HITL type → button pair mapping
-_HITL_TYPE_BUTTONS: dict[str, tuple[str, str]] = {
+#: How a person answers each HITL interaction on Telegram: a pair of buttons,
+#: or free text (``None``). Keyed by the type an interaction WRITES
+#: (``action_requests[0]["type"]``); EVERY ``HitlInteractionType`` is declared,
+#: which :func:`assert_keyboard_completeness` checks at boot — a default drew
+#: Approve / Reject on every question, a clarification included, and left
+#: drafts and tool confirmations to free text by fallback, not by decision.
+#: A draft and a tool confirmation take the two main answers the chat's card
+#: offers, and a press sends the same structured decision as a click on that
+#: card; an answer that needs words (a clarification, a choice among
+#: namesakes) is typed. ``plan_approval``, ``destructive_confirm`` and
+#: ``edit_confirmation`` have no producer today (ADR-323): declared, never drawn.
+_HITL_TYPE_BUTTONS: dict[str, tuple[str, str] | None] = {
     "plan_approval": ("approve", "reject"),
     "destructive_confirm": ("confirm", "cancel"),
-    "for_each_confirm": ("continue", "stop"),
+    "for_each_confirmation": ("continue", "stop"),
+    "draft_critique": ("confirm", "cancel"),
+    "tool_confirmation": ("confirm", "cancel"),
+    "clarification": None,
+    "entity_disambiguation": None,
+    "edit_confirmation": None,
 }
 
+#: Every action a keyboard draws — the only actions a press may carry back.
+_DRAWN_ACTIONS: frozenset[str] = frozenset(
+    action for pair in _HITL_TYPE_BUTTONS.values() if pair for action in pair
+)
+if not _DRAWN_ACTIONS <= HITL_BUTTON_LABELS.keys():
+    raise RuntimeError(
+        "every drawn HITL action needs its labels: "
+        f"{sorted(_DRAWN_ACTIONS - HITL_BUTTON_LABELS.keys())}"
+    )
 
-def get_button_label(action: str, language: str = "fr") -> str:
+#: The prefix of every HITL button's callback data.
+_CALLBACK_PREFIX = "hitl"
+#: Hexadecimal digits of the question's fingerprint a button carries.
+_QUESTION_FINGERPRINT_CHARS = 8
+_QUESTION_FINGERPRINT = re.compile(rf"[0-9a-f]{{{_QUESTION_FINGERPRINT_CHARS}}}")
+#: Telegram's bound on a button's callback data, in bytes (Bot API,
+#: ``InlineKeyboardButton.callback_data``: 1-64 bytes).
+TELEGRAM_CALLBACK_DATA_MAX_BYTES = 64
+
+
+class HitlPress(NamedTuple):
+    """What a HITL button press carries back.
+
+    Attributes:
+        action: The button's action (one a keyboard draws).
+        conversation_id: The conversation the question was asked in.
+        question: The fingerprint of the question the button answers
+            (:func:`question_fingerprint` of its message id).
+    """
+
+    action: str
+    conversation_id: str
+    question: str
+
+
+def question_fingerprint(message_id: str) -> str:
+    """The mark a button carries of the ONE question it answers.
+
+    A question's message id (``hitl_{conversation_id}_{interrupt_id}``) is too
+    long for a callback's 64 bytes beside the conversation id, so the button
+    carries the first digits of its SHA-256. The door resumes a press only
+    when the pending question has the same fingerprint: a button left in the
+    chat under an earlier question must never answer the one now waiting.
+
+    Args:
+        message_id: The question's message id, as the engine writes it.
+
+    Returns:
+        The fingerprint: ``_QUESTION_FINGERPRINT_CHARS`` lowercase hex digits.
+    """
+    digest = hashlib.sha256(message_id.encode("utf-8")).hexdigest()
+    return digest[:_QUESTION_FINGERPRINT_CHARS]
+
+
+def assert_keyboard_completeness(interaction_types: Iterable[str]) -> None:
+    """Assert every HITL interaction type declares how Telegram answers it.
+
+    Called at startup with ``HitlInteractionType``'s values (ADR-085 pattern): a
+    type added without a declaration refuses to boot, where ``.get()`` would
+    otherwise answer « free text » for it in silence.
+
+    Args:
+        interaction_types: Every interaction type the application defines.
+
+    Raises:
+        AssertionError: Naming the types left undeclared, and the declared
+            ones no interaction type carries.
+    """
+    wanted = set(interaction_types)
+    missing = sorted(wanted - _HITL_TYPE_BUTTONS.keys())
+    stale = sorted(_HITL_TYPE_BUTTONS.keys() - wanted)
+    if missing or stale:
+        raise AssertionError(
+            f"Telegram HITL keyboard: undeclared {missing}, declared but unknown {stale}. "
+            "Declare each interaction type as a button pair or as free text (None) in "
+            "src/infrastructure/channels/telegram/hitl_keyboard.py."
+        )
+
+
+def get_button_label(action: str, language: str | None = None) -> str:
     """
     Get a localized button label.
 
     Args:
         action: Button action key (approve, reject, confirm, cancel, continue, stop).
-        language: Language code (fr, en, es, de, it, zh).
+        language: Language code in any spelling; the declared language when
+            absent (ADR-323).
 
     Returns:
-        Localized label string, falls back to French.
+        Localized label string (the capitalized action for an unknown action).
     """
     labels = HITL_BUTTON_LABELS.get(action, {})
-    return labels.get(language, labels.get("fr", action.capitalize()))
+    return labels.get(resolve_language(language), action.capitalize())
 
 
 def build_hitl_keyboard(
     hitl_type: str,
     conversation_id: str,
-    language: str = "fr",
+    question_id: str,
+    language: str | None = None,
 ) -> dict:
     """
     Build an inline keyboard for a HITL interaction.
@@ -96,62 +198,72 @@ def build_hitl_keyboard(
     Returns a Telegram InlineKeyboardMarkup dict for use with
     python-telegram-bot's send_message(reply_markup=...).
 
-    For text-based HITL types (clarification, draft_critique, modifier_review),
-    no keyboard is needed — the user responds with free text.
+    A type declared free text (a clarification, a choice among namesakes)
+    draws no keyboard: the person answers in words. Each button's callback
+    data is ``hitl:{action}:{conversation_id}:{fingerprint}``, the fingerprint
+    naming the question the button answers (:func:`question_fingerprint`).
 
     Args:
-        hitl_type: HITL type (plan_approval, destructive_confirm, for_each_confirm).
+        hitl_type: The interaction type, as the interaction writes it (see
+            ``_HITL_TYPE_BUTTONS``; an unknown one draws none).
         conversation_id: Conversation ID for callback_data routing.
-        language: User language for button labels.
+        question_id: The question's message id, as the engine streams it.
+        language: Language code in any spelling; the declared language when
+            absent (ADR-323).
 
     Returns:
         InlineKeyboardMarkup dict, or empty dict for text-based types.
     """
+    language = resolve_language(language)
     button_pair = _HITL_TYPE_BUTTONS.get(hitl_type)
     if not button_pair:
-        # Text-based HITL (clarification, draft_critique, modifier_review)
-        # User responds with free text, no keyboard needed
+        # Declared free text (or unknown): the person answers in words.
         return {}
 
-    action_positive, action_negative = button_pair
-
+    question = question_fingerprint(question_id)
     return {
         "inline_keyboard": [
             [
                 {
-                    "text": get_button_label(action_positive, language),
-                    "callback_data": f"hitl:{action_positive}:{conversation_id}",
-                },
-                {
-                    "text": get_button_label(action_negative, language),
-                    "callback_data": f"hitl:{action_negative}:{conversation_id}",
-                },
+                    "text": get_button_label(action, language),
+                    "callback_data": ":".join(
+                        (_CALLBACK_PREFIX, action, conversation_id, question)
+                    ),
+                }
+                for action in button_pair
             ]
         ]
     }
 
 
-def parse_hitl_callback_data(callback_data: str) -> tuple[str, str] | None:
+def parse_hitl_callback_data(callback_data: str | None) -> HitlPress | None:
     """
     Parse HITL callback data from an inline keyboard button press.
 
-    Expected format: "hitl:{action}:{conversation_id}"
+    Expected format: ``hitl:{action}:{conversation_id}:{fingerprint}``. A
+    button drawn before buttons carried their question
+    (``hitl:{action}:{conversation_id}``, still in chats' histories) parses
+    with an EMPTY fingerprint, which no waiting question has: the door answers
+    it « expired » rather than guessing which question it meant.
 
     Args:
-        callback_data: Raw callback_data from Telegram.
+        callback_data: Raw callback_data from Telegram (None when absent).
 
     Returns:
-        Tuple of (action, conversation_id) or None if not a valid HITL callback.
+        The press, or None if not a valid HITL callback — an action no
+        keyboard draws included: the data is the client's, and an action no
+        keyboard offers would reach the person's turn.
     """
-    if not callback_data or not callback_data.startswith("hitl:"):
+    parts = (callback_data or "").split(":")
+    if len(parts) == 3:
+        parts.append("")
+    if len(parts) != 4 or parts[0] != _CALLBACK_PREFIX:
         return None
 
-    parts = callback_data.split(":", 2)
-    if len(parts) != 3:
+    _, action, conversation_id, question = parts
+    if action not in _DRAWN_ACTIONS or not conversation_id:
+        return None
+    if question and not _QUESTION_FINGERPRINT.fullmatch(question):
         return None
 
-    _, action, conversation_id = parts
-    if not action or not conversation_id:
-        return None
-
-    return action, conversation_id
+    return HitlPress(action, conversation_id, question)

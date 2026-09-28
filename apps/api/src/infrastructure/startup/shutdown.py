@@ -81,6 +81,22 @@ async def stop_worker_memory_sampler(task: asyncio.Task[None] | None) -> None:
     logger.info("worker_memory_sampler_stopped")
 
 
+async def stop_radio_loops(*, enabled: bool) -> None:
+    """Cancel this worker's radio loops, within their bound (ADR-324).
+
+    A deployment without the radio mounted none of its routes, so no loop ran
+    here: nothing is imported to find that out.
+
+    Args:
+        enabled: Whether the deployment ships the radio (``RADIO_ENABLED``).
+    """
+    if not enabled:
+        return
+    from src.domains.radio.wiring import stop_radio_loops as stop_loops
+
+    await stop_loops()
+
+
 async def shutdown_application(handles: StartupHandles) -> None:
     """Run the full shutdown sequence in the exact historical order.
 
@@ -117,6 +133,11 @@ async def shutdown_application(handles: StartupHandles) -> None:
         await wait_all_background_tasks(timeout=settings.shutdown_background_tasks_timeout_seconds)
     except Exception as exc:
         logger.error("background_tasks_drain_failed", error=str(exc))
+
+    # The personal radio (ADR-324): cancel this worker's session loops while
+    # Redis is still up, so each gives its lease back and the listener's next
+    # report restarts it on a worker that stays. Bounded, and never raises.
+    await stop_radio_loops(enabled=settings.radio_enabled)
 
     # Close the wake relay's connection to Apple. Held open across notifications
     # on Apple's own recommendation, so it needs an owner at teardown — a no-op

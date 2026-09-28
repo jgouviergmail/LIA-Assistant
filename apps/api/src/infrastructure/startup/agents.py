@@ -60,7 +60,10 @@ def _assert_effect_completeness(registry: Any) -> None:
       read is a log file;
     - every capability that can be CONSULTED can be named — a consultation
       register showing ``get_calls_tool`` to a user is a silent failure of the
-      surface, and the surface has no other alarm.
+      surface, and the surface has no other alarm;
+    - every declared unattended stand-in can actually act where the draft it
+      replaces is refused — a refusal naming a dead end sends the loop into a
+      second refusal.
 
     Args:
         registry: The loaded registry, read by the naming guard.
@@ -72,6 +75,7 @@ def _assert_effect_completeness(registry: Any) -> None:
         assert_decision_wording_completeness,
         assert_stop_reason_wording_completeness,
     )
+    from src.domains.agents.effects.gate import assert_unattended_stand_ins
     from src.domains.agents.effects.labels import assert_effect_label_completeness
     from src.domains.agents.effects.runtime import assert_effect_gate_completeness
     from src.domains.agents.effects.treatment_labels import (
@@ -81,6 +85,11 @@ def _assert_effect_completeness(registry: Any) -> None:
     guards: tuple[tuple[str, str, Callable[[], None]], ...] = (
         ("effect_gate_incomplete", "Effect gate", assert_effect_gate_completeness),
         ("effect_labels_incomplete", "Effect labels", assert_effect_label_completeness),
+        (
+            "unattended_stand_ins_incomplete",
+            "Unattended stand-ins",
+            lambda: assert_unattended_stand_ins(registry.list_tool_manifests()),
+        ),
         (
             "treatment_domains_incomplete",
             "Treatment domains",

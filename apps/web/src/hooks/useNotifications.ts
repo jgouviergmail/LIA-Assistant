@@ -4,8 +4,15 @@
  * Connects to the backend SSE endpoint and listens for:
  * - reminders
  * - Other notification types
+ * - the thread's own sync signals (ADR-320), handed to their own callback
  *
- * Automatically reconnects on connection loss.
+ * A dropped stream is reopened for as long as the tab is looked at — never
+ * given up on: a channel that stops after five failures leaves the chat
+ * silent until a manual reload, which is the defect ADR-320 fixed. Retries
+ * wait longer each time, up to a ceiling, pause while the tab is hidden and
+ * start again at once when the device is back online. A reopened stream is
+ * announced: Pub/Sub keeps nothing, so whatever was published meanwhile is
+ * lost and the caller catches up.
  */
 
 'use client';
@@ -26,6 +33,19 @@ export type NotificationType =
   | 'scheduled_action'
   | 'subagent_result'
   | 'admin_broadcast';
+
+/** The thread's own sync signals (ADR-320) — never shown as notifications. */
+export type ConversationSignal = 'conversation_updated' | 'conversation_reset';
+
+const CONVERSATION_SIGNALS: ReadonlySet<string> = new Set<ConversationSignal>([
+  'conversation_updated',
+  'conversation_reset',
+]);
+
+/** First reconnect delay; each further failure waits one unit more. */
+export const RECONNECT_DELAY_MS = 3000;
+/** The longest wait between two attempts: retries never stop, they slow down. */
+export const RECONNECT_MAX_DELAY_MS = 60_000;
 
 export interface Notification {
   id: string;
@@ -73,6 +93,11 @@ export interface UseNotificationsOptions {
     targetId: string,
     metadata?: Record<string, unknown>
   ) => void;
+  /** The thread's sync signals (ADR-320): a message landed, or the
+   *  conversation was reset. Not notifications: never listed nor counted. */
+  onConversationEvent?: (signal: ConversationSignal) => void;
+  /** A dropped stream is open again: what was published meanwhile is lost. */
+  onReconnected?: () => void;
 }
 
 export interface UseNotificationsReturn {
@@ -229,6 +254,8 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     onOAuthWarning,
     onOAuthCritical,
     onSubagentResult,
+    onConversationEvent,
+    onReconnected,
   } = options;
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -238,11 +265,19 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
-  // Evicted by a newer stream while hidden — resume on the next visibility.
-  const supersededWhileHiddenRef = useRef(false);
-
-  const MAX_RECONNECT_ATTEMPTS = 5;
-  const RECONNECT_DELAY_MS = 3000;
+  // Closed while hidden (evicted by a newer stream, or dropped): resume on
+  // the next visibility rather than retry for a tab nobody looks at.
+  const resumeWhenVisibleRef = useRef(false);
+  // Closed by a failure or an eviction — before its first open included: the
+  // next open is announced, since nothing published meanwhile reached it.
+  const droppedRef = useRef(false);
+  // Read through refs: a new callback identity must never rebuild the stream.
+  const onConversationEventRef = useRef(onConversationEvent);
+  const onReconnectedRef = useRef(onReconnected);
+  useEffect(() => {
+    onConversationEventRef.current = onConversationEvent;
+    onReconnectedRef.current = onReconnected;
+  });
 
   /**
    * Add a new notification to the list.
@@ -302,6 +337,10 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         setIsConnected(true);
         setError(null);
         reconnectAttempts.current = 0;
+        if (droppedRef.current) {
+          droppedRef.current = false;
+          onReconnectedRef.current?.();
+        }
 
         logger.info('SSE: Connected to notifications stream', {
           component: 'useNotifications',
@@ -312,6 +351,11 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       const handleNotificationEvent = (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data);
+          if (CONVERSATION_SIGNALS.has(data.type)) {
+            // The thread's own sync signal, not a notification (ADR-320).
+            onConversationEventRef.current?.(data.type as ConversationSignal);
+            return;
+          }
 
           // Construct metadata for types that send fields at top level
           const metadata: Record<string, unknown> | undefined =
@@ -375,10 +419,11 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         eventSource.close();
         eventSourceRef.current = null;
         setIsConnected(false);
+        droppedRef.current = true;
         if (document.visibilityState === 'visible') {
           connectSSE();
         } else {
-          supersededWhileHiddenRef.current = true;
+          resumeWhenVisibleRef.current = true;
         }
       });
 
@@ -391,25 +436,26 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         setIsConnected(false);
         eventSource.close();
         eventSourceRef.current = null;
+        droppedRef.current = true;
 
-        // Attempt reconnect with backoff
-        if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
-          reconnectAttempts.current += 1;
-          const delay = RECONNECT_DELAY_MS * reconnectAttempts.current;
-
-          reconnectTimeoutRef.current = setTimeout(() => {
-            logger.info('SSE: Attempting reconnect', {
-              component: 'useNotifications',
-              attempt: reconnectAttempts.current,
-            });
-            connectSSE();
-          }, delay);
-        } else {
-          setError('Connection to notification server lost. Please refresh the page.');
-          logger.error('SSE: Max reconnect attempts reached', new Error('Max reconnect attempts'), {
-            component: 'useNotifications',
-          });
+        if (document.visibilityState === 'hidden') {
+          // Nobody looks at this tab: retrying would only load the server.
+          resumeWhenVisibleRef.current = true;
+          return;
         }
+        // Never given up on: each failure waits longer, up to a ceiling.
+        reconnectAttempts.current += 1;
+        const delay = Math.min(
+          RECONNECT_DELAY_MS * reconnectAttempts.current,
+          RECONNECT_MAX_DELAY_MS
+        );
+        reconnectTimeoutRef.current = setTimeout(() => {
+          logger.info('SSE: Attempting reconnect', {
+            component: 'useNotifications',
+            attempt: reconnectAttempts.current,
+          });
+          connectSSE();
+        }, delay);
       };
 
       eventSourceRef.current = eventSource;
@@ -437,7 +483,8 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
 
     setIsConnected(false);
     reconnectAttempts.current = 0;
-    supersededWhileHiddenRef.current = false;
+    resumeWhenVisibleRef.current = false;
+    droppedRef.current = false;
   }, []);
 
   // Setup SSE connection (only when authenticated)
@@ -456,19 +503,38 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     };
   }, [enableSSE, isAuthenticated, connectSSE, disconnectSSE]);
 
-  // Resume a stream evicted while hidden when the tab returns to the
-  // foreground (the visible tab then wins a slot back, by design).
+  // Resume a stream closed while hidden when the tab returns to the
+  // foreground (an evicted one then wins a slot back, by design), and reopen
+  // one at once when the device is back online — no need to wait a backoff
+  // delay computed while the network was down.
   useEffect(() => {
     if (!enableSSE || !isAuthenticated) return;
 
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && supersededWhileHiddenRef.current) {
-        supersededWhileHiddenRef.current = false;
+      if (document.visibilityState === 'visible' && resumeWhenVisibleRef.current) {
+        resumeWhenVisibleRef.current = false;
         connectSSE();
       }
     };
+    const handleOnline = () => {
+      if (eventSourceRef.current) return;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      reconnectAttempts.current = 0;
+      if (document.visibilityState === 'hidden') {
+        resumeWhenVisibleRef.current = true;
+        return;
+      }
+      connectSSE();
+    };
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', handleOnline);
+    };
   }, [enableSSE, isAuthenticated, connectSSE]);
 
   // Setup FCM foreground message handler

@@ -28,12 +28,12 @@ Usage:
     ]
 
 Example Flow:
-    User: "liste mes contacts"
+    User: "list my contacts"
     → Tool: search_contacts_tool returns [Jean, Marie, Paul]
     → Auto-saved to Store with indexes
 
-    User: "affiche le détail du 2ème"
-    → Tool: resolve_reference(reference="2ème", domain="contacts")
+    User: "show the details of the 2nd"
+    → Tool: resolve_reference(reference="2nd", domain="contacts")
     → Resolves to Marie Martin
     → Returns: {"success": True, "item": {...}, "confidence": 1.0}
 
@@ -136,14 +136,14 @@ async def resolve_reference(
             {
                 "success": false,
                 "error": "not_found",
-                "message": "'Jean' non trouvé dans la liste."
+                "message": "“Jean” not found in the list. Use a number (1-3), a name, or “first”/“last”."
             }
 
         Error (ambiguous):
             {
                 "success": false,
                 "error": "ambiguous",
-                "message": "Plusieurs correspondances trouvées.",
+                "message": "Several matches for “Jean”. Say which one: Jean Dupond, Jean-Marie",
                 "candidates": [
                     {"index": 1, "name": "Jean Dupond", "confidence": 0.8},
                     {"index": 3, "name": "Jean-Marie", "confidence": 0.75}
@@ -154,21 +154,24 @@ async def resolve_reference(
             {
                 "success": false,
                 "error": "no_context",
-                "message": "No active 'contacts' list in memory."
+                "message": "No active 'contacts' list in memory. Please perform a search first to create a context."
             }
 
+    The not-found and ambiguous messages are written in the user's language —
+    they name the keywords the person can type.
+
     Example Usage:
-        User: "affiche le détail du 2ème"
-        → resolve_reference(reference="2ème", context_type="contacts")
+        User: "show the details of the 2nd"
+        → resolve_reference(reference="2nd", domain="contacts")
         → Returns: {"success": true, "item": {...Marie...}, "confidence": 1.0}
 
-        User: "ouvre Jean"
-        → resolve_reference(reference="Jean", context_type="contacts")
+        User: "open Jean"
+        → resolve_reference(reference="Jean", domain="contacts")
         → Returns: {"success": true, "item": {...Jean Dupond...}, "confidence": 0.85}
 
     Strategies (priority order):
-        1. Numeric index: "2", "2ème", "deuxième"
-        2. Keywords: "premier", "dernier", "last"
+        1. Numeric index: "2", "2nd", "second" (ordinals in each supported language)
+        2. Keywords: "first", "last" (in each supported language)
         3. Fuzzy match: "Jean" → "Jean Dupond"
 
     Note:
@@ -663,9 +666,9 @@ async def get_context_list(
         UnifiedToolOutput with items and metadata.
 
     Note:
-        - READ-ONLY (pas d'approbation HITL requise)
-        - Retourne les items AVEC leurs index originaux (0, 1, 2...)
-        - Limite de sécurité: MAX_CONTEXT_BATCH_SIZE (évite OOM sur grandes listes)
+        - READ-ONLY (no HITL approval required)
+        - Returns the items WITH their original indexes (0, 1, 2...)
+        - Safety bound: MAX_CONTEXT_BATCH_SIZE (a large list cannot exhaust memory)
     """
     try:
         # Validate runtime config using helper (validates user_id, session_id, and store)

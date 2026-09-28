@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.i18n import resolve_language
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import now_utc, parse_datetime
 from src.domains.agents.display.components.base import (
@@ -158,14 +160,15 @@ class ReminderCard(BaseComponent):
             chip_variant = "red" if is_imminent else "amber"
             trigger_chip = render_chip(trigger_at_formatted, chip_variant, Icons.SCHEDULE)
 
-        # Created time with "Créé le" prefix
+        # Created time, with the localized "created on" prefix
         created_html = ""
         if created_at_formatted:
             created_label = V3Messages.get_created(ctx.language)
+            separator = label_separator(ctx.language)
             created_html = (
                 f'<div style="font-size:var(--lia-text-xs);color:var(--lia-text-muted);'
                 f'margin-top:var(--lia-space-xs)">'
-                f"{icon(Icons.CALENDAR)} {created_label} : {escape_html(created_at_formatted)}</div>"
+                f"{icon(Icons.CALENDAR)} {created_label}{separator}{escape_html(created_at_formatted)}</div>"
             )
 
         return f"""<div class="lia-card lia-reminder {imminent_class} {nested_class}" data-reminder-id="{escape_html(reminder_id)}">
@@ -205,5 +208,4 @@ class ReminderCard(BaseComponent):
             "it": "Annulla",
             "zh-CN": "取消",
         }
-        lang = language.lower()[:2] if language else "fr"
-        return labels.get(lang, labels["en"])
+        return labels[resolve_language(language)]

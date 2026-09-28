@@ -14,6 +14,8 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from src.core.config import get_settings
+from src.core.i18n import language_scope
+from src.core.i18n_v3 import V3Messages
 from src.domains.agents.tools import weather_tools
 from src.domains.agents.tools.weather_formatting import (
     _entry_local_date,
@@ -136,7 +138,6 @@ class TestExecuteBeyondForecast:
             uuid4(),
             date=far,
             runtime=None,
-            language="fr",
         )
         assert result["success"] is False
         assert result["error"] == "date_beyond_forecast"
@@ -407,10 +408,14 @@ class TestExecuteNoSlotsForDate:
         # Within the forecast window (so the beyond-limit guard must NOT fire).
         target = (now.date() + timedelta(days=3)).isoformat()
         assert 3 <= get_settings().weather_forecast_max_days
-        with patch.object(
-            weather_tools,
-            "_geocode_with_city_fallback",
-            new=AsyncMock(return_value=(48.85, 2.35, "Paris", "FR")),
+        # No runtime: the language is the declared one (ADR-323).
+        with (
+            patch.object(
+                weather_tools,
+                "_geocode_with_city_fallback",
+                new=AsyncMock(return_value=(48.85, 2.35, "Paris", "FR")),
+            ),
+            language_scope(language),
         ):
             result = await _get_hourly_forecast_tool_impl.execute_api_call(
                 fake_client,
@@ -419,7 +424,6 @@ class TestExecuteNoSlotsForDate:
                 date=target,
                 runtime=None,
                 units="metric",
-                language=language,
             )
         result["_target"] = target
         return result
@@ -439,3 +443,61 @@ class TestExecuteNoSlotsForDate:
         assert fr["message"] != en["message"]
         assert "prévision" in fr["message"].lower()
         assert "forecast" in en["message"].lower()
+
+
+class TestThePersonsLanguage:
+    """The provider's texts and LIA's own words both follow the person.
+
+    The condition texts reach the person's card, so the provider is asked in the
+    person's language; a ``language`` a stale plan still carries changes nothing
+    — the tools publish no such parameter any more (ADR-323).
+    """
+
+    async def test_the_provider_and_the_message_speak_the_persons_language(self):
+        now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+        entries = [
+            {
+                "dt": int((now + timedelta(hours=3 * i)).timestamp()),
+                "dt_txt": (now + timedelta(hours=3 * i)).strftime("%Y-%m-%d %H:%M:%S"),
+                "main": {"temp": 19.0, "feels_like": 19.0, "humidity": 60},
+                "wind": {"speed": 2.0},
+                "weather": [{"description": "晴れ", "icon": "01d"}],
+                "pop": 0.0,
+            }
+            for i in range(2)
+        ]
+        fake_client = AsyncMock()
+        fake_client.get_forecast = AsyncMock(
+            return_value={"list": entries, "city": {"name": "Paris", "country": "FR"}}
+        )
+        # Within the forecast window (so the provider IS called), absent from the payload.
+        target = (now.date() + timedelta(days=3)).isoformat()
+        assert 3 <= get_settings().weather_forecast_max_days
+        with (
+            patch.object(
+                weather_tools,
+                "_geocode_with_city_fallback",
+                new=AsyncMock(return_value=(48.85, 2.35, "Paris", "FR")),
+            ),
+            patch(
+                "src.domains.agents.tools.runtime_helpers.get_user_preferences",
+                new=AsyncMock(return_value=(PARIS, "de", "de-DE")),
+            ),
+            patch(
+                "src.domains.agents.tools.runtime_helpers.get_original_user_message",
+                return_value="",
+            ),
+        ):
+            result = await _get_hourly_forecast_tool_impl.execute_api_call(
+                fake_client,
+                uuid4(),
+                location="Paris",
+                date=target,
+                runtime=object(),
+                units="metric",
+                language="ja",  # a stale plan's argument: ignored
+            )
+
+        assert fake_client.get_forecast.await_args.kwargs["lang"] == "de"
+        assert result["error"] == "no_slots_for_date"
+        assert result["message"] == V3Messages.get_weather_no_slots_for_date("de", target)

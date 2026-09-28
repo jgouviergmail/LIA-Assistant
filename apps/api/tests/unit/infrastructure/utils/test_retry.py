@@ -514,6 +514,37 @@ class TestRetryAsyncFunctionalCore:
             )
         assert len(calls) == 1
 
+    async def test_the_predicate_decides_within_one_exception_class(self):
+        """One class, two fates: a family that states retryability in a field.
+
+        A voice provider raises the same class for a 503 and for a 400; only
+        the field tells them apart, so the type filter alone cannot.
+        """
+
+        class _ProviderFailure(Exception):
+            def __init__(self, status: int) -> None:
+                super().__init__("provider failure")
+                self.status = status
+
+        raised = [_ProviderFailure(503), _ProviderFailure(400), _ProviderFailure(503)]
+        seen: list[int] = []
+
+        async def factory():
+            error = raised[len(seen)]
+            seen.append(error.status)
+            raise error
+
+        with pytest.raises(_ProviderFailure) as excinfo:
+            await retry_async(
+                factory,
+                max_retries=3,
+                backoff_factor=0,
+                retryable_exceptions=(_ProviderFailure,),
+                retry_if=lambda error: isinstance(error, _ProviderFailure) and error.status >= 500,
+            )
+        assert excinfo.value is raised[1]  # refused at once, never wrapped
+        assert seen == [503, 400]
+
     async def test_waits_between_attempts_with_exponential_backoff(self):
         waits: list[float] = []
 
@@ -527,6 +558,33 @@ class TestRetryAsyncFunctionalCore:
             with pytest.raises(MaxRetriesExceededError):
                 await retry_async(factory, max_retries=3, backoff_factor=2.0)
         assert waits == [1.0, 2.0]
+
+    async def test_the_caller_may_name_the_wait_from_the_error(self):
+        """A provider that says when to come back is obeyed; anything else backs off."""
+        waits: list[float] = []
+
+        class _Busy(Exception):
+            def __init__(self, retry_after: float | None) -> None:
+                super().__init__("busy")
+                self.retry_after = retry_after
+
+        raised = [_Busy(12.5), _Busy(None), _Busy(3.0)]
+
+        async def factory():
+            raise raised[len(waits)] if len(waits) < len(raised) else _Busy(None)
+
+        async def fake_sleep(seconds):
+            waits.append(seconds)
+
+        with patch("asyncio.sleep", fake_sleep):
+            with pytest.raises(MaxRetriesExceededError):
+                await retry_async(
+                    factory,
+                    max_retries=3,
+                    backoff_factor=2.0,
+                    delay_for=lambda error, attempt: getattr(error, "retry_after", None),
+                )
+        assert waits == [12.5, 2.0]  # the provider's word, then the backoff
 
     async def test_a_single_attempt_never_sleeps(self):
         """max_retries=1 means "try once": sleeping after the only attempt

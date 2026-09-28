@@ -8,6 +8,8 @@ from uuid import uuid4
 import pytest
 
 import src.domains.agents.telephony.voice_lookup as vl
+from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.domains.agents.telephony.live_tools import LiveToolSpec, VoiceToolHost
 
 pytestmark = pytest.mark.unit
@@ -88,6 +90,40 @@ async def test_an_admitted_lookup_runs_under_the_host_and_hands_its_text_back(
     assert spec == EVENTS and args == {"query": "tomorrow"}
     assert kwargs["host"] == HOST
     assert kwargs["language"] == "fr" and kwargs["display_name"] == "Alex"
+
+
+async def test_the_lookup_runs_in_the_person_s_declared_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The phone's call-back is a vendor webhook that declares nobody's language:
+    whatever the run writes without an explicit language speaks the person's."""
+    person = next(code for code in ("it", "es") if code != settings.default_language)
+    heard: list[str] = []
+
+    async def _run(spec, args, **kwargs):  # noqa: ANN001, ANN003
+        heard.append(resolve_language())
+        return "Two events."
+
+    monkeypatch.setattr(vl, "spec_for", lambda name: {"get_events_tool": EVENTS}.get(name))
+    monkeypatch.setattr(vl, "run_live_tool", _run)
+
+    async def _consume() -> bool:
+        return True
+
+    await vl.serve_voice_lookup(
+        "get_events_tool",
+        {"query": "tomorrow"},
+        offered=(EVENTS,),
+        consume_budget=_consume,
+        user_id=uuid4(),
+        language=person,
+        timezone="Europe/Rome",
+        display_name="Alex",
+        host=HOST,
+    )
+
+    assert heard == [person]
+    assert resolve_language() == settings.default_language  # restored after the run
 
 
 def test_the_refusal_vocabulary_is_the_doors_metric_outcome() -> None:

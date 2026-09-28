@@ -62,8 +62,6 @@ class PerplexityClient(BaseAPIKeyClient):
         user_id: UUID | None = None,
         model: str = "sonar",
         rate_limit_per_second: float | None = None,
-        user_timezone: str = "UTC",
-        user_language: str = "fr",
     ) -> None:
         """
         Initialize Perplexity client.
@@ -73,8 +71,6 @@ class PerplexityClient(BaseAPIKeyClient):
             user_id: Optional user ID for logging and rate-limit scoping
             model: Model to use (sonar, sonar-pro)
             rate_limit_per_second: Max requests per second (None = use settings)
-            user_timezone: User's timezone (default: UTC)
-            user_language: User's language (default: fr)
         """
         effective_rate_limit = (
             rate_limit_per_second
@@ -88,8 +84,6 @@ class PerplexityClient(BaseAPIKeyClient):
         )
         self.api_key = api_key
         self.model = model
-        self.user_timezone = user_timezone
-        self.user_language = user_language
 
     def _get_http_timeout(self) -> float:
         """Perplexity has a dedicated (LLM-latency) timeout setting."""
@@ -129,6 +123,8 @@ class PerplexityClient(BaseAPIKeyClient):
             Dict with:
                 - answer: Synthesized answer text
                 - citations: List of source URLs (if return_citations=True)
+                - search_results: The articles the search listed (title, url,
+                  date as the API gives them), when it lists them
                 - related_questions: Related questions (if requested)
 
         Example:
@@ -174,6 +170,7 @@ class PerplexityClient(BaseAPIKeyClient):
             return {
                 "answer": "",
                 "citations": [],
+                "search_results": [],
                 "related_questions": [],
                 "query": query,
             }
@@ -183,6 +180,10 @@ class PerplexityClient(BaseAPIKeyClient):
 
         # Citations are in the response root
         citations = response.get("citations", [])
+        # The articles behind them, with their titles and dates (read by the radio,
+        # which files them as stories — ADR-324 decision 40).
+        listed = response.get("search_results") or []
+        search_results = [entry for entry in listed if isinstance(entry, dict)]
         related_questions = response.get("related_questions", [])
 
         logger.info(
@@ -196,6 +197,7 @@ class PerplexityClient(BaseAPIKeyClient):
         return {
             "answer": answer,
             "citations": citations,
+            "search_results": search_results,
             "related_questions": related_questions,
             "query": query,
             "model": self.model,

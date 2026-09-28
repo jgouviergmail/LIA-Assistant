@@ -22,6 +22,7 @@ from typing import Any
 import structlog
 
 from src.core.config import get_settings
+from src.core.i18n import resolve_language
 from src.domains.agents.python_sandbox.egress.grants import load_grants, mark_relied_grants
 from src.domains.agents.python_sandbox.egress.hosts import (
     HostDecision,
@@ -130,7 +131,7 @@ async def run_with_network(
             code=code,
             purpose=purpose,
             items=items,
-            language=str(getattr(context, "language", "") or "en"),
+            language=resolve_language(getattr(context, "language", None)),
         )
     run_id = uuid.uuid4().hex[:16]
     plan = await plan_network_run(decision, run_id=run_id, user_id=user_id, gate=gate)

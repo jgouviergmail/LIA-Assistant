@@ -23,7 +23,6 @@ A failure is returned, never raised (ADR-303), and nothing reaches the model as
 
 from __future__ import annotations
 
-import html
 from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
@@ -46,6 +45,7 @@ from src.domains.agents.tools.runtime_helpers import (
     parse_user_id,
     validate_runtime_config,
 )
+from src.infrastructure.email.outgoing import plain_text_bodies
 
 logger = structlog.get_logger(__name__)
 
@@ -90,8 +90,7 @@ def relay_bodies(content: EmailContent, *, is_html: bool) -> tuple[str, str]:
 
     if is_html:
         return content.body, strip_html_if_markup(content.body)
-    escaped = html.escape(content.body)
-    return f'<pre style="white-space:pre-wrap;font-family:inherit">{escaped}</pre>', content.body
+    return plain_text_bodies(content.body)
 
 
 async def _send_from_mailbox(

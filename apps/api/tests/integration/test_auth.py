@@ -55,8 +55,8 @@ class TestUserRegistration:
         assert data["user"]["full_name"] == "New User"
         assert data["user"]["is_active"] is False  # Requires email verification
         assert data["user"]["is_verified"] is False
-        # Locale-agnostic: the endpoint answers with the default-language
-        # catalog message (auth routes do not resolve Accept-Language yet).
+        # The request names no language, so nothing is declared and the answer
+        # is the instance default's (RequestLanguageMiddleware, ADR-323).
         assert data["message"] == APIMessages.registration_successful()
 
         # BFF Pattern: Session cookie should be set with correct attributes

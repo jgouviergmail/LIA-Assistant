@@ -16,8 +16,8 @@ from src.domains.agents.orchestration.plan_schemas import ParameterItem
 class InitiativeAction(BaseModel):
     """A single read-only complementary action.
 
-    Uses ``list[ParameterItem]`` for parameters (same pattern as
-    ``ExecutionStepLLM``) to ensure OpenAI strict mode compatibility.
+    Uses ``list[ParameterItem]`` for parameters to ensure OpenAI strict mode
+    compatibility.
     ``dict[str, Any]`` is not allowed in strict JSON schema.
     """
 

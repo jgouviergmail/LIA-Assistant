@@ -7,13 +7,23 @@ branches — skip reasons, error fallbacks, protected-item preservation — that
 the end-to-end characterization suite exercises only partially.
 """
 
+import asyncio
+from collections.abc import Iterator
+from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
+from uuid import uuid4
 
 import pytest
+from asyncpg.exceptions import TooManyConnectionsError
+from langchain_core.messages import AIMessage, HumanMessage
+from prometheus_client import REGISTRY
+from sqlalchemy.exc import OperationalError
 
 from src.core.constants import RESPONSE_DISPLAY_MODE_CARDS
+from src.core.context import current_tracker
 from src.domains.agents.constants import DATA_FILTERING_GENERATION_ERROR_MARKER, TURN_TYPE_ACTION
+from src.domains.agents.models import MessagesState, create_initial_state
 from src.domains.agents.nodes.response_node import (
     _apply_relevant_ids_filtering,
     _await_knowledge_enrichment,
@@ -27,9 +37,11 @@ from src.domains.agents.nodes.response_node import (
     _record_plan_pattern_learning,
     _render_response_html,
 )
+from src.domains.agents.services.business_metrics import ConversationMetrics
 from tests.helpers.runtime_context import installed_runtime_context
 
 _RESP = "src.domains.agents.nodes.response_node"
+_BMS = "src.domains.agents.services.business_metrics"
 
 
 # --- _normalize_agent_results -------------------------------------------------
@@ -62,15 +74,15 @@ def test_normalize_agent_results_empty_when_no_tools():
 
 
 def test_build_data_for_filtering_empty_when_no_registry():
-    assert _build_data_for_filtering(None, "fr", "r") == ""
-    assert _build_data_for_filtering({}, "fr", "r") == ""
+    assert _build_data_for_filtering(None, "r") == ""
+    assert _build_data_for_filtering({}, "r") == ""
 
 
 def test_build_data_for_filtering_error_returns_marker():
     # generate_data_for_filtering raising is caught and yields the fallback marker
     # (English, LLM-facing prompt content — see DATA_FILTERING_GENERATION_ERROR_MARKER).
     with patch(f"{_RESP}.generate_data_for_filtering", side_effect=ValueError("boom")):
-        out = _build_data_for_filtering({"id1": {"type": "EVENT"}}, "fr", "r")
+        out = _build_data_for_filtering({"id1": {"type": "EVENT"}}, "r")
     assert out == DATA_FILTERING_GENERATION_ERROR_MARKER
 
 
@@ -397,13 +409,212 @@ def test_pattern_learning_skips_without_plan():
 # --- _instrument_business_metrics (graceful degradation) ---------------------
 
 
+def _state() -> MessagesState:
+    """A turn's state as the graph builds it."""
+    return create_initial_state(uuid4(), session_id="s", run_id="r")
+
+
+def _successful(agent_type: str) -> ConversationMetrics:
+    """What the calculation says of a successful turn."""
+    return ConversationMetrics(
+        agent_type=agent_type,
+        cost_usd=0.5,
+        tokens_total=3,
+        turns=1,
+        outcome="success",
+        message_count=2,
+    )
+
+
+@contextmanager
+def _tracked_run() -> Iterator[None]:
+    """A run whose tracker has nothing pending: its cost is its ledger row."""
+    tracker = Mock(run_id="run-1")
+    tracker.get_summary.return_value = {"cost_eur": 0.0}
+    token = current_tracker.set(tracker)
+    try:
+        yield
+    finally:
+        current_tracker.reset(token)
+
+
+def _sample(name: str, labels: dict[str, str]) -> float:
+    return REGISTRY.get_sample_value(name, labels) or 0.0
+
+
 @pytest.mark.asyncio
-async def test_business_metrics_never_raises_on_db_failure():
-    with patch(
-        "src.infrastructure.database.get_db_context", Mock(side_effect=RuntimeError("no db"))
+@pytest.mark.parametrize(
+    "failure",
+    [
+        RuntimeError("no db"),
+        TimeoutError("connect"),
+        ConnectionRefusedError(),
+        TooManyConnectionsError("sorry, too many clients already"),
+        OperationalError("COMMIT", None, ConnectionResetError()),
+    ],
+)
+async def test_a_ledger_the_database_refuses_costs_the_turn_no_other_sample(
+    failure: BaseException,
+) -> None:
+    """A connection that cannot open, a driver's own refusal, a commit the
+    database refused: through the REAL ledger read, the node neither raises —
+    on the draft fast path, after the act, the answer was lost — nor loses the
+    turn's other samples (read first, they were dropped with the cost)."""
+    agent_type = f"test_ledger_{type(failure).__name__}"
+    counter = {"agent_type": agent_type, "outcome": "success"}
+    turns = {"agent_type": agent_type}
+    cost = {"agent_type": agent_type}
+    counted_before = _sample("agent_success_rate_total", counter)
+    turns_before = _sample("conversation_turns_total_count", turns)
+    cost_before = _sample("cost_per_successful_conversation_usd_count", cost)
+    with (
+        _tracked_run(),
+        patch(
+            f"{_BMS}.calculate_conversation_metrics",
+            Mock(return_value=_successful(agent_type)),
+        ),
+        patch(f"{_BMS}.get_db_context", Mock(side_effect=failure)),
     ):
-        # Must return None without propagating the failure.
-        assert await _instrument_business_metrics({}, {"configurable": {}}, "r") is None
+        await _instrument_business_metrics(_state(), {"configurable": {}}, "r", None)
+
+    assert _sample("agent_success_rate_total", counter) - counted_before == 1.0
+    assert _sample("conversation_turns_total_count", turns) - turns_before == 1.0
+    assert _sample("cost_per_successful_conversation_usd_count", cost) == cost_before
+
+
+@pytest.mark.asyncio
+async def test_business_metrics_let_a_cancellation_through() -> None:
+    """Best-effort is not a swallowed cancellation: through the real ledger
+    read, the turn stays cancelled."""
+    with (
+        _tracked_run(),
+        patch(
+            f"{_BMS}.calculate_conversation_metrics",
+            Mock(return_value=_successful("test_cancelled")),
+        ),
+        patch(f"{_BMS}.get_db_context", Mock(side_effect=asyncio.CancelledError())),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        await _instrument_business_metrics(_state(), {"configurable": {}}, "r", None)
+
+
+@pytest.mark.asyncio
+async def test_the_run_s_cost_is_read_after_every_other_sample() -> None:
+    """Read last: whatever crosses the read — a cancellation, the one thing it
+    lets through — the turn's other samples are already taken."""
+    agent_type = "test_cost_read_last"
+    counter = {"agent_type": agent_type, "outcome": "success"}
+    turns = {"agent_type": agent_type}
+    counted_before = _sample("agent_success_rate_total", counter)
+    turns_before = _sample("conversation_turns_total_count", turns)
+    with (
+        patch(
+            f"{_BMS}.calculate_conversation_metrics",
+            Mock(return_value=_successful(agent_type)),
+        ),
+        patch(f"{_BMS}.current_turn_cost_usd", AsyncMock(side_effect=asyncio.CancelledError())),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        await _instrument_business_metrics(_state(), {"configurable": {}}, "r", None)
+
+    assert _sample("agent_success_rate_total", counter) - counted_before == 1.0
+    assert _sample("conversation_turns_total_count", turns) - turns_before == 1.0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("agent_result", "sessions"), [("success", 1), ("error", 0)])
+async def test_the_metrics_are_computed_with_no_session_open(
+    agent_result: str, sessions: int
+) -> None:
+    """Priced by the pricing cache, the calculation opens no session: the one
+    this path opens is the successful turn's ledger read — a transaction held
+    across the currency lookup's network call (ADR-304) is gone by construction."""
+    state = _state()
+    state["messages"] = [
+        HumanMessage(content="question"),
+        AIMessage(
+            content="answer",
+            usage_metadata={"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+            response_metadata={"model_name": "model-a"},
+        ),
+    ]
+    state["execution_mode"] = "test_sessions"
+    state["current_turn_id"] = 1
+    state["agent_results"] = {"1:contacts_agent": {"status": agent_result}}
+    opened = Mock(side_effect=ConnectionRefusedError())
+    with (
+        _tracked_run(),
+        patch(f"{_BMS}.quote_cached_cost_usd", return_value=0.001) as priced,
+        patch(f"{_BMS}.get_db_context", opened),
+    ):
+        await _instrument_business_metrics(state, {"configurable": {}}, "r", None)
+
+    priced.assert_called_once()
+    assert opened.call_count == sessions
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("outcome", "counted", "cost_observed"),
+    [("success", 1.0, 0.25), ("failure", 1.0, 0.0), ("no_agent", 0.0, 0.0)],
+)
+async def test_a_turn_is_counted_under_its_outcome_and_a_chat_is_not(
+    outcome: str, counted: float, cost_observed: float
+) -> None:
+    """The composition « outcome → counter » is what read ``failure`` for a
+    year: pinned on the counter's own samples, and a successful turn records
+    its RUN's cost."""
+    agent_type = f"test_{outcome}"
+    metrics = ConversationMetrics(
+        agent_type=agent_type,
+        cost_usd=9.0,
+        tokens_total=0,
+        turns=1,
+        outcome=outcome,
+        message_count=2,
+    )
+    counter = {"agent_type": agent_type, "outcome": outcome}
+    cost = {"agent_type": agent_type}
+    counted_before = _sample("agent_success_rate_total", counter)
+    cost_before = _sample("cost_per_successful_conversation_usd_sum", cost)
+    with (
+        patch(f"{_BMS}.calculate_conversation_metrics", Mock(return_value=metrics)),
+        patch(f"{_BMS}.current_turn_cost_usd", AsyncMock(return_value=0.25)),
+    ):
+        await _instrument_business_metrics(_state(), {"configurable": {}}, "r", None)
+
+    assert _sample("agent_success_rate_total", counter) - counted_before == counted
+    assert _sample("cost_per_successful_conversation_usd_sum", cost) - cost_before == (
+        cost_observed
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_calculated_figures_are_the_observed_ones() -> None:
+    """What the calculation priced and counted is what the histograms
+    receive: the thread's cost, its tokens, its turns."""
+    agent_type = "test_observed_figures"
+    metrics = ConversationMetrics(
+        agent_type=agent_type,
+        cost_usd=0.125,
+        tokens_total=1234,
+        turns=3,
+        outcome="no_agent",
+        message_count=6,
+    )
+    labels = {"agent_type": agent_type}
+    names = (
+        "conversation_cost_usd_sum",
+        "conversation_tokens_total_sum",
+        "conversation_turns_total_sum",
+    )
+    state = _state()
+    before = [_sample(name, labels) for name in names]
+    with patch(f"{_BMS}.calculate_conversation_metrics", Mock(return_value=metrics)):
+        await _instrument_business_metrics(state, {"configurable": {}}, "r", None)
+
+    observed = [_sample(name, labels) - base for name, base in zip(names, before, strict=True)]
+    assert observed == [0.125, 1234.0, 3.0]
 
 
 # --- _extract_qi_response_hints (english_query fallback) ----------------------

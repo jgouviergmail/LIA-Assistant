@@ -15,6 +15,14 @@ browser's ``htmlToPlainText`` already mirrors — HANDED IN by the caller
 ``agents`` and must not read it back, so the flattener is a port, not an
 import. The token estimate is the project's (four Latin characters or one
 ideograph per token, ADR-274).
+
+A draft card draws its values as themselves with numeric references
+(``shared/markdown_literal``); a voice says their characters, read as the
+chat reads them (``read_as_markdown``, the browser's ``readAsMarkdown``):
+read aloud, « Réunion &#60;lundi&#62; » was spelled out. The one divergence
+between the twins is written: a named reference outside the six the browser
+knows (``&eacute;``) is read here and kept as typed there — the corpus
+holds none.
 """
 
 from __future__ import annotations
@@ -22,6 +30,8 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from typing import Final
+
+from src.domains.shared.markdown_literal import read_as_markdown
 
 #: Characters per token the estimator assumes for Latin text.
 CHARS_PER_TOKEN: Final = 4
@@ -58,8 +68,13 @@ def flatten_for_voice(content: str, *, strip_html: Callable[[str], str]) -> str:
             (a no-op on prose that carries no element tag).
 
     Returns:
-        Spoken prose: one line, no mark, no link, no fence.
+        Spoken prose: one line, no mark, no link, no fence, every character
+        reference read as the chat reads it.
     """
+    return read_as_markdown(content, lambda text: _flatten(text, strip_html))
+
+
+def _flatten(content: str, strip_html: Callable[[str], str]) -> str:
     text = strip_html(content)
     text = _FENCE.sub(" ", text)
     text = _HEADING.sub(r"\1.", text)

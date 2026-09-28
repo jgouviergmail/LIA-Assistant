@@ -11,6 +11,11 @@ Key design decisions:
 - Size enforcement: if over limit, the prompt instructs cleanup
 - Uses JournalService for CRUD (char_count + embedding consistency)
 - Token tracking via TrackingContext (real costs)
+- ONE run per consolidation: the model call, every embedding its actions write,
+  and its row in the decision register — LIA's own initiative, filed once the
+  model answered (ADR-263 amendment 2026-09-27; before, 84 consolidations in twelve days
+  billed their call and their embeddings under two runs each and reached the
+  register not once)
 """
 
 from __future__ import annotations
@@ -18,16 +23,20 @@ from __future__ import annotations
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Final
+from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
     from src.domains.journals.models import JournalEntry
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.domains.agents.effects.decision_recorder import record_decision_once
+from src.domains.agents.effects.decisions import out_of_turn_decision
+from src.domains.agents.effects.models import DecisionOutcome, EffectSource
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
 from src.domains.journals.extraction_service import (
     _parse_consolidation_result,
@@ -46,6 +55,9 @@ from src.infrastructure.observability.metrics_journals import (
 )
 
 logger = get_logger(__name__)
+
+#: The route a consolidation reads as in the decision register.
+CONSOLIDATION_ROUTE: Final[str] = "journal_consolidation"
 
 
 @lru_cache(maxsize=1)
@@ -495,6 +507,10 @@ async def consolidate_journals_for_user(
     """
     from src.infrastructure.database import get_db_context
 
+    run_id = f"journal_consolidation_{uuid4().hex}"
+    started_at = datetime.now(UTC)
+    model_answered = False
+    failed = False
     try:
         # Load all active entries
         async with get_db_context() as db:
@@ -551,7 +567,8 @@ async def consolidate_journals_for_user(
             current_datetime=current_datetime,
             conversation_history_section=conversation_history_section,
             usage_patterns_section=usage_patterns_section,
-            user_language=user_language,
+            # The model reads the language's NAME, never a code (ADR-284).
+            language_name=get_language_name(user_language),
             max_entry_chars=max_entry_chars,
             size_management_instruction=size_management_instruction,
             health_signals_section=health_signals_section,
@@ -570,6 +587,7 @@ async def consolidate_journals_for_user(
             messages=prompt,
             user_id=str(user_id),
         )
+        model_answered = True
         result_content = result.text
 
         # Persist token usage (use effective config, not defaults — admin overrides matter)
@@ -580,6 +598,7 @@ async def consolidate_journals_for_user(
             conversation_id=None,
             result=result,
             model_name=model_name,
+            parent_run_id=run_id,
             node_name="journal_consolidation",
         )
 
@@ -653,6 +672,7 @@ async def consolidate_journals_for_user(
         set_embedding_context(
             user_id=str(user_id),
             session_id="journal_consolidation",
+            run_id=run_id,
         )
 
         applied_count = 0
@@ -751,6 +771,7 @@ async def consolidate_journals_for_user(
         return applied_count
 
     except Exception as e:
+        failed = True
         logger.error(
             "journal_consolidation_failed",
             user_id=str(user_id),
@@ -759,3 +780,27 @@ async def consolidate_journals_for_user(
             exc_info=True,
         )
         return 0
+    finally:
+        # No answer, no known spend: no turn (the register's own rule).
+        if model_answered:
+            await _file_consolidation(user_id, run_id, started_at, failed=failed)
+
+
+async def _file_consolidation(
+    user_id: UUID, run_id: str, started_at: datetime, *, failed: bool
+) -> None:
+    """File one consolidation in the decision register, as LIA's own act. Never raises.
+
+    Args:
+        user_id: Whose journal was consolidated.
+        run_id: The run its model call and its embeddings were billed under.
+        started_at: When the consolidation began.
+        failed: Whether it broke after the model answered.
+    """
+    decision = out_of_turn_decision(
+        run_id=run_id, user_id=user_id, thread_id=run_id, source=EffectSource.PROACTIVE.value
+    )
+    decision.route = CONSOLIDATION_ROUTE
+    decision.started_at = started_at
+    decision.outcome = DecisionOutcome.FAILED if failed else DecisionOutcome.ANSWERED
+    await record_decision_once(decision)

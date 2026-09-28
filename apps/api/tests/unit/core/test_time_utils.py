@@ -12,10 +12,12 @@ Tests the centralized time formatting utilities:
 """
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import pytest
 
+from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import (
     MAX_VALID_YEAR,
     MIN_VALID_YEAR,
@@ -416,6 +418,20 @@ class TestFormatDatetimeForDisplay:
             "fr",
         )
         assert result == "Date inconnue"
+
+    @pytest.mark.parametrize("language", ["de", "zh-CN"])
+    def test_an_unreadable_date_is_named_in_the_readers_language(self, language: str) -> None:
+        """It used to read « Date inconnue » whatever the language (ADR-323)."""
+        result = format_datetime_for_display(None, "UTC", language)
+
+        assert result == APIMessages.date_unknown(language)
+        assert result != APIMessages.date_unknown("fr")
+
+    def test_a_formatting_failure_is_named_in_the_readers_language(self) -> None:
+        with patch("src.core.time_utils.get_month_name", side_effect=KeyError("month")):
+            result = format_datetime_for_display("2025-12-02T14:30:00+01:00", "UTC", "it")
+
+        assert result == APIMessages.date_unknown("it")
 
     def test_format_none_returns_fallback(self) -> None:
         """Test that None returns fallback string."""

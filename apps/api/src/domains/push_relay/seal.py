@@ -28,8 +28,7 @@ from datetime import timedelta
 import structlog
 from cryptography.fernet import Fernet, InvalidToken
 
-from src.core.constants import SUPPORTED_LANGUAGES
-from src.core.i18n_types import DEFAULT_LANGUAGE
+from src.core.i18n import normalize_language, resolve_language
 
 logger = structlog.get_logger(__name__)
 
@@ -44,7 +43,7 @@ class SealedDevice:
 
     device_token: str
     sandbox: bool
-    language: str = DEFAULT_LANGUAGE
+    language: str
 
 
 def seal_device(
@@ -52,7 +51,7 @@ def seal_device(
     *,
     sandbox: bool,
     key: str,
-    language: str = DEFAULT_LANGUAGE,
+    language: str | None = None,
 ) -> str:
     """
     Seal a device token into a handle safe to hand to a third-party server.
@@ -73,7 +72,7 @@ def seal_device(
         {
             _TOKEN_FIELD: device_token,
             _SANDBOX_FIELD: sandbox,
-            _LANGUAGE_FIELD: language,
+            _LANGUAGE_FIELD: resolve_language(language),
         }
     )
     return Fernet(key.encode()).encrypt(payload.encode()).decode()
@@ -122,12 +121,13 @@ def unseal_handle(
         sandbox = payload[_SANDBOX_FIELD]
         # Read leniently: a handle sealed before this field existed is still a
         # handle we issued, and refusing it would silence a device for months.
-        language = payload.get(_LANGUAGE_FIELD, DEFAULT_LANGUAGE)
+        sealed_language = payload.get(_LANGUAGE_FIELD)
     except InvalidToken, ValueError, TypeError, KeyError, AttributeError:
         return None
 
     if not isinstance(device_token, str) or not isinstance(sandbox, bool):
         return None
-    if language not in SUPPORTED_LANGUAGES:
-        language = DEFAULT_LANGUAGE
+    # The DEVICE's language, never the calling server's: a missing or unreadable
+    # one reads as the relay's own default (normalize, not resolve).
+    language = normalize_language(sealed_language if isinstance(sealed_language, str) else None)
     return SealedDevice(device_token=device_token, sandbox=sandbox, language=language)

@@ -14,7 +14,7 @@ Supported languages: fr, en, es, de, it, zh-CN
 
 from __future__ import annotations
 
-from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+from src.core.i18n import normalize_language
 from src.core.i18n_types import Language
 
 _COLUMN_PREFIX = "settings.admin.llm.sheet.column."
@@ -341,12 +341,12 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
     "fr": (
         "LIA — Catalogue des modèles LLM et de leurs tarifs",
         "",
-        "Saisissez vos données à partir de la ligne 3. La ligne des libellés ne se modifie pas.",
+        "Saisis tes données à partir de la ligne 3. La ligne des libellés ne se modifie pas.",
         "Une ligne absente de ce fichier n'est JAMAIS supprimée : rien ne disparaît par oubli.",
-        "Pour retirer un modèle, mettez is_active à FAUX ; le remettre à VRAI le réactive.",
+        "Pour retirer un modèle, mets is_active à FAUX ; le remettre à VRAI le réactive.",
         "Les colonnes grisées sont calculées : elles sont ignorées à l'import.",
         "Les prix sont en USD, avec 6 décimales au maximum ; une valeur plus précise est refusée.",
-        "Une formule dans une cellule est refusée : saisissez la valeur, pas le calcul.",
+        "Une formule dans une cellule est refusée : saisis la valeur, pas le calcul.",
         "Plages horaires : « flat » supprime les fenêtres, « windows » applique l'onglet dédié,",
         "« inherit » les laisse inchangées.",
         "Jours d'une fenêtre : les codes mon, tue, wed, thu, fri, sat, sun, séparés par des virgules — le jour UTC où la fenêtre commence ; vide = tous les jours.",
@@ -369,12 +369,12 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
     "es": (
         "LIA — Catálogo de modelos LLM y sus tarifas",
         "",
-        "Introduzca sus datos a partir de la fila 3. La fila de etiquetas no debe modificarse.",
+        "Introduce tus datos a partir de la fila 3. La fila de etiquetas no debe modificarse.",
         "Una fila ausente de este archivo NUNCA se elimina: nada desaparece por olvido.",
-        "Para retirar un modelo, ponga is_active en FALSO; volver a VERDADERO lo reactiva.",
+        "Para retirar un modelo, pon is_active en FALSO; volver a VERDADERO lo reactiva.",
         "Las columnas grises son calculadas: se ignoran al importar.",
         "Los precios son en USD, con 6 decimales como máximo; un valor más preciso se rechaza.",
-        "Una fórmula en una celda se rechaza: introduzca el valor, no el cálculo.",
+        "Una fórmula en una celda se rechaza: introduce el valor, no el cálculo.",
         "Franjas horarias: «flat» borra las ventanas, «windows» aplica la pestaña dedicada,",
         "«inherit» las deja sin cambios.",
         "Días de una ventana: los códigos mon, tue, wed, thu, fri, sat, sun, separados por comas — el día UTC en que empieza la ventana; vacío = todos los días.",
@@ -383,12 +383,12 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
     "de": (
         "LIA — Katalog der LLM-Modelle und ihrer Tarife",
         "",
-        "Tragen Sie Ihre Daten ab Zeile 3 ein. Die Beschriftungszeile wird nicht bearbeitet.",
+        "Trag deine Daten ab Zeile 3 ein. Die Beschriftungszeile wird nicht bearbeitet.",
         "Eine in dieser Datei fehlende Zeile wird NIE gelöscht: nichts verschwindet aus Versehen.",
         "Zum Stilllegen eines Modells is_active auf FALSCH setzen; WAHR aktiviert es wieder.",
         "Graue Spalten sind berechnet: beim Import werden sie ignoriert.",
         "Preise in USD mit höchstens 6 Nachkommastellen; ein genauerer Wert wird abgelehnt.",
-        "Eine Formel in einer Zelle wird abgelehnt: tragen Sie den Wert ein, nicht die Rechnung.",
+        "Eine Formel in einer Zelle wird abgelehnt: trag den Wert ein, nicht die Rechnung.",
         "Zeitfenster: „flat“ löscht die Fenster, „windows“ wendet das eigene Blatt an,",
         "„inherit“ lässt sie unverändert.",
         "Tage eines Fensters: die Kürzel mon, tue, wed, thu, fri, sat, sun, durch Kommas getrennt – der UTC-Tag, an dem das Fenster beginnt; leer = jeden Tag.",
@@ -397,12 +397,12 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
     "it": (
         "LIA — Catalogo dei modelli LLM e delle loro tariffe",
         "",
-        "Inserisca i dati a partire dalla riga 3. La riga delle etichette non va modificata.",
+        "Inserisci i dati a partire dalla riga 3. La riga delle etichette non va modificata.",
         "Una riga assente da questo file non viene MAI eliminata: nulla sparisce per dimenticanza.",
-        "Per ritirare un modello, imposti is_active su FALSO; riportarlo a VERO lo riattiva.",
+        "Per ritirare un modello, imposta is_active su FALSO; riportarlo a VERO lo riattiva.",
         "Le colonne grigie sono calcolate: all'importazione vengono ignorate.",
         "I prezzi sono in USD, con 6 decimali al massimo; un valore più preciso viene rifiutato.",
-        "Una formula in una cella viene rifiutata: inserisca il valore, non il calcolo.",
+        "Una formula in una cella viene rifiutata: inserisci il valore, non il calcolo.",
         "Fasce orarie: «flat» cancella le finestre, «windows» applica il foglio dedicato,",
         "«inherit» le lascia invariate.",
         "Giorni di una finestra: i codici mon, tue, wed, thu, fri, sat, sun, separati da virgole — il giorno UTC in cui inizia la finestra; vuoto = tutti i giorni.",
@@ -442,8 +442,8 @@ def build_sheet_labels(language: str) -> dict[str, str]:
         the export row builder.
     """
     resolved = normalize_language(language)
-    columns = _COLUMNS.get(resolved) or _COLUMNS[DEFAULT_LANGUAGE]
-    strings = _STRINGS.get(resolved) or _STRINGS[DEFAULT_LANGUAGE]
+    columns = _COLUMNS[resolved]
+    strings = _STRINGS[resolved]
     labels = {_COLUMN_PREFIX + key: value for key, value in columns.items()}
     labels.update(strings)
     return labels
@@ -459,4 +459,4 @@ def build_sheet_notice(language: str) -> tuple[str, ...]:
         The lines of the notice sheet, in reading order.
     """
     resolved = normalize_language(language)
-    return _NOTICE.get(resolved) or _NOTICE[DEFAULT_LANGUAGE]
+    return _NOTICE[resolved]

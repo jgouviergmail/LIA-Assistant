@@ -1,7 +1,7 @@
 """
 Telegram sender implementing BaseChannelSender.
 
-Handles sending messages, typing indicators, message editing,
+Handles sending messages, typing indicators, keyboard removal,
 and notifications via the Telegram Bot API.
 
 Includes error handling for Telegram-specific exceptions
@@ -77,8 +77,10 @@ class TelegramSender(BaseChannelSender):
         """
         Send a message to a Telegram chat.
 
-        Automatically splits long messages. Returns the message_id
-        of the last sent chunk.
+        Automatically splits long messages. A keyboard rides on the LAST
+        part, where the question ends, and on its retries: a part without
+        it would leave the question unanswerable by button. Returns the
+        message_id of the last sent chunk.
 
         Args:
             channel_user_id: Telegram chat_id.
@@ -99,13 +101,14 @@ class TelegramSender(BaseChannelSender):
         # TODO: Add explicit message_type field to ChannelOutboundMessage for accuracy
         msg_type = "notification" if message.parse_mode == "HTML" else "text"
 
-        for chunk in chunks:
+        for index, chunk in enumerate(chunks):
+            markup = message.reply_markup if index == len(chunks) - 1 else None
             try:
                 sent = await bot.send_message(
                     chat_id=chat_id,
                     text=chunk,
                     parse_mode=message.parse_mode,
-                    reply_markup=message.reply_markup,
+                    reply_markup=markup,
                 )
                 last_message_id = str(sent.message_id)
                 channel_messages_sent_total.labels(
@@ -141,6 +144,7 @@ class TelegramSender(BaseChannelSender):
                         chat_id=chat_id,
                         text=chunk,
                         parse_mode=message.parse_mode,
+                        reply_markup=markup,
                     )
                     last_message_id = str(sent.message_id)
                     channel_messages_sent_total.labels(
@@ -165,6 +169,7 @@ class TelegramSender(BaseChannelSender):
                     sent = await bot.send_message(
                         chat_id=chat_id,
                         text=chunk,
+                        reply_markup=markup,
                     )
                     last_message_id = str(sent.message_id)
                     channel_messages_sent_total.labels(
@@ -225,56 +230,42 @@ class TelegramSender(BaseChannelSender):
         result = await self.send_message(channel_user_id, message)
         return result is not None
 
-    async def edit_message(
-        self,
-        channel_user_id: str,
-        message_id: str,
-        new_text: str,
-        parse_mode: str = "HTML",
-    ) -> bool:
+    async def remove_keyboard(self, channel_user_id: str, message_id: str) -> bool:
         """
-        Edit an existing Telegram message.
+        Take the inline keyboard off a message, its text kept.
 
-        Used to remove HITL inline keyboard buttons after user decision.
+        Used once a HITL question is answered by button, or when its button
+        answers nothing any more: the question stays readable, and the same
+        question cannot be pressed twice. Best effort — a keyboard already
+        gone, or a message Telegram no longer edits, changes nothing the
+        answer depends on.
 
         Args:
             channel_user_id: Telegram chat_id.
-            message_id: Telegram message_id to edit.
-            new_text: New message text.
-            parse_mode: Text formatting mode.
+            message_id: Telegram message_id of the question.
 
         Returns:
-            True if edited successfully.
+            True if the keyboard is off, False when Telegram refused.
         """
         bot = get_bot()
         if not bot:
             return False
 
         try:
-            await bot.edit_message_text(
+            await bot.edit_message_reply_markup(
                 chat_id=int(channel_user_id),
                 message_id=int(message_id),
-                text=new_text,
-                parse_mode=parse_mode,
+                reply_markup=None,
             )
             return True
-        except BadRequest as e:
-            # "Message is not modified" is harmless
-            if "not modified" in str(e).lower():
-                return True
-            logger.warning(
-                "telegram_edit_bad_request",
-                chat_id=channel_user_id,
-                message_id=message_id,
-                error=str(e),
-            )
-            return False
         except TelegramError as e:
-            logger.error(
-                "telegram_edit_error",
+            # Its type, never its description (ADR-303): the one expected here
+            # is a keyboard already removed by an earlier press.
+            logger.warning(
+                "telegram_keyboard_removal_refused",
                 chat_id=channel_user_id,
                 message_id=message_id,
-                error=str(e),
+                error_type=type(e).__name__,
             )
             return False
 

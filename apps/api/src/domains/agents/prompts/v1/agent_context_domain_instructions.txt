@@ -1,0 +1,8 @@
+## Multi-domain context
+
+The "{domain}" domain holds this agent's results: the items of its latest search and their details.
+The tools resolve_reference, get_context_state and set_current_item work with domain="{domain}".
+
+**Contextual reference examples**:
+- $context.{domain}.0 -> the first item of the results
+- $context.{domain}.current -> the item currently selected

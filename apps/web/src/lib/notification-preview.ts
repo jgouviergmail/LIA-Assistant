@@ -23,6 +23,7 @@
  */
 
 import { htmlToPlainText, looksLikeHtml } from './html-plain-text';
+import { readAsMarkdown } from './markdown-references';
 
 /** Character budget for a toast description before ellipsizing. */
 export const NOTIFICATION_PREVIEW_MAX_LENGTH = 100;
@@ -30,8 +31,10 @@ export const NOTIFICATION_PREVIEW_MAX_LENGTH = 100;
 /**
  * Flatten rich content to a single-line plain-text preview.
  *
- * A no-op on Markdown and plain prose, so it is safe to apply to every
- * notification type.
+ * Character references are read as the chat reads them (`readAsMarkdown`):
+ * a peer's comment quoted as « &#60;3 » reads « <3 », never « &#60;3 ».
+ * Otherwise a no-op on Markdown and plain prose, so it is safe to apply to
+ * every notification type.
  *
  * @param text - Notification content, possibly HTML.
  * @param maxLength - Character budget; omit to flatten without truncating.
@@ -40,7 +43,9 @@ export const NOTIFICATION_PREVIEW_MAX_LENGTH = 100;
 export function toPlainPreview(text: string, maxLength?: number): string {
   if (!text) return '';
 
-  const flat = looksLikeHtml(text) ? htmlToPlainText(text) : text;
+  const flat = readAsMarkdown(text, shielded =>
+    looksLikeHtml(shielded) ? htmlToPlainText(shielded) : shielded
+  );
   const out = flat.replace(/\s+/g, ' ').trim();
   if (maxLength === undefined || out.length <= maxLength) return out;
   return `${out.slice(0, maxLength)}...`;

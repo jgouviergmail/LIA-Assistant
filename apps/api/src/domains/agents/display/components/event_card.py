@@ -14,12 +14,16 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from html import unescape
 from typing import Any
 from urllib.parse import urlparse
 
 import structlog
 
+from src.core.i18n import resolve_language
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
+from src.core.text_clip import clip_on_word, one_line
 from src.domains.agents.constants import CONTEXT_DOMAIN_EVENTS
 from src.domains.agents.display.components.base import (
     BaseComponent,
@@ -45,6 +49,90 @@ from src.domains.agents.display.components.base import (
 from src.domains.agents.display.icons import Icons, icon
 
 logger = structlog.get_logger(__name__)
+
+#: The longest an event's description may be on its card, ellipsis included.
+_DESCRIPTION_MAX_CHARS = 300
+
+#: Where a block no reader wrote opens: a style, a script, the document's head
+#: and its title (the ``display/components/base.py`` stripper's own set), or a
+#: comment.
+_INVISIBLE_OPENING_RE = re.compile(r"<(style|script|head|title)\b[^<>]*>|<(!--)", re.IGNORECASE)
+
+#: Where each closes. CSS and code hold « < » and « > » (« div > p »,
+#: « a<b »), so a block ends at its closing tag and nowhere before; a closing
+#: tag may carry what HTML ignores (``</style foo>`` closes the block), and a
+#: comment ends at ``-->`` whatever it holds (« <!-- a > b --> »).
+_INVISIBLE_CLOSINGS = {
+    **{
+        name: re.compile(rf"</{name}\b[^<>]*>", re.IGNORECASE)
+        for name in ("style", "script", "head", "title")
+    },
+    "!--": re.compile("-->"),
+}
+
+#: A tag, never a « < » inside it: a run of unclosed « < » is read once. With
+#: ``[^>]`` every « < » restarted the scan — 3.6 s for 100 000 of them in a
+#: description, on the event loop (review 12).
+_TAG_RE = re.compile(r"<[^<>]+>")
+
+#: Two spaces or more of any kind: the layout of an HTML description (a dozen
+#: no-break spaces, a space a removed tag left beside one), folded to one space
+#: — the typographic one touching the text, when there is one (:func:`_one_space`).
+_SPACE_RUN_RE = re.compile(r"\s{2,}")
+
+#: The spaces a layout run is made of; any other space is typography (a
+#: no-break, narrow, figure or ideographic space), as ``text_clip.one_line``
+#: reads it.
+_ORDINARY_SPACES = frozenset(" \t\n\r\f\v\x1c\x1d\x1e\x1f\x85\u2028\u2029")
+
+
+def _without_invisible_blocks(html: str) -> str:
+    """A description with the blocks no reader wrote dropped, content included.
+
+    Each closing tag is searched from where its block opened — searched from
+    before it, a stray « </script> » earlier in the text closed a block that
+    had not opened yet and showed a passage twice (review 14) — so every
+    character is read a bounded number of times, and a block left open drops
+    everything after it: its content is not text to show.
+
+    Args:
+        html: The description, as its author's client wrote it.
+
+    Returns:
+        The description, one space where each block was.
+    """
+    kept: list[str] = []
+    position = 0
+    while (opening := _INVISIBLE_OPENING_RE.search(html, position)) is not None:
+        kept.append(html[position : opening.start()])
+        kept.append(" ")
+        kind = (opening.group(1) or opening.group(2)).lower()
+        closing = _INVISIBLE_CLOSINGS[kind].search(html, opening.end())
+        if closing is None:
+            return "".join(kept)
+        position = closing.end()
+    kept.append(html[position:])
+    return "".join(kept)
+
+
+def _one_space(match: re.Match[str]) -> str:
+    """One space for a layout run: the typographic space that touches the text.
+
+    A tag removed beside a no-break space (« Ordre du jour » + « : ») leaves a
+    run ending on it: that space is the typography of what the run separates,
+    and it stays. A space inside a run is layout — an empty paragraph
+    (« <p>&nbsp;</p> ») joined « Intro » and « Suite » with a no-break space
+    (review 14) —, and so is an ordinary one.
+
+    Args:
+        match: The run.
+
+    Returns:
+        The run's last character, or its first, when it is typography; else
+        an ordinary space.
+    """
+    run = match.group(0)
+    return next((char for char in (run[-1], run[0]) if char not in _ORDINARY_SPACES), " ")
 
 
 def _is_meet_url(text: str) -> bool:
@@ -346,12 +434,17 @@ class EventCard(BaseComponent):
         """Render collapsible section with extended details using v4 components."""
         detail_sections: list[str] = []
 
-        # Description block
+        # Description block: a third party's HTML, read as text — its style and
+        # script blocks dropped and its tags removed BEFORE the cut (a cut inside
+        # a tag left its half on the card), its entities decoded AFTER them (so
+        # « &lt;b&gt; » stays text), its layout runs of spaces folded, then one
+        # line cut on a word.
         description = data.get("description", "")
         if description:
-            desc_preview = description[:300] + "..." if len(description) > 300 else description
-            desc_clean = re.sub(r"<[^>]+>", " ", desc_preview).strip()
-            desc_clean = re.sub(r"\s+", " ", desc_clean)
+            text = unescape(_TAG_RE.sub(" ", _without_invisible_blocks(description)))
+            desc_clean = clip_on_word(
+                one_line(_SPACE_RUN_RE.sub(_one_space, text)), _DESCRIPTION_MAX_CHARS
+            )
             if desc_clean:
                 detail_sections.append(render_desc_block(escape_html(desc_clean)))
 
@@ -367,15 +460,18 @@ class EventCard(BaseComponent):
                 and "@resource.calendar.google.com" not in org_email
             )
             if org_name:
-                organized_by_label = V3Messages.get_organized_by(ctx.language)
+                organized_by = V3Messages.get_organized_by(ctx.language)
                 if is_human_email:
                     name_html = (
                         f'<a href="mailto:{escape_html(org_email)}">' f"{escape_html(org_name)}</a>"
                     )
+                    # The space rides INSIDE the span: the card's compaction
+                    # removes the whitespace between two tags, and the name
+                    # ran into the address.
                     email_suffix = (
-                        f' <span style="color:var(--lia-text-muted);'
-                        f'font-size:var(--lia-text-xs)">'
-                        f"{escape_html(org_email)}</span>"
+                        '<span style="color:var(--lia-text-muted);'
+                        'font-size:var(--lia-text-xs)">'
+                        f" {escape_html(org_email)}</span>"
                         if org_email != org_name
                         else ""
                     )
@@ -385,7 +481,8 @@ class EventCard(BaseComponent):
                 detail_sections.append(
                     render_d_item(
                         Icons.PERSON,
-                        f"{organized_by_label} {name_html}{email_suffix}",
+                        organized_by.format(name=name_html, separator=label_separator(ctx.language))
+                        + email_suffix,
                     )
                 )
 
@@ -456,7 +553,10 @@ class EventCard(BaseComponent):
             if att_items:
                 attachments_label = V3Messages.get_attachments(ctx.language)
                 detail_sections.append(
-                    render_d_item(Icons.ATTACHMENT, f'{attachments_label} : {", ".join(att_items)}')
+                    render_d_item(
+                        Icons.ATTACHMENT,
+                        f"{attachments_label}{label_separator(ctx.language)}{', '.join(att_items)}",
+                    )
                 )
 
         # Wrap in collapsible (no separator — chip-row above already has one)
@@ -466,7 +566,6 @@ class EventCard(BaseComponent):
                 trigger_text=V3Messages.get_see_more(ctx.language),
                 content_html=content_html,
                 initially_open=False,
-                language=ctx.language,
                 with_separator=False,
             )
 
@@ -524,13 +623,13 @@ class EventCard(BaseComponent):
         return re.sub(r"\s*\d{4}\s*$", "", full)
 
     def _format_reminder_time(
-        self, minutes: int, method: str = "popup", language: str = "fr"
+        self, minutes: int, method: str = "popup", language: str | None = None
     ) -> str:
         """Format reminder time in human-readable form."""
         method_icon = (
             icon(Icons.EMAIL, size="xs") if method == "email" else icon(Icons.REMINDER, size="xs")
         )
-        time_text = V3Messages.get_reminder_time(language, minutes)
+        time_text = V3Messages.get_reminder_time(resolve_language(language), minutes)
         return f"{method_icon} {time_text}"
 
     def _get_user_response_status(self, data: dict[str, Any]) -> str:

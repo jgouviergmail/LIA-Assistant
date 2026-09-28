@@ -13,7 +13,7 @@ def test_build_agent_config_localizes_the_greeting_and_includes_name():
     assert "Jean" in cfg.name
     # Instant localized greeting (identity only — an empty first message caused
     # a silent standoff at pickup; the LLM continues with objective + question).
-    assert cfg.first_message == GREETING_FIRST_MESSAGE["zh"]
+    assert cfg.first_message == GREETING_FIRST_MESSAGE["zh-CN"]
     assert "{{user_name}}" in cfg.first_message
     assert "{{user_name}}" in cfg.system_prompt
     # Guardrails: availability shared as free/busy only, never meeting details,

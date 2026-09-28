@@ -7,10 +7,10 @@ response prompt directive when the deterministic detector fires (P12).
 
 from __future__ import annotations
 
-_DEFAULT = "en"
+from src.core.i18n import resolve_language
 
-# Keyed by ISO base code (``zh`` for ``zh-CN``); normalized on lookup like
-# the sibling i18n modules.
+# Keyed by the backend canonical codes (``zh-CN``); every lookup resolves its
+# language like the sibling i18n modules (ADR-323).
 #: Compact day-set wordings for a routine's schedule.
 #:
 #: The three sets a weekly schedule falls into often enough to deserve a
@@ -69,9 +69,7 @@ def get_schedule_day_set(kind: str, language: str | None) -> str:
     Returns:
         The wording in the user's language, English as the last resort.
     """
-    from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
-
-    canonical = normalize_language(language or DEFAULT_LANGUAGE)
+    canonical = resolve_language(language)
     table = SCHEDULE_DAY_SETS.get(canonical, SCHEDULE_DAY_SETS["en"])
     return table[kind]
 
@@ -80,7 +78,7 @@ def get_schedule_day_set(kind: str, language: str | None) -> str:
 # can propose a prefilled automation. ``{schedule}`` is built from the shape
 # (day-set wording or weekday name from the central i18n_dates module — no
 # day name is ever declared twice) and ``{time}``/connector when an hour was
-# locked. Keyed by ISO base code (``zh`` for ``zh-CN``), like the sibling tables.
+# locked. Keyed on the backend-canonical codes (``zh-CN``), like the sibling tables.
 RECURRENCE_SCHEDULE_SUGGESTION_TEXT: dict[str, str] = {
     "fr": (
         "Je remarque que tu me demandes ce genre de chose {schedule} — veux-tu "
@@ -108,7 +106,7 @@ RECURRENCE_SCHEDULE_SUGGESTION_TEXT: dict[str, str] = {
         "faccia un'automazione ricorrente programmata {schedule}? Dimmelo e la "
         "creo con queste impostazioni, che potrai modificare."
     ),
-    "zh": (
+    "zh-CN": (
         "我注意到你{schedule}会向我提出这类请求——要不要我把它变成一个定期自动化任务"
         "（{schedule}执行）？告诉我一声，我就按这些设置创建，你随时可以调整。"
     ),
@@ -124,7 +122,7 @@ _SCHEDULE_SHAPE_WORDING: dict[str, dict[str, str]] = {
     "de": {"with_time": "{days} gegen {time}", "no_time": "{days}", "weekly_prefix": "jeden "},
     "es": {"with_time": "{days} hacia las {time}", "no_time": "{days}", "weekly_prefix": "cada "},
     "it": {"with_time": "{days} verso le {time}", "no_time": "{days}", "weekly_prefix": "ogni "},
-    "zh": {"with_time": "{days}{time}左右", "no_time": "{days}", "weekly_prefix": "每"},
+    "zh-CN": {"with_time": "{days}{time}左右", "no_time": "{days}", "weekly_prefix": "每"},
 }
 
 
@@ -143,18 +141,18 @@ def get_recurrence_schedule_suggestion_text(language: str | None, lock: object) 
     """
     from src.core.i18n_dates import format_half_hour_label, get_day_name
 
-    key = (language or _DEFAULT).split("-")[0].lower()
+    key = resolve_language(language)
     template = RECURRENCE_SCHEDULE_SUGGESTION_TEXT.get(
-        key, RECURRENCE_SCHEDULE_SUGGESTION_TEXT[_DEFAULT]
+        key, RECURRENCE_SCHEDULE_SUGGESTION_TEXT["en"]
     )
-    wording = _SCHEDULE_SHAPE_WORDING.get(key, _SCHEDULE_SHAPE_WORDING[_DEFAULT])
+    wording = _SCHEDULE_SHAPE_WORDING.get(key, _SCHEDULE_SHAPE_WORDING["en"])
 
     shape = getattr(lock, "shape", "daily")
     trigger_hour = getattr(lock, "trigger_hour", None)
     modal_weekday = getattr(lock, "modal_weekday", None)
 
     if shape == "weekly" and modal_weekday is not None:
-        days = wording["weekly_prefix"] + get_day_name(modal_weekday, language or _DEFAULT)
+        days = wording["weekly_prefix"] + get_day_name(modal_weekday, key)
     elif shape == "workdays":
         days = get_schedule_day_set("weekdays", language)
     elif shape == "intermittent":

@@ -187,6 +187,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         show_hidden: bool = False,
         due_min: str | None = None,
         due_max: str | None = None,
+        completed_min: str | None = None,
     ) -> dict[str, Any]:
         """
         List tasks in a task list.
@@ -198,6 +199,8 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             show_hidden: Include hidden tasks (no-op for Microsoft).
             due_min: Filter tasks due after this RFC 3339 timestamp.
             due_max: Filter tasks due before this RFC 3339 timestamp.
+            completed_min: Filter tasks completed after this RFC 3339 timestamp
+                (the due filters' own shape; the radio's journal reads a day's).
 
         Returns:
             Dict with 'items' list containing task data.
@@ -215,6 +218,8 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             filters.append(f"dueDateTime/dateTime ge '{due_min}'")
         if due_max:
             filters.append(f"dueDateTime/dateTime le '{due_max}'")
+        if completed_min:
+            filters.append(f"completedDateTime/dateTime ge '{completed_min}'")
 
         if filters:
             params["$filter"] = " and ".join(filters)

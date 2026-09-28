@@ -4,7 +4,7 @@
 
 **Versione**: 6.1
 **Data**: 2026-09-24
-**Applicazione**: LIA v1.47.4
+**Applicazione**: LIA v2.0.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -234,6 +234,10 @@ Il verbale ti arriva per tre vie — una scheda nella chat, un PDF, la tua casel
 
 ---
 
+### Un mezzo personale e un lavoro che resta tuo
+
+Un'assistente utile segue la tua attenzione: una conversazione si aggiorna dagli altri dispositivi senza spostare la pagina, una radio parte solo quando vuoi ascoltare. La stazione unisce la tua giornata a notizie con fonti e mostra fonti e spesa invece di chiedere fiducia cieca. Ciò che LIA crea puoi conservarlo, inviarlo dalla tua casella o lasciarlo scadere. Una routine segue l'ora o la condizione scelta, mai una miscela nascosta delle due.
+
 ## 4. Un server per chi ami
 
 ### 4.1. LIA è un server web condiviso
@@ -273,7 +277,7 @@ Quando usi ChatGPT, le tue conversazioni vivono sui server di OpenAI. Con Gemini
 
 Con LIA, **i dati persistenti del tuo account risiedono nel tuo PostgreSQL**: conversazioni, memoria, profilo, documenti e preferenze. Puoi esportarli, salvarli o chiederne la cancellazione; i segreti sono esclusi intenzionalmente dall'esportazione e i dispositivi collegati sono revocabili. Un modello remoto o un connettore riceve comunque i dati necessari alla richiesta che scegli di fare; un modello locale può mantenere l'elaborazione sul tuo computer. Le credenziali sono cifrate e le sessioni isolate. Ricordare l'ultima posizione è facoltativo, non crea una cronologia e si cancella quando disattivi l'opzione.
 
-La protezione vale anche per ciò che **entra**. Ogni giorno LIA legge testi che non avete scritto voi: il corpo di un'e-mail, la descrizione di un invito redatta dal suo organizzatore, una pagina web, la scheda di un luogo. Chiunque può infilarvi un'istruzione destinata all'assistente. Ogni dato porta ora la propria provenienza, e ciò che viene dall'esterno arriva etichettato come **materiale da analizzare, mai come ordine da eseguire** — con i tentativi di manipolazione individuati e nominati, nelle sei lingue. Il tuo contenuto non viene però mai riscritto: un'e-mail resta ciò che il suo autore ha scritto. Riscrivere darebbe l'illusione di una garanzia che l'aggiramento successivo smentirebbe; nominare ciò che si vede è più onesto, e più utile.
+La protezione vale anche per ciò che **entra**. Ogni giorno LIA legge testi che non hai scritto tu: il corpo di un'e-mail, la descrizione di un invito redatta dal suo organizzatore, una pagina web, la scheda di un luogo. Chiunque può infilarvi un'istruzione destinata all'assistente. Ogni dato porta ora la propria provenienza, e ciò che viene dall'esterno arriva etichettato come **materiale da analizzare, mai come ordine da eseguire** — con i tentativi di manipolazione individuati e nominati, nelle sei lingue. Il tuo contenuto non viene però mai riscritto: un'e-mail resta ciò che il suo autore ha scritto. Riscrivere darebbe l'illusione di una garanzia che l'aggiramento successivo smentirebbe; nominare ciò che si vede è più onesto, e più utile.
 
 ### 5.2. Basta anche un Raspberry Pi
 
@@ -329,7 +333,7 @@ La trasparenza non è un gadget tecnico. Cambia il rapporto con il tuo assistent
 
 ---
 
-Questa trasparenza si estende alla qualità del sistema stesso. L'audit tecnico completo — voti, metodo, punti di forza e ciò che resta da migliorare — è pubblicato nel repository, con il protocollo per ripeterlo e i comandi per verificare le misurazioni: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Non vi si chiede di credere alle cifre di questo sito; potete verificarle.
+Questa trasparenza si estende alla qualità del sistema stesso. L'audit tecnico completo — voti, metodo, punti di forza e ciò che resta da migliorare — è pubblicato nel repository, con il protocollo per ripeterlo e i comandi per verificare le misurazioni: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Non ti si chiede di credere alle cifre di questo sito; puoi verificarle.
 
 La stessa onestà vale per l'utilità stessa: LIA misura se aiuta davvero — un risultato conta solo una volta validato da te, esplicitamente o lasciando un'azione senza correzioni — e questa misura vive nella stessa base locale dei tuoi dati, senza mai coinvolgere una piattaforma di analytics di terze parti.
 
@@ -397,7 +401,7 @@ I grandi assistenti ricordano le tue preferenze e i tuoi dati personali. È util
 
 Ogni ricordo porta un peso emotivo (da -10 a +10), un punteggio di importanza, una sfumatura d'uso, e una categoria psicologica. Non è un semplice database — è un profilo che capisce cosa ti tocca, cosa ti motiva, cosa ti ferisce.
 
-Bisogna però che questi ricordi arrivino. Una memoria vale solo per ciò che cattura davvero, e il silenzio ne è il difetto peggiore: nulla segnala un ricordo che non si è mai formato. LIA conta perciò ciascuna delle sue decisioni di memorizzazione — trattenuto, ignorato, disattivato — affinché lo scarto tra ciò che dovrebbe trattenere e ciò che trattiene sia visibile anziché supposto. Ciò che le confidate di sfuggita chiedendo un'azione conta quanto una confidenza, ciò che scrivete da una messaggistica conta quanto dal browser, e ciò che il sistema dice a sé stesso non conta mai.
+Bisogna però che questi ricordi arrivino. Una memoria vale solo per ciò che cattura davvero, e il silenzio ne è il difetto peggiore: nulla segnala un ricordo che non si è mai formato. LIA conta perciò ciascuna delle sue decisioni di memorizzazione — trattenuto, ignorato, disattivato — affinché lo scarto tra ciò che dovrebbe trattenere e ciò che trattiene sia visibile anziché supposto. Ciò che le confidi di sfuggita chiedendo un'azione conta quanto una confidenza, ciò che scrivi da una messaggistica conta quanto dal browser, e ciò che il sistema dice a sé stesso non conta mai.
 
 E non si ferma a ciò che il tuo messaggio evoca: quando strada facendo emerge un nome o un argomento — il mittente di un'e-mail, un luogo in un documento —, lo cerca nella sua memoria; anche al telefono ritrova ciò che risponde alla tua domanda invece dei suoi ultimi ricordi.
 

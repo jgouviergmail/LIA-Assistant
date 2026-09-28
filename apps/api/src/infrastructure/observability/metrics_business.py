@@ -29,7 +29,8 @@ conversation_cost_usd = Histogram(
     "conversation_cost_usd",
     "Cost per conversation in USD (distribution)",
     ["agent_type"],
-    # agent_type: contacts, generic, etc.
+    # agent_type: the turn's execution mode (pipeline, react); generic without one,
+    # unknown when the calculation failed
     # Buckets optimized for typical LLM conversation costs
     # $0.001 (1 mill) to $1 (expensive multi-turn conversations)
     buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
@@ -72,11 +73,12 @@ agent_success_rate_total = Counter(
     "agent_success_rate_total",
     "Total agent execution outcomes",
     ["agent_type", "outcome"],
-    # outcome: success, failure, partial_success, user_abandoned
-    # success: Agent completed task without errors
-    # failure: Agent failed to complete task (errors, tool failures)
-    # partial_success: Agent partially completed task (some tools succeeded)
-    # user_abandoned: User stopped responding mid-conversation
+    # agent_type: the turn's execution mode (pipeline, react); generic without one
+    # (a failed calculation judges no agent, so it is never counted here)
+    # outcome: success, failure, partial_success — judged on the CURRENT
+    # turn's own evidence: the planner's verdict, the agents' results, the
+    # ReAct loop's result, the drafts the person confirmed; a turn that left
+    # no agent execution to read is not counted (business_metrics.OUTCOME_NO_AGENT)
 )
 
 agent_tool_usage_total = Counter(
@@ -134,10 +136,10 @@ connector_activation_rate = Gauge(
 
 cost_per_successful_conversation_usd = Histogram(
     "cost_per_successful_conversation_usd",
-    "Cost per successful conversation (only conversations that achieved goal)",
+    "Model cost in USD of a successful turn at its answer, from its run's own accounting",
     ["agent_type"],
-    # Excludes failed/abandoned conversations
-    # Critical for ROI calculation
+    # One observation per successful TURN — the outcome is the turn's —
+    # never the thread's running total. Critical for ROI calculation.
     buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
 )
 

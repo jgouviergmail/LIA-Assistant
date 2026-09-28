@@ -1642,6 +1642,40 @@
           }
         }
       ]
+    },
+    {
+      "id": 77,
+      "type": "timeseries",
+      "title": "Model Outputs Cut at the Budget",
+      "description": "ReAct model calls the provider stopped at their output budget (ADR-275, amended). The cut text is refused: never written to the thread, never served; the turn ends on what the tools returned and its answer says it was interrupted. Expected: 0. Any occurrence deserves a look (on 2026-09-25 one such output, then kept in the thread, was copied by the model into later turns of the account: seven routines the next morning).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 102
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(react_output_truncated_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "cut outputs",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
     }
   ]
 }

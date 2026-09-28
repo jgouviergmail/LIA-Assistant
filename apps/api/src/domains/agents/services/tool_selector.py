@@ -142,7 +142,7 @@ class SemanticToolSelector:
 
         # Select tools for query
         result = await selector.select_tools(
-            query="cherche les contacts de Jean",
+            query="find Jean's contacts",
             available_tools=registry.list_tool_manifests()
         )
 

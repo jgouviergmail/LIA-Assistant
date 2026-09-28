@@ -1,10 +1,11 @@
 """Central i18n for the telephony feature (agentic outbound calls).
 
 Consolidates the strings that were interim-inlined across the telephony modules
-during à-blanc development (``agent_prompt.py`` disclosure, ``availability.py``
+during dry-run development (``agent_prompt.py`` disclosure, ``availability.py``
 free/busy phrases, ``agents/tools/telephony_tools.py`` caller-facing phrases,
 ``return_synthesis.py`` delivery strings). All 6 supported languages, keyed by
-ISO code (``zh`` for ``zh-CN``); the app language is normalized on lookup.
+the backend canonical codes (``zh-CN``); every lookup resolves its language —
+normalised when given, the declared one when absent (ADR-323).
 
 Data module (like ``core/i18n_*``): no domain imports, exempt from the size
 ratchet. The domain modules import the accessors below.
@@ -12,15 +13,7 @@ ratchet. The domain modules import the accessors below.
 
 from __future__ import annotations
 
-_DEFAULT = "en"
-
-
-def _iso(language: str | None) -> str:
-    """Normalize an app language code to the ISO key used by the tables below."""
-    if not language:
-        return _DEFAULT
-    return language.split("-")[0].lower()
-
+from src.core.i18n import resolve_language
 
 # ============================================================================
 # Agent greeting — the first message spoken the instant the call connects.
@@ -40,13 +33,13 @@ GREETING_FIRST_MESSAGE: dict[str, str] = {
     "de": "Guten Tag, hier spricht der Sprachassistent von {{user_name}}.",
     "es": "Hola, soy el asistente de voz de {{user_name}}.",
     "it": "Salve, sono l'assistente vocale di {{user_name}}.",
-    "zh": "您好，我是{{user_name}}的语音助手。",
+    "zh-CN": "您好，我是{{user_name}}的语音助手。",
 }
 
 
 def get_greeting_first_message(language: str | None) -> str:
     """Instant-pickup greeting for the agent, in the user's language."""
-    return GREETING_FIRST_MESSAGE.get(_iso(language), GREETING_FIRST_MESSAGE[_DEFAULT])
+    return GREETING_FIRST_MESSAGE.get(resolve_language(language), GREETING_FIRST_MESSAGE["en"])
 
 
 # ============================================================================
@@ -62,23 +55,23 @@ SELF_GREETING_FIRST_MESSAGE: dict[str, str] = {
     "de": "Hallo, hier ist dein Assistent LIA. Spreche ich mit {name}?",
     "es": "Hola, soy tu asistente LIA. ¿Hablo con {name}?",
     "it": "Ciao, sono il tuo assistente LIA. Parlo con {name}?",
-    "zh": "你好，我是你的助手 LIA。请问是{name}吗？",
+    "zh-CN": "你好，我是你的助手 LIA。请问是{name}吗？",
 }
 
 VERIFICATION_GREETING_FIRST_MESSAGE: dict[str, str] = {
-    "fr": "Bonjour, c'est l'assistant LIA de {name}. Je vous appelle pour vérifier ce numéro.",
+    "fr": "Bonjour, c'est l'assistant LIA de {name}. J'appelle pour vérifier ce numéro.",
     "en": "Hello, this is {name}'s assistant LIA. I am calling to verify this number.",
     "de": "Hallo, hier ist der Assistent LIA von {name}. Ich rufe an, um diese Nummer zu bestätigen.",
     "es": "Hola, soy el asistente LIA de {name}. Llamo para verificar este número.",
-    "it": "Salve, sono l'assistente LIA di {name}. La chiamo per verificare questo numero.",
-    "zh": "您好，我是{name}的助手 LIA。我来电是为了验证这个号码。",
+    "it": "Salve, sono l'assistente LIA di {name}. Chiamo per verificare questo numero.",
+    "zh-CN": "您好，我是{name}的助手 LIA。我来电是为了验证这个号码。",
 }
 
 
 def get_self_greeting(language: str | None, *, name: str) -> str:
     """Greeting of an owner call, rendered with the person's name."""
     template = SELF_GREETING_FIRST_MESSAGE.get(
-        _iso(language), SELF_GREETING_FIRST_MESSAGE[_DEFAULT]
+        resolve_language(language), SELF_GREETING_FIRST_MESSAGE["en"]
     )
     return template.format(name=name)
 
@@ -86,7 +79,7 @@ def get_self_greeting(language: str | None, *, name: str) -> str:
 def get_verification_greeting(language: str | None, *, name: str) -> str:
     """Greeting of a number-verification call, rendered with the person's name."""
     table = VERIFICATION_GREETING_FIRST_MESSAGE
-    return table.get(_iso(language), table[_DEFAULT]).format(name=name)
+    return table.get(resolve_language(language), table["en"]).format(name=name)
 
 
 # ============================================================================
@@ -119,7 +112,7 @@ AVAILABILITY_PHRASES: dict[str, dict[str, str]] = {
         "all_free": "Nessuna fascia occupata nel periodo — completamente disponibile.",
         "unavailable": "Disponibilità non disponibile (nessun calendario connesso).",
     },
-    "zh": {
+    "zh-CN": {
         "header": "该时间段内的占用时段：",
         "all_free": "该时间段内无占用 — 完全有空。",
         "unavailable": "无法获取空闲信息（未连接日历）。",
@@ -129,7 +122,7 @@ AVAILABILITY_PHRASES: dict[str, dict[str, str]] = {
 
 def get_availability_phrases(language: str | None) -> dict[str, str]:
     """Availability structural phrases (header / all_free / unavailable)."""
-    return AVAILABILITY_PHRASES.get(_iso(language), AVAILABILITY_PHRASES[_DEFAULT])
+    return AVAILABILITY_PHRASES.get(resolve_language(language), AVAILABILITY_PHRASES["en"])
 
 
 # ============================================================================
@@ -308,7 +301,7 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
             "Dimmi quale (o dammi direttamente il numero)."
         ),
     },
-    "zh": {
+    "zh-CN": {
         "already_active": "已有一通电话正在进行中。我不会再拨打第二通，请等它结束后再试。",
         "call_rejected": (
             "电话服务拒绝了这次通话：其配置需要修正（主叫号码未验证、余额不足等）。在服务商侧解决之前，重试不会有帮助。"
@@ -333,7 +326,7 @@ TOOL_PHRASES: dict[str, dict[str, str]] = {
 
 def get_tool_phrases(language: str | None) -> dict[str, str]:
     """place_phone_call caller-facing phrases (guard / resolution failures)."""
-    return TOOL_PHRASES.get(_iso(language), TOOL_PHRASES[_DEFAULT])
+    return TOOL_PHRASES.get(resolve_language(language), TOOL_PHRASES["en"])
 
 
 # ============================================================================
@@ -540,7 +533,7 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "Non ho potuto riportare la nostra chiamata nella chat. Ecco cosa ne trattengo; ridimmi cosa vuoi che faccia."
         ),
     },
-    "zh": {
+    "zh-CN": {
         "title": "通话小结",
         "fallback": "我已为你拨打了电话，但无法生成详细小结。需要我再试一次的话告诉我。",
         "appointment_suggestion": "📅 已约定时间：{datetime_local}{location_part}。要我帮你加到日历里吗？",
@@ -620,7 +613,7 @@ CONTEXT_HEADINGS: dict[str, dict[str, str]] = {
         "recent_exchanges": "I nostri ultimi scambi",
         "more_not_shown": "(… altri {count}, non mostrati)",
     },
-    "zh": {
+    "zh-CN": {
         "memories": "我对你的了解",
         "agenda": "你的日程（未来 36 小时）",
         "reminders": "你的待办提醒",
@@ -633,9 +626,9 @@ CONTEXT_HEADINGS: dict[str, dict[str, str]] = {
 
 def get_context_headings(language: str | None) -> dict[str, str]:
     """Headings of the owner-call context block, in the user's language."""
-    return CONTEXT_HEADINGS.get(_iso(language), CONTEXT_HEADINGS[_DEFAULT])
+    return CONTEXT_HEADINGS.get(resolve_language(language), CONTEXT_HEADINGS["en"])
 
 
 def get_return_phrases(language: str | None) -> dict[str, str]:
     """Post-call delivery strings (title / synthesis-failure fallback)."""
-    return RETURN_PHRASES.get(_iso(language), RETURN_PHRASES[_DEFAULT])
+    return RETURN_PHRASES.get(resolve_language(language), RETURN_PHRASES["en"])

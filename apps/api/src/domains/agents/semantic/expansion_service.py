@@ -48,17 +48,17 @@ class SemanticExpansionService:
         ...     domains=["route"],
         ...     has_person_reference=True,
         ...     required_semantic_types={"physical_address"},
-        ...     query="itinéraire chez mon frère"
+        ...     query="route to my brother's place"
         ... )
         >>> result
         ["route", "contact"]  # contact added because it provides physical_address
 
-        >>> # Query: "recherche mes 2 prochains rdv"
+        >>> # Query: "find my next 2 meetings"
         >>> result = await service.expand_domains_iso_functional(
         ...     domains=["calendar"],
         ...     has_person_reference=False,
         ...     required_semantic_types={"datetime"},
-        ...     query="recherche mes 2 prochains rdv"
+        ...     query="find my next 2 meetings"
         ... )
         >>> result
         ["calendar"]  # NO expansion (no person reference)
@@ -130,7 +130,7 @@ class SemanticExpansionService:
             ...     domains=["route"],
             ...     has_person_reference=True,
             ...     required_semantic_types={"physical_address"},
-            ...     query="itinéraire chez mon frère"
+            ...     query="route to my brother's place"
             ... )
             ["route", "contact"]
 
@@ -139,7 +139,7 @@ class SemanticExpansionService:
             ...     domains=["event"],
             ...     has_person_reference=False,
             ...     required_semantic_types={"physical_address"},
-            ...     query="recherche mes 2 prochains rdv"
+            ...     query="find my next 2 meetings"
             ... )
             ["event"]  # NO expansion
 
@@ -148,7 +148,7 @@ class SemanticExpansionService:
             ...     domains=["event"],
             ...     has_person_reference=True,
             ...     required_semantic_types={"email_address"},
-            ...     query="rdv avec mon frère"
+            ...     query="meeting with my brother"
             ... )
             ["event", "contact"]
         """
@@ -339,8 +339,8 @@ class SemanticExpansionService:
         ``source_domains`` are added — the domain that materializes the
         referenced entity can provide the missing value.
 
-        The entity anchoring is what prevents blind expansion: "quel temps
-        demain ?" requires physical_address too, but with no referenced
+        The entity anchoring is what prevents blind expansion: "what's the
+        weather tomorrow?" requires physical_address too, but with no referenced
         entity nothing is added. Replaces the never-wired
         ``expand_domains_semantic`` (threshold-based, expanded via the
         required type's providers with no evidence anchor).
@@ -361,7 +361,7 @@ class SemanticExpansionService:
             order: entities and providers iterated in sorted/ontology order)
 
         Example:
-            >>> # "comment aller chez mon frère ?" → route requires
+            >>> # "how do I get to my brother's?" → route requires
             >>> # physical_address; person evidence → Contact
             >>> await service.expand_domains_evidence_driven(
             ...     domains=["route"],

@@ -734,6 +734,36 @@ describe('useChat — conversation management API', () => {
     expect(result.current.messages[0].content).toBe('rappel');
   });
 
+  it('mergeServerPage joins the server page without replacing what is on screen (ADR-320)', () => {
+    const { result } = renderHook(() => useChat());
+    const shown = {
+      id: 'm-1',
+      role: 'user' as const,
+      content: 'q',
+      timestamp: new Date('2026-09-25T10:00:00Z'),
+      metadata: { message_db_id: 'm-1' },
+    };
+    const arrived = {
+      id: 'm-2',
+      role: 'assistant' as const,
+      content: 'from another tab',
+      timestamp: new Date('2026-09-25T10:01:00Z'),
+      metadata: { message_db_id: 'm-2' },
+    };
+    act(() => {
+      result.current.setMessages([shown]);
+    });
+    const before = result.current.messages[0];
+
+    act(() => {
+      result.current.mergeServerPage([shown, arrived]);
+    });
+
+    expect(result.current.messages.map(m => m.id)).toEqual(['m-1', 'm-2']);
+    // The bubble already on screen is the SAME object: nothing remounts.
+    expect(result.current.messages[0]).toBe(before);
+  });
+
   it('clearMessages wipes the conversation and the totals', async () => {
     scriptStream([token('x'), done({ tokens_in: 9, message_count: 2 })]);
     const { result } = renderHook(() => useChat());

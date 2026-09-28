@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 import structlog
 
 from src.core.config import settings
+from src.core.i18n import normalize_language
 
 # Moved to core/time_utils (P7) — kept under its historical private name.
 from src.core.time_utils import (
@@ -192,7 +193,7 @@ class BriefingService:
     def __init__(self, user: User) -> None:
         self.user = user
         self.user_tz = _resolve_user_tz(user)
-        self.language = user.language or "en"
+        self.language = normalize_language(user.language)
         # UXR Lot 5 (B4): user-hidden sections are pure placeholders — no
         # fetch, no cache IO. Tolerant reader (malformed JSONB → defaults).
         self._hidden_sections = frozenset(
@@ -681,11 +682,13 @@ class BriefingService:
         *,
         ttl: int,
         force: bool,
+        respect_hidden: bool = True,
+        record: bool = True,
     ) -> CardSection:
         """Wrap a fetcher with cache + status mapping. **Never raises.**"""
         # 0. UXR Lot 5 (B4): a user-hidden section short-circuits BEFORE any
         # fetch or cache IO — the economy is the point, not just the display.
-        if name in self._hidden_sections:
+        if respect_hidden and name in self._hidden_sections:
             briefing_section_status_total.labels(
                 section=name, status=CardStatus.HIDDEN.value, origin=_ORIGIN_HIDDEN
             ).inc()
@@ -710,7 +713,8 @@ class BriefingService:
         # not the person's mailbox, and a hidden section never runs at all.
         started = time.perf_counter()
         section = await self._fetch_and_map(name, fetcher)
-        self._record_consultation(name, section, started)
+        if record:
+            self._record_consultation(name, section, started)
 
         # 3. Persist on cacheable outcomes (skip ttl=0 and ERROR — errors should
         #    retry next request, not be sticky).
@@ -835,6 +839,44 @@ class BriefingService:
         """
         cards, _missing = await self._read_cached_bundle()
         return cards
+
+    async def read_selected_cards(self, sections: frozenset[str]) -> CardsBundle:
+        """Read another surface's allowed sources, filling cold or expired caches.
+
+        The caller supplies its own source selection, independent of dashboard display
+        preferences, and records live reads under its own run. Unselected sections are
+        HIDDEN without cache or source IO. ``from_cache`` distinguishes reuse from a
+        consultation, including empty results. No model or separate spend tracker runs:
+        source costs remain attached to the caller's ambient tracker.
+
+        Args:
+            sections: The section names the calling surface permits reading.
+
+        Returns:
+            The bundle with only the selected sections populated.
+
+        Raises:
+            ValueError: When a selected section does not exist.
+        """
+        if sections - set(SECTION_NAMES):
+            raise ValueError("unknown briefing section")
+        plans = [plan for plan in self._build_plan(frozenset()) if plan.name in sections]
+        results = await asyncio.gather(
+            *(
+                self._section(
+                    plan.name,
+                    plan.fetcher,
+                    ttl=plan.ttl,
+                    force=False,
+                    respect_hidden=False,
+                    record=False,
+                )
+                for plan in plans
+            )
+        )
+        hidden = CardSection(status=CardStatus.HIDDEN, generated_at=datetime.now(UTC))
+        selected = dict(zip((plan.name for plan in plans), results, strict=True))
+        return CardsBundle(**{name: selected.get(name, hidden) for name in SECTION_NAMES})
 
     async def _read_cached_bundle(self) -> tuple[CardsBundle, frozenset[str]]:
         """Read the bundle from cache, and say which sections were absent.

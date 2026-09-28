@@ -39,6 +39,7 @@ _SEARCH_QUERY_TEMPLATES: dict[str, str] = {
     "es": "Noticias recientes y datos interesantes sobre {topic}",
     "de": "Aktuelle Nachrichten und interessante Fakten über {topic}",
     "it": "Notizie recenti e fatti interessanti su {topic}",
+    "zh-CN": "关于{topic}的最新新闻和有趣事实",
 }
 
 
@@ -71,32 +72,24 @@ class PerplexityContentSource:
         """Initialize Perplexity content source."""
         self._clients: dict[str, PerplexityClient] = {}
 
-    def _get_client(
-        self,
-        api_key: str,
-        user_id: str,
-        user_language: str,
-    ) -> PerplexityClient:
+    def _get_client(self, api_key: str, user_id: str) -> PerplexityClient:
         """
         Get or create Perplexity client for a user.
 
         Args:
             api_key: Perplexity API key
             user_id: User UUID as string
-            user_language: User's language code
 
         Returns:
             PerplexityClient instance
         """
-        cache_key = f"{user_id}:{user_language}"
-        if cache_key not in self._clients:
-            self._clients[cache_key] = PerplexityClient(
+        if user_id not in self._clients:
+            self._clients[user_id] = PerplexityClient(
                 api_key=api_key,
                 user_id=UUID(user_id),
                 model="sonar",
-                user_language=user_language,
             )
-        return self._clients[cache_key]
+        return self._clients[user_id]
 
     async def generate(
         self,
@@ -137,7 +130,7 @@ class PerplexityContentSource:
                 )
                 return None
 
-            client = self._get_client(api_key, user_id, user_language)
+            client = self._get_client(api_key, user_id)
 
             logger.debug(
                 "perplexity_source_searching",

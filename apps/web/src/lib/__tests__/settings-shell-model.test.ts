@@ -21,6 +21,7 @@ const ALL: SettingsSearchAvailability = {
   peersEnabled: true,
   sandboxEgressEnabled: true,
   liveEnabled: true,
+  radioEnabled: true,
   debugUserAccess: true,
 };
 

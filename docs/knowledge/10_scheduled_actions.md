@@ -1,7 +1,13 @@
 # Scheduled Actions
 
 ## What is a scheduled action?
-A scheduled action is a **recurring task** executed automatically by LIA:
+A routine is a task LIA can run again. In the studio you choose **one trigger**:
+a schedule, or a condition. A condition routine has no calendar schedule: LIA
+checks its source on the system's cadence, day and night, and runs only when a
+new matching fact appears. A check with no match creates no run. You can set a
+last day for the watch. The editor shows only the fields of the chosen mode.
+
+A scheduled routine uses the recurrence engine:
 
 **📋 Principle:**
 • You define a **title**, an **instruction** and a **schedule**
@@ -68,7 +74,7 @@ Above the list, the **Week view** draws your routines on a grid: hours down, day
 • Red: failed
 • Amber: proposed, waiting for your approval in the chat
 • Grey: the routine is paused
-• A ring marks a routine whose condition is checked at that time; a routine running right now pulses
+• A ring marks a routine that waits for a condition: its dots are the checks that found something new and ran; a routine running right now pulses
 
 **🔁 Reset:**
 • The colours cover the current week only and start over every Monday
@@ -126,6 +132,23 @@ Deleting an automation remains a Settings action.
 ## Can LIA watch for a reply and tell me the minute it arrives?
 Yes. On the Today briefing, a mail card offers *Watch for a reply from …*: one tap creates a condition routine keyed on that **sender** (never on the subject), valid for two weeks, and LIA already checks that you are not watching that person twice.
 
-**Served to the minute:** a condition routine used to be checked only when the executor passed by, up to two hours later. Now the same wake-up that reacts to your mailbox serves the watch as soon as the reply lands — it only brings the routine's next check forward; the routine itself still runs where it always did, under your usual limits.
+**Checked all the time:** a watch has no schedule — LIA checks it at a regular interval, day and night (its card says how often). And on a Gmail mailbox, the same wake-up that reacts to your mail brings that check forward as soon as the reply lands; the routine itself still runs where it always did, under your usual limits.
 
-**And it ends by itself:** a routine that reaches the end of its series is now *closed*, not left "active" forever. In Settings → Scheduled actions it reads as completed, and you can delete it or set it up again.
+**And it ends by itself:** a watch stops after its last day and is then *closed*, not left "active" forever. In Settings → Scheduled actions it reads as completed, and you can delete it or set it up again.
+
+## Can a routine run when something happens rather than on a schedule?
+Yes. When you create or edit a routine, first choose **when it runs**: *on a schedule* (days and times), or *when something happens* — an overdue task, a matching mail, an upcoming event, a new document, a weather change. A routine that waits for something has **no schedule at all**:
+
+**🔎 Checked by LIA:**
+• At a regular interval, day and night — the dialog and the card say how often; the weather is checked less often than your mail, tasks, calendar and documents
+• It runs only when something **new** is there: the same mail, task or event never triggers it twice
+• A daily limit on runs, shown in the dialog; something new past it waits for the next day
+
+**📅 Until when:**
+• *Watch until* is optional: the routine stops after that day, or keeps watching until you pause it
+
+**🩺 On the card:**
+• The last check, and why it failed if the source could not be read (not set up, or no answer)
+• **Check now** instead of Test: a real check, which runs the routine only if something new is there
+
+A night-time fact is announced at night: there are no quiet hours yet.

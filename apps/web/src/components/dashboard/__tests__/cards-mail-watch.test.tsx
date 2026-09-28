@@ -7,8 +7,8 @@
  * conditions from natural language is a design of its own, deferred in writing.
  *
  * What must hold:
- *  - it posts a condition routine on the SENDER, ending through the
- *    recurrence's own `SeriesEnd` rather than a field of its own;
+ *  - it posts a condition routine on the SENDER, with no schedule (the
+ *    system checks it, ADR-322), ending on the condition's own last day;
  *  - a mail whose sender came through as neither an address nor a name offers
  *    NO chip, because the API would refuse the payload and a button whose only
  *    outcome is an error is worse than no button;
@@ -119,20 +119,22 @@ describe('posting a watch', () => {
     const [endpoint, payload] = post.mock.calls[0];
     expect(endpoint).toBe('/scheduled-actions');
     expect(payload.trigger_kind).toBe('condition');
+    // Exactly these keys: a stray one would be refused by the API (ADR-322).
     expect(payload.condition_config).toEqual({
       type: 'mail_match',
       query: 'alice@example.com',
+      until: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     });
   });
 
-  it('ends through the recurrence, never a field of its own', async () => {
+  it('ends on the last day of the condition and carries no schedule', async () => {
     const { user } = renderWithProviders(<MailsCard {...cardProps} section={NAMED} />);
 
     await runCardAction(user, WATCH);
 
     const [, payload] = post.mock.calls[0];
-    expect(payload.recurrence.end.kind).toBe('on_date');
-    expect(payload.recurrence.end.on_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(payload.condition_config.until).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(payload).not.toHaveProperty('recurrence');
     expect(payload).not.toHaveProperty('expires_at');
   });
 

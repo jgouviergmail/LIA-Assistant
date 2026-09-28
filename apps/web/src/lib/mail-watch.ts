@@ -18,21 +18,21 @@
  *   `Re:` and `Fwd:` and is often shared by unrelated threads, while the
  *   address is the stable identity of who one is waiting for. It falls back to
  *   the display name only when no address came through.
- * - **the end is the recurrence's own `SeriesEnd`.** The engine already ends a
- *   series, publishes it, edits it in the studio and tells it in six
- *   languages; a second field for « until when » would be a second authority.
- * - **the cadence is a safety net, not the mechanism.** The push wake serves a
- *   matching mail within a couple of minutes; these two daily evaluations are
- *   what still answers on an account with no push channel configured.
+ * - **a watch has no schedule** (ADR-322). The system checks it on its own
+ *   cadence (every ten minutes by default), day and night, and the push wake
+ *   brings a matching mail's check forward to within a couple of minutes. It
+ *   used to carry a schedule of its own — twice a day, 09:00 and 17:00 — which
+ *   was its only clock on an account with no push channel: an awaited reply
+ *   could wait sixteen hours.
+ * - **the end is the condition's own last day** (`until`), the one end a
+ *   condition routine has, edited in the studio like the rest of it.
  */
 
-import type { ConditionConfig, RecurrenceSpec } from '@/hooks/useScheduledActions';
+import type { ConditionConfig } from '@/hooks/useScheduledActions';
+import { formatLocalDateInput } from '@/lib/date-format';
 
-/** How long a watch lives before its series ends, in days. */
+/** How long a watch lives before it ends, in days. */
 export const MAIL_WATCH_DAYS = 14;
-
-/** The fallback evaluations of a served day, in the account's own zone. */
-export const MAIL_WATCH_HOURS = [9, 17] as const;
 
 /** The longest query `ConditionConfig` accepts (mirrors the backend bound). */
 export const MAIL_WATCH_QUERY_MAX = 120;
@@ -46,11 +46,10 @@ export interface MailWatchSource {
   sender_name: string | null;
 }
 
-/** The payload `POST /scheduled-actions` expects for a watch. */
+/** The payload `POST /scheduled-actions` expects for a watch: no schedule. */
 export interface MailWatchPayload {
   title: string;
   action_prompt: string;
-  recurrence: RecurrenceSpec;
   trigger_kind: 'condition';
   condition_config: ConditionConfig;
 }
@@ -81,21 +80,18 @@ export function canWatch(mail: MailWatchSource): boolean {
 }
 
 /**
- * The local date the series ends on, `YYYY-MM-DD`.
+ * The local date the watch ends on, `YYYY-MM-DD`.
  *
  * Built from the local calendar fields rather than from `toISOString()`, which
  * converts to UTC first: on the evening of the 14th in Paris that would name
- * the 15th, ending the series a day early for half of every day.
+ * the 15th, ending the watch a day early for half of every day.
  *
  * @param from - The day to count from.
  * @param days - How many days the watch lives.
  * @returns The last local day, included.
  */
 export function watchEndDate(from: Date, days: number = MAIL_WATCH_DAYS): string {
-  const end = new Date(from.getFullYear(), from.getMonth(), from.getDate() + days);
-  const month = `${end.getMonth() + 1}`.padStart(2, '0');
-  const day = `${end.getDate()}`.padStart(2, '0');
-  return `${end.getFullYear()}-${month}-${day}`;
+  return formatLocalDateInput(new Date(from.getFullYear(), from.getMonth(), from.getDate() + days));
 }
 
 /**
@@ -117,26 +113,11 @@ export function buildMailWatch(input: {
     throw new Error('mail_watch_without_sender');
   }
   const from = input.now ?? new Date();
-  const anchor = watchEndDate(from, 0);
   return {
     title: input.title,
     action_prompt: input.actionPrompt,
-    recurrence: {
-      freq: 'daily',
-      interval: 1,
-      anchor_date: anchor,
-      times: {
-        mode: 'at',
-        at: MAIL_WATCH_HOURS.map(hour => ({ hour, minute: 0 })),
-      },
-      byweekday: [],
-      bymonthday: [],
-      nth_weekday: null,
-      bymonth: [],
-      end: { kind: 'on_date', on_date: watchEndDate(from) },
-    },
     trigger_kind: 'condition',
-    condition_config: { type: 'mail_match', query },
+    condition_config: { type: 'mail_match', query, until: watchEndDate(from) },
   };
 }
 

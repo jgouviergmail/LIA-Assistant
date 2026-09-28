@@ -8,6 +8,8 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from src.core.config import settings
+from src.core.i18n import resolve_language
+from src.core.i18n_api_messages import APIMessages
 from src.domains.personalities.constants import (
     MAX_CODE_LENGTH,
     MAX_DESCRIPTION_LENGTH,
@@ -95,12 +97,25 @@ class PersonalityCreate(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=MAX_TITLE_LENGTH)
     description: str | None = Field(None, min_length=1, max_length=MAX_DESCRIPTION_LENGTH)
     source_language: str = Field(
-        settings.default_language, description="Language for title/description"
+        default_factory=resolve_language,
+        description="Language for title/description (the admin's own when absent)",
     )
     # Full format (translations list)
     translations: list[PersonalityTranslationCreate] | None = Field(
         None, description="Optional translations list"
     )
+
+    @field_validator("translations")
+    @classmethod
+    def _one_translation_per_language(
+        cls, value: list[PersonalityTranslationCreate] | None
+    ) -> list[PersonalityTranslationCreate] | None:
+        """Two rows in one language would break the table's unique pair."""
+        if value:
+            languages = [translation.language_code for translation in value]
+            if len(set(languages)) != len(languages):
+                raise ValueError(APIMessages.personality_translation_language_repeated())
+        return value
 
     def get_translations(self) -> list[PersonalityTranslationCreate]:
         """Get translations list, converting from simplified format if needed."""

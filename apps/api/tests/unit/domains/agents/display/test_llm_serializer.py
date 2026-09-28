@@ -151,7 +151,7 @@ class TestExtractDisplayName:
     def test_no_name_found(self):
         """Return default when no name found."""
         payload = {"randomField": "value"}
-        assert _extract_display_name(payload) == "(sans nom)"
+        assert _extract_display_name(payload) == "(unnamed)"
 
 
 class TestShouldSkip:

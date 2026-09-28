@@ -17,6 +17,11 @@ replaces.
 The arithmetic is server-side (``GREATEST``, ``LEAST``, ``+``), never
 SELECT-then-write in Python: two concurrent segments of the same turn are rare
 but possible, and a lost update here would silently understate a turn.
+
+A run that has no resumption — an act out of any conversation, such as a radio
+session — is written by ``record_once`` instead: the same row, and on a
+conflict NOTHING, because a second filing of such a run is two closers racing,
+never a second segment (ADR-263 amendment 2026-09-27).
 """
 
 from __future__ import annotations
@@ -26,6 +31,7 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 
 from sqlalchemy import Select, func, select
+from sqlalchemy.dialects.postgresql import Insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,26 +59,7 @@ class DecisionRepository:
             decision: The live record the turn produced.
             ended_at: When this segment ended.
         """
-        duration_ms = max(0, int((ended_at - decision.started_at).total_seconds() * 1000))
-        statement = pg_insert(AgentDecision).values(
-            id=uuid.uuid4(),
-            user_id=decision.user_id,
-            thread_id=decision.thread_id,
-            run_id=decision.run_id,
-            source=decision.source,
-            execution_mode=decision.execution_mode,
-            route=decision.route,
-            plan_step_count=decision.plan_step_count,
-            request_message_id=decision.request_message_id,
-            response_message_id=decision.response_message_id,
-            outcome=decision.outcome.value,
-            stop_reason=decision.stop_reason,
-            segments=1,
-            started_at=decision.started_at,
-            ended_at=ended_at,
-            duration_ms=duration_ms,
-            schema_version=AGENT_EFFECT_SCHEMA_VERSION,
-        )
+        statement = _insert(decision, ended_at=ended_at)
         existing = statement.excluded
         current = AgentDecision.__table__.c
         await self.db.execute(
@@ -107,6 +94,25 @@ class DecisionRepository:
                         existing.response_message_id, current.response_message_id
                     ),
                 },
+            )
+        )
+
+    async def record_once(self, decision: TurnDecision, *, ended_at: datetime) -> None:
+        """Write a run that cannot be resumed; a second filing of it changes nothing.
+
+        An out-of-turn act has no HITL resumption, so the same run written
+        twice is two closers racing — a radio session's loop and the service
+        that closes a session no loop holds — never a turn that ran twice. The
+        merge of :meth:`record` would count it as a second segment and double
+        its duration; here the first filing stands, atomically.
+
+        Args:
+            decision: The completed record.
+            ended_at: When the act ended.
+        """
+        await self.db.execute(
+            _insert(decision, ended_at=ended_at).on_conflict_do_nothing(
+                constraint="uq_agent_decisions_run"
             )
         )
 
@@ -212,6 +218,38 @@ class DecisionRepository:
             .offset(offset)
         )
         return list(rows.scalars().all()), int(total)
+
+
+def _insert(decision: TurnDecision, *, ended_at: datetime) -> Insert:
+    """The row one filing writes, before either conflict policy is applied.
+
+    Args:
+        decision: The record to persist.
+        ended_at: When this segment, or this act, ended.
+
+    Returns:
+        The INSERT, ready for ``on_conflict_do_update`` or ``on_conflict_do_nothing``.
+    """
+    duration_ms = max(0, int((ended_at - decision.started_at).total_seconds() * 1000))
+    return pg_insert(AgentDecision).values(
+        id=uuid.uuid4(),
+        user_id=decision.user_id,
+        thread_id=decision.thread_id,
+        run_id=decision.run_id,
+        source=decision.source,
+        execution_mode=decision.execution_mode,
+        route=decision.route,
+        plan_step_count=decision.plan_step_count,
+        request_message_id=decision.request_message_id,
+        response_message_id=decision.response_message_id,
+        outcome=decision.outcome.value,
+        stop_reason=decision.stop_reason,
+        segments=1,
+        started_at=decision.started_at,
+        ended_at=ended_at,
+        duration_ms=duration_ms,
+        schema_version=AGENT_EFFECT_SCHEMA_VERSION,
+    )
 
 
 __all__ = ["DecisionRepository"]

@@ -132,15 +132,28 @@ async def test_a_cancelled_owner_does_not_strand_the_waiters() -> None:
 
 
 async def test_the_registry_is_released_even_when_every_caller_left() -> None:
-    work = Work(delay=0.03)
-    owner = asyncio.create_task(run_single_flight("k", work))
+    release = asyncio.Event()
+
+    async def held() -> str:
+        await release.wait()
+        return "done"
+
+    owner = asyncio.create_task(run_single_flight("k", held))
     await asyncio.sleep(0)
+    flight = single_flight._FLIGHTS["k"]
     owner.cancel()
     with pytest.raises(asyncio.CancelledError):
         await owner
-    # The shielded task survives its callers; the registry frees itself when
-    # it finishes, never before.
-    await asyncio.sleep(0.06)
+    # The shielded task survives its callers and keeps its key until it
+    # finishes, never less. Awaited on the task itself, never on a clock: a
+    # fixed 60 ms sleep for 30 ms of work still read 1 under a loaded xdist
+    # run (2026-09-25).
+    assert in_flight_count() == 1
+    release.set()
+    # The release callback was registered when the flight started, so it runs
+    # before the waiter this ``wait`` registered afterwards.
+    await asyncio.wait({flight})
+    assert flight.result() == "done"
     assert in_flight_count() == 0
 
 

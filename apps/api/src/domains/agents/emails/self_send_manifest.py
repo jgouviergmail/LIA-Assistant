@@ -16,6 +16,7 @@ from src.domains.agents.registry.catalogue import (
     ParameterSchema,
     PermissionProfile,
     ToolManifest,
+    UnattendedStandIn,
 )
 
 send_email_to_me_catalogue_manifest = ToolManifest(
@@ -30,6 +31,11 @@ send_email_to_me_catalogue_manifest = ToolManifest(
         "address their connected mailbox states as its own, or without one their "
         "VERIFIED account address. The message lands with the person who asked for it, "
         "who can delete it."
+    ),
+    # A routine that reached for the draft send is told to use this one instead
+    # (measured 2026-09-27: one morning routine in five did, and sent nothing).
+    stands_in_unattended_for=UnattendedStandIn(
+        tool="send_email_tool", when="the recipient is the user themselves"
     ),
     agent="email_agent",
     description=(

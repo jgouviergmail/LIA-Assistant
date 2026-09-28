@@ -80,7 +80,10 @@ describe('when it is drawn', () => {
       expect(screen.getByTestId('bookmark-toggle')).toHaveAttribute('aria-pressed', 'true')
     );
     expect(api.get).toHaveBeenCalledTimes(1);
-    expect(api.get).toHaveBeenCalledWith('/bookmarks/state');
+    expect(api.get).toHaveBeenCalledWith(
+      '/bookmarks/state',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 });
 

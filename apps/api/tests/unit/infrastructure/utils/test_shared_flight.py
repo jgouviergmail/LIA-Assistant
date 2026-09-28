@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.infrastructure.utils.shared_flight import run_shared_flight
+from src.infrastructure.utils.shared_flight import CLAIM_TTL_SECONDS, run_shared_flight
 
 pytestmark = [pytest.mark.unit]
 
@@ -30,6 +30,7 @@ class FakeRedis:
 
     def __init__(self, *, broken: bool = False) -> None:
         self.store: dict[str, str] = {}
+        self.ttls: dict[str, int | None] = {}
         self.ops: Counter[str] = Counter()
         self.broken = broken
 
@@ -40,6 +41,7 @@ class FakeRedis:
         if nx and key in self.store:
             return None
         self.store[key] = value
+        self.ttls[key] = ex
         return True
 
     async def get(self, key: str):
@@ -95,6 +97,48 @@ class TestTheClaimHolderBuilds:
         assert result.value == "built#1"
         assert result.claimed is True
         assert redis.store == {}, "the claim outlived the work it protected"
+
+
+class TestTheClaimOutlivesTheWork:
+    async def test_the_default_claim_bounds_a_holder_that_died(self) -> None:
+        redis = FakeRedis()
+        seen: list[int | None] = []
+
+        async def build() -> str:
+            seen.append(redis.ttls["shared_flight:k"])
+            return "built"
+
+        with patch(
+            "src.infrastructure.utils.shared_flight.get_redis_cache",
+            AsyncMock(return_value=redis),
+        ):
+            await run_shared_flight(
+                "shared_flight:k", build=build, read_shared=_reader([None]), wait_budget_s=0.5
+            )
+        assert seen == [CLAIM_TTL_SECONDS]
+
+    async def test_work_longer_than_the_default_claim_holds_it_for_as_long(self) -> None:
+        """A claim that expires mid-build lets the next caller build the same
+        thing again — the duplicate the seam exists to prevent."""
+        redis = FakeRedis()
+        seen: list[int | None] = []
+
+        async def build() -> str:
+            seen.append(redis.ttls["shared_flight:k"])
+            return "built"
+
+        with patch(
+            "src.infrastructure.utils.shared_flight.get_redis_cache",
+            AsyncMock(return_value=redis),
+        ):
+            await run_shared_flight(
+                "shared_flight:k",
+                build=build,
+                read_shared=_reader([None]),
+                wait_budget_s=0.5,
+                claim_ttl_s=120,
+            )
+        assert seen == [120]
 
 
 class TestTheOthersWaitForTheResult:

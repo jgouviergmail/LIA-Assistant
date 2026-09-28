@@ -13,6 +13,7 @@ from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.graphs.base_agent_builder import (
     build_generic_agent,
     create_agent_config_from_settings,
+    domain_context_instructions,
 )
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.observability.logging import get_logger
@@ -74,16 +75,7 @@ def build_tasks_agent() -> Any:
         ],
     )
 
-    context_instructions = """
-## Contexte Multi-Domaines (Tasks)
-
-Le domaine "tasks" est actif pour stocker les tâches et leurs détails.
-Les outils resolve_reference, get_context_state, set_current_item fonctionnent avec domain="tasks".
-
-**Exemples de références contextuelles** :
-- $context.tasks.0 → Première tâche des résultats
-- $context.tasks.current → Tâche actuellement sélectionnée
-    """.strip()
+    context_instructions = domain_context_instructions("tasks")
 
     # Load versioned prompt template (v1.2 optimized)
     tasks_agent_prompt_template = load_prompt("tasks_agent_prompt", version="v1")

@@ -34,6 +34,14 @@ from src.infrastructure.observability.metrics_channels import (
 logger = get_logger(__name__)
 
 
+class OtpAttemptsExhaustedError(Exception):
+    """A chat that failed the OTP too many times is blocked for a while.
+
+    Distinct from an invalid code: « invalid code » would send the person to
+    try again, and every attempt during the block fails the same way.
+    """
+
+
 class ChannelService:
     """Service for channel binding management and OTP linking flow."""
 
@@ -130,6 +138,10 @@ class ChannelService:
 
         Returns:
             Dict with {user_id, channel_type} if valid, None if invalid/expired.
+
+        Raises:
+            OtpAttemptsExhaustedError: The chat is blocked after too many failed
+                attempts; no code is consumed.
         """
         from src.infrastructure.cache.redis import get_redis_session
 
@@ -147,7 +159,7 @@ class ChannelService:
                 channel_user_id=channel_user_id,
                 attempts=int(current_attempts),
             )
-            return None
+            raise OtpAttemptsExhaustedError
 
         # Atomic get-and-delete (consume OTP)
         key = f"{CHANNEL_OTP_REDIS_PREFIX}{code}"

@@ -1,6 +1,11 @@
 # ADR-023: Error Handling Strategy
 
-**Status**: ✅ IMPLEMENTED (2025-12-21)
+**Status**: ✅ IMPLEMENTED (2025-12-21) — the error messages speak the declared
+language, never a French default ([ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md)); eight `SSEErrorMessages` methods no
+production code called were deleted with it — `generic_error`,
+`hitl_resumption_error` and `graph_execution_error`, which the samples below
+present, among them: a failed stream answers through `stream_error`; and
+`core/partial_error_handler.py` is imported by no production module
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Production-grade error handling with i18n
 **Related**: ADR-002 (Unified Error Handling — foundational, not migrated to an ADR file), [ADR-108](ADR-108-BaseAPIKeyClient-Adoption.md), [ADR-114](ADR-114-Connector-Client-Domain-Error-Contract.md)

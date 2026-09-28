@@ -19,7 +19,7 @@
 import * as React from 'react';
 
 import apiClient from '@/lib/api-client';
-import { logger } from '@/lib/logger';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import type { Bookmark, BookmarkKeepRequest, BookmarkState } from '@/types/bookmarks';
 
 export interface BookmarkStateValue {
@@ -54,30 +54,15 @@ const PENDING = 'pending';
 export function BookmarkStateProvider({ enabled, children }: BookmarkStateProviderProps) {
   const [attached, setAttached] = React.useState<Record<string, string>>({});
 
-  React.useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-    apiClient
-      .get<BookmarkState>('/bookmarks/state')
-      .then(state => {
-        // MERGED under what the person already did: a click confirmed while
-        // this read was in flight is newer than the map the read returns, and
-        // replacing would empty an icon the server has already filled.
-        if (!cancelled) setAttached(previous => ({ ...(state.message_ids ?? {}), ...previous }));
-      })
-      .catch((error: unknown) => {
-        // A failed read leaves every toggle empty rather than breaking the
-        // chat: the person can still keep an answer, and the server answers
-        // 200 for one already kept.
-        logger.warn('bookmark_state_load_failed', {
-          component: 'BookmarkStateProvider',
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled]);
+  useApiQuery<BookmarkState>('/bookmarks/state', {
+    componentName: 'BookmarkStateProvider',
+    enabled,
+    onSuccess: state => {
+      // MERGED under what the person already did: a click confirmed while
+      // this read was in flight is newer than the map the read returns.
+      setAttached(previous => ({ ...(state.message_ids ?? {}), ...previous }));
+    },
+  });
 
   const bookmarkIdOf = React.useCallback(
     (messageDbId: string) => attached[messageDbId],

@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.config import settings
 from src.domains.agents.services.hitl.validator import (
     HitlValidator,
     ValidationError,
@@ -490,7 +491,7 @@ class TestFormatValidationErrors:
         ]
         result = HitlValidator.format_validation_errors(errors, "fr")
         assert "Je n'ai pas pu appliquer" in result
-        assert "Veuillez réessayer" in result
+        assert "Réessaie avec des paramètres valides" in result
 
     def test_spanish_language(self):
         """Test Spanish language formatting."""
@@ -515,8 +516,8 @@ class TestFormatValidationErrors:
             )
         ]
         result = HitlValidator.format_validation_errors(errors, "de")
-        assert "Ich konnte Ihre Änderungen" in result
-        assert "Bitte versuchen Sie" in result
+        assert "Ich konnte deine Änderungen" in result
+        assert "Bitte versuche es" in result
 
     def test_italian_language(self):
         """Test Italian language formatting."""
@@ -529,7 +530,7 @@ class TestFormatValidationErrors:
         ]
         result = HitlValidator.format_validation_errors(errors, "it")
         assert "Non sono riuscito" in result
-        assert "Si prega di riprovare" in result
+        assert "Riprova con parametri validi" in result
 
     def test_chinese_language(self):
         """Test Chinese language formatting."""
@@ -544,8 +545,8 @@ class TestFormatValidationErrors:
         assert "由于以下错误" in result
         assert "请使用有效参数重试" in result
 
-    def test_unknown_language_falls_back_to_english(self):
-        """Test unknown language falls back to English."""
+    def test_unknown_language_falls_back_to_the_instance_default(self):
+        """An unsupported code reads as the instance default, like at the chokepoint."""
         errors = [
             ValidationError(
                 field="test",
@@ -554,8 +555,7 @@ class TestFormatValidationErrors:
             )
         ]
         result = HitlValidator.format_validation_errors(errors, "xx-unknown")
-        assert "couldn't apply your edits" in result.lower()
-        assert "Please try again" in result
+        assert result == HitlValidator.format_validation_errors(errors, settings.default_language)
 
 
 # ============================================================================

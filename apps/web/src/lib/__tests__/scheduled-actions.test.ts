@@ -16,6 +16,8 @@ import { makeMultiSlotAction, makeScheduledAction } from '@/__tests__/factories'
 import type { ScheduledAction } from '@/hooks/useScheduledActions';
 import {
   buildTimelineGrid,
+  isConditionRoutine,
+  sameCondition,
   chipState,
   duplicateTitle,
   isoWeekdayInZone,
@@ -120,7 +122,6 @@ describe('the title bound against the schema that enforces it', () => {
   });
 });
 
-
 const ADVERSARIAL = [
   makeScheduledAction({
     id: 'z',
@@ -172,7 +173,10 @@ describe('numberByTriggerTime', () => {
   });
 
   it('renumbers the later routines when an earlier one is created', () => {
-    const inserted = [...ADVERSARIAL, makeScheduledAction({ id: 'h', title: 'Nouvelle', times_of_day: ['07:00'] })];
+    const inserted = [
+      ...ADVERSARIAL,
+      makeScheduledAction({ id: 'h', title: 'Nouvelle', times_of_day: ['07:00'] }),
+    ];
     const numbered = numberByTriggerTime(inserted, 'fr');
     expect(numbered.find(n => n.action.id === 'h')?.number).toBe(2);
     expect(numbered.find(n => n.action.id === 'b')?.number).toBe(5);
@@ -318,7 +322,11 @@ describe('chipState', () => {
 
   it('is idle with no reason when nothing served the slot, or the week is unknown', () => {
     expect(chipState(makeScheduledAction(), cell(null)).tone).toBe('idle');
-    expect(chipState(makeScheduledAction(), null)).toEqual({ tone: 'idle', reason: null, executing: false });
+    expect(chipState(makeScheduledAction(), null)).toEqual({
+      tone: 'idle',
+      reason: null,
+      executing: false,
+    });
   });
 
   it('reports a routine running right now', () => {
@@ -388,5 +396,50 @@ describe('rovingTarget', () => {
     expect(rovingTarget(keys, 'a:1', 'Tab')).toBeNull();
     expect(rovingTarget(keys, 'a:1', 'Enter')).toBeNull();
     expect(rovingTarget([], null, 'ArrowRight')).toBeNull();
+  });
+});
+
+describe('sameCondition (ADR-322)', () => {
+  it('reads the same condition whatever order its keys arrive in', () => {
+    // The server stores its own key order; a spelling difference must not
+    // read as an edit, which would re-arm the routine for nothing.
+    expect(
+      sameCondition(
+        { type: 'mail_match', query: 'devis', until: '2026-10-01' },
+        { until: '2026-10-01', query: 'devis', type: 'mail_match' }
+      )
+    ).toBe(true);
+  });
+
+  it('reads the same weather kinds in another order as the same condition', () => {
+    // The server stores the kinds as a sorted set: re-sending them in the
+    // order they were ticked would start the routine's ledger over.
+    expect(
+      sameCondition(
+        { type: 'weather_change', kinds: ['snow', 'rain'] },
+        { type: 'weather_change', kinds: ['rain', 'snow'] }
+      )
+    ).toBe(true);
+  });
+
+  it('tells a moved last day, a new filter or new kinds apart', () => {
+    const base = { type: 'weather_change' as const, kinds: ['rain'] };
+    expect(sameCondition(base, { ...base, until: '2026-10-01' })).toBe(false);
+    expect(sameCondition(base, { ...base, kinds: ['snow'] })).toBe(false);
+    expect(
+      sameCondition({ type: 'mail_match', query: 'a' }, { type: 'mail_match', query: 'b' })
+    ).toBe(false);
+  });
+
+  it('holds only for two absent conditions when one is absent', () => {
+    expect(sameCondition(null, null)).toBe(true);
+    expect(sameCondition(null, { type: 'task_overdue' })).toBe(false);
+  });
+});
+
+describe('isConditionRoutine', () => {
+  it('reads which clock the routine runs on', () => {
+    expect(isConditionRoutine({ trigger_kind: 'condition' })).toBe(true);
+    expect(isConditionRoutine({ trigger_kind: 'time' })).toBe(false);
   });
 });

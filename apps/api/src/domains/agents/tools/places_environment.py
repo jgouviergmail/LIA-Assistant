@@ -7,9 +7,9 @@ together (extracted from ``places_tools``, file-size ratchet) because that
 contract, not their data source, is what makes them one family.
 
 Street View hero (lot SV) gives a photo-less place an image; air quality
-answers "on va au parc cet après-midi ?".
+answers "shall we go to the park this afternoon?".
 
-"On va au parc cet après-midi ?" is answered by the air quality AT THE
+"Shall we go to the park this afternoon?" is answered by the air quality AT THE
 PLACE, and the detail payload already carries its coordinates. Scope is
 deliberately narrow, for cost and for meaning:
 

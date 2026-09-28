@@ -4,9 +4,10 @@
  * Two defects were fixed at once here:
  *  - a native `window.confirm` on the most destructive action of the product
  *    (no theme, no typography, OS-language buttons, thread blocked);
- *  - a wording that announced "the conversation history" while the endpoint
- *    also purges EVERY attachment of the user, AI-generated images included.
- *    A user about to lose their images deserves to know beforehand.
+ *  - a wording that did not say what the endpoint removes. It now names the
+ *    messages and the files the person attached, and that the files LIA
+ *    generated stay (ADR-279) — the copy is in the locales, this suite pins
+ *    that the dialog shows it.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';

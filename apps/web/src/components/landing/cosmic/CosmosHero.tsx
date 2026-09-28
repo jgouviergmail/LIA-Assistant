@@ -126,7 +126,7 @@ export async function CosmosHero({ lng }: { lng: string }) {
 
             <p
               {...rise(RISE_DELAYS.lede)}
-              className="cosmos-rise text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-3 whitespace-normal mobile:whitespace-pre-line"
+              className="cosmos-rise text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-3"
             >
               {t('landing.hero.subtitle_top')}
             </p>

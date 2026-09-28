@@ -4,13 +4,55 @@ import { test, expect, chatRoutes } from '../fixtures';
 const styles = ['cozmo', 'capsules', 'billes', 'amande', 'traits', 'anneaux', 'smiley'] as const;
 
 const climates = [
-  { kind: 'cold', temperature: 6, condition: 'Clear', moving: '.lia-weather--cold' },
-  { kind: 'freezing', temperature: -4, condition: 'Clear', moving: '.lia-weather-breath' },
-  { kind: 'snow', temperature: -1, condition: 'Snow', moving: '.lia-weather-fall' },
-  { kind: 'rain', temperature: 18, condition: 'Rain', moving: '.lia-weather-fall' },
-  { kind: 'storm', temperature: 18, condition: 'Thunderstorm', moving: '.lia-weather-fall' },
-  { kind: 'hot', temperature: 28, condition: 'Clear', moving: '.lia-weather-fan' },
-  { kind: 'heat', temperature: 34, condition: 'Clear', moving: '.lia-weather-sweat' },
+  {
+    kind: 'cold',
+    temperature: 6,
+    condition: 'Clear',
+    moving: '.lia-ambient-weather--cold',
+    rest: [0, 0],
+  },
+  {
+    kind: 'freezing',
+    temperature: -4,
+    condition: 'Clear',
+    moving: '.lia-ambient-weather-breath',
+    rest: [4, 0],
+  },
+  {
+    kind: 'snow',
+    temperature: -1,
+    condition: 'Snow',
+    moving: '.lia-ambient-weather-fall',
+    rest: [0, 13],
+  },
+  {
+    kind: 'rain',
+    temperature: 18,
+    condition: 'Rain',
+    moving: '.lia-ambient-weather-fall',
+    rest: [0, 8],
+  },
+  {
+    kind: 'storm',
+    temperature: 18,
+    condition: 'Thunderstorm',
+    moving: '.lia-ambient-weather-fall',
+    rest: [-4, 9],
+  },
+  {
+    kind: 'hot',
+    temperature: 28,
+    condition: 'Clear',
+    moving: '.lia-ambient-weather-fan',
+    rest: [0, 0],
+  },
+  {
+    kind: 'heat',
+    temperature: 34,
+    condition: 'Clear',
+    moving: '.lia-ambient-weather-sweat',
+    rest: [0, 4],
+  },
 ] as const;
 
 for (const climate of climates) {
@@ -45,14 +87,59 @@ for (const climate of climates) {
     await page.clock.runFor(1800);
     const visibleProps = () =>
       avatar
-        .locator('.lia-weather')
+        .locator('.lia-ambient-weather')
         .evaluateAll(elements =>
           elements
             .filter(e => Number.parseFloat(getComputedStyle(e).opacity) > 0.01)
             .map(e => e.classList[1])
         );
-    await expect.poll(visibleProps).toEqual([`lia-weather--${climate.kind}`]);
-    const prop = avatar.locator(`.lia-weather--${climate.kind}`);
+    await expect.poll(visibleProps).toEqual([`lia-ambient-weather--${climate.kind}`]);
+    const prop = avatar.locator(`.lia-ambient-weather--${climate.kind}`);
+    // A shared .lia-weather class used to paint the weather card's opaque
+    // surface behind the SVG and clip the prop to a rectangular box.
+    await expect(prop).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(prop).toHaveCSS('background-image', 'none');
+    await expect(prop).toHaveCSS('overflow', 'visible');
+    await expect(prop.locator('svg')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    if (climate.kind === 'hot') {
+      // Inspect the actual inline artwork, including the inactive props. A
+      // transparent wrapper cannot rescue an opaque rectangle inside an SVG.
+      const artwork = await avatar.locator('.lia-ambient-weather svg').evaluateAll(async svgs => {
+        return Promise.all(
+          svgs.map(async element => {
+            const svg = element as SVGSVGElement;
+            const { width, height } = svg.viewBox.baseVal;
+            const source = svg.cloneNode(true) as SVGSVGElement;
+            source.setAttribute('width', String(width));
+            source.setAttribute('height', String(height));
+            source.style.color = getComputedStyle(svg).color;
+            const image = new Image();
+            image.src = `data:image/svg+xml,${encodeURIComponent(new XMLSerializer().serializeToString(source))}`;
+            await image.decode();
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d')!;
+            context.drawImage(image, 0, 0);
+            const pixels = context.getImageData(0, 0, width, height).data;
+            let transparent = 0;
+            let painted = 0;
+            for (let i = 3; i < pixels.length; i += 4) {
+              if (pixels[i] === 0) transparent++;
+              else painted++;
+            }
+            return { kind: svg.parentElement!.classList[1], transparent, painted };
+          })
+        );
+      });
+      expect(artwork).toHaveLength(10);
+      for (const { kind, transparent, painted } of artwork) {
+        expect(transparent, `${kind} has transparent space around its silhouette`).toBeGreaterThan(
+          0
+        );
+        expect(painted, `${kind} contains visible artwork`).toBeGreaterThan(0);
+      }
+    }
     const moving = climate.kind === 'cold' ? prop : prop.locator(climate.moving);
     const transform = () => moving.evaluate(e => getComputedStyle(e).transform);
     const before = await transform();
@@ -61,23 +148,43 @@ for (const climate of climates) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.clock.runFor(64);
     // MediaQueryList change is a browser task, independent of the mocked clock.
-    // Observe its application before measuring a supposedly frozen frame.
-    await expect
-      .poll(() =>
-        avatar.evaluate(e => (e as HTMLElement).style.getPropertyValue('--rig-ambient-sway'))
-      )
-      .toBe('0');
+    // Observe the whole stationary pose: sway can already be zero while the
+    // breath/particles still carry the preceding frame's fall and pulse.
     await expect
       .poll(async () => {
-        const frame = await transform();
         await page.clock.runFor(64);
-        return (await transform()) === frame;
+        return avatar.evaluate(e => {
+          const style = (e as HTMLElement).style;
+          return ['sway', 'fall', 'pulse'].map(channel =>
+            Number(style.getPropertyValue(`--rig-ambient-${channel}`))
+          );
+        });
       })
-      .toBe(true); // Firefox may paint inherited custom properties a frame later.
+      .toEqual([0, 0.5, 1]);
+    // SVG descendants may paint inherited properties after the rig wrote
+    // them. Two identical stale frames prove nothing: await the actual rest
+    // position (no rotation, particles halfway through their travel).
+    await expect
+      .poll(async () => {
+        await page.clock.runFor(64);
+        return moving.evaluate(e => {
+          const matrix = new DOMMatrix(getComputedStyle(e).transform);
+          return [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f];
+        });
+      })
+      .toEqual([1, 0, 0, 1, ...climate.rest]);
     const frozen = await transform();
     await page.clock.runFor(500);
     expect(await transform()).toBe(frozen);
-    expect(await visibleProps()).toEqual([`lia-weather--${climate.kind}`]);
+    expect(await visibleProps()).toEqual([`lia-ambient-weather--${climate.kind}`]);
+    if (climate.kind === 'hot') {
+      const capture = test.info().outputPath('transparent-fan.png');
+      await page.screenshot({ path: capture });
+      await test.info().attach('transparent-fan', {
+        path: capture,
+        contentType: 'image/png',
+      });
+    }
   });
 }
 
@@ -232,7 +339,7 @@ test('weather yields to the answer, expires, and keeps the account clock', async
   await expect(avatar).toBeVisible();
   const opacity = (kind: string) =>
     avatar
-      .locator(`.lia-weather--${kind}`)
+      .locator(`.lia-ambient-weather--${kind}`)
       .evaluate(e => Number.parseFloat(getComputedStyle(e).opacity));
   await page.clock.runFor(1000);
   await expect.poll(() => opacity('rain')).toBeCloseTo(0.7, 1);

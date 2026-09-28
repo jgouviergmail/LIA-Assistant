@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/lib/api-client';
-import { useRevisionStore } from '@/stores/revisionStore';
+import { INITIAL_REVISIONS, useRevisionStore } from '@/stores/revisionStore';
 
 const h = vi.hoisted(() => ({
   table: {} as Record<string, unknown>,
@@ -82,7 +82,7 @@ describe('useLiveConnectorSettings', () => {
   beforeEach(() => {
     h.reads = [];
     h.mutate.mockReset();
-    useRevisionStore.setState({ revisions: { live_connectors: 0 } });
+    useRevisionStore.setState({ revisions: { ...INITIAL_REVISIONS } });
     h.table = {
       '/live/connectors': { connectors: [GEMINI, OPENAI], active_provider: 'gemini' },
       '/live/models': { models: [], default_model: '', unpriced: [] },

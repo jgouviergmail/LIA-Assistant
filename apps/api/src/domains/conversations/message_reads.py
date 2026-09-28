@@ -129,8 +129,8 @@ def token_summary_payload(token_summary: Any | None) -> dict[str, Any] | None:
     """Render one message's token summary for the API.
 
     The cost is the row's billed total (model, Maps Platform, generated
-    images): what the reader is shown is what the turn actually cost, not the
-    model half of it.
+    images, paid speech): what the reader is shown is what the turn actually
+    cost, not the model half of it.
 
     Args:
         token_summary: The joined ``MessageTokenSummary`` row, or None when the

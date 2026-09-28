@@ -70,7 +70,6 @@ class TestSemanticTypeInitialization:
         assert semantic_type.children == []
         assert semantic_type.description == ""
         assert semantic_type.examples == []
-        assert semantic_type.labels == {}
         assert semantic_type.properties == {}
         assert semantic_type.related_types == []
         assert semantic_type.source_domains == []
@@ -88,7 +87,6 @@ class TestSemanticTypeInitialization:
             children=["work_email", "personal_email"],
             description="Email address (RFC 5322 compliant)",
             examples=["john@example.com", "user+tag@domain.co.uk"],
-            labels={"en": "Email address", "fr": "Adresse email"},
             properties={"domain": "str", "local_part": "str"},
             related_types=["contact_id", "person_name"],
             broader_types=["ContactPoint"],
@@ -105,7 +103,6 @@ class TestSemanticTypeInitialization:
         assert "work_email" in semantic_type.children
         assert semantic_type.description == "Email address (RFC 5322 compliant)"
         assert "john@example.com" in semantic_type.examples
-        assert semantic_type.labels["fr"] == "Adresse email"
         assert semantic_type.properties["domain"] == "str"
         assert "contact_id" in semantic_type.related_types
         assert "ContactPoint" in semantic_type.broader_types
@@ -157,7 +154,6 @@ class TestSemanticTypeToDict:
             children=["child1"],
             description="Full type description",
             examples=["example1"],
-            labels={"en": "Full Type"},
             properties={"prop1": "str"},
             related_types=["related1"],
             broader_types=["broader1"],
@@ -177,7 +173,6 @@ class TestSemanticTypeToDict:
         assert result["children"] == ["child1"]
         assert result["description"] == "Full type description"
         assert result["examples"] == ["example1"]
-        assert result["labels"] == {"en": "Full Type"}
         assert result["properties"] == {"prop1": "str"}
         assert result["related_types"] == ["related1"]
         assert result["broader_types"] == ["broader1"]

@@ -193,6 +193,16 @@ _INSTALLED_SEAMS: tuple[tuple[str, str], ...] = (
     ("src.domains.shared.consultation_sink", "_sink"),
     ("src.domains.shared.consultation_sink", "_collector_factory"),
     ("src.domains.shared.peer_release_sink", "_releaser"),
+    ("src.domains.shared.action_sink", "_recorder"),
+)
+
+#: Seams a unit test starts MUTE, whatever another module installed: the action
+#: register's real implementation claims in the database, and a unit test that
+#: only meant to send an e-mail must never reach it (measured 2026-09-27: 54
+#: tests took 110 s on connection attempts once another file had imported it).
+#: A test that wants a register installs one of its own.
+_MUTED_SEAMS: tuple[tuple[str, str, str], ...] = (
+    ("src.domains.shared.action_sink", "_recorder", "_IGNORE"),
 )
 
 #: Per-conversation in-memory stores: a dict keyed by conversation id, shared by
@@ -232,6 +242,10 @@ def _restore_process_globals() -> Iterator[None]:
         store = getattr(sys.modules.get(path), name, None)
         if store is not None:
             store.clear()
+    for path, name, mute in _MUTED_SEAMS:
+        module = sys.modules.get(path)
+        if module is not None:
+            setattr(module, name, getattr(module, mute))
 
     try:
         yield

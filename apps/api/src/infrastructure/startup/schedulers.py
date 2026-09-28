@@ -68,6 +68,7 @@ from src.infrastructure.startup.scheduler_jitter import jitter_seconds_for
 from src.infrastructure.startup.scheduler_ledger import register_ledger_jobs
 from src.infrastructure.startup.scheduler_meetings import register_meetings_jobs
 from src.infrastructure.startup.scheduler_push import register_push_jobs
+from src.infrastructure.startup.scheduler_radio import register_radio_jobs
 from src.infrastructure.startup.scheduler_telephony import register_telephony_jobs
 
 if TYPE_CHECKING:
@@ -738,6 +739,10 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
         # The ledger notary (ADR-263 lot 5): lives in scheduler_ledger.py for
         # the same reason — this file is frozen at its audited size.
         register_ledger_jobs(scheduler)
+
+        # The personal radio's newsroom pass and media sweep (ADR-324), in
+        # scheduler_radio.py for the same reason.
+        register_radio_jobs(scheduler)
 
         # Acquire leadership and start scheduler (or start background re-election).
         # All jobs are registered above — scheduler.start() is called inside the elector.

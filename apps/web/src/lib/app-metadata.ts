@@ -17,8 +17,9 @@ import { getSiteOrigin } from '@/lib/site-origin';
 export function buildAppMetadata(lng: Language): Metadata {
   const origin = getSiteOrigin();
   return {
-    // No configured origin (generic prebuilt image, B03) → no metadataBase:
-    // Next then emits relative canonical/OG URLs, valid on any host.
+    // No configured origin (generic prebuilt image, B03) → no metadataBase.
+    // Omit social images too: Next otherwise resolves their relative paths
+    // against localhost:3000 during the build and publishes broken OG URLs.
     ...(origin ? { metadataBase: new URL(origin) } : {}),
     title: 'LIA - Votre assistant personnel',
     description: "Votre assistant personnel intelligent pour la productivité et l'assistance",
@@ -30,19 +31,21 @@ export function buildAppMetadata(lng: Language): Metadata {
     openGraph: {
       type: 'website',
       siteName: 'LIA',
-      images: [
-        {
-          url: '/Title.png',
-          width: 2125,
-          height: 1193,
-          alt: 'LIA — Assistant IA personnel intelligent',
-          type: 'image/png',
-        },
-      ],
+      images: origin
+        ? [
+            {
+              url: `${origin}/Title.png`,
+              width: 2125,
+              height: 1193,
+              alt: 'LIA — Assistant IA personnel intelligent',
+              type: 'image/png',
+            },
+          ]
+        : undefined,
     },
     twitter: {
       card: 'summary_large_image',
-      images: ['/Title.png'],
+      images: origin ? [`${origin}/Title.png`] : undefined,
     },
   };
 }

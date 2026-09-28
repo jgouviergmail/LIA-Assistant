@@ -50,7 +50,7 @@ async def _resolve(state, **kw):
 @pytest.mark.asyncio
 async def test_resolve_conversational_turn_yields_empty_summary():
     state = {STATE_KEY_TURN_TYPE: TURN_TYPE_CONVERSATIONAL, STATE_KEY_AGENT_RESULTS: {}}
-    summary, rc_html, turn_type, rejection = await _resolve(state)
+    summary, rc_html, turn_type, rejection, _draft = await _resolve(state)
     assert summary == ""
     assert rc_html is None
     assert turn_type == TURN_TYPE_CONVERSATIONAL
@@ -61,7 +61,7 @@ async def test_resolve_conversational_turn_yields_empty_summary():
 async def test_resolve_action_turn_formats_agent_results():
     state = {STATE_KEY_TURN_TYPE: TURN_TYPE_ACTION, STATE_KEY_AGENT_RESULTS: {"0:emails": {}}}
     with patch(f"{_RESP}.format_agent_results_for_prompt", Mock(return_value="SUM")):
-        summary, rc_html, turn_type, rejection = await _resolve(state)
+        summary, rc_html, turn_type, rejection, _draft = await _resolve(state)
     assert summary == "SUM"
     assert rc_html is None
     assert rejection is None
@@ -72,7 +72,9 @@ async def test_resolve_reference_turn_uses_resolved_context_when_no_current_resu
     state = {STATE_KEY_TURN_TYPE: TURN_TYPE_REFERENCE, STATE_KEY_AGENT_RESULTS: {}}
     resolved_context = {"items": [{"id": "x"}], "source_turn_id": 1}
     with patch(f"{_RESP}._format_resolved_context_for_prompt", Mock(return_value="RCTX")):
-        summary, rc_html, _turn, _rej = await _resolve(state, resolved_context=resolved_context)
+        summary, rc_html, _turn, _rej, _draft = await _resolve(
+            state, resolved_context=resolved_context
+        )
     assert summary == "RCTX"
     # resolved_context is threaded to HTML rendering post-LLM.
     assert rc_html == resolved_context
@@ -84,7 +86,9 @@ async def test_resolve_reference_turn_prefers_current_turn_results():
     state = {STATE_KEY_TURN_TYPE: TURN_TYPE_REFERENCE, STATE_KEY_AGENT_RESULTS: {"0:emails": {}}}
     resolved_context = {"items": [{"id": "x"}], "source_turn_id": 1}
     with patch(f"{_RESP}.format_agent_results_for_prompt", Mock(return_value="ENRICHED")):
-        summary, rc_html, _turn, _rej = await _resolve(state, resolved_context=resolved_context)
+        summary, rc_html, _turn, _rej, _draft = await _resolve(
+            state, resolved_context=resolved_context
+        )
     assert summary == "ENRICHED"
     assert rc_html is None  # not set on the current-turn-results branch
 
@@ -100,7 +104,7 @@ async def test_resolve_plan_rejection_overrides_summary():
         patch(f"{_RESP}.format_agent_results_for_prompt", Mock(return_value="SUM")),
         patch(f"{_RESP}._format_rejection_details", Mock(return_value="REJECTED")),
     ):
-        summary, _rc, _turn, rejection = await _resolve(state)
+        summary, _rc, _turn, rejection, _draft = await _resolve(state)
     assert summary == "REJECTED"
     assert rejection == "refused"
 
@@ -114,7 +118,7 @@ async def test_resolve_confirmed_draft_replaces_summary():
         patch(f"{_RESP}.render_execution_result", Mock(return_value="  DRAFT DONE  ")),
         patch(f"{_RESP}.format_agent_results_for_prompt", Mock(return_value="SUM")),
     ):
-        summary, _rc, _turn, _rej = await _resolve_response_context_summary(
+        summary, _rc, _turn, _rej, executed = await _resolve_response_context_summary(
             state,
             {"configurable": {}},
             "r",
@@ -128,6 +132,8 @@ async def test_resolve_confirmed_draft_replaces_summary():
         )
     # Draft execution result replaces (and strips) the summary.
     assert summary == "DRAFT DONE"
+    # ...and leaves the helper, so the turn is judged on the act confirmed.
+    assert executed is draft_result
 
 
 # ---------------------------------------------------------------------------

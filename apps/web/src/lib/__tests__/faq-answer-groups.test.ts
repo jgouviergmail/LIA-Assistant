@@ -6,8 +6,8 @@
  * per-domain groups. The transformation is presentation-only: these tests run
  * against the REAL translation files of all 6 locales and prove that every
  * word of the source answer survives the split (nothing lost, nothing added,
- * order preserved), and that non-matching answers (zh's q4 has a completely
- * different structure) fall back to untouched rendering.
+ * order preserved), and that non-matching answers fall back to untouched
+ * rendering.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -22,7 +22,7 @@ import it_ from '../../../locales/it/translation.json';
 import zh from '../../../locales/zh/translation.json';
 
 const LOCALES = { en, fr, de, es, it: it_, zh } as const;
-const GROUPED_LOCALES = ['en', 'fr', 'de', 'es', 'it'] as const;
+const GROUPED_LOCALES = ['en', 'fr', 'de', 'es', 'it', 'zh'] as const;
 
 function q4Answer(locale: keyof typeof LOCALES): string {
   return LOCALES[locale].faq.sections.getting_started.questions.q4.answer;
@@ -57,10 +57,6 @@ describe('splitAnswerGroups', () => {
       ' '
     );
     expect(readableText(reassembled)).toBe(readableText(source));
-  });
-
-  it('returns null for the zh q4 answer (different structure, no groups)', () => {
-    expect(splitAnswerGroups(q4Answer('zh'))).toBeNull();
   });
 
   it('returns null for short answers without grouped headings', () => {

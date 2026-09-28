@@ -429,6 +429,11 @@ sequenceDiagram
 
 ## SSE Real-time Flow
 
+One Redis Pub/Sub channel per person — named by ONE function,
+`infrastructure/cache/user_channel.user_notifications_channel`, shared by the
+SSE route that subscribes and every publisher (ADR-320: five publishers and the
+route used to spell it by hand) — forwarded by `GET /api/v1/notifications/stream`.
+
 ### Sequence Diagram
 
 ```mermaid
@@ -437,88 +442,89 @@ sequenceDiagram
     participant WEB as Web Browser
     participant API as FastAPI SSE Endpoint
     participant REDIS as Redis Pub/Sub
-    participant JOB as Reminder Job
+    participant SRC as Publisher (reminder job, archive commit…)
 
     WEB->>API: GET /api/v1/notifications/stream
-    Note right of WEB: EventSource connection
-
     API->>REDIS: SUBSCRIBE user_notifications:{user_id}
+    API-->>WEB: event: connected
 
-    API-->>WEB: SSE: event=connected
-
-    loop Keep-alive
-        API-->>WEB: SSE: event=heartbeat (every 30s)
+    loop Every SSE polling timeout without a message
+        API-->>WEB: ": keepalive" (SSE comment)
     end
 
-    Note over JOB: Reminder notification sent
+    SRC->>REDIS: PUBLISH user_notifications:{user_id} {type: "reminder", …}
+    REDIS-->>API: message
+    API-->>WEB: event: notification — data: {type: "reminder", …}
+    WEB->>WEB: toast + sync of the thread (merge, ADR-320)
 
-    JOB->>REDIS: PUBLISH user_notifications:{user_id}<br/>{type: "reminder", content: "...", reminder_id: "..."}
+    Note over SRC: A message archived anywhere is COMMITTED
+    SRC->>REDIS: PUBLISH {type: "conversation_updated", conversation_id}
+    API-->>WEB: event: notification — data: {type: "conversation_updated", …}
+    WEB->>API: GET /conversations/me/messages (newest page)
+    WEB->>WEB: merge into the thread — nothing remounts
 
-    REDIS-->>API: Message received
-
-    API-->>WEB: SSE: event=notification<br/>data: {type: "reminder", ...}
-
-    WEB->>WEB: Display in-app notification
-    Note right of WEB: Toast/Banner update
-
-    alt Connection lost
-        WEB->>WEB: EventSource auto-reconnect
+    alt Stream dropped (network, deploy, reload)
+        WEB->>WEB: retry after 3 s, 6 s, 9 s … capped at 60 s (tab visible)
         WEB->>API: GET /api/v1/notifications/stream
-        Note right of WEB: Resume from Last-Event-ID
+        WEB->>API: GET /conversations/me/messages (catch-up: Pub/Sub keeps nothing)
     end
 ```
 
 ### SSE Message Format
 
 ```
+event: connected
+data: {"status": "connected"}
+
 event: notification
 data: {"type": "reminder", "content": "N'oublie pas d'appeler le médecin !", "reminder_id": "550e8400-e29b-41d4-a716-446655440000", "title": "Rappel"}
-id: 1735398000000
 
-event: heartbeat
-data: {"timestamp": "2025-12-28T15:30:00Z"}
-id: 1735398030000
+event: notification
+data: {"type": "conversation_updated", "conversation_id": "…"}
+
+: keepalive
+
+event: superseded
+data: {"reason": "newer_stream"}
 ```
+
+There is no `id:` and no `Last-Event-ID` resumption: Redis Pub/Sub keeps
+nothing, so an event published while a tab was disconnected is lost. The client
+therefore reads the newest page when it reconnects or returns to the
+foreground (below). `superseded` is sent to a stream evicted by a newer one of
+the same account (`sse_max_streams_per_user`, newest wins).
+
+### The conversation sync signal (ADR-320)
+
+`ConversationService.archive_message` is the one door every message goes
+through — the chat, a Telegram turn, a voice relay, a routine, a reminder, a
+proactive notification, another device — so it ARMS a
+`conversation_updated` signal (`domains/conversations/sync_signal.py`), and
+`reset_conversation` arms `conversation_reset`. The signal leaves on the
+session's `after_commit` (a rollback drops it; one signal per account per
+transaction, a reset winning), carries no content, and every outcome is counted
+(`conversation_sync_signals_total{kind,outcome}`, dashboard 09). A hidden row
+(the synthetic question of an out-of-turn run) announces nothing.
 
 ### Client Implementation
 
-```javascript
-// Web client SSE subscription
-const eventSource = new EventSource('/api/v1/notifications/stream', {
-  withCredentials: true  // BFF pattern
-});
+`hooks/useNotifications.ts` owns the `EventSource`:
 
-eventSource.addEventListener('notification', (event) => {
-  const data = JSON.parse(event.data);
+- a notification is listed, counted and routed to its handler; the two sync
+  signals are NOT notifications — they go to `onConversationEvent`;
+- a dropped stream is never given up on: retries wait one more 3-second unit
+  each time up to `RECONNECT_MAX_DELAY_MS`, pause while the tab is hidden
+  (resumed on visibility) and restart at once on `online`; a reopened stream
+  calls `onReconnected`.
 
-  if (data.type === 'reminder') {
-    // Show in-app notification
-    showToast({
-      title: data.title,
-      message: data.content,
-      type: 'reminder',
-      onClick: () => scrollToMessage(data.reminder_id)
-    });
-
-    // Optional: Show browser notification
-    if (Notification.permission === 'granted') {
-      new Notification(data.title, {
-        body: data.content,
-        icon: '/icon-192x192.png'
-      });
-    }
-  }
-});
-
-eventSource.addEventListener('heartbeat', () => {
-  console.debug('SSE heartbeat received');
-});
-
-eventSource.onerror = (error) => {
-  console.error('SSE connection error', error);
-  // EventSource will auto-reconnect
-};
-```
+`hooks/useChatServerSync.ts` wires the chat: a notification keeps its toast
+and asks for a sync — its message reaches the thread as the row the server
+archived, never as a bubble built client-side. `lib/chat-sync.ts` coalesces the
+asks and defers them while the thread is busy (a turn streaming, a past page of
+history on screen, older messages loading, a text selection or an open menu);
+`lib/chat-merge.ts` merges the newest page into the thread by the ids each
+bubble may carry (`message_db_id` included — the `done` chunk names both rows a
+turn archived), keeping every unchanged bubble as the same object.
 
 ---
 

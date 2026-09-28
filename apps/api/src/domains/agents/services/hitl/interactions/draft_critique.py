@@ -47,20 +47,24 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_CONTENT, FIELD_CONVERSATION_ID
-from src.core.i18n_drafts import format_hitl_item_preview
+from src.core.i18n import get_language_name
+from src.core.i18n_drafts import format_hitl_item_preview, label_separator
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
+from src.core.text_clip import one_line, spell_unseen
 from src.core.time_utils import format_value_if_datetime_string
 from src.domains.agents.drafts.card_html import card_surface
 from src.domains.agents.drafts.display import get_draft_display_config
 from src.domains.agents.drafts.models import Draft, DraftAction, DraftType
 from src.domains.agents.drafts.preview_renderer import render_confirmation_card
 from src.domains.agents.prompts import format_with_current_datetime
+from src.domains.shared.markdown_literal import markdown_data_literal
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 from ..protocols import HitlInteractionType
 from ..registry import HitlInteractionRegistry
 from ..schemas import SANDBOX_EGRESS_ACTIONS, SANDBOX_EGRESS_ACTIONS_NO_DATA
+from .text_tokens import text_tokens
 
 if TYPE_CHECKING:
     from ..question_generator import HitlQuestionGenerator
@@ -275,8 +279,7 @@ class DraftCritiqueInteraction:
                 - draft_type: Type of draft (email, event, contact)
                 - draft_content: Draft content dict
                 - draft_id: Unique draft ID
-                - draft_summary: Optional pre-generated summary
-            user_language: Language code (fr, en, es)
+            user_language: Language code (fr, en, es, de, it, zh-CN)
             user_timezone: User's IANA timezone for datetime context
             tracker: Optional TokenTrackingCallback
 
@@ -301,7 +304,6 @@ class DraftCritiqueInteraction:
         draft_type = context.get("draft_type", "unknown")
         draft_content = context.get("draft_content", {})
         draft_id = context.get("draft_id", "unknown")
-        draft_summary = context.get("draft_summary")  # Pre-generated summary if available
         batch_total = context.get("batch_total", 1)  # >1 if part of FOR_EACH batch
         batch_drafts = context.get("batch_drafts", [])  # All draft contents for batch
         # Clarify follow-up (replay-safe EDIT loop): a previous "clarify"
@@ -342,11 +344,11 @@ class DraftCritiqueInteraction:
         # registry_ids alongside this question).
         if clarification_question:
             start_time = time.time()
-            for i, word in enumerate(str(clarification_question).split()):
+            for i, token in enumerate(text_tokens(str(clarification_question))):
                 if i == 0:
                     ttft = time.time() - start_time
                     hitl_question_ttft_seconds.labels(type="draft_critique").observe(ttft)
-                yield word + " "
+                yield token
             logger.info(
                 "draft_critique_clarification_question_streamed",
                 draft_id=draft_id,
@@ -364,64 +366,17 @@ class DraftCritiqueInteraction:
                 user_language=user_language,
                 user_timezone=user_timezone,
             )
-            # Stream line-by-line then word-by-word (preserves markdown newlines)
-            # Pattern from for_each_confirmation.py
-            token_index = 0
-            for line in batch_message.split("\n"):
-                if line:
-                    for word in line.split():
-                        if token_index == 0:
-                            ttft = time.time() - start_time
-                            hitl_question_ttft_seconds.labels(type="draft_critique").observe(ttft)
-                        token_index += 1
-                        yield word + " "
-                yield "\n"
+            # Stream token by token, its lines and no-break spaces kept
+            for token_index, token in enumerate(text_tokens(batch_message)):
+                if token_index == 0:
+                    ttft = time.time() - start_time
+                    hitl_question_ttft_seconds.labels(type="draft_critique").observe(ttft)
+                yield token
             logger.info(
                 "draft_critique_batch_question_generated",
                 draft_id=draft_id,
                 batch_total=batch_total,
                 duration_ms=int((time.time() - start_time) * 1000),
-            )
-            return
-
-        # If we have a pre-generated summary, use it directly
-        if draft_summary:
-            start_time = time.time()
-            token_count = 0
-
-            # Stream the summary word by word
-            formatted = self._format_critique_question(
-                draft_type=draft_type,
-                summary=draft_summary,
-                user_language=user_language,
-            )
-
-            # Line by line, THEN word by word — like the batch path above.
-            # ``formatted.split()`` alone splits on every whitespace, newlines
-            # included, so the question that reached the chat was one long
-            # line whatever shape the renderer gave it.
-            for line in formatted.split("\n"):
-                for word in line.split():
-                    if token_count == 0:
-                        ttft = time.time() - start_time
-                        hitl_question_ttft_seconds.labels(type="draft_critique").observe(ttft)
-                    token_count += 1
-                    yield word + " "
-                yield "\n"
-
-            # Track metrics
-            total_duration = time.time() - start_time
-            if total_duration > 0:
-                tokens_per_second = token_count / total_duration
-                hitl_question_tokens_per_second.labels(type="draft_critique").observe(
-                    tokens_per_second
-                )
-
-            logger.info(
-                "draft_critique_question_streaming_complete_from_summary",
-                draft_id=draft_id,
-                token_count=token_count,
-                duration_seconds=total_duration,
             )
             return
 
@@ -490,11 +445,8 @@ class DraftCritiqueInteraction:
             # The card is already out — it streamed before the model was
             # asked — so only the QUESTION follows, word by word.
             fallback = self._fallback_question(draft_type, user_language)
-            for line in fallback.split("\n"):
-                if line:
-                    for word in line.split():
-                        yield word + " "
-                yield "\n"
+            for token in text_tokens(fallback):
+                yield token
 
     async def _generate_critique_via_llm(
         self,
@@ -585,8 +537,9 @@ class DraftCritiqueInteraction:
         """
         from src.domains.agents.prompts import load_prompt
 
-        # Get default personality in user's language if none provided (i18n)
-        default_personality = HitlMessages.get_default_personality(user_language)
+        # The default personality is the versioned prompt itself; the output
+        # language is the prompt's own ``user_language`` line.
+        default_personality = load_prompt("default_personality_prompt").strip()
 
         # Load critique prompt
         try:
@@ -600,9 +553,9 @@ class DraftCritiqueInteraction:
             system_prompt = self._get_inline_system_prompt()
 
         # Inject user_language and personality into system prompt
-        system_prompt = system_prompt.replace("{user_language}", user_language).replace(
-            "{personnalite}", personality_instruction or default_personality
-        )
+        system_prompt = system_prompt.replace(
+            "{user_language}", get_language_name(user_language)
+        ).replace("{personnalite}", personality_instruction or default_personality)
 
         # Pre-convert datetime values to user's local timezone for display
         # This ensures the LLM receives human-readable local dates instead of raw UTC
@@ -633,30 +586,6 @@ Generate the review question:"""
         from src.domains.agents.prompts import load_prompt
 
         return load_prompt("hitl_draft_critique_fallback_prompt")
-
-    def _format_critique_question(
-        self,
-        draft_type: str,
-        summary: str,
-        user_language: str,
-    ) -> str:
-        """
-        Format a critique question with the summary and actions.
-
-        Args:
-            draft_type: Type of draft
-            summary: Pre-generated summary
-            user_language: Language code (fr, en, es, de, it, zh-CN)
-
-        Returns:
-            Formatted question string
-        """
-        emoji = HitlMessages.get_draft_emoji(draft_type)
-        actions = HitlMessages.format_draft_critique_actions(
-            user_language, include_descriptions=True
-        )
-
-        return f"{emoji} {summary}\n\n{actions}"
 
     def _generate_fallback_critique(
         self,
@@ -747,8 +676,10 @@ Generate the review question:"""
 
         # Build item list — unified rendering via the draft display registry
         # (ADR-085). Send-type rows include the recipient:
-        # "{emoji} {Noun}[ à {recipient}] : {label}[ - {date_with_day}]".
-        items_section = f"**{destructive_ui['affected_items']} :**\n"
+        # "{emoji} {Noun}[ {connector} {recipient}]{separator}{label}[ - {date}]".
+        # The header and every row take the reader's punctuation (label_separator).
+        separator = label_separator(user_language).rstrip()
+        items_section = f"**{destructive_ui['affected_items']}{separator}**\n"
         for draft_data in batch_drafts:
             content = draft_data.get("draft_content", {})
             row = format_hitl_item_preview(
@@ -773,7 +704,9 @@ Generate the review question:"""
                     or content.get("label_name")
                     or "?"
                 )
-                row = f"{emoji} {label}".strip()
+                # The draft's own data, on a Markdown row: drawn as itself.
+                shown = markdown_data_literal(spell_unseen(one_line(str(label))))
+                row = f"{emoji} {shown or '?'}".strip()
             items_section += f"- {row}\n"
 
         items_section += "\n"

@@ -18,6 +18,7 @@ from langchain_core.tools import InjectedToolArg
 
 from src.core.config import get_settings
 from src.core.constants import DEVOPS_AGENT_NAME
+from src.core.i18n import resolve_language
 from src.core.i18n_drafts import get_draft_error_message
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
@@ -47,11 +48,6 @@ class DevOpsExecutionError(Exception):
     user-facing message, so the text MUST already be localized — no traceback
     and no raw CLI output reach the user.
     """
-
-
-def settings_default_language() -> str:
-    """Fallback language when a draft predates the ``user_language`` field."""
-    return str(get_settings().default_language)
 
 
 async def _check_user_is_admin(user_id: str) -> bool:
@@ -257,7 +253,7 @@ async def execute_devops_task_draft(
     start_time = time.monotonic()
     server = str(draft_content.get("server", ""))
 
-    language = str(draft_content.get("user_language") or settings_default_language())
+    language = resolve_language(draft_content.get("user_language"))
 
     if not await _check_user_is_admin(str(user_id)):
         logger.warning(

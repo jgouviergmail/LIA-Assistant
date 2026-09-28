@@ -118,6 +118,69 @@ test.describe('chat composer reachability', () => {
     }
   });
 
+  test('the radio on air costs the composer nothing (its bar is subtracted)', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    // ADR-324: the radio's bar sits above the page like the recorder's, so the
+    // full-height shell must subtract ITS height too (`--radio-banner-h`) — or
+    // starting the station pushes the composer below the fold.
+    const sessionId = 'a1b2c3d4-0000-4000-8000-00000000ra03';
+    const session = {
+      session_id: sessionId,
+      status: 'starting',
+      segments: [],
+      cost_eur: 0,
+      stop_at: null,
+      startup_estimate_s: 12,
+      end_reason: null,
+      mood: 'calm',
+    };
+    await authenticate({ language: 'en' });
+    await mockApi([
+      ...ROUTES,
+      {
+        url: '**/api/v1/config',
+        json: {
+          sse: { heartbeat_interval_seconds: 30 },
+          rate_limits: { enabled: false, per_minute: 60, burst: 10 },
+          i18n: { supported_languages: ['en'], default_language: 'en' },
+          features: { radio_enabled: true },
+          capabilities: { radio: { enabled: true, family: 'media' } },
+          api_version: 'v1',
+        },
+      },
+      { url: '**/api/v1/radio/sessions', method: 'POST', status: 201, json: session },
+      { url: `**/api/v1/radio/sessions/${sessionId}/playhead`, method: 'POST', json: session },
+    ]);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/en/dashboard/chat');
+    const composer = page.locator('textarea').first();
+    await composer.waitFor({ state: 'visible' });
+
+    await page.locator('header').getByRole('button', { name: 'Start the radio' }).click();
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Between two programmes' })
+    ).toBeVisible();
+    await waitForStableBox(page, composer);
+
+    await expect
+      .poll(
+        async () => {
+          const current = await composer.boundingBox();
+          return current ? Math.round(current.y + current.height) : Number.NaN;
+        },
+        { message: 'the radio bar pushed the composer below the fold' }
+      )
+      .toBeLessThanOrEqual(800);
+    const pageOverflow = await page.evaluate(() => {
+      const el = document.scrollingElement ?? document.documentElement;
+      return el.scrollHeight - el.clientHeight;
+    });
+    expect(pageOverflow, 'the page scrolls: the shell exceeds the viewport').toBeLessThanOrEqual(1);
+  });
+
   test('the shell height tracks the dynamic viewport unit', async ({
     page,
     authenticate,

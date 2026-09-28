@@ -7,6 +7,7 @@ import { AuthRedirect } from '@/components/landing/AuthRedirect';
 import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { EditorialChapters } from '@/components/landing/editorial/EditorialChapters';
+import { PromiseSection } from '@/components/landing/editorial/PromiseSection';
 import { BasicsBand } from '@/components/landing/editorial/BasicsBand';
 import { TransparencySection } from '@/components/landing/editorial/TransparencySection';
 import { GallerySection } from '@/components/landing/editorial/GallerySection';
@@ -44,6 +45,7 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const title = t('landing.meta.title');
   const description = t('landing.meta.description');
   const canonicalUrl = buildLangUrl('/', lng);
+  const socialImage = getSiteOrigin()?.concat('/Title.png');
 
   // Build hreflang alternates for all supported languages
   const langAlternates: Record<string, string> = {};
@@ -65,12 +67,14 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
       url: canonicalUrl,
       locale: LOCALE_MAP[lng],
       alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
-      images: [{ url: '/Title.png', width: 2125, height: 1193, alt: title }],
+      images: socialImage
+        ? [{ url: socialImage, width: 2125, height: 1193, alt: title }]
+        : undefined,
     },
     twitter: {
       title,
       description,
-      images: ['/Title.png'],
+      images: socialImage ? [socialImage] : undefined,
     },
   };
 }
@@ -140,6 +144,7 @@ export default async function HomePage({ params }: HomePageProps) {
             scope + the cosmos compositions provide the skin. */}
         <main>
           <CosmosHero lng={lng} />
+          <PromiseSection lng={lng} />
           <EditorialChapters lng={lng} ghosts />
           <BasicsBand lng={lng} />
           <TransparencySection

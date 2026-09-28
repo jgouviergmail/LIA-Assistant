@@ -243,3 +243,56 @@ class TestStepResultErrorCodeTolerance:
         assert result.error_code is None
         assert result.result[FIELD_ERROR_CODE] == "RATE_LIMITED"
         assert result.error == _FAILURE_MESSAGE
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestADeclaredFailureHandsOnItsItems:
+    """A tool that fails by RETURNING keeps the items it did return: the
+    pipeline half of what the ReAct loop's books state (``react_nodes``,
+    ``test_a_declared_failure_still_hands_on_the_items_it_returned``)."""
+
+    async def test_the_items_travel_with_the_failure_into_the_turn_s_books(self) -> None:
+        from src.domains.agents.data_registry.models import (
+            RegistryItem,
+            RegistryItemMeta,
+            RegistryItemType,
+        )
+        from src.domains.agents.orchestration.parallel_executor import StepResult, StepType
+        from src.domains.agents.tools.common import ToolErrorCode
+
+        item = RegistryItem(
+            id="contact_partial",
+            type=RegistryItemType.CONTACT,
+            payload={"name": "Hua"},
+            meta=RegistryItemMeta(source="test", domain="contacts"),
+        )
+        executed = await _run_execute_tool(
+            UnifiedToolOutput(
+                success=False,
+                message="the provider refused the rest",
+                error_code=ToolErrorCode.EXTERNAL_API_ERROR,
+                registry_updates={"contact_partial": item},
+            )
+        )
+        assert executed.result["success"] is False
+        assert set(executed.registry_updates or {}) == {"contact_partial"}
+
+        accumulated: dict[str, Any] = {}
+        touched: set[str] = set()
+        pe._merge_single_step_result(
+            {},
+            StepResult(
+                step_id="partial",
+                step_type=StepType.TOOL,
+                tool_name="fake_tool",
+                result=executed.result,
+                success=False,
+                registry_updates=executed.registry_updates,
+            ),
+            accumulated_registry=accumulated,
+            current_turn_touched_ids=touched,
+        )
+
+        assert set(accumulated) == {"contact_partial"}
+        assert touched == {"contact_partial"}

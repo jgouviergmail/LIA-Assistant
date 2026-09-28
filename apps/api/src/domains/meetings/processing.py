@@ -33,6 +33,8 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import MEETINGS_PROACTIVE_TASK_TYPE, MEETINGS_WORKER_ID_PREFIX
+from src.core.i18n import normalize_language
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_meetings import get_notification_title
 from src.core.security.utils import encrypt_data
 from src.domains.meetings.audio_store import (
@@ -119,8 +121,17 @@ def launch_processing(meeting_id: UUID) -> None:
 _SUMMARY_MAX_CHARS = 300
 
 
-def _summary_text(report: MeetingReport) -> str:
-    """The first paragraph-shaped content of the minutes, for the notification."""
+def _summary_text(report: MeetingReport, language: str) -> str:
+    """The first paragraph-shaped content of the minutes, for the notification.
+
+    Args:
+        report: The minutes.
+        language: The reader's language — a transcript head joins each speaker
+            to their words with its punctuation.
+
+    Returns:
+        The summary, or an empty string when the minutes hold nothing to quote.
+    """
     for section in report.sections:
         if section.kind is SectionKind.PARAGRAPH and section.paragraph:
             return section.paragraph
@@ -129,7 +140,10 @@ def _summary_text(report: MeetingReport) -> str:
             return "\n".join(f"- {item}" for item in section.bullets)
     for section in report.sections:
         if section.kind is SectionKind.TRANSCRIPT and section.transcript:
-            head = " ".join(f"{line.speaker} : {line.text}" for line in section.transcript[:3])
+            separator = label_separator(language)
+            head = " ".join(
+                f"{line.speaker}{separator}{line.text}" for line in section.transcript[:3]
+            )
             return head if len(head) <= _SUMMARY_MAX_CHARS else head[: _SUMMARY_MAX_CHARS - 1] + "…"
     return ""
 
@@ -430,7 +444,7 @@ async def _notify_ready(
         )
     await NotificationDispatcher().dispatch(
         user,
-        content=f"**{report.title}**\n\n{_summary_text(report)}".strip(),
+        content=f"**{report.title}**\n\n{_summary_text(report, language)}".strip(),
         task_type=MEETINGS_PROACTIVE_TASK_TYPE,
         target_id=str(meeting.id),
         metadata={
@@ -617,7 +631,7 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     if user is None:
         await repo.fail_permanently(job.meeting_id, code="user_missing", message="owner deleted")
         return
-    language = str(user.language or settings.default_language)
+    language = normalize_language(user.language)
     preference = await MeetingPreferenceRepository(db).get_for_user(meeting.user_id)
 
     check = await UsageLimitService.check_user_allowed(meeting.user_id)

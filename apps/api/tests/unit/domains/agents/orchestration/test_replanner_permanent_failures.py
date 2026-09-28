@@ -69,7 +69,6 @@ def _context(error: str, attempt: int = 0) -> RePlanContext:
     )
     return RePlanContext(
         user_request="Summarize the email X and propose a reply",
-        user_language="fr",
         execution_plan=MagicMock(),
         plan_id="smart_unknown",
         completed_steps={},

@@ -31,6 +31,7 @@ from uuid import UUID
 import httpx
 import structlog
 
+from src.core.i18n import resolve_language
 from src.core.i18n_telephony import get_availability_phrases
 from src.core.time_utils import format_datetime_for_display
 
@@ -154,7 +155,7 @@ async def build_availability(
     window_start: datetime,
     window_end: datetime,
     user_timezone: str,
-    user_language: str = "en",
+    user_language: str | None = None,
 ) -> AvailabilityRead:
     """Build the free/busy summary injected as the ``{{availability_summary}}`` var.
 
@@ -175,6 +176,7 @@ async def build_availability(
         The localized summary, plus whether a calendar was opened and whether
         the read failed.
     """
+    user_language = resolve_language(user_language)
     phrases = get_availability_phrases(user_language)
     not_opened = AvailabilityRead(summary=phrases["unavailable"], opened=False, failed=False)
     try:

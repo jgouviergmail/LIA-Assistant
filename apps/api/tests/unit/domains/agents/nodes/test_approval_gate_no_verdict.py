@@ -3,12 +3,11 @@
 Measured 2026-09-03: with no ``validation_result`` in state the gate logged
 *"assuming approval not required"* and wrote ``plan_approved=True``. Nothing
 downstream distinguishes "a validator looked and was satisfied" from "nobody
-looked", so the effect gate of lot 2 would read an approval that never happened.
+looked", so the state claimed an approval that never happened.
 
-Writing ``None`` instead changes NOTHING today — the router never reads this
-key, and the only reader (``response_node``) tests ``is True`` for its
-stale-rejection coherence check — while giving the effect gate a truthful third
-value.
+Writing ``None`` instead changes nothing that RUNS — ``route_from_approval_gate``
+refuses on an explicit ``False`` alone, and every reader that skips something on
+an approval tests ``is True`` — while the state stops claiming it.
 """
 
 from __future__ import annotations
@@ -61,14 +60,24 @@ class TestTheOtherBranchesAreUnchanged:
         result = await _run({"execution_plan": _plan(), "validation_result": verdict})
         assert result["plan_approved"] is True
 
-    async def test_no_plan_is_still_a_refusal(self) -> None:
-        result = await _run({"execution_plan": None, "validation_result": None})
-        assert result["plan_approved"] is False
-        assert result["plan_rejection_reason"]
-
     async def test_an_existing_approval_is_still_honoured(self) -> None:
         """A clarification that already approved must not be asked twice."""
         result = await _run(
             {"execution_plan": _plan(), "validation_result": None, "plan_approved": True}
         )
         assert result["plan_approved"] is True
+
+
+class TestNothingToApprove:
+    """No plan is no verdict — never a refusal the person is told they made."""
+
+    async def test_no_plan_yields_no_verdict_and_no_rejection_reason(self) -> None:
+        result = await _run({"execution_plan": None, "validation_result": None})
+        assert result["plan_approved"] is None
+        assert "plan_rejection_reason" not in result
+
+    def test_the_router_answers_without_running_anything(self) -> None:
+        from src.domains.agents.nodes.routing import route_from_approval_gate
+
+        state = {"plan_approved": None, "execution_plan": None}
+        assert route_from_approval_gate(state) == "response"  # type: ignore[arg-type]

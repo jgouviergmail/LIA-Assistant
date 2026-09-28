@@ -6,7 +6,8 @@ from typing import get_args
 
 import pytest
 
-from src.core.i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES
+from src.core.config import settings
+from src.core.i18n import SUPPORTED_LANGUAGES
 from src.core.i18n_live import LIVE_PHRASES, get_live_phrases
 from src.domains.live.schemas import LiveOutcome
 from src.infrastructure.scheduler.voice_relay import RelayOutcome
@@ -63,8 +64,8 @@ def test_every_chinese_spelling_reaches_the_canonical_row(raw: str) -> None:
 
 
 def test_unknown_and_missing_fall_back_to_the_default_language() -> None:
-    assert get_live_phrases(None) is LIVE_PHRASES[DEFAULT_LANGUAGE]
-    assert get_live_phrases("xx") is LIVE_PHRASES[DEFAULT_LANGUAGE]
+    assert get_live_phrases(None) is LIVE_PHRASES[settings.default_language]
+    assert get_live_phrases("xx") is LIVE_PHRASES[settings.default_language]
 
 
 @pytest.mark.parametrize("language", sorted(SUPPORTED_LANGUAGES))

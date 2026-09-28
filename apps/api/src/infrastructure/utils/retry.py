@@ -43,8 +43,10 @@ async def retry_async(
     max_retries: int = 3,
     backoff_factor: float = 2.0,
     retryable_exceptions: tuple[type[Exception], ...] = (Exception,),
+    retry_if: Callable[[Exception], bool] | None = None,
     operation_name: str = "async_call",
     log_retries: bool = True,
+    delay_for: Callable[[Exception, int], float | None] | None = None,
 ) -> T:
     """Run ``factory()`` until it succeeds, with exponential backoff.
 
@@ -63,8 +65,15 @@ async def retry_async(
         backoff_factor: Wait is ``backoff_factor ** attempt`` seconds.
         retryable_exceptions: Only these are retried; anything else propagates
             unchanged, so a caller's typed error keeps its identity.
+        retry_if: Decides, for an error of an allowed type, whether another
+            attempt can succeed — for a failure family that states its
+            retryability in a FIELD (a code, a status) rather than in its
+            class. An error it refuses propagates unchanged, at once.
         operation_name: Name used in the structured logs.
         log_retries: Whether to log each retried attempt.
+        delay_for: Names the wait before the next attempt from the error and
+            the attempt's index (0 for the first) — a provider that says when
+            to come back is obeyed; ``None`` falls back to the backoff.
 
     Returns:
         Whatever the first successful attempt returned.
@@ -80,9 +89,12 @@ async def retry_async(
         try:
             return await factory()
         except retryable_exceptions as e:
+            if retry_if is not None and not retry_if(e):
+                raise
             last_exception = e
             if attempt < max_retries - 1:
-                wait_time = backoff_factor**attempt
+                named = delay_for(e, attempt) if delay_for is not None else None
+                wait_time = named if named is not None else backoff_factor**attempt
                 if log_retries:
                     logger.warning(
                         "retry_attempt",

@@ -48,17 +48,17 @@ Usage:
     ]
 
 Example Flow:
-    User: "liste mes contacts"
+    User: "list my contacts"
     → Tool returns [Jean, Marie, Paul]
     → Auto-saved to Store with indexes
-    → PAS d'item courant (plusieurs résultats)
+    → NO current item (several results)
 
-    User: "affiche le détail du 2ème"
+    User: "show me the details of the 2nd one"
     → resolve_reference("2") → Auto-detects domain="contacts"
     → Resolves to Marie → Item marked as current
     → get_contact_details("people/c456")
 
-    User: "affiche son email"
+    User: "show their e-mail address"
     → get_context_state("contacts") → current_item exists (Marie)
     → Uses Marie's resource_name directly
 

@@ -28,6 +28,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
 from src.core.config import get_settings
+from src.core.i18n import resolve_language
 from src.core.i18n_telephony import get_tool_phrases
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.telephony.live_tools import ensure_vendor_live_tools
@@ -340,7 +341,7 @@ async def call_me_tool(
     ],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """Call the user on their own verified phone number (no confirmation needed).
 
@@ -363,7 +364,7 @@ async def call_me_tool(
         return config
     return await _build_call_me_output(
         user_id=parse_user_id(config.user_id),
-        locale=locale,
+        locale=locale or resolve_language(),
         timezone=user_timezone,
         objective=objective,
     )

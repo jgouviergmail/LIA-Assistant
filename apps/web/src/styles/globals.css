@@ -878,9 +878,22 @@
     }
   }
 
-  /* Tableau → bulle s'étend à 95% */
+  /* A bubble holding a table spans 95 % of its column — a WIDTH, because the
+     bubble is a cross-axis item of a column flexbox (`flex-col items-end`):
+     `flex: 0 0 95%` sized its HEIGHT, so its width followed its content. A
+     table drawn as stacked cards is narrow, so its bubble stayed narrow and
+     the table stayed stacked at any screen width (measured 2026-09-25: a
+     381 px bubble on a 1280 px screen after a phone-width round trip). */
   .message-bubble:has(table) {
-    flex: 0 0 95%;
+    width: 95%;
+    max-width: 95%;
+  }
+
+  /* Cards contain their inline size for responsive queries. They cannot
+     supply an intrinsic width to a shrink-to-fit bubble: a short answer
+     otherwise squeezes the whole card to the heading's width. */
+  .message-bubble-assistant:has(.lia-card) {
+    width: 95%;
     max-width: 95%;
   }
 
@@ -889,13 +902,44 @@
   }
 
   /* ============================================
-     Tables Responsive
-     ============================================ */
+     Tables — readable columns, a visible cue when they scroll (B2)
+     ============================================
+     Measured 2026-09-25 on a five-column answer: `white-space: nowrap` on the
+     first three columns — wrapping allowed from the fourth only, breaking
+     words — drew the table 908 px wide in a 341 px phone bubble, squeezed the
+     last two columns to 40 px and made one row 869 px tall; in a 976 px
+     desktop bubble the « price » column still fell to 42 px. A column's
+     position says nothing about its content. Cells now wrap at word
+     boundaries and no column is narrower than `8em`; what still does not fit
+     scrolls with the code block's cue, or — in a container narrower than
+     480 px — becomes a pile of cards (`ResponsiveTable`; the card rules live
+     in the unlayered lia-components.css, which must win over the unlayered
+     `.lia-response` cell rules). */
+
+  .table-frame {
+    position: relative;
+  }
 
   .table-wrapper {
     max-width: 100%;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-muted-foreground) transparent;
+  }
+
+  .table-wrapper::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .table-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .table-wrapper::-webkit-scrollbar-thumb {
+    background-color: var(--color-muted-foreground);
+    border-radius: 4px;
   }
 
   /* Tighter paragraph spacing inside list items — groups related content visually */
@@ -907,24 +951,26 @@
   }
 
   .markdown-content table {
-    font-size: 0.625rem; /* 10px */
-    width: auto; /* Colonnes ajustées au contenu */
+    font-size: 0.9em;
+    width: auto;
     border-collapse: collapse;
   }
 
   .markdown-content th,
   .markdown-content td {
-    white-space: nowrap; /* Évite retours à la ligne, colonnes compactes */
-  }
-
-  .markdown-content th {
-    font-size: 0.5625rem; /* 9px */
-  }
-
-  /* Colonnes avec contenu long (emails, adresses) peuvent wrapper */
-  .markdown-content td:nth-child(n + 4) {
+    min-width: 8em;
+    vertical-align: top;
     white-space: normal;
-    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* A URL or an identifier has no word boundary to wrap at: it may break
+     anywhere rather than widen its column past the screen. */
+  .markdown-content th a,
+  .markdown-content th code,
+  .markdown-content td a,
+  .markdown-content td code {
+    overflow-wrap: anywhere;
   }
 
   /* History-search match highlight (QW-2) — fixed class emitted by the
@@ -976,7 +1022,8 @@
     position: relative;
   }
 
-  .code-scroll-frame[data-overflowing='true']:not([data-scrolled-end='true'])::after {
+  .code-scroll-frame[data-overflowing='true']:not([data-scrolled-end='true'])::after,
+  .table-frame[data-overflowing='true']:not([data-scrolled-end='true'])::after {
     content: '';
     pointer-events: none;
     position: absolute;

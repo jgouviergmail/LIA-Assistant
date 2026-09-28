@@ -30,6 +30,7 @@ from src.core.client_ip import resolve_client_ip
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
+from src.core.i18n import normalize_language
 from src.core.security.authorization import require_superuser
 from src.core.session_dependencies import get_current_active_session
 from src.core.streaming_download import attachment_stream
@@ -251,7 +252,7 @@ async def read_admin_view(
             row_count=len(rows),
         )
 
-    language = getattr(current_user, "language", None) or "en"
+    language = normalize_language(getattr(current_user, "language", None))
     return [
         AdminEffectRow(
             id=str(row.id),
@@ -465,7 +466,7 @@ async def _readable_document(
     from src.domains.agents.effects.export_readable import stream_csv, stream_markdown
     from src.domains.agents.effects.repository import EffectLedgerRepository
 
-    language = getattr(reader, "language", None) or "en"
+    language = normalize_language(getattr(reader, "language", None))
     timezone = getattr(reader, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
 
     async with get_db_context() as db:

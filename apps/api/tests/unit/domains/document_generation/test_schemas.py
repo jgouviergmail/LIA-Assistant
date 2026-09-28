@@ -98,7 +98,11 @@ class TestDocumentSchemas:
           ``function_calling`` ever since, without incident.
         - ``SlideContent`` joins it at 6 with ADR-274, because a slide may now
           carry data (a table) or two compared sides.
-        - ``TabularContent`` stays at 5 and stays strict.
+        - ``TabularContent`` stays at 5 — but it is not strict-SHAPED (it
+          tolerates extra keys), and the Responses path every current OpenAI
+          model takes sends a schema unconverted: measured 2026-09-26, it
+          answered 400 on every call while judged strict. It goes by
+          ``function_calling`` like the two others, which OpenAI accepts.
 
         The alternative — hoisting tables to the document root and referencing
         them by index — buys strict mode by handing the model an index it can
@@ -110,7 +114,7 @@ class TestDocumentSchemas:
         )
 
         expected = {
-            TabularContent: (5, True),
+            TabularContent: (5, False),
             SectionedContent: (6, False),
             SlideContent: (6, False),
         }

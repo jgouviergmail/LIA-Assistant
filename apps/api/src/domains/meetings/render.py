@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_meetings import get_header_label
 from src.core.time_utils import format_datetime_for_display
 from src.domains.document_generation.sanitize import sanitize_filename_stem
@@ -46,6 +47,8 @@ class MinutesHeader:
     location_label: str
     location: str | None
     participants_label: str
+    #: The language's own label/value punctuation, travelling with the labels.
+    separator: str
     participants: list[str] = field(default_factory=list)
     generated_by: str = ""
     notices: list[str] = field(default_factory=list)
@@ -98,6 +101,7 @@ def build_header(
         location_label=get_header_label("location", language),
         location=meeting.location_label,
         participants_label=get_header_label("participants", language),
+        separator=label_separator(language),
         participants=[participant_display(p) for p in report.participants],
         generated_by=get_header_label("generated_by", language),
         notices=notices,
@@ -176,7 +180,7 @@ def _md_section(section: ReportSection) -> list[str]:
 def render_markdown(report: MeetingReport, header: MinutesHeader) -> str:
     """Markdown — what the knowledge space indexes."""
     lines = [f"# {report.title}", "", f"*{header.minutes_label}*", ""]
-    lines.extend(f"- **{label}** : {value}" for label, value in _header_rows(header))
+    lines.extend(f"- **{label}**{header.separator}{value}" for label, value in _header_rows(header))
     lines.append("")
     for notice in header.notices:
         lines.extend([f"> {notice}", ""])
@@ -225,7 +229,8 @@ def render_sectioned(
     blocks: list[SectionBlock] = [SectionBlock(kind="paragraph", text=header.minutes_label)]
     blocks.append(
         SectionBlock(
-            kind="bullets", items=[f"{label} : {value}" for label, value in _header_rows(header)]
+            kind="bullets",
+            items=[f"{label}{header.separator}{value}" for label, value in _header_rows(header)],
         )
     )
     blocks.extend(SectionBlock(kind="paragraph", text=notice) for notice in header.notices)

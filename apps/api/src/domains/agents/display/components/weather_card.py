@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import re
 from contextlib import suppress
+from functools import partial
 from typing import Any
 
 from src.core.config import settings
 from src.core.geo_utils import WIND_CARDINAL_CODES, wind_deg_to_cardinal
+from src.core.i18n import resolve_language
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import CONTEXT_DOMAIN_WEATHER
 from src.domains.agents.display.components.base import (
@@ -34,6 +37,13 @@ from src.domains.agents.display.components.environment_row import (
     pollen_text,
 )
 from src.domains.agents.display.icons import Icons, icon
+
+
+def _add_labelled_row(
+    rows: list[str], separator: str, icon_name: str, label: str, value: str
+) -> None:
+    """One detail row: a label joined to its value by the reader's punctuation."""
+    rows.append(render_d_item(icon_name, f"{label}{separator}{value}"))
 
 
 class WeatherCard(BaseComponent):
@@ -315,6 +325,7 @@ class WeatherCard(BaseComponent):
         cloud_cover_label = V3Messages.get_cloud_cover(ctx.language)
         air_quality_label = V3Messages.get_air_quality(ctx.language)
         precipitation_label = V3Messages.get_precipitation(ctx.language)
+        labelled = partial(_add_labelled_row, detail_sections, label_separator(ctx.language))
 
         # Temperature min/max (for current weather — forecast already shows it in main stats)
         is_forecast = data.get("type") == "forecast"
@@ -322,49 +333,27 @@ class WeatherCard(BaseComponent):
             temp_min = self._format_temperature(data.get("temp_min", ""))
             temp_max = self._format_temperature(data.get("temp_max", ""))
             if temp_min and temp_max:
-                temp_range_label = V3Messages.get_temp_range(ctx.language)
-                detail_sections.append(
-                    render_d_item(
-                        Icons.TEMPERATURE,
-                        f"{temp_range_label}: {escape_html(temp_min)} / {escape_html(temp_max)}",
-                    )
-                )
+                temp_range = f"{escape_html(temp_min)} / {escape_html(temp_max)}"
+                labelled(Icons.TEMPERATURE, V3Messages.get_temp_range(ctx.language), temp_range)
 
         # UV Index
         uv_index = data.get("uv_index") or data.get("uv", "")
         if uv_index:
             uv_level_label = self._get_uv_label(uv_index, ctx.language)
-            detail_sections.append(
-                render_d_item(
-                    Icons.SUNNY,
-                    f"{uv_index_label}: {escape_html(str(uv_index))} ({uv_level_label})",
-                )
+            labelled(
+                Icons.SUNNY, uv_index_label, f"{escape_html(str(uv_index))} ({uv_level_label})"
             )
 
-        # Pressure
+        # Pressure, visibility, cloud cover
         pressure = data.get("pressure", "")
         if pressure:
-            detail_sections.append(
-                render_d_item(Icons.PRESSURE, f"{pressure_label}: {escape_html(str(pressure))}")
-            )
-
-        # Visibility
+            labelled(Icons.PRESSURE, pressure_label, escape_html(str(pressure)))
         visibility = data.get("visibility", "")
         if visibility:
-            detail_sections.append(
-                render_d_item(
-                    Icons.VISIBILITY, f"{visibility_label}: {escape_html(str(visibility))}"
-                )
-            )
-
-        # Cloud cover
+            labelled(Icons.VISIBILITY, visibility_label, escape_html(str(visibility)))
         clouds = data.get("clouds") or data.get("cloud_cover", "")
         if clouds:
-            detail_sections.append(
-                render_d_item(
-                    Icons.CLOUD_COVER, f"{cloud_cover_label}: {escape_html(str(clouds))}%"
-                )
-            )
+            labelled(Icons.CLOUD_COVER, cloud_cover_label, f"{escape_html(str(clouds))}%")
 
         # Sunrise/Sunset (locale-aware time formatting)
         sunrise = data.get("sunrise", "")
@@ -401,9 +390,7 @@ class WeatherCard(BaseComponent):
         # Precipitation probability
         precip = data.get("precipitation_probability") or data.get("pop", "")
         if precip:
-            detail_sections.append(
-                render_d_item(Icons.RAINY, f"{precipitation_label}: {escape_html(str(precip))}%")
-            )
+            labelled(Icons.RAINY, precipitation_label, f"{escape_html(str(precip))}%")
 
         # Wrap in collapsible using v4 component
         if detail_sections:
@@ -412,7 +399,6 @@ class WeatherCard(BaseComponent):
                 trigger_text=V3Messages.get_see_more(ctx.language),
                 content_html=content_html,
                 initially_open=False,
-                language=ctx.language,
                 with_separator=True,
             )
 
@@ -532,6 +518,7 @@ class WeatherCard(BaseComponent):
             "ma position",
             "your location",
             "votre position",
+            "ta position",
             "ubicación actual",
             "aktuelle position",
             "posizione attuale",
@@ -627,7 +614,7 @@ class WeatherCard(BaseComponent):
                 return float(match.group(1))
         return None
 
-    def _format_wind_direction(self, direction: Any, language: str = "fr") -> str:
+    def _format_wind_direction(self, direction: Any, language: str | None = None) -> str:
         """Format a provider wind direction as a localized compass point.
 
         The provider field is built as ``f"{wind.get('deg', 'N/A')}°"``
@@ -644,6 +631,7 @@ class WeatherCard(BaseComponent):
         Returns:
             Localized compass abbreviation, or ``""`` when unreadable.
         """
+        language = resolve_language(language)
         if not direction:
             return ""
         dir_str = str(direction).strip()
@@ -660,10 +648,10 @@ class WeatherCard(BaseComponent):
 
         return ""
 
-    def _angle_to_cardinal(self, angle: float, language: str = "fr") -> str:
+    def _angle_to_cardinal(self, angle: float, language: str | None = None) -> str:
         """Convert a bearing in degrees to its localized compass abbreviation."""
         code = wind_deg_to_cardinal(angle)
-        return V3Messages.get_wind_cardinal(code, language) if code else ""
+        return V3Messages.get_wind_cardinal(code, resolve_language(language)) if code else ""
 
     def _get_weather_visual(self, description: str) -> tuple[str, str]:
         """Get icon name and CSS class for weather description."""

@@ -16,7 +16,7 @@ Created: 2025-12-30
 Architecture v3 - Intelligence, Autonomy, Relevance
 """
 
-from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n import resolve_language
 
 # =============================================================================
 # WARM INTROS - Display warm introduction patterns
@@ -52,7 +52,7 @@ _WARM_INTROS: dict[str, dict[str, list[str]]] = {
         "zh-CN": [
             "这是我找到的内容！",
             "我找到了几个结果。",
-            "以下是您的搜索结果。",
+            "以下是你的搜索结果。",
         ],
     },
     "found_one": {
@@ -192,7 +192,7 @@ _WARM_INTROS: dict[str, dict[str, list[str]]] = {
             "Mi dispiace, nessun risultato.",
         ],
         "zh-CN": [
-            "我没有找到与您搜索匹配的内容。",
+            "我没有找到与你搜索匹配的内容。",
             "此搜索没有结果。",
             "抱歉，没有结果。",
         ],
@@ -635,6 +635,16 @@ _DISPLAY_HOURLY: dict[str, str] = {
     "zh-CN": "逐小时",
 }
 
+# A file whose content is not text: its card says so instead of a preview.
+_DISPLAY_BINARY_CONTENT: dict[str, str] = {
+    "fr": "Contenu binaire — pas d'aperçu",
+    "en": "Binary content — no preview",
+    "es": "Contenido binario — sin vista previa",
+    "de": "Binärer Inhalt — keine Vorschau",
+    "it": "Contenuto binario — nessuna anteprima",
+    "zh-CN": "二进制内容——无法预览",
+}
+
 # Weather extended details labels (v3.1)
 _DISPLAY_UV_INDEX: dict[str, str] = {
     "fr": "Indice UV",
@@ -771,11 +781,11 @@ _WEATHER_SUMMARY_HOURLY_MANY: dict[str, str] = {
 }
 
 _WEATHER_SUMMARY_HOURLY_MORE: dict[str, str] = {
-    "fr": "... et {count} autres créneaux",
-    "en": "... and {count} more slots",
-    "es": "... y {count} franjas más",
-    "de": "... und {count} weitere Zeitfenster",
-    "it": "... e altre {count} fasce",
+    "fr": "… et {count} autres créneaux",
+    "en": "… and {count} more slots",
+    "es": "… y {count} franjas más",
+    "de": "… und {count} weitere Zeitfenster",
+    "it": "… e altre {count} fasce",
     "zh-CN": "……以及另外 {count} 个时段",
 }
 
@@ -1491,6 +1501,16 @@ _DISPLAY_LOCATIONS: dict[str, str] = {
     "zh-CN": "位置",
 }
 
+# A location card's title when the place has neither a locality nor an address.
+_DISPLAY_POSITION: dict[str, str] = {
+    "fr": "Position",
+    "en": "Location",
+    "es": "Ubicación",
+    "de": "Standort",
+    "it": "Posizione",
+    "zh-CN": "位置",
+}
+
 _DISPLAY_CALENDAR: dict[str, str] = {
     "fr": "Calendrier",
     "en": "Calendar",
@@ -1764,13 +1784,18 @@ _DISPLAY_PARTICIPANTS: dict[str, str] = {
     "zh-CN": "参与者",
 }
 
+#: The organizer line of an event card, around the name (``{name}``): a
+#: phrase in most languages, a label and its value in Chinese — « 由……组织 »
+#: read before the name as « organised by …… Alice », and « 组织者 » joined by
+#: an ordinary space was a label without its colon. The label joins its value
+#: through the language's own separator (``{separator}``, ``label_separator``).
 _DISPLAY_ORGANIZED_BY: dict[str, str] = {
-    "fr": "Organisé par",
-    "en": "Organized by",
-    "es": "Organizado por",
-    "de": "Organisiert von",
-    "it": "Organizzato da",
-    "zh-CN": "由...组织",
+    "fr": "Organisé par {name}",
+    "en": "Organized by {name}",
+    "es": "Organizado por {name}",
+    "de": "Organisiert von {name}",
+    "it": "Organizzato da {name}",
+    "zh-CN": "组织者{separator}{name}",
 }
 
 _DISPLAY_JOIN_MEET: dict[str, str] = {
@@ -2841,11 +2866,11 @@ _DISPLAY_SUGGESTED_DEPARTURE: dict[str, str] = {
 }
 
 _DISPLAY_TO_ARRIVE_BY: dict[str, str] = {
-    "fr": "Pour arriver à {time}, partez à {departure}",
+    "fr": "Pour arriver à {time}, pars à {departure}",
     "en": "To arrive by {time}, leave at {departure}",
-    "es": "Para llegar a las {time}, salga a las {departure}",
-    "de": "Um {time} anzukommen, fahren Sie um {departure} los",
-    "it": "Per arrivare alle {time}, partire alle {departure}",
+    "es": "Para llegar a las {time}, sal a las {departure}",
+    "de": "Um {time} anzukommen, fahr um {departure} los",
+    "it": "Per arrivare alle {time}, parti alle {departure}",
     "zh-CN": "要在{time}到达，请在{departure}出发",
 }
 
@@ -2913,12 +2938,12 @@ _DISPLAY_MY_LOCATION: dict[str, str] = {
 }
 
 _DISPLAY_MORE_STEPS: dict[str, str] = {
-    "fr": "+{count} étapes de plus...",
-    "en": "+{count} more steps...",
-    "es": "+{count} pasos más...",
-    "de": "+{count} weitere Schritte...",
-    "it": "+{count} tappe in più...",
-    "zh-CN": "还有{count}个步骤...",
+    "fr": "+{count} étapes de plus…",
+    "en": "+{count} more steps…",
+    "es": "+{count} pasos más…",
+    "de": "+{count} weitere Schritte…",
+    "it": "+{count} tappe in più…",
+    "zh-CN": "还有{count}个步骤……",
 }
 
 _DISPLAY_TRANSIT_STOPS: dict[str, str] = {
@@ -2945,7 +2970,7 @@ _DISPLAY_MCP_APP_LOADING: dict[str, str] = {
     "es": "Cargando aplicaci\u00f3n\u2026",
     "de": "Anwendung wird geladen\u2026",
     "it": "Caricamento applicazione\u2026",
-    "zh-CN": "\u52a0\u8f7d\u5e94\u7528\u7a0b\u5e8f\u2026",
+    "zh-CN": "\u52a0\u8f7d\u5e94\u7528\u7a0b\u5e8f\u2026\u2026",
 }
 
 _DISPLAY_SKILL_APP_LOADING: dict[str, str] = {
@@ -2954,7 +2979,7 @@ _DISPLAY_SKILL_APP_LOADING: dict[str, str] = {
     "es": "Cargando skill\u2026",
     "de": "Skill wird geladen\u2026",
     "it": "Caricamento skill\u2026",
-    "zh-CN": "\u6b63\u5728\u52a0\u8f7d\u6280\u80fd\u2026",
+    "zh-CN": "\u6b63\u5728\u52a0\u8f7d\u6280\u80fd\u2026\u2026",
 }
 
 
@@ -2963,32 +2988,12 @@ class V3Messages:
     Centralized v3 architecture message provider.
 
     Provides all translated strings for v3 components across all 6 languages.
-    An unsupported or missing language code normalizes to ``DEFAULT_LANGUAGE``
-    (``fr``), NOT to English — see :meth:`_normalize_language`. The per-table
-    ``.get(lang, table["en"])` fallbacks below therefore only guard a table
+    Every method writes in ``resolve_language(language)``: an explicit code
+    normalised, else the language declared for the request, turn or job, else
+    the instance's ``DEFAULT_LANGUAGE`` (ADR-323). The per-table
+    ``.get(lang, table["en"])`` fallbacks below therefore only guard a table
     that is missing an entry for a supported language, never an unknown locale.
     """
-
-    @staticmethod
-    def _normalize_language(language: str | None) -> str:
-        """Normalize language code to supported format."""
-        if not language:
-            return DEFAULT_LANGUAGE
-
-        lang_lower = language.lower().replace("_", "-")
-
-        # Handle Chinese variants
-        if lang_lower.startswith("zh"):
-            return "zh-CN"
-
-        # Extract base language code
-        base_lang = lang_lower.split("-")[0]
-
-        # Check if it's a supported language
-        if base_lang in ("fr", "en", "es", "de", "it"):
-            return base_lang
-
-        return DEFAULT_LANGUAGE
 
     # =========================================================================
     # WARM INTROS
@@ -3011,7 +3016,7 @@ class V3Messages:
         Returns:
             Warm introduction message
         """
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
 
         intros = _WARM_INTROS.get(context, _WARM_INTROS["found_many"])
         patterns = intros.get(lang, intros.get("en", ["Here's what I found"]))
@@ -3024,7 +3029,7 @@ class V3Messages:
     @staticmethod
     def get_warm_intro_patterns(language: str, context: str = "found_many") -> list[str]:
         """Get all warm intro patterns for a context."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
 
         intros = _WARM_INTROS.get(context, _WARM_INTROS["found_many"])
         return intros.get(lang, intros.get("en", []))
@@ -3050,7 +3055,7 @@ class V3Messages:
         Returns:
             Proactive outro suggestion
         """
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
 
         outros = _PROACTIVE_OUTROS.get(domain, _PROACTIVE_OUTROS["general"])
         patterns = outros.get(lang, outros.get("en", ["Anything else?"]))
@@ -3063,7 +3068,7 @@ class V3Messages:
     @staticmethod
     def get_proactive_outro_patterns(language: str, domain: str = "general") -> list[str]:
         """Get all proactive outro patterns for a domain."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
 
         outros = _PROACTIVE_OUTROS.get(domain, _PROACTIVE_OUTROS["general"])
         return outros.get(lang, outros.get("en", []))
@@ -3075,74 +3080,74 @@ class V3Messages:
     @staticmethod
     def get_no_results(language: str) -> str:
         """Get 'no results' message."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_NO_RESULTS.get(lang, _FORMATTER_NO_RESULTS["en"])
 
     @staticmethod
     def get_one_result(language: str) -> str:
         """Get '1 result found' message."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_ONE_RESULT.get(lang, _FORMATTER_ONE_RESULT["en"])
 
     @staticmethod
     def get_n_results(language: str, count: int) -> str:
         """Get 'N results found' message."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         template = _FORMATTER_N_RESULTS.get(lang, _FORMATTER_N_RESULTS["en"])
         return template.format(count=count)
 
     @staticmethod
     def get_no_name(language: str) -> str:
         """Get 'no name' placeholder."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_NO_NAME.get(lang, _FORMATTER_NO_NAME["en"])
 
     @staticmethod
     def get_no_title(language: str) -> str:
         """Get 'no title' placeholder."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_NO_TITLE.get(lang, _FORMATTER_NO_TITLE["en"])
 
     @staticmethod
     def get_no_subject(language: str) -> str:
         """Get 'no subject' placeholder."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_NO_SUBJECT.get(lang, _FORMATTER_NO_SUBJECT["en"])
 
     @staticmethod
     def get_date_not_specified(language: str) -> str:
         """Get 'date not specified' message."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_DATE_NOT_SPECIFIED.get(lang, _FORMATTER_DATE_NOT_SPECIFIED["en"])
 
     @staticmethod
     def get_time_not_specified(language: str) -> str:
         """Get 'time not specified' message."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_TIME_NOT_SPECIFIED.get(lang, _FORMATTER_TIME_NOT_SPECIFIED["en"])
 
     @staticmethod
     def get_yesterday(language: str) -> str:
         """Get 'yesterday' word."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_YESTERDAY.get(lang, _FORMATTER_YESTERDAY["en"])
 
     @staticmethod
     def get_today(language: str) -> str:
         """Get 'today' word."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_TODAY.get(lang, _FORMATTER_TODAY["en"])
 
     @staticmethod
     def get_tomorrow(language: str) -> str:
         """Get 'tomorrow' word."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_TOMORROW.get(lang, _FORMATTER_TOMORROW["en"])
 
     @staticmethod
     def get_unread(language: str) -> str:
         """Get 'unread' word."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _FORMATTER_UNREAD.get(lang, _FORMATTER_UNREAD["en"])
 
     # =========================================================================
@@ -3152,49 +3157,49 @@ class V3Messages:
     @staticmethod
     def get_shared(language: str) -> str:
         """Get 'shared' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SHARED.get(lang, _DISPLAY_SHARED["en"])
 
     @staticmethod
     def get_modified(language: str) -> str:
         """Get 'modified' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_MODIFIED.get(lang, _DISPLAY_MODIFIED["en"])
 
     @staticmethod
     def get_created(language: str) -> str:
         """Get 'created' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_CREATED.get(lang, _DISPLAY_CREATED["en"])
 
     @staticmethod
     def get_completed(language: str) -> str:
         """Get 'completed' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_COMPLETED.get(lang, _DISPLAY_COMPLETED["en"])
 
     @staticmethod
     def get_feels_like(language: str) -> str:
         """Get 'feels like' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_FEELS_LIKE.get(lang, _DISPLAY_FEELS_LIKE["en"])
 
     @staticmethod
     def get_humidity(language: str) -> str:
         """Get 'humidity' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_HUMIDITY.get(lang, _DISPLAY_HUMIDITY["en"])
 
     @staticmethod
     def get_temp_range(language: str) -> str:
         """Get 'low / high' temperature range label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_TEMP_RANGE.get(lang, _DISPLAY_TEMP_RANGE["en"])
 
     @staticmethod
     def get_wind(language: str) -> str:
         """Get 'wind' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_WIND.get(lang, _DISPLAY_WIND["en"])
 
     @staticmethod
@@ -3209,47 +3214,59 @@ class V3Messages:
             The localized abbreviation, or an empty string for an unknown code
             — a compass point is never guessed.
         """
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         table = _DISPLAY_WIND_CARDINALS.get(lang, _DISPLAY_WIND_CARDINALS["en"])
         return table.get(code, "")
 
     @staticmethod
     def get_forecast(language: str) -> str:
         """Get 'forecast' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_FORECAST.get(lang, _DISPLAY_FORECAST["en"])
+
+    @staticmethod
+    def get_binary_content(language: str | None) -> str:
+        """The preview line of a file whose content is not text.
+
+        Args:
+            language: The reader's language; the declared one when absent.
+
+        Returns:
+            The line, in that language.
+        """
+        return _DISPLAY_BINARY_CONTENT[resolve_language(language)]
 
     @staticmethod
     def get_hourly(language: str) -> str:
         """Get 'hourly' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_HOURLY.get(lang, _DISPLAY_HOURLY["en"])
 
     @staticmethod
     def get_forecast_beyond_limit(language: str, max_days: int, offset: int) -> str:
         """Get forecast beyond limit error message."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         template = _WEATHER_FORECAST_BEYOND_LIMIT.get(lang, _WEATHER_FORECAST_BEYOND_LIMIT["en"])
         return template.format(max_days=max_days, offset=offset)
 
     @staticmethod
     def get_weather_no_slots_for_date(language: str, date: str) -> str:
         """Get the 'no detailed slot for this day' message (day within window)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         template = _WEATHER_NO_SLOTS_FOR_DATE.get(lang, _WEATHER_NO_SLOTS_FOR_DATE["en"])
         return template.format(date=date)
 
     @staticmethod
     def get_weather_summary_current(language: str, **values: str) -> str:
         """Get the current-weather tool summary handed to the response LLM."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         template = _WEATHER_SUMMARY_CURRENT.get(lang, _WEATHER_SUMMARY_CURRENT["en"])
         return template.format(**values)
 
     @staticmethod
     def get_weather_summary_forecast(language: str, location: str, count: int) -> str:
         """Get the daily-forecast summary header ('N day(s)')."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         source = _WEATHER_SUMMARY_FORECAST_ONE if count == 1 else _WEATHER_SUMMARY_FORECAST_MANY
         template = source.get(lang, source["en"])
         return template.format(location=location, count=count)
@@ -3257,7 +3274,7 @@ class V3Messages:
     @staticmethod
     def get_weather_summary_hourly(language: str, location: str, date: str, count: int) -> str:
         """Get the 3-hour-step summary header ('N slot(s)', local times)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         source = _WEATHER_SUMMARY_HOURLY_ONE if count == 1 else _WEATHER_SUMMARY_HOURLY_MANY
         template = source.get(lang, source["en"])
         return template.format(location=location, date=date, count=count)
@@ -3265,62 +3282,62 @@ class V3Messages:
     @staticmethod
     def get_weather_summary_hourly_more(language: str, count: int) -> str:
         """Get the '... and N more slots' truncation line."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         template = _WEATHER_SUMMARY_HOURLY_MORE.get(lang, _WEATHER_SUMMARY_HOURLY_MORE["en"])
         return template.format(count=count)
 
     @staticmethod
     def get_uv_index(language: str) -> str:
         """Get 'UV Index' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_UV_INDEX.get(lang, _DISPLAY_UV_INDEX["en"])
 
     @staticmethod
     def get_pressure(language: str) -> str:
         """Get 'Pressure' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_PRESSURE.get(lang, _DISPLAY_PRESSURE["en"])
 
     @staticmethod
     def get_visibility(language: str) -> str:
         """Get 'Visibility' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_VISIBILITY.get(lang, _DISPLAY_VISIBILITY["en"])
 
     @staticmethod
     def get_cloud_cover(language: str) -> str:
         """Get 'Cloud cover' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_CLOUD_COVER.get(lang, _DISPLAY_CLOUD_COVER["en"])
 
     @staticmethod
     def get_air_quality(language: str) -> str:
         """Get 'Air Quality' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_AIR_QUALITY.get(lang, _DISPLAY_AIR_QUALITY["en"])
 
     @staticmethod
     def get_pollen(language: str) -> str:
         """Get 'Pollen' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_POLLEN.get(lang, _DISPLAY_POLLEN["en"])
 
     @staticmethod
     def get_precipitation(language: str) -> str:
         """Get 'Precipitation' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_PRECIPITATION.get(lang, _DISPLAY_PRECIPITATION["en"])
 
     @staticmethod
     def get_attachments(language: str) -> str:
         """Get 'attachments' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_ATTACHMENTS.get(lang, _DISPLAY_ATTACHMENTS["en"])
 
     @staticmethod
     def get_read_more(language: str, provider: str = "") -> str:
         """Get 'read more on <provider>' label (provider-aware)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         if provider == "microsoft":
             return _DISPLAY_READ_MORE_OUTLOOK.get(lang, _DISPLAY_READ_MORE_OUTLOOK["en"])
         # Default: Gmail (Google or unspecified)
@@ -3329,31 +3346,31 @@ class V3Messages:
     @staticmethod
     def get_reply(language: str) -> str:
         """Get 'reply' action label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_REPLY.get(lang, _DISPLAY_REPLY["en"])
 
     @staticmethod
     def get_forward(language: str) -> str:
         """Get 'forward' action label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_FORWARD.get(lang, _DISPLAY_FORWARD["en"])
 
     @staticmethod
     def get_archive(language: str) -> str:
         """Get 'archive' action label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_ARCHIVE.get(lang, _DISPLAY_ARCHIVE["en"])
 
     @staticmethod
     def get_see_more(language: str) -> str:
         """Get 'see more' collapsible trigger label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SEE_MORE.get(lang, _DISPLAY_SEE_MORE["en"])
 
     @staticmethod
     def get_see_attachments(language: str, count: int) -> str:
         """Get 'see N attachment(s)' collapsible trigger label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         if count == 1:
             template = _DISPLAY_SEE_ATTACHMENT.get(lang, _DISPLAY_SEE_ATTACHMENT["en"])
         else:
@@ -3363,7 +3380,7 @@ class V3Messages:
     @staticmethod
     def get_shared_with(language: str, count: int) -> str:
         """Get 'shared with N people' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         if count == 1:
             template = _DISPLAY_SHARED_WITH_N.get(lang, _DISPLAY_SHARED_WITH_N["en"])
         else:
@@ -3373,43 +3390,43 @@ class V3Messages:
     @staticmethod
     def get_in_folder(language: str) -> str:
         """Get 'in folder' prefix."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_IN_FOLDER.get(lang, _DISPLAY_IN_FOLDER["en"])
 
     @staticmethod
     def get_subtask_of(language: str) -> str:
         """Get 'subtask of' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SUBTASK_OF.get(lang, _DISPLAY_SUBTASK_OF["en"])
 
     @staticmethod
     def get_links(language: str) -> str:
         """Get 'links' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_LINKS.get(lang, _DISPLAY_LINKS["en"])
 
     @staticmethod
     def get_link(language: str) -> str:
         """Get 'link' singular label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_LINK.get(lang, _DISPLAY_LINK["en"])
 
     @staticmethod
     def get_subtasks(language: str) -> str:
         """Get 'subtasks' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SUBTASKS.get(lang, _DISPLAY_SUBTASKS["en"])
 
     @staticmethod
     def get_list(language: str) -> str:
         """Get 'list' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_LIST.get(lang, _DISPLAY_LIST["en"])
 
     @staticmethod
     def get_priority(language: str, level: str) -> str:
         """Get priority level label (high, medium, low)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         level_lower = level.lower()
         if level_lower == "high":
             return _DISPLAY_PRIORITY_HIGH.get(lang, _DISPLAY_PRIORITY_HIGH["en"])
@@ -3422,19 +3439,19 @@ class V3Messages:
     @staticmethod
     def get_favorite(language: str) -> str:
         """Get 'favorite' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_FAVORITE.get(lang, _DISPLAY_FAVORITE["en"])
 
     @staticmethod
     def get_read_full_article(language: str) -> str:
         """Get 'read full article' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_READ_FULL_ARTICLE.get(lang, _DISPLAY_READ_FULL_ARTICLE["en"])
 
     @staticmethod
     def get_read_more_on_wikipedia(language: str) -> str:
         """Get 'read more on Wikipedia' label for truncated articles."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_READ_MORE_ON_WIKIPEDIA.get(lang, _DISPLAY_READ_MORE_ON_WIKIPEDIA["en"])
 
     # =========================================================================
@@ -3444,67 +3461,67 @@ class V3Messages:
     @staticmethod
     def get_new(language: str) -> str:
         """Get 'new' label (for unread emails badge)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_NEW.get(lang, _DISPLAY_NEW["en"])
 
     @staticmethod
     def get_important(language: str) -> str:
         """Get 'important' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_IMPORTANT.get(lang, _DISPLAY_IMPORTANT["en"])
 
     @staticmethod
     def get_from(language: str) -> str:
         """Get 'from' label for email sender."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_FROM.get(lang, _DISPLAY_FROM["en"])
 
     @staticmethod
     def get_to(language: str) -> str:
         """Get 'to' label for email recipients."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_TO.get(lang, _DISPLAY_TO["en"])
 
     @staticmethod
     def get_cc(language: str) -> str:
         """Get 'cc' label for email copy recipients."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_CC.get(lang, _DISPLAY_CC["en"])
 
     @staticmethod
     def get_digest(language: str) -> str:
         """Get the label of a condensed message's gist (ADR-287)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_DIGEST.get(lang, _DISPLAY_DIGEST["en"])
 
     @staticmethod
     def get_key_points(language: str) -> str:
         """Get the label of a condensed message's key points (ADR-287)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_KEY_POINTS.get(lang, _DISPLAY_KEY_POINTS["en"])
 
     @staticmethod
     def get_actions(language: str) -> str:
         """Get the label of a condensed message's expected actions (ADR-287)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_ACTIONS.get(lang, _DISPLAY_ACTIONS["en"])
 
     @staticmethod
     def get_email_content(language: str) -> str:
         """Get 'Email content' label for email body section."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_EMAIL_CONTENT.get(lang, _DISPLAY_EMAIL_CONTENT["en"])
 
     @staticmethod
     def get_attachment(language: str) -> str:
         """Get 'attachment' singular label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_ATTACHMENT.get(lang, _DISPLAY_ATTACHMENT["en"])
 
     @staticmethod
     def get_size_unit(language: str, unit: str) -> str:
         """Get localized size unit (bytes, KB, MB, GB)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         unit_lower = unit.lower()
         if unit_lower in ("b", "bytes", "o"):
             return _DISPLAY_SIZE_BYTES.get(lang, _DISPLAY_SIZE_BYTES["en"])
@@ -3519,7 +3536,7 @@ class V3Messages:
     @staticmethod
     def get_file_type(language: str, type_key: str) -> str:
         """Get localized file type label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         type_dict = _DISPLAY_FILE_TYPES.get(type_key.lower(), _DISPLAY_FILE_TYPES["file"])
         return type_dict.get(lang, type_dict.get("en", type_key))
 
@@ -3530,32 +3547,32 @@ class V3Messages:
     @staticmethod
     def get_month_name(language: str, month: int) -> str:
         """Get localized month name (1-12)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         month_dict = _DISPLAY_MONTHS.get(month, {})
         return month_dict.get(lang, month_dict.get("en", str(month)))
 
     @staticmethod
     def get_years_old(language: str) -> str:
         """Get 'years old' suffix for age."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_YEARS_OLD.get(lang, _DISPLAY_YEARS_OLD["en"])
 
     @staticmethod
     def get_nicknames(language: str) -> str:
         """Get 'nicknames' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_NICKNAMES.get(lang, _DISPLAY_NICKNAMES["en"])
 
     @staticmethod
     def get_relations(language: str) -> str:
         """Get 'relations' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_RELATIONS.get(lang, _DISPLAY_RELATIONS["en"])
 
     @staticmethod
     def get_relation_type(language: str, relation_type: str) -> str:
         """Get translated relation type (spouse, child, parent, etc.)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         type_lower = relation_type.lower() if relation_type else ""
         if type_lower in _RELATION_TYPES:
             return _RELATION_TYPES[type_lower].get(lang, _RELATION_TYPES[type_lower]["en"])
@@ -3576,7 +3593,7 @@ class V3Messages:
         Returns:
             Localized data type label
         """
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         type_lower = data_type.lower() if data_type else ""
         if type_lower in _DATA_TYPES:
             return _DATA_TYPES[type_lower].get(lang, _DATA_TYPES[type_lower]["en"])
@@ -3586,37 +3603,49 @@ class V3Messages:
     @staticmethod
     def get_skills(language: str) -> str:
         """Get 'skills' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SKILLS.get(lang, _DISPLAY_SKILLS["en"])
 
     @staticmethod
     def get_interests(language: str) -> str:
         """Get 'interests' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_INTERESTS.get(lang, _DISPLAY_INTERESTS["en"])
 
     @staticmethod
     def get_occupation(language: str) -> str:
         """Get 'occupation/profession' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_OCCUPATION.get(lang, _DISPLAY_OCCUPATION["en"])
 
     @staticmethod
     def get_events(language: str) -> str:
         """Get 'events' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_EVENTS.get(lang, _DISPLAY_EVENTS["en"])
 
     @staticmethod
     def get_locations(language: str) -> str:
         """Get 'locations' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_LOCATIONS.get(lang, _DISPLAY_LOCATIONS["en"])
+
+    @staticmethod
+    def get_position(language: str | None) -> str:
+        """The title of a place known only by its coordinates.
+
+        Args:
+            language: The reader's language; the declared one when absent.
+
+        Returns:
+            The title, in that language.
+        """
+        return _DISPLAY_POSITION[resolve_language(language)]
 
     @staticmethod
     def get_calendar(language: str) -> str:
         """Get 'calendar' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_CALENDAR.get(lang, _DISPLAY_CALENDAR["en"])
 
     # =========================================================================
@@ -3626,25 +3655,25 @@ class V3Messages:
     @staticmethod
     def get_untitled_event(language: str) -> str:
         """Get the placeholder name for an event with no summary."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_UNTITLED_EVENT.get(lang, _DISPLAY_UNTITLED_EVENT["en"])
 
     @staticmethod
     def get_tentative(language: str) -> str:
         """Get 'tentative' status label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_TENTATIVE.get(lang, _DISPLAY_TENTATIVE["en"])
 
     @staticmethod
     def get_cancelled(language: str) -> str:
         """Get 'cancelled' status label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_CANCELLED.get(lang, _DISPLAY_CANCELLED["en"])
 
     @staticmethod
     def get_all_day(language: str, long_form: bool = False) -> str:
         """Get 'all day' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         if long_form:
             return _DISPLAY_ALL_DAY_LONG.get(lang, _DISPLAY_ALL_DAY_LONG["en"])
         return _DISPLAY_ALL_DAY.get(lang, _DISPLAY_ALL_DAY["en"])
@@ -3652,7 +3681,7 @@ class V3Messages:
     @staticmethod
     def get_participant(language: str, count: int = 1) -> str:
         """Get 'participant(s)' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         if count == 1:
             return _DISPLAY_PARTICIPANT.get(lang, _DISPLAY_PARTICIPANT["en"])
         return _DISPLAY_PARTICIPANTS.get(lang, _DISPLAY_PARTICIPANTS["en"])
@@ -3660,43 +3689,45 @@ class V3Messages:
     @staticmethod
     def get_participants(language: str) -> str:
         """Get 'Participants' label (capitalized)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_PARTICIPANTS.get(lang, _DISPLAY_PARTICIPANTS["en"])
 
     @staticmethod
     def get_organized_by(language: str) -> str:
-        """Get 'organized by' label."""
-        lang = V3Messages._normalize_language(language)
+        """The organizer line's template: ``{name}`` stands for the organizer,
+        ``{separator}`` for the language's label separator where the line is a
+        label and its value."""
+        lang = resolve_language(language)
         return _DISPLAY_ORGANIZED_BY.get(lang, _DISPLAY_ORGANIZED_BY["en"])
 
     @staticmethod
     def get_join_meet(language: str) -> str:
         """Get 'Join Google Meet' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_JOIN_MEET.get(lang, _DISPLAY_JOIN_MEET["en"])
 
     @staticmethod
     def get_recurring_event(language: str) -> str:
         """Get 'recurring event' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_RECURRING_EVENT.get(lang, _DISPLAY_RECURRING_EVENT["en"])
 
     @staticmethod
     def get_default_reminder(language: str) -> str:
         """Get 'default reminder' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_DEFAULT_REMINDER.get(lang, _DISPLAY_DEFAULT_REMINDER["en"])
 
     @staticmethod
     def get_reminders(language: str) -> str:
         """Get 'reminders' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_REMINDERS.get(lang, _DISPLAY_REMINDERS["en"])
 
     @staticmethod
     def get_reminder_time(language: str, minutes: int) -> str:
         """Get formatted reminder time string."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
 
         if minutes == 0:
             return _DISPLAY_AT_EVENT_TIME.get(lang, _DISPLAY_AT_EVENT_TIME["en"])
@@ -3729,31 +3760,31 @@ class V3Messages:
     @staticmethod
     def get_open(language: str) -> str:
         """Get 'open' status label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_OPEN.get(lang, _DISPLAY_OPEN["en"])
 
     @staticmethod
     def get_closed(language: str) -> str:
         """Get 'closed' status label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_CLOSED.get(lang, _DISPLAY_CLOSED["en"])
 
     @staticmethod
     def get_open_now(language: str) -> str:
         """Get 'open now' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_OPEN_NOW.get(lang, _DISPLAY_OPEN_NOW["en"])
 
     @staticmethod
     def get_opens_at(language: str) -> str:
         """Get 'opens at' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_OPENS_AT.get(lang, _DISPLAY_OPENS_AT["en"])
 
     @staticmethod
     def get_closes_at(language: str) -> str:
         """Get 'closes at' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         labels = {
             "fr": "Ferme à",
             "en": "Closes at",
@@ -3767,84 +3798,84 @@ class V3Messages:
     @staticmethod
     def get_reviews(language: str) -> str:
         """Get 'reviews' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_REVIEWS.get(lang, _DISPLAY_REVIEWS["en"])
 
     @staticmethod
     def get_free(language: str) -> str:
         """Get 'free' price label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_FREE.get(lang, _DISPLAY_FREE["en"])
 
     @staticmethod
     def get_website(language: str) -> str:
         """Get 'website' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_WEBSITE.get(lang, _DISPLAY_WEBSITE["en"])
 
     @staticmethod
     def get_directions(language: str) -> str:
         """Get 'directions' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_DIRECTIONS.get(lang, _DISPLAY_DIRECTIONS["en"])
 
     @staticmethod
     def get_services_amenities(language: str) -> str:
         """Get 'services & amenities' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SERVICES_AMENITIES.get(lang, _DISPLAY_SERVICES_AMENITIES["en"])
 
     @staticmethod
     def get_description(language: str) -> str:
         """Get 'description' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_DESCRIPTION.get(lang, _DISPLAY_DESCRIPTION["en"])
 
     @staticmethod
     def get_opening_hours(language: str) -> str:
         """Get 'opening hours' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_OPENING_HOURS.get(lang, _DISPLAY_OPENING_HOURS["en"])
 
     @staticmethod
     def get_place_type(language: str, type_key: str) -> str:
         """Get localized place type label with emoji."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         type_dict = _DISPLAY_PLACE_TYPES.get(type_key.lower(), {})
         return type_dict.get(lang, type_dict.get("en", ""))
 
     @staticmethod
     def get_place_feature(language: str, feature_key: str) -> str:
         """Get localized place feature label with emoji."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         feature_dict = _DISPLAY_PLACE_FEATURES.get(feature_key.lower(), {})
         return feature_dict.get(lang, feature_dict.get("en", ""))
 
     @staticmethod
     def get_accessibility(language: str, key: str) -> str:
         """Get localized accessibility label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         acc_dict = _DISPLAY_ACCESSIBILITY.get(key, {})
         return acc_dict.get(lang, acc_dict.get("en", ""))
 
     @staticmethod
     def get_business_status(language: str, status: str) -> str:
         """Get localized business status label ('' for OPERATIONAL/unknown)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         status_dict = _DISPLAY_BUSINESS_STATUS.get(status, {})
         return status_dict.get(lang, status_dict.get("en", ""))
 
     @staticmethod
     def get_parking_option(language: str, key: str) -> str:
         """Get localized parking option label ('' for unknown keys)."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         opt_dict = _DISPLAY_PARKING_OPTIONS.get(key, {})
         return opt_dict.get(lang, opt_dict.get("en", ""))
 
     @staticmethod
     def get_parking_title(language: str) -> str:
         """Get 'Parking' section title."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         titles = {
             "fr": "Parking",
             "en": "Parking",
@@ -3858,14 +3889,14 @@ class V3Messages:
     @staticmethod
     def get_payment(language: str, key: str) -> str:
         """Get localized payment option label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         pay_dict = _DISPLAY_PAYMENT.get(key, {})
         return pay_dict.get(lang, pay_dict.get("en", ""))
 
     @staticmethod
     def get_accessibility_title(language: str) -> str:
         """Get 'Accessibility' section title."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         titles = {
             "fr": "Accessibilité",
             "en": "Accessibility",
@@ -3879,7 +3910,7 @@ class V3Messages:
     @staticmethod
     def get_payment_title(language: str) -> str:
         """Get 'Payment options' section title."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         titles = {
             "fr": "Paiements",
             "en": "Payment",
@@ -3897,37 +3928,37 @@ class V3Messages:
     @staticmethod
     def get_sources(language: str) -> str:
         """Get 'sources' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SOURCES.get(lang, _DISPLAY_SOURCES["en"])
 
     @staticmethod
     def get_related_questions(language: str) -> str:
         """Get 'related questions' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_RELATED_QUESTIONS.get(lang, _DISPLAY_RELATED_QUESTIONS["en"])
 
     @staticmethod
     def get_search(language: str) -> str:
         """Get 'search' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SEARCH.get(lang, _DISPLAY_SEARCH["en"])
 
     @staticmethod
     def get_internet(language: str) -> str:
         """Get 'internet' label for web search badge."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_INTERNET.get(lang, _DISPLAY_INTERNET["en"])
 
     @staticmethod
     def get_ai_synthesis(language: str) -> str:
         """Get 'AI synthesis' label for web search."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_AI_SYNTHESIS.get(lang, _DISPLAY_AI_SYNTHESIS["en"])
 
     @staticmethod
     def get_web_results(language: str) -> str:
         """Get 'web results' label for web search."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_WEB_RESULTS.get(lang, _DISPLAY_WEB_RESULTS["en"])
 
     @staticmethod
@@ -3949,31 +3980,31 @@ class V3Messages:
     @staticmethod
     def get_edit(language: str) -> str:
         """Get 'edit' action label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_EDIT.get(lang, _DISPLAY_EDIT["en"])
 
     @staticmethod
     def get_delete(language: str) -> str:
         """Get 'delete' action label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_DELETE.get(lang, _DISPLAY_DELETE["en"])
 
     @staticmethod
     def get_call(language: str) -> str:
         """Get 'call' action label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_CALL.get(lang, _DISPLAY_CALL["en"])
 
     @staticmethod
     def get_email_action(language: str) -> str:
         """Get 'send email' action label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_EMAIL.get(lang, _DISPLAY_EMAIL["en"])
 
     @staticmethod
     def get_view_details(language: str) -> str:
         """Get 'view details' action label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_VIEW_DETAILS.get(lang, _DISPLAY_VIEW_DETAILS["en"])
 
     # =========================================================================
@@ -3983,126 +4014,126 @@ class V3Messages:
     @staticmethod
     def get_travel_mode(language: str, mode: str) -> str:
         """Get localized travel mode label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         mode_dict = _ROUTE_TRAVEL_MODES.get(mode.upper(), _ROUTE_TRAVEL_MODES.get("DRIVE", {}))
         return mode_dict.get(lang, mode_dict.get("en", mode))
 
     @staticmethod
     def get_traffic_condition(language: str, condition: str) -> str:
         """Get localized traffic condition label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         cond_dict = _ROUTE_TRAFFIC_CONDITIONS.get(condition.upper(), {})
         return cond_dict.get(lang, cond_dict.get("en", condition))
 
     @staticmethod
     def get_route_avoidance(language: str, avoidance: str) -> str:
         """Get localized route avoidance label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         avoid_dict = _ROUTE_AVOIDANCES.get(avoidance.lower(), {})
         return avoid_dict.get(lang, avoid_dict.get("en", avoidance))
 
     @staticmethod
     def get_distance_label(language: str) -> str:
         """Get 'distance' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_DISTANCE.get(lang, _DISPLAY_DISTANCE["en"])
 
     @staticmethod
     def get_duration_label(language: str) -> str:
         """Get 'duration' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_DURATION.get(lang, _DISPLAY_DURATION["en"])
 
     @staticmethod
     def get_traffic_label(language: str) -> str:
         """Get 'traffic' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_TRAFFIC.get(lang, _DISPLAY_TRAFFIC["en"])
 
     @staticmethod
     def get_with_traffic(language: str) -> str:
         """Get 'with traffic' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_WITH_TRAFFIC.get(lang, _DISPLAY_WITH_TRAFFIC["en"])
 
     @staticmethod
     def get_toll_label(language: str) -> str:
         """Get 'tolls' label for route cost."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_TOLL_LABEL.get(lang, _DISPLAY_TOLL_LABEL["en"])
 
     @staticmethod
     def get_arrival_time(language: str) -> str:
         """Get 'arrival' label for ETA."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_ARRIVAL_TIME.get(lang, _DISPLAY_ARRIVAL_TIME["en"])
 
     @staticmethod
     def get_suggested_departure(language: str) -> str:
         """Get 'suggested departure' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SUGGESTED_DEPARTURE.get(lang, _DISPLAY_SUGGESTED_DEPARTURE["en"])
 
     @staticmethod
     def get_to_arrive_by(language: str, time: str, departure: str) -> str:
         """Get formatted 'to arrive by X, leave at Y' message."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         template = _DISPLAY_TO_ARRIVE_BY.get(lang, _DISPLAY_TO_ARRIVE_BY["en"])
         return template.format(time=time, departure=departure)
 
     @staticmethod
     def get_open_in_maps(language: str) -> str:
         """Get 'open in maps' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_OPEN_IN_MAPS.get(lang, _DISPLAY_OPEN_IN_MAPS["en"])
 
     @staticmethod
     def get_route_label(language: str) -> str:
         """Get 'route' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_ROUTE.get(lang, _DISPLAY_ROUTE["en"])
 
     @staticmethod
     def get_route_steps(language: str) -> str:
         """Get 'steps' label for route."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_ROUTE_STEPS.get(lang, _DISPLAY_ROUTE_STEPS["en"])
 
     @staticmethod
     def get_via(language: str) -> str:
         """Get 'via' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_VIA.get(lang, _DISPLAY_VIA["en"])
 
     @staticmethod
     def get_origin(language: str) -> str:
         """Get 'origin/from' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_ORIGIN.get(lang, _DISPLAY_ORIGIN["en"])
 
     @staticmethod
     def get_destination_label(language: str) -> str:
         """Get 'destination/to' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_DESTINATION.get(lang, _DISPLAY_DESTINATION["en"])
 
     @staticmethod
     def get_my_location(language: str) -> str:
         """Get 'my location' / 'current location' label."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_MY_LOCATION.get(lang, _DISPLAY_MY_LOCATION["en"])
 
     @staticmethod
     def get_more_steps(language: str, count: int) -> str:
         """Get '+N more steps...' label for truncated step list."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         template = _DISPLAY_MORE_STEPS.get(lang, _DISPLAY_MORE_STEPS["en"])
         return template.format(count=count)
 
     @staticmethod
     def get_transit_stops(language: str, count: int) -> str:
         """Get 'N stops' / 'N arrêts' label for transit steps."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         if count == 1:
             return _DISPLAY_TRANSIT_STOP_SINGLE.get(lang, _DISPLAY_TRANSIT_STOP_SINGLE["en"])
         template = _DISPLAY_TRANSIT_STOPS.get(lang, _DISPLAY_TRANSIT_STOPS["en"])
@@ -4126,7 +4157,7 @@ class V3Messages:
         Returns:
             Translated section title (e.g., "Contacts", "Événements", "Itinéraire")
         """
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         domain_labels = _DOMAIN_SECTION_LABELS.get(domain, {})
         return domain_labels.get(lang, domain_labels.get("en", domain.capitalize()))
 
@@ -4137,11 +4168,11 @@ class V3Messages:
     @staticmethod
     def get_mcp_app_loading(language: str) -> str:
         """Get MCP Apps loading placeholder text."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_MCP_APP_LOADING.get(lang, _DISPLAY_MCP_APP_LOADING["en"])
 
     @staticmethod
     def get_skill_app_loading(language: str) -> str:
         """Get Skill Apps loading placeholder text."""
-        lang = V3Messages._normalize_language(language)
+        lang = resolve_language(language)
         return _DISPLAY_SKILL_APP_LOADING.get(lang, _DISPLAY_SKILL_APP_LOADING["en"])

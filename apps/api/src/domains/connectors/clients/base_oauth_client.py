@@ -676,6 +676,19 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         """
         return params
 
+    def _request_url(self, endpoint: str, base_url: str | None) -> str:
+        """
+        Resolve the URL of one call, outside the template method's branches.
+
+        Args:
+            endpoint: API endpoint path, appended to the root.
+            base_url: Another root than ``api_base_url`` for this call only.
+
+        Returns:
+            The absolute URL the request is sent to.
+        """
+        return f"{self.api_base_url if base_url is None else base_url}{endpoint}"
+
     async def _make_request(
         self,
         method: str,
@@ -684,6 +697,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         json_data: dict[str, Any] | None = None,
         max_retries: int = 3,
         extra_headers: dict[str, str] | None = None,
+        *,
+        content: bytes | None = None,
+        base_url: str | None = None,
     ) -> dict[str, Any]:
         """
         Make HTTP request to provider API with retry logic.
@@ -700,6 +716,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             json_data: JSON body for POST/PUT requests.
             max_retries: Max retry attempts for 429/5xx errors.
             extra_headers: Additional headers to include.
+            content: A raw POST body, in place of ``json_data`` — its type goes
+                in ``extra_headers`` (Gmail's upload URI takes RFC 822 bytes).
+            base_url: Another root than ``api_base_url`` for this call only.
 
         Returns:
             JSON response from API.
@@ -716,7 +735,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         # Hook: enrich params before sending
         params = self._enrich_request_params(params)
 
-        url = f"{self.api_base_url}{endpoint}"
+        url = self._request_url(endpoint, base_url)
         client = await self._get_client()
 
         connector_type_value = (
@@ -766,7 +785,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     response = await client.get(url, headers=headers, params=params)
                 elif method.upper() == "POST":
                     response = await client.post(
-                        url, headers=headers, params=params, json=json_data
+                        url, headers=headers, params=params, json=json_data, content=content
                     )
                 elif method.upper() == "PUT":
                     response = await client.put(url, headers=headers, params=params, json=json_data)

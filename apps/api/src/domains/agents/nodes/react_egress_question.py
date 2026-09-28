@@ -30,6 +30,7 @@ import structlog
 from langgraph.types import interrupt
 
 from src.core.constants import PYTHON_SANDBOX_TOOL_NAME
+from src.core.i18n import resolve_language
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects.scope import approved_scope, current_scope, effect_scope
@@ -39,6 +40,7 @@ from src.domains.agents.python_sandbox.egress.tool_path import approved_for_call
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN
 from src.infrastructure.observability.metrics_react import (
     python_sandbox_egress_grants_total,
     react_agent_hitl_interrupts_total,
@@ -107,6 +109,45 @@ def read_answer(decision: Any) -> EgressAnswer:
     return EgressAnswer(allowed=True, share_turn_data=bool(decision.get("share_turn_data", True)))
 
 
+def _refusal(hosts: list[str], *, by_person: bool) -> UnifiedToolOutput:
+    """What the model reads when the call will not run.
+
+    The person's refusal is a DECISION: the answer says the call never ran, so
+    no reader of a CALL's outcome counts it a failure and the honesty directive
+    never calls the person's choice a breakdown (ADR-303) — the declined
+    mutation's rule. The TURN is still judged on its result (ADR-310): a gap
+    the model then declares is a gap. With no account to record the answer
+    for, nobody refused: the system could not grant, which stays a failure,
+    and says so.
+
+    Args:
+        hosts: The hosts the script declared and nobody had permitted.
+        by_person: True when the person answered no.
+
+    Returns:
+        The refusal, marked as a call never run when the person made it.
+    """
+    listed = ", ".join(hosts)
+    if by_person:
+        return UnifiedToolOutput(
+            success=False,
+            message=(
+                f"The person refused network access to: {listed}. "
+                "Answer with what you have; do not declare these hosts again this turn."
+            ),
+            error_code=ToolErrorCode.FORBIDDEN,
+            metadata={TOOL_CALL_NOT_RUN: True},
+        )
+    return UnifiedToolOutput(
+        success=False,
+        message=(
+            f"Network access to {listed} could not be granted: no account owns this turn "
+            "to record the answer for. Answer with what you have."
+        ),
+        error_code=ToolErrorCode.INTERNAL_ERROR,
+    )
+
+
 async def settle_egress_question(
     draft_info: Mapping[str, Any],
     *,
@@ -124,7 +165,7 @@ async def settle_egress_question(
         The re-invocation's result, or a refusal the model can read.
     """
     payload = build_interrupt_payload(
-        draft_info, user_language=str(state.get("user_language", "fr"))
+        draft_info, user_language=resolve_language(state.get("user_language"))
     )
     # Halts the node on the first pass; hands the resume value back on the
     # re-execution (index-based, like the mutation interrupt beside it).
@@ -132,22 +173,19 @@ async def settle_egress_question(
     hosts = [str(h) for h in draft_info["draft_content"].get("hosts_unknown") or []]
     context = runtime_context_if_running()
     user_id = getattr(context, "user_id", None)
-    if not answer.allowed or user_id is None:
+    if not answer.allowed:
         python_sandbox_egress_grants_total.labels(decision=DECISION_REFUSED).inc()
         react_agent_hitl_interrupts_total.labels(
             tool_name=PYTHON_SANDBOX_TOOL_NAME, decision="reject"
         ).inc()
-        logger.info(
-            "sandbox_egress_question_refused", hosts=len(hosts), had_owner=user_id is not None
-        )
-        return UnifiedToolOutput(
-            success=False,
-            message=(
-                f"The person refused network access to: {', '.join(hosts)}. "
-                "Answer with what you have; do not declare these hosts again this turn."
-            ),
-            error_code=ToolErrorCode.FORBIDDEN,
-        )
+        logger.info("sandbox_egress_question_refused", hosts=len(hosts))
+        return _refusal(hosts, by_person=True)
+    if user_id is None:
+        # The person said yes and nobody can record it — unreachable inside a
+        # graph run, whose context always names its account. Not a refusal:
+        # counted as none, and the call fails as the system's.
+        logger.warning("sandbox_egress_question_unrecorded", hosts=len(hosts))
+        return _refusal(hosts, by_person=False)
     decision = Decision.WITH_DATA if answer.share_turn_data else Decision.WITHOUT_DATA
     outcome = await record_decision(user_id, hosts, decision)
     python_sandbox_egress_grants_total.labels(

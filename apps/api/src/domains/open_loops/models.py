@@ -3,7 +3,7 @@
 An OpenLoop is a tracked commitment extracted from conversation (P5,
 ADR-139): either something the user owes a counterparty (``user_owes``)
 or something the user is waiting on (``waiting_on_other``). Loops are
-closed conversationally (the extractor detects "c'est fait"), via the
+closed conversationally (the extractor detects "it's done"), via the
 API, or soft-expired after ``open_loops_expiry_days`` of inactivity
 (lazy expiry in the heartbeat fetcher — no dedicated scheduler job).
 """
@@ -43,7 +43,7 @@ class OpenLoop(BaseModel):
     """A tracked commitment (open loop) owned by a user.
 
     ``due_hint`` is a best-effort UTC datetime parsed from the conversation
-    ("d'ici vendredi") — advisory for nudge timing, never authoritative.
+    ("by Friday") — advisory for nudge timing, never authoritative.
     ``last_nudged_at``/``nudge_count`` implement the anti-nag cooldown:
     the heartbeat fetcher only surfaces loops outside the cooldown, and
     ``proactive_task`` bumps them after a notification actually used the

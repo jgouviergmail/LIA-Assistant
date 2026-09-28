@@ -64,12 +64,26 @@ def _budget_for(level: str, max_output_tokens: int, floor: int) -> int:
     return max(int(max_output_tokens * ratio), floor)
 
 
-def _render_openai(level: str, _intent: ReasoningIntent, _max_output: int) -> dict[str, Any]:
+#: The budget a model accepts, as its profile publishes it (``None``: no budget).
+type BudgetRange = tuple[int, int] | None
+
+
+def _within(budget: int, budget_range: BudgetRange) -> int:
+    """Clamp a budget LIA derived into the range the model accepts."""
+    if budget_range is None:
+        return budget
+    low, high = budget_range
+    return min(max(budget, low), high)
+
+
+def _render_openai(
+    level: str, _intent: ReasoningIntent, _max_output: int, _budget_range: BudgetRange
+) -> dict[str, Any]:
     return {} if level == _NO_DEPTH else {"reasoning_effort": level}
 
 
 def _render_anthropic_adaptive(
-    level: str, _intent: ReasoningIntent, _max_output: int
+    level: str, _intent: ReasoningIntent, _max_output: int, _budget_range: BudgetRange
 ) -> dict[str, Any]:
     if level in (_NO_DEPTH, "none"):
         return {}
@@ -77,7 +91,7 @@ def _render_anthropic_adaptive(
 
 
 def _render_anthropic_adaptive_display(
-    level: str, intent: ReasoningIntent, _max_output: int
+    level: str, intent: ReasoningIntent, _max_output: int, _budget_range: BudgetRange
 ) -> dict[str, Any]:
     """Claude from Opus 4.7 on (ADR-306): adaptive thinking, visibility per call.
 
@@ -100,7 +114,7 @@ def _render_anthropic_adaptive_display(
 
 
 def _render_anthropic_budget(
-    level: str, intent: ReasoningIntent, max_output: int
+    level: str, intent: ReasoningIntent, max_output: int, _budget_range: BudgetRange
 ) -> dict[str, Any]:
     if level == "none":
         return {}
@@ -113,7 +127,9 @@ def _render_anthropic_budget(
     return {"thinking": {"type": "enabled", "budget_tokens": budget}}
 
 
-def _render_gemini_level(level: str, intent: ReasoningIntent, _max_output: int) -> dict[str, Any]:
+def _render_gemini_level(
+    level: str, intent: ReasoningIntent, _max_output: int, _budget_range: BudgetRange
+) -> dict[str, Any]:
     if level == _NO_DEPTH:
         # No depth was asked for, so none is sent; the only thing left to say
         # is the caller's wish to keep the reasoning out of the response, and
@@ -123,7 +139,7 @@ def _render_gemini_level(level: str, intent: ReasoningIntent, _max_output: int) 
 
 
 def _render_gemini_live_level(
-    level: str, _intent: ReasoningIntent, _max_output: int
+    level: str, _intent: ReasoningIntent, _max_output: int, _budget_range: BudgetRange
 ) -> dict[str, Any]:
     # A live model is reached through a session ``setup``, not a LangChain
     # kwarg: ``domains/live/providers/gemini.py`` renders ``thinkingConfig``
@@ -132,7 +148,19 @@ def _render_gemini_live_level(
     return {} if level == _NO_DEPTH else {"thinking_level": level}
 
 
-def _render_gemini_budget(level: str, intent: ReasoningIntent, max_output: int) -> dict[str, Any]:
+def _render_gemini_budget(
+    level: str, intent: ReasoningIntent, max_output: int, budget_range: BudgetRange
+) -> dict[str, Any]:
+    """Gemini 2.5: a depth is a token budget, derived WITHIN the model's range.
+
+    The ratio applies to the model's output cap, which is larger than the
+    budget the API accepts: measured 2026-09-26, a 65 536-token cap turned
+    ``high`` into 52 428 and ``medium`` into 32 768, and the API refuses any
+    budget outside 0..24 576 (2.5 Flash) or 128..32 768 (2.5 Pro) with a 400 —
+    every call of a slot on those levels failed. A budget LIA derives is
+    therefore clamped into the range the profile publishes; an explicit one is
+    the operator's, validated against the same range on the write path.
+    """
     budget = intent.budget_tokens
     if level == _NO_DEPTH:
         depthless: dict[str, Any] = {}
@@ -142,12 +170,16 @@ def _render_gemini_budget(level: str, intent: ReasoningIntent, max_output: int) 
             depthless["include_thoughts"] = False
         return depthless
     if budget is None:
-        budget = 0 if level == "none" else int(max_output * _BUDGET_RATIO.get(level, 0.5))
+        if level == "none":
+            budget = 0
+        else:
+            derived = int(max_output * _BUDGET_RATIO.get(level, 0.5))
+            budget = _within(derived, budget_range)
     return {"thinking_budget": budget, "include_thoughts": not intent.exclude_from_output}
 
 
 def _render_deepseek_toggle(
-    level: str, _intent: ReasoningIntent, _max_output: int
+    level: str, _intent: ReasoningIntent, _max_output: int, _budget_range: BudgetRange
 ) -> dict[str, Any]:
     if level == _NO_DEPTH:
         return {}
@@ -157,7 +189,7 @@ def _render_deepseek_toggle(
 
 
 def _render_qwen_toggle_budget(
-    level: str, intent: ReasoningIntent, _max_output: int
+    level: str, intent: ReasoningIntent, _max_output: int, _budget_range: BudgetRange
 ) -> dict[str, Any]:
     if level == "none":
         return {"extra_body": {"enable_thinking": False}}
@@ -170,11 +202,15 @@ def _render_qwen_toggle_budget(
     return {"extra_body": extra}
 
 
-def _render_perplexity(level: str, _intent: ReasoningIntent, _max_output: int) -> dict[str, Any]:
+def _render_perplexity(
+    level: str, _intent: ReasoningIntent, _max_output: int, _budget_range: BudgetRange
+) -> dict[str, Any]:
     return {} if level == _NO_DEPTH else {"reasoning_effort": level}
 
 
-def _render_ollama(level: str, _intent: ReasoningIntent, _max_output: int) -> dict[str, Any]:
+def _render_ollama(
+    level: str, _intent: ReasoningIntent, _max_output: int, _budget_range: BudgetRange
+) -> dict[str, Any]:
     """``ChatOllama.reasoning``: ``False`` switches thinking off, a level asks for it.
 
     The ladder coerces to Ollama's own vocabulary before this runs, so only
@@ -193,7 +229,7 @@ def _render_ollama(level: str, _intent: ReasoningIntent, _max_output: int) -> di
 #: one small function; no existing family changes. The families deliberately
 #: differ only in the kwargs they emit -- everything upstream (the ladder, the
 #: coercion, the intent) is shared.
-_RENDERERS: dict[str, Callable[[str, ReasoningIntent, int], dict[str, Any]]] = {
+_RENDERERS: dict[str, Callable[[str, ReasoningIntent, int, BudgetRange], dict[str, Any]]] = {
     "openai": _render_openai,
     "anthropic_adaptive": _render_anthropic_adaptive,
     "anthropic_adaptive_display": _render_anthropic_adaptive_display,
@@ -267,7 +303,7 @@ def translate(
     level, was_coerced = coerce(intent.level, profile)
     if was_coerced:
         _report_coercion(model, intent.level, level)
-    return renderer(level, intent, max_output_tokens)
+    return renderer(level, intent, max_output_tokens, profile.budget_range)
 
 
 @cache
@@ -290,9 +326,9 @@ def honours_exclude_from_output(family: str) -> bool:
     if renderer is None:
         return False
     probe = "medium"
-    kept = renderer(probe, ReasoningIntent(level=probe), _PROBE_OUTPUT_TOKENS)
+    kept = renderer(probe, ReasoningIntent(level=probe), _PROBE_OUTPUT_TOKENS, None)
     excluded = renderer(
-        probe, ReasoningIntent(level=probe, exclude_from_output=True), _PROBE_OUTPUT_TOKENS
+        probe, ReasoningIntent(level=probe, exclude_from_output=True), _PROBE_OUTPUT_TOKENS, None
     )
     return kept != excluded
 

@@ -256,7 +256,6 @@ def assert_treatment_domain_completeness(registry: AgentRegistry | None = None) 
     Raises:
         AssertionError: Listing every capability with no readable domain.
     """
-    from src.core.i18n import DEFAULT_LANGUAGE
     from src.core.i18n_treatments import TREATMENT_DOMAIN_LABELS
     from src.domains.agents.tools.tool_registry import get_all_tools
 
@@ -265,7 +264,7 @@ def assert_treatment_domain_completeness(registry: AgentRegistry | None = None) 
     # this guard's. Asking it of the outer mapping compares a domain to a
     # language code and finds nothing — which is how this guard first read
     # "all 119 capabilities are unreadable".
-    known = set(TREATMENT_DOMAIN_LABELS.get(DEFAULT_LANGUAGE, TREATMENT_DOMAIN_LABELS["en"]))
+    known = set(TREATMENT_DOMAIN_LABELS["en"])
     unreadable = sorted(
         name for name in get_all_tools() if treatment_domain(name, registry) not in known
     )

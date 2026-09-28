@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { ApiError } from '@/lib/api-client';
-import { useRevisionStore } from '@/stores/revisionStore';
+import { INITIAL_REVISIONS, useRevisionStore } from '@/stores/revisionStore';
 
 const CAPABILITIES = {
   async_delegation: true,
@@ -67,7 +67,7 @@ describe('LiveConnectorForm', () => {
   beforeEach(() => {
     api.post.mockReset();
     api.get.mockReset();
-    useRevisionStore.setState({ revisions: { live_connectors: 0 } });
+    useRevisionStore.setState({ revisions: { ...INITIAL_REVISIONS } });
     api.post.mockImplementation(async (url: string) => {
       if (url === '/live/models/discover') return MODELS;
       if (url === '/live/connector/activate') return { status: 'active' };

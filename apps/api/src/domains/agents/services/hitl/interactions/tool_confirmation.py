@@ -108,7 +108,7 @@ class ToolConfirmationInteraction:
             context: Interrupt context with:
                 - tool_name: Name of the tool
                 - tool_args: Tool arguments dict
-            user_language: Language code (fr, en, es)
+            user_language: Language code (fr, en, es, de, it, zh-CN)
             user_timezone: User's IANA timezone for datetime context
             tracker: Optional TokenTrackingCallback
 

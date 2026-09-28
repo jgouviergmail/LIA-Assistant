@@ -28,11 +28,13 @@ Design Principles:
 - Same pattern as agents/api/error_messages.py (SSEErrorMessages)
 - Dictionary-based translations (no gettext dependency at call time)
 - Type-safe language parameter (SupportedLanguage)
-- Fallback to English if language not found
+- Any spelling of a language code is read through ``resolve_language``:
+  the declared language when absent, the instance default when unsupported
 """
 
 from datetime import date as date_type
 
+from src.core.i18n import resolve_language
 from src.core.i18n_types import SupportedLanguage
 
 
@@ -55,7 +57,7 @@ class APIMessages:
     # =========================================================================
 
     @staticmethod
-    def invalid_credentials(language: SupportedLanguage = "fr") -> str:
+    def invalid_credentials(language: SupportedLanguage | None = None) -> str:
         """Authentication error - invalid email/password."""
         messages = {
             "fr": "Identifiants invalides",
@@ -65,10 +67,10 @@ class APIMessages:
             "it": "Credenziali non valide",
             "zh-CN": "凭据无效",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def token_invalid_or_expired(token_type: str, language: SupportedLanguage = "fr") -> str:
+    def token_invalid_or_expired(token_type: str, language: SupportedLanguage | None = None) -> str:
         """Authentication error - invalid or expired token."""
         messages = {
             "fr": f"{token_type} invalide ou expiré",
@@ -78,23 +80,23 @@ class APIMessages:
             "it": f"{token_type} non valido o scaduto",
             "zh-CN": f"{token_type} 无效或已过期",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def token_already_used(language: SupportedLanguage = "fr") -> str:
+    def token_already_used(language: SupportedLanguage | None = None) -> str:
         """Authentication error - token already used (single-use tokens)."""
         messages = {
-            "fr": "Ce lien a déjà été utilisé. Veuillez en demander un nouveau.",
+            "fr": "Ce lien a déjà été utilisé. Demandes-en un nouveau.",
             "en": "This link has already been used. Please request a new one.",
-            "es": "Este enlace ya ha sido utilizado. Por favor, solicite uno nuevo.",
-            "de": "Dieser Link wurde bereits verwendet. Bitte fordern Sie einen neuen an.",
-            "it": "Questo link è già stato utilizzato. Si prega di richiederne uno nuovo.",
+            "es": "Este enlace ya ha sido utilizado. Por favor, solicita uno nuevo.",
+            "de": "Dieser Link wurde bereits verwendet. Bitte fordere einen neuen an.",
+            "it": "Questo link è già stato utilizzato. Richiedine uno nuovo.",
             "zh-CN": "此链接已被使用。请重新申请。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def session_invalid_or_expired(language: SupportedLanguage = "fr") -> str:
+    def session_invalid_or_expired(language: SupportedLanguage | None = None) -> str:
         """Authentication error - session invalid or expired."""
         messages = {
             "fr": "Session invalide ou expirée",
@@ -104,10 +106,10 @@ class APIMessages:
             "it": "Sessione non valida o scaduta",
             "zh-CN": "会话无效或已过期",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def authentication_required(language: SupportedLanguage = "fr") -> str:
+    def authentication_required(language: SupportedLanguage | None = None) -> str:
         """Authentication error - user not authenticated."""
         messages = {
             "fr": "Authentification requise",
@@ -117,10 +119,10 @@ class APIMessages:
             "it": "Autenticazione richiesta",
             "zh-CN": "需要身份验证",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def not_authorized(language: SupportedLanguage = "fr") -> str:
+    def not_authorized(language: SupportedLanguage | None = None) -> str:
         """Authorization error - not authorized to access resource."""
         messages = {
             "fr": "Non autorisé à accéder à cette ressource",
@@ -130,11 +132,11 @@ class APIMessages:
             "it": "Non autorizzato ad accedere a questa risorsa",
             "zh-CN": "无权访问此资源",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def not_authorized_action(
-        action: str, resource_type: str, language: SupportedLanguage = "fr"
+        action: str, resource_type: str, language: SupportedLanguage | None = None
     ) -> str:
         """Authorization error - not authorized to perform action on resource."""
         messages = {
@@ -145,10 +147,10 @@ class APIMessages:
             "it": f"Non autorizzato a {action} {resource_type}",
             "zh-CN": f"无权对 {resource_type} 执行 {action}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def admin_required(language: SupportedLanguage = "fr") -> str:
+    def admin_required(language: SupportedLanguage | None = None) -> str:
         """Authorization error - admin privileges required."""
         messages = {
             "fr": "Privilèges administrateur requis",
@@ -158,10 +160,10 @@ class APIMessages:
             "it": "Privilegi di amministratore richiesti",
             "zh-CN": "需要管理员权限",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def user_inactive(language: SupportedLanguage = "fr") -> str:
+    def user_inactive(language: SupportedLanguage | None = None) -> str:
         """Authorization error - user account is inactive."""
         messages = {
             "fr": "Le compte utilisateur est inactif",
@@ -171,10 +173,10 @@ class APIMessages:
             "it": "L'account utente è inattivo",
             "zh-CN": "用户帐户处于非活动状态",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def email_verification_required(language: SupportedLanguage = "fr") -> str:
+    def email_verification_required(language: SupportedLanguage | None = None) -> str:
         """Authorization error - email verification required."""
         messages = {
             "fr": "Vérification de l'email requise",
@@ -184,10 +186,10 @@ class APIMessages:
             "it": "Verifica email richiesta",
             "zh-CN": "需要电子邮件验证",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def user_id_mismatch(language: SupportedLanguage = "fr") -> str:
+    def user_id_mismatch(language: SupportedLanguage | None = None) -> str:
         """Authorization error - user_id mismatch."""
         messages = {
             "fr": "Identifiant utilisateur non concordant",
@@ -197,14 +199,14 @@ class APIMessages:
             "it": "ID utente non corrispondente",
             "zh-CN": "用户ID不匹配",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # RESOURCE OPERATIONS (CRUD)
     # =========================================================================
 
     @staticmethod
-    def resource_not_found(resource_type: str, language: SupportedLanguage = "fr") -> str:
+    def resource_not_found(resource_type: str, language: SupportedLanguage | None = None) -> str:
         """Resource not found (404)."""
         # Capitalize first letter for display
         resource_display = resource_type.capitalize()
@@ -216,10 +218,12 @@ class APIMessages:
             "it": f"{resource_display} non trovato",
             "zh-CN": f"未找到{resource_display}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def resource_already_exists(resource_type: str, language: SupportedLanguage = "fr") -> str:
+    def resource_already_exists(
+        resource_type: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Resource conflict - already exists (409)."""
         resource_display = resource_type.capitalize()
         messages = {
@@ -230,10 +234,10 @@ class APIMessages:
             "it": f"{resource_display} esiste già",
             "zh-CN": f"{resource_display}已存在",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def email_already_registered(language: SupportedLanguage = "fr") -> str:
+    def email_already_registered(language: SupportedLanguage | None = None) -> str:
         """Resource conflict - email already registered."""
         messages = {
             "fr": "Cet email est déjà enregistré",
@@ -243,14 +247,14 @@ class APIMessages:
             "it": "Email già registrata",
             "zh-CN": "电子邮件已注册",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # SUCCESS MESSAGES - AUTH
     # =========================================================================
 
     @staticmethod
-    def registration_successful(language: SupportedLanguage = "fr") -> str:
+    def registration_successful(language: SupportedLanguage | None = None) -> str:
         """Success - registration completed."""
         messages = {
             "fr": "Inscription réussie",
@@ -260,10 +264,10 @@ class APIMessages:
             "it": "Registrazione completata",
             "zh-CN": "注册成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def login_successful(language: SupportedLanguage = "fr") -> str:
+    def login_successful(language: SupportedLanguage | None = None) -> str:
         """Success - login completed."""
         messages = {
             "fr": "Connexion réussie",
@@ -273,62 +277,62 @@ class APIMessages:
             "it": "Accesso riuscito",
             "zh-CN": "登录成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def export_ready_title(language: SupportedLanguage = "fr") -> str:
+    def export_ready_title(language: SupportedLanguage | None = None) -> str:
         """Push title - account export archive is ready."""
         messages = {
-            "fr": "Votre export est prêt",
+            "fr": "Ton export est prêt",
             "en": "Your export is ready",
             "es": "Tu exportación está lista",
-            "de": "Ihr Export ist bereit",
+            "de": "Dein Export ist bereit",
             "it": "La tua esportazione è pronta",
-            "zh-CN": "您的导出已就绪",
+            "zh-CN": "你的导出已就绪",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def export_ready_body(language: SupportedLanguage = "fr") -> str:
+    def export_ready_body(language: SupportedLanguage | None = None) -> str:
         """Push body - download window reminder."""
         messages = {
-            "fr": "Téléchargez votre archive depuis Réglages → Sécurité (lien valable 24 h)",
+            "fr": "Télécharge ton archive depuis Réglages → Sécurité (lien valable 24 h)",
             "en": "Download your archive from Settings → Security (link valid 24 h)",
             "es": "Descarga tu archivo desde Ajustes → Seguridad (enlace válido 24 h)",
-            "de": "Laden Sie Ihr Archiv unter Einstellungen → Sicherheit herunter (Link 24 h gültig)",
+            "de": "Lade dein Archiv unter Einstellungen → Sicherheit herunter (Link 24 h gültig)",
             "it": "Scarica il tuo archivio da Impostazioni → Sicurezza (link valido 24 h)",
-            "zh-CN": "请在设置 → 安全中下载您的存档(链接 24 小时内有效)",
+            "zh-CN": "请在设置 → 安全中下载你的存档(链接 24 小时内有效)",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def new_login_notification_title(language: SupportedLanguage = "fr") -> str:
+    def new_login_notification_title(language: SupportedLanguage | None = None) -> str:
         """Push title - new sign-in on the account."""
         messages = {
-            "fr": "Nouvelle connexion à votre compte",
+            "fr": "Nouvelle connexion à ton compte",
             "en": "New sign-in to your account",
             "es": "Nuevo inicio de sesión en tu cuenta",
-            "de": "Neue Anmeldung bei Ihrem Konto",
+            "de": "Neue Anmeldung bei deinem Konto",
             "it": "Nuovo accesso al tuo account",
-            "zh-CN": "您的账户有新的登录",
+            "zh-CN": "你的账户有新的登录",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def new_login_notification_body(language: SupportedLanguage = "fr") -> str:
+    def new_login_notification_body(language: SupportedLanguage | None = None) -> str:
         """Push body - review devices if this wasn't you."""
         messages = {
-            "fr": "Si ce n'était pas vous, vérifiez vos appareils dans Réglages → Sécurité",
+            "fr": "Si ce n'était pas toi, vérifie tes appareils dans Réglages → Sécurité",
             "en": "If this wasn't you, review your devices in Settings → Security",
             "es": "Si no fuiste tú, revisa tus dispositivos en Ajustes → Seguridad",
-            "de": "Falls Sie das nicht waren, prüfen Sie Ihre Geräte unter Einstellungen → Sicherheit",
+            "de": "Falls du das nicht warst, prüfe deine Geräte unter Einstellungen → Sicherheit",
             "it": "Se non eri tu, controlla i tuoi dispositivi in Impostazioni → Sicurezza",
-            "zh-CN": "如果这不是您本人,请在设置 → 安全中检查您的设备",
+            "zh-CN": "如果这不是你本人,请在设置 → 安全中检查你的设备",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def login_notifications_preference_updated(language: SupportedLanguage = "fr") -> str:
+    def login_notifications_preference_updated(language: SupportedLanguage | None = None) -> str:
         """Success - new-login notification preference saved."""
         messages = {
             "fr": "Préférence de notification de connexion mise à jour",
@@ -338,23 +342,23 @@ class APIMessages:
             "it": "Preferenza di notifica di accesso aggiornata",
             "zh-CN": "登录通知偏好已更新",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def backup_codes_generated(language: SupportedLanguage = "fr") -> str:
+    def backup_codes_generated(language: SupportedLanguage | None = None) -> str:
         """Success - backup codes generated (shown once)."""
         messages = {
-            "fr": "Codes de secours générés — conservez-les en lieu sûr, ils ne seront plus affichés",
+            "fr": "Codes de secours générés — conserve-les en lieu sûr, ils ne seront plus affichés",
             "en": "Backup codes generated — store them safely, they will not be shown again",
-            "es": "Códigos de respaldo generados: guárdelos en un lugar seguro, no se mostrarán de nuevo",
+            "es": "Códigos de respaldo generados: guárdalos en un lugar seguro, no se mostrarán de nuevo",
             "de": "Backup-Codes generiert — sicher aufbewahren, sie werden nicht erneut angezeigt",
             "it": "Codici di backup generati: conservali al sicuro, non verranno mostrati di nuovo",
             "zh-CN": "备用代码已生成——请妥善保存,之后将不再显示",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def mfa_code_required(language: SupportedLanguage = "fr") -> str:
+    def mfa_code_required(language: SupportedLanguage | None = None) -> str:
         """Two-step login - a verification code is required."""
         messages = {
             "fr": "Code de vérification requis",
@@ -364,10 +368,10 @@ class APIMessages:
             "it": "Codice di verifica richiesto",
             "zh-CN": "需要验证码",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def logout_successful(language: SupportedLanguage = "fr") -> str:
+    def logout_successful(language: SupportedLanguage | None = None) -> str:
         """Success - logout completed."""
         messages = {
             "fr": "Déconnexion réussie",
@@ -377,10 +381,10 @@ class APIMessages:
             "it": "Disconnessione riuscita",
             "zh-CN": "成功退出",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def logout_all_successful(language: SupportedLanguage = "fr") -> str:
+    def logout_all_successful(language: SupportedLanguage | None = None) -> str:
         """Success - logout from all devices completed."""
         messages = {
             "fr": "Déconnexion de tous les appareils réussie",
@@ -390,10 +394,10 @@ class APIMessages:
             "it": "Disconnessione da tutti i dispositivi riuscita",
             "zh-CN": "已成功从所有设备退出",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def password_reset_sent(language: SupportedLanguage = "fr") -> str:
+    def password_reset_sent(language: SupportedLanguage | None = None) -> str:
         """Success - password reset email sent (generic for security)."""
         messages = {
             "fr": "Si l'email existe, un lien de réinitialisation a été envoyé",
@@ -403,14 +407,14 @@ class APIMessages:
             "it": "Se l'email esiste, è stato inviato un link per reimpostare la password",
             "zh-CN": "如果该电子邮件存在，已发送密码重置链接",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # SUCCESS MESSAGES - PREFERENCES
     # =========================================================================
 
     @staticmethod
-    def memory_preference_updated(enabled: bool, language: SupportedLanguage = "fr") -> str:
+    def memory_preference_updated(enabled: bool, language: SupportedLanguage | None = None) -> str:
         """Success - memory preference updated."""
         if enabled:
             messages = {
@@ -430,11 +434,11 @@ class APIMessages:
                 "it": "Memoria disattivata",
                 "zh-CN": "记忆已禁用",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def health_metrics_agents_preference_updated(
-        enabled: bool, language: SupportedLanguage = "fr"
+        enabled: bool, language: SupportedLanguage | None = None
     ) -> str:
         """Success - Health Metrics assistant preference updated."""
         if enabled:
@@ -455,10 +459,10 @@ class APIMessages:
                 "it": "Assistente metriche salute disattivato",
                 "zh-CN": "健康指标助手已禁用",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def voice_preference_updated(enabled: bool, language: SupportedLanguage = "fr") -> str:
+    def voice_preference_updated(enabled: bool, language: SupportedLanguage | None = None) -> str:
         """Success - voice preference updated."""
         if enabled:
             messages = {
@@ -478,10 +482,12 @@ class APIMessages:
                 "it": "Voce disattivata",
                 "zh-CN": "语音已禁用",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def voice_mode_preference_updated(enabled: bool, language: SupportedLanguage = "fr") -> str:
+    def voice_mode_preference_updated(
+        enabled: bool, language: SupportedLanguage | None = None
+    ) -> str:
         """Success - voice mode preference updated."""
         if enabled:
             messages = {
@@ -501,10 +507,12 @@ class APIMessages:
                 "it": "Modalità vocale disattivata",
                 "zh-CN": "语音模式已禁用",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def tokens_display_preference_updated(enabled: bool, language: SupportedLanguage = "fr") -> str:
+    def tokens_display_preference_updated(
+        enabled: bool, language: SupportedLanguage | None = None
+    ) -> str:
         """Success - tokens display preference updated."""
         if enabled:
             messages = {
@@ -524,10 +532,12 @@ class APIMessages:
                 "it": "Visualizzazione token disattivata",
                 "zh-CN": "令牌显示已禁用",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def debug_panel_preference_updated(enabled: bool, language: SupportedLanguage = "fr") -> str:
+    def debug_panel_preference_updated(
+        enabled: bool, language: SupportedLanguage | None = None
+    ) -> str:
         """Success - debug panel preference updated."""
         if enabled:
             messages = {
@@ -547,14 +557,16 @@ class APIMessages:
                 "it": "Pannello di debug disattivato",
                 "zh-CN": "调试面板已禁用",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # ADR-083 Phase 2 cleanup: APIMessages.sub_agents_preference_updated was
     # removed along with the PATCH /me/sub-agents-preference endpoint
     # (Option B).
 
     @staticmethod
-    def display_mode_preference_updated(mode: str, language: SupportedLanguage = "fr") -> str:
+    def display_mode_preference_updated(
+        mode: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Success - response display mode preference updated."""
         mode_labels = {
             "cards": {
@@ -583,10 +595,10 @@ class APIMessages:
             },
         }
         messages = mode_labels.get(mode, mode_labels["cards"])
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def onboarding_preference_updated(language: SupportedLanguage = "fr") -> str:
+    def onboarding_preference_updated(language: SupportedLanguage | None = None) -> str:
         """Success - onboarding preference updated."""
         messages = {
             "fr": "Tutoriel d'accueil marqué comme terminé",
@@ -596,10 +608,10 @@ class APIMessages:
             "it": "Tutorial di benvenuto contrassegnato come completato",
             "zh-CN": "入门教程已标记为完成",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def preferences_updated(language: SupportedLanguage = "fr") -> str:
+    def preferences_updated(language: SupportedLanguage | None = None) -> str:
         """Success - preferences updated."""
         messages = {
             "fr": "Préférences mises à jour avec succès",
@@ -609,10 +621,12 @@ class APIMessages:
             "it": "Preferenze aggiornate con successo",
             "zh-CN": "首选项更新成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def location_preference_updated(enabled: bool, language: SupportedLanguage = "fr") -> str:
+    def location_preference_updated(
+        enabled: bool, language: SupportedLanguage | None = None
+    ) -> str:
         """Success - last-known location preference updated."""
         if enabled:
             messages = {
@@ -632,14 +646,16 @@ class APIMessages:
                 "it": "Memorizzazione disattivata, posizione memorizzata cancellata",
                 "zh-CN": "已禁用位置记忆,已清除存储的位置",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # CONVERSATIONS
     # =========================================================================
 
     @staticmethod
-    def conversation_default_title(day: date_type, language: SupportedLanguage = "fr") -> str:
+    def conversation_default_title(
+        day: date_type, language: SupportedLanguage | None = None
+    ) -> str:
         """Default title given to a conversation on creation, reactivation or reset.
 
         The title is exposed to the client through ``ConversationResponse.title``,
@@ -649,14 +665,11 @@ class APIMessages:
         United States, ``26.07`` in Germany, ``年月日`` in China — because a
         single format would read as a wrong date in half the languages.
 
-        Callers must pass a backend-canonical code; route raw locales through
-        ``normalize_language`` first (this module never normalizes, matching
-        every other table here).
-
         Args:
             day: The date the title refers to (caller-supplied, so the helper
                 stays deterministic and testable).
-            language: Backend-canonical language code.
+            language: Any spelling of a language code (normalised); the declared
+                language when absent (ADR-323).
 
         Returns:
             The localized title, e.g. ``"Conversation du 26/07/2026"``.
@@ -669,11 +682,11 @@ class APIMessages:
             "it": ("Conversazione del {date}", "%d/%m/%Y"),
             "zh-CN": ("{date}的对话", "%Y年%m月%d日"),
         }
-        template, date_format = formats.get(language, formats["en"])
+        template, date_format = formats[resolve_language(language)]
         return template.format(date=day.strftime(date_format))
 
     @staticmethod
-    def no_active_conversation(language: SupportedLanguage = "fr") -> str:
+    def no_active_conversation(language: SupportedLanguage | None = None) -> str:
         """Error - no active conversation found."""
         messages = {
             "fr": "Aucune conversation active trouvée",
@@ -683,23 +696,23 @@ class APIMessages:
             "it": "Nessuna conversazione attiva trovata",
             "zh-CN": "未找到活动对话",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def no_active_conversation_start_chatting(language: SupportedLanguage = "fr") -> str:
+    def no_active_conversation_start_chatting(language: SupportedLanguage | None = None) -> str:
         """Error - no active conversation, invite to start chatting."""
         messages = {
-            "fr": "Aucune conversation active trouvée. Commencez à discuter pour en créer une.",
+            "fr": "Aucune conversation active trouvée. Commence à discuter pour en créer une.",
             "en": "No active conversation found. Start chatting to create one.",
             "es": "No se encontró ninguna conversación activa. Empieza a chatear para crear una.",
-            "de": "Keine aktive Konversation gefunden. Starten Sie einen Chat, um eine zu erstellen.",
+            "de": "Keine aktive Konversation gefunden. Starte einen Chat, um eine zu erstellen.",
             "it": "Nessuna conversazione attiva trovata. Inizia a chattare per crearne una.",
             "zh-CN": "未找到活动对话。开始聊天以创建一个。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def no_active_conversation_to_reset(language: SupportedLanguage = "fr") -> str:
+    def no_active_conversation_to_reset(language: SupportedLanguage | None = None) -> str:
         """Error - no active conversation to reset."""
         messages = {
             "fr": "Aucune conversation active à réinitialiser",
@@ -709,10 +722,10 @@ class APIMessages:
             "it": "Nessuna conversazione attiva da reimpostare",
             "zh-CN": "没有可重置的活动对话",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def conversation_reset_successful(language: SupportedLanguage = "fr") -> str:
+    def conversation_reset_successful(language: SupportedLanguage | None = None) -> str:
         """Success - conversation reset."""
         messages = {
             "fr": "Conversation réinitialisée avec succès",
@@ -722,14 +735,14 @@ class APIMessages:
             "it": "Conversazione reimpostata con successo",
             "zh-CN": "对话重置成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # MEMORIES
     # =========================================================================
 
     @staticmethod
-    def memory_not_found(memory_id: str, language: SupportedLanguage = "fr") -> str:
+    def memory_not_found(memory_id: str, language: SupportedLanguage | None = None) -> str:
         """Error - memory not found."""
         messages = {
             "fr": f"Mémoire '{memory_id}' introuvable",
@@ -739,10 +752,10 @@ class APIMessages:
             "it": f"Memoria '{memory_id}' non trovata",
             "zh-CN": f"未找到记忆 '{memory_id}'",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_retrieve_memories(language: SupportedLanguage = "fr") -> str:
+    def failed_to_retrieve_memories(language: SupportedLanguage | None = None) -> str:
         """Error - failed to retrieve memories."""
         messages = {
             "fr": "Échec de la récupération des mémoires",
@@ -752,10 +765,10 @@ class APIMessages:
             "it": "Impossibile recuperare le memorie",
             "zh-CN": "检索记忆失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_retrieve_memory(language: SupportedLanguage = "fr") -> str:
+    def failed_to_retrieve_memory(language: SupportedLanguage | None = None) -> str:
         """Error - failed to retrieve memory."""
         messages = {
             "fr": "Échec de la récupération de la mémoire",
@@ -765,10 +778,10 @@ class APIMessages:
             "it": "Impossibile recuperare la memoria",
             "zh-CN": "检索记忆失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_create_memory(language: SupportedLanguage = "fr") -> str:
+    def failed_to_create_memory(language: SupportedLanguage | None = None) -> str:
         """Error - failed to create memory."""
         messages = {
             "fr": "Échec de la création de la mémoire",
@@ -778,10 +791,10 @@ class APIMessages:
             "it": "Impossibile creare la memoria",
             "zh-CN": "创建记忆失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_update_memory(language: SupportedLanguage = "fr") -> str:
+    def failed_to_update_memory(language: SupportedLanguage | None = None) -> str:
         """Error - failed to update memory."""
         messages = {
             "fr": "Échec de la mise à jour de la mémoire",
@@ -791,10 +804,10 @@ class APIMessages:
             "it": "Impossibile aggiornare la memoria",
             "zh-CN": "更新记忆失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_toggle_pin(language: SupportedLanguage = "fr") -> str:
+    def failed_to_toggle_pin(language: SupportedLanguage | None = None) -> str:
         """Error - failed to toggle memory pin state."""
         messages = {
             "fr": "Échec du changement d'état d'épinglage de la mémoire",
@@ -804,10 +817,10 @@ class APIMessages:
             "it": "Impossibile cambiare lo stato di blocco della memoria",
             "zh-CN": "切换记忆固定状态失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_delete_memory(language: SupportedLanguage = "fr") -> str:
+    def failed_to_delete_memory(language: SupportedLanguage | None = None) -> str:
         """Error - failed to delete memory."""
         messages = {
             "fr": "Échec de la suppression de la mémoire",
@@ -817,10 +830,10 @@ class APIMessages:
             "it": "Impossibile eliminare la memoria",
             "zh-CN": "删除记忆失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_delete_all_memories(language: SupportedLanguage = "fr") -> str:
+    def failed_to_delete_all_memories(language: SupportedLanguage | None = None) -> str:
         """Error - failed to delete all memories."""
         messages = {
             "fr": "Échec de la suppression de toutes les mémoires",
@@ -830,10 +843,10 @@ class APIMessages:
             "it": "Impossibile eliminare tutte le memorie",
             "zh-CN": "删除所有记忆失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_export_memories(language: SupportedLanguage = "fr") -> str:
+    def failed_to_export_memories(language: SupportedLanguage | None = None) -> str:
         """Error - failed to export memories."""
         messages = {
             "fr": "Échec de l'exportation des mémoires",
@@ -843,15 +856,16 @@ class APIMessages:
             "it": "Impossibile esportare le memorie",
             "zh-CN": "导出记忆失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def memories_deleted_successfully(
         deleted_count: int,
         preserved_count: int = 0,
-        language: SupportedLanguage = "fr",
+        language: SupportedLanguage | None = None,
     ) -> str:
         """Success - memories deleted."""
+        language = resolve_language(language)
         base_messages = {
             "fr": f"{deleted_count} mémoire(s) supprimée(s) avec succès",
             "en": f"Successfully deleted {deleted_count} memories",
@@ -881,7 +895,7 @@ class APIMessages:
     # =========================================================================
 
     @staticmethod
-    def interest_not_found(interest_id: str, language: SupportedLanguage = "fr") -> str:
+    def interest_not_found(interest_id: str, language: SupportedLanguage | None = None) -> str:
         """Error - interest not found."""
         messages = {
             "fr": f"Centre d'intérêt '{interest_id}' introuvable",
@@ -891,10 +905,10 @@ class APIMessages:
             "it": f"Interesse '{interest_id}' non trovato",
             "zh-CN": f"未找到兴趣 '{interest_id}'",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def interest_already_exists(language: SupportedLanguage = "fr") -> str:
+    def interest_already_exists(language: SupportedLanguage | None = None) -> str:
         """Error - interest already exists for user."""
         messages = {
             "fr": "Un centre d'intérêt avec ce sujet existe déjà",
@@ -904,10 +918,10 @@ class APIMessages:
             "it": "Esiste già un interesse con questo argomento",
             "zh-CN": "具有此主题的兴趣已存在",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_retrieve_interests(language: SupportedLanguage = "fr") -> str:
+    def failed_to_retrieve_interests(language: SupportedLanguage | None = None) -> str:
         """Error - failed to retrieve interests."""
         messages = {
             "fr": "Échec de la récupération des centres d'intérêt",
@@ -917,10 +931,10 @@ class APIMessages:
             "it": "Impossibile recuperare gli interessi",
             "zh-CN": "检索兴趣失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_create_interest(language: SupportedLanguage = "fr") -> str:
+    def failed_to_create_interest(language: SupportedLanguage | None = None) -> str:
         """Error - failed to create interest."""
         messages = {
             "fr": "Échec de la création du centre d'intérêt",
@@ -930,10 +944,10 @@ class APIMessages:
             "it": "Impossibile creare l'interesse",
             "zh-CN": "创建兴趣失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_delete_interest(language: SupportedLanguage = "fr") -> str:
+    def failed_to_delete_interest(language: SupportedLanguage | None = None) -> str:
         """Error - failed to delete interest."""
         messages = {
             "fr": "Échec de la suppression du centre d'intérêt",
@@ -943,10 +957,10 @@ class APIMessages:
             "it": "Impossibile eliminare l'interesse",
             "zh-CN": "删除兴趣失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def interest_not_dormant(language: SupportedLanguage = "fr") -> str:
+    def interest_not_dormant(language: SupportedLanguage | None = None) -> str:
         """Error - interest is not dormant (cannot reactivate)."""
         messages = {
             "fr": "Ce centre d'intérêt n'est pas en sommeil",
@@ -956,10 +970,10 @@ class APIMessages:
             "it": "Questo interesse non è in pausa",
             "zh-CN": "此兴趣未处于休眠状态",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_reactivate_interest(language: SupportedLanguage = "fr") -> str:
+    def failed_to_reactivate_interest(language: SupportedLanguage | None = None) -> str:
         """Error - failed to reactivate interest."""
         messages = {
             "fr": "Échec de la réactivation du centre d'intérêt",
@@ -969,10 +983,10 @@ class APIMessages:
             "it": "Impossibile riattivare l'interesse",
             "zh-CN": "重新激活兴趣失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_update_interest(language: SupportedLanguage = "fr") -> str:
+    def failed_to_update_interest(language: SupportedLanguage | None = None) -> str:
         """Error - failed to update interest."""
         messages = {
             "fr": "Échec de la mise à jour du centre d'intérêt",
@@ -982,10 +996,10 @@ class APIMessages:
             "it": "Impossibile aggiornare l'interesse",
             "zh-CN": "更新兴趣失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_delete_all_interests(language: SupportedLanguage = "fr") -> str:
+    def failed_to_delete_all_interests(language: SupportedLanguage | None = None) -> str:
         """Error - failed to delete all interests."""
         messages = {
             "fr": "Échec de la suppression de tous les centres d'intérêt",
@@ -995,10 +1009,10 @@ class APIMessages:
             "it": "Impossibile eliminare tutti gli interessi",
             "zh-CN": "删除所有兴趣失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_export_interests(language: SupportedLanguage = "fr") -> str:
+    def failed_to_export_interests(language: SupportedLanguage | None = None) -> str:
         """Error - failed to export interests."""
         messages = {
             "fr": "Échec de l'exportation des centres d'intérêt",
@@ -1008,10 +1022,10 @@ class APIMessages:
             "it": "Impossibile esportare gli interessi",
             "zh-CN": "导出兴趣失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def interest_already_exists_in_category(language: SupportedLanguage = "fr") -> str:
+    def interest_already_exists_in_category(language: SupportedLanguage | None = None) -> str:
         """Error - interest already exists in this category."""
         messages = {
             "fr": "Un centre d'intérêt avec ce sujet existe déjà dans cette catégorie",
@@ -1021,10 +1035,10 @@ class APIMessages:
             "it": "Esiste già un interesse con questo argomento in questa categoria",
             "zh-CN": "此类别中已存在具有此主题的兴趣",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_submit_feedback(language: SupportedLanguage = "fr") -> str:
+    def failed_to_submit_feedback(language: SupportedLanguage | None = None) -> str:
         """Error - failed to submit feedback."""
         messages = {
             "fr": "Échec de l'envoi du feedback",
@@ -1034,10 +1048,10 @@ class APIMessages:
             "it": "Impossibile inviare il feedback",
             "zh-CN": "提交反馈失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_update_settings(language: SupportedLanguage = "fr") -> str:
+    def failed_to_update_settings(language: SupportedLanguage | None = None) -> str:
         """Error - failed to update interest settings."""
         messages = {
             "fr": "Échec de la mise à jour des paramètres",
@@ -1047,10 +1061,10 @@ class APIMessages:
             "it": "Impossibile aggiornare le impostazioni",
             "zh-CN": "更新设置失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def interest_deleted_successfully(language: SupportedLanguage = "fr") -> str:
+    def interest_deleted_successfully(language: SupportedLanguage | None = None) -> str:
         """Success - interest deleted."""
         messages = {
             "fr": "Centre d'intérêt supprimé avec succès",
@@ -1060,10 +1074,10 @@ class APIMessages:
             "it": "Interesse eliminato con successo",
             "zh-CN": "兴趣删除成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def feedback_submitted_successfully(language: SupportedLanguage = "fr") -> str:
+    def feedback_submitted_successfully(language: SupportedLanguage | None = None) -> str:
         """Success - feedback submitted."""
         messages = {
             "fr": "Feedback enregistré avec succès",
@@ -1073,10 +1087,10 @@ class APIMessages:
             "it": "Feedback inviato con successo",
             "zh-CN": "反馈提交成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def settings_updated_successfully(language: SupportedLanguage = "fr") -> str:
+    def settings_updated_successfully(language: SupportedLanguage | None = None) -> str:
         """Success - settings updated."""
         messages = {
             "fr": "Paramètres mis à jour avec succès",
@@ -1086,14 +1100,14 @@ class APIMessages:
             "it": "Impostazioni aggiornate con successo",
             "zh-CN": "设置更新成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # CONNECTORS
     # =========================================================================
 
     @staticmethod
-    def connector_not_found(language: SupportedLanguage = "fr") -> str:
+    def connector_not_found(language: SupportedLanguage | None = None) -> str:
         """Error - connector not found."""
         messages = {
             "fr": "Connecteur introuvable",
@@ -1103,11 +1117,11 @@ class APIMessages:
             "it": "Connettore non trovato",
             "zh-CN": "未找到连接器",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def connector_type_no_preferences(
-        connector_type: str, language: SupportedLanguage = "fr"
+        connector_type: str, language: SupportedLanguage | None = None
     ) -> str:
         """Error - connector type does not support preferences."""
         messages = {
@@ -1118,10 +1132,12 @@ class APIMessages:
             "it": f"Il tipo di connettore '{connector_type}' non supporta le preferenze",
             "zh-CN": f"连接器类型 '{connector_type}' 不支持首选项",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def connector_already_exists(connector_type: str, language: SupportedLanguage = "fr") -> str:
+    def connector_already_exists(
+        connector_type: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Error - connector already exists for user."""
         messages = {
             "fr": f"Le connecteur {connector_type} existe déjà",
@@ -1131,14 +1147,14 @@ class APIMessages:
             "it": f"Il connettore {connector_type} esiste già",
             "zh-CN": f"{connector_type} 连接器已存在",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # EXTERNAL SERVICES
     # =========================================================================
 
     @staticmethod
-    def service_unavailable(service_name: str, language: SupportedLanguage = "fr") -> str:
+    def service_unavailable(service_name: str, language: SupportedLanguage | None = None) -> str:
         """Error - external service unavailable."""
         messages = {
             "fr": f"Service {service_name} indisponible",
@@ -1148,10 +1164,10 @@ class APIMessages:
             "it": f"Servizio {service_name} non disponibile",
             "zh-CN": f"{service_name} 服务不可用",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def google_api_key_not_configured(language: SupportedLanguage = "fr") -> str:
+    def google_api_key_not_configured(language: SupportedLanguage | None = None) -> str:
         """Error - Google API key not configured."""
         messages = {
             "fr": "Clé API Google non configurée",
@@ -1161,10 +1177,10 @@ class APIMessages:
             "it": "Chiave API Google non configurata",
             "zh-CN": "未配置 Google API 密钥",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def google_places_not_configured(language: SupportedLanguage = "fr") -> str:
+    def google_places_not_configured(language: SupportedLanguage | None = None) -> str:
         """Error - Google Places connector not configured."""
         messages = {
             "fr": "Connecteur Google Places non configuré",
@@ -1174,10 +1190,10 @@ class APIMessages:
             "it": "Connettore Google Places non configurato",
             "zh-CN": "Google Places 连接器未配置",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def google_places_token_not_available(language: SupportedLanguage = "fr") -> str:
+    def google_places_token_not_available(language: SupportedLanguage | None = None) -> str:
         """Error - Google Places OAuth token not available."""
         messages = {
             "fr": "Token OAuth Google Places non disponible",
@@ -1187,10 +1203,10 @@ class APIMessages:
             "it": "Token OAuth Google Places non disponibile",
             "zh-CN": "Google Places OAuth 令牌不可用",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_fetch_thumbnail(language: SupportedLanguage = "fr") -> str:
+    def failed_to_fetch_thumbnail(language: SupportedLanguage | None = None) -> str:
         """Error - failed to fetch thumbnail."""
         messages = {
             "fr": "Échec de la récupération de la miniature",
@@ -1200,10 +1216,10 @@ class APIMessages:
             "it": "Impossibile recuperare la miniatura",
             "zh-CN": "获取缩略图失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_fetch_photo(language: SupportedLanguage = "fr") -> str:
+    def failed_to_fetch_photo(language: SupportedLanguage | None = None) -> str:
         """Error - failed to fetch photo."""
         messages = {
             "fr": "Échec de la récupération de la photo",
@@ -1213,10 +1229,10 @@ class APIMessages:
             "it": "Impossibile recuperare la foto",
             "zh-CN": "获取照片失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_connect_google_drive(language: SupportedLanguage = "fr") -> str:
+    def failed_to_connect_google_drive(language: SupportedLanguage | None = None) -> str:
         """Error - failed to connect to Google Drive."""
         messages = {
             "fr": "Échec de la connexion à Google Drive",
@@ -1226,10 +1242,10 @@ class APIMessages:
             "it": "Impossibile connettersi a Google Drive",
             "zh-CN": "连接 Google Drive 失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def failed_to_connect_google_places(language: SupportedLanguage = "fr") -> str:
+    def failed_to_connect_google_places(language: SupportedLanguage | None = None) -> str:
         """Error - failed to connect to Google Places API."""
         messages = {
             "fr": "Échec de la connexion à l'API Google Places",
@@ -1239,14 +1255,14 @@ class APIMessages:
             "it": "Impossibile connettersi all'API Google Places",
             "zh-CN": "连接 Google Places API 失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # OAUTH
     # =========================================================================
 
     @staticmethod
-    def oauth_state_mismatch(language: SupportedLanguage = "fr") -> str:
+    def oauth_state_mismatch(language: SupportedLanguage | None = None) -> str:
         """Validation error - OAuth state mismatch (CSRF protection)."""
         messages = {
             "fr": "État OAuth non concordant",
@@ -1256,10 +1272,10 @@ class APIMessages:
             "it": "Stato OAuth non corrispondente",
             "zh-CN": "OAuth 状态不匹配",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def oauth_flow_failed(error: str, language: SupportedLanguage = "fr") -> str:
+    def oauth_flow_failed(error: str, language: SupportedLanguage | None = None) -> str:
         """Validation error - OAuth flow failed."""
         messages = {
             "fr": f"Échec du flux OAuth : {error}",
@@ -1269,14 +1285,14 @@ class APIMessages:
             "it": f"Flusso OAuth fallito: {error}",
             "zh-CN": f"OAuth 流程失败：{error}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # LLM SERVICE
     # =========================================================================
 
     @staticmethod
-    def llm_service_error(error: str, language: SupportedLanguage = "fr") -> str:
+    def llm_service_error(error: str, language: SupportedLanguage | None = None) -> str:
         """External service error - LLM service failure."""
         messages = {
             "fr": f"Erreur du service LLM : {error}",
@@ -1286,11 +1302,11 @@ class APIMessages:
             "it": f"Errore servizio LLM: {error}",
             "zh-CN": f"LLM 服务错误：{error}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def invalid_sort_parameter(
-        allowed_values: list[str], language: SupportedLanguage = "fr"
+        allowed_values: list[str], language: SupportedLanguage | None = None
     ) -> str:
         """Validation error - invalid sort parameter."""
         allowed_str = ", ".join(sorted(allowed_values))
@@ -1302,23 +1318,23 @@ class APIMessages:
             "it": f"Parametro di ordinamento non valido. Valori consentiti: {allowed_str}",
             "zh-CN": f"排序参数无效。允许的值：{allowed_str}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def pricing_already_exists(model_name: str, language: SupportedLanguage = "fr") -> str:
+    def pricing_already_exists(model_name: str, language: SupportedLanguage | None = None) -> str:
         """Conflict error - active pricing already exists for model."""
         messages = {
-            "fr": f"Une tarification active existe déjà pour le modèle '{model_name}'. Utilisez PUT pour mettre à jour.",
+            "fr": f"Une tarification active existe déjà pour le modèle '{model_name}'. Utilise PUT pour mettre à jour.",
             "en": f"Active pricing already exists for model '{model_name}'. Use PUT to update.",
-            "es": f"Ya existe un precio activo para el modelo '{model_name}'. Use PUT para actualizar.",
-            "de": f"Für Modell '{model_name}' existiert bereits eine aktive Preisgestaltung. Verwenden Sie PUT zum Aktualisieren.",
+            "es": f"Ya existe un precio activo para el modelo '{model_name}'. Usa PUT para actualizar.",
+            "de": f"Für Modell '{model_name}' existiert bereits eine aktive Preisgestaltung. Verwende PUT zum Aktualisieren.",
             "it": f"Esiste già un prezzo attivo per il modello '{model_name}'. Usa PUT per aggiornare.",
             "zh-CN": f"模型 '{model_name}' 已存在活动定价。使用 PUT 进行更新。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def pricing_not_found(model_name: str, language: SupportedLanguage = "fr") -> str:
+    def pricing_not_found(model_name: str, language: SupportedLanguage | None = None) -> str:
         """Not found error - no active pricing for model."""
         messages = {
             "fr": f"Aucune tarification active trouvée pour le modèle '{model_name}'",
@@ -1328,10 +1344,10 @@ class APIMessages:
             "it": f"Nessun prezzo attivo trovato per il modello '{model_name}'",
             "zh-CN": f"未找到模型 '{model_name}' 的活动定价",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def pricing_entry_not_found(pricing_id: str, language: SupportedLanguage = "fr") -> str:
+    def pricing_entry_not_found(pricing_id: str, language: SupportedLanguage | None = None) -> str:
         """Not found error - pricing entry not found."""
         messages = {
             "fr": f"Entrée de tarification introuvable : {pricing_id}",
@@ -1341,10 +1357,10 @@ class APIMessages:
             "it": f"Voce di prezzo non trovata: {pricing_id}",
             "zh-CN": f"未找到定价条目：{pricing_id}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def pricing_cache_not_initialized(language: SupportedLanguage = "fr") -> str:
+    def pricing_cache_not_initialized(language: SupportedLanguage | None = None) -> str:
         """Warning - pricing cache not initialized, cost estimation unavailable."""
         messages = {
             "fr": "Cache de tarification non initialisé. Estimation des coûts indisponible.",
@@ -1354,10 +1370,10 @@ class APIMessages:
             "it": "Cache prezzi non inizializzata. Stima costi non disponibile.",
             "zh-CN": "定价缓存未初始化。成本估算不可用。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def pricing_cache_model_not_found(model: str, language: SupportedLanguage = "fr") -> str:
+    def pricing_cache_model_not_found(model: str, language: SupportedLanguage | None = None) -> str:
         """Warning - model not found in pricing cache."""
         messages = {
             "fr": f"Modèle '{model}' non trouvé dans le cache de tarification.",
@@ -1367,10 +1383,10 @@ class APIMessages:
             "it": f"Modello '{model}' non trovato nella cache prezzi.",
             "zh-CN": f"在定价缓存中未找到模型 '{model}'。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def pricing_cache_refresh_failed(error: str, language: SupportedLanguage = "fr") -> str:
+    def pricing_cache_refresh_failed(error: str, language: SupportedLanguage | None = None) -> str:
         """Error - pricing cache refresh failed."""
         messages = {
             "fr": f"Échec de l'actualisation du cache de tarification : {error}",
@@ -1380,31 +1396,31 @@ class APIMessages:
             "it": f"Aggiornamento cache prezzi fallito: {error}",
             "zh-CN": f"定价缓存刷新失败：{error}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # RATE LIMITING
     # =========================================================================
 
     @staticmethod
-    def hitl_rate_limit_exceeded(language: SupportedLanguage = "fr") -> str:
+    def hitl_rate_limit_exceeded(language: SupportedLanguage | None = None) -> str:
         """Rate limit error - too many HITL responses."""
         messages = {
-            "fr": "Trop de réponses en peu de temps. Réessayez dans quelques secondes.",
+            "fr": "Trop de réponses en peu de temps. Réessaie dans quelques secondes.",
             "en": "Too many responses in a short time. Please try again in a few seconds.",
-            "es": "Demasiadas respuestas en poco tiempo. Inténtelo de nuevo en unos segundos.",
-            "de": "Zu viele Antworten in kurzer Zeit. Bitte versuchen Sie es in einigen Sekunden erneut.",
+            "es": "Demasiadas respuestas en poco tiempo. Inténtalo de nuevo en unos segundos.",
+            "de": "Zu viele Antworten in kurzer Zeit. Bitte versuche es in einigen Sekunden erneut.",
             "it": "Troppe risposte in poco tempo. Riprova tra qualche secondo.",
             "zh-CN": "短时间内响应过多。请稍后再试。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # GENERIC ERRORS
     # =========================================================================
 
     @staticmethod
-    def internal_error(error_type: str, language: SupportedLanguage = "fr") -> str:
+    def internal_error(error_type: str, language: SupportedLanguage | None = None) -> str:
         """Generic internal error with type info."""
         messages = {
             "fr": f"Erreur interne : {error_type}",
@@ -1414,10 +1430,149 @@ class APIMessages:
             "it": f"Errore interno: {error_type}",
             "zh-CN": f"内部错误：{error_type}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def google_api_error(language: SupportedLanguage = "fr") -> str:
+    def personality_translation_source_missing(
+        source_language: str | None, language: SupportedLanguage | None = None
+    ) -> str:
+        """The auto-translation has no written text to start from (HTTP 422, ADR-323).
+
+        Read by the administrator who pressed the button, in their language.
+
+        Args:
+            source_language: The source the administrator asked for, or None.
+            language: The reader's language; the declared one when absent.
+
+        Returns:
+            The localized refusal.
+        """
+        if source_language:
+            messages = {
+                "fr": f"Cette personnalité n'a aucun texte rédigé en « {source_language} » à partir duquel traduire.",
+                "en": f"This personality has no text written in “{source_language}” to translate from.",
+                "es": f"Esta personalidad no tiene ningún texto escrito en «{source_language}» desde el que traducir.",
+                "de": f"Diese Persönlichkeit hat keinen in „{source_language}“ verfassten Text, aus dem übersetzt werden kann.",
+                "it": f"Questa personalità non ha alcun testo scritto in «{source_language}» da cui tradurre.",
+                "zh-CN": f"该人格没有以“{source_language}”撰写的可供翻译的文本。",
+            }
+        else:
+            messages = {
+                "fr": "Cette personnalité n'a aucun texte rédigé par un administrateur à partir duquel traduire.",
+                "en": "This personality has no text written by an administrator to translate from.",
+                "es": "Esta personalidad no tiene ningún texto escrito por un administrador desde el que traducir.",
+                "de": "Diese Persönlichkeit hat keinen von einem Administrator verfassten Text, aus dem übersetzt werden kann.",
+                "it": "Questa personalità non ha alcun testo scritto da un amministratore da cui tradurre.",
+                "zh-CN": "该人格没有管理员撰写的可供翻译的文本。",
+            }
+        return messages[resolve_language(language)]
+
+    @staticmethod
+    def personality_code_taken(code: str, language: SupportedLanguage | None = None) -> str:
+        """A personality code another personality already holds (HTTP 409).
+
+        Read by the administrator who created or renamed it, in their language.
+
+        Args:
+            code: The code asked for.
+            language: The reader's language; the declared one when absent.
+
+        Returns:
+            The localized refusal.
+        """
+        messages = {
+            "fr": f"Le code « {code} » est déjà pris par une autre personnalité.",
+            "en": f"The code “{code}” is already used by another personality.",
+            "es": f"El código «{code}» ya lo usa otra personalidad.",
+            "de": f"Der Code „{code}“ wird bereits von einer anderen Persönlichkeit verwendet.",
+            "it": f"Il codice «{code}» è già usato da un'altra personalità.",
+            "zh-CN": f"代码“{code}”已被另一个人格使用。",
+        }
+        return messages[resolve_language(language)]
+
+    @staticmethod
+    def personality_default_not_deletable(language: SupportedLanguage | None = None) -> str:
+        """The default personality cannot be deleted (HTTP 409).
+
+        Args:
+            language: The reader's language; the declared one when absent.
+
+        Returns:
+            The localized refusal.
+        """
+        messages = {
+            "fr": "La personnalité par défaut ne peut pas être supprimée : choisis d'abord une autre personnalité par défaut.",
+            "en": "The default personality cannot be deleted: make another personality the default first.",
+            "es": "La personalidad predeterminada no se puede eliminar: elige antes otra personalidad predeterminada.",
+            "de": "Die Standardpersönlichkeit kann nicht gelöscht werden: Lege zuerst eine andere Persönlichkeit als Standard fest.",
+            "it": "La personalità predefinita non può essere eliminata: scegli prima un'altra personalità predefinita.",
+            "zh-CN": "无法删除默认人格：请先将另一个人格设为默认。",
+        }
+        return messages[resolve_language(language)]
+
+    @staticmethod
+    def personality_translation_language_repeated(
+        language: SupportedLanguage | None = None,
+    ) -> str:
+        """A personality's translations name one language twice (HTTP 422).
+
+        Args:
+            language: The reader's language; the declared one when absent.
+
+        Returns:
+            The localized refusal.
+        """
+        messages = {
+            "fr": "Chaque langue ne peut avoir qu'une traduction : une langue apparaît deux fois.",
+            "en": "Each language may have one translation only: a language appears twice.",
+            "es": "Cada idioma solo puede tener una traducción: un idioma aparece dos veces.",
+            "de": "Jede Sprache darf nur eine Übersetzung haben: Eine Sprache kommt zweimal vor.",
+            "it": "Ogni lingua può avere una sola traduzione: una lingua compare due volte.",
+            "zh-CN": "每种语言只能有一个翻译：有一种语言出现了两次。",
+        }
+        return messages[resolve_language(language)]
+
+    @staticmethod
+    def too_many_requests(language: SupportedLanguage | None = None) -> str:
+        """The global rate limiter's refusal (HTTP 429), before any route runs."""
+        messages = {
+            "fr": "Trop de requêtes. Ralentis un peu et réessaie.",
+            "en": "Too many requests. Please slow down and try again.",
+            "es": "Demasiadas solicitudes. Ve más despacio e inténtalo de nuevo.",
+            "de": "Zu viele Anfragen. Mach etwas langsamer und versuche es erneut.",
+            "it": "Troppe richieste. Rallenta un po' e riprova.",
+            "zh-CN": "请求过多。请放慢速度后重试。",
+        }
+        return messages[resolve_language(language)]
+
+    @staticmethod
+    def request_body_too_large(language: SupportedLanguage | None = None) -> str:
+        """The request-body ceiling's refusal (HTTP 413), before any route runs."""
+        messages = {
+            "fr": "La requête est trop volumineuse",
+            "en": "Request body too large",
+            "es": "La solicitud es demasiado grande",
+            "de": "Die Anfrage ist zu groß",
+            "it": "La richiesta è troppo grande",
+            "zh-CN": "请求内容过大",
+        }
+        return messages[resolve_language(language)]
+
+    @staticmethod
+    def unexpected_error(language: SupportedLanguage | None = None) -> str:
+        """The body of an unhandled failure (HTTP 500) outside debug mode."""
+        messages = {
+            "fr": "Une erreur inattendue s'est produite",
+            "en": "An unexpected error occurred",
+            "es": "Se ha producido un error inesperado",
+            "de": "Ein unerwarteter Fehler ist aufgetreten",
+            "it": "Si è verificato un errore imprevisto",
+            "zh-CN": "发生了意外错误",
+        }
+        return messages[resolve_language(language)]
+
+    @staticmethod
+    def google_api_error(language: SupportedLanguage | None = None) -> str:
         """Generic Google API error."""
         messages = {
             "fr": "Erreur de l'API Google",
@@ -1427,14 +1582,14 @@ class APIMessages:
             "it": "Errore API Google",
             "zh-CN": "Google API 错误",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # HEARTBEAT SETTINGS
     # =========================================================================
 
     @staticmethod
-    def heartbeat_min_max_invalid(language: SupportedLanguage = "fr") -> str:
+    def heartbeat_min_max_invalid(language: SupportedLanguage | None = None) -> str:
         """Heartbeat settings validation - min per day above max per day (422).
 
         Field names stay verbatim (API payload identifiers); the English
@@ -1448,14 +1603,14 @@ class APIMessages:
             "it": "heartbeat_min_per_day deve essere minore o uguale a heartbeat_max_per_day",
             "zh-CN": "heartbeat_min_per_day 必须小于或等于 heartbeat_max_per_day",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # EMAIL TOOL VALIDATION
     # =========================================================================
 
     @staticmethod
-    def email_field_required(field: str, language: SupportedLanguage = "fr") -> str:
+    def email_field_required(field: str, language: SupportedLanguage | None = None) -> str:
         """Email validation - required field missing."""
         messages = {
             "fr": f"Le champ '{field}' est obligatoire",
@@ -1465,10 +1620,10 @@ class APIMessages:
             "it": f"Il campo '{field}' è obbligatorio",
             "zh-CN": f"字段 '{field}' 是必填项",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def email_fields_required(fields: list[str], language: SupportedLanguage = "fr") -> str:
+    def email_fields_required(fields: list[str], language: SupportedLanguage | None = None) -> str:
         """Email validation - multiple required fields missing."""
         fields_str = ", ".join(f"'{f}'" for f in fields)
         messages = {
@@ -1479,10 +1634,10 @@ class APIMessages:
             "it": f"I campi {fields_str} sono obbligatori",
             "zh-CN": f"字段 {fields_str} 是必填项",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def email_invalid_format(email: str, language: SupportedLanguage = "fr") -> str:
+    def email_invalid_format(email: str, language: SupportedLanguage | None = None) -> str:
         """Email validation - invalid email format."""
         messages = {
             "fr": f"Format d'adresse email invalide: '{email}'. L'adresse doit contenir un domaine complet (ex: user@example.com)",
@@ -1492,11 +1647,11 @@ class APIMessages:
             "it": f"Formato email non valido: '{email}'. L'indirizzo deve includere un dominio completo (es: user@example.com)",
             "zh-CN": f"无效的邮件格式: '{email}'。地址必须包含完整域名（例如：user@example.com）",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def content_generation_failed(
-        error: str | None = None, language: SupportedLanguage = "fr"
+        error: str | None = None, language: SupportedLanguage | None = None
     ) -> str:
         """Email tool - LLM content generation failed."""
         if error:
@@ -1517,10 +1672,10 @@ class APIMessages:
                 "it": "Generazione contenuto fallita",
                 "zh-CN": "内容生成失败",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def email_content_missing(language: SupportedLanguage = "fr") -> str:
+    def email_content_missing(language: SupportedLanguage | None = None) -> str:
         """Email tool - subject and body required."""
         messages = {
             "fr": "Subject et body requis (directement ou via content_instruction)",
@@ -1530,14 +1685,14 @@ class APIMessages:
             "it": "Oggetto e corpo richiesti (direttamente o tramite content_instruction)",
             "zh-CN": "需要主题和正文（直接提供或通过 content_instruction）",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # DRAFT ACTIONS (HITL confirmation/cancellation)
     # =========================================================================
 
     @staticmethod
-    def draft_action_completed(language: SupportedLanguage = "fr") -> str:
+    def draft_action_completed(language: SupportedLanguage | None = None) -> str:
         """Draft action - generic completion message."""
         messages = {
             "fr": "Action effectuée.",
@@ -1547,10 +1702,10 @@ class APIMessages:
             "it": "Azione completata.",
             "zh-CN": "操作已完成。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def draft_cancelled(language: SupportedLanguage = "fr") -> str:
+    def draft_cancelled(language: SupportedLanguage | None = None) -> str:
         """Draft action - cancelled by user."""
         messages = {
             "fr": "OK, c'est annulé.",
@@ -1560,10 +1715,10 @@ class APIMessages:
             "it": "OK, annullato.",
             "zh-CN": "好的，已取消。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def email_sent_successfully(to: str, language: SupportedLanguage = "fr") -> str:
+    def email_sent_successfully(to: str, language: SupportedLanguage | None = None) -> str:
         """Success - email sent."""
         messages = {
             "fr": f"Email envoyé avec succès à {to}",
@@ -1573,10 +1728,10 @@ class APIMessages:
             "it": f"Email inviata con successo a {to}",
             "zh-CN": f"邮件已成功发送至 {to}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def reply_sent_successfully(language: SupportedLanguage = "fr") -> str:
+    def reply_sent_successfully(language: SupportedLanguage | None = None) -> str:
         """Success - reply sent."""
         messages = {
             "fr": "Réponse envoyée avec succès",
@@ -1586,10 +1741,10 @@ class APIMessages:
             "it": "Risposta inviata con successo",
             "zh-CN": "回复已成功发送",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def email_forwarded_successfully(to: str, language: SupportedLanguage = "fr") -> str:
+    def email_forwarded_successfully(to: str, language: SupportedLanguage | None = None) -> str:
         """Success - email forwarded."""
         messages = {
             "fr": f"Email transféré avec succès à {to}",
@@ -1599,10 +1754,12 @@ class APIMessages:
             "it": f"Email inoltrata con successo a {to}",
             "zh-CN": f"邮件已成功转发至 {to}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def email_moved_to_trash(subject: str | None = None, language: SupportedLanguage = "fr") -> str:
+    def email_moved_to_trash(
+        subject: str | None = None, language: SupportedLanguage | None = None
+    ) -> str:
         """Success - email moved to trash."""
         if subject:
             messages = {
@@ -1622,14 +1779,14 @@ class APIMessages:
                 "it": "Email spostata nel cestino",
                 "zh-CN": "邮件已移至垃圾箱",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # CALENDAR TOOL MESSAGES
     # =========================================================================
 
     @staticmethod
-    def event_created_successfully(summary: str, language: SupportedLanguage = "fr") -> str:
+    def event_created_successfully(summary: str, language: SupportedLanguage | None = None) -> str:
         """Success - calendar event created."""
         messages = {
             "fr": f"Événement '{summary}' créé avec succès",
@@ -1639,10 +1796,10 @@ class APIMessages:
             "it": f"Evento '{summary}' creato con successo",
             "zh-CN": f"活动 '{summary}' 创建成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def event_updated_successfully(summary: str, language: SupportedLanguage = "fr") -> str:
+    def event_updated_successfully(summary: str, language: SupportedLanguage | None = None) -> str:
         """Success - calendar event updated."""
         messages = {
             "fr": f"Événement '{summary}' mis à jour avec succès",
@@ -1652,10 +1809,10 @@ class APIMessages:
             "it": f"Evento '{summary}' aggiornato con successo",
             "zh-CN": f"活动 '{summary}' 更新成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def event_deleted_successfully(event_id: str, language: SupportedLanguage = "fr") -> str:
+    def event_deleted_successfully(event_id: str, language: SupportedLanguage | None = None) -> str:
         """Success - calendar event deleted."""
         messages = {
             "fr": f"Événement '{event_id}' supprimé avec succès",
@@ -1665,14 +1822,14 @@ class APIMessages:
             "it": f"Evento '{event_id}' eliminato con successo",
             "zh-CN": f"活动 '{event_id}' 删除成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # CONTACT TOOL MESSAGES
     # =========================================================================
 
     @staticmethod
-    def contact_created_successfully(name: str, language: SupportedLanguage = "fr") -> str:
+    def contact_created_successfully(name: str, language: SupportedLanguage | None = None) -> str:
         """Success - contact created."""
         messages = {
             "fr": f"Contact '{name}' créé avec succès",
@@ -1682,10 +1839,10 @@ class APIMessages:
             "it": f"Contatto '{name}' creato con successo",
             "zh-CN": f"联系人 '{name}' 创建成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def contact_updated_successfully(name: str, language: SupportedLanguage = "fr") -> str:
+    def contact_updated_successfully(name: str, language: SupportedLanguage | None = None) -> str:
         """Success - contact updated."""
         messages = {
             "fr": f"Contact '{name}' mis à jour avec succès",
@@ -1695,11 +1852,11 @@ class APIMessages:
             "it": f"Contatto '{name}' aggiornato con successo",
             "zh-CN": f"联系人 '{name}' 更新成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def contact_deleted_successfully(
-        name: str | None = None, language: SupportedLanguage = "fr"
+        name: str | None = None, language: SupportedLanguage | None = None
     ) -> str:
         """Success - contact deleted."""
         if name:
@@ -1720,14 +1877,14 @@ class APIMessages:
                 "it": "Contatto eliminato con successo",
                 "zh-CN": "联系人删除成功",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # TASK TOOL MESSAGES
     # =========================================================================
 
     @staticmethod
-    def task_created_successfully(title: str, language: SupportedLanguage = "fr") -> str:
+    def task_created_successfully(title: str, language: SupportedLanguage | None = None) -> str:
         """Success - task created."""
         messages = {
             "fr": f"Tâche '{title}' créée avec succès",
@@ -1737,10 +1894,10 @@ class APIMessages:
             "it": f"Attività '{title}' creata con successo",
             "zh-CN": f"任务 '{title}' 创建成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def task_updated_successfully(title: str, language: SupportedLanguage = "fr") -> str:
+    def task_updated_successfully(title: str, language: SupportedLanguage | None = None) -> str:
         """Success - task updated."""
         messages = {
             "fr": f"Tâche '{title}' mise à jour avec succès",
@@ -1750,11 +1907,11 @@ class APIMessages:
             "it": f"Attività '{title}' aggiornata con successo",
             "zh-CN": f"任务 '{title}' 更新成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def task_deleted_successfully(
-        title: str | None = None, language: SupportedLanguage = "fr"
+        title: str | None = None, language: SupportedLanguage | None = None
     ) -> str:
         """Success - task deleted."""
         if title:
@@ -1775,7 +1932,7 @@ class APIMessages:
                 "it": "Attività eliminata con successo",
                 "zh-CN": "任务删除成功",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # DRIVE TOOL MESSAGES
@@ -1783,7 +1940,7 @@ class APIMessages:
 
     @staticmethod
     def file_deleted_successfully(
-        name: str | None = None, language: SupportedLanguage = "fr"
+        name: str | None = None, language: SupportedLanguage | None = None
     ) -> str:
         """Success - file deleted."""
         if name:
@@ -1804,14 +1961,14 @@ class APIMessages:
                 "it": "File eliminato con successo",
                 "zh-CN": "文件删除成功",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # REMINDER MESSAGES
     # =========================================================================
 
     @staticmethod
-    def reminder_created(formatted_time: str, language: SupportedLanguage = "fr") -> str:
+    def reminder_created(formatted_time: str, language: SupportedLanguage | None = None) -> str:
         """Success - reminder created."""
         messages = {
             "fr": f"🔔 Rappel créé pour {formatted_time}",
@@ -1821,10 +1978,10 @@ class APIMessages:
             "it": f"🔔 Promemoria creato per {formatted_time}",
             "zh-CN": f"🔔 提醒已设置为 {formatted_time}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def reminder_created_recurring(schedule: str, language: SupportedLanguage = "fr") -> str:
+    def reminder_created_recurring(schedule: str, language: SupportedLanguage | None = None) -> str:
         """Success - a REPEATING reminder was created.
 
         Not `reminder_created`: naming the next instant of a schedule reads as
@@ -1833,7 +1990,7 @@ class APIMessages:
 
         Args:
             schedule: The schedule in the reader's own words (`describe`).
-            language: Backend-canonical language code.
+            language: The reader's language (a supported code); the declared one when absent.
 
         Returns:
             The localized confirmation.
@@ -1846,10 +2003,10 @@ class APIMessages:
             "it": f"🔔 Promemoria ricorrente creato: {schedule}",
             "zh-CN": f"🔔 已创建重复提醒：{schedule}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def reminder_cancelled(content: str, language: SupportedLanguage = "fr") -> str:
+    def reminder_cancelled(content: str, language: SupportedLanguage | None = None) -> str:
         """Success - reminder cancelled."""
         messages = {
             "fr": f"🔔 Rappel annulé : {content}",
@@ -1859,10 +2016,10 @@ class APIMessages:
             "it": f"🔔 Promemoria annullato: {content}",
             "zh-CN": f"🔔 提醒已取消：{content}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def reminder_not_found(identifier: str, language: SupportedLanguage = "fr") -> str:
+    def reminder_not_found(identifier: str, language: SupportedLanguage | None = None) -> str:
         """Error - reminder not found."""
         messages = {
             "fr": f"Rappel non trouvé : {identifier}",
@@ -1872,14 +2029,14 @@ class APIMessages:
             "it": f"Promemoria non trovato: {identifier}",
             "zh-CN": f"未找到提醒：{identifier}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # GENERIC TOOL VALIDATION MESSAGES
     # =========================================================================
 
     @staticmethod
-    def field_required(field: str, language: SupportedLanguage = "fr") -> str:
+    def field_required(field: str, language: SupportedLanguage | None = None) -> str:
         """Validation - single required field missing (generic, DRY replacement for domain-specific variants)."""
         messages = {
             "fr": f"Le champ '{field}' est obligatoire",
@@ -1889,10 +2046,10 @@ class APIMessages:
             "it": f"Il campo '{field}' è obbligatorio",
             "zh-CN": f"字段 '{field}' 是必填项",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def fields_required(fields: list[str], language: SupportedLanguage = "fr") -> str:
+    def fields_required(fields: list[str], language: SupportedLanguage | None = None) -> str:
         """Validation - multiple fields required."""
         fields_str = ", ".join(f"'{f}'" for f in fields)
         messages = {
@@ -1903,10 +2060,10 @@ class APIMessages:
             "it": f"I campi {fields_str} sono obbligatori",
             "zh-CN": f"字段 {fields_str} 是必填项",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def invalid_date(language: SupportedLanguage = "fr") -> str:
+    def invalid_date(language: SupportedLanguage | None = None) -> str:
         """Validation - invalid date format."""
         messages = {
             "fr": "Date invalide",
@@ -1916,11 +2073,11 @@ class APIMessages:
             "it": "Data non valida",
             "zh-CN": "日期无效",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def invalid_rating_range(
-        min_val: float, max_val: float, language: SupportedLanguage = "fr"
+        min_val: float, max_val: float, language: SupportedLanguage | None = None
     ) -> str:
         """Validation - rating outside valid range."""
         messages = {
@@ -1931,10 +2088,10 @@ class APIMessages:
             "it": f"La valutazione deve essere tra {min_val} e {max_val}",
             "zh-CN": f"评分必须在 {min_val} 到 {max_val} 之间",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def google_contacts_feature_only(language: SupportedLanguage = "fr") -> str:
+    def google_contacts_feature_only(language: SupportedLanguage | None = None) -> str:
         """Contacts - feature only available with a connected Google account."""
         messages = {
             "fr": "Cette fonctionnalité n'est disponible qu'avec un compte Google Contacts connecté.",
@@ -1944,11 +2101,11 @@ class APIMessages:
             "it": "Questa funzione è disponibile solo con un account Google Contatti collegato.",
             "zh-CN": "此功能仅在连接 Google 通讯录账户后可用。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def contact_group_not_found(
-        group_name: str, available: list[str], language: SupportedLanguage = "fr"
+        group_name: str, available: list[str], language: SupportedLanguage | None = None
     ) -> str:
         """Contacts - requested group does not exist; list what does."""
         options = ", ".join(available) if available else "-"
@@ -1960,23 +2117,23 @@ class APIMessages:
             "it": f"Gruppo di contatti '{group_name}' non trovato. Gruppi disponibili: {options}",
             "zh-CN": f"未找到联系人组'{group_name}'。可用的组：{options}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def unsafe_url_blocked(language: SupportedLanguage = "fr") -> str:
+    def unsafe_url_blocked(language: SupportedLanguage | None = None) -> str:
         """Security - URL flagged by Web Risk, fetch/browse refused."""
         messages = {
-            "fr": "Cette URL est signalée comme dangereuse (hameçonnage ou logiciel malveillant) : accès bloqué pour votre sécurité.",
+            "fr": "Cette URL est signalée comme dangereuse (hameçonnage ou logiciel malveillant) : accès bloqué pour ta sécurité.",
             "en": "This URL is flagged as dangerous (phishing or malware): access blocked for your safety.",
-            "es": "Esta URL está señalada como peligrosa (phishing o malware): acceso bloqueado por su seguridad.",
-            "de": "Diese URL ist als gefährlich eingestuft (Phishing oder Malware): Zugriff zu Ihrer Sicherheit blockiert.",
+            "es": "Esta URL está señalada como peligrosa (phishing o malware): acceso bloqueado por tu seguridad.",
+            "de": "Diese URL ist als gefährlich eingestuft (Phishing oder Malware): Zugriff zu deiner Sicherheit blockiert.",
             "it": "Questo URL è segnalato come pericoloso (phishing o malware): accesso bloccato per la tua sicurezza.",
-            "zh-CN": "该网址被标记为危险（钓鱼或恶意软件）：为了您的安全已阻止访问。",
+            "zh-CN": "该网址被标记为危险（钓鱼或恶意软件）：为了你的安全已阻止访问。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def gps_required_for_nearby(language: SupportedLanguage = "fr") -> str:
+    def gps_required_for_nearby(language: SupportedLanguage | None = None) -> str:
         """Validation - proximity search needs a center point (GPS or address)."""
         messages = {
             "fr": "Coordonnées GPS requises pour la recherche à proximité.",
@@ -1986,11 +2143,13 @@ class APIMessages:
             "it": "Per la ricerca nelle vicinanze sono necessarie le coordinate GPS.",
             "zh-CN": "附近搜索需要GPS坐标。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def invalid_price_level(
-        invalid_values: list[str], valid_values: list[str], language: SupportedLanguage = "fr"
+        invalid_values: list[str],
+        valid_values: list[str],
+        language: SupportedLanguage | None = None,
     ) -> str:
         """Validation - invalid price level values."""
         invalid_str = ", ".join(invalid_values)
@@ -2003,74 +2162,78 @@ class APIMessages:
             "it": f"Livello di prezzo non valido: {invalid_str}. Valori consentiti: {valid_str}",
             "zh-CN": f"无效的价格等级: {invalid_str}。允许的值: {valid_str}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def places_search_criteria_required(language: SupportedLanguage = "fr") -> str:
+    def places_search_criteria_required(language: SupportedLanguage | None = None) -> str:
         """Places - no search criteria (query / type / location / id) supplied."""
         messages = {
-            "fr": "Veuillez préciser votre recherche : un terme, un type de lieu, "
+            "fr": "Précise ta recherche : un terme, un type de lieu, "
             "une localisation ou un identifiant de lieu.",
             "en": "Please specify a search: a query, a place type, a location, " "or a place ID.",
-            "es": "Especifique una búsqueda: un término, un tipo de lugar, "
+            "es": "Especifica una búsqueda: un término, un tipo de lugar, "
             "una ubicación o un ID de lugar.",
-            "de": "Bitte geben Sie eine Suche an: einen Suchbegriff, einen Ortstyp, "
+            "de": "Bitte gib eine Suche an: einen Suchbegriff, einen Ortstyp, "
             "einen Standort oder eine Orts-ID.",
             "it": "Specifica una ricerca: un termine, un tipo di luogo, "
             "una posizione o un ID luogo.",
             "zh-CN": "请指定搜索内容：查询词、地点类型、位置或地点 ID。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # CONNECTOR ERROR MESSAGES
     # =========================================================================
 
     @staticmethod
-    def connector_auth_invalid(connector_name: str, language: SupportedLanguage = "fr") -> str:
+    def connector_auth_invalid(
+        connector_name: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Connector authentication invalid."""
         messages = {
-            "fr": f"Authentification {connector_name} invalide. Veuillez réactiver le connecteur dans les paramètres.",
+            "fr": f"Authentification {connector_name} invalide. Réactive le connecteur dans les paramètres.",
             "en": f"{connector_name} authentication invalid. Please reactivate the connector in settings.",
-            "es": f"Autenticación de {connector_name} inválida. Por favor, reactive el conector en la configuración.",
-            "de": f"{connector_name}-Authentifizierung ungültig. Bitte aktivieren Sie den Connector in den Einstellungen erneut.",
-            "it": f"Autenticazione {connector_name} non valida. Riattivare il connettore nelle impostazioni.",
+            "es": f"Autenticación de {connector_name} inválida. Por favor, reactiva el conector en la configuración.",
+            "de": f"{connector_name}-Authentifizierung ungültig. Bitte aktiviere den Connector in den Einstellungen erneut.",
+            "it": f"Autenticazione {connector_name} non valida. Riattiva il connettore nelle impostazioni.",
             "zh-CN": f"{connector_name} 身份验证无效。请在设置中重新激活连接器。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def connector_reauthorize_permissions(language: SupportedLanguage = "fr") -> str:
+    def connector_reauthorize_permissions(language: SupportedLanguage | None = None) -> str:
         """Connector needs reauthorization with permissions."""
         messages = {
-            "fr": "Veuillez réautoriser le connecteur avec les permissions nécessaires.",
+            "fr": "Réautorise le connecteur avec les permissions nécessaires.",
             "en": "Please reauthorize the connector with the necessary permissions.",
             "es": "Por favor, reautoriza el conector con los permisos necesarios.",
-            "de": "Bitte autorisieren Sie den Connector mit den erforderlichen Berechtigungen erneut.",
-            "it": "Si prega di riautorizzare il connettore con i permessi necessari.",
+            "de": "Bitte autorisiere den Connector mit den erforderlichen Berechtigungen erneut.",
+            "it": "Riautorizza il connettore con i permessi necessari.",
             "zh-CN": "请使用必要的权限重新授权连接器。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def connector_not_enabled(connector_name: str, language: SupportedLanguage = "fr") -> str:
+    def connector_not_enabled(
+        connector_name: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Connector not enabled for user - used in draft execution."""
         messages = {
-            "fr": f"Le connecteur {connector_name} n'est pas activé. Veuillez l'activer dans les paramètres.",
+            "fr": f"Le connecteur {connector_name} n'est pas activé. Active-le dans les paramètres.",
             "en": f"{connector_name} connector is not enabled. Please enable it in settings.",
-            "es": f"El conector {connector_name} no está habilitado. Por favor, actívelo en la configuración.",
-            "de": f"Der {connector_name}-Connector ist nicht aktiviert. Bitte aktivieren Sie ihn in den Einstellungen.",
-            "it": f"Il connettore {connector_name} non è abilitato. Attivarlo nelle impostazioni.",
+            "es": f"El conector {connector_name} no está habilitado. Por favor, actívalo en la configuración.",
+            "de": f"Der {connector_name}-Connector ist nicht aktiviert. Bitte aktiviere ihn in den Einstellungen.",
+            "it": f"Il connettore {connector_name} non è abilitato. Attivalo nelle impostazioni.",
             "zh-CN": f"{connector_name} 连接器未启用。请在设置中启用它。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def insufficient_permissions(
         connector_name: str,
         scope_names: list[str],
         operation: str | None = None,
-        language: SupportedLanguage = "fr",
+        language: SupportedLanguage | None = None,
     ) -> str:
         """Insufficient OAuth permissions for connector."""
         scopes_str = ", ".join(scope_names)
@@ -2083,37 +2246,38 @@ class APIMessages:
             "zh-CN": f" 用于 {operation}" if operation else "",
         }
         messages = {
-            "fr": f"Permissions insuffisantes pour {connector_name}{operation_part['fr']}. Permissions manquantes : {scopes_str}. Veuillez réautoriser le connecteur avec les permissions nécessaires.",
+            "fr": f"Permissions insuffisantes pour {connector_name}{operation_part['fr']}. Permissions manquantes : {scopes_str}. Réautorise le connecteur avec les permissions nécessaires.",
             "en": f"Insufficient permissions for {connector_name}{operation_part['en']}. Missing permissions: {scopes_str}. Please reauthorize the connector with the necessary permissions.",
             "es": f"Permisos insuficientes para {connector_name}{operation_part['es']}. Permisos faltantes: {scopes_str}. Por favor, reautoriza el conector con los permisos necesarios.",
-            "de": f"Unzureichende Berechtigungen für {connector_name}{operation_part['de']}. Fehlende Berechtigungen: {scopes_str}. Bitte autorisieren Sie den Connector mit den erforderlichen Berechtigungen erneut.",
-            "it": f"Permessi insufficienti per {connector_name}{operation_part['it']}. Permessi mancanti: {scopes_str}. Si prega di riautorizzare il connettore con i permessi necessari.",
+            "de": f"Unzureichende Berechtigungen für {connector_name}{operation_part['de']}. Fehlende Berechtigungen: {scopes_str}. Bitte autorisiere den Connector mit den erforderlichen Berechtigungen erneut.",
+            "it": f"Permessi insufficienti per {connector_name}{operation_part['it']}. Permessi mancanti: {scopes_str}. Riautorizza il connettore con i permessi necessari.",
             "zh-CN": f"{connector_name}{operation_part['zh-CN']} 权限不足。缺少权限：{scopes_str}。请使用必要的权限重新授权连接器。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def rate_limit_exceeded(
         connector_name: str,
         retry_after_seconds: int | None = None,
-        language: SupportedLanguage = "fr",
+        language: SupportedLanguage | None = None,
     ) -> str:
         """Rate limit exceeded for connector."""
+        language = resolve_language(language)
         if retry_after_seconds:
             wait_msg = {
-                "fr": f"Veuillez réessayer dans {retry_after_seconds} secondes.",
+                "fr": f"Réessaie dans {retry_after_seconds} secondes.",
                 "en": f"Please retry in {retry_after_seconds} seconds.",
-                "es": f"Por favor, inténtelo de nuevo en {retry_after_seconds} segundos.",
-                "de": f"Bitte versuchen Sie es in {retry_after_seconds} Sekunden erneut.",
+                "es": f"Por favor, inténtalo de nuevo en {retry_after_seconds} segundos.",
+                "de": f"Bitte versuche es in {retry_after_seconds} Sekunden erneut.",
                 "it": f"Riprova tra {retry_after_seconds} secondi.",
                 "zh-CN": f"请在 {retry_after_seconds} 秒后重试。",
             }
         else:
             wait_msg = {
-                "fr": "Veuillez réessayer dans quelques instants.",
+                "fr": "Réessaie dans quelques instants.",
                 "en": "Please retry in a few moments.",
-                "es": "Por favor, inténtelo de nuevo en unos momentos.",
-                "de": "Bitte versuchen Sie es in einigen Augenblicken erneut.",
+                "es": "Por favor, inténtalo de nuevo en unos momentos.",
+                "de": "Bitte versuche es in einigen Augenblicken erneut.",
                 "it": "Riprova tra qualche istante.",
                 "zh-CN": "请稍后重试。",
             }
@@ -2130,76 +2294,63 @@ class APIMessages:
         return f"{base_msg.get(language, base_msg['en'])} {wait_msg.get(language, wait_msg['en'])}"
 
     @staticmethod
-    def no_refresh_token_available(language: SupportedLanguage = "fr") -> str:
+    def no_refresh_token_available(language: SupportedLanguage | None = None) -> str:
         """No refresh token available."""
         messages = {
-            "fr": "Pas de refresh_token disponible. Veuillez réactiver le connecteur.",
+            "fr": "Pas de refresh_token disponible. Réactive le connecteur.",
             "en": "No refresh token available. Please reactivate the connector.",
-            "es": "No hay token de actualización disponible. Por favor, reactive el conector.",
-            "de": "Kein Aktualisierungstoken verfügbar. Bitte aktivieren Sie den Connector erneut.",
-            "it": "Nessun token di aggiornamento disponibile. Riattivare il connettore.",
+            "es": "No hay token de actualización disponible. Por favor, reactiva el conector.",
+            "de": "Kein Aktualisierungstoken verfügbar. Bitte aktiviere den Connector erneut.",
+            "it": "Nessun token di aggiornamento disponibile. Riattiva il connettore.",
             "zh-CN": "没有可用的刷新令牌。请重新激活连接器。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def oauth_token_refresh_failed(language: SupportedLanguage = "fr") -> str:
+    def oauth_token_refresh_failed(language: SupportedLanguage | None = None) -> str:
         """Temporary or unclassified OAuth refresh failure; retry without reconnecting."""
         messages = {
-            "fr": "Échec temporaire du renouvellement OAuth. Veuillez réessayer plus tard.",
+            "fr": "Échec temporaire du renouvellement OAuth. Réessaie plus tard.",
             "en": "OAuth token refresh failed temporarily. Please try again later.",
-            "es": "Error temporal al renovar el token OAuth. Vuelva a intentarlo más tarde.",
-            "de": "Die OAuth-Token-Aktualisierung ist vorübergehend fehlgeschlagen. Bitte versuchen Sie es später erneut.",
+            "es": "Error temporal al renovar el token OAuth. Vuelve a intentarlo más tarde.",
+            "de": "Die OAuth-Token-Aktualisierung ist vorübergehend fehlgeschlagen. Bitte versuche es später erneut.",
             "it": "Aggiornamento temporaneamente non riuscito del token OAuth. Riprova più tardi.",
             "zh-CN": "OAuth 令牌刷新暂时失败。请稍后重试。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def refresh_token_revoked(language: SupportedLanguage = "fr") -> str:
+    def refresh_token_revoked(language: SupportedLanguage | None = None) -> str:
         """Refresh token was revoked or expired."""
         messages = {
-            "fr": "Le refresh token a été révoqué ou a expiré. Veuillez réactiver le connecteur dans les paramètres.",
+            "fr": "Le refresh token a été révoqué ou a expiré. Réactive le connecteur dans les paramètres.",
             "en": "The refresh token has been revoked or expired. Please reactivate the connector in settings.",
-            "es": "El token de actualización ha sido revocado o ha expirado. Por favor, reactive el conector en la configuración.",
-            "de": "Das Aktualisierungstoken wurde widerrufen oder ist abgelaufen. Bitte aktivieren Sie den Connector in den Einstellungen erneut.",
-            "it": "Il token di aggiornamento è stato revocato o è scaduto. Riattivare il connettore nelle impostazioni.",
+            "es": "El token de actualización ha sido revocado o ha expirado. Por favor, reactiva el conector en la configuración.",
+            "de": "Das Aktualisierungstoken wurde widerrufen oder ist abgelaufen. Bitte aktiviere den Connector in den Einstellungen erneut.",
+            "it": "Il token di aggiornamento è stato revocato o è scaduto. Riattiva il connettore nelle impostazioni.",
             "zh-CN": "刷新令牌已被撤销或已过期。请在设置中重新激活连接器。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def google_no_refresh_token_hint(language: SupportedLanguage = "fr") -> str:
+    def google_no_refresh_token_hint(language: SupportedLanguage | None = None) -> str:
         """Google didn't return refresh token - hint to revoke access."""
         messages = {
-            "fr": "Google n'a pas retourné de refresh_token. Veuillez révoquer l'accès dans votre compte Google (https://myaccount.google.com/permissions) puis réessayer.",
+            "fr": "Google n'a pas retourné de refresh_token. Révoque l'accès dans ton compte Google (https://myaccount.google.com/permissions) puis réessaie.",
             "en": "Google didn't return a refresh_token. Please revoke access in your Google account (https://myaccount.google.com/permissions) and try again.",
             "es": "Google no devolvió un refresh_token. Revoca el acceso en tu cuenta de Google (https://myaccount.google.com/permissions) e inténtalo de nuevo.",
-            "de": "Google hat kein refresh_token zurückgegeben. Bitte widerrufen Sie den Zugriff in Ihrem Google-Konto (https://myaccount.google.com/permissions) und versuchen Sie es erneut.",
+            "de": "Google hat kein refresh_token zurückgegeben. Bitte widerrufe den Zugriff in deinem Google-Konto (https://myaccount.google.com/permissions) und versuche es erneut.",
             "it": "Google non ha restituito un refresh_token. Revoca l'accesso nel tuo account Google (https://myaccount.google.com/permissions) e riprova.",
-            "zh-CN": "Google 未返回 refresh_token。请在您的 Google 帐户中撤销访问权限 (https://myaccount.google.com/permissions)，然后重试。",
+            "zh-CN": "Google 未返回 refresh_token。请在你的 Google 帐户中撤销访问权限 (https://myaccount.google.com/permissions)，然后重试。",
         }
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def reason_not_specified(language: SupportedLanguage = "fr") -> str:
-        """Reason not specified."""
-        messages = {
-            "fr": "Raison non spécifiée",
-            "en": "Reason not specified",
-            "es": "Razón no especificada",
-            "de": "Grund nicht angegeben",
-            "it": "Motivo non specificato",
-            "zh-CN": "原因未指定",
-        }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # ENTITY RESOLUTION MESSAGES
     # =========================================================================
 
     @staticmethod
-    def entity_not_found(domain: str, query: str, language: SupportedLanguage = "fr") -> str:
+    def entity_not_found(domain: str, query: str, language: SupportedLanguage | None = None) -> str:
         """Entity not found for query."""
         messages = {
             "fr": f"Aucun {domain} trouvé pour '{query}'",
@@ -2209,10 +2360,12 @@ class APIMessages:
             "it": f"Nessun {domain} trovato per '{query}'",
             "zh-CN": f"未找到 '{query}' 的 {domain}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def entity_missing_field(domain: str, field: str, language: SupportedLanguage = "fr") -> str:
+    def entity_missing_field(
+        domain: str, field: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Entity found but missing required field."""
         messages = {
             "fr": f"Le {domain} trouvé n'a pas de {field}",
@@ -2222,10 +2375,10 @@ class APIMessages:
             "it": f"Il {domain} trovato non ha {field}",
             "zh-CN": f"找到的 {domain} 没有 {field}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def invalid_choice(choice: str, language: SupportedLanguage = "fr") -> str:
+    def invalid_choice(choice: str, language: SupportedLanguage | None = None) -> str:
         """Invalid choice in entity resolution."""
         messages = {
             "fr": f"Choix invalide: {choice}",
@@ -2235,10 +2388,12 @@ class APIMessages:
             "it": f"Scelta non valida: {choice}",
             "zh-CN": f"无效选择: {choice}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def choice_out_of_bounds(index: int, max_value: int, language: SupportedLanguage = "fr") -> str:
+    def choice_out_of_bounds(
+        index: int, max_value: int, language: SupportedLanguage | None = None
+    ) -> str:
         """Choice index out of bounds in entity resolution."""
         messages = {
             "fr": f"Choix hors limites: {index} (1-{max_value} attendu)",
@@ -2248,66 +2403,55 @@ class APIMessages:
             "it": f"Scelta fuori dai limiti: {index} (1-{max_value} previsto)",
             "zh-CN": f"选择超出范围: {index} (预期 1-{max_value})",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def resolution_error(error_message: str, language: SupportedLanguage = "fr") -> str:
-        """Resolution failed with error."""
+    def reference_not_in_list(
+        reference: str, count: int, language: SupportedLanguage | None = None
+    ) -> str:
+        """A reference matching no item of the active list, and what does match.
+
+        The keywords named are the resolver's own (``KEYWORD_MAPS``) for the
+        language written in.
+        """
         messages = {
-            "fr": f"Erreur lors de la résolution: {error_message}",
-            "en": f"Resolution error: {error_message}",
-            "es": f"Error de resolución: {error_message}",
-            "de": f"Auflösungsfehler: {error_message}",
-            "it": f"Errore di risoluzione: {error_message}",
-            "zh-CN": f"解析错误: {error_message}",
+            "fr": f"«\u00a0{reference}\u00a0» introuvable dans la liste. Utilise un numéro "
+            f"(1-{count}), un nom ou «\u00a0premier\u00a0»/«\u00a0dernier\u00a0».",
+            "en": f"“{reference}” not found in the list. Use a number (1-{count}), "
+            "a name, or “first”/“last”.",
+            "es": f"«{reference}» no está en la lista. Usa un número (1-{count}), "
+            "un nombre o «primero»/«último».",
+            "de": f"„{reference}“ ist nicht in der Liste. Verwende eine Nummer (1-{count}), "
+            "einen Namen oder „erster“/„letzter“.",
+            "it": f"«{reference}» non è nell'elenco. Usa un numero (1-{count}), "
+            "un nome oppure «primo»/«ultimo».",
+            "zh-CN": f"列表中没有“{reference}”。请使用编号（1-{count}）、名称，或“第一”/“最后”。",
         }
-        return messages.get(language, messages["en"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def entity_no_target_field(domain: str, query: str, language: SupportedLanguage = "fr") -> str:
-        """Entity found but missing target field."""
+    def reference_ambiguous(
+        reference: str, names: list[str], language: SupportedLanguage | None = None
+    ) -> str:
+        """Several items match a reference: the candidates, to choose from."""
+        lang = resolve_language(language)
+        listed = ("、" if lang == "zh-CN" else ", ").join(names)
         messages = {
-            "fr": f"Le {domain} '{query}' n'a pas le champ requis",
-            "en": f"The {domain} '{query}' does not have the required field",
-            "es": f"El {domain} '{query}' no tiene el campo requerido",
-            "de": f"Der {domain} '{query}' hat nicht das erforderliche Feld",
-            "it": f"Il {domain} '{query}' non ha il campo richiesto",
-            "zh-CN": f"{domain} '{query}' 没有所需字段",
+            "fr": f"Plusieurs correspondances pour «\u00a0{reference}\u00a0». Précise laquelle\u00a0: {listed}",
+            "en": f"Several matches for “{reference}”. Say which one: {listed}",
+            "es": f"Varias coincidencias para «{reference}». Indica cuál: {listed}",
+            "de": f"Mehrere Treffer für „{reference}“. Sag, welcher gemeint ist: {listed}",
+            "it": f"Più corrispondenze per «{reference}». Indica quale: {listed}",
+            "zh-CN": f"“{reference}”有多个匹配项。请指明是哪一个：{listed}",
         }
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def multiple_options_available(count: int, language: SupportedLanguage = "fr") -> str:
-        """Multiple options available for disambiguation."""
-        messages = {
-            "fr": f"Plusieurs options disponibles. Choisis parmi {count} possibilités.",
-            "en": f"Multiple options available. Choose from {count} possibilities.",
-            "es": f"Varias opciones disponibles. Elige entre {count} posibilidades.",
-            "de": f"Mehrere Optionen verfügbar. Wähle aus {count} Möglichkeiten.",
-            "it": f"Più opzioni disponibili. Scegli tra {count} possibilità.",
-            "zh-CN": f"多个选项可用。从 {count} 个可能性中选择。",
-        }
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def multiple_matches_found(count: int, language: SupportedLanguage = "fr") -> str:
-        """Multiple matches found, need disambiguation."""
-        messages = {
-            "fr": f"Plusieurs correspondances trouvées ({count}). Précise ton choix.",
-            "en": f"Multiple matches found ({count}). Please specify your choice.",
-            "es": f"Múltiples coincidencias encontradas ({count}). Especifica tu elección.",
-            "de": f"Mehrere Übereinstimmungen gefunden ({count}). Bitte geben Sie Ihre Wahl an.",
-            "it": f"Trovate più corrispondenze ({count}). Specifica la tua scelta.",
-            "zh-CN": f"找到多个匹配项 ({count})。请指定您的选择。",
-        }
-        return messages.get(language, messages["en"])
+        return messages[lang]
 
     # =========================================================================
     # FORMATTER DISPLAY MESSAGES
     # =========================================================================
 
     @staticmethod
-    def unknown_name(language: SupportedLanguage = "fr") -> str:
+    def unknown_name(language: SupportedLanguage | None = None) -> str:
         """Unknown name placeholder for contacts."""
         messages = {
             "fr": "Nom inconnu",
@@ -2317,10 +2461,10 @@ class APIMessages:
             "it": "Nome sconosciuto",
             "zh-CN": "未知姓名",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def date_unknown(language: SupportedLanguage = "fr") -> str:
+    def date_unknown(language: SupportedLanguage | None = None) -> str:
         """Unknown date placeholder."""
         messages = {
             "fr": "Date inconnue",
@@ -2330,10 +2474,10 @@ class APIMessages:
             "it": "Data sconosciuta",
             "zh-CN": "未知日期",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def date_invalid(language: SupportedLanguage = "fr") -> str:
+    def date_invalid(language: SupportedLanguage | None = None) -> str:
         """Invalid date placeholder."""
         messages = {
             "fr": "Date invalide",
@@ -2343,10 +2487,10 @@ class APIMessages:
             "it": "Data non valida",
             "zh-CN": "无效日期",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def sender_unknown(language: SupportedLanguage = "fr") -> str:
+    def sender_unknown(language: SupportedLanguage | None = None) -> str:
         """Unknown sender placeholder for emails."""
         messages = {
             "fr": "Expéditeur inconnu",
@@ -2356,10 +2500,10 @@ class APIMessages:
             "it": "Mittente sconosciuto",
             "zh-CN": "未知发件人",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def no_subject(language: SupportedLanguage = "fr") -> str:
+    def no_subject(language: SupportedLanguage | None = None) -> str:
         """No subject placeholder for emails."""
         messages = {
             "fr": "(Sans objet)",
@@ -2369,28 +2513,10 @@ class APIMessages:
             "it": "(Nessun oggetto)",
             "zh-CN": "(无主题)",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def email_read_more_gmail(url: str, language: SupportedLanguage = "fr") -> str:
-        """Link to continue reading email in webmail (legacy alias)."""
-        return APIMessages.email_read_more(url, language)
-
-    @staticmethod
-    def email_read_more(url: str, language: SupportedLanguage = "fr") -> str:
-        """Link to continue reading email in webmail (provider-agnostic)."""
-        messages = {
-            "fr": f"... [lire la suite]({url})",
-            "en": f"... [read more]({url})",
-            "es": f"... [leer más]({url})",
-            "de": f"... [mehr lesen]({url})",
-            "it": f"... [leggi di più]({url})",
-            "zh-CN": f"... [阅读更多]({url})",
-        }
-        return messages.get(language, messages["en"])
-
-    @staticmethod
-    def message_truncated(language: SupportedLanguage = "fr") -> str:
+    def message_truncated(language: SupportedLanguage | None = None) -> str:
         """Message truncated placeholder."""
         messages = {
             "fr": "... [message tronqué]",
@@ -2400,10 +2526,10 @@ class APIMessages:
             "it": "... [messaggio troncato]",
             "zh-CN": "... [消息已截断]",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def attachment_hint_labels(language: SupportedLanguage = "fr") -> dict[str, str]:
+    def attachment_hint_labels(language: SupportedLanguage | None = None) -> dict[str, str]:
         """The three words of the attachment hint appended to a message for the router."""
         labels: dict[str, dict[str, str]] = {
             "fr": {"attachment": "Pièce jointe", "image": "image", "document": "document"},
@@ -2413,10 +2539,10 @@ class APIMessages:
             "it": {"attachment": "Allegato", "image": "immagine", "document": "documento"},
             "zh-CN": {"attachment": "附件", "image": "图片", "document": "文档"},
         }
-        return labels.get(language, labels["en"])
+        return labels.get(resolve_language(language), labels["en"])
 
     @staticmethod
-    def attachment_placeholder(language: SupportedLanguage = "fr") -> str:
+    def attachment_placeholder(language: SupportedLanguage | None = None) -> str:
         """Attachment placeholder when filename is unknown."""
         messages = {
             "fr": "pièce jointe",
@@ -2426,14 +2552,14 @@ class APIMessages:
             "it": "allegato",
             "zh-CN": "附件",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # TOOL ERROR MESSAGES
     # =========================================================================
 
     @staticmethod
-    def reminder_creation_error(error: str, language: SupportedLanguage = "fr") -> str:
+    def reminder_creation_error(error: str, language: SupportedLanguage | None = None) -> str:
         """Reminder creation failed."""
         messages = {
             "fr": f"Erreur lors de la création du rappel: {error}",
@@ -2443,10 +2569,10 @@ class APIMessages:
             "it": f"Errore nella creazione del promemoria: {error}",
             "zh-CN": f"创建提醒时出错: {error}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def reminder_list_error(error: str, language: SupportedLanguage = "fr") -> str:
+    def reminder_list_error(error: str, language: SupportedLanguage | None = None) -> str:
         """Reminder list retrieval failed."""
         messages = {
             "fr": f"Erreur lors de la récupération des rappels: {error}",
@@ -2456,10 +2582,10 @@ class APIMessages:
             "it": f"Errore nel recupero dei promemoria: {error}",
             "zh-CN": f"获取提醒时出错: {error}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def reminder_cancel_error(error: str, language: SupportedLanguage = "fr") -> str:
+    def reminder_cancel_error(error: str, language: SupportedLanguage | None = None) -> str:
         """Reminder cancellation failed."""
         messages = {
             "fr": f"Erreur lors de l'annulation du rappel: {error}",
@@ -2469,23 +2595,25 @@ class APIMessages:
             "it": f"Errore nell'annullamento del promemoria: {error}",
             "zh-CN": f"取消提醒时出错: {error}",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def no_pending_reminders(language: SupportedLanguage = "fr") -> str:
+    def no_pending_reminders(language: SupportedLanguage | None = None) -> str:
         """No pending reminders message."""
         messages = {
             "fr": "Tu n'as aucun rappel en attente.",
             "en": "You have no pending reminders.",
             "es": "No tienes recordatorios pendientes.",
-            "de": "Sie haben keine ausstehenden Erinnerungen.",
+            "de": "Du hast keine ausstehenden Erinnerungen.",
             "it": "Non hai promemoria in sospeso.",
-            "zh-CN": "您没有待处理的提醒。",
+            "zh-CN": "你没有待处理的提醒。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def relative_trigger_invalid_format(value: str, language: SupportedLanguage = "fr") -> str:
+    def relative_trigger_invalid_format(
+        value: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Invalid relative_trigger format."""
         messages = {
             "fr": f"Format relative_trigger invalide: '{value}'. Attendu: 'DATETIME|OFFSET' ou 'DATETIME|OFFSET|@TIME'",
@@ -2495,10 +2623,12 @@ class APIMessages:
             "it": f"Formato relative_trigger non valido: '{value}'. Atteso: 'DATETIME|OFFSET' o 'DATETIME|OFFSET|@TIME'",
             "zh-CN": f"relative_trigger 格式无效: '{value}'。预期: 'DATETIME|OFFSET' 或 'DATETIME|OFFSET|@TIME'",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def relative_trigger_invalid_datetime(value: str, language: SupportedLanguage = "fr") -> str:
+    def relative_trigger_invalid_datetime(
+        value: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Invalid datetime in relative_trigger."""
         messages = {
             "fr": f"Date/heure invalide dans relative_trigger: '{value}'",
@@ -2508,10 +2638,12 @@ class APIMessages:
             "it": f"Data/ora non valida in relative_trigger: '{value}'",
             "zh-CN": f"relative_trigger 中的日期/时间无效: '{value}'",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def relative_trigger_invalid_offset(value: str, language: SupportedLanguage = "fr") -> str:
+    def relative_trigger_invalid_offset(
+        value: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Invalid offset in relative_trigger."""
         messages = {
             "fr": f"Offset invalide: '{value}'. Attendu: '-1d', '+2h', '-30m'",
@@ -2521,10 +2653,10 @@ class APIMessages:
             "it": f"Offset non valido: '{value}'. Atteso: '-1d', '+2h', '-30m'",
             "zh-CN": f"偏移量无效: '{value}'。预期: '-1d', '+2h', '-30m'",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def relative_trigger_invalid_time(value: str, language: SupportedLanguage = "fr") -> str:
+    def relative_trigger_invalid_time(value: str, language: SupportedLanguage | None = None) -> str:
         """Invalid time override in relative_trigger."""
         messages = {
             "fr": f"Heure invalide: '{value}'. Attendu: '@HH:MM' (ex: @19:00)",
@@ -2534,23 +2666,23 @@ class APIMessages:
             "it": f"Ora non valida: '{value}'. Atteso: '@HH:MM' (es: @19:00)",
             "zh-CN": f"时间无效: '{value}'。预期: '@HH:MM' (例如: @19:00)",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def reminder_trigger_params_conflict(language: SupportedLanguage = "fr") -> str:
+    def reminder_trigger_params_conflict(language: SupportedLanguage | None = None) -> str:
         """Both trigger_datetime and relative_trigger provided."""
         messages = {
-            "fr": "Impossible d'utiliser trigger_datetime et relative_trigger ensemble. Utilisez l'un ou l'autre.",
+            "fr": "Impossible d'utiliser trigger_datetime et relative_trigger ensemble. Utilise l'un ou l'autre.",
             "en": "Cannot use both trigger_datetime and relative_trigger. Use one or the other.",
-            "es": "No se pueden usar trigger_datetime y relative_trigger juntos. Use uno u otro.",
-            "de": "trigger_datetime und relative_trigger können nicht zusammen verwendet werden. Verwenden Sie eines von beiden.",
-            "it": "Non è possibile usare trigger_datetime e relative_trigger insieme. Usare l'uno o l'altro.",
+            "es": "No se pueden usar trigger_datetime y relative_trigger juntos. Usa uno u otro.",
+            "de": "trigger_datetime und relative_trigger können nicht zusammen verwendet werden. Verwende eines von beiden.",
+            "it": "Non è possibile usare trigger_datetime e relative_trigger insieme. Usa l'uno o l'altro.",
             "zh-CN": "不能同时使用 trigger_datetime 和 relative_trigger。请使用其中一个。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def reminder_trigger_params_missing(language: SupportedLanguage = "fr") -> str:
+    def reminder_trigger_params_missing(language: SupportedLanguage | None = None) -> str:
         """Neither trigger_datetime nor relative_trigger provided."""
         messages = {
             "fr": "trigger_datetime ou relative_trigger doit être fourni.",
@@ -2560,10 +2692,10 @@ class APIMessages:
             "it": "Deve essere fornito trigger_datetime o relative_trigger.",
             "zh-CN": "必须提供 trigger_datetime 或 relative_trigger。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def no_results_to_display(language: SupportedLanguage = "fr") -> str:
+    def no_results_to_display(language: SupportedLanguage | None = None) -> str:
         """No results to display message."""
         messages = {
             "fr": "Aucun résultat à afficher.",
@@ -2573,10 +2705,10 @@ class APIMessages:
             "it": "Nessun risultato da visualizzare.",
             "zh-CN": "没有结果可显示。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def no_external_agent_called(language: SupportedLanguage = "fr") -> str:
+    def no_external_agent_called(language: SupportedLanguage | None = None) -> str:
         """No external agent was called message."""
         messages = {
             "fr": "Aucun agent externe n'a été appelé.",
@@ -2586,10 +2718,10 @@ class APIMessages:
             "it": "Nessun agente esterno è stato chiamato.",
             "zh-CN": "未调用外部代理。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def no_context_items(language: SupportedLanguage = "fr") -> str:
+    def no_context_items(language: SupportedLanguage | None = None) -> str:
         """No items in current context message."""
         messages = {
             "fr": "Aucun item dans le contexte actuel.",
@@ -2599,10 +2731,10 @@ class APIMessages:
             "it": "Nessun elemento nel contesto attuale.",
             "zh-CN": "当前上下文中没有项目。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def no_resolved_element(language: SupportedLanguage = "fr") -> str:
+    def no_resolved_element(language: SupportedLanguage | None = None) -> str:
         """No resolved element for reference message."""
         messages = {
             "fr": "Aucun élément résolu pour cette référence.",
@@ -2612,10 +2744,10 @@ class APIMessages:
             "it": "Nessun elemento risolto per questo riferimento.",
             "zh-CN": "此引用没有已解析的元素。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def no_active_contacts_list(language: SupportedLanguage = "fr") -> str:
+    def no_active_contacts_list(language: SupportedLanguage | None = None) -> str:
         """No active contacts list in memory message."""
         messages = {
             "fr": "Aucune liste 'contacts' active en mémoire.",
@@ -2625,27 +2757,27 @@ class APIMessages:
             "it": "Nessuna lista 'contatti' attiva in memoria.",
             "zh-CN": '内存中没有活动的"联系人"列表。',
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def nested_interrupt_save_failed(language: SupportedLanguage = "fr") -> str:
+    def nested_interrupt_save_failed(language: SupportedLanguage | None = None) -> str:
         """Nested interrupt save failed message."""
         messages = {
-            "fr": "Impossible de sauvegarder l'interruption imbriquée. Veuillez réessayer.",
+            "fr": "Impossible de sauvegarder l'interruption imbriquée. Réessaie.",
             "en": "Unable to save nested interrupt. Please try again.",
-            "es": "No se pudo guardar la interrupción anidada. Por favor, inténtelo de nuevo.",
-            "de": "Verschachtelte Unterbrechung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-            "it": "Impossibile salvare l'interruzione nidificata. Si prega di riprovare.",
+            "es": "No se pudo guardar la interrupción anidada. Por favor, inténtalo de nuevo.",
+            "de": "Verschachtelte Unterbrechung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+            "it": "Impossibile salvare l'interruzione nidificata. Riprova.",
             "zh-CN": "无法保存嵌套中断。请重试。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # PLANNER ERROR MESSAGES
     # =========================================================================
 
     @staticmethod
-    def planner_error_header(error_message: str, language: SupportedLanguage = "fr") -> str:
+    def planner_error_header(error_message: str, language: SupportedLanguage | None = None) -> str:
         """Planning error header with emoji."""
         messages = {
             "fr": f"\n\n⚠️ **Problème de planification:**\n{error_message}\n\n",
@@ -2655,10 +2787,10 @@ class APIMessages:
             "it": f"\n\n⚠️ **Problema di pianificazione:**\n{error_message}\n\n",
             "zh-CN": f"\n\n⚠️ **规划问题:**\n{error_message}\n\n",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def planner_technical_details(language: SupportedLanguage = "fr") -> str:
+    def planner_technical_details(language: SupportedLanguage | None = None) -> str:
         """Technical details section header."""
         messages = {
             "fr": "**Détails techniques:**\n",
@@ -2668,10 +2800,10 @@ class APIMessages:
             "it": "**Dettagli tecnici:**\n",
             "zh-CN": "**技术细节:**\n",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def planner_unknown_error(language: SupportedLanguage = "fr") -> str:
+    def planner_unknown_error(language: SupportedLanguage | None = None) -> str:
         """Unknown error fallback message."""
         messages = {
             "fr": "Erreur inconnue",
@@ -2681,22 +2813,23 @@ class APIMessages:
             "it": "Errore sconosciuto",
             "zh-CN": "未知错误",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def agent_error_line(
-        agent_name: str, error: str | None, language: SupportedLanguage = "fr"
+        agent_name: str, error: str | None, language: SupportedLanguage | None = None
     ) -> str:
         """One prompt line for an agent whose whole work failed (ADR-303).
 
         Args:
             agent_name: The agent that failed, as the result names it.
             error: What it returned, or None when it said nothing.
-            language: Backend-canonical language code.
+            language: The reader's language (a supported code); the declared one when absent.
 
         Returns:
             The line injected into the response prompt.
         """
+        language = resolve_language(language)
         detail = error or APIMessages.agent_error_unspecified(language)
         messages = {
             "fr": f"❌ {agent_name} : échec — {detail}",
@@ -2709,7 +2842,7 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
-    def agent_error_unspecified(language: SupportedLanguage = "fr") -> str:
+    def agent_error_unspecified(language: SupportedLanguage | None = None) -> str:
         """Fallback detail when a failed agent carried no message (ADR-303)."""
         messages = {
             "fr": "erreur non précisée",
@@ -2719,10 +2852,10 @@ class APIMessages:
             "it": "errore non specificato",
             "zh-CN": "未说明的错误",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def planner_explanation(language: SupportedLanguage = "fr") -> str:
+    def planner_explanation(language: SupportedLanguage | None = None) -> str:
         """Planner error explanation for users."""
         messages = {
             "fr": "\n💡 **Explication:** Le planner n'a pas pu créer un plan d'exécution valide pour cette requête. Certaines opérations complexes (filtrage par date, conditions avancées) ne sont pas encore supportées.",
@@ -2732,10 +2865,10 @@ class APIMessages:
             "it": "\n💡 **Spiegazione:** Il pianificatore non è riuscito a creare un piano di esecuzione valido per questa richiesta. Alcune operazioni complesse (filtro per data, condizioni avanzate) non sono ancora supportate.",
             "zh-CN": "\n💡 **说明:** 规划器无法为此请求创建有效的执行计划。某些复杂操作（日期筛选、高级条件）尚不支持。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def plan_validation_failed(language: SupportedLanguage = "fr") -> str:
+    def plan_validation_failed(language: SupportedLanguage | None = None) -> str:
         """Plan validation failed default message."""
         messages = {
             "fr": "La validation du plan a échoué",
@@ -2745,7 +2878,7 @@ class APIMessages:
             "it": "Validazione del piano fallita",
             "zh-CN": "计划验证失败",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # OAUTH HEALTH CHECK NOTIFICATIONS
@@ -2754,7 +2887,7 @@ class APIMessages:
     # Only sent when refresh failed and manual re-authentication is required.
 
     @staticmethod
-    def oauth_health_critical_title(language: SupportedLanguage = "fr") -> str:
+    def oauth_health_critical_title(language: SupportedLanguage | None = None) -> str:
         """Title for push notification when OAuth connector has ERROR status."""
         messages = {
             "fr": "Reconnexion requise",
@@ -2764,10 +2897,12 @@ class APIMessages:
             "it": "Riconnessione necessaria",
             "zh-CN": "需要重新连接",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def oauth_health_critical_body(connector_name: str, language: SupportedLanguage = "fr") -> str:
+    def oauth_health_critical_body(
+        connector_name: str, language: SupportedLanguage | None = None
+    ) -> str:
         """Body for push notification when OAuth connector has ERROR status."""
         messages = {
             "fr": f"{connector_name} nécessite une reconnexion manuelle.",
@@ -2777,14 +2912,14 @@ class APIMessages:
             "it": f"{connector_name} richiede riconnessione manuale.",
             "zh-CN": f"{connector_name} 需要手动重新连接。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # LABEL TOOL MESSAGES
     # =========================================================================
 
     @staticmethod
-    def label_not_found(label_name: str, language: SupportedLanguage = "fr") -> str:
+    def label_not_found(label_name: str, language: SupportedLanguage | None = None) -> str:
         """Label not found error message."""
         messages = {
             "fr": f"Label '{label_name}' introuvable",
@@ -2794,10 +2929,10 @@ class APIMessages:
             "it": f"Etichetta '{label_name}' non trovata",
             "zh-CN": f"标签 '{label_name}' 未找到",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def label_already_exists(label_name: str, language: SupportedLanguage = "fr") -> str:
+    def label_already_exists(label_name: str, language: SupportedLanguage | None = None) -> str:
         """Label already exists error message."""
         messages = {
             "fr": f"Le label '{label_name}' existe déjà",
@@ -2807,10 +2942,10 @@ class APIMessages:
             "it": f"L'etichetta '{label_name}' esiste già",
             "zh-CN": f"标签 '{label_name}' 已存在",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def label_is_system(label_name: str, language: SupportedLanguage = "fr") -> str:
+    def label_is_system(label_name: str, language: SupportedLanguage | None = None) -> str:
         """System label cannot be modified error message."""
         messages = {
             "fr": f"Le label '{label_name}' est un label système et ne peut pas être modifié",
@@ -2820,10 +2955,12 @@ class APIMessages:
             "it": f"L'etichetta '{label_name}' è un'etichetta di sistema e non può essere modificata",
             "zh-CN": f"标签 '{label_name}' 是系统标签，无法修改",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def label_has_children(label_name: str, count: int, language: SupportedLanguage = "fr") -> str:
+    def label_has_children(
+        label_name: str, count: int, language: SupportedLanguage | None = None
+    ) -> str:
         """Label has children info message."""
         messages = {
             "fr": f"Le label '{label_name}' contient {count} sous-label(s) qui seront aussi supprimés",
@@ -2833,10 +2970,10 @@ class APIMessages:
             "it": f"L'etichetta '{label_name}' contiene {count} sottoetichetta/e che verranno anche eliminate",
             "zh-CN": f"标签 '{label_name}' 包含 {count} 个子标签，也将被删除",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def label_no_children(label_name: str, language: SupportedLanguage = "fr") -> str:
+    def label_no_children(label_name: str, language: SupportedLanguage | None = None) -> str:
         """Label has no children error message."""
         messages = {
             "fr": f"Le label '{label_name}' n'a pas de sous-labels",
@@ -2846,11 +2983,11 @@ class APIMessages:
             "it": f"L'etichetta '{label_name}' non ha sottoetichette",
             "zh-CN": f"标签 '{label_name}' 没有子标签",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def labels_applied_success(
-        count: int, label_names: list[str], language: SupportedLanguage = "fr"
+        count: int, label_names: list[str], language: SupportedLanguage | None = None
     ) -> str:
         """Labels applied successfully message."""
         labels_str = ", ".join(label_names)
@@ -2862,11 +2999,11 @@ class APIMessages:
             "it": f"Etichetta/e '{labels_str}' applicata/e a {count} email",
             "zh-CN": f"标签 '{labels_str}' 已应用于 {count} 封邮件",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def labels_removed_success(
-        count: int, label_names: list[str], language: SupportedLanguage = "fr"
+        count: int, label_names: list[str], language: SupportedLanguage | None = None
     ) -> str:
         """Labels removed successfully message."""
         labels_str = ", ".join(label_names)
@@ -2878,10 +3015,10 @@ class APIMessages:
             "it": f"Etichetta/e '{labels_str}' rimossa/e da {count} email",
             "zh-CN": f"标签 '{labels_str}' 已从 {count} 封邮件中移除",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def label_created_success(label_name: str, language: SupportedLanguage = "fr") -> str:
+    def label_created_success(label_name: str, language: SupportedLanguage | None = None) -> str:
         """Label created successfully message."""
         messages = {
             "fr": f"Label '{label_name}' créé avec succès",
@@ -2891,11 +3028,11 @@ class APIMessages:
             "it": f"Etichetta '{label_name}' creata con successo",
             "zh-CN": f"标签 '{label_name}' 创建成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def label_updated_success(
-        old_name: str, new_name: str, language: SupportedLanguage = "fr"
+        old_name: str, new_name: str, language: SupportedLanguage | None = None
     ) -> str:
         """Label updated successfully message."""
         messages = {
@@ -2906,10 +3043,10 @@ class APIMessages:
             "it": f"Etichetta '{old_name}' rinominata in '{new_name}'",
             "zh-CN": f"标签 '{old_name}' 已重命名为 '{new_name}'",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def label_deleted_success(label_name: str, language: SupportedLanguage = "fr") -> str:
+    def label_deleted_success(label_name: str, language: SupportedLanguage | None = None) -> str:
         """Label deleted successfully message."""
         messages = {
             "fr": f"Label '{label_name}' supprimé avec succès",
@@ -2919,10 +3056,10 @@ class APIMessages:
             "it": f"Etichetta '{label_name}' eliminata con successo",
             "zh-CN": f"标签 '{label_name}' 删除成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def labels_deleted_success(count: int, language: SupportedLanguage = "fr") -> str:
+    def labels_deleted_success(count: int, language: SupportedLanguage | None = None) -> str:
         """Multiple labels deleted successfully message."""
         messages = {
             "fr": f"{count} label(s) supprimé(s) avec succès",
@@ -2932,20 +3069,22 @@ class APIMessages:
             "it": f"{count} etichetta/e eliminata/e con successo",
             "zh-CN": f"{count} 个标签删除成功",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def label_ambiguous(label_name: str, count: int, language: SupportedLanguage = "fr") -> str:
+    def label_ambiguous(
+        label_name: str, count: int, language: SupportedLanguage | None = None
+    ) -> str:
         """Ambiguous label name message."""
         messages = {
             "fr": f"Plusieurs labels correspondent à '{label_name}' ({count} trouvés). Précise le chemin complet.",
             "en": f"Multiple labels match '{label_name}' ({count} found). Please specify the full path.",
-            "es": f"Varias etiquetas coinciden con '{label_name}' ({count} encontradas). Especifique la ruta completa.",
-            "de": f"Mehrere Labels stimmen mit '{label_name}' überein ({count} gefunden). Bitte geben Sie den vollständigen Pfad an.",
-            "it": f"Più etichette corrispondono a '{label_name}' ({count} trovate). Specificare il percorso completo.",
+            "es": f"Varias etiquetas coinciden con '{label_name}' ({count} encontradas). Especifica la ruta completa.",
+            "de": f"Mehrere Labels stimmen mit '{label_name}' überein ({count} gefunden). Bitte gib den vollständigen Pfad an.",
+            "it": f"Più etichette corrispondono a '{label_name}' ({count} trovate). Specifica il percorso completo.",
             "zh-CN": f"多个标签匹配 '{label_name}'（找到 {count} 个）。请指定完整路径。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # CONNECTOR TOOL MESSAGES
@@ -2954,7 +3093,7 @@ class APIMessages:
     @staticmethod
     def connector_not_activated(
         name: str,
-        language: SupportedLanguage = "fr",
+        language: SupportedLanguage | None = None,
         needs_api_key: bool = False,
     ) -> str:
         """Connector not activated error message (LLM-facing).
@@ -2969,7 +3108,7 @@ class APIMessages:
             messages = {
                 "fr": (
                     f"Le service {name} n'est pas activé. "
-                    "Rendez-vous dans Paramètres > Connecteurs pour l'activer avec votre clé API."
+                    "Rends-toi dans Paramètres > Connecteurs pour l'activer avec ta clé API."
                 ),
                 "en": (
                     f"The {name} service is not enabled. "
@@ -2977,23 +3116,23 @@ class APIMessages:
                 ),
                 "es": (
                     f"El servicio {name} no está activado. "
-                    "Vaya a Configuración > Conectores para activarlo con su clave API."
+                    "Ve a Configuración > Conectores para activarlo con tu clave API."
                 ),
                 "de": (
                     f"Der Dienst {name} ist nicht aktiviert. "
-                    "Gehen Sie zu Einstellungen > Konnektoren, um ihn mit Ihrem API-Schlüssel zu aktivieren."
+                    "Geh zu Einstellungen > Konnektoren, um ihn mit deinem API-Schlüssel zu aktivieren."
                 ),
                 "it": (
                     f"Il servizio {name} non è attivato. "
                     "Vai su Impostazioni > Connettori per attivarlo con la tua chiave API."
                 ),
-                "zh-CN": f"{name} 服务未启用。请前往 设置 > 连接器 使用您的 API 密钥启用它。",
+                "zh-CN": f"{name} 服务未启用。请前往 设置 > 连接器 使用你的 API 密钥启用它。",
             }
         else:
             messages = {
                 "fr": (
                     f"Le service {name} n'est pas activé. "
-                    "Rendez-vous dans Paramètres > Connecteurs pour l'activer."
+                    "Rends-toi dans Paramètres > Connecteurs pour l'activer."
                 ),
                 "en": (
                     f"The {name} service is not enabled. "
@@ -3001,11 +3140,11 @@ class APIMessages:
                 ),
                 "es": (
                     f"El servicio {name} no está activado. "
-                    "Vaya a Configuración > Conectores para activarlo."
+                    "Ve a Configuración > Conectores para activarlo."
                 ),
                 "de": (
                     f"Der Dienst {name} ist nicht aktiviert. "
-                    "Gehen Sie zu Einstellungen > Konnektoren, um ihn zu aktivieren."
+                    "Geh zu Einstellungen > Konnektoren, um ihn zu aktivieren."
                 ),
                 "it": (
                     f"Il servizio {name} non è attivato. "
@@ -3013,10 +3152,12 @@ class APIMessages:
                 ),
                 "zh-CN": f"{name} 服务未启用。请前往 设置 > 连接器 启用它。",
             }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def connector_unavailable_on_instance(name: str, language: SupportedLanguage = "fr") -> str:
+    def connector_unavailable_on_instance(
+        name: str, language: SupportedLanguage | None = None
+    ) -> str:
         """A keyless service this instance does not provide (LLM-facing, ADR-307).
 
         The person has nothing to enable: the administrator switched the
@@ -3049,15 +3190,15 @@ class APIMessages:
             ),
             "zh-CN": f"{name} 服务在此实例上不可用。只有实例管理员可以启用它。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def category_not_activated(label: str, language: SupportedLanguage = "fr") -> str:
+    def category_not_activated(label: str, language: SupportedLanguage | None = None) -> str:
         """No provider active for a functional category (email, calendar, …)."""
         messages = {
             "fr": (
                 f"Aucun service {label} n'est configuré. "
-                "Rendez-vous dans Paramètres > Connecteurs pour activer "
+                "Rends-toi dans Paramètres > Connecteurs pour activer "
                 "un service Google, Apple ou Microsoft."
             ),
             "en": (
@@ -3066,11 +3207,11 @@ class APIMessages:
             ),
             "es": (
                 f"No hay ningún servicio de {label} configurado. "
-                "Vaya a Configuración > Conectores para activar un servicio de Google, Apple o Microsoft."
+                "Ve a Configuración > Conectores para activar un servicio de Google, Apple o Microsoft."
             ),
             "de": (
                 f"Es ist kein {label}-Dienst konfiguriert. "
-                "Gehen Sie zu Einstellungen > Konnektoren, um einen Google-, Apple- oder Microsoft-Dienst zu aktivieren."
+                "Geh zu Einstellungen > Konnektoren, um einen Google-, Apple- oder Microsoft-Dienst zu aktivieren."
             ),
             "it": (
                 f"Nessun servizio {label} è configurato. "
@@ -3078,19 +3219,19 @@ class APIMessages:
             ),
             "zh-CN": f"未配置 {label} 服务。请前往 设置 > 连接器 启用 Google、Apple 或 Microsoft 服务。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # MESSAGE BOOKMARKS (ADR-282)
     # =========================================================================
 
     @staticmethod
-    def bookmark_limit_reached(max_per_user: int, language: SupportedLanguage = "fr") -> str:
+    def bookmark_limit_reached(max_per_user: int, language: SupportedLanguage | None = None) -> str:
         """The account keeps as many bookmarks as it may (409)."""
         messages = {
             "fr": (
-                f"Vous avez atteint la limite de {max_per_user} bookmarks. "
-                "Supprimez-en pour en conserver de nouveaux."
+                f"Tu as atteint la limite de {max_per_user} bookmarks. "
+                "Supprimes-en pour en conserver de nouveaux."
             ),
             "en": (
                 f"You have reached the limit of {max_per_user} bookmarks. "
@@ -3101,19 +3242,19 @@ class APIMessages:
                 "Elimina algunos para guardar otros."
             ),
             "de": (
-                f"Sie haben das Limit von {max_per_user} Lesezeichen erreicht. "
-                "Löschen Sie einige, um neue zu behalten."
+                f"Du hast das Limit von {max_per_user} Lesezeichen erreicht. "
+                "Lösche einige, um neue zu behalten."
             ),
             "it": (
                 f"Hai raggiunto il limite di {max_per_user} segnalibri. "
                 "Eliminane alcuni per conservarne di nuovi."
             ),
-            "zh-CN": f"您已达到 {max_per_user} 个书签的上限。请删除一些以保存新的书签。",
+            "zh-CN": f"你已达到 {max_per_user} 个书签的上限。请删除一些以保存新的书签。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def bookmark_nothing_to_keep(language: SupportedLanguage = "fr") -> str:
+    def bookmark_nothing_to_keep(language: SupportedLanguage | None = None) -> str:
         """An answer with no text cannot be kept (400)."""
         messages = {
             "fr": "Cette réponse ne contient aucun texte à conserver.",
@@ -3123,14 +3264,14 @@ class APIMessages:
             "it": "Questa risposta non contiene testo da conservare.",
             "zh-CN": "此回答没有可保存的文本。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
     # TELEPHONY IDENTITY (the person's own verified number)
     # =========================================================================
 
     @staticmethod
-    def phone_call_mode_unknown(language: SupportedLanguage = "fr") -> str:
+    def phone_call_mode_unknown(language: SupportedLanguage | None = None) -> str:
         """A call mode off the vocabulary — Live or Live direct (400, ADR-301)."""
         messages = {
             "fr": "Ce mode d'appel n'existe pas : Live ou Live direct.",
@@ -3140,10 +3281,10 @@ class APIMessages:
             "it": "Questa modalità di chiamata non esiste: Live o Live diretto.",
             "zh-CN": "此通话模式不存在：Live 或 Live 直连。",
         }
-        return messages.get(language, messages["fr"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def phone_domain_unknown(language: SupportedLanguage = "fr") -> str:
+    def phone_domain_unknown(language: SupportedLanguage | None = None) -> str:
         """A phone domain switch names something the phone does not offer (400)."""
         messages = {
             "fr": "Ce domaine n'existe pas pour les appels téléphoniques.",
@@ -3153,15 +3294,15 @@ class APIMessages:
             "it": "Questo ambito non esiste per le chiamate telefoniche.",
             "zh-CN": "电话通话中不存在这个领域。",
         }
-        return messages.get(language, messages["fr"])
+        return messages[resolve_language(language)]
 
     @staticmethod
-    def phone_number_invalid(language: SupportedLanguage = "fr") -> str:
+    def phone_number_invalid(language: SupportedLanguage | None = None) -> str:
         """The number typed is not a dialable line (400)."""
         messages = {
             "fr": (
                 "Ce numéro n'est pas un numéro de téléphone valide. "
-                "Indiquez-le au format international (+33…)."
+                "Indique-le au format international (+33…)."
             ),
             "en": ("This is not a valid phone number. " "Enter it in international format (+33…)."),
             "es": (
@@ -3170,7 +3311,7 @@ class APIMessages:
             ),
             "de": (
                 "Dies ist keine gültige Telefonnummer. "
-                "Geben Sie sie im internationalen Format an (+49…)."
+                "Gib sie im internationalen Format an (+49…)."
             ),
             "it": (
                 "Questo non è un numero di telefono valido. "
@@ -3178,82 +3319,82 @@ class APIMessages:
             ),
             "zh-CN": "这不是有效的电话号码。请使用国际格式（+86…）。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def phone_number_missing(language: SupportedLanguage = "fr") -> str:
+    def phone_number_missing(language: SupportedLanguage | None = None) -> str:
         """A verification or an owner call needs a declared number first (409)."""
         messages = {
-            "fr": "Aucun numéro de téléphone n'est déclaré sur votre compte.",
+            "fr": "Aucun numéro de téléphone n'est déclaré sur ton compte.",
             "en": "No phone number is declared on your account.",
             "es": "No hay ningún número de teléfono declarado en tu cuenta.",
-            "de": "Auf Ihrem Konto ist keine Telefonnummer hinterlegt.",
+            "de": "Auf deinem Konto ist keine Telefonnummer hinterlegt.",
             "it": "Nessun numero di telefono è dichiarato sul tuo account.",
-            "zh-CN": "您的账户尚未登记电话号码。",
+            "zh-CN": "你的账户尚未登记电话号码。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def phone_verification_not_pending(language: SupportedLanguage = "fr") -> str:
+    def phone_verification_not_pending(language: SupportedLanguage | None = None) -> str:
         """A code was typed while no verification call is in flight (409)."""
         messages = {
-            "fr": "Aucune vérification n'est en cours. Lancez d'abord l'appel de vérification.",
+            "fr": "Aucune vérification n'est en cours. Lance d'abord l'appel de vérification.",
             "en": "No verification is in progress. Start the verification call first.",
             "es": "No hay ninguna verificación en curso. Inicia primero la llamada de verificación.",
-            "de": "Es läuft keine Überprüfung. Starten Sie zuerst den Bestätigungsanruf.",
+            "de": "Es läuft keine Überprüfung. Starte zuerst den Bestätigungsanruf.",
             "it": "Nessuna verifica in corso. Avvia prima la chiamata di verifica.",
             "zh-CN": "当前没有进行中的验证。请先发起验证来电。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
     def phone_verification_code_wrong(
-        attempts_left: int, language: SupportedLanguage = "fr"
+        attempts_left: int, language: SupportedLanguage | None = None
     ) -> str:
         """The typed code does not match (400); says how many tries remain."""
         messages = {
-            "fr": f"Code incorrect. Il vous reste {attempts_left} essai(s).",
+            "fr": f"Code incorrect. Il te reste {attempts_left} essai(s).",
             "en": f"Wrong code. {attempts_left} attempt(s) left.",
             "es": f"Código incorrecto. Te quedan {attempts_left} intento(s).",
             "de": f"Falscher Code. Noch {attempts_left} Versuch(e).",
             "it": f"Codice errato. Hai ancora {attempts_left} tentativo/i.",
             "zh-CN": f"验证码错误。剩余 {attempts_left} 次尝试。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def phone_verification_locked(language: SupportedLanguage = "fr") -> str:
+    def phone_verification_locked(language: SupportedLanguage | None = None) -> str:
         """Too many wrong codes: the pending verification is void (429)."""
         messages = {
-            "fr": "Trop de tentatives. Relancez un appel de vérification.",
+            "fr": "Trop de tentatives. Relance un appel de vérification.",
             "en": "Too many attempts. Start a new verification call.",
             "es": "Demasiados intentos. Inicia una nueva llamada de verificación.",
-            "de": "Zu viele Versuche. Starten Sie einen neuen Bestätigungsanruf.",
+            "de": "Zu viele Versuche. Starte einen neuen Bestätigungsanruf.",
             "it": "Troppi tentativi. Avvia una nuova chiamata di verifica.",
             "zh-CN": "尝试次数过多。请重新发起验证来电。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def phone_verification_too_many_calls(language: SupportedLanguage = "fr") -> str:
+    def phone_verification_too_many_calls(language: SupportedLanguage | None = None) -> str:
         """Too many verification calls in the hour (429)."""
         messages = {
-            "fr": "Trop d'appels de vérification pour l'heure. Réessayez plus tard.",
+            "fr": "Trop d'appels de vérification pour l'heure. Réessaie plus tard.",
             "en": "Too many verification calls this hour. Try again later.",
             "es": "Demasiadas llamadas de verificación en esta hora. Inténtalo más tarde.",
-            "de": "Zu viele Bestätigungsanrufe in dieser Stunde. Versuchen Sie es später erneut.",
+            "de": "Zu viele Bestätigungsanrufe in dieser Stunde. Versuche es später erneut.",
             "it": "Troppe chiamate di verifica in quest'ora. Riprova più tardi.",
             "zh-CN": "本小时内的验证来电过多。请稍后再试。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def phone_verification_call_not_placed(language: SupportedLanguage = "fr") -> str:
+    def phone_verification_call_not_placed(language: SupportedLanguage | None = None) -> str:
         """The verification call could not be placed (409)."""
         messages = {
             "fr": (
                 "L'appel de vérification n'a pas pu être passé. "
-                "Vérifiez votre connecteur téléphonie et réessayez."
+                "Vérifie ton connecteur téléphonie et réessaie."
             ),
             "en": (
                 "The verification call could not be placed. "
@@ -3265,15 +3406,15 @@ class APIMessages:
             ),
             "de": (
                 "Der Bestätigungsanruf konnte nicht getätigt werden. "
-                "Prüfen Sie Ihren Telefonie-Konnektor und versuchen Sie es erneut."
+                "Prüfe deinen Telefonie-Konnektor und versuche es erneut."
             ),
             "it": (
                 "Non è stato possibile effettuare la chiamata di verifica. "
                 "Controlla il connettore di telefonia e riprova."
             ),
-            "zh-CN": "无法发起验证来电。请检查您的电话连接器后重试。",
+            "zh-CN": "无法发起验证来电。请检查你的电话连接器后重试。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
 
 # =============================================================================

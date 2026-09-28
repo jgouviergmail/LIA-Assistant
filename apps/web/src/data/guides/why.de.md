@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Datum**: 2026-09-24
-**Anwendung**: LIA v1.47.4
+**Anwendung**: LIA v2.0.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -233,6 +233,10 @@ Das echte Leben ist eingeplant, nicht entschuldigt. Der Ton geht in kleinen Segm
 Das Protokoll erreicht dich auf drei Wegen — als Karte im Chat, als PDF, in deinem Posteingang von der Adresse der Anwendung aus, ohne ein Postfach verbinden zu müssen — und landet in einem für dich angelegten Wissensraum **Meetings**, sodass du Wochen später einfach fragen kannst, was entschieden wurde. Was es gekostet hat, steht daneben: Transkription und Protokoll als zwei Beträge und ihre Summe, gezählt wie jeder andere Austausch. Und nichts ist festgeschrieben: ein bereits erstelltes Protokoll lässt sich aus dem gespeicherten Transkript in einem anderen Format neu schreiben — bis hin zum vollständigen, aufgeräumten Transkript — entweder als Ersatz für das vorhandene oder als neues Protokoll derselben Besprechung. Die Transkriptions-Engine wählst weiterhin du: eine entfernte, die die Sprechenden trennt, oder die lokale, die nichts kostet und deinen Server nie verlässt.
 
 ---
+
+### Ein persönliches Medium und Arbeit, die dir gehört
+
+Eine hilfreiche Assistentin begegnet deiner Aufmerksamkeit dort, wo sie ist: Ein Chat aktualisiert sich von anderen Geräten, ohne die Seite zu verschieben; ein Radio startest du nur, wenn du zuhören willst. Die Station verbindet deinen Tag mit Nachrichten samt Quellen und zeigt Quellen und Kosten, statt blindes Vertrauen zu verlangen. Was LIA erzeugt, kannst du gezielt behalten, aus deinem Postfach senden oder ablaufen lassen. Eine Routine folgt der gewählten Zeit oder Bedingung, nie einer verborgenen Mischung.
 
 ## 4. Ein Server für deine Liebsten
 

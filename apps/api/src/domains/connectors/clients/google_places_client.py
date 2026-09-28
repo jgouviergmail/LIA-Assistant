@@ -35,6 +35,7 @@ from src.core.constants import (
 )
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.core.field_names import FIELD_CACHED_AT
+from src.core.i18n import resolve_language
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.cache_mixin import CacheableMixin
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
@@ -132,7 +133,7 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
     def __init__(
         self,
         user_id: UUID,
-        language: str = "fr",
+        language: str | None = None,
         rate_limit_per_second: int = 10,
     ) -> None:
         """
@@ -140,11 +141,11 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
 
         Args:
             user_id: User UUID (for caching and logging)
-            language: Default language for results (default: fr)
+            language: Language for results (default: the declared language)
             rate_limit_per_second: Max requests per second (default: 10)
         """
         self.user_id = user_id
-        self.language = language
+        self.language = language or resolve_language()
         self._rate_limit_per_second = rate_limit_per_second
         self._rate_limit_interval = 1.0 / rate_limit_per_second
         self._last_request_time = 0.0
@@ -930,47 +931,3 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                 detail=f"Google Geocoding API unavailable: {e!s}",
                 error_type="connection_error",
             ) from e
-
-    # =========================================================================
-    # HELPER METHODS
-    # =========================================================================
-
-    def set_language(self, language: str) -> None:
-        """
-        Change the default language.
-
-        Args:
-            language: Language code (e.g., "fr", "en", "de")
-        """
-        self.language = language
-
-    @staticmethod
-    def get_common_place_types() -> list[str]:
-        """
-        Get list of common place types for filtering.
-
-        Returns:
-            List of place type identifiers
-        """
-        return [
-            "restaurant",
-            "cafe",
-            "bar",
-            "hotel",
-            "lodging",
-            "supermarket",
-            "pharmacy",
-            "hospital",
-            "doctor",
-            "bank",
-            "atm",
-            "gas_station",
-            "parking",
-            "train_station",
-            "airport",
-            "museum",
-            "tourist_attraction",
-            "park",
-            "gym",
-            "shopping_mall",
-        ]

@@ -55,7 +55,11 @@ class ConversationMessageResponse(BaseModel):
     tokens_out: int | None = Field(None, description="Output tokens generated")
     tokens_cache: int | None = Field(None, description="Cached tokens used")
     cost_eur: float | None = Field(
-        None, description="Cost in euros (recalculated from pricing table)"
+        None,
+        description=(
+            "Every euro the run billed — model, Maps Platform, images and paid speech — "
+            "as stored when it ran"
+        ),
     )
     google_api_requests: int | None = Field(None, description="Number of Google API requests")
 

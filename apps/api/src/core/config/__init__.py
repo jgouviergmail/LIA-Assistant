@@ -44,6 +44,7 @@ from .demo import DemoSettings
 from .devops import DevOpsSettings
 from .diagnostics import DiagnosticsSettings
 from .document_generation import DocumentGenerationSettings
+from .email_share import EmailShareSettings
 from .habits import HabitsSettings
 from .health_metrics import HealthMetricsSettings
 from .image_generation import ImageGenerationSettings
@@ -68,6 +69,7 @@ from .product import ProductSettings
 from .psyche import PsycheSettings
 from .push import PushSettings
 from .push_relay import PushRelaySettings
+from .radio import RadioSettings
 from .rag_spaces import RAGSpacesSettings
 from .relations import RelationsSettings
 from .scheduler import SchedulerSettings
@@ -144,6 +146,8 @@ class Settings(
     MeetingsSettings,
     LiveSettings,
     BookmarksSettings,
+    EmailShareSettings,
+    RadioSettings,
     CalculationSettings,
     MFASettings,
     AccountExportSettings,
@@ -186,6 +190,8 @@ class Settings(
         24. AccountExportSettings (GDPR full-account export jobs)
         24b. MeetingsSettings (meeting recording & structured minutes, ADR-258)
         24c. BookmarksSettings (message bookmarks, ADR-282)
+        24d. EmailShareSettings (a file or an answer sent by e-mail, ADR-321)
+        24e. RadioSettings (the personal radio: newsroom and antennas, ADR-324)
         25. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
@@ -466,6 +472,8 @@ __all__ = [
     "AccountExportSettings",
     "MeetingsSettings",
     "BookmarksSettings",
+    "EmailShareSettings",
+    "RadioSettings",
     "PushRelaySettings",
     "PushSettings",
 ]

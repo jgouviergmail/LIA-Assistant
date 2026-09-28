@@ -84,7 +84,8 @@ async def update_debug_panel_enabled(
         "debug_panel_enabled_update_requested",
         admin_user_id=str(current_user.id),
         new_value=update.enabled,
-        change_reason=update.change_reason,
+        # The reason is an administrator's words: the audit log keeps them.
+        change_reason_length=len(update.change_reason or ""),
     )
 
     service = SystemSettingsService(db)
@@ -146,7 +147,8 @@ async def update_debug_panel_user_access(
         "debug_panel_user_access_update_requested",
         admin_user_id=str(current_user.id),
         new_value=update.available,
-        change_reason=update.change_reason,
+        # The reason is an administrator's words: the audit log keeps them.
+        change_reason_length=len(update.change_reason or ""),
     )
 
     service = SystemSettingsService(db)

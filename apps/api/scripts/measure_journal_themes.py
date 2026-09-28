@@ -57,6 +57,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.core.i18n import get_language_name
 from src.core.prompt_layout import single_call_messages
+from src.core.reasoning_intent import LEVELS
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.journals.extraction_service import (
     _parse_consolidation_result,
@@ -439,10 +440,10 @@ async def _run_extraction(llm: Any, prompt: str) -> list[tuple[str, str]]:
 def _extraction_llm(reasoning_effort: str | None) -> Any:
     """Return the extraction LLM, optionally with an overridden reasoning effort.
 
-    The shipped configuration runs this agent at ``effort=none``. Themes that
-    require actually noticing a pattern (rather than reading a stated one) are
-    the first to suffer from that, so the harness must be able to price the
-    knob instead of guessing at it.
+    The shipped configuration (``LLM_DEFAULTS``) decides this agent's effort,
+    and themes that require actually noticing a pattern (rather than reading
+    a stated one) are the first to suffer from a low one, so the harness must
+    be able to price the knob instead of guessing at it.
 
     Args:
         reasoning_effort: Effort value to force (e.g. ``"low"``), or None to
@@ -453,13 +454,14 @@ def _extraction_llm(reasoning_effort: str | None) -> Any:
     """
     from src.core.config import settings
     from src.core.llm_config_helper import get_llm_config_for_agent
-    from src.core.reasoning_types import ReasoningEffortEnum
+    from src.core.reasoning_intent import intent_from_legacy
     from src.infrastructure.llm.factory import get_llm
 
     if reasoning_effort is None:
         return get_llm("journal_extraction")
     config = get_llm_config_for_agent(settings, "journal_extraction").model_copy(
-        update={"reasoning_effort": ReasoningEffortEnum(effort=reasoning_effort)}
+        # The single intent shape (the ladder, validated by the option's choices).
+        update={"reasoning_effort": intent_from_legacy({"level": reasoning_effort})}
     )
     return get_llm("journal_extraction", config_override=config)
 
@@ -485,7 +487,7 @@ async def _measure_extraction(
             current_chars=420,
             max_chars=30000,
             size_warning="",
-            user_language=get_language_name("fr"),
+            language_name=get_language_name("fr"),
             max_entry_chars=500,
             health_context="",
             inner_state_section=INNER_STATE,
@@ -555,7 +557,7 @@ async def _measure_consolidation(
         current_datetime="2026-07-27 00:00 UTC",
         conversation_history_section="",
         usage_patterns_section="",
-        user_language="fr",
+        language_name=get_language_name("fr"),
         max_entry_chars=500,
         size_management_instruction="You are well within the size limit.",
         health_signals_section="",
@@ -668,7 +670,11 @@ def main() -> int:
     )
     parser.add_argument(
         "--reasoning-effort",
-        help="Force the extraction reasoning effort (e.g. none, low, medium)",
+        choices=LEVELS,
+        help=(
+            "Force the extraction reasoning effort, a level of the ladder — a "
+            "mistyped one is refused, never measured under a label it did not run"
+        ),
     )
     parser.add_argument(
         "--show-entries",

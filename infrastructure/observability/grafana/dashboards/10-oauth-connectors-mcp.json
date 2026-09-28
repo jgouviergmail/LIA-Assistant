@@ -2238,6 +2238,53 @@
      }
     }
    ]
+  },
+  {
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 140
+   },
+   "id": 54,
+   "panels": [],
+   "title": "Email share (ADR-321)",
+   "type": "row"
+  },
+  {
+   "id": 55,
+   "type": "timeseries",
+   "title": "Files and answers sent by e-mail (by route and outcome)",
+   "description": "Every « Send by e-mail » from the chat or the gallery. 'mailbox' leaves through the person's connected mailbox, 'relay' through the instance's own relay to their verified address, 'none' was refused before a road was known. A rising 'refused' names a provider rejecting what it is handed, 'failed' a road that could not be reached, 'reconnect' a mailbox whose connection expired, 'too_large' files past what the road carries.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 141
+   },
+   "targets": [
+    {
+     "expr": "sum by (route, outcome) (rate(email_shares_total[$__rate_interval])) or vector(0)",
+     "legendFormat": "{{route}} · {{outcome}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
   }
  ]
 }

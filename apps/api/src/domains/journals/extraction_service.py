@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from src.domains.journals.models import JournalEntry
 
 from src.core.config import settings
-from src.core.i18n import get_language_name
+from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
@@ -601,7 +601,7 @@ async def extract_journal_entry_background(
     session_id: str,
     personality_instruction: str | None = None,
     conversation_id: str | None = None,
-    user_language: str = "fr",
+    user_language: str | None = None,
     parent_run_id: str | None = None,
     assistant_response: str | None = None,
     query_embedding: list[float] | None = None,
@@ -788,7 +788,7 @@ async def extract_journal_entry_background(
             max_chars=max_total_chars,
             size_warning=size_warning,
             # The model reads the language's NAME, never a code (ADR-284).
-            user_language=get_language_name(user_language),
+            language_name=get_language_name(resolve_language(user_language)),
             max_entry_chars=max_entry_chars,
             health_context=health_context,
             inner_state_section=inner_state_section,

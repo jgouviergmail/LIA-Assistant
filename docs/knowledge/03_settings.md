@@ -238,7 +238,7 @@ Customize LIA's appearance to your taste:
 Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and **absolute black** for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In **Settings › Appearance** you can also pick the mode directly, including **System** (follow your device), with an **Absolute black** switch available once dark is selected.
 
 **To change theme:**
-Go to **Settings** (⚙️ icon) and find the **Theme** section.
+Go to **Settings** (⚙️ icon), **Appearance** section.
 
 ## How do I update my profile?
 Manage your personal information:
@@ -259,24 +259,24 @@ Your full name lives in **Settings > Profile**. Timezone, language, theme and fo
 ## How do I customize LIA's style?
 LIA can adapt its **communication style** to your preferences:
 
-**10+ available personalities:**
-• **Normal**: balanced and professional responses
-• **Enthusiastic**: energetic and motivating tone
-• **Professor**: educational and thorough explanations
-• **Friend**: relaxed and warm tone
-• **Influencer**: trendy and engaging style
-• **Philosopher**: reflective and insightful
-• **Cynic**: sharp and witty observations
-• **Poet**: lyrical and imaginative expression
-• **Coach**: motivational and action-oriented
+**14 available personalities:**
+• **Normal**: neutral and factual, suitable for every situation
+• **Enthusiastic**: dynamic and motivated, overflowing with positive energy
+• **Teacher**: patient and caring, clear and structured explanations
+• **Friend**: warm and close
+• **Influencer**: trendy and on the cutting edge
+• **Philosopher**: deep reflection and nuanced perspectives
+• **Cynical**: dark humor and impactful truths
+• **JARVIS**: sophisticated, sarcastic, dedicated digital butler
+• **Teenager**: a teenager in the midst of hormonal changes
 • And more — administrators can add new ones!
 
 **🌍 6 languages:**
-Each personality is automatically translated into French, English, Spanish, German, Italian and Chinese.
+Each personality exists in French, English, Spanish, German, Italian and Chinese. LIA answers in the chosen tone, in your language.
 
 **Two methods to change:**
 • **Quick method**: click the **✨** icon in the title bar
-• **Via settings**: go to **Settings** (⚙️ icon), **Personality** section
+• **Via settings**: go to **Settings** (⚙️ icon), **LIA Style** section
 
 **💡 Tip:** Try different styles to find the one that suits you best!
 
@@ -702,3 +702,12 @@ The recipients are stored with it: a targeted announcement is shown to them only
 
 **🗂️ Sent broadcasts:**
 The history shows, for each announcement, its audience, the exact number of people reached with a preview of their names, its expiry date and the delay chosen.
+
+## How do I set up my personal radio?
+When your instance offers the radio, open **Radio** from the header or dashboard.
+Choose the subjects and sites it may read, the voices and personality you prefer,
+and whether a model verifies news, every item, or none. The settings explain
+the extra cost of model verification. Your session starts only when you ask,
+shows its sources and spending while it plays, and stops at the timer you set.
+There is no scheduled edition or replay; the newsroom and antenna are part of
+the existing API service. An administrator can turn the whole capability off.

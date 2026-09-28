@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.config import settings
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
 from src.domains.agents.services.hitl.interactions.clarification import (
     ClarificationInteraction,
@@ -69,7 +70,7 @@ class TestClarificationQuestionStreaming:
         """Create context with pre-generated clarification questions."""
         return {
             "clarification_questions": [
-                "Voulez-vous envoyer à UN contact ou TOUS les contacts ?",
+                "Veux-tu envoyer à UN contact ou TOUS les contacts ?",
             ],
             "semantic_issues": [
                 {
@@ -85,7 +86,7 @@ class TestClarificationQuestionStreaming:
         """Create context with multiple clarification questions."""
         return {
             "clarification_questions": [
-                "Voulez-vous envoyer à UN contact ou TOUS les contacts ?",
+                "Veux-tu envoyer à UN contact ou TOUS les contacts ?",
                 "Faut-il inclure les contacts archivés ?",
             ],
             "semantic_issues": [
@@ -257,15 +258,15 @@ class TestClarificationFallback:
         assert "aclaraciones" in fallback.lower() or "clarifi" in fallback.lower()
 
     def test_fallback_unknown_language(self, mock_question_generator):
-        """Test fallback for unknown language defaults to DEFAULT_LANGUAGE (fr)."""
+        """An unknown language reads the instance's configured default, not English."""
         interaction = ClarificationInteraction(question_generator=mock_question_generator)
 
         # Use a truly unknown language (not "zh" which normalizes to "zh-CN")
         fallback = interaction.get_fallback_question("xyz")
 
-        # Should fall back to DEFAULT_LANGUAGE (fr), not English
-        # Note: _normalize_language returns DEFAULT_LANGUAGE for unknown languages
-        expected = HitlMessages.get_fallback(HitlMessageType.CLARIFICATION, "fr")
+        expected = HitlMessages.get_fallback(
+            HitlMessageType.CLARIFICATION, settings.default_language
+        )
         assert fallback == expected
 
 
@@ -372,12 +373,12 @@ class TestFormatClarificationQuestions:
         interaction = ClarificationInteraction(question_generator=mock_question_generator)
 
         result = interaction._format_clarification_questions(
-            questions=["Voulez-vous envoyer à tous ?"],
+            questions=["Veux-tu envoyer à tous ?"],
             user_language="fr",
         )
 
         # Single question should be returned as-is
-        assert result == "Voulez-vous envoyer à tous ?"
+        assert result == "Veux-tu envoyer à tous ?"
 
     def test_format_multiple_questions_french(self, mock_question_generator):
         """Test formatting multiple questions in French."""
@@ -451,7 +452,7 @@ class TestClarificationIntegration:
         interaction = ClarificationInteraction(question_generator=mock_question_generator)
 
         context = {
-            "clarification_questions": ["Voulez-vous UN ou TOUS les contacts ?"],
+            "clarification_questions": ["Veux-tu UN ou TOUS les contacts ?"],
             "semantic_issues": [
                 {"type": "cardinality_mismatch", "description": "Mismatch detected"}
             ],

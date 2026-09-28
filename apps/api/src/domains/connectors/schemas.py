@@ -9,9 +9,9 @@ from ipaddress import IPv4Address, ip_address
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pydantic_core.core_schema import ValidationInfo
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from src.core.i18n import _
 from src.domains.connectors.models import ConnectorStatus, ConnectorType
 
 
@@ -259,14 +259,17 @@ class ConnectorGlobalConfigUpdate(BaseModel):
         None, description="Reason for disabling (required when disabling)"
     )
 
-    @field_validator("disabled_reason")
-    @classmethod
-    def validate_disabled_reason(cls, v: str | None, info: ValidationInfo) -> str | None:
-        """Require disabled_reason when disabling connector."""
-        is_enabled = info.data.get("is_enabled")
-        if is_enabled is False and not v:
-            raise ValueError("disabled_reason is required when disabling a connector")
-        return v
+    @model_validator(mode="after")
+    def require_a_disabling_reason(self) -> ConnectorGlobalConfigUpdate:
+        """Disabling a connector states its reason: every account using it is told.
+
+        Checked on the whole model — a field validator never runs on an omitted
+        field, so ``{"is_enabled": false}`` used to pass without one. The refusal
+        speaks the declared language: the acting administrator reads it (ADR-323).
+        """
+        if not self.is_enabled and not (self.disabled_reason and self.disabled_reason.strip()):
+            raise ValueError(_("Disabling a connector requires a reason."))
+        return self
 
 
 # ========== CONNECTOR PREFERENCES ==========

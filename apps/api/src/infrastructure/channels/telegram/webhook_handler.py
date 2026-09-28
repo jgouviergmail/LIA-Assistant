@@ -11,13 +11,40 @@ Created: 2026-03-03
 from __future__ import annotations
 
 import hmac
+from typing import Any
 
 from src.core.config import settings
+from src.core.i18n import language_from_header
 from src.domains.channels.abstractions import BaseChannelWebhookHandler, ChannelInboundMessage
 from src.domains.channels.models import ChannelType
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def client_language_of(raw_data: dict[str, Any]) -> str | None:
+    """The language a Telegram client declares for its user, when LIA speaks it.
+
+    An update may carry ``from.language_code`` (Telegram marks it optional) —
+    the client's interface language, the channel's own Accept-Language, read
+    by the same reader: canonicalised, and kept only when this instance speaks
+    it. It speaks for a person the bot does not know yet; a known person's
+    stored language is passed explicitly and always wins (ADR-323).
+
+    Args:
+        raw_data: The update as ``parse_update`` keeps it (the whole payload for
+            a message, ``{"callback_query": …}`` for a button press).
+
+    Returns:
+        The canonical code, or None when the client declares none LIA speaks.
+    """
+    for key in ("message", "callback_query"):
+        entry = raw_data.get(key)
+        sender = entry.get("from") if isinstance(entry, dict) else None
+        code = sender.get("language_code") if isinstance(sender, dict) else None
+        if isinstance(code, str) and code:
+            return language_from_header(code)
+    return None
 
 
 class TelegramWebhookHandler(BaseChannelWebhookHandler):

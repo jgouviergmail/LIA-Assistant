@@ -15,13 +15,17 @@ instants come from the same engine that armed the runs
 (:func:`~src.core.recurrence.schedule.week_slots`), so a
 schedule change moves them and old runs stop matching by construction. A
 rehearsal (``slot_at`` NULL) colours nothing.
+
+A condition routine has no schedule to draw (ADR-322): its cells are the checks
+that FIRED this week, each at its own instant — nothing is placed until the
+awaited fact happens, which is exactly what the grid then says.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -142,30 +146,60 @@ def build_week(
     for action in actions:
         tz = ZoneInfo(action.user_timezone)
         monday = week_start(tz, now=reference)
-        cells: list[WeekCell] = []
-        for slot in week_slots(action.recurrence_spec, action.user_timezone, now=reference):
-            local = slot.astimezone(tz)
-            run = latest.get((action.id, slot))
-            cells.append(
-                WeekCell(
-                    day=local.isoweekday(),
-                    date=local.date(),
-                    slot_at=slot,
-                    hour=local.hour,
-                    minute=local.minute,
-                    outcome=run.outcome if run is not None else None,
-                    run_at=run.started_at if run is not None else None,
-                    error=run.error if run is not None else None,
-                    manual=run.manual if run is not None else None,
-                )
-            )
+        schedule = action.recurrence_spec
+        slots = (
+            _fired_slots(action.id, latest, tz, monday)
+            if schedule is None
+            else week_slots(schedule, action.user_timezone, now=reference)
+        )
         weeks.append(
             ActionWeek(
                 action_id=action.id,
                 timezone=action.user_timezone,
                 week_start=monday,
                 today=reference.astimezone(tz).isoweekday(),
-                cells=cells,
+                cells=[_cell(slot, tz, latest.get((action.id, slot))) for slot in slots],
             )
         )
     return weeks
+
+
+def _fired_slots(
+    action_id: UUID,
+    latest: dict[tuple[UUID, datetime], ScheduledActionRun],
+    tz: ZoneInfo,
+    monday: date,
+) -> list[datetime]:
+    """The checks that FIRED this week — a condition routine's only cells (ADR-322).
+
+    A condition routine has no schedule: there is nothing to place until it
+    fires, and every fire of the local week is one cell at its own instant.
+
+    Args:
+        action_id: The routine.
+        latest: The folded runs of the account.
+        tz: The routine's zone.
+        monday: The local Monday of the week.
+
+    Returns:
+        The fired instants of the week, ascending.
+    """
+    start = datetime.combine(monday, datetime.min.time(), tz)
+    end = datetime.combine(monday + timedelta(days=7), datetime.min.time(), tz)
+    return sorted(slot for owner, slot in latest if owner == action_id and start <= slot < end)
+
+
+def _cell(slot: datetime, tz: ZoneInfo, run: ScheduledActionRun | None) -> WeekCell:
+    """One instant of the week, coloured by the last run that served it."""
+    local = slot.astimezone(tz)
+    return WeekCell(
+        day=local.isoweekday(),
+        date=local.date(),
+        slot_at=slot,
+        hour=local.hour,
+        minute=local.minute,
+        outcome=run.outcome if run is not None else None,
+        run_at=run.started_at if run is not None else None,
+        error=run.error if run is not None else None,
+        manual=run.manual if run is not None else None,
+    )

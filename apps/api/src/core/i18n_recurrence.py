@@ -309,8 +309,8 @@ def get_recurrence_part(key: str, language: str | None) -> str:
     Returns:
         The clause, English as the last resort.
     """
-    from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+    from src.core.i18n import resolve_language
 
-    canonical = normalize_language(language or DEFAULT_LANGUAGE)
+    canonical = resolve_language(language)
     table = RECURRENCE_PARTS.get(canonical, RECURRENCE_PARTS["en"])
     return table.get(key, RECURRENCE_PARTS["en"][key])

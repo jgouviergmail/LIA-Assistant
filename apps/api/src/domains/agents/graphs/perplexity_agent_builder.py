@@ -60,11 +60,9 @@ def build_perplexity_agent() -> Any:
     perplexity_agent_prompt_template = load_prompt("perplexity_agent_prompt", version="v1")
 
     # Perplexity is stateless - no context_instructions needed
-    # user_language placeholder for runtime injection (same pattern as current_datetime)
     system_prompt_template = perplexity_agent_prompt_template.format(
         current_datetime="{current_datetime}",
         context_instructions="",  # Stateless API, no context
-        user_language="{user_language}",  # Injected at runtime from state
     )
 
     config = create_agent_config_from_settings(

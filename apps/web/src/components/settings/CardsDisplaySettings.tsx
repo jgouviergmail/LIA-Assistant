@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutGrid, FileText, Type } from 'lucide-react';
+import { LayoutGrid, FileText, PanelsTopLeft, Type } from 'lucide-react';
 import { InfoBox } from '@/components/ui/info-box';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useTranslation } from '@/i18n/client';
@@ -15,6 +15,7 @@ import type { BaseSettingsProps } from '@/types/settings';
 const DISPLAY_MODES = [
   { value: 'cards', icon: LayoutGrid },
   { value: 'html', icon: FileText },
+  { value: 'html_cards', icon: PanelsTopLeft },
   { value: 'markdown', icon: Type },
 ] as const;
 
@@ -46,16 +47,17 @@ export function CardsDisplaySettings({ lng }: BaseSettingsProps) {
   const content = (
     <div className="space-y-4">
       {/* Mode selector */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {DISPLAY_MODES.map(({ value, icon: Icon }) => (
           <button
             key={value}
             onClick={() => handleModeChange(value)}
-            disabled={updating}
+            aria-pressed={currentMode === value}
+            aria-disabled={updating}
             className={cn(
               'flex flex-col items-center gap-2 p-3 rounded-lg border transition-all',
               'hover:border-primary/50 hover:bg-accent/50',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
+              'aria-disabled:opacity-50 aria-disabled:cursor-not-allowed',
               currentMode === value
                 ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
                 : 'border-border bg-card'

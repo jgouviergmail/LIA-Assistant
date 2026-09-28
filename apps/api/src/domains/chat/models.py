@@ -212,6 +212,12 @@ class MessageTokenSummary(BaseModel):
         Numeric(10, 6), default=Decimal("0.0")
     )
 
+    # Paid speech synthesis (ADR-324): a chat answer read aloud, a radio
+    # session's voices. A free engine records nothing. The chat also keeps its
+    # answer's share on the bubble (the 🔊 badge); this is the run's ledger.
+    tts_characters: Mapped[int] = mapped_column(Integer, default=0)
+    tts_cost_eur: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=Decimal("0.0"))
+
     __table_args__ = (
         # Unique run_id (enforced by the constraint; its backing index serves lookups).
         UniqueConstraint("run_id", name="message_token_summary_run_id_key"),
@@ -222,17 +228,18 @@ class MessageTokenSummary(BaseModel):
     def billed_cost_eur(self) -> Decimal:
         """Every euro the platform paid under this run, in one figure.
 
-        The model's tokens, the Maps Platform calls and the generated images
-        are three columns; what a person is shown — and re-billed — is their
-        sum. Four readers used to add them by hand with three different
-        subsets (the phone bill and the live closing card read the model
-        column alone, 2026-09-20). ``billed_cost_sql`` is the same sum for a
-        statement.
+        The model's tokens, the Maps Platform calls, the generated images and
+        the paid speech synthesis are four columns; what a person is shown —
+        and re-billed — is their sum. Four readers used to add them by hand
+        with three different subsets (the phone bill and the live closing card
+        read the model column alone, 2026-09-20). ``billed_cost_sql`` is the
+        same sum for a statement.
         """
         return (
             Decimal(self.total_cost_eur or 0)
             + Decimal(self.google_api_cost_eur or 0)
             + Decimal(self.image_generation_cost_eur or 0)
+            + Decimal(self.tts_cost_eur or 0)
         )
 
     @classmethod
@@ -242,6 +249,7 @@ class MessageTokenSummary(BaseModel):
             cls.total_cost_eur
             + func.coalesce(cls.google_api_cost_eur, 0)
             + func.coalesce(cls.image_generation_cost_eur, 0)
+            + func.coalesce(cls.tts_cost_eur, 0)
         )
 
 

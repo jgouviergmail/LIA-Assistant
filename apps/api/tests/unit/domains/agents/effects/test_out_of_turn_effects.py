@@ -260,3 +260,27 @@ class TestTheWordingExistsWhereverItIsRead:
             wording = bundle["effects"]["labels"].get(NOTIFICATION_CAPABILITY)
             assert wording, f"no wording in {language}"
             assert "{{kind}}" in wording, f"{language} drops the sweep that decided"
+
+    def test_every_clicked_act_is_worded_in_all_six_languages_on_both_sides(self) -> None:
+        """The page reads the web bundle, the exports read ``core.i18n_effects``."""
+        import json
+        from pathlib import Path
+
+        from src.core.i18n_effects import EFFECT_LABELS
+        from src.domains.shared.action_sink import (
+            EMAIL_SHARE_CAPABILITY,
+            USER_ACTION_CAPABILITIES,
+        )
+
+        locales = Path(__file__).resolve().parents[6] / "web" / "locales"
+        for language in ("en", "fr", "de", "es", "it", "zh"):
+            bundle = json.loads((locales / language / "translation.json").read_text("utf-8"))
+            for capability in USER_ACTION_CAPABILITIES:
+                key = f"effects.labels.{capability}"
+                assert bundle["effects"]["labels"].get(capability), f"web: {key} in {language}"
+            email = bundle["effects"]["labels"][EMAIL_SHARE_CAPABILITY]
+            assert "{{count}}" in email, f"{language} drops how many were written to"
+        for language, table in EFFECT_LABELS.items():
+            for capability in USER_ACTION_CAPABILITIES:
+                assert table.get(f"effects.labels.{capability}"), f"export: {capability} {language}"
+            assert "{count}" in table[f"effects.labels.{EMAIL_SHARE_CAPABILITY}"]

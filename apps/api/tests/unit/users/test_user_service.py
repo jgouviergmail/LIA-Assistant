@@ -22,8 +22,11 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
+from src.core.i18n import _, language_scope
 from src.domains.users.models import User
 from src.domains.users.schemas import UserActivationUpdate, UserSearchParams, UserUpdate
 from src.domains.users.service import UserService
@@ -119,7 +122,8 @@ class TestGetUserById:
     """Test get_user_by_id method."""
 
     @pytest.mark.asyncio
-    async def test_get_user_by_id_success(self):
+    @pytest.mark.parametrize("display_mode", ["cards", "html", "html_cards", "markdown"])
+    async def test_get_user_by_id_success(self, display_mode):
         """Test getting user by ID successfully returns user profile."""
         # Arrange
         mock_db = MagicMock(spec=AsyncSession)
@@ -130,7 +134,7 @@ class TestGetUserById:
             user_id=user_id,
             email="user@example.com",
             full_name="John Doe",
-            response_display_mode="markdown",
+            response_display_mode=display_mode,
         )
 
         # Mock repository.get_by_id to return mock user
@@ -146,7 +150,7 @@ class TestGetUserById:
         # Regression guard: the profile must carry the user's display-mode
         # preference from the ORM model. It was silently dropped by
         # _build_user_profile, which forced scheduled actions to "cards".
-        assert result.response_display_mode == "markdown"
+        assert result.response_display_mode == display_mode
         service.repository.get_by_id.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
@@ -973,7 +977,7 @@ class TestUpdateUserActivation:
         service._invalidate_all_user_sessions.assert_awaited_once_with(user_id)
 
     @pytest.mark.asyncio
-    @patch("src.infrastructure.email.get_email_service")
+    @patch("src.domains.users.service.get_email_service")
     async def test_update_user_activation_deactivate_invalidates_sessions(self, mock_get_email):
         """Test that deactivating user invalidates all sessions."""
         # Arrange
@@ -996,7 +1000,7 @@ class TestUpdateUserActivation:
         mock_email_service.send_user_deactivated_notification = AsyncMock(return_value=True)
         mock_get_email.return_value = mock_email_service
 
-        update_data = UserActivationUpdate(is_active=False)
+        update_data = UserActivationUpdate(is_active=False, reason="Policy violation")
 
         # Act
         await service.update_user_activation(user_id, update_data, admin_user_id, request=None)
@@ -1122,6 +1126,80 @@ class TestUpdateUserActivation:
         assert result.email_notification_error is not None
 
     @pytest.mark.asyncio
+    @patch("src.domains.users.service.get_email_service")
+    async def test_the_deactivation_email_speaks_the_users_language(self, mock_get_email):
+        """The e-mail reaches the ACCOUNT, in its language — never the acting
+        administrator's (ADR-323)."""
+        mock_db = MagicMock(spec=AsyncSession)
+        mock_db.commit = AsyncMock()
+        mock_db.refresh = AsyncMock()
+        service = UserService(mock_db)
+        user_id = uuid.uuid4()
+        # Three different languages: the person's, the admin's, the default —
+        # so neither a fallback nor the requester can pass for the person. The
+        # row holds a canonical code: every write schema refuses any other,
+        # and so does the profile this call returns.
+        person = next(code for code in ("zh-CN", "de") if code != settings.default_language)
+        admin = next(
+            code for code in ("fr", "es") if code not in (settings.default_language, person)
+        )
+        mock_user = create_mock_user(user_id=user_id, is_active=True, language=person)
+        service.repository.get_by_id = AsyncMock(return_value=mock_user)
+        service.repository.update = AsyncMock(return_value=mock_user)
+        service.repository.create_audit_log = AsyncMock()
+        service._invalidate_all_user_sessions = AsyncMock()
+        mock_email_service = AsyncMock()
+        mock_email_service.send_user_deactivated_notification = AsyncMock(return_value=True)
+        mock_get_email.return_value = mock_email_service
+
+        with language_scope(admin):  # the admin's own language
+            await service.update_user_activation(
+                user_id,
+                UserActivationUpdate(is_active=False, reason="Abuse"),
+                uuid.uuid4(),
+                request=None,
+            )
+
+        kwargs = mock_email_service.send_user_deactivated_notification.call_args.kwargs
+        assert kwargs["reason"] == "Abuse"
+        assert kwargs["user_language"] == person
+
+    @pytest.mark.asyncio
+    @patch("src.domains.users.service.get_email_service")
+    async def test_email_failure_is_reported_in_the_admins_language(self, mock_get_email):
+        """The failure is returned to the ADMIN who acted, so it is written in the
+        declared language — never in the language of the account acted upon."""
+        mock_db = MagicMock(spec=AsyncSession)
+        mock_db.commit = AsyncMock()
+        mock_db.refresh = AsyncMock()
+        service = UserService(mock_db)
+        user_id = uuid.uuid4()
+        mock_user = create_mock_user(user_id=user_id, language="de")
+        service.repository.get_by_id = AsyncMock(return_value=mock_user)
+        service.repository.update = AsyncMock(return_value=mock_user)
+        service.repository.create_audit_log = AsyncMock()
+        mock_email_service = AsyncMock()
+        mock_email_service.send_user_activated_notification = AsyncMock(return_value=False)
+        mock_get_email.return_value = mock_email_service
+
+        # Neither the account's language nor the instance default, so the
+        # assertion can only pass if the DECLARED language was used.
+        from src.core.config import settings
+        from src.core.i18n import _
+
+        declared = next(code for code in ("es", "it", "en") if code != settings.default_language)
+        with language_scope(declared):
+            result = await service.update_user_activation(
+                user_id, UserActivationUpdate(is_active=True), uuid.uuid4(), request=None
+            )
+
+        expected = _("Failed to send activation email notification", declared)
+        assert result.email_notification_error == expected
+        assert expected != _("Failed to send activation email notification", "de")
+        kwargs = mock_email_service.send_user_activated_notification.call_args.kwargs
+        assert kwargs["user_language"] == "de"
+
+    @pytest.mark.asyncio
     async def test_update_user_activation_creates_audit_log(self):
         """Test that audit log is created with correct details."""
         # Arrange
@@ -1224,7 +1302,7 @@ class TestUpdateUserActivation:
 
         service.repository.get_by_id = AsyncMock(return_value=None)
 
-        update_data = UserActivationUpdate(is_active=False)
+        update_data = UserActivationUpdate(is_active=False, reason="Policy violation")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -1489,3 +1567,30 @@ class TestInvalidateAllUserSessions:
         mock_get_redis.side_effect = Exception("Redis down")
 
         await service._invalidate_all_user_sessions(uuid.uuid4())
+
+
+class TestDeactivationReason:
+    """The reason is checked on the model, omitted field included."""
+
+    @pytest.mark.parametrize("reason", [None, "", "   "])
+    def test_a_deactivation_without_a_reason_is_refused(self, reason: str | None) -> None:
+        with language_scope("en"), pytest.raises(ValidationError, match="must state its reason"):
+            UserActivationUpdate(is_active=False, reason=reason)
+
+    def test_an_omitted_reason_is_refused_too(self) -> None:
+        with language_scope("en"), pytest.raises(ValidationError, match="must state its reason"):
+            UserActivationUpdate.model_validate({"is_active": False})
+
+    def test_the_refusal_speaks_the_declared_language(self) -> None:
+        """The acting administrator reads it (ADR-323) — never the default."""
+        msgid = "A deactivation must state its reason."
+        declared = next(code for code in ("de", "it") if code != settings.default_language)
+        with language_scope(declared), pytest.raises(ValidationError) as refused:
+            UserActivationUpdate.model_validate({"is_active": False})
+
+        told = _(msgid, declared)
+        assert told != _(msgid, settings.default_language)
+        assert told in str(refused.value)
+
+    def test_an_activation_needs_no_reason(self) -> None:
+        assert UserActivationUpdate(is_active=True).reason is None

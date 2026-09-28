@@ -21,6 +21,6 @@ debugpy==1.8.21
 # Type Stubs
 types-python-jose==3.5.0.20260408
 
-# i18n tooling (used by scripts/i18n/compile_translations.py fallback
-# when msgfmt is unavailable on the host)
+# i18n tooling: scripts/i18n/sync_catalogs.py writes the catalogs and
+# tests/unit/test_gettext_catalog_guard.py reads them (ADR-323)
 polib==1.2.0

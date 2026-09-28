@@ -23,6 +23,7 @@
  * No backend, LLM, or paid provider is contacted.
  */
 import { test, expect, type MockRoute } from '../fixtures';
+import { liveSessionDeadlines } from '../fixtures/live';
 
 test.use({
   launchOptions: {
@@ -54,10 +55,7 @@ const START = {
   mode: 'delegated',
   run_id: `live_session_${SESSION}`,
   credential: 'tok',
-  credential_expires_at: '2030-01-01T00:00:00Z',
-  connect_deadline_at: '2030-01-01T00:00:00Z',
   connection: 'token',
-  expires_at: '2030-01-01T00:00:00Z',
   session_max_minutes: 30,
   idle_timeout_seconds: 300,
   setup: { model: 'models/gemini-x-live' },
@@ -166,7 +164,11 @@ function routes(
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ ...START, mode: body.mode ?? 'delegated' }),
+          body: JSON.stringify({
+            ...START,
+            ...liveSessionDeadlines(START.session_max_minutes, LIVE_CONFIG.connect_window_seconds),
+            mode: body.mode ?? 'delegated',
+          }),
         });
       },
     },

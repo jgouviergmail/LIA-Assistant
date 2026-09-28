@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.core.config import settings
+from src.domains.agents.utils.message_filters import current_turn_responses
 
 if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
@@ -81,7 +82,9 @@ async def _failures_block(state: dict[str, Any]) -> str:
         messages: list[BaseMessage] = state.get("messages") or []
         return await build_runtime_failures_directive(
             completed_steps=state.get("completed_steps"),
-            messages=messages,
+            # THIS turn's tool results: the thread's restated an earlier
+            # turn's failures as the current one's.
+            messages=current_turn_responses(messages),
             template=str(load_prompt("runtime_failures_directive")),
             tool_names_by_step=_tool_names_by_step(state.get("execution_plan")),
             include_degradations=bool(getattr(settings, "diagnostics_enabled", False)),

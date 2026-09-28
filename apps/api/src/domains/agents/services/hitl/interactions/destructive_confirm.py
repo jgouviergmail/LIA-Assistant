@@ -15,14 +15,18 @@ Features:
     - Registry IDs for preview of affected items
 
 Use Cases:
-    - "Supprime tous mes emails de Jean"
-    - "Efface tous les contacts du groupe X"
-    - "Annule tous mes rdv de la semaine"
+    - "Delete all my e-mails from Jean"
+    - "Remove every contact of group X"
+    - "Cancel all my meetings this week"
 
-Architecture:
-    ScopeDetector detects dangerous scope → Planner triggers DESTRUCTIVE_CONFIRM
-    → DestructiveConfirmInteraction generates warning question
-    → User must explicitly confirm → Operation proceeds or aborts
+Status (ADR-323): registered, and emitted by NO node. No production code
+calls ``should_trigger_destructive_confirm`` (below) nor
+``scope_detector.should_escalate_to_destructive_confirm`` — the one caller of
+``detect_dangerous_scope`` in ``src/`` — and no node produces the ``destructive_confirm``
+type: the flow these were written for (a scope detector deciding, the
+planner triggering this dialog) was never wired. ADR-323 lists the chain
+among those to delete together; only the title and three keys of its
+translation table are read, by the draft critique.
 
 References:
     - protocols.py: HitlInteractionProtocol definition
@@ -40,7 +44,10 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, SCOPE_BULK_THRESHOLD
 from src.core.field_names import FIELD_CONVERSATION_ID
+from src.core.i18n import resolve_language
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
+from src.core.text_clip import one_line
 from src.core.time_utils import format_value_if_datetime_string
 from src.infrastructure.observability.logging import get_logger
 
@@ -51,6 +58,7 @@ from ..schemas import (
     DestructiveConfirmContext,
     HitlSeverity,
 )
+from .text_tokens import text_tokens
 
 if TYPE_CHECKING:
     from langchain_core.callbacks.base import BaseCallbackHandler
@@ -58,6 +66,9 @@ if TYPE_CHECKING:
     from ..question_generator import HitlQuestionGenerator
 
 logger = get_logger(__name__)
+
+#: The fields an item is named by, in priority order.
+_READABLE_FIELDS = ("subject", "name", "summary", "title", "displayName")
 
 
 # Use shared threshold from centralized constants
@@ -169,17 +180,12 @@ class DestructiveConfirmInteraction:
             user_timezone=user_timezone,
         )
 
-        # Stream line-by-line then word-by-word (preserves markdown newlines)
-        token_index = 0
-        for line in warning.split("\n"):
-            if line:
-                for word in line.split():
-                    if token_index == 0:
-                        ttft = time.time() - start_time
-                        hitl_question_ttft_seconds.labels(type="destructive_confirm").observe(ttft)
-                    token_index += 1
-                    yield word + " "
-            yield "\n"
+        # Stream token by token, its lines and no-break spaces kept
+        for token_index, token in enumerate(text_tokens(warning)):
+            if token_index == 0:
+                ttft = time.time() - start_time
+                hitl_question_ttft_seconds.labels(type="destructive_confirm").observe(ttft)
+            yield token
 
         logger.debug(
             "destructive_confirm_question_complete",
@@ -236,12 +242,14 @@ class DestructiveConfirmInteraction:
 
         # Item preview (max 5)
         if affected_items:
-            body += f"**{translations['affected_items']}:**\n"
+            body += (
+                f"**{translations['affected_items']}{label_separator(user_language).rstrip()}**\n"
+            )
             for item in affected_items[:5]:
                 item_desc = self._format_item_preview(item, user_timezone, user_language)
                 body += f"- {item_desc}\n"
             if affected_count > 5:
-                body += f"- ... {translations['and_more'].format(count=affected_count - 5)}\n"
+                body += f"- {translations['and_more'].format(count=affected_count - 5)}\n"
             body += "\n"
 
         # Warning
@@ -274,7 +282,7 @@ class DestructiveConfirmInteraction:
         self,
         item: dict[str, Any],
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-        user_language: str = "fr",
+        user_language: str | None = None,
     ) -> str:
         """
         Format a single item for preview display.
@@ -290,23 +298,20 @@ class DestructiveConfirmInteraction:
         Returns:
             Formatted preview string
         """
-        # Try common fields in priority order
+        # The first readable field that says something, on one line (the
+        # bullet stays one row): a field present with None, spaces, an empty
+        # value or False says nothing — it read « None » or « False », in
+        # English, in six languages. The reading ``item_label`` makes of a draft.
         preview = ""
-        if "subject" in item:
-            preview = str(item["subject"])
-        elif "name" in item:
-            preview = str(item["name"])
-        elif "summary" in item:
-            preview = str(item["summary"])
-        elif "title" in item:
-            preview = str(item["title"])
-        elif "displayName" in item:
-            preview = str(item["displayName"])
-        else:
-            preview = str(item.get("id", "item"))[:50]
-
-        # Sanitize newlines to keep bullet on one line
-        preview = " ".join(preview.split())
+        for key in _READABLE_FIELDS:
+            value = item.get(key)
+            preview = one_line(str(value)) if value else ""
+            if preview:
+                break
+        if not preview:
+            # Nothing a person reads: named in their language, never an id
+            # cut in silence nor an English « item ».
+            preview = self._get_translations(resolve_language(user_language))["unnamed_item"]
 
         # Format any datetime values in remaining fields for context
         for key in ("date", "start_datetime", "due", "dateTime"):
@@ -315,7 +320,7 @@ class DestructiveConfirmInteraction:
                 formatted = format_value_if_datetime_string(
                     value,
                     user_timezone=user_timezone,
-                    locale=user_language,
+                    locale=resolve_language(user_language),
                     include_time=True,
                     include_day_name=False,
                 )

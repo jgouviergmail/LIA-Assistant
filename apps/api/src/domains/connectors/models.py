@@ -404,7 +404,7 @@ CONNECTOR_DISPLAY_NAMES: dict[ConnectorType, str] = {
     ConnectorType.BRAVE_SEARCH: "Brave Search",
     ConnectorType.BROWSER: "Browser",
     ConnectorType.PHILIPS_HUE: "Philips Hue",
-    ConnectorType.ELEVENLABS_TELEPHONY: "Telephony",
+    ConnectorType.ELEVENLABS_TELEPHONY: "ElevenLabs Telephony",
     ConnectorType.GEMINI_LIVE: "Live (Gemini)",
     ConnectorType.GPT_LIVE: "Live (OpenAI)",
     ConnectorType.ELEVENLABS_LIVE: "Live (ElevenLabs)",

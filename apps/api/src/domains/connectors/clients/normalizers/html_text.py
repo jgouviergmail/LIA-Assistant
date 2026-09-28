@@ -30,7 +30,7 @@ from src.core.constants import EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT, HTML_TEXT_L
 
 logger = structlog.get_logger(__name__)
 
-_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_HTML_TAG_RE = re.compile(r"<[^<>]+>")
 _BLOCK_TAGS = frozenset({"p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"})
 _IGNORED_TAGS = frozenset({"style", "script"})
 _INLINE_PUNCTUATION = ".,;:!?'\")]}—"

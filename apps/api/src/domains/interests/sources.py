@@ -8,6 +8,7 @@ plain-text conversion in the dispatcher (markdown_links_to_plain).
 
 from urllib.parse import urlparse
 
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_proactive import ProactiveMessages
 
 _LINK_SEPARATOR = " · "
@@ -22,7 +23,8 @@ def build_sources_block(citations: list[str], language: str, max_links: int) -> 
         max_links: Cap on rendered links; 0 disables the block entirely.
 
     Returns:
-        "\\n\\n<label> : [domain](url) · ..." or "" when disabled or empty.
+        "\\n\\n<label><separator>[domain](url) · ..." — the separator is the
+        reader's (``label_separator``) — or "" when disabled or empty.
     """
     if max_links <= 0 or not citations:
         return ""
@@ -44,4 +46,4 @@ def build_sources_block(citations: list[str], language: str, max_links: int) -> 
     if not links:
         return ""
     label = ProactiveMessages.sources_label(language)
-    return f"\n\n{label} : {_LINK_SEPARATOR.join(links)}"
+    return f"\n\n{label}{label_separator(language)}{_LINK_SEPARATOR.join(links)}"

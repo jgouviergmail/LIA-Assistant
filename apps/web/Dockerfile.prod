@@ -160,6 +160,11 @@ ENV NODE_OPTIONS="--max-old-space-size=320"
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
+# The standalone server executes `node` directly. npm/npx are build tools and
+# ship vulnerable bundled packages when retained in the runtime image.
+RUN apk upgrade --no-cache && \
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 # Copy standalone output (server.js, package.json, node_modules symlinks, .next, locales)
 COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/.next/standalone ./
 

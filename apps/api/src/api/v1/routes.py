@@ -226,6 +226,16 @@ if getattr(settings, "bookmarks_enabled", False):
     from src.domains.bookmarks.router import router as bookmarks_router
 
     api_router.include_router(bookmarks_router)
+# A generated file or an answer sent by e-mail (ADR-321): an act, no record.
+if getattr(settings, "email_share_enabled", False):
+    from src.domains.email_share.router import router as email_share_router
+
+    api_router.include_router(email_share_router)
+# The personal radio (ADR-324): a station per listener, on demand.
+if getattr(settings, "radio_enabled", False):
+    from src.domains.radio.router import router as radio_router
+
+    api_router.include_router(radio_router)
 if getattr(settings, "skills_enabled", False):
     from src.domains.skills.router import router as skills_router
 
@@ -425,6 +435,9 @@ async def get_client_config() -> dict:
             # Message bookmarks (ADR-282): gates the bubble action and the
             # « Bookmarks » tab of the generated files.
             "bookmarks_enabled": getattr(settings, "bookmarks_enabled", False),
+            # Sending by e-mail (ADR-321): the deployment ceiling of every
+            # « Send by e-mail » action (the effective state is in `capabilities`).
+            "email_share_enabled": getattr(settings, "email_share_enabled", False),
             # Sandbox egress (ADR-298): gates the « Bac à sable » settings
             # section that lists what a script may reach and the grants.
             "python_sandbox_egress_enabled": getattr(
@@ -432,6 +445,9 @@ async def get_client_config() -> dict:
             ),
             # Live voice mode (ADR-299): gates the chat button and the settings section.
             "live_enabled": getattr(settings, "live_enabled", False),
+            # Personal radio (ADR-324): the deployment ceiling of the player, the
+            # radio page and its settings (the effective state is in `capabilities`).
+            "radio_enabled": getattr(settings, "radio_enabled", False),
         },
         # Every capability of the registry with its EFFECTIVE state (ceiling
         # AND operator switch): what a visitor will find on this instance.

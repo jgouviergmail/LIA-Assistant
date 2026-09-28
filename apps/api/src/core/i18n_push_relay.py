@@ -14,6 +14,7 @@ carrying content again.
 Supported Languages: fr, en, es, de, it, zh-CN
 """
 
+from src.core.i18n import resolve_language
 from src.core.i18n_types import SupportedLanguage
 
 
@@ -21,7 +22,7 @@ class PushRelayMessages:
     """The generic wake notification, in the six languages LIA speaks."""
 
     @staticmethod
-    def wake_title(language: SupportedLanguage = "fr") -> str:
+    def wake_title(language: SupportedLanguage | None = None) -> str:
         """Title of the generic wake notification."""
         messages: dict[str, str] = {
             "fr": "LIA",
@@ -31,21 +32,21 @@ class PushRelayMessages:
             "it": "LIA",
             "zh-CN": "LIA",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])
 
     @staticmethod
-    def wake_body(language: SupportedLanguage = "fr") -> str:
+    def wake_body(language: SupportedLanguage | None = None) -> str:
         """Body of the generic wake notification.
 
         Deliberately says that something is waiting without hinting at what:
         a lock screen is read by whoever is holding the phone.
         """
         messages: dict[str, str] = {
-            "fr": "Vous avez du nouveau. Ouvrez pour voir.",
+            "fr": "Tu as du nouveau. Ouvre pour voir.",
             "en": "You have something new. Open to see it.",
             "es": "Tienes algo nuevo. Abre para verlo.",
-            "de": "Es gibt Neues für Sie. Zum Ansehen öffnen.",
+            "de": "Es gibt Neues für dich. Zum Ansehen öffnen.",
             "it": "C'è qualcosa di nuovo per te. Apri per vederlo.",
-            "zh-CN": "您有新消息，打开查看。",
+            "zh-CN": "你有新消息，打开查看。",
         }
-        return messages.get(language, messages["en"])
+        return messages.get(resolve_language(language), messages["en"])

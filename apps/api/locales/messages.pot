@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-24 14:00+0200\n"
+"POT-Creation-Date: 2026-09-25 23:33+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,138 +17,94 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-# Authentication errors
-msgid "Invalid credentials"
+msgid "Password must be at least {count} characters long."
 msgstr ""
 
-msgid "Account inactive"
+msgid "Password cannot be longer than {count} characters."
 msgstr ""
 
-msgid "Email already registered"
+msgid "Password must contain at least {count} uppercase letters."
 msgstr ""
 
-msgid "Invalid token"
+msgid "Password must contain at least {count} digits."
 msgstr ""
 
-msgid "Token expired"
+msgid ""
+"Password must contain at least {count} special characters ({examples}...)."
 msgstr ""
 
-msgid "Unauthorized"
+msgid "Link"
 msgstr ""
 
-msgid "Access denied"
+msgid "The action could not be completed. Please try again."
 msgstr ""
 
-# Validation errors
-msgid "Invalid email format"
+msgid ""
+"I couldn't find any results matching your request. Could you clarify or "
+"rephrase?"
 msgstr ""
 
-msgid "Password too short"
+msgid "Sorry, some operations failed after multiple attempts: {operations}"
 msgstr ""
 
-msgid "Password must contain at least 8 characters"
+msgid "The required data could not be found. Could you clarify your request?"
 msgstr ""
 
-msgid "Passwords do not match"
+msgid "A dependency error occurred between steps."
 msgstr ""
 
-msgid "Email is required"
+msgid "The operation is taking too long. Try a more specific request."
 msgstr ""
 
-msgid "Password is required"
+msgid ""
+"Unable to execute this request after multiple attempts. Errors: {errors}"
 msgstr ""
 
-msgid "Full name is required"
+msgid "Unable to execute this request after multiple attempts."
 msgstr ""
 
-# User errors
-msgid "User not found"
+msgid "No active domain. Please perform a search first."
 msgstr ""
 
-msgid "User already exists"
+msgid "Domain '{domain}' not registered. Available domains: {available}"
 msgstr ""
 
-msgid "Cannot delete yourself"
+msgid "none"
 msgstr ""
 
-# Connector errors
-msgid "Connector not found"
+msgid ""
+"No active '{domain}' list in memory. Please perform a search first to create"
+" a context."
 msgstr ""
 
-msgid "Connector already enabled"
+msgid "Reference '{reference}' resolved successfully"
 msgstr ""
 
-msgid "Connector disabled"
+msgid "Reference '{reference}' not found"
 msgstr ""
 
-msgid "OAuth flow failed"
+msgid "No active domains"
 msgstr ""
 
-msgid "Please enable Google Contacts connector first"
+msgid "{count} active domain(s)"
 msgstr ""
 
-# Generic errors
-msgid "Internal server error"
+msgid "Resolution succeeded but no item found"
 msgstr ""
 
-msgid "Not found"
+msgid "Item {index} marked as current in {domain}."
 msgstr ""
 
-msgid "Bad request"
+msgid "No active context for domain '{domain}'."
 msgstr ""
 
-msgid "Forbidden"
+msgid "Context state for '{domain}': {count} items"
 msgstr ""
 
-msgid "Service unavailable"
+msgid "List truncated to {limit} items ({available} available)"
 msgstr ""
 
-# Success messages
-msgid "Login successful"
-msgstr ""
-
-msgid "Registration successful"
-msgstr ""
-
-msgid "Settings saved"
-msgstr ""
-
-msgid "Connector enabled"
-msgstr ""
-
-msgid "Connector disabled successfully"
-msgstr ""
-
-# Status messages
-msgid "Active"
-msgstr ""
-
-msgid "Inactive"
-msgstr ""
-
-msgid "Online"
-msgstr ""
-
-msgid "Offline"
-msgstr ""
-
-msgid "Connected"
-msgstr ""
-
-msgid "Disconnected"
-msgstr ""
-
-# LLM Pricing messages
-msgid "Pricing updated successfully"
-msgstr ""
-
-msgid "Model pricing not found"
-msgstr ""
-
-msgid "Invalid pricing data"
-msgstr ""
-
-msgid "Currency rate not found"
+msgid "{count} items retrieved for '{domain}'"
 msgstr ""
 
 msgid "{count} light(s) found"
@@ -163,9 +119,12 @@ msgstr ""
 msgid "Light control failed"
 msgstr ""
 
+#. The state of a light (« Lamp: on »); French, Spanish and Italian agree with
+#. the feminine « lumière » / « luz » / « luce ».
 msgid "on"
 msgstr ""
 
+#. The state of a light (« Lamp: off »); agrees like « on ».
 msgid "off"
 msgstr ""
 
@@ -193,9 +152,11 @@ msgstr ""
 msgid "Room '{name}':"
 msgstr ""
 
+#. The state of every light of a room (« Room: all on »).
 msgid "all on"
 msgstr ""
 
+#. The state of every light of a room (« Room: all off »).
 msgid "all off"
 msgstr ""
 
@@ -212,4 +173,285 @@ msgid "Scene activation failed"
 msgstr ""
 
 msgid "Scene '{name}' activated"
+msgstr ""
+
+msgid "Preferences"
+msgstr ""
+
+msgid "Your tastes, preferences and habits"
+msgstr ""
+
+msgid "Personal"
+msgstr ""
+
+msgid "Identity information (work, family, where you live)"
+msgstr ""
+
+msgid "Relationships"
+msgstr ""
+
+msgid "People you mention and the nature of each relationship"
+msgstr ""
+
+msgid "Events"
+msgstr ""
+
+msgid "Significant events and important dates"
+msgstr ""
+
+msgid "Patterns"
+msgstr ""
+
+msgid "Recurring behaviours and habits"
+msgstr ""
+
+msgid "Sensitive Areas"
+msgstr ""
+
+msgid "Delicate subjects that call for a careful approach"
+msgstr ""
+
+msgid "Rules & directives"
+msgstr ""
+
+msgid "Standing instructions on how LIA should work for you"
+msgstr ""
+
+msgid "Please specify a starting point or enable geolocation."
+msgstr ""
+
+msgid "No route found between these locations."
+msgstr ""
+
+msgid "Google Routes API is not configured."
+msgstr ""
+
+msgid "Route calculation failed."
+msgstr ""
+
+msgid "Please specify a city or enable geolocation."
+msgstr ""
+
+msgid "Unable to find location: {location}"
+msgstr ""
+
+msgid "No search results found from any source for '{query}'"
+msgstr ""
+
+msgid "No article found for '{query}' on Wikipedia ({language})"
+msgstr ""
+
+msgid "Wikipedia search for '{query}' ({language}): {count} results"
+msgstr ""
+
+msgid "Error during Wikipedia search: {error}"
+msgstr ""
+
+msgid "Article '{title}' not found on Wikipedia ({language})"
+msgstr ""
+
+msgid "Wikipedia summary: {title}"
+msgstr ""
+
+msgid "Error retrieving summary: {error}"
+msgstr ""
+
+msgid "content truncated"
+msgstr ""
+
+msgid "Wikipedia article: {title}"
+msgstr ""
+
+msgid "Sections"
+msgstr ""
+
+msgid "and {count} more sections"
+msgstr ""
+
+msgid "Content"
+msgstr ""
+
+msgid "{count} additional characters in registry"
+msgstr ""
+
+msgid "Error retrieving article: {error}"
+msgstr ""
+
+msgid "No related article found for '{title}'"
+msgstr ""
+
+msgid "Articles related to '{title}' ({language}): {count} results"
+msgstr ""
+
+msgid "Error retrieving related articles: {error}"
+msgstr ""
+
+msgid "Preferences updated"
+msgstr ""
+
+msgid "Disabling a connector requires a reason."
+msgstr ""
+
+msgid "Important message"
+msgstr ""
+
+msgid "A deactivation must state its reason."
+msgstr ""
+
+msgid "Failed to send deactivation email notification"
+msgstr ""
+
+msgid "Failed to send activation email notification"
+msgstr ""
+
+msgid "Reason"
+msgstr ""
+
+msgid "Your LIA account has been deactivated"
+msgstr ""
+
+#. The greeting line of an e-mail, the person's name included.
+msgid "Hello {name},"
+msgstr ""
+
+msgid ""
+"We inform you that your LIA account has been deactivated by an "
+"administrator."
+msgstr ""
+
+msgid "You can no longer access the application."
+msgstr ""
+
+msgid "If you think this is an error, please contact the administrator."
+msgstr ""
+
+msgid "This is an automated email, please do not reply."
+msgstr ""
+
+msgid "Account deactivated"
+msgstr ""
+
+msgid "Your LIA account has been reactivated"
+msgstr ""
+
+msgid "We inform you that your LIA account has been reactivated."
+msgstr ""
+
+msgid "You can now access the application again."
+msgstr ""
+
+msgid "Log in"
+msgstr ""
+
+msgid "Login link"
+msgstr ""
+
+msgid "Account reactivated"
+msgstr ""
+
+msgid "Connector {connector} disabled"
+msgstr ""
+
+msgid "Connector disabled"
+msgstr ""
+
+msgid ""
+"We inform you that the connector {connector} has been disabled by an "
+"administrator."
+msgstr ""
+
+msgid ""
+"Your existing connection has been revoked and you can no longer use this "
+"connector."
+msgstr ""
+
+msgid "If you have any questions, please contact the administrator."
+msgstr ""
+
+msgid "Verify your LIA account email"
+msgstr ""
+
+msgid ""
+"Welcome to LIA! Please verify your email address to activate your account."
+msgstr ""
+
+msgid "Verify my email"
+msgstr ""
+
+msgid "This link expires in 24 hours."
+msgstr ""
+
+msgid "If you did not create an account, you can ignore this email."
+msgstr ""
+
+msgid "Verification link"
+msgstr ""
+
+msgid "Email verification"
+msgstr ""
+
+msgid "Reset your LIA password"
+msgstr ""
+
+msgid "We received a request to reset your password."
+msgstr ""
+
+msgid "Reset my password"
+msgstr ""
+
+msgid "This link expires in 1 hour for security reasons."
+msgstr ""
+
+msgid "If you did not request a password reset, you can ignore this email."
+msgstr ""
+
+msgid "Reset link"
+msgstr ""
+
+msgid "Password reset"
+msgstr ""
+
+msgid "Your LIA account is pending activation"
+msgstr ""
+
+msgid "Welcome to LIA! Your account has been created successfully."
+msgstr ""
+
+msgid "Your account is currently pending activation by an administrator."
+msgstr ""
+
+msgid "You will receive an email once your account has been activated."
+msgstr ""
+
+msgid "Thank you for your patience."
+msgstr ""
+
+msgid "Account pending activation"
+msgstr ""
+
+msgid "[LIA] New user awaiting activation: {email}"
+msgstr ""
+
+msgid "New user registered"
+msgstr ""
+
+msgid "A new user has registered on LIA and is waiting for your activation:"
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Method"
+msgstr ""
+
+msgid "Manage users"
+msgstr ""
+
+msgid "Administration link"
+msgstr ""
+
+msgid "This is an automated email from LIA."
 msgstr ""

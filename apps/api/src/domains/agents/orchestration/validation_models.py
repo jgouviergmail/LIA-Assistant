@@ -103,7 +103,7 @@ class SemanticIssue(BaseModel):
         description=(
             "Whether `description` may be shown to the user as-is. True for the "
             "LLM path, which honours the 'in user's language' contract above and "
-            "says something specific ('La date de début est incorrecte'). The "
+            "says something specific ('The start date is incorrect'). The "
             "deterministic pre-LLM rules set it to False: their descriptions are "
             "English technical literals meant for the trace and the replan "
             "prompt, and showing one delivered 'for_each pattern issue detected' "

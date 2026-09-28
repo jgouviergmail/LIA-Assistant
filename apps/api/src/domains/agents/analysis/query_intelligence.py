@@ -12,6 +12,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from src.core.config import settings
+from src.core.i18n import resolve_language
 
 if TYPE_CHECKING:
     from src.domains.agents.services.reference_resolver import ResolvedContext
@@ -120,7 +121,7 @@ class QueryIntelligence:
     confidence: float = 0.0
 
     # === METADATA ===
-    user_language: str = settings.default_language
+    user_language: str = field(default_factory=resolve_language)
     reasoning_trace: list[str] = field(default_factory=list)  # Reasoning trace
 
     # === DEBUG: INTELLIGENT MECHANISMS ===

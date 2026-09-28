@@ -28,7 +28,8 @@ max(lia_effect_claimed_orphans) > <<<ALERT_CORE_EFFECT_CLAIMED_ORPHANS>>>
 
 ### What Ops See
 - Dashboard **28 - Effect ledger**, panel *Effets restés CLAIMED*, non-zero.
-- On the same dashboard, *Effets dans le temps*: the "réclamés" line runs above "aboutis" + "échoués".
+- On the same dashboard, *Effets dans le temps*: the "réclamés" line runs above "aboutis" + "échoués" + "abandonnés".
+- A warning keeps firing until the row is closed, and the `warning` route re-notifies every 2 h: a stream of identical mails is ONE open incident, not a flapping alert.
 
 ### What the user sees
 Nothing directly. A confirmed action may have been performed while its entry stays open in the journal.
@@ -44,8 +45,8 @@ A claim is committed in its own transaction *before* the effect, on purpose — 
 docker logs lia-api-prod --since 1h 2>&1 | grep -E "effect_ledger_(claim|close)_failed|SIGTERM|Killed"
 ```
 
-### Cause 2: A tool hangs past every timeout (Medium)
-The claim is committed, the provider never answers, the node is cancelled without the close running.
+### Cause 2: A cancellation before 2026-09-27 (historical)
+A turn cancelled mid-effect — a routine attempt's time bound, a stop — used to leave its row open: the close ran on an exception, and a cancellation is not one (production 2026-09-25, a routine attempt cut at 300 s during a browser task). Since the ADR-263 amendment of 2026-09-27 the owner closes such a row itself, `abandoned` with `error_code = 'cancelled'`, counted as `lia_effect_outcomes_total{status="abandoned"}`. A row claimed before that fix still needs the resolution below.
 
 ```bash
 docker exec lia-postgres-prod psql -U lia -d lia -c "
@@ -101,7 +102,7 @@ The alert resolves on the next gauge refresh, not immediately after the SQL.
 ## 6. Prevention
 
 - A claim is committed before the effect **by design**; the orphan is the price of never losing an effect silently. The lever is turn stability, not the ledger.
-- `run_python_tool` and long browser tasks are the usual suspects: their compute timeout must stay below the node timeout, or the close never runs.
+- A cancellation closes its own row (`abandoned`, `cancelled`), so only a process killed mid-effect — a crash, an OOM kill, a container restart — still leaves an orphan.
 
 ---
 

@@ -217,7 +217,6 @@ class TestBuildFilterPrompt:
         prompt = service._build_filter_prompt(
             item_previews=items,
             exclude_criteria="Guy Savoy",
-            user_language="fr",
         )
         assert "Guy Savoy" in prompt
 
@@ -230,7 +229,6 @@ class TestBuildFilterPrompt:
         prompt = service._build_filter_prompt(
             item_previews=items,
             exclude_criteria="test",
-            user_language="en",
         )
         assert "Email 1" in prompt
         assert "Email 2" in prompt
@@ -246,7 +244,6 @@ class TestBuildFilterPrompt:
         prompt = service._build_filter_prompt(
             item_previews=items,
             exclude_criteria="test",
-            user_language="en",
         )
         assert "0. " in prompt
         assert "1. " in prompt
@@ -259,7 +256,6 @@ class TestBuildFilterPrompt:
         prompt = service._build_filter_prompt(
             item_previews=items,
             exclude_criteria="test",
-            user_language="en",
         )
         # Should truncate to 47 chars + "..."
         assert "..." in prompt
@@ -271,7 +267,6 @@ class TestBuildFilterPrompt:
         prompt = service._build_filter_prompt(
             item_previews=items,
             exclude_criteria="test",
-            user_language="en",
         )
         assert "subject: Test" in prompt
         # body should not appear since it's None
@@ -282,7 +277,6 @@ class TestBuildFilterPrompt:
         prompt = service._build_filter_prompt(
             item_previews=items,
             exclude_criteria="test",
-            user_language="en",
         )
         assert "(empty)" in prompt
 
@@ -292,7 +286,6 @@ class TestBuildFilterPrompt:
         prompt = service._build_filter_prompt(
             item_previews=items,
             exclude_criteria="test",
-            user_language="en",
         )
         assert "EXCLUDE" in prompt or "exclude" in prompt
         assert "JSON" in prompt
@@ -442,7 +435,6 @@ class TestItemFilterIntegration:
             result = await service.filter(
                 item_previews=items,
                 exclude_criteria="newsletters and spam",
-                user_language="en",
                 run_id="test_run",
             )
 

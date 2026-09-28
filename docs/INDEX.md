@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 317 ADR files (ADR-318 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 323 ADR files (ADR-324 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -48,11 +48,12 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [MEETINGS.md](./technical/MEETINGS.md) | Enregistrement de réunions et comptes rendus structurés (ADR-258), bibliothèque de modèles et changement de format (ADR-259) |
 | [WORKBOARD.md](./technical/WORKBOARD.md) | Le tableau de tickets (ADR-276) : sept colonnes, un porteur, un résultat ; LIA exécute les tickets qui lui sont affectés |
 | [LIVE_MODE.md](./technical/LIVE_MODE.md) | Le mode Live vocal (ADR-299, ADR-300, ADR-301) : parole à parole sur la clé de la personne, Gemini Live, GPT-Live ET ElevenLabs Agents (catégorie additive, deux fils sous une couture — jeton ou offre SDP, fonction ou délégation native), la voix délègue toute demande au moteur du chat, la session DIRECTE qui tient les outils de lecture elle-même, une session par compte, silence et plafond par modèle, le compteur indicatif du fournisseur (facturation `vendor` : montrée, jamais enregistrée), la dépense de LIA sur la carte de clôture, le mode direct relayé à la fin comme au téléphone |
+| [RADIO.md](./technical/RADIO.md) | La radio personnelle (ADR-324) : une rédaction d'instance sans modèle et une antenne par auditeur qui ne tourne que pendant qu'il écoute ; grille déterministe, modèles qui n'écrivent que ce que des faits citent, voix et mixage, coût en direct ; routes et refus codés, réglages, tâches de fond, métriques et alerte |
 | [BOOKMARKS.md](./technical/BOOKMARKS.md) | Les réponses qu'une personne conserve hors de ses conversations (ADR-282) : une copie, pas un pointeur ; l'onglet « Bookmarks » de « Mes fichiers générés » ; chaque réponse conservée projetée dans l'espace de connaissances « Réponses conservées » du compte, réclamée, comptée, retirée avec le bookmark (ADR-291) |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (317 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (323 ADR files) |
 
 ### Pour les Product Managers
 
@@ -139,7 +140,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) | Browser automation (Playwright) — navigation, interaction, extraction JS, progressive screenshots (SSE side-channel) — evolution F7 | ✅ |
 | [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) | MCP (Model Context Protocol) — Serveurs d'outils externes, MCP Apps, Excalidraw | ✅ |
 | [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) | Canaux de messagerie externes (Telegram) — evolution F3 | ✅ |
-| [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 ; la galerie des fichiers produits (ADR-279), retrouvée depuis la conversation et montrée en cartes (`find_generated_files_tool`, ADR-318) | ✅ |
+| [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 ; la galerie des fichiers produits (ADR-279), retrouvée depuis la conversation et montrée en cartes (`find_generated_files_tool`, ADR-318) ; conserver un fichier au-delà de son échéance, sous deux plafonds par compte, et des cartes du chat restituées depuis la ligne du fichier (ADR-319) ; l'envoi d'un fichier généré ou d'une réponse par e-mail (ADR-321) | ✅ |
 | [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider (OpenAI GPT Image, Qwen Image 3.0) : une famille déclare l'offre d'un modèle, un client par fournisseur la sert, la préférence résolue comme intention, l'image de référence tarifée (ADR-305) ; amélioration facultative du prompt par un créneau dédié, jamais une barrière (ADR-315) ; partage d'une image avec une connexion, en copie dans sa galerie et son chat (ADR-316) ; cost tracking, attachment storage | ✅ |
 | [DOCUMENT_GENERATION.md](./technical/DOCUMENT_GENERATION.md) | AI Document Generation (ADR-226, ADR-274) — dedicated LLM slot, crafted renderers (csv/xlsx/docx/pptx/pdf/md/txt), TTL attachment cards | ✅ |
 | [TABULAR_ADMIN_IO.md](./technical/TABULAR_ADMIN_IO.md) | Import/export tabulaire des administrations (ADR-228) — socle déclaratif, classeur Excel, aperçu obligatoire, verrou optimiste par ligne | ✅ |
@@ -148,7 +149,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LANDING_PAGE.md](./technical/LANDING_PAGE.md) | Architecture Landing Page — composants React, SEO, OpenGraph | ✅ |
 | [CARD_SYSTEM.md](./technical/CARD_SYSTEM.md) | Système de cartes HTML riches dans le chat (Design System v4) | ✅ |
 | [PERSONALITIES.md](./technical/PERSONALITIES.md) | Système de personnalités (seeds, traductions, sélection utilisateur) | ✅ |
-| [NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md) | Flux de notifications de bout en bout (SSE, FCM, Telegram) | ✅ |
+| [NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md) | Flux de notifications de bout en bout (SSE, FCM, Telegram) ; le signal de synchronisation de la discussion après chaque validation et la fusion côté client (ADR-320) | ✅ |
 | [NANOBOT_INTEGRATION_ROADMAP.md](./technical/NANOBOT_INTEGRATION_ROADMAP.md) | Roadmap d'intégration (document de planification — chemins prévisionnels) | 📦 |
 | [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (61 types, 9 providers) | ✅ |
 | [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions, hardened import pipeline + chat-driven install + dialogue skills (ADR-118) | ✅ |
@@ -189,7 +190,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LONG_TERM_MEMORY.md](./technical/LONG_TERM_MEMORY.md) | Mémoire long-terme, profil psychologique, recherche active par une seule porte (`search_memories_tool`, ADR-313) | ✅ |
 | [MEMORY_RESOLUTION.md](./technical/MEMORY_RESOLUTION.md) | Résolution références, relations — architecture 3 phases (LLM extraction + recherche ciblée + résolution) | ✅ |
 | [INTERESTS.md](./technical/INTERESTS.md) | Système apprentissage centres d'intérêt | ✅ |
-| [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes | ✅ |
+| [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes ; une horloge par routine — une planification, ou les vérifications du système pour une routine sur condition (ADR-322) | ✅ |
 | [SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Sub-agents éphémères — délégation via `delegate_to_sub_agent_tool` (ADR-083, F6 legacy supprimé) | ✅ |
 | [HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | Recherche hybride BM25 + sémantique (**historique** — supprimé en ADR-168 ; le BM25 vivant est celui des RAG Spaces) | 🗄️ |
 | [JOURNALS.md](./technical/JOURNALS.md) | Personal Journals — carnets de bord introspectifs, injection sémantique ; recherche active dans le journal sur le seuil configuré (`search_journal_tool`, ADR-318) | ✅ |
@@ -294,7 +295,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (40 files, 200+ Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (41 files, 200+ Q/A) | ✅ |
 
 ### Operations
 
@@ -439,6 +440,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [LLMCallsWithoutUsage.md](./runbooks/alerts/LLMCallsWithoutUsage.md) | Appels LLM payants sans comptage de jetons (ADR-220) |
 | [GoogleApiCallsUnaccounted.md](./runbooks/alerts/GoogleApiCallsUnaccounted.md) | Appels Google Maps Platform payants faits sans contexte de comptabilité (ADR-272) |
 | [PushWakeSweepStalled.md](./runbooks/alerts/PushWakeSweepStalled.md) | Réveils poussés mis en file et jamais servis — le balayage ne rend plus la main (ADR-304) |
+| [RadioNewsroomStalled.md](./runbooks/alerts/RadioNewsroomStalled.md) | Rédaction de la radio sans passe menée à son terme — passes en échec ou tâche arrêtée (ADR-324) |
 | [CriticalLatencyP99.md](./runbooks/alerts/CriticalLatencyP99.md) | Latence P99 critique |
 | [ServiceDown.md](./runbooks/alerts/ServiceDown.md) | Service indisponible |
 | [DatabaseDown.md](./runbooks/alerts/DatabaseDown.md) | Base de données indisponible |

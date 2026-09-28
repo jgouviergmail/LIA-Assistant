@@ -332,6 +332,12 @@
       "stack": ["Lesezugriff auf Prometheus / Loki / Alertmanager", "Belege nach Rezept"],
       "src": "7cf9e87a4874"
     },
+    "t.radio": {
+      "name": "Radio: Redaktion und Antenne",
+      "role": "Eine Redaktion der Instanz liest öffentliche Feeds ohne Modell; eine Antenne pro Hörer entscheidet über ein deterministisches Raster, lässt jedes Segment schreiben und prüfen, sprechen und mischen — nur solange jemand zuhört.",
+      "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"],
+      "src": "3779500de599"
+    },
     "t.postgres": {
       "name": "PostgreSQL und pgvector",
       "role": "Die Quelle der Wahrheit: Konten, Unterhaltungen, Checkpoints des Graphen, Vektoren; Migrationen in einer einzigen Kette, Sitzungen, die nicht länger leben als ihre Abfragen.",

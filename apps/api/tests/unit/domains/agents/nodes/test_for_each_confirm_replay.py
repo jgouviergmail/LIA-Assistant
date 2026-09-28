@@ -49,7 +49,6 @@ class _SpyFilter:
         self,
         item_previews: list[dict[str, Any]],
         exclude_criteria: str,
-        user_language: str,
         run_id: str,
     ) -> list[int]:
         self.calls.append(exclude_criteria)

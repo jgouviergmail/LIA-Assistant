@@ -53,6 +53,7 @@ from src.core.constants import (
 )
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_webhook_signature, raise_not_found_or_unauthorized
+from src.core.i18n import normalize_language
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.telephony.live_tools import (
     SURFACE,
@@ -280,7 +281,7 @@ async def live_tool_callback(
         ),
         consume_budget=_consume_budget,
         user_id=call.user_id,
-        language=user.language or settings.default_language,
+        language=normalize_language(user.language),
         timezone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
         display_name=resolve_user_display_name(user.full_name, user.email),
         host=VoiceToolHost.phone_call(call.id),

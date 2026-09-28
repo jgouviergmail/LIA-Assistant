@@ -27,6 +27,8 @@ from src.core.constants import (
     ATTACHMENTS_MAX_PER_MESSAGE_DEFAULT,
     ATTACHMENTS_STORAGE_PATH_DEFAULT,
     ATTACHMENTS_TTL_HOURS_DEFAULT,
+    GENERATED_ASSETS_KEEP_MAX_FILES_DEFAULT,
+    GENERATED_ASSETS_KEEP_MAX_MB_DEFAULT,
     GENERATED_FILES_SEARCH_MAX_RESULTS_DEFAULT,
 )
 
@@ -99,6 +101,26 @@ class AttachmentsSettings(BaseSettings):
         ge=1,
         le=168,
         description="TTL safety net for orphan files in hours (cleanup scheduler).",
+    )
+
+    generated_assets_keep_max_files: int = Field(
+        default=GENERATED_ASSETS_KEEP_MAX_FILES_DEFAULT,
+        ge=0,
+        le=10000,
+        description=(
+            "Most generated files one account may keep past their deadline "
+            "(ADR-319). 0 turns keeping off. Published with the gallery."
+        ),
+    )
+
+    generated_assets_keep_max_mb: int = Field(
+        default=GENERATED_ASSETS_KEEP_MAX_MB_DEFAULT,
+        ge=0,
+        le=100000,
+        description=(
+            "Most megabytes of generated files one account may keep past their "
+            "deadline (ADR-319). 0 turns keeping off. Published with the gallery."
+        ),
     )
 
     generated_files_search_max_results: int = Field(

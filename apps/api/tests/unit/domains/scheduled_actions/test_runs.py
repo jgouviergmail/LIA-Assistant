@@ -169,3 +169,22 @@ class TestTheHistoryNeverGatesTheRoutine:
         log.warning.assert_called_once()
         assert log.warning.call_args.args[0] == "scheduled_action_run_record_failed"
         assert log.warning.call_args.kwargs["outcome"] == "success"
+
+
+class TestAConditionRoutinesRun:
+    """No schedule, no slot to serve: a fire serves the check that fired (ADR-322)."""
+
+    async def test_a_due_check_serves_its_own_start(self) -> None:
+        db, _ = _db()
+        _, record = await _record(db, _action(recurrence_spec=None))
+
+        assert record.await_args.kwargs["slot_at"] == STARTED
+
+    async def test_a_check_the_person_asked_for_still_lands_on_the_week(self) -> None:
+        # « Check now » that fires ran the pipeline: it is a fire, whoever asked.
+        db, _ = _db()
+        _, record = await _record(db, _action(recurrence_spec=None), due_at=None)
+
+        kwargs = record.await_args.kwargs
+        assert kwargs["slot_at"] == STARTED
+        assert kwargs["manual"] is True

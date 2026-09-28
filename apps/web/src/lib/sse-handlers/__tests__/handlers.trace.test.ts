@@ -101,36 +101,6 @@ describe('handlers — execution trace capture', () => {
   });
 });
 
-describe('handlers — trace step detail fallback (no i18n_key)', () => {
-  function detailStep(detail: string): ChatStreamChunk {
-    return {
-      type: 'execution_step',
-      content: '',
-      metadata: { emoji: '🔧', detail, category: 'tool' },
-    } as ChatStreamChunk;
-  }
-
-  it('uses the raw detail as label when short, and truncates it past 80 chars', () => {
-    const { context, dispatch } = buildHandlerContext();
-    handleRouterDecision(routerChunk(), context);
-
-    handleExecutionStep(detailStep('short detail'), context);
-    const long = 'x'.repeat(120);
-    handleExecutionStep(detailStep(long), context);
-
-    handleDone({ type: 'done', content: '', metadata: {} } as ChatStreamChunk, context);
-
-    const attach = traceAttach(dispatch);
-    expect(attach).toBeDefined();
-    const labels = attach!.payload.trace.steps.map(s => s.label);
-    expect(labels).toContain('short detail');
-    // Long detail truncated to 77 chars + ellipsis.
-    const truncated = labels.find(l => l.endsWith('...'));
-    expect(truncated).toBeDefined();
-    expect(truncated!.length).toBe(80);
-  });
-});
-
 describe('handlers — trace step edge branches', () => {
   it('skips a metadata-less execution step and defaults an unknown category to system', () => {
     const { context, dispatch } = buildHandlerContext({ t: traceT });
@@ -156,10 +126,10 @@ describe('handlers — trace step edge branches', () => {
   });
 });
 
-describe('handlers — trace step i18n-empty falls back to detail', () => {
-  it('uses the detail when the i18n key resolves to an empty string', () => {
-    // Translator that resolves execution.steps.* to '' (missing translation),
-    // forcing buildTraceStep down the detail-fallback path.
+describe('handlers — trace step whose label resolves to nothing', () => {
+  it('traces no step when the i18n key resolves to an empty string', () => {
+    // Translator that resolves execution.steps.* to '' (missing translation):
+    // with no label to show, buildTraceStep keeps no step.
     // `as unknown as TFunction`, not `as never`: TFunction is the sanctioned
     // external-boundary escape (F057) — i18next's overloaded signature is not
     // constructible from a plain arrow. `as never` bypasses the contract
@@ -178,7 +148,6 @@ describe('handlers — trace step i18n-empty falls back to detail', () => {
         metadata: {
           emoji: '📮',
           i18n_key: 'send_email',
-          detail: 'Envoi du courriel',
           category: 'tool',
         },
       } as ChatStreamChunk,
@@ -187,8 +156,7 @@ describe('handlers — trace step i18n-empty falls back to detail', () => {
 
     handleDone({ type: 'done', content: '', metadata: {} } as ChatStreamChunk, context);
 
-    const attach = traceAttach(dispatch);
-    const labels = attach!.payload.trace.steps.map(s => s.label);
-    expect(labels).toContain('Envoi du courriel');
+    const steps = traceAttach(dispatch)?.payload.trace.steps ?? [];
+    expect(steps.map(s => s.emoji)).not.toContain('📮');
   });
 });

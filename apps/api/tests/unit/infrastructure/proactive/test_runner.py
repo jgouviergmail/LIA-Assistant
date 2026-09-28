@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.infrastructure.proactive.base import ProactiveTaskResult
 from src.infrastructure.proactive.eligibility import EligibilityChecker
 from src.infrastructure.proactive.runner import ProactiveTaskRunner, RunnerStats
 
@@ -282,6 +283,11 @@ class TestProcessUserStats:
             content: str | None = None
             target_id: str | None = "interest-1"
             error: str | None = "generation failed"
+            model_name: str | None = None
+            tokens_in: int = 0
+            tokens_out: int = 0
+            tokens_cache: int = 0
+            tokens_cache_write: int = 0
 
         mock_task = AsyncMock()
         mock_task.task_type = "interest"
@@ -1069,3 +1075,101 @@ class TestTheSuccessPathIsAccountedAndRecorded:
                 )
                 is None
             )
+
+
+@pytest.mark.unit
+class TestWhatAFailedSweepSpentIsStillBilled:
+    """A euro the provider billed is recorded whatever happened next (ADR-272).
+
+    The runner billed a sweep after a SUCCESSFUL dispatch only: a notification
+    that reached nobody, or a generation that failed after its model call,
+    spent money no ledger ever saw — and left no row in the decision register.
+    The run is filed as failed, under the run its reads were collected in.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_notification_that_reached_nobody_still_bills_its_generation(self) -> None:
+        from src.infrastructure.proactive.notification import NotificationResult
+
+        runner = TestTheSuccessPathIsAccountedAndRecorded._successful_runner()
+        runner._dispatch_notification = AsyncMock(
+            return_value=NotificationResult(success=False, error="FCM failed")
+        )
+
+        with patch(
+            "src.infrastructure.proactive.runner.track_proactive_tokens",
+            new=AsyncMock(return_value="run-x"),
+        ) as tracked:
+            assert (
+                await runner._process_user(_make_mock_user(), AsyncMock(), RunnerStats()) is False
+            )
+
+        call = tracked.await_args.kwargs
+        assert (call["tokens_in"], call["tokens_out"], call["model_name"]) == (120, 30, "gpt-test")
+        assert (call["failed"], call["source"]) == (True, "proactive")
+        assert call["run_id"].startswith("proactive_interest_")
+
+    @pytest.mark.asyncio
+    async def test_a_generation_that_failed_after_its_model_call_bills_what_it_spent(
+        self,
+    ) -> None:
+        runner = TestTheSuccessPathIsAccountedAndRecorded._successful_runner()
+        runner.task.generate_content = AsyncMock(
+            return_value=ProactiveTaskResult(
+                success=False,
+                error="message model down",
+                target_id="interest-1",
+                tokens_in=90,
+                tokens_out=12,
+                model_name="gpt-test",
+            )
+        )
+
+        with patch(
+            "src.infrastructure.proactive.runner.track_proactive_tokens",
+            new=AsyncMock(return_value="run-x"),
+        ) as tracked:
+            assert (
+                await runner._process_user(_make_mock_user(), AsyncMock(), RunnerStats()) is False
+            )
+
+        call = tracked.await_args.kwargs
+        assert (call["tokens_in"], call["tokens_out"], call["failed"]) == (90, 12, True)
+        assert call["conversation_id"] is None
+        runner._dispatch_notification.assert_not_awaited()
+
+
+class TestEachPersonIsServedInTheirLanguage:
+    """A sweep serves its users one after the other in ONE task: each is served
+    in their own language, and none leaks into the next (ADR-323)."""
+
+    async def test_two_people_in_one_task_each_hear_their_own(self) -> None:
+        from src.core.config import settings
+        from src.core.i18n import resolve_language
+        from src.infrastructure.proactive.eligibility import EligibilityResult
+
+        first, second = [c for c in ("it", "es", "de") if c != settings.default_language][:2]
+        checker = AsyncMock()
+        checker.check = AsyncMock(return_value=EligibilityResult.success())
+        checker.should_send_notification = MagicMock(return_value=(True, {"decision": "send"}))
+        checker.notification_model = None
+        checker.start_hour_field = "interests_notify_start_hour"
+        checker.end_hour_field = "interests_notify_end_hour"
+        task = AsyncMock()
+        task.task_type = "interest"
+        task.check_eligibility = AsyncMock(return_value=True)
+        runner = _make_runner(eligibility_checker=checker, task=task)
+        runner._get_today_notification_count = AsyncMock(return_value=0)
+        heard: list[str] = []
+
+        async def _serve(*_args: Any, **_kwargs: Any) -> bool:
+            heard.append(resolve_language())
+            return True
+
+        stats = RunnerStats()
+        with patch.object(runner, "_serve_user", new=_serve):
+            for language in (first, second):
+                await runner._process_user(_make_mock_user(language=language), AsyncMock(), stats)
+
+        assert heard == [first, second]
+        assert resolve_language() == settings.default_language

@@ -7,6 +7,10 @@
  *
  * The notice must be honest in both directions — warn when it knows, say
  * nothing when it does not — and it must never invent a duration of its own.
+ *
+ * Since ADR-319 the history restates the card from the file's row: a KEPT image
+ * says it has no deadline any more, and a GONE one says it is no longer there
+ * rather than promising a date that already passed for it.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -16,11 +20,15 @@ import type { Message } from '@/types/chat';
 
 const { translate } = vi.hoisted(() => {
   const content: Record<string, string> = {
-    'chat.image_expiry.until': "Disponible jusqu'au {{date}} — téléchargez-la pour la conserver",
-    'chat.image_expiry.soon_one': 'Expire dans {{count}} heure — téléchargez-la pour la conserver',
+    'chat.image_expiry.until':
+      "Disponible jusqu'au {{date}} — à conserver dans « Mes fichiers générés » ou à télécharger",
+    'chat.image_expiry.soon_one':
+      'Expire dans {{count}} heure — à conserver dans « Mes fichiers générés » ou à télécharger',
     'chat.image_expiry.soon_other':
-      'Expire dans {{count}} heures — téléchargez-la pour la conserver',
+      'Expire dans {{count}} heures — à conserver dans « Mes fichiers générés » ou à télécharger',
     'chat.image_expiry.expired': "Cette image a expiré et n'est plus disponible",
+    'chat.image_expiry.kept': 'Conservée : jamais supprimée automatiquement',
+    'chat.image_expiry.gone': "Cette image n'est plus disponible",
   };
   return {
     translate: (key: string, params?: Record<string, unknown>) => {
@@ -57,13 +65,18 @@ import { ChatMessage } from '../ChatMessage';
 
 const NOW = new Date('2026-07-26T12:00:00Z');
 
-function withImage(expiresAt?: string | null): Message {
+function withImage(
+  expiresAt?: string | null,
+  restated: { kept?: boolean; gone?: boolean } = {}
+): Message {
   return {
     id: 'm1',
     role: 'assistant',
     content: 'Voici votre image',
     timestamp: NOW,
-    generatedImages: [{ url: '/api/v1/attachments/abc', alt: 'un chat', expires_at: expiresAt }],
+    generatedImages: [
+      { url: '/api/v1/attachments/abc', alt: 'un chat', expires_at: expiresAt, ...restated },
+    ],
   } as Message;
 }
 
@@ -112,6 +125,26 @@ describe('generated image expiry notice', () => {
   it('states plainly that an elapsed image is gone', () => {
     renderWithProviders(<ChatMessage isUser={false} message={withImage(inHours(-2))} />);
     expect(screen.getByText(/a expiré/)).toBeInTheDocument();
+  });
+
+  it('says a kept image is kept — no deadline, no countdown', () => {
+    renderWithProviders(<ChatMessage isUser={false} message={withImage(null, { kept: true })} />);
+    expect(screen.getByText(/Conservée/)).toBeInTheDocument();
+    expect(screen.queryByText(/Disponible|Expire/)).not.toBeInTheDocument();
+  });
+
+  it('says a gone image is gone, whatever deadline the card was written with', () => {
+    // The card was written with a deadline still in the future; the person
+    // deleted the file since. « Available until … » would be a lie.
+    renderWithProviders(
+      <ChatMessage isUser={false} message={withImage(inHours(20), { gone: true })} />
+    );
+    expect(screen.getByText(/n'est plus disponible/)).toBeInTheDocument();
+    expect(screen.queryByText(/Disponible jusqu'au/)).not.toBeInTheDocument();
+    // Nothing that would load or save an error page is offered.
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'common.download' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'common.expand_image' })).not.toBeInTheDocument();
   });
 
   it('keeps the download button available next to the warning', () => {

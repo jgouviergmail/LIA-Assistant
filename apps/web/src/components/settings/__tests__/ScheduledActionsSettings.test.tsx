@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { makeScheduledAction } from '@/__tests__/factories';
+import { makeConditionRoutine, makeScheduledAction } from '@/__tests__/factories';
 import type { ScheduledAction } from '@/hooks/useScheduledActions';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
@@ -26,10 +26,7 @@ const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() 
 vi.mock('sonner', () => ({ toast }));
 
 import { ScheduledActionsSettings } from '../ScheduledActionsSettings';
-import type {
-
-  useScheduledActions as useScheduledActionsFn,
-} from '@/hooks/useScheduledActions';
+import type { useScheduledActions as useScheduledActionsFn } from '@/hooks/useScheduledActions';
 
 /** The routine this file's fixtures assume, on the shared factory. */
 function action(over: Partial<ScheduledAction> = {}): ScheduledAction {
@@ -42,7 +39,6 @@ function action(over: Partial<ScheduledAction> = {}): ScheduledAction {
 }
 
 type ScheduledHook = ReturnType<typeof useScheduledActionsFn>;
-
 
 function hook(over: Partial<ScheduledHook> = {}) {
   return {
@@ -255,9 +251,9 @@ describe('ScheduledActionsSettings — creation', () => {
           freq: 'daily',
           times: expect.objectContaining({ mode: 'at', at: [{ hour: 8, minute: 0 }] }),
         }),
-        // N-07: a default create is an unchanged "time" routine.
+        // N-07: a default create is an unchanged "time" routine — and it
+        // sends its schedule ALONE: never a condition beside it (ADR-322).
         trigger_kind: 'time',
-        condition_config: null,
         requires_approval: false,
         // The row carries its own execution mode (ADR-276, lot 10): the loop
         // by default, because nobody is there to steer a plan when it fires.
@@ -711,10 +707,8 @@ describe('the routine form fits a phone', () => {
 
 describe('ScheduledActionsSettings — the form reads as named groups', () => {
   it('groups every question, leaving no field outside one', async () => {
-    // The routine form asks three questions where the reminder form asks two:
-    // what to do, when, and how it runs (its trigger, its condition, and
-    // whether it asks before acting). The first two were grouped on
-    // 2026-09-06; the third stayed a bare column of controls below them.
+    // What to do, which clock it runs on (asked FIRST since ADR-322 — every
+    // field below follows the answer), that clock's fields, and how it runs.
     useScheduledActions.mockReturnValue(hook());
     const { user } = render();
     await user.click(screen.getByRole('button', { name: CREATE }));
@@ -722,40 +716,185 @@ describe('ScheduledActionsSettings — the form reads as named groups', () => {
 
     for (const name of [
       'scheduled_actions.section_what',
+      'scheduled_actions.section_trigger',
       'recurrence.section_when',
       'scheduled_actions.section_execution',
     ]) {
       expect(screen.getByRole('group', { name })).toBeInTheDocument();
     }
+    // The clock is asked BEFORE its fields.
+    const trigger = screen.getByRole('group', { name: 'scheduled_actions.section_trigger' });
+    const when = screen.getByRole('group', { name: 'recurrence.section_when' });
+    expect(trigger.compareDocumentPosition(when) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('puts the trigger and the approval switch inside that third group', async () => {
+  it('puts the trigger in its own group and the approval switch in the last', async () => {
     useScheduledActions.mockReturnValue(hook());
     const { user } = render();
     await user.click(screen.getByRole('button', { name: CREATE }));
     await screen.findByLabelText(FIELD_TITLE);
 
-    const execution = screen.getByRole('group', { name: 'scheduled_actions.section_execution' });
-    expect(execution).toContainElement(
+    const trigger = screen.getByRole('group', { name: 'scheduled_actions.section_trigger' });
+    expect(trigger).toContainElement(
       screen.getByLabelText('scheduled_actions.studio.trigger_kind')
     );
+    expect(trigger).toContainElement(screen.getByText('scheduled_actions.studio.time_hint_time'));
+    const execution = screen.getByRole('group', { name: 'scheduled_actions.section_execution' });
     expect(execution).toContainElement(
       screen.getByLabelText('scheduled_actions.studio.requires_approval')
     );
   });
+});
 
-  it('leaves no explanatory line floating between two groups', async () => {
-    // The sentence explaining what the trigger does with the chosen time sat
-    // BETWEEN the "when" group and the next heading — the one element still
-    // outside the template. It explains the trigger, so it belongs with it.
-    useScheduledActions.mockReturnValue(hook());
-    const { user } = render();
+describe('ScheduledActionsSettings — one clock per routine (ADR-322)', () => {
+  async function chooseCondition(user: User) {
+    await user.click(
+      screen.getByRole('combobox', { name: 'scheduled_actions.studio.trigger_kind' })
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'scheduled_actions.studio.kind_condition' })
+    );
+  }
+
+  async function openCreate(user: User) {
     await user.click(screen.getByRole('button', { name: CREATE }));
     await screen.findByLabelText(FIELD_TITLE);
+    await user.type(screen.getByLabelText(FIELD_TITLE), 'Watch');
+    await user.type(screen.getByLabelText(FIELD_PROMPT), 'Tell me');
+  }
 
-    const execution = screen.getByRole('group', { name: 'scheduled_actions.section_execution' });
-    expect(execution).toContainElement(
-      screen.getByText('scheduled_actions.studio.time_hint_time')
+  it('a condition replaces the schedule: no time field is asked', async () => {
+    useScheduledActions.mockReturnValue(
+      hook({ conditionCheckMinutes: { task_overdue: 10 }, conditionMaxFiresPerDay: 12 })
     );
+    const { user } = render();
+    await openCreate(user);
+
+    await chooseCondition(user);
+
+    expect(
+      screen.queryByRole('group', { name: 'recurrence.section_when' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('group', { name: 'scheduled_actions.section_condition' })
+    ).toBeInTheDocument();
+    // The system's clock is stated before saving, as the server applies it.
+    expect(screen.getByText('scheduled_actions.studio.condition_cadence')).toBeInTheDocument();
+  });
+
+  it('creates a condition routine with no schedule, its last day included', async () => {
+    const createAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(hook({ createAction }));
+    const { user } = render();
+    await openCreate(user);
+    await chooseCondition(user);
+
+    await user.type(screen.getByLabelText('scheduled_actions.studio.watch_until'), '2099-12-31');
+    await user.click(saveButton());
+
+    await waitFor(() => expect(createAction).toHaveBeenCalledTimes(1));
+    const payload = createAction.mock.calls[0][0];
+    expect(payload).toMatchObject({
+      trigger_kind: 'condition',
+      condition_config: { type: 'task_overdue', until: '2099-12-31' },
+    });
+    expect(payload).not.toHaveProperty('recurrence');
+  });
+
+  it('refuses a last day that is already over, and says why', async () => {
+    const createAction = vi.fn();
+    useScheduledActions.mockReturnValue(hook({ createAction }));
+    const { user } = render();
+    await openCreate(user);
+    await chooseCondition(user);
+
+    await user.type(screen.getByLabelText('scheduled_actions.studio.watch_until'), '2020-01-01');
+
+    expect(saveButton()).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('scheduled_actions.studio.until_past');
+  });
+
+  it('switching an existing routine to a condition sends the condition alone', async () => {
+    const updateAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(hook({ actions: [action()], updateAction }));
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: EDIT }));
+    await screen.findByLabelText(FIELD_TITLE);
+
+    await chooseCondition(user);
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(updateAction).toHaveBeenCalledWith('a1', {
+        trigger_kind: 'condition',
+        condition_config: { type: 'task_overdue' },
+      })
+    );
+  });
+
+  it('switching back keeps the schedule the form was holding', async () => {
+    // The other mode's fields are kept in memory, never sent: back to the
+    // schedule, it is the one the routine had.
+    const updateAction = vi.fn();
+    useScheduledActions.mockReturnValue(hook({ actions: [action()], updateAction }));
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: EDIT }));
+    await screen.findByLabelText(FIELD_TITLE);
+
+    await chooseCondition(user);
+    await user.click(
+      screen.getByRole('combobox', { name: 'scheduled_actions.studio.trigger_kind' })
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'scheduled_actions.studio.kind_time' })
+    );
+    await user.click(saveButton());
+
+    await waitFor(() => expect(screen.queryByLabelText(FIELD_TITLE)).not.toBeInTheDocument());
+    expect(updateAction).not.toHaveBeenCalled();
+  });
+
+  it('a watch card states its last check, never a next run', () => {
+    useScheduledActions.mockReturnValue(
+      hook({
+        actions: [makeConditionRoutine({ id: 'w1', last_checked_at: '2026-09-25T12:10:00Z' })],
+        total: 1,
+      })
+    );
+    render();
+
+    expect(screen.getByText('scheduled_actions.last_check')).toBeInTheDocument();
+    expect(screen.queryByText(/scheduled_actions\.next_run/)).not.toBeInTheDocument();
+  });
+
+  it('a watch that could not read its source says so', () => {
+    useScheduledActions.mockReturnValue(
+      hook({
+        actions: [
+          makeConditionRoutine({
+            id: 'w1',
+            last_checked_at: '2026-09-25T12:10:00Z',
+            last_check_error: 'not_configured',
+          }),
+        ],
+        total: 1,
+      })
+    );
+    render();
+
+    expect(screen.getByText('scheduled_actions.last_check_failed')).toBeInTheDocument();
+  });
+
+  it('a watch is CHECKED on demand, not run', async () => {
+    const executeAction = vi.fn().mockResolvedValue(undefined);
+    useScheduledActions.mockReturnValue(
+      hook({ actions: [makeConditionRoutine({ id: 'w1' })], executeAction })
+    );
+    const { user } = render();
+
+    await user.click(screen.getByRole('button', { name: 'scheduled_actions.check_now' }));
+
+    await waitFor(() => expect(executeAction).toHaveBeenCalledWith('w1'));
+    expect(toast.success).toHaveBeenCalledWith('scheduled_actions.check_now_launched');
   });
 });

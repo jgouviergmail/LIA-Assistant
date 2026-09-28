@@ -12,6 +12,8 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.config import settings as config_settings
+from src.core.i18n import language_scope
 from src.domains.heartbeat.context_sources import fetch_departure_advice
 from src.domains.heartbeat.schemas import HeartbeatContext, HeartbeatDecision
 
@@ -23,8 +25,6 @@ def _settings(**overrides):
         "heartbeat_departure_enabled": True,
         "heartbeat_departure_lookahead_hours": 3,
         "heartbeat_departure_cache_ttl_seconds": 900,
-        # Mirrors the real Settings contract (language fallback source).
-        "default_language": "en",
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -195,7 +195,9 @@ class TestFetchDepartureAdvice:
     async def test_language_fallback_is_central_default_not_inline_french(self):
         """A user without a language must get the deployment's configured
         default language, never a hardcoded 'fr' literal (i18n systemic rule).
-        The settings view carries default_language='it' so a literal fails."""
+        The chokepoint reads default_language='it' so a literal fails, and a
+        DECLARED German changes nothing: a known person's empty language is the
+        instance default, never the requester's (ADR-323)."""
         routes_client = MagicMock()
         routes_client.compute_route = AsyncMock(return_value={"routes": [{"duration": "600s"}]})
         routes_client.close = AsyncMock()
@@ -213,11 +215,11 @@ class TestFetchDepartureAdvice:
                 "src.domains.connectors.clients.google_routes_client.GoogleRoutesClient",
                 return_value=routes_client,
             ) as client_cls,
+            patch.object(config_settings, "default_language", "it"),
+            language_scope("de"),
         ):
             user = SimpleNamespace(timezone="Europe/Paris", language=None)
-            result = await fetch_departure_advice(
-                uuid4(), user, _settings(default_language="it"), [_event()]
-            )
+            result = await fetch_departure_advice(uuid4(), user, _settings(), [_event()])
 
         assert result is not None
         client_cls.assert_called_once_with(language="it")

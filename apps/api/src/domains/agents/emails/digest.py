@@ -1,6 +1,6 @@
 """One digest per e-mail, computed once, cached — never invented (ADR-287).
 
-« Résume mes non lus », « synthèse des newsletters de la semaine », a morning
+« Summarise my unread e-mails », « digest of this week's newsletters », a morning
 routine: the assistant reasons over MANY messages, and doing that on N full
 bodies is neither affordable nor good. A message never changes, so its digest
 — gist, key points, actions, category, importance — is produced once by a

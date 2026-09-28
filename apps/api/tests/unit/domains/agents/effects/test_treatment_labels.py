@@ -94,7 +94,6 @@ DEPLOYMENT_FLAGS: dict[str, str] = {
 #: write probe tools into.
 _MEASURE = """
 import json
-from src.core.i18n import DEFAULT_LANGUAGE
 from src.core.i18n_treatments import TREATMENT_DOMAIN_LABELS
 from src.domains.agents.effects.treatment_labels import treatment_domain
 from src.domains.agents.registry.agent_registry import AgentRegistry
@@ -105,7 +104,7 @@ tool_registry.ensure_tools_loaded()
 registry = AgentRegistry()
 initialize_catalogue(registry)
 
-known = set(TREATMENT_DOMAIN_LABELS.get(DEFAULT_LANGUAGE, TREATMENT_DOMAIN_LABELS["en"]))
+known = set(TREATMENT_DOMAIN_LABELS["en"])
 names = sorted(tool_registry.get_all_tools())
 resolved = {name: treatment_domain(name, registry) for name in names}
 print("@@" + json.dumps({

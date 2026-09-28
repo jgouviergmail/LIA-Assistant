@@ -180,7 +180,7 @@ def _clean_html(html: str) -> str:
 
 def _estimate_text_word_count(html_content: str) -> int:
     """Estimate word count from HTML by stripping tags."""
-    text = re.sub(r"<[^>]+>", " ", html_content)
+    text = re.sub(r"<[^<>]+>", " ", html_content)
     text = re.sub(r"\s+", " ", text).strip()
     return len(text.split()) if text else 0
 

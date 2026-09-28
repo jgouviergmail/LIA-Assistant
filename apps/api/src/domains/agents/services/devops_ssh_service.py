@@ -202,7 +202,10 @@ class DevOpsService:
         try:
             from src.domains.agents.api.schemas import ChatStreamChunk
 
-            # Use execution_step type — already handled by frontend
+            # Use execution_step type — already handled by frontend, which draws the
+            # translated ``execution.steps.claude_server_task`` label (and only once:
+            # it dedupes on the i18n key). ``content``/``label`` are diagnostic
+            # payload no screen reads, hence technical English.
             display_message = f"{message}: {detail}" if detail else message
             queue.put_nowait(
                 ChatStreamChunk(
@@ -251,11 +254,11 @@ class DevOpsService:
                 if block.get("type") == "text":
                     text = block.get("text", "")
                     if text:
-                        return "💭 Analyse en cours", text[:200]
+                        return "💭 Analysing", text[:200]
             return None
 
         if event_type == "system" and event.get("subtype") == "init":
-            return "🚀 Claude CLI démarré", ""
+            return "🚀 Claude CLI started", ""
 
         return None
 
@@ -325,7 +328,7 @@ class DevOpsService:
                 streaming=side_channel_queue is not None,
             )
 
-            self._emit_progress(side_channel_queue, "🚀 Investigation en cours...", task[:100])
+            self._emit_progress(side_channel_queue, "🚀 Investigation started", task[:100])
 
             process = await asyncio.create_subprocess_exec(
                 "claude",
@@ -395,7 +398,7 @@ class DevOpsService:
                 process.kill()
             duration_ms = int((time.monotonic() - start_time) * 1000)
             logger.warning("devops_command_timeout", mode="local", timeout=timeout)
-            self._emit_progress(side_channel_queue, "⏱️ Timeout", f"Dépassement de {timeout}s")
+            self._emit_progress(side_channel_queue, "⏱️ Timeout", f"Exceeded {timeout}s")
             return DevOpsTaskResult(
                 success=False,
                 output="",

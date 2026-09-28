@@ -31,6 +31,7 @@ from src.core.constants import (
     RELATION_DEBRIEF_MAX_OPEN_POINTS_DEFAULT,
     RELATION_DEBRIEF_PROMPT_NAME,
 )
+from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.llm_usage import LLMUsage
 from src.core.user_display import resolve_user_display_name
@@ -123,7 +124,7 @@ async def write_debrief(
     capture = TokenCaptureHandler()
     system = load_debrief_prompt(RELATION_DEBRIEF_PROMPT_NAME).format(
         user_name=resolve_user_display_name(author.full_name, author.email, fallback="there"),
-        language=language,
+        language=get_language_name(language),
         personality_brief=await _personality_brief(author.user_id),
         user_model_block=await _user_model_block(author),
         person_name=person_name,

@@ -120,6 +120,15 @@ class AdminBroadcast(BaseModel):
         comment="The broadcast message content",
     )
 
+    source_language: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        comment=(
+            "Language every translation is made from, at send time and on a late "
+            "read: the sending admin's account language (ADR-323)"
+        ),
+    )
+
     audience: Mapped[str] = mapped_column(
         String(20),
         nullable=False,

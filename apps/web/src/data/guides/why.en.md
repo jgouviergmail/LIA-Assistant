@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Date**: 2026-09-24
-**Application**: LIA v1.47.4
+**Application**: LIA v2.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -233,6 +233,10 @@ Real life is designed in, not apologised for. Audio leaves in small segments as 
 The minutes reach you three ways — a card in the chat, a PDF, your inbox from the application's own address with no mailbox to connect — and join a **Meetings** knowledge space created for you, so weeks later you can simply ask what was decided. What it cost is written next to it: the transcription and the minutes as two amounts and their total, counted like any other exchange. And nothing is frozen: minutes already written can be rewritten in another format from the stored transcript — up to the full transcript, cleaned up — either replacing the ones you have, or producing new minutes of the same meeting. The transcription engine stays yours to choose: a remote one that separates the speakers, or the local one that costs nothing and leaves your server never.
 
 ---
+
+### A personal medium, and work that remains yours
+
+A useful assistant meets you where attention permits: a conversation that updates from your other devices without moving the page, or a radio you start only when you want to listen. The station talks about your own day alongside sourced public news; it shows the sources and the cost instead of asking for blind trust. What LIA produces is also yours to keep selectively, send from your mailbox, or let expire. A routine follows a chosen time or a chosen condition, never a hidden mixture of the two.
 
 ## 4. A server for your loved ones
 

@@ -39,6 +39,7 @@ from src.core.exceptions import (
     raise_user_not_authenticated,
     raise_user_not_verified,
 )
+from src.core.i18n import declare_language
 from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 from src.infrastructure.cache.redis import get_redis_session
@@ -103,7 +104,9 @@ async def _authenticate(
     Shared by :func:`get_current_session` (the request's own session) and
     :func:`get_current_session_for_stream` (a session of its own, closed
     before the route runs), so the two can never diverge on what a valid
-    session is.
+    session is. Once the account is known it DECLARES the account's language
+    for the rest of the request (ADR-323): whatever the request writes without
+    an explicit language is written in the person's own.
 
     Args:
         lia_session: The cookie value, or None when the request carries none.
@@ -163,6 +166,9 @@ async def _authenticate(
         is_superuser=user.is_superuser,
     )
 
+    # The account is known: whatever this request writes without an explicit
+    # language is written in the person's own (ADR-323).
+    declare_language(user.language)
     return user
 
 
@@ -351,6 +357,8 @@ async def get_optional_session(
     Get current user if authenticated, None otherwise (CHANGED: returns User).
 
     Useful for endpoints that work for both authenticated and anonymous users.
+    A recognised account declares its language for the rest of the request,
+    as :func:`_authenticate` does (ADR-323); a visitor keeps the header's.
 
     Args:
         lia_session: Session ID from HTTP-only cookie
@@ -381,6 +389,7 @@ async def get_optional_session(
             user_id=str(user.id),
             email=user.email,
         )
+        declare_language(user.language)
     else:
         # Cleanup orphan session
         await session_store.delete_session(session.session_id)

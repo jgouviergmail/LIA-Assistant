@@ -246,17 +246,6 @@ class TestDetectDangerousScope:
         assert scope.risk_level == ScopeRisk.MEDIUM
         assert scope.requires_confirmation is False
 
-    # --- Language parameter (legacy, now ignored) ---
-
-    def test_language_parameter_ignored(self):
-        """Test language parameter is ignored (patterns are English only)."""
-        # French query but patterns are English-only
-        scope_fr = detect_dangerous_scope(query="delete all emails", language="fr")
-        scope_en = detect_dangerous_scope(query="delete all emails", language="en")
-        # Both should have same result since patterns are English
-        assert scope_fr.risk_level == scope_en.risk_level
-        assert scope_fr.requires_confirmation == scope_en.requires_confirmation
-
 
 # ============================================================================
 # _extract_operation_type Helper Tests

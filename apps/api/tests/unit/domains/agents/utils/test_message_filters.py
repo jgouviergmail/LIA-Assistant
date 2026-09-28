@@ -16,8 +16,10 @@ from langchain_core.messages import (
     ToolMessage,
 )
 
+from src.core.constants import CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER
 from src.domains.agents.utils.message_filters import (
     _extract_text_before_html,
+    current_turn_responses,
     drop_current_turn_responses,
     enforce_tool_message_pairing,
     extract_system_messages,
@@ -906,7 +908,7 @@ class TestFilterForLlmContext:
             result = filter_for_llm_context(messages)
 
         assert len(result) == 1
-        assert result[0].content == "[Résultats affichés]"
+        assert result[0].content == CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER
 
     def test_drops_all_system_messages_except_compaction_summary(self):
         """Only the compaction-summary SystemMessage survives; every other SystemMessage
@@ -986,7 +988,7 @@ class TestFilterForLlmContext:
 
         assert len(result) == 1
         # No text before HTML, should use placeholder
-        assert result[0].content == "[Résultats affichés]"
+        assert result[0].content == CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER
 
     def test_full_conversation_filtering(self, full_conversation):
         """Test filtering full conversation for LLM context."""
@@ -1081,7 +1083,7 @@ class TestFilterForLlmContextNeutralizeFormatting:
 
         # Markdown kept verbatim, HTML-only reduced to the existing placeholder.
         assert result[1].content == "Voici tes **5 emails** :\n\n- A\n- B"
-        assert result[2].content == "[Résultats affichés]"
+        assert result[2].content == CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER
 
     def test_strips_markdown_and_prefixes_marker(self):
         """A Markdown assistant answer is neutralized to plain text + marker."""
@@ -1484,7 +1486,7 @@ class TestIntegrationScenarios:
         ais = [m for m in result if isinstance(m, AIMessage)]
         assert len(ais) == 3
         assert ais[0].content == "Il fait beau!"  # Text before HTML
-        assert ais[1].content == "[Résultats affichés]"  # Placeholder
+        assert ais[1].content == CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER  # Placeholder
         assert ais[2].content == "Email envoyé!"  # Unchanged
 
     def test_realistic_multi_turn_tool_conversation(self):
@@ -1600,6 +1602,36 @@ class TestDropCurrentTurnResponses:
     def test_empty_list(self):
         """Empty input yields empty output."""
         assert drop_current_turn_responses([]) == []
+
+
+class TestCurrentTurnResponses:
+    """The complement: what THIS turn did, counted from the end."""
+
+    def test_keeps_only_what_follows_the_last_human_message(self):
+        earlier = ToolMessage(content="403", tool_call_id="a", status="error")
+        now = ToolMessage(content="ok", tool_call_id="b")
+        messages = [
+            HumanMessage(content="read this page"),
+            earlier,
+            AIMessage(content="I could not."),
+            HumanMessage(content="and the weather?"),
+            now,
+        ]
+
+        assert current_turn_responses(messages) == [now]
+        # Together, the two halves are the whole list.
+        assert drop_current_turn_responses(messages) + current_turn_responses(messages) == messages
+
+    def test_a_turn_that_answered_nothing_yet_has_no_response(self):
+        assert current_turn_responses([HumanMessage(content="hi")]) == []
+
+    def test_a_trimmed_person_message_leaves_every_message_to_the_turn(self):
+        """The reducer trims the head: with the person's message gone,
+        everything older went with it."""
+        messages = [ToolMessage(content="ok", tool_call_id="b"), AIMessage(content="x")]
+
+        assert current_turn_responses(messages) == messages
+        assert current_turn_responses([]) == []
 
 
 class TestEnforceToolMessagePairing:
@@ -2212,3 +2244,154 @@ class TestADraftCardKeepsItsWordsForTheModel:
         )
         text = str(kept.content)
         assert "paul@example.org" in text and "<" not in text
+
+    #: A card whose values a Markdown rule would take for style.
+    VALUES = (
+        '<div class="lia-card lia-draft"><div class="lia-card-top__title">A | B **x**</div>'
+        '<div class="lia-d-row"><span><strong>Objet</strong> : '
+        "2*3*4 [y](https://z.example) &lt;lundi&gt;</span></div></div>"
+        "\n\n---\n\n**Souhaitez-vous envoyer cet e-mail ?**"
+    )
+
+    @pytest.mark.parametrize("neutralize", [False, True], ids=["plain", "neutralized"])
+    def test_a_card_s_values_reach_the_model_whole(self, neutralize: bool) -> None:
+        """Stripped as Markdown, « A | B » lost its bar and a link spelled in a
+        subject its address (review 14)."""
+        (kept,) = filter_for_llm_context(
+            [AIMessage(content=self.VALUES)], neutralize_formatting=neutralize
+        )
+        text = str(kept.content)
+
+        assert "A | B **x**" in text
+        assert "Objet : 2*3*4 [y](https://z.example) <lundi>" in text
+
+    def test_the_neutralized_mode_strips_the_question_s_style(self) -> None:
+        (kept,) = filter_for_llm_context(
+            [AIMessage(content=self.VALUES)], neutralize_formatting=True
+        )
+        text = str(kept.content)
+
+        assert text.endswith(" Souhaitez-vous envoyer cet e-mail ?")
+        assert "**Souhaitez" not in text and "---" not in text
+
+
+class TestTheModelReadsWhatThePersonSaw:
+    """A character reference is read as the chat reads it (ADR-323 review 14):
+    a PLAIN card draws « jean_dupont@example.com » as
+    ``jean_dupont&#64;example.com``, which a model could reuse as an address."""
+
+    def test_a_plain_card_s_references_are_read(self) -> None:
+        (kept,) = filter_for_llm_context(
+            [AIMessage(content="- **À** : jean_dupont&#64;example.com")]
+        )
+
+        assert kept.content == "- **À** : jean_dupont@example.com"
+
+    def test_an_answer_with_nothing_to_read_is_kept_whole(self) -> None:
+        message = AIMessage(content="Bonjour !", id="m-1")
+
+        (kept,) = filter_for_llm_context([message])
+
+        assert kept is message
+
+    def test_a_data_card_s_prose_is_read_too(self) -> None:
+        content = 'Voici &#60;3 la météo !\n\n<div class="lia-card lia-weather">22 °C</div>'
+
+        (kept,) = filter_for_llm_context([AIMessage(content=content)])
+
+        assert kept.content == "Voici <3 la météo !"
+
+    def test_the_neutralized_history_reads_them_too(self) -> None:
+        (kept,) = filter_for_llm_context(
+            [AIMessage(content="**Objet** : &#91;v2&#93; et `&#91;`")], neutralize_formatting=True
+        )
+
+        assert str(kept.content).endswith("Objet : [v2] et &#91;")
+
+
+class TestRichAnswersKeepTheirSynthesis:
+    """A rich answer is prose too; only appended data cards are disposable."""
+
+    @pytest.mark.parametrize("with_cards", [False, True], ids=["html", "html_cards"])
+    @pytest.mark.parametrize("neutralize", [False, True], ids=["mode_changed", "rich_mode"])
+    @pytest.mark.parametrize("quote", ['"', "'"])
+    def test_real_rich_history_keeps_the_answer_without_card_payloads(
+        self, with_cards: bool, neutralize: bool, quote: str
+    ) -> None:
+        from src.domains.agents.display.components.base import RenderContext
+        from src.domains.agents.display.components.contact_card import ContactCard
+        from src.domains.agents.display.components.skill_app_sentinel import SkillAppSentinel
+
+        content = (
+            f"<div class={quote}lia-response{quote}>"
+            "<p>La réunion est confirmée <strong>lundi à 10 h</strong>.</p>"
+            '<div class="lia-callout lia-callout-info">'
+            '<p class="lia-callout__title">À prévoir</p><p>Apporter le dossier.</p></div>'
+            "</div>"
+        )
+        if with_cards:
+            context = RenderContext(language="fr")
+            content += "\n\n" + ContactCard().render({"name": "PRIVATE CARD FIELD"}, context)
+            content += "\n\n" + SkillAppSentinel().render(
+                {"registry_id": "skill_123", "title": "PRIVATE WIDGET FIELD"}, context
+            )
+            assert "PRIVATE CARD FIELD" in content and "PRIVATE WIDGET FIELD" in content
+        answer = AIMessage(content=content)
+        follow_up = HumanMessage(content="Que dois-je apporter ?")
+
+        kept = filter_for_llm_context([answer, follow_up], neutralize_formatting=neutralize)
+
+        text = str(kept[0].content)
+        assert "La réunion est confirmée lundi à 10 h." in text
+        assert "À prévoir" in text and "Apporter le dossier." in text
+        assert "PRIVATE" not in text
+        assert "<" not in text and "lia-" not in text and "skill_123" not in text
+        assert answer.content == content  # The persisted answer stays rich and immutable.
+        assert kept[1] is follow_up
+
+    def test_nested_cards_widgets_and_invisible_content_do_not_become_prose(self) -> None:
+        content = (
+            '<div class="lia-response"><p>Conserver cette conclusion.</p>'
+            '<div class="lia-card"><div><p>PRIVATE CARD</p></div></div>'
+            '<div class="lia-mcp-app"><div>PRIVATE WIDGET</div></div>'
+            "<script>PRIVATE SCRIPT</script><style>PRIVATE STYLE</style>"
+            "<template>PRIVATE TEMPLATE</template><iframe>PRIVATE FRAME</iframe>"
+            '<span class="material-symbols-outlined">PRIVATE ICON</span>'
+            "<p>Et cette réserve.</p></div>"
+        )
+
+        (kept,) = filter_for_llm_context([AIMessage(content=content)])
+
+        assert kept.content == "Conserver cette conclusion. Et cette réserve."
+
+    def test_escaped_markup_and_code_are_read_once_as_literal_text(self) -> None:
+        content = (
+            '<div class="lia-response"><p>Tom &amp; Jerry : &lt;lundi&gt;.</p>'
+            "<pre><code>2*3*4 | [x](https://y.example) &amp;lt;b&amp;gt;</code></pre>"
+            "<p>&lt;script&gt;exemple&lt;/script&gt;</p></div>"
+        )
+
+        (kept,) = filter_for_llm_context([AIMessage(content=content)], neutralize_formatting=True)
+
+        text = str(kept.content)
+        assert "Tom & Jerry : <lundi>." in text
+        assert "2*3*4 | [x](https://y.example) &lt;b&gt;" in text
+        assert "<script>exemple</script>" in text
+
+    def test_a_truncated_card_does_not_leak_its_payload(self) -> None:
+        content = '<div class="lia-response"><p>Conclusion.</p><div class="lia-card">PRIVATE'
+
+        (kept,) = filter_for_llm_context([AIMessage(content=content)])
+
+        assert kept.content == "Conclusion."
+
+    def test_a_misnested_closing_tag_cannot_release_a_card_payload(self) -> None:
+        content = (
+            '<div class="lia-response"><p>Conclusion.'
+            '<div class="lia-card"><span>PRIVATE</p> STILL PRIVATE</div>'
+            "<p>Suite.</p></div>"
+        )
+
+        (kept,) = filter_for_llm_context([AIMessage(content=content)])
+
+        assert kept.content == "Conclusion. Suite."

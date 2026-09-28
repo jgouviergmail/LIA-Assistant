@@ -39,6 +39,7 @@ BASE_PUBLIC = {
     "self_diagnostics": "no",
     "skill_sandbox": "no",
     "live_mode": "no",
+    "personal_radio": "no",
 }
 SECRETS = {
     "admin_password": ADMIN_PASSWORD,

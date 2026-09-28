@@ -48,7 +48,7 @@ test.describe('starters on an empty chat', () => {
     await mockApi(EMPTY_CHAT);
     await page.goto('/fr/dashboard/chat');
 
-    const starters = page.getByRole('group', { name: /Essayez par exemple/ });
+    const starters = page.getByRole('group', { name: /Essaie par exemple/ });
     await expect(starters).toBeVisible({ timeout: 30_000 });
 
     const first = starters.getByRole('button').first();
@@ -105,6 +105,6 @@ test.describe('starters on an empty chat', () => {
     await page.goto('/fr/dashboard/chat');
 
     await expect(page.getByText('Comment puis-je aider ?')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('group', { name: /Essayez par exemple/ })).toHaveCount(0);
+    await expect(page.getByRole('group', { name: /Essaie par exemple/ })).toHaveCount(0);
   });
 });

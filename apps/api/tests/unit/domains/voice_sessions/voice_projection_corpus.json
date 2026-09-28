@@ -65,6 +65,61 @@
       "id": "html-response-with-definition-list-and-stats",
       "input": "<div class=\"lia-response\"><p>Demain, ta journée est <strong>libre</strong>.</p><h2>L'événement du jour</h2><dl class=\"lia-kv\"><dt>Intitulé</dt><dd><strong>Anniversaire de Nicolas</strong></dd><dt>Type</dt><dd><span class=\"lia-chip\"><span class=\"material-symbols-outlined\">cake</span>Journée entière</span></dd></dl><div class=\"lia-stats\"><div class=\"lia-stat\"><span class=\"lia-stat__value\">0</span><span class=\"lia-stat__label\">créneau occupé</span></div></div></div>",
       "expected": "Demain, ta journée est libre. L'événement du jour Intitulé : Anniversaire de Nicolas Type : Journée entière 0 créneau occupé"
+    },
+    {
+      "id": "literal-values",
+      "input": "✅ **Réunion &#60;lundi&#62; &#91;1&#93;**\n\n- **Objet** : 2&#42;3&#42;4 a&#95;b &#126;x&#126; &#96;c&#96; back&#92;slash &#38;#233; &#233;",
+      "expected": "✅ Réunion <lundi> [1] Objet : 2*3*4 a_b ~x~ `c` back\\slash &#233; é."
+    },
+    {
+      "id": "literal-values-beside-html",
+      "input": "<div class=\"lia-card\"><p>Brouillon</p></div>\n- **Objet** : Réunion &#60;lundi&#62; &#60;b&#62;",
+      "expected": "Brouillon Objet : Réunion <lundi> <b>."
+    },
+    {
+      "id": "chat-card-escaped-values",
+      "input": "<div class=\"lia-card lia-draft\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-lg)\">📧</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__title\">Réunion &lt;lundi&gt; de l&#x27;équipe</div></div></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">person</span><span><strong>Destinataire</strong> : Marie Dupont &lt;marie.dupont@example.com&gt;</span></div><div class=\"lia-d-row\"><span class=\"material-symbols-outlined\">notes</span><span><strong>Objet</strong> : Réunion &lt;lundi&gt; de l&#x27;équipe</span></div><div class=\"lia-sec\"><div class=\"lia-illus-sm lia-illus--indigo\"><span class=\"material-symbols-outlined\">description</span></div><span class=\"lia-sec__label\">Message</span></div><div class=\"lia-desc-block lia-desc-block--no-border\">Ordre du jour : &lt;budget&gt; &amp; suivi.</div></div>",
+      "expected": "📧 Réunion <lundi> de l'équipe Destinataire : Marie Dupont <marie.dupont@example.com> Objet : Réunion <lundi> de l'équipe Message Ordre du jour : <budget> & suivi."
+    },
+    {
+      "id": "code-span-references",
+      "input": "tape `&#91;` puis &#91; et `&amp;`",
+      "expected": "tape &#91; puis [ et &amp;"
+    },
+    {
+      "id": "bare-url-marks",
+      "input": "voir https://a.example/x_y*z* et *gras*",
+      "expected": "voir https://a.example/x_y*z* et gras"
+    },
+    {
+      "id": "every-referenced-character",
+      "input": "&#92; &#96; &#91; &#93; &#60; &#62; &#36; &#42; &#126; &#64; &#95;x&#95; & &#38;amp; https&#58;//a.example www&#46;b.example",
+      "expected": "\\ ` [ ] < > $ * ~ @ _x_ & &amp; https://a.example www.b.example"
+    },
+    {
+      "id": "bare-ampersand-beside-html",
+      "input": "<p>Panier</p> ?id=7&copy=2&not=1",
+      "expected": "Panier ?id=7&copy=2&not=1"
+    },
+    {
+      "id": "invalid-references",
+      "input": "zéro &#0; demi &#xD800; trop &#1114112; fin",
+      "expected": "zéro � demi � trop � fin"
+    },
+    {
+      "id": "reserved-characters",
+      "input": "Objet 󰀼b󰀾 et &#983100;",
+      "expected": "Objet 󰀼b󰀾 et 󰀼"
+    },
+    {
+      "id": "single-pass-decoding",
+      "input": "<p>&amp;lt;b&amp;gt; et &#x27;q&#x27;</p>",
+      "expected": "&lt;b&gt; et 'q'"
+    },
+    {
+      "id": "a-bracket-inside-a-tag",
+      "input": "<p title=\"a<b\">Texte</p> puis <h2>Titre</h2> et <a href=\"x\">lien</a>",
+      "expected": "<p title=\"aTexte puis Titre et lien"
     }
   ],
   "bound": [

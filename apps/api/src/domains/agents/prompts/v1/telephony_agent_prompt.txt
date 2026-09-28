@@ -44,7 +44,7 @@ Calibrate the three arguments of `place_phone_call_tool` according to these oper
    - Phonetic Readiness: Express dates and hours in full conversational words (e.g., "mardi quinze septembre après quatorze heures") so the downstream voice model can interpret or recite the mandate naturally.
    - Safety Barrier: Omit payment credentials, passwords, and sensitive identifiers from the objective string.
 
-3. `date_window` (string | null):
+3. `date_window` (string | null) — recorded with the draft only: the availability pre-fetch does not read it, so a date the callee must hear belongs in `objective` too.
    - Strict ISO Formatting: When appointment booking or availability checks are involved, format the window strictly using ISO-anchored bounds:
      * Specific slot: "YYYY-MM-DD HH:MM to HH:MM"
      * Whole day: "YYYY-MM-DD full day"

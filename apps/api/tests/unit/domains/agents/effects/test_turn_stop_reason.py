@@ -106,7 +106,7 @@ class TestEveryConditionThePredicateCanReturnIsREADABLE:
             and isinstance(node.value.value, str)
         }
 
-        assert returned == {"max_iterations", "compute_budget", "tool_budget"}
+        assert returned == {"max_iterations", "compute_budget", "tool_budget", "output_truncated"}
 
     def test_the_guard_REFUSES_a_missing_wording(self) -> None:
         from src.core import i18n_treatments
@@ -122,7 +122,9 @@ class TestEveryConditionThePredicateCanReturnIsREADABLE:
             i18n_treatments.assert_stop_reason_wording_completeness()
 
     @pytest.mark.parametrize("language", ["fr", "en", "de", "es", "it", "zh-CN"])
-    @pytest.mark.parametrize("condition", ["max_iterations", "compute_budget", "tool_budget"])
+    @pytest.mark.parametrize(
+        "condition", ["max_iterations", "compute_budget", "tool_budget", "output_truncated"]
+    )
     def test_every_condition_reads_in_every_language(self, condition: str, language: str) -> None:
         wording = render_stop_reason(condition, language)
 

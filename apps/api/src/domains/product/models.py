@@ -65,7 +65,7 @@ class ProductOutcome(BaseModel):
     execution_mode: Mapped[str] = mapped_column(String(16), default="pipeline")
     channel: Mapped[str] = mapped_column(String(16), default="unknown")
     device_class: Mapped[str] = mapped_column(String(16), default="unknown")
-    locale: Mapped[str] = mapped_column(String(10), default="fr")
+    locale: Mapped[str] = mapped_column(String(10))
 
     state: Mapped[str] = mapped_column(String(16), default="produced", index=True)
     evidence_level: Mapped[str] = mapped_column(String(2), default="E3")

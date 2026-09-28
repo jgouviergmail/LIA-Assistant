@@ -19,6 +19,8 @@ Three additions, and one deliberate refusal:
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from src.domains.agents.services.streaming import debug_metrics_stages as stages
@@ -127,6 +129,54 @@ class TestItStillSaysWhatItSaidBefore:
 
     def test_a_turn_with_no_human_in_it_draws_no_section(self) -> None:
         assert _hitl({}) is None
+
+    def test_the_gate_s_own_approval_is_no_human_decision(self) -> None:
+        """The gate writes True on every plan it passes: that alone is no
+        section — it used to draw « User decision: plan approved » on turns
+        where nobody decided anything."""
+        assert _hitl({"plan_approved": True}) is None
+
+    def test_a_refusal_is_the_person_s_and_is_drawn(self) -> None:
+        hitl = _hitl({"plan_approved": False})
+
+        assert hitl is not None
+        assert hitl["plan_approved"] is False
+
+    def test_no_verdict_travels_as_none_never_as_a_refusal(self) -> None:
+        hitl = _hitl({"plan_approved": None, "clarification_response": "yes"})
+
+        assert hitl is not None
+        assert hitl["plan_approved"] is None
+
+    def test_the_decision_the_response_cleared_still_reaches_the_panel(self) -> None:
+        """The final state never carries it — the response node clears it once
+        executed — so the rows were null in production: the stream captures it."""
+        from src.domains.agents.services.streaming.service import StreamingService
+
+        service = StreamingService.__new__(StreamingService)
+        service._debug_panel_enabled = True
+        service._cached_draft_action_result = None
+        service._cached_tool_scores = None
+        service._cached_filtered_catalogue = None
+        decision = {"action": "confirm", "draft_type": "email", "draft_id": "d-1"}
+        # The method swallows its own errors: a crash inside it must fail HERE.
+        with patch("src.domains.agents.services.streaming.service.logger") as log:
+            service._cache_debug_data({"draft_action_result": decision})
+            service._cache_debug_data({"draft_action_result": None})  # the response's
+        failures = [c for c in log.method_calls if c[0] in {"warning", "error", "exception"}]
+        assert failures == []
+
+        assert service._cached_draft_action_result == decision
+        service.tracker = None
+        service.hitl_interrupt_info = None
+        builder = MagicMock()
+        with patch(
+            "src.domains.agents.services.streaming.debug_metrics_builder.DebugMetricsBuilder",
+            builder,
+        ):
+            service._add_debug_metrics_sections({}, {"draft_action_result": None}, "r")
+        hitl = _hitl(builder.return_value.build.call_args.args[1])
+        assert hitl is not None and hitl["draft_type"] == "email"
 
     def test_a_draft_decision_alone_is_enough_to_draw_the_section(self) -> None:
         # Before this, a confirmed draft with no interrupt and no plan approval

@@ -1,4 +1,4 @@
-# AGENT_MANIFEST.md - Catalogue de Manifests et Builder Pattern
+# AGENT_MANIFEST.md - Catalogue de Manifests
 
 **Version**: 2.0
 **Date**: 2025-12-27
@@ -42,7 +42,7 @@ Le **catalogue de manifests** est une base de données déclarative qui décrit 
 - Dataclass-based schemas (Python 3.14)
 - Semantic versioning (SemVer)
 - JSONPath pour les output schemas
-- Builder pattern pour la construction
+- Déclaration directe des dataclasses (le builder a été retiré en v1.21.16)
 - Immutability pour la thread-safety
 
 ### Composants Principaux
@@ -106,48 +106,15 @@ classDiagram
     AgentManifest --> ToolManifest : references
 ```
 
-**Architecture Pattern** : **Declarative Configuration + Builder Pattern**.
+**Architecture Pattern** : **Declarative Configuration** — des dataclasses déclarées
+directement (le builder fluent a été retiré en v1.21.16, ADR-107).
 
-### Catalogue Actuel
+### Catalogue en service
 
-**Agents enregistrés** : 11 agents routables + 1 utilitaire (context)
-
-| Agent | Domaine | Tools | Description |
-|-------|---------|-------|-------------|
-| `contacts_agent` | Google Contacts | 6 | CRUD contacts Google People API |
-| `context_agent` | Cross-domain (utilitaire) | 5 | Résolution références contextuelles |
-| `emails_agent` | Gmail | 6 | Search, send, reply, forward, delete |
-| `calendar_agent` | Google Calendar | 6 | CRUD events, list calendars |
-| `drive_agent` | Google Drive | 3 | Search, list, get files |
-| `tasks_agent` | Google Tasks | 7 | CRUD tasks, complete, list lists |
-| `weather_agent` | OpenWeatherMap | 3 | Current, forecast, hourly |
-| `wikipedia_agent` | Wikipedia API | 4 | Search, summary, article, related |
-| `query_agent` | INTELLIA | 1 | Local query engine |
-| `perplexity_agent` | Perplexity AI | 2 | Search, ask (web-augmented LLM) |
-| `places_agent` | Google Places | 3 | Search, details, current location |
-| `hue_agent` | Philips Hue | 6 | Control lights, rooms, scenes |
-
-**Tools enregistrés** : 52+
-
-| Domaine | Tools |
-|---------|-------|
-| **Google Contacts** | `search_contacts_tool`, `list_contacts_tool`, `get_contact_details_tool`, `create_contact_tool`, `update_contact_tool`, `delete_contact_tool` |
-| **Context** | `resolve_reference`, `set_current_item`, `get_context_state`, `list_active_domains`, `get_context_list` |
-| **Gmail** | `get_emails_tool` (detail `metadata` \| `summary` \| `full`), `send_email_tool`, `send_email_to_me_tool` (à soi-même, sans confirmation — ADR-314), `reply_email_tool`, `forward_email_tool`, `delete_email_tool` |
-| **Memory** | `search_memories_tool` (lecture seule, domaine `memory` — ADR-313) |
-| **Calculation** | `calculate_tool`, `date_time_tool`, `convert_currency_tool` (lecture seule, sans donnée personnelle, domaine `calculation` — ADR-318) |
-| **Journal** | `search_journal_tool` (lecture seule, domaine `journal`, enregistré sous `JOURNALS_ENABLED` — ADR-318) |
-| **Activity** | `get_my_activity_tool` (lecture seule, les registres d'ADR-263, domaine `activity` — ADR-318) |
-| **Generated files** | `find_generated_files_tool` (lecture seule, la galerie d'ADR-279, domaine `generated_file` — ADR-318) |
-| **Calendar** | `list_calendars_tool`, `search_events_tool`, `get_event_details_tool`, `create_event_tool`, `update_event_tool`, `delete_event_tool` |
-| **Drive** | `search_files_tool`, `list_files_tool`, `get_file_details_tool` |
-| **Tasks** | `list_tasks_tool`, `get_task_details_tool`, `create_task_tool`, `update_task_tool`, `delete_task_tool`, `complete_task_tool`, `list_task_lists_tool` |
-| **Weather** | `get_current_weather_tool`, `get_weather_forecast_tool`, `get_hourly_forecast_tool` |
-| **Wikipedia** | `search_wikipedia_tool`, `get_wikipedia_summary_tool`, `get_wikipedia_article_tool`, `get_wikipedia_related_tool` |
-| **Perplexity** | `perplexity_search_tool`, `perplexity_ask_tool` |
-| **Places** | `search_places_tool`, `get_place_details_tool`, `get_current_location_tool` |
-| **Query** | `local_query_engine_tool` |
-| **Philips Hue** | `list_lights_tool`, `control_light_tool`, `list_rooms_tool`, `control_room_tool`, `list_scenes_tool`, `activate_scene_tool` |
+Ce document ne recopie ni la liste des agents ni celle de leurs outils : une
+copie cessait d'être vraie à chaque capacité ajoutée. Ils se lisent dans le code
+(voir [Catalogue Loader](#catalogue-loader)) ou, à l'exécution, par
+`export_catalogue()`.
 
 ---
 
@@ -355,7 +322,7 @@ class ToolManifest:
     - Comportement (iterations, dry-run, context)
 
     Attributes:
-        name: Nom unique du tool (ex: "search_contacts_tool")
+        name: Nom unique du tool (ex: "get_contacts_tool")
         agent: Nom de l'agent propriétaire
         description: Description complète pour LLM
         parameters: Liste des paramètres avec validation
@@ -774,7 +741,7 @@ class AgentManifest:
     - Version du prompt système
 
     Attributes:
-        name: Nom unique de l'agent (ex: "contacts_agent")
+        name: Nom unique de l'agent (ex: "contact_agent")
         description: Description complète des capacités
         tools: Liste des noms de tools disponibles
         max_parallel_runs: Nombre max d'instances parallèles (1 = séquentiel)
@@ -827,16 +794,19 @@ class AgentManifest:
 ### Exemple Complet
 
 ```python
-contacts_agent_manifest = AgentManifest(
-    name="contacts_agent",
-    description="Agent spécialisé dans les opérations Google Contacts avec résolution contextuelle",
+# apps/api/src/domains/agents/registry/agent_manifest_definitions.py
+CONTACT_AGENT_MANIFEST = AgentManifest(
+    name="contact_agent",
+    description="Agent specialised in contact operations (search, creation, update, deletion).",
     tools=[
-        "search_contacts_tool",
-        "list_contacts_tool",
-        "get_contact_details_tool",
+        "get_contacts_tool",  # Unified tool (v2.0 - replaces search + list + details)
+        "get_person_overview_tool",  # Cross-domain person-360 (ADR-141)
+        "create_contact_tool",
+        "update_contact_tool",
+        "delete_contact_tool",
     ],
-    max_parallel_runs=1,  # Exécution séquentielle (évite rate limits Google)
-    default_timeout_ms=30000,  # 30 secondes
+    max_parallel_runs=1,
+    default_timeout_ms=settings.default_tool_timeout_ms,
     prompt_version="v1",
     owner_team="Team AI",
     version="1.0.0",
@@ -863,269 +833,25 @@ Le **catalogue loader** charge tous les manifests au démarrage de l'application
 
 **Fichier** : `apps/api/src/domains/agents/registry/catalogue_loader.py`
 
-```python
-def initialize_catalogue(registry: AgentRegistry) -> None:
-    """
-    Initialise le catalogue avec les manifestes Phase 5 + LOT 9/10.
+`initialize_catalogue(registry)` importe le module `catalogue_manifests.py` de chaque
+capacité, enregistre ses manifests d'agent et d'outil, puis construit l'index des
+domaines (`registry._build_domain_index()`). La liste des agents, leurs fournisseurs
+et le nombre d'outils ne sont pas recopiés ici — une copie de cette liste avait
+cessé d'être vraie (onze agents, « 52+ » outils, la météo sur OpenWeatherMap seul) :
+ils se lisent dans le code, ou à l'exécution par `export_catalogue()`.
 
-    Cette fonction charge et enregistre :
-    - 11 agents routables + 1 utilitaire (context) :
-      * contacts_agent (Google Contacts)
-      * context_agent (Cross-domain utilities)
-      * emails_agent (Gmail)
-      * calendar_agent (Google Calendar) - LOT 9
-      * drive_agent (Google Drive) - LOT 9
-      * tasks_agent (Google Tasks) - LOT 9
-      * weather_agent (OpenWeatherMap) - LOT 10
-      * wikipedia_agent (Wikipedia) - LOT 10
-      * query_agent (INTELLIA LocalQueryEngine) - LOT 10
-      * perplexity_agent (Perplexity AI) - LOT 10
-      * places_agent (Google Places) - LOT 10
-      * hue_agent (Philips Hue Smart Home) - v1.8.0
-    - 52+ tool manifests across all domains
+### Agent Manifests
 
-    Args:
-        registry: Instance d'AgentRegistry
-
-    Example:
-        >>> from .agent_registry import AgentRegistry
-        >>> registry = AgentRegistry(...)
-        >>> initialize_catalogue(registry)
-    """
-    # Import manifests from dedicated modules per domain
-    from src.domains.agents.context.catalogue_manifests import (...)
-    from src.domains.agents.google_contacts.catalogue_manifests import (...)
-    from src.domains.agents.emails.catalogue_manifests import (...)
-    from src.domains.agents.google_calendar.catalogue_manifests import (...)
-    from src.domains.agents.google_drive.catalogue_manifests import (...)
-    from src.domains.agents.google_tasks.catalogue_manifests import (...)
-    from src.domains.agents.weather.catalogue_manifests import (...)
-    from src.domains.agents.wikipedia.catalogue_manifests import (...)
-    from src.domains.agents.perplexity.catalogue_manifests import (...)
-    from src.domains.agents.places.catalogue_manifests import (...)
-    from src.domains.agents.query.catalogue_manifests import (...)
-
-    # Register all agents (11 routable + 1 utility)
-    registry.register_agent_manifest(CONTACTS_AGENT_MANIFEST)
-    registry.register_agent_manifest(CONTEXT_AGENT_MANIFEST)
-    registry.register_agent_manifest(EMAILS_AGENT_MANIFEST)
-    registry.register_agent_manifest(CALENDAR_AGENT_MANIFEST)
-    registry.register_agent_manifest(DRIVE_AGENT_MANIFEST)
-    registry.register_agent_manifest(TASKS_AGENT_MANIFEST)
-    registry.register_agent_manifest(WEATHER_AGENT_MANIFEST)
-    registry.register_agent_manifest(WIKIPEDIA_AGENT_MANIFEST)
-    registry.register_agent_manifest(QUERY_AGENT_MANIFEST)
-    registry.register_agent_manifest(PERPLEXITY_AGENT_MANIFEST)
-    registry.register_agent_manifest(PLACES_AGENT_MANIFEST)
-    registry.register_agent_manifest(HUE_AGENT_MANIFEST)
-
-    # Register 52+ tool manifests (per domain)
-    # Google Contacts (6 tools)
-    # Emails (6 tools)
-    # Context (5 tools)
-    # Calendar (6 tools)
-    # Drive (3 tools)
-    # Tasks (7 tools)
-    # Weather (3 tools)
-    # Wikipedia (4 tools)
-    # Perplexity (2 tools)
-    # Places (3 tools)
-    # Query (1 tool)
-    # Philips Hue (6 tools)
-
-    # Build domain index for dynamic filtering
-    registry._build_domain_index()
-```
-
-### Agent Manifests (11 agents)
-
-```python
-# ============================================================================
-# Google Workspace Agents (OAuth 2.0)
-# ============================================================================
-
-# Agent Manifest: contacts_agent (6 tools)
-CONTACTS_AGENT_MANIFEST = AgentManifest(
-    name="contacts_agent",
-    description="Agent spécialisé dans les opérations Google Contacts (recherche, création, modification, suppression)",
-    tools=[
-        "search_contacts_tool",
-        "list_contacts_tool",
-        "get_contact_details_tool",
-        "create_contact_tool",
-        "update_contact_tool",
-        "delete_contact_tool",
-    ],
-    max_parallel_runs=1,
-    default_timeout_ms=30000,
-    prompt_version="v1",
-    owner_team="Team AI",
-    version="1.0.0",
-)
-
-# Agent Manifest: emails_agent (5 tools)
-EMAILS_AGENT_MANIFEST = AgentManifest(
-    name="emails_agent",
-    description="Agent spécialisé dans les opérations Gmail (recherche, lecture, envoi, réponse, transfert, suppression d'emails)",
-    tools=[
-        "get_emails_tool",
-        "send_email_tool",
-        "reply_email_tool",
-        "forward_email_tool",
-        "delete_email_tool",
-    ],
-    max_parallel_runs=1,
-    default_timeout_ms=30000,
-    prompt_version="v1",
-)
-
-# Agent Manifest: calendar_agent (6 tools) - LOT 9
-CALENDAR_AGENT_MANIFEST = AgentManifest(
-    name="calendar_agent",
-    description="Agent spécialisé dans les opérations Google Calendar (événements, rendez-vous)",
-    tools=[
-        "list_calendars_tool",
-        "search_events_tool",
-        "get_event_details_tool",
-        "create_event_tool",
-        "update_event_tool",
-        "delete_event_tool",
-    ],
-    max_parallel_runs=1,
-    default_timeout_ms=30000,
-    prompt_version="v1",
-)
-
-# Agent Manifest: drive_agent (3 tools) - LOT 9
-DRIVE_AGENT_MANIFEST = AgentManifest(
-    name="drive_agent",
-    description="Agent spécialisé dans les opérations Google Drive (fichiers, dossiers)",
-    tools=[
-        "search_files_tool",
-        "list_files_tool",
-        "get_file_details_tool",
-    ],
-    max_parallel_runs=1,
-    default_timeout_ms=30000,
-    prompt_version="v1",
-)
-
-# Agent Manifest: tasks_agent (7 tools) - LOT 9
-TASKS_AGENT_MANIFEST = AgentManifest(
-    name="tasks_agent",
-    description="Agent spécialisé dans les opérations Google Tasks (tâches, listes)",
-    tools=[
-        "list_tasks_tool",
-        "get_task_details_tool",
-        "create_task_tool",
-        "update_task_tool",
-        "delete_task_tool",
-        "complete_task_tool",
-        "list_task_lists_tool",
-    ],
-    max_parallel_runs=1,
-    default_timeout_ms=30000,
-    prompt_version="v1",
-)
-
-# Agent Manifest: places_agent (3 tools) - LOT 10
-PLACES_AGENT_MANIFEST = AgentManifest(
-    name="places_agent",
-    description="Agent spécialisé dans les opérations Google Places (recherche lieux, détails, géolocalisation)",
-    tools=[
-        "search_places_tool",
-        "get_place_details_tool",
-        "get_current_location_tool",
-    ],
-    max_parallel_runs=1,
-    default_timeout_ms=30000,
-    prompt_version="v1",
-)
-
-# ============================================================================
-# API Key Agents (External Services)
-# ============================================================================
-
-# Agent Manifest: weather_agent (3 tools) - LOT 10
-WEATHER_AGENT_MANIFEST = AgentManifest(
-    name="weather_agent",
-    description="Agent spécialisé dans les informations météo (OpenWeatherMap API)",
-    tools=[
-        "get_current_weather_tool",
-        "get_weather_forecast_tool",
-        "get_hourly_forecast_tool",
-    ],
-    max_parallel_runs=3,  # Multiple parallel weather queries OK
-    default_timeout_ms=10000,
-    prompt_version="v1",
-)
-
-# Agent Manifest: wikipedia_agent (4 tools) - LOT 10
-WIKIPEDIA_AGENT_MANIFEST = AgentManifest(
-    name="wikipedia_agent",
-    description="Agent spécialisé dans les recherches Wikipedia (articles, résumés)",
-    tools=[
-        "search_wikipedia_tool",
-        "get_wikipedia_summary_tool",
-        "get_wikipedia_article_tool",
-        "get_wikipedia_related_tool",
-    ],
-    max_parallel_runs=3,
-    default_timeout_ms=15000,
-    prompt_version="v1",
-)
-
-# Agent Manifest: perplexity_agent (2 tools) - LOT 10
-PERPLEXITY_AGENT_MANIFEST = AgentManifest(
-    name="perplexity_agent",
-    description="Agent spécialisé dans les recherches web augmentées par IA (Perplexity Sonar)",
-    tools=[
-        "perplexity_search_tool",
-        "perplexity_ask_tool",
-    ],
-    max_parallel_runs=1,  # Rate limited API
-    default_timeout_ms=30000,
-    prompt_version="v1",
-)
-
-# ============================================================================
-# Utility Agents (Local/Context)
-# ============================================================================
-
-# Agent Manifest: context_agent (5 tools)
-CONTEXT_AGENT_MANIFEST = AgentManifest(
-    name="context_agent",
-    description=(
-        "Agent générique pour la résolution de références contextuelles. "
-        "Gère les références conversationnelles comme 'le premier', "
-        "'la dernière', '2ème', etc. "
-        "Supporte batch operations via get_context_list pour références plurielles. "
-        "Compatible avec tous les domaines (contacts, emails, events)."
-    ),
-    tools=[
-        "resolve_reference",
-        "set_current_item",
-        "get_context_state",
-        "list_active_domains",
-        "get_context_list",
-    ],
-    max_parallel_runs=5,  # Context operations are fast and local
-    default_timeout_ms=5000,
-    prompt_version="v1",
-)
-
-# Agent Manifest: query_agent (1 tool) - LOT 10
-QUERY_AGENT_MANIFEST = AgentManifest(
-    name="query_agent",
-    description="Agent INTELLIA pour requêtes locales sur données stockées (mémoire sémantique)",
-    tools=[
-        "local_query_engine_tool",
-    ],
-    max_parallel_runs=3,
-    default_timeout_ms=10000,
-    prompt_version="v1",
-)
-```
+Les manifests d'agent sont déclarés à deux endroits, et ce document n'en recopie
+aucun : `apps/api/src/domains/agents/registry/agent_manifest_definitions.py`, et le
+module `catalogue_manifests.py` du paquet propre à une capacité
+(`domains/agents/<capability>/`) — atteint par `registry/catalogue_loader.py`
+directement, par `registry/program_manifests.py`, ou par le
+`catalogue_registration.py` d'une capacité ; les serveurs MCP ajoutent les leurs à
+l'exécution (`infrastructure/mcp/registration.py`). Une description d'agent est de
+la documentation de code, en anglais technique : aucun prompt ni aucun embedding ne
+la lit — l'export du planner porte le NOM de l'agent et ses outils, et seul
+`export_catalogue()` la renvoie (ADR-323).
 
 ---
 
@@ -1134,6 +860,9 @@ QUERY_AGENT_MANIFEST = AgentManifest(
 ### export_for_prompt()
 
 La méthode `export_for_prompt()` génère un dictionnaire optimisé pour injection dans le prompt du planner.
+L'extrait ci-dessous est abrégé : le code en service exporte aussi, par outil, le type
+sémantique de chaque paramètre, ses champs et son schéma de réponse, et, pour tout le
+catalogue, un guide de référence.
 
 ```python
 def export_for_prompt(self) -> dict[str, Any]:
@@ -1193,7 +922,7 @@ def export_for_prompt(self) -> dict[str, Any]:
                             "tokens": tm.cost.est_tokens_in + tm.cost.est_tokens_out,
                             "latency_ms": tm.cost.est_latency_ms,
                         },
-                        "requires_approval": tm.permissions.hitl_required,
+                        "requires_approval": requires_user_approval(tm),
                     }
 
                     tools_data.append(tool_data)
@@ -1201,7 +930,6 @@ def export_for_prompt(self) -> dict[str, Any]:
             agents_data.append(
                 {
                     "agent": agent_manifest.name,
-                    "description": agent_manifest.description,
                     "tools": tools_data,
                 }
             )
@@ -1225,39 +953,48 @@ def export_for_prompt(self) -> dict[str, Any]:
 {
   "agents": [
     {
-      "agent": "contacts_agent",
-      "description": "Agent spécialisé Google Contacts...",
+      "agent": "contact_agent",
       "tools": [
         {
-          "name": "search_contacts_tool",
-          "description": "Recherche contacts par nom, email, téléphone",
+          "name": "get_contacts_tool",
+          "description": "**Tool: get_contacts_tool** - Get contacts with full details.",
           "parameters": [
             {
               "name": "query",
               "type": "string",
-              "required": true,
-              "description": "Texte de recherche"
+              "required": false,
+              "description": "Query (name, email, phone). Optional - empty for all contacts."
             },
             {
-              "name": "limit",
+              "name": "max_results",
               "type": "integer",
               "required": false,
-              "description": "Nombre max de résultats"
+              "description": "Max results (def: <CONTACTS_TOOL_DEFAULT_LIMIT>, max: <CONTACTS_TOOL_DEFAULT_MAX_RESULTS>)"
             }
           ],
           "cost_estimate": {
-            "tokens": 950,
-            "latency_ms": 800
+            "tokens": "<est_tokens_in + est_tokens_out>",
+            "latency_ms": "<est_latency_ms>"
           },
           "requires_approval": false
         }
       ]
     }
   ],
-  "max_plan_cost_usd": 10.0,
-  "max_plan_steps": 20
+  "max_plan_cost_usd": "<PLANNER_MAX_COST_USD>",
+  "max_plan_steps": "<PLANNER_MAX_STEPS>"
 }
 ```
+
+Extrait abrégé : la description de l'outil est coupée après sa première ligne et
+deux de ses quatre paramètres sont montrés (`resource_name` et `resource_names`
+manquent) ; l'export porte aussi, non montrés ici, le `reference_guide` de premier
+niveau et, par outil, `response_fields`, `field_mappings`, `reference_examples`
+et `provides_semantic_types` (celui de `get_contacts_tool`).
+`requires_approval` vient de `requires_user_approval(tm)`, pas du seul drapeau
+`hitl_required` — un outil qui bâtit un brouillon demande sa confirmation au
+brouillon. Un chevron nomme la source d'une valeur que le code ou les réglages
+possèdent, au lieu de la recopier.
 
 **Performance** :
 - Cache HIT: ~1ms
@@ -1268,70 +1005,36 @@ def export_for_prompt(self) -> dict[str, Any]:
 
 ## Validation
 
-### Validation au Build
+### Validation à la construction
 
-Le builder valide automatiquement le manifest lors de `build()` :
+Un manifest se valide lui-même à sa construction, dans le `__post_init__` de sa
+dataclass — le builder et sa méthode `validate()` ont été retirés en v1.21.16
+(ADR-107) :
 
 ```python
-def validate(self, rules: list[ValidationRule] | None = None) -> list[str]:
-    """Validate manifest against rules."""
-    errors = []
-
-    # Check required fields
-    if not self._manifest.description or self._manifest.description == "__BUILDER_PLACEHOLDER__":
-        errors.append("Description is required (must call .with_description())")
-
-    if not self._manifest.parameters and not self._manifest.outputs:
-        errors.append("Tool must have at least parameters or outputs defined")
-
-    # Check required parameters have descriptions
-    for param in self._manifest.parameters:
-        if param.required and not param.description:
-            errors.append(f"Required parameter '{param.name}' must have description")
-
-    # Custom rules
-    if rules:
-        for rule in rules:
-            errors.extend(rule.validate(self._manifest))
-
-    return errors
+# apps/api/src/domains/agents/registry/catalogue.py (ToolManifest)
+def __post_init__(self) -> None:
+    """Validate the manifest."""
+    if not self.name:
+        raise ValueError("Tool name cannot be empty")
+    if not self.agent:
+        raise ValueError("Agent name cannot be empty")
+    if not self.description:
+        raise ValueError("Tool description cannot be empty")
+    # Validate semver version (simple check)
+    if not self.version or len(self.version.split(".")) != 3:
+        raise ValueError(f"Invalid semver version: {self.version}")
 ```
 
 ### Validation Runtime (PlanValidator)
 
-Le `PlanValidator` valide les plans en utilisant les manifests :
-
-```python
-# In src/domains/agents/orchestration/validator.py
-
-def validate_tool_exists(self, tool_name: str) -> ValidationResult:
-    """Check if tool exists in catalogue."""
-    try:
-        registry = get_global_registry()
-        manifest = registry.get_tool_manifest(tool_name)
-        return ValidationResult(is_valid=True, tool_manifest=manifest)
-    except ToolManifestNotFound:
-        return ValidationResult(
-            is_valid=False,
-            errors=[f"Tool '{tool_name}' not found in catalogue"]
-        )
-
-def validate_permissions(self, tool_name: str, user_scopes: list[str]) -> ValidationResult:
-    """Check if user has required OAuth scopes."""
-    registry = get_global_registry()
-    manifest = registry.get_tool_manifest(tool_name)
-
-    required_scopes = manifest.permissions.required_scopes
-    missing_scopes = set(required_scopes) - set(user_scopes)
-
-    if missing_scopes:
-        return ValidationResult(
-            is_valid=False,
-            errors=[f"Missing OAuth scopes: {missing_scopes}"]
-        )
-
-    return ValidationResult(is_valid=True)
-```
+Le `PlanValidator` (`apps/api/src/domains/agents/orchestration/validator.py`) valide
+les plans contre les manifests. Le planificateur appelle `validate_execution_plan` :
+chaque étape passe par `_validate_execution_step`, ses paramètres par
+`_validate_step_parameters` (bornes et contraintes publiées, ADR-184) et ses droits
+par `_validate_permissions` (les scopes OAuth et les rôles autorisés du manifest). `validate_plan` et son
+`_validate_parameters` restent une porte publique qu'aucun code de production
+n'appelle. Ce document ne recopie pas leur code.
 
 ---
 
@@ -1355,7 +1058,7 @@ for m in manifests:
     print()
 
 # Get specific manifest
-manifest = registry.get_tool_manifest("search_contacts_tool")
+manifest = registry.get_tool_manifest("get_contacts_tool")
 print(f"Parameters: {len(manifest.parameters)}")
 for p in manifest.parameters:
     print(f"  - {p.name} ({p.type}): {p.required}")
@@ -1366,7 +1069,7 @@ for p in manifest.parameters:
 **Symptôme** :
 
 ```
-ToolManifestNotFound: Tool manifest not found: search_contacts_tool
+ToolManifestNotFound: Tool manifest not found: find_contacts_by_city_tool
 ```
 
 **Cause** : Manifest non enregistré dans le registry.
@@ -1386,18 +1089,19 @@ initialize_catalogue(registry)
 **Symptôme** :
 
 ```
-ValueError: Manifest validation failed:
-  - Description is required (must call .with_description())
+ValueError: Tool description cannot be empty
 ```
 
-**Cause** : Builder incomplet.
+**Cause** : un champ obligatoire du manifest est vide — le `__post_init__` de
+`ToolManifest` refuse un nom, un agent ou une description vides et une version
+qui n'est pas SemVer.
 
 **Solution** :
 
 ```python
 # Ajouter la description manquante (déclaration directe, v1.21.16+)
 manifest = ToolManifest(
-    name="my_tool",
+    name="get_my_items_tool",  # a get_/search_/list_ name: the search category
     agent="my_agent",
     description="Tool description here",  # ✅ Ajouté
     parameters=[ParameterSchema(name="param1", type="string", required=True, description="...")],
@@ -1416,18 +1120,23 @@ manifest = ToolManifest(
 ```python
 # Déclaration directe (v1.21.16+ — le builder fluent a été retiré, ADR-107)
 from src.domains.agents.registry.catalogue import (
-    CostProfile, ParameterSchema, PermissionProfile, ToolManifest,
+    CostProfile, ParameterConstraint, ParameterSchema, PermissionProfile, ToolManifest,
 )
 
 SEARCH_CONTACTS_MANIFEST = ToolManifest(
-    name="search_contacts_tool",
-    agent="contacts_agent",
-    description="Recherche contacts Google par nom, email ou téléphone",
+    # A made-up tool. Its ``search_`` name gives it the ``search`` category, the
+    # one category that declares no mutation_policy: any other category needs a
+    # mutation_policy, and a name following no convention also declares its
+    # tool_category — or the boot refuses the catalogue.
+    name="search_contacts_example_tool",
+    agent="contact_agent",
+    description="Search contacts by name, e-mail or phone number",
     parameters=[
         ParameterSchema(name="query", type="string", required=True,
-                        description="Texte de recherche (nom, email, ou téléphone)"),
+                        description="Search text (name, e-mail or phone number)"),
         ParameterSchema(name="max_results", type="integer", required=False,
-                        description="Nombre max de résultats (1-50)"),
+                        description="Maximum number of results",
+                        constraints=[ParameterConstraint(kind="maximum", value=50)]),
     ],
     outputs=[],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=400,
@@ -1465,21 +1174,19 @@ SEARCH_CONTACTS_MANIFEST = ToolManifest(
 **❌ DON'T** :
 - Skip parameter descriptions
 - Underestimate costs (breaks budget validation)
-- Hardcode manifests in code (use builder)
 - Forget to update version on changes
 
-### 2. Builder Usage
+### 2. Declaration
 
 **✅ DO** :
-- Use fluent API for readability
-- Validate before build
-- Use generic presets (`with_api_integration()`)
-- Add constraints to parameters
+- Declare each manifest as a `ToolManifest(...)` literal in its domain's `catalogue_manifests.py`
+- Publish every bound the tool enforces as a `ParameterConstraint` (ADR-184)
+- Declare the `mutation_policy` of any tool that acts (ADR-263)
+- Write descriptions in technical English (ADR-323)
 
 **❌ DON'T** :
-- Skip validation
+- State a bound in a description's prose instead of a constraint
 - Duplicate manifest logic
-- Forget to call `.build()`
 
 ### 3. Catalogue Management
 
@@ -1503,7 +1210,6 @@ SEARCH_CONTACTS_MANIFEST = ToolManifest(
 - [Semantic Versioning (SemVer)](https://semver.org/)
 - [JSON Schema](https://json-schema.org/)
 - [JSONPath](https://goessner.net/articles/JsonPath/)
-- [Builder Pattern (Gang of Four)](https://en.wikipedia.org/wiki/Builder_pattern)
 
 ### Documentation Interne
 
@@ -1515,28 +1221,28 @@ SEARCH_CONTACTS_MANIFEST = ToolManifest(
 ### Fichiers Source
 
 **Core Registry:**
-- `apps/api/src/domains/agents/registry/catalogue.py` - Manifest schemas + ToolCategory
-- `apps/api/src/domains/agents/registry/catalogue.py` - ToolManifest schema (dataclasses)
-- `apps/api/src/domains/agents/registry/catalogue_loader.py` - Catalogue initialization (11 agents, 56+ tools)
+- `apps/api/src/domains/agents/registry/catalogue.py` - Manifest schemas (dataclasses) + ToolCategory
+- `apps/api/src/domains/agents/registry/catalogue_loader.py` - Catalogue initialization
 - `apps/api/src/domains/agents/registry/agent_registry.py` - Registry avec export methods
 - `apps/api/src/domains/agents/registry/domain_taxonomy.py` - `filter_admin_mcp_disabled_manifests()` helper
 
 **Per-Request Context:**
 - `apps/api/src/core/context.py` - `request_tool_manifests_ctx`, `build_request_tool_manifests()`, `get_request_tool_manifests()`
 
-**Domain Catalogue Manifests:**
-- `apps/api/src/domains/agents/google_contacts/catalogue_manifests.py` - Contacts (6 tools)
-- `apps/api/src/domains/agents/context/catalogue_manifests.py` - Context (5 tools)
-- `apps/api/src/domains/agents/emails/catalogue_manifests.py` - Emails (6 tools)
-- `apps/api/src/domains/agents/calendar/catalogue_manifests.py` - Calendar (6 tools)
-- `apps/api/src/domains/agents/drive/catalogue_manifests.py` - Drive (3 tools)
-- `apps/api/src/domains/agents/tasks/catalogue_manifests.py` - Tasks (7 tools)
-- `apps/api/src/domains/agents/weather/catalogue_manifests.py` - Weather (3 tools)
-- `apps/api/src/domains/agents/wikipedia/catalogue_manifests.py` - Wikipedia (4 tools)
-- `apps/api/src/domains/agents/perplexity/catalogue_manifests.py` - Perplexity (2 tools)
-- `apps/api/src/domains/agents/places/catalogue_manifests.py` - Places (3 tools)
-- `apps/api/src/domains/agents/query/catalogue_manifests.py` - Query (1 tool)
-- `apps/api/src/domains/agents/hue/catalogue_manifests.py` - Philips Hue (6 tools)
+**Domain Catalogue Manifests** (un extrait : chaque domaine d'agent porte son
+`catalogue_manifests.py`) :
+- `apps/api/src/domains/agents/google_contacts/catalogue_manifests.py` - Contacts
+- `apps/api/src/domains/agents/context/catalogue_manifests.py` - Context
+- `apps/api/src/domains/agents/emails/catalogue_manifests.py` - Emails
+- `apps/api/src/domains/agents/calendar/catalogue_manifests.py` - Calendar
+- `apps/api/src/domains/agents/drive/catalogue_manifests.py` - Drive
+- `apps/api/src/domains/agents/tasks/catalogue_manifests.py` - Tasks
+- `apps/api/src/domains/agents/weather/catalogue_manifests.py` - Weather
+- `apps/api/src/domains/agents/wikipedia/catalogue_manifests.py` - Wikipedia
+- `apps/api/src/domains/agents/perplexity/catalogue_manifests.py` - Perplexity
+- `apps/api/src/domains/agents/places/catalogue_manifests.py` - Places
+- `apps/api/src/domains/agents/query/catalogue_manifests.py` - Query
+- `apps/api/src/domains/agents/hue/catalogue_manifests.py` - Philips Hue
 
 ---
 
@@ -1544,4 +1250,3 @@ SEARCH_CONTACTS_MANIFEST = ToolManifest(
 **Auteur** : Documentation Technique LIA
 **Phase** : Phase 5 + LOT 9/10 + v1.8.0 - Production Manifests
 **Statut** : ✅ Complète et Validée
-**Stats** : 11 agents routables + 1 utilitaire, 56+ tools, 12 domaines

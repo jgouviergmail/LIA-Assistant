@@ -225,6 +225,8 @@ les `Re:` et se partage entre fils sans rapport), la **fin** passe par le
 `SeriesEnd` de la récurrence, et la **cadence** de deux évaluations par jour
 n'est qu'un filet pour un compte sans canal de poussée.
 
+*Amendé le 2026-09-25 par [ADR-322](ADR-322-One-Clock-Per-Routine.md) : une veille n'a plus de planification — le système la vérifie environ toutes les dix minutes, jour et nuit — et sa fin est le dernier jour de la condition (`condition_config.until`), plus le `SeriesEnd` d'une récurrence. L'armement par le réveil ne change pas.*
+
 Et la puce **lit ce que le compte détient avant d'écrire**. Deux courriels du
 même expéditeur, c'est ordinaire ; cliquer sur les deux créerait deux veilles
 identiques, chacune consommant un des vingt créneaux de routines et chacune

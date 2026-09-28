@@ -59,7 +59,7 @@ description: "Streaming errors at {{ $value }}% (threshold: <<<ALERT_AGENTS_STRE
 ### Cause 1: LLM API Streaming Interruption (High Likelihood)
 **Likelihood**: High (50%)
 
-**Note (v1.8.0)**: `SSEErrorMessages.generic_error()` now detects `OverloadedError` and `RateLimitError` from LLM providers (Anthropic, OpenAI) and returns user-friendly i18n messages instead of raw error type names. This means users see "The AI service is temporarily overloaded" rather than a cryptic error class name.
+**Note**: `SSEErrorMessages.stream_error()` classifies a failure by the HTTP status the provider's SDK carries first (ADR-220) — 429, 500, 502, 503 and 529 are a transient provider failure, 401, 402, 403, 404, 408 and 410 each name their cause, and any other status (400, 501, 504…) gets the generic message —, then by the exception's type, and last by bounded keywords of its message. A transient failure reads, in the person's language, "The AI model provider is currently experiencing technical difficulties…"; no message ever names an error class.
 
 **Verification**:
 ```bash

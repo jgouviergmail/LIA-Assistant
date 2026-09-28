@@ -12,6 +12,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, NamedTuple
 
+from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur, get_cached_usd_eur_rate
+
 
 class TokenUsageRecord(NamedTuple):
     """
@@ -131,6 +133,54 @@ class TTSUsageRecord(NamedTuple):
     cost_eur: Decimal
     usd_to_eur_rate: Decimal
     duration_ms: float = 0.0
+
+
+def tts_usage_record(
+    provider: str,
+    model: str,
+    characters: int,
+    duration_ms: float = 0.0,
+    *,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+) -> TTSUsageRecord:
+    """Price one synthesis on the units its vendor bills.
+
+    A character-billed engine is priced per character sent: the catalogue's
+    TTS rows carry characters on the input axis (ADR-081). A token-billed
+    engine is priced on the tokens its usage report states — text in on the
+    input axis, audio out on the output axis — never on characters, which
+    under-bill such an engine by about a hundred times (measured 2026-09-26:
+    510 characters, 125 tokens in, 949 audio tokens out).
+
+    Args:
+        provider: TTS provider id.
+        model: TTS model (the pricing row's name).
+        characters: Characters synthesised (always recorded, for display).
+        duration_ms: Synthesis duration (debug panel hint).
+        input_tokens: Text tokens the vendor counted, for a token-billed engine.
+        output_tokens: Audio tokens the vendor produced, for a token-billed engine.
+
+    Returns:
+        The priced record.
+    """
+    token_billed = input_tokens is not None and output_tokens is not None
+    cost_usd, cost_eur = get_cached_cost_usd_eur(
+        model=model,
+        prompt_tokens=(input_tokens or 0) if token_billed else characters,
+        completion_tokens=(output_tokens or 0) if token_billed else 0,
+        cached_tokens=0,
+        cache_write_tokens=0,
+    )
+    return TTSUsageRecord(
+        provider=provider,
+        model=model,
+        characters=characters,
+        cost_usd=Decimal(str(cost_usd)),
+        cost_eur=Decimal(str(cost_eur)),
+        usd_to_eur_rate=Decimal(str(get_cached_usd_eur_rate())),
+        duration_ms=duration_ms,
+    )
 
 
 def breakdown_entry(record: TokenUsageRecord) -> dict[str, Any]:

@@ -55,7 +55,7 @@ TREATMENT_DOMAIN_LABELS: dict[str, dict[str, str]] = {
         "perplexity": "Recherche Perplexity",
         "place": "Lieux",
         "python_sandbox": "Calcul Python isolé",
-        "query": "Recherche dans vos données",
+        "query": "Recherche dans tes données",
         "reminder": "Rappels",
         "route": "Itinéraires",
         "skill": "Compétences",
@@ -135,7 +135,7 @@ TREATMENT_DOMAIN_LABELS: dict[str, dict[str, str]] = {
         "perplexity": "Perplexity-Suche",
         "place": "Orte",
         "python_sandbox": "Isoliertes Python",
-        "query": "Suche in Ihren Daten",
+        "query": "Suche in deinen Daten",
         "reminder": "Erinnerungen",
         "route": "Routen",
         "skill": "Fähigkeiten",
@@ -346,10 +346,10 @@ def render_treatment_domain(domain: str, language: str) -> str:
 CHAIN_ATTESTATION: dict[str, str] = {
     "fr": (
         "# Scellement des journaux\n\n"
-        "{entries} entrées de scellement couvrent vos journaux d'actions et de "
+        "{entries} entrées de scellement couvrent tes journaux d'actions et de "
         "consultations, jusqu'au {sealed_until}.\n\n"
         "Empreinte finale : `{head_hash}`\n\n"
-        "Notez cette empreinte : la comparer plus tard suffit à détecter une "
+        "Note cette empreinte : la comparer plus tard suffit à détecter une "
         "réécriture, même si la ligne modifiée et son entrée de scellement "
         "l'étaient ensemble."
     ),
@@ -364,34 +364,34 @@ CHAIN_ATTESTATION: dict[str, str] = {
     ),
     "de": (
         "# Versiegelung der Protokolle\n\n"
-        "{entries} Versiegelungseinträge decken Ihre Aktions- und "
+        "{entries} Versiegelungseinträge decken deine Aktions- und "
         "Abrufprotokolle bis zum {sealed_until} ab.\n\n"
         "Endgültiger Fingerabdruck: `{head_hash}`\n\n"
-        "Notieren Sie diesen Fingerabdruck: Ein späterer Vergleich genügt, um "
+        "Notiere diesen Fingerabdruck: Ein späterer Vergleich genügt, um "
         "eine Änderung zu erkennen — selbst wenn die geänderte Zeile und ihr "
         "Versiegelungseintrag gemeinsam geändert wurden."
     ),
     "es": (
         "# Sellado de los registros\n\n"
-        "{entries} entradas de sellado cubren sus registros de acciones y de "
+        "{entries} entradas de sellado cubren tus registros de acciones y de "
         "consultas, hasta el {sealed_until}.\n\n"
         "Huella final: `{head_hash}`\n\n"
-        "Anote esta huella: compararla más adelante basta para detectar una "
+        "Anota esta huella: compararla más adelante basta para detectar una "
         "reescritura, incluso si la fila alterada y su entrada de sellado se "
         "modificaron a la vez."
     ),
     "it": (
         "# Sigillatura dei registri\n\n"
-        "{entries} voci di sigillatura coprono i suoi registri delle azioni e "
+        "{entries} voci di sigillatura coprono i tuoi registri delle azioni e "
         "delle consultazioni, fino al {sealed_until}.\n\n"
         "Impronta finale: `{head_hash}`\n\n"
-        "Annoti questa impronta: confrontarla in seguito basta a rilevare una "
+        "Annota questa impronta: confrontarla in seguito basta a rilevare una "
         "riscrittura, anche se la riga alterata e la sua voce di sigillatura "
         "sono state modificate insieme."
     ),
     "zh-CN": (
         "# 记录封存\n\n"
-        "{entries} 条封存记录覆盖了您的操作与查阅记录，截至 {sealed_until}。\n\n"
+        "{entries} 条封存记录覆盖了你的操作与查阅记录，截至 {sealed_until}。\n\n"
         "最终指纹：`{head_hash}`\n\n"
         "请记下该指纹：日后比对即可发现篡改，即使被修改的行与其封存记录被一并改动。"
     ),
@@ -404,22 +404,22 @@ CHAIN_ATTESTATION: dict[str, str] = {
 CHAIN_ATTESTATION_EMPTY: dict[str, str] = {
     "fr": (
         "# Scellement des journaux\n\n"
-        "Aucune entrée de scellement : vos journaux ne sont pas encore scellés."
+        "Aucune entrée de scellement : tes journaux ne sont pas encore scellés."
     ),
     "en": ("# Register sealing\n\n" "No sealing entries: your journals are not sealed yet."),
     "de": (
         "# Versiegelung der Protokolle\n\n"
-        "Keine Versiegelungseinträge: Ihre Protokolle sind noch nicht versiegelt."
+        "Keine Versiegelungseinträge: deine Protokolle sind noch nicht versiegelt."
     ),
     "es": (
         "# Sellado de los registros\n\n"
-        "Ninguna entrada de sellado: sus registros aún no están sellados."
+        "Ninguna entrada de sellado: tus registros aún no están sellados."
     ),
     "it": (
         "# Sigillatura dei registri\n\n"
-        "Nessuna voce di sigillatura: i suoi registri non sono ancora sigillati."
+        "Nessuna voce di sigillatura: i tuoi registri non sono ancora sigillati."
     ),
-    "zh-CN": "# 记录封存\n\n暂无封存记录：您的记录尚未封存。",
+    "zh-CN": "# 记录封存\n\n暂无封存记录：你的记录尚未封存。",
 }
 
 
@@ -493,31 +493,37 @@ STOP_REASON_WORDING: dict[str, dict[str, str]] = {
         "max_iterations": "trop d'étapes",
         "compute_budget": "budget de calcul atteint",
         "tool_budget": "budget d'outils atteint",
+        "output_truncated": "réponse du modèle coupée à sa longueur maximale",
     },
     "en": {
         "max_iterations": "too many steps",
         "compute_budget": "compute budget reached",
         "tool_budget": "tool budget reached",
+        "output_truncated": "model output cut at its maximum length",
     },
     "de": {
         "max_iterations": "zu viele Schritte",
         "compute_budget": "Rechenbudget erreicht",
         "tool_budget": "Werkzeugbudget erreicht",
+        "output_truncated": "Modellausgabe bei maximaler Länge abgeschnitten",
     },
     "es": {
         "max_iterations": "demasiadas etapas",
         "compute_budget": "presupuesto de cálculo alcanzado",
         "tool_budget": "presupuesto de herramientas alcanzado",
+        "output_truncated": "respuesta del modelo cortada en su longitud máxima",
     },
     "it": {
         "max_iterations": "troppe tappe",
         "compute_budget": "budget di calcolo raggiunto",
         "tool_budget": "budget degli strumenti raggiunto",
+        "output_truncated": "risposta del modello troncata alla lunghezza massima",
     },
     "zh-CN": {
         "max_iterations": "步骤过多",
         "compute_budget": "已达算力预算",
         "tool_budget": "已达工具预算",
+        "output_truncated": "模型输出在最大长度处被截断",
     },
 }
 

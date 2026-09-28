@@ -18,9 +18,9 @@ import asyncio
 import json
 import smtplib
 import uuid
+from collections.abc import Sequence
 from contextlib import suppress
 from datetime import UTC, datetime
-from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
@@ -30,6 +30,7 @@ import structlog
 from imap_tools import AND, MailBox
 
 from src.core.config import settings
+from src.core.constants import APPLE_MAIL_MESSAGE_MAX_BYTES
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_apple_client import (
     AppleAuthenticationError,
@@ -51,6 +52,7 @@ from src.domains.connectors.clients.normalizers.email_normalizer import (
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import AppleCredentials
 from src.infrastructure.cache.redis import get_redis_session
+from src.infrastructure.email.outgoing import OutgoingAttachment, attachment_part, max_file_bytes
 
 logger = structlog.get_logger(__name__)
 
@@ -74,6 +76,7 @@ class AppleEmailClient(BaseAppleClient):
     """
 
     connector_type = ConnectorType.APPLE_EMAIL
+    OUTGOING_FILE_MAX_BYTES = max_file_bytes(APPLE_MAIL_MESSAGE_MAX_BYTES)
 
     def __init__(
         self,
@@ -145,8 +148,9 @@ class AppleEmailClient(BaseAppleClient):
         cc: str | None = None,
         bcc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
-        """Send an email via SMTP."""
+        """Send an email via SMTP, with its files when given (ADR-321)."""
         return await self._execute_with_retry(
             "send_email",
             self._send_email_impl,
@@ -156,6 +160,7 @@ class AppleEmailClient(BaseAppleClient):
             cc,
             bcc,
             is_html,
+            attachments,
         )
 
     async def reply_email(
@@ -504,8 +509,9 @@ class AppleEmailClient(BaseAppleClient):
         cc: str | None,
         bcc: str | None,
         is_html: bool,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
-        """Send email via SMTP STARTTLS."""
+        """Send email via SMTP STARTTLS; each file follows the body."""
         msg = MIMEMultipart()
         msg["From"] = self.credentials.apple_id
         msg["To"] = to
@@ -515,6 +521,8 @@ class AppleEmailClient(BaseAppleClient):
 
         content_type = "html" if is_html else "plain"
         msg.attach(MIMEText(body, content_type, "utf-8"))
+        for attachment in attachments:
+            msg.attach(attachment_part(attachment))
 
         # Build recipient list
         recipients = [addr.strip() for addr in to.split(",")]
@@ -685,12 +693,10 @@ class AppleEmailClient(BaseAppleClient):
         content_type = "html" if is_html else "plain"
         msg.attach(MIMEText(full_body, content_type, "utf-8"))
 
-        # Attach original attachments
+        # Attach original attachments, each under its own type (ADR-321's shared
+        # part: setting « Content-Type » on a part ADDS a second header).
         for filename, content_type_att, payload in attachments_data:
-            part = MIMEApplication(payload)
-            part.add_header("Content-Disposition", "attachment", filename=filename)
-            part["Content-Type"] = content_type_att
-            msg.attach(part)
+            msg.attach(attachment_part(OutgoingAttachment(filename, content_type_att, payload)))
 
         recipients = [addr.strip() for addr in to.split(",")]
         if cc:

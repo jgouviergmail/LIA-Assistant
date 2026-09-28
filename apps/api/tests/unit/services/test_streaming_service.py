@@ -419,42 +419,6 @@ async def test_format_done_chunk(streaming_service):
     assert chunk.content["metadata"]["total_tokens"] == 100
 
 
-@pytest.mark.asyncio
-async def test_format_error_chunk_returns_localized_user_message(streaming_service):
-    """``format_error_chunk`` MUST return a user-friendly localized string and
-    MUST NOT leak the raw exception type or message to the client.
-
-    Regression guard: an earlier version exposed
-    ``{"error": exc_message, "error_type": exc_class}`` which leaked
-    implementation details (and sometimes PII) into SSE payloads.
-    """
-    error = ValueError("Internal validation message that must not leak")
-    chunk = streaming_service.format_error_chunk(error, context={"run_id": "123"})
-
-    assert chunk.type == "error"
-    # ``content`` is now a single localized string, not a dict.
-    assert isinstance(chunk.content, str)
-    assert chunk.content  # non-empty
-    # Critical: raw exception type / message must not surface to the client.
-    assert "ValueError" not in chunk.content
-    assert "Internal validation message" not in chunk.content
-
-
-@pytest.mark.asyncio
-async def test_format_error_chunk_respects_language(streaming_service):
-    """Localised error message must vary with the ``language`` argument."""
-    error = RuntimeError("boom")
-    chunk_fr = streaming_service.format_error_chunk(error, language="fr")
-    chunk_en = streaming_service.format_error_chunk(error, language="en")
-
-    assert chunk_fr.type == "error"
-    assert chunk_en.type == "error"
-    assert isinstance(chunk_fr.content, str)
-    assert isinstance(chunk_en.content, str)
-    # Different locales must produce different user-facing copy.
-    assert chunk_fr.content != chunk_en.content
-
-
 # =============================================================================
 # LARS Registry Update Tests
 # =============================================================================
@@ -1008,6 +972,29 @@ def test_capture_activated_skill_ignored_in_react_mode(streaming_service):
     streaming_service._process_values_chunk(chunk, last_sent_routing=None)
 
     assert streaming_service.activated_skill_name is None
+
+
+def test_a_draft_decision_replayed_before_the_router_leaves_the_panel(streaming_service):
+    """The first values chunk replays the checkpoint, and a response that failed
+    never cleared its draft decision: the debug panel drew the PREVIOUS turn's
+    decision. The turn's first router decision drops it, like the skill badge."""
+    streaming_service._debug_panel_enabled = True
+    stale = {"action": "confirm", "draft_type": "email", "draft_id": "d-old"}
+    streaming_service._process_values_chunk(
+        {"routing_history": [], "messages": [], "draft_action_result": stale},
+        last_sent_routing=None,
+    )
+    assert streaming_service._cached_draft_action_result == stale
+
+    routing = MagicMock(
+        intention="conversation", confidence=0.9, context_label="general", next_node="response"
+    )
+    streaming_service._process_values_chunk(
+        {"routing_history": [routing], "messages": [], "draft_action_result": None},
+        last_sent_routing=None,
+    )
+
+    assert streaming_service._cached_draft_action_result is None
 
 
 # ============================================================================

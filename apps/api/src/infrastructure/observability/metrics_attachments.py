@@ -83,3 +83,17 @@ attachments_active_count = Gauge(
     "Current number of active (non-expired) attachments",
     multiprocess_mode="mostrecent",
 )
+
+# Kept generated files (ADR-319): exempt from the cleanup, so the disk they
+# hold is never reclaimed by it. Set by the cleanup sweep, instance-wide.
+attachments_kept_count = Gauge(
+    "attachments_kept_count",
+    "Generated files people kept past their deadline (instance-wide)",
+    multiprocess_mode="mostrecent",
+)
+
+attachments_kept_bytes = Gauge(
+    "attachments_kept_bytes",
+    "Bytes held by generated files people kept (instance-wide)",
+    multiprocess_mode="mostrecent",
+)

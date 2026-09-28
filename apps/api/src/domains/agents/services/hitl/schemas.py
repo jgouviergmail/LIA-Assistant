@@ -164,7 +164,6 @@ class DraftCritiqueContext(BaseModel):
     draft_type: str = Field(..., description="Type: email, event, contact, task, etc.")
     draft_id: str = Field(..., description="Unique draft identifier")
     draft_content: dict[str, Any] = Field(default_factory=dict, description="Draft data")
-    draft_summary: str | None = Field(default=None, description="Pre-generated summary")
 
 
 class ClarificationContext(BaseModel):
@@ -234,9 +233,9 @@ class ForEachApprovalContext(BaseModel):
     execute an action N times (once per item in a collection).
 
     Use cases:
-        - "Envoie un email à chaque contact" → 15 contacts = 15 emails
-        - "Crée un rappel pour chaque rdv" → 8 events = 8 reminders
-        - "Appelle la météo pour chaque ville" → 5 cities = 5 API calls
+        - "Send an e-mail to each contact" → 15 contacts = 15 emails
+        - "Create a reminder for each meeting" → 8 events = 8 reminders
+        - "Get the weather for each city" → 5 cities = 5 API calls
 
     UI presentation:
         - Shows total iteration count

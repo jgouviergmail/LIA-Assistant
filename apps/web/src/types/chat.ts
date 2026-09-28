@@ -43,6 +43,12 @@ export interface GeneratedImage {
    * then says nothing rather than guess a duration.
    */
   expires_at?: string | null;
+  /** The person kept the file from the gallery: no cleanup will remove it.
+   *  Stated by the history read path from the file's row (ADR-319). */
+  kept?: boolean;
+  /** The file no longer exists (expired and swept, or deleted by the person).
+   *  Stated by the history read path from the file's row (ADR-319). */
+  gone?: boolean;
 }
 
 /**
@@ -63,6 +69,10 @@ export interface GeneratedDocument {
   size_bytes: number;
   /** ISO-8601 purge deadline; absent/null → the UI says nothing (N2 rule). */
   expires_at?: string | null;
+  /** Kept from the gallery — see {@link GeneratedImage.kept} (ADR-319). */
+  kept?: boolean;
+  /** No longer exists — see {@link GeneratedImage.gone} (ADR-319). */
+  gone?: boolean;
 }
 
 export interface Message {
@@ -175,6 +185,9 @@ export interface DoneMetadata {
   // can target the feedback endpoint immediately. Absent on synthesized
   // dones (cancelled runs) — the buttons then appear after reload.
   archived_message_id?: string;
+  // ADR-320: DB id of the turn's archived question, so a later sync of
+  // the thread recognises the live user bubble instead of adding its row.
+  archived_user_message_id?: string;
   // UXR Lot 4 (A2): tappable follow-up chips of the Initiative node —
   // 0-3 short user-language requests; also persisted in the archived
   // message_metadata so the chips survive a reload while latest.
@@ -1229,7 +1242,9 @@ export interface HitlMetrics {
   interrupted: boolean; // THIS run ended waiting for the user
   interrupt_action_type: string | null;
   interrupt_tool_name: string | null;
-  plan_approved: boolean; // Resumed run: user approved
+  // ADR-263's three values: true approved (the gate approves every plan it
+  // passes), false refused by the person, null no verdict.
+  plan_approved: boolean | null;
   clarification_response: string | null;
   clarification_field: string | null;
   for_each_cancelled: boolean;

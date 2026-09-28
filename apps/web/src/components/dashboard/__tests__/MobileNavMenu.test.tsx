@@ -182,7 +182,7 @@ describe('MobileNavMenu — the recorder entry (ADR-259)', () => {
         translate={translate}
         isActiveRoute={() => false}
         triggerLabel="Menu"
-        action={{ label: 'meetings.header.record', icon: Disc, onSelect }}
+        actions={[{ label: 'meetings.header.record', icon: Disc, onSelect }]}
       />
     );
     await user.click(screen.getByRole('button', { name: 'Menu' }));
@@ -199,18 +199,47 @@ describe('MobileNavMenu — the recorder entry (ADR-259)', () => {
         translate={translate}
         isActiveRoute={() => false}
         triggerLabel="Menu"
-        action={{
-          label: 'meetings.header.stop',
-          icon: Disc,
-          tone: 'destructive',
-          onSelect: vi.fn(),
-        }}
+        actions={[
+          {
+            label: 'meetings.header.stop',
+            icon: Disc,
+            tone: 'destructive',
+            onSelect: vi.fn(),
+          },
+        ]}
         live={{ label: 'meetings.header.live_label' }}
       />
     );
     const trigger = screen.getByRole('button', { name: 'meetings.header.live_label' });
     expect(trigger).toHaveClass('animate-pulse');
     expect(screen.queryByRole('button', { name: 'Menu' })).not.toBeInTheDocument();
+  });
+
+  it('lists every action in the order given, each running its own command', async () => {
+    const record = vi.fn();
+    const radio = vi.fn();
+    const { user } = renderWithProviders(
+      <MobileNavMenu
+        buildHref={buildHref}
+        translate={translate}
+        isActiveRoute={() => false}
+        triggerLabel="Menu"
+        actions={[
+          { label: 'meetings.header.record', icon: Disc, onSelect: record },
+          { label: 'radio.header.start', icon: Disc, onSelect: radio },
+        ]}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    const items = await screen.findAllByRole('menuitem');
+    expect(items).toHaveLength(DASHBOARD_DESTINATIONS.length + 2);
+    expect(items.slice(-2).map(item => item.textContent)).toEqual([
+      'meetings.header.record',
+      'radio.header.start',
+    ]);
+    await user.click(items.at(-1)!);
+    expect(radio).toHaveBeenCalledTimes(1);
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('keeps the plain trigger and no extra item without an action', async () => {

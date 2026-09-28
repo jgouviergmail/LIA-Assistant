@@ -3,7 +3,7 @@ Attachment repository for database operations.
 
 Extends BaseRepository with attachment-specific queries:
 - Batch fetch with ownership check
-- Expired attachments query for cleanup
+- Conditional delete of expired attachments for the cleanup
 - Bulk delete for user (conversation reset)
 
 Phase: evolution F4 — File Attachments & Vision Analysis
@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -73,24 +73,44 @@ class AttachmentRepository(BaseRepository[Attachment]):
 
         return attachments
 
-    async def get_expired(self, now: datetime) -> list[Attachment]:
-        """
-        Fetch all attachments past their expiration time.
+    async def delete_expired(self, now: datetime) -> list[str]:
+        """Delete every attachment whose deadline passed, in ONE statement.
 
-        Used by the cleanup scheduler to find orphan or expired files.
+        The condition is evaluated by the statement that deletes, never by an
+        earlier read: a file kept in between (``expires_at IS NULL``, ADR-319)
+        does not match, so a sweep cannot remove what a person just kept.
 
         Args:
             now: Current UTC datetime.
 
         Returns:
-            List of expired Attachment instances.
+            The relative paths of the removed rows' files, for the disk.
         """
-        stmt = select(Attachment).where(
-            Attachment.expires_at <= now,
-            Attachment.status != AttachmentStatus.EXPIRED,
+        stmt = (
+            delete(Attachment)
+            .where(
+                Attachment.expires_at <= now,
+                Attachment.status != AttachmentStatus.EXPIRED,
+            )
+            .returning(Attachment.file_path)
         )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        return list(result.scalars())
+
+    async def kept_totals(self) -> tuple[int, int]:
+        """How many files people kept, and the bytes they hold (instance-wide).
+
+        Returns:
+            ``(files, bytes)``.
+        """
+        row = (
+            await self.db.execute(
+                select(
+                    func.count(Attachment.id), func.coalesce(func.sum(Attachment.file_size), 0)
+                ).where(Attachment.expires_at.is_(None))
+            )
+        ).one()
+        return int(row[0] or 0), int(row[1] or 0)
 
     async def delete_for_user(
         self, user_id: uuid.UUID, *, origins: Collection[str] | None = None

@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
+from src.core.i18n import get_language_name
 from src.domains.agents.services.compaction_service import CompactionService
 
 # ============================================================================
@@ -283,6 +284,30 @@ class TestSplitIntoChunks:
 # ============================================================================
 # compact
 # ============================================================================
+
+
+class TestTheSummaryLanguage:
+    """The model is told the language by its NAME — a code is a guess (ADR-323)."""
+
+    @pytest.mark.asyncio
+    @patch("src.domains.agents.services.compaction_service.settings")
+    @patch("src.domains.agents.services.compaction_service.load_prompt")
+    async def test_the_model_is_told_the_language_by_its_name(
+        self, mock_load_prompt, mock_settings, service
+    ):
+        mock_settings.compaction_per_chunk_timeout_seconds = 5.0
+        mock_settings.compaction_max_retries = 1
+        mock_settings.compaction_retry_backoff_base_seconds = 0.01
+        mock_load_prompt.return_value = "Summarize this."
+        response = MagicMock(text="summary", usage_metadata=None)
+        llm = AsyncMock()
+        llm.ainvoke.return_value = response
+
+        await service._summarize_chunk(llm, "[user] hallo", "de", {})
+
+        human = llm.ainvoke.await_args.args[0][1].content
+        assert f"Write the summary in: {get_language_name('de')}." in human
+        assert "Write the summary in: de." not in human
 
 
 class TestCompact:

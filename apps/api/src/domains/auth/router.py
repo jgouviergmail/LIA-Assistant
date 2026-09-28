@@ -1102,7 +1102,8 @@ async def update_debug_panel_preference(
     response_model=DisplayModePreferenceResponse,
     summary="Update response display mode",
     description="Set the response display mode: 'cards' (structured HTML cards), "
-    "'html' (rich HTML formatting), or 'markdown' (plain text).",
+    "'html' (rich HTML formatting), 'html_cards' (rich HTML with selected data cards), "
+    "or 'markdown' (plain text).",
 )
 async def update_display_mode_preference(
     data: DisplayModePreferenceRequest,
@@ -1114,6 +1115,7 @@ async def update_display_mode_preference(
     Controls how assistant responses are rendered:
     - cards: Structured HTML data cards (contacts, events, emails, etc.)
     - html: Rich HTML formatting with styled prose
+    - html_cards: Rich HTML synthesis followed by selected data cards
     - markdown: Plain markdown text
 
     Args:

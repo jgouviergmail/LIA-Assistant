@@ -31,6 +31,7 @@ from src.core.constants import (
     WORKSPACE_DOC_APPEND_MAX_CHARS,
     WORKSPACE_DOC_READ_MAX_CHARS,
 )
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import AGENT_FILE, CONTEXT_DOMAIN_FILES
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
@@ -275,7 +276,9 @@ class SpreadsheetWriteDraftInput(BaseModel):
     mode: str = Field(description="append (rows below the table) or update (a range)")
     a1_range: str = Field(default="", description="Target A1 range (update mode)")
     values: list[list[str]] = Field(description="Row-major cell values to write")
-    user_language: str = Field(default="fr", description="User language for messages")
+    user_language: str = Field(
+        default_factory=resolve_language, description="User language for messages"
+    )
 
 
 class DocumentAppendDraftInput(BaseModel):
@@ -286,7 +289,9 @@ class DocumentAppendDraftInput(BaseModel):
     file_id: str = Field(description="Drive file id of the document")
     document_title: str = Field(default="", description="Document title (preview)")
     text: str = Field(description="Text appended verbatim at the end of the body")
-    user_language: str = Field(default="fr", description="User language for messages")
+    user_language: str = Field(
+        default_factory=resolve_language, description="User language for messages"
+    )
 
 
 class WriteSpreadsheetTool(ToolOutputMixin, ConnectorTool[GoogleSheetsClient]):

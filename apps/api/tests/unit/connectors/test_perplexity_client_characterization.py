@@ -91,10 +91,31 @@ class TestSearch:
         assert result == {
             "answer": "AI is progressing.",
             "citations": ["https://example.com/a"],
+            "search_results": [],
             "related_questions": ["What is AGI?"],
             "query": "q",
             "model": "sonar",
         }
+
+    async def test_search_hands_back_the_results_the_search_listed(self, client):
+        """The articles the search found, with their titles and dates (the radio files
+        them as stories, ADR-324 decision 40); an entry that is not an object is left out."""
+        results = [
+            {"title": "A", "url": "https://example.com/a", "date": "2026-09-27"},
+            "not an object",
+        ]
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={**SEARCH_RESPONSE, "search_results": results})
+
+        p1, p2 = transport_patches(handler)
+        with p1, p2:
+            result = await client.search("q")
+            await client.close()
+
+        assert result["search_results"] == [
+            {"title": "A", "url": "https://example.com/a", "date": "2026-09-27"}
+        ]
 
     async def test_search_empty_choices_fallback(self, client):
         """Empty choices → empty answer dict (quirk: no 'model' key here)."""
@@ -110,6 +131,7 @@ class TestSearch:
         assert result == {
             "answer": "",
             "citations": [],
+            "search_results": [],
             "related_questions": [],
             "query": "q",
         }

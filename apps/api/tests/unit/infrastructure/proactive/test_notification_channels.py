@@ -252,3 +252,39 @@ class TestSendToChannel:
         )
 
         assert result is False
+
+
+@pytest.mark.unit
+class TestTheBodiesReadTheReferences:
+    """A peer's comment is quoted literally for the chat (ADR-316): the push
+    and the channel read its references as the chat does (review 14) — the
+    push body read « &#60;3 », Telegram showed « &#60;3 » too."""
+
+    async def test_push_and_channel_bodies(self) -> None:
+        dispatcher = NotificationDispatcher(
+            fcm_enabled=True, sse_enabled=False, archive_enabled=False, channel_enabled=True
+        )
+        fcm = AsyncMock(return_value={"success": 1, "failed": 0})
+        channels = AsyncMock(return_value=1)
+
+        with (
+            patch.object(dispatcher, "_send_fcm", fcm),
+            patch.object(dispatcher, "_send_channels", channels),
+        ):
+            await dispatcher.dispatch(
+                user=MagicMock(id=uuid4(), language="fr"),
+                content="**Léa** t'a envoyé une image.\n\n> Bisous &#60;3 &#91;promis&#93;",
+                task_type="peer_image",
+                target_id="target-1",
+                metadata={},
+                db=AsyncMock(),
+                title="Title",
+            )
+
+        assert fcm.await_args is not None and channels.await_args is not None
+        assert fcm.await_args.kwargs["body"] == (
+            "**Léa** t'a envoyé une image. > Bisous <3 [promis]"
+        )
+        assert channels.await_args.kwargs["body"] == (
+            "Léa t'a envoyé une image.\n\nBisous <3 [promis]"
+        )

@@ -26,9 +26,10 @@ pytestmark = pytest.mark.unit
 
 _SRC = Path(__file__).resolve().parents[4] / "src"
 
-#: Every door that turns counts into euros, with the keyword carrying the writes.
+#: Every door that turns counts into a price, with the keyword carrying the writes.
 DOORS: dict[str, str] = {
     "get_cached_cost_usd_eur": "cache_write_tokens",
+    "quote_cached_cost_usd": "cache_write_tokens",
     "get_cached_cost": "cache_write_tokens",
     "estimate_cost_from_cache": "cache_write_tokens",
     "record_node_tokens": "cache_write_tokens",

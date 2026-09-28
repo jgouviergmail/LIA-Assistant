@@ -12,7 +12,7 @@ from datetime import datetime
 from uuid import UUID
 
 import structlog
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.scheduled_actions.models import ScheduledActionRun, ScheduledRunOutcome
@@ -22,6 +22,13 @@ logger = structlog.get_logger(__name__)
 #: The column bound of ``scheduled_actions.last_error`` applied here too: one
 #: message, one ceiling.
 RUN_ERROR_MAX_LENGTH = 2000
+
+#: The outcomes that are a condition routine FIRING: the pipeline ran (and
+#: answered or failed) or a proposal was sent. What its daily cap counts
+#: (ADR-322) — a skip spent nothing and bothered nobody.
+FIRED_OUTCOMES: frozenset[ScheduledRunOutcome] = frozenset(
+    {ScheduledRunOutcome.SUCCESS, ScheduledRunOutcome.FAILURE, ScheduledRunOutcome.PROPOSED}
+)
 
 
 class ScheduledActionRunRepository:
@@ -96,6 +103,32 @@ class ScheduledActionRunRepository:
             .order_by(ScheduledActionRun.started_at.asc(), ScheduledActionRun.id.asc())
         )
         return list((await self.db.execute(stmt)).scalars().all())
+
+    async def count_fires_since(self, scheduled_action_id: UUID, since: datetime) -> int:
+        """How many times one routine FIRED since an instant — its daily cap's count.
+
+        Read from the history rather than kept in a counter of its own: the
+        history is already the record of what ran, and a second count beside it
+        would be a second answer to the same question (ADR-322).
+
+        Args:
+            scheduled_action_id: The routine.
+            since: Inclusive lower bound on ``slot_at`` (UTC) — the local midnight
+                of the routine's day.
+
+        Returns:
+            The number of fires.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(ScheduledActionRun)
+            .where(
+                ScheduledActionRun.scheduled_action_id == scheduled_action_id,
+                ScheduledActionRun.slot_at >= since,
+                ScheduledActionRun.outcome.in_(sorted(FIRED_OUTCOMES, key=lambda o: o.value)),
+            )
+        )
+        return int((await self.db.execute(stmt)).scalar_one())
 
     async def purge_older_than(self, cutoff: datetime) -> int:
         """Delete every run started before ``cutoff``; the count is logged.

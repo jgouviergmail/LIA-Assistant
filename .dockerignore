@@ -27,6 +27,8 @@ apps/api/models/sensevoice
 # Dev files
 **/JGO
 **/.pytest_cache
+**/.tmp-codex
+**/*tmp-codex*
 **/coverage
 
 # Analysis artifacts (type-check + coverage reports)
@@ -50,3 +52,6 @@ apps/api/models/sensevoice
 .env
 .env.*
 !.env*.example
+**/.env
+**/.env.*
+!**/.env*.example

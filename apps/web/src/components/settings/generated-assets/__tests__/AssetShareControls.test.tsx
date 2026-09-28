@@ -12,7 +12,9 @@ vi.mock('@/hooks/usePeerRecipients', () => ({
   usePeerRecipientsState: () => ({ recipients: [], loading: false, error: null }),
 }));
 
-import { SharedByLine, ShareAssetButton } from '../AssetShareControls';
+import { EmailShareAvailabilityProvider } from '@/lib/email-share/availability-context';
+
+import { EmailAssetButton, SharedByLine, ShareAssetButton } from '../AssetShareControls';
 
 function asset(over: Partial<GeneratedAsset> = {}): GeneratedAsset {
   return {
@@ -69,5 +71,34 @@ describe('SharedByLine', () => {
   it('says nothing about an image the person generated', () => {
     const { container } = renderWithProviders(<SharedByLine lng="en" asset={asset()} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('EmailAssetButton (ADR-321)', () => {
+  const LATER = '2999-01-01T00:00:00Z';
+
+  it.each([
+    ['an image', asset({ expires_at: LATER })],
+    ['a document', asset({ origin: 'generated_document', expires_at: LATER })],
+    ['a capture', asset({ origin: 'browser_screenshot', expires_at: LATER })],
+    ['a kept file, which has no deadline', asset({ expires_at: null })],
+  ])('is offered for %s, named after it', (_case, item) => {
+    renderWithProviders(
+      <EmailShareAvailabilityProvider available>
+        <EmailAssetButton asset={item} label="a lighthouse" />
+      </EmailShareAvailabilityProvider>
+    );
+
+    expect(screen.getByRole('button', { name: 'email_share.button_named' })).toBeInTheDocument();
+  });
+
+  it('is not offered for a file past its deadline, the cleanup is about to take it', () => {
+    renderWithProviders(
+      <EmailShareAvailabilityProvider available>
+        <EmailAssetButton asset={asset({ expires_at: '2020-01-01T00:00:00Z' })} label="x" />
+      </EmailShareAvailabilityProvider>
+    );
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

@@ -36,13 +36,12 @@ Le système de **Personnalités** permet de configurer le comportement et le ton
 | **Translation** | Titre et description localisés (6 langues supportées) |
 | **prompt_instruction** | Texte injecté dans le placeholder `{personnalite}` des prompts |
 | **is_default** | Personnalité par défaut pour les nouveaux utilisateurs |
-| **Auto-translation** | Traduction automatique via GPT-4.1-nano |
+| **Auto-translation** | Traduction automatique par le modèle configuré sur le slot `personality_translation` |
 
 ### Langues Supportées
 
-```python
-SUPPORTED_LANGUAGES = ["fr", "en", "es", "de", "it", "zh-CN"]
-```
+Les six langues du backend : `SUPPORTED_LANGUAGES` (`core/constants.py`), dérivé du
+`Literal` `Language` de `core/i18n_types.py` — fr, en, es, de, it, zh-CN.
 
 ---
 
@@ -170,6 +169,12 @@ class PersonalityTranslation(BaseModel):
 | `POST` | `/api/v1/personalities/admin/{id}/translations` | Ajouter traduction |
 | `POST` | `/api/v1/personalities/admin/{id}/auto-translate` | Déclencher auto-traduction |
 
+L'auto-traduction part toujours d'un texte qu'un administrateur a RÉDIGÉ, jamais d'une
+traduction automatique, qui composerait ses erreurs (ADR-323) : celui de `?source_language=`
+quand il est donné — une traduction automatique nommée ainsi est refusée —, sinon la langue
+déclarée d'abord parmi les textes rédigés, puis le plus ancien. Une source introuvable est
+refusée en 422, jamais une erreur 500.
+
 ### Exemples de Requêtes
 
 **Lister personnalités (utilisateur)**:
@@ -256,54 +261,22 @@ Tu es INTELLIA, un assistant IA.
 
 ### Récupération de la Personnalité
 
-```python
-# apps/api/src/domains/agents/prompts/__init__.py
-
-async def get_response_prompt_with_personality(
-    user_id: UUID,
-    db: AsyncSession,
-    user_timezone: str = "Europe/Paris",
-    user_language: str = "fr"
-) -> ChatPromptTemplate:
-    """
-    Get response prompt with user's personality injected.
-    """
-    # Get user's personality
-    service = PersonalityService(db)
-    user = await get_user(user_id, db)
-
-    personality = await service.get_user_personality(
-        user.personality_id,
-        user_language
-    )
-
-    # Load base prompt
-    prompt_text = load_response_prompt(version="v3")
-
-    # Inject personality
-    personality_instruction = personality.prompt_instruction if personality else DEFAULT_PERSONALITY_PROMPT
-    prompt_text = prompt_text.replace("{personnalite}", personality_instruction)
-
-    # Build template
-    return ChatPromptTemplate.from_messages([
-        ("system", prompt_text),
-        # ...
-    ])
-```
+L'instruction injectée dans le prompt de réponse vient de
+`PersonalityService.get_prompt_instruction(user_personality_id)`
+(`apps/api/src/domains/personalities/service.py`), ou de
+`get_prompt_instruction_for_user(user_id)` qui lit d'abord le `personality_id` du
+compte. Elle ne dépend pas de la langue : l'instruction est un texte pour le modèle, et la
+langue de la réponse est celle de la personne.
 
 ### Personnalité par Défaut
 
-Si l'utilisateur n'a pas de préférence (`personality_id = NULL`), le système utilise:
+Si l'utilisateur n'a pas de préférence (`personality_id = NULL`), ou si la sienne est
+introuvable, le système utilise :
 1. La personnalité avec `is_default = True`
-2. Sinon, `DEFAULT_PERSONALITY_PROMPT` de constants.py
-
-```python
-DEFAULT_PERSONALITY_PROMPT = """Tu es un assistant equilibre et professionnel.
-- Reponds de maniere claire et concise.
-- Adapte ton ton au contexte de la conversation.
-- Sois utile sans etre excessif.
-- Tutoie l'utilisateur."""
-```
+2. Sinon, `default_personality_prompt()` (`personalities/constants.py`), qui lit le prompt
+   versionné `prompts/v1/default_personality_prompt.txt` au premier usage — le texte
+   lui-même, jamais une copie : une copie en ligne avait divergé du fichier (ADR-284,
+   ADR-323).
 
 ---
 
@@ -316,7 +289,7 @@ DEFAULT_PERSONALITY_PROMPT = """Tu es un assistant equilibre et professionnel.
 ```python
 class PersonalityTranslationService:
     """
-    Service de traduction automatique via GPT-4.1-nano.
+    Service de traduction automatique par le slot LLM `personality_translation`.
 
     Features:
     - Cache in-memory pour réduire appels LLM
@@ -333,7 +306,7 @@ graph TD
     B -->|Yes| C[Check existing translations]
     C --> D[Identify missing languages]
     D --> E{Missing languages?}
-    E -->|Yes| F[GPT-4.1-nano Translation]
+    E -->|Yes| F[personality_translation slot]
     F --> G[Save with is_auto_translated=True]
     E -->|No| H[Done]
     B -->|No| H
@@ -342,26 +315,20 @@ graph TD
 ### Configuration LLM
 
 ```python
-# Translation uses nano model for cost efficiency
-llm = ChatOpenAI(
-    model="gpt-4.1-nano",
-    temperature=0.3,  # Low for consistency
-    max_tokens=200,   # Title + description
-)
+# Registered LLM slot: code defaults (LLM_DEFAULTS) + admin DB override
+llm = get_llm("personality_translation")
 ```
 
-### Exemple de Prompt Traduction
+Le modèle, la température et le budget de jetons sont ceux du slot, réglables
+depuis l'interface d'administration des LLM ; la dépense est celle de
+l'instance (`record_instance_llm_call`), bornée par son plafond quotidien.
 
-```text
-Translate the following personality description from French to English.
-Keep the same tone and meaning.
+### Prompt de Traduction
 
-Title: {title}
-Description: {description}
-
-Output JSON:
-{"title": "...", "description": "..."}
-```
+Le texte est le fichier versionné `prompts/v1/personality_translation_prompt.txt` :
+ses placeholders `{source_language}` et `{target_language}` reçoivent le NOM des
+langues (`get_language_name`, ADR-323), et le titre et la description partent dans le
+message humain qui le suit. Ce document ne le recopie pas.
 
 ---
 
@@ -372,11 +339,14 @@ Output JSON:
 **Fichier**: [apps/api/src/domains/personalities/constants.py](../../apps/api/src/domains/personalities/constants.py)
 
 ```python
-# Langues supportées
-SUPPORTED_LANGUAGES = ["fr", "en", "es", "de", "it", "zh-CN"]
-
 # Personnalité par défaut
 DEFAULT_PERSONALITY_CODE = "normal"
+
+
+@lru_cache(maxsize=1)
+def default_personality_prompt() -> str:
+    # The versioned prompt itself, read on first use (ADR-284, ADR-323)
+    return read_prompt_file("default_personality_prompt").strip()
 
 # Validation
 PERSONALITY_CODE_PATTERN = r"^[a-z][a-z0-9_]*$"
@@ -498,7 +468,7 @@ Tu es un assistant enthousiaste et motivant.
 
 1. **Personnalité utilisateur**: Si `user.personality_id` défini
 2. **Personnalité par défaut**: Si `personality.is_default = True`
-3. **Fallback constant**: `DEFAULT_PERSONALITY_PROMPT`
+3. **Fallback versionné**: `default_personality_prompt()` (`prompts/v1/default_personality_prompt.txt`)
 
 ---
 

@@ -24,6 +24,7 @@ import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
+from src.core.i18n import resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
@@ -192,7 +193,7 @@ async def list_labels_tool(
     Args:
         runtime: Tool runtime with user context
         name_filter: Filter labels by name (case-insensitive partial match).
-                     Example: "famille" matches "Famille", "Famille/Oncles", etc.
+                     Example: "family" matches "Family", "Family/Uncles", etc.
         include_system: Include system labels (INBOX, SENT, etc.)
 
     Returns:
@@ -230,7 +231,7 @@ class CreateLabelTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
     ) -> dict[str, Any]:
         """Create a new label."""
         name: str = kwargs.get("name", "")
-        language: str = kwargs.get("language", "fr")
+        language = resolve_language(kwargs.get("language"))
 
         if not name or not name.strip():
             raise LabelToolError("Label name is required")
@@ -328,7 +329,7 @@ class UpdateLabelTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         """Rename a label."""
         label_name: str = kwargs.get("label_name", "")
         new_name: str = kwargs.get("new_name", "")
-        language: str = kwargs.get("language", "fr")
+        language = resolve_language(kwargs.get("language"))
 
         if not label_name or not label_name.strip():
             raise LabelToolError("Current label name is required")
@@ -452,7 +453,7 @@ class DeleteLabelDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         """Create a delete label draft for HITL confirmation."""
         label_name: str = kwargs.get("label_name", "")
         children_only: bool = kwargs.get("children_only", False)
-        language: str = kwargs.get("language", "fr")
+        language = resolve_language(kwargs.get("language"))
 
         if not label_name or not label_name.strip():
             raise LabelToolError("Label name is required")
@@ -531,7 +532,7 @@ class DeleteLabelDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             sublabels=result.get("sublabels", []),
             children_only=result.get("children_only", False),
             source_tool="delete_label_tool",
-            user_language=result.get("language", "fr"),
+            user_language=resolve_language(result.get("language")),
         )
 
 
@@ -559,7 +560,7 @@ class DeleteLabelDirectTool(ConnectorTool[GoogleGmailClient]):
         label_name: str = kwargs.get("label_name", "")
         children_only: bool = kwargs.get("children_only", False)
         sublabels: list[dict] = kwargs.get("sublabels", [])
-        language: str = kwargs.get("language", "fr")
+        language = resolve_language(kwargs.get("language"))
 
         deleted_count = 0
 
@@ -663,7 +664,7 @@ class ApplyLabelsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         message_ids: list[str] | None = kwargs.get("message_ids")
         label_names: list[str] = kwargs.get("label_names", [])
         auto_create: bool = kwargs.get("auto_create", True)
-        language: str = kwargs.get("language", "fr")
+        language = resolve_language(kwargs.get("language"))
 
         # Normalize message IDs
         if message_id and not message_ids:
@@ -809,7 +810,7 @@ class RemoveLabelsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         message_id: str | None = kwargs.get("message_id")
         message_ids: list[str] | None = kwargs.get("message_ids")
         label_names: list[str] = kwargs.get("label_names", [])
-        language: str = kwargs.get("language", "fr")
+        language = resolve_language(kwargs.get("language"))
 
         # Normalize message IDs
         if message_id and not message_ids:
@@ -962,7 +963,7 @@ async def execute_label_delete_draft(
         label_name=draft_content.get("label_name"),
         children_only=draft_content.get("children_only", False),
         sublabels=draft_content.get("sublabels", []),
-        language=draft_content.get("user_language", "fr"),
+        language=resolve_language(draft_content.get("user_language")),
     )
 
 

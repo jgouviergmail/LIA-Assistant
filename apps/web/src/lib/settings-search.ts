@@ -81,7 +81,8 @@ export type SettingsSectionGate =
         | 'peersEnabled'
         | 'habitsEnabled'
         | 'sandboxEgressEnabled'
-        | 'liveEnabled';
+        | 'liveEnabled'
+        | 'radioEnabled';
     }
   | { kind: 'userDebugPanel' }
   | { kind: 'superuser' }
@@ -275,6 +276,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     keywordsKey: `${KEYWORDS_PREFIX}.live-mode`,
     group: 'voice_media',
     gate: { kind: 'instanceFlag', flag: 'liveEnabled' },
+  },
+  radio: {
+    titleKey: 'radio.settings.title',
+    descriptionKey: 'radio.settings.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.radio`,
+    group: 'voice_media',
+    gate: { kind: 'instanceFlag', flag: 'radioEnabled' },
   },
   'image-generation': {
     titleKey: 'settings.image_generation.title',
@@ -631,6 +639,8 @@ export interface SettingsSearchAvailability {
   sandboxEgressEnabled: boolean;
   /** `/config` → `features.live_enabled` (live voice mode, ADR-299). */
   liveEnabled: boolean;
+  /** `/config` → the radio capability's EFFECTIVE state (ADR-324). */
+  radioEnabled: boolean;
   /** `useDebugPanelEnabled()` → `userAccessAvailable`. */
   debugUserAccess: boolean;
 }

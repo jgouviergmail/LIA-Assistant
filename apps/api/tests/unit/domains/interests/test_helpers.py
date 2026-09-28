@@ -12,24 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.domains.interests.helpers import generate_interest_embedding, normalize_language_code
-
-
-@pytest.mark.unit
-class TestNormalizeLanguageCode:
-    """Locale normalization to base ISO 639-1 codes."""
-
-    @pytest.mark.parametrize(
-        ("raw", "expected"),
-        [
-            ("fr", "fr"),
-            ("fr-FR", "fr"),
-            ("en_US", "en"),
-            ("zh-CN", "zh"),
-        ],
-    )
-    def test_normalizes(self, raw: str, expected: str) -> None:
-        assert normalize_language_code(raw) == expected
+from src.domains.interests.helpers import generate_interest_embedding
 
 
 @pytest.mark.unit

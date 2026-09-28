@@ -22,7 +22,7 @@ Usage:
 
     analyzer = get_query_analyzer_service()
     intelligence = await analyzer.analyze_full(
-        query="Quel temps fait-il chez mon frère ?",
+        query="What's the weather at my brother's?",
         messages=messages,
         state=state,
         config=config,
@@ -50,6 +50,7 @@ from src.core.constants import (
     INTENT_PATTERNS_SEND,
     INTENT_PATTERNS_UPDATE,
 )
+from src.core.i18n import resolve_language
 from src.core.prompt_layout import single_call_messages
 from src.domains.agents.analysis.query_intelligence import (
     QueryIntelligence,
@@ -488,8 +489,8 @@ async def analyze_query(
 
     Example:
         >>> result = await analyze_query(
-        ...     query="Quel temps chez mon frère ?",
-        ...     memory_facts=["frère = jean, Lyon"],
+        ...     query="Weather at my brother's?",
+        ...     memory_facts=["brother = jean, Lyon"],
         ... )
         >>> result.primary_domain
         "weather"
@@ -537,8 +538,8 @@ async def analyze_query(
                 if address:
                     location_str += f" ({address})"
 
-        # Extract user timezone and language from config (critical for correct date calculations)
-        (base_config or {}).get("configurable", {})
+        # The person's timezone and language, from the typed runtime context
+        # (ADR-231) — critical for correct date calculations
         user_timezone = runtime_timezone(DEFAULT_USER_DISPLAY_TIMEZONE)
         user_language = runtime_language()
 
@@ -848,7 +849,7 @@ class QueryAnalyzerService:
         intelligent_mechanisms: dict[str, Any] = {}
 
         run_id = run_id_of(config, "unknown")
-        user_language = state.get("user_language", settings.default_language)
+        user_language = resolve_language(state.get("user_language"))
 
         try:
             # === STEP 1: Memory facts retrieval + reference resolution ===
@@ -1030,7 +1031,7 @@ class QueryAnalyzerService:
             # === STEP 3: Semantic Type Domain Expansion ===
             # Person-reference evidence, most reliable source first. The memory
             # resolver pipeline targets relational references by construction
-            # ("mon frère", "le voisin"), so its outputs are deterministic
+            # ("my brother", "the neighbour"), so its outputs are deterministic
             # evidence — unlike the analyzer LLM refs, which intermittently
             # omit the person typing (recurring failure: contact expansion
             # skipped → get_route receives a person name as destination).
@@ -1041,7 +1042,7 @@ class QueryAnalyzerService:
             if memory_extracted_references:
                 # E2: extraction found relational references, kept even when
                 # resolution failed (person exists but no memory fact). May
-                # over-trigger on personal places ("mon travail") — benign:
+                # over-trigger on personal places ("my office") — benign:
                 # expansion still requires a matching required semantic type.
                 person_evidence_sources.append("memory_extraction")
             if analysis_result.resolved_references and any(
@@ -1482,7 +1483,7 @@ class QueryAnalyzerService:
         """
         Expand domains based on semantic type requirements.
 
-        Example: "trajet chez mon frère" → route requires physical_address +
+        Example: "route to my brother's" → route requires physical_address +
         person evidence (memory resolver or analyzer LLM) → add contact.
 
         Two modes (SEMANTIC_EXPANSION_EVIDENCE_DRIVEN_ENABLED):
@@ -1564,7 +1565,7 @@ class QueryAnalyzerService:
     def _create_fallback_intelligence(
         self,
         query: str,
-        user_language: str = settings.default_language,
+        user_language: str | None = None,
         error: Exception | None = None,
     ) -> QueryIntelligence:
         """Create minimal QueryIntelligence on error - routes to chat."""
@@ -1592,7 +1593,7 @@ class QueryAnalyzerService:
             route_to="response",
             bypass_llm=False,
             confidence=0.0,
-            user_language=user_language,
+            user_language=resolve_language(user_language),
             reasoning_trace=[f"Analysis failed: {str(error)[:50]}" if error else "Fallback"],
             intelligent_mechanisms={"error": {"message": str(error)}} if error else {},
             # FOR_EACH pattern detection - defaults for fallback

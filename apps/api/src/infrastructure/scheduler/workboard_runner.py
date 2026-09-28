@@ -44,6 +44,7 @@ from src.core.constants import (
     WORKBOARD_RUN_RETRY_DELAY_SECONDS,
     WORKBOARD_RUN_SESSION_PREFIX,
 )
+from src.core.i18n import normalize_language
 from src.core.i18n_workboard import WorkboardMessages
 from src.core.time_utils import now_utc
 from src.domains.agents.api.run_origin import ApprovedDraft, RunOrigin
@@ -121,7 +122,7 @@ class ClaimedRun:
         language: Backend-canonical code the answer comes back in.
         timezone: IANA zone of the holder.
         display_name: What the assistant calls them.
-        display_mode: ``cards`` | ``html`` | ``markdown``.
+        display_mode: ``cards`` | ``html`` | ``html_cards`` | ``markdown``.
         conversation_id: The thread the run writes into; None when the probe
             could not resolve it, in which case no lock is taken.
         brief: The instruction, composed from the OWNER's words only.
@@ -853,7 +854,7 @@ async def _notify_one(
         user = await db.get(User, user_id)
         if user is None:
             return
-        language = getattr(user, "language", None) or settings.default_language
+        language = normalize_language(getattr(user, "language", None))
         # The link is built PER RECIPIENT: two sides of a shared ticket do not
         # necessarily read the same language, and an instruction in the wrong
         # one is an instruction the model answers in the wrong one.

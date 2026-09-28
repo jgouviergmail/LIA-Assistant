@@ -3,7 +3,7 @@ Semantic Validator Node - LangGraph node for plan semantic validation.
 
 This module provides a LangGraph node that validates execution plans against
 user intent, detecting subtle semantic issues like:
-- Cardinality mismatches ("pour chaque" → single operation)
+- Cardinality mismatches ("for each" → single operation)
 - Missing dependencies
 - Implicit assumptions
 - Scope overflow/underflow
@@ -34,10 +34,11 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
-from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n import resolve_language
 from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
 from src.domains.agents.constants import (
     STATE_KEY_EXECUTION_PLAN,
+    STATE_KEY_NEEDS_REPLAN,
     STATE_KEY_PLAN_APPROVED,
     STATE_KEY_PLANNER_ITERATION,
     STATE_KEY_SEMANTIC_VALIDATION,
@@ -171,7 +172,7 @@ async def semantic_validator_node(
 
     Validates that the generated plan semantically matches the user's original
     request by detecting:
-    - Cardinality mismatches (single op vs "pour chaque")
+    - Cardinality mismatches (single op vs "for each")
     - Missing dependencies between steps
     - Implicit assumptions about data
     - Scope overflow/underflow
@@ -186,7 +187,7 @@ async def semantic_validator_node(
         state: LangGraph state dict containing:
             - execution_plan: ExecutionPlan from planner
             - messages: Conversation history (for user request)
-            - user_language: Language code (fr, en, es)
+            - user_language: Language code (fr, en, es, de, it, zh-CN)
         config: Optional RunnableConfig for LangGraph
 
     Returns:
@@ -205,14 +206,14 @@ async def semantic_validator_node(
         >>> # Before validation
         >>> state = {
         ...     "execution_plan": ExecutionPlan(...),
-        ...     "messages": [HumanMessage(content="Envoie email à tous mes contacts")],
-        ...     "user_language": "fr",
+        ...     "messages": [HumanMessage(content="Send an e-mail to all my contacts")],
+        ...     "user_language": "en",
         ... }
         >>>
         >>> # After validation
         >>> new_state = await semantic_validator_node(state, config)
         >>> new_state["semantic_validation"].requires_clarification  # True if ambiguous
-        >>> new_state["semantic_validation"].clarification_questions  # ["Voulez-vous..."]
+        >>> new_state["semantic_validation"].clarification_questions  # ["Do you want..."]
 
     Performance:
         - Short-circuit (≤1 step): ~1ms
@@ -221,9 +222,10 @@ async def semantic_validator_node(
 
     Notes:
         - This node does NOT trigger interrupts - it only validates
+        - A pending replan (the person's answer added information) is not
+          validated: the routing sends it to the planner whatever the verdict
         - If requires_clarification=True, route_from_semantic_validator routes to clarification_node
         - ClarificationNode then triggers the actual interrupt
-        - If feature flag disabled, returns instant "valid" result
     """
     # =========================================================================
     # BUG FIX 2025-12-07: Skip validation if plan_approved=True
@@ -265,6 +267,14 @@ async def semantic_validator_node(
             )
         }
 
+    # The person's answer to a clarification ADDED information: the routing
+    # sends the turn back to the planner whatever this node concludes (its
+    # Case 2), so validating the plan that answer made stale is a model call
+    # for nothing — and an « invalid » verdict would spend a replan.
+    if state.get(STATE_KEY_NEEDS_REPLAN):
+        logger.info("semantic_validator_node_replan_pending_skip")
+        return {}
+
     # =========================================================================
     # BUG FIX 2026-01-14: Only preserve early detection clarification if NO plan exists
     # =========================================================================
@@ -303,10 +313,9 @@ async def semantic_validator_node(
 
     # Extract required data from state
     execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
-    # DEFAULT_LANGUAGE, not a "fr" literal: the fallback has to follow
-    # `settings.default_language`, or a deployment configured in another
-    # language would still get its clarification questions in French.
-    user_language = state.get("user_language") or DEFAULT_LANGUAGE
+    # The declared language, never a literal: a state without the key would
+    # otherwise get its clarification questions in one fixed language (ADR-323).
+    user_language = resolve_language(state.get("user_language"))
 
     # Safety check: execution_plan must exist
     if not execution_plan:

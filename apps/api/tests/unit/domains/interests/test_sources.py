@@ -2,6 +2,8 @@
 
 import pytest
 
+from src.core.i18n_drafts import label_separator
+from src.core.i18n_proactive import ProactiveMessages
 from src.domains.interests.sources import build_sources_block
 from src.infrastructure.proactive.notification import markdown_links_to_plain
 
@@ -32,6 +34,14 @@ class TestBuildSourcesBlock:
     def test_zh_cn_label(self) -> None:
         block = build_sources_block(["https://ok.com/a"], language="zh-CN", max_links=3)
         assert "来源" in block
+
+    @pytest.mark.parametrize("language", ["fr", "en", "zh-CN"])
+    def test_the_label_joins_the_links_with_the_reader_s_punctuation(self, language: str) -> None:
+        """A French no-break space, an English colon, a full-width Chinese one."""
+        block = build_sources_block(["https://ok.com/a"], language=language, max_links=3)
+        label = ProactiveMessages.sources_label(language)
+
+        assert block == f"\n\n{label}{label_separator(language)}[ok.com](https://ok.com/a)"
 
 
 @pytest.mark.unit

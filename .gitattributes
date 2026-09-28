@@ -16,6 +16,14 @@
 # checkouts, which breaks bash on Linux.
 .github/hooks/* text eol=lf
 
+# The same for the extensionless scripts the production HOST runs (logwatch's
+# cron entry and service filters): a fresh Windows worktree wrote them with
+# CRLF, and the daily report died four mornings in a row (2026-09-24 -> 27).
+# apps/api/tests/unit/test_shebang_scripts_lf_guard.py refuses any tracked
+# `#!` script that does not resolve to eol=lf.
+infrastructure/logwatch/cron/* text eol=lf
+infrastructure/logwatch/scripts/** text eol=lf
+
 # Container-mounted config templates (rendered by sed/Go templating inside
 # Linux containers — CRLF would corrupt the rendered config)
 *.template text eol=lf
@@ -102,6 +110,9 @@ docker-compose*.yml text eol=lf
 *.ttf binary
 *.eot binary
 *.otf binary
+
+# Audio (the radio's music library)
+*.mp3 binary
 
 # Other binary formats
 *.pdf binary

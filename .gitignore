@@ -38,6 +38,9 @@ wheels/
 *.egg
 
 # Pytest / Coverage
+.cache/
+.tmp-codex/
+apps/api/DeveloppementLIA.tmp-codexpytest-cache/
 .pytest_cache/
 .coverage
 htmlcov/
@@ -214,6 +217,11 @@ apps/api/data/tool_cache/
 
 # Rendered document corpus (task documents:corpus:render) — regenerated, never committed.
 apps/api/data/document_corpus_out/
+
+# The radio's session audio (ADR-324): the listener's day spoken aloud — personal,
+# runtime only, swept as orphans. In dev the media root /app/data/radio falls inside
+# this tree through the bind mount, so a `git add -A` would stage a person's words.
+apps/api/data/radio/
 
 # ============================================
 # BUILD & TEMPORARY

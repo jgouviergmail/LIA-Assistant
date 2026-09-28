@@ -4,12 +4,36 @@ FROM python:3.14-slim-trixie AS builder
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_ROOT_USER_ACTION=ignore \
+    PATH=/root/.local/bin:$PATH
 
 WORKDIR /build
 
+# The slim base excludes manpages required by bash and util-linux alternatives
+# during the upgrade. Seed the real files here as in the runtime stage below.
+RUN set -eu; \
+    printf '%s\n' \
+      'path-include /usr/share/man/man7/bash-builtins.7.gz' \
+      'path-include /usr/share/man/man1/more.1.gz' \
+      > /etc/dpkg/dpkg.cfg.d/zz-lia-alternatives-manpages; \
+    apt-get update -qq; \
+    cd /tmp; \
+    apt-get download -qq bash util-linux; \
+    mkdir -p /tmp/lia-manpages; \
+    for package in bash_*.deb util-linux_*.deb; do \
+      dpkg-deb -x "$package" /tmp/lia-manpages; \
+    done; \
+    install -D -m644 /tmp/lia-manpages/usr/share/man/man7/bash-builtins.7.gz \
+      /usr/share/man/man7/bash-builtins.7.gz; \
+    install -D -m644 /tmp/lia-manpages/usr/share/man/man1/more.1.gz \
+      /usr/share/man/man1/more.1.gz; \
+    ln -sfn /etc/alternatives/pager.1.gz /usr/share/man/man1/pager.1.gz; \
+    rm -rf /tmp/lia-manpages /tmp/bash_*.deb /tmp/util-linux_*.deb
+
 # Install build dependencies and security patches
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
@@ -200,7 +224,31 @@ RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /
 # Install runtime dependencies, security patches, Chromium system deps, and Docker CLI
 # Chromium deps required for Playwright browser agent (evolution F7)
 # Docker CLI required for DevOps container management from within the container
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+# Buildx is only a build-time tool; the Docker package recommends it, so purge
+# it from the API runtime while retaining Docker CLI and Compose.
+# Debian slim excludes manpages, but bash and util-linux update-alternatives
+# still require these two targets during upgrades. Restore the real pages from
+# the signed apt packages before upgrading, then retain just these pages.
+RUN set -eu; \
+    printf '%s\n' \
+      'path-include /usr/share/man/man7/bash-builtins.7.gz' \
+      'path-include /usr/share/man/man1/more.1.gz' \
+      > /etc/dpkg/dpkg.cfg.d/zz-lia-alternatives-manpages; \
+    apt-get update -qq; \
+    cd /tmp; \
+    apt-get download -qq bash util-linux; \
+    mkdir -p /tmp/lia-manpages; \
+    for package in bash_*.deb util-linux_*.deb; do \
+      dpkg-deb -x "$package" /tmp/lia-manpages; \
+    done; \
+    install -D -m644 /tmp/lia-manpages/usr/share/man/man7/bash-builtins.7.gz \
+      /usr/share/man/man7/bash-builtins.7.gz; \
+    install -D -m644 /tmp/lia-manpages/usr/share/man/man1/more.1.gz \
+      /usr/share/man/man1/more.1.gz; \
+    ln -sfn /etc/alternatives/pager.1.gz /usr/share/man/man1/pager.1.gz; \
+    rm -rf /tmp/lia-manpages /tmp/bash_*.deb /tmp/util-linux_*.deb
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
     docker-ce-cli \
     postgresql-client \
     ffmpeg \
@@ -223,6 +271,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libcairo2 \
     libasound2t64 \
     libxshmfence1 \
+    && DEBIAN_FRONTEND=noninteractive apt-get purge -y docker-buildx-plugin \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -280,7 +329,11 @@ RUN mkdir -p /app/data/attachments /app/data/skills/users /app/data/tool_cache /
 # Install Claude Code CLI for DevOps remote server management
 # Auth is persisted via Docker volume (~/.claude/)
 # CLAUDE.md workspace is mounted via docker-compose
-RUN npm install -g @anthropic-ai/claude-code \
+# Refresh Node's bundled npm first: its vendored dependencies lag the fixed
+# brace-expansion, ip-address and tar releases even in the newest Node 24 tarball.
+RUN npm install -g npm@12.1.0 \
+    && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code \
+    && rm -rf /root/.npm \
     && mkdir -p /opt/claude-workspace /home/appuser/.claude \
     && chown appuser:appuser /opt/claude-workspace /home/appuser/.claude
 

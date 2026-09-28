@@ -192,19 +192,22 @@ PLANNER_LLM_MODEL=deepseek-reasoner
 | Modele (valeur `.env`) | Context | Max Output | Prix (input/output $/1M) |
 |------------------------|---------|------------|--------------------------|
 | `gemini-3.8-flash` | 1M | 65K | Voir le seed de référence : tarif en vigueur jusqu'au 31/12/2026, doublé le 1er janvier 2027 — à modifier à cette date, rien ne bascule seul. Raisonnement `low`/`medium`/`high` seulement (`minimal` renvoie une erreur) |
-| `gemini-3.1-pro-preview` | 1M | 65K | $2.00 / $12.00 |
-| `gemini-3-pro-preview` | 1M | 65K | $2.00 / $12.00 |
-| `gemini-3-flash-preview` | 1M | 65K | $0.50 / $3.00 |
-| `gemini-2.5-pro` | 1M | 65K | $1.25 / $10.00 |
-| `gemini-2.5-flash` | 1M | 65K | $0.30 / $2.50 |
-| `gemini-2.5-flash-lite` | 1M | 65K | $0.10 / $0.40 |
-| `gemini-2.0-flash` | 1M | 8K | $0.10 / $0.40 |
-| `gemini-2.0-flash-lite` | 1M | 8K | $0.075 / $0.30 |
+| `gemini-3.7-flash` | 1M | 65K | Voir le seed de référence (même échéance du 1er janvier 2027 que 3.8 Flash). Raisonnement `low`/`medium`/`high` |
+| `gemini-3.6-flash` | 1M | 65K | Voir le seed de référence (même échéance). Raisonnement `minimal` à `high` |
+| `gemini-3.5-flash` | 1M | 65K | Voir le seed de référence. Raisonnement `minimal` à `high` |
+| `gemini-3.5-flash-lite` | 1M | 65K | Voir le seed de référence. Raisonnement `minimal` à `high` |
+| `gemini-3.1-flash-lite` | 1M | 65K | Voir le seed de référence (version stable de `gemini-3.1-flash-lite-preview` ; raisonnement `minimal` à `high` ; arrêt annoncé le 2027-05-07) |
+| `gemini-3.1-pro-preview` | 1M | 65K | Voir le seed de référence. Raisonnement `low`/`medium`/`high` |
+| `gemini-3-flash-preview` | 1M | 65K | Voir le seed de référence. Raisonnement `minimal` à `high` |
+| `gemini-2.5-pro` | 1M | 65K | Voir le seed de référence. Réflexion obligatoire : budget de 128 à 32 768 jetons, jamais désactivable (mesuré) |
+| `gemini-2.5-flash` | 1M | 65K | Voir le seed de référence. Budget de 0 à 24 576 jetons, 0 désactive la réflexion (mesuré) |
+| `gemini-2.5-flash-lite` | 1M | 65K | Voir le seed de référence. Plus ouvert aux nouveaux comptes (404 « no longer available to new users », mesuré le 2026-09-26) |
 
 **Notes Gemini** :
 - Cache de prompt : implicite et automatique, relu seulement quand une requête partage un long préfixe identique avec une requête récente. Le minimum documenté est de 4 096 jetons sur les Flash 3.x, mais mesuré le 2026-09-23 sur `gemini-3.7-flash`, aucune requête de 10,3K jetons ou moins n'a jamais rien relu (quatre formes de requête, onze essais, 3 à 15 s d'écart), tandis que des requêtes de 17,8K jetons relisaient ~12,3K ([ADR-309](../architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md)). LIA lit correctement ce cache (`cached_content_token_count` → `cache_read`) ; le 0 % des nœuds Gemini de production venait de la taille de leurs prompts. Le cache explicite (`cachedContents`) est une ressource facturée à l'heure, non utilisée.
+- Modèles vocaux (poste de synthèse vocale, `kind = tts`) : `gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview`, `gemini-2.5-flash-preview-tts` et `gemini-2.5-pro-preview-tts`. Texte en entrée, AUDIO en sortie, facturés sur les jetons que le rapport d'usage du fournisseur déclare (tarifs : le seed de référence ; les deux modèles 3.8 doublent le 1er janvier 2027). Aucun ne réfléchit : le formulaire d'administration ne leur offre aucune profondeur de raisonnement. Mesuré le 2026-09-26 sur l'API Interactions : seuls les deux modèles 3.8 acceptent une direction de style (`speech_metadata`), les trois autres la refusent (400).
+- Catalogue aligné le 2026-09-26 sur le site et l'API de Google, qui font référence (fiches modèles, guide de la réflexion, page des dépréciations, liste des modèles que l'API sert ; migration `70fd39bf9e8d`) : fenêtre d'entrée 1 048 576 et sortie 65 536 pour les modèles de chat de la page de tarifs, 8 192 / 16 384 et ni outils ni sortie structurée pour les modèles vocaux, les niveaux de réflexion du guide (Gemini 2.5 compris : `low`, `medium`, `high`), et les dates d'arrêt de la page des dépréciations. Ces dates passent avant celles du registre tiers vendorisé (`catalogue/vendor_announcements.py`) : LiteLLM datait les modèles 2.5 au 2026-10-20, alors que Google les sert jusqu'à nouvel ordre, et `task llm:catalogue:sync` ne le propose plus. Un modèle que l'API ne sert plus est désactivé avec son tarif, sauf si un poste le référence : la famille `gemini-2.0-*`, `gemini-3-pro-preview`, les préversions `09-2025`, `gemini-2.5-flash-image-preview`, `text-embedding-004`, `embedding-001`, et `gemini-3.1-flash-preview-tts` (un nom que l'API n'a jamais servi). Une date passée seule ne suffit pas : Google la qualifie d'arrêt « au plus tôt », et l'API servait encore `gemini-3.1-flash-lite-preview`, `gemini-3-pro-image-preview` et `gemini-embedding-2-preview`.
 - `frequency_penalty`, `presence_penalty` sont **automatiquement retires** (non supportes)
-- `reasoning_effort` est **ignore** (parametre OpenAI uniquement)
 - Le parametre `max_tokens` est mappe vers `max_output_tokens` de l'API Gemini
 
 ### Qwen (Alibaba Cloud)
@@ -306,7 +309,7 @@ Le `ProviderAdapter` filtre automatiquement les parametres non supportes pour ev
 >
 > **(2)** Anthropic : le niveau passe par le seam unique `kwargs_for` (ADR-245) — budget de jetons (Claude 4.5), réflexion adaptative + `effort` (4.6), réflexion adaptative + `display` + `effort` porté dans `output_config` (4.7 et suivants, ADR-306) ; `none` désactive la réflexion là où la génération le permet.
 >
-> **(3)** Gemini : `reasoning_effort` est mappe vers `thinking_level` de ChatGoogleGenerativeAI. Mapping : `low`/`medium` -> `low`, `high` -> `high`. Valeurs `none`/`minimal` = ignore.
+> **(3)** Gemini : le niveau passe par le seam unique `kwargs_for` (ADR-245). Gemini 3.x reçoit `thinking_level`, parmi les niveaux que le modèle accepte. Gemini 2.5 reçoit `thinking_budget`, dérivé du niveau et borné à la plage que le modèle accepte (mesuré le 2026-09-26 : 0 à 24 576 pour 2.5 Flash, 128 à 32 768 pour 2.5 Pro, qui refuse de désactiver la réflexion) ; sans ces bornes, `medium` et `high` produisaient un budget que l'API refusait à chaque appel.
 >
 > **(4)** Anthropic : omise à partir d'Opus 4.7 (l'API la refuse) et pendant une réflexion — `core/claude_surface.py` (ADR-306).
 
@@ -539,7 +542,7 @@ CONTACTS_AGENT_LLM_MODEL=deepseek-chat
 
 ```bash
 ROUTER_LLM_PROVIDER=gemini
-ROUTER_LLM_MODEL=gemini-2.0-flash-lite
+ROUTER_LLM_MODEL=gemini-3.5-flash-lite
 ROUTER_LLM_TEMPERATURE=0.0
 
 RESPONSE_LLM_PROVIDER=gemini

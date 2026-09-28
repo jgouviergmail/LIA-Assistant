@@ -50,6 +50,16 @@ vi.mock('@/lib/utils/download-markdown', () => ({ downloadMarkdown }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
+const { emailDialog } = vi.hoisted(() => ({ emailDialog: vi.fn() }));
+vi.mock('@/components/email-share/EmailShareDialog', () => ({
+  EmailShareDialog: (props: unknown) => {
+    emailDialog(props);
+    return null;
+  },
+}));
+
+import { EmailShareAvailabilityProvider } from '@/lib/email-share/availability-context';
+
 import { BookmarkList } from '../BookmarkList';
 
 function bookmark(over: Partial<Bookmark> = {}): Bookmark {
@@ -195,6 +205,26 @@ describe('a card', () => {
     expect(content).toContain('> Réserve la salle B à 14 h');
     expect(content).toContain('**Réservé** : salle B, 14 h.');
     expect(baseName).toMatch(/^lia-bookmark-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$/);
+  });
+
+  it('sends by e-mail the very .md the download writes (ADR-321)', async () => {
+    list.items = [bookmark()];
+    list.total = 1;
+    const { user } = renderWithProviders(
+      <EmailShareAvailabilityProvider available>
+        <BookmarkList lng="fr" />
+      </EmailShareAvailabilityProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: 'settings.bookmarks.download' }));
+    await user.click(screen.getByRole('button', { name: 'email_share.button' }));
+
+    const [content, baseName] = downloadMarkdown.mock.calls[0] as [string, string];
+    expect(emailDialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: { kind: 'markdown', filename: baseName, text: content },
+      })
+    );
   });
 
   it('asks before deleting, then tells the list to re-read', async () => {

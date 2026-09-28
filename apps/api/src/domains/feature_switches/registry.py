@@ -95,6 +95,11 @@ class PlatformCapability(str, Enum):
     MOMENTS = "moments"
     # ADR-282 — an answer a person keeps out of their conversations.
     BOOKMARKS = "bookmarks"
+    # ADR-321 — a generated file or an answer sent by e-mail, through the
+    # person's mailbox or the instance's own relay.
+    EMAIL_SHARE = "email_share"
+    # ADR-324 — a personal radio produced on demand, and the newsroom behind it.
+    RADIO = "radio"
 
 
 @dataclass(frozen=True)
@@ -406,6 +411,30 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         family="reach",
         env_flag="python_sandbox_egress_enabled",
         setting_key=SystemSettingKey.CAPABILITY_PYTHON_SANDBOX_EGRESS_ENABLED,
+        service_enforced=True,
+    ),
+    # ADR-321 — the router IS the ability: sending is the only thing it does,
+    # and nothing it touches is a record (the file stays in the gallery, the
+    # answer in the chat). An operator whose relay also activates accounts may
+    # need it off — the demonstrator does.
+    PlatformCapability.EMAIL_SHARE: CapabilitySpec(
+        capability=PlatformCapability.EMAIL_SHARE,
+        family="reach",
+        env_flag="email_share_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_EMAIL_SHARE_ENABLED,
+        route_enforced=True,
+    ),
+    # ADR-324 — the routes ARE the listening (start, report, audio) and the
+    # listener's settings; the newsroom collector is a background act that asks
+    # the switch at every pass. A session already airing ends by itself once its
+    # player can no longer report (the idle rule). The settings and the sites a
+    # listener added are records, kept while the switch is off.
+    PlatformCapability.RADIO: CapabilitySpec(
+        capability=PlatformCapability.RADIO,
+        family="media",
+        env_flag="radio_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_RADIO_ENABLED,
+        route_enforced=True,
         service_enforced=True,
     ),
 }

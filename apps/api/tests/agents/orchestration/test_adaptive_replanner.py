@@ -251,7 +251,6 @@ class TestAdaptiveReplannerDecisions:
 
         context = RePlanContext(
             user_request="Find John",
-            user_language="en",
             execution_plan=sample_execution_plan,
             plan_id=sample_execution_plan.plan_id,
             completed_steps=successful_completed_steps,
@@ -274,7 +273,6 @@ class TestAdaptiveReplannerDecisions:
 
         context = RePlanContext(
             user_request="Find John",
-            user_language="en",
             execution_plan=sample_execution_plan,
             plan_id=sample_execution_plan.plan_id,
             completed_steps=empty_completed_steps,
@@ -298,7 +296,6 @@ class TestAdaptiveReplannerDecisions:
 
         context = RePlanContext(
             user_request="Find John",
-            user_language="en",
             execution_plan=sample_execution_plan,
             plan_id=sample_execution_plan.plan_id,
             completed_steps=empty_completed_steps,
@@ -321,7 +318,6 @@ class TestAdaptiveReplannerDecisions:
 
         context = RePlanContext(
             user_request="Find John",
-            user_language="en",
             execution_plan=sample_execution_plan,
             plan_id=sample_execution_plan.plan_id,
             completed_steps=empty_completed_steps,
@@ -344,7 +340,6 @@ class TestAdaptiveReplannerDecisions:
 
         context = RePlanContext(
             user_request="Find John",
-            user_language="en",
             execution_plan=sample_execution_plan,
             plan_id=sample_execution_plan.plan_id,
             completed_steps=partial_failure_steps,

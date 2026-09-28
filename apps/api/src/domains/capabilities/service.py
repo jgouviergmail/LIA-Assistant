@@ -249,6 +249,10 @@ SWITCH_NODE_KEYS: tuple[str, ...] = (
     # The live voice mode (ADR-299): a session is a moment, not a record — the
     # node says whether the person can open one (a live connector is active).
     "live",
+    # The personal radio (ADR-324): a session is a moment too, and nothing is
+    # set up before the first one — the node is live as soon as the instance
+    # offers it, and its destination is the radio's settings.
+    "radio",
 )
 
 #: Every node key the payload can carry. The client must be able to name each.
@@ -283,6 +287,7 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
     PlatformCapability.RELATION_DEBRIEF: "relations",
     PlatformCapability.BOOKMARKS: "bookmarks",
     PlatformCapability.LIVE: "live",
+    PlatformCapability.RADIO: "radio",
 }
 
 #: Capabilities deliberately absent from the map, and why. The map's third
@@ -320,6 +325,12 @@ CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
         "is configured in the very section the 'proactivity' node already "
         "points at (ADR-281). A second node onto the same settings would tell "
         "the reader there are two things to set up where there is one."
+    ),
+    PlatformCapability.EMAIL_SHARE: (
+        "An act on a card, not a thing to set up: sending a file or an answer "
+        "by e-mail keeps no state of its own, and the mailbox it goes through "
+        "is a connector the map already counts (ADR-321). A star for it could "
+        "only ever be lit."
     ),
 }
 
@@ -590,6 +601,7 @@ def _from_user(user: User, disabled: frozenset[PlatformCapability]) -> list[Capa
     heartbeat = _offers(PlatformCapability.HEARTBEAT, None, disabled)
     psyche = _offers(PlatformCapability.PSYCHE, None, disabled)
     debrief = _offers(PlatformCapability.RELATION_DEBRIEF, None, disabled)
+    radio = _offers(PlatformCapability.RADIO, None, disabled)
     return [
         CapabilityProbe(
             "voice",
@@ -626,6 +638,8 @@ def _from_user(user: User, disabled: frozenset[PlatformCapability]) -> list[Capa
             active=images and bool(getattr(user, "image_generation_enabled", False)),
         ),
         CapabilityProbe("documents", available=documents, active=documents),
+        # Nothing to set up before a first session: available is usable.
+        CapabilityProbe("radio", available=radio, active=radio),
     ]
 
 

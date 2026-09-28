@@ -15,7 +15,10 @@ from uuid import uuid4
 
 import pytest
 
-from src.domains.connectors.clients.google_weather_client import GoogleWeatherClient
+from src.domains.connectors.clients.google_weather_client import (
+    _ICON_BY_CONDITION_TYPE,
+    GoogleWeatherClient,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -69,7 +72,7 @@ class TestCurrentWeatherMapping:
         assert weather["main"]["temp_min"] == 15.0
         assert weather["main"]["temp_max"] == 26.0
         assert weather["weather"][0]["description"] == "Nuageux"
-        assert weather["weather"][0]["main"] == "CLOUDY"
+        assert weather["weather"][0]["main"] == "Clouds"
         # 18 km/h -> 5.0 m/s (OWM metric wind unit)
         assert weather["wind"]["speed"] == 5.0
         assert weather["wind"]["deg"] == 180
@@ -110,6 +113,74 @@ class TestCurrentWeatherMapping:
 
 
 class TestIconMapping:
+    @pytest.mark.parametrize(
+        ("google_type", "expected_main"),
+        [
+            ("TYPE_UNSPECIFIED", "Unknown"),
+            ("CLEAR", "Clear"),
+            ("MOSTLY_CLEAR", "Clear"),
+            ("PARTLY_CLOUDY", "Clouds"),
+            ("MOSTLY_CLOUDY", "Clouds"),
+            ("CLOUDY", "Clouds"),
+            ("WINDY", "Squall"),
+            ("WIND_AND_RAIN", "Rain"),
+            ("LIGHT_RAIN_SHOWERS", "Rain"),
+            ("CHANCE_OF_SHOWERS", "Rain"),
+            ("SCATTERED_SHOWERS", "Rain"),
+            ("RAIN_SHOWERS", "Rain"),
+            ("HEAVY_RAIN_SHOWERS", "Rain"),
+            ("LIGHT_TO_MODERATE_RAIN", "Rain"),
+            ("MODERATE_TO_HEAVY_RAIN", "Rain"),
+            ("RAIN", "Rain"),
+            ("LIGHT_RAIN", "Rain"),
+            ("HEAVY_RAIN", "Rain"),
+            ("RAIN_PERIODICALLY_HEAVY", "Rain"),
+            ("LIGHT_SNOW_SHOWERS", "Snow"),
+            ("CHANCE_OF_SNOW_SHOWERS", "Snow"),
+            ("SCATTERED_SNOW_SHOWERS", "Snow"),
+            ("SNOW_SHOWERS", "Snow"),
+            ("HEAVY_SNOW_SHOWERS", "Snow"),
+            ("LIGHT_TO_MODERATE_SNOW", "Snow"),
+            ("MODERATE_TO_HEAVY_SNOW", "Snow"),
+            ("SNOW", "Snow"),
+            ("LIGHT_SNOW", "Snow"),
+            ("HEAVY_SNOW", "Snow"),
+            ("SNOWSTORM", "Snow"),
+            ("SNOW_PERIODICALLY_HEAVY", "Snow"),
+            ("HEAVY_SNOW_STORM", "Snow"),
+            ("BLOWING_SNOW", "Snow"),
+            ("RAIN_AND_SNOW", "Snow"),
+            ("HAIL", "Snow"),
+            ("HAIL_SHOWERS", "Snow"),
+            ("THUNDERSTORM", "Thunderstorm"),
+            ("THUNDERSHOWER", "Thunderstorm"),
+            ("LIGHT_THUNDERSTORM_RAIN", "Thunderstorm"),
+            ("SCATTERED_THUNDERSTORMS", "Thunderstorm"),
+            ("HEAVY_THUNDERSTORM", "Thunderstorm"),
+            ("DRIZZLE", "Drizzle"),
+            ("FOG", "Fog"),
+            ("HAZE", "Haze"),
+            ("SLEET", "Snow"),
+            ("SOME_FUTURE_TYPE", "Unknown"),
+        ],
+    )
+    async def test_google_conditions_are_owm_main_codes(
+        self,
+        client: GoogleWeatherClient,
+        request_spy: AsyncMock,
+        google_type: str,
+        expected_main: str,
+    ) -> None:
+        payload = dict(_CURRENT_PAYLOAD)
+        payload["weatherCondition"] = {"description": {"text": "x"}, "type": google_type}
+        request_spy.return_value = payload
+
+        weather = await client.get_current_weather(lat=1.0, lon=2.0)
+
+        assert weather["weather"][0]["main"] == expected_main
+        if google_type not in {"TYPE_UNSPECIFIED", "SOME_FUTURE_TYPE"}:
+            assert google_type in _ICON_BY_CONDITION_TYPE
+
     @pytest.mark.parametrize(
         ("condition_type", "is_daytime", "expected"),
         [
@@ -157,6 +228,20 @@ def _hour(iso: str, temp: float) -> dict[str, Any]:
 
 
 class TestForecastMapping:
+    async def test_forecast_uses_the_same_canonical_rain_code(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        rainy_hour = _hour("2026-08-27T12:00:00Z", 18.7)
+        rainy_hour["weatherCondition"] = {
+            "description": {"text": "pluie"},
+            "type": "RAIN",
+        }
+        request_spy.return_value = {"forecastHours": [rainy_hour]}
+
+        forecast = await client.get_forecast(lat=1.0, lon=2.0, cnt=1)
+
+        assert forecast["list"][0]["weather"][0]["main"] == "Rain"
+
     async def test_hourly_sampled_to_owm_three_hour_entries(
         self, client: GoogleWeatherClient, request_spy: AsyncMock
     ) -> None:

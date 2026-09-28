@@ -33,12 +33,16 @@ from src.core.constants import (
     HTTP_MAX_KEEPALIVE_CONNECTIONS,
 )
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
+from src.core.i18n import resolve_language
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.connectors.clients.google_geocoding_helpers import (
     forward_geocode,
     google_reverse_city,
 )
-from src.domains.connectors.clients.weather_normalization import aggregate_daily_forecast
+from src.domains.connectors.clients.weather_normalization import (
+    aggregate_daily_forecast,
+    canonical_weather_main,
+)
 from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
@@ -54,19 +58,42 @@ _ICON_BY_CONDITION_TYPE: dict[str, str] = {
     "FOG": "50",
     "HAZE": "50",
     "WINDY": "50",
+    "WIND_AND_RAIN": "09",
     "DRIZZLE": "09",
+    "LIGHT_RAIN_SHOWERS": "09",
+    "CHANCE_OF_SHOWERS": "09",
+    "SCATTERED_SHOWERS": "09",
     "LIGHT_RAIN": "10",
     "RAIN": "10",
     "HEAVY_RAIN": "10",
     "RAIN_SHOWERS": "09",
+    "HEAVY_RAIN_SHOWERS": "09",
+    "LIGHT_TO_MODERATE_RAIN": "10",
+    "MODERATE_TO_HEAVY_RAIN": "10",
+    "RAIN_PERIODICALLY_HEAVY": "10",
     "SNOW": "13",
     "LIGHT_SNOW": "13",
     "HEAVY_SNOW": "13",
     "SNOW_SHOWERS": "13",
+    "LIGHT_SNOW_SHOWERS": "13",
+    "CHANCE_OF_SNOW_SHOWERS": "13",
+    "SCATTERED_SNOW_SHOWERS": "13",
+    "HEAVY_SNOW_SHOWERS": "13",
+    "LIGHT_TO_MODERATE_SNOW": "13",
+    "MODERATE_TO_HEAVY_SNOW": "13",
+    "SNOWSTORM": "13",
+    "SNOW_PERIODICALLY_HEAVY": "13",
+    "HEAVY_SNOW_STORM": "13",
+    "BLOWING_SNOW": "13",
+    "RAIN_AND_SNOW": "13",
     "SLEET": "13",
     "HAIL": "13",
+    "HAIL_SHOWERS": "13",
     "THUNDERSTORM": "11",
     "THUNDERSHOWER": "11",
+    "LIGHT_THUNDERSTORM_RAIN": "11",
+    "SCATTERED_THUNDERSTORMS": "11",
+    "HEAVY_THUNDERSTORM": "11",
 }
 _ICON_FALLBACK = "03"
 
@@ -85,12 +112,13 @@ def _kmh_to_ms(value: float | None) -> float | None:
 def _condition_entry(payload: dict[str, Any]) -> dict[str, Any]:
     """OWM `weather[0]` entry from a Google condition block."""
     condition = payload.get("weatherCondition") or {}
+    condition_type = condition.get("type", "")
     description = (condition.get("description") or {}).get("text", "")
     return {
         "id": 0,
-        "main": condition.get("type", ""),
+        "main": canonical_weather_main(condition_type),
         "description": description,
-        "icon": _owm_icon(condition.get("type", ""), bool(payload.get("isDaytime", True))),
+        "icon": _owm_icon(condition_type, bool(payload.get("isDaytime", True))),
     }
 
 
@@ -243,7 +271,7 @@ class GoogleWeatherClient:
         city: str | None = None,
         country: str | None = None,
         units: str = "metric",
-        lang: str = "en",
+        lang: str | None = None,
     ) -> dict[str, Any]:
         """Current conditions, normalized to the OWM current-weather shape."""
         lat, lon, name, resolved_country = await self._resolve_point(lat, lon, city, country)
@@ -253,7 +281,7 @@ class GoogleWeatherClient:
                 "location.latitude": lat,
                 "location.longitude": lon,
                 "unitsSystem": "METRIC",
-                "languageCode": lang,
+                "languageCode": lang or resolve_language(),
             },
         )
         track_google_api_call("weather", "/v1/currentConditions:lookup", cached=False)
@@ -283,7 +311,7 @@ class GoogleWeatherClient:
         city: str | None = None,
         country: str | None = None,
         units: str = "metric",
-        lang: str = "en",
+        lang: str | None = None,
         cnt: int = 40,
     ) -> dict[str, Any]:
         """Hourly forecast sampled to OWM 3-hour entries ({"list", "city"})."""
@@ -297,7 +325,7 @@ class GoogleWeatherClient:
                 "location.latitude": lat,
                 "location.longitude": lon,
                 "unitsSystem": "METRIC",
-                "languageCode": lang,
+                "languageCode": lang or resolve_language(),
                 "hours": hours_needed,
                 "pageSize": GOOGLE_WEATHER_FORECAST_PAGE_SIZE,
             }
@@ -351,7 +379,7 @@ class GoogleWeatherClient:
         units: str = "metric",
         days: int = 5,
         user_timezone: str = "UTC",
-        lang: str = "en",
+        lang: str | None = None,
     ) -> dict[str, Any]:
         """Daily summaries via the shared aggregation (same as OWM)."""
         forecast = await self.get_forecast(
@@ -360,7 +388,7 @@ class GoogleWeatherClient:
             city=city,
             country=country,
             units=units,
-            lang=lang,
+            lang=lang or resolve_language(),
             cnt=min(days, 10) * 8,  # 8 three-hour slots per day, 10-day cap
         )
         return aggregate_daily_forecast(forecast, days, user_timezone)

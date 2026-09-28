@@ -8,47 +8,84 @@ Metrics calculated:
 - Conversation cost (USD) from LLM token usage
 - Total tokens consumed (prompt + completion)
 - Conversation turns (user-agent exchanges)
-- Conversation outcome (success/failure/abandoned/partial)
-- Agent type extraction
+- Turn outcome (success/partial_success/failure/no_agent), from the turn's
+  own evidence
+- Agent type extraction (the turn's execution mode)
 
 Architecture:
-- Pure calculation functions (no Prometheus calls)
-- Async-ready for FastAPI routes
-- Testable in isolation (no external dependencies)
+- Calculation functions with no counter, no database and no network: a
+  message is priced by the in-memory pricing cache (the tariffs the
+  platform's own ledger prices with) through its quiet door, which counts
+  no fallback: the doors that priced the call counted its miss when it was
+  made
+- One read of the database, the run's ledger (``current_turn_cost_usd``), on a
+  session of its own
 - Graceful degradation (returns defaults on errors)
 
-Best Practices 2025:
-- Pydantic models for type safety
-- Structured logging with context
-- Named tuples for return values
-- Comprehensive error handling
-- Token efficiency tracking
+The outcome is read from the turn's own evidence (``infer_conversation_outcome``);
+a calculation that fails judges no agent. Structured logging throughout.
 
 Phase: 3.2 - Business Metrics
 Date: 2025-11-23
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import structlog
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 
-from src.core.field_names import FIELD_FAILED_STEPS, FIELD_STATUS
+from src.core.constants import NODE_INITIATIVE
+from src.core.context import current_tracker
+from src.core.field_names import (
+    FIELD_COST_EUR,
+    FIELD_FAILED_STEPS,
+    FIELD_REACT_SYNTHESIS,
+    FIELD_STATUS,
+)
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
+    STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_MESSAGES,
-    STATE_KEY_PLANNER_ERROR,
+    STATE_KEY_PLANNING_RESULT,
     AgentResultStatus,
+    make_agent_result_key,
 )
+from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.models import MessagesState
-from src.infrastructure.llm.usage_metadata import model_name_of_response
+from src.domains.agents.nodes.react_recovery import declared_unresolved
+from src.domains.agents.utils.message_filters import current_turn_responses, tool_call_ran
+from src.domains.chat.repository import ChatRepository
+from src.domains.diagnostics.failure_context import tool_message_failed
+from src.infrastructure.cache.pricing_cache import (
+    get_cached_usd_eur_rate,
+    quote_cached_cost_usd,
+)
+from src.infrastructure.database import get_db_context
+from src.infrastructure.llm.usage_metadata import (
+    model_name_of_response,
+    tokens_from_usage_metadata,
+)
 
 logger = structlog.get_logger(__name__)
+
+#: The outcomes of a turn, as the ``outcome`` label of
+#: ``agent_success_rate_total`` reads them.
+OUTCOME_SUCCESS = "success"
+OUTCOME_PARTIAL_SUCCESS = "partial_success"
+OUTCOME_FAILURE = "failure"
+#: The turn left no agent execution to read — a conversational answer, or a
+#: skill the response node ran itself, whose runner result stays in that node
+#: (``skill_runner_outcomes_total`` counts it). Not counted on any
+#: ``agent_success_rate_total`` series.
+OUTCOME_NO_AGENT = "no_agent"
+
+#: One executed draft's status, as ``DraftExecutionResult.to_agent_result``
+#: writes it, as a verdict. A batch's aggregate status is not read: it says
+#: ``partial_error`` for a batch whose every entry failed.
+_DRAFT_ENTRY_VERDICTS: dict[str, bool] = {"success": True, "error": False}
 
 
 # ============================================================================
@@ -59,25 +96,23 @@ logger = structlog.get_logger(__name__)
 @dataclass(frozen=True)
 class ConversationMetrics:
     """
-    Business metrics for a completed conversation.
+    Business metrics of one turn, as the response node records them.
 
     Attributes:
-        agent_type: Agent identifier (contacts, generic, emails)
+        agent_type: The turn's execution mode (pipeline, react), or generic
         cost_usd: Total conversation cost in USD
         tokens_total: Total tokens (prompt + completion)
         turns: Number of user-agent turns
-        outcome: Conversation outcome (success, failure, partial_success, abandoned)
+        outcome: The turn's outcome (success, failure, partial_success, no_agent)
         message_count: Total messages in conversation
-        has_errors: Whether conversation encountered errors
     """
 
     agent_type: str
     cost_usd: float
     tokens_total: int
     turns: int
-    outcome: str  # success, failure, partial_success, abandoned
+    outcome: str  # success, failure, partial_success, no_agent
     message_count: int
-    has_errors: bool
 
 
 # ============================================================================
@@ -86,19 +121,28 @@ class ConversationMetrics:
 
 
 def calculate_conversation_metrics(
-    state: MessagesState, config: RunnableConfig | None = None
+    state: MessagesState,
+    config: RunnableConfig | None = None,
+    draft_result: Mapping[str, Any] | None = None,
 ) -> ConversationMetrics:
     """
     Calculate all business metrics for a conversation.
 
     Aggregates metrics from:
     - Messages list (turns, message count)
-    - State metadata (agent type, errors)
-    - LLM responses (tokens, costs via usage_metadata)
+    - State metadata (agent type, the turn's evidence)
+    - LLM responses (tokens and cost, from each message's usage metadata,
+      priced by the pricing cache)
+
+    No database, no network, no counter — a metric computed while the
+    person's turn ends must never hold a transaction open across a wait
+    (ADR-304).
 
     Args:
         state: LangGraph state with messages, agent_results, metadata
         config: Optional RunnableConfig (for future extensions)
+        draft_result: The execution of the draft the person decided, when the
+            turn ran one
 
     Returns:
         ConversationMetrics with all calculated values
@@ -124,12 +168,7 @@ def calculate_conversation_metrics(
         tokens_total = calculate_total_tokens(messages_raw)
         cost_usd = calculate_total_cost_usd(messages_raw)
 
-        # Infer conversation outcome
-        outcome = infer_conversation_outcome(state)
-
-        # Check for errors
-        has_errors = STATE_KEY_PLANNER_ERROR in state or outcome in ("failure", "partial_success")
-
+        outcome = infer_conversation_outcome(state, draft_result)
         logger.debug(
             "conversation_metrics_calculated",
             agent_type=agent_type,
@@ -147,149 +186,40 @@ def calculate_conversation_metrics(
             turns=turns,
             outcome=outcome,
             message_count=message_count,
-            has_errors=has_errors,
         )
     except Exception as e:
-        logger.error("conversation_metrics_calculation_failed", error=str(e), exc_info=True)
-        # Graceful degradation - return defaults
+        # By its type: the state it read carries the person's words (ADR-317).
+        logger.error(
+            "conversation_metrics_calculation_failed", error_type=type(e).__name__, exc_info=True
+        )
+        # Graceful degradation: a metrics failure judges no agent.
         return ConversationMetrics(
             agent_type="unknown",
             cost_usd=0.0,
             tokens_total=0,
             turns=0,
-            outcome="failure",
+            outcome=OUTCOME_NO_AGENT,
             message_count=0,
-            has_errors=True,
-        )
-
-
-async def calculate_conversation_metrics_async(
-    state: MessagesState,
-    config: RunnableConfig | None = None,
-    db: AsyncSession | None = None,
-) -> ConversationMetrics:
-    """
-    Calculate all business metrics for a conversation using DB pricing (ASYNC).
-
-    Uses AsyncPricingService for accurate model-specific pricing from llm_model_pricing table.
-    Falls back to deprecated sync version if no DB session provided.
-
-    Args:
-        state: LangGraph state with messages, agent_results, metadata
-        config: Optional RunnableConfig (for future extensions)
-        db: SQLAlchemy async database session (required for accurate pricing)
-
-    Returns:
-        ConversationMetrics with all calculated values
-    """
-    try:
-        agent_type = extract_agent_type(state)
-        messages_raw = state.get(STATE_KEY_MESSAGES, [])
-
-        # Type guard: ensure messages is a list
-        if not isinstance(messages_raw, list):
-            messages_raw = []
-
-        message_count = len(messages_raw)
-
-        # Calculate turns (1 turn = 1 HumanMessage + 1 AIMessage pair)
-        turns = calculate_conversation_turns(state)
-
-        # Calculate total tokens from messages
-        tokens_total = calculate_total_tokens(messages_raw)
-
-        # Calculate cost: use async DB pricing if session provided
-        if db:
-            cost_usd = await calculate_total_cost_usd_async(messages_raw, db)
-        else:
-            # Fallback to deprecated sync version (logs warning)
-            logger.warning(
-                "calculate_conversation_metrics_using_deprecated_sync_pricing",
-                msg="No DB session provided, using deprecated sync pricing",
-            )
-            cost_usd = calculate_total_cost_usd(messages_raw)
-
-        # Infer conversation outcome
-        outcome = infer_conversation_outcome(state)
-
-        # Check for errors
-        has_errors = STATE_KEY_PLANNER_ERROR in state or outcome in ("failure", "partial_success")
-
-        logger.debug(
-            "conversation_metrics_calculated_async",
-            agent_type=agent_type,
-            cost_usd=cost_usd,
-            tokens_total=tokens_total,
-            turns=turns,
-            outcome=outcome,
-            message_count=message_count,
-            using_db_pricing=db is not None,
-        )
-
-        return ConversationMetrics(
-            agent_type=agent_type,
-            cost_usd=cost_usd,
-            tokens_total=tokens_total,
-            turns=turns,
-            outcome=outcome,
-            message_count=message_count,
-            has_errors=has_errors,
-        )
-    except Exception as e:
-        logger.error("conversation_metrics_async_calculation_failed", error=str(e), exc_info=True)
-        # Graceful degradation - return defaults
-        return ConversationMetrics(
-            agent_type="unknown",
-            cost_usd=0.0,
-            tokens_total=0,
-            turns=0,
-            outcome="failure",
-            message_count=0,
-            has_errors=True,
         )
 
 
 def extract_agent_type(state: MessagesState) -> str:
     """
-    Extract agent type from state.
+    The agent label of a turn: its execution mode (``pipeline``, ``react``).
 
-    Tries multiple strategies:
-    1. agent_type field in state (if set by router)
-    2. agent_results[0].agent_type (from executed agents)
-    3. "generic" as fallback
+    The results the graph writes are dicts that name no domain, and the
+    state declares no ``agent_type`` key (LangGraph drops what it does not
+    declare): read there, every turn was « generic ».
 
     Args:
         state: LangGraph state
 
     Returns:
-        Agent type string (contacts, generic, emails, etc.)
+        The execution mode, or ``generic`` when the state carries none.
     """
-    # Strategy 1: Direct agent_type field
-    if "agent_type" in state:
-        agent_type_value = state.get("agent_type")
-        if isinstance(agent_type_value, str):
-            return agent_type_value
-
-    # Strategy 2: Extract from agent_results (dict or list of results)
-    agent_results_raw = state.get(STATE_KEY_AGENT_RESULTS, {})
-
-    # Handle dict format (current production format with composite keys)
-    if agent_results_raw and isinstance(agent_results_raw, dict):
-        for result in agent_results_raw.values():
-            if hasattr(result, "agent_type"):
-                agent_type_attr = result.agent_type
-                if isinstance(agent_type_attr, str):
-                    return agent_type_attr
-
-    # Handle list format (legacy or test format)
-    elif agent_results_raw and isinstance(agent_results_raw, list):
-        for result in agent_results_raw:
-            if hasattr(result, "agent_type"):
-                agent_type_attr = result.agent_type
-                if isinstance(agent_type_attr, str):
-                    return agent_type_attr
-
-    # Strategy 3: Fallback
+    execution_mode = state.get("execution_mode")
+    if isinstance(execution_mode, str) and execution_mode:
+        return execution_mode
     logger.debug("agent_type_not_found_using_fallback", fallback="generic")
     return "generic"
 
@@ -298,7 +228,8 @@ def calculate_total_tokens(messages: list[Any]) -> int:
     """
     Calculate total tokens consumed across all messages.
 
-    Sums input_tokens + output_tokens from usage_metadata in AIMessages.
+    Sums every AIMessage's prompt (cache reads included) and completion
+    tokens, read through the one usage reader (``tokens_from_usage_metadata``).
     This matches Langfuse token tracking methodology.
 
     Args:
@@ -308,120 +239,48 @@ def calculate_total_tokens(messages: list[Any]) -> int:
         Total tokens (prompt + completion) across all LLM calls
     """
     total_tokens = 0
-
     for msg in messages:
-        if not isinstance(msg, AIMessage):
-            continue
-
-        # Extract usage_metadata from AIMessage (LangChain >= 0.3.0)
-        if hasattr(msg, "usage_metadata") and msg.usage_metadata:
-            usage = msg.usage_metadata
-            input_tokens = usage.get("input_tokens", 0)
-            output_tokens = usage.get("output_tokens", 0)
-            total_tokens += input_tokens + output_tokens
-
+        if isinstance(msg, AIMessage):
+            usage = tokens_from_usage_metadata(msg.usage_metadata)
+            total_tokens += usage.prompt + usage.cached + usage.completion
     return total_tokens
 
 
 def calculate_total_cost_usd(messages: list[Any]) -> float:
     """
-    Calculate total cost in USD from token usage (SYNC - DEPRECATED).
+    Calculate total cost in USD of the model calls the messages carry.
 
-    DEPRECATED: Use calculate_total_cost_usd_async() for accurate pricing via llm_model_pricing DB.
-    This sync version uses hardcoded fallback pricing and should only be used as last resort.
+    Each AIMessage is priced by the in-memory pricing cache — the tariffs the
+    platform's own ledger prices with, cache reads and writes apart (ADR-306)
+    — at the model the response names. A response that names no model is not
+    priced: another model's tariff would be a figure nobody paid. A model the
+    cache cannot price adds nothing and counts no miss here: this runs over
+    the thread's window at every turn, and the doors that priced the call
+    counted its miss when it was made.
 
     Args:
         messages: List of LangChain messages with usage_metadata
 
     Returns:
-        Total cost in USD (float)
+        Total cost in USD, rounded to six decimals.
     """
     total_cost = 0.0
-
-    # DEPRECATED: Simplified pricing fallback (gpt-4.1-mini rates as of 2025)
-    INPUT_PRICE_PER_1M = 0.15  # USD per 1M input tokens
-    OUTPUT_PRICE_PER_1M = 0.60  # USD per 1M output tokens
-
     for msg in messages:
         if not isinstance(msg, AIMessage):
             continue
-
-        if hasattr(msg, "usage_metadata") and msg.usage_metadata:
-            usage = msg.usage_metadata
-            input_tokens = usage.get("input_tokens", 0)
-            output_tokens = usage.get("output_tokens", 0)
-
-            # Calculate cost using fallback pricing
-            input_cost = (input_tokens / 1_000_000) * INPUT_PRICE_PER_1M
-            output_cost = (output_tokens / 1_000_000) * OUTPUT_PRICE_PER_1M
-            total_cost += input_cost + output_cost
-
+        usage = tokens_from_usage_metadata(msg.usage_metadata)
+        model = model_name_of_response(msg)
+        if usage.is_empty or model is None:
+            continue
+        cost_usd = quote_cached_cost_usd(
+            model=model,
+            prompt_tokens=usage.prompt,
+            completion_tokens=usage.completion,
+            cached_tokens=usage.cached,
+            cache_write_tokens=usage.cache_write,
+        )
+        total_cost += cost_usd or 0.0
     return round(total_cost, 6)  # Round to 6 decimals ($0.000001 precision)
-
-
-async def calculate_total_cost_usd_async(
-    messages: list[Any],
-    db: AsyncSession,
-) -> float:
-    """
-    Calculate total cost in USD from token usage using DB pricing (ASYNC).
-
-    Uses AsyncPricingService to get model-specific pricing from llm_model_pricing table.
-    Supports INPUT, OUTPUT, and CACHE token types with differentiated pricing.
-
-    Args:
-        messages: List of LangChain messages with usage_metadata
-        db: SQLAlchemy async database session
-
-    Returns:
-        Total cost in USD (float)
-
-    Token Types Handled:
-        - input_tokens: Standard input tokens (full price)
-        - output_tokens: Output/completion tokens
-        - cached_tokens: From input_token_details.cache_read (reduced price)
-    """
-    from src.domains.llm.pricing_service import AsyncPricingService
-
-    total_cost = 0.0
-    pricing_service = AsyncPricingService(db)
-
-    for msg in messages:
-        if not isinstance(msg, AIMessage):
-            continue
-
-        if hasattr(msg, "usage_metadata") and msg.usage_metadata:
-            usage = msg.usage_metadata
-            input_tokens = usage.get("input_tokens", 0)
-            output_tokens = usage.get("output_tokens", 0)
-
-            # Extract cached_tokens from input_token_details (OpenAI pattern)
-            # LangChain v1.0+ returns: {"input_token_details": {"cache_read": N}}
-            cached_tokens = 0
-            if "input_token_details" in usage:
-                cached_tokens = usage["input_token_details"].get("cache_read", 0)
-            # Anthropic pattern: cache_creation_input_tokens, cache_read_input_tokens
-            elif "cache_read_input_tokens" in usage:
-                cached_tokens = int(usage.get("cache_read_input_tokens", 0))  # type: ignore[call-overload]
-
-            # Extract model name from message metadata (the ONE response-side reader)
-            model = model_name_of_response(msg)
-            if not model and hasattr(msg, "additional_kwargs"):
-                model = msg.additional_kwargs.get("model")
-
-            if not model:
-                model = "gpt-4.1-mini"  # Default fallback
-
-            # Calculate cost using AsyncPricingService (DB pricing)
-            cost_usd, _ = await pricing_service.calculate_token_cost(
-                model=model,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                cached_tokens=cached_tokens,
-            )
-            total_cost += cost_usd
-
-    return round(total_cost, 6)
 
 
 def calculate_conversation_turns(state: MessagesState) -> int:
@@ -471,9 +330,10 @@ def _status_and_partial(result: Any) -> tuple[str | None, bool]:
 
     Reads a DICT first — the real shape, since ``agent_results`` holds
     ``AgentResult.model_dump()`` output. Asking ``hasattr(result, "status")``
-    on a dict is always False, so every pipeline turn (failed ones included)
-    used to fall through to « results exist, assume success » and be counted a
-    success on ``agent_success_rate_total`` (ADR-303).
+    on a dict is always False, so a pipeline turn (failed ones included) fell
+    through to « results exist, assume success » — a verdict nobody read, since
+    the presence of ``planner_error`` classified every turn a failure before it
+    (ADR-303, ADR-323).
 
     Args:
         result: One entry of ``agent_results``, dict or object.
@@ -486,92 +346,207 @@ def _status_and_partial(result: Any) -> tuple[str | None, bool]:
     return getattr(result, "status", None), bool(getattr(result, "failed_steps", None))
 
 
+def _payload(result: Any) -> Any:
+    return result.get("data") if isinstance(result, dict) else getattr(result, "data", None)
+
+
 def _has_data(result: Any) -> bool:
     """Whether a status-less payload carries data (so it did run)."""
-    payload = result.get("data") if isinstance(result, dict) else getattr(result, "data", None)
-    return payload is not None
+    return _payload(result) is not None
 
 
-def infer_conversation_outcome(state: MessagesState) -> str:
+def _is_react_synthesis(result: Any) -> bool:
+    """The ReAct loop's ANSWER, merged by the response node — not an execution."""
+    payload = _payload(result)
+    return isinstance(payload, dict) and FIELD_REACT_SYNTHESIS in payload
+
+
+def _current_turn_results(state: MessagesState) -> list[Any]:
+    """The agent results of THIS turn, the initiative's own reads left out.
+
+    ``agent_results`` is not reset per turn: it keeps every turn's entries under
+    ``"<turn_id>:<agent>"`` keys, and the cleanup reads a key with no turn as
+    the OLDEST turn's. Read whole, a later turn was judged on an earlier turn's
+    agents — a stale bare error key made every later chat turn a failure. A
+    state with no turn id has nothing to anchor on: read whole.
+    What the initiative looked up of its own accord (ADR-062) is not what the
+    person asked for: a lookup of its failing never failed their request.
     """
-    Infer conversation outcome from state using heuristics.
+    raw = state.get(STATE_KEY_AGENT_RESULTS) or {}
+    if not isinstance(raw, dict):
+        return []
+    current = state.get(STATE_KEY_CURRENT_TURN_ID)
+    if not isinstance(current, int):
+        return list(raw.values())
+    prefix, initiative = f"{current}:", make_agent_result_key(current, NODE_INITIATIVE)
+    return [
+        value for key, value in raw.items() if str(key).startswith(prefix) and key != initiative
+    ]
 
-    Outcome classification:
-    - "success": Conversation completed without errors, agent_results present
-    - "failure": Critical error (planner_error, no agent_results)
-    - "partial_success": Some agent_results present but with errors/warnings
-    - "abandoned": No clear completion (no agent_results, no errors)
 
-    Heuristics:
-    1. planner_error in state → "failure"
-    2. agent_results present with all success → "success"
-    3. agent_results present with some failures → "partial_success"
-    4. No agent_results, no errors → "abandoned"
+def _result_verdicts(results: list[Any]) -> list[bool]:
+    """One verdict per outcome the turn's agent results state.
 
-    Args:
-        state: LangGraph state with agent_results, planner_error, metadata
-
-    Returns:
-        Outcome string: "success", "failure", "partial_success", or "abandoned"
-
-    Note:
-        This is a heuristic-based classification. For production, consider:
-        - Explicit outcome field set by response_node
-        - User feedback integration
-        - Tool execution success tracking
+    A partial plan is a SUCCESS that still failed somewhere: the field says so,
+    the status cannot (ADR-303). The ReAct synthesis is the loop's answer, and
+    its tools speak for it; a legacy payload with no status but data ran.
     """
-    # Check for critical errors
-    if STATE_KEY_PLANNER_ERROR in state:
-        return "failure"
-
-    # Check agent_results
-    agent_results_raw = state.get(STATE_KEY_AGENT_RESULTS, [])
-
-    if not agent_results_raw:
-        # No results: user abandoned or conversation incomplete
-        messages_raw = state.get(STATE_KEY_MESSAGES, [])
-
-        # Type guard for messages
-        if isinstance(messages_raw, list) and len(messages_raw) <= 2:
-            # Very short conversation, likely abandoned
-            return "abandoned"
-        return "failure"  # Longer conversation without results = failure
-
-    # Analyze agent_results for success/failure
-    has_success = False
-    has_failure = False
-
-    # Type guard: ensure agent_results is iterable
-    # agent_results can be dict (keyed by agent name) or list
-    results_iterable = []
-    if isinstance(agent_results_raw, dict):
-        results_iterable = list(agent_results_raw.values())
-    elif isinstance(agent_results_raw, list):
-        results_iterable = agent_results_raw
-
-    for result in results_iterable:
+    verdicts: list[bool] = []
+    for result in results:
         status, carries_failed_steps = _status_and_partial(result)
         if status == AgentResultStatus.SUCCESS.value:
-            has_success = True
-            # A partial plan is a SUCCESS that still failed somewhere: the
-            # field says so, the status cannot (ADR-303).
-            has_failure = has_failure or carries_failed_steps
+            verdicts.append(True)
+            if carries_failed_steps:
+                verdicts.append(False)
         elif status == AgentResultStatus.ERROR.value:
-            has_failure = True
-        elif status is None and _has_data(result):
-            # A legacy payload with no status at all: data means it ran.
-            has_success = True
+            verdicts.append(False)
+        elif status is None and _has_data(result) and not _is_react_synthesis(result):
+            verdicts.append(True)
+    return verdicts
 
-    # Classify outcome
-    if has_success and not has_failure:
-        return "success"
-    elif has_success and has_failure:
-        return "partial_success"
-    elif has_failure:
-        return "failure"
-    else:
-        # Results present but no clear success/failure indicators
-        return "success"  # Assume success if results exist
+
+def _tool_verdicts(state: MessagesState) -> list[bool]:
+    """The ReAct loop's evidence, judged on its RESULT (ADR-310).
+
+    Its tool calls of THIS turn are read among the messages after the person's,
+    counted from the end (the reducer trims the head — and, in a very long
+    turn, the turn's first results with it), through the predicate the honesty
+    directive reads. A call the loop never ran — declined by the person, a
+    repeat the loop guard blocked — is no verdict. A failure the loop got past
+    (its own call corrected, another source) fails nothing: what did not end
+    complete is what the answer declares unresolved, a loop its budget cut, or
+    calls that all failed. The pipeline writes no ``ToolMessage``: its agents'
+    results speak for it.
+    """
+    messages = state.get(STATE_KEY_MESSAGES)
+    turn = current_turn_responses(messages) if isinstance(messages, list) else []
+    ran = [
+        not tool_message_failed(m) for m in turn if isinstance(m, ToolMessage) and tool_call_ran(m)
+    ]
+    verdicts = [True] if any(ran) else []
+    if _react_incomplete(state) or (ran and not any(ran)):
+        verdicts.append(False)
+    return verdicts
+
+
+def _react_incomplete(state: MessagesState) -> bool:
+    """Whether the loop's answer did not end complete: cut, or a gap declared."""
+    react_result = state.get("react_agent_result")
+    if not isinstance(react_result, dict):
+        return False
+    if isinstance(react_result.get("truncation"), dict):
+        return True
+    final = react_result.get("final_message")
+    return bool(declared_unresolved(AIMessage(content=final))) if isinstance(final, str) else False
+
+
+def _executed_drafts(draft_result: Mapping[str, Any]) -> list[Any]:
+    """The drafts a decision executed: a batch's entries, the confirmed draft, or none.
+
+    A cancellation executed nothing, nor did an edit (it asks again).
+    """
+    action = draft_result.get("action")
+    if action == DraftAction.CONFIRM_BATCH.value:
+        data = draft_result.get("data")
+        return list(data.get("batch_results") or []) if isinstance(data, Mapping) else []
+    return [draft_result] if action == DraftAction.CONFIRM.value else []
+
+
+def _draft_verdicts(draft_result: Mapping[str, Any] | None) -> list[bool]:
+    """The acts the person confirmed, one verdict per draft executed.
+
+    An entry of a batch the person cancelled executed nothing: no verdict.
+    """
+    entries = _executed_drafts(draft_result) if draft_result else []
+    statuses = [entry.get(FIELD_STATUS) for entry in entries if isinstance(entry, Mapping)]
+    return [_DRAFT_ENTRY_VERDICTS[status] for status in statuses if status in _DRAFT_ENTRY_VERDICTS]
+
+
+def _planning_failed(state: MessagesState) -> bool:
+    """The planner produced no plan THIS turn (the router resets its verdict).
+
+    Its failure sends the turn to the response with no agent result: read on
+    the results alone, it passed for a conversational turn and was never
+    counted.
+    """
+    result = state.get(STATE_KEY_PLANNING_RESULT)
+    success = (
+        result.get("success") if isinstance(result, dict) else getattr(result, "success", None)
+    )
+    return success is False
+
+
+def infer_conversation_outcome(
+    state: MessagesState, draft_result: Mapping[str, Any] | None = None
+) -> str:
+    """The outcome of the CURRENT turn, from its own evidence.
+
+    Each read for THIS turn only: the planner's verdict, the agents' results,
+    the ReAct loop's result, and the execution of the draft the person
+    decided — the act they approved.
+
+    Args:
+        state: LangGraph state.
+        draft_result: The execution of the draft the person decided, when the
+            response node ran one — it is in no state key.
+
+    Returns:
+        ``OUTCOME_FAILURE`` when the planner produced no plan or every verdict
+        failed, ``OUTCOME_SUCCESS`` when every verdict succeeded,
+        ``OUTCOME_PARTIAL_SUCCESS`` when both, and ``OUTCOME_NO_AGENT`` when the
+        turn left no execution to read (see ``OUTCOME_NO_AGENT``).
+    """
+    if _planning_failed(state):
+        return OUTCOME_FAILURE
+    verdicts = [
+        *_result_verdicts(_current_turn_results(state)),
+        *_tool_verdicts(state),
+        *_draft_verdicts(draft_result),
+    ]
+    if not verdicts:
+        return OUTCOME_NO_AGENT
+    if all(verdicts):
+        return OUTCOME_SUCCESS
+    return OUTCOME_PARTIAL_SUCCESS if any(verdicts) else OUTCOME_FAILURE
+
+
+async def current_turn_cost_usd() -> float | None:
+    """What the model calls of THIS run cost when it answered, in USD.
+
+    The thread's messages cannot say it: they carry the ReAct loop's calls and
+    the earlier turns' answers, never the router's, the planner's or the
+    agents'. A turn resumed after a question keeps its run id, and the half
+    before the question was filed when it stopped: the cost is what the run's
+    ledger row holds (``total_cost_eur``, the model's — Maps, images and speech
+    are billed apart) plus what the running tracker has not filed yet. The
+    calls made after the answer (the memory, journal and interest extractions)
+    are filed later under the same run and are not in it. Priced in euros,
+    converted back at the cached exchange rate.
+
+    Read on a session of its own — the one database read of this module — and
+    after the turn's other samples: a ledger that cannot be read costs this one
+    figure, never the turn's other metrics.
+
+    Returns:
+        The cost, or None outside a tracked run or when the ledger cannot be
+        read — whatever the database or its driver raised, opening the
+        connection (asyncpg refuses one with classes of its own, neither
+        ``SQLAlchemyError`` nor ``OSError``), running the query, or committing
+        at the session's exit. An unknown cost is observed as none; a
+        cancellation is not an ``Exception`` and passes.
+    """
+    tracker = current_tracker.get()
+    rate = get_cached_usd_eur_rate()
+    if tracker is None or rate <= 0:
+        return None
+    try:
+        async with get_db_context() as db:
+            filed = await ChatRepository(db).get_token_summary_by_run_id(tracker.run_id)
+            eur = float(filed.total_cost_eur) if filed is not None else 0.0
+    except Exception as exc:  # noqa: BLE001 - a metric's read never fails its turn
+        logger.warning("turn_cost_ledger_unreadable", error_type=type(exc).__name__)
+        return None
+    return round((eur + float(tracker.get_summary()[FIELD_COST_EUR])) / rate, 6)
 
 
 # ============================================================================

@@ -73,25 +73,27 @@ class TestTheRegisterIsRendered:
 
 
 class TestTheOtherDomainsAreUnchanged:
-    """The dispatch table replaced an ``if`` cascade — same outputs."""
+    """The dispatch table replaced an ``if`` cascade — same outputs, their
+    headings in the reader's language (ADR-323)."""
 
     def test_conversations_still_render(self) -> None:
         markdown = _render_markdown(
             "conversation_messages",
             [{"role": "user", "content": "Bonjour", "created_at": "2026-09-04"}],
+            "de",
         )
 
         assert markdown is not None
-        assert "# Conversations" in markdown
+        assert "# Unterhaltungen" in markdown
         assert "Bonjour" in markdown
 
     def test_journal_entries_still_render(self) -> None:
-        markdown = _render_markdown("journal_entries", [{"content": "x", "created_at": "d"}])
-        assert markdown is not None and "# Journal" in markdown
+        markdown = _render_markdown("journal_entries", [{"content": "x", "created_at": "d"}], "it")
+        assert markdown is not None and "# Diari personali" in markdown
 
     def test_memories_still_render(self) -> None:
-        markdown = _render_markdown("memories", [{"content": "y"}])
-        assert markdown is not None and "# Memories" in markdown
+        markdown = _render_markdown("memories", [{"content": "y"}], "zh-CN")
+        assert markdown is not None and "# 长期记忆" in markdown
 
     def test_a_table_with_no_readable_form_returns_none(self) -> None:
         assert _render_markdown("users", [{"id": "1"}]) is None

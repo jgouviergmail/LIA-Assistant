@@ -160,7 +160,7 @@ class EmailCard(BaseComponent):
 
         # --- Card top: initials illus + [date+icons ABOVE sender name] ---
         initials = self._get_initials(sender_name)
-        status_icons_html = self._render_status_icons(is_unread, is_important)
+        status_icons_html = self._render_status_icons(is_unread, is_important, ctx.language)
 
         # Choose illus color based on email status
         if is_unread and is_important:
@@ -362,7 +362,6 @@ class EmailCard(BaseComponent):
                 trigger_text=V3Messages.get_see_more(ctx.language),
                 content_html="".join(content_parts),
                 initially_open=False,
-                language=ctx.language,
                 with_separator=False,
             )
 
@@ -411,8 +410,8 @@ class EmailCard(BaseComponent):
     # Rendering Helpers
     # =========================================================================
 
-    def _render_status_icons(self, is_unread: bool, is_important: bool) -> str:
-        """Render status icons for unread and important emails.
+    def _render_status_icons(self, is_unread: bool, is_important: bool, language: str) -> str:
+        """Render status icons for unread and important emails, titled in the reader's language.
 
         Colors:
         - Unread only: green icon
@@ -432,12 +431,14 @@ class EmailCard(BaseComponent):
             color_class = "lia-email__status-icon--important"
 
         if is_important:
+            important_title = escape_html(V3Messages.get_important(language))
             icons.append(
-                f'<span class="lia-email__status-icon {color_class}" title="Important">{icon(Icons.STAR, size="sm")}</span>'
+                f'<span class="lia-email__status-icon {color_class}" title="{important_title}">{icon(Icons.STAR, size="sm")}</span>'
             )
         if is_unread:
+            unread_title = escape_html(V3Messages.get_unread(language).capitalize())
             icons.append(
-                f'<span class="lia-email__status-icon {color_class}" title="Non lu">{icon(Icons.MARK_EMAIL_UNREAD, size="sm")}</span>'
+                f'<span class="lia-email__status-icon {color_class}" title="{unread_title}">{icon(Icons.MARK_EMAIL_UNREAD, size="sm")}</span>'
             )
 
         return f'<div class="lia-email__status-icons">{" ".join(icons)}</div>'
@@ -528,7 +529,6 @@ class EmailCard(BaseComponent):
             trigger_text=trigger_text,
             content_html=content_html,
             initially_open=False,
-            language=ctx.language,
         )
 
     def _format_recipients_list(self, recipients: list[Any] | Any) -> str:

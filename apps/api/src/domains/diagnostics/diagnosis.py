@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_DIAGNOSTICS_DIAGNOSIS_COST_PREFIX
-from src.core.i18n import get_language_name, normalize_language
+from src.core.i18n import get_language_name, normalize_language, resolve_language
 from src.domains.diagnostics.context_collector import collect_diagnosis_context
 from src.domains.diagnostics.models import Incident
 from src.domains.diagnostics.repository import DiagnosticsRepository
@@ -329,12 +329,6 @@ def _build_human_message(
     return "\n\n".join(parts)
 
 
-#: Language used when no administrator declares one — a fresh install has no
-#: superuser yet, and producing nothing would make the panel look broken on the
-#: very first incident.
-_FALLBACK_LANGUAGE = "en"
-
-
 async def admin_languages(repo: object) -> list[str]:
     """Distinct languages the administrators of this instance read.
 
@@ -356,13 +350,13 @@ async def admin_languages(repo: object) -> list[str]:
         languages = await repo.distinct_admin_languages()  # type: ignore[attr-defined]
     except Exception as exc:  # noqa: BLE001 — diagnosis must not depend on this
         logger.warning("diagnostics_admin_languages_failed", error=str(exc))
-        return [_FALLBACK_LANGUAGE]
+        return [resolve_language()]
     # Through the single chokepoint, never on the raw column: two admins
     # spelling French `fr` and `fr-FR` would otherwise be two languages, and
     # the tick would pay for the same diagnosis twice — then hand each reader
     # only the spelling that happened to match theirs.
     unique: list[str] = sorted({normalize_language(language) for language in languages if language})
-    return unique or [_FALLBACK_LANGUAGE]
+    return unique or [resolve_language()]
 
 
 def build_diagnosis_record(

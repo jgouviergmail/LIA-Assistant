@@ -2,9 +2,10 @@
 Background chat runs configuration module.
 
 Settings for the detached chat-run producer + Redis Streams broker
-(ADR-117, Lot 1 durability). The feature is flag-gated and OFF by default:
-when disabled, the SSE endpoint consumes the chat generator inline exactly
-as before.
+(ADR-117, Lot 1 durability). The feature is flag-gated — ON by default in
+code since v1.29.0; the three standard ``.env`` templates set it off, the
+demonstrator's leave it unset (so on). When disabled, the SSE endpoint
+consumes the chat generator inline exactly as before.
 
 Created: 2026-07-09
 Reference: docs/architecture/ADR-117-Background-Chat-Runs.md
@@ -75,7 +76,9 @@ class BackgroundRunsSettings(BaseSettings):
             "power loss). Must exceed the longest plausible run: a stream "
             "outliving it expires mid-run and loses its replay backlog (the "
             "next XADD re-creates the key and re-arms the TTL). publish_end "
-            "still overwrites it with the short post-terminal TTL."
+            "still overwrites it with the short post-terminal TTL. Also the "
+            "longest a channel turn holds the person's claim: a Telegram turn "
+            "still running past it is stopped as wedged."
         ),
     )
     background_runs_xread_block_ms: int = Field(

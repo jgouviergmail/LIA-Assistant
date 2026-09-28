@@ -3,9 +3,13 @@ Unit tests for prompts module.
 Tests temporal context functions and prompt template injection.
 """
 
+from collections.abc import Iterator
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
+from src.core.i18n import language_scope
 from src.domains.agents.prompts import (
     get_current_datetime_context,
     get_period_of_day,
@@ -16,6 +20,14 @@ from src.domains.agents.prompts import (
 
 # PARIS_TZ is not exported anymore, define it locally for tests
 PARIS_TZ = ZoneInfo("Europe/Paris")
+
+
+@pytest.fixture(autouse=True)
+def _french_reader() -> Iterator[None]:
+    """The assertions read the French wordings: declare French rather than depend
+    on the instance's configured default (ADR-323). An explicit language still wins."""
+    with language_scope("fr"):
+        yield
 
 
 class TestPeriodOfDay:
@@ -79,14 +91,8 @@ class TestLanguageNormalization:
         assert "年" in context
 
     def test_hitl_fallback_messages_accept_frontend_style_zh(self):
-        from src.domains.agents.prompts import (
-            get_hitl_clarification_generic_message,
-            get_hitl_classification_fallback_message,
-        )
+        from src.domains.agents.prompts import get_hitl_clarification_generic_message
 
-        assert get_hitl_classification_fallback_message(
-            "zh"
-        ) == get_hitl_classification_fallback_message("zh-CN")
         assert get_hitl_clarification_generic_message(
             "zh"
         ) == get_hitl_clarification_generic_message("zh-CN")

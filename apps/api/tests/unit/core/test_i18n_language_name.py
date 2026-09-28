@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.i18n import DEFAULT_LANGUAGE, get_language_name
+from src.core.config import settings
+from src.core.i18n import get_language_name
 from src.core.i18n_types import LANGUAGE_NAMES
 
 
@@ -32,7 +33,7 @@ def test_names_every_spelling(code: str, expected: str) -> None:
 
 def test_unsupported_code_names_the_configured_default() -> None:
     """A code the platform does not speak falls back like every other consumer."""
-    assert get_language_name("xx") == LANGUAGE_NAMES[DEFAULT_LANGUAGE]
+    assert get_language_name("xx") == LANGUAGE_NAMES[settings.default_language]
 
 
 def test_every_supported_language_has_a_name() -> None:

@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-from contextlib import suppress
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
@@ -22,8 +23,10 @@ from src.core.config import settings
 from src.core.constants import TELEGRAM_UPDATE_DEDUP_REDIS_PREFIX
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_webhook_signature
+from src.core.i18n import language_scope, normalize_language, resolve_language
 from src.core.session_dependencies import get_current_active_session
 from src.domains.channels.abstractions import ChannelInboundMessage
+from src.domains.channels.message_router import ClaimEvents
 from src.domains.channels.models import ChannelType
 from src.domains.channels.preferences import resolve_channel_preferences
 from src.domains.channels.schemas import (
@@ -32,14 +35,27 @@ from src.domains.channels.schemas import (
     ChannelBindingToggleResponse,
     OTPGenerateResponse,
 )
-from src.domains.channels.service import ChannelService
+from src.domains.channels.service import ChannelService, OtpAttemptsExhaustedError
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.users.models import User
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
 
+if TYPE_CHECKING:
+    from src.domains.channels.preferences import ChannelUserPreferences
+    from src.infrastructure.channels.telegram.hitl_keyboard import HitlPress
+    from src.infrastructure.channels.telegram.sender import TelegramSender
+
 logger = get_logger(__name__)
+
+#: The button door's turn-claim events (the message door's are
+#: ``MESSAGE_CLAIM_EVENTS``): one claim implementation, each door its names.
+_BUTTON_CLAIM_EVENTS = ClaimEvents(
+    lock_failed="telegram_hitl_callback_lock_failed",
+    locked="telegram_hitl_callback_locked",
+    claim_lost="telegram_hitl_callback_claim_lost",
+)
 
 router = APIRouter(
     prefix="/channels",
@@ -302,7 +318,10 @@ async def process_telegram_update(payload: dict) -> None:
     - Regular chat messages (via InboundMessageHandler — Session 3)
     - Callback queries / HITL buttons (Session 4)
     """
-    from src.infrastructure.channels.telegram.webhook_handler import TelegramWebhookHandler
+    from src.infrastructure.channels.telegram.webhook_handler import (
+        TelegramWebhookHandler,
+        client_language_of,
+    )
 
     handler = TelegramWebhookHandler()
 
@@ -311,32 +330,11 @@ async def process_telegram_update(payload: dict) -> None:
         if message is None:
             return
 
-        # OTP verification: detect /start {code} pattern
-        if message.text and message.text.startswith("/start "):
-            code = message.text[7:].strip()
-            if code:
-                await _handle_otp_verification(
-                    code=code,
-                    channel_user_id=message.channel_user_id,
-                    channel_type=message.channel_type.value,
-                    raw_data=message.raw_data,
-                )
-                return
-
-        # HITL callback query (inline keyboard button press)
-        if message.callback_data:
-            await _handle_hitl_callback(message)
-            return
-
-        # Route through ChannelMessageRouter (binding lookup, rate limit, lock, dispatch)
-        from src.domains.channels.message_router import ChannelMessageRouter
-        from src.infrastructure.cache.redis import get_redis_session
-        from src.infrastructure.channels.telegram.sender import TelegramSender
-
-        redis = await get_redis_session()
-        sender = TelegramSender()
-        message_router = ChannelMessageRouter(redis=redis, sender=sender)
-        await message_router.route_message(message)
+        # Until the person is known, LIA answers in the language their client
+        # declares (ADR-323); a known person's own language is passed explicitly
+        # below and wins. Scoped: the polling bot runs every update in one task.
+        with language_scope(client_language_of(message.raw_data)):
+            await _dispatch_update(message)
 
     except asyncio.CancelledError:
         logger.warning("telegram_background_task_cancelled")
@@ -345,122 +343,308 @@ async def process_telegram_update(payload: dict) -> None:
         logger.error("telegram_background_task_error", exc_info=True)
 
 
+async def _dispatch_update(message: ChannelInboundMessage) -> None:
+    """Send a parsed update to the flow it belongs to.
+
+    Args:
+        message: The parsed update.
+    """
+    # OTP verification: detect /start {code} pattern
+    if message.text and message.text.startswith("/start "):
+        code = message.text[7:].strip()
+        if code:
+            await _handle_otp_verification(
+                code=code,
+                channel_user_id=message.channel_user_id,
+                channel_type=message.channel_type.value,
+                raw_data=message.raw_data,
+            )
+            return
+
+    # HITL callback query (inline keyboard button press)
+    if message.callback_data:
+        await _handle_hitl_callback(message)
+        return
+
+    # Route through ChannelMessageRouter (binding lookup, rate limit, lock, dispatch)
+    from src.domains.channels.message_router import ChannelMessageRouter
+    from src.infrastructure.cache.redis import get_redis_session
+    from src.infrastructure.channels.telegram.sender import TelegramSender
+
+    redis = await get_redis_session()
+    sender = TelegramSender()
+    message_router = ChannelMessageRouter(redis=redis, sender=sender)
+    await message_router.route_message(message)
+
+
 async def _handle_hitl_callback(message: ChannelInboundMessage) -> None:
     """
     Handle HITL callback query (inline keyboard button press).
 
-    Parses the callback_data, looks up the binding, verifies the HITL
-    interrupt is still pending, edits the original message to remove buttons,
-    and resumes the LangGraph execution via stream_chat_response.
+    Parses the callback_data, looks up the binding and the person, then
+    resumes the question the button answers — under the person's turn claim,
+    with the press's structured decision (see :func:`_resume_pending_hitl`).
     """
-    from src.infrastructure.cache.redis import get_redis_session
     from src.infrastructure.channels.telegram.formatter import get_bot_message
     from src.infrastructure.channels.telegram.hitl_keyboard import (
-        get_button_label,
         parse_hitl_callback_data,
     )
     from src.infrastructure.channels.telegram.sender import TelegramSender
-    from src.infrastructure.database.session import get_db_context
 
     sender = TelegramSender()
     channel_user_id = message.channel_user_id
 
     # Parse callback_data
-    parsed = parse_hitl_callback_data(message.callback_data or "")
-    if parsed is None:
+    press = parse_hitl_callback_data(message.callback_data)
+    if press is None:
+        # Whatever the client sent back: its length, never its content.
         logger.warning(
             "telegram_hitl_callback_invalid",
-            callback_data=message.callback_data,
+            callback_data_length=len(message.callback_data or ""),
         )
         return
 
-    action, conversation_id = parsed
+    # The binding and the person it names, read like the inbound route: a failed
+    # read is answered, a deactivated account or a switched-off binding is told
+    # so in the person's own language — once per window, like a message's
+    # refusal — and never resumed (ADR-323).
+    from src.domains.channels.message_router import (
+        Recipient,
+        answer_refusal,
+        read_binding_and_person,
+        refusal_for,
+    )
+    from src.infrastructure.cache.redis import get_redis_session
+    from src.infrastructure.observability.metrics_channels import (
+        channel_messages_rejected_total,
+    )
 
-    # Look up binding
-    async with get_db_context() as db:
-        from src.domains.channels.repository import UserChannelBindingRepository
+    channel_type = message.channel_type.value
+    try:
+        found = await read_binding_and_person(channel_type, channel_user_id)
+    except Exception:
+        logger.error("telegram_hitl_callback_lookup_failed", exc_info=True)
+        channel_messages_rejected_total.labels(
+            channel_type=channel_type, reason="lookup_failed"
+        ).inc()
+        await sender.send_text(channel_user_id, get_bot_message("error"))
+        return
 
-        repo = UserChannelBindingRepository(db)
-        binding = await repo.get_by_channel_id(message.channel_type.value, channel_user_id)
-
-    if not binding or not binding.is_active:
+    if found is None:
+        channel_messages_rejected_total.labels(channel_type=channel_type, reason="unbound").inc()
         await sender.send_text(channel_user_id, get_bot_message("unbound"))
         return
 
+    binding, user = found
     user_id = binding.user_id
+    # Resolution is shared with the inbound route (domains/channels/preferences.py):
+    # one contract, so a preference added later reaches every channel by construction.
+    prefs = resolve_channel_preferences(user)
+    refusal = refusal_for(binding, user)
+    if refusal is not None:
+        logger.warning("telegram_hitl_callback_refused", user_id=str(user_id), reason=refusal)
+        where = Recipient(channel_type, channel_user_id, user_id, prefs.language)
+        await answer_refusal(await get_redis_session(), sender, where, refusal)
+        return
 
-    # Verify HITL is still pending
+    # The person's turn claim, like a message's: a double tap must not resume the
+    # graph twice, and a button pressed while a turn runs is answered « busy ».
+    await _resume_under_claim(message, sender, user_id, prefs, press=press)
+
+
+async def _resume_under_claim(
+    message: ChannelInboundMessage,
+    sender: TelegramSender,
+    user_id: UUID,
+    prefs: ChannelUserPreferences,
+    *,
+    press: HitlPress,
+) -> None:
+    """Resume the answered question under the person's turn claim.
+
+    The claim is taken, and its refusals answered and counted, by the message
+    door's own code (``claim_turn_or_answer``): a claim nobody could take
+    (``lock_failed``), a turn already running (``locked``, answered « busy »).
+    A claim that stopped protecting the turn (``claim_lost``) is logged and
+    counted by ``note_claim_lost`` and answered here. Anything the resumption
+    itself raised is answered and logged, as a message's routing failure is.
+
+    Args:
+        message: The button press.
+        sender: The bot's sender.
+        user_id: The person.
+        prefs: The person's resolved preferences.
+        press: What the button carries back.
+    """
+    from src.domains.channels.message_router import (
+        Recipient,
+        claim_turn_or_answer,
+        hold_turn_claim,
+        note_claim_lost,
+    )
+    from src.infrastructure.cache.redis import get_redis_session
+    from src.infrastructure.channels.telegram.formatter import get_bot_message
+    from src.infrastructure.locks.redis_claim import ClaimLost
+
+    channel_user_id = message.channel_user_id
+    where = Recipient(message.channel_type.value, channel_user_id, user_id, prefs.language)
     redis = await get_redis_session()
-    from src.domains.agents.utils.hitl_store import HITLStore
+    lock_token = await claim_turn_or_answer(redis, sender, where, _BUTTON_CLAIM_EVENTS)
+    if lock_token is None:
+        return
+    try:
+        async with hold_turn_claim(redis, user_id, lock_token):
+            await _resume_pending_hitl(message, sender, user_id, prefs, press=press)
+    except ClaimLost as lost:
+        note_claim_lost(where, lost, _BUTTON_CLAIM_EVENTS)
+        await sender.send_text(channel_user_id, get_bot_message("error", prefs.language))
+    except Exception:
+        # The conversation or pending-question read, the turn itself failed:
+        # the person is told, as a message's failure is.
+        logger.error("telegram_hitl_callback_resume_failed", user_id=str(user_id), exc_info=True)
+        await sender.send_text(channel_user_id, get_bot_message("error", prefs.language))
 
-    hitl_store = HITLStore(redis, ttl_seconds=3600)
-    pending = await hitl_store.get_interrupt(conversation_id)
 
-    if pending is None:
+async def _own_conversation_id(user_id: UUID) -> str | None:
+    """The person's active conversation, read so that a failure RAISES.
+
+    The cached helper answers None on a failed read too, and a button pressed
+    while the database was away was then told its question had expired.
+
+    Args:
+        user_id: The person.
+
+    Returns:
+        The conversation id, or None when the person has none.
+
+    Raises:
+        Exception: Whatever the read raised — the caller answers « error ».
+    """
+    from src.domains.conversations.repository import ConversationRepository
+    from src.infrastructure.database.session import get_db_context
+
+    async with get_db_context() as db:
+        conversation = await ConversationRepository(db).get_active_for_user(user_id)
+    return str(conversation.id) if conversation is not None else None
+
+
+def _pending_question_id(pending: Mapping[str, Any] | None) -> str | None:
+    """The message id of the question now waiting, as the engine saved it.
+
+    Args:
+        pending: The pending question (``read_pending_question``), or None.
+
+    Returns:
+        Its ``message_id``, or None when nothing waits or the record names none
+        — then no button can be shown to answer it.
+    """
+    question_id = pending.get("message_id") if pending is not None else None
+    return question_id if isinstance(question_id, str) and question_id else None
+
+
+async def _remove_keyboard(sender: TelegramSender, message: ChannelInboundMessage) -> None:
+    """Take the keyboard off the pressed message, its text kept.
+
+    Args:
+        sender: The bot's sender.
+        message: The button press (its ``message_id`` is the question's message).
+    """
+    if message.message_id:
+        await sender.remove_keyboard(message.channel_user_id, message.message_id)
+
+
+async def _resume_pending_hitl(
+    message: ChannelInboundMessage,
+    sender: TelegramSender,
+    user_id: UUID,
+    prefs: ChannelUserPreferences,
+    *,
+    press: HitlPress,
+) -> None:
+    """Resume the question a button answers, with the decision it carries.
+
+    A press is the chat card's own gesture: it resumes the pending question
+    with a STRUCTURED decision (``{"message_id", "action"}``, applied by
+    ``build_structured_decision`` without a model), never with its label
+    classified as words — nine presses in twelve reached the classifier, and
+    a « Confirm » it misread on a draft rewrote the draft with the label as
+    instructions (review 14). The button must answer THE question now
+    waiting: its conversation is the person's own and its fingerprint the
+    pending question's (``question_fingerprint``); anything else is answered
+    « expired ». The pressed message keeps its text — the draft the person
+    approved stays readable — and loses its keyboard; the resumed turn's
+    answer says what the decision did.
+
+    Args:
+        message: The button press.
+        sender: The bot's sender.
+        user_id: The person.
+        prefs: The person's resolved preferences.
+        press: What the button carries back.
+    """
+    from src.domains.channels.inbound_handler import InboundMessageHandler
+    from src.domains.channels.message_router import read_pending_question
+    from src.infrastructure.channels.telegram.formatter import get_bot_message
+    from src.infrastructure.channels.telegram.hitl_keyboard import (
+        get_button_label,
+        question_fingerprint,
+    )
+
+    channel_user_id = message.channel_user_id
+    conversation_id = press.conversation_id
+
+    # The button's conversation must be the person's own: the callback data is
+    # whatever the client sends back, so a question of any other conversation
+    # reads as one that no longer waits.
+    is_own = conversation_id == await _own_conversation_id(user_id)
+    pending = await read_pending_question(conversation_id) if is_own else None
+    question_id = _pending_question_id(pending)
+
+    if question_id is None or question_fingerprint(question_id) != press.question:
+        # The id is logged only when it is the person's own: a foreign one is
+        # whatever the client sent back.
         logger.warning(
             "telegram_hitl_callback_expired",
             user_id=str(user_id),
-            conversation_id=conversation_id,
+            owner_match=is_own,
+            question_pending=question_id is not None,
+            conversation_id=conversation_id if is_own else None,
         )
+        await _remove_keyboard(sender, message)
+        await sender.send_text(channel_user_id, get_bot_message("hitl_expired", prefs.language))
         return
 
-    # Load user settings (single DB call for both message editing and handler dispatch).
-    # Resolution is shared with the inbound route (domains/channels/preferences.py):
-    # one contract, so a preference added later reaches every channel by construction.
-    # A failed lookup yields the fail-closed defaults.
-    prefs = resolve_channel_preferences(None)
-    try:
-        async with get_db_context() as db:
-            from src.domains.users.service import UserService
-
-            user_service = UserService(db)
-            prefs = resolve_channel_preferences(await user_service.get_user_by_id(user_id))
-    except Exception:
-        logger.debug("channel_hitl_user_fetch_failed", exc_info=True)
-
-    # Edit original message: remove keyboard, show decision
-    if message.message_id:
-        label = get_button_label(action, prefs.language)
-        check = "✓" if action in ("approve", "confirm", "continue") else "✗"
-        await sender.edit_message(
-            channel_user_id,
-            message.message_id,
-            new_text=f"{label} {check}",
-        )
-
-    # Map callback action to localized user message for LangGraph resumption
-    user_message = get_button_label(action, prefs.language)
-
-    # Resume agent pipeline via stream_chat_response
-    from src.domains.channels.inbound_handler import InboundMessageHandler
-
-    inbound_handler = InboundMessageHandler(sender=sender)
-
-    # Create a synthetic text message for the handler
+    await _remove_keyboard(sender, message)
+    # The label the person pressed is archived as their message, as the chat's
+    # card sends its label beside its decision.
     hitl_message = ChannelInboundMessage(
         channel_type=message.channel_type,
         channel_user_id=channel_user_id,
-        text=user_message,
+        text=get_button_label(press.action, prefs.language),
         raw_data=message.raw_data,
     )
 
-    await inbound_handler.handle(
-        message=hitl_message,
-        user_id=user_id,
-        user_language=prefs.language,
-        user_timezone=prefs.timezone,
-        user_memory_enabled=prefs.memory_enabled,
-        user_journals_enabled=prefs.journals_enabled,
-        user_psyche_enabled=prefs.psyche_enabled,
-        conversation_id=conversation_id,
-        pending_hitl=pending,
-        user_display_name=prefs.display_name,
-    )
+    # The resumed turn speaks the person's language (ADR-323); scoped, since the
+    # polling bot runs every update in one task.
+    with language_scope(prefs.language):
+        await InboundMessageHandler(sender=sender).handle(
+            message=hitl_message,
+            user_id=user_id,
+            user_language=prefs.language,
+            user_timezone=prefs.timezone,
+            user_memory_enabled=prefs.memory_enabled,
+            user_journals_enabled=prefs.journals_enabled,
+            user_psyche_enabled=prefs.psyche_enabled,
+            conversation_id=conversation_id,
+            pending_hitl=pending,
+            user_display_name=prefs.display_name,
+            hitl_decision={"message_id": question_id, "action": press.action},
+        )
 
     logger.info(
         "telegram_hitl_callback_processed",
         user_id=str(user_id),
-        action=action,
+        action=press.action,
         conversation_id=conversation_id,
     )
 
@@ -482,12 +666,20 @@ async def _handle_otp_verification(
 
     sender = TelegramSender()
 
-    # Verify OTP
-    result = await ChannelService.verify_otp(
-        code=code,
-        channel_type=channel_type,
-        channel_user_id=channel_user_id,
-    )
+    # Verify OTP — a cache that cannot be read is answered, never dropped.
+    try:
+        result = await ChannelService.verify_otp(
+            code=code,
+            channel_type=channel_type,
+            channel_user_id=channel_user_id,
+        )
+    except OtpAttemptsExhaustedError:
+        await sender.send_text(channel_user_id, get_bot_message("otp_blocked"))
+        return
+    except Exception:
+        logger.error("telegram_otp_verification_failed", exc_info=True)
+        await sender.send_text(channel_user_id, get_bot_message("error"))
+        return
 
     if result is None:
         # Invalid or expired OTP
@@ -497,46 +689,44 @@ async def _handle_otp_verification(
         )
         return
 
-    # Extract user info from raw_data
+    # The code names the account. Its row and the binding are read and written in
+    # ONE short session: a deactivated account is refused inside it, and whatever
+    # fails — the read, the insert, the connection itself — answers « error »
+    # rather than linking an account nobody could check. Every message from here
+    # speaks the account's language once it is read, the declared one until then
+    # (ADR-323), and the reply leaves once the session is closed (ADR-304).
+    user_id = UUID(result["user_id"])
+    language: str = resolve_language()
+    outcome = "error"
     from_user = raw_data.get("message", {}).get("from", {})
     username = from_user.get("username")
-
-    # Create binding in its own DB session
-    async with get_db_context() as db:
-        service = ChannelService(db)
-        try:
-            await service.create_binding(
-                user_id=UUID(result["user_id"]),
-                channel_type=channel_type,
-                channel_user_id=channel_user_id,
-                channel_username=f"@{username}" if username else None,
-            )
-            await db.commit()
-        except Exception:
-            logger.error(
-                "telegram_otp_binding_creation_failed",
-                channel_user_id=channel_user_id,
-                exc_info=True,
-            )
-            await sender.send_text(
-                channel_user_id,
-                get_bot_message("error"),
-            )
-            return
-
-    # Determine user language for success message
-    language = "fr"  # Default
-    # Fallback to French
-    with suppress(Exception):
-        from src.domains.users.service import UserService
+    try:
+        from src.domains.users.repository import UserRepository
 
         async with get_db_context() as db:
-            user_service = UserService(db)
-            user = await user_service.get_user_by_id(UUID(result["user_id"]))
-            if user and hasattr(user, "language") and user.language:
-                language = user.language
+            person = await UserRepository(db).get_by_id(user_id, include_inactive=True)
+            if person is None:
+                logger.warning("telegram_otp_account_missing", user_id=str(user_id))
+            else:
+                language = normalize_language(person.language)
+                if not person.is_active:
+                    logger.warning("telegram_otp_account_inactive", user_id=str(user_id))
+                    outcome = "account_inactive"
+                else:
+                    await ChannelService(db).create_binding(
+                        user_id=user_id,
+                        channel_type=channel_type,
+                        channel_user_id=channel_user_id,
+                        channel_username=f"@{username}" if username else None,
+                    )
+                    outcome = "otp_success"
+    except Exception:
+        # A commit that failed after the insert lands here too: never « success ».
+        outcome = "error"
+        logger.error(
+            "telegram_otp_binding_creation_failed",
+            channel_user_id=channel_user_id,
+            exc_info=True,
+        )
 
-    await sender.send_text(
-        channel_user_id,
-        get_bot_message("otp_success", language),
-    )
+    await sender.send_text(channel_user_id, get_bot_message(outcome, language))

@@ -292,6 +292,13 @@ class TestValidateUrl:
         assert result.valid is False
         assert "DNS resolution failed" in result.error
 
+    async def test_a_hostname_no_resolver_can_encode_is_a_verdict(self):
+        # A label past 63 characters fails IDNA encoding inside getaddrinfo — a
+        # UnicodeError raised before any network — and must read as a refusal.
+        result = await validate_url("https://" + "a" * 70 + ".example.org/")
+        assert result.valid is False
+        assert "DNS resolution failed" in result.error
+
     # --- Empty/malformed URLs ---
 
     async def test_empty_url_rejected(self):

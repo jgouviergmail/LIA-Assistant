@@ -18,7 +18,13 @@
 import { describe, it, expect } from 'vitest';
 
 import { ApiError, ApiStepUpError } from '@/lib/api-client';
-import { getApiErrorCode, getApiErrorDetail } from '@/lib/api-error';
+import {
+  getApiErrorCode,
+  getApiErrorDetail,
+  getApiErrorFields,
+  getApiErrorStatus,
+  refusalSentence,
+} from '@/lib/api-error';
 
 /** Envelope FastAPI puts on the wire for a `BaseAPIException` with a str detail. */
 function apiErrorWithDetail(detail: unknown, status = 422): ApiError {
@@ -162,5 +168,51 @@ describe('getApiErrorCode — a refusal that names itself', () => {
     expect(getApiErrorCode(apiErrorWithDetail({ code: '' }, 409))).toBeUndefined();
     expect(getApiErrorCode(new Error('network'))).toBeUndefined();
     expect(getApiErrorCode(undefined)).toBeUndefined();
+  });
+});
+
+describe('getApiErrorFields — the facts beside a code', () => {
+  it('hands back the bound a coded refusal publishes', () => {
+    const fields = getApiErrorFields(
+      apiErrorWithDetail({ code: 'radio_timer_too_long', max_minutes: 240 }, 422)
+    );
+    expect(fields).toEqual({ code: 'radio_timer_too_long', max_minutes: 240 });
+  });
+
+  it('is undefined wherever the code is (a refusal that is not coded has no facts)', () => {
+    expect(getApiErrorFields(apiErrorWithDetail({ max_minutes: 240 }, 422))).toBeUndefined();
+    expect(getApiErrorFields(apiErrorWithDetail({ code: '  ' }, 422))).toBeUndefined();
+    expect(getApiErrorFields(apiErrorWithDetail('plain', 409))).toBeUndefined();
+    expect(getApiErrorFields(new Error('network'))).toBeUndefined();
+  });
+});
+
+describe('refusalSentence — the server words for a refusal, the caller sentence otherwise', () => {
+  it('reads the translated sentence of a ceiling (409) or a switch (403)', () => {
+    expect(refusalSentence(apiErrorWithDetail('Limite atteinte', 409), 'fallback')).toBe(
+      'Limite atteinte'
+    );
+    expect(refusalSentence(apiErrorWithDetail('Fonction coupée', 403), 'fallback')).toBe(
+      'Fonction coupée'
+    );
+  });
+
+  it('keeps the caller sentence for any other failure, detail or not', () => {
+    // A 404's or a 500's detail is an English fallback nobody should read.
+    expect(refusalSentence(apiErrorWithDetail('Not found', 404), 'fallback')).toBe('fallback');
+    expect(refusalSentence(apiErrorWithDetail('boom', 500), 'fallback')).toBe('fallback');
+    expect(refusalSentence(new Error('network'), 'fallback')).toBe('fallback');
+  });
+
+  it('keeps the caller sentence when a 409 carries no readable detail', () => {
+    expect(refusalSentence(apiErrorWithDetail('   ', 409), 'fallback')).toBe('fallback');
+  });
+});
+
+describe('getApiErrorStatus — the status a refusal carries', () => {
+  it('reads it from a real ApiError, and from nothing else', () => {
+    expect(getApiErrorStatus(apiErrorWithDetail('slow down', 429))).toBe(429);
+    expect(getApiErrorStatus(new Error('offline'))).toBeUndefined();
+    expect(getApiErrorStatus(undefined)).toBeUndefined();
   });
 });

@@ -1,15 +1,15 @@
 """
-Core Semantic Types - Catalogue Complet des 96+ Types
+Core Semantic Types - the complete catalogue of the 96+ types
 
-Définit tous les types sémantiques identifiés dans le codebase LIA,
-organisés hiérarchiquement et inspirés de schema.org.
+Defines every semantic type identified in the LIA codebase, organised as a
+hierarchy inspired by schema.org.
 
-Types découverts:
-- 5 types explicites existants
-- 91+ types implicites identifiés dans les manifests, tools, et schemas
+Types found:
+- 5 explicit types that already existed
+- 91+ implicit types identified in the manifests, tools and schemas
 
-Organisation hiérarchique:
-- Thing (racine)
+Hierarchy:
+- Thing (root)
   - Person → Contact
   - Place → PostalAddress, GeoCoordinates
   - Event → CalendarEvent
@@ -36,7 +36,6 @@ THING = SemanticType(
     description="The most generic type of item (schema.org Thing)",
     uri="http://schema.org/Thing",
     examples=[],
-    labels={"en": "Thing", "fr": "Chose"},
 )
 
 # =============================================================================
@@ -49,7 +48,6 @@ PERSON = SemanticType(
     category=TypeCategory.IDENTITY,
     description="A person (alive, dead, undead, or fictional)",
     uri="http://schema.org/Person",
-    labels={"en": "Person", "fr": "Personne"},
 )
 
 CONTACT = SemanticType(
@@ -57,7 +55,6 @@ CONTACT = SemanticType(
     parent="Person",
     category=TypeCategory.IDENTITY,
     description="A person in address book with contact information",
-    labels={"en": "Contact", "fr": "Contact"},
     properties={
         "name": "person_name",
         "email": "email_address",
@@ -78,7 +75,6 @@ CONTACT_POINT = SemanticType(
     category=TypeCategory.IDENTITY,
     description="A contact point (email, phone, etc.)",
     uri="http://schema.org/ContactPoint",
-    labels={"en": "Contact Point", "fr": "Point de contact"},
 )
 
 EMAIL_ADDRESS = SemanticType(
@@ -86,7 +82,6 @@ EMAIL_ADDRESS = SemanticType(
     parent="ContactPoint",
     category=TypeCategory.IDENTITY,
     description="Email address (RFC 5322 compliant)",
-    labels={"en": "Email address", "fr": "Adresse email"},
     format_pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
     examples=["john@example.com", "user+tag@domain.co.uk"],
     related_types=["contact_id", "person_name", "message_id"],
@@ -104,7 +99,6 @@ PHONE_NUMBER = SemanticType(
     parent="ContactPoint",
     category=TypeCategory.IDENTITY,
     description="Phone number (international or local format)",
-    labels={"en": "Phone number", "fr": "Numéro de téléphone"},
     examples=["+33612345678", "06 12 34 56 78"],
     related_types=["contact_id", "person_name"],
     source_domains=["contact", "place"],
@@ -116,7 +110,6 @@ PERSON_NAME = SemanticType(
     parent="Text",
     category=TypeCategory.IDENTITY,
     description="Person's name (first, last, or full name)",
-    labels={"en": "Person name", "fr": "Nom de personne"},
     examples=["Jean Dupont", "Marie", "Dupont"],
     related_types=["contact_id", "email_address", "phone_number"],
     source_domains=["contact"],
@@ -133,7 +126,6 @@ PLACE = SemanticType(
     category=TypeCategory.LOCATION,
     description="Entities that have a somewhat fixed, physical extension",
     uri="http://schema.org/Place",
-    labels={"en": "Place", "fr": "Lieu"},
     # Entity type for the "place" domain (a Google Places result IS a
     # schema.org Place). `properties` drive evidence-driven expansion: a
     # referenced place can provide these semantic types.
@@ -152,7 +144,6 @@ POSTAL_ADDRESS = SemanticType(
     category=TypeCategory.LOCATION,
     description="The mailing address",
     uri="http://schema.org/PostalAddress",
-    labels={"en": "Postal address", "fr": "Adresse postale"},
     properties={
         "streetAddress": "str",
         "addressLocality": "locality",
@@ -167,7 +158,6 @@ PHYSICAL_ADDRESS = SemanticType(
     parent="PostalAddress",
     category=TypeCategory.LOCATION,
     description="Physical postal address or location description",
-    labels={"en": "Physical address", "fr": "Adresse physique"},
     examples=["10 Rue de la Paix, Paris", "Eiffel Tower", "home"],
     related_types=["coordinate", "place_id", "formatted_address"],
     broader_types=["PostalAddress", "Place"],
@@ -186,7 +176,6 @@ FORMATTED_ADDRESS = SemanticType(
     parent="PostalAddress",
     category=TypeCategory.LOCATION,
     description="Fully formatted address string",
-    labels={"en": "Formatted address", "fr": "Adresse formatée"},
     examples=["10 Rue de la Paix, 75002 Paris, France"],
     source_domains=["place", "route"],
 )
@@ -197,7 +186,6 @@ GEO_COORDINATES = SemanticType(
     category=TypeCategory.LOCATION,
     description="Geographic coordinates (latitude/longitude pair)",
     uri="http://schema.org/GeoCoordinates",
-    labels={"en": "Geo Coordinates", "fr": "Coordonnées géographiques"},
     properties={"latitude": "float", "longitude": "float"},
 )
 
@@ -206,7 +194,6 @@ COORDINATE = SemanticType(
     parent="GeoCoordinates",
     category=TypeCategory.LOCATION,
     description="Geographic coordinates (latitude/longitude)",
-    labels={"en": "GPS coordinates", "fr": "Coordonnées GPS"},
     examples=["48.8566, 2.3522", "(48.8566, 2.3522)"],
     properties={"latitude": "float", "longitude": "float"},
     related_types=["physical_address", "place_id"],
@@ -276,7 +263,6 @@ EVENT = SemanticType(
     category=TypeCategory.TEMPORAL,
     description="An event happening at a certain time and location",
     uri="http://schema.org/Event",
-    labels={"en": "Event", "fr": "Événement"},
 )
 
 CALENDAR_EVENT = SemanticType(

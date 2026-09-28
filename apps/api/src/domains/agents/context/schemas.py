@@ -5,8 +5,8 @@ Defines type-safe data structures for storing and retrieving tool results
 in LangGraph BaseStore.
 
 Architecture (two-keys design, 2026-04):
-    - ToolContextList: Liste d'items pour un domaine (stored under key "list")
-    - ToolContextCurrentItem: Item courant pour un domaine (stored under key "current")
+    - ToolContextList: List of items for a domain (stored under key "list")
+    - ToolContextCurrentItem: Current item for a domain (stored under key "current")
     - ResolutionResult: Result of reference resolution
     - ContextMetadata: Additional metadata for context items
     - ContextSaveMode: Classification enum for save routing (list vs current)
@@ -63,7 +63,7 @@ class ContextMetadata(BaseModel):
         >>> metadata = ContextMetadata(
         ...     turn_id=5,
         ...     total_count=10,
-        ...     query="liste mes contacts travail",
+        ...     query="list my work contacts",
         ...     tool_name="search_contacts_tool",
         ...     timestamp="2025-01-26T14:30:00Z"
         ... )
@@ -109,7 +109,7 @@ class ToolContextList(BaseModel):
         ...     metadata=ContextMetadata(
         ...         turn_id=5,
         ...         total_count=2,
-        ...         query="liste mes contacts",
+        ...         query="list my contacts",
         ...         tool_name="search_contacts_tool",
         ...         timestamp="2025-01-26T14:30:00Z"
         ...     )
@@ -168,7 +168,7 @@ class ToolContextList(BaseModel):
 
 class ToolContextCurrentItem(BaseModel):
     """
-    Item courant pour un domaine spécifique.
+    Current item for a specific domain.
 
     Stored in LangGraph BaseStore under:
         Namespace: (user_id, "context", domain)
@@ -202,7 +202,7 @@ class ToolContextCurrentItem(BaseModel):
 
     Rules:
         - set_by="auto": Item was auto-set because search returned 1 result
-        - set_by="explicit": User explicitly selected this item (e.g., "le 2ème")
+        - set_by="explicit": User explicitly selected this item (e.g., "the 2nd one")
     """
 
     domain: str = Field(description="Domain identifier (contacts, emails, events)")
@@ -250,14 +250,14 @@ class ResolutionResult(BaseModel):
         >>> result = ResolutionResult(
         ...     success=False,
         ...     error="not_found",
-        ...     message="'Pierre' non trouvé dans la liste."
+        ...     message="“Pierre” not found in the list. Use a number (1-3), ..."
         ... )
 
         >>> # Error: Ambiguous
         >>> result = ResolutionResult(
         ...     success=False,
         ...     error="ambiguous",
-        ...     message="Plusieurs correspondances trouvées.",
+        ...     message="Several matches for “Jean”. Say which one: ...",
         ...     candidates=[
         ...         {"index": 1, "name": "Jean Dupond", "confidence": 0.8},
         ...         {"index": 3, "name": "Jean-Marie Durand", "confidence": 0.75}

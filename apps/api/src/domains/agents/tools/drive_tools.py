@@ -37,8 +37,9 @@ from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
 from src.core.config import settings
+from src.core.i18n import get_locale_for_language
 from src.core.i18n_api_messages import APIMessages
-from src.domains.agents.constants import AGENT_FILE, CONTEXT_DOMAIN_FILES
+from src.domains.agents.constants import AGENT_FILE, CONTEXT_DOMAIN_FILES, FILE_CONTENT_TYPE_BINARY
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.base import ConnectorTool
@@ -313,7 +314,7 @@ class SearchFilesTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
         files = result.get("files", [])
         query = result.get("query", "")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
+        locale = result.get("locale", get_locale_for_language(None))
 
         # Use ToolOutputMixin helper with timezone conversion
         # build_files_output returns UnifiedToolOutput directly
@@ -386,7 +387,7 @@ async def search_files_tool(
         UnifiedToolOutput with matching files metadata (id, name, type, size, modified date)
 
     Examples:
-        - search_files("rapport annuel") - Search files by name (excludes folders)
+        - search_files("annual report") - Search files by name (excludes folders)
         - search_files("Documents", content_type="folders_only") - Search folders only
         - search_files("budget 2025", mime_type="application/vnd.google-apps.spreadsheet")
     """
@@ -523,7 +524,7 @@ class ListFilesTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
         files = result.get("files", [])
         folder_id = result.get("folder_id")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
+        locale = result.get("locale", get_locale_for_language(None))
 
         # Use ToolOutputMixin helper with timezone conversion
         # build_files_output returns UnifiedToolOutput directly
@@ -751,8 +752,9 @@ class GetFileDetailsTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
                         try:
                             full_payload["content"] = content.decode("utf-8")[:10000]
                         except UnicodeDecodeError:
-                            full_payload["content"] = "[Contenu binaire - non affichable]"
-                            full_payload["content_type"] = "binary"
+                            # No sentence in the payload: the card names a binary
+                            # file in its reader's language from the type alone.
+                            full_payload["content_type"] = FILE_CONTENT_TYPE_BINARY
                     else:
                         full_payload["content"] = content[:10000]
 
@@ -835,7 +837,7 @@ class GetFileDetailsTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
                 try:
                     content_str = content.decode("utf-8")[:5000]
                 except UnicodeDecodeError:
-                    content_str = "[Contenu binaire - non affichable]"
+                    content_str = "[Binary content - not displayable]"
             else:
                 content_str = content[:5000] if len(content) > 5000 else content
 
@@ -879,7 +881,7 @@ class GetFileDetailsTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
         """
         mode = result.get("mode", "single")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
+        locale = result.get("locale", get_locale_for_language(None))
 
         # Handle batch mode
         if mode == "batch":
@@ -934,18 +936,18 @@ class GetFileDetailsTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
             folder_name = metadata.get("name", "Folder")
 
             # Build summary with folder info
-            summary_lines = [f"📁 **Dossier: {folder_name}**"]
+            summary_lines = [f"📁 **Folder: {folder_name}**"]
             if folder_contents:
-                summary_lines.append(f"Contient {len(folder_contents)} éléments:")
+                summary_lines.append(f"Contains {len(folder_contents)} items:")
                 for idx, f in enumerate(folder_contents[:10], 1):  # Show first 10
                     icon = (
                         "📁" if f.get("mimeType") == "application/vnd.google-apps.folder" else "📄"
                     )
                     summary_lines.append(f"  {idx}. {icon} {f.get('name', 'Unknown')}")
                 if len(folder_contents) > 10:
-                    summary_lines.append(f"  ... et {len(folder_contents) - 10} autres éléments")
+                    summary_lines.append(f"  ... and {len(folder_contents) - 10} more items")
             else:
-                summary_lines.append("Le dossier est vide.")
+                summary_lines.append("The folder is empty.")
 
             # Build registry updates with folder contents
             # build_files_output returns UnifiedToolOutput directly
@@ -980,9 +982,9 @@ class GetFileDetailsTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
                     content_str = content.decode("utf-8")[:10000]
                     full_payload["content"] = content_str
                 except UnicodeDecodeError:
-                    # Binary content (PDF, images, etc.) - not displayable as text
-                    full_payload["content"] = "[Contenu binaire - non affichable]"
-                    full_payload["content_type"] = "binary"
+                    # Binary content (PDF, images, etc.): no text to preview. No
+                    # sentence in the payload — the card names it from the type.
+                    full_payload["content_type"] = FILE_CONTENT_TYPE_BINARY
             else:
                 full_payload["content"] = content[:10000]  # Limit content size
 
@@ -1032,7 +1034,7 @@ async def get_file_details_tool(
     - Batch: file_ids=["abc123", "def456"] → fetch multiple files in parallel
 
     MULTI-ORDINAL FIX (2026-01-01): Added batch mode for multi-reference queries.
-    Example: "detail du 1 et du 2" → file_ids=["id1", "id2"]
+    Example: "details of 1 and 2" → file_ids=["id1", "id2"]
 
     Returns comprehensive file information including:
     - File metadata (name, size, mimeType, owners, etc.)

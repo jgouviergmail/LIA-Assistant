@@ -837,3 +837,130 @@ draft executors are registered **before** the asserts run: they register lazily,
 so at assert time the registry held zero entries and the executor half of two
 guards passed on anything — an assert that cannot fail is a promise nobody
 checks.
+
+## Amendment 2026-09-27 — every accounted run names who files it; a click that acts is an action
+
+**Amends:** lot 6 (the decision register), ADR-272 (see its amendment of the same day),
+ADR-316 and ADR-321 (the two clicks that act), ADR-324 (decision 31, the radio).
+
+The owner asked whether the radio's acts, the image share and the e-mail share reach
+the transparency registers with the right classification — and wanted every act with
+a model in it to. Joining the ledger (`token_usage_logs`) to the decision register by
+`run_id` on dev, over twelve days, answered for the whole codebase rather than for the
+three surfaces named.
+
+### What was measured
+
+- **Runs nobody filed.** 47 radio sessions, 5 article translations and 84 journal
+  consolidations spent under runs that had no row in `agent_decisions`: the overview's
+  turns and its day-by-day activity never saw them. The consolidation billed its model
+  call under one run and every embedding its actions wrote under another (82 `embed_*`
+  runs), so even the ledger split one act in two.
+- **A reflection billed twice.** An interest's `llm_reflection` content source billed its
+  tokens under a run of its own while BOTH callers — the interest sweep and the
+  heartbeat's enrichment — add the content's tokens to what they hand the runner: a
+  1 992-token reflection inside the 4 143-token row of the sweep that used it, charged a
+  second time on its own row (49 in twelve days). The person's quota paid it twice.
+- **A decision filed apart from what it read.** The heartbeat's decision to say nothing
+  was billed and filed under a fresh run, while the sweep's reads and embeddings were
+  collected under the runner's: the reads pointed at a run that decided nothing, the
+  decision at one that read nothing.
+- **Spend lost on failure.** The runner billed a sweep after a SUCCESSFUL dispatch only:
+  a notification that reached nobody, or a heartbeat message that failed after the
+  decision and the enrichment were paid for, spent money no ledger saw.
+- **Two clicks that act, recorded nowhere.** Sharing a generated image with a connection
+  (ADR-316) and sending a file or an answer by e-mail (ADR-321) call no tool, so the gate
+  that fills `agent_effects` never saw them: « Actions » said nothing of a message that
+  left for someone else.
+- Not defects, verified: the chat's turns without a row were a measurement harness's
+  (no summary row, no message); the proactive sweeps that concluded without a model call
+  file no turn, by the register's own rule — no model spend, no turn — and their reads are
+  in the consultation register.
+
+### Decision
+
+1. **Every module that opens an accounting of its own names who files its run**
+   (`effects/decision_filers.py`). `DECISION_FILERS` maps each module calling
+   `TrackingContext(` or `out_of_turn_spend(` to the modules that file the row of the run it
+   bills; `NOT_A_TURN` gives the written reason a run is no turn (a profile geocoding, a
+   text read aloud, an indexing batch no act encloses, a routine's condition check).
+   `test_decision_filers_guard` walks the AST of `src/`: an undeclared accounting fails,
+   a declaration for a module that opens none fails, and every named filer must call a
+   decision door. The list is the guard — the ADR-263 lot-4 shape, applied to turns.
+2. **An act that cannot be resumed is filed once.** `record_decision_once` writes the
+   row with `ON CONFLICT DO NOTHING`: an out-of-turn act has no HITL resumption, so a
+   second filing of its run is two closers racing (the radio's loop and the service),
+   never a second segment. The turn's merge stays the chat's.
+3. **A consolidation is one act of LIA's own**: one run for its model call and every
+   embedding it writes, one row (route `journal_consolidation`, source `proactive`),
+   filed once the model answered — `failed` when it broke after; a call that never
+   answered files nothing.
+4. **A sweep bills what it spent whatever happened next, under its own run.** The runner
+   bills a failed generation that reports tokens and a notification that reached nobody,
+   filed `failed` (`track_proactive_tokens(failed=True)`); the heartbeat's message failure
+   hands back the decision's and the enrichment's tokens; the heartbeat's skip is billed
+   under the sweep's run (`ambient_run_id`, the accounting the runner publishes), a run of
+   its own only outside a sweep; the reflection bills nothing itself (spend road `caller`,
+   accountant the runner).
+5. **A click that acts is an action** (`shared/action_sink.py`). The two services cannot
+   import the register — `agents` imports `peers` — so the seam is OFFERED like the
+   consultation sink: the register installs `USER_ACTION_RECORDER` at import, the boot
+   refuses a mute seam (`_install_action_recorder`), and a unit test starts with it mute.
+   `recorded_action` claims AFTER every refusal and every quota, settles from the
+   explicit success (the commit of the share, the send) and never raises: source `user`,
+   policy `confirm` — the click in the dialog is the confirmation —, execution `direct`,
+   one fresh run per click, the label in the six languages on both sides
+   (`effects.labels.peer_image_share`, `effects.labels.email_share` with its recipient
+   count). No model decides anything, so no decision row: an action, not a turn.
+
+### Guards this amendment leaves behind
+
+| Guard | Refuses |
+|---|---|
+| `test_decision_filers_guard` | an accounting nobody said who files, a stale declaration, a named filer that files nothing |
+| `TestARunThatCannotResume` (PostgreSQL) | a second filing of a one-shot act read as a second segment |
+| `test_every_clicked_act_is_worded_in_all_six_languages_on_both_sides` | a clicked act the register could only print as a code |
+| `test_action_sink`, `TestTheShareIsAnAction`, `TestTheSendIsAnAction` | a seam that imports anything, an act a refused claim stops, a claim made before a refusal, the wrong authorship or policy |
+| `test_llm_spend_road_completeness` | the reflection back on the `accounted` road without billing |
+
+## Amendment 2026-09-27 (b) — an effect cancelled in flight closes ABANDONED
+
+**Amends:** lot 3 (the claim and its close) and the `EffectLedgerClaimedOrphans` runbook.
+
+Measured on production on 2026-09-25: a routine started from « run now » reached its
+attempt bound (`scheduled_actions_execution_timeout_seconds`, 300 s) while
+`browser_task_tool` was in flight. `asyncio.wait_for` cancelled the attempt, and
+`_perform_and_close` closed its row on `Exception` — which `asyncio.CancelledError` is not.
+The row stayed CLAIMED for good; `EffectLedgerClaimedOrphans` fired from that morning on and
+the warning route re-notified it every two hours, which read as a flapping alert. The
+runbook listed the case as a cause, and its prevention (« keep the compute timeout below the
+node timeout, or the close never runs ») put the burden on every tool.
+
+1. **The claim's owner closes its row when it is cancelled before the result came back**:
+   ABANDONED, `error_code = 'cancelled'` (`EffectLedgerRepository.close_abandoned`, fenced on
+   the claim token like every close), counted as `lia_effect_outcomes_total{status="abandoned"}`
+   (dashboard 28, « abandonnés »). « We cannot tell » is ABANDONED — the runbook's own
+   closing state — never SUCCEEDED; FAILED would say the tool reported a failure, and it
+   reported nothing.
+2. **Every ending survives a stop** (`_settle`, on `write_through_cancellation`, the
+   registers' one implementation and bound): the abandonment, and just as much the close
+   after a result or a raise — a stop landing while the row is being written used to cut
+   that write too, leaving CLAIMED a row whose tool had answered. A cancellation
+   re-delivered meanwhile — a shutdown insisting — does not cut it either, and the turn
+   stays cancelled.
+3. **Both gates share it**: `_perform_and_close` closes the tool gate's rows and the draft
+   executors'.
+4. **A replay of the same key says what the row knows.** A lost claim on an ABANDONED row
+   answers `effect_abandoned` — interrupted, outcome unknown, the person asked to check
+   before any new attempt — where it used to share « did not succeed » with FAILED: that
+   sentence invites a retry of an e-mail that may have left. (Before this change the
+   cancelled row stayed CLAIMED, and a replay was told the action « was already
+   performed ».) A draft executor already said « on record with no known result ».
+5. What still leaves an orphan is a process killed mid-effect. The runbook keeps its
+   reviewed SQL for that case, and for the rows claimed before this change.
+
+Guards: `TestACancelledEffect` (an attempt bound, a stop, a re-delivered cancellation, a
+stop while the ending is written), `TestAKeyAlreadyHeldWithoutAResult` (the three answers),
+and on PostgreSQL
+`test_a_cancelled_owner_closes_its_row_abandoned` and `TestACancelledEffectClosesItsBooks`
+— the second replays the incident end to end.

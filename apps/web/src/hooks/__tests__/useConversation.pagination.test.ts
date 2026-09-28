@@ -260,3 +260,36 @@ describe('useConversation — keyset pagination', () => {
     expect(config.params.before).toBeUndefined();
   });
 });
+
+describe('useConversation — readNewestPage (ADR-320)', () => {
+  // A sync merges this page into the thread on screen: an empty page on a
+  // failed read would read as « the conversation is empty ».
+  it('throws on a transport failure where loadConversationPage returns an empty page', async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url === '/conversations/me') return mockMetaResponse;
+      throw Object.assign(new Error('boom'), { status: 503 });
+    });
+    const { result } = renderHook(() => useConversation());
+
+    await expect(result.current.readNewestPage()).rejects.toThrow('boom');
+    await expect(result.current.loadConversationPage()).resolves.toEqual({
+      messages: [],
+      hasMore: false,
+      nextCursor: null,
+    });
+  });
+
+  it('reads a 404 as a conversation that does not exist yet', async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url === '/conversations/me') return mockMetaResponse;
+      throw Object.assign(new Error('Not Found'), { status: 404 });
+    });
+    const { result } = renderHook(() => useConversation());
+
+    await expect(result.current.readNewestPage()).resolves.toEqual({
+      messages: [],
+      hasMore: false,
+      nextCursor: null,
+    });
+  });
+});

@@ -13,7 +13,7 @@ from src.core.recurrence.dictation import (
     REPEAT_VALUES,
     recurrence_from_parameters,
 )
-from src.core.recurrence.display import describe
+from src.core.recurrence.display import describe, describe_until, join_clauses
 from src.core.recurrence.engine import (
     next_occurrence,
     occurrences,
@@ -53,6 +53,8 @@ __all__ = [
     "TimeOfDay",
     "day_slots",
     "describe",
+    "describe_until",
+    "join_clauses",
     "next_occurrence",
     "occurrences",
     "recurrence_from_parameters",

@@ -44,7 +44,6 @@ AUTOMATION_ID = SemanticType(
         "parses it strictly and resolves nothing from a title, so the value can "
         "only come from list_scheduled_actions_tool."
     ),
-    labels={"en": "Automation id", "fr": "Identifiant d'automatisation"},
     examples=["3f2b9c14-8e7a-4d51-9b0e-1a2c3d4e5f60"],
     source_domains=["automation"],
     used_in_tools=["list_scheduled_actions_tool", "toggle_scheduled_action_tool"],

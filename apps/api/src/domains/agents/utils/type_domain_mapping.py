@@ -8,7 +8,6 @@ html_renderer, text_summary, and formatters.
 This module is the SINGLE SOURCE OF TRUTH for:
 - Type name to domain/items_key mapping (TYPE_TO_DOMAIN_MAP)
 - All known result keys set (ALL_RESULT_KEYS)
-- Domains that skip intelligent filtering (SKIP_FILTER_RESULT_KEYS)
 - Domains that skip knowledge enrichment (SKIP_ENRICHMENT_DOMAINS)
 - Domain name extraction utilities
 
@@ -55,28 +54,6 @@ TYPE_TO_DOMAIN_MAP: dict[str, tuple[str, str]] = {
 # Used by adaptive_replanner to detect non-empty results
 ALL_RESULT_KEYS: frozenset[str] = frozenset(
     items_key for _, items_key in TYPE_TO_DOMAIN_MAP.values()
-)
-
-# Domains where intelligent filtering should be SKIPPED
-# (LLM filtering would incorrectly empty relevant results)
-# - Search engines: results are always relevant (user explicitly asked for search)
-# - Weather: temporal references ("vendredi") shouldn't empty results
-# - MCP: tool provides its own data, filtering is meaningless
-# Uses items_key (pluriel) to match result_domains from _detect_result_domains_from_registry
-SKIP_FILTER_RESULT_KEYS: frozenset[str] = frozenset(
-    {
-        "weathers",  # temporal references shouldn't empty results
-        "wikipedias",  # encyclopedia results are always relevant
-        "perplexitys",  # search results are always relevant
-        "braves",  # search results are always relevant (no RegistryItemType yet — defensive)
-        "web_searchs",  # search results are always relevant
-        "web_fetchs",  # fetched page content is always relevant
-        "querys",  # query agent results are always relevant (no RegistryItemType yet — defensive)
-        "mcps",  # MCP tools provide their own data
-        "mcp_apps",  # MCP interactive widgets are always relevant
-        "skill_apps",  # Skill rich outputs (frame/image) are always relevant
-        "browsers",  # browser page content is always relevant (F7)
-    }
 )
 
 # Primary domains (singular) that skip Brave knowledge enrichment
@@ -390,7 +367,7 @@ def is_list_tool(tool_name: str) -> bool:
     Check if a tool produces a list (search/list/find operations).
 
     LIST tools produce results that can be referenced ordinally
-    (e.g., "detail du 2ème" after "recherche contacts").
+    (e.g., "details of the 2nd one" after "search contacts").
 
     Args:
         tool_name: Tool function name (e.g., "search_contacts_tool").

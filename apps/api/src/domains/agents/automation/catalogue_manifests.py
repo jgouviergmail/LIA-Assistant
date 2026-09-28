@@ -73,7 +73,7 @@ create_scheduled_action_catalogue_manifest = ToolManifest(
             name="title",
             type="string",
             required=True,
-            description="Short user-facing title (e.g. 'Revue de presse IA')",
+            description="Short user-facing title (e.g. 'AI press review')",
             constraints=[
                 ParameterConstraint(kind="min_length", value=1),
                 ParameterConstraint(kind="max_length", value=200),
@@ -222,7 +222,7 @@ toggle_scheduled_action_catalogue_manifest = ToolManifest(
     description=(
         "Enables or disables an existing automation (reversible switch). "
         "Requires the automation id from list_scheduled_actions_tool. "
-        "Use to pause ('désactive ma revue de presse') or resume an automation."
+        "Use to pause ('pause my press review') or resume an automation."
     ),
     parameters=[
         ParameterSchema(

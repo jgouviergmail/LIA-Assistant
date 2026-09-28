@@ -115,13 +115,13 @@ get_steps_summary_catalogue_manifest = ToolManifest(
         "**Tool: get_steps_summary_tool** — Total step count for a time window.\n"
         "Returns the sum of steps between ``time_min`` and ``time_max`` "
         "(ISO 8601), plus freshness metadata (last sample timestamp, sample count).\n"
-        "**Use for**: 'How many steps today?', 'Combien de pas cette semaine ?'.\n"
+        "**Use for**: 'How many steps today?', 'Steps this week?'.\n"
         "**Output**: `{kind, unit, total, samples_count, last_sample_at, from_ts, to_ts}`."
     ),
     semantic_keywords=[
         "how many steps today",
-        "combien de pas cette semaine",
-        "nombre de pas ce mois",
+        "how many steps this week",
+        "step count this month",
         "daily steps count",
         "total steps over a date range",
     ],
@@ -162,7 +162,7 @@ get_steps_daily_breakdown_catalogue_manifest = ToolManifest(
     ),
     semantic_keywords=[
         "steps day by day",
-        "évolution des pas sur la semaine",
+        "steps evolution over the week",
         "steps breakdown by day",
         "steps trend over days",
     ],
@@ -193,12 +193,12 @@ compare_steps_to_baseline_catalogue_manifest = ToolManifest(
         "**Tool: compare_steps_to_baseline_tool** — Delta vs the user's rolling baseline.\n"
         "Returns the baseline mode (bootstrap < 7 days / rolling ≥ 7 days), "
         "the baseline value, the recent window value, and the signed percent delta.\n"
-        "**Use for**: 'Am I walking less than usual?', 'Par rapport à ma moyenne ?'.\n"
+        "**Use for**: 'Am I walking less than usual?', 'Compared with my average?'.\n"
         "**Output**: `{kind, unit, mode, baseline_value, window_value, delta_pct, window_days}`."
     ),
     semantic_keywords=[
         "steps compared to baseline",
-        "marcher moins que d'habitude",
+        "am I walking less than usual",
         "am I walking more than usual",
         "baseline vs recent steps",
     ],
@@ -223,12 +223,12 @@ get_heart_rate_summary_catalogue_manifest = ToolManifest(
         "**Tool: get_heart_rate_summary_tool** — Heart rate avg/min/max for a time window.\n"
         "Returns the average, min, and max bpm between ``time_min`` and ``time_max`` "
         "(ISO 8601), plus freshness.\n"
-        "**Use for**: 'What's my average heart rate today?', 'Fréquence cardiaque cette semaine'.\n"
+        "**Use for**: 'What's my average heart rate today?', 'Heart rate this week'.\n"
         "**Output**: `{kind, unit, avg, min, max, samples_count, last_sample_at, from_ts, to_ts}`."
     ),
     semantic_keywords=[
         "average heart rate today",
-        "fréquence cardiaque moyenne",
+        "mean heart rate",
         "bpm over a date range",
         "resting pulse this month",
     ],
@@ -260,12 +260,12 @@ compare_heart_rate_to_baseline_catalogue_manifest = ToolManifest(
     description=(
         "**Tool: compare_heart_rate_to_baseline_tool** — Delta vs the user's baseline HR.\n"
         "Returns baseline mode, baseline value, recent window value, and signed delta.\n"
-        "**Use for**: 'Is my heart rate higher than usual?', 'FC vs ma moyenne'.\n"
+        "**Use for**: 'Is my heart rate higher than usual?', 'Heart rate vs my average'.\n"
         "**Output**: `{kind, unit, mode, baseline_value, window_value, delta_pct, window_days}`."
     ),
     semantic_keywords=[
         "heart rate compared to baseline",
-        "fc plus élevée que d'habitude",
+        "heart rate higher than usual",
         "pulse trend vs average",
     ],
     parameters=[_WINDOW_DAYS_PARAM],
@@ -289,14 +289,14 @@ get_health_overview_catalogue_manifest = ToolManifest(
         "**Tool: get_health_overview_tool** — Kind-by-kind summary for a time window.\n"
         "Cross-kind aggregation between ``time_min`` and ``time_max`` (ISO 8601): "
         "emits one summary entry per registered kind (steps, heart_rate, and any future additions).\n"
-        "**Use for**: 'How's my health today?', 'Résume ma santé cette semaine'.\n"
+        "**Use for**: 'How's my health today?', 'Summarise my health this week'.\n"
         "**Output**: `{from_ts, to_ts, overview: {kind: {...}}}`."
     ),
     semantic_keywords=[
         "overall health today",
-        "résumé santé de la semaine",
+        "weekly health summary",
         "health summary",
-        "état santé global",
+        "overall health status",
     ],
     parameters=[_TIME_MIN_PARAM, _TIME_MAX_PARAM],
     outputs=[
@@ -331,13 +331,13 @@ detect_health_changes_catalogue_manifest = ToolManifest(
         "**Tool: detect_health_changes_tool** — Notable recent variations across kinds.\n"
         "Returns directional streaks (rising/falling over ≥ 3 days with ≥ 20% avg delta) "
         "and structural events (e.g. inactivity streak on steps).\n"
-        "**Use for**: 'Has anything changed in my health recently?', 'Quelque chose d'inhabituel ?'.\n"
+        "**Use for**: 'Has anything changed in my health recently?', 'Anything unusual?'.\n"
         "**Output**: `{window_days, variations: [{kind, trend/event, days, delta_pct?}, ...]}`."
     ),
     semantic_keywords=[
         "anything unusual in my health",
         "changes in my health",
-        "quelque chose change dans ma santé",
+        "something is changing in my health",
         "notable variations",
     ],
     parameters=[_WINDOW_DAYS_PARAM],
@@ -365,12 +365,11 @@ detect_health_changes_catalogue_manifest = ToolManifest(
 HEALTH_AGENT_MANIFEST = AgentManifest(
     name=AGENT_HEALTH,
     description=(
-        "Agent spécialisé dans les données de santé ingérées depuis l'iPhone : "
-        "pas (steps) et fréquence cardiaque (heart_rate). "
-        "Totaux par période, évolution jour par jour, comparaison à la baseline, "
-        "vue d'ensemble multi-kinds et détection de variations notables. "
-        "Répond avec des chiffres factuels uniquement. "
-        "Jamais de diagnostic — rappelle au médecin si l'utilisateur demande un avis médical."
+        "Agent specialised in the health data ingested from the iPhone: steps and heart "
+        "rate (heart_rate). Totals per period, day-by-day evolution, comparison with the "
+        "baseline, a multi-kind overview and detection of notable variations. Answers with "
+        "factual figures only. Never a diagnosis — it points to a doctor when the user asks "
+        "for medical advice."
     ),
     tools=[
         "get_steps_summary_tool",

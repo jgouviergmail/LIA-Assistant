@@ -57,7 +57,9 @@ T = TypeVar("T")
 #: read — ``test_redis_key_family_guard`` caught exactly that.
 CLAIM_PREFIX = "shared_flight"
 
-#: Released explicitly; this only bounds a holder that died mid-build.
+#: Released explicitly; this only bounds a holder that died mid-build. Work
+#: that may outlast it passes its own (``claim_ttl_s``): a claim that expires
+#: mid-build lets the next caller build the same thing again.
 CLAIM_TTL_SECONDS = 30
 
 #: How often a waiter looks for the published result.
@@ -85,6 +87,7 @@ async def run_shared_flight(
     build: Callable[[], Awaitable[T]],
     read_shared: Callable[[], Awaitable[T | None]],
     wait_budget_s: float,
+    claim_ttl_s: int = CLAIM_TTL_SECONDS,
 ) -> SharedFlightResult[T]:
     """Do the work once across processes, or take what another one published.
 
@@ -97,6 +100,8 @@ async def run_shared_flight(
         read_shared: Returns the published result, or None while there is none.
             Called by waiters only.
         wait_budget_s: How long a waiter may wait before doing the work itself.
+        claim_ttl_s: How long the claim outlives a holder that died — longer
+            than the work itself may take.
 
     Returns:
         The value, and how this caller obtained it.
@@ -109,7 +114,7 @@ async def run_shared_flight(
     token = uuid.uuid4().hex
     redis = await _redis_or_none()
 
-    if redis is None or not await _try_claim(redis, claim_key, token):
+    if redis is None or not await _try_claim(redis, claim_key, token, claim_ttl_s):
         if redis is None:
             # No claim could be taken and none can be waited on: this is the
             # behaviour that existed before the seam, which is the floor.
@@ -145,20 +150,21 @@ async def _redis_or_none() -> Any | None:
         return None
 
 
-async def _try_claim(redis: Any, claim_key: str, token: str) -> bool:
+async def _try_claim(redis: Any, claim_key: str, token: str, ttl_seconds: int) -> bool:
     """Take the claim, or report that someone else holds it.
 
     Args:
         redis: The cache client.
         claim_key: The claim's key.
         token: This caller's owner token.
+        ttl_seconds: How long the claim outlives a holder that died.
 
     Returns:
         True when the claim was taken. A cache failure returns True: building
         is the floor, and waiting on a claim we could not read would be worse.
     """
     try:
-        return await try_claim(redis, claim_key, token, ttl_seconds=CLAIM_TTL_SECONDS)
+        return await try_claim(redis, claim_key, token, ttl_seconds=ttl_seconds)
     except Exception as exc:  # noqa: BLE001 - fall back to building
         logger.debug("shared_flight_claim_failed", error_type=type(exc).__name__)
         return True

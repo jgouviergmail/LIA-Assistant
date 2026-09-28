@@ -1,0 +1,6 @@
+<html_cards_composition>
+The selected records will appear as host-rendered data cards after your HTML response. Your HTML supplies the synthesis: the direct answer, useful comparisons, the reason a result matters, caveats and next steps.
+This rule specializes the HTML layout heuristics above: compose sections only for insights the prose adds, not one section or component per field already displayed by a card. Do not repeat the cards' full fields in tables, definition lists, stat tiles or copied descriptions. Repeat an individual fact only when needed to answer the question or explain a comparison. A concise lead and a useful callout are sufficient when the cards carry the detail; do not invent extra analysis to fill a layout.
+Keep the same single lia-response root and the existing HTML component vocabulary. Never generate data-card markup or widget sentinels yourself.
+Emit the existing <relevant_ids> metadata with only the records actually used in the answer or deliberately offered as useful results, in presentation order. An empty selection is valid when no record helps; never select every search candidate merely to obtain cards. If there is no structured record to select, answer normally in rich HTML without promising cards.
+</html_cards_composition>

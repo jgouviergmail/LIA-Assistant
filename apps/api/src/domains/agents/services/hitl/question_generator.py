@@ -25,8 +25,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_CONTENT, FIELD_TOOL_NAME
-from src.core.i18n import get_language_name
-from src.core.i18n_hitl import HitlMessages
+from src.core.i18n import get_language_name, resolve_language
 from src.domains.agents.prompts import get_current_datetime_context, load_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.observability.logging import get_logger
@@ -97,16 +96,16 @@ def _normalize_markdown(text: str) -> str:
         Normalized Markdown with proper spacing around block elements
 
     Example:
-        >>> text = "Je vais chercher...--- ## Question Tu confirmes ?"
+        >>> text = "I will search...--- ## Question Do you confirm?"
         >>> normalized = _normalize_markdown(text)
         >>> print(normalized)
-        Je vais chercher...
+        I will search...
 
         ---
 
         ## Question
 
-        Tu confirmes ?
+        Do you confirm?
     """
     if not text:
         return text
@@ -183,7 +182,7 @@ class HitlQuestionGenerator:
         self,
         tool_name: str,
         tool_args: dict[str, Any],
-        user_language: str = "fr",
+        user_language: str | None = None,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
     ) -> str:
@@ -192,7 +191,7 @@ class HitlQuestionGenerator:
         Args:
             tool_name: Name of the tool to be executed
             tool_args: Arguments that will be passed to the tool
-            user_language: Language code for the question (default: "fr")
+            user_language: Language code for the question (default: the declared language)
             user_timezone: User's IANA timezone for datetime context (default: "Europe/Paris")
             tracker: Optional TokenTrackingCallback for token tracking
 
@@ -204,11 +203,12 @@ class HitlQuestionGenerator:
             >>> question = await generator.generate_confirmation_question(
             ...     tool_name="search_contacts_tool",
             ...     tool_args={"query": "jean"},
-            ...     user_language="fr"
+            ...     user_language="en"
             ... )
             >>> print(question)
-            "Je vais rechercher les contacts correspondant à 'jean'. Dois-je continuer ?"
+            "I will search the contacts matching 'jean'. Shall I continue?"
         """
+        user_language = resolve_language(user_language)
         prompt = self._build_prompt(tool_name, tool_args, user_language, user_timezone)
 
         # Phase 6 - LLM Observability: Use instrumented config for Langfuse tracing
@@ -272,7 +272,7 @@ class HitlQuestionGenerator:
         self,
         tool_name: str,
         tool_args: dict[str, Any],
-        user_language: str = "fr",
+        user_language: str | None = None,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
     ) -> AsyncGenerator[str]:
@@ -284,7 +284,7 @@ class HitlQuestionGenerator:
         Args:
             tool_name: Name of the tool to be executed
             tool_args: Arguments that will be passed to the tool
-            user_language: Language code for the question (default: "fr")
+            user_language: Language code for the question (default: the declared language)
             user_timezone: User's IANA timezone for datetime context (default: "Europe/Paris")
             tracker: Optional TokenTrackingCallback for token tracking
 
@@ -296,10 +296,10 @@ class HitlQuestionGenerator:
             >>> async for token in generator.generate_confirmation_question_stream(
             ...     tool_name="search_contacts_tool",
             ...     tool_args={"query": "jean"},
-            ...     user_language="fr"
+            ...     user_language="en"
             ... ):
             ...     print(token, end="", flush=True)
-            "Je vais rechercher les contacts correspondant à 'jean'. Dois-je continuer ?"
+            "I will search the contacts matching 'jean'. Shall I continue?"
 
         Performance:
             - TTFT (Time To First Token): ~200-300ms (vs 2-4s blocking)
@@ -307,6 +307,7 @@ class HitlQuestionGenerator:
             - Token tracking: Works identically via callbacks (on_llm_end)
             - Cost tracking: Preserved via OpenAI stream_options
         """
+        user_language = resolve_language(user_language)
         prompt = self._build_prompt(tool_name, tool_args, user_language, user_timezone)
 
         # Import metrics here to avoid circular dependency
@@ -412,7 +413,7 @@ class HitlQuestionGenerator:
         self,
         plan_summary: Any,  # PlanSummary from orchestration.approval_schemas
         approval_reasons: list[str],
-        user_language: str = "fr",
+        user_language: str | None = None,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
         personality_instruction: str | None = None,
@@ -425,7 +426,7 @@ class HitlQuestionGenerator:
         Args:
             plan_summary: PlanSummary object containing plan details (steps, total_steps, etc.)
             approval_reasons: List of reasons why approval is required
-            user_language: Language code for the question (default: "fr")
+            user_language: Language code for the question (default: the declared language)
             user_timezone: User's IANA timezone for datetime context (default: "Europe/Paris")
             tracker: Optional TokenTrackingCallback for token tracking
 
@@ -437,12 +438,13 @@ class HitlQuestionGenerator:
             >>> question = await generator.generate_plan_approval_question(
             ...     plan_summary=plan_summary,
             ...     approval_reasons=["Plan contains tools requiring HITL approval"],
-            ...     user_language="fr"
+            ...     user_language="en"
             ... )
             >>> print(question)
-            "Je vais rechercher les contacts contenant 'jean' (max 10 résultats).
-             Cette action nécessite ton approbation. Je lance ?"
+            "I will search the contacts containing 'jean' (max 10 results).
+             This action needs your approval. Shall I start?"
         """
+        user_language = resolve_language(user_language)
         prompt = self._build_plan_prompt(
             plan_summary, approval_reasons, user_language, user_timezone, personality_instruction
         )
@@ -498,7 +500,7 @@ class HitlQuestionGenerator:
         self,
         plan_summary: Any,  # PlanSummary from orchestration.approval_schemas
         approval_reasons: list[str],
-        user_language: str = "fr",
+        user_language: str | None = None,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
         personality_instruction: str | None = None,
@@ -515,7 +517,7 @@ class HitlQuestionGenerator:
         Args:
             plan_summary: PlanSummary object containing plan details (steps, total_steps, etc.)
             approval_reasons: List of reasons why approval is required
-            user_language: Language code for the question (default: "fr")
+            user_language: Language code for the question (default: the declared language)
             user_timezone: User's IANA timezone for datetime context (default: "Europe/Paris")
             tracker: Optional TokenTrackingCallback for token tracking
 
@@ -527,10 +529,10 @@ class HitlQuestionGenerator:
             >>> async for token in generator.generate_plan_approval_question_stream(
             ...     plan_summary=plan_summary,
             ...     approval_reasons=["Plan contains tools requiring HITL approval"],
-            ...     user_language="fr"
+            ...     user_language="en"
             ... ):
             ...     print(token, end="", flush=True)
-            "Je vais rechercher les contacts contenant 'jean'..."
+            "I will search the contacts containing 'jean'..."
 
         Performance:
             - TTFT (Time To First Token): ~200-400ms (vs 2-4s blocking)
@@ -543,6 +545,7 @@ class HitlQuestionGenerator:
             - LangChain v1.0 astream() documentation
             - Issue #56: Architecture Planning Agentique
         """
+        user_language = resolve_language(user_language)
         prompt = self._build_plan_prompt(
             plan_summary, approval_reasons, user_language, user_timezone, personality_instruction
         )
@@ -682,8 +685,9 @@ class HitlQuestionGenerator:
             version=settings.hitl_plan_approval_question_prompt_version,
         )
 
-        # Get default personality in user's language if none provided (i18n)
-        default_personality = HitlMessages.get_default_personality(user_language)
+        # The default personality is the versioned prompt itself; the output
+        # language is the prompt's own ``user_language`` line.
+        default_personality = load_prompt("default_personality_prompt").strip()
 
         # Build concise action summary for the system prompt
         tool_names = [step.tool_name for step in plan_summary.steps]
@@ -763,8 +767,9 @@ Generate the approval question:"""
 
         settings = get_settings()
 
-        # Get default personality in user's language if none provided (i18n)
-        default_personality = HitlMessages.get_default_personality(user_language)
+        # The default personality is the versioned prompt itself; the output
+        # language is the prompt's own ``user_language`` line.
+        default_personality = load_prompt("default_personality_prompt").strip()
 
         # ONE str.format pass: the file is a format template (its few-shot examples
         # escape their JSON braces as ``{{``), and values are never parsed, so a

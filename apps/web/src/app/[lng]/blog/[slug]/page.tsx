@@ -50,11 +50,9 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   langAlternates['x-default'] = buildLangUrl(`/blog/${slug}`, fallbackLng);
 
   const origin = getSiteOrigin();
-  // Relative OG image without an origin: resolved by metadataBase when one
-  // exists, honestly relative otherwise (generic prebuilt image, B03).
-  const imageUrl = origin
-    ? `${origin}/articles/${slug}.png`
-    : `/articles/${slug}.png`;
+  // A generic prebuilt image has no canonical host. Relative social images
+  // would be resolved by Next against localhost:3000 at build time.
+  const imageUrl = origin ? `${origin}/articles/${slug}.png` : null;
 
   return {
     title: `${title} — LIA Blog`,
@@ -75,13 +73,13 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
       publishedTime: article.date,
       section: article.category,
       tags: article.tags,
-      images: [{ url: imageUrl, width: 1200, height: 675, alt: title }],
+      images: imageUrl ? [{ url: imageUrl, width: 1200, height: 675, alt: title }] : undefined,
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: [imageUrl],
+      images: imageUrl ? [imageUrl] : undefined,
     },
   };
 }

@@ -37,7 +37,8 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
-from src.core.config import get_settings, settings
+from src.core.config import get_settings
+from src.core.i18n import get_locale_for_language
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_TASK, CONTEXT_DOMAIN_TASKS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
@@ -348,7 +349,7 @@ class ListTasksTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         tasks = result.get("tasks", [])
         task_list_id = result.get("task_list_id")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
+        locale = result.get("locale", get_locale_for_language(None))
 
         # Use ToolOutputMixin helper with timezone conversion
         # build_tasks_output returns UnifiedToolOutput directly
@@ -382,7 +383,7 @@ async def list_tasks_tool(
     ] = False,
     only_completed: Annotated[
         bool,
-        "Return ONLY completed/finished tasks, excluding pending tasks (default False). Use this when user asks for 'tâches terminées', 'completed tasks', 'finished tasks'.",
+        "Return ONLY completed/finished tasks, excluding pending tasks (default False). Use this when user asks for 'completed tasks', 'finished tasks', 'done tasks'.",
     ] = False,
     due_min: Annotated[
         str | None, "Filter tasks due after this RFC 3339 timestamp (e.g., '2025-01-15T00:00:00Z')"
@@ -581,7 +582,7 @@ class GetTaskDetailsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         mode = result.get("mode", "single")
         task_list_id = result.get("task_list_id")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
+        locale = result.get("locale", get_locale_for_language(None))
 
         if mode == "batch":
             # Batch mode
@@ -672,7 +673,7 @@ async def get_task_details_tool(
     - Batch: task_ids=["abc123", "def456"] → fetch multiple tasks in parallel
 
     MULTI-ORDINAL FIX (2026-01-01): Added batch mode for multi-reference queries.
-    Example: "detail du 1 et du 2" → task_ids=["id1", "id2"]
+    Example: "details of 1 and 2" → task_ids=["id1", "id2"]
 
     Returns complete task data including:
     - Title and status
@@ -862,7 +863,7 @@ class CompleteTaskTool(ConnectorTool[GoogleTasksClient]):
             "success": True,
             "task_id": task_id,
             "title": result.get("title"),
-            "message": f"Tâche '{result.get('title')}' marquée comme terminée",
+            "message": f"Task '{result.get('title')}' marked as completed",
         }
 
 

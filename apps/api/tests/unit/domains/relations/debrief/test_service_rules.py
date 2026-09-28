@@ -380,14 +380,21 @@ class TestTheModelsAnswerIsREPAIRED:
         description = DebriefDraft.model_json_schema().get("description", "")
         assert len(description) < 120, description
 
-    def test_it_stays_compatible_with_strict_structured_output(self) -> None:
+    def test_it_takes_the_structured_path_openai_accepts(self) -> None:
+        """Its defaults keep an omitted field from failing on every provider.
+
+        They also make it not strict-SHAPED, and the Responses path every
+        current OpenAI model takes refuses such a schema in strict mode (400 on
+        every call, measured 2026-09-26): it goes by ``function_calling``.
+        """
         from src.domains.relations.debrief.schemas import DebriefDraft
         from src.infrastructure.llm.strict_schema import (
             _analyze_schema_strict_compatibility,
         )
 
         compatible, reason = _analyze_schema_strict_compatibility(DebriefDraft)
-        assert compatible, reason
+        assert compatible is False
+        assert reason.startswith("not_strict_shaped"), reason
 
     def test_an_over_long_list_is_TRIMMED_not_refused(self) -> None:
         from src.core.constants import RELATION_DEBRIEF_MAX_OPEN_POINTS_DEFAULT

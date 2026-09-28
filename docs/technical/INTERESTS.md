@@ -853,7 +853,8 @@ async def extract_interests_background(
     messages: list[BaseMessage],
     session_id: str,
     conversation_id: str | None = None,
-    user_language: str = "fr",
+    user_language: str | None = None,  # the declared language when absent (ADR-323)
+    parent_run_id: str | None = None,
 ) -> int:
     """
     Background interest extraction from conversation.

@@ -26,8 +26,9 @@ runtime mechanisms:
 ADR-233 (2026-08-19): the transitive-subsumption API, Wu & Palmer distance,
 SKOS relation graph and category/tool getters had zero runtime consumers and
 were removed (doctrine: unwired capability is deleted, not kept "for later").
-The SKOS-style data fields on `SemanticType` (labels, related/broader/
-narrower) remain as dated debt recorded in the ADR.
+The SKOS-style relation fields on `SemanticType` (related/broader/narrower)
+remain as dated debt recorded in the ADR; its `labels` field, read by no code,
+went with ADR-323.
 
 ## 🏗️ Architecture
 
@@ -81,26 +82,26 @@ result = await service.expand_domains_iso_functional(
     domains=["route"],
     has_person_reference=True,
     required_semantic_types={"physical_address"},
-    query="itinéraire chez mon frère",
+    query="route to my brother's place",
 )
 # ["route", "contact"]
 
 # EVIDENCE-DRIVEN (flag ON): every referenced entity whose ontology
 # `properties` provide a required type adds its source domains (capped).
 # Context evidence only covers items from PREVIOUS assistant responses
-# (ordinal/demonstrative/pronoun): "comment aller à CE rendez-vous ?"
-# after an event was shown. A cold "mon RDV de demain" is handled by the
+# (ordinal/demonstrative/pronoun): "how do I get to THIS appointment?"
+# after an event was shown. A cold "my appointment tomorrow" is handled by the
 # analyzer's direct domain detection, not by expansion.
 result = await service.expand_domains_evidence_driven(
     domains=["route"],
-    evidence_entities={"CalendarEvent"},   # "comment aller à ce rendez-vous ?"
+    evidence_entities={"CalendarEvent"},   # "how do I get to this appointment?"
     required_semantic_types={"physical_address"},
     max_added_domains=3,
 )
 # ["route", "event"]
 ```
 
-The entity anchoring is what prevents blind expansion: "quel temps demain ?"
+The entity anchoring is what prevents blind expansion: "what's the weather tomorrow?"
 requires `physical_address` too, but with no referenced entity nothing is
 added. Evidence entities are derived in the query analyzer (STEP 3) from:
 
@@ -117,7 +118,7 @@ from src.domains.agents.semantic.param_guard import (
     collect_resolved_person_names,
 )
 
-names = collect_resolved_person_names({"mon frère": "Marc Lemoine"})
+names = collect_resolved_person_names({"my brother": "Marc Lemoine"})
 violation = check_semantic_params("get_route_tool", {"destination": "Marc Lemoine"}, names)
 # violation.llm_message() → recoverable error guiding the LLM to fetch the
 # contact's address first. Wired in the parallel executor (pipeline) and

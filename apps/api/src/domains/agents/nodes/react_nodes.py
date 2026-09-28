@@ -15,7 +15,6 @@ State contract:
     - LLM and tools are recreated in each node (~1-2ms, standard LIA pattern)
 """
 
-import contextlib
 import time
 from contextlib import suppress
 from typing import Any
@@ -32,6 +31,7 @@ from langgraph.types import interrupt
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 from src.core.tool_outcome import explicit_success
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
@@ -46,6 +46,7 @@ from src.domains.agents.nodes.react_egress_question import invoke_with_settlemen
 from src.domains.agents.nodes.react_history import (
     window_messages_for_react as _window_messages_for_react,
 )
+from src.domains.agents.nodes.react_output_guard import model_call_update
 from src.domains.agents.nodes.react_prompt import (
     build_system_prompt,
     network_available,
@@ -77,11 +78,12 @@ from src.domains.agents.utils.loop_guard import (
     register_call,
     repeated_call_message,
 )
+from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN, tool_call_not_run
 from src.domains.agents.utils.react_budget import (
     TIMEOUT_ATTRIBUTION_MARGIN,
     abandoned_call_message,
     effective_react_budget,
-    react_exit_reason,
+    loop_cut_reason,
     tool_result_token_budget,
     tool_timeout_message,
 )
@@ -192,7 +194,8 @@ def _tool_message_status(raw_result: Any) -> str:
     carries itself. ``ToolMessage.status`` is that marker — already used by the
     finalize node for abandoned calls (ADR-248) — and it is what the honesty
     directive reads. Before it, no ReAct failure ever reached that directive,
-    and the model, left without a word about what broke, invented one.
+    and the model, left without a word about what broke, invented one. A call
+    that never ran (:func:`_call_artifact`) failed nothing.
 
     Args:
         raw_result: The tool's return value, before string conversion.
@@ -200,7 +203,26 @@ def _tool_message_status(raw_result: Any) -> str:
     Returns:
         ``"error"`` or ``"success"``.
     """
-    return "success" if explicit_success(raw_result) else "error"
+    ran = _call_artifact(raw_result) is None
+    return "success" if explicit_success(raw_result) or not ran else "error"
+
+
+def _call_artifact(raw_result: Any) -> str | None:
+    """``TOOL_CALL_NOT_RUN`` when the answer says the call never ran, else None.
+
+    The person refusing what the call asked for (the egress question) is a
+    decision, never a failure: the answer carries the marker in its metadata,
+    and the ToolMessage carries it on to every reader of outcomes.
+
+    Args:
+        raw_result: The tool's return value, before string conversion.
+
+    Returns:
+        The artifact the ToolMessage carries.
+    """
+    metadata = getattr(raw_result, "metadata", None)
+    not_run = isinstance(metadata, dict) and metadata.get(TOOL_CALL_NOT_RUN) is True
+    return TOOL_CALL_NOT_RUN if not_run else None
 
 
 def _record_react_metrics(iteration: int, duration_s: float, status: str) -> None:
@@ -355,7 +377,7 @@ def _observe_delivered_context(messages: list[BaseMessage]) -> None:
     # Observability is best-effort by contract: a tokenizer or catalogue
     # hiccup must never break the loop, so the whole block swallows —
     # the metric's absence IS the signal in that case.
-    with contextlib.suppress(Exception):
+    with suppress(Exception):
         delivered = count_messages_tokens_cached(messages)
         react_delivered_context_tokens.observe(delivered)
 
@@ -380,7 +402,7 @@ def _tool_result_budget() -> int:
     window: int | None = None
     # Best-effort read: an unreadable window means the ceiling alone bounds
     # the result, which is the documented default.
-    with contextlib.suppress(Exception):
+    with suppress(Exception):
         from src.core.llm_config_helper import get_effective_context_window_for_slot
 
         window = get_effective_context_window_for_slot("react_agent")
@@ -499,16 +521,18 @@ async def react_call_model_node(
         has_content=bool(response.content),
     )
 
-    return {
-        "messages": [response],
-        "react_iteration": iteration + 1,
+    # ADR-275 (amended): a reply the provider cut at its budget never reaches the
+    # thread — the guard decides what this call writes.
+    return model_call_update(
+        response,
+        iteration=iteration,
         # ADR-170: charge this node's COMPUTE time, never wall clock. A node
         # that gets interrupted never returns, so the seconds a user spends
         # deciding on an approval are structurally excluded — which is the whole
         # point: they used to count against the loop's timeout.
-        "react_elapsed_seconds": (state.get("react_elapsed_seconds") or 0.0)
+        elapsed_seconds=(state.get("react_elapsed_seconds") or 0.0)
         + (time.perf_counter() - node_started),
-    }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -667,13 +691,7 @@ async def react_execute_tools_node(
             # itself is a progress signal for the model, not a capability that
             # broke. Marking it would put « the tool failed » in the honesty
             # directive about a tool that never ran and never failed.
-            new_messages.append(
-                ToolMessage(
-                    content=repeated_call_message(verdict),
-                    tool_call_id=tc_id,
-                    name=tc_name,
-                )
-            )
+            new_messages.append(tool_call_not_run(repeated_call_message(verdict), tc_id, tc_name))
             no_progress = no_progress or verdict == "terminal"
             continue
 
@@ -727,7 +745,7 @@ async def react_execute_tools_node(
                         }
                     ],
                     "generate_question_streaming": True,
-                    "user_language": state.get("user_language", "fr"),
+                    "user_language": resolve_language(state.get("user_language")),
                     "user_timezone": state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
                     "hitl_type": HitlInteractionType.TOOL_CONFIRMATION.value,
                 }
@@ -737,16 +755,10 @@ async def react_execute_tools_node(
             # for a mutation gated behind HITL.
             decision_action = decision.get("action") if isinstance(decision, dict) else None
             if decision_action not in ("confirm", "approve"):
-                new_messages.append(
-                    # Deliberately NOT status="error" (ADR-303/ADR-263): a
-                    # refusal is a DECISION, never a failure. Reporting it as a
-                    # breakdown would tell the person their own choice was a bug.
-                    ToolMessage(
-                        content=f"Action '{tc_name}' was declined by the user.",
-                        tool_call_id=tc_id,
-                        name=tc_name,
-                    )
-                )
+                # A refusal is a DECISION, never a failure (ADR-303/ADR-263):
+                # reported as a breakdown it would call the person's choice a bug.
+                declined = f"Action '{tc_name}' was declined by the user."
+                new_messages.append(tool_call_not_run(declined, tc_id, tc_name))
                 react_agent_hitl_interrupts_total.labels(tool_name=tc_name, decision="reject").inc()
                 logger.info(
                     "react_hitl_rejected",
@@ -796,6 +808,9 @@ async def react_execute_tools_node(
         # Defensive default: every branch below sets it, and a branch added
         # later must not silently publish a failure as a success.
         tool_status = "success"
+        # Set with the call's books, last: a failure — raised before its answer,
+        # or after a refusal came back — never carries the mark.
+        call_artifact: str | None = None
         try:
             # Inject ToolRuntime into args (required by ConnectorTools).
             # LangChain's InjectedToolArg is normally injected by ToolNode,
@@ -809,16 +824,26 @@ async def react_execute_tools_node(
                 raw_result = await invoke_with_settlement(
                     wrapper, injected_args, timeout=tool_timeout, state=state, tool_name=tc_name
                 )
-            # Process through wrapper for string conversion + registry collection
+            # Process through wrapper for string conversion + registry collection,
+            # this call's alone: an earlier call of the same tool that failed
+            # after its answer left its items in the wrapper.
+            wrapper._accumulated_registry.clear()
             content = wrapper._process_result(raw_result, budget_tokens=result_budget)
             tool_status = _tool_message_status(raw_result)
-            productive_calls += _is_productive_result(raw_result)
             # Draft detection: a mutation tool (create/update/delete) returns
             # requires_confirmation=True — it prepared a DRAFT, not the real
             # action. Collect it for the HITL handoff (see return below).
             draft_info = _extract_draft_info(raw_result, tc_name)
+            # The call's books, once nothing of it can fail any more: a call
+            # that RAISED buys no iteration (ADR-256), holds no draft, hands on
+            # no registry item and never carries the « never run » mark. One
+            # that declared its failure by returning buys no iteration either,
+            # and hands on the items it returned, as the pipeline does.
+            productive_calls += _is_productive_result(raw_result)
             if draft_info is not None:
                 pending_drafts.append(draft_info)
+            collected_registry.update(wrapper._accumulated_registry)
+            call_artifact = _call_artifact(raw_result)
         except GraphInterrupt:
             # A question raised from INSIDE the call (the egress question,
             # ADR-298) is a bubble-up, never a tool error: the net below
@@ -869,13 +894,10 @@ async def react_execute_tools_node(
                 tool_call_id=tc_id,
                 name=tc_name,
                 status=tool_status,
+                artifact=call_artifact,
             )
         )
         react_agent_tools_called_total.labels(tool_name=tc_name).inc()
-
-        # Collect registry from wrapper
-        if wrapper._accumulated_registry:
-            collected_registry.update(wrapper._accumulated_registry)
 
     logger.info(
         "react_execute_tools_complete",
@@ -1036,33 +1058,33 @@ async def react_finalize_node(
     # an answer, and this product has no background continuation to honour it
     # (production, 2026-08-28). An empty final message routes the response node to
     # synthesise from the tool results that DID come back, exactly like the draft
-    # handoff above.
+    # handoff above. A model output the provider CUT never entered the thread
+    # (ADR-275, amended): nothing here is an answer either, and the same path serves.
     last_message = state["messages"][-1] if state.get("messages") else None
     final_content = ""
     if isinstance(last_message, AIMessage):
         # Normalize str (most providers) and list[dict] blocks (Gemini 3.x) to text.
         final_content = coerce_content_to_text(last_message.content)
 
-    pending_tool_calls = bool(getattr(last_message, "tool_calls", None))
-    exit_reason = react_exit_reason(state) if pending_tool_calls else None
+    # Resolved ONCE: the banner the user reads and the result the model is given
+    # must name the same stop condition (ADR-248).
+    reason = loop_cut_reason(state, last_message)
     truncation: dict[str, Any] | None = None
     abandoned: list[ToolMessage] = []
-    if pending_tool_calls:
-        # Resolved ONCE: the banner the user reads and the result the model is
-        # given must name the same stop condition (ADR-248).
-        reason = exit_reason or "pending_tool_calls"
+    if reason is not None:
         truncation = {
             "reason": reason,
             "iterations": iteration,
         }
         final_content = ""
-        # The loop closes its own books. Those calls will never run, and an
+        # The loop closes its own books. Pending calls will never run, and an
         # AIMessage whose tool_calls stay unanswered poisons the checkpoint:
         # the provider rejects the WHOLE history on every later turn of the
         # thread (measured 2026-09-02). Answering them makes the history valid
         # by construction and tells the model what it lost, instead of letting
         # it silently re-derive the same work next turn. The turn-start repair
-        # stays the safety net for what no node can close — a hard kill.
+        # stays the safety net for what no node can close — a hard kill. (A cut
+        # output leaves none: its calls never entered the thread.)
         abandoned = _abandoned_tool_outputs(state["messages"], last_message, reason)
 
     # Prometheus metrics (shared helper — also used by the draft handoff path).
@@ -1073,7 +1095,7 @@ async def react_finalize_node(
     tool_s = _loop_tool_seconds(state)
     # ADR-310: what the recovery passes achieved — and, when a pass left no usable
     # answer, the last draft it had taken off the thread, which IS the answer.
-    recovery = recovery_report(state, last_message, cut=pending_tool_calls)
+    recovery = recovery_report(state, last_message, cut=reason is not None)
     final_content = recovery.pop("final_message", final_content)
     _record_react_metrics(iteration, compute_s, "success" if final_content else "empty")
 

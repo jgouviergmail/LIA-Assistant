@@ -18,6 +18,43 @@ if ($PSScriptRoot) {
     $SourceDir = Get-Location
 }
 
+# The Firebase service account the production API will read, relative to
+# apps/api -- or $null when the bundle has nothing to carry: push switched off
+# (FCM_ENABLED false), or a credential the host mounts outside /app. Same
+# defaults as core/config/notifications.py: push on,
+# config/firebase-service-account.json. The API resolves the path from /app,
+# which is apps/api in the bundle.
+function Get-PushCredentialPath([string]$EnvFile) {
+    $values = @{}
+    if (Test-Path -LiteralPath $EnvFile) {
+        foreach ($line in Get-Content -LiteralPath $EnvFile) {
+            if ($line -match '^\s*(FCM_ENABLED|FIREBASE_CREDENTIALS_PATH)\s*=\s*([^#\s]*)') {
+                $values[$Matches[1]] = $Matches[2].Trim([char[]]@('"', "'"))
+            }
+        }
+    }
+    # The six spellings pydantic reads as a false boolean, case-insensitive.
+    if ($values['FCM_ENABLED'] -match '^(0|off|f|false|n|no)$') { return $null }
+    $path = 'config/firebase-service-account.json'
+    if ($values['FIREBASE_CREDENTIALS_PATH']) { $path = $values['FIREBASE_CREDENTIALS_PATH'] }
+    $path = $path -replace '^/app/', '' -replace '^\./', ''
+    if ($path.StartsWith('/')) { return $null }
+    return $path
+}
+
+# A script is known by its CONTENT (a `#!` first line), never by its name;
+# only the first two bytes are read.
+function Test-IsScript([string]$Path) {
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $head = New-Object byte[] 2
+        $read = $stream.Read($head, 0, 2)
+        return ($read -eq 2 -and $head[0] -eq 0x23 -and $head[1] -eq 0x21)
+    } finally {
+        $stream.Dispose()
+    }
+}
+
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "  Preparation des livrables PRODUCTION" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
@@ -159,12 +196,25 @@ if (Test-Path $apiScriptsDir) {
 }
 
 # Copier le répertoire config (Firebase service account, etc.)
+# docker-compose.prod.yml mounts it into the API (./apps/api/config:/app/config:ro)
+# and git ignores it. Built from a fresh worktree, the v1.47.4 bundle had none,
+# and this script only said so in yellow: push died for every account for two
+# days (2026-09-25 -> 27). When the production environment switches push on,
+# the credential it names is a precondition of the bundle, like the gettext
+# catalogues.
 $configDir = Join-Path $SourceDir "apps\api\config"
 if (Test-Path $configDir) {
     Copy-Item $configDir -Destination $apiDir -Recurse
     Write-Host "  + apps/api/config/" -ForegroundColor DarkGray
-} else {
-    Write-Host "  ! apps/api/config/ (non trouve - Firebase FCM ne fonctionnera pas)" -ForegroundColor Yellow
+}
+$pushCredential = Get-PushCredentialPath (Join-Path $SourceDir ".env.prod")
+if ($pushCredential) {
+    if (-not (Test-Path -LiteralPath (Join-Path $SourceDir "apps/api/$pushCredential"))) {
+        throw ("apps/api/$pushCredential introuvable alors que le push est actif (FCM_ENABLED) : " +
+            "l'API partirait sans notifications. Un worktree neuf ne porte pas ce fichier ignore " +
+            "par git : copiez-le depuis l'arbre principal, ou mettez FCM_ENABLED=false.")
+    }
+    Write-Host "  + apps/api/$pushCredential (identifiant du push)" -ForegroundColor DarkGray
 }
 
 # ============================================================================
@@ -633,14 +683,22 @@ if (Test-Path $gateLib) {
     Write-Host "  + deploy_readiness_gate.sh" -ForegroundColor DarkGray
 }
 
-# Belt-and-braces: every shell script shipped in the bundle must be LF — CRLF
+# Belt-and-braces: every script shipped in the bundle must be LF — CRLF
 # breaks bash/sh on the production host, and Windows checkouts can drift
 # (core.autocrlf). Catches any future generated/copied script the per-file
-# normalizations above would miss.
-Get-ChildItem -Path $OutputDir -Recurse -Filter *.sh | ForEach-Object {
-    $raw = Get-Content -LiteralPath $_.FullName -Raw
-    if ($raw -match "`r") {
-        ($raw -replace "`r`n", "`n") | Set-Content -LiteralPath $_.FullName -NoNewline
+# normalizations above would miss. A script is known by its shebang, never by
+# its name: filtered on `*.sh`, this pass shipped the extensionless logwatch
+# cron entry with CRLF and the daily report died four mornings in a row
+# (2026-09-24 -> 27). The rewrite is byte-exact whatever the PowerShell version
+# and the system code page: ISO-8859-1 maps each byte to one character and back.
+# Get-/Set-Content decode and re-encode through the ANSI code page under Windows
+# PowerShell 5.1 (which runs `task deploy:prod`): lossless on cp1252 (measured),
+# not on a multi-byte code page.
+$byteExact = [System.Text.Encoding]::GetEncoding(28591)
+Get-ChildItem -Path $OutputDir -Recurse -File | Where-Object { Test-IsScript $_.FullName } | ForEach-Object {
+    $text = $byteExact.GetString([System.IO.File]::ReadAllBytes($_.FullName))
+    if ($text.Contains("`r`n")) {
+        [System.IO.File]::WriteAllBytes($_.FullName, $byteExact.GetBytes($text.Replace("`r`n", "`n")))
         Write-Host "  ~ normalized to LF: $($_.FullName)" -ForegroundColor DarkGray
     }
 }

@@ -57,12 +57,12 @@ class Reminder(BaseModel):
     content: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        doc="What the assistant understood - 'appeler le médecin'",
+        doc="What the assistant understood - 'call the doctor'",
     )
     original_message: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        doc="Exact user message - 'rappelle-moi d'appeler...'",
+        doc="Exact user message - 'remind me to call...'",
     )
 
     # Schedule — ONE authority (generic recurrence, `src/core/recurrence`).

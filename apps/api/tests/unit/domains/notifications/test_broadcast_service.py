@@ -16,6 +16,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.i18n import language_scope
 from src.domains.notifications.broadcast_service import BroadcastService
 
 
@@ -32,10 +33,12 @@ def _make_service() -> BroadcastService:
 def _make_broadcast(
     message: str = "Bonjour à tous",
     translations: dict[str, str] | None = None,
+    source_language: str = "fr",
 ) -> MagicMock:
     broadcast = MagicMock()
     broadcast.id = uuid4()
     broadcast.message = message
+    broadcast.source_language = source_language
     broadcast.message_translations = translations
     broadcast.sender = None
     broadcast.created_at = datetime.now(UTC)
@@ -65,6 +68,31 @@ class TestToBroadcastInfoTranslationCache:
         info = await service._to_broadcast_info(broadcast, "fr")
 
         assert info.message == "Bonjour à tous"
+        service._translate_to_languages.assert_not_awaited()
+
+    async def test_a_broadcast_is_translated_from_the_language_it_was_written_in(self) -> None:
+        """ADR-323: an English original reaches a French reader translated FROM English."""
+        service = _make_service()
+        service._translate_to_languages = AsyncMock(  # type: ignore[method-assign]
+            return_value={"fr": "Bonjour à tous"}
+        )
+        broadcast = _make_broadcast(message="Hello everyone", source_language="en")
+
+        info = await service._to_broadcast_info(broadcast, "fr")
+
+        assert info.message == "Bonjour à tous"
+        service._translate_to_languages.assert_awaited_once_with(
+            message="Hello everyone", source_language="en", target_languages=["fr"]
+        )
+
+    async def test_a_reader_of_the_source_language_reads_the_original(self) -> None:
+        service = _make_service()
+        service._translate_to_languages = AsyncMock()  # type: ignore[method-assign]
+        broadcast = _make_broadcast(message="Hello everyone", source_language="en")
+
+        info = await service._to_broadcast_info(broadcast, "en")
+
+        assert info.message == "Hello everyone"
         service._translate_to_languages.assert_not_awaited()
 
     async def test_missing_translation_backfilled_and_persisted(self) -> None:
@@ -119,7 +147,8 @@ class TestSendBroadcastPersistsTranslations:
             return_value=(2, 0)
         )
 
-        result = await service.send_broadcast(message="Bonjour à tous", admin_user_id=uuid4())
+        with language_scope("fr"):  # the sending admin's own language
+            result = await service.send_broadcast(message="Bonjour à tous", admin_user_id=uuid4())
 
         assert result.success is True
         service.broadcast_repo.merge_translations.assert_awaited_once_with(
@@ -147,9 +176,47 @@ class TestSendBroadcastPersistsTranslations:
             return_value=(2, 0)
         )
 
-        await service.send_broadcast(message="Bonjour à tous", admin_user_id=uuid4())
+        with language_scope("fr"):  # the sending admin's own language
+            await service.send_broadcast(message="Bonjour à tous", admin_user_id=uuid4())
 
         service.broadcast_repo.merge_translations.assert_not_awaited()
+
+    async def test_the_source_language_is_the_sending_admin_s_own(self) -> None:
+        """ADR-323: the route passes none, so the admin's declared language is it."""
+        service = _make_service()
+        broadcast = _make_broadcast(message="Hello everyone", source_language="en")
+        service.broadcast_repo.create_broadcast = AsyncMock(return_value=broadcast)
+        service.broadcast_repo.update_stats = AsyncMock()
+        service.user_repo = MagicMock()
+        service.user_repo.get_active_users_grouped_by_language = AsyncMock(
+            return_value={"fr": [uuid4()], "en": [uuid4()]}
+        )
+        service._translate_to_languages = AsyncMock(  # type: ignore[method-assign]
+            return_value={"fr": "Bonjour à tous"}
+        )
+        service._broadcast_to_users_by_language = AsyncMock(  # type: ignore[method-assign]
+            return_value=(2, 0)
+        )
+
+        with language_scope("en"):
+            await service.send_broadcast(message="Hello everyone", admin_user_id=uuid4())
+
+        assert service.broadcast_repo.create_broadcast.await_args.kwargs["source_language"] == "en"
+        service._translate_to_languages.assert_awaited_once_with(
+            message="Hello everyone", source_language="en", target_languages=["fr"]
+        )
+        delivery = service._broadcast_to_users_by_language.await_args.kwargs["translations"]
+        assert delivery == {"fr": "Bonjour à tous", "en": "Hello everyone"}
+
+    async def test_an_explicit_source_language_wins_over_the_declared_one(self) -> None:
+        service = _sending_service({"fr": [uuid4()]})
+
+        with language_scope("en"):
+            await service.send_broadcast(
+                message="Hallo zusammen", admin_user_id=uuid4(), source_language="de"
+            )
+
+        assert service.broadcast_repo.create_broadcast.await_args.kwargs["source_language"] == "de"
 
 
 def _sending_service(users_by_language: dict[str, list]) -> BroadcastService:
@@ -261,7 +328,8 @@ class TestDeliveryReadsTokensPerLanguageGroup:
         users = {"fr": [uuid4(), uuid4(), uuid4()], "en": [uuid4()]}
         service = _delivering_service(events, monkeypatch, users)
 
-        result = await service.send_broadcast(message="Bonjour à tous", admin_user_id=uuid4())
+        with language_scope("fr"):  # the sending admin's own language
+            result = await service.send_broadcast(message="Bonjour à tous", admin_user_id=uuid4())
 
         assert service.fcm_service.get_active_token_strings.await_count == 2
         assert events.count("publish") == 4  # SSE stays per recipient
@@ -283,7 +351,8 @@ class TestNoTransactionIsHeldAcrossANetworkCall:
         events: list[str] = []
         service = _delivering_service(events, monkeypatch, {"fr": [uuid4()], "en": [uuid4()]})
 
-        await service.send_broadcast(message="Bonjour à tous", admin_user_id=uuid4())
+        with language_scope("fr"):  # the sending admin's own language
+            await service.send_broadcast(message="Bonjour à tous", admin_user_id=uuid4())
 
         open_transaction = False
         for event in events:

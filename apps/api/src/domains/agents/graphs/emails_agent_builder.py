@@ -25,6 +25,7 @@ from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.graphs.base_agent_builder import (
     build_generic_agent,
     create_agent_config_from_settings,
+    domain_context_instructions,
 )
 from src.domains.agents.prompts import load_prompt
 from src.infrastructure.observability.logging import get_logger
@@ -120,16 +121,7 @@ def build_emails_agent() -> Any:
     )
 
     # Generate system prompt with dynamic datetime
-    context_instructions = """
-## 📋 Contexte Multi-Domaines (Emails)
-
-Le domaine "emails" est actif pour stocker les résultats de recherche et les détails d'emails.
-Les outils resolve_reference, get_context_state, set_current_item fonctionnent avec domain="emails".
-
-**Exemples de références contextuelles** :
-- $context.emails.0 → Premier email des résultats de recherche
-- $context.emails.current → Email actuellement sélectionné
-    """.strip()
+    context_instructions = domain_context_instructions("emails")
 
     # Load versioned prompt template
     emails_agent_prompt_template = load_prompt(

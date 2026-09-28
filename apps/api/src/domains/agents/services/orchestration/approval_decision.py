@@ -31,7 +31,7 @@ from src.core.field_names import (
     FIELD_INTERRUPT_DATA,
     FIELD_TYPE,
 )
-from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n import resolve_language
 from src.core.i18n_hitl import HitlMessages, HitlResumeMessage
 from src.domains.agents.constants import (
     ACTION_TYPE_DRAFT_CRITIQUE,
@@ -671,6 +671,10 @@ _STRUCTURED_ACTION_ALIASES: dict[str, str] = {
     "confirm_without_data": "confirm",
     "cancel": "cancel",
     "reject": "cancel",
+    # The Telegram FOR_EACH keyboard's pair (hitl_keyboard._HITL_TYPE_BUTTONS):
+    # a press is the chat card's own decision, never words to classify.
+    "continue": "confirm",
+    "stop": "cancel",
 }
 
 #: Wire actions that carry a decision FIELD beside the canonical action.
@@ -790,7 +794,7 @@ async def parse_approval_decision(
     user_message: str,
     conversation_id: uuid.UUID,
     run_id: str,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str | None = None,
 ) -> dict[str, Any]:
     """Parse a user's natural-language HITL reply into a resume payload.
 
@@ -810,6 +814,7 @@ async def parse_approval_decision(
     Returns:
         The interrupt-kind-specific resume payload (see module docstring).
     """
+    user_language = resolve_language(user_language)
     message_lower = user_message.lower().strip()
 
     action_context, interrupt_type, draft_id, pending_data = await _fetch_interrupt_context(

@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import INTENTION_ACTION, STATE_KEY_ROUTING_HISTORY
 
 if TYPE_CHECKING:
@@ -200,7 +200,7 @@ def reconstruct_query_intelligence(data: dict[str, Any]) -> QueryIntelligence:
         route_to=data.get("route_to", "planner"),
         bypass_llm=data.get("bypass_llm", False),
         confidence=data.get("confidence", 0.5),
-        user_language=data.get("user_language", settings.default_language),
+        user_language=resolve_language(data.get("user_language")),
         reasoning_trace=data.get("reasoning_trace", []),
         intelligent_mechanisms=data.get("intelligent_mechanisms", {}),
         # Validation hints (v3.1) - CRITICAL for semantic validation

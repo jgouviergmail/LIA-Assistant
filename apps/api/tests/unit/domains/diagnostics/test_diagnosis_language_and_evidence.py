@@ -18,6 +18,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.config import settings
 from src.infrastructure.llm.usage_metadata import UsageTokens
 
 pytestmark = pytest.mark.unit
@@ -374,7 +375,8 @@ class TestWhichLanguagesAreGenerated:
             async def distinct_admin_languages(self):
                 return []
 
-        assert await admin_languages(_Repo()) == ["en"]
+        # The instance's own language — nothing declared in a scheduler tick (ADR-323).
+        assert await admin_languages(_Repo()) == [settings.default_language]
 
     async def test_an_unreadable_user_table_does_not_stop_diagnosis(self) -> None:
         from src.domains.diagnostics.diagnosis import admin_languages
@@ -383,7 +385,7 @@ class TestWhichLanguagesAreGenerated:
             async def distinct_admin_languages(self):
                 raise RuntimeError("db down")
 
-        assert await admin_languages(_Repo()) == ["en"]
+        assert await admin_languages(_Repo()) == [settings.default_language]
 
 
 class TestThePumpGeneratesOneVariantPerAdminLanguage:

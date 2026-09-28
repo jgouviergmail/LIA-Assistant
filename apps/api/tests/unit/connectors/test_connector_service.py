@@ -812,7 +812,9 @@ class TestGlobalConfigs:
         )
         await service.update_global_config(ConnectorType.GOOGLE_GMAIL, update_data, admin_user_id)
 
-        service._revoke_all_connectors_by_type.assert_called_once_with(ConnectorType.GOOGLE_GMAIL)
+        service._revoke_all_connectors_by_type.assert_called_once_with(
+            ConnectorType.GOOGLE_GMAIL, "Security issue"
+        )
         service.repository.update_global_config.assert_called_once()
 
 
@@ -2146,7 +2148,9 @@ class TestGlobalConfigAndRevocation:
         service.repository.update_global_config.assert_not_called()
 
         # Verify revocation was triggered (is_enabled=False)
-        service._revoke_all_connectors_by_type.assert_called_once_with(connector_type)
+        service._revoke_all_connectors_by_type.assert_called_once_with(
+            connector_type, "Maintenance"
+        )
 
     # Test 2: Empty connector list (lines 1043-1048)
     async def test_revoke_all_connectors_by_type_empty(self):
@@ -2165,7 +2169,7 @@ class TestGlobalConfigAndRevocation:
         service.repository.update = AsyncMock()  # Mock to track calls
 
         # Act
-        await service._revoke_all_connectors_by_type(connector_type)
+        await service._revoke_all_connectors_by_type(connector_type, "Maintenance")
 
         # Assert
         service.repository.get_all_connectors_by_type.assert_called_once_with(
@@ -2183,77 +2187,50 @@ class TestGlobalConfigAndRevocation:
 
         Coverage: Lines 1050-1095 (bulk revocation loop + email notifications)
         """
-        # Arrange
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
-        connector_type = ConnectorType.GOOGLE_CONTACTS
+        service, mock_db, email_service, _steps = await _revoke_three_connectors_of_two_people(
+            mock_get_email_service
+        )
 
-        # Create mock users
-        user1_id = uuid4()
-        user2_id = uuid4()
-        mock_user1 = MagicMock()
-        mock_user1.email = "user1@example.com"
-        mock_user1.full_name = "User One"
-        mock_user2 = MagicMock()
-        mock_user2.email = "user2@example.com"
-        mock_user2.full_name = "User Two"
-
-        # Create mock connectors
-        mock_connector1 = MagicMock()
-        mock_connector1.user_id = user1_id
-        mock_connector1.user = mock_user1
-        mock_connector2 = MagicMock()
-        mock_connector2.user_id = user2_id
-        mock_connector2.user = mock_user2
-        mock_connector3 = MagicMock()  # Same user as connector1
-        mock_connector3.user_id = user1_id
-        mock_connector3.user = mock_user1
-
-        connectors = [mock_connector1, mock_connector2, mock_connector3]
-
-        # Mock repository methods
-        service.repository.get_all_connectors_by_type = AsyncMock(return_value=connectors)
-        service.repository.update = AsyncMock()
-        mock_global_config = MagicMock()
-        mock_global_config.disabled_reason = "Security update"
-        service.repository.get_global_config_by_type = AsyncMock(return_value=mock_global_config)
-
-        # Mock _revoke_oauth_token
-        service._revoke_oauth_token = AsyncMock()
-
-        # Mock email service
-        mock_email_service = AsyncMock()
-        mock_email_service.send_connector_disabled_notification = AsyncMock(return_value=True)
-        mock_get_email_service.return_value = mock_email_service
-
-        # Act
-        await service._revoke_all_connectors_by_type(connector_type)
-
-        # Assert
-        # Verify 3 connectors revoked
+        # Verify 3 connectors revoked, each to REVOKED, in one commit
         assert service._revoke_oauth_token.call_count == 3
-        assert service.repository.update.call_count == 3
-
-        # Verify all connectors updated to REVOKED status
-        for call_args in service.repository.update.call_args_list:
-            # call_args is Call object, args[1] is the update dict (second positional arg)
-            assert call_args.args[1] == {FIELD_STATUS: ConnectorStatus.REVOKED}
-
-        # Verify commit called
+        assert [call.args[1] for call in service.repository.update.call_args_list] == [
+            {FIELD_STATUS: ConnectorStatus.REVOKED}
+        ] * 3
         mock_db.commit.assert_called_once()
 
         # Verify 2 emails sent (user1 and user2, not 3 emails for 3 connectors)
-        assert mock_email_service.send_connector_disabled_notification.call_count == 2
+        email_calls = email_service.send_connector_disabled_notification.call_args_list
+        assert sorted(call.kwargs["user_email"] for call in email_calls) == [
+            "user1@example.com",
+            "user2@example.com",
+        ]
 
-        # Verify email content
-        email_calls = mock_email_service.send_connector_disabled_notification.call_args_list
-        emails_sent_to = {call[1]["user_email"] for call in email_calls}
-        assert emails_sent_to == {"user1@example.com", "user2@example.com"}
+    @patch("src.domains.connectors.service.get_email_service")
+    async def test_each_person_is_written_to_after_the_commit_in_their_language(
+        self, mock_get_email_service
+    ):
+        """The revocation is committed before the first e-mail and nothing
+        touches the database while one is sent (ADR-304); each person is
+        written to in their OWN language, the registry names the connector, and
+        the admin's reason travels as written — never read back after the commit."""
+        service, _db, email_service, steps = await _revoke_three_connectors_of_two_people(
+            mock_get_email_service
+        )
 
-        # Verify reason passed to emails
-        for call in email_calls:
-            assert call[1]["reason"] == "Security update"
-            assert call[1]["connector_type"] == connector_type.value
+        assert steps == ["commit", "email", "email"]
+        service.repository.get_global_config_by_type.assert_not_called()
+        written = {
+            call.kwargs["user_email"]: (
+                call.kwargs["user_language"],
+                call.kwargs["reason"],
+                call.kwargs["connector_label"],
+            )
+            for call in email_service.send_connector_disabled_notification.call_args_list
+        }
+        assert written == {
+            "user1@example.com": ("de", "Security update", "Google Contacts"),
+            "user2@example.com": ("it", "Security update", "Google Contacts"),
+        }
 
     # Test 4: Email failure handling (lines 1079-1087)
     @patch("src.domains.connectors.service.get_email_service")
@@ -2275,6 +2252,7 @@ class TestGlobalConfigAndRevocation:
         mock_user = MagicMock()
         mock_user.email = "user@example.com"
         mock_user.full_name = "User Name"
+        mock_user.language = "de"
 
         # Create mock connector
         mock_connector = MagicMock()
@@ -2284,9 +2262,6 @@ class TestGlobalConfigAndRevocation:
         # Mock repository methods
         service.repository.get_all_connectors_by_type = AsyncMock(return_value=[mock_connector])
         service.repository.update = AsyncMock()
-        mock_global_config = MagicMock()
-        mock_global_config.disabled_reason = "Admin disabled"
-        service.repository.get_global_config_by_type = AsyncMock(return_value=mock_global_config)
 
         # Mock _revoke_oauth_token
         service._revoke_oauth_token = AsyncMock()
@@ -2299,7 +2274,7 @@ class TestGlobalConfigAndRevocation:
         mock_get_email_service.return_value = mock_email_service
 
         # Act
-        await service._revoke_all_connectors_by_type(connector_type)
+        await service._revoke_all_connectors_by_type(connector_type, "Admin disabled")
 
         # Assert
         # Verify connector still revoked despite email failure
@@ -2311,9 +2286,35 @@ class TestGlobalConfigAndRevocation:
         mock_email_service.send_connector_disabled_notification.assert_called_once_with(
             user_email="user@example.com",
             user_name="User Name",
-            connector_type=connector_type.value,
+            connector_label="Google Contacts",
             reason="Admin disabled",
+            user_language="de",  # the affected person's own language (ADR-323)
         )
+
+    @patch("src.domains.connectors.service.get_email_service")
+    async def test_revocation_without_a_reason_sends_none(self, mock_get_email_service):
+        """An admin who gave no reason: the e-mail gets None and omits the line."""
+        mock_db = AsyncMock()
+        service = ConnectorService(mock_db)
+        mock_user = MagicMock()
+        mock_user.email = "user@example.com"
+        mock_user.full_name = "User Name"
+        mock_user.language = "es"
+        mock_connector = MagicMock()
+        mock_connector.user_id = uuid4()
+        mock_connector.user = mock_user
+        service.repository.get_all_connectors_by_type = AsyncMock(return_value=[mock_connector])
+        service.repository.update = AsyncMock()
+        service._revoke_oauth_token = AsyncMock()
+        mock_email_service = AsyncMock()
+        mock_email_service.send_connector_disabled_notification = AsyncMock(return_value=True)
+        mock_get_email_service.return_value = mock_email_service
+
+        await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_CONTACTS, None)
+
+        kwargs = mock_email_service.send_connector_disabled_notification.call_args.kwargs
+        assert kwargs["reason"] is None
+        assert kwargs["user_language"] == "es"
 
 
 # ============================================================================
@@ -2472,3 +2473,41 @@ class TestGetConnectorCredentialsSafetyMargin:
         # Assert: Refresh triggered at boundary
         assert result is not None
         service._refresh_oauth_token.assert_called_once()
+
+
+async def _revoke_three_connectors_of_two_people(
+    mock_get_email_service: MagicMock,
+) -> tuple[ConnectorService, AsyncMock, AsyncMock, list[str]]:
+    """Revoke three Google Contacts connectors — two of one person's, one of
+    another's — and record every step: the service, the session, the e-mail
+    service and the steps in order (``commit``, ``db``, ``email``)."""
+    mock_db = AsyncMock()
+    service = ConnectorService(mock_db)
+    people = []
+    for email, name, language in (
+        ("user1@example.com", "User One", "de"),
+        ("user2@example.com", "User Two", "it"),
+    ):
+        person = MagicMock(email=email, full_name=name, language=language)
+        people.append((uuid4(), person))
+    connectors = [
+        MagicMock(user_id=user_id, user=person)
+        for user_id, person in (people[0], people[1], people[0])
+    ]
+    service.repository.get_all_connectors_by_type = AsyncMock(return_value=connectors)
+    service.repository.update = AsyncMock()
+    # The reason travels in from the caller: never read back after the commit.
+    service.repository.get_global_config_by_type = AsyncMock()
+    service._revoke_oauth_token = AsyncMock()
+
+    steps: list[str] = []
+    mock_db.commit = AsyncMock(side_effect=lambda: steps.append("commit"))
+    mock_db.execute = AsyncMock(side_effect=lambda *_a, **_k: steps.append("db"))
+    email_service = AsyncMock()
+    email_service.send_connector_disabled_notification = AsyncMock(
+        side_effect=lambda **_k: steps.append("email") or True
+    )
+    mock_get_email_service.return_value = email_service
+
+    await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_CONTACTS, "Security update")
+    return service, mock_db, email_service, steps

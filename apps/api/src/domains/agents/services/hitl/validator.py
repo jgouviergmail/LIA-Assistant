@@ -28,6 +28,7 @@ from typing import Any, Literal
 
 from src.core.constants import MAX_HITL_ACTIONS_PER_REQUEST
 from src.core.field_names import FIELD_TOOL_NAME
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import (
     HITL_ACTION_ARGS,
     HITL_ACTION_NAME,
@@ -403,7 +404,7 @@ class HitlValidator:
     # ============================================================================
 
     @staticmethod
-    def format_validation_errors(errors: list[ValidationError], language: str = "fr") -> str:
+    def format_validation_errors(errors: list[ValidationError], language: str | None = None) -> str:
         """
         Format validation errors into user-friendly message with i18n (PHASE 3.2.1).
 
@@ -413,7 +414,7 @@ class HitlValidator:
 
         Args:
             errors: List of ValidationError objects
-            language: Target language code (default: "fr")
+            language: Target language code (default: the declared language)
 
         Returns:
             Formatted error message with header, bullet list, and footer
@@ -429,6 +430,7 @@ class HitlValidator:
             >>> assert "query" in msg
             >>> assert "limit" in msg
         """
+        language = resolve_language(language)
         from src.domains.agents.api.error_messages import SSEErrorMessages
 
         if not errors:
@@ -442,18 +444,18 @@ class HitlValidator:
             "fr": "Je n'ai pas pu appliquer tes modifications à cause des erreurs suivantes :",
             "en": "I couldn't apply your edits due to the following errors:",
             "es": "No pude aplicar tus ediciones debido a los siguientes errores:",
-            "de": "Ich konnte Ihre Änderungen aufgrund der folgenden Fehler nicht anwenden:",
+            "de": "Ich konnte deine Änderungen aufgrund der folgenden Fehler nicht anwenden:",
             "it": "Non sono riuscito ad applicare le tue modifiche a causa dei seguenti errori:",
-            "zh-CN": "由于以下错误，我无法应用您的编辑：",
+            "zh-CN": "由于以下错误，我无法应用你的编辑：",
         }
 
         # Footer messages (i18n)
         footers = {
-            "fr": "Veuillez réessayer avec des paramètres valides.",
+            "fr": "Réessaie avec des paramètres valides.",
             "en": "Please try again with valid parameters.",
-            "es": "Por favor, inténtelo de nuevo con parámetros válidos.",
-            "de": "Bitte versuchen Sie es mit gültigen Parametern erneut.",
-            "it": "Si prega di riprovare con parametri validi.",
+            "es": "Por favor, inténtalo de nuevo con parámetros válidos.",
+            "de": "Bitte versuche es mit gültigen Parametern erneut.",
+            "it": "Riprova con parametri validi.",
             "zh-CN": "请使用有效参数重试。",
         }
 

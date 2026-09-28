@@ -1,4 +1,4 @@
-"""The gallery of what LIA produced — list, download, delete (ADR-279).
+"""The gallery of what LIA produced — list, download, keep, delete (ADR-279, ADR-319).
 
 A separate router from ``attachments`` for one reason that is not cosmetic:
 that one carries ``capability_dependencies(ATTACHMENTS)`` on the ROUTER, so an
@@ -24,11 +24,15 @@ from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
 from src.domains.attachments.gallery_queries import GALLERY_SORTS, GalleryFilters
+from src.domains.attachments.keep import keep_generated, keep_usage, release_generated
 from src.domains.attachments.models import AttachmentOrigin
 from src.domains.attachments.schemas import (
+    GeneratedAssetKeepUsage,
     GeneratedAssetListResponse,
     GeneratedAssetsDeleteRequest,
     GeneratedAssetsDeleteResponse,
+    GeneratedAssetsKeepRequest,
+    GeneratedAssetsKeepResponse,
     GeneratedAssetSummary,
 )
 from src.domains.attachments.service import AttachmentService
@@ -118,6 +122,42 @@ async def list_generated_assets(
         limit=limit,
         offset=offset,
         max_limit=_MAX_LIMIT,
+        keep=GeneratedAssetKeepUsage.model_validate(await keep_usage(db, user.id)),
+    )
+
+
+@router.post(
+    "/keep",
+    response_model=GeneratedAssetsKeepResponse,
+    summary="Keep generated files past their deadline, or release them",
+)
+async def keep_generated_assets(
+    payload: GeneratedAssetsKeepRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> GeneratedAssetsKeepResponse:
+    """Exempt a selection from the cleanup, or give it a deadline again (ADR-319).
+
+    Args:
+        payload: The ids, and the state asked for.
+        user: The authenticated account.
+        db: Session.
+
+    Returns:
+        What changed, what did not, and the account's usage after it.
+
+    Raises:
+        GeneratedAssetKeepLimitError: 409 when keeping would pass the account's
+            file or byte ceiling — nothing is kept then.
+    """
+    if payload.kept:
+        updated, skipped = await keep_generated(db, user.id, payload.ids, language=user.language)
+    else:
+        updated, skipped = await release_generated(db, user.id, payload.ids)
+    return GeneratedAssetsKeepResponse(
+        updated=updated,
+        skipped=skipped,
+        keep=GeneratedAssetKeepUsage.model_validate(await keep_usage(db, user.id)),
     )
 
 

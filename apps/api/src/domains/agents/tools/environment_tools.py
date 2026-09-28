@@ -1,7 +1,7 @@
 """Air quality + pollen tools (lot E, 2026-08).
 
 Platform services behind the GOOGLE_ENVIRONMENT toggle, independent of the
-weather provider choice. "Je cours ce soir ?" → air quality; proactive
+weather provider choice. "Can I go for a run tonight?" → air quality; proactive
 allergy signals → pollen forecast.
 
 Location resolution mirrors the places tools: explicit ``location`` is

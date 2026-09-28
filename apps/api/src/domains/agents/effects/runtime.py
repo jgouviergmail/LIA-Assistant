@@ -12,6 +12,7 @@ ORDER of operations without a PostgreSQL.
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import inspect
 import time
@@ -23,13 +24,18 @@ from typing import Any, Final
 
 import structlog
 
+from src.core.constants import EXECUTION_MODE_REACT
 from src.core.field_names import FIELD_INJECTED_RUNTIME
 from src.domains.agents.api.run_origin import current_origin_carries_drafts, record_refusal
+from src.domains.agents.effects.decision_recorder import CANCELLATION_GRACE_ATTEMPTS
 from src.domains.agents.effects.digest import args_digest
 from src.domains.agents.effects.gate import (
+    ERROR_CONFIRMATION_IMPOSSIBLE,
     ERROR_CONFIRMATION_MISSING,
     GateAction,
+    GateDecision,
     decide_effect,
+    unattended_refusal_message,
 )
 from src.domains.agents.effects.integrity import IntegrityKind, record_integrity_event
 from src.domains.agents.effects.labels import build_effect_label
@@ -39,6 +45,7 @@ from src.domains.agents.effects.scope import EffectScope, current_scope
 from src.domains.agents.effects.source import resolve_source
 from src.domains.agents.effects.treatments import record_treatment
 from src.domains.agents.expressivity.activity import observe_activity
+from src.infrastructure.async_utils import write_through_cancellation
 from src.infrastructure.observability.metrics_effects import (
     effect_already_performed_total,
     effect_claims_total,
@@ -116,6 +123,49 @@ def resolve_policy(tool_name: str) -> str | None:
 
     _policy_cache[tool_name] = policy
     return policy
+
+
+def resolve_unattended_stand_in(tool_name: str) -> tuple[str, str] | None:
+    """The tool that declared itself a stand-in for ``tool_name``, and its case.
+
+    Read on a refusal only — a rare path — so the catalogue is scanned rather
+    than indexed. The boot check guarantees at most one declaration per tool,
+    and a stand-in that needs no confirmation itself (ADR-085).
+
+    Args:
+        tool_name: The tool the gate refused.
+
+    Returns:
+        ``(stand_in_name, case)``, or None when nothing stands in for it or the
+        catalogue cannot be read: a refusal never fails on its hint.
+    """
+    from src.domains.agents.registry import get_global_registry
+
+    try:
+        manifests = get_global_registry().list_tool_manifests()
+    except RuntimeError, AttributeError:
+        return None
+    for manifest in manifests:
+        stand_in = getattr(manifest, "stands_in_unattended_for", None)
+        if stand_in is not None and stand_in.tool == tool_name:
+            return str(manifest.name), stand_in.when
+    return None
+
+
+def _nameable_stand_in(
+    tool_name: str, decision: GateDecision, request: ClaimRequest | None
+) -> tuple[str, str] | None:
+    """The stand-in a refusal may name: unattended, and inside a ReAct loop only.
+
+    The pipeline has no loop to act on it — its response node calls no tool, so
+    a name there invites an answer announcing work the turn will never do
+    (ADR-248, invariant 1).
+    """
+    if decision.error_code != ERROR_CONFIRMATION_IMPOSSIBLE:
+        return None
+    if request is None or request.execution_mode != EXECUTION_MODE_REACT:
+        return None
+    return resolve_unattended_stand_in(tool_name)
 
 
 class EffectAlreadyClaimed(RuntimeError):
@@ -253,6 +303,37 @@ class _Ledger:
                 exc_info=True,
             )
 
+    async def abandon(
+        self, effect_id: uuid.UUID, claim_token: uuid.UUID, *, error_code: str
+    ) -> None:
+        """Close the row ABANDONED: the run stopped before the result came back.
+
+        Best-effort like :meth:`close`: the effect may already have happened,
+        and a register write must never be what fails the stop.
+
+        Args:
+            effect_id: The claimed row.
+            claim_token: Its owner token.
+            error_code: Why the outcome is unknown (``cancelled``).
+        """
+        from src.domains.agents.effects.repository import EffectLedgerRepository
+        from src.infrastructure.database.session import get_db_context
+
+        try:
+            async with get_db_context() as db:
+                await EffectLedgerRepository(db).close_abandoned(
+                    effect_id, claim_token, error_code=error_code
+                )
+                await db.commit()
+        except Exception as exc:  # noqa: BLE001 - the effect may already have happened
+            effect_ledger_failures_total.labels(operation="abandon").inc()
+            logger.error(
+                "effect_ledger_abandon_failed",
+                effect_id=str(effect_id),
+                error_type=type(exc).__name__,
+                exc_info=True,
+            )
+
     async def refuse(self, request: ClaimRequest, *, error_code: str) -> None:
         """Record an effect that was NOT performed for want of authority."""
         from src.domains.agents.effects.repository import EffectLedgerRepository
@@ -275,8 +356,9 @@ class _Ledger:
 _LEDGER = _Ledger()
 
 #: Statuses a lost claim may carry that mean the effect did NOT succeed. A
-#: ``claimed`` row is a winner still in flight, which is a different answer.
-_NO_RETRY_STATUSES: Final[frozenset[str]] = frozenset({"failed", "abandoned", "refused"})
+#: ``claimed`` row is a winner still in flight, and an ``abandoned`` one an
+#: attempt whose outcome nobody knows — two different answers.
+_NO_RETRY_STATUSES: Final[frozenset[str]] = frozenset({"failed", "refused"})
 
 
 def _build_request(
@@ -467,7 +549,7 @@ def _refusal_output(tool_name: str, error_code: str, message: str) -> dict[str, 
 
 async def _refuse_or_ask(
     tool_name: str,
-    decision: Any,
+    decision: GateDecision,
     request: ClaimRequest | None,
     scope: EffectScope | None,
     named: dict[str, Any],
@@ -492,11 +574,13 @@ async def _refuse_or_ask(
     # prose. Recording here rather than at the decision keeps the decision a
     # pure function; outside such a run this is a no-op.
     record_refusal(tool_name, str(decision.error_code))
+    stand_in = _nameable_stand_in(tool_name, decision, request)
     logger.info(
         "effect_refused",
         tool_name=tool_name,
         reason=decision.error_code,
         source=scope.source if scope else None,
+        stand_in=stand_in[0] if stand_in else None,
     )
     if decision.error_code == ERROR_CONFIRMATION_MISSING:
         # Someone IS there to answer: ask, do not fail. The draft is the shape
@@ -505,7 +589,10 @@ async def _refuse_or_ask(
         from src.domains.agents.effects.confirmation import confirmation_draft
 
         return confirmation_draft(tool_name, named)
-    return _refusal_output(tool_name, str(decision.error_code), str(decision.llm_message))
+    # Nobody can confirm: name the tool that acts without a confirmation, so a
+    # loop holding it corrects its own call in this turn (ADR-310's first rung).
+    message = unattended_refusal_message(*stand_in) if stand_in else str(decision.llm_message)
+    return _refusal_output(tool_name, str(decision.error_code), message)
 
 
 def _serve_lost_claim(tool_name: str, ticket: ClaimTicket) -> Any:
@@ -529,6 +616,17 @@ def _serve_lost_claim(tool_name: str, ticket: ClaimTicket) -> Any:
         # thing we must not do, and ``None`` is not a tool result — but WHICH
         # fact this is matters: a failed first attempt sent the model waiting
         # for a result that will never arrive.
+        if ticket.served_status == "abandoned":
+            # Cut before its result came back: « it failed » would invite a
+            # retry of an e-mail that may have left.
+            return _refusal_output(
+                tool_name,
+                "effect_abandoned",
+                "A previous attempt of this action under the same approval was "
+                "interrupted before its result came back: whether it happened is "
+                "not known, and it was not retried automatically. Tell the user, "
+                "and ask them to check before attempting it again.",
+            )
         if ticket.served_status in _NO_RETRY_STATUSES:
             return _refusal_output(
                 tool_name,
@@ -565,27 +663,57 @@ async def _perform_and_close(
 
     Raises:
         Exception: Re-raised unchanged after the row is closed as failed.
+        asyncio.CancelledError: Re-raised once the row is closed — a stopped
+            turn stays stopped.
     """
     claim_token = ticket.claim_token
     if claim_token is None:  # pragma: no cover - the caller checks first
         raise ValueError("a claim that was not won cannot be closed")
     try:
         result = await act()
+    except asyncio.CancelledError:
+        # Cut before the result came back — an attempt's time bound, a stop, a
+        # shutdown. Whether the effect happened is unknown, which is ABANDONED,
+        # and only the claim's owner can write it: left CLAIMED, the row is an
+        # orphan nothing ever closes (production 2026-09-25, a routine attempt
+        # cut at its 300 s bound during a browser task).
+        effect_outcomes_total.labels(policy=policy, status="abandoned").inc()
+        await _settle(
+            lambda: _LEDGER.abandon(ticket.effect_id, claim_token, error_code="cancelled")
+        )
+        raise
     except Exception:
         effect_outcomes_total.labels(policy=policy, status="failed").inc()
-        await _LEDGER.close(
-            ticket.effect_id,
-            claim_token,
-            outcome=ToolOutcome(succeeded=False, provider_ref=None, payload=None),
-        )
+        failed = ToolOutcome(succeeded=False, provider_ref=None, payload=None)
+        await _settle(lambda: _LEDGER.close(ticket.effect_id, claim_token, outcome=failed))
         raise
 
     outcome = read_outcome(result)
     effect_outcomes_total.labels(
         policy=policy, status="succeeded" if outcome.succeeded else "failed"
     ).inc()
-    await _LEDGER.close(ticket.effect_id, claim_token, outcome=outcome)
+    await _settle(lambda: _LEDGER.close(ticket.effect_id, claim_token, outcome=outcome))
     return result
+
+
+async def _settle(write: Callable[[], Awaitable[None]]) -> None:
+    """Write a row's ending even while the turn is being stopped.
+
+    A stop landing on the write itself — the tool had answered, the row was
+    being closed — would otherwise cut it and leave the row CLAIMED; the
+    registers' one mechanism carries it through.
+
+    Args:
+        write: Builds the ledger write; called exactly once.
+
+    Raises:
+        asyncio.CancelledError: When a stop was delivered meanwhile, once the
+            write is done.
+    """
+    if await write_through_cancellation(
+        write, attempts=CANCELLATION_GRACE_ATTEMPTS, label="effect_settle"
+    ):
+        raise asyncio.CancelledError
 
 
 def _count_claim(policy: str, request: ClaimRequest | None, ticket: ClaimTicket | None) -> None:

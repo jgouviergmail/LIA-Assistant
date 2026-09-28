@@ -334,17 +334,17 @@ class ToolInputValidationError(Exception):
 
 def validate_tool_input[T: BaseModel](model_class: type[T], params: dict[str, Any]) -> T:
     """
-    Valide et parse les paramètres d'entrée avec Pydantic.
+    Validate and parse input parameters with Pydantic.
 
     Args:
-        model_class: Classe Pydantic (ex: SearchContactsInput)
-        params: Paramètres bruts depuis runtime
+        model_class: Pydantic class (e.g. SearchContactsInput)
+        params: Raw parameters from the runtime
 
     Returns:
-        Instance validée du model
+        Validated instance of the model
 
     Raises:
-        ToolInputValidationError: Si validation échoue
+        ToolInputValidationError: When validation fails
 
     Examples:
         >>> from pydantic import BaseModel
@@ -580,15 +580,15 @@ def handle_tool_errors(
     reraise_tool_errors: bool = True,
 ) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
     """
-    Decorateur standardise pour la gestion d'erreurs des tools async.
+    Standard error-handling decorator for async tools.
 
-    Centralise le pattern try-except repete 420+ fois dans la codebase.
-    Transforme les exceptions en logs structures et peut les re-raise
-    ou les convertir en ToolResponse.
+    Centralises the try-except pattern once repeated 420+ times in the codebase.
+    Turns exceptions into structured logs, then re-raises them or converts them
+    into a ToolResponse.
 
     Args:
-        tool_name: Nom du tool pour les logs (defaut: nom de la fonction)
-        reraise_tool_errors: Si True, re-raise ToolError et ses sous-classes
+        tool_name: Tool name for the logs (default: the function name)
+        reraise_tool_errors: When True, re-raise ToolError and its subclasses
 
     Returns:
         Decorated async function
@@ -598,9 +598,9 @@ def handle_tool_errors(
         >>>
         >>> @handle_tool_errors(tool_name="search_contacts")
         ... async def search_contacts(query: str) -> dict:
-        ...     # ToolValidationError sera re-raised
-        ...     # json.JSONDecodeError sera logged et wrapped
-        ...     # KeyError sera logged et wrapped
+        ...     # ToolValidationError is re-raised
+        ...     # json.JSONDecodeError is logged and wrapped
+        ...     # KeyError is logged and wrapped
         ...     return await do_search(query)
 
     Exceptions handled:

@@ -468,6 +468,18 @@
       "deps": ["t.metrics", "t.logs", "t.alerts"]
     },
     {
+      "id": "t.radio",
+      "layer": "l.background",
+      "icon": "radio",
+      "paths": [
+        "apps/api/src/domains/radio",
+        "apps/web/src/lib/radio",
+        "apps/web/src/components/radio"
+      ],
+      "domains": ["radio"],
+      "deps": ["t.scheduler", "t.voiceinfra", "t.structured", "t.pricing", "t.redis", "t.postgres"]
+    },
+    {
       "id": "t.postgres",
       "layer": "l.data",
       "icon": "database",

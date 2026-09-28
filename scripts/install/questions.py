@@ -146,6 +146,12 @@ def build_questions() -> tuple[Question, ...]:
             default="no",
         ),
         Question(
+            key="personal_radio",
+            kind=QuestionKind.BOOL,
+            message_id="question.personal_radio",
+            default="no",
+        ),
+        Question(
             key="admin_password",
             kind=QuestionKind.SECRET,
             message_id="question.admin_password",

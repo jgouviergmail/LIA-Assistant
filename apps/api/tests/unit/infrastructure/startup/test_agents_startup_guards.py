@@ -55,6 +55,21 @@ async def test_boot_refuses_a_catalogue_missing_a_policy(
         await startup_agents.init_agent_registry(None, scheduler)
 
 
+async def test_boot_refuses_a_stand_in_that_cannot_help(
+    scheduler: MagicMock, no_store: object
+) -> None:
+    """A stand-in that would be refused too, or names nothing, stops the boot."""
+    with (
+        no_store,  # type: ignore[attr-defined]
+        patch(
+            "src.domains.agents.effects.gate.assert_unattended_stand_ins",
+            side_effect=AssertionError("self_tool: needs a confirmation itself"),
+        ),
+        pytest.raises(RuntimeError, match="Unattended stand-ins incomplete"),
+    ):
+        await startup_agents.init_agent_registry(None, scheduler)
+
+
 async def test_boot_populates_the_executor_registry_before_asserting(
     scheduler: MagicMock, no_store: object
 ) -> None:

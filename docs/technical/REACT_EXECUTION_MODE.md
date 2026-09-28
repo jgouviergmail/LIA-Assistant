@@ -197,8 +197,9 @@ Every accumulator of the loop (`react_iteration`, both time counters, `react_pro
 router does not reset is a debt that runs for the life of the thread. Measured on production
 (2026-09-11, ADR-256 amendment): `react_tool_seconds` was missing from the router's hand-maintained
 list, one conversation accumulated 913.8 s over six days, and every later ReAct turn of that thread
-stopped at iteration 1 with its tool calls abandoned — no error, three identical « ko ». A routine
-(one thread per action) and a ticket (one thread per ticket) reach the same wall, slower.
+stopped at iteration 1 with its tool calls abandoned — no error, three identical « ko ». The thread
+is the account's ONE conversation (`get_or_create_conversation`): the chat, the voice relays, every
+routine and every ticket share it, so all of them hit the same wall.
 `test_react_turn_reset_guard.py` reads by AST every `state.get("react_…")` of the stop predicate and
 of the routing edge, and refuses a key the declaration does not name; `react_max_iterations_effective`
 is the one exemption, because its start value is COMPUTED by `react_setup_node` from the domain span.
@@ -227,6 +228,19 @@ The digest is an HMAC keyed on the application secret, so it survives an HITL re
 worker, and **only the digest and a counter are stored** — neither the tool name nor its
 arguments reach the PostgreSQL checkpoint. A validator refuses a terminal threshold at or below
 the block threshold.
+
+### A model output cut at its budget (ADR-275, amended)
+
+A reply the provider stopped at its output budget (`is_output_truncated`, the one reading of the
+provider's verdict) is neither an answer nor a plan, and it **never reaches `messages`**:
+`nodes/react_output_guard.py::model_call_update` writes the flag `react_output_truncated` instead
+(reset by `react_turn_reset()`), `react_exit_reason` returns `output_truncated` — first, ahead of the
+budgets — and `react_finalize_node` publishes an empty final message with
+`truncation.reason = output_truncated`, so the answer is synthesised from the tool results that came
+back (a recovery pass's draft is handed back). The call stays charged; nothing retries it; it is
+counted by `react_output_truncated_total` (dashboard 20, expected 0) and recorded as the turn's
+`stop_reason`. Measured 2026-09-25: one cut reply kept in the thread was copied verbatim by the model
+into later turns of the account — seven routines out of seven the next morning.
 
 ### Progress-earned iterations (ADR-248)
 
@@ -295,9 +309,17 @@ only when `run_python_tool` is bound (ADR-284). Relative dates are resolved to I
 the `<Context>` date and timezone before any tool parameter; the pipeline planner and the
 initiative carry the same line.
 
-`task react:recovery:measure` runs seven obstacles and a clean control through the loop's own
-functions on real models, with deterministic stub tools, and compares a doctrine with its predecessor
-(`--baseline-prompt FILE`); the figures are in ADR-310.
+The first rung needs to know which call would work. A draft the effect gate refuses because
+nobody can confirm it (a routine) names the tool that declared itself its stand-in
+(`ToolManifest.stands_in_unattended_for` — `send_email_to_me_tool` for `send_email_tool` when the
+recipient is the user themselves), conditionally on that tool being among the loop's tools; only
+a ReAct turn is told, since the pipeline has no loop to act on it
+([ADR-314, amended](../architecture/ADR-314-An-E-Mail-To-Oneself-Needs-No-Confirmation.md)).
+
+`task react:recovery:measure` runs deterministic obstacles and a clean control through the loop's
+own functions on real models, with deterministic stub tools, and compares a doctrine with its
+predecessor (`--baseline-prompt FILE`); the figures are in ADR-310, and the stand-in's in ADR-314
+(its `stand_in_*` scenarios open on the refused draft).
 
 ### react_finalize
 
@@ -311,6 +333,9 @@ Collects iteration count and prepares metadata for the response node:
   had ended the turn on a message that was never meant to be final.
 - After a recovery pass, merges `react_agent_result["recovery"]` (`passes`, `outcome`) and
   counts it once (ADR-310, see [react_recovery](#react_recovery-adr-310)).
+- Reads WHY the last message is not an answer through `loop_cut_reason` — the stop predicate's
+  finalize reader: pending tool calls, or a model output the provider cut (see
+  [the section above](#a-model-output-cut-at-its-budget-adr-275-amended)).
 
 ## Tool System
 
@@ -543,7 +568,7 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 
 2. **Per-tool steps**: When `react_call_model` produces an AIMessage with `tool_calls`, the streaming service inspects the state delta and emits individual `execution_step` events for each tool (e.g., "Retrieving contacts...", "Retrieving events..."), using the tool catalogue's `DisplayMetadata` for emoji and i18n_key.
 
-3. **Reasoning detail**: The AIMessage content (reasoning text) from `react_call_model` is extracted, cleaned of markdown formatting, truncated to 120 characters, and included as a `detail` field in the node-level execution_step event.
+3. **Reasoning**: `react_call_model` streams its live chain of thought through the dedicated "reasoning" custom channel (`infrastructure/llm/reasoning_stream.py`); the node step carries its emoji and label only. The post-hoc `detail` snippet it used to carry was deleted with its extractor (ADR-323): shown twice, the reasoning repeated itself.
 
 4. **Frontend accumulation**: Steps are accumulated in a multi-line progress message (not replaced). All steps remain visible until the first response token arrives. Deduplication by `i18n_key` prevents duplicates.
 
@@ -552,6 +577,8 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 | File | Purpose |
 |------|---------|
 | `src/domains/agents/nodes/react_nodes.py` | 4 node functions, iteration budget, exit reasons |
+| `src/domains/agents/nodes/react_output_guard.py` | What a model call writes: a reply cut at its budget never reaches the thread (ADR-275, amended) |
+| `src/domains/agents/utils/react_budget.py` | The ONE stop predicate, its finalize reader, the turn-start reset |
 | `src/domains/agents/nodes/react_context.py` | Memory/context blocks, at pipeline parity (ADR-248) |
 | `src/domains/agents/nodes/react_recovery.py` | The recovery protocol: the declaration's reader, the predicate, the node, the transient directive, the outcome (ADR-310) |
 | `src/domains/agents/tools/python_sandbox_tools.py` | `run_python_tool` + per-turn run budget (ADR-249) |
@@ -569,3 +596,4 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 | `docs/architecture/ADR-248-React-Memory-Parity-And-Progress-Earned-Budget.md` | Memory parity, truncation honesty, earned budget |
 | `docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md` | Sandboxed scripts |
 | `docs/architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md` | The recovery pass, the ladder, absolute dates |
+| `docs/architecture/ADR-275-Truncated-Structured-Output-Is-A-Refusal.md` | A cut output is a refusal — structured doors, and the loop (2026-09-27 amendment) |

@@ -206,6 +206,7 @@ anything sensitive. Each prompt is prefixed with its key (for example
 | `self_diagnostics`     | always                | `yes` / `no` — LIA reads its own telemetry (ADR-247); with observability, alerts become in-app incidents | `no`    |
 | `skill_sandbox`        | always                | `yes` / `no`                                   | `no`    |
 | `live_mode`            | always                | `yes` / `no` — the Live voice mode (ADR-299): each person talks with LIA in real time on a live model they connect with their own key | `no`    |
+| `personal_radio`       | always                | `yes` / `no` — on-demand personal radio (ADR-324); uses the instance's writing and voice providers and charges its cost to the listener | `no`    |
 | `admin_password`       | always *(hidden)*     | 10+ chars, 2 uppercase, 2 digits, 2 specials   | —       |
 | `provider_key_deepseek`| always *(hidden)*     | your DeepSeek API key                          | —       |
 | `provider_key_openai`  | always *(hidden)*     | your OpenAI API key                            | —       |
@@ -261,7 +262,7 @@ your private `.env` (mode `0600`):
 | `DEFAULT_LANGUAGE`      | Your chosen application language                           |
 | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL` | **Deliberately empty**                |
 | `ENVIRONMENT`, `DEBUG`, `LOG_LEVEL` | `production`, `false`, `INFO`              |
-| `DIAGNOSTICS_ENABLED`, `LIVE_ENABLED` | Your `self_diagnostics` / `live_mode` answers   |
+| `DIAGNOSTICS_ENABLED`, `LIVE_ENABLED`, `RADIO_ENABLED` | Your `self_diagnostics` / `live_mode` / `personal_radio` answers |
 
 The two empty `NEXT_PUBLIC_*` values are intentional: the web image is
 host-neutral and same-origin, so the canonical address is resolved at request
@@ -312,6 +313,8 @@ container** — a deliberate privilege. Leave it off unless you need it.
 
 **Live voice mode** (`live_mode = yes`) publishes the capability: a person then connects a live model — Gemini Live, GPT-Live or an ElevenLabs agent — with **their own key** in *Settings › Connectors* and talks with LIA in real time from the voice icon. The instance provisions nothing for it and pays only what LIA itself spends inside a session; the audio never transits the API. The models offered are those the seeded LLM pricing table declares (the seed ships them); an ElevenLabs agent is billed by the vendor on the person's key. Every bound lives under `LIVE_*` in `.env.prod.example`.
 
+**Personal radio** (`personal_radio = yes`) enables the radio routes and the newsroom inside the existing API service; it adds no Compose service or external bootstrap step. A listener starts a session on demand, pays for its writing and voice synthesis under a published per-account limit, and stops it with the player or timer. Configure the radio's LLM and voice slots in the Admin UI before offering it; the API reports a missing voice instead of silently producing a programme. The installer defaults to `no` so a new host opts into this paid feature deliberately. See [RADIO.md](../technical/RADIO.md).
+
 The same overlay starts the **sandbox egress proxy** (`egress` service,
 [ADR-298](../architecture/ADR-298-Sandbox-Egress-Toolbox.md)): the only way a
 script the model wrote may reach the Internet — HTTPS only, to the hosts the run
@@ -346,6 +349,7 @@ observability=no
 self_diagnostics=no
 skill_sandbox=no
 live_mode=no
+personal_radio=no
 admin_password=CHANGE_ME_Ab12!!cdEf
 provider_key_deepseek=CHANGE_ME_DEEPSEEK_KEY
 provider_key_openai=CHANGE_ME_OPENAI_KEY

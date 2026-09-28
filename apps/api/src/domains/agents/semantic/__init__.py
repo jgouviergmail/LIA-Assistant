@@ -1,20 +1,20 @@
 """
 Semantic Type System Module
 
-Système de typage sémantique complet pour LIA.
+The complete semantic type system of LIA.
 
-Remplace les patterns hardcodés par un système structuré inspiré de:
-- schema.org (hiérarchie de classes)
-- RDF (relations sémantiques)
-- SKOS (labels multi-lingues)
-- OWL (subsomption reasoning)
+Replaces hardcoded patterns by a structured system inspired by:
+- schema.org (class hierarchy)
+- RDF (semantic relations)
+- SKOS (broader/narrower/related)
+- OWL (subsumption reasoning)
 
-Composants:
-- SemanticType: Dataclass pour définir un type sémantique
-- TypeCategory: Enum des catégories de types
-- TypeRegistry: Registry central avec hiérarchie et lookups
-- core_types: Catalogue des 96+ types identifiés
-- expansion_service: Service d'expansion sémantique
+Components:
+- SemanticType: dataclass defining a semantic type
+- TypeCategory: enum of the type categories
+- TypeRegistry: central registry with hierarchy and lookups
+- core_types: catalogue of the 96+ identified types
+- expansion_service: semantic expansion service
 
 Usage:
     >>> from src.domains.agents.semantic import get_registry, load_core_types

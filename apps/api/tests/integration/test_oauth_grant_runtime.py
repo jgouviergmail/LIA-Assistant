@@ -449,7 +449,7 @@ async def test_admin_disabling_one_shared_service_never_revokes_another_link(
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: Client())
     monkeypatch.setattr(service_module, "get_email_service", lambda: Mailer())
     await ConnectorService(async_session)._revoke_all_connectors_by_type(
-        ConnectorType.GOOGLE_CALENDAR
+        ConnectorType.GOOGLE_CALENDAR, None
     )
 
     await async_session.refresh(calendar)

@@ -160,7 +160,7 @@ class ContextResolutionService:
             ...     reference_domain="contact",
             ... )
             >>> resolved, turn_type = await service.resolve_context(
-            ...     query="detail du premier",
+            ...     query="details of the first one",
             ...     state=state,
             ...     config=config,
             ...     run_id="run_123",
@@ -568,7 +568,7 @@ class ContextResolutionService:
                     turn_id=turn_id,
                 )
             else:
-                # Multi-item evocation ("le 1er et le 3e"): no single focus.
+                # Multi-item evocation ("the 1st and the 3rd"): no single focus.
                 await session.manager.clear_current_item(
                     user_id=session.user_id,
                     session_id=session.session_id,
@@ -752,7 +752,7 @@ class ContextResolutionService:
         Extract items from data_registry for reference resolution.
 
         CRITICAL FIX 2025-12-19: Multi-level filtering strategy to prevent cross-domain
-        contamination (e.g., returning contacts when user asked for "le deuxième email").
+        contamination (e.g., returning contacts when user asked for "the second e-mail").
 
         Filtering Priority (stops at first successful filter):
         1. registry_updates from agent_results for last_action_turn
@@ -1102,9 +1102,9 @@ class ContextResolutionService:
         - A get_*_details tool returns exactly 1 item (auto-set)
         - The user selects an item explicitly
 
-        This is used for demonstrative resolution ("ce rdv", "this event").
-        After "detail du 2ème", the current_item should be the 2nd event,
-        so "ce rdv" refers to that event, not the first in the list.
+        This is used for demonstrative resolution ("this appointment", "that event").
+        After "details of the 2nd one", the current_item should be the 2nd event,
+        so "this appointment" refers to that event, not the first in the list.
 
         Args:
             config: RunnableConfig with user_id and thread_id.

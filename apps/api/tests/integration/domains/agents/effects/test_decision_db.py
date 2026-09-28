@@ -552,3 +552,69 @@ class TestTheStopReasonMergesTheOtherWay:
         await async_session.flush()
 
         assert (await _row(async_session, "run-1")).stop_reason is None
+
+
+class TestARunThatCannotResume:
+    """An out-of-turn act is filed ONCE (ADR-263 amendment 2026-09-27).
+
+    A radio session has no HITL resumption: whoever sees it end files it — its
+    loop, or the service when no loop is holding it. Two of them can race, and
+    the merge above would read that race as a turn run twice (``segments`` 2,
+    the duration doubled). ``record_once`` makes the second filing what it is:
+    a duplicate of the first.
+    """
+
+    async def test_a_second_filing_is_a_duplicate_never_a_segment(
+        self, async_session: AsyncSession, user: User
+    ) -> None:
+        repository = DecisionRepository(async_session)
+        await repository.record_once(
+            _turn(user, "radio-1", outcome=DecisionOutcome.ANSWERED, stop_reason="listener"),
+            ended_at=_START + timedelta(seconds=90),
+        )
+        await async_session.flush()
+        await repository.record_once(
+            _turn(user, "radio-1", outcome=DecisionOutcome.FAILED, stop_reason="failures"),
+            ended_at=_START + timedelta(seconds=95),
+        )
+        await async_session.flush()
+
+        rows = (
+            (
+                await async_session.execute(
+                    select(AgentDecision).where(AgentDecision.run_id == "radio-1")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1
+        row = await _row(async_session, "radio-1")
+        assert row.segments == 1, "a race between two closers is not a turn run twice"
+        assert row.duration_ms == 90_000
+        assert row.outcome is DecisionOutcome.ANSWERED, "the FIRST filing stands"
+        assert row.stop_reason == "listener"
+
+    async def test_a_first_filing_writes_the_whole_row(
+        self, async_session: AsyncSession, user: User
+    ) -> None:
+        await DecisionRepository(async_session).record_once(
+            _turn(
+                user,
+                "radio-2",
+                thread_id="radio-2",
+                execution_mode="direct",
+                route="radio",
+                outcome=DecisionOutcome.INTERRUPTED,
+                stop_reason="idle",
+            ),
+            ended_at=_START + timedelta(minutes=12),
+        )
+        await async_session.flush()
+
+        row = await _row(async_session, "radio-2")
+        assert (row.route, row.execution_mode, row.thread_id) == ("radio", "direct", "radio-2")
+        assert row.outcome is DecisionOutcome.INTERRUPTED
+        assert row.stop_reason == "idle"
+        assert row.started_at == _START
+        assert row.duration_ms == 12 * 60_000

@@ -23,10 +23,15 @@ Three options: **(1)** Click the download button (arrow icon) that appears on ho
 
 ## How long does a generated image stay available?
 
-Not forever. A generated image is stored as an attachment with an expiry, and a
-scheduled cleanup removes expired attachments every few hours. Each image card
-now states the deadline it received from the server, and switches to an amber
-tone in the final hours so you can download it in time.
+Not forever — unless you keep it. A generated image is stored as an attachment
+with an expiry, and a scheduled cleanup removes expired attachments every few
+hours. Each image card states the deadline it received from the server, and
+switches to an amber tone in the final hours.
+
+To keep an image past its deadline, keep it from **Settings › My generated
+files** (the pin on its card): a kept image is never deleted automatically,
+within your account's limit shown there. Its card in the chat then says it is
+kept. You can also download it.
 
 The deadline always comes from the server rather than being written into the
 interface: the retention window is configurable by the administrator, so a
@@ -34,7 +39,7 @@ duration hard-coded in the app would eventually be wrong. Images generated befor
 this was introduced simply say nothing rather than guess.
 
 ## Are my generated images saved?
-Yes, images are saved as attachments on disk. They persist across page reloads and survive a conversation reset: you find them in **Settings › My generated files**, until the expiry each image card states — the images a connection shared with you included.
+Yes, images are saved as attachments on disk. They persist across page reloads and survive a conversation reset: you find them in **Settings › My generated files**, until the expiry each image card states, or for good if you keep them — the images a connection shared with you included.
 
 You can also ask LIA: "*show me the lighthouse image from this morning*" — it finds the image in your gallery and shows it again in the chat. And an image LIA generated for you can be shared with a connection from its card (see Peer Connections).
 

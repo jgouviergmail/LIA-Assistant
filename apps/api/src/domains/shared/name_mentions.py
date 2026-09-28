@@ -84,8 +84,8 @@ def detect_mentioned_names(
 
     Args:
         texts: Every text that may carry a name — the original query, the
-            English pivot, and the values of resolved references (``"mon
-            frère"`` → ``"Jérôme G"``, where the name is in the mapping and
+            English pivot, and the values of resolved references (``"my
+            brother"`` → ``"Jérôme G"``, where the name is in the mapping and
             never in what the user typed).
         names: The directory to match against, as displayed.
 

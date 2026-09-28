@@ -231,6 +231,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.exceptions import (
     raise_email_already_exists,
     raise_invalid_credentials,
@@ -239,6 +240,7 @@ from src.core.exceptions import (
     raise_token_invalid,
     raise_user_not_found,
 )
+from src.core.i18n import resolve_language
 from src.core.security import (
     # Removed: create_access_token, create_refresh_token (BFF Pattern migration v0.3.0)
     # OAuth helpers moved to src.core.oauth module (v0.4.0 refactoring)
@@ -294,8 +296,8 @@ class AuthService:
             "email": data.email,
             "hashed_password": hashed_password,
             "full_name": data.full_name,
-            "timezone": data.timezone or "Europe/Paris",  # Browser detection or default
-            "language": data.language or "fr",  # Browser detection or default
+            "timezone": data.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,  # Browser or default
+            "language": resolve_language(data.language),  # The browser's, else the request's (ADR-323)
             "is_active": False,  # Requires email verification
             "is_verified": False,
         }
@@ -2152,6 +2154,8 @@ Authentication domain models (database entities).
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.config import settings
+from src.core.constants import DEFAULT_LANGUAGE_DEFAULT, DEFAULT_USER_DISPLAY_TIMEZONE
 from src.infrastructure.database.models import BaseModel
 
 
@@ -2187,16 +2191,18 @@ class User(BaseModel):
     # User preferences
     timezone: Mapped[str] = mapped_column(
         String(50),
+        default=DEFAULT_USER_DISPLAY_TIMEZONE,
         nullable=False,
-        server_default="Europe/Paris",
+        server_default=DEFAULT_USER_DISPLAY_TIMEZONE,
         comment="User timezone (IANA timezone name) for personalized timestamp display",
-    )  # Default: Europe/Paris (French users)
+    )  # The display default, until the browser or the person sets one
     language: Mapped[str] = mapped_column(
         String(10),
+        default=lambda: settings.default_language,
         nullable=False,
-        server_default="fr",
+        server_default=DEFAULT_LANGUAGE_DEFAULT,
         comment="User preferred language (ISO 639-1 code: fr, en, es, de, it, zh-CN) for emails and notifications",
-    )  # Default: fr (French)
+    )  # An ORM insert takes the CONFIGURED default (ADR-323)
 
     # Relationships
     connectors: Mapped[list["Connector"]] = relationship(

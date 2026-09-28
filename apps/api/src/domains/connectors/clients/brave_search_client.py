@@ -26,12 +26,34 @@ from uuid import UUID
 
 from src.core.config import settings
 from src.core.constants import BRAVE_SEARCH_MAX_QUERY_CHARS, BRAVE_SEARCH_MAX_QUERY_WORDS
+from src.core.i18n import resolve_language
 from src.domains.connectors.clients.base_api_key_client import BaseAPIKeyClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+#: Brave's ``search_lang`` for a canonical language it spells differently:
+#: Brave names Chinese by its script and refuses ``zh-CN`` with HTTP 422.
+_SEARCH_LANG_OF: dict[str, str] = {"zh-CN": "zh-hans"}
+
+
+def _search_lang(language: str | None) -> str:
+    """Brave's ``search_lang`` for a language.
+
+    An explicit code passes verbatim, except the canonical codes Brave spells
+    differently (``zh-CN`` is ``zh-hans``); an absent one is the declared
+    language (ADR-323).
+
+    Args:
+        language: A language code, or None.
+
+    Returns:
+        The value of Brave's ``search_lang`` parameter.
+    """
+    code = language or resolve_language()
+    return _SEARCH_LANG_OF.get(code, code)
 
 
 def _clamp_query(query: str) -> str:
@@ -97,7 +119,7 @@ class BraveSearchClient(BaseAPIKeyClient):
     def __init__(
         self,
         api_key: str,
-        language: str = "fr",
+        language: str | None = None,
         user_id: UUID | None = None,
         rate_limit_per_second: float | None = None,
     ) -> None:
@@ -106,7 +128,9 @@ class BraveSearchClient(BaseAPIKeyClient):
 
         Args:
             api_key: Brave Search API key (from user's connector settings)
-            language: Language code for search_lang parameter (ISO 639-1: fr, en, etc.)
+            language: Brave's ``search_lang``: an explicit code passes verbatim,
+                except the canonical codes Brave spells differently (``zh-CN`` is
+                ``zh-hans``); the declared language when absent (ADR-323).
             user_id: Optional user ID for logging and rate-limit scoping
             rate_limit_per_second: Max requests per second (None = use settings)
         """
@@ -121,7 +145,7 @@ class BraveSearchClient(BaseAPIKeyClient):
             rate_limit_per_second=effective_rate_limit,
         )
         self.api_key = api_key
-        self.language = language
+        self.language = _search_lang(language)
 
     def _get_http_timeout(self) -> float:
         """Brave has a dedicated (short) search timeout setting."""

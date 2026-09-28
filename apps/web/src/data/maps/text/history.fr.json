@@ -1350,6 +1350,30 @@
     "318": {
       "title": "LIA calcule au lieu d'estimer, et retrouve ce qu'elle a fait",
       "summary": "Un calcul, une date ou une conversion de devises ne s'estiment plus de tête : LIA les calcule exactement, au taux de référence du jour, qu'elle nomme. Elle peut aussi chercher dans son journal un sujet découvert en chemin, te dire ce qu'elle a fait et consulté sur une période avec des totaux exacts, et te remontrer un fichier qu'elle a produit tant qu'il existe encore."
+    },
+    "319": {
+      "title": "Un fichier généré peut être conservé",
+      "summary": "Depuis la galerie, tu peux conserver une image, un document ou une capture : le nettoyage automatique ne le supprime plus, dans une limite par compte affichée avant tout refus. Ne plus le conserver lui redonne une échéance, jamais une suppression immédiate, et le chat dit à chaque lecture si le fichier est conservé ou n'existe plus."
+    },
+    "320": {
+      "title": "Le chat se met à jour tout seul",
+      "summary": "Un message arrivé d'ailleurs — un autre onglet, Telegram, une routine, un rappel — s'affiche sans recharger la page : le serveur prévient dès que le message est enregistré, et le chat ajoute ce qui manque sans toucher à ce qui est déjà affiché. Rien ne bouge pendant qu'une réponse s'écrit, et un lecteur remonté dans le fil n'est pas déplacé."
+    },
+    "321": {
+      "title": "Un fichier ou une réponse s'envoie par e-mail",
+      "summary": "Une image, un document, une capture ou une réponse part par e-mail, en pièce jointe, avec l'objet et les mots choisis par la personne — LIA n'écrit rien à sa place. Il part de sa boîte connectée vers qui elle veut, ou, sans boîte, vers sa propre adresse vérifiée. Chaque boîte a sa taille maximale, tirée de la documentation de son fournisseur et annoncée avant l'envoi."
+    },
+    "322": {
+      "title": "Une routine a une seule horloge",
+      "summary": "Une routine suit soit une planification, soit une condition — jamais les deux : on choisit d'abord quand elle s'exécute, et seuls les champs de ce choix s'affichent. Une routine qui attend quelque chose n'a plus d'horaire : LIA vérifie la condition elle-même, jour et nuit, jusqu'à un dernier jour facultatif. Elle ne s'exécute que sur un fait nouveau, jamais deux fois pour le même, dans une limite quotidienne."
+    },
+    "323": {
+      "title": "Chaque phrase dans ta langue",
+      "summary": "Les e-mails, le bot Telegram, les messages d'erreur et les catalogues de l'application s'écrivent désormais dans la langue de la personne qui les lit : plus de phrase française servie par défaut à un compte allemand ou chinois, plus d'e-mail de vérification reçu en anglais. Chaque table de traductions porte les six langues — une vérification automatique s'en assure à chaque changement. Le français écrit en dur que seul le modèle lisait passe en anglais technique, pour ne privilégier aucune langue ; ce qui reste — quelques prompts et libellés en français, des textes adressés au modèle traduits dans les six langues — attend qu'une mesure dise ce que leur traduction change."
+    },
+    "324": {
+      "title": "Une radio rien que pour toi",
+      "summary": "LIA devient une station de radio à la demande, dans ta langue : ta journée, puis l'actualité des médias suivis et des sites que tu ajoutes, écrites, vérifiées et dites pour toi pendant que tu écoutes. Une grille fixe décide de ce qui passe, les modèles ne font qu'écrire, et chaque phrase montre sa source. Rien n'est produit quand personne n'écoute, rien n'est gardé après, et ce que coûte la session s'affiche pendant qu'elle dépense."
     }
   }
 }

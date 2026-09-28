@@ -12,6 +12,16 @@ OpenAI's strict mode guarantees 100% schema conformance but has limitations:
 - Max 100 properties total
 - Max 5 nesting levels
 - All properties must be explicitly typed
+- Every object must SAY ``additionalProperties: false`` and list every property
+  in ``required`` — the strict SHAPE. The chat-completions path fixes a Pydantic
+  schema up on the way (the SDK converts it); the Responses path, which every
+  current OpenAI generation takes (GPT-4.1+, GPT-5.x, GPT-6, o-series), sends it
+  as it is. Measured 2026-09-26 on gpt-5.6-luna: ``SynthesizedMinutes``,
+  ``TabularContent`` and ``DebriefDraft`` were all judged compatible and all
+  answered 400 on every call. A schema that is not strict-shaped therefore goes
+  by ``function_calling``, which accepts it — its defaults are what keeps a
+  model's omitted field from failing validation on every other provider, so
+  the schema is never bent to fit.
 
 See: https://platform.openai.com/docs/guides/structured-outputs#supported-schemas
 """
@@ -73,7 +83,49 @@ def _analyze_schema_strict_compatibility(schema: type[BaseModel]) -> tuple[bool,
     if max_depth > 5:
         return False, f"exceeds_nesting_limit: {max_depth} > 5"
 
+    # Check 4: the strict shape the Responses path sends unconverted
+    shape = _strict_shape_violation(json_schema)
+    if shape is not None:
+        return False, f"not_strict_shaped: {shape}"
+
     return True, "compatible"
+
+
+def _strict_shape_violation(node: Any, path: str = "") -> str | None:
+    """The first object strict mode refuses for its SHAPE, or None.
+
+    Every object carrying properties must state ``additionalProperties: false``
+    and list each property in ``required``. Walks the whole schema — properties,
+    ``$defs``, array items and union branches alike.
+
+    Args:
+        node: A JSON-schema fragment.
+        path: Where it sits (for the reason).
+
+    Returns:
+        ``"<path>: <what is missing>"`` for the first offending object.
+    """
+    if isinstance(node, list):
+        for index, item in enumerate(node):
+            found = _strict_shape_violation(item, f"{path}[{index}]")
+            if found is not None:
+                return found
+        return None
+    if not isinstance(node, dict):
+        return None
+    properties = node.get("properties")
+    if isinstance(properties, dict):
+        where = path or "/"
+        if node.get("additionalProperties") is not False:
+            return f"{where} allows extra keys"
+        missing = sorted(set(properties) - set(node.get("required", [])))
+        if missing:
+            return f"{where} leaves {missing[0]} optional"
+    for key, value in node.items():
+        found = _strict_shape_violation(value, f"{path}/{key}")
+        if found is not None:
+            return found
+    return None
 
 
 def _has_type_indicator(schema: dict[str, Any]) -> bool:

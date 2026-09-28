@@ -4,11 +4,20 @@ Integration tests for Conversation API endpoints.
 Tests conversation management, message archival, and soft delete operations.
 """
 
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.attachments.models import (
+    Attachment,
+    AttachmentContentType,
+    AttachmentOrigin,
+    AttachmentStatus,
+)
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.users.models import User
 
@@ -141,6 +150,90 @@ async def test_list_conversation_messages_with_pagination(
     # Pagination contract: one older message remains.
     assert data["has_more"] is True
     assert data["next_cursor"] is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_history_restates_each_file_card_from_its_row(
+    authenticated_client: tuple[AsyncClient, User],
+    async_session: AsyncSession,
+):
+    """A file card states the lifetime its file has NOW, not the one it was written with.
+
+    The cards were written when the files were produced; since then one file
+    was KEPT (no deadline, ADR-319), one still has a (new) deadline, and one was
+    deleted. The history read path restates every card from its attachment row
+    and never rewrites the stored metadata.
+    """
+    client, user = authenticated_client
+    written = "2026-01-01T00:00:00+00:00"
+    current = datetime.now(UTC) + timedelta(hours=5)
+
+    def generated(origin: AttachmentOrigin, expires_at: datetime | None) -> Attachment:
+        stored = f"{uuid4()}.bin"
+        return Attachment(
+            user_id=user.id,
+            original_filename=f"generated_{stored}",
+            stored_filename=stored,
+            mime_type="image/png",
+            file_size=10,
+            file_path=f"{user.id}/{stored}",
+            content_type=AttachmentContentType.IMAGE,
+            origin=origin.value,
+            status=AttachmentStatus.READY,
+            expires_at=expires_at,
+        )
+
+    kept = generated(AttachmentOrigin.GENERATED_IMAGE, None)
+    live = generated(AttachmentOrigin.GENERATED_DOCUMENT, current)
+    async_session.add_all([kept, live])
+    async_session.add(
+        Conversation(id=user.id, user_id=user.id, title="Cards", message_count=1, total_tokens=0)
+    )
+    await async_session.flush()
+    message = ConversationMessage(
+        conversation_id=user.id,
+        role="assistant",
+        content="Here they are.",
+        message_metadata={
+            "generated_images": [
+                {"url": f"/api/v1/attachments/{kept.id}", "alt": "kept", "expires_at": written},
+                {"url": f"/api/v1/attachments/{uuid4()}", "alt": "gone", "expires_at": written},
+            ],
+            "generated_documents": [
+                {
+                    "url": f"/api/v1/attachments/{live.id}",
+                    "filename": "report.md",
+                    "doc_type": "md",
+                    "size_bytes": 10,
+                    "expires_at": written,
+                }
+            ],
+        },
+    )
+    async_session.add(message)
+    await async_session.commit()
+
+    response = await client.get("/api/v1/conversations/me/messages")
+
+    assert response.status_code == 200
+    metadata = response.json()["messages"][0]["message_metadata"]
+    kept_card, gone_card = metadata["generated_images"]
+    assert kept_card["kept"] is True and kept_card["expires_at"] is None
+    assert gone_card["gone"] is True
+    document = metadata["generated_documents"][0]
+    assert document["kept"] is False and document["gone"] is False
+    assert datetime.fromisoformat(document["expires_at"]) == current
+    # What the history shows is a reading, never a rewrite of the record.
+    stored = await async_session.scalar(
+        select(ConversationMessage.message_metadata).where(ConversationMessage.id == message.id)
+    )
+    assert stored is not None
+    assert stored["generated_images"][0] == {
+        "url": f"/api/v1/attachments/{kept.id}",
+        "alt": "kept",
+        "expires_at": written,
+    }
 
 
 @pytest.mark.asyncio

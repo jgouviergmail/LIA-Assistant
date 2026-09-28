@@ -121,14 +121,15 @@ def _local(moment: datetime, zone: tzinfo) -> str:
     return moment.astimezone(zone).isoformat(timespec="minutes")
 
 
-def _file_item(row: Attachment, zone: tzinfo) -> dict[str, str | int | None]:
-    """One file as the model reads it."""
+def _file_item(row: Attachment, zone: tzinfo) -> dict[str, str | int | bool | None]:
+    """One file as the model reads it — a kept file has no deadline (ADR-319)."""
     return {
         "title": row.title or row.original_filename,
         "file_name": row.original_filename,
         "family": _FAMILY_OF.get(row.origin, row.origin),
         "created": _local(row.created_at, zone),
-        "expires": _local(row.expires_at, zone),
+        "expires": _local(row.expires_at, zone) if row.expires_at else None,
+        "kept": row.expires_at is None,
         "size_bytes": row.file_size,
         "shared_by": row.shared_by_name,
     }
@@ -138,7 +139,8 @@ def _show(rows: list[Attachment], conversation_id: str) -> None:
     """Queue every file as the chat's own card, under this conversation's answer."""
     for row in rows:
         url = attachment_url(row.id)
-        expires = row.expires_at.isoformat()
+        # A kept file has no deadline: the card then states none (N2 rule).
+        expires = row.expires_at.isoformat() if row.expires_at else None
         if row.origin == AttachmentOrigin.GENERATED_DOCUMENT.value:
             extension = Path(row.original_filename).suffix.lstrip(".").lower()
             store_pending_document(
@@ -149,6 +151,7 @@ def _show(rows: list[Attachment], conversation_id: str) -> None:
                     doc_type=extension or _UNTYPED_DOCUMENT,
                     size_bytes=row.file_size,
                     expires_at=expires,
+                    kept=row.expires_at is None,
                 ),
             )
         else:
@@ -157,6 +160,7 @@ def _show(rows: list[Attachment], conversation_id: str) -> None:
                 url=url,
                 alt_text=row.title or row.original_filename,
                 expires_at=expires,
+                kept=row.expires_at is None,
             )
 
 
@@ -164,7 +168,8 @@ def _message(total: int, shown: int) -> str:
     if total == 0:
         return (
             "No generated file matches. LIA keeps the files it produces "
-            f"{settings.attachments_ttl_hours} hours: an older one is gone."
+            f"{settings.attachments_ttl_hours} hours unless the user kept them from the "
+            "gallery: an older one is gone."
         )
     text = (
         f"{total} generated file(s) match; the {shown} most recent are SHOWN to the user as "

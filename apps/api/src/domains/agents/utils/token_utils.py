@@ -30,9 +30,7 @@ def count_tokens(text: str, encoding_name: str | None = None) -> int:
 
     Example:
         >>> count_tokens("Hello, world!")
-        3
-        >>> count_tokens("Bonjour le monde !")
-        5
+        4
 
     Note:
         Falls back to rough estimation (4 chars per token) if tiktoken fails.

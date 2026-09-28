@@ -265,6 +265,18 @@ def _fake_counts(
     ):
         _append(f"how.{locale}.md", f"\n{sentence % metrics}\n")
 
+    # And a THIRD time, in the codebase-metrics table: the row that still said
+    # 589 against a real 593 because no surface declared it (2026-09-26).
+    for locale, row in (
+        ("en", "| Prometheus metrics | %d definitions |"),
+        ("fr", "| Métriques Prometheus | %d définitions |"),
+        ("de", "| Prometheus-Metriken | %d Definitionen |"),
+        ("es", "| Métricas Prometheus | %d definiciones |"),
+        ("it", "| Metriche Prometheus | %d definizioni |"),
+        ("zh", "| Prometheus 指标 | %d 定义 |"),
+    ):
+        _append(f"how.{locale}.md", f"\n{row % metrics}\n")
+
     # The knowledge mirror carries the same sentence in English prose.
     _write(
         root / "docs" / "knowledge" / "34_self_diagnostics.md",
@@ -273,29 +285,37 @@ def _fake_counts(
         "reach nothing — and that list can only get shorter.\n",
     )
 
-    # And the blog article, in the six locales, TWICE each: the title and the
-    # body. Anchored on what FOLLOWS the number, because the bare phrase also
-    # matches an unrelated "5 métriques Prometheus" elsewhere in the same
-    # bundle — the decoy below exercises exactly that.
-    for locale, title, body_text in (
+    # And the blog article, in the six locales, THREE times each: the title, the
+    # body and the excerpt (the excerpt joined on 2026-09-26, found at 589
+    # against a real 593). Anchored on what FOLLOWS the number, because the
+    # bare phrase also matches an unrelated "5 métriques Prometheus" elsewhere
+    # in the same bundle — the decoy below exercises exactly that.
+    for locale, title, body_text, excerpt in (
         ("en", "%d Prometheus Metrics, 26 Grafana Dashboards",
-         "%d Prometheus metrics covering HTTP, agents, tokens"),
+         "%d Prometheus metrics covering HTTP, agents, tokens",
+         "LIA offers enterprise-grade observability with %d metrics, dedicated dashboards."),
         ("fr", "%d métriques Prometheus, 26 dashboards Grafana",
-         "%d métriques Prometheus couvrant HTTP, agents, tokens"),
+         "%d métriques Prometheus couvrant HTTP, agents, tokens",
+         "LIA offre une observabilité de niveau entreprise avec %d métriques, des dashboards."),
         ("de", "%d Prometheus-Metriken, 26 Grafana-Dashboards",
-         "%d Prometheus-Metriken für HTTP, Agenten, Token"),
+         "%d Prometheus-Metriken für HTTP, Agenten, Token",
+         "LIA bietet Enterprise-Observability mit %d Metriken, Grafana-Dashboards."),
         ("es", "%d métricas Prometheus, 26 dashboards Grafana",
-         "%d métricas Prometheus que cubren HTTP, agentes, tokens"),
+         "%d métricas Prometheus que cubren HTTP, agentes, tokens",
+         "LIA ofrece observabilidad empresarial con %d métricas, dashboards Grafana."),
         ("it", "%d metriche Prometheus, 26 dashboard Grafana",
-         "%d metriche Prometheus che coprono HTTP, agenti, token"),
+         "%d metriche Prometheus che coprono HTTP, agenti, token",
+         "LIA offre osservabilità enterprise con %d metriche, dashboard Grafana."),
         ("zh", "%d个Prometheus指标、26个Grafana仪表板",
-         "%d个Prometheus指标，覆盖HTTP、智能体、Token"),
+         "%d个Prometheus指标，覆盖HTTP、智能体、Token",
+         "LIA提供企业级可观测性：%d 指标、Grafana仪表板。"),
     ):
         _write(
             root / "apps" / "web" / "locales" / locale / "translation.json",
             '{\n  "blog": {\n    "articles": {\n      "observability": {\n'
             f'        "title": "{title % metrics}",\n'
             f'        "body": "<p>{body_text % metrics}</p>",\n'
+            f'        "excerpt": "{excerpt % metrics}",\n'
             '        "decoy": "5 métriques Prometheus ailleurs, sans rapport"\n'
             "      }\n    }\n  }\n}\n",
         )
@@ -490,10 +510,13 @@ class TestDerivedCounts:
         assert any(item.source == "adr_files" for item in by_path["CLAUDE.md"])
         assert any(item.source == "adr_latest" for item in by_path["CLAUDE.md"])
         zh = by_path["apps/web/src/data/guides/how.zh.md"]
-        # Three surfaces read this one file: the repeated "N 篇 ADR" phrasing
-        # (three occurrences, hence its expected count), the codebase-metrics
-        # table, and the "N 篇 MADR" sentence that sat one word outside the
-        # first pattern and drifted alone while its five siblings were fixed.
+        # Three surfaces read the ADR count in this one file: the repeated
+        # "N 篇 ADR" phrasing (three occurrences, hence its expected count), the
+        # codebase-metrics table, and the "N 篇 MADR" sentence that sat one word
+        # outside the first pattern and drifted alone while its five siblings
+        # were fixed. Three more read the metric count: the two table cells, the
+        # coverage sentence, and the codebase-metrics row that drifted to 589
+        # while no surface declared it.
         by_label: dict[str, int] = {}
         for item in zh:
             by_label[item.label] = by_label.get(item.label, 0) + 1
@@ -504,6 +527,7 @@ class TestDerivedCounts:
             "how.zh.md MADR sentence (ADR count)": 1,
             "how.zh.md metric count (transparency row + Prometheus row)": 2,
             "how.zh.md metric count (coverage sentence)": 1,
+            "how.zh.md codebase-metrics row (metric count)": 1,
         }
         # Two sources read the same file, so the ADR assertion has to name the
         # source it means — otherwise adding a surface would silently weaken it.

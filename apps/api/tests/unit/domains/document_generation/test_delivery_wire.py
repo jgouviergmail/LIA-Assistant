@@ -31,4 +31,11 @@ def test_peek_then_clear_serialize_identically() -> None:
     live = to_wire_metadata(get_and_clear_pending_documents("conv-wire"))
     assert archived == live
     # And the shape is exactly what the frontend GeneratedDocument type reads.
-    assert set(archived[0]) == {"url", "filename", "doc_type", "size_bytes", "expires_at"}
+    assert set(archived[0]) == {
+        "url",
+        "filename",
+        "doc_type",
+        "size_bytes",
+        "expires_at",
+        "kept",
+    }

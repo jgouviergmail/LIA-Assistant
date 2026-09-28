@@ -40,7 +40,7 @@ graph LR
     D[User Query] --> B
     B --> E[Format Results]
     E --> F[LLM Call<br/>response slot]
-    F --> G[Post-Processing<br/>Photos/Links]
+    F --> G[Post-Processing<br/>relevant_ids + V3 cards]
     G --> H[AI Response<br/>Markdown]
 ```
 
@@ -54,23 +54,23 @@ graph LR
 
 **Outputs**:
 - `AIMessage` avec réponse conversationnelle (Markdown)
-- `content_final_replacement`: Signal pour streaming service (photos injectées)
+- `content_final_replacement`: Signal pour streaming service (contenu post-traité)
 
 ### Concepts Clés
 
 | Concept | Description |
 |---------|-------------|
-| **Conversational LLM** | gpt-4.1-mini avec temperature 0.7 pour créativité |
+| **Conversational LLM** | le modèle configuré sur le slot `response` (ADR-244 : chaque déploiement choisit le sien) |
 | **Agent Results Formatting** | Conversion résultats agents en texte structuré |
-| **Post-Processing** | Injection photos HTML et liens profile |
+| **Post-Processing** | Filtrage `<relevant_ids>` du registre du tour, puis rendu V3 (widgets, cartes de données) |
 | **Anti-Hallucination** | Directives strictes contre invention de données |
 | **Aveu d'échec fidèle (ADR-182)** | Quand le validateur refuse des étapes, le tour continue mais le modèle ne voyait qu'un résultat vide et **inventait** un diagnostic (mesuré 2026-07-30 : « aucun service n'est configuré » sur des services sains). `services/plan_blockers.py` réduit le verdict aux capacités bloquées et à leur cause (niveau capacité, jamais l'URL de scope brute), et la directive versionnée `response_directive_plan_blocked.txt` interdit de généraliser au-delà de cette liste, de blâmer l'utilisateur, ou de présenter une capacité manquante du demandeur comme une réponse sur la donnée d'un tiers. Généralisée à **tout** `ToolErrorCode` : un code non mappé dégrade vers une cause plus vague, jamais vers le silence. Un refus explicite de l'utilisateur (plan rejeté, brouillon annulé) garde la priorité. **Depuis ADR-184, le verdict est pesé contre ce que le tour a réellement exécuté** : `executed_tool_names(execution_plan, completed_steps)` liste les outils qui ont produit, et une capacité qui a produit n'est jamais déclarée bloquée — le routage ne lit jamais `is_valid`, donc un plan refusé s'exécute inchangé et réussit le plus souvent (mesuré 2026-07-31 : dix emails dans le registre, « la récupération a été bloquée »). Un blocage de niveau plan est tu dès que quoi que ce soit a produit ; l'ensemble vide — état absent ou revenu déformé d'un aller-retour msgpack — restaure le comportement antérieur, jamais l'inverse. Un tour partiellement bloqué présente ses résultats et nomme ce qui a manqué. |
-| **Message Windowing** | 20 derniers turns conversationnels (contexte riche) |
+| **Message Windowing** | les derniers tours conversationnels, `RESPONSE_MESSAGE_WINDOW_SIZE` (contexte riche) |
 | **Context Prefetch (ADR-091)** | Les injections de contexte utilisateur (embedding du message, profil mémoire, RAG user/system, journal, portrait, psyché) vivent dans `services/response_context.py` et sont **préchargées depuis l'initiative node** en parallèle de son évaluation LLM (pipeline ET ReAct). Le response node fait un `pop_response_context(run_id)` ; sur tout miss (tour conversation, initiative désactivée/skippée, timeout), il exécute le **même** `fetch_response_context()` inline — zéro delta de comportement. Kill-switch `RESPONSE_CONTEXT_PREFETCH_ENABLED`. |
-| **Mode HTML sans `<style>` + composants (ADR-177)** | En mode HTML enrichi, le LLM n'émet ni bloc `<style>` ni style inline : les règles `.lia-response` vivent dans `lia-components.css`. Depuis ADR-177 la directive expose un vocabulaire de composants (callouts ×4 avec titre, chips, `details` dépliables, listes clé-valeur `dl.lia-kv`, colonnes `lia-columns`, étapes `lia-steps`, tuiles `lia-stats`, code `language-*` → coloration Prism + bouton copier, `mark`/`kbd`/`abbr`) avec une règle de sobriété (2-3 composants max). Sync directive↔CSS verrouillée par `test_html_directive_css_sync.py`. |
+| **Mode HTML sans `<style>` + composants (ADR-177)** | En mode HTML enrichi, le LLM n'émet ni bloc `<style>` ni style inline : les règles `.lia-response` vivent dans `lia-components.css`. Depuis ADR-177 la directive expose un vocabulaire de composants (callouts ×4 avec titre, chips, `details` dépliables, listes clé-valeur `dl.lia-kv`, colonnes `lia-columns`, étapes `lia-steps`, tuiles `lia-stats`, code `language-*` → coloration Prism + bouton copier, `mark`/`kbd`/`abbr`) pour une composition adaptée aux données. En `html_cards`, la synthèse évite de recopier les fiches ajoutées. Sync directive↔CSS verrouillée par `test_html_directive_css_sync.py`. |
 | **Multilingual** | Support 6 langues avec personnalisation temporelle |
-| **Display Modes** | Format de sortie piloté par `user_display_mode` : `cards` (défaut, Markdown + cartes HTML), `markdown` (Markdown pur), `html` (HTML enrichi `lia-response`) |
-| **History Style Neutralization** | En mode `html`, le style des réponses assistant de l'historique est neutralisé pour que la directive HTML reste la seule autorité de mise en forme (voir section Message Windowing) |
+| **Display Modes** | Format de sortie piloté par `user_display_mode` : `cards` (défaut, Markdown + cartes HTML), `markdown` (Markdown pur), `html` (HTML enrichi `lia-response`), `html_cards` (synthèse HTML enrichie + cartes sélectionnées) |
+| **History Style Neutralization** | En modes `html` et `html_cards`, le style des réponses assistant de l'historique est neutralisé pour que la directive HTML reste la seule autorité de mise en forme (voir section Message Windowing) |
 
 ---
 
@@ -93,8 +93,8 @@ graph TD
     I --> J[Filter Conversational<br/>Messages]
     J --> K[Build Prompt<br/>Response v3]
     K --> L[LLM Call<br/>response slot]
-    L --> M[Post-Processing<br/>Photos Injection]
-    M --> N{Photos<br/>Injected?}
+    L --> M[Post-Processing<br/>relevant_ids + V3 rendering]
+    M --> N{Content<br/>modified?}
     N -->|Yes| O[Set content_final_replacement]
     N -->|No| P[Set content_final_replacement=None]
     O --> Q[Return AIMessage]
@@ -105,11 +105,9 @@ graph TD
 
 **Fichier**: [apps/api/src/domains/agents/nodes/response_node.py](../../apps/api/src/domains/agents/nodes/response_node.py)
 
-**Longueur**: 993 lignes
-
 **Decorators**:
 ```python
-@trace_node("response", llm_model=settings.response_llm_model)
+@trace_node("response")
 @track_metrics(
     node_name="response",
     duration_metric=agent_node_duration_seconds,
@@ -165,13 +163,14 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         if "content_final_replacement" in state:
             logger.debug("cleaning_previous_content_replacement", run_id=run_id)
 
-        # Get user timezone and language from state (with fallbacks)
-        user_timezone = state.get("user_timezone", "Europe/Paris")
-        user_language = state.get("user_language", "fr")
+        # Timezone and language from state; an absent language is the declared one (ADR-323)
+        user_timezone = state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
+        user_language = resolve_language(state.get("user_language"))
 
-        # Get response LLM and timezone-aware prompt
-        llm = get_llm("response")
-        prompt = get_response_prompt(user_timezone=user_timezone, user_language=user_language)
+        # Response LLM (the vision slot when the turn carries an image), and the
+        # system prompt: get_response_prompt, then the tone and the contexts
+        llm = get_llm("vision_analysis") if has_vision_content else get_llm("response")
+        base_system_prompt = _build_response_system_prompt(...)
 
         # Format agent results for prompt context
         # Filter by current turn to only show results from this conversation turn
@@ -194,117 +193,93 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             agent_results_summary = _format_rejection_details(plan_rejection_reason)
             logger.info("response_node_plan_rejection", run_id=run_id)
 
-        # Check if planner encountered an error (Phase 5)
+        # A recorded planner error would be prepended to the agent results the
+        # model reads — nothing records one today (ADR-323, found not fixed)
         planner_error = state.get(STATE_KEY_PLANNER_ERROR)
         if planner_error:
-            error_message = planner_error.get("message", "Plan validation failed")
+            error_message = planner_error.get(
+                "message", APIMessages.plan_validation_failed(user_language)
+            )
             errors = planner_error.get("errors", [])
-
-            # Build user-friendly error explanation
-            error_details = f"\n\n⚠️ **Problème de planification:**\n{error_message}\n\n"
-
+            error_details = APIMessages.planner_error_header(error_message, user_language)
             if errors:
-                error_details += "**Détails techniques:**\n"
-                for err in errors[:3]:  # Limit to 3 errors max
-                    error_details += f"- {err.get('message', 'Unknown error')}\n"
-
-                error_details += "\n💡 **Explication:** Le planner n'a pas pu créer un plan d'exécution valide pour cette requête."
-
-            # Prepend error to agent results summary
+                error_details += APIMessages.planner_technical_details(user_language)
+                for err in errors[:RESPONSE_MAX_ERRORS_DISPLAY]:
+                    err_msg = err.get("message") or APIMessages.planner_unknown_error(user_language)
+                    error_details += f"- {err_msg}\n"
+                error_details += APIMessages.planner_explanation(user_language)
             agent_results_summary = error_details + "\n\n" + agent_results_summary
 
-        # CRITICAL: Detect if this is a conversational turn with no new agent results
-        is_conversational_turn = (
-            agent_results_summary == "Aucun agent externe n'a été appelé."
-            or not agent_results_summary.strip()
+        # The history: the current turn's own responses dropped (the ReAct
+        # answer reaches the model through agent_results), windowed — the
+        # windowing already removes ToolMessages and tool-calling AIMessages —,
+        # then filtered for the LLM (a card's HTML reduced to its leading prose,
+        # a placeholder only when it has none; styles neutralised in HTML modes).
+        # Abridged: the real code also drops a refused plan's messages
+        # (_prepare_conversational_messages).
+        windowed_messages = get_response_windowed_messages(
+            drop_current_turn_responses(state[STATE_KEY_MESSAGES])
+        )
+        conversational_messages = filter_for_llm_context(
+            windowed_messages, neutralize_formatting=neutralize_history_formatting
         )
 
-        # Phase: Performance Optimization - Message Windowing
-        # Response needs rich context for creative synthesis (20 turns default)
-        from src.domains.agents.utils.message_windowing import get_response_windowed_messages
-
-        windowed_messages = get_response_windowed_messages(state[STATE_KEY_MESSAGES])
-
-        # Filter messages to keep only conversational messages
-        # Removes ToolMessage and AIMessage with tool_calls
-        conversational_messages = filter_conversational_messages(windowed_messages)
-
-        # Create chain
-        chain = prompt | llm
-
-        # CRITICAL: Build SYSTEM-level anti-hallucination directive for rejected plans
-        rejection_override = ""
-        if plan_rejection_reason:
-            rejection_override = (
-                "🚨 CRITICAL SYSTEM DIRECTIVE - PLAN REJECTION 🚨\n\n"
-                "The user has EXPLICITLY REJECTED the execution plan.\n"
-                "NO operations were executed. NO data was retrieved. NO results exist.\n\n"
-                "ABSOLUTE RULES:\n"
-                "1. You MUST NOT invent, hallucinate, or fabricate ANY search results\n"
-                "2. You MUST NOT pretend that operations were executed\n"
-                "3. You MUST use the 'User Rejected Plan' response format from your system prompt\n"
-                "4. You MUST respond in the SAME LANGUAGE the user used\n"
-                "5. You MUST acknowledge the rejection respectfully and offer alternatives\n\n"
-            )
-        elif is_conversational_turn:
-            # Anti-hallucination directive for conversational turns
-            rejection_override = (
-                "🚨 CONVERSATIONAL TURN - NO NEW AGENT RESULTS 🚨\n\n"
-                "This is a CONVERSATIONAL query (e.g., 'comment ca va?', 'merci').\n"
-                "NO new operations were executed. NO new data was retrieved.\n\n"
-                "ABSOLUTE RULES:\n"
-                "1. You MUST respond CONVERSATIONALLY to the user's message\n"
-                "2. You MUST NOT redisplay previous search results\n"
-                "3. Previous results in conversation history are for CONTEXT ONLY\n"
-                "4. If user asks to RECALL previous info, THEN use history\n\n"
-            )
+        # The chain: base prompt, skill contract, at most ONE versioned directive
+        # (draft cancelled, plan refused or plan blocked — see "Layer 2" below),
+        # the acts the turn performed, the agent results, the conversation, then
+        # the language reminder. A conversational turn gets no directive: the base
+        # prompt's <DataAuthority> rules govern it.
+        chain = _build_response_chain(
+            base_system_prompt=base_system_prompt,
+            agent_results_summary=agent_results_summary,
+            skills_context=skills_context,
+            plan_rejection_reason=plan_rejection_reason,
+            state=state,
+            user_language=user_language,
+            llm=llm,
+            performed_actions_block=await build_performed_actions_block(
+                state, run_id_of(config), user_language
+            ),
+        )
 
         # Enrich config with node metadata for observability
         enriched_config = enrich_config_with_node_metadata(config, "response")
 
-        # Invoke LLM
-        result = await chain.ainvoke(
-            {
-                STATE_KEY_MESSAGES: conversational_messages,
-                "rejection_override": rejection_override,
-                "agent_results": agent_results_summary,
-            },
-            config=enriched_config,
+        # (Abridged) A confirmed or cancelled draft takes a FAST PATH here: no
+        # model call, a short answer, the business metrics instrumented with the
+        # draft's execution — the turn ends there. The nominal path instruments
+        # them after post-processing (_instrument_business_metrics).
+
+        # Invoke LLM: every block is already in the template
+        result = await asyncio.wait_for(
+            chain.ainvoke({STATE_KEY_MESSAGES: conversational_messages}, config=enriched_config),
+            timeout=settings.response_llm_timeout_seconds,
         )
 
-        # POST-PROCESSING: Inject contact photos via placeholder replacement
-        photos_by_contact = _extract_contact_photos_html(
-            state.get(STATE_KEY_AGENT_RESULTS, {}),
-            current_turn_id=state.get(STATE_KEY_CURRENT_TURN_ID),
-        )
+        # POST-PROCESSING: the psyche self-report and the tone annotation are
+        # stripped, then <relevant_ids> filtering of the turn's registry and
+        # the V3 HTML rendering (widgets always, data cards in cards / html_cards)
+        original_content = coerce_content_to_text(result.content)
+        final_content, current_turn_registry = _apply_relevant_ids_filtering(...)
+        final_content = _render_response_html(...)
 
-        photos_injected = False
-        if photos_by_contact:
-            result.content, photos_injected = _inject_photos_via_placeholders(
-                result.content, photos_by_contact
-            )
-
-        # Signal streaming service that final content replacement is needed
+        # Signal the streaming service when post-processing changed the text —
+        # the stored message becomes the modified text too; None clears a value
+        # the checkpoint kept from an earlier turn
+        content_was_modified = final_content != original_content
+        if content_was_modified:
+            result = AIMessage(content=final_content)
         state_update: dict[str, Any] = {STATE_KEY_MESSAGES: [result]}
-        if photos_injected:
-            state_update["content_final_replacement"] = result.content
-        else:
-            # ✅ CRITICAL FIX: MUST explicitly set to None to override persisted value
-            state_update["content_final_replacement"] = None
+        state_update["content_final_replacement"] = (
+            final_content if content_was_modified else None
+        )
 
         return state_update
 
-    except Exception as e:
-        logger.error("response_node_exception", run_id=run_id, exception_type=type(e).__name__, exc_info=True)
-
-        graph_exceptions_total.labels(
-            node_name="response",
-            exception_type=type(e).__name__,
-        ).inc()
-
-        # Fallback: return error message
-        error_message = HumanMessage(content=get_error_fallback_message(type(e).__name__))
-        return {STATE_KEY_MESSAGES: [error_message]}
+    except (RuntimeError, ValueError, KeyError, TypeError, AttributeError) as e:
+        # Logged, counted (graph_exceptions_total), and answered as the
+        # ASSISTANT in the person's language
+        return _response_error_fallback(state, run_id, e)
 ```
 
 ### Pattern Learning Recording
@@ -341,58 +316,61 @@ if state.get("plan_bypassed_validation"):
 
 **Date**: 2025-11-08
 
-**Longueur**: ~1,750 tokens (7KB) - **50% reduction from v1**
+**Longueur**: le fichier versionné fait foi (ce document n'en recopie pas la taille).
 
 ### Structure Prompt
 
-Le prompt est divisé en **2 sections** pour optimiser le caching OpenAI:
+Le prompt est divisé en **2 parties** par la ligne
+`--- DYNAMIC CONTEXT (all variable data below) ---` : tout ce qui la précède ne
+change pas d'un tour à l'autre pour un même compte, tout ce qui la suit change à
+chaque tour. Les adaptateurs de fournisseur coupent le préfixe relu par le cache
+de prompt à cette ligne (ADR-309).
 
-#### Section 1: STATIC (Cacheable)
+#### Partie 1 : STABLE (préfixe du cache)
 
-```
-# ============================================================================
-# STATIC SECTION (Cacheable - Place at top for OpenAI prompt caching)
-# ============================================================================
-```
+**Contenu** (les blocs du fichier, dans l'ordre) :
+- `<Personality>`, `<agent_identity>`, `<context_and_operating_boundaries>`
+- `<DataAuthority>` (la vérité des données) et `<operational_heuristics>`, qui
+  contient `<SubAgentDeliveryOverride>`
+- `<tool_orchestration_contract>`, `<security_and_containment_protocols>`
+- `<edge_cases_and_contingency>` : aucun résultat, donnée absente, tri
+  ambigu — un plan refusé n'y figure pas : il passe par une directive
+  versionnée et `response_plan_rejection_notice.txt` (voir plus bas)
+- `<canonical_examples>`, `<output_specifications>`
 
-**Contenu** (lignes 13-183):
-- Personnalité IA (rebelle, sarcastique, intelligent)
-- Core Rules (Anti-Hallucination - 5 règles)
-- Response Structure (Intro, Main Content, Conclusion)
-- Edge Cases (User Rejected Plan, Technical Error, No Results)
-- Best Practices
+Ses seules valeurs sont celles du compte — sa personnalité (`{personnalite}`) et
+sa langue (`{user_language}`) : d'un tour à l'autre, un fournisseur doté d'un cache
+de prompt relit ce préfixe, au tarif que déclare la table des prix ; un modèle sans
+cache paie ce qu'il payait (ADR-309).
 
-**Bénéfice caching**: Cette section est **identique** pour toutes les requêtes → cached automatiquement après première utilisation → **90% cost reduction** sur ces tokens.
+#### Partie 2 : VARIABLE (chaque tour)
 
-#### Section 2: DYNAMIC (Non-cacheable)
-
-```
-# ============================================================================
-# DYNAMIC SECTION (Non-cacheable - Updated per request)
-# ============================================================================
-```
-
-**Contenu** (lignes 184-206):
-- Current Context (date/time)
-- Time-based personalization (morning, evening, etc.)
-- Week vs weekend tone
+**Contenu** : `<TemporalContext>` (la date et l'heure courantes, la taille de la
+fenêtre), puis `{context_sections}` — les sections de contexte déclarées dans
+`response_context_sections.txt`, chacune émise seulement quand son contenu existe
+(ADR-284).
 
 **Injected via ChatPromptTemplate**:
 - Agent results
 - Conversation history
 - User message
 
-#### App Knowledge Context (`{app_knowledge_context}` placeholder)
+#### App Knowledge Context (la section `AppKnowledge`)
 
-When `is_app_help_query=True` (detected by QueryAnalyzer), the Response Node injects additional context to help the LLM answer questions about LIA itself:
+When `is_app_help_query=True` (detected by QueryAnalyzer), the Response Node injects additional context to help the LLM answer questions about LIA itself, as the `AppKnowledge` section of `response_context_sections.txt` (key `app_knowledge_context`):
 
-1. **App Identity Prompt** — loaded from `app_identity_prompt.txt` (in the prompts directory). Contains structured knowledge about LIA's features, setup instructions, supported integrations, and usage guidance. This prompt is loaded and injected into the `{app_knowledge_context}` placeholder in `response_system_prompt_base.txt`. Since v1.9.2, it also includes an admin-boundary directive instructing the LLM to never reference admin-only features (admin panels, LLM configuration, user management) when talking to regular users.
+1. **App Identity Prompt** — loaded from `app_identity_prompt.txt` (in the prompts directory). Contains structured knowledge about LIA's features, setup instructions, supported integrations, and usage guidance. Since v1.9.2, it also includes an admin-boundary directive instructing the LLM to never reference admin-only features (admin panels, LLM configuration, user management) when talking to regular users.
 
 2. **System RAG Context** — optionally enriches the response with FAQ chunks retrieved from the knowledge base. When relevant FAQ entries exist, they are appended to the app knowledge context to provide precise, up-to-date answers.
 
-**Lazy loading**: When `is_app_help_query=False`, the `{app_knowledge_context}` placeholder resolves to an empty string. Neither the app identity prompt file nor the RAG retrieval are loaded, ensuring zero overhead for standard (non-help) queries.
+**Lazy loading**: When `is_app_help_query=False`, the section is empty and `get_response_prompt` leaves it out, instruction included (ADR-284). Neither the app identity prompt file nor the RAG retrieval are loaded, ensuring zero overhead for standard (non-help) queries.
 
 ### Core Rules (Anti-Hallucination)
+
+> Les règles ci-dessous décrivent le prompt d'avant sa consolidation. Le fichier
+> `response_system_prompt_base.txt` les a réécrites — `<DataAuthority>` pour la
+> vérité des données, `<operational_heuristics>` pour le filtrage et la forme — et
+> c'est lui qui fait foi.
 
 **Règle #1: Verified Data ONLY**
 ```
@@ -409,17 +387,21 @@ When `is_app_help_query=True` (detected by QueryAnalyzer), the Response Node inj
 
 **Règle #3: Output Format (display-mode dependent)**
 ```
-- Format dépend de user_display_mode (cards | markdown | html) :
+- Format dépend de user_display_mode (cards | markdown | html | html_cards) :
   - cards / markdown → réponse en Markdown
     - Structure: ## sections, ### subsections, --- separators
     - Emojis: ✅❌⚠️📧📞📇🔍📅💡🎯 (relevant)
-  - html → HTML enrichi <div class="lia-response"> (directive
+  - html / html_cards → HTML enrichi <div class="lia-response"> (directive
     html_response_directive.txt, override des consignes Markdown)
+  - html_cards → synthèse HTML suivie des cartes choisies par <relevant_ids> ;
+    html_cards_response_directive.txt évite de recopier les fiches dans la synthèse
 ```
 
-> Note: la directive Markdown ci-dessus est la consigne de base ; en mode `html`
+> Note: la directive Markdown ci-dessus est la consigne de base ; en modes `html` et `html_cards`
 > elle est explicitement remplacée par `html_response_directive.txt`
 > (« OVERRIDE ALL PREVIOUS FORMATTING INSTRUCTIONS »).
+> Sur un tour conversationnel avec voix activée, les directives HTML sont supprimées
+> pour que la synthèse vocale ne lise pas les balises du texte diffusé.
 
 **Règle #4: Media Fields (Photos)**
 ```
@@ -452,6 +434,10 @@ Your response:
 ```
 
 ### Response Structure
+
+> Comme les règles ci-dessus, les gabarits de cette section et de la suivante
+> décrivent le prompt d'avant sa consolidation ; `<output_specifications>` et
+> `<edge_cases_and_contingency>` du fichier font foi.
 
 **1. Intro** (italic + sarcastic):
 ```markdown
@@ -674,6 +660,49 @@ if photos and isinstance(photos, list) and len(photos) > 0:
 ---
 
 ## 🎨 Post-Processing
+
+In `cards` and `html_cards` modes, data cards reflect the final answer's selection. Whenever
+`DataForFiltering` contains items, the model declares the retained IDs in
+`<relevant_ids>`, including unfiltered requests and ReAct answers. An empty
+selection stays empty, including searches mixing weather and personal data.
+Missing selection metadata does not display every candidate in either mode with cards.
+Approval drafts and interactive widgets remain available; initiative results
+also require selection before becoming data cards. Neither context resolution
+nor the final SSE replacement resurrects an explicitly discarded selection.
+
+On a reference turn without fresh agent results, payloads still held in
+`resolved_context` become registry candidates before `DataForFiltering` if their
+registry slice has expired. They undergo the same positive selection; fresh
+results remain authoritative, and rendering never restores rejected candidates.
+
+`html_cards` combines the existing rich HTML response with that same deterministic
+card renderer. The versioned `html_cards_response_directive.txt` specializes the rich
+HTML directive: prose contributes the answer, comparisons, caveats and next steps;
+the appended cards carry the detailed fields. It does not ask the model to reproduce
+the cards or to add a component for every field. The synthesis and `<relevant_ids>`
+come from the same response-model call. Widgets are still injected once in every
+display mode, before data cards, and an empty final selection cannot fall back to
+discarded records for rendering or final SSE emission.
+
+Avatar weather styles use the `lia-ambient-weather` prefix; `lia-weather`
+belongs to data cards. Card-bearing bubbles have an explicit width so their
+container queries cannot collapse a short answer to its title's width.
+
+Contact card photos declare `lia-illus__image`, keeping them inside their
+illustration frame without the standalone image wrapper. `rehypeContactPhotos`
+runs after `rehypeTableLabels` and before search highlighting: on the already
+sanitized AST it restores that fixed class to images directly inside a contact
+card's `lia-illus` frame, repairing saved answers without rewriting history.
+It changes no URL or style and creates no markup. Google photos pass through
+the same authenticated proxy before both preload and rendering; standalone
+photo classification uses the original URL and retains its lightbox.
+
+> **Historique.** L'injection de photos par marqueur décrite ci-dessous
+> (`_extract_contact_photos_html`, `_inject_photos_via_placeholders`, `[PHOTOS]`)
+> n'existe plus : le nœud de réponse filtre le registre du tour par `<relevant_ids>`
+> (`_apply_relevant_ids_filtering`), puis dessine les widgets et les cartes de
+> données après le modèle (`_render_response_html`, rendu V3). La section est
+> gardée comme trace de la conception d'origine.
 
 ### Objectif
 
@@ -939,31 +968,27 @@ except Exception as e:
 
 ### Objectif
 
-**Performance optimization**: Response node needs rich context (20 turns default) au lieu de full conversation history (50+ turns).
+**Performance optimization**: Response node needs rich context (`settings.response_message_window_size` tours) au lieu de full conversation history.
 
 ### get_response_windowed_messages
 
 ```python
 # apps/api/src/domains/agents/utils/message_windowing.py
 
-def get_response_windowed_messages(
-    messages: list[BaseMessage],
-    max_turns: int = 20,
-) -> list[BaseMessage]:
+def get_response_windowed_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
     """
     Get windowed messages for response node.
 
     Response needs rich context for creative synthesis:
-    - Recent user queries (20 turns default)
+    - Recent user queries (settings.response_message_window_size turns)
     - SystemMessage always preserved
     - Conversational AIMessages for continuity
 
     Args:
         messages: Full message history
-        max_turns: Maximum conversational turns to keep (default: 20)
 
     Returns:
-        Windowed messages (SystemMessage + last 20 turns)
+        Windowed messages (SystemMessages + the last window of turns)
     """
     if not messages:
         return []
@@ -1030,12 +1055,18 @@ def filter_conversational_messages(messages: list[BaseMessage]) -> list[BaseMess
 
 ### Usage dans Response Node
 
-```python
-# Apply windowing BEFORE filtering
-windowed_messages = get_response_windowed_messages(state[STATE_KEY_MESSAGES])
+Le nœud ne l'appelle pas lui-même : le fenêtrage l'applique
+(`get_windowed_messages`), puis le nœud filtre pour le contexte du modèle.
 
-# Filter to keep only conversational messages
-conversational_messages = filter_conversational_messages(windowed_messages)
+```python
+# The current turn's own responses dropped, then windowing (which applies
+# filter_conversational_messages), then the LLM-context filter
+windowed_messages = get_response_windowed_messages(
+    drop_current_turn_responses(state[STATE_KEY_MESSAGES])
+)
+conversational_messages = filter_for_llm_context(
+    windowed_messages, neutralize_formatting=neutralize_history_formatting
+)
 
 logger.debug(
     "response_node_messages_filtered",
@@ -1056,15 +1087,30 @@ logger.debug(
 
 ### Display Modes & History Style Neutralization
 
-Le format de sortie est piloté par `user_display_mode` (`configurable`) :
+Le format de sortie est piloté par `LiaRuntimeContext.display_mode`, alimenté par
+la préférence `User.response_display_mode` :
 
 | Mode | Sortie | Historique assistant injecté au LLM |
 |------|--------|-------------------------------------|
-| `cards` (défaut) | Markdown + cartes HTML | Markdown conservé verbatim ; cartes HTML réduites au placeholder `[Résultats affichés]` |
+| `cards` (défaut) | Markdown + cartes HTML | Markdown conservé verbatim ; cartes HTML réduites au placeholder `[Results displayed]` (`CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER`) |
 | `markdown` | Markdown pur | Idem `cards` |
-| `html` | HTML enrichi `lia-response` | **Style neutralisé** (Markdown + HTML strippés), contenu préservé, préfixé du marqueur `[réponse précédente, mise en forme omise]` |
+| `html` | HTML enrichi `lia-response` | **Style neutralisé** (Markdown + HTML strippés), contenu préservé, préfixé du marqueur `[previous answer, formatting omitted]` (`CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER`) |
+| `html_cards` | Synthèse HTML enrichie `lia-response` + cartes HTML sélectionnées | Idem `html` |
 
-**Pourquoi neutraliser en mode `html`** — `filter_for_llm_context` traitait les tours
+Les groupes `RESPONSE_DISPLAY_MODES_WITH_HTML` et `RESPONSE_DISPLAY_MODES_WITH_CARDS`
+déclarent ces deux capacités dans `src/core/constants.py`. La validation du point
+d'entrée `PATCH /auth/me/display-mode-preference` lit `RESPONSE_DISPLAY_MODE_CHOICES` ;
+les schémas de profil transportent la valeur conservée dans la colonne texte existante.
+Le mode combiné ne demande aucune migration de stockage ni appel modèle supplémentaire.
+
+**Voix** — les deux modes HTML partagent `_should_inject_html_directive` : la directive
+est injectée sur un tour dirigé vers `planner`, ou lorsque la voix de l'utilisateur est
+désactivée. Sur les autres routes avec voix activée, la réponse conversationnelle reste
+en Markdown puisqu'elle est lue directement. Les cartes et widgets sont ajoutés après
+la génération, selon les mêmes règles de sélection ; le contexte vocal conserve son
+périmètre au tour courant.
+
+**Pourquoi neutraliser en modes HTML** — `filter_for_llm_context` traitait les tours
 assistant de façon asymétrique : réponses HTML précédentes réduites à un placeholder,
 réponses Markdown conservées telles quelles. Sur plusieurs tours, l'historique visible
 finissait uniformément en Markdown, et le LLM en déduisait que « Markdown = la norme »,
@@ -1072,18 +1118,25 @@ outrepassant la directive HTML (cliquet à sens unique dès qu'un tour Markdown 
 dans le contexte).
 
 **Correctif** — `filter_for_llm_context(neutralize_formatting=True)`, activé par le
-response node uniquement quand `user_display_mode == html`. Chaque réponse assistant de
+response node pour `html` et `html_cards`. Chaque réponse assistant de
 l'historique est convertie en texte sans style (helpers `_strip_markdown_syntax` /
 `_neutralize_assistant_formatting`), de sorte qu'**aucun précédent de style** ne subsiste
 dans le contexte — la neutralisation est *structurelle* (le Markdown est physiquement
 retiré), le marqueur n'étant qu'un signal explicite complémentaire. Le contenu du tour
-courant à reformater n'est pas touché. Défaut `False` → modes `cards` / `markdown` et
-chemin planner inchangés (zéro régression) ; sans effet au tour 1 (pas d'historique).
+courant à reformater n'est pas touché. Avec le défaut `False`, les réponses Markdown
+gardent leur style ; sans effet au tour 1 (pas d'historique).
+
+La synthèse des racines `lia-response` est extraite structurellement et conservée
+comme texte, y compris après un changement de mode. Seul le texte précédant le
+premier tag était auparavant conservé : une réponse entièrement HTML perdait donc
+son contenu. Les sous-arbres de cartes, widgets et contenus invisibles restent
+exclus, même en présence de balises mal imbriquées. Les entités sont décodées une
+seule fois et les messages stockés ne sont pas réécrits.
 
 Constantes : `CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER`,
 `CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER` (`src/core/constants.py`).
 
-**Vocabulaire de composants du mode `html` (ADR-177)** — la directive
+**Vocabulaire de composants des modes `html` et `html_cards` (ADR-177)** — la directive
 `html_response_directive.txt` documente, au-delà des éléments de base
 (titres, listes, tables avec `<caption>`, blockquotes, code `language-*` →
 `CodeBlock` Prism + bouton copier), sept composants stylés par
@@ -1119,13 +1172,12 @@ verrouillée par le garde `test_html_directive_css_sync.py`
 ```mermaid
 graph TD
     A[User Query] --> B{Plan<br/>Rejected?}
-    B -->|Yes| C[Layer 1:<br/>Format Rejection Details<br/>🚫 prohibition signal]
-    C --> D[Layer 2:<br/>rejection_override<br/>SYSTEM directive]
-    D --> E[Layer 3:<br/>Prompt Rule #2<br/>HITL handling]
+    B -->|Yes| C[Layer 1:<br/>response_plan_rejection_notice<br/>🚫 prohibition signal]
+    C --> D[Layer 2:<br/>response_directive_plan_rejection<br/>SYSTEM directive]
+    D --> E[Layer 3:<br/>DataAuthority<br/>base prompt]
     B -->|No| F{Conversational<br/>Turn?}
-    F -->|Yes| G[Layer 1:<br/>is_conversational_turn flag]
-    G --> H[Layer 2:<br/>rejection_override<br/>CONVERSATIONAL directive]
-    H --> I[Layer 3:<br/>Prompt Best Practices<br/>History context]
+    F -->|Yes| G[Layer 1:<br/>message filtering<br/>no tool output]
+    G --> I[Layer 3:<br/>DataAuthority<br/>History context]
     F -->|No| J[Normal Flow<br/>Agent Results]
     E --> K[LLM Call]
     I --> K
@@ -1136,82 +1188,39 @@ graph TD
 
 #### Format Rejection Details
 
-```python
-def _format_rejection_details(rejection_reason: str) -> str:
-    """
-    Format plan rejection with EXPLICIT anti-hallucination directives.
+`_format_rejection_details` (`nodes/response_node.py`) rend l'avis versionné
+`prompts/v1/response_plan_rejection_notice.txt` (ADR-323) : un texte en anglais
+technique, puisque seul le modèle le lit, ouvert par le signal d'interdiction 🚫 (jamais
+✅), qui déclare qu'aucune opération n'a tourné et qu'aucune donnée n'existe, et interdit
+d'en inventer. Son seul paramètre est `{reason}` : la raison que l'écrivain de l'état a
+posée — la clarification annulée par la personne (`User cancelled during
+clarification`), seule à en écrire une —, relayée telle quelle ; une porte d'approbation
+sans plan n'écrit aucun refus (rien à approuver n'est pas un refus). Il ne faut pas le
+confondre avec la directive système `response_directive_plan_rejection` (couche 2
+ci-dessous), injectée au même tour.
 
-    CRITICAL: Uses 🚫 prohibition signal and direct LLM instructions.
-    """
-    reason_text = (
-        rejection_reason
-        if rejection_reason != "User rejected plan"
-        else "L'utilisateur a choisi de ne pas exécuter ce plan"
-    )
+### Layer 2: directives système versionnées
 
-    # CRITICAL: Use 🚫 (prohibition) not ✅ (success)
-    return (
-        "🚫 PLAN REFUSÉ PAR L'UTILISATEUR (AUCUNE DONNÉE DISPONIBLE)\n\n"
-        "ATTENTION: N'invente AUCUNE donnée. Le plan a été explicitement rejeté.\n"
-        "AUCUNE opération n'a été exécutée. AUCUN résultat n'existe.\n\n"
-        f"**Raison du refus:** {reason_text}\n"
-        "**Statut:** Aucune action effectuée\n"
-        "**Réponse attendue:** Accuse réception du refus et propose alternatives\n\n"
-        "RÈGLE ABSOLUE: Ne mentionne AUCUN résultat de recherche, contact, ou donnée métier.\n"
-        "Le contexte conversationnel précédent est CADUC (annulé par refus)."
-    )
-```
+`_build_response_chain` (`nodes/response_node.py`) injecte au plus UNE des trois
+directives versionnées, chacune recevant le NOM de la langue (`get_language_name`,
+ADR-323) — les fichiers sont le texte, ce document ne les recopie pas :
 
-### Layer 2: rejection_override (SYSTEM Directive)
+| Situation | Directive (`prompts/v1/`) | Paramètres |
+|---|---|---|
+| La personne a annulé un brouillon (l'emporte sur un refus du même tour) | `response_directive_draft_cancelled.txt` | `{user_language}`, `{draft_type}` |
+| La personne a refusé le plan | `response_directive_plan_rejection.txt` | `{user_language}` |
+| Le système a refusé des étapes qui n'ont ensuite rien produit | `response_directive_plan_blocked.txt` | `{user_language}`, `{blocked_capabilities}` |
 
-**Plan Rejected**:
-```python
-rejection_override = (
-    "🚨 CRITICAL SYSTEM DIRECTIVE - PLAN REJECTION 🚨\n\n"
-    "The user has EXPLICITLY REJECTED the execution plan.\n"
-    "NO operations were executed. NO data was retrieved. NO results exist.\n\n"
-    "ABSOLUTE RULES:\n"
-    "1. You MUST NOT invent, hallucinate, or fabricate ANY search results\n"
-    "2. You MUST NOT pretend that operations were executed\n"
-    "3. You MUST use the 'User Rejected Plan' response format from your system prompt\n"
-    "4. You MUST respond in the SAME LANGUAGE the user used\n"
-    "5. You MUST acknowledge the rejection respectfully and offer alternatives\n\n"
-)
-```
+Un tour conversationnel n'en reçoit aucune : les règles `<DataAuthority>` du prompt
+de base le gouvernent (l'ancienne surcharge « CONVERSATIONAL TURN » a disparu).
 
-**Conversational Turn**:
-```python
-rejection_override = (
-    "🚨 CONVERSATIONAL TURN - NO NEW AGENT RESULTS 🚨\n\n"
-    "This is a CONVERSATIONAL query (e.g., 'comment ca va?', 'merci').\n"
-    "NO new operations were executed. NO new data was retrieved.\n\n"
-    "ABSOLUTE RULES:\n"
-    "1. You MUST respond CONVERSATIONALLY to the user's message\n"
-    "2. You MUST NOT redisplay previous search results\n"
-    "3. Previous results in conversation history are for CONTEXT ONLY\n"
-    "4. If user asks to RECALL previous info, THEN use history\n\n"
-    "EXAMPLES:\n"
-    "❌ WRONG: User says 'comment ca va?' → You list previous contact details\n"
-    "✅ CORRECT: User says 'comment ca va?' → You respond conversationally\n"
-)
-```
+### Layer 3: `<DataAuthority>` du prompt de base
 
-### Layer 3: Prompt Core Rules
-
-**Règle #1** (dans response_system_prompt.txt):
-```
-1. **Verified Data ONLY**
-   - With agent results → Use EXCLUSIVELY provided data
-   - NEVER invent, guess, extrapolate beyond results
-   - Missing info → State clearly: "Information not available"
-```
-
-**Règle #2**:
-```
-2. **User Edits/HITL**
-   - If user modified request → Base response ONLY on final results
-   - IGNORE rejected/modified initial queries
-```
+Le bloc `<DataAuthority>` de `response_system_prompt_base.txt` : les données du tour
+courant font autorité sur l'historique ; une valeur factuelle (heure, date, nombre,
+nom, adresse, statut) n'est énoncée que si elle figure dans ces données, dans
+`<RecentEntities>` ou mot pour mot plus haut dans la conversation ; une donnée
+demandée mais jamais reçue est dite manquante, jamais estimée. Le fichier fait foi.
 
 ### Résultat
 
@@ -1241,58 +1250,26 @@ Support **6 langues** avec personnalisation temporelle contextualisée.
 
 ### Langues Supportées
 
-| Code | Langue | Timezone par défaut |
-|------|--------|---------------------|
-| **fr** | Français | Europe/Paris |
-| **en** | English | America/New_York |
-| **es** | Español | Europe/Madrid |
-| **de** | Deutsch | Europe/Berlin |
-| **it** | Italiano | Europe/Rome |
-| **pt** | Português | Europe/Lisbon |
+| Code | Langue |
+|------|--------|
+| **fr** | Français |
+| **en** | English |
+| **es** | Español |
+| **de** | Deutsch |
+| **it** | Italiano |
+| **zh-CN** | 中文 |
+
+Le fuseau d'affichage ne dépend pas de la langue : c'est celui du profil, sinon
+`DEFAULT_USER_DISPLAY_TIMEZONE`. Une langue absente est la langue déclarée pour la
+requête, le tour ou la tâche, sinon le réglage `DEFAULT_LANGUAGE` (ADR-323).
 
 ### get_response_prompt Function
 
-```python
-# apps/api/src/domains/agents/prompts/__init__.py
-
-def get_response_prompt(
-    user_timezone: str = "Europe/Paris",
-    user_language: str = "fr"
-) -> ChatPromptTemplate:
-    """
-    Get response prompt with timezone-aware datetime.
-
-    Args:
-        user_timezone: User's timezone (IANA format, e.g., "Europe/Paris")
-        user_language: User's language code (ISO 639-1, e.g., "fr", "en")
-
-    Returns:
-        ChatPromptTemplate with timezone-aware current_datetime
-    """
-    # Load static prompt from file (v1 consolidated)
-    prompt_text = load_response_prompt(version="v1")
-
-    # Calculate current datetime in user's timezone
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-
-    now_utc = datetime.now(ZoneInfo("UTC"))
-    now_user_tz = now_utc.astimezone(ZoneInfo(user_timezone))
-
-    # Format: "Wednesday, November 14, 2025 - 10:30 AM (Europe/Paris)"
-    current_datetime = now_user_tz.strftime("%A, %B %d, %Y - %I:%M %p")
-    current_datetime += f" ({user_timezone})"
-
-    # Create ChatPromptTemplate
-    # Note: System prompt is language-agnostic (English)
-    # LLM will automatically respond in user's language by analyzing conversation history
-    return ChatPromptTemplate.from_messages([
-        ("system", prompt_text),
-        ("placeholder", "{messages}"),
-        ("system", "{rejection_override}"),  # Anti-hallucination override
-        ("user", "Agent results:\n{agent_results}"),
-    ]).partial(current_datetime=current_datetime)
-```
+`get_response_prompt` (`apps/api/src/domains/agents/prompts/__init__.py`) assemble le
+prompt système de réponse : le texte versionné, l'heure courante dans le fuseau de la
+personne, puis les sections de contexte déclarées par `response_context_sections.txt`,
+chacune émise seulement quand elle a un contenu (ADR-284). Sa signature est la source de
+vérité ; un `user_language` absent y est la langue déclarée (ADR-323).
 
 ### Time-Based Personalization
 
@@ -1408,28 +1385,30 @@ response_conversational_turns_total = Counter(
 
 ### Langfuse Traces
 
-**Trace structure** (response_node):
+**Trace structure** (response_node) — une ILLUSTRATION de la forme, pas un contrat :
+ni les champs d'entrée ni les compteurs des métadonnées ci-dessous ne sont dans la
+trace (le nombre de messages, le drapeau conversationnel et les compteurs de
+fenêtre ne vont que dans les journaux `response_node_llm_input_debug`,
+`response_node_domain_detection` et `response_node_messages_filtered`) ; la trace
+porte les messages que reçoit le modèle.
 ```json
 {
   "name": "response",
-  "model": "gpt-4.1-mini",
+  "model": "<le modèle du slot response>",
   "input": {
-    "agent_results_summary_preview": "✅ contacts_agent: Trouvé 2 contacts...",
+    "agent_results_summary_preview": "✅ contact_agent: ...",
     "conversational_messages_count": 6,
-    "rejection_override_present": false,
     "is_conversational_turn": false
   },
   "output": {
-    "response_length": 450,
-    "photos_injected": true,
-    "contacts_with_photos": 2
+    "response_length": 450
   },
   "metadata": {
     "user_timezone": "Europe/Paris",
     "user_language": "fr",
     "current_datetime": "Wednesday, November 14, 2025 - 10:30 AM",
     "windowed_count": 40,
-    "filtered_count": 20
+    "filtered_count": 40
   }
 }
 ```
@@ -1438,181 +1417,26 @@ response_conversational_turns_total = Counter(
 
 ## 🧪 Testing
 
-### Unit Tests
+Les tests du nœud de réponse vivent dans `apps/api/tests/unit/domains/agents/nodes/`
+et `apps/api/tests/agents/` (ce document n'en recopie aucun, une copie cessait
+d'être vraie) :
 
-**Fichier**: `apps/api/tests/agents/test_response_node.py` (non trouvé dans codebase, à créer)
+| Fichier | Ce qu'il fixe |
+|---|---|
+| `test_response_node_prompt_assembly.py` | le prompt système (`_build_response_system_prompt`) et les blocs que `_build_response_chain` assemble, dans leur ordre |
+| `test_response_plan_blocked_directive.py` | les trois directives (brouillon annulé, plan refusé, plan bloqué), leur priorité et le NOM de la langue qu'elles portent |
+| `test_response_node_context_and_skills.py` | la résolution du résumé des résultats (type de tour, brouillon confirmé, avis de refus) et les compétences |
+| `test_response_node_html_gating.py` | quand la directive HTML est injectée : en mode `html`, sauf sur un tour conversationnel d'un compte à la voix activée |
+| `test_response_display_modes.py` | les quatre modes traversent le nœud réel avec un seul appel modèle : prompt, historique neutralisé, garde vocal, sélection absente/vide/positive, cartes et registre SSE final |
+| `test_response_node_plan_failed_guard.py` | un plan entièrement échoué n'active jamais le `skill_name` du plan (`_plan_execution_failed`) |
+| `test_response_node_react_merge.py`, `test_response_node_helpers.py`, `test_response_prompt_braces.py` | la fusion ReAct, les aides, l'échappement des accolades |
 
-```python
-import pytest
-from unittest.mock import AsyncMock, patch
-from src.domains.agents.nodes.response_node import (
-    response_node,
-    format_agent_results_for_prompt,
-    _extract_contact_photos_html,
-    _inject_photos_via_placeholders,
-)
-
-@pytest.mark.asyncio
-async def test_response_node_with_agent_results():
-    """Test response node génère réponse avec résultats agents."""
-
-    # Mock state
-    state = {
-        "messages": [HumanMessage(content="recherche jean")],
-        "agent_results": {
-            "3:contacts_agent": {
-                "status": "success",
-                "data": {
-                    "total_count": 1,
-                    "contacts": [{"names": "jean dupond", "emails": ["jean@example.com"]}],
-                },
-            }
-        },
-        "current_turn_id": 3,
-        "user_timezone": "Europe/Paris",
-        "user_language": "fr",
-    }
-
-    config = {"metadata": {"run_id": "run_123"}}
-
-    # Mock LLM response
-    mock_llm = AsyncMock()
-    mock_llm.ainvoke.return_value = AIMessage(
-        content="## 🔍 Résultats\n\n1. **jean dupond**\n   - 📧 jean@example.com"
-    )
-
-    with patch("src.domains.agents.nodes.response_node.get_llm", return_value=mock_llm):
-        result = await response_node(state, config)
-
-    # Assertions
-    assert "messages" in result
-    assert len(result["messages"]) == 1
-    assert isinstance(result["messages"][0], AIMessage)
-    assert "jean dupond" in result["messages"][0].content
-    assert "jean@example.com" in result["messages"][0].content
-
-
-def test_format_agent_results_for_prompt_contacts():
-    """Test formatting ContactsResultData pour prompt."""
-
-    agent_results = {
-        "3:contacts_agent": {
-            "status": "success",
-            "data": {
-                "total_count": 2,
-                "contacts": [
-                    {
-                        "names": "jean dupond",
-                        "resource_name": "people/c123",
-                        "emails": ["jean@example.com"],
-                        "photos": [{"url": "https://..."}],
-                    },
-                    {
-                        "names": "Jean Dupont",
-                        "resource_name": "people/c456",
-                        "phones": ["+33 6 12 34 56 78"],
-                    },
-                ],
-                "data_source": "cache",
-                "cache_age_seconds": 120,
-            },
-        }
-    }
-
-    formatted = format_agent_results_for_prompt(agent_results, current_turn_id=3)
-
-    # Assertions
-    assert "✅ contacts_agent: Trouvé 2 contact(s)" in formatted
-    assert "jean dupond" in formatted
-    assert "Jean Dupont" in formatted
-    assert "[Voir le profil](https://contacts.google.com/person/c123)" in formatted
-    assert "*[1 photo(s) disponible(s)]*" in formatted
-    assert "cache_age_seconds: 120" in formatted
-
-
-def test_extract_contact_photos_html():
-    """Test extraction photos et génération HTML galleries."""
-
-    agent_results = {
-        "3:contacts_agent": {
-            "status": "success",
-            "data": {
-                "contacts": [
-                    {
-                        "names": "jean dupond",
-                        "photos": [
-                            {"url": "https://photo1.jpg"},
-                            {"url": "https://photo2.jpg"},
-                        ],
-                    }
-                ],
-            },
-        }
-    }
-
-    photos_by_contact = _extract_contact_photos_html(agent_results, current_turn_id=3)
-
-    # Assertions
-    assert "jean dupond" in photos_by_contact
-    assert '<div class="contact-photos-gallery">' in photos_by_contact["jean dupond"]
-    assert 'src="https://photo1.jpg"' in photos_by_contact["jean dupond"]
-    assert 'src="https://photo2.jpg"' in photos_by_contact["jean dupond"]
-    assert photos_by_contact["jean dupond"].count("<img") == 2
-
-
-def test_inject_photos_via_placeholders():
-    """Test injection photos via placeholders [PHOTOS]."""
-
-    content = """1. **jean dupond** ([Voir le profil](...))
-[PHOTOS]
-   - 📧 jean@example.com"""
-
-    photos_by_contact = {
-        "jean dupond": '\n<div class="contact-photos-gallery">\n<img src="https://photo.jpg" />\n</div>\n\n'
-    }
-
-    result, injected = _inject_photos_via_placeholders(content, photos_by_contact)
-
-    # Assertions
-    assert injected is True
-    assert "[PHOTOS]" not in result
-    assert '<div class="contact-photos-gallery">' in result
-    assert 'src="https://photo.jpg"' in result
-
-
-@pytest.mark.asyncio
-async def test_response_node_plan_rejection():
-    """Test response node avec plan rejeté HITL."""
-
-    state = {
-        "messages": [HumanMessage(content="recherche jean")],
-        "agent_results": {},
-        "plan_approved": False,
-        "plan_rejection_reason": "User rejected plan",
-        "current_turn_id": 3,
-    }
-
-    config = {"metadata": {"run_id": "run_123"}}
-
-    mock_llm = AsyncMock()
-    mock_llm.ainvoke.return_value = AIMessage(
-        content="## 🚫 Plan refusé\n\nVous avez choisi de ne pas exécuter le plan."
-    )
-
-    with patch("src.domains.agents.nodes.response_node.get_llm", return_value=mock_llm):
-        result = await response_node(state, config)
-
-    # Assertions
-    assert "messages" in result
-    response_content = result["messages"][0].content
-    assert "🚫" in response_content
-    assert "refusé" in response_content.lower()
-
-    # Check rejection_override was passed to LLM
-    call_args = mock_llm.ainvoke.call_args
-    assert "rejection_override" in call_args[0][0]
-    assert "PLAN REJECTION" in call_args[0][0]["rejection_override"]
-```
+Dans `apps/api/tests/agents/` (`task test:backend:agents`, jamais lancé par le hook) :
+`test_response_node_characterization.py` fixe trois des quatre chemins de retour du
+nœud — nominal, chemin rapide d'un brouillon (et son verdict dans les métriques),
+délai dépassé : les clés d'état que chacun écrit ; le repli d'exception est testé
+ailleurs (`tests/unit/infrastructure/observability/test_metrics_langgraph_state.py`) —, `test_response_node.py`, `test_response_node_formatting.py` et
+`test_response_node_security.py` le reste. Aucun ne fait tourner le graphe entier.
 
 ---
 
@@ -1626,93 +1450,33 @@ async def test_response_node_plan_rejection():
 - Logs: `response_node_plan_rejection` présent mais hallucination
 
 **Causes**:
-1. **rejection_override pas injecté**: System directive manquante
-2. **Prompt Rule #2 ignorée**: LLM pas assez guidé
-3. **Format rejection faible**: Pas assez de prohibition signals
+1. **Directive système absente** : `response_directive_plan_rejection` n'a pas été injectée
+2. **`<DataAuthority>` ignoré** : le modèle n'est pas assez guidé
+3. **Avis de refus trop faible** : pas assez de signaux d'interdiction
 
 **Solutions**:
-1. **Vérifier rejection_override**:
-   ```python
-   # Check logs Langfuse
-   trace.input["rejection_override"]  # Should contain "PLAN REJECTION"
+1. **Vérifier la directive système** : dans la trace Langfuse de l'appel de réponse,
+   un message système doit porter le texte rendu de
+   `response_directive_plan_rejection.txt`. Absent : `plan_rejection_reason` n'a pas
+   atteint `_build_response_chain` — ou une annulation de brouillon du même tour l'a
+   emporté, ce qui est voulu.
 
-   # If empty → Bug in response_node condition
-   if plan_rejection_reason:
-       rejection_override = "..."  # MUST be set
-   ```
+2. **Renforcer l'avis de refus** : le texte est
+   `prompts/v1/response_plan_rejection_notice.txt` (anglais technique, un seul
+   paramètre `{reason}`) ; on modifie le fichier versionné, jamais une chaîne dans un
+   `.py` (ADR-284, ADR-323).
 
-2. **Renforcer format rejection**:
-   ```python
-   # Add more prohibition signals
-   return (
-       "🚫 PLAN REFUSÉ PAR L'UTILISATEUR (AUCUNE DONNÉE DISPONIBLE)\n\n"
-       "ATTENTION: N'invente AUCUNE donnée. Le plan a été explicitement rejeté.\n"
-       "AUCUNE opération n'a été exécutée. AUCUN résultat n'existe.\n\n"
-       # ... more directives
-   )
-   ```
-
-3. **Vérifier prompt Rule #2**:
-   ```txt
-   # In response_system_prompt.txt
-   2. **User Edits/HITL**
-      - If user modified request → Base response ONLY on final results
-      - IGNORE rejected/modified initial queries
-   ```
+3. **Vérifier `<DataAuthority>`** dans `response_system_prompt_base.txt` : une donnée
+   que le tour n'a pas reçue y est dite manquante, jamais inventée.
 
 ---
 
 ### Problème 2: Photos pas injectées dans réponse
 
-**Symptômes**:
-- User query: "affiche détails de jean"
-- Agent results contiennent photos
-- Response LLM mentionne contact mais pas de photos affichées
-- Logs: `photo_extraction_no_agent_results` OU `photos_placeholder_not_found`
-
-**Causes**:
-1. **[PHOTOS] placeholder manquant**: LLM ne génère pas `[PHOTOS]` marker
-2. **Photo signal absent**: `format_agent_results_for_prompt` ne signale pas photos
-3. **Regex pattern mismatch**: `_inject_photos_via_placeholders` ne trouve pas placeholder
-
-**Solutions**:
-1. **Vérifier photo signal dans formatted results**:
-   ```python
-   # Check logs
-   logger.info("format_agent_results_contacts_found", contacts_count=...)
-
-   # Search for: "*[N photo(s) disponible(s)]*"
-   # If absent → Bug in format_agent_results_for_prompt
-   ```
-
-2. **Vérifier LLM génère [PHOTOS]**:
-   ```python
-   # Check LLM response BEFORE post-processing
-   logger.info("response_node_completed", response_length=len(result.content))
-
-   # Search result.content for "[PHOTOS]"
-   # If absent → LLM didn't follow Prompt Rule #5
-   ```
-
-3. **Vérifier regex pattern**:
-   ```python
-   # Pattern: rf"(\*\*{escaped_name}\*\*.*?)(\[PHOTOS\])"
-   # Flags: re.DOTALL (critical for newlines)
-
-   # Test manually:
-   import re
-   pattern = rf"(\*\*jean dupond\*\*.*?)(\[PHOTOS\])"
-   content = "**jean dupond** ([Voir le profil](...))\n[PHOTOS]"
-   match = re.search(pattern, content, flags=re.DOTALL)
-   # Should match
-   ```
-
-4. **Fallback debug**:
-   ```python
-   # If all else fails, check raw data
-   photos_by_contact = _extract_contact_photos_html(agent_results, current_turn_id=3)
-   print(photos_by_contact)  # Should contain {"jean dupond": "<div>...</div>"}
-   ```
+Retiré : le mécanisme par marqueur `[PHOTOS]` qu'il déboguait n'existe plus (voir
+« Post-Processing »). Une carte de contact et sa photo viennent aujourd'hui du rendu V3
+(`_render_response_html`) : un contact sans carte se cherche dans le registre du tour
+(`current_turn_registry`) et dans le mode d'affichage de la personne.
 
 ---
 
@@ -1724,49 +1488,36 @@ async def test_response_node_plan_rejection():
 - Logs: `is_conversational_turn=True` mais hallucination
 
 **Causes**:
-1. **rejection_override conversational absent**: Pas de directive anti-redisplay
-2. **Message filtering insuffisant**: ToolMessage/AIMessage tool_calls encore présents
-3. **LLM ignore directive**: Prompt pas assez strict
+1. **Message filtering insuffisant**: ToolMessage/AIMessage tool_calls encore présents
+2. **`<DataAuthority>` ignoré** : un tour conversationnel ne reçoit AUCUNE directive —
+   la surcharge « CONVERSATIONAL TURN » a disparu —, seules les règles du prompt de
+   base le gouvernent
+3. **Type de tour mal résolu** : le tour n'est pas reconnu conversationnel
 
 **Solutions**:
-1. **Vérifier is_conversational_turn flag**:
-   ```python
-   # Check logs
-   logger.debug("response_node_agent_results_formatted", is_conversational_turn=...)
+1. **Vérifier le type de tour** : l'événement `response_node_domain_detection` porte
+   `is_conversational_turn`, dérivé du `turn_type` de la résolution de contexte (le
+   libellé « aucun agent externe » des résultats n'est qu'un signal de repli). Ce
+   drapeau ne sert qu'à ce journal : il n'alimente aucune métrique et n'injecte
+   rien dans le prompt.
 
-   # Should be True for "merci", "comment ca va?", etc.
-   ```
-
-2. **Vérifier rejection_override conversational**:
-   ```python
-   # Check Langfuse trace
-   trace.input["rejection_override"]  # Should contain "CONVERSATIONAL TURN"
-
-   # If empty → Bug in condition
-   elif is_conversational_turn:
-       rejection_override = "..."  # MUST be set
-   ```
-
-3. **Vérifier message filtering**:
+2. **Vérifier message filtering**:
    ```python
    # Check logs
    logger.debug("response_node_messages_filtered",
        original_count=100,
        windowed_count=40,
-       filtered_count=20  # Should remove ToolMessage + AIMessage with tool_calls
+       filtered_count=40,
    )
 
-   # If filtered_count == windowed_count → Filtering failed
+   # The windowing already applied filter_conversational_messages, so equal
+   # counts are the NORMAL case; a ToolMessage or a tool-calling AIMessage left
+   # in the windowed history is the defect
    ```
 
-4. **Renforcer directive conversational**:
-   ```python
-   # Add more examples in rejection_override
-   "EXAMPLES:\n"
-   "❌ WRONG: User says 'comment ca va?' → You list previous contact details\n"
-   "✅ CORRECT: User says 'comment ca va?' → You respond conversationally\n"
-   "✅ CORRECT: User says 'rappelle-moi les infos sur jean' → You use history\n"
-   ```
+3. **Renforcer les règles** : `<DataAuthority>` dans
+   `response_system_prompt_base.txt` — le fichier versionné, jamais une directive
+   écrite dans le code.
 
 ---
 
@@ -1774,28 +1525,16 @@ async def test_response_node_plan_rejection():
 
 ### Configuration Response
 
-#### Variables .env - Response LLM
+#### Le modèle du slot `response`
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RESPONSE_LLM_PROVIDER` | openai | Provider LLM |
-| `RESPONSE_LLM_MODEL` | gpt-4.1-mini | Modele LLM |
-| `RESPONSE_LLM_TEMPERATURE` | 0.2 | Temperature (creative responses) |
-| `RESPONSE_LLM_TOP_P` | 1.0 | Top-p sampling |
-| `RESPONSE_LLM_FREQUENCY_PENALTY` | 0.1 | Penalite frequence (evite repetition) |
-| `RESPONSE_LLM_PRESENCE_PENALTY` | 0.0 | Penalite presence |
-| `RESPONSE_LLM_MAX_TOKENS` | 8000 | Max tokens reponse |
-| `RESPONSE_LLM_REASONING_EFFORT` | minimal | Effort raisonnement (o-series) |
-
-```python
-# apps/api/src/core/config/ (code reference)
-
-class Settings(BaseSettings):
-    response_llm_provider: str = "openai"
-    response_llm_model: str = "gpt-4.1-mini"
-    response_llm_temperature: float = 0.2
-    response_llm_max_tokens: int = 8000
-```
+Sa configuration vient de `LLM_DEFAULTS["response"]`
+(`apps/api/src/domains/llm_config/constants.py`), puis des surcharges
+`llm_config_overrides`, en base, qui diffèrent d'un déploiement à l'autre
+(ADR-244) ; ce document n'en recopie aucune valeur. Les variables
+`RESPONSE_LLM_*` de `core/config/llm.py` (fournisseur, modèle, température, top-p,
+pénalités, plafond de sortie, effort de raisonnement) ne sont lues par aucun code :
+les changer ne change rien. Seule `RESPONSE_LLM_TIMEOUT_SECONDS`
+(`core/config/agents.py`) borne l'appel.
 
 ### Ressources
 

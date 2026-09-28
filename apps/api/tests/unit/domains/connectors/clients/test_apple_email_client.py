@@ -493,6 +493,11 @@ class TestForwardEmail:
         assert "bob@example.com" in body
         assert result["attachments_forwarded"] == 1
         assert result["attachment_names"] == ["report.pdf"]
+        # ONE content type, the file's own: assigning « Content-Type » on a
+        # part appends a second header, and readers kept the octet-stream one.
+        attached = captured["msg"].get_payload()[1]
+        assert attached.get_all("Content-Type") == ["application/pdf"]
+        assert attached.get_payload(decode=True) == b"%PDF"
 
     async def test_include_attachments_false_drops_them(self, client: AppleEmailClient) -> None:
         with (

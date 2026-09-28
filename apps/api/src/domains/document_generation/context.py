@@ -20,7 +20,7 @@ from typing import Literal
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n import normalize_language
+from src.core.i18n import normalize_language, resolve_language
 from src.core.i18n_documents import document_label
 from src.core.time_utils import format_date_only
 
@@ -87,8 +87,8 @@ def build_render_context(
 
 
 def default_render_context() -> RenderContext:
-    """The context of a caller that states nothing: deployment language and page, no date."""
+    """The context of a caller that states nothing: declared language, deployment page, no date."""
     return RenderContext(
-        language=normalize_language(settings.default_language),
+        language=resolve_language(),
         page_size=settings.document_generation_page_size,
     )

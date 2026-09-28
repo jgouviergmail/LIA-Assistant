@@ -1,11 +1,14 @@
 """
 Pricing Cache Service for LLM cost estimation in callbacks.
 
-Provides a Redis-backed cache for LLM pricing data that can be read synchronously
+Provides an in-memory cache of LLM pricing data that can be read synchronously
 in LangChain callbacks without requiring DB access (avoiding asyncio event loop issues).
 
-Architecture:
-    DB (LLMModelPricing) → AsyncPricingService → Redis Cache → Sync read in callbacks
+Architecture (ADR-063):
+    DB (LLMModelPricing) → PricingCacheService.refresh_from_database → the
+    worker's in-memory cache (read synchronously in callbacks) + a blob in Redis
+    the other workers adopt on a cross-worker invalidation, or at startup when
+    the database cannot answer.
 
 Usage:
     # At startup (async context)
@@ -42,6 +45,9 @@ from src.domains.llm.pricing_time_slots import find_active_slot
 # Extracted from SUPPORTED_CURRENCIES to ensure type safety and consistency
 _CURRENCY_USD = SUPPORTED_CURRENCIES[0]  # "USD"
 _CURRENCY_EUR = SUPPORTED_CURRENCIES[1]  # "EUR"
+
+#: The pricing unit the two token doors price; audio units have their own door.
+_PER_1M_TOKENS = "per_1m_tokens"
 
 #: The providers whose prompt-cache writes LIA bills above the input price, and
 #: by how much (pricing pages, 2026-09-23). Anthropic's 5-minute write is 1.25x
@@ -104,7 +110,7 @@ class CachedModelPrice:
     input_unit_price: float
     output_unit_price: float
     cached_input_unit_price: float  # 0.0 if caching not supported by model
-    pricing_unit: str = "per_1m_tokens"
+    pricing_unit: str = _PER_1M_TOKENS
     time_slots: list[dict[str, Any]] | None = None
     #: The audio pair of a speech-to-speech model (ADR-300), None when the
     #: tariff declares none. Defaults keep a pre-audio blob deserializable.
@@ -437,8 +443,8 @@ def get_cached_cost_usd_eur(
     """
     Estimate cost in both USD and EUR using cached prices (sync-safe for callbacks).
 
-    This function is synchronous and reads from in-memory cache populated
-    from Redis, avoiding any DB access or async operations.
+    Synchronous: it reads the worker's in-memory cache (rebuilt from the
+    database, see the module docstring), with no database access and no await.
 
     Mirrors AsyncPricingService.calculate_token_cost() return signature for consistency.
 
@@ -487,7 +493,7 @@ def get_cached_cost_usd_eur(
         pricing_cache_fallback_total.labels(reason="model_not_found").inc()
         return (0.0, 0.0)
 
-    if prices.pricing_unit != "per_1m_tokens":
+    if prices.pricing_unit != _PER_1M_TOKENS:
         logger.warning(
             "token_cost_called_for_non_token_pricing_unit",
             model=model,
@@ -495,6 +501,89 @@ def get_cached_cost_usd_eur(
         )
         return (0.0, 0.0)
 
+    total_usd = _tariff_cost_usd(
+        prices,
+        prompt_tokens,
+        completion_tokens,
+        cached_tokens,
+        at,
+        cache_write_tokens=cache_write_tokens,
+    )
+    return (total_usd, total_usd * _local_cache.usd_eur_rate)
+
+
+def quote_cached_cost_usd(
+    model: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    cached_tokens: int = 0,
+    at: datetime | None = None,
+    *,
+    cache_write_tokens: int = 0,
+) -> float | None:
+    """What token counts cost at the cached tariff, in USD, counting nothing.
+
+    The quiet sibling of :func:`get_cached_cost_usd_eur` (same tariff, same
+    arithmetic) for a reader that PRICES AGAIN what was already priced.
+    ``pricing_cache_fallback_total`` counts a miss at every door that prices
+    a call as it is made — the ledger's, the metrics callback's, the
+    proactive and journal accountings; one unpriced call counts at two or
+    three of them. The conversation metric reads the thread's window again
+    at every turn, so a miss counted there would count every unpriced answer
+    of the window again at every turn.
+
+    Args:
+        model: LLM model name as the response names it.
+        prompt_tokens: Prompt tokens, cache reads excluded.
+        completion_tokens: Completion tokens.
+        cached_tokens: Prompt tokens read from the provider's cache.
+        at: Billing instant for a time-slot tariff (ADR-223); now when None.
+        cache_write_tokens: The part of ``prompt_tokens`` written to the prompt
+            cache (see :func:`get_cached_cost_usd_eur`).
+
+    Returns:
+        The cost in USD, or None when the cache is cold, the model has no
+        tariff, or its tariff is not priced per token.
+    """
+    prices = get_cached_model_price(model)
+    if prices is None or prices.pricing_unit != _PER_1M_TOKENS:
+        return None
+    return _tariff_cost_usd(
+        prices,
+        prompt_tokens,
+        completion_tokens,
+        cached_tokens,
+        at,
+        cache_write_tokens=cache_write_tokens,
+    )
+
+
+def _tariff_cost_usd(
+    prices: CachedModelPrice,
+    prompt_tokens: int,
+    completion_tokens: int,
+    cached_tokens: int,
+    at: datetime | None,
+    *,
+    cache_write_tokens: int,
+) -> float:
+    """What token counts cost under one per-token tariff, in USD.
+
+    The one arithmetic of both token doors: a slot active at ``at`` (now when
+    None) overrides the three unit prices (ADR-223), and a written token pays
+    the tariff's surcharge over the input price it already paid (ADR-306).
+
+    Args:
+        prices: A tariff priced per 1M tokens.
+        prompt_tokens: Prompt tokens, cache reads excluded.
+        completion_tokens: Completion tokens.
+        cached_tokens: Prompt tokens read from the provider's cache.
+        at: Billing instant; now (UTC) when None.
+        cache_write_tokens: The part of ``prompt_tokens`` written to the cache.
+
+    Returns:
+        The cost in USD.
+    """
     # Time-slot tariff (ADR-223): a slot active at the billing instant
     # overrides all three unit prices; otherwise the flat base applies.
     slot = find_active_slot(prices.time_slots, at or datetime.now(UTC))
@@ -515,11 +604,7 @@ def get_cached_cost_usd_eur(
     write_surcharge = (
         (cache_write_tokens / 1_000_000) * input_price * (prices.cache_write_multiplier - 1)
     )
-
-    total_usd = input_cost + output_cost + cached_cost + write_surcharge
-    total_eur = total_usd * _local_cache.usd_eur_rate
-
-    return (total_usd, total_eur)
+    return input_cost + output_cost + cached_cost + write_surcharge
 
 
 def get_cached_cost_audio_usd_eur(
@@ -595,8 +680,8 @@ def get_cached_cost(
     """
     Estimate cost using cached prices (sync-safe for callbacks).
 
-    This function is synchronous and reads from in-memory cache populated
-    from Redis, avoiding any DB access or async operations.
+    Synchronous: it reads the worker's in-memory cache (rebuilt from the
+    database, see the module docstring), with no database access and no await.
 
     Args:
         model: LLM model name (e.g., "gpt-4.1-mini", "o1-mini")

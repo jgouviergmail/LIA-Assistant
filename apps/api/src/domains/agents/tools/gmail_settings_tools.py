@@ -26,6 +26,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts.models import DraftType
@@ -57,7 +58,9 @@ class VacationResponderDraftInput(BaseModel):
     start_date: str = Field(default="", description="First active day (YYYY-MM-DD, optional)")
     end_date: str = Field(default="", description="Last active day inclusive (YYYY-MM-DD)")
     user_timezone: str = Field(default="UTC", description="IANA timezone for the date bounds")
-    user_language: str = Field(default="fr", description="User language for result messages")
+    user_language: str = Field(
+        default_factory=resolve_language, description="User language for result messages"
+    )
 
 
 # ============================================================================
@@ -238,7 +241,7 @@ async def set_vacation_responder_tool(
     start_date: Annotated[str, "First active day, YYYY-MM-DD (optional)"] = "",
     end_date: Annotated[str, "Last active day INCLUSIVE, YYYY-MM-DD (optional)"] = "",
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """Set or disable the Gmail vacation responder (returns a confirmation draft).
 
@@ -259,6 +262,7 @@ async def set_vacation_responder_tool(
         UnifiedToolOutput carrying the draft (requires_confirmation=True),
         or a validation failure the LLM can relay.
     """
+    locale = locale or resolve_language()
     config = validate_runtime_config(runtime, "set_vacation_responder_tool")
     if isinstance(config, UnifiedToolOutput):
         return config
@@ -378,7 +382,9 @@ class EmailFilterDraftInput(BaseModel):
     archive: bool = Field(default=False, description="Skip the inbox (archive)")
     mark_as_read: bool = Field(default=False, description="Mark matching mail as read")
     filter_summary: str = Field(default="", description="Compact one-line summary (card)")
-    user_language: str = Field(default="fr", description="User language for messages")
+    user_language: str = Field(
+        default_factory=resolve_language, description="User language for messages"
+    )
 
 
 def _filter_summary(criteria: dict[str, str], label_name: str, archive: bool) -> str:

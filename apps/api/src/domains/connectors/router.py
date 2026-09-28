@@ -2,11 +2,11 @@
 Connectors router with FastAPI endpoints for external service connections.
 """
 
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +24,7 @@ from src.core.exceptions import (
     raise_internal_error,
     raise_invalid_input,
 )
-from src.core.i18n import Language, _, get_language_from_header
+from src.core.i18n import _, resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.native_client import detect_native_client
 from src.core.session_dependencies import get_current_active_session, get_current_superuser_session
@@ -187,7 +187,7 @@ async def proxy_gmail_attachment(
         data = await client.get_attachment(message_id, attachment_id)
 
         # Determine MIME type from filename
-        content_type, _ = mimetypes.guess_type(filename)
+        content_type, _encoding = mimetypes.guess_type(filename)
         if not content_type:
             content_type = "application/octet-stream"
 
@@ -417,7 +417,6 @@ async def get_connector_preferences(
 async def update_connector_preferences(
     connector_id: UUID,
     preferences_data: PreferencesRequest,
-    request: Request,
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> ConnectorPreferencesUpdateResponse:
@@ -472,11 +471,7 @@ async def update_connector_preferences(
         user_id=str(user_id),
     )
 
-    user_lang = (
-        cast("Language", current_user.language)
-        if current_user.language
-        else get_language_from_header(request.headers.get("accept-language"))
-    )
+    user_lang = resolve_language(current_user.language)
     return ConnectorPreferencesUpdateResponse(
         message=_("Preferences updated", user_lang),
         connector_id=connector_id,

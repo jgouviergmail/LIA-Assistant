@@ -261,7 +261,8 @@ async def update_instance_daily_budget(
         "instance_daily_budget_update_requested",
         admin_user_id=str(current_user.id),
         new_value=str(update.ceiling_eur) if update.ceiling_eur is not None else None,
-        change_reason=update.change_reason,
+        # The reason is an administrator's words: the audit log keeps them.
+        change_reason_length=len(update.change_reason or ""),
     )
 
     service = InstanceBudgetAdminService(db)

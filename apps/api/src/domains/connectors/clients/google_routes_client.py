@@ -31,6 +31,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError, ValidationError
+from src.core.i18n import resolve_language
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.connectors.models import ConnectorType
 from src.infrastructure.observability.log_facts import log_unreadable_text
@@ -288,17 +289,17 @@ class GoogleRoutesClient:
 
     def __init__(
         self,
-        language: str = "fr",
+        language: str | None = None,
         user_id: UUID | None = None,
     ) -> None:
         """
         Initialize Google Routes client.
 
         Args:
-            language: Default language for results (default: fr)
+            language: Language for results (default: the declared language)
             user_id: Optional user ID for logging (not used for auth)
         """
-        self.language = language
+        self.language = language or resolve_language()
         self.user_id = user_id
         self._client: httpx.AsyncClient | None = None
 
@@ -742,7 +743,7 @@ class GoogleRoutesClient:
         return int(float(duration_str))
 
     @staticmethod
-    def format_duration(seconds: int, language: str = "fr") -> str:
+    def format_duration(seconds: int, language: str | None = None) -> str:
         """
         Format duration in human-readable form.
 
@@ -756,7 +757,7 @@ class GoogleRoutesClient:
         hours = seconds // 3600
         minutes = (seconds % 3600) // 60
 
-        if language == "fr":
+        if resolve_language(language) == "fr":
             if hours > 0:
                 return f"{hours}h {minutes}min"
             return f"{minutes} min"

@@ -1,13 +1,13 @@
 """
 Display module for v3 architecture.
 
-Mode HTML pur - le ResponseFormatter markdown a été supprimé.
+Pure HTML mode - the markdown ResponseFormatter was removed.
 
-Le HtmlRenderer produit du HTML propre et sémantique avec des classes CSS
-que le frontend style. Cette approche:
-- Économise les tokens LLM (pas de formatage dans les prompts)
-- Permet une UI riche et responsive
-- Sépare le contenu de la présentation
+The HtmlRenderer produces clean, semantic HTML with CSS classes the frontend
+styles. This approach:
+- saves LLM tokens (no formatting in the prompts)
+- allows a rich, responsive UI
+- separates content from presentation
 
 This package follows modern Python conventions: imports are done explicitly
 where needed rather than re-exported through __init__.py.

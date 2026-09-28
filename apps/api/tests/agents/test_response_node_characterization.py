@@ -20,10 +20,12 @@ from collections.abc import Coroutine
 from contextlib import ExitStack
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
+from uuid import uuid4
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+from src.core.i18n import language_scope
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
@@ -32,7 +34,7 @@ from src.domains.agents.constants import (
     TURN_TYPE_ACTION,
 )
 from src.domains.agents.drafts.models import DraftAction
-from src.domains.agents.models import MessagesState
+from src.domains.agents.models import MessagesState, create_initial_state
 from src.domains.agents.nodes.response_node import (
     STATE_KEY_DRAFT_ACTION_RESULT,
     response_node,
@@ -240,6 +242,7 @@ async def test_char_draft_confirm_fast_path_skips_llm():
         stack.enter_context(
             patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=None))
         )
+        stack.enter_context(language_scope("fr"))  # the assertion reads French
         result = await response_node(state, _base_config())
 
     mocks["chain"].ainvoke.assert_not_called()
@@ -250,6 +253,53 @@ async def test_char_draft_confirm_fast_path_skips_llm():
     }
     assert result[STATE_KEY_DRAFT_ACTION_RESULT] is None
     assert result[STATE_KEY_MESSAGES][0].content == APIMessages.draft_action_completed("fr")
+
+
+@pytest.mark.asyncio
+async def test_char_a_confirmed_draft_judges_its_turn() -> None:
+    """The turn ENDS on the fast path — its first half stopped on the question —
+    so the draft's execution is the verdict the success rate counts. The fast
+    path used to return before the metrics: no confirmed draft was ever
+    counted, and a send that failed after confirmation was never a failure."""
+    state = create_initial_state(uuid4(), session_id="s", run_id="r")
+    state[STATE_KEY_MESSAGES] = [HumanMessage(content="send it")]
+    state[STATE_KEY_DRAFT_ACTION_RESULT] = {
+        "action": DraftAction.CONFIRM.value,
+        "draft_id": "d1",
+        "draft_type": "email",
+    }
+    failed_send = {
+        "status": "error",
+        "action": DraftAction.CONFIRM.value,
+        "draft_id": "d1",
+        "draft_type": "email",
+        "data": {},
+        "message": "refused",
+    }
+
+    ledger = AsyncMock(return_value=None)
+    counter = Mock()
+    with ExitStack() as stack:
+        mocks = _patch_collaborators(stack)
+        stack.enter_context(
+            patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=failed_send))
+        )
+        stack.enter_context(
+            patch("src.domains.agents.services.business_metrics.current_turn_cost_usd", ledger)
+        )
+        stack.enter_context(
+            patch(
+                "src.infrastructure.observability.metrics_business.agent_success_rate_total",
+                counter,
+            )
+        )
+        await response_node(state, _base_config())
+
+    mocks["chain"].ainvoke.assert_not_called()
+    counter.labels.assert_called_once_with(agent_type="generic", outcome="failure")
+    counter.labels.return_value.inc.assert_called_once_with()
+    # A failed turn has no successful run to cost: its ledger is never read.
+    ledger.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -271,6 +321,7 @@ async def test_char_draft_cancel_fast_path_message():
         stack.enter_context(
             patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=None))
         )
+        stack.enter_context(language_scope("fr"))  # the assertion reads French
         result = await response_node(state, _base_config())
 
     mocks["chain"].ainvoke.assert_not_called()

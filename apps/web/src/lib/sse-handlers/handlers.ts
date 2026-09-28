@@ -79,13 +79,6 @@ export function getProgressMessage(
           return `*${metadata.emoji} ${stepText}*`;
         }
       }
-      // Fallback: use detail if available (e.g., reasoning snippet)
-      if (metadata?.detail) {
-        const emoji = metadata.emoji || '🧠';
-        const truncated =
-          metadata.detail.length > 80 ? metadata.detail.slice(0, 77) + '...' : metadata.detail;
-        return `*${emoji} ${truncated}*`;
-      }
       return t('hitl.progress.thinking');
     default:
       return t('hitl.progress.thinking');
@@ -178,9 +171,6 @@ function buildTraceStep(
       defaultValue: '',
     });
     if (translated) label = translated;
-  }
-  if (!label && metadata.detail) {
-    label = metadata.detail.length > 80 ? `${metadata.detail.slice(0, 77)}...` : metadata.detail;
   }
   if (!label) return null;
   return { emoji, label, category };

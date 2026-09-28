@@ -32,7 +32,7 @@ from typing import Any
 
 import structlog
 
-from src.core.i18n import get_language_name
+from src.core.i18n import get_language_name, resolve_language
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.constants import DEFAULT_CONTACT_NAME
 from src.infrastructure.llm.factory import get_llm
@@ -119,10 +119,10 @@ class DraftModificationService:
         ...     original_draft={"to": "jean@example.com", "subject": "Hello", "body": "I love you."},
         ...     instructions="make it more touching and profound but short",
         ...     draft_type="email",
-        ...     user_language="fr",
+        ...     user_language="en",
         ... )
         >>> print(modified["body"])
-        "Chaque jour à tes côtés est un cadeau précieux. Je t'aime profondément."
+        "Every day by your side is a precious gift. I love you deeply."
     """
 
     def __init__(self) -> None:
@@ -138,7 +138,7 @@ class DraftModificationService:
         original_draft: dict[str, Any],
         instructions: str,
         draft_type: str,
-        user_language: str = "fr",
+        user_language: str | None = None,
         run_id: str | None = None,
         contact_context: list[dict[str, Any]] | None = None,
         sender_name: str | None = None,
@@ -184,7 +184,7 @@ class DraftModificationService:
             instructions=instructions,
             draft_type=draft_type,
             content_fields=content_fields,
-            user_language=user_language,
+            user_language=resolve_language(user_language),
             contact_context=contact_context,
             sender_name=sender_name,
         )

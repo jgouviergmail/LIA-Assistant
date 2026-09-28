@@ -24,6 +24,7 @@ from typing import Any
 
 from src.core.config import settings
 from src.core.constants import SCHEDULER_JOB_JOURNAL_CONSOLIDATION
+from src.core.i18n import normalize_language
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.logging import get_logger
@@ -177,7 +178,7 @@ async def process_journal_consolidation() -> dict[str, Any]:
                         user_id=user.id,
                         personality_instruction=personality_instruction,
                         personality_code=personality_code,
-                        user_language=getattr(user, "language", settings.default_language),
+                        user_language=normalize_language(getattr(user, "language", None)),
                         consolidation_with_history=user.journal_consolidation_with_history,
                         max_total_chars=user.journal_max_total_chars,
                         max_entry_chars=user.journal_max_entry_chars,

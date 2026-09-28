@@ -148,6 +148,21 @@ class TestFetchTasks:
 
         assert len(data.items) == 5
 
+    async def test_a_routine_reads_the_whole_page_not_the_cards_cut(self):
+        # Oldest overdue first: behind five older ones, the task that became
+        # overdue yesterday is sixth — cut from the card, and exactly what a
+        # task routine waits for (ADR-322).
+        tasks = [_task(f"old{i}", -10 - i) for i in range(5)] + [_task("yesterday", -1)]
+        _, patches = _tasks_env(tasks)
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            card = await fetch_tasks(user=_user(), user_tz=TZ)
+            routine = await fetch_tasks(user=_user(), user_tz=TZ, whole_page=True)
+
+        assert "yesterday" not in [t.title for t in card.items]
+        assert "yesterday" in [t.title for t in routine.items]
+
     async def test_reads_the_owners_preferred_list(self):
         """The door is asked for the TASK LIST container, and the list read is
         the one resolved from the owner's preferred name."""

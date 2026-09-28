@@ -32,11 +32,17 @@ from src.core.run_config import run_id_of
 from src.domains.agents.constants import (
     INTENTION_ACTION,
     INTENTION_CONVERSATION,
+    STATE_KEY_CLARIFICATION_FIELD,
+    STATE_KEY_CLARIFICATION_RESPONSE,
+    STATE_KEY_COMPLETED_STEPS,
     STATE_KEY_DETECTED_INTENT,
+    STATE_KEY_EXECUTION_PLAN,
     STATE_KEY_MESSAGES,
+    STATE_KEY_NEEDS_REPLAN,
     STATE_KEY_PLAN_APPROVED,
     STATE_KEY_PLAN_REJECTION_REASON,
     STATE_KEY_PLANNER_ITERATION,
+    STATE_KEY_PLANNING_RESULT,
     STATE_KEY_RESOLVED_CONTEXT,
     STATE_KEY_RESOLVED_REFERENCES,
     STATE_KEY_ROUTING_HISTORY,
@@ -300,6 +306,22 @@ async def router_node_v3(
         STATE_KEY_VALIDATION_RESULT: None,
         STATE_KEY_SEMANTIC_VALIDATION: None,  # Clear so pattern learning works per-turn
         STATE_KEY_PLANNER_ITERATION: 0,
+        # A clarification belongs to the turn that asked it: left in the
+        # checkpoint, the next turn's planner read it as a REPLAN of the
+        # previous plan carrying a stale answer. A HITL resume re-enters
+        # the clarification node, never this one, so the answer still
+        # reaches the planner of its own turn.
+        STATE_KEY_CLARIFICATION_RESPONSE: None,
+        STATE_KEY_CLARIFICATION_FIELD: None,
+        STATE_KEY_NEEDS_REPLAN: False,
+        # A plan, its step results and the planner's verdict belong to
+        # the turn that made them: kept in the checkpoint, every later
+        # turn restated the plan's failures as its own (the honesty
+        # directive), learned from a plan it never ran (pattern
+        # learning) and was judged on a verdict it never had.
+        STATE_KEY_EXECUTION_PLAN: None,
+        STATE_KEY_COMPLETED_STEPS: {},
+        STATE_KEY_PLANNING_RESULT: None,
         # Initiative phase reset (ADR-062): must reset per-turn to avoid
         # max_iterations skip on subsequent turns (checkpoint persists state)
         STATE_KEY_INITIATIVE_ITERATION: 0,

@@ -11,6 +11,7 @@ replayed, performs the effect once.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from types import SimpleNamespace
 from typing import Any
@@ -267,3 +268,33 @@ class TestAnUnconfirmedEffectNeverHappens:
         rows = await _rows(maker, gated_tool.name)
         assert rows[0].error_code == "confirmation_impossible_unattended"
         assert rows[0].source.value == "scheduled"
+
+
+class TestACancelledEffectClosesItsBooks:
+    async def test_an_attempt_bound_leaves_an_abandoned_row_not_an_orphan(
+        self, maker: Any, user: User
+    ) -> None:
+        """The incident of 2026-09-25, end to end: cut mid-effect, never left CLAIMED."""
+
+        async def _browse(url: str = "https://example.org") -> dict[str, Any]:
+            CALLS.append({"url": url})
+            await asyncio.sleep(3600)  # the provider is still working
+            return {"success": True}
+
+        name = f"e2e_browse_{uuid.uuid4().hex[:6]}_tool"
+        tool = StructuredTool.from_function(coroutine=_browse, name=name, description="browse")
+        tool_registry.register_external_tool(tool)
+        gated = tool.coroutine
+        assert gated is not None
+        scope = EffectScope(run_id="run-e2e", idempotency_key="call-cut", source="scheduled")
+
+        with _as_user(user), _policy("reversible"), effect_scope(scope):
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(gated(url="https://example.org"), timeout=0.5)
+
+        assert CALLS == [{"url": "https://example.org"}], "the effect had started"
+        rows = await _rows(maker, name)
+        assert len(rows) == 1
+        assert rows[0].status is EffectStatus.ABANDONED
+        assert rows[0].error_code == "cancelled"
+        assert rows[0].closed_at is not None

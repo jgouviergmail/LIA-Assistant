@@ -91,7 +91,7 @@ class TestWhatTheModelReads:
         assert data["actions"] == [
             {
                 "when": "2026-09-24T10:05+02:00",
-                "action": "Rappel « Call Marie » créé",
+                "action": "Rappel «\xa0Call Marie\xa0» créé",
                 "capability": "create_reminder_tool",
                 "status": "succeeded",
                 "authorship": "user",

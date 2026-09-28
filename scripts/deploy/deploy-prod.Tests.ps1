@@ -117,6 +117,20 @@ FERNET_KEY=fake-fernet
         # on the behaviour under test.
         New-Item -ItemType Directory (Join-Path $proj "apps/api/locales/fr/LC_MESSAGES") -Force | Out-Null
         Set-Content (Join-Path $proj "apps/api/locales/fr/LC_MESSAGES/messages.mo") "LOCALE_SENTINEL"
+        # The Firebase service account docker-compose.prod.yml mounts into the
+        # API (./apps/api/config:/app/config:ro). Git ignores it, so a bundle
+        # built from a fresh worktree never had it and push died for every
+        # account (v1.47.4, 2026-09-25): prepare-prod now refuses to ship push
+        # without it, and a deployable tree carries it.
+        New-Item -ItemType Directory (Join-Path $proj "apps/api/config") -Force | Out-Null
+        Set-Content (Join-Path $proj "apps/api/config/firebase-service-account.json") '{"project_id": "FIREBASE_SENTINEL"}'
+        # An extensionless host script written with CRLF, as a fresh Windows
+        # checkout wrote the logwatch cron entry (2026-09-24): the bundle must
+        # ship it LF. A `*.sh` filter never saw it, and bash refused its first
+        # line. Non-ASCII on purpose: the normalisation must keep every byte.
+        New-Item -ItemType Directory (Join-Path $proj "infrastructure/logwatch/cron") -Force | Out-Null
+        Set-Content (Join-Path $proj "infrastructure/logwatch/cron/00logwatch") -NoNewline `
+            "#!/bin/bash`r`nset -euo pipefail`r`necho `"État — LOGWATCH_SENTINEL 🐳`"`r`n"
         # Per-alert runbooks: docker-compose.prod.yml mounts ./docs/runbooks
         # read-only into the API for the self-diagnostics LLM step. Until
         # 2026-09-05 the bundle never carried them, so the mount was an empty
@@ -666,6 +680,27 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         Test-HasCrlf (Join-Path $prod "provenance.env") | Should -BeFalse
     }
 
+    It "ships an extensionless host script LF-only, known by its shebang, byte for byte" {
+        # The logwatch cron entry has no extension: the bundle's LF pass used to
+        # filter on `*.sh` and shipped it with CRLF — the daily report died four
+        # mornings in a row (2026-09-24 -> 27). A script is known by its content,
+        # and normalising it must not re-encode a single non-ASCII byte.
+        $cron = Join-Path $prod "infrastructure/logwatch/cron/00logwatch"
+        $expected = [Text.Encoding]::UTF8.GetBytes(
+            "#!/bin/bash`nset -euo pipefail`necho `"État — LOGWATCH_SENTINEL 🐳`"`n")
+        $cron | Should -Exist
+        Test-HasCrlf $cron | Should -BeFalse
+        [IO.File]::ReadAllBytes($cron) | Should -Be $expected
+    }
+
+    It "stages the Firebase credential the compose file mounts into the API" {
+        # ./apps/api/config:/app/config:ro. Absent from a worktree deploy, push
+        # died for every account (v1.47.4, 2026-09-25 -> 27).
+        $credential = Join-Path $prod "apps/api/config/firebase-service-account.json"
+        $credential | Should -Exist
+        Get-Content $credential -Raw | Should -Match "FIREBASE_SENTINEL"
+    }
+
     It "recorded the sandbox commit SHA and version in provenance.env" {
         $prov = Get-Content (Join-Path $prod "provenance.env") -Raw
         $prov | Should -Match "GIT_COMMIT_SHA=$sha"
@@ -814,6 +849,86 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         # with EACCES (prod 2026-08-08 → 2026-08-15, skill widgets KO).
         $shimLog | Should -Match ([regex]::Escape("DOCKER_GID ~/lia.staging/.env"))
         $shimLog | Should -Not -Match ([regex]::Escape("DOCKER_GID ~/lia/.env"))
+    }
+}
+
+Describe "prepare-prod.ps1 never ships push without its credential" {
+    # v1.47.4 (2026-09-25): built from a fresh worktree, the bundle had no
+    # apps/api/config — git ignores the Firebase service account — and the
+    # script only printed a yellow line. Push died for every account for two
+    # days. The production environment says whether push is on; when it is,
+    # the credential it names is a precondition of the bundle, like the locales.
+    BeforeAll {
+        function Invoke-Prepare([string]$Proj) {
+            Push-Location $Proj
+            try {
+                $out = & pwsh -NoProfile -File (Join-Path $Proj "scripts/deploy/prepare-prod.ps1") -Clean 2>&1 | Out-String
+                @{ ExitCode = $LASTEXITCODE; Output = $out }
+            } finally {
+                Pop-Location
+            }
+        }
+    }
+
+    It "refuses to build the bundle when push is on and the credential is missing" {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "no-credential")
+        Remove-Item (Join-Path $proj "apps/api/config") -Recurse -Force
+
+        $r = Invoke-Prepare $proj
+
+        $r.ExitCode | Should -Not -Be 0
+        $r.Output | Should -Match "firebase-service-account\.json"
+        (Join-Path $proj "PROD/deploy.sh") | Should -Not -Exist
+    }
+
+    It "builds without it when the production environment switches push off" {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "push-off")
+        Remove-Item (Join-Path $proj "apps/api/config") -Recurse -Force
+        Add-Content (Join-Path $proj ".env.prod") "`nFCM_ENABLED=false  # no push on this instance"
+
+        $r = Invoke-Prepare $proj
+
+        $r.ExitCode | Should -Be 0
+        (Join-Path $proj "PROD/deploy.sh") | Should -Exist
+    }
+
+    It "checks the path the production environment declares, not the default" {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "declared-path")
+        Remove-Item (Join-Path $proj "apps/api/config/firebase-service-account.json") -Force
+        Set-Content (Join-Path $proj "apps/api/config/other-project.json") '{"project_id": "OTHER"}'
+        Add-Content (Join-Path $proj ".env.prod") "`nFIREBASE_CREDENTIALS_PATH=config/other-project.json"
+
+        $r = Invoke-Prepare $proj
+
+        $r.ExitCode | Should -Be 0
+        (Join-Path $proj "PROD/apps/api/config/other-project.json") | Should -Exist
+    }
+}
+
+Describe "prepare-prod.ps1 runs under Windows PowerShell 5.1" {
+    # `task deploy:prod` runs the driver — and prepare-prod.ps1 — through
+    # powershell.exe 5.1, while this suite runs under pwsh 7. The static check
+    # below knows ONE 5.1 incompatibility (the 3-argument Join-Path); running
+    # the script under the real interpreter knows them all. Skipped where no
+    # Windows PowerShell exists (the Linux CI runner).
+    It "builds the bundle and normalises a CRLF script byte for byte" -Skip:(-not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "ps51")
+        Push-Location $proj
+        try {
+            $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass `
+                -File (Join-Path $proj "scripts/deploy/prepare-prod.ps1") -Clean 2>&1 | Out-String
+            $code = $LASTEXITCODE
+        } finally {
+            Pop-Location
+        }
+
+        $code | Should -Be 0 -Because $out
+        (Join-Path $proj "PROD/deploy.sh") | Should -Exist
+        (Join-Path $proj "PROD/apps/api/config/firebase-service-account.json") | Should -Exist
+        $expected = [Text.Encoding]::UTF8.GetBytes(
+            "#!/bin/bash`nset -euo pipefail`necho `"État — LOGWATCH_SENTINEL 🐳`"`n")
+        [IO.File]::ReadAllBytes((Join-Path $proj "PROD/infrastructure/logwatch/cron/00logwatch")) |
+            Should -Be $expected
     }
 }
 

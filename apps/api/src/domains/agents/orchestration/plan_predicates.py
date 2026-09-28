@@ -68,14 +68,20 @@ def approval_is_refused(plan_approved: Any) -> bool:
     """Whether the plan approval state REFUSES execution (ADR-263).
 
     ``plan_approved`` became three-valued when the approval gate stopped
-    reporting ``unknown`` as ``pass``: ``True`` (a verdict was read and the plan
-    may run), ``False`` (an explicit refusal — no plan, or a user cancellation)
-    and ``None`` (nobody looked).
+    reporting ``unknown`` as ``pass``: ``True`` (a verdict was read, or the
+    person confirmed during a clarification), ``False`` (an explicit refusal:
+    the person cancelled during a clarification) and ``None`` (nobody looked —
+    the router resets the flag to it at every turn).
 
     Only ``False`` refuses. Testing the value for truthiness would make ``None``
     mean "refused", and a plan with no verdict would stop at the response node
     instead of executing — a behaviour change ADR-184 forbids, since a
     validation verdict is not a fact and the router has never read one.
+
+    This is the reading of the reader that RUNS a plan. A reader that SKIPS a
+    check on an approval (the semantic validator node, the routing after it)
+    tests ``is True``: read through this predicate, ``None`` skipped the
+    validation of every fresh turn.
 
     Args:
         plan_approved: The state value, of any shape (state survives msgpack).

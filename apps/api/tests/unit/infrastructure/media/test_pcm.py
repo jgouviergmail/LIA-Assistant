@@ -1,12 +1,14 @@
-"""`trim_silence`: the audible span of a continuous stream, with its margin, or nothing."""
+"""Raw 16-bit mono PCM: its audible span (`trim_silence`), and its WAV container."""
 
 from __future__ import annotations
 
 import array
+import io
+import wave
 
 import pytest
 
-from src.infrastructure.media.pcm import trim_silence
+from src.infrastructure.media.pcm import trim_silence, wav_container
 
 pytestmark = pytest.mark.unit
 
@@ -51,3 +53,25 @@ def test_the_threshold_is_the_audible_line() -> None:
     kept = array.array("h")
     kept.frombytes(out)
     assert list(kept) == [401] * 50
+
+
+def test_raw_samples_are_wrapped_in_a_wav_that_reads_back() -> None:
+    pcm = _pcm((-7, 3), (9_000, 5))
+    wav = wav_container(pcm, sample_rate=RATE)
+    assert (wav[:4], wav[8:12]) == (b"RIFF", b"WAVE")
+    with wave.open(io.BytesIO(wav)) as reader:
+        assert (reader.getnchannels(), reader.getsampwidth(), reader.getframerate()) == (
+            1,
+            2,
+            RATE,
+        )
+        assert reader.readframes(reader.getnframes()) == pcm
+
+
+def test_a_wav_holds_whole_samples_only() -> None:
+    pcm = _pcm((9_000, 4))
+    wav = wav_container(pcm + b"\x01", sample_rate=16_000)
+    assert len(wav) == 44 + len(pcm)  # the canonical header, then whole samples only
+    with wave.open(io.BytesIO(wav)) as reader:
+        assert reader.getframerate() == 16_000
+        assert reader.readframes(reader.getnframes()) == pcm

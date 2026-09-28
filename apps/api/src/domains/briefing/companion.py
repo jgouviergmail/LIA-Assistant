@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from src.domains.briefing.constants import SECTION_WEATHER_TTL_SECONDS
 from src.domains.briefing.schemas import CardSection, CardStatus, WeatherData
+from src.domains.connectors.clients.weather_normalization import canonical_weather_main
 
 
 class CompanionWeather(BaseModel):
@@ -36,7 +37,7 @@ def project_weather(section: CardSection | None, now: datetime) -> CompanionWeat
     try:
         return CompanionWeather(
             temperature_c=data.temperature_c,
-            condition_code=data.condition_code,
+            condition_code=canonical_weather_main(data.condition_code),
             wind_speed_kmh=data.wind_speed_kmh,
             observed_at=section.generated_at,
             expires_at=section.generated_at + timedelta(seconds=SECTION_WEATHER_TTL_SECONDS),

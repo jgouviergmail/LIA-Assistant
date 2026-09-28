@@ -21,6 +21,7 @@ from datetime import timedelta
 import pytest
 from cryptography.fernet import Fernet
 
+from src.core.config import settings
 from src.domains.push_relay.seal import seal_device, unseal_handle
 
 pytestmark = pytest.mark.unit
@@ -126,7 +127,7 @@ class TestLanguage:
         # Refusing it would silence a device until its next launch, for a field
         # whose absence has a perfectly good answer.
         assert device is not None
-        assert device.language == "fr"
+        assert device.language == settings.default_language
 
     def test_an_unsupported_language_falls_back_rather_than_refusing(self, key: str) -> None:
         handle = seal_device("apns-token-abc", sandbox=False, key=key, language="klingon")
@@ -134,4 +135,4 @@ class TestLanguage:
         device = unseal_handle(handle, key=key)
 
         assert device is not None
-        assert device.language == "fr"
+        assert device.language == settings.default_language

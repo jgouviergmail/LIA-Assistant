@@ -263,6 +263,11 @@
       "role": "LIA t'appelle sur un numéro vérifié ou appelle un tiers pour toi ; ce que tu dis au téléphone devient ton propre message dans le chat.",
       "goal": "Joindre LIA sans écran."
     },
+    "f.radio": {
+      "name": "Radio personnelle",
+      "role": "Une station à la demande, dans ta langue : ta journée et l'actualité du monde, écrites, vérifiées et dites pour toi pendant que tu écoutes, chaque phrase avec sa source.",
+      "goal": "Écouter sa journée et le monde sans rien lire, en sachant ce que ça coûte."
+    },
     "f.security": {
       "name": "Comptes et sécurité",
       "role": "Sessions par cookie côté serveur, double facteur, activation par un administrateur, adresse de l'appelant impossible à falsifier.",

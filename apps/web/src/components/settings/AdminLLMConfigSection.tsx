@@ -49,7 +49,7 @@ import type {
   ReasoningEffortValue,
   VoicesResponse,
 } from '@/types/llm-config';
-import { LLM_CATEGORIES_ORDER } from '@/types/llm-config';
+import { orderedCategories } from '@/types/llm-config';
 import { ReasoningWidget } from './llm-config/ReasoningWidget';
 import {
   formatReasoningValue,
@@ -1494,8 +1494,9 @@ export default function AdminLLMConfigSection({ lng }: BaseSettingsProps) {
 
   const [editingConfig, setEditingConfig] = useState<LLMTypeConfig | null>(null);
 
-  // Group configs by category
-  const configsByCategory = LLM_CATEGORIES_ORDER.reduce(
+  // Group configs by category: the declared ones first, an unknown one last.
+  const categories = orderedCategories(configs.map(c => c.info.category));
+  const configsByCategory = categories.reduce(
     (acc, cat) => {
       acc[cat] = configs.filter(c => c.info.category === cat);
       return acc;
@@ -1543,7 +1544,7 @@ export default function AdminLLMConfigSection({ lng }: BaseSettingsProps) {
             {t('settings.admin.llmConfig.types.description')}
           </p>
 
-          {LLM_CATEGORIES_ORDER.map(cat => {
+          {categories.map(cat => {
             const catConfigs = configsByCategory[cat];
             if (!catConfigs?.length) return null;
 

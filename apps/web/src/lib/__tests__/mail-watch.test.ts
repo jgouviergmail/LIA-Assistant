@@ -11,7 +11,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAIL_WATCH_DAYS,
-  MAIL_WATCH_HOURS,
   buildMailWatch,
   canWatch,
   existingWatchFor,
@@ -104,7 +103,7 @@ describe('the payload', () => {
   it('is a condition routine on a mail match', () => {
     const payload = build();
     expect(payload.trigger_kind).toBe('condition');
-    expect(payload.condition_config).toEqual({ type: 'mail_match', query: 'marie@acme.fr' });
+    expect(payload.condition_config).toMatchObject({ type: 'mail_match', query: 'marie@acme.fr' });
   });
 
   it('carries the translated wording untouched', () => {
@@ -113,26 +112,16 @@ describe('the payload', () => {
     expect(payload.action_prompt).toBe('Préviens-moi de la réponse.');
   });
 
-  it('ends through the recurrence, never through a field of its own', () => {
+  it('ends on the last day of the condition, never a field of its own', () => {
     const payload = build();
-    expect(payload.recurrence.end).toEqual({ kind: 'on_date', on_date: '2026-09-25' });
+    expect(payload.condition_config.until).toBe('2026-09-25');
     expect(payload).not.toHaveProperty('expires_at');
   });
 
-  it('anchors on the day it is created, so the series starts at once', () => {
-    expect(build().recurrence.anchor_date).toBe('2026-09-11');
-  });
-
-  it('evaluates twice a day as the fallback for an account with no push', () => {
-    const payload = build();
-    expect(payload.recurrence.times).toEqual({
-      mode: 'at',
-      at: MAIL_WATCH_HOURS.map(hour => ({ hour, minute: 0 })),
-    });
-  });
-
-  it('stays far under the twelve-a-day a routine may ask', () => {
-    expect(MAIL_WATCH_HOURS.length).toBeLessThanOrEqual(12);
+  it('carries no schedule: the system checks it (ADR-322)', () => {
+    // A schedule was a watch's only clock without push: twice a day, and an
+    // awaited reply could wait sixteen hours. The server refuses one now.
+    expect(build()).not.toHaveProperty('recurrence');
   });
 
   it('lives two working weeks', () => {

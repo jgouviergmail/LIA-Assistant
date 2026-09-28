@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-09-28
+
+**Une radio personnelle, des fichiers que l'on choisit de garder, et une conversation qui suit les événements sans rechargement.** Cette version rassemble les nouvelles façons d'écouter, de conserver et de partager le travail de LIA, avec des règles de langue et de vérification plus explicites.
+
+### Added
+
+- **Radio personnelle à la demande** ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md)) : journal du jour et actualités de sources identifiées, grille de programmes décidée par le code, rédaction et voix de synthèse, sources et dépense visibles, préférences de sujets, de voix et de vérification. L'antenne ne produit que pendant l'écoute, s'arrête au minuteur, et la capacité peut être désactivée par l'exploitant. Le démonstrateur public la garde désactivée.
+- **Conservation sélective des fichiers générés** ([ADR-319](docs/architecture/ADR-319-A-Generated-File-Can-Be-Kept.md)) : images, documents et captures peuvent être gardés sans date d'expiration depuis la galerie, sous deux plafonds publiés par compte. Cesser de garder un fichier lui donne un nouveau délai de conservation ; la carte du chat relit son état actuel.
+- **Envoi par e-mail d'un fichier ou d'une réponse** ([ADR-321](docs/architecture/ADR-321-A-File-Or-An-Answer-Sent-By-E-Mail.md)) : sujet et message facultatif, pièce jointe issue de la galerie ou réponse exportée en Markdown. La boîte connectée accepte des destinataires choisis ; le relais de LIA ne peut écrire qu'à l'adresse vérifiée du compte. Les limites réelles du chemin choisi sont affichées avant l'envoi.
+
+### Changed
+
+- **Conversation synchronisée** ([ADR-320](docs/architecture/ADR-320-The-Chat-Follows-The-Server-Without-A-Reload.md)) : les messages arrivés d'un autre onglet, appareil, canal, appel ou automatisation rejoignent le fil après validation en base. La fusion préserve les anciens messages chargés, la lecture et une action en cours ; la reconnexion rattrape les événements manqués.
+- **Une seule horloge par routine** ([ADR-322](docs/architecture/ADR-322-One-Clock-Per-Routine.md)) : une routine suit soit son calendrier, soit une condition vérifiée périodiquement par LIA. Le studio montre les champs du mode choisi et les vérifications sans résultat ne créent plus d'exécution fictive.
+- **Langue déclarée de bout en bout** ([ADR-323](docs/architecture/ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md)) : les chaînes visibles, les catalogues gettext et les tables multilingues sont vérifiés dans les six langues ; les instructions techniques destinées au modèle restent distinctes de la langue de la personne.
+
+### Fixed
+
+- Une carte de fichier ne conserve plus un délai périmé après conservation ou suppression ; le balayage des expirations ne peut plus effacer un fichier gardé entre lecture et suppression.
+- L'historique du chat ne perd plus ses anciennes pages lors d'une mise à jour et ne dédouble plus une réponse arrivée hors du flux courant.
+- Les pièces jointes sortantes utilisent un format MIME commun aux fournisseurs ; les erreurs de taille, de boîte déconnectée et de destinataire sont expliquées sur l'écran d'envoi.
+
+### Tests
+
+- Tests de concurrence PostgreSQL pour la conservation et les signaux après commit, contrats des fournisseurs d'e-mail, tests de fusion du chat, de planification des routines, de catalogues linguistiques et de la grille, des sources, des voix et du budget radio.
+
 ## [1.47.4] - 2026-09-25
 
 **Ce qui doit être exact est calculé, et LIA relit ses propres registres ; la mémoire se consulte exprès, un e-mail à soi-même part sans brouillon, une image générée se partage avec une connexion, et les journaux ne gardent que des faits.**

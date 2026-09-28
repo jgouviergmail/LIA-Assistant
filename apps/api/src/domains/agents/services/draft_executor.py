@@ -43,10 +43,12 @@ from typing import TYPE_CHECKING, Any, Literal
 import structlog
 from langchain_core.runnables import RunnableConfig
 
+from src.core.i18n import resolve_language
 from src.domains.agents.context.access import get_tcm_session
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
 )
+from src.domains.agents.drafts.card_spec import shown_value
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.effects.digest import draft_digest
 from src.domains.agents.effects.runtime import EffectAlreadyClaimed
@@ -56,6 +58,7 @@ from src.domains.agents.services.draft_executor_types import (
     EXECUTOR_REGISTRY,
     register_executor,
 )
+from src.domains.shared.markdown_literal import markdown_data_literal
 from src.infrastructure.observability.metrics_agents import (
     registry_drafts_executed_total,
 )
@@ -121,7 +124,7 @@ class DraftExecutionResult:
         action: str,
         result_data: dict[str, Any] | None = None,
         error: str | None = None,
-        user_language: str = "fr",
+        user_language: str | None = None,
     ) -> None:
         self.success = success
         self.draft_id = draft_id
@@ -129,7 +132,7 @@ class DraftExecutionResult:
         self.action = action
         self.result_data = result_data or {}
         self.error = error
-        self.user_language = user_language
+        self.user_language = resolve_language(user_language)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for state storage."""
@@ -187,16 +190,25 @@ class DraftExecutionResult:
         }
 
     def _get_success_message(self) -> str:
-        """Get localized success message based on draft type and user language."""
+        """Get localized success message based on draft type and user language.
+
+        The message heads the result card, in Markdown: the draft's values are
+        drawn as themselves (``markdown_data_literal`` over ``shown_value``) —
+        an event summary « Point ![x](…) » drew an image in the headline, and
+        a value holding ``**`` read as LIA's own emphasis (review 14).
+        """
         from src.core.i18n_drafts import get_draft_success_message
 
-        # Extract dynamic values from result_data for placeholder substitution
+        def _drawn(key: str) -> str:
+            value = self.result_data.get(key)
+            return markdown_data_literal(shown_value(value)) if value else ""
+
         return get_draft_success_message(
             draft_type=self.draft_type,
             language=self.user_language,
-            name=self.result_data.get("name", ""),
-            summary=self.result_data.get("summary", ""),
-            title=self.result_data.get("title", ""),
+            name=_drawn("name"),
+            summary=_drawn("summary"),
+            title=_drawn("title"),
         )
 
     def _get_cancel_message(self) -> str:
@@ -213,7 +225,7 @@ async def execute_draft_if_confirmed(
     draft_action_result: dict[str, Any] | None,
     config: RunnableConfig,
     run_id: str,
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> DraftExecutionResult | None:
     """
     Execute draft if user confirmed via HITL.
@@ -229,7 +241,7 @@ async def execute_draft_if_confirmed(
             - draft_content: Draft content dict
         config: RunnableConfig with metadata (user_id); dependencies come from the run context
         run_id: Run ID for logging
-        user_language: User's language for localized messages (default: "fr")
+        user_language: User's language for localized messages (default: the declared language)
 
     Returns:
         DraftExecutionResult if action requires response, None if no action needed
@@ -239,6 +251,7 @@ async def execute_draft_if_confirmed(
         - "edit" → Return result indicating edit in progress (re-critique)
         - "cancel" → Return result indicating cancellation
     """
+    user_language = resolve_language(user_language)
     ensure_executors_registered()
 
     if not draft_action_result:
@@ -608,7 +621,7 @@ async def _execute_confirmed_draft(
     draft_action_result: dict[str, Any],
     config: RunnableConfig,
     run_id: str,
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> DraftExecutionResult:
     """
     Execute a confirmed draft using ToolDependencies from config.
@@ -622,6 +635,7 @@ async def _execute_confirmed_draft(
     Returns:
         DraftExecutionResult with execution outcome
     """
+    user_language = resolve_language(user_language)
     draft_id = draft_action_result.get("draft_id", "unknown")
     draft_type = draft_action_result.get("draft_type", "unknown")
     draft_content = draft_action_result.get("draft_content", {})
@@ -810,7 +824,7 @@ async def _execute_confirmed_batch(
     draft_action_result: dict[str, Any],
     config: RunnableConfig,
     run_id: str,
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> DraftExecutionResult:
     """
     Execute a batch of decided drafts — a FOR_EACH lot or a sequence.
@@ -831,6 +845,7 @@ async def _execute_confirmed_batch(
     Returns:
         DraftExecutionResult with batch execution outcome
     """
+    user_language = resolve_language(user_language)
     batch = draft_action_result.get("batch", [])
     if not batch:
         return DraftExecutionResult(

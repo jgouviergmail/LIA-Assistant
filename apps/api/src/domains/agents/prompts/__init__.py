@@ -23,9 +23,8 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n import get_language_name, normalize_language
+from src.core.i18n import get_language_name, resolve_language
 from src.core.prompt_store import parse_prompt_sections
 from src.domains.agents.prompts.prompt_loader import (
     PromptIntegrityError,
@@ -74,7 +73,7 @@ def escape_braces(s: str) -> str:
 def format_with_current_datetime(
     prompt: str,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
 ) -> str:
     """
     Inject current_datetime placeholder into a prompt if present.
@@ -82,6 +81,7 @@ def format_with_current_datetime(
     Uses str.replace() for partial substitution to avoid KeyError when
     prompts contain other placeholders like {user_query}, {detected_domains}.
     """
+    user_language = resolve_language(user_language)
     if "{current_datetime}" not in prompt:
         return prompt
     try:
@@ -112,7 +112,7 @@ _PERIOD_OF_DAY = {
 }
 
 
-def get_period_of_day(hour: int, language: str = "fr") -> str:
+def get_period_of_day(hour: int, language: str | None = None) -> str:
     """
     Get period of day name based on hour (24h format).
 
@@ -123,8 +123,8 @@ def get_period_of_day(hour: int, language: str = "fr") -> str:
     Returns:
         Period name in the specified language.
     """
-    lang = normalize_language(language)
-    periods = _PERIOD_OF_DAY.get(lang, _PERIOD_OF_DAY["fr"])
+    lang = resolve_language(language)
+    periods = _PERIOD_OF_DAY[lang]
 
     if 5 <= hour < 12:
         return periods[1]  # Morning
@@ -149,10 +149,10 @@ _SEASONS = {
 }
 
 
-def get_season(month: int, language: str = "fr") -> str:
+def get_season(month: int, language: str | None = None) -> str:
     """Get season name based on month (Northern Hemisphere)."""
-    lang = normalize_language(language)
-    seasons = _SEASONS.get(lang, _SEASONS["fr"])
+    lang = resolve_language(language)
+    seasons = _SEASONS[lang]
 
     if month in [12, 1, 2]:
         return seasons[0]  # Winter
@@ -279,7 +279,7 @@ _WEEK_STATUS = {
 
 
 def get_current_datetime_context(
-    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE, language: str = "fr"
+    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE, language: str | None = None
 ) -> str:
     """
     Get rich temporal context for LLM prompts with user's timezone.
@@ -291,10 +291,8 @@ def get_current_datetime_context(
     - Season
     - Weekend indicator
     """
+    lang = resolve_language(language)
     try:
-        lang = normalize_language(language)
-        if lang not in _DAY_NAMES:
-            lang = "fr"
 
         utc_now = datetime.now(UTC)
         user_tz = ZoneInfo(user_timezone)
@@ -304,8 +302,8 @@ def get_current_datetime_context(
         weekday = user_now.weekday()
         month = user_now.month
 
-        period = get_period_of_day(hour, language)
-        season = get_season(month, language)
+        period = get_period_of_day(hour, lang)
+        season = get_season(month, lang)
         is_weekend_day = is_weekend(weekday)
 
         day_name = _DAY_NAMES[lang][weekday]
@@ -385,7 +383,7 @@ def render_context_section(key: str, content: str) -> str:
 
 def get_response_prompt(
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
     personality_instruction: str | None = None,
     window_size: int = 20,
     psychological_profile: str | None = None,
@@ -434,10 +432,10 @@ def get_response_prompt(
             Injected from KnowledgeEnrichmentService (Web or News search results).
         user_query: Current user query (original, in user's language).
         enriched_query: Enriched query with context resolved (in English).
-            Example: "je veux les détails" + history "où habitent les dupond"
+            Example: "I want the details" + history "where do the Duponds live"
             → enriched_query: "get contact details for the dupond family"
         data_for_filtering: Enriched data with IDs for LLM filtering analysis.
-        resolved_references: Resolved personal references from memory (e.g., {"ma femme": "jean dupond"}).
+        resolved_references: Resolved personal references from memory (e.g., {"my wife": "jean dupond"}).
         anticipated_needs: List of anticipated user needs for proactive suggestions.
             Example: ["may want reminder", "may want to reschedule"]
             Used by LIA to provide proactive suggestions in response.
@@ -461,6 +459,7 @@ def get_response_prompt(
     Returns:
         Formatted system prompt string ready for ChatPromptTemplate construction.
     """
+    user_language = resolve_language(user_language)
     from src.core.config import get_settings
 
     settings = get_settings()
@@ -476,7 +475,7 @@ def get_response_prompt(
     # message. Kept in the signature for backwards-compatible call sites.
     _ = skills_context  # noqa: F841
 
-    # Example: {"ma femme": "jean dupond"} → "ma femme" = jean dupond
+    # Example: {"my wife": "jean dupond"} → "my wife" = jean dupond
     resolved_refs_str = ", ".join(
         f'"{ref}" = {name}' for ref, name in (resolved_references or {}).items()
     )
@@ -616,7 +615,7 @@ def get_smart_planner_prompt(
     context: str = "",
     references: str = "",
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
     validation_feedback: str | None = None,
     semantic_dependencies: str = "",
     learned_patterns: str = "",
@@ -666,6 +665,7 @@ def get_smart_planner_prompt(
     Returns:
         Formatted prompt string ready for LLM.
     """
+    user_language = resolve_language(user_language)
     from src.core.config import get_settings
 
     _settings = get_settings()
@@ -749,7 +749,7 @@ def get_hitl_classifier_prompt(
     action_desc: str,
     response: str,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
 ) -> str:
     """Get formatted HITL response classifier prompt from versioned file."""
     from src.core.config import get_settings
@@ -763,22 +763,15 @@ def get_hitl_classifier_prompt(
     return hitl_prompt_template.format(
         action_desc=action_desc,
         response=response,
-        current_datetime=get_current_datetime_context(user_timezone, user_language),
+        current_datetime=get_current_datetime_context(
+            user_timezone, resolve_language(user_language)
+        ),
     )
 
 
 # ============================
 # HITL ERROR & CLARIFICATION MESSAGES
 # ============================
-
-_HITL_CLASSIFICATION_FALLBACK_MESSAGES = {
-    "fr": "Désolé, je n'ai pas bien compris. Peux-tu répondre par 'oui' pour confirmer ou 'non' pour annuler ?",
-    "en": "Sorry, I didn't understand. Can you reply with 'yes' to confirm or 'no' to cancel?",
-    "es": "Lo siento, no entendí bien. ¿Puedes responder 'sí' para confirmar o 'no' para cancelar?",
-    "de": "Entschuldigung, ich habe nicht verstanden. Kannst du mit 'ja' bestätigen oder 'nein' abbrechen?",
-    "it": "Scusa, non ho capito. Puoi rispondere 'sì' per confermare o 'no' per annullare?",
-    "zh-CN": "抱歉，我没理解。请回复「是」确认或「否」取消。",
-}
 
 _HITL_CLARIFICATION_GENERIC_MESSAGES = {
     "fr": "Je ne suis pas sûr de comprendre. Confirmes-tu l'action (oui/non) ?",
@@ -790,25 +783,10 @@ _HITL_CLARIFICATION_GENERIC_MESSAGES = {
 }
 
 
-def get_hitl_classification_fallback_message(language: str = "fr") -> str:
-    """Get HITL classification fallback message in user's language."""
-    lang = normalize_language(language)
-    return _HITL_CLASSIFICATION_FALLBACK_MESSAGES.get(
-        lang, _HITL_CLASSIFICATION_FALLBACK_MESSAGES["fr"]
-    )
-
-
-def get_hitl_clarification_generic_message(language: str = "fr") -> str:
+def get_hitl_clarification_generic_message(language: str | None = None) -> str:
     """Get HITL clarification generic message in user's language."""
-    lang = normalize_language(language)
-    return _HITL_CLARIFICATION_GENERIC_MESSAGES.get(
-        lang, _HITL_CLARIFICATION_GENERIC_MESSAGES["fr"]
-    )
-
-
-# Backward compatibility aliases
-HITL_CLASSIFICATION_FALLBACK_MESSAGE = _HITL_CLASSIFICATION_FALLBACK_MESSAGES["fr"]
-HITL_CLARIFICATION_GENERIC_MESSAGE = _HITL_CLARIFICATION_GENERIC_MESSAGES["fr"]
+    lang = resolve_language(language)
+    return _HITL_CLARIFICATION_GENERIC_MESSAGES[lang]
 
 
 # ============================
@@ -817,8 +795,8 @@ HITL_CLARIFICATION_GENERIC_MESSAGE = _HITL_CLARIFICATION_GENERIC_MESSAGES["fr"]
 
 _ERROR_FALLBACK_MESSAGES = {
     "fr": {
-        "with_node": "Désolé, une erreur s'est produite dans le nœud {node_name}. Pouvez-vous reformuler votre question ? (Error: {error_type})",
-        "generic": "Désolé, une erreur s'est produite. Pouvez-vous reformuler votre question ? (Error: {error_type})",
+        "with_node": "Désolé, une erreur s'est produite dans le nœud {node_name}. Peux-tu reformuler ta question ? (Error: {error_type})",
+        "generic": "Désolé, une erreur s'est produite. Peux-tu reformuler ta question ? (Error: {error_type})",
     },
     "en": {
         "with_node": "Sorry, an error occurred in node {node_name}. Could you rephrase your question? (Error: {error_type})",
@@ -829,48 +807,32 @@ _ERROR_FALLBACK_MESSAGES = {
         "generic": "Lo siento, ocurrió un error. ¿Podrías reformular tu pregunta? (Error: {error_type})",
     },
     "de": {
-        "with_node": "Entschuldigung, ein Fehler ist im Knoten {node_name} aufgetreten. Können Sie Ihre Frage umformulieren? (Error: {error_type})",
-        "generic": "Entschuldigung, ein Fehler ist aufgetreten. Können Sie Ihre Frage umformulieren? (Error: {error_type})",
+        "with_node": "Entschuldigung, ein Fehler ist im Knoten {node_name} aufgetreten. Kannst du deine Frage umformulieren? (Error: {error_type})",
+        "generic": "Entschuldigung, ein Fehler ist aufgetreten. Kannst du deine Frage umformulieren? (Error: {error_type})",
     },
     "it": {
         "with_node": "Scusa, si è verificato un errore nel nodo {node_name}. Puoi riformulare la tua domanda? (Error: {error_type})",
         "generic": "Scusa, si è verificato un errore. Puoi riformulare la tua domanda? (Error: {error_type})",
     },
     "zh-CN": {
-        "with_node": "抱歉，节点 {node_name} 发生错误。请重新表述您的问题。(Error: {error_type})",
-        "generic": "抱歉，发生了错误。请重新表述您的问题。(Error: {error_type})",
+        "with_node": "抱歉，节点 {node_name} 发生错误。请重新表述你的问题。(Error: {error_type})",
+        "generic": "抱歉，发生了错误。请重新表述你的问题。(Error: {error_type})",
     },
 }
 
 
 def get_error_fallback_message(
-    error_type: str, node_name: str | None = None, language: str = "fr"
+    error_type: str, node_name: str | None = None, language: str | None = None
 ) -> str:
     """Get standardized error message for node failures (i18n)."""
-    # Single chokepoint: raw "zh"/"zh_CN" spellings must reach the backend
-    # canonical key, otherwise a Chinese user gets the French fallback.
-    lang = normalize_language(language)
-    messages = _ERROR_FALLBACK_MESSAGES.get(lang, _ERROR_FALLBACK_MESSAGES["fr"])
+    # Single chokepoint: raw "zh"/"zh_CN" spellings reach the backend canonical
+    # key, and a language nobody passed is the declared one (ADR-323).
+    lang = resolve_language(language)
+    messages = _ERROR_FALLBACK_MESSAGES[lang]
 
     if node_name:
         return messages["with_node"].format(node_name=node_name, error_type=error_type)
     return messages["generic"].format(error_type=error_type)
-
-
-def get_hitl_resumption_error_message(
-    error: Exception, user_language: str = settings.default_language
-) -> str:
-    """Get error message for HITL resumption failures."""
-    from typing import cast
-
-    from src.domains.agents.api.error_messages import SSEErrorMessages, SupportedLanguage
-
-    # Cast to SupportedLanguage (validated elsewhere, default to "fr" if invalid)
-    lang = cast(
-        SupportedLanguage,
-        user_language if user_language in ("fr", "en", "es", "de", "it", "zh-CN") else "fr",
-    )
-    return SSEErrorMessages.hitl_resumption_error_simple(error=error, language=lang)
 
 
 # ============================
@@ -902,11 +864,7 @@ __all__ = [
     "get_smart_planner_prompt",
     "get_hitl_classifier_prompt",
     # HITL messages
-    "get_hitl_classification_fallback_message",
     "get_hitl_clarification_generic_message",
-    "HITL_CLASSIFICATION_FALLBACK_MESSAGE",
-    "HITL_CLARIFICATION_GENERIC_MESSAGE",
     # Error messages
     "get_error_fallback_message",
-    "get_hitl_resumption_error_message",
 ]

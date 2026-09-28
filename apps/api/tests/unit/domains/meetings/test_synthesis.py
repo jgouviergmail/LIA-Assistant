@@ -173,7 +173,7 @@ def test_action_items_keep_owner_and_absolute_due_date() -> None:
 
 def test_render_context_states_every_fact_in_the_users_timezone() -> None:
     block = render_context(_context())
-    assert "LANGUAGE: fr" in block
+    assert "LANGUAGE: French" in block
     assert "DATE: 2026-09-02 (Wednesday)" in block
     assert "START: 10:00" in block and "END: 11:05" in block  # UTC+2 in September
     assert "DURATION: 1:05:00" in block
@@ -373,3 +373,23 @@ async def test_synthesize_rewrites_transcript_sections_and_asks_the_rest_of_the_
     assert result.report.sections[1].transcript == lines
     assert result.report.sections[0].paragraph == "C."
     assert result.usage.tokens_in == 3
+
+
+@pytest.mark.parametrize("language", ["fr", "en", "zh-CN"])
+def test_topics_repaired_into_lines_take_the_reader_s_punctuation(language: str) -> None:
+    """A topics payload repaired into a bullets section reads « title{separator}summary »
+    with the minutes' reader's punctuation — never a colon written in the code."""
+    from src.core.i18n_drafts import label_separator
+
+    minutes = SynthesizedMinutes(
+        title="T",
+        sections=[
+            SynthesizedSection(
+                key="decisions", topics=[SynthesizedTopic(title="Budget", summary="Validated.")]
+            )
+        ],
+    )
+
+    report = repair_report(minutes, _template(), speaker_labels=["S1"], language=language)
+
+    assert report.sections[1].bullets == [f"Budget{label_separator(language)}Validated."]

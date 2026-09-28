@@ -23,6 +23,7 @@ from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.graphs.base_agent_builder import (
     build_generic_agent,
     create_agent_config_from_settings,
+    domain_context_instructions,
 )
 from src.domains.agents.prompts import load_prompt
 from src.infrastructure.observability.logging import get_logger
@@ -110,12 +111,7 @@ def build_contacts_agent() -> Any:
 
     # Generate system prompt with dynamic datetime
     # Use ChatPromptTemplate.partial to inject datetime at invocation time (not build time)
-    context_instructions = """
-## 📋 Contexte Multi-Domaines (V1 - Contacts Only)
-
-Actuellement, seul le domaine "contacts" est actif.
-Les outils resolve_reference, get_context_state, set_current_item fonctionnent avec domain="contacts".
-    """.strip()
+    context_instructions = domain_context_instructions("contacts")
 
     # Load versioned prompt template
     contacts_agent_prompt_template = load_prompt("contacts_agent_prompt", version="v1")

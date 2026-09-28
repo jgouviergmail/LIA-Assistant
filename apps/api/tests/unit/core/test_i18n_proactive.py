@@ -59,11 +59,11 @@ class TestProactiveMessages:
         ``.get``), so an unsupported language answers with the configured
         default language rather than English.
         """
-        from src.core.i18n import DEFAULT_LANGUAGE
+        from src.core.config import settings
 
         assert ProactiveMessages.notification_title(
             "interest", "xx"
-        ) == ProactiveMessages.notification_title("interest", DEFAULT_LANGUAGE)
+        ) == ProactiveMessages.notification_title("interest", settings.default_language)
 
     @pytest.mark.parametrize("spelling", ["zh", "zh_CN", "zh-cn", "ZH-CN"])
     def test_every_chinese_spelling_reaches_the_canonical_entry(self, spelling: str) -> None:

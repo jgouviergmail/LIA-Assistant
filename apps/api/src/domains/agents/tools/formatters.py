@@ -38,7 +38,7 @@ import structlog
 from src.core.field_names import (
     FIELD_METADATA,
 )
-from src.core.i18n import normalize_language
+from src.core.i18n import get_locale_for_language, normalize_language, resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_dates import (
     get_day_name,
@@ -164,9 +164,9 @@ class ContactsFormatter:
         Uses format_google_birthday() for localized, unambiguous date formatting.
         Format: "03 novembre 1975" (without day of week, without time).
 
-        Note: uses the default locale. These extractors are static by design
-        (no formatter instance exists to carry a per-user locale); a caller that
-        needs the user's locale formats the raw date itself.
+        Note: these extractors are static by design (no formatter instance
+        carries a per-user locale), so the date is written in the declared
+        language's locale (ADR-323).
         """
         birthdays = person.get("birthdays", [])
         formatted_birthdays: list[str] = []
@@ -178,16 +178,10 @@ class ContactsFormatter:
                 month = date.get("month")
                 day = date.get("day")
 
-                # Use localized date formatter (no ambiguity, proper i18n).
-                # These extractors are static and carry no per-user locale.
-                from src.core.constants import DEFAULT_LOCALE
-
-                formatted = format_google_birthday(
-                    year=year,
-                    month=month,
-                    day=day,
-                    locale=DEFAULT_LOCALE,
-                )
+                # Localized date formatter (no ambiguity, proper i18n). These
+                # extractors carry no locale of their own: the formatter writes
+                # in the declared language's (ADR-323).
+                formatted = format_google_birthday(year=year, month=month, day=day)
                 formatted_birthdays.append(formatted)
 
         return formatted_birthdays
@@ -372,7 +366,7 @@ class ContactsFormatter:
 def format_google_datetime(
     timestamp_ms: int | str | None,
     user_timezone: str = "UTC",
-    locale: str = "fr-FR",
+    locale: str | None = None,
     include_time: bool = True,
 ) -> str:
     """
@@ -394,15 +388,15 @@ def format_google_datetime(
 
     Examples:
         >>> format_google_datetime(1700000000000, "Europe/Paris", "fr-FR")
-        "mercredi 15 novembre 2023 à 01:13"
+        "mardi 14 novembre 2023 à 23:13"
 
         >>> format_google_datetime(1700000000000, "America/New_York", "en-US")
-        "Tuesday, November 14, 2023 at 7:13 PM"
+        "Tuesday 14 November 2023 at 17:13"
     """
+    locale = locale or get_locale_for_language(None)
+    language = normalize_language(locale)
     if not timestamp_ms:
-        # Extract language from locale for i18n
-        lang = normalize_language(locale or "")
-        return APIMessages.date_unknown(lang)
+        return APIMessages.date_unknown(language)
 
     try:
         # Handle both int and string inputs
@@ -434,10 +428,7 @@ def format_google_datetime(
         day_name = get_day_name(day_of_week, locale)
         month_name = get_month_name(month, locale)
 
-        # Extract language for special formatting (zh-CN needs different structure)
-        language = normalize_language(locale or "")
-
-        # Format based on language
+        # Format based on language (zh-CN needs a different structure)
         if language == "zh-CN":
             # Chinese format: "2025年11月17日 星期日"
             date_str = f"{year}年{month}月{int(day)}日 {day_name}"
@@ -464,8 +455,7 @@ def format_google_datetime(
             user_timezone=user_timezone,
             error=str(e),
         )
-        lang = normalize_language(locale or "")
-        return APIMessages.date_invalid(lang)
+        return APIMessages.date_invalid(language)
 
 
 def format_google_time_only(
@@ -520,7 +510,7 @@ def format_google_birthday(
     year: int | str | None,
     month: int | str | None,
     day: int | str | None,
-    locale: str = "fr-FR",
+    locale: str | None = None,
 ) -> str:
     """
     Format Google Contacts birthday for user display.
@@ -532,7 +522,8 @@ def format_google_birthday(
         year: Birth year (optional, can be None if age is private)
         month: Birth month (1-12)
         day: Birth day (1-31)
-        locale: Locale for formatting (e.g., "fr-FR", "en-US")
+        locale: Locale for formatting (e.g., "fr-FR", "en-US"); the declared
+            language's locale when absent
 
     Returns:
         Formatted string:
@@ -554,13 +545,11 @@ def format_google_birthday(
         NOT as timestamps. This avoids timezone-related ambiguity (birthdays are
         calendar dates, not moments in time).
     """
-
-    # Helper to get language from locale
-    def _get_lang() -> str:
-        return normalize_language(locale or "")
+    locale = locale or get_locale_for_language(None)
+    language = normalize_language(locale)
 
     if not month or not day:
-        return APIMessages.date_invalid(_get_lang())
+        return APIMessages.date_invalid(language)
 
     try:
         # Convert to integers if strings
@@ -569,22 +558,19 @@ def format_google_birthday(
         year_int = int(year) if year else None
 
         if not month_int or not day_int:
-            return APIMessages.date_invalid(_get_lang())
+            return APIMessages.date_invalid(language)
 
         # Validate ranges
         if not (1 <= month_int <= 12):
-            return APIMessages.date_invalid(_get_lang())
+            return APIMessages.date_invalid(language)
         if not (1 <= day_int <= 31):
-            return APIMessages.date_invalid(_get_lang())
+            return APIMessages.date_invalid(language)
 
         # Get month name using centralized i18n_dates module
         month_name = get_month_name(month_int, locale)
         day_str = f"{day_int:02d}"  # Leading zero (03, 17, etc.)
 
-        # Extract language for special formatting (zh-CN, en need different structure)
-        language = normalize_language(locale or "")
-
-        # Format based on language
+        # Format based on language (zh-CN and en need a different structure)
         if language == "zh-CN":
             # Chinese format: "1975年11月3日" or "11月3日"
             if year_int:
@@ -613,7 +599,7 @@ def format_google_birthday(
             locale=locale,
             error=str(e),
         )
-        return APIMessages.date_invalid(_get_lang())
+        return APIMessages.date_invalid(language)
 
 
 # =============================================================================
@@ -646,12 +632,12 @@ class GmailFormatter:
         return headers
 
     @staticmethod
-    def _extract_from(message: dict[str, Any], locale: str = "fr-FR") -> str:
+    def _extract_from(message: dict[str, Any], locale: str | None = None) -> str:
         """Extract sender full header (name + email)."""
         headers = GmailFormatter._extract_headers_dict(message)
         if from_header := headers.get("from"):
             return from_header
-        lang = normalize_language(locale or "")
+        lang = resolve_language(locale)
         return APIMessages.sender_unknown(lang)
 
     @staticmethod
@@ -696,12 +682,12 @@ class GmailFormatter:
         return [addr.strip() for addr in cc_header.split(",") if addr.strip()]
 
     @staticmethod
-    def _extract_subject(message: dict[str, Any], locale: str = "fr-FR") -> str:
+    def _extract_subject(message: dict[str, Any], locale: str | None = None) -> str:
         """Extract email subject."""
         headers = GmailFormatter._extract_headers_dict(message)
         if subject := headers.get("subject"):
             return subject
-        lang = normalize_language(locale or "")
+        lang = resolve_language(locale)
         return APIMessages.no_subject(lang)
 
     @staticmethod
@@ -792,7 +778,7 @@ class GmailFormatter:
 
     @staticmethod
     def _extract_attachments(
-        message: dict[str, Any], locale: str = "fr-FR"
+        message: dict[str, Any], locale: str | None = None
     ) -> list[dict[str, str]]:
         """
         Extract attachments from email message.
@@ -827,7 +813,7 @@ class GmailFormatter:
             Attachment bodies are NOT extracted (use attachmentId if needed).
         """
         # Get language from locale
-        lang = normalize_language(locale or "")
+        lang = resolve_language(locale)
 
         attachments = []
         payload = message.get("payload", {})

@@ -61,7 +61,7 @@ describe('getProgressMessage', () => {
     expect(message).toBe('*📅 execution.steps.calendar_search*');
   });
 
-  it('execution_step falls back to the detail snippet when the i18n key is empty', () => {
+  it('execution_step whose label no language knows reads as thinking', () => {
     const tEmptySteps = ((key: string, opts?: { defaultValue?: string }) =>
       key.startsWith('execution.steps.')
         ? (opts?.defaultValue ?? '')
@@ -70,18 +70,9 @@ describe('getProgressMessage', () => {
     const message = getProgressMessage('execution_step', tEmptySteps, {
       emoji: '🔎',
       i18n_key: 'unknown_step',
-      detail: 'short detail',
     });
 
-    expect(message).toBe('*🔎 short detail*');
-  });
-
-  it('execution_step truncates details longer than 80 chars and defaults the emoji', () => {
-    const longDetail = 'x'.repeat(100);
-
-    const message = getProgressMessage('execution_step', tKey, { detail: longDetail });
-
-    expect(message).toBe(`*🧠 ${'x'.repeat(77)}...*`);
+    expect(message).toBe('hitl.progress.thinking');
   });
 
   it('execution_step without metadata and unknown types fall back to thinking', () => {

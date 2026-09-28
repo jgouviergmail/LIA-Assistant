@@ -23,17 +23,16 @@ from tests.helpers.runtime_context import make_tool_runtime
 
 
 def create_mock_perplexity_client() -> AsyncMock:
-    """Create a PerplexityClient mock with the instance attrs the tools read.
+    """A PerplexityClient mock that has exactly the real client's surface.
 
-    ``user_timezone``/``user_language`` are set in ``__init__`` on the real
-    client (not class attributes), so ``spec=`` alone would reject them.
+    No instance attribute is added by hand: the tools used to read a
+    ``user_language`` this mock invented after the real client had lost it,
+    so every test passed while every real call failed (ADR-323 review). The
+    person's clock and language come from the runtime, never the client.
     """
     from src.domains.connectors.clients.perplexity_client import PerplexityClient
 
-    client = AsyncMock(spec=PerplexityClient)
-    client.user_timezone = "UTC"
-    client.user_language = "en"
-    return client
+    return AsyncMock(spec=PerplexityClient)
 
 
 def create_mock_api_key_dependencies(
@@ -381,3 +380,53 @@ class TestPerplexityAskTool:
             assert result.success is False
             assert result.error_code == "connector_not_activated"
             assert "Perplexity" in result.message
+
+
+class TestThePersonsClock:
+    """The date line Perplexity is told is the PERSON's, in their language.
+
+    The client is built from the API key alone. The tools used to read a
+    timezone and a language off it — always « UTC », and a language attribute
+    the client had lost — so every real call failed while the mocks, which
+    invented the attribute, passed (ADR-323 review).
+    """
+
+    @pytest.mark.asyncio
+    async def test_search_is_told_the_persons_timezone_in_their_language(self) -> None:
+        from src.core.i18n_dates import get_day_name
+        from src.domains.agents.tools.perplexity_tools import _perplexity_search_tool_impl
+
+        mock_client = create_mock_perplexity_client()
+        mock_client.search = AsyncMock(
+            return_value={
+                "answer": "ok",
+                "citations": [],
+                "related_questions": [],
+                "query": "q",
+                "model": "sonar",
+            }
+        )
+        runtime = make_tool_runtime(
+            user_id=str(uuid4()),
+            timezone="Asia/Tokyo",
+            language="de",
+            store=MagicMock(get=MagicMock(return_value=None), put=MagicMock()),
+            state={},
+            tool_call_id="test_call_id",
+        )
+        deps = create_mock_api_key_dependencies(
+            api_key_credentials=APIKeyCredentials(api_key="pplx-test", key_name="Test Key")
+        )
+
+        with (
+            patch("src.domains.agents.tools.base.get_dependencies", return_value=deps),
+            patch.object(
+                _perplexity_search_tool_impl, "create_client", lambda creds, uid: mock_client
+            ),
+        ):
+            result = await _perplexity_search_tool_impl.execute(runtime, query="q")
+
+        assert result.success is True
+        prompt = mock_client.search.call_args.kwargs["system_prompt"]
+        assert prompt.endswith("(Asia/Tokyo)")
+        assert any(get_day_name(day, "de") in prompt for day in range(7))

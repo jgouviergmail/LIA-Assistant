@@ -25,6 +25,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from src.domains.agents.nodes import react_nodes
+from src.domains.agents.utils.react_budget import react_exit_reason
 
 pytestmark = [pytest.mark.unit]
 
@@ -109,9 +110,18 @@ class TestOnePredicateForBothReaders:
             "for a reason the answer never mentions"
         )
 
+    def test_the_finalize_explains_with_the_same_predicate(self) -> None:
+        """Its reader (``loop_cut_reason``) calls the predicate — never a copy."""
+        import inspect
+
+        from src.domains.agents.utils import react_budget
+
+        assert "loop_cut_reason" in inspect.getsource(react_nodes.react_finalize_node)
+        assert "react_exit_reason(state)" in inspect.getsource(react_budget.loop_cut_reason)
+
     def test_the_predicate_names_each_stop_condition(self) -> None:
-        assert react_nodes.react_exit_reason(_state(AIMessage(""), 6, 6)) == "max_iterations"
-        assert react_nodes.react_exit_reason(_state(AIMessage(""), 2, 90)) is None
+        assert react_exit_reason(_state(AIMessage(""), 6, 6)) == "max_iterations"
+        assert react_exit_reason(_state(AIMessage(""), 2, 90)) is None
 
     def test_the_compute_budget_is_a_named_reason(self) -> None:
         from src.core.config import settings
@@ -119,7 +129,7 @@ class TestOnePredicateForBothReaders:
         state = _state(AIMessage(""), iteration=2, budget=90)
         state["react_elapsed_seconds"] = float(settings.react_agent_timeout_seconds) + 1.0
 
-        assert react_nodes.react_exit_reason(state) == "compute_budget"
+        assert react_exit_reason(state) == "compute_budget"
 
 
 class TestTheAnswerIsToldToSayIt:
@@ -159,6 +169,26 @@ class TestTheAnswerIsToldToSayIt:
         }
 
         assert await build_run_honesty_block(state)
+
+    async def test_an_earlier_turn_s_failure_is_never_this_turn_s(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Read on the whole thread, turn 2's « thanks » was told turn 1's
+        403 had just failed (measured 2026-09-26)."""
+        from src.core.config import settings
+        from src.domains.agents.services.runtime_failure_directive import (
+            build_run_honesty_block,
+        )
+
+        monkeypatch.setattr(settings, "diagnostics_enabled", False, raising=False)
+        failed = ToolMessage(
+            content="Forbidden", tool_call_id="c1", name="fetch_web_page_tool", status="error"
+        )
+        earlier = [HumanMessage(content="read this page"), failed]
+
+        assert await build_run_honesty_block({"messages": earlier})
+        later = [*earlier, AIMessage(content="I could not."), HumanMessage(content="thanks")]
+        assert await build_run_honesty_block({"messages": later}) == ""
 
     async def test_a_clean_turn_still_costs_nothing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from src.core.config import settings

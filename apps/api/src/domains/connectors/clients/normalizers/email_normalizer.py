@@ -26,7 +26,7 @@ _GMAIL_OPERATOR_PATTERN = re.compile(r"(from|to|cc|subject|after|before|label|is
 _GMAIL_NEGATION_PATTERN = re.compile(r"-(?:in|label|is|has|from|to|subject|after|before):(\S+)")
 
 # HTML tag stripping for snippet generation
-_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_HTML_TAG_RE = re.compile(r"<[^<>]+>")
 
 _SNIPPET_MAX_LENGTH = 200
 

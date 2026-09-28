@@ -18,6 +18,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.config import settings
+from src.core.i18n import get_language_name
 from src.domains.agents.nodes.response_node import _build_response_chain
 from src.domains.agents.orchestration.plan_schemas import (
     ExecutionPlan,
@@ -30,6 +32,9 @@ from src.domains.agents.tools.common import ToolErrorCode
 BLOCKED_MARKER = "PLAN BLOCKED BY VALIDATION"
 REJECTION_MARKER = "PLAN REJECTION"
 CANCELLED_MARKER = "DRAFT"
+
+#: A language that is not the instance default, so nothing passes by chance.
+_PERSON = next(code for code in ("it", "es") if code != settings.default_language)
 
 
 def _invalid_plan() -> ValidationResult:
@@ -68,7 +73,7 @@ def _system_blocks(state: dict, plan_rejection_reason: str | None = None) -> str
             skills_context="",
             plan_rejection_reason=plan_rejection_reason,
             state=state,
-            user_language="fr",
+            user_language=_PERSON,
             llm=MagicMock(),
             performed_actions_block="",
         )
@@ -96,8 +101,21 @@ def test_directive_names_the_blocked_tool_and_its_cause():
     assert "not connected or authorized" in blocks
 
 
-def test_directive_carries_the_user_language():
-    assert "fr" in _system_blocks({"validation_result": _invalid_plan()})
+@pytest.mark.parametrize(
+    ("state", "rejection"),
+    [
+        ({"validation_result": _invalid_plan()}, None),
+        ({"validation_result": _invalid_plan()}, "user said no"),
+        ({"draft_action_result": {"action": "cancel", "draft_type": "email"}}, None),
+    ],
+    ids=["plan_blocked", "plan_rejection", "draft_cancelled"],
+)
+def test_each_directive_names_the_person_s_language(state: dict, rejection: str | None):
+    """The model is told the language's NAME, never its code (ADR-323)."""
+    blocks = _system_blocks(state, plan_rejection_reason=rejection)
+
+    assert f"ONLY in {get_language_name(_PERSON)}" in blocks
+    assert f"ONLY in {_PERSON}" not in blocks
 
 
 def test_directive_forbids_generalizing_beyond_the_blocked_list():

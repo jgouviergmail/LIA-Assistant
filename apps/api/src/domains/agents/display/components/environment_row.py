@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.display.components.base import escape_html
 
@@ -33,8 +34,9 @@ def air_quality_text(data: dict[str, Any], language: str, fallback_label: Any = 
             (the weather card's historical EPA table).
 
     Returns:
-        e.g. ``"Qualité de l'air: 66 (Bonne …, Universal AQI)"`` or
-        ``"Qualité de l'air: Moyen (IQA (FR))"``.
+        e.g. ``"Air quality: 66 (Good …, Universal AQI)"`` or
+        ``"Air quality: Moderate (IQA (FR))"`` — the label joined to its value
+        by the reader's punctuation (``label_separator``).
     """
     aqi = data.get("aqi") if data.get("aqi") is not None else data.get("air_quality")
     category = data.get("aqi_category") or ""
@@ -51,7 +53,7 @@ def air_quality_text(data: dict[str, Any], language: str, fallback_label: Any = 
         qualifiers.append(escape_html(str(index_label)))
     suffix = f" ({', '.join(qualifiers)})" if qualifiers else ""
     head = value_part or escape_html(str(category))
-    return f"{V3Messages.get_air_quality(language)}: {head}{suffix}"
+    return f"{V3Messages.get_air_quality(language)}{label_separator(language)}{head}{suffix}"
 
 
 def pollen_text(data: dict[str, Any], language: str) -> str:
@@ -73,4 +75,4 @@ def pollen_text(data: dict[str, Any], language: str) -> str:
     ]
     if not entries:
         return ""
-    return f"{V3Messages.get_pollen(language)}: {', '.join(entries)}"
+    return f"{V3Messages.get_pollen(language)}{label_separator(language)}{', '.join(entries)}"

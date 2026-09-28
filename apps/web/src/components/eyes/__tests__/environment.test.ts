@@ -33,7 +33,15 @@ describe('weather is evidence, not a randomly selected decoration', () => {
     ['Snow', 'snow'],
     ['Fog', 'fog'],
     ['Mist', 'fog'],
+    ['Haze', 'fog'],
+    ['Smoke', 'fog'],
+    ['Dust', 'fog'],
+    ['Sand', 'fog'],
+    ['Ash', 'fog'],
+    ['Squall', 'wind'],
+    ['Tornado', 'wind'],
     ['Clouds', null],
+    ['Unknown', null],
     ['__proto__', null],
   ] as const)('reads current %s without using a forecast', (condition, expected) => {
     expect(weatherAt(parseEnvironment(payload(20, condition)), now)).toBe(expected);

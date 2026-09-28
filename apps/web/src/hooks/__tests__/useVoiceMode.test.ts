@@ -123,6 +123,7 @@ vi.mock('@/lib/logger', () => ({
 
 import { useVoiceMode, type UseVoiceModeOptions } from '../useVoiceMode';
 import { useLiveStore } from '@/stores/liveStore';
+import { IDLE_RADIO_VIEW, useRadioStore } from '@/stores/radioStore';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
 
 // ---------------------------------------------------------------------------
@@ -261,6 +262,18 @@ describe('useVoiceMode — enable / KWS listening', () => {
       expect(result.current.isKwsListening).toBe(false);
     } finally {
       useLiveStore.getState().reset();
+    }
+  });
+
+  it('stands aside while the radio plays: its host saying the name must not wake LIA (ADR-324)', async () => {
+    useRadioStore.getState().setView({ ...IDLE_RADIO_VIEW, status: 'playing', sessionId: 'r1' });
+    try {
+      const { result } = await renderEnabled();
+      expect(result.current.state).toBe('listening');
+      expect(getUserMedia).not.toHaveBeenCalled();
+      expect(result.current.isKwsListening).toBe(false);
+    } finally {
+      useRadioStore.getState().setView(IDLE_RADIO_VIEW);
     }
   });
 

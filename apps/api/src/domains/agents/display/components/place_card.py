@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.constants import CURRENCY_DISPLAY_SYMBOLS
+from src.core.i18n import resolve_language
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import CONTEXT_DOMAIN_PLACES
 from src.domains.agents.display.components.base import (
@@ -547,7 +548,6 @@ class PlaceCard(BaseComponent):
                 trigger_text=V3Messages.get_see_more(ctx.language),
                 content_html=content_html,
                 initially_open=False,
-                language=ctx.language,
                 with_separator=False,
             )
 
@@ -638,13 +638,13 @@ class PlaceCard(BaseComponent):
             amount = str(start if start is not None else end)
         return f"{amount} {symbol}".strip()
 
-    def _format_price(self, price_level: str, language: str = "fr") -> str:
+    def _format_price(self, price_level: str, language: str | None = None) -> str:
         """Convert price level to € symbols."""
         if isinstance(price_level, str):
             if price_level.startswith("PRICE_LEVEL_"):
                 level = price_level.replace("PRICE_LEVEL_", "")
                 if level == "FREE":
-                    return V3Messages.get_free(language)
+                    return V3Messages.get_free(resolve_language(language))
                 mapping = {
                     "INEXPENSIVE": "€",
                     "MODERATE": "€€",
@@ -671,20 +671,20 @@ class PlaceCard(BaseComponent):
             return data["is_open"]  # type: ignore[no-any-return]
         return None
 
-    def _get_type_tag(self, types: list, language: str = "fr") -> str:
+    def _get_type_tag(self, types: list, language: str | None = None) -> str:
         """Get display type from types list."""
         for t in types:
-            type_label = V3Messages.get_place_type(language, t)
+            type_label = V3Messages.get_place_type(resolve_language(language), t)
             if type_label:
                 return type_label
         return ""
 
-    def _format_features(self, features: list, language: str = "fr") -> list[str]:
+    def _format_features(self, features: list, language: str | None = None) -> list[str]:
         """Format place features/services as badges."""
         result = []
         for feature in features:
             if isinstance(feature, str):
-                feature_label = V3Messages.get_place_feature(language, feature)
+                feature_label = V3Messages.get_place_feature(resolve_language(language), feature)
                 if feature_label:
                     result.append(
                         f'<span class="lia-badge lia-badge--subtle">{feature_label}</span>'

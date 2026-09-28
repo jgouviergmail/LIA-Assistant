@@ -31,7 +31,7 @@ class TestLocalizedQueryLocality:
     def test_all_supported_languages_have_suffix(self):
         from src.domains.interests.helpers import LOCALITY_SUFFIX_TEMPLATES
 
-        for lang in ("fr", "en", "es", "de", "it", "zh"):
+        for lang in ("fr", "en", "es", "de", "it", "zh-CN"):
             assert "{locality}" in LOCALITY_SUFFIX_TEMPLATES[lang], lang
 
 

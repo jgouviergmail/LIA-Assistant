@@ -183,3 +183,32 @@ class TestProactiveSpendReachesTheDecisionRegister:
             )
 
         assert run_id is not None, "a broken register must not swallow the run id"
+
+    async def test_a_run_that_spent_and_failed_is_filed_as_failed(self) -> None:
+        """A dispatch that reached nobody, a generation that broke after its
+        model call: the spend is real, and the turn did not answer."""
+        from src.domains.agents.effects.models import DecisionOutcome
+        from src.infrastructure.proactive.tracking import track_proactive_tokens
+
+        recorded: list[object] = []
+
+        with (
+            patch("src.domains.chat.service.TrackingContext", _fake_tracking_context()),
+            patch(
+                "src.domains.agents.effects.decision_recorder.record_decision",
+                AsyncMock(side_effect=lambda decision: recorded.append(decision)),
+            ),
+        ):
+            await track_proactive_tokens(
+                user_id=uuid.uuid4(),
+                task_type="heartbeat",
+                target_id="target-1234567890",
+                conversation_id=None,
+                tokens_in=10,
+                tokens_out=10,
+                model_name="gpt-5.6-luna",
+                source=EffectSource.PROACTIVE.value,
+                failed=True,
+            )
+
+        assert recorded[0].outcome is DecisionOutcome.FAILED

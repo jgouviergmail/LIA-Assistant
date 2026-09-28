@@ -533,10 +533,24 @@ total_tts_characters   NUMERIC(12,0) NOT NULL DEFAULT 0
 total_tts_cost_eur     NUMERIC(12,6) NOT NULL DEFAULT 0
 cycle_tts_characters   NUMERIC(12,0) NOT NULL DEFAULT 0
 cycle_tts_cost_eur     NUMERIC(12,6) NOT NULL DEFAULT 0
+
+-- message_token_summary — the run's own row (ADR-324)
+tts_characters         INTEGER       NOT NULL DEFAULT 0
+tts_cost_eur           NUMERIC(10,6) NOT NULL DEFAULT 0
 ```
 
 The TTS cost is included in `cycle_cost_eur` / `total_cost_eur` so the
 dashboard "Cost" tile and `user_usage_limits` checks naturally cover it.
+
+**The run's row is the ledger every cost figure reads.** The tracker commits
+paid synthesis onto `message_token_summary` by the same UPSERT as every other
+family (column arithmetic, so a radio session committing once per production
+accumulates), and `MessageTokenSummary.billed_cost_eur` includes it: the chat
+meter, the conversation history and a radio session's live cost read that one
+figure. The bubble keeps its answer's share for the `🔊` badge and the
+per-message export — it is never added on top of the run's figure, which
+already holds it. Migration `d79c9fc26844` copied the bubbles' shares onto
+their runs, summed per run id.
 
 **Only what the provider SERVED is charged.** The characters of a sentence
 are counted when its audio comes back, never when the sentence is dispatched
@@ -550,9 +564,13 @@ the assistant bubble (mirror of the STT `🎤 X.Xs` badge on the user
 bubble). Hidden for Edge synth and historical messages (where the column
 is NULL).
 
-CSV exports: `consumption-summary` includes `total_tts_characters`,
-`total_tts_cost_eur`. New dedicated `tts-usage` export (admin + user)
-returns one row per assistant message with `tts_provider IS NOT NULL`.
+CSV exports: `consumption-summary` includes `total_tts_runs`,
+`total_tts_characters` and `total_tts_cost_eur`, read from the runs' rows (a
+chat answer and a radio session alike). The `tts-usage` export (admin + user)
+returns one row per assistant message with `tts_provider IS NOT NULL`, plus
+one row per run whose speech no bubble carries — a radio session, or an answer
+whose bubble could not be stamped — which names no provider: the two sets
+never overlap.
 
 #### Backfill double-pass
 

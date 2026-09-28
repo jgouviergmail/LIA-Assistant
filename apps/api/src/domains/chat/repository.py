@@ -26,6 +26,8 @@ from src.core.field_names import (
     FIELD_TOKENS_CACHE,
     FIELD_TOKENS_IN,
     FIELD_TOKENS_OUT,
+    FIELD_TTS_CHARACTERS,
+    FIELD_TTS_COST_EUR,
 )
 from src.core.repository import BaseRepository
 from src.domains.chat.models import (
@@ -213,6 +215,9 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                 - tokens_out: int (completion tokens)
                 - tokens_cache: int (cached tokens)
                 - cost_eur: Decimal
+                - the Maps Platform, image and paid-speech families
+                  (``FIELD_GOOGLE_API_*``, ``FIELD_IMAGE_GENERATION_*``,
+                  ``FIELD_TTS_*``): optional, 0 when absent
 
         Returns:
             Created or updated MessageTokenSummary
@@ -246,6 +251,8 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                 image_generation_cost_eur=Decimal(
                     str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
                 ),
+                tts_characters=int(summary_data.get(FIELD_TTS_CHARACTERS, 0) or 0),
+                tts_cost_eur=Decimal(str(summary_data.get(FIELD_TTS_COST_EUR, 0) or 0)),
             )
 
             stmt = stmt.on_conflict_do_update(
@@ -267,6 +274,9 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                     + stmt.excluded.image_generation_requests,
                     "image_generation_cost_eur": MessageTokenSummary.image_generation_cost_eur
                     + stmt.excluded.image_generation_cost_eur,
+                    "tts_characters": MessageTokenSummary.tts_characters
+                    + stmt.excluded.tts_characters,
+                    "tts_cost_eur": MessageTokenSummary.tts_cost_eur + stmt.excluded.tts_cost_eur,
                     "updated_at": func.now(),
                 },
             )
@@ -679,8 +689,8 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
             # TTS deltas (silo, mirror Google API / image gen). Aggregated by
             # the tracker via record_tts_call(); paid providers only — Edge
             # never contributes here.
-            tts_chars_delta = int(summary_data.get("tts_characters", 0) or 0)
-            tts_cost_delta = Decimal(str(summary_data.get("tts_cost_eur", 0) or 0))
+            tts_chars_delta = int(summary_data.get(FIELD_TTS_CHARACTERS, 0) or 0)
+            tts_cost_delta = Decimal(str(summary_data.get(FIELD_TTS_COST_EUR, 0) or 0))
             # Total cost MUST include TTS so the dashboard "Cost" tile and
             # usage-limit checks naturally pick it up (mirror STT semantics).
             llm_cost_delta = Decimal(str(summary_data[FIELD_COST_EUR]))

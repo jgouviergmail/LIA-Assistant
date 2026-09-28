@@ -22,7 +22,7 @@ from .catalogue import AgentManifest
 
 CONTACT_AGENT_MANIFEST = AgentManifest(
     name="contact_agent",
-    description="Agent spécialisé dans les opérations Google Contacts (recherche, création, modification, suppression)",
+    description="Agent specialised in contact operations (search, creation, update, deletion).",
     tools=[
         "get_contacts_tool",  # Unified tool (v2.0 - replaces search + list + details)
         "get_person_overview_tool",  # Cross-domain person-360 (ADR-141)
@@ -46,11 +46,9 @@ CONTACT_AGENT_MANIFEST = AgentManifest(
 CONTEXT_AGENT_MANIFEST = AgentManifest(
     name="context_agent",
     description=(
-        "Agent générique pour la résolution de références contextuelles. "
-        "Gère les références conversationnelles comme 'le premier', "
-        "'la dernière', '2ème', etc. "
-        "Supporte batch operations via get_context_list pour références plurielles. "
-        "Compatible avec tous les domaines (contacts, emails, events)."
+        "Generic agent resolving contextual references. Handles conversational references such as "
+        "'the first', 'the last', '2nd', etc. Supports batch operations through get_context_list "
+        "for plural references. Works with every domain (contacts, emails, events)."
     ),
     tools=[
         "resolve_reference",
@@ -74,7 +72,9 @@ CONTEXT_AGENT_MANIFEST = AgentManifest(
 
 EMAIL_AGENT_MANIFEST = AgentManifest(
     name="email_agent",
-    description="Agent spécialisé dans les opérations Gmail (recherche, lecture, envoi, réponse, transfert, suppression d'emails)",
+    description=(
+        "Agent specialised in e-mail operations (search, read, send, reply, forward, delete)."
+    ),
     tools=[
         "get_emails_tool",  # Unified tool (v2.0 - replaces search + details)
         "get_email_attachment_tool",  # One attachment, read (text or vision)
@@ -103,11 +103,9 @@ EMAIL_AGENT_MANIFEST = AgentManifest(
 EVENT_AGENT_MANIFEST = AgentManifest(
     name="event_agent",
     description=(
-        "Agent spécialisé dans les opérations Google Calendar. "
-        "Liste des calendriers disponibles, recherche, création, modification et suppression d'événements. "
-        "Gestion de l'agenda et des rendez-vous. "
-        "Les opérations d'écriture (création, modification, suppression) "
-        "nécessitent une confirmation utilisateur via HITL."
+        "Agent specialised in calendar operations. Lists the available calendars; searches, "
+        "creates, updates and deletes events. Manages the agenda and appointments. Write "
+        "operations (create, update, delete) require the user's confirmation through HITL."
     ),
     tools=[
         "get_events_tool",  # Unified tool (v2.0 - replaces search + details)
@@ -132,9 +130,8 @@ EVENT_AGENT_MANIFEST = AgentManifest(
 FILE_AGENT_MANIFEST = AgentManifest(
     name="file_agent",
     description=(
-        "Agent spécialisé dans les opérations Google Drive. "
-        "Recherche, liste et lecture de fichiers (documents, feuilles de calcul, "
-        "présentations, PDFs, images). Accès au contenu des fichiers."
+        "Agent specialised in Google Drive operations. Searches, lists and reads files (documents, "
+        "spreadsheets, presentations, PDFs, images), contents included."
     ),
     tools=[
         "get_files_tool",  # Unified tool (v2.0 - replaces search + list + details)
@@ -159,10 +156,8 @@ FILE_AGENT_MANIFEST = AgentManifest(
 TASK_AGENT_MANIFEST = AgentManifest(
     name="task_agent",
     description=(
-        "Agent spécialisé dans les opérations Google Tasks. "
-        "Liste, création, modification, complétion et suppression de tâches. "
-        "Gestion des listes de tâches et des todos. "
-        "Les opérations d'écriture nécessitent une confirmation utilisateur via HITL."
+        "Agent specialised in task operations. Lists, creates, updates, completes and deletes "
+        "tasks; manages task lists. Write operations require the user's confirmation through HITL."
     ),
     tools=[
         "get_tasks_tool",  # Unified tool (v2.0 - replaces list + details)
@@ -188,10 +183,9 @@ TASK_AGENT_MANIFEST = AgentManifest(
 WEATHER_AGENT_MANIFEST = AgentManifest(
     name="weather_agent",
     description=(
-        "Agent spécialisé dans les informations météorologiques. "
-        "Météo actuelle, prévisions sur plusieurs jours, prévisions horaires. "
-        "Température, humidité, précipitations, vent, etc. "
-        "Utilise l'API OpenWeatherMap."
+        "Agent specialised in weather information: current conditions, multi-day and hourly "
+        "forecasts — temperature, humidity, precipitation, wind, etc. Served by the weather "
+        "provider in use (Google Weather by default, OpenWeatherMap when configured)."
     ),
     tools=[
         "get_current_weather_tool",
@@ -214,9 +208,8 @@ WEATHER_AGENT_MANIFEST = AgentManifest(
 WIKIPEDIA_AGENT_MANIFEST = AgentManifest(
     name="wikipedia_agent",
     description=(
-        "Agent spécialisé dans la recherche d'informations encyclopédiques. "
-        "Recherche Wikipedia, résumés, articles complets, articles connexes. "
-        "Pour les questions de culture générale, biographies, histoire, etc."
+        "Agent specialised in encyclopaedic information: Wikipedia search, summaries, full "
+        "articles, related articles. For general knowledge, biographies, history, etc."
     ),
     tools=[
         "search_wikipedia_tool",
@@ -240,10 +233,9 @@ WIKIPEDIA_AGENT_MANIFEST = AgentManifest(
 QUERY_AGENT_MANIFEST = AgentManifest(
     name="query_agent",
     description=(
-        "Agent spécialisé dans l'analyse des données en mémoire. "
-        "Permet de filtrer, trier, grouper et trouver des patterns "
-        "(comme les doublons) dans les données déjà récupérées par d'autres agents. "
-        "Fonctionne avec le LocalQueryEngine pour les requêtes cross-domain."
+        "Agent specialised in analysing data already in memory: filters, sorts, groups and finds "
+        "patterns (such as duplicates) in what other agents retrieved. Works with the "
+        "LocalQueryEngine for cross-domain queries."
     ),
     tools=[
         "local_query_engine_tool",
@@ -264,10 +256,9 @@ QUERY_AGENT_MANIFEST = AgentManifest(
 PERPLEXITY_AGENT_MANIFEST = AgentManifest(
     name="perplexity_agent",
     description=(
-        "Agent spécialisé dans la recherche web en temps réel. "
-        "Utilise Perplexity AI pour rechercher des informations actuelles sur internet, "
-        "répondre à des questions avec des citations de sources, "
-        "et fournir des informations à jour sur les actualités et événements récents."
+        "Agent specialised in real-time web search. Uses Perplexity AI to look up current "
+        "information on the internet, answer questions with source citations, and give up-to-date "
+        "information on news and recent events."
     ),
     tools=[
         "perplexity_search_tool",
@@ -289,11 +280,10 @@ PERPLEXITY_AGENT_MANIFEST = AgentManifest(
 PLACE_AGENT_MANIFEST = AgentManifest(
     name="place_agent",
     description=(
-        "Agent spécialisé dans la recherche de lieux et points d'intérêt. "
-        "Recherche de restaurants, hôtels, commerces, services à proximité. "
-        "Détails sur les lieux: adresse, horaires, avis, prix. "
-        "Localisation actuelle: reverse geocoding pour répondre à 'où suis-je?'. "
-        "Utilise Google Places API et Geocoding API."
+        "Agent specialised in places and points of interest: restaurants, hotels, shops and "
+        "services nearby. Place details: address, opening hours, reviews, prices. Current "
+        "location: reverse geocoding to answer 'where am I?'. Uses the Google Places and Geocoding "
+        "APIs."
     ),
     tools=[
         "get_places_tool",  # Unified tool (v2.0 - replaces search + details)
@@ -315,12 +305,10 @@ PLACE_AGENT_MANIFEST = AgentManifest(
 ROUTE_AGENT_MANIFEST = AgentManifest(
     name="route_agent",
     description=(
-        "Agent spécialisé dans les itinéraires et directions. "
-        "Calcul de trajets entre deux points, temps de trajet, distance. "
-        "Plusieurs modes de transport: voiture, à pied, vélo, transports en commun. "
-        "Options: éviter péages, autoroutes, ferries. "
-        "Matrice de distances pour optimisation multi-points. "
-        "Utilise Google Routes API v2."
+        "Agent specialised in routes and directions: journeys between two points, travel time, "
+        "distance. Several transport modes: car, walking, cycling, public transport. Options: "
+        "avoid tolls, motorways, ferries. Distance matrix for multi-point optimisation. Uses the "
+        "Google Routes API v2."
     ),
     tools=[
         "get_route_tool",  # Directions A to B
@@ -342,9 +330,8 @@ ROUTE_AGENT_MANIFEST = AgentManifest(
 BRAVE_AGENT_MANIFEST = AgentManifest(
     name="brave_agent",
     description=(
-        "Agent spécialisé dans la recherche web via Brave Search API. "
-        "Recherche web générale et recherche d'actualités. "
-        "Utilise API key authentication (pas OAuth)."
+        "Agent specialised in web search through the Brave Search API: general web search and news "
+        "search. Authenticates with an API key (not OAuth)."
     ),
     tools=[
         "brave_search_tool",
@@ -366,10 +353,9 @@ BRAVE_AGENT_MANIFEST = AgentManifest(
 WEB_SEARCH_AGENT_MANIFEST = AgentManifest(
     name="web_search_agent",
     description=(
-        "Agent spécialisé dans la recherche web unifiée Triple Source. "
-        "Combine Perplexity AI (synthèse), Brave Search (URLs), et Wikipedia (encyclopédie) "
-        "en parallèle. Fallback chain: continue si une source échoue. "
-        "Wikipedia toujours disponible (pas d'authentification requise)."
+        "Agent specialised in unified Triple Source web search: Perplexity AI (synthesis), Brave "
+        "Search (URLs) and Wikipedia (encyclopaedia) in parallel. Fallback chain: it carries on "
+        "when a source fails. Wikipedia is always available (no authentication)."
     ),
     tools=[
         "unified_web_search_tool",
@@ -407,10 +393,9 @@ BROWSER_AGENT_MANIFEST = AgentManifest(
 WEB_FETCH_AGENT_MANIFEST = AgentManifest(
     name="web_fetch_agent",
     description=(
-        "Agent spécialisé dans la récupération et l'extraction de contenu de pages web. "
-        "Lit le contenu complet d'une URL, extrait l'article principal ou la page entière. "
-        "Retourne du texte Markdown nettoyé. Ne recherche PAS sur le web "
-        "(utiliser web_search_agent pour la recherche)."
+        "Agent specialised in fetching and extracting web page content: reads the full content of "
+        "a URL, extracts the main article or the whole page, returns cleaned Markdown text. It "
+        "does NOT search the web (web_search_agent does)."
     ),
     tools=[
         "fetch_web_page_tool",

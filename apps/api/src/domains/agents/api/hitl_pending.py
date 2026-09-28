@@ -24,6 +24,11 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+#: The code of the error a structured decision gets when the question it
+#: answers no longer waits — written by both chat doors, read by the
+#: channel door, which answers it « expired » (Lot 1 option B).
+HITL_DECISION_STALE_ERROR_CODE = "hitl_decision_stale"
+
 
 def extract_decision_type(resume_data: object) -> str:
     """HITL decision label from interrupt resume data, defaulting to ``UNKNOWN``.
@@ -49,7 +54,7 @@ def hitl_stale_chunks(user_language: str) -> list[ChatStreamChunk]:
             content=SSEErrorMessages.hitl_decision_stale(
                 language=normalize_language(user_language)
             ),
-            metadata={"error_code": "hitl_decision_stale"},
+            metadata={"error_code": HITL_DECISION_STALE_ERROR_CODE},
         ),
         ChatStreamChunk(type="done", content="", metadata=None),
     ]
@@ -81,24 +86,21 @@ async def check_pending_hitl_uncached(conversation_id: str) -> dict | None:
             ttl_seconds=settings.hitl_pending_data_ttl_seconds,
         )
 
-        versioned_data = await hitl_store.get_interrupt(conversation_id)
+        # The one flattened shape every door that resumes a question reads.
+        result = await hitl_store.get_pending(conversation_id)
 
         logger.debug(
             "pending_hitl_check_result_uncached",
             conversation_id=conversation_id,
-            found=bool(versioned_data),
+            found=bool(result),
         )
 
-        if versioned_data:
-            interrupt_data = versioned_data.get("interrupt_data", {})
-            interrupt_ts = versioned_data.get("interrupt_ts")
-            # Flattened structure for backward compatibility + interrupt_ts.
-            result = {**interrupt_data, "interrupt_ts": interrupt_ts}
+        if result:
             logger.info(
                 "pending_hitl_detected",
                 conversation_id=conversation_id,
                 action_count=len(result.get("action_requests", [])),
-                interrupt_ts=interrupt_ts,
+                interrupt_ts=result.get("interrupt_ts"),
             )
             return result
 

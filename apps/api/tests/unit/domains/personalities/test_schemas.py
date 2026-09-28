@@ -9,6 +9,8 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
+from src.core.config import settings
+from src.core.i18n import language_scope
 from src.domains.personalities.schemas import (
     PersonalityCreate,
     PersonalityListItem,
@@ -44,6 +46,22 @@ class TestPersonalityCreate:
         assert data.is_active is True
         assert data.sort_order == 0
         assert len(data.translations) == 1
+
+    def test_the_written_text_s_language_defaults_to_the_declared_one(self):
+        """An administrator who names no language wrote in their own (ADR-323)."""
+        declared = next(code for code in ("de", "it") if code != settings.default_language)
+
+        with language_scope(declared):
+            data = PersonalityCreate(
+                code="calm",
+                emoji="🙂",
+                prompt_instruction="Be calm and clear.",
+                title="Ruhig",
+                description="Gelassen und klar.",
+            )
+
+        assert data.source_language == declared
+        assert [t.language_code for t in data.get_translations()] == [declared]
 
     def test_code_validation(self):
         """Test code field validation."""

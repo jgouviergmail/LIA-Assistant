@@ -4,7 +4,7 @@
 
 **Version** : 6.1
 **Date** : 2026-09-24
-**Application** : LIA v1.47.4
+**Application** : LIA v2.0.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Chaque utilisateur dispose de son propre espace de paramétrage, organisé en de
 - **Centres d'intérêt** : définis tes sujets favoris, configure la fréquence de notifications, les créneaux horaires et les sources (Perplexity, Brave, Wikipedia, réflexion IA)
 - **Notifications proactives** : règle la fréquence, la fenêtre horaire et les sources de contexte (calendrier, météo, tâches, emails, intérêts, mémoires, journaux)
 - **Actions planifiées et rappels** : dis le rythme — tous les trois jours, un mardi sur deux, le 2e mardi du mois, toutes les deux heures entre 9h et 17h, jusqu'à une date ou N fois — pour une automatisation comme pour un rappel, qui peut désormais revenir au lieu de ne sonner qu'une fois. Et lis ta semaine d'un coup d'œil : chaque routine à son heure sur ses jours, chaque cellule colorée par ce qui s'est réellement passé
-- **Skills** : active/désactive des compétences expertes dans une galerie avec aperçus, crée tes propres Skills personnels, ou installe-en une depuis une URL https (validée côté serveur)
+- **Skills** : active/désactive des compétences expertes dans une galerie avec aperçus, crée tes propres Skills personnels, ou installes-en une depuis une URL https (validée côté serveur)
 - **Espaces de connaissances** : charge tes documents (PDF, Word, Excel, PowerPoint, EPUB, HTML et 15+ formats), synchronise un dossier Google Drive ou suis un libellé Gmail — indexation automatique et recherche hybride. Les fils que tu étiquettes deviennent des documents interrogeables des semaines plus tard, et retirer le libellé retire le document. Un document que LIA ne peut pas lire — un PDF scanné sans couche texte — le dit sous sa ligne, avec le remède. Un dossier Drive se synchronise avec ses sous-dossiers, et au-delà d'un seuil le nombre exact de fichiers qui vont être indexés s'affiche avant que rien ne démarre
 - **Export de consommation** : télécharge tes données de consommation LLM et API en CSV
 
@@ -233,6 +233,10 @@ La vraie vie est prévue, pas excusée. L'audio part en petits segments au fil d
 Le compte rendu t'arrive par trois chemins — une carte dans le chat, un PDF, ta boîte de réception depuis l'adresse de l'application, sans messagerie à connecter — et rejoint un espace de connaissances **Réunions** créé pour toi, pour qu'à des semaines de distance tu puisses simplement demander ce qui a été décidé. Ce que ça a coûté est écrit à côté : la transcription et le compte rendu en deux montants et leur total, comptés comme tout autre échange. Et rien n'est figé : un compte rendu déjà rendu se réécrit dans un autre format depuis la transcription conservée — jusqu'à la transcription complète, nettoyée — soit en remplaçant celui que tu as, soit en produisant un nouveau compte rendu de la même réunion. Le moteur de transcription, lui, reste à ton choix : un distant qui sépare les voix, ou le local qui ne coûte rien et ne quitte jamais ton serveur.
 
 ---
+
+### Un média personnel et un travail qui reste à toi
+
+Une assistante utile rejoint ton attention là où elle se trouve : une conversation qui s'actualise depuis tes autres appareils sans déplacer la page, ou une radio que tu lances seulement quand tu veux écouter. L'antenne mêle ta journée à des actualités sourcées et montre sources et dépense au lieu de demander une confiance aveugle. Ce que LIA produit, tu peux le garder, l'envoyer depuis ta boîte ou le laisser expirer. Une routine suit l'heure ou la condition que tu choisis, jamais un mélange caché des deux.
 
 ## 4. Un serveur pour tes proches
 
@@ -397,7 +401,7 @@ Les grands assistants retiennent tes préférences et tes faits personnels. C'es
 
 Chaque souvenir porte un poids émotionnel (-10 à +10), un score d'importance, une nuance d'usage, et une catégorie psychologique. Ce n'est pas une simple base de données — c'est un profil qui comprend ce qui te touche, ce qui te motive, ce qui te blesse.
 
-Encore faut-il que ces souvenirs arrivent. Une mémoire ne vaut que par ce qu'elle capte réellement, et le silence y est le pire des défauts : rien ne signale un souvenir qui n'a jamais été formé. LIA compte donc chacune de ses décisions de mémorisation — retenu, ignoré, désactivé — pour que l'écart entre ce qu'elle devrait retenir et ce qu'elle retient soit visible plutôt que supposé. Ce que tu lui confies en passant une action compte autant qu'une confidence, ce que tu écris depuis une messagerie compte autant que depuis le navigateur, et ce que le système se dit à lui-même ne compte jamais.
+Encore faut-il que ces souvenirs arrivent. Une mémoire ne vaut que par ce qu'elle capte réellement, et le silence y est le pire des défauts : rien ne signale un souvenir qui n'a jamais été formé. LIA compte donc chacune de ses décisions de mémorisation — retenu, ignoré, désactivé — pour que l'écart entre ce qu'elle devrait retenir et ce qu'elle retient soit visible plutôt que supposé. Ce que tu lui confies au détour d'une demande d'action compte autant qu'une confidence, ce que tu écris depuis une messagerie compte autant que depuis le navigateur, et ce que le système se dit à lui-même ne compte jamais.
 
 Et elle ne s'en tient pas à ce que ton message évoque : quand un nom ou un sujet surgit en chemin — l'expéditeur d'un e-mail, un lieu dans un document —, elle le cherche dans sa mémoire ; au téléphone aussi, elle retrouve ce qui répond à ta question plutôt que ses derniers souvenirs.
 

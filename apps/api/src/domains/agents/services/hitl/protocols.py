@@ -170,7 +170,7 @@ class HitlInteractionProtocol(Protocol):
                 - For PLAN_APPROVAL: plan_summary, approval_reasons, strategies
                 - For TOOL_CONFIRMATION: tool_name, tool_args
                 - For CLARIFICATION: questions, semantic_issues
-            user_language: Language code for question generation (fr, en, es)
+            user_language: Language code for question generation (fr, en, es, de, it, zh-CN)
             user_timezone: User's IANA timezone for datetime context in prompts
             tracker: Optional TokenTrackingCallback for cost accounting
 
@@ -257,13 +257,13 @@ class HitlInteractionProtocol(Protocol):
         question appropriate for this interaction type.
 
         Args:
-            user_language: Language code (fr, en, es)
+            user_language: Language code (fr, en, es, de, it, zh-CN)
 
         Returns:
             Static fallback question string
 
         Example:
-            >>> interaction.get_fallback_question("fr")
-            "Ce plan nécessite ton approbation. Valides-tu pour continuer ?"
+            >>> plan_approval.get_fallback_question("en")
+            'This plan requires your approval. Do you confirm to proceed?'
         """
         ...

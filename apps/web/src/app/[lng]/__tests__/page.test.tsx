@@ -31,6 +31,9 @@ vi.mock('@/components/landing/editorial/EditorialChapters', () => ({
     <div data-testid="editorial-chapters" data-ghosts={String(ghosts)} />
   ),
 }));
+vi.mock('@/components/landing/editorial/PromiseSection', () => ({
+  PromiseSection: () => <div data-testid="promise-section" />,
+}));
 vi.mock('@/components/landing/editorial/BasicsBand', () => ({
   BasicsBand: () => <div data-testid="basics-band" />,
 }));
@@ -81,6 +84,7 @@ describe('HomePage (cosmos landing)', () => {
     const order = [
       'landing-header',
       'cosmos-hero',
+      'promise-section',
       'editorial-chapters',
       'basics-band',
       'transparency-section',

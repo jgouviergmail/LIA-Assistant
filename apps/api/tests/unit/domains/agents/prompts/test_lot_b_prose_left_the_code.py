@@ -33,9 +33,7 @@ def _source_of(module: object) -> str:
 class TestItemFilter:
     def test_prompt_renders_criteria_and_items(self) -> None:
         service = item_filter.ItemFilterService.__new__(item_filter.ItemFilterService)
-        prompt = service._build_filter_prompt(
-            [{"name": "Guy S."}, {"name": "Alice"}], "guy savoy", "fr"
-        )
+        prompt = service._build_filter_prompt([{"name": "Guy S."}, {"name": "Alice"}], "guy savoy")
         assert 'User\'s exclusion criteria: "guy savoy"' in prompt
         assert "0. name: Guy S." in prompt and "1. name: Alice" in prompt
         assert "Return ONLY the JSON array" in prompt

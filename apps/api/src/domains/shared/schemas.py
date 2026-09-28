@@ -324,7 +324,8 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     # (Option B). Delegation is gated by the global SUB_AGENTS_ENABLED flag.
     response_display_mode: str = Field(
         default="cards",
-        description="Response display mode: cards (HTML data cards), html (rich formatting), markdown (plain text)",
+        description="Response display mode: cards (HTML data cards), html (rich formatting), "
+        "html_cards (rich HTML with selected data cards), markdown (plain text)",
     )
     onboarding_completed: bool = Field(
         default=False, description="Onboarding tutorial has been completed/dismissed"

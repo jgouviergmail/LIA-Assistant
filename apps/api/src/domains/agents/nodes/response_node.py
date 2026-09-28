@@ -4,15 +4,15 @@ Generates conversational response using higher-temperature LLM.
 
 Data Registry LOT 5.4: Draft Execution Integration
     After draft_critique_node confirms a draft, response_node executes it
-    before generating the response. The execution result is included in
-    agent_results for synthesis.
+    before generating the response, and the rendered execution result
+    replaces the results summary.
 
 Flow:
     draft_critique_node → state["draft_action_result"] = {action: "confirm", ...}
     → response_node → _execute_draft_if_confirmed()
     → execute_*_draft() (email, contact, event)
-    → agent_results["draft_execution"] = {...}
-    → Response synthesis includes execution result
+    → render_execution_result() → the short answer of the draft fast path,
+      whose execution result also judges the turn (business metrics)
 """
 
 import asyncio
@@ -32,14 +32,16 @@ from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
     RESPONSE_DISPLAY_MODE_CARDS,
-    RESPONSE_DISPLAY_MODE_HTML,
+    RESPONSE_DISPLAY_MODE_HTML_CARDS,
+    RESPONSE_DISPLAY_MODES_WITH_CARDS,
+    RESPONSE_DISPLAY_MODES_WITH_HTML,
 )
 from src.core.field_names import (
     FIELD_PLAN_ID,
     FIELD_REACT_SYNTHESIS,
     FIELD_STATUS,
 )
-from src.core.i18n import _
+from src.core.i18n import _, get_language_name, resolve_language
 from src.core.i18n_api_messages import (
     NO_EXTERNAL_AGENT_MESSAGES,
     APIMessages,
@@ -213,7 +215,7 @@ def _should_inject_html_directive(
 ) -> bool:
     """Whether the rich HTML response directive should be injected this turn.
 
-    In the ``html`` display mode the frontend renders a ``lia-response``
+    In the ``html`` / ``html_cards`` modes the frontend renders a ``lia-response``
     document and a Markdown reply through the same pipeline, so the directive
     is worth its tokens on every turn — except where a voice reads the reply
     verbatim. A conversational turn (any ``route_to`` other than ``"planner"``,
@@ -238,10 +240,10 @@ def _should_inject_html_directive(
             nobody listens to, never a tag read aloud.
 
     Returns:
-        ``True`` when the HTML display mode is active and either the turn
+        ``True`` when a rich HTML display mode is active and either the turn
         routed to the planner or no voice listens to it.
     """
-    if display_mode != RESPONSE_DISPLAY_MODE_HTML:
+    if display_mode not in RESPONSE_DISPLAY_MODES_WITH_HTML:
         return False
     return route_to == "planner" or not voice_enabled
 
@@ -541,7 +543,7 @@ async def _execute_draft_if_confirmed(
         return None
 
     # Extract user_language from state for localized messages
-    user_language = state.get("user_language", settings.default_language)
+    user_language = resolve_language(state.get("user_language"))
 
     try:
         # Lazy import to avoid circular dependencies
@@ -613,34 +615,20 @@ def _format_rejection_details(rejection_reason: str) -> str:
     - Invalidation of conversation history context
 
     Args:
-        rejection_reason: Reason for plan rejection from approval_gate_node
+        rejection_reason: The reason the state's only writer set (the
+            clarification node, when the person cancels), relayed as it is.
 
     Returns:
         Formatted rejection notice with anti-hallucination safeguards
 
     Example:
-        >>> details = _format_rejection_details("User rejected plan")
+        >>> details = _format_rejection_details("User cancelled during clarification")
         >>> # Returns formatted text starting with "🚫 PLAN REJECTED..."
     """
-    # Format reason text (use provided reason or default)
-    reason_text = (
-        rejection_reason
-        if rejection_reason != "User rejected plan"
-        else "L'utilisateur a choisi de ne pas exécuter ce plan"
-    )
-
-    # CRITICAL: Use 🚫 (prohibition) not ✅ (success)
-    # Include explicit anti-hallucination directives for LLM
-    return (
-        "🚫 PLAN REFUSÉ PAR L'UTILISATEUR (AUCUNE DONNÉE DISPONIBLE)\n\n"
-        "ATTENTION: N'invente AUCUNE donnée. Le plan a été explicitement rejeté.\n"
-        "AUCUNE opération n'a été exécutée. AUCUN résultat n'existe.\n\n"
-        f"**Raison du refus:** {reason_text}\n"
-        "**Statut:** Aucune action effectuée\n"
-        "**Réponse attendue:** Accuse réception du refus et propose alternatives\n\n"
-        "RÈGLE ABSOLUE: Ne mentionne AUCUN résultat de recherche, contact, ou donnée métier.\n"
-        "Le contexte conversationnel précédent est CADUC (annulé par refus)."
-    )
+    # CRITICAL: 🚫 (prohibition) not ✅ (success), with explicit anti-hallucination
+    # directives — a versioned prompt, like every directive (ADR-284).
+    notice = load_prompt("response_plan_rejection_notice", version=settings.response_prompt_version)
+    return notice.format(reason=rejection_reason).strip()
 
 
 # ============================================================================
@@ -816,7 +804,7 @@ def _filter_registry_by_types(
 def generate_html_for_interactive_widgets(
     data_registry: dict[str, Any] | None,
     user_viewport: str = "desktop",
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> str:
     """Render only the interactive-widget registry items (SKILL_APP, MCP_APP,
@@ -848,7 +836,7 @@ def generate_html_for_interactive_widgets(
     return generate_html_for_registry(
         data_registry=filtered,
         user_viewport=user_viewport,
-        user_language=user_language,
+        user_language=resolve_language(user_language),
         user_timezone=user_timezone,
     )
 
@@ -856,7 +844,7 @@ def generate_html_for_interactive_widgets(
 def generate_html_for_registry(
     data_registry: dict[str, Any] | None,
     user_viewport: str = "desktop",
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> str:
     """
@@ -881,7 +869,7 @@ def generate_html_for_registry(
 
     # Get display config
     config = config_for_viewport(user_viewport)
-    config.language = user_language
+    config.language = resolve_language(user_language)
     config.timezone = user_timezone
 
     html_renderer = get_html_renderer()
@@ -927,8 +915,8 @@ def format_nested_results_as_html(
     Format hierarchical/nested results as HTML.
 
     Useful for complex queries like:
-    - "Liste les contacts X et Y avec leurs 3 derniers emails"
-    - "Montre les restaurants près de chaque lieu visité"
+    - "List contacts X and Y with their 3 latest e-mails"
+    - "Show the restaurants near each place visited"
 
     Args:
         parent_domain: Domain of parent items (e.g., "contacts")
@@ -1161,12 +1149,16 @@ def _plan_already_produced_skill_app(state: MessagesState, skill_name: str) -> b
 
 
 async def _instrument_business_metrics(
-    state: MessagesState, config: RunnableConfig, run_id: str
+    state: MessagesState, config: RunnableConfig, run_id: str, draft: dict[str, Any] | None
 ) -> None:
-    """Instrument business-level KPIs for the conversation (graceful degradation).
+    """Instrument business-level KPIs for the turn — best-effort.
 
-    Extracted verbatim from ``response_node`` — pure side effects (Prometheus
-    metrics from the DB-priced conversation summary); failures never propagate.
+    Pure side effects (Prometheus metrics from the conversation summary, priced
+    by the pricing cache: no session is held while it is computed). Every
+    failure is logged and swallowed, a cancellation excepted: on the draft fast
+    path they run AFTER the act, whose answer must not be lost. ``draft`` is the
+    execution of the draft the person decided, when this turn ran one — a
+    verdict on the turn like its agents' results.
     """
     # ===================================================================
     # PHASE 3.2 - BUSINESS METRICS INSTRUMENTATION
@@ -1175,9 +1167,11 @@ async def _instrument_business_metrics(
     # Graceful degradation: metrics failures don't crash response_node
     try:
         from src.domains.agents.services.business_metrics import (
-            calculate_conversation_metrics_async,
+            OUTCOME_NO_AGENT,
+            OUTCOME_SUCCESS,
+            calculate_conversation_metrics,
+            current_turn_cost_usd,
         )
-        from src.infrastructure.database import get_db_context
         from src.infrastructure.observability.metrics_business import (
             agent_success_rate_total,
             conversation_cost_usd,
@@ -1186,22 +1180,28 @@ async def _instrument_business_metrics(
             cost_per_successful_conversation_usd,
         )
 
-        # Calculate all metrics via dedicated service (async with DB pricing)
-        async with get_db_context() as db:
-            metrics = await calculate_conversation_metrics_async(state, config, db)
+        # Calculate all metrics via the dedicated service (cache-priced: no
+        # session, no counter)
+        metrics = calculate_conversation_metrics(state, config, draft)
         # Instrument Prometheus metrics (P0 - Critical)
         conversation_cost_usd.labels(agent_type=metrics.agent_type).observe(metrics.cost_usd)
         conversation_tokens_total.labels(agent_type=metrics.agent_type).observe(
             metrics.tokens_total
         )
-        agent_success_rate_total.labels(
-            agent_type=metrics.agent_type, outcome=metrics.outcome
-        ).inc()
+        # A turn that ran no agent is no agent EXECUTION: counted, it would be a
+        # success nobody earned or — judged on the thread — a failure nobody had.
+        if metrics.outcome != OUTCOME_NO_AGENT:
+            agent_success_rate_total.labels(
+                agent_type=metrics.agent_type, outcome=metrics.outcome
+            ).inc()
         conversation_turns_total.labels(agent_type=metrics.agent_type).observe(metrics.turns)
-        # Cost per successful conversation (only if outcome=success)
-        if metrics.outcome == "success":
+        # A successful turn's cost is ITS run's, never the thread's running total
+        # — read last, on the only session of this path: a ledger the database
+        # refuses costs this one sample, never the ones above.
+        turn_cost = await current_turn_cost_usd() if metrics.outcome == OUTCOME_SUCCESS else None
+        if turn_cost is not None:
             cost_per_successful_conversation_usd.labels(agent_type=metrics.agent_type).observe(
-                metrics.cost_usd
+                turn_cost
             )
         logger.debug(
             "business_metrics_instrumented",
@@ -1212,14 +1212,13 @@ async def _instrument_business_metrics(
             turns=metrics.turns,
             outcome=metrics.outcome,
         )
-    except (ValueError, KeyError, RuntimeError, AttributeError, ImportError) as e:
-        # Graceful degradation - business metrics failure must not break response_node
+    except Exception as e:  # noqa: BLE001 - metrics never cost the person an answer
+        # Whatever a calculation or an observation raised past the service's own
+        # nets may not break the node. Logged by its type, never its text (ADR-317).
         logger.error(
             "business_metrics_instrumentation_failed",
             run_id=run_id,
-            error=str(e),
             error_type=type(e).__name__,
-            exc_info=False,  # Don't spam logs with full stack trace
         )
 
 
@@ -1351,15 +1350,11 @@ async def _activate_response_skills(
         # --- Identify target skill name (planner or always-loaded) ---
         _target_skill_name: str | None = None
 
-        # 1. Planner-activated skill (from plan.metadata)
-        # Guard against stale execution_plan from a previous turn: the plan
-        # persists in LangGraph state across turns via the checkpoint. A
-        # conversational turn (route=response) skips the planner entirely,
-        # so any execution_plan we see belongs to the previous action turn
-        # and must not re-trigger its skill.
+        # 1. Planner-activated skill (from plan.metadata). A plan seen here is
+        # THIS turn's planner's: the router resets it on every turn, so an
+        # earlier action turn's plan can no longer re-trigger its skill.
         execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
-        qi_route_to = get_qi_attr(state, "route_to", None)
-        if qi_route_to == "planner" and execution_plan and execution_plan.metadata:
+        if execution_plan and execution_plan.metadata:
             plan_skill_name = execution_plan.metadata.get("skill_name")
             if plan_skill_name and (active is None or plan_skill_name in active):
                 # D3: do not activate the plan's skill when the plan itself
@@ -1374,16 +1369,6 @@ async def _activate_response_skills(
                     )
                 else:
                     _target_skill_name = plan_skill_name
-        elif (
-            execution_plan and execution_plan.metadata and execution_plan.metadata.get("skill_name")
-        ):
-            logger.info(
-                "skill_stale_execution_plan_ignored",
-                run_id=run_id,
-                stale_skill_name=execution_plan.metadata.get("skill_name"),
-                route_to=qi_route_to,
-                reason="execution_plan from previous turn — current turn did not route to planner",
-            )
 
         # 2. Always-loaded skills — passive L2 injection (additive, always)
         for s in SkillsCache.get_always_loaded(skill_user_id):
@@ -1549,7 +1534,7 @@ async def _activate_response_skills(
                     tools=_wrapped_skills_tools,
                     prompt_vars={
                         "skills_catalog": _catalog_for_prompt,
-                        "user_language": _user_lang,
+                        "user_language": get_language_name(_user_lang),
                         "user_location": _user_location,
                     },
                     parent_runtime=_skill_parent,
@@ -1611,7 +1596,7 @@ def _render_response_html(
     """Inject structured HTML after the LLM response and return the new content.
 
     Extracted verbatim from ``response_node``. Two paths: interactive widgets
-    (SKILL_APP/MCP_APP/DRAFT — always injected) and data cards (cards mode only).
+    (SKILL_APP/MCP_APP/DRAFT — always injected) and data cards (cards / html_cards).
     Read-only on the registry; only the (possibly appended) content is returned.
 
     Widget sentinels are host-owned: any the model authored itself is stripped
@@ -1659,10 +1644,10 @@ def _render_response_html(
             user_display_mode=user_display_mode,
         )
 
-    # ---------- Path 2: data cards (cards mode only) ----------
-    # In ``cards`` mode, render data-oriented items. Interactive widgets
+    # ---------- Path 2: data cards (cards / html_cards) ----------
+    # In modes with cards, render data-oriented items. Interactive widgets
     # are filtered out here to avoid double-rendering (path 1 already did).
-    if user_display_mode != RESPONSE_DISPLAY_MODE_CARDS:
+    if user_display_mode not in RESPONSE_DISPLAY_MODES_WITH_CARDS:
         logger.info(
             "html_cards_skipped_user_disabled",
             run_id=run_id,
@@ -1693,8 +1678,9 @@ def _render_response_html(
                         user_timezone=user_timezone,
                     )
                     source = "registry"
-            elif resolved_context_for_html:
+            elif current_turn_registry is None and resolved_context_for_html:
                 # Fallback: Use resolved_context for REFERENCE turns
+                # An explicit empty registry is a selection, never missing data.
                 html_content = generate_html_for_resolved_context(
                     resolved_context=resolved_context_for_html,
                     user_viewport=user_viewport,
@@ -1739,18 +1725,18 @@ def _apply_relevant_ids_filtering(
     result_domains: set[str],
     last_user_message: str,
     run_id: str,
+    require_selection: bool = False,
 ) -> tuple[str, dict[str, Any] | None]:
     """Parse ``<relevant_ids>`` from the LLM output and filter the turn registry.
 
-    Extracted verbatim from ``response_node``. Returns the (stripped) content and
-    the filtered registry; protected items (initiative/MCP_APP/SKILL_APP/DRAFT) are
-    always preserved, and filtering is skipped for domains where it is meaningless.
+    Returns the stripped content and selected registry. Interactive widgets
+    and drafts always survive; initiative candidates also require selection
+    in modes with cards. An absent selection there never means "show all".
     """
     # =====================================================================
     # INTELLIGENT FILTERING: Parse relevant_ids and filter registry
     # =====================================================================
-    # The LLM may have returned <relevant_ids>...</relevant_ids> to filter results
-    # based on user criteria that couldn't be filtered by the API
+    # The LLM names the retrieved records retained in its final answer.
     try:
         relevant_ids, final_content = parse_relevant_ids_from_response(final_content)
 
@@ -1763,14 +1749,14 @@ def _apply_relevant_ids_filtering(
                 initiative_protected_ids.update(ir.get("registry_ids") or [])
 
         # Extract items that must NEVER be filtered out:
-        # - Initiative items (proactively selected by initiative LLM)
+        # - Initiative items outside modes with cards (selected by the initiative LLM)
         # - MCP App items (interactive widgets — not search results)
         # - Draft items (HITL confirmation flow)
         # Items may be dicts (model_dump) or RegistryItem Pydantic objects.
         _UNFILTERABLE_TYPES = {"MCP_APP", "SKILL_APP", "DRAFT"}
         protected_items: dict[str, Any] = {}
         for k, v in (current_turn_registry or {}).items():
-            if k in initiative_protected_ids:
+            if k in initiative_protected_ids and not require_selection:
                 protected_items[k] = v
             elif isinstance(v, dict) and v.get("type") in _UNFILTERABLE_TYPES:
                 protected_items[k] = v
@@ -1812,47 +1798,32 @@ def _apply_relevant_ids_filtering(
                 filtered_count=len(current_turn_registry) if current_turn_registry else 0,
                 user_query_length=len(last_user_message) if last_user_message else 0,
             )
-        elif relevant_ids == []:
-            # Empty list explicitly returned - LLM found no matches
-            # Check if there was a filtering tag (meaning LLM tried to filter)
-            if "<relevant_ids>" in original_content.lower():
-                # Skip filtering for domains where it doesn't make sense
-                # Weather: temporal references ("vendredi") shouldn't empty results
-                # Search/fetch/MCP: results are always relevant to user's query
-                from src.domains.agents.registry.domain_taxonomy import is_mcp_domain
-                from src.domains.agents.utils.type_domain_mapping import (
-                    SKIP_FILTER_RESULT_KEYS,
-                )
-
-                should_skip = result_domains and (
-                    result_domains.intersection(SKIP_FILTER_RESULT_KEYS)
-                    or any(is_mcp_domain(d) for d in result_domains)
-                )
-                if should_skip:
-                    logger.info(
-                        "intelligent_filtering_skipped_for_domain",
-                        run_id=run_id,
-                        domains=list(result_domains),
-                        user_query_length=len(last_user_message) if last_user_message else 0,
-                    )
-                else:
-                    # Preserve protected items even when LLM returns empty
-                    current_turn_registry = protected_items
-                    logger.info(
-                        "intelligent_filtering_no_matches",
-                        run_id=run_id,
-                        protected_preserved=len(protected_items),
-                        user_query_length=len(last_user_message) if last_user_message else 0,
-                    )
+        elif require_selection or "<relevant_ids>" in original_content.lower():
+            # No selected records: a weather/search domain must not exempt the
+            # entire mixed registry, including discarded emails and events.
+            current_turn_registry = protected_items
+            logger.info(
+                "intelligent_filtering_no_selection",
+                run_id=run_id,
+                domains=sorted(result_domains),
+                protected_preserved=len(protected_items),
+                selection_required=require_selection,
+            )
     except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:
-        # Log error but continue with unfiltered registry
+        # Cards require positive selection evidence even when parsing fails.
+        if require_selection:
+            from src.domains.agents.data_registry.models import INTERACTIVE_WIDGET_TYPES
+
+            current_turn_registry = _filter_registry_by_types(
+                current_turn_registry or {}, INTERACTIVE_WIDGET_TYPES, include=True
+            )
         logger.warning(
             "intelligent_filtering_error",
             run_id=run_id,
             error=str(e),
             error_type=type(e).__name__,
         )
-        # Keep original content and registry (no filtering applied)
+        # Outside modes with cards, keep the original registry on an error.
     return final_content, current_turn_registry
 
 
@@ -1952,13 +1923,15 @@ def _build_response_system_prompt(
     # display gate can never desync from it.
     route_to = get_qi_attr(state, "route_to", None)
     voice_enabled = runtime_voice_enabled()
-    # HTML mode: inject the rich HTML formatting directive into the prompt,
+    # HTML modes: inject the rich HTML formatting directive into the prompt,
     # BEFORE the FINAL REMINDER for maximum authority (same pattern as
     # psyche). Suppressed only where a voice would read markup aloud — a
     # conversational turn of an account whose spoken replies are on; see
     # _should_inject_html_directive for the rationale.
     if _should_inject_html_directive(user_display_mode, route_to, voice_enabled):
         _html_directive = str(load_prompt("html_response_directive"))
+        if user_display_mode == RESPONSE_DISPLAY_MODE_HTML_CARDS:
+            _html_directive += "\n\n" + load_prompt("html_cards_response_directive")
         _final_reminder = "### FINAL REMINDER ###"
         if _final_reminder in base_system_prompt:
             base_system_prompt = base_system_prompt.replace(
@@ -2147,13 +2120,14 @@ async def _resolve_response_context_summary(
     user_timezone: str,
     user_language: str,
     user_viewport: str,
-) -> tuple[str, dict[str, Any] | None, Any, str | None]:
+) -> tuple[str, dict[str, Any] | None, Any, str | None, dict[str, Any] | None]:
     """Resolve the agent-results summary shown to the LLM (turn-type aware).
 
     Extracted verbatim from ``response_node``: formats agent results per turn type
     (reference/conversational/action), executes a confirmed draft and folds its
     result in, and prepends plan-rejection / planner-error explanations. Returns
-    (summary, resolved_context_for_html, turn_type, plan_rejection_reason).
+    (summary, resolved_context_for_html, turn_type, plan_rejection_reason,
+    draft_execution_result) — the last one judges the turn (business metrics).
     """
     # === CONTEXT RESOLUTION: Determine which results to show ===
     turn_type = state.get(STATE_KEY_TURN_TYPE, TURN_TYPE_ACTION)
@@ -2299,7 +2273,13 @@ async def _resolve_response_context_summary(
             plan_id=planner_error.get(FIELD_PLAN_ID),
             error_count=len(errors),
         )
-    return agent_results_summary, resolved_context_for_html, turn_type, plan_rejection_reason
+    return (
+        agent_results_summary,
+        resolved_context_for_html,
+        turn_type,
+        plan_rejection_reason,
+        draft_execution_result,
+    )
 
 
 def _build_response_chain(
@@ -2321,15 +2301,16 @@ def _build_response_chain(
     language-reinforcement human message, then returns ``prompt | llm``.
     """
     # CRITICAL: Build SYSTEM-level anti-hallucination directive for rejected plans
-    # Response directives are injected as SYSTEM messages to enforce behavior
-    # Prompts are loaded from versioned files and formatted with user_language
+    # Response directives are injected as SYSTEM messages to enforce behavior.
+    # Prompts are loaded from versioned files and told the language's NAME.
+    language_name = get_language_name(user_language)
     rejection_override = ""
     if plan_rejection_reason:
         # Directive when user rejects an execution plan
         rejection_override = load_prompt(
             "response_directive_plan_rejection",
             version=settings.response_prompt_version,
-        ).format(user_language=user_language)
+        ).format(user_language=language_name)
     # NOTE: Conversational turns are now handled by the base prompt (conditional "if agent result(s)")
     # HITL DRAFT CANCELLATION: Directive when user cancels a draft
     draft_action_result = state.get(STATE_KEY_DRAFT_ACTION_RESULT)
@@ -2338,7 +2319,7 @@ def _build_response_chain(
         rejection_override = load_prompt(
             "response_directive_draft_cancelled",
             version=settings.response_prompt_version,
-        ).format(user_language=user_language, draft_type=draft_type)
+        ).format(user_language=language_name, draft_type=draft_type)
     # PLAN BLOCKED BY VALIDATION: the validator refused steps and the turn ran
     # on anyway, so without this the model explains an empty result it knows
     # nothing about — and invents a diagnosis (2026-07-30: "aucun service de
@@ -2363,7 +2344,7 @@ def _build_response_chain(
             rejection_override = load_prompt(
                 "response_directive_plan_blocked",
                 version=settings.response_prompt_version,
-            ).format(user_language=user_language, blocked_capabilities=blocked_capabilities)
+            ).format(user_language=language_name, blocked_capabilities=blocked_capabilities)
 
     # Build ChatPromptTemplate dynamically — only include non-empty system blocks.
     # Anthropic (and potentially other providers) reject empty system content blocks.
@@ -2416,10 +2397,7 @@ def _build_response_chain(
     # language) + personality prompt can overpower the system prompt's language directive.
     # Placing this reminder as the last message before generation ensures compliance.
     # NOTE: Uses "human" role because Anthropic API rejects non-consecutive system messages.
-    from src.core.i18n import get_language_name
-
-    language = get_language_name(user_language)
-    prompt_messages.append(("human", lines["respond_in_language"].format(language=language)))
+    prompt_messages.append(("human", lines["respond_in_language"].format(language=language_name)))
     prompt = ChatPromptTemplate.from_messages(prompt_messages)
     # Create chain
     chain = prompt | llm
@@ -2457,7 +2435,7 @@ async def _prepare_conversational_messages(
     # Filter messages for LLM context
     # Keeps: HumanMessage + ToolMessage (JSON) + AIMessage without HTML
     # Excludes: AIMessage with HTML (lia-card) to prevent LLM reformulating as Markdown
-    # In "html" display mode, also neutralizes the style of prior assistant answers
+    # In HTML display modes, also neutralizes the style of prior assistant answers
     # (see neutralize_history_formatting above) so accumulated Markdown does not
     # override the HTML directive over multi-turn conversations.
     # Uses centralized filter from utils/message_filters.py
@@ -2607,20 +2585,18 @@ def _normalize_agent_results(state: MessagesState, run_id: str) -> dict[str, Any
     return agent_results_raw
 
 
-def _build_data_for_filtering(
-    current_turn_registry: dict[str, Any] | None, user_language: str, run_id: str
-) -> str:
+def _build_data_for_filtering(current_turn_registry: dict[str, Any] | None, run_id: str) -> str:
     """Generate the item-ID + filterable-fields payload used for semantic filtering.
 
     Extracted verbatim from ``response_node`` (empty when no current-turn registry;
-    error-guarded with a localized fallback marker).
+    error-guarded with an English, model-facing fallback marker).
     """
     # Generate enriched data for intelligent filtering
     # This includes item IDs and filterable fields (addresses, locations, etc.)
     data_for_filtering = ""
     if current_turn_registry:
         try:
-            data_for_filtering = generate_data_for_filtering(current_turn_registry, user_language)
+            data_for_filtering = generate_data_for_filtering(current_turn_registry)
             logger.debug(
                 "intelligent_filtering_data_generated",
                 run_id=run_id,
@@ -2648,7 +2624,7 @@ def _extract_qi_response_hints(
     (resolved_references, enriched_query, anticipated_needs).
     """
     # Extract resolved references for natural response phrasing
-    # Example: {"ma femme": "jean dupond"} enables "ta femme (jean dupond)" in response
+    # Example: {"my wife": "jean dupond"} enables "your wife (jean dupond)" in response
     resolved_references_raw = state.get(STATE_KEY_RESOLVED_REFERENCES)
     resolved_references: dict[str, str] | None = None
     if resolved_references_raw and isinstance(resolved_references_raw, dict):
@@ -2872,11 +2848,11 @@ def _resolve_turn_preamble(
         )
     # Get user timezone and language from state (with fallbacks to i18n defaults)
     user_timezone = state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-    user_language = state.get("user_language", settings.default_language)
+    user_language = resolve_language(state.get("user_language"))
     user_viewport = _extract_viewport()
     logger.debug("response_node_viewport_detected", run_id=run_id, viewport=user_viewport)
     # DISPLAY MODE: resolve once, up-front — it gates several style decisions below.
-    # In the "html" mode the prompt carries the rich-HTML directive, so the Markdown
+    # In "html" / "html_cards" the prompt carries the rich-HTML directive, so the Markdown
     # style precedent that accumulates in the LLM's conversational history must be
     # neutralized: prior assistant answers are rewritten to style-free text via
     # filter_for_llm_context(neutralize_formatting=...) so they cannot bias the model
@@ -2885,7 +2861,7 @@ def _resolve_turn_preamble(
     # reformat, not a style precedent. The "cards" and "markdown" modes keep the
     # historical behaviour (flag stays False) — no regression.
     user_display_mode = runtime_display_mode(RESPONSE_DISPLAY_MODE_CARDS)
-    neutralize_history_formatting = user_display_mode == RESPONSE_DISPLAY_MODE_HTML
+    neutralize_history_formatting = user_display_mode in RESPONSE_DISPLAY_MODES_WITH_HTML
     # === VISION LLM SWITCH (evolution F4 — File Attachments) ===
     # Detect if current turn has image attachments → use vision_analysis LLM
     current_turn_attachments = state.get("metadata", {}).get("current_turn_attachments")
@@ -2966,6 +2942,59 @@ def _track_response_token_efficiency(result_domains: set[str], enriched_config: 
     )
 
 
+def _registry_from_resolved_context(resolved_context: dict[str, Any]) -> dict[str, Any]:
+    """Make resolved-only references selectable before response synthesis.
+
+    Context resolution can outlive the registry slice that originally held its
+    payloads. Rehydrate those explicit references as candidates, never as a
+    post-selection rendering fallback. Content-derived IDs also cover resolved
+    payloads without a provider ID; the model receives the IDs in DataForFiltering.
+    """
+    import json
+
+    from src.domains.agents.data_registry.models import (
+        INTERACTIVE_WIDGET_TYPES,
+        RegistryItem,
+        RegistryItemMeta,
+        RegistryItemType,
+        generate_registry_id,
+    )
+    from src.domains.agents.formatters.resolved_context import detect_domain_from_item
+    from src.domains.agents.utils.type_domain_mapping import TYPE_TO_DOMAIN_MAP
+
+    types_by_domain = {
+        domain: item_type for item_type, domains in TYPE_TO_DOMAIN_MAP.items() for domain in domains
+    }
+    # The resolved-context display detector uses this legacy alias for files.
+    types_by_domain["drive"] = types_by_domain["files"]
+    candidates: dict[str, Any] = {}
+    for payload in resolved_context.get("items", []):
+        if not isinstance(payload, dict):
+            continue
+        type_name = types_by_domain.get(str(resolved_context.get("source_domain") or "")) or (
+            types_by_domain.get(detect_domain_from_item(payload))
+        )
+        if type_name is None:
+            continue
+        item_type = RegistryItemType(type_name)
+        if item_type in INTERACTIVE_WIDGET_TYPES:
+            continue  # A past payload must not recreate an interactive widget.
+        registry_id = generate_registry_id(
+            item_type, json.dumps(payload, sort_keys=True, default=str)
+        )
+        candidates[registry_id] = RegistryItem(
+            id=registry_id,
+            type=item_type,
+            payload=payload,
+            meta=RegistryItemMeta(
+                source="resolved_context",
+                domain=TYPE_TO_DOMAIN_MAP[type_name][1],
+                turn_id=resolved_context.get("source_turn_id"),
+            ),
+        ).model_dump(mode="json")
+    return candidates
+
+
 def _prepare_turn_registry(
     state: MessagesState, run_id: str, agent_results_raw: dict[str, Any]
 ) -> tuple[dict[str, Any], Any, dict[str, Any] | None, dict[str, Any] | None, str | None, Any]:
@@ -2981,14 +3010,24 @@ def _prepare_turn_registry(
     # BugFix 2025-12-19: Filter registry by current turn BEFORE domain detection
     # Root cause: _detect_domain_operations was iterating ALL registry items from ALL turns
     # causing multi-domain fewshot loading (e.g., files + places) when only one domain was queried
-    # Example: "detail du premier" (files) was loading places fewshots from previous turn
-    # BugFix 2025-12-19 #2: For REFERENCE turns (e.g., "detail du premier" after email search),
+    # Example: "details of the first one" (files) was loading places fewshots from previous turn
+    # BugFix 2025-12-19 #2: For REFERENCE turns (e.g., "details of the first one" after email search),
     # pass resolved_context to filter by resolved items when no registry_updates exist
     # Security 2025-12-19: turn_type for strict REFERENCE filtering (prevents data leak)
     turn_type = state.get(STATE_KEY_TURN_TYPE)
     current_turn_registry = _filter_registry_by_current_turn(
         agent_results_raw, current_turn_id, full_registry, resolved_context, turn_type
     )
+    if (
+        not current_turn_registry
+        and _is_reference_turn(turn_type)
+        and resolved_context
+        and not any(key.startswith(f"{current_turn_id}:") for key in agent_results_raw)
+    ):
+        # Match the resolved-context summary path: freshly retrieved results
+        # stay authoritative. These candidates enter DataForFiltering BEFORE
+        # the LLM selection; an empty selection remains empty downstream.
+        current_turn_registry = _registry_from_resolved_context(resolved_context)
     # INTELLIA v10: Derive override_action for JSON formatting consistency
     # NOTE: "detail" and "list" intents removed (2026-01 simplification)
     # All retrieval now uses "search" with full content always returned
@@ -3035,7 +3074,7 @@ def _response_error_fallback(state: MessagesState, run_id: str, exc: Exception) 
     # BUG FIX: Use AIMessage (not HumanMessage) for error responses from assistant
     # Re-read the language from state: user_language is assigned inside the
     # try block, so it may be unbound if the exception occurred before it.
-    fallback_language = state.get("user_language", settings.default_language)
+    fallback_language = resolve_language(state.get("user_language"))
     error_message = AIMessage(
         content=get_error_fallback_message(type(exc).__name__, language=fallback_language)
     )
@@ -3124,7 +3163,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             state, run_id, user_language
         )
 
-        data_for_filtering = _build_data_for_filtering(current_turn_registry, user_language, run_id)
+        data_for_filtering = _build_data_for_filtering(current_turn_registry, run_id)
 
         # =====================================================================
         # CONTEXT INJECTIONS (embedding + memory, RAG, journal, portrait, psyche)
@@ -3230,7 +3269,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 full_registry,
                 agent_results_raw,
                 current_turn_id,
-                user_language,
             )
 
         # Self-diagnostics honesty block (spec 2026-08-27, pillar 7).
@@ -3272,6 +3310,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             resolved_context_for_html,
             turn_type,
             plan_rejection_reason,
+            draft_execution_result,
         ) = await _resolve_response_context_summary(
             state,
             config,
@@ -3359,6 +3398,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     STATE_KEY_DRAFT_ACTION_RESULT: None,
                     "current_turn_registry": current_turn_registry,
                 }
+                # The turn ENDS here — the first half stopped on the question.
+                await _instrument_business_metrics(state, config, run_id, draft_execution_result)
                 track_state_updates(state, draft_state_update, "response", run_id)
                 # A confirmed/cancelled draft is still a real turn: the last
                 # user message in state is the request that opened the flow
@@ -3488,6 +3529,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             result_domains=result_domains,
             last_user_message=last_user_message,
             run_id=run_id,
+            require_selection=user_display_mode in RESPONSE_DISPLAY_MODES_WITH_CARDS,
         )
 
         # Debug: Log injection preconditions
@@ -3501,7 +3543,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         )
 
         # =====================================================================
-        # V3 HTML rendering: inject widgets (always) + data cards (cards mode) post-LLM.
+        # V3 HTML rendering: inject widgets (always) + data cards (cards / html_cards) post-LLM.
         final_content = _render_response_html(
             final_content=final_content,
             current_turn_registry=current_turn_registry,
@@ -3552,7 +3594,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         if skill_registry_updates:
             state_update["registry"] = skill_registry_updates
 
-        await _instrument_business_metrics(state, config, run_id)
+        await _instrument_business_metrics(state, config, run_id, draft_execution_result)
 
         # PHASE 2.5 - LangGraph Observability: Track state updates
         track_state_updates(state, state_update, "response", run_id)

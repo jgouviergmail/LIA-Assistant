@@ -2,16 +2,25 @@
 Personality service containing business logic for personality management.
 """
 
+from collections.abc import Awaitable, Callable
 from uuid import UUID
 
 import structlog
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.core.config import settings
-from src.core.exceptions import ResourceConflictError, ResourceNotFoundError
-from src.domains.personalities.constants import DEFAULT_PERSONALITY_PROMPT
+from src.core.exceptions import (
+    ResourceConflictError,
+    ResourceNotFoundError,
+    raise_unprocessable_entity,
+)
+from src.core.i18n import resolve_language
+from src.core.i18n_api_messages import APIMessages
+from src.core.i18n_types import canonical_language
+from src.domains.personalities.constants import default_personality_prompt
 from src.domains.personalities.models import Personality, PersonalityTranslation
 from src.domains.personalities.schemas import (
     PersonalityCreate,
@@ -21,8 +30,12 @@ from src.domains.personalities.schemas import (
     PersonalityTranslationCreate,
     PersonalityUpdate,
 )
+from src.infrastructure.database.errors import database_error_fields
 
 logger = structlog.get_logger(__name__)
+
+#: The unique index a personality's code answers to (migration add_personalities).
+_CODE_INDEX = "ix_personalities_code"
 
 
 class PersonalityService:
@@ -94,9 +107,7 @@ class PersonalityService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_active(
-        self, user_language: str = settings.default_language
-    ) -> PersonalityListResponse:
+    async def list_active(self, user_language: str | None = None) -> PersonalityListResponse:
         """
         List all active personalities with localized titles/descriptions.
 
@@ -117,7 +128,7 @@ class PersonalityService:
 
         items = []
         for p in personalities:
-            trans = p.get_translation(user_language)
+            trans = p.get_translation(resolve_language(user_language))
             if trans:
                 items.append(
                     PersonalityListItem(
@@ -161,6 +172,10 @@ class PersonalityService:
         """
         Create a new personality with translations.
 
+        The missing languages are translated while NO transaction is open
+        (ADR-304): the uniqueness read is committed first, and the row — with
+        its unique ``code`` — is written only once every model call returned.
+
         Args:
             data: Personality creation data
             auto_translate: Whether to auto-translate missing languages
@@ -169,16 +184,18 @@ class PersonalityService:
             Created personality
 
         Raises:
-            HTTPException: If code already exists
+            ResourceConflictError: If the code already exists — read
+                first, or taken by a concurrent create while the model
+                translated (the unique index decides then).
         """
         # Check uniqueness
         existing = await self.get_by_code(data.code)
         if existing:
-            raise ResourceConflictError("personality", f"Code '{data.code}' already exists")
-
-        # Clear default if setting new default
-        if data.is_default:
-            await self._clear_default()
+            raise ResourceConflictError(
+                "personality", APIMessages.personality_code_taken(data.code)
+            )
+        # End the read before the model is asked anything (ADR-304).
+        await self.db.commit()
 
         # Create personality
         personality = Personality(
@@ -206,10 +223,8 @@ class PersonalityService:
             )
             provided_langs.add(t.language_code)
 
-        self.db.add(personality)
-        await self.db.flush()
-
-        # Auto-translate missing languages
+        # Auto-translate missing languages — on the row still outside the
+        # session, so nothing is written while the model answers.
         if auto_translate and provided_langs:
             source = translations[0]
             await self._auto_translate_missing(
@@ -220,6 +235,15 @@ class PersonalityService:
                 provided_langs,
             )
 
+        # Clear default if setting new default
+        if data.is_default:
+            await self._clear_default()
+
+        self.db.add(personality)
+        # The uniqueness read was committed before the model calls, so a
+        # concurrent create may have taken the code meanwhile; the default
+        # cleared above is rolled back with the row.
+        await self._write_or_code_conflict(self.db.flush, data.code)
         await self.db.commit()
         await self.db.refresh(personality)
 
@@ -251,7 +275,9 @@ class PersonalityService:
             Updated personality
 
         Raises:
-            ResourceConflictError: If new code already exists
+            ResourceConflictError: If the new code already exists — read first,
+                or taken by a concurrent create or rename (the unique index
+                decides then).
         """
         personality = await self.get_by_id(personality_id)
 
@@ -261,7 +287,7 @@ class PersonalityService:
             if existing and existing.id != personality_id:
                 raise ResourceConflictError(
                     "personality",
-                    f"Code '{data.code}' already exists",
+                    APIMessages.personality_code_taken(data.code),
                 )
 
         # Handle default flag change
@@ -279,7 +305,7 @@ class PersonalityService:
 
         # Handle translation updates
         needs_propagation = False
-        source_language = translation_data.get("source_language", settings.default_language)
+        source_language = resolve_language(translation_data.get("source_language"))
 
         if "title" in translation_data or "description" in translation_data:
             needs_propagation = await self._update_source_translation(
@@ -289,7 +315,8 @@ class PersonalityService:
                 source_language,
             )
 
-        await self.db.commit()
+        # A concurrent rename may take the code between the read and the write.
+        await self._write_or_code_conflict(self.db.commit, data.code)
 
         # Auto-propagate translations if content changed
         if needs_propagation and propagate_translations:
@@ -316,6 +343,34 @@ class PersonalityService:
 
         return personality
 
+    async def _write_or_code_conflict(
+        self, write: Callable[[], Awaitable[None]], code: str | None
+    ) -> None:
+        """Write, answering a code another personality took meanwhile as a 409.
+
+        The uniqueness read runs before the write, so a concurrent create or
+        rename may take the code in between: the unique index decides, and the
+        transaction is rolled back. Any other constraint is not a code
+        conflict, and stays an error.
+
+        Args:
+            write: The flush or commit that sends the row.
+            code: The code the row claims, when it claims one.
+
+        Raises:
+            ResourceConflictError: The code's unique index refused the row.
+            IntegrityError: Any other constraint refused it.
+        """
+        try:
+            await write()
+        except IntegrityError as exc:
+            await self.db.rollback()
+            if code is None or database_error_fields(exc).get("constraint") != _CODE_INDEX:
+                raise
+            raise ResourceConflictError(
+                "personality", APIMessages.personality_code_taken(code)
+            ) from exc
+
     async def delete(self, personality_id: UUID) -> None:
         """
         Delete a personality (cannot delete default).
@@ -329,7 +384,9 @@ class PersonalityService:
         personality = await self.get_by_id(personality_id)
 
         if personality.is_default:
-            raise ResourceConflictError("personality", "Cannot delete default personality")
+            raise ResourceConflictError(
+                "personality", APIMessages.personality_default_not_deletable()
+            )
 
         await self.db.delete(personality)
         await self.db.commit()
@@ -418,7 +475,7 @@ class PersonalityService:
             return personality.prompt_instruction
 
         # Ultimate fallback
-        return DEFAULT_PERSONALITY_PROMPT
+        return default_personality_prompt()
 
     async def get_prompt_instruction_for_user(
         self,
@@ -445,7 +502,7 @@ class PersonalityService:
     async def get_user_personality(
         self,
         user_personality_id: UUID | None,
-        user_language: str = settings.default_language,
+        user_language: str | None = None,
     ) -> PersonalityListItem | None:
         """
         Get user's current personality for display.
@@ -470,7 +527,7 @@ class PersonalityService:
         if not personality:
             return None
 
-        trans = personality.get_translation(user_language)
+        trans = personality.get_translation(resolve_language(user_language))
         if not trans:
             return None
 
@@ -718,32 +775,43 @@ class PersonalityService:
     async def trigger_auto_translation(
         self,
         personality_id: UUID,
-        source_language: str = settings.default_language,
-    ) -> int:
+        source_language: str | None = None,
+    ) -> tuple[int, str]:
         """
         Trigger auto-translation for a personality.
 
         Args:
             personality_id: Personality UUID
-            source_language: Source language to translate from
+            source_language: Source language to translate from — its text must
+                be one an administrator wrote; when absent, the written text
+                ``_translation_source`` chooses.
 
         Returns:
-            Number of translations created
+            ``(created, source)`` — the number of translations created and the
+            canonical code of the text they were made from.
+
+        Raises:
+            UnprocessableEntityError: The personality has no WRITTEN text in
+                the requested source language (a machine translation is no
+                source), the code names no language, or no text was written by
+                an administrator.
         """
         personality = await self.get_by_id(personality_id)
-
-        # Find source translation
-        source_trans = None
-        for t in personality.translations:
-            if t.language_code == source_language:
-                source_trans = t
-                break
-
-        if not source_trans:
-            raise ValueError(f"No translation found for source language: {source_language}")
+        source_trans = _translation_source(personality.translations, source_language)
+        if source_trans is None:
+            raise_unprocessable_entity(
+                APIMessages.personality_translation_source_missing(source_language),
+                personality_id=str(personality_id),
+            )
+        source_language = source_trans.language_code
 
         # Get existing languages
         existing_langs = {t.language_code for t in personality.translations}
+
+        # End the read before the model calls (ADR-304): the session keeps its
+        # rows readable after a commit, and the new translations are written by
+        # the commit below.
+        await self.db.commit()
 
         # Auto-translate
         count = await self._auto_translate_missing(
@@ -762,4 +830,37 @@ class PersonalityService:
             translations_created=count,
         )
 
-        return count
+        return count, source_language
+
+
+def _translation_source(
+    translations: list[PersonalityTranslation], requested: str | None
+) -> PersonalityTranslation | None:
+    """The translation an auto-translation starts from.
+
+    The source is what an administrator WROTE, never a machine translation —
+    the admin section authors one language and fills the others by machine, and
+    translating a translation compounds its errors. An explicit language names
+    its written translation (None when the personality has none written there,
+    or when the code names no language). Without one, the declared (acting
+    administrator's) language wins among the written ones, else the oldest;
+    None when nothing was written (ADR-323).
+
+    Args:
+        translations: The personality's translations.
+        requested: The explicit source language, or None.
+
+    Returns:
+        The source translation, or None when there is none to start from.
+    """
+    authored = sorted(
+        (t for t in translations if not t.is_auto_translated), key=lambda t: t.created_at
+    )
+    if requested:
+        code = canonical_language(requested)
+        return next((t for t in authored if t.language_code == code), None)
+    declared = resolve_language()
+    return next(
+        (t for t in authored if t.language_code == declared),
+        authored[0] if authored else None,
+    )

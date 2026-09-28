@@ -204,6 +204,7 @@ class TestSendUserDeactivatedNotification:
             user_email="user@example.com",
             user_name=None,
             reason="Policy violation",
+            user_language="en",
         )
 
         assert result is True
@@ -237,6 +238,7 @@ class TestSendUserDeactivatedNotification:
                 user_email="user@example.com",
                 user_name="John Doe",
                 reason=test_reason,
+                user_language="en",
             )
 
             assert result is True
@@ -247,7 +249,7 @@ class TestSendUserDeactivatedNotification:
     @pytest.mark.asyncio
     async def test_deactivated_notification_internationalized(self, email_service, mock_smtp):
         """Test that notification supports multiple languages."""
-        for lang in ["fr", "en", "es", "de", "it"]:
+        for lang in ["fr", "en", "es", "de", "it", "zh-CN"]:
             result = await email_service.send_user_deactivated_notification(
                 user_email="user@example.com",
                 user_name="Test User",
@@ -276,6 +278,7 @@ class TestSendUserActivatedNotification:
         result = await email_service.send_user_activated_notification(
             user_email="user@example.com",
             user_name=None,
+            user_language="en",
         )
 
         assert result is True
@@ -304,6 +307,7 @@ class TestSendUserActivatedNotification:
             result = await email_service.send_user_activated_notification(
                 user_email="user@example.com",
                 user_name="John Doe",
+                user_language="en",
             )
 
             assert result is True
@@ -314,7 +318,7 @@ class TestSendUserActivatedNotification:
     @pytest.mark.asyncio
     async def test_activated_notification_internationalized(self, email_service, mock_smtp):
         """Test that notification supports multiple languages."""
-        for lang in ["fr", "en", "es", "de", "it"]:
+        for lang in ["fr", "en", "es", "de", "it", "zh-CN"]:
             result = await email_service.send_user_activated_notification(
                 user_email="user@example.com",
                 user_name="Test User",
@@ -330,8 +334,9 @@ class TestSendConnectorDisabledNotification:
         result = await email_service.send_connector_disabled_notification(
             user_email="user@example.com",
             user_name="John Doe",
-            connector_type="emails",
+            connector_label="Gmail",
             reason="Security policy update",
+            user_language="en",
         )
 
         assert result is True
@@ -343,62 +348,12 @@ class TestSendConnectorDisabledNotification:
         result = await email_service.send_connector_disabled_notification(
             user_email="user@example.com",
             user_name=None,
-            connector_type="emails",
+            connector_label="Gmail",
             reason="Security policy update",
+            user_language="en",
         )
 
         assert result is True
-
-    @pytest.mark.asyncio
-    async def test_connector_disabled_maps_connector_labels(self, email_service):
-        """Test that connector types are mapped to readable labels."""
-        connector_mappings = {
-            "emails": "Gmail",
-            "google_drive": "Google Drive",
-            "google_calendar": "Google Calendar",
-            "google_contacts": "Google Contacts",
-            "slack": "Slack",
-            "notion": "Notion",
-            "github": "GitHub",
-        }
-
-        for connector_type, _expected_label in connector_mappings.items():
-            with patch("src.infrastructure.email.email_service.smtplib.SMTP") as mock_smtp_class:
-                mock_server = MagicMock()
-                mock_server.__enter__ = Mock(return_value=mock_server)
-                mock_server.__exit__ = Mock(return_value=False)
-                mock_smtp_class.return_value = mock_server
-
-                result = await email_service.send_connector_disabled_notification(
-                    user_email="user@example.com",
-                    user_name="John Doe",
-                    connector_type=connector_type,
-                    reason="Test",
-                )
-
-                assert result is True
-                # Verify sendmail was called
-                assert mock_server.sendmail.called
-
-    @pytest.mark.asyncio
-    async def test_connector_disabled_unknown_type_uses_raw_value(self, email_service):
-        """Test that unknown connector types use raw value."""
-        with patch("src.infrastructure.email.email_service.smtplib.SMTP") as mock_smtp_class:
-            mock_server = MagicMock()
-            mock_server.__enter__ = Mock(return_value=mock_server)
-            mock_server.__exit__ = Mock(return_value=False)
-            mock_smtp_class.return_value = mock_server
-
-            result = await email_service.send_connector_disabled_notification(
-                user_email="user@example.com",
-                user_name="John Doe",
-                connector_type="unknown_connector",
-                reason="Test",
-            )
-
-            assert result is True
-            # Verify sendmail was called
-            assert mock_server.sendmail.called
 
     @pytest.mark.asyncio
     async def test_connector_disabled_contains_reason(self, email_service):
@@ -414,28 +369,9 @@ class TestSendConnectorDisabledNotification:
             result = await email_service.send_connector_disabled_notification(
                 user_email="user@example.com",
                 user_name="John Doe",
-                connector_type="emails",
+                connector_label="Gmail",
                 reason=test_reason,
-            )
-
-            assert result is True
-            # Verify sendmail was called
-            assert mock_server.sendmail.called
-
-    @pytest.mark.asyncio
-    async def test_connector_disabled_hardcoded_french(self, email_service):
-        """Test that connector disabled notification is in French (hardcoded)."""
-        with patch("src.infrastructure.email.email_service.smtplib.SMTP") as mock_smtp_class:
-            mock_server = MagicMock()
-            mock_server.__enter__ = Mock(return_value=mock_server)
-            mock_server.__exit__ = Mock(return_value=False)
-            mock_smtp_class.return_value = mock_server
-
-            result = await email_service.send_connector_disabled_notification(
-                user_email="user@example.com",
-                user_name="John Doe",
-                connector_type="emails",
-                reason="Test",
+                user_language="en",
             )
 
             assert result is True

@@ -9,41 +9,70 @@ from datetime import datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from src.core.config import settings
 from src.core.constants import (
     OUT_OF_TURN_EXECUTION_MODE_DEFAULT,
     RECURRENCE_ROUTINE_LIMITS,
     SCHEDULED_ACTION_OCCURRENCES_PREVIEW,
     ExecutionMode,
 )
-from src.core.i18n import DEFAULT_LANGUAGE
-from src.core.recurrence import RecurrenceSpec, describe, occurrences, week_slots
+from src.core.i18n import resolve_language
+from src.core.recurrence import RecurrenceSpec, occurrences, week_slots
 from src.core.time_utils import now_utc
+from src.domains.scheduled_actions.condition_ledger import ConditionCheckError, ConditionLedger
 from src.domains.scheduled_actions.models import (
     CONDITION_TYPE_CALENDAR_EVENT,
+    CONDITION_TYPE_DOCUMENT_ADDED,
     CONDITION_TYPE_MAIL_MATCH,
+    CONDITION_TYPE_TASK_OVERDUE,
+    CONDITION_TYPE_WEATHER_CHANGE,
     CONDITION_TYPES,
     ScheduledRunOutcome,
     TriggerKind,
+)
+from src.domains.scheduled_actions.trigger import (
+    TriggerPlan,
+    check_minutes,
+    published_check_minutes,
+    schedule_sentence,
 )
 
 # Weather-change kinds accepted by the condition (mirror of the briefing
 # ForecastAlertKind values — a wrong kind would silently never fire).
 WEATHER_CONDITION_KINDS: frozenset[str] = frozenset({"rain", "thunderstorm", "snow", "drizzle"})
 
+#: The parameters each condition type actually READS (``until`` aside, which
+#: every type reads). A parameter absent from its type's set is not « unused »:
+#: it would be accepted, stored, shown and DROPPED — the trap ADR-268 closed
+#: for recurrence selectors, closed here the same way (ADR-322).
+CONDITION_PARAMS_READ_BY: dict[str, frozenset[str]] = {
+    CONDITION_TYPE_TASK_OVERDUE: frozenset(),
+    CONDITION_TYPE_WEATHER_CHANGE: frozenset({"kinds"}),
+    CONDITION_TYPE_MAIL_MATCH: frozenset({"query"}),
+    CONDITION_TYPE_DOCUMENT_ADDED: frozenset(),
+    CONDITION_TYPE_CALENDAR_EVENT: frozenset({"query", "within_hours"}),
+}
+if set(CONDITION_PARAMS_READ_BY) != set(CONDITION_TYPES):  # pragma: no cover - boot guard
+    raise RuntimeError("CONDITION_PARAMS_READ_BY must cover exactly CONDITION_TYPES")
+
 
 class ConditionConfig(BaseModel):
-    """Condition of a CONDITION-kind routine (N-07 phase 1).
+    """Condition of a CONDITION-kind routine (N-07, ADR-322).
 
-    Per-type params, all bounded:
+    Per-type params, all bounded, each refused on a type that does not read it:
     - ``task_overdue``: no params — fires on a NEW overdue task;
     - ``weather_change``: ``kinds`` ⊆ WEATHER_CONDITION_KINDS (default: all);
-    - ``mail_match``: ``query`` (2–120 chars) matched against today's unread
-      subjects/senders;
-    - ``document_added``: no params — fires on newly modified Drive files;
+    - ``mail_match``: ``query`` (2–120 chars) matched against the unread
+      inbox's subjects and senders;
+    - ``document_added``: no params — fires on a Drive file newly in the
+      recent list;
     - ``calendar_event``: ``within_hours`` (1–48, default 4) and optional
       ``query`` matched against event titles.
+
+    ``until`` — the last local day watched, that day included — applies to
+    every type: a condition routine has no schedule, so this is its only end.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -61,21 +90,53 @@ class ConditionConfig(BaseModel):
     within_hours: int | None = Field(
         default=None, ge=1, le=48, description="calendar_event only: look-ahead window."
     )
+    until: calendar_date | None = Field(
+        default=None,
+        description="Last local day watched, included; absent = no end.",
+    )
+
+    @field_validator("kinds")
+    @classmethod
+    def one_order_for_the_kinds(cls, kinds: list[str] | None) -> list[str] | None:
+        """The kinds as a SET, in one order: another order is not another condition.
+
+        Stored as sent, ticking « snow » then « rain » made a condition the
+        service read as new, whose ledger started over (ADR-322).
+
+        Args:
+            kinds: The kinds as sent.
+
+        Returns:
+            The same kinds, sorted, each once; ``None`` stays ``None``.
+        """
+        return sorted(set(kinds)) if kinds is not None else None
 
     @model_validator(mode="after")
     def validate_per_type(self) -> ConditionConfig:
         """Refuse unknown types and per-type nonsense at the API boundary."""
         if self.type not in CONDITION_TYPES:
             raise ValueError(f"Unknown condition type: {self.type}")
-        if self.kinds is not None:
-            unknown = [k for k in self.kinds if k not in WEATHER_CONDITION_KINDS]
-            if unknown:
-                raise ValueError(f"Unknown weather kinds: {unknown}")
+        stray = [
+            name
+            for name in ("kinds", "query", "within_hours")
+            if getattr(self, name) is not None and name not in CONDITION_PARAMS_READ_BY[self.type]
+        ]
+        if stray:
+            raise ValueError(f"{', '.join(stray)} does not apply to {self.type}")
+        unknown = [k for k in self.kinds or [] if k not in WEATHER_CONDITION_KINDS]
+        if unknown:
+            raise ValueError(f"Unknown weather kinds: {unknown}")
         if self.type == CONDITION_TYPE_MAIL_MATCH and not (self.query and self.query.strip()):
             raise ValueError("mail_match requires a query")
-        if self.within_hours is not None and self.type != CONDITION_TYPE_CALENDAR_EVENT:
-            raise ValueError("within_hours only applies to calendar_event")
         return self
+
+    def stored(self) -> dict[str, object]:
+        """The JSONB value: a NEW dict, JSON-typed (a date is its ISO string).
+
+        Returns:
+            The condition as the column stores it, absent parameters omitted.
+        """
+        return self.model_dump(mode="json", exclude_none=True)
 
 
 class ScheduledActionWeekSlot(BaseModel):
@@ -107,26 +168,32 @@ class ScheduledActionCreate(BaseModel):
         ...,
         min_length=1,
         max_length=200,
-        description="User-facing title, e.g. 'Recherche météo'",
+        description="User-facing title, e.g. 'Weather lookup'",
     )
     action_prompt: str = Field(
         ...,
         min_length=1,
         max_length=2000,
-        description="Prompt sent to agent pipeline, e.g. 'recherche la météo du jour'",
+        description="Prompt sent to agent pipeline, e.g. 'look up today's weather'",
     )
-    recurrence: RecurrenceSpec = Field(
-        ...,
-        description="Which calendar days the routine serves, and the moments inside them.",
+    recurrence: RecurrenceSpec | None = Field(
+        default=None,
+        description=(
+            "time routines only (required): which calendar days the routine "
+            "serves, and the moments inside them. A condition routine has none."
+        ),
     )
     # N-07 phase 1 — additive with time defaults, so the ADR-140 chat tool
     # (which builds this schema without the new fields) keeps its behavior.
     trigger_kind: TriggerKind = Field(
         default=TriggerKind.TIME,
-        description="time = fire at every tick; condition = fire only when met.",
+        description=(
+            "time = runs on its recurrence; condition = checked by the system, "
+            "runs on a new fact (ADR-322)."
+        ),
     )
     condition_config: ConditionConfig | None = Field(
-        default=None, description="Required when trigger_kind is condition."
+        default=None, description="condition routines only (required)."
     )
     requires_approval: bool = Field(
         default=False,
@@ -152,17 +219,58 @@ class ScheduledActionCreate(BaseModel):
             ValidationError: Pydantic wraps the ``RecurrenceError`` raised when
                 the recurrence exceeds ``RECURRENCE_ROUTINE_LIMITS``.
         """
-        self.recurrence.validate_against(RECURRENCE_ROUTINE_LIMITS)
+        if self.recurrence is not None:
+            self.recurrence.validate_against(RECURRENCE_ROUTINE_LIMITS)
         return self
 
     @model_validator(mode="after")
-    def validate_condition(self) -> ScheduledActionCreate:
-        """A condition routine needs its condition; a time routine refuses one."""
-        if self.trigger_kind is TriggerKind.CONDITION and self.condition_config is None:
-            raise ValueError("condition_config is required when trigger_kind is condition")
-        if self.trigger_kind is TriggerKind.TIME and self.condition_config is not None:
-            raise ValueError("condition_config only applies to condition routines")
+    def validate_trigger_mode(self) -> ScheduledActionCreate:
+        """One clock per routine: a schedule, or a condition — never both.
+
+        Returns:
+            The validated instance.
+
+        Raises:
+            ValueError: When the fields do not match the chosen mode.
+        """
+        refusal = trigger_mode_refusal(
+            self.trigger_kind.value,
+            has_recurrence=self.recurrence is not None,
+            has_condition=self.condition_config is not None,
+        )
+        if refusal:
+            raise ValueError(refusal)
         return self
+
+
+def trigger_mode_refusal(kind: str, *, has_recurrence: bool, has_condition: bool) -> str | None:
+    """Why a routine's fields do not match its mode, or ``None`` when they do.
+
+    ONE rule for the create schema and the service's update (which sees the
+    stored half of the pair the schema cannot): a time routine runs on its
+    recurrence and carries no condition; a condition routine runs on the
+    system's checks and carries no recurrence (ADR-322). The same rule is the
+    table's CHECK constraint.
+
+    Args:
+        kind: The resulting ``trigger_kind``.
+        has_recurrence: Whether the resulting row has a recurrence.
+        has_condition: Whether the resulting row has a condition.
+
+    Returns:
+        The refusal, worded for the API caller, or ``None``.
+    """
+    if kind == TriggerKind.CONDITION.value:
+        if not has_condition:
+            return "condition_config is required when trigger_kind is condition"
+        if has_recurrence:
+            return "a condition routine has no recurrence: the system checks it"
+        return None
+    if not has_recurrence:
+        return "recurrence is required when trigger_kind is time"
+    if has_condition:
+        return "condition_config only applies to condition routines"
+    return None
 
 
 class ScheduledActionUpdate(BaseModel):
@@ -184,7 +292,12 @@ class ScheduledActionUpdate(BaseModel):
         None, description="New recurrence; absent leaves the schedule alone."
     )
     trigger_kind: TriggerKind | None = Field(
-        None, description="time = fire at every tick; condition = fire only when met."
+        None,
+        description=(
+            "time = runs on its recurrence; condition = checked by the system. "
+            "Switching to condition drops the recurrence; switching to time "
+            "drops the condition and needs a recurrence."
+        ),
     )
     condition_config: ConditionConfig | None = Field(
         None, description="New condition (kind/config coherence enforced in the service)."
@@ -202,9 +315,11 @@ class ScheduledActionUpdate(BaseModel):
         """An explicit ``null`` is not an absent field.
 
         Omitting ``recurrence`` means "leave the schedule alone"; sending
-        ``null`` means "set it to nothing", which the column forbids. Without
-        this, ``exclude_unset`` kept the key and the service wrote NULL into a
-        NOT NULL column — a 500 where a 422 belongs.
+        ``null`` means "set it to nothing". A routine loses its schedule by
+        becoming a condition routine (``trigger_kind``), which the service
+        applies to the WHOLE row (ADR-322) — a bare null would leave a time
+        routine with no clock, which the table's CHECK refuses: a 500 where a
+        422 belongs.
 
         Args:
             data: The raw payload.
@@ -241,7 +356,7 @@ class ScheduledActionResponse(BaseModel):
     user_id: UUID
     title: str
     action_prompt: str
-    recurrence: RecurrenceSpec
+    recurrence: RecurrenceSpec | None
     user_timezone: str
     trigger_kind: str
     condition_config: dict | None
@@ -300,21 +415,60 @@ class ScheduledActionResponse(BaseModel):
         description="Every instant of the current week, in the routine's zone.",
     )
 
+    # A condition routine's clock and its last check (ADR-322). The interval is
+    # the one APPLIED — published because it is enforced (ADR-184); the check
+    # fields come from the ledger, whose facts themselves are never served.
+    check_interval_minutes: int | None = Field(
+        default=None, description="condition routines: how often the system checks, in minutes."
+    )
+    last_checked_at: datetime | None = Field(
+        default=None, description="condition routines: when the condition was last checked."
+    )
+    last_check_error: ConditionCheckError | None = Field(
+        default=None,
+        description=(
+            "condition routines: why the last check could not read its source — "
+            "not_configured (nothing to read) or unavailable (it did not answer)."
+        ),
+    )
+    condition_state: dict | None = Field(
+        default=None, exclude=True, description="The fact ledger, read here and never served."
+    )
+
     @model_validator(mode="after")
     def compute_schedule_display(self) -> ScheduledActionResponse:
-        """Fill the sentence, the moments and the upcoming runs."""
+        """Fill the sentence, the moments, the upcoming runs and the last check."""
+        plan = TriggerPlan(
+            action_id=self.id,
+            trigger_kind=self.trigger_kind,
+            recurrence=self.recurrence,
+            condition_config=self.condition_config,
+            timezone=self.user_timezone,
+        )
         if not self.schedule_display:
-            self.schedule_display = describe(self.recurrence, DEFAULT_LANGUAGE)
+            self.schedule_display = schedule_sentence(plan, resolve_language())
+        if plan.is_condition:
+            ledger = ConditionLedger.read(self.condition_state)
+            self.check_interval_minutes = check_minutes(plan)
+            self.last_checked_at = ledger.last_checked_at
+            self.last_check_error = ledger.last_check_error
+            return self
+        if self.recurrence is not None:
+            self._fill_schedule(self.recurrence)
+        return self
+
+    def _fill_schedule(self, recurrence: RecurrenceSpec) -> None:
+        """The moments, the next runs and the week of a scheduled routine."""
         if not self.times_of_day:
             self.times_of_day = [
                 f"{moment.hour:02d}:{moment.minute:02d}"
-                for moment in self.recurrence.times.materialise()
+                for moment in recurrence.times.materialise()
             ]
         if not self.runs_per_day:
-            self.runs_per_day = self.recurrence.per_day()
+            self.runs_per_day = recurrence.per_day()
         if not self.next_occurrences:
             self.next_occurrences = occurrences(
-                self.recurrence,
+                recurrence,
                 self.user_timezone,
                 after=now_utc(),
                 count=SCHEDULED_ACTION_OCCURRENCES_PREVIEW,
@@ -331,17 +485,29 @@ class ScheduledActionResponse(BaseModel):
                 )
                 for slot, local in (
                     (slot, slot.astimezone(zone))
-                    for slot in week_slots(self.recurrence, self.user_timezone)
+                    for slot in week_slots(recurrence, self.user_timezone)
                 )
             ]
-        return self
 
 
 class ScheduledActionListResponse(BaseModel):
-    """Schema for listing scheduled actions."""
+    """Schema for listing scheduled actions.
+
+    Also publishes the clock of a condition routine NOT YET created (ADR-322):
+    the studio states it before the person saves, and these are the values the
+    executor enforces — never a copy typed into the browser (ADR-184).
+    """
 
     scheduled_actions: list[ScheduledActionResponse]
     total: int
+    condition_check_minutes: dict[str, int] = Field(
+        default_factory=published_check_minutes,
+        description="How often the system checks each condition type, in minutes.",
+    )
+    condition_max_fires_per_day: int = Field(
+        default_factory=lambda: settings.scheduled_actions_condition_max_fires_per_day,
+        description="Most runs one condition routine may start in one local day.",
+    )
 
 
 # =============================================================================

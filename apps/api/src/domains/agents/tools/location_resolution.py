@@ -25,6 +25,7 @@ from typing import Any, NamedTuple
 
 from langchain.tools import ToolRuntime
 
+from src.core.i18n import resolve_language
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
     tool_runtime_context,
@@ -285,7 +286,7 @@ async def resolve_implicit_location(
 async def resolve_location(
     runtime: ToolRuntime[LiaRuntimeContext | None, Any],
     user_message: str,
-    language: str = "fr",
+    language: str | None = None,
 ) -> tuple[ResolvedLocation | None, str | None]:
     """
     Resolve location for tools based on user message and available sources.
@@ -304,7 +305,7 @@ async def resolve_location(
     Args:
         runtime: ToolRuntime with config and user context
         user_message: User's message to analyze for location references
-        language: Language code for phrase detection (default: "fr")
+        language: Language code for phrase detection (default: the declared language)
 
     Returns:
         Tuple of (ResolvedLocation | None, fallback_message | None)
@@ -319,6 +320,7 @@ async def resolve_location(
         >>> elif fallback:
         ...     return fallback  # Ask user for location
     """
+    language = resolve_language(language)
     from src.domains.agents.utils.i18n_location import (
         LocationType,
         detect_location_type,

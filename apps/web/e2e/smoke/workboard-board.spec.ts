@@ -160,7 +160,7 @@ test.describe('the workboard', () => {
     ).toBeVisible();
 
     await page.getByRole('button', { name: 'Réserver la salle', exact: true }).click();
-    await expect(page.getByRole('dialog').getByRole('note')).toContainText('attend votre accord');
+    await expect(page.getByRole('dialog').getByRole('note')).toContainText('attend ton accord');
   });
 
   test('never draws « À confirmer » on a board with nothing to confirm', async ({

@@ -28,7 +28,9 @@ from src.infrastructure.cache.pricing_cache import (
     PricingCacheData,
     build_price_index,
     get_cached_cost_usd_eur,
+    quote_cached_cost_usd,
 )
+from tests.helpers.pricing import fallbacks_counted
 
 pytestmark = pytest.mark.unit
 
@@ -298,6 +300,58 @@ class TestFailSoftExits:
     def test_uninitialised_cache_costs_zero(self) -> None:
         pricing_cache._local_cache = None
         assert get_cached_cost_usd_eur("gpt-4.1-mini", MILLION, MILLION) == (0.0, 0.0)
+
+
+# ============================================================================
+# The quiet door: a reader that prices again counts no miss
+# ============================================================================
+
+
+class TestTheQuietDoor:
+    """``quote_cached_cost_usd`` prices like the ledger's door and counts nothing:
+    the conversation metric prices the thread's window again at every turn."""
+
+    @pytest.mark.parametrize(
+        ("model", "at"),
+        [
+            ("gpt-4.1-mini", OFF_PEAK_AT),
+            # A time-slot tariff at both of its slots: a quiet door that ignored
+            # ``at`` would agree with the ledger's at one of them only, whatever
+            # the hour the suite runs at.
+            ("deepseek-v4-flash", PEAK_AT),
+            ("deepseek-v4-flash", OFF_PEAK_AT),
+            ("claude-opus-5", OFF_PEAK_AT),
+            ("gpt-4.1-mini-2025-04-14", OFF_PEAK_AT),
+        ],
+    )
+    def test_the_same_tariff_and_arithmetic_as_the_ledger_s_door(
+        self, model: str, at: datetime
+    ) -> None:
+        usd, _ = get_cached_cost_usd_eur(model, 1000, 200, 300, at, cache_write_tokens=100)
+        quoted = quote_cached_cost_usd(model, 1000, 200, 300, at, cache_write_tokens=100)
+        assert usd > 0
+        assert quoted == usd
+
+    @pytest.mark.parametrize("model", ["model-we-never-priced", "scribe_v2"])
+    def test_no_token_tariff_is_no_price_and_no_count(self, model: str) -> None:
+        before = fallbacks_counted()
+        assert quote_cached_cost_usd(model, MILLION, MILLION) is None
+        assert fallbacks_counted() == before
+
+    def test_a_cold_cache_is_no_price_and_no_count(self) -> None:
+        pricing_cache._local_cache = None
+        before = fallbacks_counted()
+        assert quote_cached_cost_usd("gpt-4.1-mini", MILLION, MILLION) is None
+        assert fallbacks_counted() == before
+
+    @pytest.mark.parametrize("cold", [False, True], ids=["unpriced_model", "cold_cache"])
+    def test_the_ledger_s_door_still_counts_the_miss(self, cold: bool) -> None:
+        """The miss is counted where the call is priced, whatever its reason."""
+        if cold:
+            pricing_cache._local_cache = None
+        before = fallbacks_counted()
+        get_cached_cost_usd_eur("model-we-never-priced", MILLION, MILLION)
+        assert fallbacks_counted() == before + 1
 
 
 # ============================================================================

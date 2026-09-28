@@ -21,6 +21,9 @@
  *   never re-reads a schedule, it paints. When that read is unavailable the
  *   grid still draws, every chip idle, and SAYS the states are unavailable
  *   rather than leaving a silent white.
+ * - **A condition routine** has no schedule (ADR-322): its chips are the
+ *   checks that FIRED this week, from the same read — each at the instant it
+ *   fired, coloured by how that run ended.
  * - **Today** is the column of the routines' zone, from the same read, with
  *   `Intl` as the fallback — a zone NAME, never a schedule.
  *
@@ -376,24 +379,28 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
                       >
                         {entries.length > 0 && (
                           <div className="flex flex-wrap items-start justify-center gap-0.5">
-                            {entries.map(entry => (
-                              <TimelineChip
-                                key={entry.action.id}
-                                entry={entry}
-                                lng={lng}
-                                formatRunAt={formatRunAt}
-                                tabbable={
-                                  chipKey(
-                                    entry.action.id,
-                                    entry.slot.day,
-                                    entry.slot.hour,
-                                    entry.slot.minute
-                                  ) === tabbableKey
-                                }
-                                onFocus={setVisitedKey}
-                                onSelect={onSelect}
-                              />
-                            ))}
+                            {entries.map(entry => {
+                              // The chip's identity, not the routine's: a routine
+                              // firing at 09:15 and 09:45 draws TWO chips in the
+                              // 09 row, and a key per routine made them one for React.
+                              const key = chipKey(
+                                entry.action.id,
+                                entry.slot.day,
+                                entry.slot.hour,
+                                entry.slot.minute
+                              );
+                              return (
+                                <TimelineChip
+                                  key={key}
+                                  entry={entry}
+                                  lng={lng}
+                                  formatRunAt={formatRunAt}
+                                  tabbable={key === tabbableKey}
+                                  onFocus={setVisitedKey}
+                                  onSelect={onSelect}
+                                />
+                              );
+                            })}
                           </div>
                         )}
                       </td>

@@ -18,10 +18,8 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.config import settings
-from src.core.constants import (
-    STATIC_MAP_DESKTOP_HEIGHT,
-    STATIC_MAP_DESKTOP_WIDTH,
-)
+from src.core.i18n import resolve_language
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.display.components.base import (
     BaseComponent,
@@ -33,9 +31,9 @@ from src.domains.agents.display.components.base import (
     render_collapsible,
     render_d_row,
     safe_css_color,
-    safe_url,
     wrap_with_response,
 )
+from src.domains.agents.display.components.map_hero import render_map_hero
 from src.domains.agents.display.icons import (
     Icons,
     get_travel_mode_icon,
@@ -219,18 +217,12 @@ class RouteCard(BaseComponent):
         # --- Static map image (uses existing lia-route__map CSS for full-width) ---
         hero_html = ""
         if static_map_url:
-            map_url = f"{static_map_url}&width={STATIC_MAP_DESKTOP_WIDTH}&height={STATIC_MAP_DESKTOP_HEIGHT}"
-            map_img = (
-                f'<img src="{safe_url(map_url)}" alt="Route map" '
-                f'class="lia-route__map-image" loading="lazy" />'
+            hero_html = render_map_hero(
+                static_map_url,
+                maps_url,
+                linked_alt=V3Messages.get_open_in_maps(ctx.language),
+                plain_alt=V3Messages.get_route_label(ctx.language),
             )
-            if maps_url:
-                hero_html = (
-                    f'<a href="{safe_url(maps_url)}" target="_blank" rel="noopener" '
-                    f'class="lia-route__map-link">{map_img}</a>'
-                )
-            else:
-                hero_html = f'<div class="lia-route__map">{map_img}</div>'
 
         # --- Card top: travel mode icon + "Origin → Destination" ---
         mode_icon = get_travel_mode_icon(travel_mode)
@@ -306,7 +298,10 @@ class RouteCard(BaseComponent):
             if toll_formatted:
                 toll_label = V3Messages.get_toll_label(ctx.language)
                 extra_rows.append(
-                    render_d_row(Icons.TOLL, f"{toll_label}: {escape_html(toll_formatted)}")
+                    render_d_row(
+                        Icons.TOLL,
+                        f"{toll_label}{label_separator(ctx.language)}{escape_html(toll_formatted)}",
+                    )
                 )
         extra_html = "\n".join(extra_rows)
 
@@ -321,7 +316,7 @@ class RouteCard(BaseComponent):
                 f'<span class="lia-route__waypoint">{escape_html(wp)}</span>'
                 for wp in waypoints[:5]
             ]
-            waypoints_html = f'<div class="lia-route__waypoints">{icon(Icons.FLAG_START, size="sm")} {via_label}: {", ".join(waypoint_items)}</div>'
+            waypoints_html = f'<div class="lia-route__waypoints">{icon(Icons.FLAG_START, size="sm")} {via_label}{label_separator(ctx.language)}{", ".join(waypoint_items)}</div>'
 
         # Collapsible steps (preserved existing format)
         collapsible_html = self._render_collapsible_steps(steps, ctx)
@@ -413,7 +408,6 @@ class RouteCard(BaseComponent):
             trigger_text=f"{steps_label} ({len(steps)})",
             content_html=content_html,
             initially_open=False,
-            language=ctx.language,
         )
 
     def _render_transit_step(
@@ -532,8 +526,9 @@ class RouteCard(BaseComponent):
             else Icons.TRANSIT
         )
 
-    def _format_duration(self, minutes: int, language: str = "fr") -> str:
+    def _format_duration(self, minutes: int, language: str | None = None) -> str:
         """Format duration in minutes to human-readable string."""
+        language = resolve_language(language)
         if minutes < 60:
             if language == "en":
                 return f"{minutes} min"

@@ -117,6 +117,12 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile.prod
     restart: unless-stopped
+    # The production image stops like production: uvicorn's bounded
+    # connection wait, then the ADR-117 drains, in sequence. Docker's 10 s
+    # default would SIGKILL the drain midway;
+    # `test_graceful_shutdown_budget_guard.py` sums the budget against
+    # this value, as it does for production.
+    stop_grace_period: 120s
     env_file:
       - ${DEMO_INSTANCE_ENV_FILE:-.env.demo-instance}
     environment:

@@ -25,7 +25,7 @@ supplies exactly that fact, in two layers:
 
 Two deliberate trade-offs, both load-bearing:
 
-- **Additive, never substitutive.** "Suis-je libre demain pour voir Jerome ?"
+- **Additive, never substitutive.** "Am I free tomorrow to see Jerome?"
   genuinely needs the asking user's own calendar. Removing ``event`` would
   trade one broken query class for another, so the correction only ever
   appends and lets the semantic tool selector arbitrate — which it does
@@ -33,7 +33,7 @@ Two deliberate trade-offs, both load-bearing:
   ``get_peer_availability_tool`` scored 0.944 against 0.028 for
   ``get_events_tool``.
 - **Recall over precision, bounded by a gate.** Matching a first name can
-  over-trigger (a peer named "Rose" against "une rose rouge"). The cost is one
+  over-trigger (a peer named "Rose" against "a red rose"). The cost is one
   extra low-scoring candidate tool; the cost of the opposite error is the
   feature not working at all. The :data:`PEER_CONFUSABLE_DOMAINS` gate bounds
   it to the domains where a peer read is plausible, and every correction is
@@ -149,8 +149,8 @@ def detect_mentioned_peers(
 
     Args:
         texts: Every text that may carry the name — the original query, the
-            English pivot, and the values of resolved references (``"mon
-            frère"`` → ``"Jérôme G"``, where the name is in the mapping and
+            English pivot, and the values of resolved references (``"my
+            brother"`` → ``"Jérôme G"``, where the name is in the mapping and
             never in what the user typed).
         peer_names: Display names of the user's accepted connections.
 

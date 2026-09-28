@@ -3,7 +3,7 @@ Plan Semantic Validator - LLM-based validation of plan coherence.
 
 This module validates that execution plans semantically match user intent,
 detecting subtle issues like:
-- Cardinality mismatches ("pour chaque" → single operation)
+- Cardinality mismatches ("for each" → single operation)
 - Missing dependencies (step B needs step A result but no depends_on)
 - Implicit assumptions (assuming data exists without verification)
 - Scope overflows/underflows (doing too much/too little)
@@ -40,6 +40,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
+from src.core.i18n import get_language_name, resolve_language
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts import load_prompt
 from src.infrastructure.llm.factory import get_llm
@@ -179,7 +180,7 @@ def should_trigger_semantic_validation(
 
     Example:
         >>> should, reason = should_trigger_semantic_validation(
-        ...     plan, "recherche les contacts", query_intelligence=qi
+        ...     plan, "search the contacts", query_intelligence=qi
         ... )
         >>> if should:
         ...     result = await validator.validate(plan, user_request)
@@ -465,7 +466,7 @@ def validate_steps_references(plan: ExecutionPlan) -> tuple[bool, str | None]:
 def detect_early_insufficient_content(
     query_intelligence: Any,
     user_request: str,
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
 ) -> SemanticValidationResult | None:
     """
     Pre-planner detection of insufficient content using QueryIntelligence.
@@ -496,6 +497,7 @@ def detect_early_insufficient_content(
         SemanticValidationResult with requires_clarification=True if insufficient,
         None if content sufficient or early detection not applicable.
     """
+    user_language = resolve_language(user_language)
     from src.core.constants import (
         EARLY_DETECTION_CONTENT_FIELDS,
         EARLY_DETECTION_DOMAIN_MAP,
@@ -606,7 +608,7 @@ def detect_early_insufficient_content(
 def detect_insufficient_content(
     plan: ExecutionPlan,
     user_request: str,
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
 ) -> SemanticValidationResult | None:
     """
     Detect if a mutation tool is called without sufficient content.
@@ -702,7 +704,7 @@ def detect_insufficient_content(
                             domain=domain,
                             field_name=field_name,
                             field_def=field_def,
-                            user_language=user_language,
+                            user_language=resolve_language(user_language),
                             step_index=i,
                             tool_name=tool_name,
                         )
@@ -745,9 +747,9 @@ def _check_request_has_inline_content(
     """
     Check if user's request contains inline content beyond trigger patterns.
 
-    Example: "envoie un email à marie pour lui souhaiter bon anniversaire"
-    After removing "envoie un email à marie", the remaining
-    "pour lui souhaiter bon anniversaire" IS the content.
+    Example: "send an email to marie to wish her a happy birthday"
+    After removing the domain's trigger patterns ("send an email to"), the
+    remaining "marie to wish her a happy birthday" IS the content.
 
     Args:
         user_request: Original user message
@@ -857,7 +859,7 @@ class PlanSemanticValidator:
     LLM-based semantic validation for execution plans.
 
     Validates that plans match user intent by checking for:
-    - Cardinality issues (single op vs "pour chaque")
+    - Cardinality issues (single op vs "for each")
     - Missing dependencies
     - Implicit assumptions
     - Scope mismatches
@@ -873,8 +875,8 @@ class PlanSemanticValidator:
         >>> validator = PlanSemanticValidator()
         >>> result = await validator.validate(
         ...     plan=execution_plan,
-        ...     user_request="Envoie un email à tous mes contacts",
-        ...     user_language="fr",
+        ...     user_request="Send an e-mail to all my contacts",
+        ...     user_language="en",
         ... )
         >>> if result.requires_clarification:
         ...     for question in result.clarification_questions:
@@ -917,7 +919,7 @@ class PlanSemanticValidator:
         self,
         plan: ExecutionPlan,
         user_request: str,
-        user_language: str = settings.default_language,
+        user_language: str | None = None,
         config: Any | None = None,
         query_intelligence: Any | None = None,
         original_request: str | None = None,
@@ -934,7 +936,7 @@ class PlanSemanticValidator:
         Args:
             plan: ExecutionPlan to validate
             user_request: User message (English pivot when available)
-            user_language: User language (fr, en, es)
+            user_language: User language (fr, en, es, de, it, zh-CN)
             config: Optional RunnableConfig for LangGraph
             original_request: The user's ORIGINAL message when user_request is
                 the English pivot — authoritative for content/names/language
@@ -947,6 +949,7 @@ class PlanSemanticValidator:
             - Timeout: 1s (fail-open fallback)
             - Short-circuit: ≤1 step → instant pass
         """
+        user_language = resolve_language(user_language)
         start_time = time.time()
 
         # NOTE: Semantic validation is always enabled
@@ -1421,11 +1424,13 @@ class PlanSemanticValidator:
         Args:
             plan: ExecutionPlan to validate
             user_request: Original user message
-            user_language: User language
+            user_language: The reader's canonical code; the model is told its NAME.
+            original_request: The person's own words, when the request was pivoted.
 
         Returns:
             List of LangChain messages
         """
+        language_name = get_language_name(user_language)
         # Load versioned system prompt (cached via LRU)
         system_prompt = load_prompt(
             "semantic_validator_prompt", version=settings.semantic_validator_prompt_version
@@ -1457,19 +1462,19 @@ Names resolved from the user's own data are matched accent- and case-insensitive
 {plan_details}
 
 ## Validation Context
-- User Language: {user_language}
+- User Language: {language_name}
 - Total Steps: {len(plan.steps)}
 - Execution Mode: {plan.execution_mode}
 - Estimated Cost: ${plan.estimated_cost_usd:.4f} USD
 
 ## Your Task
 Validate this plan against the user request. Pay special attention to:
-1. **Cardinality**: Does "pour chaque"/"for each"/"tous"/"all" in user request match plan structure?
+1. **Cardinality**: Does a quantifier of the user request ("for each", "all" — in whatever language it is written) match the plan structure?
 2. **Parameters**: Do the numeric values (max_results, limits) match user expectations?
 3. **Dependencies**: Are step dependencies correctly defined?
 4. **Completeness**: Does the plan fully address the user request?
 
-Deliver your verdict ONLY by calling the structured validation tool — never as a text answer. Write the free-text fields of the tool payload (issues, questions) in {user_language}."""
+Deliver your verdict ONLY by calling the structured validation tool — never as a text answer. Write the free-text fields of the tool payload (issues, questions) in {language_name}."""
 
         return [
             SystemMessage(content=system_prompt),

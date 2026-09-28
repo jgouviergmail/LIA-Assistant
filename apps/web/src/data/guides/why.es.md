@@ -4,7 +4,7 @@
 
 **Versión**: 6.1
 **Fecha**: 2026-09-24
-**Aplicación**: LIA v1.47.4
+**Aplicación**: LIA v2.0.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -234,6 +234,10 @@ El acta te llega por tres caminos — una tarjeta en el chat, un PDF, tu bandeja
 
 ---
 
+### Un medio personal y un trabajo que sigue siendo tuyo
+
+Una asistente útil acompaña tu atención: una conversación se actualiza desde otros dispositivos sin mover la página, y una radio solo empieza cuando quieres escuchar. La emisora mezcla tu día con noticias con fuentes y muestra fuentes y gasto en vez de pedir confianza ciega. Lo que LIA crea puedes conservarlo, enviarlo desde tu buzón o dejar que venza. Una rutina sigue la hora o condición que eliges, nunca una mezcla oculta de ambas.
+
 ## 4. Un servidor para tus seres queridos
 
 ### 4.1. LIA es un servidor web compartido
@@ -273,7 +277,7 @@ Cuando usas ChatGPT, tus conversaciones viven en los servidores de OpenAI. Con G
 
 Con LIA, **los datos persistentes de tu cuenta viven en tu PostgreSQL**: conversaciones, memoria, perfil, documentos y preferencias. Puedes exportarlos, guardarlos o solicitar su eliminación; los secretos quedan deliberadamente fuera de la exportación y puedes revocar los dispositivos conectados. Un modelo remoto o un conector recibe, aun así, los datos necesarios para la solicitud que eliges hacer; un modelo local puede mantener el procesamiento en tu equipo. Las credenciales están cifradas y las sesiones aisladas. Guardar la última posición es opcional, no crea historial y se borra al desactivar la opción.
 
-La protección vale también para lo que **entra**. LIA lee cada día textos que tú no has escrito: el cuerpo de un correo, la descripción de una invitación redactada por su organizador, una página web, la ficha de un lugar. Cualquiera puede deslizar allí una consigna dirigida a la asistente. Cada dato lleva ahora su procedencia, y lo que viene de fuera llega etiquetado como **material a analizar, nunca como una orden que seguir** — con los intentos de manipulación detectados y nombrados, en los seis idiomas. Su contenido no se reescribe por ello: un correo sigue siendo lo que su autor escribió. Reescribir daría la ilusión de una garantía que el siguiente rodeo desmentiría; nombrar lo que se ve es más honesto, y más útil.
+La protección vale también para lo que **entra**. LIA lee cada día textos que tú no has escrito: el cuerpo de un correo, la descripción de una invitación redactada por su organizador, una página web, la ficha de un lugar. Cualquiera puede deslizar allí una consigna dirigida a la asistente. Cada dato lleva ahora su procedencia, y lo que viene de fuera llega etiquetado como **material a analizar, nunca como una orden que seguir** — con los intentos de manipulación detectados y nombrados, en los seis idiomas. Tu contenido no se reescribe por ello: un correo sigue siendo lo que su autor escribió. Reescribir daría la ilusión de una garantía que el siguiente rodeo desmentiría; nombrar lo que se ve es más honesto, y más útil.
 
 ### 5.2. Incluso una Raspberry Pi es suficiente
 
@@ -329,7 +333,7 @@ La transparencia no es un añadido técnico. Cambia la relación con tu asistent
 
 ---
 
-Esta transparencia se extiende a la calidad del propio sistema. La auditoría técnica completa — notas, método, fortalezas y lo que queda por mejorar — está publicada en el repositorio, con el protocolo para repetirla y los comandos para verificar las mediciones: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). No se le pide que crea las cifras de este sitio; puede comprobarlas.
+Esta transparencia se extiende a la calidad del propio sistema. La auditoría técnica completa — notas, método, fortalezas y lo que queda por mejorar — está publicada en el repositorio, con el protocolo para repetirla y los comandos para verificar las mediciones: [informe de auditoría completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). No se te pide que creas las cifras de este sitio; puedes comprobarlas.
 
 La misma honestidad se aplica a la utilidad misma: LIA mide si realmente ayuda — un resultado solo cuenta una vez validado por ti, explícitamente o dejando una acción sin corregir — y esa medición vive en la misma base local que tus datos, sin implicar jamás una plataforma de analítica de terceros.
 
@@ -397,7 +401,7 @@ Los grandes asistentes recuerdan tus preferencias y datos personales. Es útil, 
 
 Cada recuerdo tiene un peso emocional (-10 a +10), una puntuación de importancia, un matiz de uso y una categoría psicológica. No es una simple base de datos — es un perfil que comprende lo que te conmueve, lo que te motiva, lo que te duele.
 
-Aún hace falta que esos recuerdos lleguen. Una memoria solo vale por lo que capta realmente, y el silencio es ahí el peor de los fallos: nada señala un recuerdo que nunca llegó a formarse. Por eso LIA cuenta cada una de sus decisiones de memorización — retenido, ignorado, desactivado — para que la distancia entre lo que debería retener y lo que retiene sea visible en lugar de supuesta. Lo que le confía de pasada al pedir una acción cuenta tanto como una confidencia, lo que escribe desde una mensajería cuenta tanto como desde el navegador, y lo que el sistema se dice a sí mismo no cuenta nunca.
+Aún hace falta que esos recuerdos lleguen. Una memoria solo vale por lo que capta realmente, y el silencio es ahí el peor de los fallos: nada señala un recuerdo que nunca llegó a formarse. Por eso LIA cuenta cada una de sus decisiones de memorización — retenido, ignorado, desactivado — para que la distancia entre lo que debería retener y lo que retiene sea visible en lugar de supuesta. Lo que le confías de pasada al pedir una acción cuenta tanto como una confidencia, lo que escribes desde una mensajería cuenta tanto como desde el navegador, y lo que el sistema se dice a sí mismo no cuenta nunca.
 
 Y no se queda en lo que evoca tu mensaje: cuando surge por el camino un nombre o un tema — el remitente de un correo, un lugar en un documento —, lo busca en su memoria; también por teléfono recupera lo que responde a tu pregunta y no sus últimos recuerdos.
 

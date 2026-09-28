@@ -302,7 +302,7 @@ See [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) for full docu
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Approval gate passthrough** (v1.14.5): This node now auto-approves all plans unconditionally. Plan-level HITL was made redundant because downstream HITL interactions (for_each_confirmation, draft_critique, destructive_confirm) already handle user confirmation for each individual mutation. The approval gate remains in the graph as a structural pass-through to preserve routing logic.
+**Approval gate passthrough** (v1.14.5): This node now auto-approves all plans unconditionally. Plan-level HITL was made redundant because downstream HITL interactions (for_each_confirmation, draft_critique) already handle user confirmation for each individual mutation (`destructive_confirm` is registered but emitted by no node — ADR-323 lists it among the chains to delete). The approval gate remains in the graph as a structural pass-through to preserve routing logic.
 
 ### 2.6 task_orchestrator_node
 
@@ -329,14 +329,15 @@ See [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) for full docu
 │ OUTPUT                                                          │
 │   • completed_steps: {step_id → StepResult}                     │
 │   • registry: Data Registry items de tous les tools             │
-│   • pending_hitl_interaction: Si interaction HITL en attente    │
+│   • pending_draft_critique / pending_entity_disambiguation /    │
+│     pending_tool_confirmation : interaction HITL en attente     │
 │   • agent_results: "turn_id:agent_name" → result                │
 ├─────────────────────────────────────────────────────────────────┤
 │ ROUTING                                                         │
 │   • for_each_hitl_ctx (non approuvé) → for_each_confirm         │
-│   • pending_hitl_interaction → hitl_dispatch_node               │
+│   • un pending_* HITL en attente → hitl_dispatch_node           │
 │   • Plus d'agents à exécuter → agent node suivant               │
-│   • Terminé → initiative_node                                    │
+│   • Terminé → initiative_node                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -417,13 +418,14 @@ exécutée.** Le ctx est gardé par `plan_id` + `turn_id` et purgé au résultat
 │                     (HITL Phase 8.1)                            │
 ├─────────────────────────────────────────────────────────────────┤
 │ INPUT                                                           │
-│   • pending_hitl_interaction: HitlInteraction                   │
-│     - interaction_type, severity, context                       │
+│   • pending_draft_critique (prioritaire), sinon                 │
+│     pending_entity_disambiguation, sinon                        │
+│     pending_tool_confirmation                                   │
 │   • user_language                                               │
 ├─────────────────────────────────────────────────────────────────┤
 │ TRAITEMENT (single-pass, replay-safe v1.21.x)                   │
 │   1. Dispatcher vers l'interaction appropriée                   │
-│   2. DRAFT_CRITIQUE, DESTRUCTIVE_CONFIRM, etc.                  │
+│   2. DRAFT_CRITIQUE, TOOL_CONFIRMATION, etc.                    │
 │   3. UN SEUL interrupt() par exécution de nœud                  │
 │   4. Attendre Command(resume={action: ...})                     │
 │   5. Traiter UNE décision :                                     │
@@ -434,7 +436,8 @@ exécutée.** Le ctx est gardé par `plan_id` + `turn_id` et purgé au résultat
 │        dans le state (checkpoint) → self-loop → nouvel interrupt│
 ├─────────────────────────────────────────────────────────────────┤
 │ OUTPUT                                                          │
-│   • draft_action_result / hitl_result: {action, result}         │
+│   • draft_action_result / entity_disambiguation_result /        │
+│     tool_confirmation_result : la décision                      │
 │   • pending_draft_critique (si self-loop edit/replan/clarify)   │
 │   • draft_edit_iteration, draft_clarification_question          │
 │   • confirmed_drafts, pending_drafts_grouped (ADR-288)          │
@@ -761,8 +764,12 @@ class MessagesState(TypedDict):
     # ═══════════════════════════════════════════════════════════
     # HITL INTERACTIONS (Phase 8.1)
     # ═══════════════════════════════════════════════════════════
-    pending_hitl_interaction: dict | None  # HitlInteraction
-    hitl_result: dict | None               # Decision user sur interaction
+    pending_draft_critique: dict | None         # PendingDraftInfo (parallel_executor)
+    draft_action_result: dict | None            # Décision : confirm/edit/cancel
+    pending_entity_disambiguation: dict | None  # Plusieurs correspondances pour un nom
+    entity_disambiguation_result: dict | None   # Le choix de la personne
+    pending_tool_confirmation: dict | None      # Appel d'outil en attente d'approbation
+    tool_confirmation_result: dict | None       # Décision : confirm/cancel
 
     # ═══════════════════════════════════════════════════════════
     # DATA REGISTRY (Rendu Frontend + INTELLIA v10)
@@ -961,7 +968,7 @@ async def node_function(state: MessagesState) -> dict:
     # Preparer payload
     payload = {
         "action_requests": [{
-            "type": "clarification",  # ou "plan_approval", "destructive_confirm"
+            "type": "clarification",  # ou "draft_critique", "for_each_confirmation"
             "questions": [...],
             "metadata": {...}
         }]
@@ -1298,12 +1305,6 @@ class ConnectorTool[ClientType](ABC):
     async def execute_api_call(self, client, user_id, **kwargs) -> dict:
         """Subclass implements business logic only."""
         pass
-
-    def create_client_factory(self, user_uuid, credentials, connector_service):
-        """Returns async factory for client instantiation."""
-        async def create_client():
-            return self.client_class(user_uuid, credentials, connector_service)
-        return create_client
 ```
 
 **Flux OAuth:**
@@ -1940,7 +1941,6 @@ class ExecutionAnalysis:
 class RePlanContext:
     """Contexte complet pour la décision de re-planning."""
     user_request: str
-    user_language: str
     execution_plan: ExecutionPlan
     plan_id: str
     completed_steps: dict[str, Any]

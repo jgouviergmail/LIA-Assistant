@@ -32,6 +32,8 @@ from src.core.constants import (
     MEETINGS_LLM_TYPE,
     MEETINGS_SYNTHESIS_RESERVE_TOKENS,
 )
+from src.core.i18n import get_language_name
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_meetings import get_header_label
 from src.core.llm_config_helper import get_effective_context_window, get_llm_config_for_agent
 from src.domains.meetings.prompts import build_messages, load_meeting_prompt
@@ -192,7 +194,7 @@ def render_context(context: SynthesisContext) -> str:
     """The CONTEXT block of the synthesis prompt."""
     local_start = context.started_at.astimezone(ZoneInfo(context.timezone))
     lines = [
-        f"LANGUAGE: {context.language}",
+        f"LANGUAGE: {get_language_name(context.language)}",
         f"DATE: {local_start.strftime('%Y-%m-%d')} ({local_start.strftime('%A')})",
         f"TIMEZONE: {context.timezone}",
         f"START: {_fmt_time(context.started_at, context.timezone)}",
@@ -269,30 +271,33 @@ def _clean_list(items: Sequence[str]) -> list[str]:
     return [item.strip() for item in items if item and item.strip()]
 
 
-def _fallback_lines(raw: SynthesizedSection) -> list[str]:
-    """Text lines from whatever the model filled, when the kind's own payload is empty."""
+def _fallback_lines(raw: SynthesizedSection, separator: str) -> list[str]:
+    """Text lines from whatever the model filled, when the kind's own payload is empty.
+
+    A topic becomes « title{separator}summary » — the minutes' reader's
+    punctuation (``label_separator``), never a colon written here."""
     lines = _clean_list(raw.bullets) or _bullets_from_text(raw.paragraph)
     if not lines and raw.action_items:
         lines = _clean_list([action.description for action in raw.action_items])
     if not lines and raw.topics:
         lines = [
-            f"{topic.title.strip()}: {topic.summary.strip()}"
+            f"{topic.title.strip()}{separator}{topic.summary.strip()}"
             for topic in raw.topics
             if topic.title.strip()
         ]
     return lines
 
 
-def _repair_paragraph(section: ReportSection, raw: SynthesizedSection) -> None:
-    text = (raw.paragraph or "").strip() or " ".join(_fallback_lines(raw))
+def _repair_paragraph(section: ReportSection, raw: SynthesizedSection, separator: str) -> None:
+    text = (raw.paragraph or "").strip() or " ".join(_fallback_lines(raw, separator))
     section.paragraph = _clip(text, 8000) or None
 
 
-def _repair_bullets(section: ReportSection, raw: SynthesizedSection) -> None:
-    section.bullets = [_clip(item, 1000) for item in _fallback_lines(raw)]
+def _repair_bullets(section: ReportSection, raw: SynthesizedSection, separator: str) -> None:
+    section.bullets = [_clip(item, 1000) for item in _fallback_lines(raw, separator)]
 
 
-def _repair_topics(section: ReportSection, raw: SynthesizedSection) -> None:
+def _repair_topics(section: ReportSection, raw: SynthesizedSection, separator: str) -> None:
     topics = [
         TopicItem(title=_clip(t.title.strip(), 200), summary=_clip(t.summary.strip(), 4000))
         for t in raw.topics
@@ -300,11 +305,11 @@ def _repair_topics(section: ReportSection, raw: SynthesizedSection) -> None:
     ]
     section.topics = topics or [
         TopicItem(title=_clip(line, 200), summary=_clip(line, 4000))
-        for line in _fallback_lines(raw)
+        for line in _fallback_lines(raw, separator)
     ]
 
 
-def _repair_actions(section: ReportSection, raw: SynthesizedSection) -> None:
+def _repair_actions(section: ReportSection, raw: SynthesizedSection, separator: str) -> None:
     actions = [
         ActionItem(
             description=_clip(a.description.strip(), 1000),
@@ -315,19 +320,19 @@ def _repair_actions(section: ReportSection, raw: SynthesizedSection) -> None:
         if a.description.strip()
     ]
     section.action_items = actions or [
-        ActionItem(description=_clip(line, 1000)) for line in _fallback_lines(raw)
+        ActionItem(description=_clip(line, 1000)) for line in _fallback_lines(raw, separator)
     ]
 
 
-def _repair_transcript(section: ReportSection, raw: SynthesizedSection) -> None:
+def _repair_transcript(section: ReportSection, raw: SynthesizedSection, separator: str) -> None:
     """A transcript section is never filled by the single call: it is rewritten
     part by part (``transcript_rewrite``) and injected by key in ``repair_report``.
     Whatever the model put under this key is ignored on purpose."""
-    del raw
+    del raw, separator
     section.transcript = []
 
 
-_REPAIRERS: dict[SectionKind, Callable[[ReportSection, SynthesizedSection], None]] = {
+_REPAIRERS: dict[SectionKind, Callable[[ReportSection, SynthesizedSection, str], None]] = {
     SectionKind.PARAGRAPH: _repair_paragraph,
     SectionKind.BULLETS: _repair_bullets,
     SectionKind.TOPICS: _repair_topics,
@@ -338,11 +343,13 @@ _REPAIRERS: dict[SectionKind, Callable[[ReportSection, SynthesizedSection], None
 assert set(_REPAIRERS) == set(SectionKind), "_REPAIRERS must cover every SectionKind"
 
 
-def _repair_section(template: TemplateSection, raw: SynthesizedSection | None) -> ReportSection:
+def _repair_section(
+    template: TemplateSection, raw: SynthesizedSection | None, separator: str
+) -> ReportSection:
     """One strict section from what the model gave for ``template``."""
     section = ReportSection(key=template.key, label=template.label, kind=template.kind)
     if raw is not None:
-        _REPAIRERS[template.kind](section, raw)
+        _REPAIRERS[template.kind](section, raw, separator)
     return section
 
 
@@ -384,7 +391,8 @@ def repair_report(
         speaker_labels: Labels the transcript actually contains — a participant
             the model invented for a label that never spoke is dropped, and a
             label that spoke but the model forgot is added unnamed.
-        language: Minutes language (the localized fallback title).
+        language: Minutes language (the localized fallback title, and the
+            punctuation a repaired topic line is joined with).
         rewritten: Transcript sections rewritten part by part, by key
             (ADR-259); a transcript section without an entry stays empty.
 
@@ -392,7 +400,10 @@ def repair_report(
         A report with exactly the template's sections, in the template's order.
     """
     by_key = {section.key: section for section in minutes.sections}
-    sections = [_repair_section(section, by_key.get(section.key)) for section in template]
+    separator = label_separator(language)
+    sections = [
+        _repair_section(section, by_key.get(section.key), separator) for section in template
+    ]
     for section in sections:
         if section.kind is SectionKind.TRANSCRIPT:
             section.transcript = list((rewritten or {}).get(section.key, []))

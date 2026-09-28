@@ -168,7 +168,7 @@ render_file_meta(icon_name, text)
 ### Modified Existing Helper
 
 ```python
-render_collapsible(trigger_text, content_html, initially_open=False, language="fr", with_separator=True)
+render_collapsible(trigger_text, content_html, initially_open=False, with_separator=True)
 # with_separator=False when the preceding element already provides a visual separator
 ```
 

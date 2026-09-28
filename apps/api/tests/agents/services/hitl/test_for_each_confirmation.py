@@ -6,6 +6,7 @@ Tests the HITL interaction for FOR_EACH bulk operations.
 
 import pytest
 
+from src.core.config import settings
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
 
 
@@ -39,11 +40,12 @@ class TestForEachConfirmationTranslations:
         assert translations["confirm_question"] == "Do you want to continue?"
 
     def test_get_translations_fallback_to_default(self) -> None:
-        """Test fallback to default language (French) for unknown languages."""
+        """An unknown language reads the instance's configured default."""
         translations = HitlMessages.get_for_each_confirm_translations("xx-unknown")
 
-        # Should fall back to French (DEFAULT_LANGUAGE in settings)
-        assert translations["title"] == "Confirmation d'opération en masse"
+        assert translations == HitlMessages.get_for_each_confirm_translations(
+            settings.default_language
+        )
 
     def test_all_supported_languages(self) -> None:
         """Test all supported languages have translations."""
@@ -172,6 +174,36 @@ class TestForEachConfirmationInteractionBuildMessage:
 
         assert "send_email_tool: 1 item\n" in message
         assert "create_event_tool: 3 items\n" in message
+
+    @pytest.mark.parametrize("language", ["fr", "en", "es", "de", "it", "zh-CN"])
+    def test_steps_past_five_close_on_the_language_s_own_and_more(
+        self, interaction, language: str
+    ) -> None:
+        """The line used to read « - ... +2 more » in every language: an ASCII
+        ellipsis, English word order, and in Chinese « +2 更多 »."""
+        message = interaction._build_confirmation_message(
+            steps=[{"tool_name": f"send_email_tool_{i}", "for_each_max": 1} for i in range(7)],
+            total_affected=7,
+            user_language=language,
+        )
+
+        and_more = HitlMessages.get_for_each_confirm_translations(language)["and_more"]
+        assert f"- {and_more.format(count=2)}\n" in message
+        assert "..." not in message
+
+    def test_a_long_preview_value_is_clipped_on_a_word(self, interaction) -> None:
+        """One clip for every sentence a person reads (``clip_on_word``): the
+        preview used to cut mid-word, a separator left before the ellipsis."""
+        value = "Quarterly planning, budget review, and roadmap, for next year"
+        section = interaction._build_item_previews_section(
+            item_previews=[{"subject": value}],
+            total_affected=1,
+            translations=HitlMessages.get_for_each_confirm_translations("en"),
+            user_language="en",
+        )
+
+        # The old slice left « …roadmap, f… »: a word cut and a comma before it.
+        assert "- Quarterly planning, budget review, and roadmap…\n" in section
 
     def test_detect_mutation_type_send(self, interaction) -> None:
         """Test mutation type detection for send operations."""

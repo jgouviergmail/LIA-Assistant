@@ -21,6 +21,8 @@ peers notification is asserted NOT to produce it.
 
 from __future__ import annotations
 
+from typing import Final
+
 from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
 
 #: Proactive task type of a RELAYED message delivered to its recipient.
@@ -48,6 +50,13 @@ PROACTIVE_PEER_MESSAGE_TYPE = f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{PEER_MESSAGE_TAS
 #: ``message_metadata['type']`` of a shared image, composed the same way. The
 #: chat reads it for the reply and block actions under the bubble.
 PROACTIVE_PEER_IMAGE_TYPE = f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{PEER_IMAGE_TASK_TYPE}"
+
+#: The archived types whose substance is a connection's OWN words, relayed by
+#: LIA — never a notification of LIA's. A reader telling what LIA said (the
+#: radio's news flash and personal corner) leaves them where they are.
+RELAYED_MESSAGE_TYPES: Final[frozenset[str]] = frozenset(
+    {PROACTIVE_PEER_MESSAGE_TYPE, PROACTIVE_PEER_IMAGE_TYPE}
+)
 
 #: Metadata key: boolean marker written since Lot 7. NO reader depends on it —
 #: what identifies a relayed bubble is ``type``, which cannot be imitated by
@@ -89,4 +98,5 @@ __all__ = [
     "PEER_UNKNOWN_DISPLAY_NAME",
     "PROACTIVE_PEER_IMAGE_TYPE",
     "PROACTIVE_PEER_MESSAGE_TYPE",
+    "RELAYED_MESSAGE_TYPES",
 ]

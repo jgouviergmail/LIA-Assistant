@@ -28,6 +28,7 @@ import { MarkdownContent } from './MarkdownContent';
 import { documentTypeIcon } from './document-card-icon';
 import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
 import { ShareImageButton } from '@/components/peers/ShareImageButton';
+import { FileEmailShareButton } from '@/components/email-share/FileEmailShareButton';
 import { WorkboardNotificationActions } from '@/components/chat/WorkboardNotificationActions';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import { MeetingMinutesCard } from '@/components/meetings/MeetingMinutesCard';
@@ -468,27 +469,38 @@ function assistantBubbleSurface(metadata: Record<string, unknown> | undefined): 
  * The deadline always comes from the backend: `attachments_ttl_hours` is
  * configurable, so a "24 h" written here would eventually be a lie. No
  * deadline (history predating N2) means no notice at all.
+ *
+ * Since ADR-319 the history read path restates the card from the file's row: a
+ * file the person KEPT says so (it has no deadline any more). A file that is
+ * GONE never reaches this notice — {@link GoneFileCard} replaces its card.
  */
 function ImageExpiryNotice({
   expiresAt,
-  expiredKey = 'chat.image_expiry.expired',
+  kept = false,
+  family = 'image',
 }: {
   expiresAt?: string | null;
+  kept?: boolean;
   /**
-   * Only the "expired" copy names the artefact ("this image/document…") —
-   * document cards (ADR-226) pass their own key; the countdown copy is
+   * What the card shows. Only the states that NAME the artefact (« this
+   * image/document… ») differ between the two; the countdown copy is
    * artefact-agnostic and stays shared.
    */
-  expiredKey?: string;
+  family?: 'image' | 'document';
 }) {
   const { t, i18n } = useTranslation();
+  if (kept) {
+    return <p className="mt-1 text-[11px] text-primary">{t(`chat.${family}_expiry.kept`)}</p>;
+  }
   // Read once per render: the notice is informational, not a live countdown —
   // a ticking timer on every image card would re-render the whole thread.
   const expiry = classifyImageExpiry(expiresAt, new Date());
   if (expiry.kind === 'unknown') return null;
 
   if (expiry.kind === 'expired') {
-    return <p className="mt-1 text-[11px] text-muted-foreground">{t(expiredKey)}</p>;
+    return (
+      <p className="mt-1 text-[11px] text-muted-foreground">{t(`chat.${family}_expiry.expired`)}</p>
+    );
   }
 
   const at = expiry.at.toLocaleString(i18n.language, {
@@ -509,10 +521,33 @@ function ImageExpiryNotice({
   );
 }
 
+/**
+ * A generated file the history knows is GONE (ADR-319 restatement): swept after
+ * its deadline, or deleted by the person. Nothing is offered — a preview would
+ * load a 404, a download would save an error page, a share would be refused —
+ * only the file's name and the sentence saying it is no longer there.
+ */
+function GoneFileCard({ family, name }: { family: 'image' | 'document'; name: string }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      data-testid={`generated-${family}-gone`}
+      className="w-full max-w-[512px] mx-auto rounded-lg border border-dashed bg-muted/30 p-3"
+    >
+      <div className="truncate text-sm font-medium text-muted-foreground">{name}</div>
+      <p className="mt-1 text-[11px] text-muted-foreground">{t(`chat.${family}_expiry.gone`)}</p>
+    </div>
+  );
+}
+
 /** A round action over an image card: faint until hovered or FOCUSED (a keyboard
  * user must see where they are), always visible on touch. */
 const IMAGE_OVERLAY_ACTION =
   'p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-black/70 max-sm:opacity-70';
+
+/** An icon action at the end of a document card (download, send by e-mail). */
+const DOCUMENT_CARD_ACTION =
+  'p-2 shrink-0 rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 /**
  * AI-generated image cards — rendered outside markdown to avoid
@@ -532,6 +567,7 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
     <>
       <div className="mt-3 space-y-3">
         {images.map((img, i) => {
+          if (img.gone) return <GoneFileCard key={i} family="image" name={img.alt} />;
           // Resolved against the API origin, and asking for the
           // credentials an embedded cross-origin image is denied by
           // default under `COEP: credentialless`.
@@ -572,6 +608,13 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
                   expiresAt={img.expires_at}
                   className={IMAGE_OVERLAY_ACTION}
                 />
+                <FileEmailShareButton
+                  url={img.url}
+                  name={img.alt}
+                  expiresAt={img.expires_at}
+                  variant="overlay"
+                  className={IMAGE_OVERLAY_ACTION}
+                />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
@@ -589,7 +632,7 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
                   <TooltipContent>{t('common.download')}</TooltipContent>
                 </Tooltip>
               </div>
-              <ImageExpiryNotice expiresAt={img.expires_at} />
+              <ImageExpiryNotice expiresAt={img.expires_at} kept={img.kept} />
             </div>
           );
         })}
@@ -640,6 +683,7 @@ function GeneratedDocumentCards({ documents }: { documents?: GeneratedDocument[]
   return (
     <div className="mt-3 space-y-2">
       {documents.map((doc, i) => {
+        if (doc.gone) return <GoneFileCard key={i} family="document" name={doc.filename} />;
         const Icon = documentTypeIcon(doc.doc_type);
         return (
           <div
@@ -662,18 +706,24 @@ function GeneratedDocumentCards({ documents }: { documents?: GeneratedDocument[]
                 <div className="text-xs text-muted-foreground">
                   {doc.doc_type.toUpperCase()} · {formatFileSize(doc.size_bytes)}
                 </div>
-                <ImageExpiryNotice
-                  expiresAt={doc.expires_at}
-                  expiredKey="chat.document_expiry.expired"
-                />
+                <ImageExpiryNotice expiresAt={doc.expires_at} kept={doc.kept} family="document" />
               </div>
             </a>
+            <FileEmailShareButton
+              url={doc.url}
+              name={doc.filename}
+              sizeBytes={doc.size_bytes}
+              expiresAt={doc.expires_at}
+              variant="overlay"
+              className={DOCUMENT_CARD_ACTION}
+              labelName={doc.filename}
+            />
             <Tooltip>
               <TooltipTrigger asChild>
                 <a
                   href={apiResourceUrl(doc.url)}
                   download={doc.filename}
-                  className="p-2 shrink-0 rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className={DOCUMENT_CARD_ACTION}
                   aria-label={t('chat.document_card.download', { name: doc.filename })}
                 >
                   <Download className="w-4 h-4" aria-hidden="true" />
@@ -718,18 +768,27 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
               className="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
             />
           </button>
-          {/* Discrete download button — visible on hover (desktop) or always visible (touch) */}
-          <button
-            type="button"
-            onClick={e => {
-              e.stopPropagation();
-              downloadImage(source, screenshot.alt);
-            }}
-            className="absolute bottom-8 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 max-sm:opacity-70"
-            aria-label={t('common.download')}
-          >
-            <Download className="w-4 h-4" />
-          </button>
+          {/* Discrete actions — visible on hover or keyboard focus (desktop),
+              always visible (touch), like the generated image's. */}
+          <div className="absolute bottom-8 right-2 flex gap-1.5">
+            <FileEmailShareButton
+              url={screenshot.url}
+              name={screenshot.alt}
+              variant="overlay"
+              className={IMAGE_OVERLAY_ACTION}
+            />
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                downloadImage(source, screenshot.alt);
+              }}
+              className={IMAGE_OVERLAY_ACTION}
+              aria-label={t('common.download')}
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
           <div className="flex items-center gap-1.5 mt-1.5 px-1">
             <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             <span className="text-[10px] text-muted-foreground truncate">

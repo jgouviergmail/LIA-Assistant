@@ -18,7 +18,6 @@ Architecture:
 - Falls back to error message if user hasn't configured connector
 """
 
-from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
@@ -30,7 +29,7 @@ from pydantic import BaseModel
 
 from src.core.config import settings
 from src.core.date_contract import UnreadableDateError
-from src.core.i18n import _
+from src.core.i18n import _, resolve_language
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import AGENT_QUERY, AGENT_WEATHER, CONTEXT_DOMAIN_WEATHER
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
@@ -163,6 +162,32 @@ ContextTypeRegistry.register(
 # ============================================================================
 
 
+async def _person_timezone_and_language(runtime: Any) -> tuple[str, str]:
+    """The person's display timezone and language, read once per weather call.
+
+    The provider's condition texts reach the person's card, so they follow the
+    person's language like LIA's own words do: the weather tools publish no
+    language parameter of their own (ADR-323) — the one they had was read only
+    when the person's preferences could not be, and overridden otherwise.
+
+    Args:
+        runtime: The injected tool runtime, or None outside a run.
+
+    Returns:
+        ``(timezone, language)`` — UTC and the declared language when the
+        preferences cannot be read.
+    """
+    from src.domains.agents.tools.runtime_helpers import get_user_preferences
+
+    user_timezone, user_lang = "UTC", None
+    if runtime:
+        try:
+            user_timezone, user_lang, _locale = await get_user_preferences(runtime)
+        except Exception as e:
+            logger.debug("user_preferences_fallback", error=str(e))
+    return user_timezone, resolve_language(user_lang)
+
+
 class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
     """Tool for getting current weather using user's OpenWeatherMap API key."""
 
@@ -193,14 +218,10 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
     ) -> dict[str, Any]:
         """Execute current weather API call."""
         from src.domains.agents.tools.location_resolution import resolve_location
-        from src.domains.agents.tools.runtime_helpers import (
-            get_original_user_message,
-            get_user_preferences,
-        )
+        from src.domains.agents.tools.runtime_helpers import get_original_user_message
 
         location = kwargs.get("location")
         units = kwargs.get("units", "metric")
-        language = kwargs.get("language", settings.default_language)
         runtime = kwargs.get("runtime")  # InjectedToolArg from parallel_executor
 
         # Get user_message from parameter or fallback to runtime config
@@ -208,16 +229,8 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         if not user_message and runtime:
             user_message = get_original_user_message(runtime)
 
-        # Get user timezone for sunrise/sunset formatting.
-        # User's language preference takes precedence over kwargs default so that
-        # translated error messages (via _()) match the user's locale.
-        user_timezone = "UTC"
-        # Use default
-        with suppress(Exception):
-            if runtime:
-                user_timezone, user_lang, _locale = await get_user_preferences(runtime)
-                if user_lang:
-                    language = user_lang
+        # The person's timezone (sunrise/sunset) and language (ADR-323).
+        user_timezone, language = await _person_timezone_and_language(runtime)
 
         lat: float | None = None
         lon: float | None = None
@@ -399,10 +412,7 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         """Execute weather forecast API call."""
         from src.core.config import get_settings
         from src.domains.agents.tools.location_resolution import resolve_location
-        from src.domains.agents.tools.runtime_helpers import (
-            get_original_user_message,
-            get_user_preferences,
-        )
+        from src.domains.agents.tools.runtime_helpers import get_original_user_message
 
         # Get configurable forecast limit from settings
         max_forecast_days = get_settings().weather_forecast_max_days
@@ -410,8 +420,7 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         location = kwargs.get("location")
         days = kwargs.get("days", max_forecast_days)
         units = kwargs.get("units", "metric")
-        language = kwargs.get("language", settings.default_language)
-        date_ref = kwargs.get("date")  # Temporal reference (e.g., "demain", "tomorrow")
+        date_ref = kwargs.get("date")  # Temporal reference (e.g., "tomorrow", an ISO date)
         runtime = kwargs.get("runtime")  # InjectedToolArg from parallel_executor
 
         # Get user_message from parameter or fallback to runtime config
@@ -419,15 +428,8 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         if not user_message and runtime:
             user_message = get_original_user_message(runtime)
 
-        # Get user timezone and language preferences
-        user_timezone = "UTC"
-        try:
-            if runtime:
-                user_timezone, user_lang, _locale = await get_user_preferences(runtime)
-                if user_lang:
-                    language = user_lang
-        except Exception as e:
-            logger.debug("user_preferences_fallback", error=str(e))
+        # The person's timezone and language (ADR-323).
+        user_timezone, language = await _person_timezone_and_language(runtime)
 
         # Calculate target date from temporal reference in user's timezone
         # Returns: (target_date: str "YYYY-MM-DD", offset: int, is_specific_date: bool)
@@ -438,7 +440,7 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         except UnreadableDateError as exc:
             return unreadable_date_result(exc.reference, user_timezone)
 
-        # For specific date requests (demain, ISO datetime), reduce days to 1
+        # For specific date requests (tomorrow, ISO datetime), reduce days to 1
         # When user asks "weather tomorrow" or "weather for my appointment", they want that day only
         if is_specific_date and days == max_forecast_days:
             days = 1  # Override default 5 days to 1 day for specific date requests
@@ -691,10 +693,7 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         """Execute hourly forecast API call."""
         from src.core.config import get_settings
         from src.domains.agents.tools.location_resolution import resolve_location
-        from src.domains.agents.tools.runtime_helpers import (
-            get_original_user_message,
-            get_user_preferences,
-        )
+        from src.domains.agents.tools.runtime_helpers import get_original_user_message
 
         # Get configurable forecast limit from settings
         max_forecast_days = get_settings().weather_forecast_max_days
@@ -702,7 +701,6 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         location = kwargs.get("location")
         hours = kwargs.get("hours", 24)
         units = kwargs.get("units", "metric")
-        language = kwargs.get("language", settings.default_language)
         date_ref = kwargs.get("date")  # Temporal reference (e.g., "tomorrow", ISO datetime)
         runtime = kwargs.get("runtime")  # InjectedToolArg from parallel_executor
 
@@ -711,16 +709,9 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         if not user_message and runtime:
             user_message = get_original_user_message(runtime)
 
-        # Get user timezone and language preferences. Timezone is required to map
-        # a requested day (and each 3-hour slot) to the user's local calendar date.
-        user_timezone = "UTC"
-        try:
-            if runtime:
-                user_timezone, user_lang, _locale = await get_user_preferences(runtime)
-                if user_lang:
-                    language = user_lang
-        except Exception as e:
-            logger.debug("user_preferences_fallback", error=str(e))
+        # The person's timezone — required to map a requested day (and each
+        # 3-hour slot) to their local calendar date — and language (ADR-323).
+        user_timezone, language = await _person_timezone_and_language(runtime)
 
         # Resolve the requested target day in the user's timezone. When a specific
         # day is asked (e.g. "tomorrow", "2026-07-25", or a calendar ISO datetime),
@@ -971,7 +962,7 @@ async def get_current_weather_tool(
     ] = None,
     user_message: Annotated[
         str,
-        "Original user message (for location phrase detection like 'chez moi', 'nearby')",
+        "Original user message (for location phrase detection like 'at home', 'nearby')",
     ] = "",
     date: Annotated[
         str | None,
@@ -980,9 +971,6 @@ async def get_current_weather_tool(
     units: Annotated[
         str, "Temperature units: 'metric' (Celsius) or 'imperial' (Fahrenheit)"
     ] = "metric",
-    language: Annotated[
-        str, "Language code for weather description (e.g., 'fr', 'en', 'es')"
-    ] = "fr",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
@@ -999,7 +987,6 @@ async def get_current_weather_tool(
         location: City name (e.g., 'Paris', 'London,UK') or 'auto' for automatic location
         user_message: Original user message for location phrase detection
         units: 'metric' for Celsius, 'imperial' for Fahrenheit (default: metric)
-        language: Language code for descriptions (default: fr)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1007,15 +994,14 @@ async def get_current_weather_tool(
 
     Examples:
         - get_current_weather("Paris")
-        - get_current_weather(location="auto", user_message="météo chez moi")
-        - get_current_weather("Tokyo", units="metric", language="ja")
+        - get_current_weather(location="auto", user_message="weather at home")
+        - get_current_weather("Chicago", units="imperial")
     """
     return await _get_current_weather_tool_impl.execute(
         runtime,
         location=location,
         user_message=user_message,
         units=units,
-        language=language,
     )
 
 
@@ -1038,16 +1024,13 @@ async def get_weather_forecast_tool(
     ] = None,
     user_message: Annotated[
         str,
-        "Original user message (for location phrase detection like 'chez moi', 'nearby')",
+        "Original user message (for location phrase detection like 'at home', 'nearby')",
     ] = "",
     date: Annotated[str | None, FORECAST_DATE_DESCRIPTION] = None,
     days: Annotated[int, "Number of days to forecast (1-5)"] = settings.weather_forecast_max_days,
     units: Annotated[
         str, "Temperature units: 'metric' (Celsius) or 'imperial' (Fahrenheit)"
     ] = "metric",
-    language: Annotated[
-        str, "Language code for weather description (e.g., 'fr', 'en', 'es')"
-    ] = "fr",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
@@ -1066,7 +1049,6 @@ async def get_weather_forecast_tool(
             value the tool cannot read is refused, never read as today (ADR-310).
         days: Number of days to forecast (1-5, default: 5)
         units: 'metric' for Celsius, 'imperial' for Fahrenheit (default: metric)
-        language: Language code for descriptions (default: fr)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1074,7 +1056,7 @@ async def get_weather_forecast_tool(
 
     Examples:
         - get_weather_forecast("Paris", days=3)
-        - get_weather_forecast(location="auto", user_message="prévisions chez moi", days=5)
+        - get_weather_forecast(location="auto", user_message="forecast at home", days=5)
     """
     return await _get_weather_forecast_tool_impl.execute(
         runtime,
@@ -1083,7 +1065,6 @@ async def get_weather_forecast_tool(
         date=date,
         days=days,
         units=units,
-        language=language,
     )
 
 
@@ -1106,7 +1087,7 @@ async def get_hourly_forecast_tool(
     ] = None,
     user_message: Annotated[
         str,
-        "Original user message (for location phrase detection like 'chez moi', 'nearby')",
+        "Original user message (for location phrase detection like 'at home', 'nearby')",
     ] = "",
     date: Annotated[
         str | None,
@@ -1120,9 +1101,6 @@ async def get_hourly_forecast_tool(
     units: Annotated[
         str, "Temperature units: 'metric' (Celsius) or 'imperial' (Fahrenheit)"
     ] = "metric",
-    language: Annotated[
-        str, "Language code for weather description (e.g., 'fr', 'en', 'es')"
-    ] = "fr",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> str:
     """
@@ -1146,7 +1124,6 @@ async def get_hourly_forecast_tool(
             error is returned. Omit for a rolling near-term window.
         hours: Rolling window size in hours when no date is given (default: 24)
         units: 'metric' for Celsius, 'imperial' for Fahrenheit (default: metric)
-        language: Language code for descriptions (default: fr)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1155,7 +1132,7 @@ async def get_hourly_forecast_tool(
     Examples:
         - get_hourly_forecast("Paris", hours=12)
         - get_hourly_forecast("Paris", date="2026-07-25")  # that day's 3-hour slots
-        - get_hourly_forecast(location="auto", user_message="météo par tranches chez moi")
+        - get_hourly_forecast(location="auto", user_message="hourly weather at home")
     """
     return await _get_hourly_forecast_tool_impl.execute(
         runtime,
@@ -1164,7 +1141,6 @@ async def get_hourly_forecast_tool(
         date=date,
         hours=hours,
         units=units,
-        language=language,
     )
 
 

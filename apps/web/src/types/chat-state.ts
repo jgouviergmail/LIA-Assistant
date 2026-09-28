@@ -188,6 +188,8 @@ export type ChatAction =
   | { type: 'SEND_MESSAGE'; payload: { message: Message } }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'SET_MESSAGES'; payload: { messages: Message[] } }
+  // ADR-320: the newest server page, merged into the thread on screen.
+  | { type: 'MERGE_SERVER_PAGE'; payload: { messages: Message[] } }
   | { type: 'APPEND_MESSAGE'; payload: { message: Message } }
 
   // API health
@@ -218,6 +220,10 @@ export type ChatAction =
           // QW-5 (ADR-138): DB id of the archived assistant row (mirror of
           // DoneMetadata.archived_message_id) — enables live feedback.
           archived_message_id?: string;
+          // ADR-320: DB id of the turn's archived QUESTION (mirror of
+          // DoneMetadata.archived_user_message_id) — a later sync
+          // recognises the live user bubble as that row.
+          archived_user_message_id?: string;
           // UXR Lot 4 (A2): follow-up chips (mirror of
           // DoneMetadata.followup_suggestions — ADR-117: both types).
           followup_suggestions?: string[];

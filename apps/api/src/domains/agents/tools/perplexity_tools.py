@@ -36,6 +36,8 @@ from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
 from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.time_utils import get_current_datetime_context
 from src.domains.agents.constants import (
@@ -44,7 +46,10 @@ from src.domains.agents.constants import (
     CONTEXT_DOMAIN_PERPLEXITY,
 )
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import (
+    LiaRuntimeContext,
+    tool_runtime_context,
+)
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -56,7 +61,6 @@ from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.clients.perplexity_client import PerplexityClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
-from src.domains.users.service import UserService
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
@@ -123,65 +127,47 @@ ContextTypeRegistry.register(
 # ============================================================================
 
 
+def _person_clock(runtime: Any) -> tuple[str, str]:
+    """The person's timezone and the current-datetime line Perplexity is told.
+
+    The client is built from the API key alone (``APIKeyConnectorTool.create_client``),
+    so it knows neither: both come from the typed context the graph injects
+    (ADR-231), the line written in the person's language (ADR-323).
+
+    Args:
+        runtime: The tool runtime ``execute`` hands ``execute_api_call``.
+
+    Returns:
+        ``(timezone, datetime_line)``.
+    """
+    context = tool_runtime_context(runtime)
+    timezone = context.timezone if context is not None else DEFAULT_USER_DISPLAY_TIMEZONE
+    language = resolve_language(context.language if context is not None else None)
+    return timezone, get_current_datetime_context(timezone_str=timezone, language=language)
+
+
 class PerplexityBaseTool(APIKeyConnectorTool[PerplexityClient]):
-    """Base tool for Perplexity operations with user context."""
-
-    def create_client_factory(
-        self,
-        user_uuid: UUID,
-        credentials: APIKeyCredentials,
-        connector_service: Any,
-    ) -> Any:
-        """
-        Create factory that initializes client with user settings.
-
-        Fetches user profile to get timezone and language preferences.
-        """
-
-        async def create_client() -> PerplexityClient:
-            # The user's settings, in a short session of its own: the turn's
-            # shared one must not stay open while Perplexity answers (ADR-304).
-            from src.infrastructure.database.session import get_db_context
-
-            async with get_db_context() as db:
-                user = await UserService(db).get_user_by_id(user_uuid)
-
-            return self.client_class(
-                api_key=credentials.api_key,
-                user_id=user_uuid,
-                model=settings.perplexity_search_model,
-                user_timezone=user.timezone,
-                user_language=user.language,
-            )
-
-        return create_client
-
-
-class PerplexitySearchTool(PerplexityBaseTool):
-    """Tool for web search using user's Perplexity API key."""
+    """Shared base of the two Perplexity tools (search and ask): one connector, one client."""
 
     connector_type = ConnectorType.PERPLEXITY
     client_class = PerplexityClient
     registry_enabled = True  # Enable Data Registry mode
-
-    # Note: create_client_factory is inherited from PerplexityBaseTool
 
     def create_client(
         self,
         credentials: APIKeyCredentials,
         user_id: UUID,
     ) -> PerplexityClient:
-        """
-        Create Perplexity client (synchronous fallback).
-
-        Note: This is only used if create_client_factory is NOT used.
-        In the standard flow, create_client_factory takes precedence.
-        """
+        """Create the Perplexity client from the account's API key."""
         return PerplexityClient(
             api_key=credentials.api_key,
             user_id=user_id,
             model=settings.perplexity_search_model,
         )
+
+
+class PerplexitySearchTool(PerplexityBaseTool):
+    """Tool for web search using user's Perplexity API key."""
 
     async def execute_api_call(
         self,
@@ -210,11 +196,8 @@ class PerplexitySearchTool(PerplexityBaseTool):
             logger.warning("recency_invalid_value", value_length=len(str(recency)), using=None)
             recency_filter = None
 
-        # Generate system prompt with current datetime context
-        current_datetime = get_current_datetime_context(
-            timezone_str=client.user_timezone,
-            language=client.user_language,
-        )
+        # The person's clock, in their language (the client knows neither)
+        user_timezone, current_datetime = _person_clock(kwargs.get("runtime"))
         system_prompt = f"Current date and time: {current_datetime}"
 
         result = await client.search(
@@ -247,7 +230,7 @@ class PerplexitySearchTool(PerplexityBaseTool):
             query_length=len(query),
             citations_count=len(result.get("citations", [])),
             recency=recency_filter,
-            timezone=client.user_timezone,
+            timezone=user_timezone,
         )
 
         return response_data
@@ -295,7 +278,7 @@ class PerplexitySearchTool(PerplexityBaseTool):
         )
 
         # Build summary for LLM
-        summary_parts = [f"Résultat de recherche Perplexity pour '{query}':\n"]
+        summary_parts = [f"Perplexity search result for '{query}':\n"]
         summary_parts.append(answer)
 
         # Add citations if present
@@ -304,11 +287,11 @@ class PerplexitySearchTool(PerplexityBaseTool):
             for i, citation in enumerate(citations[:5], 1):
                 summary_parts.append(f"  [{i}] {citation}")
             if len(citations) > 5:
-                summary_parts.append(f"  ... et {len(citations) - 5} autres sources")
+                summary_parts.append(f"  ... and {len(citations) - 5} more sources")
 
         # Add related questions if present
         if related_questions:
-            summary_parts.append("\n\nQuestions connexes:")
+            summary_parts.append("\n\nRelated questions:")
             for q in related_questions[:3]:
                 summary_parts.append(f"  - {q}")
 
@@ -329,24 +312,6 @@ class PerplexitySearchTool(PerplexityBaseTool):
 class PerplexityAskTool(PerplexityBaseTool):
     """Tool for asking questions using user's Perplexity API key."""
 
-    connector_type = ConnectorType.PERPLEXITY
-    client_class = PerplexityClient
-    registry_enabled = True  # Enable Data Registry mode
-
-    # Note: create_client_factory is inherited from PerplexityBaseTool
-
-    def create_client(
-        self,
-        credentials: APIKeyCredentials,
-        user_id: UUID,
-    ) -> PerplexityClient:
-        """Create Perplexity client (synchronous fallback)."""
-        return PerplexityClient(
-            api_key=credentials.api_key,
-            user_id=user_id,
-            model=settings.perplexity_search_model,
-        )
-
     async def execute_api_call(
         self,
         client: PerplexityClient,
@@ -357,11 +322,8 @@ class PerplexityAskTool(PerplexityBaseTool):
         question = kwargs["question"]
         context = kwargs.get("context", "")
 
-        # Generate current datetime context
-        current_datetime = get_current_datetime_context(
-            timezone_str=client.user_timezone,
-            language=client.user_language,
-        )
+        # The person's clock, in their language (the client knows neither)
+        user_timezone, current_datetime = _person_clock(kwargs.get("runtime"))
         system_prompt = build_perplexity_system_prompt(current_datetime, context)
 
         result = await client.ask(
@@ -389,7 +351,7 @@ class PerplexityAskTool(PerplexityBaseTool):
             question_length=len(question),
             has_context=bool(context),
             citations_count=len(result.get("citations", [])),
-            timezone=client.user_timezone,
+            timezone=user_timezone,
         )
 
         return response_data
@@ -437,8 +399,8 @@ class PerplexityAskTool(PerplexityBaseTool):
         )
 
         # Build summary for LLM
-        context_part = f" (contexte: {context})" if context else ""
-        summary_parts = [f"Réponse Perplexity pour '{question}'{context_part}:\n"]
+        context_part = f" (context: {context})" if context else ""
+        summary_parts = [f"Perplexity answer to '{question}'{context_part}:\n"]
         summary_parts.append(answer)
 
         # Add citations if present
@@ -447,7 +409,7 @@ class PerplexityAskTool(PerplexityBaseTool):
             for i, citation in enumerate(citations[:5], 1):
                 summary_parts.append(f"  [{i}] {citation}")
             if len(citations) > 5:
-                summary_parts.append(f"  ... et {len(citations) - 5} autres sources")
+                summary_parts.append(f"  ... and {len(citations) - 5} more sources")
 
         summary = "\n".join(summary_parts)
 

@@ -221,6 +221,29 @@ export function makeScheduledAction(over: Partial<ScheduledAction> = {}): Schedu
 }
 
 /**
+ * A CONDITION routine as the API serves it (ADR-322): no schedule, the
+ * system's check cadence as its sentence, and no instant to place on a week
+ * until it fires.
+ */
+export function makeConditionRoutine(over: Partial<ScheduledAction> = {}): ScheduledAction {
+  return makeScheduledAction({
+    trigger_kind: 'condition',
+    recurrence: null,
+    condition_config: { type: 'mail_match', query: 'invoice' },
+    schedule_display: 'Checked about every 10 min',
+    next_trigger_at: '2026-08-03T06:10:00Z',
+    times_of_day: [],
+    runs_per_day: 0,
+    week_slots: [],
+    next_occurrences: [],
+    check_interval_minutes: 10,
+    last_checked_at: null,
+    last_check_error: null,
+    ...over,
+  });
+}
+
+/**
  * A routine firing at several moments of one day.
  *
  * The shape the previous grid could not draw: keyed by `(routine, day)` it

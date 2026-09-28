@@ -219,6 +219,26 @@ async def test_automatic_selection_keeps_a_confident_candidate_and_counts_it(
     assert fake_llm.await_args.kwargs["config"]["callbacks"] == [capture]
 
 
+async def test_the_model_is_told_the_language_by_its_name(
+    fake_service: MagicMock, fake_llm: AsyncMock
+) -> None:
+    """A code is a guess for the model; a name is an instruction (ADR-323)."""
+    from src.core.i18n import get_language_name
+
+    await decide_template(
+        meeting=_meeting(),
+        preference=None,
+        turns=_turns(),
+        calendar_title="Point projet",
+        language="it",
+        capture=MagicMock(),
+    )
+
+    human = fake_llm.await_args.args[1][-1].content
+    assert f"LANGUAGE: {get_language_name('it')}\n" in human
+    assert "LANGUAGE: it\n" not in human
+
+
 async def test_the_library_session_is_closed_before_the_model_chooses(
     fake_service: MagicMock, fake_llm: AsyncMock
 ) -> None:

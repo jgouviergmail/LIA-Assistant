@@ -331,3 +331,48 @@ class TestDeactivateConnectors:
 
         assert count == 5
         assert db.execute.call_count == 2
+
+
+# ==============================================================================
+# ORDERING TESTS
+# ==============================================================================
+
+
+@pytest.mark.unit
+class TestTheUsageCacheIsForgottenAfterTheCommit:
+    """A limit check running between the invalidation and the commit, on its own
+    session, re-cached the verdict the deletion replaces — for the cache TTL."""
+
+    async def test_commit_then_invalidate(self) -> None:
+        steps: list[str] = []
+        user = _make_user()
+        db = AsyncMock(spec=AsyncSession)
+        db.commit = AsyncMock(side_effect=lambda: steps.append("commit"))
+        service = AccountDeletionService(db)
+
+        noop = AsyncMock(return_value=None)
+        counting = AsyncMock(return_value=0)
+        with (
+            patch.object(service, "_load_and_validate_user", AsyncMock(return_value=user)),
+            patch.object(service, "_load_conversation", AsyncMock(return_value=None)),
+            patch.object(service, "_revoke_all_oauth_tokens", noop),
+            patch.object(service, "_disconnect_mcp_pool", noop),
+            patch.object(service, "_invalidate_redis_sessions", noop),
+            patch.object(service, "_cleanup_redis_caches", noop),
+            patch.object(service, "_cleanup_attachment_files", MagicMock(return_value=0)),
+            patch.object(service, "_cleanup_rag_files", MagicMock(return_value=0)),
+            patch.object(service, "_cleanup_user_tree", MagicMock(return_value=0)),
+            patch.object(service, "_purge_langgraph_store", counting),
+            patch.object(service, "_deactivate_connectors", counting),
+            patch.object(service, "_purge_user_data_tables", AsyncMock(return_value={})),
+            patch.object(service, "_mark_user_deleted", noop),
+            patch.object(service, "_create_audit_log", noop),
+            patch.object(
+                service,
+                "_invalidate_usage_limit_cache",
+                AsyncMock(side_effect=lambda _user_id: steps.append("invalidate")),
+            ),
+        ):
+            await service.delete_account(user.id, uuid.uuid4(), reason="closed", request=None)
+
+        assert steps == ["commit", "invalidate"]

@@ -41,9 +41,6 @@ def _item_lines(block: str) -> list[str]:
     return [line for line in block.splitlines() if line.startswith("[")]
 
 
-LANG = "fr"
-
-
 def _item(summary: str, start: str = "2026-07-25T11:15:00+02:00") -> dict:
     """A registry item shaped like the ones produced by the calendar tools."""
     return {"type": "EVENT", "payload": {"summary": summary, "start_datetime": start}}
@@ -83,7 +80,7 @@ class TestBuildContext:
     def test_disabled_by_settings(self, monkeypatch):
         monkeypatch.setattr(settings, "response_recent_entities_max_turn_age", 0)
         registry = {"event_a": _item("Rdv podologue")}
-        assert build_recent_entities_context(registry, _results(4, ["event_a"]), 5, LANG) == ""
+        assert build_recent_entities_context(registry, _results(4, ["event_a"]), 5) == ""
 
     @pytest.mark.parametrize(
         "registry,results,turn",
@@ -94,11 +91,11 @@ class TestBuildContext:
         ],
     )
     def test_empty_inputs_return_empty(self, registry, results, turn):
-        assert build_recent_entities_context(registry, results, turn, LANG) == ""
+        assert build_recent_entities_context(registry, results, turn) == ""
 
     def test_recent_entity_is_injected_with_its_value(self):
         registry = {"event_a": _item("Rdv podologue", "2026-07-25T11:15:00+02:00")}
-        out = build_recent_entities_context(registry, _results(4, ["event_a"]), 5, LANG)
+        out = build_recent_entities_context(registry, _results(4, ["event_a"]), 5)
         assert out
         assert "Rdv podologue" in out
         # The authoritative value must actually reach the prompt.
@@ -108,15 +105,12 @@ class TestBuildContext:
         max_age = settings.response_recent_entities_max_turn_age
         registry = {"event_a": _item("Vieux rendez-vous")}
         stale_turn = 10 - max_age - 1
-        assert (
-            build_recent_entities_context(registry, _results(stale_turn, ["event_a"]), 10, LANG)
-            == ""
-        )
+        assert build_recent_entities_context(registry, _results(stale_turn, ["event_a"]), 10) == ""
 
     def test_boundary_age_is_still_injected(self):
         max_age = settings.response_recent_entities_max_turn_age
         registry = {"event_a": _item("Limite")}
-        out = build_recent_entities_context(registry, _results(10 - max_age, ["event_a"]), 10, LANG)
+        out = build_recent_entities_context(registry, _results(10 - max_age, ["event_a"]), 10)
         assert "Limite" in out
 
     def test_domain_of_current_query_is_irrelevant(self):
@@ -126,13 +120,13 @@ class TestBuildContext:
         an *event*: filtering by the query's domain would have surfaced nothing.
         """
         registry = {"event_a": _item("Rdv podologue")}
-        out = build_recent_entities_context(registry, _results(4, ["event_a"]), 5, LANG)
+        out = build_recent_entities_context(registry, _results(4, ["event_a"]), 5)
         assert "Rdv podologue" in out
 
     def test_ids_absent_from_registry_are_skipped(self):
         registry = {"event_a": _item("Présent")}
         results = _results(4, ["event_a", "event_ghost"])
-        out = build_recent_entities_context(registry, results, 5, LANG)
+        out = build_recent_entities_context(registry, results, 5)
         assert "Présent" in out
         assert len(_item_lines(out)) == 1
 
@@ -140,7 +134,7 @@ class TestBuildContext:
         cap = settings.response_recent_entities_max_items
         ids = [f"event_{i}" for i in range(cap + 5)]
         registry = {i: _item(f"Evenement {i}") for i in ids}
-        out = build_recent_entities_context(registry, _results(4, ids), 5, LANG)
+        out = build_recent_entities_context(registry, _results(4, ids), 5)
         assert len(_item_lines(out)) == cap
 
     def test_the_context_store_ceiling_does_not_move_the_budget(self):
@@ -150,13 +144,13 @@ class TestBuildContext:
         ids = [f"event_{i}" for i in range(cap + 5)]
         registry = {i: _item(f"Evenement {i}") for i in ids}
         with patch.object(settings, "api_max_items_per_request", cap + 5):
-            out = build_recent_entities_context(registry, _results(4, ids), 5, LANG)
+            out = build_recent_entities_context(registry, _results(4, ids), 5)
         assert len(_item_lines(out)) == cap
 
     def test_most_recent_turn_comes_first(self):
         registry = {"old": _item("Ancien"), "new": _item("Recent")}
         results = {**_results(3, ["old"]), **_results(4, ["new"])}
-        out = build_recent_entities_context(registry, results, 5, LANG)
+        out = build_recent_entities_context(registry, results, 5)
         assert out.index("Recent") < out.index("Ancien")
 
     def test_malformed_keys_do_not_crash(self):
@@ -165,13 +159,13 @@ class TestBuildContext:
             "not-a-turn:agent": {"registry_updates": {"event_a": {}}},
             "4:plan_executor": {"registry_updates": {"event_a": {}}},
         }
-        out = build_recent_entities_context(registry, results, 5, LANG)
+        out = build_recent_entities_context(registry, results, 5)
         assert "Bon" in out
 
     def test_results_without_registry_updates_are_ignored(self):
         registry = {"event_a": _item("Bon")}
         results = {"4:agent": {"status": "ok"}, "4:other": {"registry_updates": None}}
-        assert build_recent_entities_context(registry, results, 5, LANG) == ""
+        assert build_recent_entities_context(registry, results, 5) == ""
 
     def test_object_shaped_agent_result_is_supported(self):
         """agent_results may hold objects, not only dicts (state round-trips)."""
@@ -180,5 +174,5 @@ class TestBuildContext:
             registry_updates = {"event_a": {}}
 
         registry = {"event_a": _item("ObjetOK")}
-        out = build_recent_entities_context(registry, {"4:agent": _Result()}, 5, LANG)
+        out = build_recent_entities_context(registry, {"4:agent": _Result()}, 5)
         assert "ObjetOK" in out

@@ -1,6 +1,7 @@
 # ADR-256 — Un budget qui ne compte que la moitié du travail
 
 **Statut** : Accepté — 2026-09-02
+**Amendé par** : [ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md) (2026-09-25 — ce que seul le modèle lit est en anglais technique ou dans un prompt versionné, descriptions d'outils et de paramètres comprises ; les 68 appels de messages d'outils encore traduits par `_()` restent une question ouverte, mesurée avant d'être tranchée)
 **Portée** : `domains/agents/nodes/react_nodes.py`, `domains/agents/nodes/react_history.py` (nouveau), `domains/agents/utils/react_budget.py`, `domains/agents/orchestration/step_timeouts.py`, `domains/agents/registry/catalogue.py`, `domains/agents/services/react_tool_selector.py`, `domains/agents/tools/tool_resolution.py`, `infrastructure/observability/metrics_react.py`, `components/debug/components/shared/BudgetBar.tsx` (nouveau)
 **Voisins** : [ADR-170](ADR-170-React-Compute-Budget-And-Loop-Guard.md) (le budget de calcul et le frein anti-répétition), [ADR-083](ADR-083-Sub-Agent-Delegation-React.md) (le sous-agent devenu un outil), [ADR-248](ADR-248-React-Memory-Parity-And-Progress-Earned-Budget.md) (le budget gagné par la production), [ADR-085](ADR-085-Draft-Display-Registry.md) (l'assert de complétude au boot), [ADR-148](ADR-148-Health-Daily-Rollup.md) (une métrique que personne ne voit), [ADR-255](ADR-255-MCP-Tool-Declaration-Conformance.md) (une seule autorité sur ce qu'un serveur déclare)
 

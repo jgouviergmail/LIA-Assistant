@@ -14,8 +14,8 @@ from uuid import UUID
 
 import structlog
 
-from src.core.config import settings
 from src.core.constants import MEETINGS_PROACTIVE_TASK_TYPE
+from src.core.i18n import normalize_language
 from src.domains.meetings.models import MeetingStage
 from src.domains.meetings.processing import (
     ERROR_SYNTHESIS,
@@ -58,7 +58,7 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
             await repo.fail_regenerate(meeting_id, code="transcript_unavailable", message="")
             return
         user = await UserRepository(db).get_by_id(meeting.user_id)
-        language = str(getattr(user, "language", None) or settings.default_language)
+        language = normalize_language(getattr(user, "language", None))
         decision = await template_for_regeneration(db, meeting=meeting, language=language)
         turns = MeetingService.decrypt_transcript(meeting.transcript_encrypted)
         context = SynthesisContext(

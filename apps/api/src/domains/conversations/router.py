@@ -30,6 +30,11 @@ from src.core.field_names import (
 )
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
+from src.domains.attachments.card_lifetimes import (
+    card_attachment_ids,
+    current_lifetimes,
+    with_current_lifetimes,
+)
 from src.domains.conversations.schemas import (
     ConversationMessageResponse,
     ConversationMessagesResponse,
@@ -195,6 +200,12 @@ async def get_conversation_messages(
     from src.domains.skills.cache import SkillsCache
 
     system_skill_names = SkillsCache.get_system_skill_names(str(current_user.id))
+    # A file card states the lifetime its file has NOW, not the one written when
+    # it was produced: the person may have kept it or deleted it since
+    # (ADR-319). One read for the whole page.
+    lifetimes = await current_lifetimes(
+        db, current_user.id, card_attachment_ids(msg["message_metadata"] for msg in messages)
+    )
 
     return ConversationMessagesResponse(
         messages=[
@@ -202,8 +213,11 @@ async def get_conversation_messages(
                 id=msg["id"],
                 role=msg["role"],
                 content=msg[FIELD_CONTENT],
-                message_metadata=with_rehydrated_widgets(
-                    msg["message_metadata"], system_skill_names=system_skill_names
+                message_metadata=with_current_lifetimes(
+                    with_rehydrated_widgets(
+                        msg["message_metadata"], system_skill_names=system_skill_names
+                    ),
+                    lifetimes,
                 ),
                 created_at=msg[FIELD_CREATED_AT],
                 tokens_in=msg["tokens_in"],

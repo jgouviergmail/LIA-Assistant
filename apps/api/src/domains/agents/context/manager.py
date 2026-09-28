@@ -221,7 +221,7 @@ class ToolContextManager:
             ...     metadata={
             ...         FIELD_TURN_ID: 5,
             ...         "total_count": 2,
-            ...         "query": "liste mes contacts",
+            ...         "query": "list my contacts",
             ...         "tool_name": "search_contacts_tool",
             ...         FIELD_TIMESTAMP: "2025-01-26T14:30:00Z"
             ...     },

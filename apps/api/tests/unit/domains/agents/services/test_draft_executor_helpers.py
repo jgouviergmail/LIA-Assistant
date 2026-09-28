@@ -200,3 +200,20 @@ class TestDraftExecutionResultMessages:
             error="API refused",
         )
         assert result.to_dict()["error"] == "API refused"
+
+
+class TestTheSuccessMessageFillsEachPlaceholderOnce:
+    """A value is put in once: never read as a template, never removed by the
+    clean-up of a placeholder nobody filled (review 14)."""
+
+    def test_a_value_holding_a_placeholder_is_kept(self) -> None:
+        from src.core.i18n_drafts import get_draft_success_message
+
+        message = get_draft_success_message("event", "en", summary="Plan '{title}'", title="X")
+
+        assert message == "'Plan '{title}'' created successfully"
+
+    def test_a_placeholder_nobody_filled_goes_with_its_quotes(self) -> None:
+        from src.core.i18n_drafts import get_draft_success_message
+
+        assert get_draft_success_message("event", "en", summary="") == "created successfully"

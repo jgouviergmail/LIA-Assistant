@@ -851,7 +851,10 @@ sum(rate(llm_api_calls_total[1h]))
 ### pricing_cache_fallback_total
 
 **Type**: Counter
-**Description**: Tracks pricing cache fallbacks (when cost estimation returns 0.0)
+**Description**: Tracks pricing cache fallbacks (when cost estimation returns 0.0). A miss is
+counted at every door that prices a call as it is made — the ledger's, the metrics callback's,
+the proactive and journal accountings — so one unpriced call counts two or three times; a
+reader that prices again what was priced (`quote_cached_cost_usd`) counts nothing.
 **Labels**: `reason`
 
 **Reasons:**
@@ -870,18 +873,19 @@ pricing_cache_fallback_total = Counter(
     ["reason"],
 )
 
-# Usage in get_cached_cost()
+# Usage in get_cached_cost_usd_eur() (and its audio sibling), the door every
+# priced call goes through — get_cached_cost() delegates to it
 if _local_cache is None:
     pricing_cache_fallback_total.labels(reason="cache_not_initialized").inc()
-    return 0.0
+    return 0.0, 0.0
 ```
 
 **Alerting:**
 
 ```promql
-# High fallback rate (> 1% of cost estimations)
-sum(rate(pricing_cache_fallback_total[5m])) /
-sum(rate(llm_api_calls_total[5m])) > 0.01
+# Any unpriced usage — a miss is counted once per pricing door, so a ratio to
+# llm_api_calls_total would overstate the share of unpriced calls
+sum(increase(pricing_cache_fallback_total[15m])) > 0
 ```
 
 ---

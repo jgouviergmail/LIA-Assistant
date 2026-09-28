@@ -23,8 +23,6 @@ from __future__ import annotations
 
 from src.core.i18n import normalize_language
 
-_DEFAULT = "en"
-
 #: A capability the gate refused because nobody was there to allow it. The
 #: sentence names what is pending and says what happens next, because the
 #: person reads it on the ticket with no other context.
@@ -74,7 +72,7 @@ _WAITING_FOR_YOU: dict[str, str] = {
 #: (ADR-173's ``?intent=``). It is THEIR instruction to their own assistant, in
 #: an ATTENDED turn — so the confirmation the sweep could not obtain is asked
 #: for properly, as a card. The ticket is named by title AND by id: a board can
-#: hold two tickets called « Relancer le fournisseur », and a turn acting on the
+#: hold two tickets called « Chase the supplier », and a turn acting on the
 #: wrong one is worse than a turn that asks which.
 #:
 #: The sentence asks for the COMMENT and the MOVE since lot 3 — and not
@@ -259,7 +257,7 @@ ANSWER_APPROVAL_PHRASES: frozenset[str] = frozenset(
     }
 )
 
-#: The bare refusals. « Non, envoie plutôt à Paul » is an amendment, not one
+#: The bare refusals. « No, send it to Paul instead » is an amendment, not one
 #: of these: the answer must be nothing but a refusal.
 ANSWER_REFUSAL_PHRASES: frozenset[str] = frozenset(
     {
@@ -411,7 +409,7 @@ class WorkboardMessages:
             The comment body: the question, then how to answer.
         """
         code = normalize_language(language)
-        sentence = _HOW_TO_ANSWER.get(code, _HOW_TO_ANSWER[_DEFAULT])
+        sentence = _HOW_TO_ANSWER.get(code, _HOW_TO_ANSWER["en"])
         return "\n\n".join(part for part in (question.strip(), sentence) if part)
 
     @staticmethod
@@ -431,8 +429,8 @@ class WorkboardMessages:
         code = normalize_language(language)
         if capability:
             table = _WAITING_FOR_CAPABILITY
-            return table.get(code, table[_DEFAULT]).format(capability=capability)
-        return _WAITING_FOR_YOU.get(code, _WAITING_FOR_YOU[_DEFAULT])
+            return table.get(code, table["en"]).format(capability=capability)
+        return _WAITING_FOR_YOU.get(code, _WAITING_FOR_YOU["en"])
 
     @staticmethod
     def finish_in_chat(title: str, ticket_id: str, language: str) -> str:
@@ -448,7 +446,7 @@ class WorkboardMessages:
             The sentence, in the reader's language.
         """
         code = normalize_language(language)
-        template = _FINISH_IN_CHAT.get(code, _FINISH_IN_CHAT[_DEFAULT])
+        template = _FINISH_IN_CHAT.get(code, _FINISH_IN_CHAT["en"])
         # The title is a VALUE: « Payer {montant} » must not raise.
         return template.format(title=title, ticket_id=ticket_id)
 

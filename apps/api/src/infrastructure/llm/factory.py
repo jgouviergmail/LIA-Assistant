@@ -224,6 +224,13 @@ LLMType = Literal[
     # Relationship debrief — daily synthesis of one contact's file (personal CRM)
     "relation_debrief",
     "vision_analysis",
+    # Personal radio (ADR-324): the writer, the analyst and the verifier each
+    # answer through the structured door; the voice slot names a TTS engine.
+    "radio_writer",
+    "radio_analyst",
+    "radio_verifier",
+    "radio_translator",
+    "radio_voice",
 ]
 
 

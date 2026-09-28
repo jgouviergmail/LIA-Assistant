@@ -15,9 +15,10 @@ part that needs a database.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Final
+from typing import Any, Final
 
 from src.domains.agents.effects.scope import EffectScope
 
@@ -74,6 +75,70 @@ _MESSAGE_UNATTENDED: Final[str] = (
     "unattended, so it cannot be obtained. Nothing was performed. Report that "
     "the action is waiting for the user, and never announce it as done."
 )
+# ADR-314 (amended 2026-09-27): the same refusal, naming the confirmation-free
+# tool that declared itself this draft's stand-in (``stands_in_unattended_for``).
+# Conditional on the tool being bound: the gate cannot see the turn's tool list,
+# and the model can.
+_MESSAGE_UNATTENDED_STAND_IN: Final[str] = (
+    "This action requires an explicit confirmation and this turn runs "
+    "unattended, so it cannot be obtained. Nothing was performed. If {when} "
+    "and `{tool}` is among your tools, call it instead: it needs no "
+    "confirmation. Otherwise, report that the action is waiting for the user, "
+    "and never announce it as done."
+)
+
+
+def unattended_refusal_message(stand_in: str, when: str) -> str:
+    """The unattended refusal that names the tool able to act in the draft's place.
+
+    Args:
+        stand_in: The confirmation-free tool that declared itself the stand-in.
+        when: The case it covers, as its manifest states it.
+
+    Returns:
+        The technical English message the model reads.
+    """
+    return _MESSAGE_UNATTENDED_STAND_IN.format(when=when, tool=stand_in)
+
+
+def assert_unattended_stand_ins(manifests: Iterable[Any]) -> None:
+    """Refuse the boot on a stand-in declaration that cannot help (ADR-085).
+
+    A stand-in is named in a refusal the loop acts on. Four ways to send it
+    nowhere, each reported: naming a tool that does not exist; standing in for a
+    tool that is never refused unattended (a dead declaration); needing a
+    confirmation itself (the loop would be refused a second time, in the same
+    turn); stating no case. And ONE stand-in per draft: the refusal names one.
+
+    Args:
+        manifests: Tool manifests currently registered in the catalogue.
+
+    Raises:
+        AssertionError: Listing every problem at once.
+    """
+    catalogue = {str(getattr(manifest, "name", "")): manifest for manifest in manifests}
+    problems: list[str] = []
+    claimed: dict[str, str] = {}
+    for name, manifest in catalogue.items():
+        stand_in = getattr(manifest, "stands_in_unattended_for", None)
+        if stand_in is None:
+            continue
+        target = catalogue.get(stand_in.tool)
+        if target is None:
+            problems.append(f"{name}: stands in for unknown tool {stand_in.tool!r}")
+        elif getattr(target, "mutation_policy", None) not in POLICIES_NEEDING_SOMEBODY:
+            problems.append(f"{name}: {stand_in.tool} is never refused unattended")
+        if getattr(manifest, "mutation_policy", None) in POLICIES_NEEDING_SOMEBODY:
+            problems.append(f"{name}: needs a confirmation itself")
+        if not str(stand_in.when).strip():
+            problems.append(f"{name}: states no case")
+        if stand_in.tool in claimed:
+            problems.append(f"{stand_in.tool}: two stand-ins ({claimed[stand_in.tool]}, {name})")
+        claimed.setdefault(stand_in.tool, name)
+    if problems:
+        raise AssertionError(
+            f"{len(problems)} unattended stand-in problem(s): " + "; ".join(sorted(problems))
+        )
 
 
 class GateAction(str, Enum):

@@ -12,7 +12,7 @@ Multi-Provider Support:
 Usage:
     >>> classifier = HitlResponseClassifier()
     >>> result = await classifier.classify(
-    ...     user_response="oui",
+    ...     user_response="yes",
     ...     action_context=[{"tool_name": "search_contacts", "tool_args": {"query": "jean"}}]
     ... )
     >>> print(result.decision)  # "APPROVE"

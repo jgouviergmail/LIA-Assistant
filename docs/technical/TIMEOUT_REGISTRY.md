@@ -175,7 +175,7 @@ They are NOT listed here. See section 12.
 
 | Env var | Field | Default | Range | Used in | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` | `background_runs_drain_timeout_seconds` | 45 s | 5–300 | `startup/shutdown.py` (ADR-123) / `agents/api/background_runner.py` | Max wait for in-flight chat producers on shutdown (ADR-117). Drain + generic-task timeouts must stay below the compose `stop_grace_period` (90 s) |
+| `BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` | `background_runs_drain_timeout_seconds` | `DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` (`core/constants.py`) | 5–300 | `startup/shutdown.py` (ADR-123) / `agents/api/background_runner.py` | Max wait for in-flight chat producers on shutdown (ADR-117). Drain + generic-task timeouts must stay below the compose `stop_grace_period` of every service running the production image (`api` in `docker-compose.prod.yml`, `demo-instance-api` in `docker-compose.demo-instance.yml`), held by `test_graceful_shutdown_budget_guard.py`; the development `api` (`docker-compose.dev.yml`) is not held by it |
 | `SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS` | `shutdown_background_tasks_timeout_seconds` | 15 s | 1–120 | `startup/shutdown.py` (ADR-123) / `infrastructure/async_utils.py` | Max wait for generic fire-and-forget tasks (memory/interest extraction, warmups) after chat producers are drained |
 
 > *Remaining candidates flagged in audit V3 — Vague 6: PostgreSQL*
@@ -236,6 +236,10 @@ Cross-stack pairs to keep in sync when tuning either side:
   — frontend should match or slightly exceed the backend tool floor.
 - Backend `hitl_max_wait_seconds` (900) ↔ frontend `TIMEOUTS.TOOL_APPROVAL` (300 000 = 300 s)
   — currently mismatched (frontend = 5 min, backend orphan = 15 min); see *Pending decisions*.
+- Backend `llm_config` row `radio_translator` (its `timeout_seconds`, set in the LLM admin) ↔
+  frontend `RADIO_ARTICLE_TIMEOUT_MS` (`apps/web/src/lib/constants.ts`) — the radio page waits
+  for an article's translation past the slot's bound, which stays under the edge proxy's
+  documented 100 s read timeout (a plain request, no stream; ADR-324 decision 29).
 
 ## Annex C — Known gaps deferred to a future Vague 6
 

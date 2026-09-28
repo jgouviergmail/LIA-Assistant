@@ -10,7 +10,7 @@ Supported languages: fr, en, es, de, it, zh-CN
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+from src.core.i18n import resolve_language
 from src.core.i18n_types import Language
 
 # Day names indexed by weekday (0=Monday, 6=Sunday)
@@ -136,7 +136,7 @@ TIME_CONNECTORS: dict[Language, str] = {
 }
 
 
-def get_day_name(weekday: int, locale: str = "fr") -> str:
+def get_day_name(weekday: int, locale: str | None = None) -> str:
     """
     Get localized day name.
 
@@ -154,10 +154,10 @@ def get_day_name(weekday: int, locale: str = "fr") -> str:
         "Monday"
     """
     lang = _extract_language(locale)
-    return DAY_NAMES.get(lang, DAY_NAMES[DEFAULT_LANGUAGE])[weekday]
+    return DAY_NAMES[lang][weekday]
 
 
-def get_day_name_short(weekday: int, locale: str = "fr") -> str:
+def get_day_name_short(weekday: int, locale: str | None = None) -> str:
     """
     Get the localized SHORT day name.
 
@@ -175,10 +175,10 @@ def get_day_name_short(weekday: int, locale: str = "fr") -> str:
         "Mer"
     """
     lang = _extract_language(locale)
-    return DAY_NAMES_SHORT.get(lang, DAY_NAMES_SHORT[DEFAULT_LANGUAGE])[weekday]
+    return DAY_NAMES_SHORT[lang][weekday]
 
 
-def get_month_name(month: int, locale: str = "fr") -> str:
+def get_month_name(month: int, locale: str | None = None) -> str:
     """
     Get localized month name.
 
@@ -196,10 +196,10 @@ def get_month_name(month: int, locale: str = "fr") -> str:
         "November"
     """
     lang = _extract_language(locale)
-    return MONTH_NAMES.get(lang, MONTH_NAMES[DEFAULT_LANGUAGE])[month - 1]
+    return MONTH_NAMES[lang][month - 1]
 
 
-def get_time_connector(locale: str = "fr") -> str:
+def get_time_connector(locale: str | None = None) -> str:
     """
     Get time connector word for datetime formatting.
 
@@ -210,10 +210,10 @@ def get_time_connector(locale: str = "fr") -> str:
         Connector word (e.g., "à" for French, "at" for English)
     """
     lang = _extract_language(locale)
-    return TIME_CONNECTORS.get(lang, TIME_CONNECTORS[DEFAULT_LANGUAGE])
+    return TIME_CONNECTORS[lang]
 
 
-def format_date(day: int, month: int, year: int | None, locale: str = "fr") -> str:
+def format_date(day: int, month: int, year: int | None, locale: str | None = None) -> str:
     """
     Format a date with localized month name.
 
@@ -251,7 +251,8 @@ def _extract_language(locale: str | None) -> Language:
     Extract language code from locale string.
 
     Args:
-        locale: Locale string (e.g., "fr-FR", "en", "zh-CN")
+        locale: Locale string (e.g., "fr-FR", "en", "zh-CN"), or None for the
+            declared language (ADR-323).
 
     Returns:
         Language code
@@ -262,14 +263,11 @@ def _extract_language(locale: str | None) -> Language:
         >>> _extract_language("zh-CN")
         "zh-CN"
     """
-    if not locale:
-        return DEFAULT_LANGUAGE
-
     # Single chokepoint: the frontend spells Chinese "zh" while every table
     # here is keyed on the backend canonical "zh-CN". Splitting on "-" locally
     # left "zh" untouched, missed DAY_NAMES/MONTH_NAMES and silently served
     # FRENCH day names to a Chinese user.
-    return normalize_language(locale)
+    return resolve_language(locale)
 
 
 def format_half_hour_label(hour: float) -> str:
@@ -380,7 +378,7 @@ NEUTRAL_PERSONA: dict[Language, str] = {
 }
 
 
-def format_elapsed(elapsed: timedelta, locale: str = "fr") -> str:
+def format_elapsed(elapsed: timedelta, locale: str | None = None) -> str:
     """How long ago something happened, in the reader's language.
 
     Args:
@@ -411,7 +409,7 @@ def format_elapsed(elapsed: timedelta, locale: str = "fr") -> str:
     return wording["now"]
 
 
-def format_short_stamp(moment: datetime, user_timezone: str, locale: str = "fr") -> str:
+def format_short_stamp(moment: datetime, user_timezone: str, locale: str | None = None) -> str:
     """A short "day/month at hour" stamp, in the reader's zone and language.
 
     The zone is part of the job, not a caller's preparation: a stamp naming a
@@ -431,7 +429,7 @@ def format_short_stamp(moment: datetime, user_timezone: str, locale: str = "fr")
     return local.strftime(SHORT_STAMP_FORMATS[_extract_language(locale)])
 
 
-def neutral_persona(locale: str = "fr") -> str:
+def neutral_persona(locale: str | None = None) -> str:
     """The voice to borrow when the reader configured no personality.
 
     Args:

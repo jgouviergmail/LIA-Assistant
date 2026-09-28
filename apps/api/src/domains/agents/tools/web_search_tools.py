@@ -60,7 +60,7 @@ from src.domains.agents.tools.runtime_helpers import get_user_preferences, parse
 from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 from src.domains.connectors.clients.perplexity_client import PerplexityClient
-from src.domains.connectors.clients.wikipedia_client import WikipediaClient
+from src.domains.connectors.clients.wikipedia_client import WikipediaClient, wikipedia_edition
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.domains.connectors.service import ConnectorService
@@ -236,8 +236,6 @@ async def _search_perplexity(
             api_key=credentials.api_key,
             user_id=user_uuid,
             model=settings.perplexity_search_model,
-            user_timezone=user_timezone,
-            user_language=user_language,
         )
 
         try:
@@ -367,13 +365,14 @@ async def _search_brave(
 
 async def _search_wikipedia(
     query: str,
-    language: str = settings.default_language,
+    language: str | None = None,
 ) -> WikipediaResult | None:
     """
     Execute Wikipedia search - always available (no auth).
 
     Returns WikipediaResult or None if no relevant article found.
     """
+    language = wikipedia_edition(language)
     try:
         client = WikipediaClient(language=language)
 
@@ -459,10 +458,10 @@ async def unified_web_search_tool(
     Fallback Chain:
     - If Perplexity fails: Continue with Brave + Wikipedia
     - If Brave fails: Continue with Perplexity + Wikipedia
-    - Wikipedia always available (no authentication required)
+    - Wikipedia is always queried (it needs no per-account key)
 
     Args:
-        query: Search query or question (e.g., "recette pates bolognaise", "who is Einstein")
+        query: Search query or question (e.g., "bolognese pasta recipe", "who is Einstein")
         recency: Optional freshness filter:
             - "day": Last 24 hours
             - "week": Last 7 days
@@ -474,15 +473,14 @@ async def unified_web_search_tool(
         UnifiedToolOutput with combined results from all available sources
 
     Examples:
-        - unified_web_search("recette pates bolognaise marmiton")
-        - unified_web_search("dernières nouvelles IA", recency="week")
-        - unified_web_search("qui est Albert Einstein")
+        - unified_web_search("bolognese pasta recipe allrecipes")
+        - unified_web_search("latest AI news", recency="week")
+        - unified_web_search("who is Albert Einstein")
     """
     # Extract user context from runtime
     user_uuid = None
 
     if runtime and runtime.config:
-        runtime.config.get("configurable") or {}
         user_id_raw = tool_user_id_str(runtime)
         if user_id_raw:
             try:
@@ -492,7 +490,7 @@ async def unified_web_search_tool(
 
     if not user_uuid:
         return UnifiedToolOutput.failure(
-            message=_("User context required for web search"),
+            message="User context required for web search",  # internal, for the model
             error_code="USER_CONTEXT_MISSING",
             metadata={"query": query},
         )
@@ -648,7 +646,7 @@ async def unified_web_search_tool(
 
     # Build summary for LLM
     summary_parts = [
-        f"Résultats de recherche web pour '{query}' ({len(sources_used)}/{len(all_sources)} sources):\n"
+        f"Web search results for '{query}' ({len(sources_used)}/{len(all_sources)} sources):\n"
     ]
 
     # Perplexity synthesis section
@@ -703,7 +701,7 @@ async def unified_web_search_tool(
 
     # Related questions
     if unified_output.related_questions:
-        summary_parts.append("### Questions connexes")
+        summary_parts.append("### Related questions")
         for q in unified_output.related_questions[:3]:
             summary_parts.append(f"  - {q}")
 

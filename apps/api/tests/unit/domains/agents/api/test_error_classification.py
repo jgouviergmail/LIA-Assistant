@@ -177,26 +177,17 @@ class TestMessagesForNewCategories:
 
     @pytest.mark.parametrize("lang", LANGS)
     def test_six_languages_and_distinct_from_generic(self, lang: str) -> None:
-        auth = SSEErrorMessages.generic_error(_WithStatus("x", 401), language=lang)
-        not_found = SSEErrorMessages.generic_error(_WithStatus("x", 404), language=lang)
-        quota = SSEErrorMessages.generic_error(_WithStatus("x", 402), language=lang)
-        generic = SSEErrorMessages.generic_error(ValueError("boom"), language=lang)
+        auth = SSEErrorMessages.stream_error(_WithStatus("x", 401), language=lang)
+        not_found = SSEErrorMessages.stream_error(_WithStatus("x", 404), language=lang)
+        quota = SSEErrorMessages.stream_error(_WithStatus("x", 402), language=lang)
+        generic = SSEErrorMessages.stream_error(ValueError("boom"), language=lang)
 
         assert len({auth, not_found, quota, generic}) == 4  # four distinct texts
 
-    @pytest.mark.parametrize(
-        "dispatcher",
-        [
-            SSEErrorMessages.generic_error,
-            SSEErrorMessages.stream_error,
-            SSEErrorMessages.hitl_resumption_error,
-            SSEErrorMessages.graph_execution_error,
-        ],
-    )
-    def test_every_dispatcher_routes_the_new_categories(self, dispatcher) -> None:
-        """The four category ladders stay in lockstep (single helper)."""
-        auth = dispatcher(_WithStatus("x", 401), language="en")
-        generic = dispatcher(ValueError("boom"), language="en")
+    def test_the_stream_error_routes_the_new_categories(self) -> None:
+        """The stream error names a credentials failure instead of the generic text."""
+        auth = SSEErrorMessages.stream_error(_WithStatus("x", 401), language="en")
+        generic = SSEErrorMessages.stream_error(ValueError("boom"), language="en")
 
         assert auth != generic
         assert "key" in auth or "credentials" in auth or "configuration" in auth

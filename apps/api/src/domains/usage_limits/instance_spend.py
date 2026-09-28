@@ -49,10 +49,12 @@ async def is_instance_spend_blocked() -> bool:
     decision = await UsageLimitService.instance_budget_block()
     if decision is None:
         return False
+    # The verdict's code is logged where it is decided (`instance_daily_budget_blocked`);
+    # a `blocked_reason` field may hold an administrator's words (ADR-317).
     logger.warning(
         "instance_spend_blocked",
         limit=decision.exceeded_limit,
-        blocked_reason=decision.blocked_reason,
+        status=decision.status.value,
     )
     return True
 

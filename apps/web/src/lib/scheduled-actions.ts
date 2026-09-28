@@ -8,12 +8,46 @@
  */
 
 import type {
+  ConditionConfig,
   ScheduledAction,
   ScheduledActionWeekCell,
   ScheduledActionWeekResponse,
   ScheduledActionWeekSlot,
 } from '@/hooks/useScheduledActions';
 import { SCHEDULED_ACTION_TITLE_MAX_LENGTH } from '@/lib/constants';
+
+/**
+ * Whether a routine runs on the system's checks rather than a schedule (ADR-322).
+ *
+ * @param action - The routine, or the little of it the answer depends on.
+ */
+export function isConditionRoutine(action: Pick<ScheduledAction, 'trigger_kind'>): boolean {
+  return action.trigger_kind === 'condition';
+}
+
+/**
+ * Whether two conditions watch the same thing until the same day.
+ *
+ * Field by field rather than by JSON: the server stores the keys in its own
+ * order, and a spelling difference must not read as an edit — sending an
+ * unchanged condition re-arms the routine and, on a new filter, starts its
+ * ledger over.
+ *
+ * @param a - The form's condition.
+ * @param b - The stored condition.
+ */
+export function sameCondition(a: ConditionConfig | null, b: ConditionConfig | null): boolean {
+  if (!a || !b) return a === b;
+  const fields = (c: ConditionConfig) => [
+    c.type,
+    c.query ?? '',
+    c.until ?? '',
+    c.within_hours ?? null,
+    // A set: the server stores the kinds sorted, each once.
+    [...new Set(c.kinds ?? [])].sort().join(','),
+  ];
+  return JSON.stringify(fields(a)) === JSON.stringify(fields(b));
+}
 
 /**
  * Title of a duplicated routine: the source, marked as a copy, within bounds.
@@ -166,6 +200,11 @@ export function timelineKey(day: number, hour: number): string {
  * DAY from a single `trigger_hour`, so a routine firing at 08:00 and 18:00
  * drew one chip carrying the 08:00 state and the 18:00 failure was invisible.
  *
+ * A condition routine has no schedule to place (ADR-322): its chips are the
+ * checks that FIRED this week, and they arrive with `/week`, which is the only
+ * reader of what ran. Losing that request costs a watch its chips — there was
+ * nothing scheduled to draw anyway.
+ *
  * @param numbered - Routines in chronological order (`numberByTriggerTime`).
  * @param week - The current week's run outcomes, or null when unavailable.
  */
@@ -173,30 +212,45 @@ export function buildTimelineGrid(
   numbered: readonly NumberedAction[],
   week: ScheduledActionWeekResponse | null
 ): Map<string, TimelineEntry[]> {
-  const outcomes = new Map<string, ScheduledActionWeekCell>();
-  for (const actionWeek of week?.actions ?? []) {
-    for (const cell of actionWeek.cells) {
-      outcomes.set(`${actionWeek.id}:${cell.slot_at}`, cell);
-    }
-  }
+  const cells = weekCellsByRoutine(week);
   const grid = new Map<string, TimelineEntry[]>();
   for (const entry of numbered) {
     const { action } = entry;
-    for (const slot of action.week_slots ?? []) {
-      if (slot.day < 1 || slot.day > 7) continue;
-      if (slot.hour < 0 || slot.hour > 23) continue;
+    const ran = cells.get(action.id) ?? [];
+    for (const slot of placedSlots(action, ran)) {
       const key = timelineKey(slot.day, slot.hour);
       const bucket = grid.get(key) ?? [];
       bucket.push({
         number: entry.number,
         action,
         slot,
-        cell: outcomes.get(`${action.id}:${slot.slot_at}`) ?? null,
+        cell: ran.find(cell => cell.slot_at === slot.slot_at) ?? null,
       });
       grid.set(key, bucket);
     }
   }
   return grid;
+}
+
+/** The week's cells of each routine, by id; empty when `/week` did not answer. */
+function weekCellsByRoutine(
+  week: ScheduledActionWeekResponse | null
+): Map<string, readonly ScheduledActionWeekCell[]> {
+  return new Map((week?.actions ?? []).map(actionWeek => [actionWeek.id, actionWeek.cells]));
+}
+
+/**
+ * Where a routine's chips go: its scheduled instants, or — for a condition
+ * routine — the checks that fired. Anything off the 7 × 24 grid is dropped.
+ */
+function placedSlots(
+  action: ScheduledAction,
+  ran: readonly ScheduledActionWeekCell[]
+): ScheduledActionWeekSlot[] {
+  const slots: readonly ScheduledActionWeekSlot[] = isConditionRoutine(action)
+    ? ran
+    : (action.week_slots ?? []);
+  return slots.filter(slot => slot.day >= 1 && slot.day <= 7 && slot.hour >= 0 && slot.hour <= 23);
 }
 
 // =============================================================================

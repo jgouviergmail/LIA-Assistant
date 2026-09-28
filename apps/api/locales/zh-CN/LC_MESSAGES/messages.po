@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-07 00:00+0200\n"
-"PO-Revision-Date: 2025-11-07 00:00+0200\n"
+"POT-Creation-Date: 2026-09-25 23:33+0000\n"
+"PO-Revision-Date: 2026-09-26 04:40+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: Simplified Chinese\n"
 "Language: zh-CN\n"
@@ -16,270 +16,57 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0\n"
 
-# Authentication errors
-msgid "Invalid credentials"
-msgstr "凭据无效"
+msgid "Password must be at least {count} characters long."
+msgstr "密码长度至少为 {count} 个字符。"
 
-msgid "Account inactive"
-msgstr "账户未激活"
+msgid "Password cannot be longer than {count} characters."
+msgstr "密码长度不能超过 {count} 个字符。"
 
-msgid "Email already registered"
-msgstr "电子邮件已注册"
+msgid "Password must contain at least {count} uppercase letters."
+msgstr "密码必须至少包含 {count} 个大写字母。"
 
-msgid "Invalid token"
-msgstr "令牌无效"
-
-msgid "Token expired"
-msgstr "令牌已过期"
-
-msgid "Unauthorized"
-msgstr "未经授权"
-
-msgid "Access denied"
-msgstr "访问被拒绝"
-
-# Validation errors
-msgid "Invalid email format"
-msgstr "电子邮件格式无效"
-
-msgid "Password too short"
-msgstr "密码太短"
-
-msgid "Password must contain at least 8 characters"
-msgstr "密码必须至少包含8个字符"
-
-msgid "Passwords do not match"
-msgstr "密码不匹配"
-
-msgid "Email is required"
-msgstr "电子邮件是必需的"
-
-msgid "Password is required"
-msgstr "密码是必需的"
-
-msgid "Full name is required"
-msgstr "全名是必需的"
-
-# User errors
-msgid "User not found"
-msgstr "未找到用户"
-
-msgid "User already exists"
-msgstr "用户已存在"
-
-msgid "Cannot delete yourself"
-msgstr "您不能删除自己"
-
-# Connector errors
-msgid "Connector not found"
-msgstr "未找到连接器"
-
-msgid "Connector already enabled"
-msgstr "连接器已启用"
-
-msgid "Connector disabled"
-msgstr "连接器已禁用"
-
-msgid "OAuth flow failed"
-msgstr "OAuth认证失败"
-
-msgid "Please enable Google Contacts connector first"
-msgstr "请先启用Google通讯录连接器"
-
-# Generic errors
-msgid "Internal server error"
-msgstr "内部服务器错误"
-
-msgid "Not found"
-msgstr "未找到"
-
-msgid "Bad request"
-msgstr "请求无效"
-
-msgid "Forbidden"
-msgstr "禁止访问"
-
-msgid "Service unavailable"
-msgstr "服务不可用"
-
-# Success messages
-msgid "Login successful"
-msgstr "登录成功"
-
-msgid "Registration successful"
-msgstr "注册成功"
-
-msgid "Settings saved"
-msgstr "设置已保存"
-
-msgid "Connector enabled"
-msgstr "连接器已启用"
-
-msgid "Connector disabled successfully"
-msgstr "连接器已成功禁用"
-
-# Status messages
-msgid "Active"
-msgstr "活动"
-
-msgid "Inactive"
-msgstr "不活动"
-
-msgid "Online"
-msgstr "在线"
-
-msgid "Offline"
-msgstr "离线"
-
-msgid "Connected"
-msgstr "已连接"
-
-msgid "Disconnected"
-msgstr "已断开连接"
-
-# LLM Pricing messages
-msgid "Pricing updated successfully"
-msgstr "定价更新成功"
-
-msgid "Model pricing not found"
-msgstr "未找到模型定价"
-
-msgid "Invalid pricing data"
-msgstr "定价数据无效"
-
-msgid "Currency rate not found"
-msgstr "未找到汇率"
-
-# User activation/deactivation emails
-msgid "Failed to send deactivation email notification"
-msgstr "发送停用电子邮件通知失败"
-
-msgid "Failed to send activation email notification"
-msgstr "发送激活电子邮件通知失败"
-
-msgid "Your LIA account has been deactivated"
-msgstr "您的LIA账户已被停用"
-
-msgid "Account deactivated"
-msgstr "账户已停用"
+msgid "Password must contain at least {count} digits."
+msgstr "密码必须至少包含 {count} 个数字。"
 
 msgid ""
-"We inform you that your LIA account has been deactivated by an "
-"administrator."
-msgstr "我们通知您，您的LIA账户已被管理员停用。"
+"Password must contain at least {count} special characters ({examples}...)."
+msgstr "密码必须至少包含 {count} 个特殊字符（{examples}……）。"
 
-msgid "You can no longer access the application."
-msgstr "您无法再访问该应用程序。"
+msgid "Link"
+msgstr "链接"
 
-msgid "If you think this is an error, please contact the administrator."
-msgstr "如果您认为这是一个错误，请联系管理员。"
-
-msgid "Your LIA account has been reactivated"
-msgstr "您的LIA账户已被重新激活"
-
-msgid "Account reactivated"
-msgstr "账户已重新激活"
-
-msgid "We inform you that your LIA account has been reactivated."
-msgstr "我们通知您，您的LIA账户已被重新激活。"
-
-msgid "You can now access the application again."
-msgstr "您现在可以再次访问该应用程序。"
-
-msgid "Log in"
-msgstr "登录"
-
-msgid "Login link"
-msgstr "登录链接"
-
-msgid "Hello"
-msgstr "您好"
-
-msgid "Reason"
-msgstr "原因"
-
-msgid "This is an automated email, please do not reply."
-msgstr "这是一封自动发送的电子邮件，请勿回复。"
-
-# User pending activation email
-msgid "Your LIA account is pending activation"
-msgstr "您的LIA账户正在等待激活"
-
-msgid "Account pending activation"
-msgstr "账户等待激活"
-
-msgid "Welcome to LIA! Your account has been created successfully."
-msgstr "欢迎使用LIA！您的账户已成功创建。"
-
-msgid "Your account is currently pending activation by an administrator."
-msgstr "您的账户目前正在等待管理员激活。"
-
-msgid "You will receive an email once your account has been activated."
-msgstr "一旦您的账户被激活，您将收到一封电子邮件。"
-
-msgid "Thank you for your patience."
-msgstr "感谢您的耐心等待。"
-
-# Semantic Architecture - Context & Memory
-msgid "No previous conversation."
-msgstr "没有之前的对话。"
-
-msgid "No relevant memories."
-msgstr "没有相关记忆。"
-
-msgid "Error retrieving memories."
-msgstr "检索记忆时出错。"
-
-msgid "No memories available."
-msgstr "没有可用的记忆。"
-
-# Semantic Architecture - Tool Selection
-msgid "No tools available."
-msgstr "没有可用的工具。"
-
-msgid "Parameters:"
-msgstr "参数："
-
-msgid "(required)"
-msgstr "（必填）"
-
-msgid "(optional)"
-msgstr "（可选）"
-
-msgid "Internal error: registry not available."
-msgstr "内部错误：注册表不可用。"
-
-# Semantic Architecture - Agent Execution
-msgid "I've reached the action limit. Here's what I was able to accomplish."
-msgstr "我已达到操作限制。以下是我完成的内容。"
-
-msgid "I'm sorry, an error occurred. Please try again."
-msgstr "抱歉，发生了错误。请重试。"
-
-# Semantic Architecture - HITL Gate
-msgid ""
-"The action '{tool_name}' requires your approval. Do you want to continue?"
-msgstr "操作 '{tool_name}' 需要您的批准。是否继续？"
+msgid "The action could not be completed. Please try again."
+msgstr "无法完成该操作。请重试。"
 
 msgid ""
-"The following actions require your approval: {tool_names}. Do you want to "
-"continue?"
-msgstr "以下操作需要您的批准：{tool_names}。是否继续？"
+"I couldn't find any results matching your request. Could you clarify or "
+"rephrase?"
+msgstr "我找不到与你的请求匹配的结果。你能说明一下或换个说法吗？"
 
-msgid "Action cancelled: {reason}"
-msgstr "操作已取消：{reason}"
+msgid "Sorry, some operations failed after multiple attempts: {operations}"
+msgstr "抱歉，多次尝试后仍有部分操作失败：{operations}"
 
-msgid "Action cancelled by user."
-msgstr "用户已取消操作。"
+msgid "The required data could not be found. Could you clarify your request?"
+msgstr "未能找到所需数据。你能说明一下你的请求吗？"
 
-# ============================================================================
-# Context Tools (Phase 5 i18n - 2025-12-22)
-# ============================================================================
+msgid "A dependency error occurred between steps."
+msgstr "步骤之间发生了依赖错误。"
+
+msgid "The operation is taking too long. Try a more specific request."
+msgstr "操作耗时过长。请尝试更具体的请求。"
+
+msgid ""
+"Unable to execute this request after multiple attempts. Errors: {errors}"
+msgstr "多次尝试后仍无法执行此请求。错误：{errors}"
+
+msgid "Unable to execute this request after multiple attempts."
+msgstr "多次尝试后仍无法执行此请求。"
+
 msgid "No active domain. Please perform a search first."
 msgstr "没有活动域。请先执行搜索。"
 
 msgid "Domain '{domain}' not registered. Available domains: {available}"
-msgstr "域 '{domain}' 未注册。可用域：{available}"
+msgstr "域“{domain}”未注册。可用域：{available}"
 
 msgid "none"
 msgstr "无"
@@ -287,43 +74,186 @@ msgstr "无"
 msgid ""
 "No active '{domain}' list in memory. Please perform a search first to create"
 " a context."
-msgstr "内存中没有活动的 '{domain}' 列表。请先执行搜索以创建上下文。"
+msgstr "内存中没有活动的“{domain}”列表。请先执行搜索以创建上下文。"
 
-msgid "Error retrieving domains: {error}"
-msgstr "检索域时出错：{error}"
+msgid "Reference '{reference}' resolved successfully"
+msgstr "引用“{reference}”解析成功"
+
+msgid "Reference '{reference}' not found"
+msgstr "未找到引用“{reference}”"
+
+msgid "No active domains"
+msgstr "没有活动域"
+
+msgid "{count} active domain(s)"
+msgstr "{count} 个活动域"
+
+msgid "Resolution succeeded but no item found"
+msgstr "解析成功，但未找到任何项目"
 
 msgid "Item {index} marked as current in {domain}."
-msgstr "在 {domain} 中将项目 {index} 标记为当前项。"
+msgstr "已在 {domain} 中将第 {index} 项标记为当前项。"
 
 msgid "No active context for domain '{domain}'."
-msgstr "域 '{domain}' 没有活动上下文。"
+msgstr "域“{domain}”没有活动上下文。"
+
+msgid "Context state for '{domain}': {count} items"
+msgstr "“{domain}”的上下文状态：{count} 项"
 
 msgid "List truncated to {limit} items ({available} available)"
 msgstr "列表已截断为 {limit} 项（共有 {available} 项可用）"
 
-msgid "Error retrieving list: {error}"
-msgstr "检索列表时出错：{error}"
+msgid "{count} items retrieved for '{domain}'"
+msgstr "已为“{domain}”检索到 {count} 项"
 
-# ============================================================================
-# Wikipedia Tools (Phase 5 i18n - 2025-12-22)
-# ============================================================================
+msgid "{count} light(s) found"
+msgstr "找到 {count} 盏灯"
+
+msgid "{count} currently on"
+msgstr "目前 {count} 盏亮着"
+
+msgid "Light '{name}' not found. Available: {available}"
+msgstr "找不到灯“{name}”。可用：{available}"
+
+msgid "Light control failed"
+msgstr "灯光控制失败"
+
+#. The state of a light (« Lamp: on »); French, Spanish and Italian agree with
+#. the feminine « lumière » / « luz » / « luce ».
+msgid "on"
+msgstr "开启"
+
+#. The state of a light (« Lamp: off »); agrees like « on ».
+msgid "off"
+msgstr "关闭"
+
+msgid "brightness {pct}%"
+msgstr "亮度 {pct}%"
+
+msgid "color {color}"
+msgstr "颜色 {color}"
+
+msgid "{name} ({count} devices)"
+msgstr "{name}（{count} 个设备）"
+
+msgid "{count} room(s): {rooms}"
+msgstr "{count} 个房间：{rooms}"
+
+msgid "No rooms found"
+msgstr "未找到房间"
+
+msgid "Room '{name}' not found. Available: {available}"
+msgstr "找不到房间“{name}”。可用：{available}"
+
+msgid "Room control failed"
+msgstr "房间控制失败"
+
+msgid "Room '{name}':"
+msgstr "房间“{name}”："
+
+#. The state of every light of a room (« Room: all on »).
+msgid "all on"
+msgstr "全部开启"
+
+#. The state of every light of a room (« Room: all off »).
+msgid "all off"
+msgstr "全部关闭"
+
+msgid "{count} scene(s): {scenes}"
+msgstr "{count} 个场景：{scenes}"
+
+msgid "No scenes found"
+msgstr "未找到场景"
+
+msgid "Scene '{name}' not found. Available: {available}"
+msgstr "找不到场景“{name}”。可用：{available}"
+
+msgid "Scene activation failed"
+msgstr "场景激活失败"
+
+msgid "Scene '{name}' activated"
+msgstr "场景“{name}”已激活"
+
+msgid "Preferences"
+msgstr "偏好"
+
+msgid "Your tastes, preferences and habits"
+msgstr "你的喜好、偏好和习惯"
+
+msgid "Personal"
+msgstr "个人信息"
+
+msgid "Identity information (work, family, where you live)"
+msgstr "身份信息（工作、家庭、居住地）"
+
+msgid "Relationships"
+msgstr "人际关系"
+
+msgid "People you mention and the nature of each relationship"
+msgstr "你提到的人以及每段关系的性质"
+
+msgid "Events"
+msgstr "事件"
+
+msgid "Significant events and important dates"
+msgstr "重要事件和重要日期"
+
+msgid "Patterns"
+msgstr "行为模式"
+
+msgid "Recurring behaviours and habits"
+msgstr "反复出现的行为和习惯"
+
+msgid "Sensitive Areas"
+msgstr "敏感区域"
+
+msgid "Delicate subjects that call for a careful approach"
+msgstr "需要谨慎对待的敏感话题"
+
+msgid "Rules & directives"
+msgstr "规则与指令"
+
+msgid "Standing instructions on how LIA should work for you"
+msgstr "关于 LIA 应如何为你工作的长期指示"
+
+msgid "Please specify a starting point or enable geolocation."
+msgstr "请指定出发地或启用地理定位。"
+
+msgid "No route found between these locations."
+msgstr "未找到这些地点之间的路线。"
+
+msgid "Google Routes API is not configured."
+msgstr "Google Routes API 未配置。"
+
+msgid "Route calculation failed."
+msgstr "路线计算失败。"
+
+msgid "Please specify a city or enable geolocation."
+msgstr "请指定城市或启用地理定位。"
+
+msgid "Unable to find location: {location}"
+msgstr "无法找到位置：{location}"
+
+msgid "No search results found from any source for '{query}'"
+msgstr "所有来源均未找到“{query}”的搜索结果"
+
 msgid "No article found for '{query}' on Wikipedia ({language})"
-msgstr "在维基百科 ({language}) 上未找到 '{query}' 的文章"
+msgstr "在维基百科（{language}）上未找到“{query}”的文章"
 
 msgid "Wikipedia search for '{query}' ({language}): {count} results"
-msgstr "维基百科搜索 '{query}' ({language})：{count} 个结果"
+msgstr "维基百科搜索“{query}”（{language}）：{count} 个结果"
 
 msgid "Error during Wikipedia search: {error}"
-msgstr "维基百科搜索时出错：{error}"
+msgstr "维基百科搜索出错：{error}"
 
 msgid "Article '{title}' not found on Wikipedia ({language})"
-msgstr "在维基百科 ({language}) 上未找到文章 '{title}'"
+msgstr "在维基百科（{language}）上未找到文章“{title}”"
 
 msgid "Wikipedia summary: {title}"
 msgstr "维基百科摘要：{title}"
 
 msgid "Error retrieving summary: {error}"
-msgstr "检索摘要时出错：{error}"
+msgstr "获取摘要时出错：{error}"
 
 msgid "content truncated"
 msgstr "内容已截断"
@@ -341,179 +271,186 @@ msgid "Content"
 msgstr "内容"
 
 msgid "{count} additional characters in registry"
-msgstr "注册表中还有 {count} 个字符"
+msgstr "另有 {count} 个字符保存在完整数据中"
 
 msgid "Error retrieving article: {error}"
-msgstr "检索文章时出错：{error}"
+msgstr "获取文章时出错：{error}"
 
 msgid "No related article found for '{title}'"
-msgstr "未找到与 '{title}' 相关的文章"
+msgstr "未找到与“{title}”相关的文章"
 
 msgid "Articles related to '{title}' ({language}): {count} results"
-msgstr "与 '{title}' 相关的文章 ({language})：{count} 个结果"
+msgstr "与“{title}”相关的文章（{language}）：{count} 个结果"
 
 msgid "Error retrieving related articles: {error}"
-msgstr "检索相关文章时出错：{error}"
+msgstr "获取相关文章时出错：{error}"
 
-# ============================================================================
-# Weather Tools (Phase 5 i18n - 2025-12-22)
-# ============================================================================
-msgid "Current location"
-msgstr "当前位置"
+msgid "Preferences updated"
+msgstr "偏好已更新"
 
-msgid "Please specify a city or enable geolocation."
-msgstr "请指定城市或启用地理位置。"
+msgid "Disabling a connector requires a reason."
+msgstr "禁用连接器时必须说明原因。"
 
-msgid "Unable to find location: {location}"
-msgstr "无法找到位置：{location}"
-
-# ============================================================================
-# Adaptive Replanner (Phase 5 i18n - 2025-12-22)
-# ============================================================================
-msgid ""
-"I couldn't find any results matching your request. Could you clarify or "
-"rephrase?"
-msgstr "我找不到与您请求匹配的结果。您能澄清或重新表述吗？"
-
-msgid "Sorry, some operations failed after multiple attempts: {operations}"
-msgstr "抱歉，多次尝试后某些操作仍失败：{operations}"
-
-msgid "The required data could not be found. Could you clarify your request?"
-msgstr "未能找到所需数据。您能澄清您的请求吗？"
-
-msgid "A dependency error occurred between steps."
-msgstr "步骤之间发生了依赖错误。"
-
-msgid "The operation is taking too long. Try a more specific request."
-msgstr "操作耗时过长。请尝试更具体的请求。"
-
-msgid ""
-"Unable to execute this request after multiple attempts. Errors: {errors}"
-msgstr "多次尝试后仍无法执行此请求。错误：{errors}"
-
-msgid "Unable to execute this request after multiple attempts."
-msgstr "多次尝试后仍无法执行此请求。"
-
-# ============================================================================
-# Response Node - Gmail Labels (Phase 5 i18n - 2025-12-22)
-# ============================================================================
-msgid "Inbox"
-msgstr "收件箱"
-
-msgid "Sent"
-msgstr "已发送"
-
-msgid "Drafts"
-msgstr "草稿"
-
-msgid "Trash"
-msgstr "垃圾箱"
-
-msgid "Spam"
-msgstr "垃圾邮件"
-
-msgid "Unread"
-msgstr "未读"
-
-msgid "Starred"
-msgstr "已加星标"
-
-msgid "Important"
-msgstr "重要"
-
-msgid "Personal"
-msgstr "个人"
-
-msgid "Social"
-msgstr "社交"
-
-msgid "Promotions"
-msgstr "促销"
-
-msgid "Updates"
-msgstr "更新"
-
-msgid "Forums"
-msgstr "论坛"
-
-msgid "Chat"
-msgstr "聊天"
-
-# ============================================================================
-# Response Node - Draft Execution (Phase 5 i18n - 2025-12-22)
-# ============================================================================
-msgid "Error during execution: {error}"
-msgstr "执行时出错：{error}"
-
-msgid "Link"
-msgstr "链接"
-
-msgid "Error"
-msgstr "错误"
-
-# Broadcast notifications
 msgid "Important message"
 msgstr "重要消息"
 
-msgid "{count} light(s) found"
-msgstr "找到 {count} 盏灯"
+msgid "A deactivation must state its reason."
+msgstr "停用账户时必须说明原因。"
 
-msgid "{count} currently on"
-msgstr "目前 {count} 盏亮着"
+msgid "Failed to send deactivation email notification"
+msgstr "停用通知邮件发送失败"
 
-msgid "Light '{name}' not found. Available: {available}"
-msgstr "找不到灯 '{name}'。可用:{available}"
+msgid "Failed to send activation email notification"
+msgstr "激活通知邮件发送失败"
 
-msgid "Light control failed"
-msgstr "灯光控制失败"
+msgid "Reason"
+msgstr "原因"
 
-msgid "on"
-msgstr "开"
+msgid "Your LIA account has been deactivated"
+msgstr "你的 LIA 账户已被停用"
 
-msgid "off"
-msgstr "关"
+#. The greeting line of an e-mail, the person's name included.
+msgid "Hello {name},"
+msgstr "{name}，你好！"
 
-msgid "brightness {pct}%"
-msgstr "亮度 {pct}%"
+msgid ""
+"We inform you that your LIA account has been deactivated by an "
+"administrator."
+msgstr "我们通知你，你的 LIA 账户已被管理员停用。"
 
-msgid "color {color}"
-msgstr "颜色 {color}"
+msgid "You can no longer access the application."
+msgstr "你已无法再访问该应用。"
 
-msgid "{name} ({count} devices)"
-msgstr "{name}({count} 个设备)"
+msgid "If you think this is an error, please contact the administrator."
+msgstr "如果你认为这是一个错误，请联系管理员。"
 
-msgid "{count} room(s): {rooms}"
-msgstr "{count} 个房间:{rooms}"
+msgid "This is an automated email, please do not reply."
+msgstr "这是一封自动发送的邮件，请勿回复。"
 
-msgid "No rooms found"
-msgstr "未找到房间"
+msgid "Account deactivated"
+msgstr "账户已停用"
 
-msgid "Room '{name}' not found. Available: {available}"
-msgstr "找不到房间 '{name}'。可用:{available}"
+msgid "Your LIA account has been reactivated"
+msgstr "你的 LIA 账户已重新激活"
 
-msgid "Room control failed"
-msgstr "房间控制失败"
+msgid "We inform you that your LIA account has been reactivated."
+msgstr "我们通知你，你的 LIA 账户已重新激活。"
 
-msgid "Room '{name}':"
-msgstr "房间 '{name}':"
+msgid "You can now access the application again."
+msgstr "你现在可以再次访问该应用。"
 
-msgid "all on"
-msgstr "全部开"
+msgid "Log in"
+msgstr "登录"
 
-msgid "all off"
-msgstr "全部关"
+msgid "Login link"
+msgstr "登录链接"
 
-msgid "{count} scene(s): {scenes}"
-msgstr "{count} 个场景:{scenes}"
+msgid "Account reactivated"
+msgstr "账户已重新激活"
 
-msgid "No scenes found"
-msgstr "未找到场景"
+msgid "Connector {connector} disabled"
+msgstr "连接器 {connector} 已禁用"
 
-msgid "Scene '{name}' not found. Available: {available}"
-msgstr "找不到场景 '{name}'。可用:{available}"
+msgid "Connector disabled"
+msgstr "连接器已禁用"
 
-msgid "Scene activation failed"
-msgstr "场景激活失败"
+msgid ""
+"We inform you that the connector {connector} has been disabled by an "
+"administrator."
+msgstr "我们通知你，连接器 {connector} 已被管理员禁用。"
 
-msgid "Scene '{name}' activated"
-msgstr "场景 '{name}' 已激活"
+msgid ""
+"Your existing connection has been revoked and you can no longer use this "
+"connector."
+msgstr "你现有的连接已被撤销，无法再使用此连接器。"
+
+msgid "If you have any questions, please contact the administrator."
+msgstr "如有任何问题，请联系管理员。"
+
+msgid "Verify your LIA account email"
+msgstr "验证你的 LIA 账户邮箱"
+
+msgid ""
+"Welcome to LIA! Please verify your email address to activate your account."
+msgstr "欢迎使用 LIA！请验证你的邮箱地址以激活账户。"
+
+msgid "Verify my email"
+msgstr "验证我的邮箱"
+
+msgid "This link expires in 24 hours."
+msgstr "此链接将在 24 小时后失效。"
+
+msgid "If you did not create an account, you can ignore this email."
+msgstr "如果你没有创建账户，可以忽略这封邮件。"
+
+msgid "Verification link"
+msgstr "验证链接"
+
+msgid "Email verification"
+msgstr "邮箱验证"
+
+msgid "Reset your LIA password"
+msgstr "重置你的 LIA 密码"
+
+msgid "We received a request to reset your password."
+msgstr "我们收到了重置你密码的请求。"
+
+msgid "Reset my password"
+msgstr "重置我的密码"
+
+msgid "This link expires in 1 hour for security reasons."
+msgstr "出于安全考虑，此链接将在 1 小时后失效。"
+
+msgid "If you did not request a password reset, you can ignore this email."
+msgstr "如果你没有申请重置密码，可以忽略这封邮件。"
+
+msgid "Reset link"
+msgstr "重置链接"
+
+msgid "Password reset"
+msgstr "重置密码"
+
+msgid "Your LIA account is pending activation"
+msgstr "你的 LIA 账户正在等待激活"
+
+msgid "Welcome to LIA! Your account has been created successfully."
+msgstr "欢迎使用 LIA！你的账户已成功创建。"
+
+msgid "Your account is currently pending activation by an administrator."
+msgstr "你的账户目前正在等待管理员激活。"
+
+msgid "You will receive an email once your account has been activated."
+msgstr "账户激活后，你将收到一封邮件。"
+
+msgid "Thank you for your patience."
+msgstr "感谢你的耐心等待。"
+
+msgid "Account pending activation"
+msgstr "账户等待激活"
+
+msgid "[LIA] New user awaiting activation: {email}"
+msgstr "[LIA] 新用户等待激活：{email}"
+
+msgid "New user registered"
+msgstr "新用户已注册"
+
+msgid "A new user has registered on LIA and is waiting for your activation:"
+msgstr "一位新用户已在 LIA 注册，正在等待你激活："
+
+msgid "Email"
+msgstr "邮箱"
+
+msgid "Name"
+msgstr "姓名"
+
+msgid "Method"
+msgstr "方式"
+
+msgid "Manage users"
+msgstr "管理用户"
+
+msgid "Administration link"
+msgstr "管理链接"
+
+msgid "This is an automated email from LIA."
+msgstr "这是一封来自 LIA 的自动邮件。"

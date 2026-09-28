@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.config import settings
 from src.core.i18n_drafts import (
     DRAFT_CANCEL_MESSAGES,
     DRAFT_RESULT_NOUNS,
@@ -34,6 +35,7 @@ from src.domains.agents.drafts.display import (
     assert_registry_completeness,
     get_draft_display_config,
     get_draft_emoji,
+    item_label,
     resolve_nested_value,
 )
 from src.domains.agents.drafts.models import DraftType
@@ -207,8 +209,8 @@ def test_get_plural_form_normalizes_language() -> None:
     assert get_plural_form(3, "zh") == "singular"
     assert get_plural_form(3, "fr-FR") == "plural"
     assert get_plural_form(0, "fr_CA") == "singular"
-    # Unknown language falls back to default (fr).
-    assert get_plural_form(0, "ja") == "singular"
+    # An unknown language follows the instance default's rule.
+    assert get_plural_form(0, "ja") == get_plural_form(0, settings.default_language)
 
 
 # =============================================================================
@@ -291,6 +293,13 @@ def test_get_draft_emoji_returns_registered_emoji() -> None:
 # =============================================================================
 # (f) Nested resolution helper
 # =============================================================================
+
+
+def test_an_empty_value_names_no_draft() -> None:
+    """An empty list says nothing: the chain goes on, never « [] »."""
+    config = get_draft_display_config(DraftType.EVENT_DELETE.value)
+
+    assert item_label(config, {"summary": [], "event": {"summary": "Standup"}}) == "Standup"
 
 
 def test_resolve_nested_value_flat_key() -> None:

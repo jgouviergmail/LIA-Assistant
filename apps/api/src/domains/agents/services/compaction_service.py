@@ -43,6 +43,7 @@ from src.core.constants import (
     EXTERNAL_CONTENT_CLOSE_TAG,
     EXTERNAL_CONTENT_OPEN_TAG,
 )
+from src.core.i18n import get_language_name
 from src.core.llm_config_helper import (
     get_effective_context_window_for_slot,
 )
@@ -407,7 +408,7 @@ class CompactionService:
             HumanMessage(
                 content=(
                     f"Summarize the following conversation excerpt. "
-                    f"Write the summary in: {language}.\n\n"
+                    f"Write the summary in: {get_language_name(language)}.\n\n"
                     f"---\n{chunk_text}\n---"
                 )
             ),

@@ -23,14 +23,14 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-#: The startup step AND every extracted registrar it calls — a job registered
-#: in a module this tuple does not name would escape the guard.
+_STARTUP = pathlib.Path("src/infrastructure/startup")
+
+#: The startup step AND every extracted registrar beside it, DISCOVERED: a
+#: hand-kept list is how a registrar escapes the guard (the radio's was the
+#: sixth, ADR-324).
 _SCHEDULERS = (
-    pathlib.Path("src/infrastructure/startup/schedulers.py"),
-    pathlib.Path("src/infrastructure/startup/scheduler_meetings.py"),
-    pathlib.Path("src/infrastructure/startup/scheduler_push.py"),
-    pathlib.Path("src/infrastructure/startup/scheduler_ledger.py"),
-    pathlib.Path("src/infrastructure/startup/scheduler_telephony.py"),
+    _STARTUP / "schedulers.py",
+    *sorted(_STARTUP.glob("scheduler_*.py")),
 )
 
 #: Jobs that must stay on an exact cadence, with the reason each one earns it.

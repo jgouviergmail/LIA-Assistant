@@ -36,13 +36,6 @@ _UNIT_PARAM = ParameterSchema(
     description="'metric' (Celsius, def) or 'imperial' (Fahrenheit).",
     semantic_type="unit_system",
 )
-_LANG_PARAM = ParameterSchema(
-    name="language",
-    type="string",
-    required=False,
-    description="Lang code (e.g. 'fr', 'en'). Def: 'fr'.",
-    semantic_type="language_code",
-)
 #: The one wording of the forecast tools' ``date`` contract (ADR-310), read by the
 #: planner through this manifest AND by the ReAct loop through the tools' own
 #: schemas (``tools/weather_tools.py``). Two wordings had drifted: the ReAct schema
@@ -86,7 +79,7 @@ get_current_weather_catalogue_manifest = ToolManifest(
     ],
     # NOTE: No date parameter - current weather is always "now"
     # Calendar event dates should route to get_weather_forecast_tool via semantic_type
-    parameters=[_LOC_PARAM, _UNIT_PARAM, _LANG_PARAM],
+    parameters=[_LOC_PARAM, _UNIT_PARAM],
     # Registry-backed tool: the payload is grouped under the `weathers` context
     # key, never at the top level. Advertising bare `temperature` made the
     # planner emit `$steps.X.temperature`, which no execution can resolve.
@@ -196,7 +189,6 @@ get_weather_forecast_catalogue_manifest = ToolManifest(
             constraints=[ParameterConstraint(kind="maximum", value=5)],
         ),
         _UNIT_PARAM,
-        _LANG_PARAM,
     ],
     # The daily forecast exposes BOTH a flat `forecasts` list and the
     # registry-backed `weathers` entries. The collection is `forecasts`, not
@@ -312,7 +304,6 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
             constraints=[ParameterConstraint(kind="maximum", value=48)],
         ),
         _UNIT_PARAM,
-        _LANG_PARAM,
     ],
     # Registry-backed: the slots hang off the `weathers` entry, they are NOT a
     # top-level `hourly` list. The payload key is `temp` (see

@@ -57,6 +57,8 @@ export const CAPABILITY_ORDER: readonly { key: string; ring: 'inner' | 'outer' }
   { key: 'telephony', ring: 'outer' },
   // The live voice mode (ADR-299): a switch node beside the phone.
   { key: 'live', ring: 'outer' },
+  // The personal radio (ADR-324): a switch node beside the other voices.
+  { key: 'radio', ring: 'outer' },
   { key: 'meetings', ring: 'outer' },
   { key: 'spaces', ring: 'outer' },
   { key: 'journals', ring: 'outer' },

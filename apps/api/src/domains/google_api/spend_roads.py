@@ -95,12 +95,19 @@ GOOGLE_SPEND_ROADS: Final[dict[str, SpendRoad]] = {
 #: road: a caller nobody names is indistinguishable from a spend nobody records.
 #: A relay read from several surfaces names every one of them.
 CALLER_ROAD_ACCOUNTANTS: Final[dict[str, tuple[str, ...]]] = {
-    "domains/briefing/fetchers.py": ("domains/briefing/service.py",),
+    # A condition routine's weather check reads through the fetchers too
+    # (ADR-322): two billed Google Weather calls per check, dropped in silence
+    # until the check opened the routine's own tracker.
+    "domains/briefing/fetchers.py": (
+        "domains/briefing/service.py",
+        "infrastructure/scheduler/condition_evaluators.py",
+    ),
     # The Places photo proxy serves its image through the media router's door.
     "domains/connectors/router.py": ("domains/connectors/media_proxy_router.py",),
     "domains/connectors/weather_provider.py": (
         "domains/briefing/service.py",
         "infrastructure/proactive/runner.py",
+        "infrastructure/scheduler/condition_evaluators.py",
     ),
     "domains/heartbeat/context_aggregator.py": ("infrastructure/proactive/runner.py",),
     "domains/heartbeat/context_sources.py": ("infrastructure/proactive/runner.py",),

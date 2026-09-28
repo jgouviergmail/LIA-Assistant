@@ -10,7 +10,6 @@ import structlog
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.session_dependencies import (
     get_current_active_session,
@@ -263,8 +262,13 @@ async def add_translation(
 @router.post("/admin/{personality_id}/auto-translate")
 async def trigger_auto_translation(
     personality_id: UUID,
-    source_language: str = Query(
-        settings.default_language, description="Source language to translate from"
+    source_language: str | None = Query(
+        None,
+        description=(
+            "Source language to translate from, naming a text an administrator "
+            "WROTE (a machine translation is refused); when absent, the declared "
+            "language's written text, else the oldest written one"
+        ),
     ),
     user: User = Depends(get_current_superuser_session),
     db: AsyncSession = Depends(get_db),
@@ -272,11 +276,13 @@ async def trigger_auto_translation(
     """
     Trigger auto-translation for missing languages (admin only).
 
-    Uses GPT-4.1-nano to translate title and description to all
-    supported languages that don't have translations yet.
+    Translates the title and description, through the configured translation
+    model, to every supported language that has none yet. It starts from a text
+    an administrator wrote, named or not — never from a machine translation
+    (ADR-323).
     """
     service = PersonalityService(db)
-    count = await service.trigger_auto_translation(personality_id, source_language)
+    count, source = await service.trigger_auto_translation(personality_id, source_language)
 
     logger.info(
         "auto_translation_triggered_by_admin",
@@ -285,7 +291,8 @@ async def trigger_auto_translation(
         translations_created=count,
     )
 
+    # The source USED, canonical — the request may name none, or spell it ``zh``.
     return {
         "translations_created": count,
-        "source_language": source_language,
+        "source_language": source,
     }

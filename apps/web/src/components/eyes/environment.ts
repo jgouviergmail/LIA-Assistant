@@ -49,6 +49,13 @@ const CONDITIONS: Readonly<Record<string, WeatherFeeling>> = {
   Snow: 'snow',
   Fog: 'fog',
   Mist: 'fog',
+  Haze: 'fog',
+  Smoke: 'fog',
+  Dust: 'fog',
+  Sand: 'fog',
+  Ash: 'fog',
+  Squall: 'wind',
+  Tornado: 'wind',
 };
 
 export function weatherAt(

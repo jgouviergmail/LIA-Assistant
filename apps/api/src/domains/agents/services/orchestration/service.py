@@ -30,7 +30,7 @@ from src.core.field_names import (
     FIELD_SESSION_ID,
     FIELD_USER_ID,
 )
-from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import (
     HITL_DECISION_NEW_REQUEST,
 )
@@ -153,7 +153,7 @@ class OrchestrationService:
         user_message: str,
         conversation_id: uuid.UUID,
         run_id: str,
-        user_language: str = DEFAULT_LANGUAGE,
+        user_language: str | None = None,
     ) -> dict[str, Any]:
         """
         Parse user's natural language message to extract approval decision.
@@ -161,7 +161,7 @@ class OrchestrationService:
         Uses HitlResponseClassifier for intelligent classification that handles:
         - APPROVE: "ok", "oui", "yes", "approve", "confirme"
         - REJECT: "non", "no", "reject", "refuse", "annule"
-        - EDIT: "je veux que tu recherches jean", "non recherche paul", etc.
+        - EDIT: "I want you to search for jean", "no, search for paul", etc.
         - AMBIGUOUS: unclear responses requiring clarification
 
         Issue #61 Fix: Now uses LLM-based classifier instead of simple pattern matching
@@ -183,22 +183,24 @@ class OrchestrationService:
         Example:
             >>> decision = await service._parse_approval_decision("ok", conv_id, run_id)
             {"decision": "APPROVE"}
-            >>> decision = await service._parse_approval_decision("non", conv_id, run_id)
+            >>> decision = await service._parse_approval_decision("no", conv_id, run_id)
             {"decision": "REJECT", "rejection_reason": "User declined"}
             >>> decision = await service._parse_approval_decision(
-            ...     "je veux que tu recherches jean", conv_id, run_id
+            ...     "I want you to search for jean", conv_id, run_id
             ... )
             {"decision": "EDIT", "modifications": [...]}
             >>> decision = await service._parse_approval_decision(
-            ...     "detail de jean dupond", conv_id, run_id
+            ...     "show me jean dupond's details", conv_id, run_id
             ... )
-            {"decision": "REPLAN", "replan_instructions": "detail de jean dupond"}
+            {"decision": "REPLAN", "replan_instructions": "show me jean dupond's details"}
         """
         from src.domains.agents.services.orchestration.approval_decision import (
             parse_approval_decision,
         )
 
-        return await parse_approval_decision(user_message, conversation_id, run_id, user_language)
+        return await parse_approval_decision(
+            user_message, conversation_id, run_id, resolve_language(user_language)
+        )
 
     async def _inject_proactive_messages(
         self,
@@ -564,7 +566,7 @@ class OrchestrationService:
                     run_id=run_id,
                     # From the checkpoint: the language the previous turn ran in.
                     # Some resume notices are streamed verbatim to the user.
-                    user_language=state.get("user_language") or DEFAULT_LANGUAGE,
+                    user_language=resolve_language(state.get("user_language")),
                 )
 
             # === FIX 2026-01-11: Handle NEW_REQUEST (stale HITL state) ===
@@ -666,7 +668,7 @@ class OrchestrationService:
         user_journals_enabled: bool = False,  # User preference for personal journals
         user_psyche_enabled: bool = False,  # User preference for psyche engine
         user_voice_enabled: bool = False,  # User preference for spoken replies (HTML gate)
-        user_display_mode: str = "cards",  # User display mode (cards/html/markdown)
+        user_display_mode: str = "cards",  # cards / html / html_cards / markdown
         user_execution_mode: str = "pipeline",  # Execution mode (pipeline/react) — ADR-070
         user_exchange_rhythm: str | None = None,  # users.exchange_rhythm as stored — ADR-311
         is_automated_source: bool = False,  # True for automated runs (scheduled actions)
@@ -695,7 +697,7 @@ class OrchestrationService:
             tool_deps: Tool dependencies container (DB session, services, clients)
             tracker: Token tracking context
             browser_context: Browser context (geolocation, etc.) for location-aware tools
-            user_message: Original user message for location phrase detection (e.g., "chez moi")
+            user_message: Original user message for location phrase detection (e.g., "at home")
             user_memory_enabled: User preference for long-term memory (extraction + injection)
             user_journals_enabled: User preference for personal journals (extraction + injection)
             is_automated_source: True for automated runs (scheduled actions); carried
@@ -846,9 +848,10 @@ class OrchestrationService:
                 # LangGraph v1.0.3+ best practice: Use Command(resume=..., update={...})
                 # to modify state during HITL resumption.
                 #
-                # When user EDITs parameters (e.g., "recherche plutot jean"):
-                # - The plan is modified with new params
-                # - But HumanMessage still shows original ("recherche jean")
+                # When the user EDITs parameters (the plan searched "Marie", the
+                # person answers "search for Jean instead"):
+                # - The plan is modified with the new params ("Jean")
+                # - But HumanMessage still shows the original ("search for Marie")
                 # - LLM sees mismatch → wrong response
                 # Solution: Replace HumanMessage with reformulated intent
                 command_input = await self._build_hitl_resume_command(
@@ -1025,8 +1028,8 @@ class OrchestrationService:
         to modify state during HITL resumption.
 
         For EDIT decisions:
-        - The plan is modified with new parameters (e.g., "jean" instead of "jean")
-        - But HumanMessage in state still shows original query ("recherche jean")
+        - The plan is modified with new parameters (e.g., "Jean" instead of "Marie")
+        - But HumanMessage in state still shows the original query ("search for Marie")
         - LLM sees mismatch between query and results → wrong response
         - Solution: Replace HumanMessage with reformulated intent matching actual query
 

@@ -91,6 +91,10 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_MOMENTS_ENABLED = "capability_moments_enabled"
     # ADR-282 — the answers a person keeps out of their conversations.
     CAPABILITY_BOOKMARKS_ENABLED = "capability_bookmarks_enabled"
+    # ADR-321 — a generated file or an answer sent by e-mail.
+    CAPABILITY_EMAIL_SHARE_ENABLED = "capability_email_share_enabled"
+    # ADR-324 — the personal radio and its newsroom.
+    CAPABILITY_RADIO_ENABLED = "capability_radio_enabled"
 
     # Whether the landing advertises the public demonstrator. Off by default:
     # a fresh instance never advertises a demonstrator it does not run. Read

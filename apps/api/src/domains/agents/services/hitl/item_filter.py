@@ -2,7 +2,7 @@
 Item Filter Service - Filters items based on user exclusion criteria.
 
 This service handles the EDIT action in for_each_confirmation HITL flow.
-When user asks to exclude specific items (e.g., "retire les emails de Guy Savoy"),
+When user asks to exclude specific items (e.g., "drop the emails from Guy Savoy"),
 this service:
 1. Takes the item previews
 2. Takes the user's exclusion criteria
@@ -56,7 +56,6 @@ class ItemFilterService:
         ...         {"subject": "Invoice", "from": "billing@company.com"},
         ...     ],
         ...     exclude_criteria="Guy Savoy",
-        ...     user_language="fr",
         ... )
         >>> print(items_to_keep)
         [0, 2]  # Indices of items NOT matching "Guy Savoy"
@@ -74,7 +73,6 @@ class ItemFilterService:
         self,
         item_previews: list[dict[str, Any]],
         exclude_criteria: str,
-        user_language: str = "fr",
         run_id: str | None = None,
     ) -> list[int]:
         """
@@ -82,8 +80,7 @@ class ItemFilterService:
 
         Args:
             item_previews: List of item preview dicts with key fields
-            exclude_criteria: User's criteria for items to EXCLUDE
-            user_language: Language for understanding criteria
+            exclude_criteria: User's criteria for items to EXCLUDE, in any language
             run_id: Optional run ID for logging
 
         Returns:
@@ -110,7 +107,6 @@ class ItemFilterService:
         prompt = self._build_filter_prompt(
             item_previews=item_previews,
             exclude_criteria=exclude_criteria,
-            user_language=user_language,
         )
 
         # Create instrumented config
@@ -160,10 +156,8 @@ class ItemFilterService:
         self,
         item_previews: list[dict[str, Any]],
         exclude_criteria: str,
-        user_language: str,  # noqa: ARG002 - Reserved for future i18n support
     ) -> str:
         """Build prompt for item filtering."""
-        # Note: user_language reserved for future prompt localization
         # Format items as numbered list
         items_text = []
         for i, preview in enumerate(item_previews):

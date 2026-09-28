@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
+from src.core.i18n import resolve_language
 from src.domains.bookmarks.errors import (
     raise_bookmark_limit_reached,
     raise_bookmark_not_found,
@@ -70,7 +71,7 @@ class BookmarkService:
         self.repository = BookmarkRepository(db)
 
     async def keep(
-        self, user_id: UUID, message_id: UUID, *, language: str = "en"
+        self, user_id: UUID, message_id: UUID, *, language: str | None = None
     ) -> tuple[MessageBookmark, bool]:
         """Keep one assistant answer.
 
@@ -91,6 +92,7 @@ class BookmarkService:
             ValidationError: The answer carries no text.
             BookmarkLimitReachedError: The account keeps as many as it may.
         """
+        language = resolve_language(language)
         existing = await self.repository.get_by_message(user_id, message_id)
         if existing is not None:
             return existing, False

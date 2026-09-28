@@ -32,7 +32,7 @@ EXPECTED_RENDERED = """
 
 ⚠️ **IMPORTANT**: Les informations ci-dessous sont des souvenirs de L'UTILISATEUR, pas les tiens.
 Quand tu lis "Je me suis marié en 2008", cela signifie que L'UTILISATEUR s'est marié en 2008.
-Tu dois répondre en disant "Tu t'es marié en 2008" ou "Vous vous êtes marié en 2008".
+Tu dois répondre en disant "Tu t'es marié en 2008".
 
 <SECTIONS>
 

@@ -5,7 +5,11 @@ from __future__ import annotations
 import dataclasses
 from datetime import date
 
-from src.infrastructure.llm.catalogue.field_mapping import RegistryFacts, registry_facts
+from src.infrastructure.llm.catalogue.field_mapping import (
+    RegistryFacts,
+    is_retiring,
+    registry_facts,
+)
 
 
 def test_context_window_prefers_the_explicit_input_budget() -> None:
@@ -121,11 +125,35 @@ def test_deprecation_date_is_a_date() -> None:
 
 
 def test_registry_status_carries_the_second_deprecation_signal() -> None:
-    """models.dev flags previews Google retires without publishing a date."""
+    """models.dev flags previews a registry holds no date for; the flag stays
+    beside the date the vendor itself announced."""
     facts = registry_facts("gemini", "gemini-3.1-flash-lite-preview")
     assert facts is not None
     assert facts.registry_status == "deprecated"
+    assert facts.deprecation_date == date(2026, 5, 25)
+    assert facts.sources["deprecation_date"] == "vendor"
+
+
+def test_the_vendors_announcement_outranks_the_registrys_copy() -> None:
+    """LiteLLM dated Gemini 2.5 Flash 2026-10-20; Google announces no shutdown."""
+    facts = registry_facts("gemini", "gemini-2.5-flash")
+    assert facts is not None
     assert facts.deprecation_date is None
+    assert "deprecation_date" not in facts.sources
+    assert is_retiring(facts, today=date(2026, 10, 19)) is False
+
+
+def test_a_date_only_the_vendor_announced_is_read() -> None:
+    facts = registry_facts("gemini", "gemini-3.1-flash-lite")
+    assert facts is not None
+    assert facts.deprecation_date == date(2027, 5, 7)
+    assert facts.sources["deprecation_date"] == "vendor"
+
+
+def test_a_model_the_vendor_table_does_not_hold_keeps_the_registrys_date() -> None:
+    facts = registry_facts("anthropic", "claude-opus-4-6")
+    assert facts is not None
+    assert facts.sources["deprecation_date"] == "litellm"
 
 
 def test_facts_carry_no_price_field() -> None:

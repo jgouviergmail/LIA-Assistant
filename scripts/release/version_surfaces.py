@@ -674,6 +674,84 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         "prometheus_metrics",
         "blog observability article body (zh)",
     ),
+    # The `how` guides quote the total a THIRD time, in their codebase-metrics
+    # table (« | Prometheus metrics | N definitions | »), and the blog article
+    # carries it in its EXCERPT as well as its title and body. Neither was
+    # declared, so both still said 589 after four metrics joined (ADR-319 to
+    # ADR-321) while every declared surface read 593 (found 2026-09-26): the
+    # bump never wrote them and the guard never read them.
+    CountSurface(
+        f"{GUIDES_DIR}/how.en.md",
+        re.compile(rf"\| Prometheus metrics \| {_COUNT} definitions \|"),
+        "prometheus_metrics",
+        "how.en.md codebase-metrics row (metric count)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.fr.md",
+        re.compile(rf"\| Métriques Prometheus \| {_COUNT} définitions \|"),
+        "prometheus_metrics",
+        "how.fr.md codebase-metrics row (metric count)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.de.md",
+        re.compile(rf"\| Prometheus-Metriken \| {_COUNT} Definitionen \|"),
+        "prometheus_metrics",
+        "how.de.md codebase-metrics row (metric count)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.es.md",
+        re.compile(rf"\| Métricas Prometheus \| {_COUNT} definiciones \|"),
+        "prometheus_metrics",
+        "how.es.md codebase-metrics row (metric count)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.it.md",
+        re.compile(rf"\| Metriche Prometheus \| {_COUNT} definizioni \|"),
+        "prometheus_metrics",
+        "how.it.md codebase-metrics row (metric count)",
+    ),
+    CountSurface(
+        f"{GUIDES_DIR}/how.zh.md",
+        re.compile(rf"\| Prometheus 指标 \| {_COUNT} 定义 \|"),
+        "prometheus_metrics",
+        "how.zh.md codebase-metrics row (metric count)",
+    ),
+    CountSurface(
+        "apps/web/locales/en/translation.json",
+        re.compile(rf"observability with {_COUNT} metrics, dedicated"),
+        "prometheus_metrics",
+        "blog observability article excerpt (en)",
+    ),
+    CountSurface(
+        "apps/web/locales/fr/translation.json",
+        re.compile(rf"entreprise avec {_COUNT} métriques, des dashboards"),
+        "prometheus_metrics",
+        "blog observability article excerpt (fr)",
+    ),
+    CountSurface(
+        "apps/web/locales/de/translation.json",
+        re.compile(rf"Observability mit {_COUNT} Metriken, Grafana"),
+        "prometheus_metrics",
+        "blog observability article excerpt (de)",
+    ),
+    CountSurface(
+        "apps/web/locales/es/translation.json",
+        re.compile(rf"empresarial con {_COUNT} métricas, dashboards"),
+        "prometheus_metrics",
+        "blog observability article excerpt (es)",
+    ),
+    CountSurface(
+        "apps/web/locales/it/translation.json",
+        re.compile(rf"enterprise con {_COUNT} metriche, dashboard"),
+        "prometheus_metrics",
+        "blog observability article excerpt (it)",
+    ),
+    CountSurface(
+        "apps/web/locales/zh/translation.json",
+        re.compile(rf"可观测性：{_COUNT} 指标、Grafana"),
+        "prometheus_metrics",
+        "blog observability article excerpt (zh)",
+    ),
     CountSurface(
         "docs/knowledge/34_self_diagnostics.md",
         re.compile(rf"{_COUNT} metrics are defined and"),

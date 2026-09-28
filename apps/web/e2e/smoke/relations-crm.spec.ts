@@ -575,7 +575,7 @@ test.describe('relations CRM (N-09)', () => {
     // The ADDRESS BOOK is the keystone: mail and calendar are queried by an
     // address, and only the contact card can produce one — so that is what
     // the invitation names.
-    const invite = page.getByText(/Connectez votre carnet d.adresses/);
+    const invite = page.getByText(/Connecte ton carnet d.adresses/);
     await expect(invite).toBeVisible({ timeout: 30_000 });
     // One invitation, not one per section.
     await expect(invite).toHaveCount(1);

@@ -38,12 +38,12 @@ async def test_resolve_user_language_reads_checkpointed_state() -> None:
 async def test_resolve_user_language_falls_back_on_error() -> None:
     from unittest.mock import AsyncMock, MagicMock
 
-    from src.core.i18n import DEFAULT_LANGUAGE
+    from src.core.config import settings
 
     graph = MagicMock()
     graph.aget_state = AsyncMock(side_effect=RuntimeError("checkpoint unreachable"))
 
-    assert await resolve_user_language(graph, MagicMock()) == DEFAULT_LANGUAGE
+    assert await resolve_user_language(graph, MagicMock()) == settings.default_language
 
 
 def test_get_reformulation_is_localized() -> None:

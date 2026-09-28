@@ -6,6 +6,7 @@ Tests the formatting functions for entity disambiguation questions.
 
 import pytest
 
+from src.core.config import settings
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
 
 
@@ -27,10 +28,11 @@ class TestDisambiguationMessages:
         assert "multiple matches" in msg.lower()
 
     def test_get_fallback_unknown_language(self):
-        """Should fall back to default language (French) for unknown language."""
+        """An unknown language reads the instance's configured default."""
         msg = HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, "xyz")
-        # Default language is French in the application
-        assert "plusieurs correspondances" in msg.lower() or "multiple matches" in msg.lower()
+        assert msg == HitlMessages.get_fallback(
+            HitlMessageType.ENTITY_DISAMBIGUATION, settings.default_language
+        )
 
     # =========================================================================
     # Test: Multiple entities disambiguation
@@ -129,6 +131,42 @@ class TestDisambiguationMessages:
         assert "0987654321" in result
         assert "téléphone" in result.lower() or "phone" in result.lower()
 
+    @pytest.mark.parametrize(
+        ("field", "language", "sentence"),
+        [
+            ("email", "en", "Jean Dupont has several email addresses."),
+            ("email", "de", "Jean Dupont hat mehrere E-Mail-Adressen."),
+            ("phone", "de", "Jean Dupont hat mehrere Telefonnummern."),
+            ("email", "fr", "Jean Dupont a plusieurs adresses email. Laquelle"),
+            ("phone", "fr", "Jean Dupont a plusieurs numéros de téléphone. Lequel"),
+            ("email", "es", "Jean Dupont tiene varias direcciones de correo."),
+            ("phone", "it", "Jean Dupont ha più numeri di telefono."),
+            ("phoneNumber", "en", "Jean Dupont has several possible values."),
+        ],
+    )
+    def test_the_field_is_named_in_a_whole_sentence(
+        self, field: str, language: str, sentence: str
+    ) -> None:
+        """A label pluralised by appending « s » read « email addresss »,
+        « Telefonnummers », « varios dirección de correos »; a field no sentence
+        names is said without its raw key."""
+        candidates = [
+            {"index": 1, "value": "a", "parent_name": "Jean Dupont"},
+            {"index": 2, "value": "b", "parent_name": "Jean Dupont"},
+        ]
+
+        result = HitlMessages.format_disambiguation_question(
+            disambiguation_type="multiple_fields",
+            domain="contacts",
+            original_query="Jean Dupont",
+            intended_action="call",
+            candidates=candidates,
+            target_field=field,
+            language=language,
+        )
+
+        assert result.startswith(sentence)
+
     # =========================================================================
     # Test: Empty candidates
     # =========================================================================
@@ -147,40 +185,6 @@ class TestDisambiguationMessages:
 
         # Should return fallback message
         assert result == HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, "fr")
-
-    # =========================================================================
-    # Test: Domain labels
-    # =========================================================================
-
-    def test_get_domain_label_french(self):
-        """Should return French domain labels."""
-        assert HitlMessages.get_domain_label("contacts", "fr") == "contact"
-        assert HitlMessages.get_domain_label("emails", "fr") == "email"
-        assert HitlMessages.get_domain_label("events", "fr") == "événement"
-
-    def test_get_domain_label_english(self):
-        """Should return English domain labels."""
-        assert HitlMessages.get_domain_label("contacts", "en") == "contact"
-        assert HitlMessages.get_domain_label("emails", "en") == "email"
-        assert HitlMessages.get_domain_label("events", "en") == "event"
-
-    def test_get_domain_label_unknown(self):
-        """Should return domain name for unknown domain."""
-        assert HitlMessages.get_domain_label("unknown_domain", "fr") == "unknown_domain"
-
-    # =========================================================================
-    # Test: Field type labels
-    # =========================================================================
-
-    def test_get_field_type_label_french(self):
-        """Should return French field type labels."""
-        assert HitlMessages.get_field_type_label("email", "fr") == "adresse email"
-        assert HitlMessages.get_field_type_label("phone", "fr") == "numéro de téléphone"
-
-    def test_get_field_type_label_english(self):
-        """Should return English field type labels."""
-        assert HitlMessages.get_field_type_label("email", "en") == "email address"
-        assert HitlMessages.get_field_type_label("phone", "en") == "phone number"
 
     # =========================================================================
     # Test: All supported languages

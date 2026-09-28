@@ -4,7 +4,7 @@
 
 **Phase**: evolution — AI Image Generation
 **Created**: 2026-03-25
-**Last Updated**: 2026-09-24 (prompt enhancement, [ADR-315](../architecture/ADR-315-Image-Prompt-Enhancement.md); sharing with a connection, [ADR-316](../architecture/ADR-316-Sharing-A-Generated-Image-With-A-Connection.md))
+**Last Updated**: 2026-09-25 (keeping a generated image past its deadline, [ADR-319](../architecture/ADR-319-A-Generated-File-Can-Be-Kept.md); prompt enhancement, [ADR-315](../architecture/ADR-315-Image-Prompt-Enhancement.md); sharing with a connection, [ADR-316](../architecture/ADR-316-Sharing-A-Generated-Image-With-A-Connection.md))
 **Status**: Implemented
 
 > **ADR-305**: an image model declares its offer through its **family**, and one
@@ -214,8 +214,9 @@ edit_image (source_attachment_id optional)
 ## Expiry surfaced to the client (N2)
 
 A generated image is an `Attachment` with `expires_at = now + attachments_ttl_hours`,
-and the cleanup scheduler deletes expired attachments every 6 hours —
-`list_expired` does not spare non-orphans, so a generated image really is purged.
+and the cleanup scheduler deletes expired attachments periodically — a generated
+image really is purged, unless the person KEPT it from the gallery (ADR-319: a
+kept file has no deadline, `expires_at IS NULL`, which the sweep never matches).
 Until N2 the frontend was never told: the image simply vanished from the history.
 
 `PendingImage` now carries `expires_at` (ISO-8601 string, `None` when unknown),
@@ -243,8 +244,14 @@ Two consequences the chat card does not show:
   « My generated files », whose image gallery reads
   `GET /generated-assets?family=images`.
 
-The TTL still applies: the expiry is written on each card, and the gallery makes
-it visible rather than pushing it back.
+The TTL still applies to every image the person did not keep: the expiry is
+written on each card. Keeping an image from the gallery removes its deadline
+within two per-account ceilings, and the history read path restates every card
+from the file's row — a kept image says it is kept, a deleted or swept one says it
+is gone rather than showing its old deadline (ADR-319,
+[`card_lifetimes.py`](../../apps/api/src/domains/attachments/card_lifetimes.py)).
+A kept image stays shareable with a connection; the recipient's copy gets its own
+fresh deadline (ADR-316).
 
 ## Prompt enhancement (ADR-315)
 

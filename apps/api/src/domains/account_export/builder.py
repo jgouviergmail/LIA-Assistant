@@ -25,7 +25,9 @@ import structlog
 from sqlalchemy import or_, select
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.i18n import normalize_language, resolve_language
+from src.core.i18n_account_export import render_export_heading, render_export_speaker
+from src.core.i18n_drafts import label_separator
 from src.core.security.utils import decrypt_data
 from src.domains.users.models import User
 from src.domains.users.user_data_map import (
@@ -53,6 +55,9 @@ _OWNER_COLUMN_OVERRIDES: dict[str, str] = {
     # incoming shares are the OTHER user's choices, not the requester's data.
     "peer_blocks": "blocker_id",
     "peer_domain_shares": "owner_user_id",
+    # The personal radio (ADR-324): the sites a listener added. The catalogue's
+    # rows share the table with no owner, so they never match.
+    "radio_feeds": "owner_id",
 }
 
 # Columns stripped from exported rows even on FULL tables: secrets, key
@@ -206,19 +211,23 @@ async def _fetch_user_profile(user_id: UUID) -> dict[str, Any]:
 
 
 def _render_conversations(rows: list[dict[str, Any]], language: str) -> str:
-    """The conversation, as it was read."""
-    lines = ["# Conversations\n"]
+    """The conversation, as it was read — each message opens on who spoke."""
+    lines = [f"# {render_export_heading('conversations', language)}\n"]
     for row in rows:
-        role = row.get("role", "?")
+        role = render_export_speaker(str(row.get("role", "?")), language)
         content = row.get("content") or ""
         stamp = row.get("created_at", "")
-        lines.append(f"**{role}** ({stamp}):\n\n{content}\n\n---\n")
+        # The reader's punctuation joins the speaker to the words (ADR-323).
+        # The separator ends the line: its trailing space would be the line's last
+        # character (the HITL headers strip it the same way).
+        head = f"**{role}** ({stamp}){label_separator(language).rstrip()}"
+        lines.append(f"{head}\n\n{content}\n\n---\n")
     return "\n".join(lines)
 
 
 def _render_journal(rows: list[dict[str, Any]], language: str) -> str:
     """The personal journal, newest entries as written."""
-    lines = ["# Journal\n"]
+    lines = [f"# {render_export_heading('journals', language)}\n"]
     for row in rows:
         lines.append(f"## {row.get('created_at', '')}\n\n{row.get('content', '')}\n")
     return "\n".join(lines)
@@ -226,7 +235,7 @@ def _render_journal(rows: list[dict[str, Any]], language: str) -> str:
 
 def _render_memories(rows: list[dict[str, Any]], language: str) -> str:
     """What LIA remembers, one line each."""
-    lines = ["# Memories\n"]
+    lines = [f"# {render_export_heading('memories', language)}\n"]
     for row in rows:
         lines.append(f"- {row.get('content', '')}\n")
     return "\n".join(lines)
@@ -369,22 +378,22 @@ _MARKDOWN_RENDERERS: dict[str, Callable[[list[dict[str, Any]], str], str]] = {
 
 
 def _render_markdown(
-    table_name: str, rows: list[dict[str, Any]], language: str = DEFAULT_LANGUAGE
+    table_name: str, rows: list[dict[str, Any]], language: str | None = None
 ) -> str | None:
     """Human-readable rendering for the narrative domains (spec: dual format).
 
     Args:
         table_name: The exported table.
         rows: Its rows, already decrypted and redacted.
-        language: The reader's language — only the two registers vary with it
-            (their wording is ours); the other domains export the user's own
-            words unchanged.
+        language: The reader's language — every heading, speaker and
+            register line is ours and follows it; the person's own words
+            (messages, journal entries, memories) are exported unchanged.
 
     Returns:
         The markdown, or None for a table with no readable form.
     """
     renderer = _MARKDOWN_RENDERERS.get(table_name)
-    return renderer(rows, language) if renderer else None
+    return renderer(rows, resolve_language(language)) if renderer else None
 
 
 def _copy_user_files(archive: zipfile.ZipFile, user_id: UUID) -> None:
@@ -423,7 +432,7 @@ def _write_archive(
                 json.dumps(rows, indent=2, ensure_ascii=False, default=_json_default),
             )
             markdown = _render_markdown(
-                table_name, rows, str(profile.get("language") or DEFAULT_LANGUAGE)
+                table_name, rows, normalize_language(profile.get("language"))
             )
             if markdown is not None:
                 archive.writestr(f"readable/{table_name}.md", markdown)

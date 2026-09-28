@@ -95,6 +95,7 @@ async def _broadcast(
         message=message,
         sent_by=admin.id,
         recipient_ids=recipients,
+        source_language="en",
     )
     broadcast.created_at = datetime.now(UTC) - timedelta(minutes=age_minutes)
     await db.commit()
@@ -296,8 +297,12 @@ class TestBackfillFromTheAuditLog:
     """The migration restores the audience of broadcasts sent before it existed."""
 
     async def _legacy(self, db: AsyncSession, admin: User, message: str) -> AdminBroadcast:
-        """A broadcast as the previous code wrote it: no audience, no recipients."""
-        broadcast = AdminBroadcast(message=message, sent_by=admin.id)
+        """A broadcast as the previous code wrote it: no audience, no recipients.
+
+        Its source language is the one ADR-323's backfill labels every older row
+        with — the schema this suite builds already requires the column.
+        """
+        broadcast = AdminBroadcast(message=message, sent_by=admin.id, source_language="fr")
         db.add(broadcast)
         await db.flush()
         return broadcast

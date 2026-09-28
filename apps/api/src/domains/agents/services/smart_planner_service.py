@@ -539,8 +539,8 @@ class SmartPlannerService:
         with dependencies and data flow between domains.
 
         Examples:
-        - "envoie un email au participant de ce rdv" → calendar + emails
-        - "recherche le restaurant de ce rendez-vous" → calendar + places
+        - "e-mail the participant of this meeting" → calendar + emails
+        - "find the restaurant of this appointment" → calendar + places
         """
         logger.info(
             "smart_planner_multi_domain",
@@ -1140,17 +1140,13 @@ class SmartPlannerService:
         reading it from instance state on this singleton leaked one user's
         journal into another user's prompt under concurrency (N-47).
         """
-        from src.core.config import get_settings
         from src.domains.agents.services.plan_pattern_learner import (
             get_learned_patterns_prompt,
         )
 
-        _settings = get_settings()
-
-        # Extract user preferences from config
-        config.get("configurable", {})
+        # The person's preferences, from the typed runtime context (ADR-231)
         user_timezone = runtime_timezone()
-        user_language = runtime_language(_settings.default_language)
+        user_language = runtime_language()
 
         # Semantic deps injection:
         # - Multi-domain: always (cross-domain chains need type info)
@@ -1170,7 +1166,7 @@ class SmartPlannerService:
         # FIX 2026-03-23: Always use original_query (user's language) for content extraction.
         # english_enriched_query contains translated content (e.g., "merci" → "Thank you")
         # which causes the planner to extract English body/subject instead of the original.
-        # Resolved references (e.g., "ma femme" → "Marie Dupond") are passed separately in context.
+        # Resolved references (e.g., "my wife" → "Marie Dupond") are passed separately in context.
         resolved_query = intelligence.original_query
 
         # Build context with optional clarification response (DRY helper)
@@ -1698,7 +1694,7 @@ class SmartPlannerService:
                 "tokens_estimate": self.catalogue_service.get_metrics().tokens_saved,
                 # FOR_EACH HITL: Propagate cardinality from query analysis for accurate count
                 # This is the expected iteration count extracted from user query
-                # (e.g., "mes 2 prochains rdv" → cardinality_magnitude=2)
+                # (e.g., "my next 2 meetings" → cardinality_magnitude=2)
                 "cardinality_magnitude": intelligence.cardinality_magnitude,
                 "for_each_detected": intelligence.for_each_detected,
             },

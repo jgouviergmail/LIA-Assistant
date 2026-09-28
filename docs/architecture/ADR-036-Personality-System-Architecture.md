@@ -1,6 +1,10 @@
 # ADR-036: Personality System Architecture
 
-**Status**: ✅ IMPLEMENTED (2025-12-21)
+**Status**: ✅ IMPLEMENTED (2025-12-21) — a translation now falls back from the
+requested language to the instance's default, then to the first one written,
+never through a language of the code's choosing; the `DEFAULT_PERSONALITY_PROMPT`
+constant the samples below read is now `default_personality_prompt()`, which
+reads the versioned prompt file instead of an inline copy ([ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md))
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Customizable LLM personality per user
 **Related Documentation**: `docs/technical/PERSONALITIES.md`

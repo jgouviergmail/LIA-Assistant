@@ -11,12 +11,17 @@ This test suite covers:
 - Translation management
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
-from src.domains.personalities.constants import DEFAULT_PERSONALITY_PROMPT
+from src.core.config import settings
+from src.core.exceptions import UnprocessableEntityError
+from src.core.i18n import language_scope
+from src.core.i18n_api_messages import APIMessages
+from src.domains.personalities.constants import default_personality_prompt
 from src.domains.personalities.models import Personality, PersonalityTranslation
 from src.domains.personalities.schemas import (
     PersonalityListItem,
@@ -267,7 +272,7 @@ class TestGetPromptInstruction:
 
         result = await service.get_prompt_instruction(None)
 
-        assert result == DEFAULT_PERSONALITY_PROMPT
+        assert result == default_personality_prompt()
 
 
 # ============================================================================
@@ -433,24 +438,32 @@ class TestPersonalityGetTranslation:
         assert trans.language_code == "fr"
         assert trans.title == "Enthousiaste"
 
-    def test_get_translation_fallback_to_french(self, sample_personality):
-        """Test fallback to French when language not found."""
-        trans = sample_personality.get_translation("de")
+    def test_get_translation_falls_back_to_the_instance_default(self, sample_personality):
+        """A missing language falls back to the instance's default — pinned to
+        Spanish here, so neither a French nor an English fallback can pass."""
+        spanish = PersonalityTranslation(
+            id=uuid4(),
+            personality_id=sample_personality.id,
+            language_code="es",
+            title="Entusiasta",
+            description="Un asistente lleno de energía",
+            is_auto_translated=False,
+        )
+        sample_personality.translations = [*sample_personality.translations, spanish]
 
-        assert trans is not None
-        assert trans.language_code == "fr"
+        with patch.object(settings, "default_language", "es"):
+            trans = sample_personality.get_translation("de")
+
+        assert trans is spanish
 
     def test_get_translation_fallback_to_first(self, sample_personality):
-        """Test fallback to first translation when French not available."""
-        # Remove French translation
-        sample_personality.translations = [
-            t for t in sample_personality.translations if t.language_code != "fr"
-        ]
+        """Neither the asked language nor the instance's: the first written wins,
+        never a language the code prefers."""
+        with patch.object(settings, "default_language", "it"):
+            trans = sample_personality.get_translation("de")
 
-        trans = sample_personality.get_translation("de")
-
-        assert trans is not None
-        assert trans.language_code == "en"
+        assert trans is sample_personality.translations[0]
+        assert trans.language_code == "fr"
 
     def test_get_translation_empty_list(self, sample_personality):
         """Test empty translations list returns None."""
@@ -459,3 +472,376 @@ class TestPersonalityGetTranslation:
         trans = sample_personality.get_translation("fr")
 
         assert trans is None
+
+
+# ============================================================================
+# Auto-translation source (ADR-323)
+# ============================================================================
+
+
+class TestAutoTranslationSource:
+    """Without a source language, the admin button starts from the text an
+    administrator WROTE — never from a machine translation, and not blindly from
+    one language: the button used to require the instance default's text, and a
+    personality without it answered a 500."""
+
+    @staticmethod
+    def _personality(*translations: tuple[str, bool]) -> Personality:
+        personality = Personality(
+            id=uuid4(),
+            code="calm",
+            emoji="🙂",
+            is_default=False,
+            is_active=True,
+            sort_order=1,
+            prompt_instruction="Be calm.",
+        )
+        written = datetime(2026, 1, 1, tzinfo=UTC)
+        personality.translations = [
+            PersonalityTranslation(
+                id=uuid4(),
+                personality_id=personality.id,
+                language_code=code,
+                title=f"title-{code}",
+                description=f"description-{code}",
+                is_auto_translated=auto,
+                created_at=written + timedelta(minutes=index),
+            )
+            for index, (code, auto) in enumerate(translations)
+        ]
+        return personality
+
+    @staticmethod
+    async def _source_of(
+        service: PersonalityService, personality: Personality, requested: str | None
+    ) -> str:
+        translate = AsyncMock(return_value=4)
+        with (
+            patch.object(service, "get_by_id", AsyncMock(return_value=personality)),
+            patch.object(service, "_auto_translate_missing", translate),
+        ):
+            await service.trigger_auto_translation(personality.id, requested)
+
+        assert translate.await_args is not None
+        source: str = translate.await_args.args[3]
+        return source
+
+    async def test_an_admin_whose_language_was_never_filled_starts_from_the_original(self, service):
+        personality = self._personality(("fr", False))
+        with language_scope("de"):
+            assert await self._source_of(service, personality, None) == "fr"
+
+    async def test_a_machine_translation_in_the_admin_s_language_is_not_the_source(self, service):
+        personality = self._personality(("fr", False), ("en", True))
+        with language_scope("en"):
+            assert await self._source_of(service, personality, None) == "fr"
+
+    async def test_the_admin_s_own_written_text_wins_among_the_written(self, service):
+        personality = self._personality(("fr", False), ("de", False))
+        with language_scope("de"):
+            assert await self._source_of(service, personality, None) == "de"
+
+    async def test_an_explicit_source_is_honoured_in_any_spelling(self, service):
+        personality = self._personality(("fr", False), ("zh-CN", False))
+        assert await self._source_of(service, personality, "zh") == "zh-CN"
+
+    async def test_an_explicit_machine_translation_is_no_source(self, service):
+        """Named explicitly, a machine translation is still not translated again."""
+        personality = self._personality(("fr", False), ("zh-CN", True))
+
+        with (
+            patch.object(service, "get_by_id", AsyncMock(return_value=personality)),
+            language_scope("en"),
+            pytest.raises(UnprocessableEntityError) as refused,
+        ):
+            await service.trigger_auto_translation(personality.id, "zh")
+
+        assert refused.value.detail == APIMessages.personality_translation_source_missing(
+            "zh", "en"
+        )
+
+    async def test_the_source_used_is_reported(self, service):
+        personality = self._personality(("fr", False), ("zh-CN", False))
+        with (
+            patch.object(service, "get_by_id", AsyncMock(return_value=personality)),
+            patch.object(service, "_auto_translate_missing", AsyncMock(return_value=4)),
+        ):
+            assert await service.trigger_auto_translation(personality.id, "zh") == (4, "zh-CN")
+
+    async def test_only_machine_translations_are_no_source(self, service):
+        """A machine translation is never translated again (ADR-323)."""
+        personality = self._personality(("fr", True), ("en", True))
+
+        with (
+            patch.object(service, "get_by_id", AsyncMock(return_value=personality)),
+            language_scope("en"),
+            pytest.raises(UnprocessableEntityError) as refused,
+        ):
+            await service.trigger_auto_translation(personality.id, None)
+
+        assert refused.value.detail == APIMessages.personality_translation_source_missing(
+            None, "en"
+        )
+
+    async def test_the_route_reports_the_source_it_used(self):
+        from src.domains.personalities import router as personalities_router
+
+        service = MagicMock()
+        service.trigger_auto_translation = AsyncMock(return_value=(4, "fr"))
+        with patch.object(personalities_router, "PersonalityService", return_value=service):
+            body = await personalities_router.trigger_auto_translation(
+                personality_id=uuid4(), source_language=None, user=MagicMock(), db=MagicMock()
+            )
+
+        assert body == {"translations_created": 4, "source_language": "fr"}
+
+    @pytest.mark.parametrize("requested", ["it", "pt"])
+    async def test_a_source_the_personality_lacks_is_refused_as_unprocessable(
+        self, service, requested
+    ):
+        personality = self._personality(("fr", False))
+
+        with (
+            patch.object(service, "get_by_id", AsyncMock(return_value=personality)),
+            pytest.raises(UnprocessableEntityError),
+        ):
+            await service.trigger_auto_translation(personality.id, requested)
+
+
+# ============================================================================
+# No transaction open across a model call (ADR-304)
+# ============================================================================
+
+_TRANSLATE = (
+    "src.domains.personalities.translation_service."
+    "PersonalityTranslationService.translate_personality"
+)
+
+
+class _UniqueViolation(Exception):
+    """What asyncpg raises on a unique violation: its SQLSTATE and constraint."""
+
+    sqlstate = "23505"
+
+    def __init__(self, constraint_name: str) -> None:
+        super().__init__("duplicate key value violates unique constraint")
+        self.constraint_name = constraint_name
+
+
+def _recording_db(steps: list[str]) -> AsyncMock:
+    """A session that records what reaches the database, in order."""
+    db = AsyncMock()
+    db.execute = AsyncMock(side_effect=lambda *_a, **_k: steps.append("sql"))
+    db.flush = AsyncMock(side_effect=lambda *_a, **_k: steps.append("flush"))
+    db.commit = AsyncMock(side_effect=lambda: steps.append("commit"))
+    db.refresh = AsyncMock()
+    db.add = MagicMock(side_effect=lambda *_a: steps.append("add"))
+    return db
+
+
+def _model(steps: list[str]):
+    async def _translate(**kwargs):
+        steps.append("model")
+        return {"title": "t", "description": "d"}
+
+    return _translate
+
+
+@pytest.mark.unit
+class TestNoTransactionAcrossAModelCall:
+    """The model answers while no transaction is open: every read is committed
+    before the first call, and nothing is written until the last one returned."""
+
+    @staticmethod
+    def _assert_models_run_outside_a_transaction(steps: list[str]) -> None:
+        models = [index for index, step in enumerate(steps) if step == "model"]
+        assert models, steps
+        before = steps[: models[0]]
+        # The last statement before the first model call is a commit…
+        assert before[-1] == "commit", steps
+        # …and nothing reaches the database between two model calls.
+        assert set(steps[models[0] : models[-1] + 1]) == {"model"}, steps
+
+    async def test_creating_a_personality(self) -> None:
+        from src.domains.personalities.schemas import PersonalityCreate
+
+        steps: list[str] = []
+        service = PersonalityService(_recording_db(steps))
+        data = PersonalityCreate(
+            code="calm",
+            emoji="🙂",
+            is_default=True,
+            prompt_instruction="Be calm and kind.",
+            title="Calme",
+            description="Un assistant calme",
+            source_language="fr",
+        )
+
+        with (
+            patch.object(
+                service, "get_by_code", AsyncMock(side_effect=lambda _c: steps.append("sql"))
+            ),
+            patch(_TRANSLATE, new=AsyncMock(side_effect=_model(steps))),
+        ):
+            await service.create(data)
+
+        self._assert_models_run_outside_a_transaction(steps)
+        # The row — and the default it takes over — is written after the model.
+        assert steps.index("add") > max(i for i, s in enumerate(steps) if s == "model")
+        assert steps[-2:] == ["flush", "commit"]
+
+    async def test_a_code_taken_while_the_model_translated_is_a_conflict(self) -> None:
+        """The uniqueness read no longer spans the model calls: the unique
+        index decides, and its refusal is a 409 — never a 500."""
+        from sqlalchemy.exc import IntegrityError
+
+        from src.core.exceptions import ResourceConflictError
+        from src.domains.personalities.schemas import PersonalityCreate
+
+        steps: list[str] = []
+        db = _recording_db(steps)
+        db.flush = AsyncMock(
+            side_effect=IntegrityError("INSERT", {}, _UniqueViolation("ix_personalities_code"))
+        )
+        db.rollback = AsyncMock(side_effect=lambda: steps.append("rollback"))
+        service = PersonalityService(db)
+        data = PersonalityCreate(
+            code="calm",
+            emoji="🙂",
+            is_default=True,
+            prompt_instruction="Be calm and kind.",
+            title="Calme",
+            description="Un assistant calme",
+            source_language="fr",
+        )
+
+        with (
+            patch.object(service, "get_by_code", AsyncMock(return_value=None)),
+            patch(_TRANSLATE, new=AsyncMock(side_effect=_model(steps))),
+            pytest.raises(ResourceConflictError) as refused,
+        ):
+            await service.create(data)
+
+        assert refused.value.status_code == 409
+        # The default the new row would have taken over is given back: nothing
+        # was committed after the last model call, and the rollback came last.
+        assert steps[-1] == "rollback"
+        last_model = max(i for i, step in enumerate(steps) if step == "model")
+        assert "commit" not in steps[last_model:]
+
+    async def test_another_constraint_is_not_a_code_conflict(self) -> None:
+        """Only the code's own index means « taken »; anything else stays an error."""
+        from sqlalchemy.exc import IntegrityError
+
+        from src.domains.personalities.schemas import PersonalityCreate
+
+        steps: list[str] = []
+        db = _recording_db(steps)
+        db.flush = AsyncMock(
+            side_effect=IntegrityError(
+                "INSERT", {}, _UniqueViolation("uq_personality_translation_lang")
+            )
+        )
+        db.rollback = AsyncMock(side_effect=lambda: steps.append("rollback"))
+        service = PersonalityService(db)
+        data = PersonalityCreate(
+            code="calm",
+            emoji="🙂",
+            prompt_instruction="Be calm and kind.",
+            title="Calme",
+            description="Un assistant calme",
+            source_language="fr",
+        )
+
+        with (
+            patch.object(service, "get_by_code", AsyncMock(return_value=None)),
+            patch(_TRANSLATE, new=AsyncMock(side_effect=_model(steps))),
+            pytest.raises(IntegrityError),
+        ):
+            await service.create(data)
+
+        assert steps[-1] == "rollback"
+
+    async def test_translating_a_personality_on_demand(self) -> None:
+        steps: list[str] = []
+        service = PersonalityService(_recording_db(steps))
+        personality = TestAutoTranslationSource._personality(("fr", False))
+
+        async def _read(_id):
+            steps.append("sql")
+            return personality
+
+        with (
+            patch.object(service, "get_by_id", AsyncMock(side_effect=_read)),
+            patch(_TRANSLATE, new=AsyncMock(side_effect=_model(steps))),
+        ):
+            await service.trigger_auto_translation(personality.id, None)
+
+        self._assert_models_run_outside_a_transaction(steps)
+        assert steps[-1] == "commit"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("constraint", "refusal"),
+    [("ix_personalities_code", "conflict"), ("uq_personality_translation_lang", "error")],
+)
+async def test_a_rename_racing_on_the_code_is_a_conflict_on_another_constraint_an_error(
+    constraint: str, refusal: str
+) -> None:
+    """The uniqueness read runs before the write: a concurrent rename to the
+    same code used to answer a 500 — the fix only covered a create."""
+    from sqlalchemy.exc import IntegrityError
+
+    from src.core.exceptions import ResourceConflictError
+    from src.domains.personalities.schemas import PersonalityUpdate
+
+    steps: list[str] = []
+    db = _recording_db(steps)
+    db.commit = AsyncMock(side_effect=IntegrityError("UPDATE", {}, _UniqueViolation(constraint)))
+    db.rollback = AsyncMock(side_effect=lambda: steps.append("rollback"))
+    service = PersonalityService(db)
+    current = MagicMock(code="calm", is_default=False)
+    expected = ResourceConflictError if refusal == "conflict" else IntegrityError
+
+    with (
+        patch.object(service, "get_by_id", AsyncMock(return_value=current)),
+        patch.object(service, "get_by_code", AsyncMock(return_value=None)),
+        pytest.raises(expected),
+    ):
+        await service.update(uuid4(), PersonalityUpdate(code="serene"))
+
+    assert steps[-1] == "rollback"
+
+
+@pytest.mark.unit
+def test_one_language_twice_is_refused_before_anything_runs() -> None:
+    """Two translations in one language are refused by the schema, before any
+    model call or write — the unique constraint would refuse them after both."""
+    from pydantic import ValidationError
+
+    from src.domains.personalities.schemas import PersonalityCreate
+
+    with pytest.raises(ValidationError):
+        PersonalityCreate(
+            code="calm",
+            emoji="🙂",
+            prompt_instruction="Be calm and kind.",
+            translations=[
+                PersonalityTranslationCreate(language_code="fr", title="A", description="B"),
+                PersonalityTranslationCreate(language_code="fr", title="C", description="D"),
+            ],
+        )
+
+
+@pytest.mark.unit
+def test_the_translations_come_back_in_the_order_they_were_written() -> None:
+    """``get_translation``'s last fallback is the first written: the collection is
+    ordered by creation, an administrator's text first among rows written together."""
+    order = [str(column) for column in Personality.translations.property.order_by]
+
+    assert order == [
+        "personality_translations.created_at",
+        "personality_translations.is_auto_translated",
+        "personality_translations.language_code",
+    ]

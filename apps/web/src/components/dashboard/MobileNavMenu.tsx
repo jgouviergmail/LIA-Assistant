@@ -22,10 +22,12 @@
  * at one width and a button at another cannot state its role to assistive
  * technology, and would hydrate differently from what the server rendered.
  *
- * ADR-259: the menu may carry ONE action after the destinations — on a phone
- * the header has no width for a seventh control (measured: 26 px over at
+ * ADR-259: the menu carries the header's ACTIONS after the destinations — on a
+ * phone the header has no width for another control (measured: 26 px over at
  * 390 px), so « Record a meeting » / « Stop the recording » lives here, and the
- * trigger itself pulses red while a recording is live (`live`).
+ * trigger itself pulses red while a recording is live (`live`). ADR-324 added
+ * the radio's « Start / Stop the radio » beside it: the actions are a list, in
+ * the order the header shows its controls.
  */
 
 import Link from 'next/link';
@@ -76,8 +78,8 @@ export interface MobileNavMenuProps {
    * Absent, a destination is linked plainly.
    */
   linkTo?: (destination: DashboardDestination) => string;
-  /** An action rendered after the destinations, behind a separator. */
-  action?: MobileNavAction;
+  /** The actions rendered after the destinations, behind one separator, in order. */
+  actions?: readonly MobileNavAction[];
   /**
    * A live state the trigger must show: red, pulsing, and NAMED after the
    * state (`label` replaces `triggerLabel`) so a screen reader hears it too.
@@ -92,10 +94,9 @@ export function MobileNavMenu({
   triggerLabel,
   destinations = DASHBOARD_DESTINATIONS,
   linkTo,
-  action,
+  actions = [],
   live,
 }: MobileNavMenuProps) {
-  const ActionIcon = action?.icon;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -125,26 +126,28 @@ export function MobileNavMenu({
         {destinations.map(destination => {
           const { segment, labelKey } = destination;
           return (
-          <DropdownMenuItem key={segment || 'home'} asChild>
-            <Link
-              href={buildHref(linkTo ? linkTo(destination) : destinationPath(segment))}
-              // `aria-current` states the active page; the tint alone would
-              // convey it to sighted users only.
-              aria-current={isActiveRoute(segment) ? 'page' : undefined}
-              className={cn(
-                'w-full cursor-pointer',
-                isActiveRoute(segment) && 'bg-primary/15 font-medium text-primary'
-              )}
-            >
-              {translate(labelKey)}
-            </Link>
-          </DropdownMenuItem>
+            <DropdownMenuItem key={segment || 'home'} asChild>
+              <Link
+                href={buildHref(linkTo ? linkTo(destination) : destinationPath(segment))}
+                // `aria-current` states the active page; the tint alone would
+                // convey it to sighted users only.
+                aria-current={isActiveRoute(segment) ? 'page' : undefined}
+                className={cn(
+                  'w-full cursor-pointer',
+                  isActiveRoute(segment) && 'bg-primary/15 font-medium text-primary'
+                )}
+              >
+                {translate(labelKey)}
+              </Link>
+            </DropdownMenuItem>
           );
         })}
-        {action && ActionIcon && (
-          <>
-            <DropdownMenuSeparator />
+        {actions.length > 0 && <DropdownMenuSeparator />}
+        {actions.map(action => {
+          const ActionIcon = action.icon;
+          return (
             <DropdownMenuItem
+              key={action.label}
               disabled={action.disabled}
               onSelect={action.onSelect}
               className={cn(
@@ -155,8 +158,8 @@ export function MobileNavMenu({
               <ActionIcon className="mr-2 h-4 w-4" aria-hidden="true" />
               {action.label}
             </DropdownMenuItem>
-          </>
-        )}
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

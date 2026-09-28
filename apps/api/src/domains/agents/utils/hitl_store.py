@@ -9,11 +9,11 @@ data, with proper timestamp tracking and schema evolution support.
 """
 
 import json
+from collections.abc import Awaitable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol
 
-import redis.asyncio as aioredis
-
+from src.core.field_names import FIELD_ACTION_REQUESTS, FIELD_INTERRUPT_DATA
 from src.domains.agents.utils.hitl_cache import invalidate as invalidate_detection_cache
 from src.infrastructure.observability.logging import get_logger
 
@@ -21,6 +21,32 @@ logger = get_logger(__name__)
 
 # Current schema version for HITL interrupt data
 SCHEMA_VERSION = 1
+
+
+class HitlStoreClient(Protocol):
+    """The four commands the store sends to its database.
+
+    The engine hands it the CACHE client (``get_redis_cache``); a test hands
+    it one keyspace of an in-memory server (``tests/helpers/redis_databases``),
+    which pins every door to the database the engine writes — the channel
+    doors read another one until review 12 of the ADR-323 lot.
+    """
+
+    def get(self, name: str, /) -> Awaitable[bytes | str | None]:
+        """The value at ``name``, or None."""
+        ...
+
+    def set(self, name: str, value: str, /, *, ex: int) -> Awaitable[bool | str | bytes | None]:
+        """Store ``value`` at ``name`` for ``ex`` seconds."""
+        ...
+
+    def delete(self, *names: str) -> Awaitable[int]:
+        """Remove the keys; the number removed."""
+        ...
+
+    def exists(self, *names: str) -> Awaitable[int]:
+        """How many of the keys exist."""
+        ...
 
 
 class HITLStore:
@@ -34,15 +60,17 @@ class HITLStore:
         >>> store = HITLStore(redis_client, ttl_seconds=3600)
         >>> await store.save_interrupt(thread_id, {"action": "edit_contacts", ...})
         >>> data = await store.get_interrupt(thread_id)
+        >>> pending = await store.get_pending(thread_id)  # what the doors read
         >>> await store.delete_interrupt(thread_id)
     """
 
-    def __init__(self, redis_client: aioredis.Redis, ttl_seconds: int) -> None:
+    def __init__(self, redis_client: HitlStoreClient, ttl_seconds: int) -> None:
         """
         Initialize HITLStore.
 
         Args:
-            redis_client: Redis async client instance.
+            redis_client: The database the pending questions live in — the
+                engine's cache client.
             ttl_seconds: TTL for interrupt data (recommended: 3600s).
         """
         self.redis = redis_client
@@ -138,6 +166,31 @@ class HITLStore:
 
         return data
 
+    async def get_pending(self, thread_id: str) -> dict[str, Any] | None:
+        """The pending question, flattened as every door that resumes it reads it.
+
+        The payload the streaming service saved — its ``action_requests``, the
+        ``run_id`` the question was asked on — with the envelope's
+        ``interrupt_ts``. The chat router, the voice delegation and the external
+        channels all resume on this ONE shape: the channels read the envelope
+        and looked for an ``original_run_id`` key no writer writes, so every
+        answer given there resumed under a fresh run (review 12 of the ADR-323
+        lot).
+
+        Args:
+            thread_id: Thread ID (conversation_id).
+
+        Returns:
+            The flattened payload, or None when nothing is pending.
+        """
+        versioned = await self.get_interrupt(thread_id)
+        if not versioned:
+            return None
+        return {
+            **versioned.get(FIELD_INTERRUPT_DATA, {}),
+            "interrupt_ts": versioned.get("interrupt_ts"),
+        }
+
     async def delete_interrupt(self, thread_id: str) -> None:
         """
         Delete HITL interrupt data.
@@ -203,8 +256,6 @@ class HITLStore:
             >>> if was_cleared:
             ...     logger.info("Stale HITL state cleaned up")
         """
-        from src.core.field_names import FIELD_ACTION_REQUESTS, FIELD_INTERRUPT_DATA
-
         pending_data = await self.get_interrupt(thread_id)
 
         if not pending_data:

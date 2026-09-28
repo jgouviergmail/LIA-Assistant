@@ -355,7 +355,6 @@ class TestDraftCritiqueContextModel:
         assert context.draft_type == "email"
         assert context.draft_id == "draft_123"
         assert context.draft_content == {}
-        assert context.draft_summary is None
 
     def test_create_with_all_fields(self):
         """Test creating context with all fields."""
@@ -363,11 +362,9 @@ class TestDraftCritiqueContextModel:
             draft_type="event",
             draft_id="event_456",
             draft_content={"title": "Meeting", "date": "2026-02-03"},
-            draft_summary="Meeting scheduled for tomorrow",
         )
         assert context.draft_type == "event"
         assert context.draft_content["title"] == "Meeting"
-        assert context.draft_summary == "Meeting scheduled for tomorrow"
 
     def test_email_draft_type(self):
         """Test email draft type."""

@@ -43,6 +43,7 @@ from src.infrastructure.observability.logging import get_logger
 
 from ..protocols import HitlInteractionType
 from ..registry import HitlInteractionRegistry
+from .text_tokens import text_tokens
 
 if TYPE_CHECKING:
     from ..question_generator import HitlQuestionGenerator
@@ -172,22 +173,17 @@ class EntityDisambiguationInteraction:
         start_time = time.time()
         token_count = 0
 
-        # Stream line-by-line then word-by-word (preserves markdown newlines)
-        for line in full_question.split("\n"):
-            if line:
-                for word in line.split():
-                    if token_count == 0:
-                        ttft = time.time() - start_time
-                        hitl_question_ttft_seconds.labels(type="entity_disambiguation").observe(
-                            ttft
-                        )
-                        logger.debug(
-                            "disambiguation_question_first_token",
-                            ttft_seconds=ttft,
-                        )
-                    token_count += 1
-                    yield word + " "
-            yield "\n"
+        # Stream token by token, its lines and no-break spaces kept
+        for token in text_tokens(full_question):
+            if token_count == 0:
+                ttft = time.time() - start_time
+                hitl_question_ttft_seconds.labels(type="entity_disambiguation").observe(ttft)
+                logger.debug(
+                    "disambiguation_question_first_token",
+                    ttft_seconds=ttft,
+                )
+            token_count += 1
+            yield token
 
         # Track completion metrics
         total_duration = time.time() - start_time

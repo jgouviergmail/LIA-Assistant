@@ -41,6 +41,7 @@ from src.core.constants import (
     GMAIL_INBOX_ONLY_KEYWORDS,
     GMAIL_TRASH_KEYWORDS,
 )
+from src.core.i18n import get_locale_for_language, resolve_language
 from src.core.i18n_api_messages import APIMessages, SupportedLanguage
 from src.core.validators import validate_email
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
@@ -108,7 +109,7 @@ def _extract_email_from_address(address: str) -> str:
 def _validate_email_addresses(
     addresses: str,
     field_name: str,
-    language: SupportedLanguage = settings.default_language,
+    language: SupportedLanguage | None = None,
 ) -> None:
     """
     Validate comma-separated email addresses.
@@ -130,7 +131,7 @@ def _validate_email_addresses(
             extracted = _extract_email_from_address(email_addr)
             if not validate_email(extracted):
                 raise EmailValidationError(
-                    APIMessages.email_invalid_format(email_addr, language),
+                    APIMessages.email_invalid_format(email_addr, resolve_language(language)),
                     field=field_name,
                 )
 
@@ -286,7 +287,7 @@ def _validate_send_email_inputs(
     body: str | None,
     cc: str | None = None,
     bcc: str | None = None,
-    language: SupportedLanguage = settings.default_language,
+    language: SupportedLanguage | None = None,
 ) -> None:
     """
     Validate send_email inputs (centralized validation).
@@ -302,6 +303,7 @@ def _validate_send_email_inputs(
     Raises:
         EmailValidationError: If validation fails
     """
+    language = resolve_language(language)
     # Required fields
     if not to:
         raise EmailValidationError(
@@ -444,7 +446,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         message_ids: list[str] | None = kwargs.get("message_ids")
         use_cache: bool = kwargs.get("use_cache", True)
         user_timezone: str = kwargs.get("user_timezone", "UTC")
-        locale: str = kwargs.get("locale", "fr-FR")
+        locale: str = kwargs.get("locale", get_locale_for_language(None))
         detail = coerce_detail(kwargs.get("detail"))
         part = validate_positive_int_or_default(kwargs.get("part"), 1)
 
@@ -751,7 +753,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         query = result.get("query")
         from_cache = result.get("from_cache", False)
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
+        locale = result.get("locale", get_locale_for_language(None))
 
         # Use ToolOutputMixin helper (with timezone conversion); the level and
         # the paging travel with the items (ADR-287, ADR-185: an estimate is
@@ -1109,9 +1111,9 @@ async def send_email_tool(
     Returns:
         UnifiedToolOutput with DRAFT registry item and requires_confirmation=True
 
-    Example response summary:
-        "Brouillon créé: Email à jean@example.com: Confirmation RDV [draft_abc123]
-         Action requise: confirmez, modifiez ou annulez."
+    Example response summary (written in the user's language):
+        "📄 **Draft created**: Email to john@example.com …
+         **Action required**: confirm, edit, or cancel."
     """
     content = await resolve_email_content(
         runtime=runtime,

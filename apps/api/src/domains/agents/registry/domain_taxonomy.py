@@ -349,7 +349,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "provider": "wikipedia",
             "requires_oauth": False,
             "requires_api_key": False,  # Wikipedia API is free
-            "default_language": "fr",
         },
     ),
     # Perplexity domain: Real-time web search with AI

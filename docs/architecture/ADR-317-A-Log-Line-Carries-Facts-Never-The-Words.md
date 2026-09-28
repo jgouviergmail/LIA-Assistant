@@ -108,3 +108,43 @@ a developer reproducing a failure needs them.
   recognised layouts; an operator raising `LOG_LEVEL` to DEBUG in production gets the
   words (the policy's own exception); and the lines already stored in Loki keep what
   they carried until the retention expires — this change purges nothing.
+
+## Amendment — 2026-09-25: the history, the other containers, a fact under a content name
+
+Owner request, the day after the decision shipped. Three gaps it left, each measured.
+
+1. **The history.** Two delete requests on the production Loki's compactor
+   (`deletion_mode: filter-and-delete`): every line of the API container written before
+   the corrected image started (2026-09-25T03:42:17Z), and every line of the web
+   container carrying `token=` (point 2). A deleted line leaves the query results as
+   soon as the request is accepted — measured on a control window: the last hour before
+   the fix went from 1,811 lines to 0, the hour after it kept its 2,548, the web lines
+   went from 322 to 0 — and is erased physically after the 24-hour cancel period and the
+   next compaction (the request's status turns `processed`). The deploy had recreated
+   both containers, so Docker's own `json-file` logs of the old ones went with them. The
+   development Loki was not purged; its seven-day retention ages it out. Procedure:
+   `docs/technical/PII_LOGGING_SECURITY.md` § « Purge de l'historique Loki ».
+2. **The other containers.** The filter protects the API's lines only. While the API
+   restarted, Next.js logged « Failed to proxy <url> » with the proxied request's whole
+   query string — the Pub/Sub webhook's `?token=` on 322 lines in a week, and an OAuth
+   callback's `code`/`state` or a search's `q` would have followed the same road.
+   Promtail now masks the SAME query parameters on every line before Loki: credentials
+   and coordinates always, search text above DEBUG (a line with no level counts as
+   above). Two lists in two languages drift, so
+   `test_promtail_query_redaction_guard.py` holds the Promtail names equal to the
+   filter's tuples and runs the expressions against `sanitize_url_query` over a corpus.
+   One divergence is deliberate: Promtail reads the API's lines JSON-escaped, so its
+   value also stops at a backslash — eating the `\` of an escaped quote broke the line's
+   JSON in the first draft, caught before it shipped. The pipeline was run by
+   Promtail 3.2.1 itself (`-dry-run -stdin`) before it was trusted.
+3. **A fact under a content name.** The net withheld EVERYTHING under an exact content
+   name. The semantic type registry's census (`by_category`) read its `location` and
+   `content` counts as `[REDACTED]`, twelve voice-session lines lost the only identifier
+   they carried (`origin=`, the name of a route's start), the push relay its bundle id
+   (`topic=`). A count, a flag or an absence now passes under a content name — except a
+   coordinate name, whose numbers ARE the content (`lng`, Google's spelling, joins
+   them); a float, a text or a container stays withheld. The call sites name their facts
+   (`origin_id=`, `bundle_id=`), and the reverse rule of the guard
+   (`test_no_fact_is_logged_under_a_name_the_filter_withholds`) asks the filter itself
+   whether it would withhold a fact a log call passes. It reads exact names only: a
+   suffix withholds text alone, and whether a value is text is not something an AST says.

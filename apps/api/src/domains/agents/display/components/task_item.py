@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import is_past
 from src.domains.agents.constants import CONTEXT_DOMAIN_TASKS
@@ -279,7 +280,7 @@ class TaskItem(BaseComponent):
             detail_sections.append(
                 f'<div class="lia-task__detail-item">'
                 f"{icon(Icons.REPLY)}"
-                f"<span>{escape_html(subtask_of_label)} : {escape_html(parent_title)}</span>"
+                f"<span>{escape_html(subtask_of_label)}{label_separator(ctx.language)}{escape_html(parent_title)}</span>"
                 f"</div>"
             )
 
@@ -301,7 +302,7 @@ class TaskItem(BaseComponent):
                 detail_sections.append(
                     f'<div class="lia-task__detail-item">'
                     f"{icon(Icons.LINK)}"
-                    f'<span>{escape_html(links_label)} : {", ".join(link_items)}</span>'
+                    f'<span>{escape_html(links_label)}{label_separator(ctx.language)}{", ".join(link_items)}</span>'
                     f"</div>"
                 )
 
@@ -364,7 +365,6 @@ class TaskItem(BaseComponent):
                 trigger_text=V3Messages.get_see_more(ctx.language),
                 content_html=f'<div class="lia-task__extended">{content_html}</div>',
                 initially_open=False,
-                language=ctx.language,
             )
 
         return ""

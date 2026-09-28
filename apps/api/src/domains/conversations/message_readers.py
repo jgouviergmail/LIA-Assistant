@@ -48,6 +48,16 @@ MESSAGE_READERS: Final[dict[str, tuple[ReadScope, str]]] = {
         "session id or a phone call's run id), a key a hidden run never writes: the run "
         "ids of the session's delegated turns and its voice-only rows",
     ),
+    "src.domains.radio.readers.notifications": (
+        ReadScope.VISIBLE_ONLY,
+        "the notifications the person was told, which the radio comes back to (ADR-324) — "
+        "a hidden run row is not something they were told",
+    ),
+    "src.domains.radio.readers.reminders": (
+        ReadScope.VISIBLE_ONLY,
+        "the reminders that rang today, read from the message each one left in the chat "
+        "(ADR-324 decision 41) — a hidden run row is not a reminder the person heard",
+    ),
     "src.domains.conversations.activity_probe": (
         ReadScope.VISIBLE_ONLY,
         "when the person was last active — a run's synthetic question is not them speaking",
@@ -59,10 +69,6 @@ MESSAGE_READERS: Final[dict[str, tuple[ReadScope, str]]] = {
     "src.domains.journals.consolidation_service": (
         ReadScope.VISIBLE_ONLY,
         "the person's rhythm and their exchange — a run's brief is LIA's words, not theirs",
-    ),
-    "src.domains.chat.service": (
-        ReadScope.WHOLE_RECORD,
-        "sums TTS cost per assistant row, and a run synthesises no voice",
     ),
     "src.domains.conversations.response_feedback": (
         ReadScope.WHOLE_RECORD,

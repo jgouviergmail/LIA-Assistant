@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.core import i18n_meeting_templates, i18n_meetings
+from src.core.config import settings
 from src.core.i18n_meetings import (
     get_header_label,
     get_notification_title,
@@ -62,13 +63,14 @@ def test_default_template_is_ordered_localized_and_complete() -> None:
     assert template.sections[0].label == get_section_label("summary", "zh-CN")
 
 
-def test_unknown_or_missing_language_follows_the_configured_default() -> None:
-    # normalize_language is the ONLY fallback authority: an unknown locale and a
-    # missing one both resolve to the deployment's default language.
-    from src.core.i18n import DEFAULT_LANGUAGE
-
-    assert get_section_label("summary", "xx") == get_section_label("summary", DEFAULT_LANGUAGE)
-    assert get_space_name(None) == get_space_name(DEFAULT_LANGUAGE)
+def test_unknown_or_missing_language_follows_the_configured_default(monkeypatch) -> None:
+    # An unknown locale is normalised to the deployment's default language; a
+    # missing one reads the declared language — here, nothing declared, the
+    # same default (ADR-323). Pinned to German, so a French literal cannot pass.
+    monkeypatch.setattr(settings, "default_language", "de")
+    assert get_section_label("summary", "xx") == get_section_label("summary", "de")
+    assert get_section_label("summary", "xx") != get_section_label("summary", "fr")
+    assert get_space_name(None) == get_space_name("de")
     assert get_space_name("en") == "Meetings"
 
 

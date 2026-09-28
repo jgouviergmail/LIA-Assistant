@@ -156,3 +156,33 @@ class TestEnrichmentMetrics:
         heartbeat_enrichment_total.labels(outcome="empty")
         heartbeat_enrichment_total.labels(outcome="error")
         heartbeat_enrichment_total.labels(outcome="disabled")
+
+
+@pytest.mark.unit
+class TestAFailedMessageHandsBackWhatWasSpent:
+    """The decision and the enrichment were paid for before the message failed.
+
+    ``generate_heartbeat_message`` raises on a provider error, and the runner
+    bills a sweep only from the result it gets back: the exception used to take
+    the decision's and the enrichment's tokens with it (ADR-272).
+    """
+
+    async def test_the_failure_carries_the_decision_and_the_enrichment(self) -> None:
+        task = HeartbeatProactiveTask()
+        with (
+            patch(
+                "src.domains.heartbeat.proactive_task.generate_heartbeat_message",
+                new=AsyncMock(side_effect=RuntimeError("provider down")),
+            ),
+            patch.object(
+                task,
+                "_fetch_interest_facts",
+                new=AsyncMock(return_value=("FACTS...", [], 7, 3)),
+            ),
+            patch.object(task, "_get_user_personality", new=AsyncMock(return_value=None)),
+        ):
+            result = await task.generate_content(uuid.uuid4(), _target("Cinéma A24"), "fr")
+
+        assert not result.success
+        assert (result.tokens_in, result.tokens_out) == (10 + 7, 5 + 3)
+        assert result.model_name

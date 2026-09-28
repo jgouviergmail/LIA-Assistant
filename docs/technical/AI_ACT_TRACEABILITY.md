@@ -97,6 +97,20 @@ Three consequences, all closed:
   at all, while the ledger held 5 976 rows from 17 other surfaces over the same
   window.
 
+And the list is the guard (ADR-263 amendment, 2026-09-27). The same join, run
+again three weeks later, found out-of-turn runs the funnel never saw — 47 radio
+sessions, 5 article translations and 84 journal consolidations, each under its
+OWN accounting — a reflection billed twice, and a heartbeat's decision filed
+apart from what it read. Every module that opens an accounting of its own now
+DECLARES who files its run in the decision register, or why that run is no turn
+(`agents/effects/decision_filers.py`); `test_decision_filers_guard` walks the code,
+so a new accounting cannot ship without answering. A one-shot act that two
+parties may close is written once (`record_decision_once`), and a sweep that
+spent then failed is billed and filed `failed`. Two acts the person makes by a
+click with no model in them — sharing a generated image with a connection,
+sending a file or an answer by e-mail — are actions in `agent_effects` (source
+`user`, policy `confirm`), through a seam the register installs at import.
+
 The register's own limit is unchanged and still stated: it records what a
 capability was ASKED to do and what came back, never the words of the request.
 

@@ -18,7 +18,7 @@ from typing import Annotated, Any
 import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.core.config import settings
 from src.core.i18n import _
@@ -36,7 +36,7 @@ from src.domains.agents.data_registry.models import (
     generate_registry_id,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
-from src.domains.connectors.clients.wikipedia_client import WikipediaClient
+from src.domains.connectors.clients.wikipedia_client import WikipediaClient, wikipedia_edition
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
@@ -58,7 +58,8 @@ class WikipediaArticleItem(BaseModel):
     page_id: int | None = None  # Wikipedia page ID
     summary: str = ""  # Article summary/snippet
     url: str = ""  # Wikipedia URL
-    language: str = "fr"  # Language code
+    # The edition the article was read from; the declared language's when absent.
+    language: str = Field(default_factory=lambda: wikipedia_edition(None))
 
 
 # Register Wikipedia context type for Data Registry support
@@ -80,12 +81,11 @@ ContextTypeRegistry.register(
 _wikipedia_clients: dict[str, WikipediaClient] = {}
 
 
-def _get_wikipedia_client(language: str = "fr") -> WikipediaClient:
-    """Get or create Wikipedia client for a language."""
-    global _wikipedia_clients
-    if language not in _wikipedia_clients:
-        _wikipedia_clients[language] = WikipediaClient(language=language)
-    return _wikipedia_clients[language]
+def _get_wikipedia_client(edition: str) -> WikipediaClient:
+    """Get or create the client of a Wikipedia edition (from ``wikipedia_edition``)."""
+    if edition not in _wikipedia_clients:
+        _wikipedia_clients[edition] = WikipediaClient(language=edition)
+    return _wikipedia_clients[edition]
 
 
 # ============================================================================
@@ -102,7 +102,10 @@ def _get_wikipedia_client(language: str = "fr") -> WikipediaClient:
 )
 async def search_wikipedia_tool(
     query: Annotated[str, "Search query for Wikipedia articles"],
-    language: Annotated[str, "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de')"] = "fr",
+    language: Annotated[
+        str | None,
+        "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de'); the user's when omitted",
+    ] = None,
     max_results: Annotated[int, "Maximum number of results (default 5)"] = 5,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
@@ -113,8 +116,8 @@ async def search_wikipedia_tool(
     Use get_wikipedia_article to retrieve full content.
 
     Args:
-        query: Search query (e.g., 'Albert Einstein', 'Tour Eiffel')
-        language: Wikipedia language code (default: 'fr' for French)
+        query: Search query (e.g., 'Albert Einstein', 'Eiffel Tower')
+        language: Wikipedia language code (default: the declared language)
         max_results: Maximum results to return (default 5, max 20)
         runtime: Tool runtime (injected)
 
@@ -122,9 +125,10 @@ async def search_wikipedia_tool(
         UnifiedToolOutput with matching articles in registry
 
     Examples:
-        - search_wikipedia("intelligence artificielle")
+        - search_wikipedia("artificial intelligence")
         - search_wikipedia("machine learning", language="en")
     """
+    language = wikipedia_edition(language)
     try:
         client = _get_wikipedia_client(language)
 
@@ -239,7 +243,10 @@ WIKIPEDIA_SUMMARY_MAX_CHARS = settings.wikipedia_summary_max_chars
 )
 async def get_wikipedia_summary_tool(
     title: Annotated[str, "Wikipedia article title"],
-    language: Annotated[str, "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de')"] = "fr",
+    language: Annotated[
+        str | None,
+        "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de'); the user's when omitted",
+    ] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -249,8 +256,8 @@ async def get_wikipedia_summary_tool(
     For full article content, use get_wikipedia_article.
 
     Args:
-        title: Article title (e.g., 'Albert Einstein', 'Tour Eiffel')
-        language: Wikipedia language code (default: 'fr' for French)
+        title: Article title (e.g., 'Albert Einstein', 'Eiffel Tower')
+        language: Wikipedia language code (default: the declared language)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -260,6 +267,7 @@ async def get_wikipedia_summary_tool(
         - get_wikipedia_summary("Paris")
         - get_wikipedia_summary("Quantum mechanics", language="en")
     """
+    language = wikipedia_edition(language)
     try:
         client = _get_wikipedia_client(language)
 
@@ -358,7 +366,10 @@ async def get_wikipedia_summary_tool(
 )
 async def get_wikipedia_article_tool(
     title: Annotated[str, "Wikipedia article title"],
-    language: Annotated[str, "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de')"] = "fr",
+    language: Annotated[
+        str | None,
+        "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de'); the user's when omitted",
+    ] = None,
     sections: Annotated[bool, "Include section breakdown (default True)"] = True,
     max_length: Annotated[int, "Maximum content length in characters (default 10000)"] = 10000,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
@@ -370,8 +381,8 @@ async def get_wikipedia_article_tool(
     For quick overviews, use get_wikipedia_summary instead.
 
     Args:
-        title: Article title (e.g., 'Albert Einstein', 'Tour Eiffel')
-        language: Wikipedia language code (default: 'fr' for French)
+        title: Article title (e.g., 'Albert Einstein', 'Eiffel Tower')
+        language: Wikipedia language code (default: the declared language)
         sections: Include section breakdown (default True)
         max_length: Maximum content length (default 10000 chars)
         runtime: Tool runtime (injected)
@@ -380,9 +391,10 @@ async def get_wikipedia_article_tool(
         UnifiedToolOutput with full article content in registry
 
     Examples:
-        - get_wikipedia_article("Révolution française")
+        - get_wikipedia_article("French Revolution")
         - get_wikipedia_article("World War II", language="en", sections=True)
     """
+    language = wikipedia_edition(language)
     try:
         client = _get_wikipedia_client(language)
 
@@ -537,7 +549,10 @@ async def get_wikipedia_article_tool(
 )
 async def get_wikipedia_related_tool(
     title: Annotated[str, "Wikipedia article title"],
-    language: Annotated[str, "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de')"] = "fr",
+    language: Annotated[
+        str | None,
+        "Wikipedia language code (e.g., 'fr', 'en', 'es', 'de'); the user's when omitted",
+    ] = None,
     max_results: Annotated[int, "Maximum number of related articles (default 10)"] = 10,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
@@ -549,7 +564,7 @@ async def get_wikipedia_related_tool(
 
     Args:
         title: Article title (e.g., 'Albert Einstein')
-        language: Wikipedia language code (default: 'fr')
+        language: Wikipedia language code (default: the declared language)
         max_results: Maximum related articles to return (default 10)
         runtime: Tool runtime (injected)
 
@@ -557,9 +572,10 @@ async def get_wikipedia_related_tool(
         UnifiedToolOutput with related articles in registry
 
     Examples:
-        - get_wikipedia_related("Python (langage)")
+        - get_wikipedia_related("Python (programming language)")
         - get_wikipedia_related("Machine learning", language="en")
     """
+    language = wikipedia_edition(language)
     try:
         client = _get_wikipedia_client(language)
 

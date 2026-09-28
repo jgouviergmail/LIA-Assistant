@@ -84,6 +84,12 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "web_search_agent_prompt",
     "wikipedia_agent_prompt",
     "telephony_agent_prompt",
+    # Personal radio (ADR-324): the station, its contract and bounds first — one
+    # prefix for every segment of a listener — the segment's data below.
+    "radio_writer_prompt",
+    "radio_analyst_prompt",
+    "radio_verifier_prompt",
+    "radio_translator_prompt",
 )
 
 # Placeholders deliberately allowed BEFORE the marker, per prompt.
@@ -135,6 +141,31 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # The bound the enhancement checks enforce, published next to the rule it
     # quantifies (ADR-184); a setting, invariant for a deployment (ADR-315).
     "image_prompt_enhancement_prompt": frozenset({"max_chars"}),
+    # The station's identity (name, language, personality) is one session's; the
+    # listener's taste too, in two renderings (shown to a programme that chooses
+    # news, withheld from the others); the bounds the verifier enforces are a
+    # deployment's constants and settings (ADR-184). So a session's segments
+    # share two prefixes — measured 2026-09-26, the taste below the marker was
+    # re-sent uncached with every segment (ADR-324, decision 13).
+    "radio_writer_prompt": frozenset(
+        {
+            "station_name",
+            "language_name",
+            "personality",
+            "listener",
+            "title_max_chars",
+            "intro_outro_max_lines",
+            "transition_free_integer_max",
+            "quote_max_chars",
+            "line_max_chars",
+            "headlines_stories_max",
+            "bulletin_stories_max",
+        }
+    ),
+    # The station and the analysis bounds (settings): one prefix per session.
+    "radio_analyst_prompt": frozenset(
+        {"station_name", "language_name", "min_points", "max_points"}
+    ),
 }
 
 

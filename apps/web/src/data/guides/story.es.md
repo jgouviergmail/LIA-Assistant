@@ -4,7 +4,7 @@
 
 **Versión**: 2.2
 **Fecha**: 2026-09-24
-**Aplicación**: LIA v1.47.4
+**Aplicación**: LIA v2.0.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests) — 51 dominios funcionales | **720.000+** |
-| Tests automatizados, ejecutados en cada commit y entrega | **41.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **317** |
-| Versiones entregadas a ritmo regular | **269** |
+| Líneas de código fuente (sin tests) — 53 dominios funcionales | **781.000+** |
+| Tests automatizados, ejecutados en cada commit y entrega | **46.000+** |
+| Decisiones de arquitectura documentadas (ADR) | **323** |
+| Versiones entregadas a ritmo regular | **270** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 317 documentadas:
+Tres decisiones estructurantes, entre las 323 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -66,6 +66,8 @@ Un sistema que se pilota con instrumentos:
 - **Entrega**: despliegue contenerizado, migraciones de esquema automatizadas, imágenes publicadas para dos arquitecturas de hardware (amd64/arm64).
 - **Costes**: infraestructura frugal por elección — unos 150 € de hardware, cero licencias, bloques open source dimensionados a la necesidad real.
 - **Conformidad**: seguridad revisada punto de acceso por punto de acceso; cifrado de los datos personales; ciclo de vida de las cuentas alineado con el RGPD.
+
+El producto hace visibles sus decisiones técnicas a escala humana. La conversación acompaña a una persona entre dispositivos sin interrumpir su lectura; la radio empieza cuando decide escuchar y muestra las fuentes y el coste de las noticias. La vida de un archivo generado puede prolongarse por decisión propia. El trabajo programado y las comprobaciones de condiciones tienen relojes distintos. Son promesas observables, respaldadas por fuentes, límites y pruebas, en lugar de afirmar que una asistente adivina lo que alguien desea.
 
 ## 6. La prueba
 

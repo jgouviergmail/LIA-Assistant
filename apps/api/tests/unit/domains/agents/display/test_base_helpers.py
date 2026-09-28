@@ -12,6 +12,7 @@ not help there: ``javascript:alert(1)`` contains no character
 ``html.escape`` touches.
 """
 
+import time
 from datetime import UTC, datetime
 
 import pytest
@@ -180,6 +181,15 @@ class TestEscapeHtml:
 
     def test_non_string_values_are_coerced(self) -> None:
         assert escape_html(42) == "42"  # type: ignore[arg-type]
+
+    def test_what_the_chat_would_read_as_math_or_code_is_referenced(self) -> None:
+        """The chat reads math in an HTML card's DECODED text: a value
+        « rm -rf $BACKUP_DIR/$OLD » drew a formula (review 14)."""
+        backslash = chr(92)
+
+        assert escape_html(f"rm -rf $A/$B {backslash}[x{backslash}] `c`") == (
+            "rm -rf &#36;A/&#36;B &#92;[x&#92;] &#96;c&#96;"
+        )
 
 
 class TestCompactHtml:
@@ -370,6 +380,14 @@ class TestHtmlToText:
     def test_entities_are_decoded(self) -> None:
         assert html_to_text("<p>caf&eacute; &amp; th&eacute;</p>") == "café & thé"
 
+    def test_entities_are_decoded_after_the_tags_are_stripped(self) -> None:
+        """Decoded first, a card's escaped « <marie@example.com> » became a tag
+        the strip removed: the phone read a reply's recipient without its
+        address (review 14). Decoded last, and once."""
+        assert html_to_text("<p>Marie &lt;marie@example.com&gt; &amp;lt;b&amp;gt;</p>") == (
+            "Marie <marie@example.com> &lt;b&gt;"
+        )
+
     def test_consecutive_blank_lines_are_collapsed(self) -> None:
         text = html_to_text("<p>A</p><br><br><br><br><p>B</p>")
         assert "\n\n\n" not in text
@@ -424,3 +442,15 @@ class TestMarkdownLinksToHtml:
 
     def test_text_without_links_is_escaped_and_returned(self) -> None:
         assert markdown_links_to_html("a < b") == "a &lt; b"
+
+
+@pytest.mark.parametrize("unit", ["<", "<h1>", "<a ", "<li", "<a href=x>"])
+@pytest.mark.parametrize("preserve_links", [False, True])
+def test_hostile_markup_is_read_in_linear_time(unit: str, preserve_links: bool) -> None:
+    """A tag never holds a « < », and a heading or a link is read tag by tag:
+    paired lazily, 20 000 unclosed « <h1> » of an e-mail body cost 4.6 s on the
+    event loop (review 14)."""
+    started = time.perf_counter()
+    html_to_text("<p>x</p>" + unit * 100_000, preserve_links=preserve_links)
+
+    assert time.perf_counter() - started < 1.0

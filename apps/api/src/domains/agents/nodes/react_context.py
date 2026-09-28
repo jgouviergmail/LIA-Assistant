@@ -206,7 +206,7 @@ async def build_knowledge_block(state: MessagesState, config: RunnableConfig) ->
 
 
 def build_reference_resolution_block(state: MessagesState, intelligence: Any) -> str | None:
-    """Pre-resolved references ("mon frère" = "Marc Lemoine"), when any.
+    """Pre-resolved references ("my brother" = "Marc Lemoine"), when any.
 
     Args:
         state: Current graph state.
@@ -224,14 +224,12 @@ def build_reference_resolution_block(state: MessagesState, intelligence: Any) ->
     return "<MemoryContext>\nReference resolution:\n" + "\n".join(lines) + "\n</MemoryContext>"
 
 
-async def build_user_model_block(config: RunnableConfig) -> str | None:
+async def build_user_model_block() -> str | None:
     """User-model portrait — ambient diffusion (ADR-079).
 
     Brief format (~60 tokens) injected once at setup so the loop carries the
-    same posture as the pipeline mode.
-
-    Args:
-        config: RunnableConfig carrying the user context.
+    same posture as the pipeline mode. The person is read from the ambient
+    runtime context (ADR-231).
 
     Returns:
         The portrait block, or None.
@@ -239,7 +237,6 @@ async def build_user_model_block(config: RunnableConfig) -> str | None:
     if not getattr(settings, "journals_enabled", False):
         return None
     try:
-        config.get("configurable", {}) or {}
         _ctx = runtime_context_if_running()
         if not (_ctx.journals_enabled if _ctx is not None else False):
             return None
@@ -307,11 +304,10 @@ async def build_journal_directives_block(
         return None
 
 
-def build_skills_catalog_block(config: RunnableConfig) -> str | None:
+def build_skills_catalog_block() -> str | None:
     """Active skills catalogue (L1), same filtered set as the pipeline planner.
 
-    Args:
-        config: RunnableConfig carrying the user context.
+    The person is read from the ambient runtime context (ADR-231).
 
     Returns:
         The catalogue block, or None.
@@ -321,7 +317,6 @@ def build_skills_catalog_block(config: RunnableConfig) -> str | None:
     from src.core.context import active_skills_ctx
     from src.domains.skills.injection import build_skills_catalog
 
-    config.get("configurable", {}) or {}
     catalog = build_skills_catalog(
         user_id=runtime_user_id_str() or "",
         active_skills=active_skills_ctx.get(),
@@ -427,11 +422,11 @@ async def build_setup_blocks(
     # Knowledge parity (2026-09-17): the person's documents and kept answers,
     # read from the bundle the router prefetched — where the search is decided.
     knowledge_block = await build_knowledge_block(state, config)
-    skills_catalog = build_skills_catalog_block(config) or ""
+    skills_catalog = build_skills_catalog_block() or ""
     ordered = [
         memory_block,
         build_reference_resolution_block(state, intelligence),
-        await build_user_model_block(config),
+        await build_user_model_block(),
         await build_journal_directives_block(state, config),
         knowledge_block,
         skills_catalog,

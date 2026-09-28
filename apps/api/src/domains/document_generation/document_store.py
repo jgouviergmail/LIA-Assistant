@@ -30,6 +30,10 @@ class PendingDocument:
         size_bytes: Rendered file size.
         expires_at: ISO-8601 UTC purge deadline, ``None`` when unknown —
             the UI then says nothing rather than guess (N2 rule).
+        kept: The person kept the file from the gallery (ADR-319): it has no
+            deadline, and the card says so. The history read path restates
+            the same flag from the file's row, so the card reads the same
+            live and after a reload.
     """
 
     url: str
@@ -37,6 +41,7 @@ class PendingDocument:
     doc_type: str
     size_bytes: int
     expires_at: str | None = None
+    kept: bool = False
 
 
 # Module-level store: conversation_id -> list of PendingDocument
@@ -98,7 +103,7 @@ def get_and_clear_pending_documents(conversation_id: str) -> list[PendingDocumen
 
 def to_wire_metadata(
     documents: Sequence[PendingDocument],
-) -> list[dict[str, str | int | None]]:
+) -> list[dict[str, str | int | bool | None]]:
     """Serialize for the client — SAME shape on the done chunk and the archive.
 
     Args:
@@ -114,6 +119,7 @@ def to_wire_metadata(
             "doc_type": document.doc_type,
             "size_bytes": document.size_bytes,
             "expires_at": document.expires_at,
+            "kept": document.kept,
         }
         for document in documents
     ]

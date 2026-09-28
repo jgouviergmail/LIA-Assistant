@@ -125,6 +125,9 @@ def derive_environment(
         # Live voice mode (ADR-299): a capability ceiling only — the person's
         # own provider key opens the sessions, nothing else is provisioned.
         "LIVE_ENABLED": "true" if public.live_mode else "false",
+        # Radio has no companion Compose service: the API's on-demand antenna
+        # and newsroom run inside its existing workers (ADR-324).
+        "RADIO_ENABLED": "true" if public.personal_radio else "false",
         "DIAGNOSTICS_WEBHOOK_SECRET": (
             secrets.token_urlsafe(32)
             if public.self_diagnostics and public.observability

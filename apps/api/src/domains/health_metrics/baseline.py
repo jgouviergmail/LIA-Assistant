@@ -14,8 +14,8 @@ Two modes, chosen automatically based on data availability:
   once enough history is accumulated.
 
 The output dict carries the mode label so downstream consumers (tools,
-LLM prompts) can qualify their statements honestly (e.g. "basé sur
-4 jours de données" vs. "moyenne sur 28 jours").
+LLM prompts) can qualify their statements honestly (e.g. "based on
+4 days of data" vs. "28-day average").
 
 Per-day aggregation follows the kind's
 :class:`src.domains.health_metrics.kinds.BaselineKind`:

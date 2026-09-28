@@ -329,7 +329,7 @@ def _build_tool_registry() -> dict[str, Any]:
     Note:
         This function imports all available tools from tools/__init__.py.
         Any new tool added in tools/ will be automatically available.
-        Le résultat est mis en cache pour éviter de reconstruire le registre à chaque appel.
+        The result is cached so the registry is not rebuilt on every call.
     """
     from src.domains.agents.tools import (
         get_contact_details_tool,
@@ -444,7 +444,7 @@ async def _handle_execution_plan(
         # PREPARE REGISTRY FOR PRE-EXECUTION AND EXECUTION
         # ====================================================================
         # BugFix 2025-11-30: Pass existing registry from state for items[N].field resolution
-        # This allows "details du premier" to resolve items[0].id from previous search results
+        # This allows "details of the first one" to resolve items[0].id from previous search results
         existing_registry = state.get("registry", {})
 
         # Convert RegistryItem objects to dicts for parallel_executor
@@ -753,7 +753,6 @@ async def _handle_execution_plan(
 
             replan_context = RePlanContext(
                 user_request=user_message,
-                user_language=state.get("user_language", "fr"),
                 execution_plan=execution_plan,
                 plan_id=execution_plan.plan_id,
                 completed_steps=completed_steps,
@@ -966,11 +965,11 @@ async def _handle_execution_plan(
             # NOT updated for chat, weather, perplexity, details, etc.
             #
             # Example flow:
-            #   Turn 1: "recherche contacts" → last_list_domain = "contacts"
-            #   Turn 2: "recherche taches"   → last_list_domain = "taches"
-            #   Turn 3: "salut ca va?"       → last_list_domain = "taches" (unchanged)
-            #   Turn 4: "detail du premier"  → uses "taches" (from state)
-            #   Turn 5: "detail du 1er contact" → uses "contacts" (explicit override)
+            #   Turn 1: "search contacts" → last_list_domain = "contacts"
+            #   Turn 2: "search tasks"    → last_list_domain = "tasks"
+            #   Turn 3: "hi, how are you?" → last_list_domain = "tasks" (unchanged)
+            #   Turn 4: "details of the first one"  → uses "tasks" (from state)
+            #   Turn 5: "details of the 1st contact" → uses "contacts" (explicit override)
             #
             # This is CRITICAL because last_action_turn_id gets overwritten by
             # EVERY action (including details), but ordinal resolution needs
@@ -1160,7 +1159,7 @@ def _detect_list_tool_domain(
     Scans executed steps to find LIST-type tools and extract their domain.
     Returns the domain of the LAST successfully executed LIST tool.
 
-    This is used for ordinal resolution: "detail du 2ème" needs to know
+    This is used for ordinal resolution: "details of the 2nd one" needs to know
     which domain's list to use when the user doesn't specify.
 
     Uses centralized utilities from type_domain_mapping.py for consistency.

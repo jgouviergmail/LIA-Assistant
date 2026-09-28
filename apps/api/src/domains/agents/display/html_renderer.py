@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.display.components.article_card import ArticleCard
 from src.domains.agents.display.components.base import (
@@ -201,12 +201,12 @@ class HtmlRenderer:
 
         Separator pattern (all simple, no summary header):
             ─────────────────────────── (simple)
-            📅 Événements (2)
+            📅 Events (2)
             ─────────────────────────── (simple)
             [card]
             [card]
             ─────────────────────────── (simple)
-            🚗 Itinéraire (2)
+            🚗 Route (2)
             ─────────────────────────── (simple)
             [card]
             [card]
@@ -263,11 +263,11 @@ class HtmlRenderer:
 
         Separator pattern (all simple, uncorrelated domains first, then clusters):
             ─────────────────────────── (simple)
-            🌤️ Météo (1)
+            🌤️ Weather (1)
             ─────────────────────────── (simple)
             [card weather]
             ─────────────────────────── (simple)
-            📅 Événements / 🚗 Itinéraire   <-- Combined cluster title
+            📅 Events / 🚗 Route   <-- Combined cluster title
             ─────────────────────────── (simple)
             [card cluster 1: event + route]
             ─────────────────────────── (simple)
@@ -583,7 +583,7 @@ class HtmlRenderer:
         """Get component for domain."""
         return self._components.get(domain)
 
-    def _get_domain_label(self, domain: str, language: str = settings.default_language) -> str:
+    def _get_domain_label(self, domain: str, language: str | None = None) -> str:
         """
         Get human-readable domain label with icon.
 
@@ -592,7 +592,7 @@ class HtmlRenderer:
             language: Language code for i18n (e.g., "fr", "en")
 
         Returns:
-            Icon + translated label (e.g., "👤 Contacts", "📅 Événements")
+            Icon + translated label (e.g., "👤 Contacts", "📅 Events")
         """
         # Map domains to icon names (str values from Icons class constants)
         # Keys must include CONTEXT_DOMAIN_* aliases (weathers, wikipedias, perplexitys)
@@ -623,7 +623,7 @@ class HtmlRenderer:
         }
 
         # Get translated label from i18n
-        label = V3Messages.get_domain_section_label(domain, language)
+        label = V3Messages.get_domain_section_label(domain, resolve_language(language))
 
         if domain in domain_icons:
             icon_name = domain_icons[domain]
@@ -633,7 +633,7 @@ class HtmlRenderer:
     def _build_cluster_title(
         self,
         clusters: list[CorrelatedCluster],
-        language: str = settings.default_language,
+        language: str | None = None,
     ) -> str:
         """
         Build combined title for correlated clusters.
@@ -659,7 +659,8 @@ class HtmlRenderer:
 
         # Build title: "icon + label / icon + label / ..."
         domain_labels = [
-            self._get_domain_label(domain, language) for domain in unique_domains.keys()
+            self._get_domain_label(domain, resolve_language(language))
+            for domain in unique_domains.keys()
         ]
 
         return " / ".join(domain_labels)

@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -51,7 +51,8 @@ from src.core.constants import (
     SCHEDULER_JOB_OAUTH_HEALTH,
     SSE_CONNECTION_KEY_PREFIX,
 )
-from src.core.i18n_api_messages import APIMessages, SupportedLanguage
+from src.core.i18n import normalize_language
+from src.core.i18n_api_messages import APIMessages
 from src.domains.connectors.models import (
     ConnectorStatus,
     get_connector_authorize_path,
@@ -59,6 +60,7 @@ from src.domains.connectors.models import (
 )
 from src.domains.connectors.repository import ConnectorRepository
 from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.cache.user_channel import user_notifications_channel
 from src.infrastructure.database import get_db_context
 from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.metrics import (
@@ -265,8 +267,7 @@ async def _maybe_notify(
     authorize_url = f"/connectors{authorize_path}" if authorize_path else ""
 
     # Generate i18n message (only critical - ERROR status)
-    # Cast to SupportedLanguage (user.language is validated at DB level)
-    language = cast(SupportedLanguage, user.language or settings.default_language)
+    language = normalize_language(user.language)
     title = APIMessages.oauth_health_critical_title(language)
     body = APIMessages.oauth_health_critical_body(connector_name, language)
 
@@ -306,7 +307,7 @@ async def _maybe_notify(
 
     # Always publish to Redis for SSE (frontend will display modal)
     try:
-        channel = f"user_notifications:{connector.user_id}"
+        channel = user_notifications_channel(connector.user_id)
         await redis.publish(
             channel,
             json.dumps(

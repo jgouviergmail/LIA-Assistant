@@ -26,6 +26,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, REDIS_KEY_BROWSER_SESSION_PREFIX
+from src.core.i18n import get_locale_for_language
 from src.infrastructure.browser.models import BrowserSessionInfo
 from src.infrastructure.browser.security import BrowserSecurityPolicy
 from src.infrastructure.observability.log_facts import url_host
@@ -134,7 +135,7 @@ class BrowserPool:
     async def acquire_session(
         self,
         user_id: str,
-        user_language: str = "fr",
+        user_language: str | None = None,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> Any:
         """Acquire or create a browser session for the given user.
@@ -147,7 +148,8 @@ class BrowserPool:
 
         Args:
             user_id: The user requesting a browser session.
-            user_language: User's language code (e.g., "fr", "en", "de").
+            user_language: User's language code (e.g., "fr", "en", "de"); the
+                declared language when absent (ADR-323).
             user_timezone: User's timezone (e.g., "Europe/Paris").
 
         Returns:
@@ -177,18 +179,11 @@ class BrowserPool:
             # Lazy import to avoid ModuleNotFoundError when browser_enabled=False
             from src.infrastructure.browser.session import BrowserSession
 
-            # Build locale from user language (e.g., "fr" → "fr-FR", "en" → "en-US")
-            lang = user_language.lower().split("-")[0]  # Normalize "zh-CN" → "zh"
-            locale_map = {
-                "fr": "fr-FR",
-                "en": "en-US",
-                "de": "de-DE",
-                "es": "es-ES",
-                "it": "it-IT",
-                "zh": "zh-CN",
-            }
-            browser_locale = locale_map.get(lang, "en-US")
-            accept_lang = f"{browser_locale},{lang};q=0.9,en-US;q=0.8,en;q=0.7"
+            # The browser speaks the person's locale ("fr" → "fr-FR"): the one
+            # display-locale table, never a copy of it (ADR-323).
+            browser_locale = get_locale_for_language(user_language)
+            base_lang = browser_locale.split("-")[0]
+            accept_lang = f"{browser_locale},{base_lang};q=0.9,en-US;q=0.8,en;q=0.7"
 
             context = await self._browser.new_context(
                 user_agent=settings.browser_user_agent,

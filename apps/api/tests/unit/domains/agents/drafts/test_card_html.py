@@ -13,12 +13,13 @@ from unittest.mock import patch
 
 import pytest
 
-from src.core.constants import RESPONSE_DISPLAY_MODE_HTML, RESPONSE_DISPLAY_MODE_MARKDOWN
+from src.core.constants import RESPONSE_DISPLAY_MODE_MARKDOWN
 from src.domains.agents.api.run_origin import (
     RunOrigin,
     out_of_turn_origin_ctx,
     plain_surface_ctx,
 )
+from src.domains.agents.display.plain_text import markdown_to_plain_text
 from src.domains.agents.drafts.card_html import CardSurface, card_surface, to_html_card
 from src.domains.agents.drafts.card_spec import Block, CardSpec, Note, Row
 from src.domains.agents.drafts.models import Draft, DraftType
@@ -79,12 +80,75 @@ class TestTheHtmlForm:
         assert "<b>x</b>" not in html and "&lt;b&gt;x&lt;/b&gt;" in html
 
     def test_the_card_is_one_line(self) -> None:
-        assert "\n" not in to_html_card(_spec())
+        html = to_html_card(_spec())
+        assert "\n" not in html and "\r" not in html
+
+    @pytest.mark.parametrize("ending", ["\r", "\r\r\n", "\u2028", "\x85", "\f"])
+    def test_no_line_ending_in_a_value_breaks_the_card(self, ending: str) -> None:
+        """A bare carriage return is a line ending to the chat's Markdown
+        parser: two of them ended the card's HTML and the rest of the card was
+        read as Markdown, an image loaded (review 14)."""
+        body = f"Bonjour{ending}{ending}![x](https://evil.example/p.png)"
+        spec = CardSpec(
+            "📧",
+            f"titre{ending}{ending}fin",
+            " : ",
+            (Row("Objet", f"a{ending}b"), Note(f"n{ending}o"), Block("Message", body)),
+        )
+
+        html = to_html_card(spec)
+
+        assert not any(char in html for char in "\r\n\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029")
+        assert "Bonjour<br>" in html and "<br>![x](https://evil.example/p.png)</div>" in html
+
+    def test_a_result_s_headline_is_one_line(self) -> None:
+        """An event summary « Point\\n\\n![x](…) » became the card's title."""
+        from src.domains.agents.drafts.card_html import to_html_result
+        from src.domains.agents.drafts.card_spec import ResultSpec
+
+        spec = ResultSpec("📅", "✅", "Point\n\n!&#91;x&#93;", " : ", (), ())
+
+        html = to_html_result(spec)
+
+        assert "\n" not in html and "Point ![x]" in html
 
     def test_a_row_key_without_an_icon_still_draws(self) -> None:
         spec = CardSpec("📧", "t", " : ", (Row("Chose", "v", key="no_such_key"),))
         html = to_html_card(spec)
         assert "<strong>Chose</strong> : v" in html
+
+    def test_a_link_is_drawn_as_a_link(self) -> None:
+        """The Markdown link travelled as text and the card showed its brackets."""
+        spec = CardSpec("✅", "t", " : ", (Note("Lien", href="https://e.example/a", emoji="🔗"),))
+
+        assert (
+            '<span>🔗 <a href="https://e.example/a" target="_blank" rel="noopener">Lien</a></span>'
+            in to_html_card(spec)
+        )
+
+    def test_an_unsafe_address_draws_no_link(self) -> None:
+        spec = CardSpec("✅", "t", " : ", (Note("x", href="javascript:alert(1)"),))
+
+        assert "<a " not in to_html_card(spec)
+
+    def test_the_values_are_the_ones_the_markdown_form_shows(self) -> None:
+        """Spelled and folded the same way, then escaped: the two forms agree."""
+        spec = CardSpec(
+            "📧",
+            "t",
+            " : ",
+            (
+                Row("Objet", chr(0x200B) * 2),
+                Note("a\nb"),
+                Block("Message", "x" + chr(0x202E) + "y\nz"),
+            ),
+        )
+
+        html = to_html_card(spec)
+
+        assert "<strong>Objet</strong> : ⟨U+200B×2⟩" in html
+        assert "<span>a b</span>" in html
+        assert "x⟨U+202E⟩y<br>z" in html
 
 
 class TestTheSurface:
@@ -111,7 +175,9 @@ class TestTheSurface:
             )
         finally:
             out_of_turn_origin_ctx.reset(token)
-        assert card.startswith("📧 **Réunion <lundi> & co**\n\n- **Destinataire**")
+        # The subject is data, drawn as itself; the ticket reads it whole.
+        assert card.startswith("📧 **Réunion &#60;lundi&#62; & co**\n\n- **Destinataire**")
+        assert markdown_to_plain_text(card).startswith("📧 Réunion <lundi> & co\n\n• Destinataire")
 
     def test_a_relayed_phone_call_gets_the_card(self) -> None:
         """A relayed phone turn (ADR-290) is an out-of-turn run whose rows are
@@ -141,9 +207,11 @@ class TestTheSurface:
             return_value=RESPONSE_DISPLAY_MODE_MARKDOWN,
         ):
             assert card_surface() is CardSurface.PLAIN
+
+    @pytest.mark.parametrize("display_mode", ["cards", "html", "html_cards"])
+    def test_rich_display_modes_keep_the_approval_card(self, display_mode: str) -> None:
         with patch(
-            "src.domains.agents.drafts.card_html.runtime_display_mode",
-            return_value=RESPONSE_DISPLAY_MODE_HTML,
+            "src.domains.agents.drafts.card_html.runtime_display_mode", return_value=display_mode
         ):
             assert card_surface() is CardSurface.CHAT
 

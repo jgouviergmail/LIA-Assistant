@@ -1,0 +1,204 @@
+{
+  "moods": {
+    "morning": [
+      {
+        "file": "/radio/music/morning/morning-01.mp3",
+        "duration_s": 116.898
+      },
+      {
+        "file": "/radio/music/morning/morning-02.mp3",
+        "duration_s": 112.562
+      },
+      {
+        "file": "/radio/music/morning/morning-03.mp3",
+        "duration_s": 117.133
+      },
+      {
+        "file": "/radio/music/morning/morning-04.mp3",
+        "duration_s": 118.622
+      },
+      {
+        "file": "/radio/music/morning/morning-05.mp3",
+        "duration_s": 118.674
+      },
+      {
+        "file": "/radio/music/morning/morning-06.mp3",
+        "duration_s": 117.969
+      },
+      {
+        "file": "/radio/music/morning/morning-07.mp3",
+        "duration_s": 116.637
+      },
+      {
+        "file": "/radio/music/morning/morning-08.mp3",
+        "duration_s": 106.789
+      },
+      {
+        "file": "/radio/music/morning/morning-09.mp3",
+        "duration_s": 122.122
+      },
+      {
+        "file": "/radio/music/morning/morning-10.mp3",
+        "duration_s": 119.092
+      },
+      {
+        "file": "/radio/music/morning/morning-11.mp3",
+        "duration_s": 121.887
+      },
+      {
+        "file": "/radio/music/morning/morning-12.mp3",
+        "duration_s": 118.1
+      }
+    ],
+    "news": [
+      {
+        "file": "/radio/music/news/news-01.mp3",
+        "duration_s": 114.442
+      },
+      {
+        "file": "/radio/music/news/news-02.mp3",
+        "duration_s": 118.361
+      },
+      {
+        "file": "/radio/music/news/news-03.mp3",
+        "duration_s": 114.521
+      },
+      {
+        "file": "/radio/music/news/news-04.mp3",
+        "duration_s": 117.969
+      },
+      {
+        "file": "/radio/music/news/news-05.mp3",
+        "duration_s": 112.431
+      },
+      {
+        "file": "/radio/music/news/news-06.mp3",
+        "duration_s": 119.275
+      },
+      {
+        "file": "/radio/music/news/news-07.mp3",
+        "duration_s": 123.455
+      },
+      {
+        "file": "/radio/music/news/news-08.mp3",
+        "duration_s": 119.745
+      },
+      {
+        "file": "/radio/music/news/news-09.mp3",
+        "duration_s": 115.775
+      },
+      {
+        "file": "/radio/music/news/news-10.mp3",
+        "duration_s": 116.715
+      },
+      {
+        "file": "/radio/music/news/news-11.mp3",
+        "duration_s": 120.007
+      },
+      {
+        "file": "/radio/music/news/news-12.mp3",
+        "duration_s": 117.838
+      }
+    ],
+    "evening": [
+      {
+        "file": "/radio/music/evening/evening-01.mp3",
+        "duration_s": 117.864
+      },
+      {
+        "file": "/radio/music/evening/evening-02.mp3",
+        "duration_s": 127.242
+      },
+      {
+        "file": "/radio/music/evening/evening-03.mp3",
+        "duration_s": 123.063
+      },
+      {
+        "file": "/radio/music/evening/evening-04.mp3",
+        "duration_s": 123.037
+      },
+      {
+        "file": "/radio/music/evening/evening-05.mp3",
+        "duration_s": 112.17
+      },
+      {
+        "file": "/radio/music/evening/evening-06.mp3",
+        "duration_s": 114.991
+      },
+      {
+        "file": "/radio/music/evening/evening-07.mp3",
+        "duration_s": 118.988
+      },
+      {
+        "file": "/radio/music/evening/evening-08.mp3",
+        "duration_s": 125.597
+      },
+      {
+        "file": "/radio/music/evening/evening-09.mp3",
+        "duration_s": 122.645
+      },
+      {
+        "file": "/radio/music/evening/evening-10.mp3",
+        "duration_s": 116.95
+      },
+      {
+        "file": "/radio/music/evening/evening-11.mp3",
+        "duration_s": 115.54
+      },
+      {
+        "file": "/radio/music/evening/evening-12.mp3",
+        "duration_s": 121.6
+      }
+    ],
+    "calm": [
+      {
+        "file": "/radio/music/calm/calm-01.mp3",
+        "duration_s": 118.021
+      },
+      {
+        "file": "/radio/music/calm/calm-02.mp3",
+        "duration_s": 117.185
+      },
+      {
+        "file": "/radio/music/calm/calm-03.mp3",
+        "duration_s": 114.887
+      },
+      {
+        "file": "/radio/music/calm/calm-04.mp3",
+        "duration_s": 120.607
+      },
+      {
+        "file": "/radio/music/calm/calm-05.mp3",
+        "duration_s": 120.79
+      },
+      {
+        "file": "/radio/music/calm/calm-06.mp3",
+        "duration_s": 116.402
+      },
+      {
+        "file": "/radio/music/calm/calm-07.mp3",
+        "duration_s": 117.29
+      },
+      {
+        "file": "/radio/music/calm/calm-08.mp3",
+        "duration_s": 126.276
+      },
+      {
+        "file": "/radio/music/calm/calm-09.mp3",
+        "duration_s": 117.603
+      },
+      {
+        "file": "/radio/music/calm/calm-10.mp3",
+        "duration_s": 115.801
+      },
+      {
+        "file": "/radio/music/calm/calm-11.mp3",
+        "duration_s": 124.343
+      },
+      {
+        "file": "/radio/music/calm/calm-12.mp3",
+        "duration_s": 118.988
+      }
+    ]
+  }
+}

@@ -16,7 +16,9 @@ Two rules that are structural, not stylistic:
 - **The served slot is derived, never passed.** :func:`served_slot` reads the
   due instant captured BEFORE the re-arm mutated it, so a due run serves its
   due instant and a manual run serves the day's slot only once that slot has
-  passed.
+  passed. A condition routine has no slot to serve (ADR-322): its run serves
+  the CHECK that fired — its own start, whoever asked for the check — which is
+  what places it on the week and what its daily cap counts.
 """
 
 from __future__ import annotations
@@ -68,11 +70,11 @@ async def record_run(
         # Inside the guard too: the success branch of the executor calls this
         # from within its retry loop, where an unexpected raise would be read
         # as an execution failure and mark the routine failed.
-        slot_at = served_slot(
-            action.recurrence_spec,
-            action.user_timezone,
-            due_at=due_at,
-            now=started_at,
+        schedule = action.recurrence_spec
+        slot_at = (
+            started_at
+            if schedule is None
+            else served_slot(schedule, action.user_timezone, due_at=due_at, now=started_at)
         )
         async with db.begin_nested():
             return await ScheduledActionRunRepository(db).record(

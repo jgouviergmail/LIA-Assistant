@@ -4,7 +4,7 @@
 
 **Version**: 2.2
 **Date**: 2026-09-24
-**Application**: LIA v1.47.4
+**Application**: LIA v2.0.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 51 functional domains | **720,000+** |
-| Automated tests, run on every commit and release | **41,000+** |
-| Documented architecture decisions (ADR) | **317** |
-| Versions shipped at a steady pace | **269** |
+| Source lines (excluding tests) — 53 functional domains | **781,000+** |
+| Automated tests, run on every commit and release | **46,000+** |
+| Documented architecture decisions (ADR) | **323** |
+| Versions shipped at a steady pace | **270** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 317 documented:
+Three structural decisions, among the 323 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -66,6 +66,8 @@ A system flown on instruments:
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
 - **Compliance**: security reviewed endpoint by endpoint; personal data encrypted; account lifecycle aligned with the GDPR.
+
+The product makes its engineering choices visible at a human scale. A conversation follows a person across devices without disturbing what they are reading; a radio starts when they choose to listen and names the news it draws upon and what it costs. A generated file has a lifetime the person can extend deliberately. Scheduled work and condition checks have separate clocks. These are small, observable promises, backed by source records, limits and tests, rather than a claim that an assistant simply knows what the person wants.
 
 ## 6. The proof
 

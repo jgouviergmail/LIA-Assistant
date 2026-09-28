@@ -27,8 +27,9 @@ import type { Page } from '@playwright/test';
 import { test, expect, type MockRoute } from '../fixtures';
 
 /** Widths that matter: the reflow floor, a common phone, and the tablet/split
- *  band where the nav and the control labels are shown SIMULTANEOUSLY. */
-const WIDTHS = [320, 390, 768, 880, 1024, 1280] as const;
+ *  band where the nav and the control labels are shown SIMULTANEOUSLY, and
+ *  `2xl` (1536), where the nav labels and the token counters appear. */
+const WIDTHS = [320, 390, 768, 880, 1024, 1280, 1536] as const;
 const LOCALES = ['en', 'fr', 'de', 'es', 'it', 'zh'] as const;
 
 const ROUTES: MockRoute[] = [
@@ -143,6 +144,48 @@ async function probeHeader(page: Page): Promise<HeaderProbe> {
   });
 }
 
+/** Every width, one locale: nothing clipped past the viewport, nothing covered. */
+async function assertReachableAtEveryWidth(page: Page, locale: string): Promise<void> {
+  await page.goto(`/${locale}/dashboard/chat`);
+  await page.locator('header').waitFor({ state: 'visible' });
+  await waitForStableHeader(page);
+
+  for (const width of WIDTHS) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.waitForFunction(w => document.documentElement.clientWidth === w, width);
+    await waitForStableHeader(page);
+
+    const { clipped, overlaps } = await probeHeader(page);
+
+    expect(
+      clipped,
+      `${locale} @ ${width}px — controls pushed off-screen: ` +
+        clipped.map(c => `${c.name} (+${c.overflowPx}px)`).join(', ')
+    ).toEqual([]);
+    expect(overlaps, `${locale} @ ${width}px — controls overlap: ${overlaps.join(' | ')}`).toEqual(
+      []
+    );
+  }
+}
+
+/**
+ * The widest header an instance can serve: the meetings destination and
+ * recorder (ADR-258/259) and the radio's control (ADR-324) all offered. The
+ * shell's own config offers none of them, so the test above measures a
+ * narrower row than production shows.
+ */
+const EVERY_CONTROL: MockRoute = {
+  url: '**/api/v1/config',
+  json: {
+    sse: { heartbeat_interval_seconds: 30 },
+    rate_limits: { enabled: false, per_minute: 60, burst: 10 },
+    i18n: { supported_languages: [...LOCALES], default_language: 'en' },
+    features: { workboard_enabled: true, meetings_enabled: true, radio_enabled: true },
+    capabilities: { radio: { enabled: true, family: 'media' } },
+    api_version: 'v1',
+  },
+};
+
 test.describe('dashboard header reachability', () => {
   for (const locale of LOCALES) {
     test(`no control is clipped or covered @ ${locale}`, async ({
@@ -152,27 +195,17 @@ test.describe('dashboard header reachability', () => {
     }) => {
       await authenticate({ language: locale });
       await mockApi(ROUTES);
-      await page.goto(`/${locale}/dashboard/chat`);
-      await page.locator('header').waitFor({ state: 'visible' });
-      await waitForStableHeader(page);
+      await assertReachableAtEveryWidth(page, locale);
+    });
 
-      for (const width of WIDTHS) {
-        await page.setViewportSize({ width, height: 800 });
-        await page.waitForFunction(w => document.documentElement.clientWidth === w, width);
-        await waitForStableHeader(page);
-
-        const { clipped, overlaps } = await probeHeader(page);
-
-        expect(
-          clipped,
-          `${locale} @ ${width}px — controls pushed off-screen: ` +
-            clipped.map(c => `${c.name} (+${c.overflowPx}px)`).join(', ')
-        ).toEqual([]);
-        expect(
-          overlaps,
-          `${locale} @ ${width}px — controls overlap: ${overlaps.join(' | ')}`
-        ).toEqual([]);
-      }
+    test(`with every feature control offered, none is clipped or covered @ ${locale}`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }) => {
+      await authenticate({ language: locale });
+      await mockApi([...ROUTES, EVERY_CONTROL]);
+      await assertReachableAtEveryWidth(page, locale);
     });
   }
 

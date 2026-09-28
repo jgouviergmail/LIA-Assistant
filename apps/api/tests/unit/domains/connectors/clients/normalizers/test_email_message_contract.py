@@ -14,6 +14,7 @@ it (ADR-286); the two others fabricate nothing.
 from __future__ import annotations
 
 import base64
+import time
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Any
@@ -213,3 +214,11 @@ class TestOneHtmlToText:
         line = strip_html_to_line("<p>HTML &amp; content</p><p>next</p>", max_length=200)
         assert line == "HTML & content next"
         assert strip_html_to_line("<p>" + "x" * 500 + "</p>", max_length=10) == "x" * 10
+
+
+def test_a_snippet_of_hostile_markup_is_read_in_linear_time() -> None:
+    """100 000 unclosed « < » cost 3.75 s on the event loop in an Outlook read."""
+    started = time.perf_counter()
+    strip_html_to_line("<" * 100_000, max_length=200)
+
+    assert time.perf_counter() - started < 1.0

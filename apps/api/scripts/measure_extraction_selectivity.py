@@ -682,7 +682,7 @@ def _build_llm(llm_type: ExtractorType, knobs: dict[str, Any]) -> Any:
     """
     from src.core.config import settings
     from src.core.llm_config_helper import get_llm_config_for_agent
-    from src.core.reasoning_types import ReasoningEffortEnum
+    from src.core.reasoning_intent import intent_from_legacy
     from src.infrastructure.llm.factory import get_llm
 
     update: dict[str, Any] = {
@@ -690,8 +690,10 @@ def _build_llm(llm_type: ExtractorType, knobs: dict[str, Any]) -> Any:
         "model": knobs["model"],
         "temperature": knobs["temperature"],
         "max_tokens": knobs["max_tokens"],
+        # The knob speaks the legacy ``effort`` vocabulary (``off`` included):
+        # read through the one reader of the legacy shapes (ADR-245).
         "reasoning_effort": (
-            ReasoningEffortEnum(effort=knobs["effort"]) if knobs.get("effort") else None
+            intent_from_legacy({"effort": knobs["effort"]}) if knobs.get("effort") else None
         ),
     }
     config = get_llm_config_for_agent(settings, llm_type).model_copy(update=update)

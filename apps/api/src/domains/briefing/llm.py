@@ -20,6 +20,7 @@ import structlog
 from langchain_core.messages import HumanMessage
 
 from src.core.config import settings as app_settings
+from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -86,7 +87,7 @@ async def generate_greeting(
             today_iso=now_local.date().isoformat(),
             time_of_day=_compute_time_of_day(user_tz),
             day_of_week=now_local.strftime("%A"),
-            language=language,
+            language=get_language_name(language),
             personality_brief=await _resolve_personality(user.id),
             active_sections=_summarize_cards_for_llm(cards, verbose=False),
         )
@@ -142,7 +143,7 @@ async def generate_synthesis(
             today_iso=now_local.date().isoformat(),
             time_of_day=_compute_time_of_day(user_tz),
             day_of_week=now_local.strftime("%A"),
-            language=language,
+            language=get_language_name(language),
             personality_brief=await _resolve_personality(user.id),
             active_sections=_summarize_cards_for_llm(cards, verbose=True),
             user_model_block=await _resolve_user_model_block(user),
@@ -556,12 +557,11 @@ def _fallback_greeting(user: User, user_tz: ZoneInfo, language: str) -> str:
             TIME_OF_DAY_EVENING: f"Buonasera, {name}.",
             TIME_OF_DAY_NIGHT: f"Buonasera, {name}.",
         },
-        "zh": {
+        "zh-CN": {
             TIME_OF_DAY_MORNING: f"早上好，{name}。",
             TIME_OF_DAY_AFTERNOON: f"下午好，{name}。",
             TIME_OF_DAY_EVENING: f"晚上好，{name}。",
             TIME_OF_DAY_NIGHT: f"晚上好，{name}。",
         },
     }
-    lang = (language or "en").split("-")[0].lower()
-    return fallbacks.get(lang, fallbacks["en"]).get(bucket, f"Hello, {name}.")
+    return fallbacks[resolve_language(language)][bucket]

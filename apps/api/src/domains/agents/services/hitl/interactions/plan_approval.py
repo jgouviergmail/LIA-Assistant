@@ -112,7 +112,7 @@ class PlanApprovalInteraction:
                 - plan_summary: dict with plan details
                 - approval_reasons: list of reason strings
                 - strategies_triggered: list of strategy names
-            user_language: Language code (fr, en, es)
+            user_language: Language code (fr, en, es, de, it, zh-CN)
             user_timezone: User's IANA timezone for datetime context
             tracker: Optional TokenTrackingCallback
 

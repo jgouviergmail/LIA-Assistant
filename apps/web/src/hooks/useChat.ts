@@ -115,6 +115,8 @@ export interface UseChatReturn {
   clearMessages: () => void;
   setMessages: (messages: Message[]) => void;
   appendMessage: (message: Message) => void;
+  /** Merge the newest server page into the thread (ADR-320, `lib/chat-merge.ts`). */
+  mergeServerPage: (messages: Message[]) => void;
   isLoadingHistory: boolean;
   // LARS: Registry for rich rendering
   registry: Record<string, RegistryItem>;
@@ -897,6 +899,18 @@ export const useChat = ({
   );
 
   /**
+   * Merge the newest server page into the thread (ADR-320): nothing on screen
+   * remounts, moves or disappears — see `lib/chat-merge.ts`.
+   */
+  const mergeServerPage = useCallback(
+    (messages: Message[]) => {
+      dispatch({ type: 'MERGE_SERVER_PAGE', payload: { messages } });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [] // dispatch excluded: stable from useReducer
+  );
+
+  /**
    * LARS: Get a specific item from the registry by ID.
    * Used by DSL parser to resolve <View id="..."/> and <Ref id="..."/> tags.
    *
@@ -1004,6 +1018,7 @@ export const useChat = ({
     clearMessages,
     setMessages,
     appendMessage,
+    mergeServerPage,
     isLoadingHistory: state.isLoadingHistory,
     // LARS: Registry for rich rendering
     registry: state.registry,

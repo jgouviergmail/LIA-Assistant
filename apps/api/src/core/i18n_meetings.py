@@ -7,19 +7,18 @@ and section labels live in ``core/i18n_meeting_templates.py`` (ADR-259). Everyth
 UI shows lives in the frontend locales; nothing here is a chat message.
 
 Six supported languages, keyed by the backend-canonical code (``zh-CN``);
-``normalize_language`` from ``core.i18n`` is the only entry point for raw
-locale strings. Data module (like the other ``core/i18n_*``): no domain imports,
-exempt from the size ratchet.
+every lookup goes through ``resolve_language`` from ``core.i18n`` — a raw
+locale normalised, an absent one the declared language (ADR-323). Data module
+(like the other ``core/i18n_*``): no domain imports, exempt from the size
+ratchet.
 """
 
 from __future__ import annotations
 
 from src.core.constants import MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY
-from src.core.i18n import normalize_language
+from src.core.i18n import resolve_language
 from src.core.i18n_meeting_templates import get_section_label as _get_section_label
 from src.core.i18n_meeting_templates import get_template_name as _get_template_name
-
-_DEFAULT = "en"
 
 _HEADER_LABELS: dict[str, dict[str, str]] = {
     "en": {
@@ -110,8 +109,8 @@ _SPACE_NAME: dict[str, str] = {
 
 _SPACE_DESCRIPTION: dict[str, str] = {
     "en": "Minutes of the meetings you recorded with LIA, ready for questions.",
-    "fr": "Les comptes rendus des réunions enregistrées avec LIA, prêts pour vos questions.",
-    "de": "Protokolle der mit LIA aufgenommenen Besprechungen, bereit für Ihre Fragen.",
+    "fr": "Les comptes rendus des réunions enregistrées avec LIA, prêts pour tes questions.",
+    "de": "Protokolle der mit LIA aufgenommenen Besprechungen, bereit für deine Fragen.",
     "es": "Actas de las reuniones grabadas con LIA, listas para tus preguntas.",
     "it": "Verbali delle riunioni registrate con LIA, pronti per le tue domande.",
     "zh-CN": "用 LIA 录制的会议纪要，可随时提问。",
@@ -157,16 +156,15 @@ _NOTIFICATION_TITLE: dict[str, str] = {
 
 
 def _lang(language: str | None) -> str:
-    """Resolve a raw locale to a table key: the single chokepoint decides the
-    fallback (the configured default language), never this module."""
-    code = normalize_language(language or "")
-    return code if code in _SPEAKER_LABEL else _DEFAULT
+    """Resolve a raw locale to a table key: normalised when given, the declared
+    language when absent (ADR-323) — never a choice of this module."""
+    return resolve_language(language)
 
 
 def get_header_label(key: str, language: str | None) -> str:
     """Localized header label used by the Markdown/PDF/email rendering."""
-    table = _HEADER_LABELS.get(_lang(language), _HEADER_LABELS[_DEFAULT])
-    return table.get(key, _HEADER_LABELS[_DEFAULT][key])
+    table = _HEADER_LABELS.get(_lang(language), _HEADER_LABELS["en"])
+    return table.get(key, _HEADER_LABELS["en"][key])
 
 
 def get_section_label(key: str, language: str | None) -> str:
@@ -181,28 +179,28 @@ def get_template_name(language: str | None) -> str:
 
 def get_speaker_label(index: int, language: str | None) -> str:
     """Placeholder name of an unnamed diarized speaker (1-based)."""
-    return _SPEAKER_LABEL.get(_lang(language), _SPEAKER_LABEL[_DEFAULT]).format(n=index)
+    return _SPEAKER_LABEL.get(_lang(language), _SPEAKER_LABEL["en"]).format(n=index)
 
 
 def get_space_name(language: str | None) -> str:
     """Default name of the auto-created « Réunions » knowledge space."""
-    return _SPACE_NAME.get(_lang(language), _SPACE_NAME[_DEFAULT])
+    return _SPACE_NAME.get(_lang(language), _SPACE_NAME["en"])
 
 
 def get_space_description(language: str | None) -> str:
     """Default description of the auto-created knowledge space."""
-    return _SPACE_DESCRIPTION.get(_lang(language), _SPACE_DESCRIPTION[_DEFAULT])
+    return _SPACE_DESCRIPTION.get(_lang(language), _SPACE_DESCRIPTION["en"])
 
 
 def get_selection_fallback_reason(kind: str, language: str | None, **values: str) -> str:
     """Why the default template applied instead of an automatic choice (ADR-259)."""
     table = _SELECTION_FALLBACK[kind]
-    return table.get(_lang(language), table[_DEFAULT]).format(**values)
+    return table.get(_lang(language), table["en"]).format(**values)
 
 
 def get_notification_title(language: str | None) -> str:
     """Title of the « minutes ready » proactive notification."""
-    return _NOTIFICATION_TITLE.get(_lang(language), _NOTIFICATION_TITLE[_DEFAULT])
+    return _NOTIFICATION_TITLE.get(_lang(language), _NOTIFICATION_TITLE["en"])
 
 
 def supported_languages() -> tuple[str, ...]:

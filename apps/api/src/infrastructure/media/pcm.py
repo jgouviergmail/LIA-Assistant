@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import array
+import io
 import sys
+import wave
 from typing import Final
 
 #: Below this absolute sample value a sample counts as silence (16-bit scale).
@@ -50,4 +52,27 @@ def trim_silence(
     return kept.tobytes()
 
 
-__all__ = ["SILENCE_MARGIN_MS", "SILENCE_THRESHOLD", "trim_silence"]
+def wav_container(pcm: bytes, *, sample_rate: int) -> bytes:
+    """``pcm`` in a WAV container, so that a reader which probes formats can open it.
+
+    Raw samples carry no header: nothing that detects a format (ffmpeg, a mixer)
+    can tell their rate, width or channel count, and a transcode of them fails.
+
+    Args:
+        pcm: 16-bit mono little-endian samples (a trailing odd byte is dropped:
+            it is half a sample).
+        sample_rate: Samples per second.
+
+    Returns:
+        The WAV bytes.
+    """
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(sample_rate)
+        writer.writeframes(pcm[: len(pcm) - (len(pcm) % 2)])
+    return buffer.getvalue()
+
+
+__all__ = ["SILENCE_MARGIN_MS", "SILENCE_THRESHOLD", "trim_silence", "wav_container"]

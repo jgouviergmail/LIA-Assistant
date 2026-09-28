@@ -818,19 +818,19 @@
 
 /* Props are transparent to input and never cover the eyes or the mouth. Their
    spring weights crossfade; no keyframe competes with the shared face clock. */
-.lia-weather {
+.lia-ambient-weather {
   position: absolute;
   pointer-events: none;
   color: #558994;
   transform: translateZ(0.28em) rotate(calc(var(--rig-ambient-sway, 0) * 3deg));
 }
-.lia-weather svg {
+.lia-ambient-weather svg {
   display: block;
   width: 100%;
   height: 100%;
   overflow: visible;
 }
-.lia-weather--rain {
+.lia-ambient-weather--rain {
   width: 1.4em;
   height: 1.4em;
   left: -0.15em;
@@ -838,7 +838,7 @@
   opacity: var(--rig-weather-rain, 0);
   transform-origin: 70% 100%;
 }
-.lia-weather--cold {
+.lia-ambient-weather--cold {
   width: 2.05em;
   height: 0.63em;
   bottom: -0.07em;
@@ -846,7 +846,7 @@
   opacity: var(--rig-weather-cold, 0);
   transform-origin: 50% 5%;
 }
-.lia-weather--storm {
+.lia-ambient-weather--storm {
   width: 1.05em;
   height: 0.9em;
   left: -0.2em;
@@ -855,63 +855,63 @@
   transform: translate3d(calc(var(--rig-ambient-sway, 0) * 0.06em), 0, 0.3em)
     rotate(calc(var(--rig-ambient-sway, 0) * 7deg));
 }
-.lia-weather--freezing {
+.lia-ambient-weather--freezing {
   width: 2.5em;
   height: 1.17em;
   left: calc(50% - 1.25em);
   top: -0.24em;
   opacity: var(--rig-weather-freezing, 0);
 }
-.lia-weather--snow {
+.lia-ambient-weather--snow {
   width: 2.5em;
   height: 1.67em;
   left: calc(50% - 1.25em);
   top: -0.35em;
   opacity: var(--rig-weather-snow, 0);
 }
-.lia-weather--hot {
+.lia-ambient-weather--hot {
   width: 0.58em;
   height: 0.67em;
   left: -0.2em;
   bottom: 0;
   opacity: var(--rig-weather-hot, 0);
 }
-.lia-weather-fall {
+.lia-ambient-weather-fall {
   opacity: var(--rig-ambient-pulse, 1);
   transform: translateY(calc(var(--rig-ambient-fall, 0.5) * 16px));
 }
-.lia-weather-fall--slant {
+.lia-ambient-weather-fall--slant {
   transform: translate(
     calc(var(--rig-ambient-fall, 0.5) * -8px),
     calc(var(--rig-ambient-fall, 0.5) * 18px)
   );
 }
-.lia-weather-fall--snow {
+.lia-ambient-weather-fall--snow {
   transform: translate(
     calc(var(--rig-ambient-sway, 0) * 5px),
     calc(var(--rig-ambient-fall, 0.5) * 26px)
   );
 }
-.lia-weather-breath {
+.lia-ambient-weather-breath {
   opacity: calc(var(--rig-ambient-pulse, 1) * 0.45);
   transform: translateX(calc(var(--rig-ambient-fall, 0.5) * 8px));
 }
-.lia-weather-fan {
+.lia-ambient-weather-fan {
   transform-origin: 32px 65px;
   transform: rotate(calc(var(--rig-ambient-sway, 0) * 24deg));
 }
-.lia-weather-sweat {
+.lia-ambient-weather-sweat {
   transform: translateY(calc(var(--rig-ambient-pulse, 1) * 4px));
   opacity: calc(0.65 + var(--rig-ambient-pulse, 1) * 0.35);
 }
-.lia-weather--heat {
+.lia-ambient-weather--heat {
   width: 0.22em;
   height: 0.35em;
   right: 0.1em;
   top: 0.5em;
   opacity: var(--rig-weather-heat, 0);
 }
-.lia-weather--fog {
+.lia-ambient-weather--fog {
   width: 2.6em;
   height: 0.6em;
   bottom: -0.03em;
@@ -920,7 +920,7 @@
   color: #bfd0d7;
   transform: translate3d(calc(var(--rig-ambient-sway, 0) * 0.1em), 0, 0.3em);
 }
-.lia-weather--wind {
+.lia-ambient-weather--wind {
   width: 0.55em;
   height: 0.72em;
   left: -0.17em;
@@ -929,7 +929,7 @@
   transform: translate3d(calc(var(--rig-ambient-sway, 0) * 0.12em), 0, 0.3em)
     rotate(calc(var(--rig-ambient-sway, 0) * 14deg));
 }
-.lia-weather--night {
+.lia-ambient-weather--night {
   width: 0.42em;
   height: 0.42em;
   right: -0.24em;

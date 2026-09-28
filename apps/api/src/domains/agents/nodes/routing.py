@@ -1,8 +1,8 @@
 """
-Fonctions de routing pour le graph d'agents.
+Routing functions of the agent graph.
 
-Ce module centralise les fonctions de routing conditionnelles utilisées
-dans le graph pour déterminer les transitions entre nœuds.
+This module holds the conditional routing functions the graph uses to decide
+the transitions between nodes.
 
 Updated: 2026-01-11 - Added replanned plan validation enforcement
 """
@@ -42,35 +42,39 @@ def route_from_planner(
     state: MessagesState,
 ) -> Literal["approval_gate", "task_orchestrator", "response"]:
     """
-    Route depuis le planner vers approval_gate, task_orchestrator, ou response.
+    Route from the planner to approval_gate, task_orchestrator or response.
 
-    Route vers response si:
-    - Le planner n'a pas généré de plan valide (step_count == 0)
-    - Cas: requête conversationnelle qui a échappé au routing initial, ou
-           aucun outil applicable pour la requête
+    Routes to response when:
+    - the planner produced no valid plan (step_count == 0)
+    - i.e. a conversational request that escaped the first routing, or no
+      tool applies to the request
 
-    Route vers approval_gate (→ semantic_validator) si:
-    1. validation_result.requires_hitl = True (mutations avec hitl_required dans manifests)
-    2. Plan multi-domaines (> 1 domain) → complexité nécessitant validation sémantique
+    Routes to approval_gate (→ semantic_validator) when:
+    0. the planner asked for an early clarification (insufficient content, no plan yet)
+    1. validation_result.requires_hitl = True (mutations with hitl_required in the manifests)
+    2. the plan spans several domains (> 1 domain) → complexity that calls for
+       semantic validation
+    3. the plan is a replanned iteration (planner_iteration > 0) — a replan is
+       validated again
+    4. the request is a mutation but the plan holds no HITL tool — likely an
+       incomplete plan
 
-    Le semantic_validator valide la cohérence sémantique des plans complexes:
-    - CARDINALITY_MISMATCH: "tous mes contacts" → plan qui n'en traite qu'un
-    - SCOPE_OVERFLOW/UNDERFLOW: plan qui fait plus/moins que demandé
-    - DANGEROUS_AMBIGUITY: action risquée sur input vague
-    - GHOST_DEPENDENCY: référence à un step inexistant
+    The semantic_validator checks the semantic coherence of complex plans:
+    - CARDINALITY_MISMATCH: "all my contacts" → a plan that handles only one
+    - SCOPE_OVERFLOW/UNDERFLOW: a plan doing more or less than asked
+    - DANGEROUS_AMBIGUITY: a risky action on vague input
+    - GHOST_DEPENDENCY: a reference to a step that does not exist
 
-    Note: Le critère multi-step simple (search→details dans 1 domain) n'est PAS
-    inclus car ce pattern est très courant et ne nécessite pas de validation LLM.
-    Seul multi-domain déclenche la validation car il implique une vraie complexité
-    (coordination entre domaines, potentielle ambiguïté sur les entités).
+    Note: the simple multi-step case (search→details within 1 domain) is NOT
+    included: the pattern is very common and needs no LLM validation.
 
     Args:
-        state: État du graph avec validation_result et query_intelligence
+        state: Graph state with validation_result and query_intelligence
 
     Returns:
-        "response" si pas de plan valide,
-        "approval_gate" si validation sémantique requise,
-        sinon "task_orchestrator"
+        "response" when there is no valid plan,
+        "approval_gate" when semantic validation is required,
+        otherwise "task_orchestrator"
     """
     validation_result = state.get(STATE_KEY_VALIDATION_RESULT)
     execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
@@ -117,7 +121,8 @@ def route_from_planner(
     # This handles cases where:
     # 1. Planner couldn't generate steps (no applicable tools)
     # 2. Conversational query that slipped through routing
-    # Going to approval_gate with no plan would cause incorrect "user rejected" message
+    # The validator and the gate would have nothing to check on a plan with no
+    # step; the response answers the request directly.
     if step_count == 0:
         logger.info(
             "route_from_planner_no_plan_to_response",
@@ -232,26 +237,28 @@ def route_from_approval_gate(
     state: MessagesState,
 ) -> Literal["task_orchestrator", "response", "planner"]:
     """
-    Route depuis approval_gate vers task_orchestrator, response ou planner.
+    Route from approval_gate to task_orchestrator, response or planner.
 
-    Si le plan a été approuvé (plan_approved = True),
-    route vers task_orchestrator pour exécution.
+    Unless the plan was explicitly refused (plan_approved = False), routes to
+    task_orchestrator to run it: an approval nobody gave (None, ADR-263) runs
+    like an approval, and a plan with no step goes to response instead.
 
-    Si needs_replan = True (REPLAN demandé par l'utilisateur),
-    route vers planner pour régénérer le plan avec les nouvelles instructions.
-
-    Si le plan a été rejeté ou modifié avec erreur,
-    route vers response pour expliquer le rejet.
+    Two branches are defensive — no live path reaches them today: needs_replan
+    routes to planner (an answer that adds information reaches the planner
+    through route_from_semantic_validator, and a confirmation writes
+    needs_replan=False), and an explicit refusal routes to response (a
+    cancelled clarification exits to response before the gate).
 
     Args:
-        state: État du graph avec plan_approved flag et needs_replan flag
+        state: Graph state with the plan_approved and needs_replan flags
 
     Returns:
-        - "task_orchestrator" si approuvé
-        - "planner" si REPLAN demandé
-        - "response" sinon (rejet)
+        - "task_orchestrator" unless refused (and the plan has steps)
+        - "planner" when a REPLAN was asked for
+        - "response" otherwise (a refusal, or a plan with no step)
     """
-    plan_approved = state.get(STATE_KEY_PLAN_APPROVED, False)
+    # An absent key is no verdict, like the router's None: only False refuses.
+    plan_approved = state.get(STATE_KEY_PLAN_APPROVED)
     needs_replan = state.get(STATE_KEY_NEEDS_REPLAN, False)
     execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
 
@@ -300,8 +307,9 @@ def route_from_approval_gate(
 
     # Case 2: Plan approved - execution
     # ADR-263: only an EXPLICIT refusal blocks. ``None`` means no verdict was
-    # produced — the plan runs, exactly as it did when this branch invented a
-    # ``True``; what changed is that the effect gate can now tell the two apart.
+    # produced — the plan runs, exactly as it did when the gate invented a
+    # ``True``; what changed is that the state no longer claims an approval
+    # nobody gave.
     if not approval_is_refused(plan_approved):
         # LOT 6 FIX: Safety check - block execution of empty plans
         # An empty plan (0 steps) should NEVER be executed
@@ -319,7 +327,7 @@ def route_from_approval_gate(
                 step_count=0,
                 execution_plan_is_none=execution_plan is None,
                 execution_plan_type=type(execution_plan).__name__ if execution_plan else "NoneType",
-                msg="Empty plan approved but execution blocked - routing to response. "
+                msg="Empty plan not refused, but execution blocked - routing to response. "
                 "If execution_plan is None, checkpoint restore may have failed during HITL resumption.",
             )
 
@@ -417,29 +425,33 @@ def route_from_semantic_validator(
     state: MessagesState,
 ) -> Literal["approval_gate", "clarification", "planner"]:
     """
-    Route depuis semantic_validator vers approval_gate, clarification ou planner.
+    Route from semantic_validator to approval_gate, clarification or planner.
 
-    Phase 2 OPTIMPLAN - Semantic Validation Flow:
-    - Si requires_clarification=True → clarification (HITL interrupt)
-    - Si planner_iteration >= max_replans → approval_gate (max iterations atteintes)
-    - Sinon → approval_gate (validation OK ou pas de clarification)
-
-    Protection feedback loop:
-    - Max iterations configurable via PLANNER_MAX_REPLANS (default: 2)
-    - Au-delà, bypass clarification et passe à l'approbation
+    The cases, in the order the code tests them:
+    1. ``plan_approved is True`` — the person confirmed in a clarification →
+       approval_gate. Only True skips: the router writes None at every turn
+       start, and ADR-263 reads None as « no verdict », never as an approval.
+    2. ``needs_replan`` — the person's answer added information → planner,
+       whatever the iteration count (their answer is always processed).
+    3. ``planner_iteration > PLANNER_MAX_REPLANS`` → approval_gate: the bound
+       of the validator ↔ planner loop, clarification bypassed.
+    4. No semantic validation result → approval_gate.
+    5. ``requires_clarification`` → clarification (HITL interrupt).
+    6. An invalid plan the planner can fix → planner (auto-replan).
+    7. Otherwise → approval_gate.
 
     Args:
-        state: État du graph avec semantic_validation result
+        state: Graph state with the semantic_validation result
 
     Returns:
-        - "clarification" si clarification requise (et < max_replans iterations)
-        - "planner" si needs_replan=True (après clarification)
-        - "approval_gate" si validation OK ou max iterations atteintes
+        "approval_gate", "clarification" or "planner", as above.
 
     Notes:
-        - needs_replan est set par clarification_node après réponse user
-        - planner_iteration est incrémenté par clarification_node
-        - Le cycle: planner → validator → clarification → (needs_replan) → planner
+        - needs_replan is set by clarification_node after the user's answer
+        - planner_iteration is incremented by the semantic validator on an
+          auto-replan; the planner raises it to 1 when it processes an answer
+        - the cycle: planner → validator → clarification → (needs_replan) →
+          planner → validator
     """
     semantic_validation = state.get(STATE_KEY_SEMANTIC_VALIDATION)
     planner_iteration = state.get(STATE_KEY_PLANNER_ITERATION, 0)
@@ -461,9 +473,15 @@ def route_from_semantic_validator(
     # Without this, semantic_validator would re-detect the same issue → infinite loop.
     # =========================================================================
     plan_approved = state.get(STATE_KEY_PLAN_APPROVED, False)
-    # ADR-263: unchanged for the clarification path (it sets True explicitly);
-    # ``None`` from a verdict-less gate keeps the pre-ADR-263 behaviour.
-    if not approval_is_refused(plan_approved):
+    # Only the person's EXPLICIT confirmation (clarification_node writes True)
+    # skips the verdict. The router resets the flag to None at every turn, so
+    # reading None as « not refused » here sent EVERY fresh turn to the approval
+    # gate from 2026-09-05 (ADR-263) on: the validator's clarification and
+    # auto-replan verdicts were computed and never read. The validator's own
+    # skip lost the same reading on 2026-09-19; this is its twin. ADR-263's
+    # three-valued reading belongs to route_from_approval_gate, where a falsy
+    # value REFUSES — here a truthy one SKIPS.
+    if plan_approved is True:
         logger.info(
             "route_from_semantic_validator_plan_approved",
             plan_approved=True,
@@ -547,7 +565,7 @@ def route_from_semantic_validator(
         return "approval_gate"
 
     # =========================================================================
-    # From here: planner_iteration < max_iterations AND needs_replan=False
+    # From here: planner_iteration <= max_iterations AND needs_replan=False
     # =========================================================================
 
     # Case 4: No semantic validation result - fallback to approval
@@ -590,8 +608,8 @@ def route_from_semantic_validator(
     # Case 5: Clarification required (new problem detected by semantic_validator)
     # =========================================================================
     # Only reached if:
-    # - needs_replan=False (user hasn't responded yet, checked in Cas 2)
-    # - planner_iteration < max_iterations (checked in Cas 3)
+    # - needs_replan=False (user hasn't responded yet, checked in Case 2)
+    # - planner_iteration <= max_iterations (checked in Case 3)
     # This means semantic_validator detected a NEW problem requiring user input.
     # =========================================================================
     if requires_clarification:
@@ -621,7 +639,7 @@ def route_from_semantic_validator(
     # Case 6: Auto-replan - Issues found but Planner can self-correct
     # =========================================================================
     # SemanticValidator ↔ Planner dialogue without user interruption
-    # Note: planner_iteration < max_iterations already guaranteed by Case 2
+    # Note: planner_iteration <= max_iterations already guaranteed by Case 3
     # =========================================================================
     if not is_valid and not requires_clarification:
         execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
@@ -817,9 +835,11 @@ def route_from_react_call_model(
 ) -> Literal["react_execute_tools", "react_finalize", "react_recovery"]:
     """Route after ReAct LLM call: continue loop if tool_calls, else finalize.
 
-    Enforces two safety limits:
+    Finalizes on every stop condition of the one predicate (``react_exit_reason``):
     1. Max iterations — prevents infinite loops
-    2. Compute budget — prevents slow tool calls from accumulating
+    2. The compute and tool budgets — prevent slow calls from accumulating
+    3. A model output the provider cut at its budget — never an answer nor a
+       plan, and never written to the thread (ADR-275, amended)
 
     The budget counts the loop's own COMPUTE time, not wall clock (ADR-170).
     Wall clock was wrong for a graph that can be interrupted: ``interrupt()``
@@ -878,7 +898,8 @@ def route_from_react_call_model(
         ).inc()
         return NODE_REACT_FINALIZE
 
-    # Safety limit 2: the TIME budgets (see docstring — never wall clock).
+    # Safety limit 2: the TIME budgets (see docstring — never wall clock), and a
+    # model output the provider cut at its budget (ADR-275, amended).
     # Nothing charged yet means no model call has completed in this turn, so
     # there is no budget to enforce — same short-circuit the wall-clock version
     # had when react_start_time was unset.
@@ -890,24 +911,27 @@ def route_from_react_call_model(
     compute_elapsed = float(state.get("react_elapsed_seconds") or 0.0)
     tool_elapsed = float(state.get("react_tool_seconds") or 0.0)
     if exit_reason is not None:
-        # wall − charged: dominated by the HITL approval wait when the turn was
-        # interrupted, graph overhead otherwise. It used to be charged to the
-        # loop budget; surfacing it turns the old defect into a signal. Shared
-        # helper — react_finalize logs the same quantity, and two copies of this
-        # arithmetic would drift.
-        from src.domains.agents.utils.react_budget import uncharged_wall_seconds
+        # A cut output was logged, with its facts, where it was refused: logging
+        # it here as a time budget would name the wrong cause.
+        if exit_reason != "output_truncated":
+            # wall − charged: dominated by the HITL approval wait when the turn
+            # was interrupted, graph overhead otherwise. It used to be charged to
+            # the loop budget; surfacing it turns the old defect into a signal.
+            # Shared helper — react_finalize logs the same quantity, and two
+            # copies of this arithmetic would drift.
+            from src.domains.agents.utils.react_budget import uncharged_wall_seconds
 
-        uncharged = uncharged_wall_seconds(state, compute_elapsed + tool_elapsed)
-        logger.warning(
-            "react_time_budget_exhausted",
-            reason=exit_reason,
-            compute_seconds=round(compute_elapsed, 1),
-            tool_seconds=round(tool_elapsed, 1),
-            timeout_seconds=settings.react_agent_timeout_seconds,
-            tool_budget_seconds=settings.react_tool_budget_seconds,
-            uncharged_wall_seconds=uncharged,
-            iteration=iteration,
-        )
+            uncharged = uncharged_wall_seconds(state, compute_elapsed + tool_elapsed)
+            logger.warning(
+                "react_time_budget_exhausted",
+                reason=exit_reason,
+                compute_seconds=round(compute_elapsed, 1),
+                tool_seconds=round(tool_elapsed, 1),
+                timeout_seconds=settings.react_agent_timeout_seconds,
+                tool_budget_seconds=settings.react_tool_budget_seconds,
+                uncharged_wall_seconds=uncharged,
+                iteration=iteration,
+            )
         langgraph_conditional_edges_total.labels(
             edge_name="route_from_react_call_model",
             decision=NODE_REACT_FINALIZE,

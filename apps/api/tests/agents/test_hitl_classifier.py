@@ -35,11 +35,23 @@ from src.domains.agents.constants import (
 from src.domains.agents.services.hitl_classifier import (
     ClassificationResult,
     HitlResponseClassifier,
+    _load_classifier_example_sections,
 )
 
 # ============================================================================
 # Fixtures
 # ============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _real_classifier_examples() -> None:
+    """Load the real few-shot examples BEFORE a test patches ``load_prompt``.
+
+    The examples are cached per process. A test that patches ``load_prompt`` and
+    runs first in its worker (xdist sends a class alone) would otherwise cache
+    the fake template — which has no ``default`` section — for every later test.
+    """
+    _load_classifier_example_sections()
 
 
 class _LlmReply:

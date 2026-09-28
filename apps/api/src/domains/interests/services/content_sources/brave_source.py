@@ -22,13 +22,13 @@ from src.core.constants import (
     BRAVE_SEARCH_DEFAULT_FRESHNESS,
     INTEREST_SOURCE_CONTENT_MAX_LENGTH,
 )
+from src.core.i18n import resolve_language
 from src.domains.agents.display.components.base import html_to_text
 from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.interests.helpers import (
     build_localized_search_query,
     get_connector_api_key,
-    normalize_language_code,
 )
 from src.domains.interests.services.content_sources.base import ContentResult
 from src.infrastructure.observability.logging import get_logger
@@ -42,6 +42,7 @@ _SEARCH_QUERY_TEMPLATES: dict[str, str] = {
     "es": "Noticias recientes e información sobre {topic}",
     "de": "Aktuelle Nachrichten und Informationen über {topic}",
     "it": "Notizie recenti e informazioni su {topic}",
+    "zh-CN": "关于{topic}的最新新闻和资讯",
 }
 
 
@@ -139,7 +140,9 @@ class BraveSearchContentSource:
                 )
                 return None
 
-            language = normalize_language_code(user_language)
+            # The canonical code: the client maps it to Brave's own vocabulary
+            # (``zh-CN`` → ``zh-hans``). A bare ``zh`` is refused with a 422.
+            language = resolve_language(user_language)
             client = self._get_client(api_key, user_id, language)
 
             logger.debug(

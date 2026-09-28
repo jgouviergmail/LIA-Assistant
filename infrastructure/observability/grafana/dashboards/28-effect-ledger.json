@@ -299,6 +299,11 @@
           "expr": "sum(rate(lia_effect_outcomes_total{status=\"failed\"}[5m])) or vector(0)",
           "legendFormat": "échoués",
           "refId": "C"
+        },
+        {
+          "expr": "sum(rate(lia_effect_outcomes_total{status=\"abandoned\"}[5m])) or vector(0)",
+          "legendFormat": "abandonnés",
+          "refId": "D"
         }
       ],
       "fieldConfig": {

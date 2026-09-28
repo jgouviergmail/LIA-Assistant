@@ -96,7 +96,7 @@ async def _generate_delivery_text(
     Returns:
         The text, its usage (cache writes included, ADR-306) and the model.
     """
-    from src.domains.personalities.constants import DEFAULT_PERSONALITY_PROMPT
+    from src.domains.personalities.constants import default_personality_prompt
     from src.domains.personalities.service import PersonalityService
     from src.infrastructure.llm import get_llm
     from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
@@ -138,7 +138,7 @@ async def _generate_delivery_text(
         memory_block = profile or ""
 
     system_prompt = load_prompt("peer_message_delivery_prompt").format(
-        personality_instruction=personality or DEFAULT_PERSONALITY_PROMPT,
+        personality_instruction=personality or default_personality_prompt(),
         language=get_language_name(recipient.language),
         current_datetime=datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M"),
         psyche_context=psyche_block,

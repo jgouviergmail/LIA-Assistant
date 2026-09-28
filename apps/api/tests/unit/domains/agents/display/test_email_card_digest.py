@@ -73,6 +73,22 @@ def test_empty_lists_draw_no_empty_rows() -> None:
     assert V3Messages.get_actions("en") not in html
 
 
+@pytest.mark.parametrize(
+    ("language", "unread", "important"),
+    [("fr", "Non lu", "Important"), ("de", "Ungelesen", "Wichtig"), ("zh-CN", "未读", "重要")],
+)
+def test_the_status_icons_are_titled_in_the_readers_language(
+    language: str, unread: str, important: str
+) -> None:
+    """The unread and important marks were titled « Non lu » / « Important » for everyone."""
+    message = {**_digested(), "labelIds": ["UNREAD", "IMPORTANT"]}
+
+    html = EmailCard().render(message, RenderContext(language=language))
+
+    assert f'title="{unread}"' in html
+    assert f'title="{important}"' in html
+
+
 def test_the_snippet_is_drawn_once() -> None:
     html = EmailCard().render(_digested(), RenderContext(language="en"))
     assert html.count('class="lia-email__snippet"') == 1

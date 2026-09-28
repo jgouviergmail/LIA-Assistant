@@ -151,6 +151,17 @@ class TestPlainTextForNotification:
     def test_empty_is_noop(self) -> None:
         assert plain_text_for_notification("") == ""
 
+    def test_character_references_are_read_as_the_chat_reads_them(self) -> None:
+        """A peer's comment is quoted literally for the chat (ADR-316): the lock
+        screen read « &#60;3 » where the chat drew « <3 » (review 14)."""
+        assert plain_text_for_notification("> Bisous &#60;3 &#91;promis&#93;") == (
+            "> Bisous <3 [promis]"
+        )
+
+    def test_a_bare_ampersand_beside_html_stays_one(self) -> None:
+        """HTML5 reads « &copy=2 » as « ©=2 »; the chat reads Markdown, which does not."""
+        assert plain_text_for_notification("<p>Panier</p> ?id=7&copy=2") == ("Panier ?id=7&copy=2")
+
     def test_reclaims_the_budget_wasted_by_the_wrapper(self) -> None:
         """The wrapper alone ate 26 of the 150-character push budget."""
         raw = '<div class="lia-response"><p>' + ("a" * 200) + "</p></div>"

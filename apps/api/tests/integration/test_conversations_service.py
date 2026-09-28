@@ -94,6 +94,7 @@ class TestGetOrCreateConversation:
         conversation = await service.get_or_create_conversation(
             user_id=sample_user.id,
             db=async_session,
+            language="fr",
         )
 
         assert conversation is not None
@@ -1003,7 +1004,7 @@ class TestGenerateTitle:
 
     def test_generates_title_with_date(self, service):
         """Test generates title with current date."""
-        title = service._generate_title()
+        title = service._generate_title("fr")
 
         assert "Conversation du" in title
         # Should contain date in DD/MM/YYYY format
@@ -1017,5 +1018,5 @@ class TestGenerateTitle:
             mock_datetime.now.return_value = datetime(2024, 1, 15, tzinfo=UTC)
             mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
 
-            title = service._generate_title()
+            title = service._generate_title("fr")
             assert "15/01/2024" in title

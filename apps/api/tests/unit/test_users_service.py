@@ -800,7 +800,7 @@ class TestUpdateUserActivation:
         sample_user.is_active = False
         mock_repository.get_by_id.return_value = sample_user
         mock_repository.update.return_value = sample_user
-        mock_repository.create_audit_log.return_value = AdminAuditLog(
+        audit_row = AdminAuditLog(
             id=uuid4(),
             admin_user_id=admin_user.id,
             action="user_activated",
@@ -809,10 +809,18 @@ class TestUpdateUserActivation:
         )
 
         update_data = UserActivationUpdate(is_active=True)
+        order: list[str] = []
+        mock_db.commit.side_effect = lambda: order.append("commit")
+        mock_repository.create_audit_log.side_effect = (
+            lambda *_args, **_kwargs: order.append("audit") or audit_row
+        )
 
         # Act
         with patch("src.domains.users.service.get_email_service") as mock_email:
             mock_email_service = AsyncMock()
+            mock_email_service.send_user_activated_notification.side_effect = (
+                lambda **_kwargs: order.append("email") is None
+            )
             mock_email.return_value = mock_email_service
 
             result = await service.update_user_activation(
@@ -825,9 +833,12 @@ class TestUpdateUserActivation:
             assert result.email_notification_sent is True
             mock_repository.get_by_id.assert_called_once_with(sample_user.id, include_inactive=True)
             mock_repository.update.assert_called_once()
-            mock_db.commit.assert_called_once()
             mock_repository.create_audit_log.assert_called_once()
             mock_email_service.send_user_activated_notification.assert_called_once()
+            # The status is committed, then the audit row is written and
+            # committed, then the e-mail leaves: no transaction stays open
+            # across the send (ADR-304).
+            assert order == ["commit", "audit", "commit", "email"]
 
     async def test_deactivate_user_success(
         self, service, mock_repository, mock_db, sample_user, admin_user, mock_request
@@ -837,7 +848,7 @@ class TestUpdateUserActivation:
         sample_user.is_active = True
         mock_repository.get_by_id.return_value = sample_user
         mock_repository.update.return_value = sample_user
-        mock_repository.create_audit_log.return_value = AdminAuditLog(
+        audit_row = AdminAuditLog(
             id=uuid4(),
             admin_user_id=admin_user.id,
             action="user_deactivated",
@@ -846,11 +857,23 @@ class TestUpdateUserActivation:
         )
 
         update_data = UserActivationUpdate(is_active=False, reason="Policy violation")
+        order: list[str] = []
+        mock_db.commit.side_effect = lambda: order.append("commit")
+        mock_repository.create_audit_log.side_effect = (
+            lambda *_args, **_kwargs: order.append("audit") or audit_row
+        )
 
         # Act
         with patch("src.domains.users.service.get_email_service") as mock_email:
-            with patch.object(service, "_invalidate_all_user_sessions") as mock_invalidate:
+            with patch.object(
+                service,
+                "_invalidate_all_user_sessions",
+                AsyncMock(side_effect=lambda _user_id: order.append("sessions")),
+            ) as mock_invalidate:
                 mock_email_service = AsyncMock()
+                mock_email_service.send_user_deactivated_notification.side_effect = (
+                    lambda **_kwargs: order.append("email") is None
+                )
                 mock_email.return_value = mock_email_service
 
                 result = await service.update_user_activation(
@@ -866,6 +889,10 @@ class TestUpdateUserActivation:
                 # Check notification includes reason
                 call_args = mock_email_service.send_user_deactivated_notification.call_args
                 assert "Policy violation" in call_args.kwargs["reason"]
+                # Status, then audit row, each committed before the sessions
+                # are dropped in Redis and the e-mail leaves: no transaction
+                # stays open across either network call (ADR-304).
+                assert order == ["commit", "audit", "commit", "sessions", "email"]
 
     async def test_update_user_activation_not_found(self, service, mock_repository, admin_user):
         """Test activating non-existent user raises HTTPException."""

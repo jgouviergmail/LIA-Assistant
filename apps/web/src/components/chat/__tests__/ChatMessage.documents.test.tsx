@@ -57,10 +57,7 @@ describe('ChatMessage — generated document cards', () => {
     renderMessage(makeMessage({ generatedDocuments: [csvDocument] }));
     expect(screen.getByText(/CSV/)).toBeInTheDocument();
     const open = screen.getByRole('link', { name: 'chat.document_card.open' });
-    expect(open).toHaveAttribute(
-      'href',
-      expect.stringContaining('/dashboard/documents/d1?')
-    );
+    expect(open).toHaveAttribute('href', expect.stringContaining('/dashboard/documents/d1?'));
     expect(open).toHaveAttribute('target', '_blank');
     // The viewer link carries what the page needs before the fetch resolves.
     expect(open.getAttribute('href')).toContain('type=csv');
@@ -77,9 +74,7 @@ describe('ChatMessage — generated document cards', () => {
   it('pdf opens the inline attachment URL directly (native browser viewer)', () => {
     renderMessage(
       makeMessage({
-        generatedDocuments: [
-          { ...csvDocument, filename: 'rapport.pdf', doc_type: 'pdf' },
-        ],
+        generatedDocuments: [{ ...csvDocument, filename: 'rapport.pdf', doc_type: 'pdf' }],
       })
     );
     const open = screen.getByRole('link', { name: 'chat.document_card.open' });
@@ -107,6 +102,27 @@ describe('ChatMessage — generated document cards', () => {
     );
     // Same classification logic as image cards; "soon" copy is generic.
     expect(screen.getByText(/chat\.image_expiry\.soon/)).toBeInTheDocument();
+  });
+
+  it('says a kept document is kept, in the words of a document (ADR-319)', () => {
+    renderMessage(
+      makeMessage({ generatedDocuments: [{ ...csvDocument, expires_at: null, kept: true }] })
+    );
+    expect(screen.getByText('chat.document_expiry.kept')).toBeInTheDocument();
+  });
+
+  it('says a gone document is gone rather than promising its old deadline', () => {
+    const inTwoHours = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+    renderMessage(
+      makeMessage({
+        generatedDocuments: [{ ...csvDocument, expires_at: inTwoHours, gone: true }],
+      })
+    );
+    expect(screen.getByText('chat.document_expiry.gone')).toBeInTheDocument();
+    expect(screen.queryByText(/chat\.image_expiry\.soon/)).not.toBeInTheDocument();
+    // Named, but neither opened nor downloaded: both would reach a 404.
+    expect(screen.getByText('modeles-llm.csv')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('renders nothing without documents', () => {

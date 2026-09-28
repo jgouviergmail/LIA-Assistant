@@ -17,6 +17,7 @@
 
 import type { ReactElement } from 'react';
 
+import { RadioSettings } from '@/components/radio/settings/RadioSettings';
 import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection';
 import { ThemeSelector } from '@/components/theme-selector';
 import type { Language } from '@/i18n/settings';
@@ -120,6 +121,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   // ---- Preferences / Voice & Media
   'voice-mode': { render: lng => <VoiceModeSettings lng={lng} /> },
   'live-mode': { feature: 'live-mode', render: lng => <LiveModeSettings lng={lng} /> },
+  radio: { feature: 'radio', render: lng => <RadioSettings lng={lng} /> },
   'image-generation': {
     feature: 'image-generation',
     render: lng => <ImageGenerationSettings lng={lng} />,

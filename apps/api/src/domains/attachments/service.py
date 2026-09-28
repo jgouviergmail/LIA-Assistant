@@ -356,13 +356,13 @@ class AttachmentService:
             user_id: Current user UUID (ownership check).
         """
         attachment = await self.get_for_user(attachment_id, user_id)
+        file_path = attachment.file_path
 
-        # Remove from disk
-        self._remove_file_from_disk(attachment.file_path)
-
-        # Remove from DB
+        # The row first, the file once the row is gone: the reverse order left
+        # a row pointing at a missing file whenever the commit failed.
         await self.repo.delete(attachment)
         await self.db.commit()
+        await self._remove_files_off_loop([file_path])
 
         attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_USER).inc()
 
@@ -397,9 +397,8 @@ class AttachmentService:
         count = await self.repo.delete_for_user(user_id, origins=origins)
         await self.db.commit()
 
-        # Remove files from disk
-        for path in file_paths:
-            self._remove_file_from_disk(path)
+        # Remove files from disk, off the event loop like every other path.
+        await self._remove_files_off_loop(file_paths)
 
         # Remove user directory if empty
         user_dir = Path(self._settings.attachments_storage_path) / str(user_id)
@@ -423,44 +422,41 @@ class AttachmentService:
         """
         Clean up expired attachments (scheduler job).
 
+        ONE conditional statement deletes every row whose deadline passed and
+        returns its file: a file the person KEPT has no deadline (ADR-319), so
+        it never matches — even kept between two sweeps, even kept after its
+        deadline passed, because the condition is evaluated by the statement
+        that deletes. The files go once the rows are gone, off the event loop.
+
         Returns:
-            Dict with cleanup stats: {"deleted": N, "errors": N}.
+            Dict with cleanup stats: {"deleted": N, "errors": N} — errors are
+            files the disk refused to remove (their rows are already gone).
         """
         from src.infrastructure.observability.metrics_attachments import (
             attachments_active_count,
+            attachments_kept_bytes,
+            attachments_kept_count,
         )
 
-        now = datetime.now(UTC)
-        expired = await self.repo.get_expired(now)
-
-        deleted = 0
-        errors = 0
-
-        for attachment in expired:
-            try:
-                self._remove_file_from_disk(attachment.file_path)
-                await self.repo.delete(attachment)
-                deleted += 1
-            except Exception as exc:
-                errors += 1
-                logger.error(
-                    "attachment_cleanup_delete_error",
-                    attachment_id=str(attachment.id),
-                    error=str(exc),
-                )
-
+        paths = await self.repo.delete_expired(datetime.now(UTC))
+        await self.db.commit()
+        errors = await self._remove_files_off_loop(paths)
+        deleted = len(paths)
         if deleted > 0:
-            await self.db.commit()
             attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_EXPIRED).inc(deleted)
 
-        # Update active gauge
-        active_count = await self.repo.count()
-        attachments_active_count.set(active_count)
+        # Gauges: what the table holds, and what people chose to keep — the
+        # disk a kept file holds is never reclaimed by this sweep.
+        attachments_active_count.set(await self.repo.count())
+        kept_files, kept_bytes = await self.repo.kept_totals()
+        attachments_kept_count.set(kept_files)
+        attachments_kept_bytes.set(kept_bytes)
 
         logger.info(
             "attachment_cleanup_completed",
             deleted=deleted,
             errors=errors,
+            kept_files=kept_files,
         )
 
         return {"deleted": deleted, "errors": errors}
@@ -588,8 +584,13 @@ class AttachmentService:
         }
         return mime_map.get(mime_type, "bin")
 
-    def _remove_file_from_disk(self, relative_path: str) -> None:
-        """Remove a file from disk, logging but not raising on error."""
+    def _remove_file_from_disk(self, relative_path: str) -> bool:
+        """Remove a file from disk, logging but not raising on error.
+
+        Returns:
+            False when the disk refused (the file stays behind), True otherwise
+            — a file already absent is not a failure.
+        """
         absolute_path = Path(self._settings.attachments_storage_path) / relative_path
         try:
             if absolute_path.exists():
@@ -600,6 +601,26 @@ class AttachmentService:
                 file_path=str(absolute_path),
                 error=str(exc),
             )
+            return False
+        return True
+
+    async def _remove_files_off_loop(self, relative_paths: list[str]) -> int:
+        """Remove files in a worker thread, once their rows are committed.
+
+        Disk I/O never runs on the event loop (CLAUDE.md, async rules).
+
+        Args:
+            relative_paths: Paths under the storage root.
+
+        Returns:
+            How many the disk refused.
+        """
+        if not relative_paths:
+            return 0
+        outcomes = await asyncio.to_thread(
+            lambda: [self._remove_file_from_disk(path) for path in relative_paths]
+        )
+        return outcomes.count(False)
 
     async def list_generated(
         self, user_id: uuid.UUID, filters: GalleryFilters
@@ -647,15 +668,19 @@ class AttachmentService:
         removable = {row.id: row for row in owned if is_generated(row.origin)}
 
         deleted: list[uuid.UUID] = []
+        paths: list[str] = []
         for candidate in wanted:
             row = removable.get(candidate)
             if row is None:
                 continue
-            self._remove_file_from_disk(row.file_path)
+            paths.append(row.file_path)
             await self.repo.delete(row)
             deleted.append(candidate)
         if deleted:
+            # Rows first, files once they are committed (see
+            # `delete_for_user_single`).
             await self.db.commit()
+            await self._remove_files_off_loop(paths)
             attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_USER).inc(len(deleted))
 
         removed = set(deleted)

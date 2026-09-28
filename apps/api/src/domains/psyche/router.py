@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
+from src.core.i18n import normalize_language
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
@@ -100,7 +101,7 @@ async def get_psyche_summary(
     service = PsycheService(db)
     summary_text = await service.generate_summary(
         user_id=current_user.id,
-        user_language=current_user.language or "fr",
+        user_language=normalize_language(current_user.language),
     )
     await db.commit()
     return PsycheSummaryResponse(summary=summary_text)

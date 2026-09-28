@@ -12,7 +12,7 @@ from contextlib import suppress
 from datetime import UTC
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Cookie, Depends, Header, Request, Response
+from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from starlette.requests import ClientDisconnect
 
@@ -31,9 +31,8 @@ from src.core.field_names import (
     FIELD_RUN_ID,
     FIELD_STATUS,
 )
-from src.core.i18n import DEFAULT_LANGUAGE, Language
+from src.core.i18n import Language, resolve_language
 from src.core.i18n_api_messages import APIMessages
-from src.core.i18n_hitl import get_user_language
 from src.core.session_dependencies import (
     get_current_active_session,
     get_current_active_session_for_stream,
@@ -44,7 +43,11 @@ from src.domains.agents.api.background_runner import (
     spawn_chat_run_producer,
 )
 from src.domains.agents.api.error_messages import SSEErrorMessages
-from src.domains.agents.api.hitl_pending import check_pending_hitl, check_pending_hitl_uncached
+from src.domains.agents.api.hitl_pending import (
+    HITL_DECISION_STALE_ERROR_CODE,
+    check_pending_hitl,
+    check_pending_hitl_uncached,
+)
 from src.domains.agents.api.schemas import ChatRequest, ChatStreamChunk, PendingHitlResponse
 from src.domains.agents.api.service import AgentService
 from src.domains.agents.api.session_watch import (
@@ -148,7 +151,7 @@ async def _probe_orphan(
 async def stream_run_as_sse(
     stream_id: str,
     conversation_id: str | None = None,
-    user_language: Language = DEFAULT_LANGUAGE,
+    user_language: Language | None = None,
     session_id: str | None = None,
 ) -> AsyncGenerator[str]:
     """Subscribe to a run stream and format events as SSE lines.
@@ -245,7 +248,9 @@ async def stream_run_as_sse(
                         # emitted before the first probe could ever run.
                         error_chunk = {
                             "type": "error",
-                            FIELD_CONTENT: SSEErrorMessages.run_orphaned(user_language),
+                            FIELD_CONTENT: SSEErrorMessages.run_orphaned(
+                                resolve_language(user_language)
+                            ),
                             FIELD_METADATA: {FIELD_ERROR_TYPE: "orphaned_run"},
                         }
                         yield f"data: {json.dumps(error_chunk)}\n\n"
@@ -340,7 +345,6 @@ async def stream_chat(
     # A stream authenticates on a session of its own (no request session):
     # the response lives for the whole turn (ADR-283, review 2026-09-20).
     current_user: User = Depends(get_current_active_session_for_stream),
-    accept_language: str | None = Header(None, alias="Accept-Language"),
 ) -> StreamingResponse:
     """
     Stream chat response with Server-Sent Events (SSE).
@@ -355,7 +359,6 @@ async def stream_chat(
         http_request: FastAPI Request object for SSE connection monitoring.
         request: ChatRequest with message and session info.
         current_user: Authenticated user from session.
-        accept_language: Accept-Language header for i18n (e.g., "fr-FR,fr;q=0.9").
 
     Returns:
         StreamingResponse with text/event-stream media type.
@@ -508,9 +511,9 @@ async def stream_chat(
                 # and router misinterprets it as HITL response due to stale pending_hitl
                 #
                 # Example bug scenario without this check:
-                # 1. User: "recherche jean" → HITL interrupt → pending_hitl created
+                # 1. User: "search jean" → HITL interrupt → pending_hitl created
                 # 2. User: "ok" → HITL resumption → completion → pending_hitl SHOULD be deleted
-                # 3. User: "recherche jean" → Router sees stale pending_hitl → Misroutes to HITL handler
+                # 3. User: "search jean" → Router sees stale pending_hitl → Misroutes to HITL handler
                 interrupt_ts_str = pending_hitl.get("interrupt_ts")
 
                 if interrupt_ts_str:
@@ -668,10 +671,7 @@ async def stream_chat(
                     # Uses stream_chat_response() with original_run_id for unified HITL flow
                     # Get user preferences - prioritize stored user.language over Accept-Language header
                     user_timezone = getattr(current_user, "timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-                    user_language = get_user_language(
-                        user_language=getattr(current_user, "language", None),
-                        accept_language_header=accept_language,
-                    )
+                    user_language = resolve_language(getattr(current_user, "language", None))
                     user_display_name = resolve_user_display_name(
                         getattr(current_user, "full_name", None),
                         getattr(current_user, "email", None),
@@ -779,10 +779,7 @@ async def stream_chat(
                 # Get user timezone from current_user (with fallback to Europe/Paris)
                 user_timezone = getattr(current_user, "timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
                 # Get user language - prioritize stored user.language over Accept-Language header
-                user_language = get_user_language(
-                    user_language=getattr(current_user, "language", None),
-                    accept_language_header=accept_language,
-                )
+                user_language = resolve_language(getattr(current_user, "language", None))
                 user_display_name = resolve_user_display_name(
                     getattr(current_user, "full_name", None),
                     getattr(current_user, "email", None),
@@ -793,7 +790,6 @@ async def stream_chat(
                     user_id=str(current_user.id),
                     user_timezone=user_timezone,
                     user_language=user_language,
-                    accept_language_header=accept_language,
                 )
 
                 # Lot 1 option B, fail-closed: a one-click decision with no
@@ -809,7 +805,7 @@ async def stream_chat(
                     stale_chunk = ChatStreamChunk(
                         type="error",
                         content=SSEErrorMessages.hitl_decision_stale(language=user_language),
-                        metadata={"error_code": "hitl_decision_stale"},
+                        metadata={"error_code": HITL_DECISION_STALE_ERROR_CODE},
                     )
                     yield f"data: {stale_chunk.model_dump_json()}\n\n"
                     stale_done = ChatStreamChunk(type="done", content="", metadata=None)
@@ -979,10 +975,7 @@ async def stream_chat(
 
             # Send error event with i18n message (PHASE 3.3.4)
             # Prioritize user's stored language preference over Accept-Language header
-            user_language = get_user_language(
-                user_language=getattr(current_user, "language", None),
-                accept_language_header=accept_language,
-            )
+            user_language = resolve_language(getattr(current_user, "language", None))
             error_message = SSEErrorMessages.stream_error(e, language=user_language)
 
             error_chunk = {
@@ -1179,9 +1172,7 @@ async def reattach_run_stream(
         stream_id=stream_id,
     )
 
-    user_language = get_user_language(
-        user_language=getattr(current_user, "language", None),
-    )
+    user_language = resolve_language(getattr(current_user, "language", None))
 
     async def reattach_generator() -> AsyncGenerator[str]:
         yield "retry: 5000\n\n"

@@ -22,6 +22,51 @@ from src.domains.agents.display.plain_text import markdown_to_plain_text
 pytestmark = pytest.mark.unit
 
 
+class TestNumericReferences:
+    def test_a_reference_is_its_character_again(self) -> None:
+        """How a third party's character reaches Markdown as itself."""
+        assert (
+            markdown_to_plain_text("Réunion &#60;lundi&#62; &#91;1&#93; &#95;x&#126;")
+            == "Réunion <lundi> [1] _x~"
+        )
+
+    def test_it_is_decoded_after_the_marks(self) -> None:
+        """Decoded first, the asterisks it spells would be read as emphasis."""
+        assert markdown_to_plain_text("&#42;&#42;x&#42;&#42;") == "**x**"
+
+    def test_every_reference_is_read_as_the_chat_reads_it(self) -> None:
+        """The chat shows « &#233; » as « é »: kept as typed, the ticket
+        disagreed with the chat about the same words (review 14)."""
+        assert markdown_to_plain_text("tape &#233; puis &#x26; ou &#0;") == (
+            "tape é puis & ou " + chr(0xFFFD)
+        )
+
+    def test_a_reference_in_code_stays_as_typed(self) -> None:
+        """The chat shows a code span as typed, its references included."""
+        assert markdown_to_plain_text("tape `&#91;` puis &#91;") == "tape &#91; puis ["
+
+    def test_a_bare_ampersand_is_an_ampersand(self) -> None:
+        """HTML5 reads « &copy=2 » as « ©=2 »; the chat reads Markdown, which does not."""
+        assert markdown_to_plain_text("<p>Panier</p> ?id=7&copy=2").split() == [
+            "Panier",
+            "?id=7&copy=2",
+        ]
+
+    def test_a_reference_survives_html_elsewhere_in_the_text(self) -> None:
+        """The HTML stripper decodes every reference before it strips its tags:
+        « Réunion &#60;lundi&#62; » became the tag « <lundi> » and went."""
+        text = "<p>Brouillon</p>\n- **Objet** : Réunion &#60;lundi&#62; [1]"
+
+        assert "Objet : Réunion <lundi> [1]" in markdown_to_plain_text(text)
+
+    def test_a_reference_is_decoded_once(self) -> None:
+        """A value typed as « &#60;b&#62; » is drawn « &#38;#60;b&#38;#62; »:
+        decoded twice beside HTML, it read « <b> »."""
+        text = "<p>Brouillon</p>\n- Code &#38;#60;b&#38;#62; and"
+
+        assert "Code &#60;b&#62; and" in markdown_to_plain_text(text)
+
+
 class TestMarksGo:
     def test_bold_leaves_only_its_words(self) -> None:
         assert markdown_to_plain_text("**Titre**: Réserver la salle") == "Titre: Réserver la salle"

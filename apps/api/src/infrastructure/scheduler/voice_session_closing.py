@@ -239,7 +239,9 @@ async def _synthesize_direct(
         return RelayOutcome.QUOTA_BLOCKED.value, None
     except Exception as exc:  # noqa: BLE001 — the settle never loses the session
         logger.warning(
-            "voice_direct_synthesis_failed", origin=session.origin_id, error_type=type(exc).__name__
+            "voice_direct_synthesis_failed",
+            origin_id=session.origin_id,
+            error_type=type(exc).__name__,
         )
         return RelayOutcome.FAILED.value, None
     await track_voice_synthesis_usage(
@@ -326,7 +328,7 @@ async def _settle_direct_relay(
     except Exception as exc:  # noqa: BLE001 — the fate is written whatever broke
         logger.error(
             "voice_direct_relay_settle_failed",
-            origin=session.origin_id,
+            origin_id=session.origin_id,
             fate=fate,
             error_type=type(exc).__name__,
         )
@@ -335,7 +337,7 @@ async def _settle_direct_relay(
             async with get_db_context() as db:
                 await _settle_card(db, session, card_id, fate, recap, extensions=extensions)
     live_direct_relay_total.labels(outcome=fate).inc()
-    logger.info("voice_direct_relay_settled", origin=session.origin_id, outcome=fate)
+    logger.info("voice_direct_relay_settled", origin_id=session.origin_id, outcome=fate)
 
 
 async def _rewrite_card(
@@ -355,7 +357,7 @@ async def _rewrite_card(
     """
     row = await session_card(db, card_id)
     if row is None:
-        logger.warning("voice_direct_relay_card_missing", origin=session.origin_id)
+        logger.warning("voice_direct_relay_card_missing", origin_id=session.origin_id)
         return
     figures = dict((row.message_metadata or {}).get(FIELD_LIVE_SUMMARY) or {})
     outcome = str(figures.get("outcome") or "ended")
@@ -414,7 +416,7 @@ async def _notify_relay(db: AsyncSession, user: User, session: VoiceSession, rel
     except Exception as exc:  # noqa: BLE001 — a notice failing never undoes the turn
         logger.warning(
             "voice_direct_relay_notice_failed",
-            origin=session.origin_id,
+            origin_id=session.origin_id,
             error_type=type(exc).__name__,
         )
 

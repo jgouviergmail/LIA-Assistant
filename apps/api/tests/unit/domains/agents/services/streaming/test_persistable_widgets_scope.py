@@ -1,7 +1,8 @@
 """Only THIS turn's widgets get attached to the message being archived.
 
 ``_emit_post_stream_registry`` deliberately falls back to the cross-turn
-``registry`` for DISPLAY when the turn produced nothing. That fallback carries
+``registry`` for DISPLAY when no selection exists. An explicit empty selection
+emits nothing. The fallback carries
 up to ``REGISTRY_MAX_ITEMS`` entries — 70 observed in production (run
 ``e8f42f65``). Capturing from it would attach widgets from earlier turns to a
 message that never displayed them: metadata bloat, and a stale payload kept
@@ -97,3 +98,16 @@ class TestPersistableWidgetScope:
     async def test_empty_state_captures_nothing(self, service: StreamingService) -> None:
         await _drain(service, {})
         assert service.persistable_widgets == {}
+
+    async def test_empty_final_selection_emits_no_discarded_records(
+        self, service: StreamingService
+    ) -> None:
+        chunks = [
+            chunk
+            async for chunk in service._emit_post_stream_registry(
+                {"current_turn_registry": {}, "registry": {"old": _widget("old")}},
+                set(),
+                "test-run",
+            )
+        ]
+        assert chunks == []

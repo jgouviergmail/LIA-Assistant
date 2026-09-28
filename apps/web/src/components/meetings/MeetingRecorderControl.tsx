@@ -8,20 +8,15 @@
  *   meeting is live it pulses red, shows the elapsed time where the row has
  *   room (`xl`) and stops on click.
  * - `useMeetingRecorderMenuAction`: the same two commands as a menu entry for
- *   the logo menu below `lg`, plus the live state that turns the trigger red.
- * - `RecorderAwareMobileNavMenu`: the logo menu wired to that hook, so the
- *   layout — rendered above the provider — needs no knowledge of the recorder.
+ *   the logo menu below `lg`, plus the live state that turns the trigger red
+ *   (composed with the header's other actions by `DashboardMobileNavMenu`).
  *
  * Neither renders where the recorder is not offered (no provider, no support).
  */
 
 import { Disc } from 'lucide-react';
 
-import {
-  MobileNavMenu,
-  type MobileNavAction,
-  type MobileNavMenuProps,
-} from '@/components/dashboard/MobileNavMenu';
+import type { MobileNavAction } from '@/components/dashboard/MobileNavMenu';
 import { useMeetingRecorderContext } from '@/components/meetings/MeetingRecorderProvider';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
@@ -112,14 +107,4 @@ export function MeetingRecorderControl({ lng }: { lng: Language }) {
       )}
     </Button>
   );
-}
-
-type RecorderAwareMobileNavMenuProps = Omit<MobileNavMenuProps, 'action' | 'live'> & {
-  lng: Language;
-};
-
-/** The logo menu with the recorder entry when the instance offers recording. */
-export function RecorderAwareMobileNavMenu({ lng, ...props }: RecorderAwareMobileNavMenuProps) {
-  const bits = useMeetingRecorderMenuAction(lng);
-  return <MobileNavMenu {...props} action={bits?.action} live={bits?.live ?? undefined} />;
 }

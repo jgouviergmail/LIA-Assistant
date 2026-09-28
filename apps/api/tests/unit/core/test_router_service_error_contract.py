@@ -615,7 +615,6 @@ class TestAgentsRunLockContract:
                     http_request=Mock(),
                     request=request,
                     current_user=current_user,
-                    accept_language=None,
                 )
 
         exc = exc_info.value
@@ -696,7 +695,6 @@ class TestHitlRateLimitContract:
                 http_request=Mock(),
                 request=request,
                 current_user=current_user,
-                accept_language=None,
             )
             chunks = [chunk async for chunk in response.body_iterator]
 

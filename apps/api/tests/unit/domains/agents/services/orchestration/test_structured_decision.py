@@ -63,26 +63,26 @@ async def _build(decision: dict, pending: dict | None) -> dict:
 
 
 class TestMappingMatrix:
-    async def test_tool_confirmation_confirm(self):
+    async def test_tool_confirmation_confirm(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"}, _pending("tool_confirmation")
         )
         assert result == {"action": "confirm"}
 
-    async def test_tool_confirmation_cancel(self):
+    async def test_tool_confirmation_cancel(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "cancel"}, _pending("tool_confirmation")
         )
         assert result == {"action": "cancel"}
 
-    async def test_draft_confirm_carries_draft_id(self):
+    async def test_draft_confirm_carries_draft_id(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"},
             _pending("draft_critique", draft_id="d1"),
         )
         assert result == {"action": "confirm", "draft_id": "d1"}
 
-    async def test_draft_cancel_carries_draft_id_and_reason(self):
+    async def test_draft_cancel_carries_draft_id_and_reason(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "cancel"},
             _pending("draft_critique", draft_id="d1"),
@@ -91,7 +91,7 @@ class TestMappingMatrix:
         assert result["draft_id"] == "d1"
         assert result["reason"]
 
-    async def test_draft_confirm_without_data_is_a_confirm_that_narrows_the_run(self):
+    async def test_draft_confirm_without_data_is_a_confirm_that_narrows_the_run(self) -> None:
         """ADR-298: the egress card's second answer — allowed, without the
         turn's data. Canonised to `confirm` so every reader downstream sees a
         confirmation, the narrowing travelling as its own field."""
@@ -101,33 +101,33 @@ class TestMappingMatrix:
         )
         assert result == {"action": "confirm", "draft_id": "d1", "share_turn_data": False}
 
-    async def test_a_plain_confirm_carries_no_narrowing(self):
+    async def test_a_plain_confirm_carries_no_narrowing(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"},
             _pending("draft_critique", draft_id="d1"),
         )
         assert "share_turn_data" not in result
 
-    async def test_destructive_confirm_maps_to_plan_approve(self):
+    async def test_destructive_confirm_maps_to_plan_approve(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"}, _pending("destructive_confirm")
         )
         assert result == {"decision": "APPROVE"}
 
-    async def test_destructive_cancel_maps_to_plan_reject(self):
+    async def test_destructive_cancel_maps_to_plan_reject(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "cancel"}, _pending("destructive_confirm")
         )
         assert result["decision"] == "REJECT"
         assert result["rejection_reason"]
 
-    async def test_for_each_confirm_maps_to_plan_approve(self):
+    async def test_for_each_confirm_maps_to_plan_approve(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"}, _pending("for_each_confirmation")
         )
         assert result == {"decision": "APPROVE"}
 
-    async def test_wire_action_aliases_are_canonicalized(self):
+    async def test_wire_action_aliases_are_canonicalized(self) -> None:
         # destructive_confirm emits action id "confirm_delete"; the legacy
         # for_each STANDARD set defines "confirm_all" — the frontend passes
         # wire ids through verbatim, the server canonicalizes.
@@ -143,7 +143,34 @@ class TestMappingMatrix:
         )
         assert for_each == {"decision": "APPROVE"}
 
-    async def test_clarification_cancel_maps_to_abort(self):
+    @pytest.mark.parametrize(
+        "interrupt_type",
+        [
+            "plan_approval",
+            "destructive_confirm",
+            "for_each_confirmation",
+            "draft_critique",
+            "tool_confirmation",
+        ],
+    )
+    async def test_every_telegram_button_is_the_card_s_decision(self, interrupt_type: str) -> None:
+        """A Telegram press carries its button's action verbatim (review 14):
+        each pair a keyboard draws must map exactly as the card's
+        confirm / cancel do — « continue » and « stop » included, which the
+        FOR_EACH keyboard draws."""
+        from src.infrastructure.channels.telegram.hitl_keyboard import _HITL_TYPE_BUTTONS
+
+        pair = _HITL_TYPE_BUTTONS[interrupt_type]
+        assert pair is not None
+        positive, negative = pair
+        pending = _pending(interrupt_type, draft_id="d1")
+
+        for pressed, canonical in ((positive, "confirm"), (negative, "cancel")):
+            by_button = await _build({"message_id": MESSAGE_ID, "action": pressed}, pending)
+            by_card = await _build({"message_id": MESSAGE_ID, "action": canonical}, pending)
+            assert by_button == by_card
+
+    async def test_clarification_cancel_maps_to_abort(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "cancel"}, _pending("clarification")
         )
@@ -151,32 +178,32 @@ class TestMappingMatrix:
 
 
 class TestFailClosed:
-    async def test_no_pending_raises_stale(self):
+    async def test_no_pending_raises_stale(self) -> None:
         with pytest.raises(HitlDecisionStaleError):
             await _build({"message_id": MESSAGE_ID, "action": "confirm"}, None)
 
-    async def test_message_id_mismatch_raises_stale(self):
+    async def test_message_id_mismatch_raises_stale(self) -> None:
         with pytest.raises(HitlDecisionStaleError):
             await _build(
                 {"message_id": "hitl_other", "action": "confirm"},
                 _pending("tool_confirmation", message_id=MESSAGE_ID),
             )
 
-    async def test_legacy_pending_without_message_id_is_tolerated(self):
+    async def test_legacy_pending_without_message_id_is_tolerated(self) -> None:
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"},
             _pending("tool_confirmation", message_id=None),
         )
         assert result == {"action": "confirm"}
 
-    async def test_unsupported_action_raises_stale(self):
+    async def test_unsupported_action_raises_stale(self) -> None:
         with pytest.raises(HitlDecisionStaleError):
             await _build(
                 {"message_id": MESSAGE_ID, "action": "limit"},
                 _pending("for_each_confirmation"),
             )
 
-    async def test_clarification_confirm_is_rejected(self):
+    async def test_clarification_confirm_is_rejected(self) -> None:
         with pytest.raises(HitlDecisionStaleError):
             await _build({"message_id": MESSAGE_ID, "action": "confirm"}, _pending("clarification"))
 
@@ -187,7 +214,7 @@ class TestStructuredEdit:
     edit without LLM) remains dead code on the whole chain and stays
     rejected."""
 
-    async def test_draft_edit_with_instructions_maps_to_live_edit_payload(self):
+    async def test_draft_edit_with_instructions_maps_to_live_edit_payload(self) -> None:
         result = await _build(
             {
                 "message_id": MESSAGE_ID,
@@ -202,35 +229,35 @@ class TestStructuredEdit:
             "modification_instructions": "Change le sujet en 'Bonjour'",
         }
 
-    async def test_draft_edit_without_instructions_is_rejected(self):
+    async def test_draft_edit_without_instructions_is_rejected(self) -> None:
         with pytest.raises(HitlDecisionStaleError):
             await _build(
                 {"message_id": MESSAGE_ID, "action": "edit"},
                 _pending("draft_critique", draft_id="d1"),
             )
 
-    async def test_draft_edit_with_blank_instructions_is_rejected(self):
+    async def test_draft_edit_with_blank_instructions_is_rejected(self) -> None:
         with pytest.raises(HitlDecisionStaleError):
             await _build(
                 {"message_id": MESSAGE_ID, "action": "edit", "modification_instructions": "   "},
                 _pending("draft_critique", draft_id="d1"),
             )
 
-    async def test_edit_on_tool_confirmation_is_rejected(self):
+    async def test_edit_on_tool_confirmation_is_rejected(self) -> None:
         with pytest.raises(HitlDecisionStaleError):
             await _build(
                 {"message_id": MESSAGE_ID, "action": "edit", "modification_instructions": "x"},
                 _pending("tool_confirmation"),
             )
 
-    async def test_edit_on_destructive_confirm_is_rejected(self):
+    async def test_edit_on_destructive_confirm_is_rejected(self) -> None:
         with pytest.raises(HitlDecisionStaleError):
             await _build(
                 {"message_id": MESSAGE_ID, "action": "edit", "modification_instructions": "x"},
                 _pending("destructive_confirm"),
             )
 
-    async def test_edit_with_updated_content_only_stays_rejected(self):
+    async def test_edit_with_updated_content_only_stays_rejected(self) -> None:
         """Per-field edit has no live execution path — fail-closed."""
         with pytest.raises(HitlDecisionStaleError):
             await _build(
@@ -264,21 +291,21 @@ class TestParityWithConversationalPath:
     resume payload — the graph cannot tell them apart (single downstream
     contract, no behavioral fork)."""
 
-    async def test_tool_confirmation_confirm_parity(self):
+    async def test_tool_confirmation_confirm_parity(self) -> None:
         nl = await _parse_nl("oui", _pending("tool_confirmation"))
         button = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"}, _pending("tool_confirmation")
         )
         assert nl == button
 
-    async def test_tool_confirmation_cancel_parity(self):
+    async def test_tool_confirmation_cancel_parity(self) -> None:
         nl = await _parse_nl("non", _pending("tool_confirmation"))
         button = await _build(
             {"message_id": MESSAGE_ID, "action": "cancel"}, _pending("tool_confirmation")
         )
         assert nl == button
 
-    async def test_draft_confirm_parity(self):
+    async def test_draft_confirm_parity(self) -> None:
         nl = await _parse_nl("oui", _pending("draft_critique", draft_id="d1"))
         button = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"},
@@ -286,7 +313,7 @@ class TestParityWithConversationalPath:
         )
         assert nl == button
 
-    async def test_draft_cancel_parity_modulo_reason(self):
+    async def test_draft_cancel_parity_modulo_reason(self) -> None:
         # The button adds an informational "reason"; action + draft_id are
         # identical — the draft node reads only those for the cancel path.
         nl = await _parse_nl("annule", _pending("draft_critique", draft_id="d1"))
@@ -297,7 +324,7 @@ class TestParityWithConversationalPath:
         assert nl["action"] == button["action"] == "cancel"
         assert nl["draft_id"] == button["draft_id"] == "d1"
 
-    async def test_destructive_confirm_parity(self):
+    async def test_destructive_confirm_parity(self) -> None:
         nl = await _parse_nl("oui", _pending("destructive_confirm"))
         button = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"}, _pending("destructive_confirm")
@@ -306,10 +333,11 @@ class TestParityWithConversationalPath:
 
 
 class TestChannelsCompatibility:
-    """Channels (Telegram/WhatsApp) build ChatRequest without the new field —
-    the schema default must keep their payloads valid and NL-routed."""
+    """A request carrying no decision — a typed answer, on any door — keeps a
+    valid payload and is read as words (a Telegram press passes its decision
+    to the service directly, review 14)."""
 
-    def test_chat_request_defaults_hitl_decision_to_none(self):
+    def test_chat_request_defaults_hitl_decision_to_none(self) -> None:
         import uuid as uuid_mod
 
         from src.domains.agents.api.schemas import ChatRequest

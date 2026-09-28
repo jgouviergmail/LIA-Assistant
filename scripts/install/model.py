@@ -139,6 +139,9 @@ class PublicAnswers:
     # provider key, the instance only publishes the capability. Same default
     # rule as self-diagnostics.
     live_mode: bool = False
+    # Radio is optional and incurs per-listener model/voice spend. A fresh
+    # self-hosted installation offers it only after the operator opts in.
+    personal_radio: bool = False
 
 
 @dataclass(frozen=True)

@@ -69,7 +69,7 @@ class InterestProactiveTask:
     1. Check if user is eligible (interests_enabled)
     2. Select an interest via subject-rarity draw (cooldown + rarity, ADR-131)
        or legacy uniform draw (settings.interest_selection_mode)
-    3. Generate content via Wikipedia/Perplexity/LLM
+    3. Generate content via Brave Search/Perplexity, LLM reflection as fallback
     4. Handle user feedback (thumbs up/down/block)
 
     Example:
@@ -275,10 +275,10 @@ class InterestProactiveTask:
         """
         Generate content for the selected interest.
 
-        Uses InterestContentGenerator with fallback chain:
-        1. Wikipedia (encyclopedic facts)
-        2. Perplexity (recent news, if API key configured)
-        3. LLM reflection (fallback)
+        Uses InterestContentGenerator:
+        1. Brave Search and Perplexity, tried in random order (each needs the
+           person's own API key)
+        2. LLM reflection (fallback)
 
         Args:
             user_id: User UUID
@@ -435,7 +435,7 @@ class InterestProactiveTask:
         """
 
         from src.domains.agents.prompts import load_prompt
-        from src.domains.personalities.constants import DEFAULT_PERSONALITY_PROMPT
+        from src.domains.personalities.constants import default_personality_prompt
         from src.infrastructure.llm import get_llm
         from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 
@@ -464,7 +464,7 @@ class InterestProactiveTask:
                     )
 
             prompt = load_prompt("interest_content_prompt").format(
-                personality_instruction=personality_instruction or DEFAULT_PERSONALITY_PROMPT,
+                personality_instruction=personality_instruction or default_personality_prompt(),
                 interest_topic=topic,
                 interest_category=category,
                 source_name=source,

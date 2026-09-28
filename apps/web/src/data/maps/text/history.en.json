@@ -1687,6 +1687,36 @@
       "title": "LIA computes instead of estimating, and finds what she did",
       "summary": "A calculation, a date or a currency conversion is no longer worked out by guess: LIA computes it exactly, at the day's reference rate, which she names. She can also search her journal for a subject found along the way, tell you what she did and consulted over a period with exact totals, and show you again a file she produced while it still exists.",
       "src": "deff5cf96b72"
+    },
+    "319": {
+      "title": "A generated file can be kept",
+      "summary": "From the gallery, you can keep an image, a document or a screenshot: the automatic cleanup no longer deletes it, within a per-account limit shown before any refusal. Releasing it gives it a deadline again, never an immediate deletion, and the chat says on every read whether the file is kept or no longer exists.",
+      "src": "3308a856fb58"
+    },
+    "320": {
+      "title": "The chat updates itself",
+      "summary": "A message that arrives from elsewhere — another tab, Telegram, a routine, a reminder — appears without reloading the page: the server says so as soon as the message is saved, and the chat adds what is missing without touching what is already shown. Nothing moves while an answer is being written, and a reader who scrolled up is not moved.",
+      "src": "72479652f740"
+    },
+    "321": {
+      "title": "A file or an answer can be sent by e-mail",
+      "summary": "An image, a document, a capture or an answer leaves by e-mail, as an attachment, with the subject and words the person chose — LIA writes nothing in their place. It leaves from their connected mailbox to whoever they want or, without one, goes to their own verified address. Each mailbox has its largest size, taken from its provider's documentation and stated before sending.",
+      "src": "aedeef641fe1"
+    },
+    "322": {
+      "title": "A routine has a single clock",
+      "summary": "A routine follows either a schedule or a condition — never both: the person first chooses when it runs, and only that choice's fields are shown. A routine waiting for something no longer has hours: LIA checks the condition itself, day and night, until an optional last day. It runs only on something new, never twice for the same thing, within a daily limit.",
+      "src": "6e761628bbd0"
+    },
+    "323": {
+      "title": "Every sentence in your language",
+      "summary": "E-mails, the Telegram bot, error messages and the application's catalogues are now written in the language of the person who reads them: no more French sentence served by default to a German or Chinese account, no more verification e-mail arriving in English. Every translation table carries the six languages — an automatic check makes sure of it on every change. The hard-coded French that only the model read is now technical English, so that no language is favoured; what remains — a few prompts and labels in French, model-facing texts translated into the six languages — waits for a measurement of what translating them changes.",
+      "src": "f2631fabc850"
+    },
+    "324": {
+      "title": "A radio just for you",
+      "summary": "LIA becomes an on-demand radio station in your language: your day, then the news from the outlets it follows and the sites you add, written, checked and voiced for you while you listen. A fixed grid decides what airs, the models only write, and every sentence shows its source. Nothing is produced when nobody listens, nothing is kept afterwards, and what the session costs is shown while it spends.",
+      "src": "338514497561"
     }
   }
 }

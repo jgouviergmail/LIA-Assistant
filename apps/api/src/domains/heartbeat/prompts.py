@@ -187,7 +187,7 @@ async def generate_heartbeat_message(
         tokens_cache_write) — the last the part of ``tokens_in`` Claude wrote
         to its prompt cache (ADR-306).
     """
-    from src.domains.personalities.constants import DEFAULT_PERSONALITY_PROMPT
+    from src.domains.personalities.constants import default_personality_prompt
     from src.infrastructure.llm import get_llm
     from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 
@@ -216,7 +216,7 @@ async def generate_heartbeat_message(
             )
 
     system_prompt = load_prompt("heartbeat_message_prompt").format(
-        personality_instruction=personality_instruction or DEFAULT_PERSONALITY_PROMPT,
+        personality_instruction=personality_instruction or default_personality_prompt(),
         language=language_name,
         current_datetime=current_dt,
         message_draft=message_draft,

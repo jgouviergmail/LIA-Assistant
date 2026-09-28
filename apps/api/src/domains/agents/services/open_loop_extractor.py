@@ -4,10 +4,10 @@ Fifth post-response background extraction (pattern: ``memory_extractor``).
 One structured LLM pass sees the conversation tail AND the user's current
 OPEN loops, and emits:
 
-- ``open`` items — new commitments to track ("je dois rappeler le plombier",
-  "Marie doit m'envoyer le devis");
-- ``close`` items — conversational closure of an existing loop ("c'est fait,
-  j'ai rappelé le plombier") targeting a loop id from the provided list.
+- ``open`` items — new commitments to track ("I must call the plumber back",
+  "Marie has to send me the quote");
+- ``close`` items — conversational closure of an existing loop ("done, I
+  called the plumber back") targeting a loop id from the provided list.
 
 Application rules are deterministic and testable in isolation
 (:func:`apply_extraction`): per-user OPEN cap, per-turn item cap, duplicate

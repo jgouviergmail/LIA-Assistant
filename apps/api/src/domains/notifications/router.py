@@ -50,6 +50,7 @@ from src.domains.notifications.schemas import (
 from src.domains.notifications.service import FCMNotificationService
 from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
+from src.infrastructure.cache.user_channel import user_notifications_channel
 
 logger = structlog.get_logger(__name__)
 
@@ -307,7 +308,7 @@ async def stream_notifications(
             yield "event: error\ndata: Redis not available\n\n"
             return
 
-        channel = f"user_notifications:{current_user.id}"
+        channel = user_notifications_channel(current_user.id)
         sse_key = f"{SSE_CONNECTION_KEY_PREFIX}:{current_user.id}"
         sse_ttl = settings.sse_connection_ttl_seconds
         user_key = str(current_user.id)
@@ -548,7 +549,7 @@ async def get_unread_broadcasts(
     service = BroadcastService(db)
     broadcasts = await service.get_unread_broadcasts(
         user_id=current_user.id,
-        user_language=current_user.language,  # type: ignore[arg-type]
+        user_language=current_user.language,
         user_created_at=current_user.created_at,
     )
 

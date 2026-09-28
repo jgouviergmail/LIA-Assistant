@@ -9,6 +9,26 @@ a single ``except (STTProviderError, TTSProviderError)`` when needed.
 
 from __future__ import annotations
 
+from typing import Final
+
+#: Failures a second attempt of the same call can outlive: the provider was
+#: slow, busy, unreachable, or answered without audio (the free engine does, one
+#: synthesis in twenty-four, measured 2026-09-26).
+#: The code of a provider's « too many requests » (HTTP 429).
+RATE_LIMITED_CODE: Final[str] = "provider_rate_limited"
+
+_TRANSIENT_CODES: Final[frozenset[str]] = frozenset(
+    {
+        "provider_timeout",
+        RATE_LIMITED_CODE,
+        "provider_network_error",
+        "provider_invalid_response",
+    }
+)
+
+#: Statuses of a ``provider_http_error`` that say « not now » rather than « no ».
+_TRANSIENT_STATUSES: Final[frozenset[int]] = frozenset({408, 429})
+
 
 class TTSProviderError(Exception):
     """Raised when a TTS provider call fails.
@@ -45,3 +65,37 @@ class TTSProviderError(Exception):
         self.message = message or code
         self.retry_after_seconds = retry_after_seconds
         self.details = details
+
+    @property
+    def transient(self) -> bool:
+        """Whether the same call, tried again, may succeed.
+
+        Read from the code and, for ``provider_http_error``, the status the
+        client recorded in ``details`` — never from the message. A 5xx, a 408
+        or a 429 is transient, a 4xx is not; a failure the client could not
+        tie to a status (an unclassified exception it wrapped) is treated as
+        transient: trying again costs one call, giving up loses the audio.
+        """
+        if self.code in _TRANSIENT_CODES:
+            return True
+        if self.code != "provider_http_error":
+            return False
+        status = self._status()
+        if status is None:
+            return True
+        return status >= 500 or status in _TRANSIENT_STATUSES
+
+    @property
+    def rate_limited(self) -> bool:
+        """Whether the provider refused on a QUOTA — a wait, not a blip, is what helps.
+
+        Read from the code, or from the status a client recorded for an error it
+        could not name more precisely (never from the message).
+        """
+        return self.code == RATE_LIMITED_CODE or (
+            self.code == "provider_http_error" and self._status() == 429
+        )
+
+    def _status(self) -> int | None:
+        status = self.details.get("status_code") if isinstance(self.details, dict) else None
+        return status if isinstance(status, int) else None

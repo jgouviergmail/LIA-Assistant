@@ -1260,8 +1260,7 @@ CONTACT_RESOLUTION_MAX_RESULTS = 5
 
 ```python
 async def get_user_language_safe(
-    runtime: ToolRuntime,
-    default: str = DEFAULT_LANGUAGE,
+    runtime: ToolRuntime[LiaRuntimeContext, Any],
 ) -> str:
     """Get user language from runtime preferences with safe fallback.
 
@@ -1270,10 +1269,10 @@ async def get_user_language_safe(
 
     Args:
         runtime: LangGraph ToolRuntime configuration
-        default: Fallback language if preferences unavailable
 
     Returns:
-        User language code (e.g., "fr", "en") or default
+        User language code (e.g., "fr", "en"), or the declared language when
+        the preferences are unavailable (ADR-323).
     """
 ```
 
@@ -1281,7 +1280,7 @@ async def get_user_language_safe(
 
 ```python
 # Before (repeated in many tools):
-language = DEFAULT_LANGUAGE
+language = resolve_language()  # the declared language (ADR-323)
 try:
     _, language, _ = await get_user_preferences(self.runtime)
 except Exception:

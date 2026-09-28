@@ -4,7 +4,7 @@ Semantic Type System - Core Type Definitions
 This module defines the semantic type system inspired by:
 - schema.org for hierarchy and properties
 - RDF (Resource Description Framework) for relations
-- SKOS (Simple Knowledge Organization System) for multilingual labels
+- SKOS (Simple Knowledge Organization System) for broader/narrower/related
 - OWL (Web Ontology Language) for subsumption
 
 Professional architecture to replace hardcoded patterns
@@ -83,14 +83,13 @@ class SemanticType:
     - Hierarchy (parent/children)
     - Semantic relations (related, broader, narrower)
     - Typed properties
-    - Multilingual labels
     - Provenance (domains, tools)
     - Validation constraints
 
     Inspirations:
     - schema.org: class hierarchy and typed properties
     - RDF: URIs, triple relations (subject-predicate-object)
-    - SKOS: broader/narrower/related, multilingual labels
+    - SKOS: broader/narrower/related
     - OWL: subsumption (subClassOf), properties
 
     Attributes:
@@ -101,7 +100,6 @@ class SemanticType:
         children: List of direct subtypes
         description: Textual description of the type
         examples: Typical value examples
-        labels: Multilingual labels {lang_code: label} (SKOS)
         properties: Typed properties {prop_name: prop_type} (schema.org)
         related_types: Semantically related types (skos:related)
         broader_types: More generic types (skos:broader)
@@ -117,7 +115,6 @@ class SemanticType:
         ...     category=TypeCategory.IDENTITY,
         ...     parent="ContactPoint",
         ...     description="Email address (RFC 5322)",
-        ...     labels={"fr": "Adresse email", "en": "Email address"},
         ...     format_pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
         ...     related_types=["contact_id", "person_name"],
         ...     source_domains=["contacts", "emails", "calendar"],
@@ -158,14 +155,6 @@ class SemanticType:
 
     Useful for documentation and validation.
     Example for email_address: ["john@example.com", "user+tag@domain.co.uk"]
-    """
-
-    # ===== Multilingual labels (SKOS-inspired) =====
-    labels: dict[str, str] = field(default_factory=dict)
-    """Labels in different languages {lang_code: label}.
-
-    Inspired by skos:prefLabel. Enables internationalization.
-    Example: {"fr": "Adresse physique", "en": "Physical address", "de": "Physische Adresse"}
     """
 
     # ===== Properties (schema.org-inspired) =====
@@ -263,7 +252,6 @@ class SemanticType:
             "children": self.children,
             "description": self.description,
             "examples": self.examples,
-            "labels": self.labels,
             "properties": self.properties,
             "related_types": self.related_types,
             "broader_types": self.broader_types,

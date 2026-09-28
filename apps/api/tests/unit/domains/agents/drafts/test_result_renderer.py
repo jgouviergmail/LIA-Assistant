@@ -28,6 +28,7 @@ import pytest
 
 from src.domains.agents.drafts.models import DraftAction, DraftType
 from src.domains.agents.drafts.result_renderer import render_execution_result
+from src.domains.shared.markdown_literal import read_as_markdown
 
 pytestmark = pytest.mark.unit
 
@@ -377,8 +378,29 @@ def test_batch_item_label_longer_than_the_cap_is_elided() -> None:
         lang="fr",
     )
     rendered = render_execution_result(result)
-    assert "..." in rendered
-    assert "T" * 300 not in rendered
+    # One clip for every preview (``clip_on_word``): the language-neutral
+    # ellipsis, the bound including it — never an ASCII « ... ».
+    assert "T" * 59 + "…" in rendered
+    assert "T" * 60 not in rendered
+    assert "..." not in rendered
+
+
+def test_a_batch_label_is_cut_on_a_word_its_spaces_kept() -> None:
+    """A label cut inside its word and folded flat read unlike the card above it."""
+    title = (
+        f"Rappel{chr(0xA0)}: appeler\nle garage pour la révision annuelle de la voiture familiale"
+    )
+    result = _batch_success(DraftType.TASK, items=[{"title": title}], lang="fr")
+
+    rendered = render_execution_result(result)
+
+    assert f"**Rappel{chr(0xA0)}: appeler le garage pour la révision annuelle de la…**" in rendered
+
+
+def test_an_indented_batch_label_stays_bold() -> None:
+    result = _batch_success(DraftType.TASK, items=[{"title": chr(0x3000) * 2 + "买牛奶"}])
+
+    assert "**买牛奶**" in render_execution_result(result)
 
 
 # =============================================================================
@@ -451,7 +473,7 @@ class TestUrlDetailFieldsRenderAsLinks:
         text = render_execution_result(result)
 
         assert "[Visioconférence](https://meet.google.com/abc-defg-hij)" in text
-        assert "** : https://meet.google.com" not in text
+        assert "** : https://meet.google.com" not in read_as_markdown(text)
 
     def test_html_link_renders_as_its_own_labelled_row(self) -> None:
         result = _single_success(
@@ -462,6 +484,35 @@ class TestUrlDetailFieldsRenderAsLinks:
 
         text = render_execution_result(result)
         assert "🔗 [Link](https://calendar.example.com/e/1)" in text
+
+    def test_a_url_that_could_end_its_link_is_shown_as_data(self) -> None:
+        """« …/x) ![](…) » inside the link's parentheses drew an image after it."""
+        result = _single_success(
+            DraftType.EVENT,
+            draft_content={"summary": "X", "user_language": "en"},
+        )
+        result["data"]["conference_link"] = "https://e.example/x) ![p](https://t.example/p.png"
+        result["data"]["html_link"] = "https://e.example/a b"
+
+        text = render_execution_result(result)
+
+        assert "![p](" not in text
+        assert "!&#91;p&#93;(https&#58;//t.example/p.png" in text
+        assert "[Link](" not in text
+        assert "https&#58;//e.example/a b" in text
+
+
+def test_a_batch_item_is_drawn_as_itself() -> None:
+    """A batch row drew its subject raw: « <lundi> » went, « [1] » opened a link."""
+    result = _batch_success(
+        DraftType.EMAIL_DELETE,
+        items=[{"subject": "Réunion <lundi> [1] *a*"}, {"subject": "Hello"}],
+        lang="fr",
+    )
+
+    rendered = render_execution_result(result)
+
+    assert "**Réunion &#60;lundi&#62; &#91;1&#93; &#42;a&#42;**" in rendered
 
 
 # =============================================================================
@@ -594,6 +645,30 @@ class TestTheHeaderNamesTheOutcome:
 
 
 class TestLongValuesAreBounded:
+    def test_a_long_text_field_is_cut_on_a_word(self) -> None:
+        """It was cut at 200 characters inside a word, then an ellipsis: 201.
+
+        « engagement » ends ON the bound — its « t » is character 200 — so a cut
+        inside it, a bound one character looser and the cut on a word all read
+        differently.
+        """
+        body = (
+            "Je voulais te remercier pour ton aide sur le dossier de la semaine dernière, "
+            "sans toi nous n'aurions jamais tenu les délais annoncés au client, et toute "
+            "l'équipe tient à te dire combien ton engagement a compté dans la réussite du "
+            "projet."
+        )
+        assert (body[198:200], body[200]) == ("nt", " ")
+        content = {"to": ["paul@example.com"], "subject": "S", "body": body, "user_language": "fr"}
+
+        rendered = render_execution_result(_single_success(DraftType.EMAIL, draft_content=content))
+
+        assert (
+            "Je voulais te remercier pour ton aide sur le dossier de la semaine dernière, "
+            "sans toi nous n'aurions jamais tenu les délais annoncés au client, et toute "
+            "l'équipe tient à te dire combien ton…"
+        ) in rendered
+
     @pytest.mark.parametrize("field", ["body"])
     def test_a_long_text_field_is_truncated_with_an_ellipsis(self, field: str) -> None:
         content = {
@@ -658,3 +733,199 @@ class TestATextValueLeavesTheList:
         rendered = self._sent_mail("A\n\n" + "Z" * 500)
         assert "Z" * 500 not in rendered
         assert chr(0x2026) in rendered
+
+
+class TestTheHeadlineDrawsItsValuesAsData:
+    """ADR-323 review 14: a result's headline quoted the draft's values raw —
+    an event summary « Point ![x](…) » drew an image above the rows, and a
+    value holding ``**`` read as LIA's own emphasis."""
+
+    def _headline_of(self, draft_type: str, **values: str) -> str:
+        from src.domains.agents.services.draft_executor import DraftExecutionResult
+
+        message = DraftExecutionResult(
+            success=True,
+            draft_id="d1",
+            draft_type=draft_type,
+            action="confirm",
+            result_data=dict(values),
+            user_language="fr",
+        )._get_success_message()
+        return render_execution_result(
+            {
+                "status": "success",
+                "message": message,
+                "draft_type": draft_type,
+                "action": DraftAction.CONFIRM.value,
+                "data": {"_draft_content": {"user_language": "fr"}},
+            }
+        ).splitlines()[0]
+
+    def test_a_value_s_markup_is_drawn_as_itself(self) -> None:
+        headline = self._headline_of("event", summary="Point ![x](https://evil.example/p.png)")
+
+        assert "![x](" not in headline
+        assert "!&#91;x&#93;(https&#58;//evil.example/p.png)" in headline
+        assert headline.startswith("📅 ✅ **") and headline.endswith("**")
+
+    def test_a_value_s_emphasis_never_reads_as_lia_s(self) -> None:
+        """« **b** » in a summary used to switch the headline's own emphasis off."""
+        headline = self._headline_of("event", summary="a **b**")
+
+        assert "&#42;&#42;b&#42;&#42;" in headline
+        assert headline.endswith("créé avec succès**")
+
+    def test_lia_s_own_emphasis_is_drawn_in_the_chat(self) -> None:
+        """Escaped whole, « J'appelle **Paul** » showed its asterisks in the chat."""
+        from src.domains.agents.drafts.card_html import CardSurface
+        from src.domains.agents.services.draft_executor import DraftExecutionResult
+
+        message = DraftExecutionResult(
+            success=True,
+            draft_id="d1",
+            draft_type="phone_call",
+            action="confirm",
+            result_data={"name": "Paul <b>"},
+            user_language="fr",
+        )._get_success_message()
+        html = render_execution_result(
+            {
+                "status": "success",
+                "message": message,
+                "draft_type": "phone_call",
+                "action": DraftAction.CONFIRM.value,
+                "data": {"_draft_content": {"user_language": "fr"}},
+            },
+            surface=CardSurface.CHAT,
+        )
+
+        assert "<strong>Paul &lt;b&gt;</strong>" in html
+        assert "**" not in html and "&amp;#" not in html
+
+    @pytest.mark.parametrize("status", ["error", "cancelled", "partial_error"])
+    def test_an_executor_s_message_is_data(self, status: str) -> None:
+        """An error may quote what a provider answered."""
+        rendered = render_execution_result(
+            {
+                "status": status,
+                "message": "[x](https://evil.example/login)",
+                "draft_type": DraftType.EMAIL.value,
+                "data": {"success_count": 1, "total_count": 2},
+            }
+        )
+
+        assert "](https" not in rendered
+        assert "&#91;x&#93;(https&#58;//evil.example/login)" in rendered
+
+
+def test_only_a_field_declared_a_link_draws_one() -> None:
+    """Any URL-valued detail field drew a link reading only its label: a task
+    titled with a URL read « [Tâche](https://evil.example/login) » (review 14)."""
+    result = _single_success(
+        DraftType.TASK,
+        draft_content={"title": "https://evil.example/login", "user_language": "fr"},
+    )
+
+    rendered = render_execution_result(result)
+
+    assert "](https" not in rendered
+    assert "https&#58;//evil.example/login" in rendered
+
+
+class TestWhatIsSpelledHoldsItsBound:
+    """A batch item's label and excerpt were cut, then spelled: sixty
+    characters holding reordering controls between letters became two hundred
+    and seventy on the row (review 14)."""
+
+    def test_a_batch_label_and_excerpt_stay_within_their_bounds(self) -> None:
+        from src.core.constants import DRAFT_RESULT_EXCERPT_MAX_CHARS
+        from src.core.text_clip import clip_spelled, one_line
+
+        padded = ("a" + chr(0x202E)) * 120
+        result = _batch_success(
+            DraftType.EMAIL,
+            items=[{"subject": padded, "to": "p@example.org", "body": padded}],
+        )
+
+        rendered = render_execution_result(result)
+
+        label = clip_spelled(padded, 60)
+        excerpt = clip_spelled(one_line(padded), DRAFT_RESULT_EXCERPT_MAX_CHARS)
+        assert f"**{label}**" in rendered and excerpt in rendered
+        # Exactly what the two bounds hold: a pattern repeats, so « in » alone
+        # would also find it inside a longer drawing.
+        marker = "⟨U+202E⟩"
+        assert rendered.count(marker) == label.count(marker) + excerpt.count(marker)
+        assert chr(0x202E) not in rendered
+
+
+class TestABatchItemIsDataOnEveryForm:
+    """The thirteenth review drew a batch item's fields and excerpt as data;
+    nothing pinned it (review 14)."""
+
+    ITEM = {
+        "subject": "a" + chr(0x202E) + "b",
+        "to": "[x](https://evil.example)",
+        "body": "c" + chr(0x202E) + "d ![p](https://t.example/p.png) *e*",
+    }
+
+    def test_the_markdown_row_draws_its_fields_and_excerpt_as_data(self) -> None:
+        rendered = render_execution_result(_batch_success(DraftType.EMAIL, items=[self.ITEM]))
+
+        assert "&#91;x&#93;(https&#58;//evil.example)" in rendered
+        assert "![p](" not in rendered and "&#42;e&#42;" in rendered
+
+    def test_the_chat_card_spells_its_label_and_excerpt(self) -> None:
+        from src.domains.agents.drafts.card_html import CardSurface
+
+        html = render_execution_result(
+            _batch_success(DraftType.EMAIL, items=[self.ITEM]), surface=CardSurface.CHAT
+        )
+
+        assert "a⟨U+202E⟩b" in html and "c⟨U+202E⟩d" in html
+        assert chr(0x202E) not in html
+
+    def test_an_unnamed_item_s_message_is_spelled_on_one_line(self) -> None:
+        """An item no field names is labelled by its message — an executor's
+        words, a provider's perhaps: shown like any value on the chat's card."""
+        from src.domains.agents.drafts.card_html import CardSurface
+
+        failed = {
+            "status": "error",
+            "message": "a" + chr(0x202E) + "b" + chr(10) + "c",
+            "data": {"_draft_content": {"user_language": "fr"}},
+        }
+        result = {
+            "status": "partial_error",
+            "message": "",
+            "draft_type": DraftType.EMAIL.value,
+            "action": DraftAction.CONFIRM_BATCH.value,
+            "data": {"batch_results": [failed], "success_count": 0, "total_count": 1},
+        }
+
+        html = render_execution_result(result, surface=CardSurface.CHAT)
+
+        assert "a⟨U+202E⟩b c" in html
+        assert chr(0x202E) not in html
+
+
+def test_a_detail_text_is_spelled_before_it_is_cut() -> None:
+    """A body cut, then spelled, passed its bound (review 14)."""
+    from src.core.text_clip import clip_spelled
+
+    body = ("a" + chr(0x202E)) * 150
+    rendered = render_execution_result(
+        _single_success(
+            DraftType.EMAIL,
+            draft_content={
+                "to": "p@example.org",
+                "subject": "S",
+                "body": body,
+                "user_language": "fr",
+            },
+        )
+    )
+
+    assert clip_spelled(body, 200) in rendered
+    assert rendered.count("⟨U+202E⟩") == clip_spelled(body, 200).count("⟨U+202E⟩")
+    assert chr(0x202E) not in rendered

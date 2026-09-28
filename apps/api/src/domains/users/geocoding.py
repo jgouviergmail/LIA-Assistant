@@ -25,8 +25,8 @@ from uuid import UUID, uuid4
 
 import structlog
 
-from src.core.config import settings
 from src.core.exceptions import raise_invalid_input
+from src.core.i18n import normalize_language
 from src.domains.chat.service import TrackingContext
 
 logger = structlog.get_logger(__name__)
@@ -74,7 +74,7 @@ async def resolve_home_coordinates(
 
             places_client = GooglePlacesClient(
                 user_id=user_id,
-                language=user.language or settings.default_language,
+                language=normalize_language(user.language),
             )
 
             # Use search_text to geocode the address. Recorded twice over: as

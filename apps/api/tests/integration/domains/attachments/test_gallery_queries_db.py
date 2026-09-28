@@ -51,8 +51,12 @@ async def _asset(
     created_at: datetime = _NOW,
     expires_at: datetime | None = None,
     size: int = 1024,
+    kept: bool = False,
 ) -> uuid.UUID:
-    """One stored file, with only the columns the gallery reads set explicitly."""
+    """One stored file, with only the columns the gallery reads set explicitly.
+
+    ``kept`` stores no deadline at all, as keeping it from the gallery does (ADR-319).
+    """
     row = Attachment(
         user_id=user_id,
         original_filename=name,
@@ -64,7 +68,7 @@ async def _asset(
         origin=origin.value,
         title=title,
         created_at=created_at,
-        expires_at=expires_at or (created_at + timedelta(hours=24)),
+        expires_at=None if kept else (expires_at or (created_at + timedelta(hours=24))),
     )
     db.add(row)
     await db.flush()
@@ -285,6 +289,59 @@ class TestTheDateWindows:
             ),
         )
         assert found == [soon]
+
+    async def test_a_kept_file_is_never_about_to_be_lost(self, async_session: AsyncSession) -> None:
+        user = await _user(async_session)
+        soon = await _asset(
+            async_session, user, name="soon.png", expires_at=_NOW + timedelta(hours=1)
+        )
+        await _asset(async_session, user, name="kept.png", kept=True)
+
+        found = await _ids(
+            async_session,
+            user,
+            GalleryFilters(
+                origin=AttachmentOrigin.GENERATED_IMAGE,
+                expires_before=_NOW + timedelta(hours=6),
+            ),
+        )
+        assert found == [soon]
+
+    async def test_a_kept_file_can_always_still_be_opened(
+        self, async_session: AsyncSession
+    ) -> None:
+        # The ADR-318 lookup asks « what can I still open? »: a kept file, whose
+        # deadline is none, must answer yes; a file past its deadline, no.
+        user = await _user(async_session)
+        kept = await _asset(async_session, user, name="kept.png", kept=True)
+        alive = await _asset(
+            async_session, user, name="alive.png", expires_at=_NOW + timedelta(hours=3)
+        )
+        await _asset(async_session, user, name="past.png", expires_at=_NOW - timedelta(hours=1))
+
+        found = await _ids(
+            async_session,
+            user,
+            GalleryFilters(origin=AttachmentOrigin.GENERATED_IMAGE, expires_after=_NOW),
+        )
+        assert set(found) == {kept, alive}
+
+    async def test_by_deadline_a_kept_file_comes_last(self, async_session: AsyncSession) -> None:
+        user = await _user(async_session)
+        kept = await _asset(async_session, user, name="kept.png", kept=True)
+        later = await _asset(
+            async_session, user, name="later.png", expires_at=_NOW + timedelta(hours=20)
+        )
+        soon = await _asset(
+            async_session, user, name="soon.png", expires_at=_NOW + timedelta(hours=1)
+        )
+
+        found = await _ids(
+            async_session,
+            user,
+            GalleryFilters(origin=AttachmentOrigin.GENERATED_IMAGE, sort="expires_asc"),
+        )
+        assert found == [soon, later, kept]
 
 
 class TestTheOriginColumnBehavesLikeAColumn:

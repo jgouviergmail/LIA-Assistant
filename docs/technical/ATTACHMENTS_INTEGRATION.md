@@ -23,7 +23,7 @@ L'architecture utilise le pattern **"Reference + Late Resolution"** : les fichie
 | Compression client | Canvas API (1600px max, JPEG 0.82) avant upload |
 | Vision LLM | Analyse d'image via modele configurable (35e type LLM) |
 | Annotation planner | `[Piece jointe: image/jpeg, 1.2 MB]` injecte dans le contexte router/planner |
-| Nettoyage automatique | Dual : reset conversation + scheduler TTL (24h) |
+| Nettoyage automatique | Dual : reset conversation + scheduler TTL — un fichier genere que la personne conserve n'expire pas (ADR-319) |
 | Isolation user | Segmentation stricte par `user_id`, UUID stored filenames |
 
 ---
@@ -244,7 +244,10 @@ Une page d'une famille, et le total EXACT derriere elle.
 `created_after`, `created_before`, `expires_before`, `sort`
 (`created_desc` | `created_asc` | `expires_asc` | `name_asc`), `limit`, `offset`.
 
-**Response** : `items`, `total`, `total_bytes`, `limit`, `offset`, `max_limit`.
+**Response** : `items`, `total`, `total_bytes`, `limit`, `offset`, `max_limit`,
+`keep` (ADR-319 : fichiers et octets conserves par le compte, EXACTS sur tout le
+compte, et les deux plafonds). Le tri `expires_asc` range les fichiers conserves
+en dernier (`NULLS LAST`).
 
 Trois regles portent l'enonce :
 
@@ -267,6 +270,49 @@ La suppression unitaire (`204`) et la suppression en lot, qui repond
 designe un televersement, et un que le nettoyage a retire entre le listing et
 le clic sont **ecartes**, jamais comptes comme supprimes (ADR-185).
 
+### Conserver un fichier au-dela de son echeance (ADR-319)
+
+Un fichier conserve n'a **pas d'echeance** : `attachments.expires_at` est
+`NULL`. Le balayage supprime `expires_at <= now()` et ne peut donc pas l'atteindre,
+par la semantique de `NULL` et non par un filtre qu'il faudrait penser a ecrire.
+Une contrainte `CHECK` (`ck_attachments_upload_expires`) garde l'invariant d'un
+televersement : il a toujours une echeance.
+
+`POST /api/v1/generated-assets/keep` prend `{ids, kept}` (1 a 100 identifiants)
+et repond `{updated, skipped, keep}` :
+
+- **seuls les fichiers generes de l'appelant** sont concernes ; un televersement,
+  un fichier d'un autre compte ou un identifiant disparu est ecarte, jamais
+  compte (ADR-185) ; un doublon est UN fichier ; conserver deux fois repond
+  « conserve » deux fois ;
+- **deux plafonds par compte**, `GENERATED_ASSETS_KEEP_MAX_FILES` et
+  `GENERATED_ASSETS_KEEP_MAX_MB` (l'un des deux a 0 = conservation coupee : l'epingle disparait,
+  un fichier deja conserve reste liberable), publies avec chaque page de la
+  galerie (ADR-184). Une selection qui depasserait l'un des deux est refusee
+  ENTIERE (`409`, `GeneratedAssetKeepLimitError`, phrase traduite portant les
+  deux plafonds), jamais conservee a moitie ;
+- **compter et ecrire sous un verrou consultatif par compte**, porte par la
+  transaction (`infrastructure/database/owner_lock.py`, partage avec ADR-316) :
+  deux conservations qui se disputent la derniere place ne passent pas toutes les
+  deux (prouve a deux acteurs sur PostgreSQL) ;
+- **ne plus conserver** redonne une echeance d'un TTL a partir de maintenant,
+  jamais une suppression immediate ;
+- un fichier dont l'echeance est passee mais que le balayage n'a pas encore
+  atteint peut encore etre sauve : la mise a jour et la suppression sont deux
+  instructions conditionnelles, et celle qui s'engage la premiere gagne.
+
+**Les cartes du chat suivent le fichier.** Une carte d'image ou de document porte
+l'echeance ecrite a la production ; conserver ou supprimer la rendrait fausse. La
+lecture de l'historique (`GET /conversations/me/messages`) la restitue depuis la
+ligne (`attachments/card_lifetimes.py`) : conserve → `expires_at: null,
+kept: true` ; present → son echeance actuelle ; absent → `gone: true`. Une carte
+se reconnait a sa FORME (une URL `/api/v1/attachments/{id}` et une cle
+`expires_at`), en une lecture groupee par page. Le web dessine un fichier disparu
+comme une carte inerte : ni apercu, ni telechargement, ni partage. Le chemin direct
+porte le meme drapeau (`PendingImage.kept`, `PendingDocument.kept`, poses quand la
+recherche d'ADR-318 montre un fichier conserve) : une carte se lit pareil en direct
+et apres rechargement.
+
 ### La garde de capacite
 
 `capability_dependencies(ATTACHMENTS)` est posee sur **`POST /attachments/upload`
@@ -282,7 +328,7 @@ d'exécution) lit la galerie pour le modèle : les familles demandées — ou to
 fusionnées de la plus récente à la plus ancienne sous un plafond publié
 (`GENERATED_FILES_SEARCH_MAX_RESULTS`), avec le total EXACT des correspondances.
 Seuls les fichiers dont l'échéance n'est pas passée sont lus
-(`GalleryFilters.expires_after`, `expires_at > instant`) : la galerie, elle,
+(`GalleryFilters.expires_after`, `expires_at > instant` ou conservé — ADR-319) : la galerie, elle,
 garde toutes ses lignes et montre l'échéance, mais un fichier que le nettoyage
 va retirer ne se remontre pas. Chaque fichier trouvé est MONTRÉ comme la carte
 que le chat dessine déjà, par les files des producteurs (images, documents),
@@ -299,6 +345,43 @@ une porte fermée n'était jamais montrée, ni libérée.
 
 Le téléphone ne propose pas cet outil : il montre des cartes qu'aucune surface
 vocale ne dessine.
+
+### Envoyer un fichier ou une réponse par e-mail (ADR-321)
+
+Depuis une carte du chat (image, document, capture), une tuile de la galerie, la
+rangée d'actions d'une réponse ou un signet, « Envoyer par e-mail » ouvre une
+boîte de dialogue : destinataires, objet, message facultatif. Le bouton de la
+boîte EST la confirmation (précédent ADR-316) ; aucun modèle n'écrit rien.
+
+- **Deux routes** (`domains/email_share/service.py::resolve_route`) : la boîte
+  connectée, vers des destinataires libres (10 au plus) ; sinon le relais de LIA,
+  vers la SEULE adresse du compte, et seulement si elle est vérifiée (règle
+  ADR-314). Une boîte en erreur est dite (`mailbox_needs_reconnect`) pendant que
+  le relais sert. `GET /api/v1/email-share/options` publie la route, son
+  destinataire unique, le plus gros fichier et chaque borne du formulaire.
+- **Ce qui part** : un fichier GÉNÉRÉ de la personne dont l'échéance n'est pas
+  passée (conservé : aucune échéance), lu sur disque hors de la boucle ; ou une
+  réponse, en fichier `.md` construit par le client exactement comme
+  « Télécharger » (`messageToPlainText`, `bookmarkToMarkdown`, mêmes noms
+  datés). Un téléversement n'est jamais envoyé.
+- **Un MIME sortant unique** (`infrastructure/email/outgoing.py`) sert Gmail,
+  Apple et le relais ; Graph porte le même `OutgoingAttachment` en
+  `fileAttachment`. Un message Gmail avec fichier part par l'URI « upload »
+  (`GmailSendMixin`).
+- **Un plafond par route, dérivé du fournisseur** (`OUTGOING_FILE_MAX_BYTES`,
+  `max_file_bytes`) : Gmail d'après ses 36 700 160 octets de message, iCloud
+  d'après ses 20 Mo, Outlook 3 000 000 octets par fichier, le relais d'après
+  `EMAIL_SHARE_RELAY_MAX_MESSAGE_BYTES`. Au-delà : `413` `email_share_too_large`
+  avec le plafond, avant qu'un octet ne soit lu.
+- **Aucune transaction pendant l'envoi** (ADR-304) : la route lit, valide, puis
+  `commit` avant d'ouvrir la boîte (`open_active_client`) ou le relais.
+- **Refus codés** (`detail.code`, traduits en six langues côté web) :
+  `email_share_file_gone`, `_too_large`, `_no_recipient`, `_recipients_locked`,
+  `_unavailable`, `_mailbox_reconnect`, `_refused` (502), `_failed` (503) ; la
+  limite par compte répond `429`. Chacun est compté
+  (`email_shares_total{route,outcome}`, tableau 10).
+- **Capacité d'opérateur** `PlatformCapability.EMAIL_SHARE`
+  (`EMAIL_SHARE_ENABLED`), coupée sur le démonstrateur.
 
 ---
 
@@ -429,31 +512,28 @@ ressemble.
 
 #### 2. Scheduler TTL
 
-Job APScheduler periodique (toutes les 6h) :
-- Scanne les attachments dont `created_at + TTL_HOURS < now()`
-- Supprime fichiers disque + metadonnees DB
-- Log le nombre de fichiers nettoyes
-- TTL par defaut : 24h (`ATTACHMENTS_TTL_HOURS`)
-- **S'applique aussi aux fichiers generes.** La galerie d'ADR-279 rend
-  l'echeance VISIBLE (elle est ecrite sur chaque carte) ; elle ne la repousse
-  pas. Une personne qui veut garder un fichier le telecharge.
-
-```python
-# cleanup.py — enregistre dans le scheduler (main.py lifespan)
-async def cleanup_expired_attachments():
-    """Supprime les pieces jointes expirees (TTL depasse)."""
-    async with get_db_context() as db:
-        expired = await attachment_repo.find_expired(db, ttl_hours=settings.ATTACHMENTS_TTL_HOURS)
-        for att in expired:
-            await attachment_service.delete(db, att)
-        logger.info("attachment_cleanup_completed", deleted_count=len(expired))
-```
+Job APScheduler periodique (`infrastructure/scheduler/attachment_cleanup.py`,
+enregistre dans `startup/schedulers.py`), qui appelle
+`AttachmentService.cleanup_expired` :
+- chaque piece jointe recoit a l'ecriture `expires_at = now + ATTACHMENTS_TTL_HOURS` ;
+- **UNE instruction conditionnelle** supprime toutes les lignes dont
+  `expires_at <= now()` et rend leurs fichiers (`delete_expired`,
+  `DELETE … RETURNING file_path`) — la condition est evaluee par l'instruction
+  qui supprime, jamais par une lecture anterieure ;
+- la transaction est validee, PUIS les fichiers sont retires du disque hors de la
+  boucle d'evenements (`asyncio.to_thread`) : un arret entre les deux laisse un
+  fichier orphelin, jamais une ligne qui pointe vers rien ;
+- **s'applique aussi aux fichiers generes, sauf a ceux que la personne a
+  conserves** (ADR-319) : un fichier conserve n'a pas d'echeance, la condition ne
+  le voit pas ;
+- publie `attachments_active_count`, `attachments_kept_count` et
+  `attachments_kept_bytes` a chaque passe.
 
 ---
 
 ## Observabilite
 
-### Prometheus Metrics (7 metriques)
+### Prometheus Metrics (9 metriques)
 
 Definies dans `infrastructure/observability/metrics_attachments.py`, suivant la methodologie RED (Rate, Errors, Duration).
 
@@ -464,8 +544,10 @@ Definies dans `infrastructure/observability/metrics_attachments.py`, suivant la 
 | `attachments_upload_duration_seconds` | Histogram | content_type | Duree du traitement upload (validation + save + extraction) |
 | `vision_llm_requests_total` | Counter | model | Total des requetes vision LLM |
 | `vision_llm_duration_seconds` | Histogram | model | Duree des appels vision LLM |
-| `attachments_cleanup_deleted_total` | Counter | reason | Fichiers supprimes par le cleanup (reason: expired\|conversation_reset) |
+| `attachments_cleanup_deleted_total` | Counter | reason | Fichiers supprimes (reason: expired\|conversation_reset\|user_deleted, vocabulaire clos — ADR-279) |
 | `attachments_active_count` | Gauge | — | Nombre courant de pieces jointes actives (non expirees) |
+| `attachments_kept_count` | Gauge | — | Fichiers generes conserves par les personnes, toute l'instance (ADR-319) |
+| `attachments_kept_bytes` | Gauge | — | Octets que tiennent ces fichiers : le disque que le balayage ne recuperera pas (ADR-319) |
 
 ### Recording Rules
 

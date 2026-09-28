@@ -1,22 +1,22 @@
 """
-DSL pour plans d'exécution multi-agents.
+DSL for multi-agent execution plans.
 
-Ce module définit le Domain-Specific Language (DSL) pour les plans d'exécution
-générés par le planner LLM et validés par le validator.
+This module defines the Domain-Specific Language (DSL) of the execution plans
+the LLM planner generates and the validator checks.
 
-Le DSL supporte:
-- Exécution multi-étapes (steps séquentiels ou conditionnels)
-- Multi-agents (chaque step spécifie son agent)
-- Dépendances entre steps ($steps.X.field pour référencer résultats)
-- Conditions (branching basé sur résultats)
-- HITL (Human-In-The-Loop) pour approbation utilisateur
-- Gestion d'erreurs (on_fail actions)
+The DSL supports:
+- Multi-step execution (sequential or conditional steps)
+- Multiple agents (each step names its agent)
+- Dependencies between steps ($steps.X.field references a result)
+- Conditions (branching on results)
+- HITL (Human-In-The-Loop) for the user's approval
+- Error handling (on_fail actions)
 
 Architecture:
-- ExecutionStep: Une étape du plan (TOOL, CONDITIONAL, REPLAN, HUMAN)
-- ExecutionPlan: Plan complet avec métadonnées (version, coût, timeout)
-- StepType: Types d'étapes supportées
-- PlanValidationError: Erreur de validation de plan
+- ExecutionStep: one step of the plan (TOOL, CONDITIONAL, REPLAN, HUMAN)
+- ExecutionPlan: the whole plan with its metadata (version, cost, timeout)
+- StepType: the supported step types
+- PlanValidationError: a plan validation error
 
 Usage:
     from .plan_schemas import ExecutionPlan, ExecutionStep, StepType
@@ -128,30 +128,6 @@ class ParameterValue(BaseModel):
             return json.loads(self.string_value)
         return self.string_value
 
-    @classmethod
-    def from_python_value(cls, value: Any) -> ParameterValue:
-        """
-        Create ParameterValue from Python native value.
-
-        Args:
-            value: Any Python value
-
-        Returns:
-            ParameterValue instance
-        """
-        import json
-
-        if value is None:
-            return cls(string_value=None, value_type="null")
-        if isinstance(value, bool):
-            return cls(string_value=str(value).lower(), value_type="boolean")
-        if isinstance(value, int | float):
-            return cls(string_value=str(value), value_type="number")
-        if isinstance(value, str):
-            return cls(string_value=value, value_type="string")
-        # Complex types -> JSON
-        return cls(string_value=json.dumps(value), value_type="json")
-
 
 class ParameterItem(BaseModel):
     """
@@ -187,21 +163,6 @@ def parameters_to_dict(parameters: list[ParameterItem]) -> dict[str, Any]:
     return {p.name: p.value.to_python_value() for p in parameters}
 
 
-def dict_to_parameters(params: dict[str, Any]) -> list[ParameterItem]:
-    """
-    Convert dict to list of ParameterItem for LLM output.
-
-    Args:
-        params: Dict of parameter name -> value
-
-    Returns:
-        List of ParameterItem
-    """
-    return [
-        ParameterItem(name=k, value=ParameterValue.from_python_value(v)) for k, v in params.items()
-    ]
-
-
 # ============================================================================
 # Step Types
 # ============================================================================
@@ -209,21 +170,21 @@ def dict_to_parameters(params: dict[str, Any]) -> list[ParameterItem]:
 
 class StepType(str, Enum):
     """
-    Types d'étapes supportées dans un ExecutionPlan.
+    Step types an ExecutionPlan supports.
 
     MVP (Phase 1):
-    - TOOL: Exécution d'un tool via agent
-    - CONDITIONAL: Branchement conditionnel basé sur résultats
+    - TOOL: runs a tool through an agent
+    - CONDITIONAL: branches on results
 
     Future (Phase 2):
-    - REPLAN: Regénération de plan par le planner LLM
-    - HUMAN: Demande d'approbation HITL (Human-In-The-Loop)
+    - REPLAN: the LLM planner regenerates the plan
+    - HUMAN: asks for a HITL (Human-In-The-Loop) approval
 
     Attributes:
-        TOOL: Appel d'un tool via un agent
-        CONDITIONAL: Évaluation d'une condition pour branching
-        REPLAN: Demande de re-planification (future)
-        HUMAN: Interruption pour approbation humaine (future)
+        TOOL: a tool call through an agent
+        CONDITIONAL: evaluates a condition to branch
+        REPLAN: asks for a new plan (future)
+        HUMAN: interrupts for a human approval (future)
     """
 
     TOOL = "TOOL"
@@ -259,29 +220,29 @@ assert set(_REQUIRED_FIELDS_BY_STEP_TYPE) == set(StepType), (
 
 class ExecutionStep(BaseModel):
     """
-    Une étape d'exécution dans un plan multi-agents.
+    One execution step of a multi-agent plan.
 
-    Représente une action atomique à exécuter :
-    - Appel d'un tool via un agent (TOOL)
-    - Branchement conditionnel (CONDITIONAL)
-    - Re-planification (REPLAN, future)
-    - Approbation humaine (HUMAN, future)
+    An atomic action to run:
+    - a tool call through an agent (TOOL)
+    - a conditional branch (CONDITIONAL)
+    - a new plan (REPLAN, future)
+    - a human approval (HUMAN, future)
 
-    Phase 3.2.8.2: Frozen model for performance (immutable after creation).
+    Mutable on purpose (``frozen=False``): steps may be adjusted during execution.
 
     Attributes:
-        step_id: Identifiant unique du step (ex: "step_1", "step_2")
-        step_type: Type de step (TOOL, CONDITIONAL, etc.)
-        agent_name: Nom de l'agent responsable (ex: "contacts_agent")
-        tool_name: Nom du tool à exécuter (si step_type=TOOL)
-        parameters: Paramètres du tool (peut contenir références $steps.X)
-        depends_on: Liste des step_ids dont dépend ce step
-        condition: Expression conditionnelle (si step_type=CONDITIONAL)
-        on_success: Step_id à exécuter si succès (pour CONDITIONAL)
-        on_fail: Step_id à exécuter si échec (pour CONDITIONAL)
-        timeout_seconds: Timeout d'exécution (None = pas de timeout)
-        approvals_required: Si True, nécessite approbation HITL
-        description: Description textuelle du step (pour UI/logs)
+        step_id: Unique step identifier (e.g. "step_1", "step_2")
+        step_type: Step type (TOOL, CONDITIONAL, etc.)
+        agent_name: The agent in charge (e.g. "contacts_agent")
+        tool_name: The tool to run (when step_type=TOOL)
+        parameters: Tool parameters (may contain $steps.X references)
+        depends_on: The step_ids this step depends on
+        condition: Conditional expression (when step_type=CONDITIONAL)
+        on_success: Step_id to run on success (for CONDITIONAL)
+        on_fail: Step_id to run on failure (for CONDITIONAL)
+        timeout_seconds: Execution timeout (None = no timeout)
+        approvals_required: When True, HITL approval is required
+        description: Text description of the step (for UI/logs)
 
     Examples:
         >>> # TOOL step
@@ -302,7 +263,7 @@ class ExecutionStep(BaseModel):
         ...     tool_name="get_contact_details_tool",
         ...     parameters={"resource_name": "$steps.step_1.contacts[0].resource_name"},
         ...     depends_on=["step_1"],
-        ...     description="Récupérer détails du premier contact trouvé"
+        ...     description="Get the details of the first contact found"
         ... )
 
         >>> # CONDITIONAL step
@@ -313,43 +274,43 @@ class ExecutionStep(BaseModel):
         ...     on_success="step_4",
         ...     on_fail="step_5",
         ...     depends_on=["step_1"],
-        ...     description="Vérifier si plusieurs contacts trouvés"
+        ...     description="Check whether several contacts were found"
         ... )
     """
 
     # Note: frozen=False because steps may need modification during execution
     # (e.g., resolved parameters, execution metadata)
 
-    step_id: str = Field(description="Identifiant unique du step (ex: 'step_1', 'search_contacts')")
-    step_type: StepType = Field(description="Type de step (TOOL, CONDITIONAL, etc.)")
-    agent_name: str | None = Field(default=None, description="Nom de l'agent (requis pour TOOL)")
-    tool_name: str | None = Field(default=None, description="Nom du tool (requis pour TOOL)")
+    step_id: str = Field(description="Unique step identifier (e.g. 'step_1', 'search_contacts')")
+    step_type: StepType = Field(description="Step type (TOOL, CONDITIONAL, etc.)")
+    agent_name: str | None = Field(default=None, description="Agent name (required for TOOL)")
+    tool_name: str | None = Field(default=None, description="Tool name (required for TOOL)")
     parameters: dict[str, Any] = Field(
         default_factory=dict,
-        description="Paramètres du tool (peut contenir références $steps.X)",
+        description="Tool parameters (may contain $steps.X references)",
     )
     depends_on: list[str] = Field(
         default_factory=list,
-        description="Liste des step_ids dont dépend ce step",
+        description="The step_ids this step depends on",
     )
     condition: str | None = Field(
         default=None,
-        description="Expression conditionnelle Python safe (requis pour CONDITIONAL)",
+        description="Safe Python conditional expression (required for CONDITIONAL)",
     )
     on_success: str | None = Field(
-        default=None, description="Step_id à exécuter si condition = True"
+        default=None, description="Step_id to run when the condition is True"
     )
     on_fail: str | None = Field(
-        default=None, description="Step_id à exécuter si condition = False ou erreur"
+        default=None, description="Step_id to run when the condition is False or fails"
     )
     timeout_seconds: int | None = Field(
-        default=None, description="Timeout d'exécution en secondes (None = pas de timeout)"
+        default=None, description="Execution timeout in seconds (None = no timeout)"
     )
     approvals_required: bool = Field(
         default=False,
-        description="Si True, nécessite approbation HITL avant exécution",
+        description="When True, HITL approval is required before execution",
     )
-    description: str = Field(default="", description="Description textuelle du step (pour UI/logs)")
+    description: str = Field(default="", description="Text description of the step (for UI/logs)")
 
     # =========================================================================
     # FOR_EACH PATTERN SUPPORT (Phase: plan_planner.md Section 4.1)
@@ -437,154 +398,26 @@ class ExecutionStep(BaseModel):
     model_config = {"frozen": False}  # Allow modification during execution
 
 
-# ============================================================================
-# LLM-Compatible Step Schema (OpenAI Strict Mode)
-# ============================================================================
-
-
-class ExecutionStepLLM(BaseModel):
-    """
-    OpenAI Strict Mode compatible version of ExecutionStep for LLM output.
-
-    This schema replaces `dict[str, Any]` fields with `list[ParameterItem]`
-    to ensure compatibility with OpenAI's structured output strict mode.
-
-    The main difference from ExecutionStep:
-    - `parameters` is `list[ParameterItem]` instead of `dict[str, Any]`
-
-    Use `to_execution_step()` to convert to internal ExecutionStep format.
-
-    Attributes:
-        step_id: Unique step identifier
-        step_type: Type of step (TOOL, CONDITIONAL, etc.)
-        agent_name: Agent name (required for TOOL)
-        tool_name: Tool name (required for TOOL)
-        parameters: List of parameter items (strict-compatible)
-        depends_on: List of step_ids this step depends on
-        condition: Conditional expression (for CONDITIONAL)
-        on_success: Step_id to execute on success (for CONDITIONAL)
-        on_fail: Step_id to execute on failure (for CONDITIONAL)
-        timeout_seconds: Execution timeout
-        approvals_required: Whether HITL approval is required
-        description: Human-readable description
-    """
-
-    step_id: str = Field(description="Identifiant unique du step (ex: 'step_1', 'search_contacts')")
-    step_type: StepType = Field(description="Type de step (TOOL, CONDITIONAL, etc.)")
-    agent_name: str | None = Field(default=None, description="Nom de l'agent (requis pour TOOL)")
-    tool_name: str | None = Field(default=None, description="Nom du tool (requis pour TOOL)")
-    parameters: list[ParameterItem] = Field(
-        default_factory=list,
-        description="Liste des paramètres du tool. Chaque paramètre a un 'name' et une 'value' "
-        "(avec 'string_value' et 'value_type'). Peut contenir références $steps.X dans string_value.",
-    )
-    depends_on: list[str] = Field(
-        default_factory=list,
-        description="Liste des step_ids dont dépend ce step",
-    )
-    condition: str | None = Field(
-        default=None,
-        description="Expression conditionnelle Python safe (requis pour CONDITIONAL)",
-    )
-    on_success: str | None = Field(
-        default=None,
-        description="Step_id à exécuter si condition = True",
-    )
-    on_fail: str | None = Field(
-        default=None,
-        description="Step_id à exécuter si condition = False ou erreur",
-    )
-    timeout_seconds: int | None = Field(
-        default=None,
-        description="Timeout d'exécution en secondes (None = pas de timeout)",
-    )
-    approvals_required: bool = Field(
-        default=False,
-        description="Si True, nécessite approbation HITL avant exécution",
-    )
-    description: str = Field(
-        default="",
-        description="Description textuelle du step (pour UI/logs)",
-    )
-
-    # FOR_EACH PATTERN SUPPORT (must mirror ExecutionStep for LLM compatibility)
-    for_each: str | None = Field(
-        default=None,
-        description="Reference to array to iterate over. E.g., '$steps.get_hotels.places'. "
-        "When set, this step is expanded at runtime into N parallel steps.",
-    )
-    for_each_max: int = Field(
-        default_factory=lambda: settings.for_each_max_default,
-        ge=1,
-        le=settings.for_each_max_hard_limit,
-        description=f"Maximum items to process (safety limit). Default {settings.for_each_max_default}, max {settings.for_each_max_hard_limit}.",
-    )
-    on_item_error: Literal["continue", "stop", "collect_errors"] = Field(
-        default="continue",
-        description="Behavior on item error during for_each iteration.",
-    )
-    delay_between_items_ms: int = Field(
-        default=0,
-        ge=0,
-        le=10000,
-        description="Delay in milliseconds between items for API rate limiting.",
-    )
-
-    def to_execution_step(self) -> ExecutionStep:
-        """
-        Convert to internal ExecutionStep format.
-
-        Converts `list[ParameterItem]` to `dict[str, Any]` for internal use.
-
-        Returns:
-            ExecutionStep: Internal format with dict parameters
-        """
-        return ExecutionStep(
-            step_id=self.step_id,
-            step_type=self.step_type,
-            agent_name=self.agent_name,
-            tool_name=self.tool_name,
-            parameters=parameters_to_dict(self.parameters),
-            depends_on=self.depends_on,
-            condition=self.condition,
-            on_success=self.on_success,
-            on_fail=self.on_fail,
-            timeout_seconds=self.timeout_seconds,
-            approvals_required=self.approvals_required,
-            description=self.description,
-            # FOR_EACH fields
-            for_each=self.for_each,
-            for_each_max=self.for_each_max,
-            on_item_error=self.on_item_error,
-            delay_between_items_ms=self.delay_between_items_ms,
-        )
-
-
-# ============================================================================
-# Execution Plan
-# ============================================================================
-
-
 class ExecutionPlan(BaseModel):
     """
-    Plan d'exécution multi-agents complet.
+    A complete multi-agent execution plan.
 
-    Généré par le planner LLM, validé par le validator, exécuté par l'orchestrateur.
+    Generated by the LLM planner, checked by the validator, run by the orchestrator.
 
-    Phase 3.2.8.2: Frozen model for performance (immutable after creation).
+    Mutable on purpose (``frozen=False``): steps may be adjusted during execution.
 
     Attributes:
-        plan_id: Identifiant unique du plan (UUID)
-        user_id: ID de l'utilisateur (pour permissions et context)
-        session_id: ID de session (pour continuité conversationnelle)
-        steps: Liste ordonnée des steps à exécuter
-        execution_mode: Mode d'exécution ("sequential" pour MVP, "parallel" future)
-        max_cost_usd: Coût maximum autorisé (validation)
-        estimated_cost_usd: Coût estimé basé sur manifests
-        max_timeout_seconds: Timeout global du plan
-        version: Version du format DSL (semver)
-        created_at: Timestamp de création
-        metadata: Métadonnées additionnelles (query, intention, etc.)
+        plan_id: Unique plan identifier (UUID)
+        user_id: The user's ID (for permissions and context)
+        session_id: Session ID (for conversational continuity)
+        steps: Ordered steps to run
+        execution_mode: Execution mode ("sequential" for the MVP, "parallel" in future)
+        max_cost_usd: Maximum allowed cost (validation)
+        estimated_cost_usd: Estimated cost, from the manifests
+        max_timeout_seconds: Global plan timeout
+        version: DSL format version (semver)
+        created_at: Creation timestamp
+        metadata: Additional metadata (query, intention, etc.)
 
     Examples:
         >>> plan = ExecutionPlan(
@@ -606,35 +439,33 @@ class ExecutionPlan(BaseModel):
 
     plan_id: str = Field(
         default_factory=lambda: str(uuid4()),
-        description="Identifiant unique du plan (UUID)",
+        description="Unique plan identifier (UUID)",
     )
-    user_id: str = Field(description="ID utilisateur (pour permissions et context)")
-    session_id: str = Field(
-        default="", description="ID session (pour continuité conversationnelle)"
-    )
+    user_id: str = Field(description="User ID (for permissions and context)")
+    session_id: str = Field(default="", description="Session ID (for conversational continuity)")
     steps: list[ExecutionStep] = Field(
         default_factory=list,
-        description="Liste ordonnée des steps à exécuter. VIDE si needs_clarification=True dans metadata.",
+        description="Ordered steps to run. EMPTY when metadata has needs_clarification=True.",
     )
     execution_mode: Literal["sequential", "parallel"] = Field(
         default="sequential",
-        description="Mode d'exécution (sequential pour MVP, parallel future)",
+        description="Execution mode (sequential for the MVP, parallel in future)",
     )
     max_cost_usd: float | None = Field(
-        default=None, description="Coût maximum autorisé (None = pas de limite)"
+        default=None, description="Maximum allowed cost (None = no limit)"
     )
-    estimated_cost_usd: float = Field(default=0.0, description="Coût estimé basé sur manifests")
+    estimated_cost_usd: float = Field(default=0.0, description="Estimated cost, from the manifests")
     max_timeout_seconds: int | None = Field(
-        default=None, description="Timeout global du plan (None = pas de timeout)"
+        default=None, description="Global plan timeout (None = no timeout)"
     )
-    version: str = Field(default="1.0.0", description="Version du format DSL (semver)")
+    version: str = Field(default="1.0.0", description="DSL format version (semver)")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
-        description="Timestamp de création (UTC)",
+        description="Creation timestamp (UTC)",
     )
     metadata: dict[str, Any] = Field(
         default_factory=dict,
-        description="Métadonnées additionnelles (query, intention, router_output, etc.)",
+        description="Additional metadata (query, intention, router_output, etc.)",
         json_schema_extra={"additionalProperties": True},
     )
 
@@ -642,7 +473,7 @@ class ExecutionPlan(BaseModel):
     @classmethod
     def validate_steps_not_empty(cls, v: list[ExecutionStep]) -> list[ExecutionStep]:
         """
-        Valide qu'il y a au moins un step.
+        Check there is at least one step.
 
         Note: Empty steps allowed if needs_clarification=True in metadata.
         This is validated in model_validator below since metadata comes after steps.
@@ -709,19 +540,19 @@ class ExecutionPlan(BaseModel):
 
 class PlanValidationError(Exception):
     """
-    Erreur de validation d'un ExecutionPlan.
+    Validation error of an ExecutionPlan.
 
-    Levée par le validator lorsqu'un plan ne respecte pas les contraintes:
-    - Structure invalide
-    - Dépendances cycliques
-    - Permissions manquantes
-    - Coût dépassé
-    - Conditions dangereuses
+    Raised by the validator when a plan breaks a constraint:
+    - invalid structure
+    - cyclic dependencies
+    - missing permissions
+    - cost exceeded
+    - dangerous conditions
 
     Attributes:
-        message: Message d'erreur descriptif
-        code: Code d'erreur standardisé
-        details: Détails additionnels (dict)
+        message: Descriptive error message
+        code: Standardised error code
+        details: Additional details (dict)
     """
 
     def __init__(

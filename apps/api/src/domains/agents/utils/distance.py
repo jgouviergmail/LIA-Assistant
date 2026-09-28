@@ -29,7 +29,7 @@ Usage:
         source="browser",
         language="fr",
     )
-    print(result.reference)  # "depuis votre position"
+    print(result.reference)  # "depuis ta position"
 """
 
 import math
@@ -38,6 +38,7 @@ from enum import Enum
 from typing import Protocol, runtime_checkable
 
 from src.core.geo_utils import haversine_distance as _haversine_distance
+from src.core.i18n import resolve_language
 from src.domains.agents.utils.i18n_location import get_distance_reference
 
 
@@ -59,7 +60,7 @@ class DistanceResult:
         km: Distance in kilometers (rounded to 2 decimals)
         formatted: Human-readable distance (e.g., "350 m", "2.1 km")
         mode: Calculation mode used
-        reference: Optional localized reference text (e.g., "depuis votre position")
+        reference: Optional localized reference text (e.g., "depuis ta position")
         duration_minutes: Optional travel time (only for Routes API)
     """
 
@@ -200,7 +201,7 @@ async def calculate_distance(
     dest_lat: float,
     dest_lon: float,
     source: str | None = None,
-    language: str = "fr",
+    language: str | None = None,
     calculator: DistanceCalculator | None = None,
 ) -> DistanceResult:
     """
@@ -227,14 +228,14 @@ async def calculate_distance(
             language="fr",
         )
         print(result.formatted)   # "2.1 km"
-        print(result.reference)   # "depuis votre position"
+        print(result.reference)   # "depuis ta position"
     """
     calc = calculator or _default_calculator
     result = await calc.calculate(origin_lat, origin_lon, dest_lat, dest_lon)
 
     # Add reference text if source is provided
     if source:
-        reference = get_distance_reference(source, language)
+        reference = get_distance_reference(source, resolve_language(language))
         # Create new result with reference (DistanceResult is immutable)
         result = DistanceResult(
             km=result.km,
@@ -254,7 +255,7 @@ def calculate_distance_sync(
     dest_lat: float,
     dest_lon: float,
     source: str | None = None,
-    language: str = "fr",
+    language: str | None = None,
 ) -> DistanceResult:
     """
     Synchronous version of calculate_distance using Haversine only.
@@ -264,7 +265,7 @@ def calculate_distance_sync(
     """
     distance_km = _haversine_distance(origin_lat, origin_lon, dest_lat, dest_lon)
     distance_km_rounded = round(distance_km, 2)
-    reference = get_distance_reference(source, language) if source else None
+    reference = get_distance_reference(source, resolve_language(language)) if source else None
 
     return DistanceResult(
         km=distance_km_rounded,

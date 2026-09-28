@@ -8,6 +8,12 @@
   ADR-248 (le prompt ReAct promet ce que le tour peut faire), ADR-263 (la
   politique de mutation d'un outil, pas le prompt, décide qui est consulté),
   ADR-272 (un seul lecteur de l'usage fournisseur, sur TOUS les sites)
+- **Amendé par** : [ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md) (2026-09-25 — le
+  bloc de contexte des cinq agents de domaine devient UN prompt,
+  `agent_context_domain_instructions` ; l'avis de plan refusé devient
+  `response_plan_rejection_notice` ; la personnalité par défaut n'existe plus
+  que dans son fichier versionné ; un modèle reçoit le NOM d'une langue, jamais
+  son code)
 - **Périmètre** : `prompts/v1/` (131 fichiers, 20 nouveaux), `prompts/__init__.py`
   (`get_response_prompt`), `core/prompt_store.py` (`parse_prompt_sections`),
   `core/i18n.py` (`get_language_name`), `hitl/question_generator.py`,

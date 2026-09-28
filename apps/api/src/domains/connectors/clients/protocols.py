@@ -10,13 +10,28 @@ Used for type safety with mypy strict mode.
 Created: 2026-03-10
 """
 
-from typing import Protocol
+from collections.abc import Sequence
+from typing import ClassVar, Protocol, runtime_checkable
 
 from src.domains.connectors.clients.email_attachments import EmailAttachmentContent
+from src.infrastructure.email.outgoing import OutgoingAttachment
 
 
-class EmailClientProtocol(Protocol):
-    """Protocol for email clients (Gmail, Apple Mail)."""
+@runtime_checkable
+class OutgoingCeiling(Protocol):
+    """What a mail provider's client publishes about the files it sends (ADR-321).
+
+    Runtime-checkable so a caller holding only the CLASS (the options of the
+    « Send by e-mail » dialog open no client) can read it without a cast.
+    """
+
+    #: The largest file one message may carry through this provider, derived
+    #: from what the provider documents — published to the person.
+    OUTGOING_FILE_MAX_BYTES: ClassVar[int]
+
+
+class EmailClientProtocol(OutgoingCeiling, Protocol):
+    """Protocol for email clients (Gmail, Apple Mail, Outlook)."""
 
     async def search_emails(
         self,
@@ -44,6 +59,7 @@ class EmailClientProtocol(Protocol):
         cc: str | None = None,
         bcc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict: ...
 
     async def reply_email(
@@ -215,6 +231,7 @@ class TasksClientProtocol(Protocol):
         show_hidden: bool = False,
         due_min: str | None = None,
         due_max: str | None = None,
+        completed_min: str | None = None,
     ) -> dict: ...
 
     async def get_task(self, task_list_id: str, task_id: str) -> dict: ...

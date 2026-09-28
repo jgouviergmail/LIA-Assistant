@@ -21,8 +21,7 @@ import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.runnables import RunnableConfig
 
-from src.core.config import settings
-from src.core.i18n import get_language_name, normalize_language
+from src.core.i18n import get_language_name, resolve_language
 from src.core.i18n_api_messages import APIMessages, SupportedLanguage
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
@@ -133,11 +132,9 @@ async def generate_email_content(
 
 
 def _user_language(runtime: ToolRuntime[LiaRuntimeContext, Any] | None) -> SupportedLanguage:
-    """The person's language from the tool's own runtime, else the default."""
+    """The person's language from the tool's own runtime, else the declared one."""
     context = tool_runtime_context(runtime) if runtime is not None else None
-    return normalize_language(
-        context.language if context is not None else settings.default_language
-    )
+    return resolve_language(context.language if context is not None else None)
 
 
 async def resolve_email_content(

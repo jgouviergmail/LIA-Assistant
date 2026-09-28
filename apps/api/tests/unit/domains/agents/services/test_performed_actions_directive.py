@@ -47,8 +47,9 @@ class TestTheDirectiveStatesTheLoopSActs:
 
         read.assert_awaited_once_with("run-1")
         # A failure is the honesty directive's to state, once (ADR-303).
-        assert "- Image générée : un chat\n" in block
-        assert "- Image générée : x" not in block
+        # French takes a no-break space before its colon (ADR-323).
+        assert "- Image générée\xa0: un chat\n" in block
+        assert "- Image générée\xa0: x" not in block
 
     async def test_the_block_is_the_versioned_file_filled(self) -> None:
         """No inline prose (ADR-284): the block IS the file, filled."""

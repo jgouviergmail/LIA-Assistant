@@ -6,8 +6,9 @@ All custom middleware is implemented as pure ASGI (F28): the historical
 ``BaseHTTPMiddleware`` versions each spawned an anyio task-group plus memory
 streams per request and re-wrapped every SSE chunk, a systematic overhead on
 all requests. Pure ASGI runs in the caller's task (contextvars behave
-naturally) and is transparent for streaming responses. Execution order is
-unchanged: RequestID → SecurityHeaders → Logging → ErrorHandler → routes.
+naturally) and is transparent for streaming responses. Execution order:
+RequestID → RequestLanguage → SecurityHeaders → Logging → RateLimit →
+BodySizeLimit → ErrorHandler → routes.
 """
 
 import time
@@ -30,6 +31,8 @@ from src.core.constants import (
     RATE_LIMIT_GLOBAL_EXEMPT_PATHS,
     RATE_LIMIT_GLOBAL_WINDOW_SECONDS,
 )
+from src.core.i18n import language_from_header, language_scope
+from src.core.i18n_api_messages import APIMessages
 from src.core.native_client import NATIVE_CLIENT_HEADER
 from src.core.rate_limit_config import rate_limiting_enabled
 from src.infrastructure.observability.geoip import geoip_resolver
@@ -79,6 +82,30 @@ class RequestIDMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_with_request_id)
+
+
+class RequestLanguageMiddleware:
+    """Pure-ASGI middleware declaring the language a request speaks (ADR-323).
+
+    The Accept-Language header is the first thing known about the person, so
+    every sentence the request writes without an explicit language — a refusal
+    from a middleware below, an error, a page for a visitor — is written in it.
+    The authenticated account's own language replaces it once the session is
+    read (``core.session_dependencies``). A request naming no supported language
+    declares nothing: ``resolve_language`` then answers the instance default.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+
+        language = language_from_header(Headers(scope=scope).get("accept-language"))
+        with language_scope(language):
+            await self.app(scope, receive, send)
 
 
 class RateLimitMiddleware:
@@ -213,7 +240,7 @@ class RateLimitMiddleware:
             status_code=429,
             content={
                 "error": "rate_limit_exceeded",
-                "message": "Too many requests. Please slow down and try again.",
+                "message": APIMessages.too_many_requests(),
                 "retry_after": self.window_seconds,
             },
             headers={"Retry-After": str(self.window_seconds)},
@@ -386,7 +413,9 @@ class BodySizeLimitMiddleware:
         async def _no_body() -> Message:
             return {"type": "http.request", "body": b"", "more_body": False}
 
-        response = JSONResponse(status_code=413, content={"detail": "Request body too large"})
+        response = JSONResponse(
+            status_code=413, content={"detail": APIMessages.request_body_too_large()}
+        )
         await response(scope, _no_body, send)
 
 
@@ -628,7 +657,7 @@ class ErrorHandlerMiddleware:
                 status_code=500,
                 content={
                     "error": "Internal server error",
-                    "detail": str(exc) if settings.debug else "An unexpected error occurred",
+                    "detail": str(exc) if settings.debug else APIMessages.unexpected_error(),
                     "request_id": state.get("request_id"),
                 },
             )
@@ -666,8 +695,12 @@ def setup_middleware(app: FastAPI) -> None:
     )
 
     # Custom middleware (order matters - applied in reverse: the LAST added runs
-    # FIRST). Effective order: RequestID → SecurityHeaders → Logging →
-    # BodySizeLimit → ErrorHandler → routes.
+    # FIRST). Effective order: RequestID → RequestLanguage → SecurityHeaders →
+    # Logging → RateLimit → BodySizeLimit → ErrorHandler → routes.
+    #
+    # RequestLanguage runs right under RequestID so every layer below — a 429,
+    # a 413, an error page — writes in the language the request declared
+    # (ADR-323): the web client shows those bodies to the person.
     #
     # BodySizeLimit sits directly above the routes so it is the last thing a
     # request crosses before a handler can read its body — nothing between them
@@ -684,6 +717,7 @@ def setup_middleware(app: FastAPI) -> None:
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestLanguageMiddleware)
     app.add_middleware(RequestIDMiddleware)
 
     logger.info(

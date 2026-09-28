@@ -41,7 +41,7 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, Field
 
-from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+from src.core.i18n import resolve_language
 
 logger = structlog.get_logger(__name__)
 
@@ -249,33 +249,31 @@ class PartialErrorHandler:
             "fr": {
                 ErrorCategory.AUTHENTICATION: (
                     "La connexion au service {domain} a expiré. "
-                    "Veuillez vous reconnecter dans les paramètres."
+                    "Reconnecte-toi dans les paramètres."
                 ),
                 ErrorCategory.RATE_LIMIT: (
                     "Le service {domain} a atteint sa limite de requêtes. "
-                    "Veuillez réessayer dans quelques minutes."
+                    "Réessaie dans quelques minutes."
                 ),
                 ErrorCategory.NETWORK: (
-                    "Impossible de contacter le service {domain}. Vérifiez votre connexion internet."
+                    "Impossible de contacter le service {domain}. Vérifie ta connexion internet."
                 ),
-                ErrorCategory.TIMEOUT: (
-                    "Le service {domain} n'a pas répondu à temps. Veuillez réessayer."
-                ),
+                ErrorCategory.TIMEOUT: ("Le service {domain} n'a pas répondu à temps. Réessaie."),
                 ErrorCategory.PERMISSION: (
-                    "Accès refusé au service {domain}. Vérifiez les permissions de votre compte."
+                    "Accès refusé au service {domain}. Vérifie les permissions de ton compte."
                 ),
                 ErrorCategory.NOT_FOUND: (
-                    "Aucun résultat trouvé dans {domain}. Essayez avec d'autres critères."
+                    "Aucun résultat trouvé dans {domain}. Essaie avec d'autres critères."
                 ),
                 ErrorCategory.VALIDATION: (
                     "Les paramètres de recherche pour {domain} sont incorrects. "
-                    "Veuillez reformuler votre demande."
+                    "Reformule ta demande."
                 ),
                 ErrorCategory.INTERNAL: (
-                    "Une erreur inattendue s'est produite avec {domain}. Veuillez réessayer."
+                    "Une erreur inattendue s'est produite avec {domain}. Réessaie."
                 ),
                 ErrorCategory.UNKNOWN: (
-                    "Une erreur s'est produite avec {domain}. Veuillez réessayer plus tard."
+                    "Une erreur s'est produite avec {domain}. Réessaie plus tard."
                 ),
             },
             "en": {
@@ -311,33 +309,33 @@ class PartialErrorHandler:
             "es": {
                 ErrorCategory.AUTHENTICATION: (
                     "La conexión con el servicio {domain} ha expirado. "
-                    "Por favor, reconéctese en la configuración."
+                    "Por favor, reconéctate en la configuración."
                 ),
                 ErrorCategory.RATE_LIMIT: (
                     "El servicio {domain} ha alcanzado su límite de solicitudes. "
-                    "Por favor, inténtelo de nuevo en unos minutos."
+                    "Por favor, inténtalo de nuevo en unos minutos."
                 ),
                 ErrorCategory.NETWORK: (
-                    "No se puede contactar con el servicio {domain}. Compruebe su conexión a internet."
+                    "No se puede contactar con el servicio {domain}. Comprueba tu conexión a internet."
                 ),
                 ErrorCategory.TIMEOUT: (
-                    "El servicio {domain} no respondió a tiempo. Por favor, inténtelo de nuevo."
+                    "El servicio {domain} no respondió a tiempo. Por favor, inténtalo de nuevo."
                 ),
                 ErrorCategory.PERMISSION: (
-                    "Acceso denegado al servicio {domain}. Compruebe los permisos de su cuenta."
+                    "Acceso denegado al servicio {domain}. Comprueba los permisos de tu cuenta."
                 ),
                 ErrorCategory.NOT_FOUND: (
-                    "No se encontraron resultados en {domain}. Intente con otros criterios."
+                    "No se encontraron resultados en {domain}. Intenta con otros criterios."
                 ),
                 ErrorCategory.VALIDATION: (
                     "Los parámetros de búsqueda para {domain} son incorrectos. "
-                    "Por favor, reformule su solicitud."
+                    "Por favor, reformula tu solicitud."
                 ),
                 ErrorCategory.INTERNAL: (
-                    "Se produjo un error inesperado con {domain}. Por favor, inténtelo de nuevo."
+                    "Se produjo un error inesperado con {domain}. Por favor, inténtalo de nuevo."
                 ),
                 ErrorCategory.UNKNOWN: (
-                    "Se produjo un error con {domain}. Por favor, inténtelo más tarde."
+                    "Se produjo un error con {domain}. Por favor, inténtalo más tarde."
                 ),
             },
             "de": {
@@ -347,46 +345,44 @@ class PartialErrorHandler:
                 ),
                 ErrorCategory.RATE_LIMIT: (
                     "Der {domain}-Dienst hat sein Anfragelimit erreicht. "
-                    "Bitte versuchen Sie es in ein paar Minuten erneut."
+                    "Bitte versuche es in ein paar Minuten erneut."
                 ),
                 ErrorCategory.NETWORK: (
-                    "Der {domain}-Dienst ist nicht erreichbar. Prüfen Sie Ihre Internetverbindung."
+                    "Der {domain}-Dienst ist nicht erreichbar. Prüfe deine Internetverbindung."
                 ),
                 ErrorCategory.TIMEOUT: (
                     "Der {domain}-Dienst hat nicht rechtzeitig geantwortet. Bitte erneut versuchen."
                 ),
                 ErrorCategory.PERMISSION: (
-                    "Zugriff auf den {domain}-Dienst verweigert. Prüfen Sie Ihre Kontoberechtigungen."
+                    "Zugriff auf den {domain}-Dienst verweigert. Prüfe deine Kontoberechtigungen."
                 ),
                 ErrorCategory.NOT_FOUND: (
-                    "Keine Ergebnisse in {domain} gefunden. Versuchen Sie es mit anderen Kriterien."
+                    "Keine Ergebnisse in {domain} gefunden. Versuche es mit anderen Kriterien."
                 ),
                 ErrorCategory.VALIDATION: (
                     "Die Suchparameter für {domain} sind falsch. "
-                    "Bitte formulieren Sie Ihre Anfrage um."
+                    "Bitte formuliere deine Anfrage um."
                 ),
                 ErrorCategory.INTERNAL: (
                     "Ein unerwarteter Fehler ist mit {domain} aufgetreten. Bitte erneut versuchen."
                 ),
                 ErrorCategory.UNKNOWN: (
-                    "Ein Fehler ist mit {domain} aufgetreten. Bitte versuchen Sie es später erneut."
+                    "Ein Fehler ist mit {domain} aufgetreten. Bitte versuche es später erneut."
                 ),
             },
             "it": {
                 ErrorCategory.AUTHENTICATION: (
                     "La connessione al servizio {domain} è scaduta. "
-                    "Si prega di riconnettersi nelle impostazioni."
+                    "Riconnettiti nelle impostazioni."
                 ),
                 ErrorCategory.RATE_LIMIT: (
                     "Il servizio {domain} ha raggiunto il limite di richieste. "
-                    "Si prega di riprovare tra qualche minuto."
+                    "Riprova tra qualche minuto."
                 ),
                 ErrorCategory.NETWORK: (
                     "Impossibile contattare il servizio {domain}. Controlla la tua connessione internet."
                 ),
-                ErrorCategory.TIMEOUT: (
-                    "Il servizio {domain} non ha risposto in tempo. Si prega di riprovare."
-                ),
+                ErrorCategory.TIMEOUT: ("Il servizio {domain} non ha risposto in tempo. Riprova."),
                 ErrorCategory.PERMISSION: (
                     "Accesso negato al servizio {domain}. Controlla i permessi del tuo account."
                 ),
@@ -395,23 +391,23 @@ class PartialErrorHandler:
                 ),
                 ErrorCategory.VALIDATION: (
                     "I parametri di ricerca per {domain} non sono corretti. "
-                    "Si prega di riformulare la richiesta."
+                    "Riformula la richiesta."
                 ),
                 ErrorCategory.INTERNAL: (
-                    "Si è verificato un errore imprevisto con {domain}. Si prega di riprovare."
+                    "Si è verificato un errore imprevisto con {domain}. Riprova."
                 ),
                 ErrorCategory.UNKNOWN: (
-                    "Si è verificato un errore con {domain}. Si prega di riprovare più tardi."
+                    "Si è verificato un errore con {domain}. Riprova più tardi."
                 ),
             },
             "zh-CN": {
                 ErrorCategory.AUTHENTICATION: ("{domain}服务的连接已过期。请在设置中重新连接。"),
                 ErrorCategory.RATE_LIMIT: ("{domain}服务已达到请求限制。请稍后几分钟再试。"),
-                ErrorCategory.NETWORK: ("无法联系{domain}服务。请检查您的网络连接。"),
+                ErrorCategory.NETWORK: ("无法联系{domain}服务。请检查你的网络连接。"),
                 ErrorCategory.TIMEOUT: ("{domain}服务未能及时响应。请重试。"),
-                ErrorCategory.PERMISSION: ("访问{domain}服务被拒绝。请检查您的账户权限。"),
+                ErrorCategory.PERMISSION: ("访问{domain}服务被拒绝。请检查你的账户权限。"),
                 ErrorCategory.NOT_FOUND: ("在{domain}中未找到结果。请尝试其他条件。"),
-                ErrorCategory.VALIDATION: ("{domain}的搜索参数不正确。请重新表述您的请求。"),
+                ErrorCategory.VALIDATION: ("{domain}的搜索参数不正确。请重新表述你的请求。"),
                 ErrorCategory.INTERNAL: ("{domain}发生意外错误。请重试。"),
                 ErrorCategory.UNKNOWN: ("{domain}发生错误。请稍后重试。"),
             },
@@ -422,7 +418,7 @@ class PartialErrorHandler:
         domain: str,
         error: Exception,
         partial_data: dict[str, Any] | None = None,
-        language: str = "fr",
+        language: str | None = None,
     ) -> DomainErrorContext:
         """
         Handle a domain error and create context.
@@ -438,9 +434,7 @@ class PartialErrorHandler:
         """
         # Single chokepoint: a raw "zh" from the frontend would otherwise miss
         # every table keyed on the backend canonical "zh-CN".
-        lang = normalize_language(language)
-        if lang not in self._user_messages:
-            lang = DEFAULT_LANGUAGE
+        lang = resolve_language(language)
 
         # Truncate error message to prevent log bloat
         raw_error_message = str(error)
@@ -454,7 +448,7 @@ class PartialErrorHandler:
         category, severity, recovery = self._classify_error(error_message)
 
         # Generate user message (i18n)
-        lang_messages = self._user_messages.get(lang, self._user_messages["fr"])
+        lang_messages = self._user_messages[lang]
         user_message = lang_messages.get(category, lang_messages[ErrorCategory.UNKNOWN]).format(
             domain=domain.capitalize()
         )
@@ -501,7 +495,7 @@ class PartialErrorHandler:
         self,
         context: DomainErrorContext,
         include_recovery: bool = True,
-        language: str = "fr",
+        language: str | None = None,
     ) -> str:
         """
         Format error context into user-friendly message.
@@ -516,9 +510,7 @@ class PartialErrorHandler:
         """
         # Single chokepoint: a raw "zh" from the frontend would otherwise miss
         # every table keyed on the backend canonical "zh-CN".
-        lang = normalize_language(language)
-        if lang not in self._user_messages:
-            lang = DEFAULT_LANGUAGE
+        lang = resolve_language(language)
 
         parts = [context.user_message]
 
@@ -536,7 +528,7 @@ class PartialErrorHandler:
                 "it": "Nota: Sono disponibili risultati parziali per altri domini.",
                 "zh-CN": "注意：其他领域有部分结果可用。",
             }
-            parts.append(partial_notes.get(lang, partial_notes["fr"]))
+            parts.append(partial_notes[lang])
 
         return " ".join(parts)
 
@@ -544,7 +536,7 @@ class PartialErrorHandler:
         self,
         successful_domains: list[str],
         failed_domains: list[str],
-        language: str = "fr",
+        language: str | None = None,
     ) -> str:
         """
         Format a header for partial results.
@@ -560,7 +552,7 @@ class PartialErrorHandler:
         if not failed_domains:
             return ""
 
-        lang = normalize_language(language)
+        lang = resolve_language(language)
 
         successful_str = ", ".join(d.capitalize() for d in successful_domains)
         failed_str = ", ".join(d.capitalize() for d in failed_domains)
@@ -604,7 +596,7 @@ class PartialErrorHandler:
             ),
         }
 
-        return headers.get(lang, headers["fr"])
+        return headers[lang]
 
     def should_retry(self, context: DomainErrorContext) -> bool:
         """
@@ -672,7 +664,9 @@ class PartialErrorHandler:
 
         return None
 
-    def _get_recovery_message(self, context: DomainErrorContext, language: str = "fr") -> str:
+    def _get_recovery_message(
+        self, context: DomainErrorContext, language: str | None = None
+    ) -> str:
         """
         Get recovery suggestion message (i18n).
 
@@ -687,18 +681,18 @@ class PartialErrorHandler:
 
         messages_by_lang = {
             "fr": {
-                RecoveryAction.RETRY: "Vous pouvez réessayer immédiatement.",
+                RecoveryAction.RETRY: "Tu peux réessayer immédiatement.",
                 RecoveryAction.REAUTHENTICATE: (
-                    "Reconnectez le service dans Paramètres > Connecteurs."
+                    "Reconnecte le service dans Paramètres > Connecteurs."
                 ),
                 RecoveryAction.WAIT: (
-                    f"Réessayez dans {retry_seconds} secondes."
+                    f"Réessaie dans {retry_seconds} secondes."
                     if context.retry_after_seconds
-                    else "Réessayez dans quelques minutes."
+                    else "Réessaie dans quelques minutes."
                 ),
-                RecoveryAction.MODIFY_QUERY: "Essayez avec des termes de recherche différents.",
+                RecoveryAction.MODIFY_QUERY: "Essaie avec des termes de recherche différents.",
                 RecoveryAction.CONTACT_ADMIN: (
-                    "Contactez votre administrateur pour vérifier les permissions."
+                    "Contacte ton administrateur pour vérifier les permissions."
                 ),
             },
             "en": {
@@ -713,33 +707,33 @@ class PartialErrorHandler:
                 RecoveryAction.CONTACT_ADMIN: ("Contact your administrator to verify permissions."),
             },
             "es": {
-                RecoveryAction.RETRY: "Puede volver a intentarlo inmediatamente.",
+                RecoveryAction.RETRY: "Puedes volver a intentarlo inmediatamente.",
                 RecoveryAction.REAUTHENTICATE: (
-                    "Reconecte el servicio en Configuración > Conectores."
+                    "Reconecta el servicio en Configuración > Conectores."
                 ),
                 RecoveryAction.WAIT: (
-                    f"Vuelva a intentarlo en {retry_seconds} segundos."
+                    f"Vuelve a intentarlo en {retry_seconds} segundos."
                     if context.retry_after_seconds
-                    else "Vuelva a intentarlo en unos minutos."
+                    else "Vuelve a intentarlo en unos minutos."
                 ),
-                RecoveryAction.MODIFY_QUERY: "Intente con términos de búsqueda diferentes.",
+                RecoveryAction.MODIFY_QUERY: "Intenta con términos de búsqueda diferentes.",
                 RecoveryAction.CONTACT_ADMIN: (
-                    "Contacte con su administrador para verificar los permisos."
+                    "Contacta con tu administrador para verificar los permisos."
                 ),
             },
             "de": {
-                RecoveryAction.RETRY: "Sie können es sofort erneut versuchen.",
+                RecoveryAction.RETRY: "Du kannst es sofort erneut versuchen.",
                 RecoveryAction.REAUTHENTICATE: (
-                    "Verbinden Sie den Dienst unter Einstellungen > Konnektoren erneut."
+                    "Verbinde den Dienst unter Einstellungen > Konnektoren erneut."
                 ),
                 RecoveryAction.WAIT: (
-                    f"Versuchen Sie es in {retry_seconds} Sekunden erneut."
+                    f"Versuche es in {retry_seconds} Sekunden erneut."
                     if context.retry_after_seconds
-                    else "Versuchen Sie es in einigen Minuten erneut."
+                    else "Versuche es in einigen Minuten erneut."
                 ),
-                RecoveryAction.MODIFY_QUERY: "Versuchen Sie es mit anderen Suchbegriffen.",
+                RecoveryAction.MODIFY_QUERY: "Versuche es mit anderen Suchbegriffen.",
                 RecoveryAction.CONTACT_ADMIN: (
-                    "Wenden Sie sich an Ihren Administrator, um die Berechtigungen zu prüfen."
+                    "Wende dich an deinen Administrator, um die Berechtigungen zu prüfen."
                 ),
             },
             "it": {
@@ -758,7 +752,7 @@ class PartialErrorHandler:
                 ),
             },
             "zh-CN": {
-                RecoveryAction.RETRY: "您可以立即重试。",
+                RecoveryAction.RETRY: "你可以立即重试。",
                 RecoveryAction.REAUTHENTICATE: "请在设置 > 连接器中重新连接服务。",
                 RecoveryAction.WAIT: (
                     f"请在{retry_seconds}秒后重试。"
@@ -770,7 +764,7 @@ class PartialErrorHandler:
             },
         }
 
-        lang_messages = messages_by_lang.get(language, messages_by_lang["fr"])
+        lang_messages = messages_by_lang[resolve_language(language)]
         return lang_messages.get(context.recovery_action, "")
 
 

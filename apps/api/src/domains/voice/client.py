@@ -21,6 +21,7 @@ import os
 import time
 from collections.abc import Mapping
 
+import aiohttp
 import edge_tts
 import structlog
 
@@ -62,6 +63,26 @@ def _configured_proxy(env: Mapping[str, str] | None = None) -> str | None:
     return None
 
 
+def _classified(error: Exception) -> tuple[str, str]:
+    """The failure's code and metric label, read from its TYPE — never its message.
+
+    Measured 2026-09-26: the service answers without audio once in 24
+    syntheses (``NoAudioReceived``), which the message test « "connect" in the
+    text » filed as an HTTP error. ``TimeoutError`` is an ``OSError``, so it is
+    read first.
+
+    Returns:
+        ``(TTSProviderError code, voice_tts_errors_total error_type)``.
+    """
+    if isinstance(error, edge_tts.exceptions.NoAudioReceived):
+        return "provider_invalid_response", "empty_response"
+    if isinstance(error, TimeoutError):
+        return "provider_timeout", "network_error"
+    if isinstance(error, aiohttp.ClientConnectionError | OSError):
+        return "provider_network_error", "network_error"
+    return "provider_http_error", "synthesis_error"
+
+
 class EdgeTTSClient:
     """
     Edge TTS Client using Microsoft neural voices.
@@ -73,7 +94,7 @@ class EdgeTTSClient:
     Example:
         client = EdgeTTSClient()
         audio_bytes = await client.synthesize(
-            text="Bonjour, comment puis-je vous aider?",
+            text="Hello, how can I help you?",
             voice_name="fr-FR-RemyMultilingualNeural",
         )
     """
@@ -212,10 +233,7 @@ class EdgeTTSClient:
             voice_tts_latency_seconds.labels(voice_name=voice_name).observe(request_duration)
             voice_tts_requests_total.labels(status="error", voice_name=voice_name).inc()
 
-            # Categorize error type
-            is_network = "connect" in str(e).lower()
-            error_type = "network_error" if is_network else "synthesis_error"
-            code = "provider_network_error" if is_network else "provider_http_error"
+            code, error_type = _classified(e)
             voice_tts_errors_total.labels(error_type=error_type, voice_name=voice_name).inc()
 
             logger.error(

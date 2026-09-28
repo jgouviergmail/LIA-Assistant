@@ -209,21 +209,6 @@ class ResolvedReferences:
     def has_resolutions(self) -> bool:
         """Check if any references were resolved."""
         return len(self.mappings) > 0
-
-    def format_for_response(self, reference: str) -> str:
-        """
-        Format for natural response.
-
-        Example:
-            result.format_for_response("mon frère")
-            → "ton frère (jean dupond)"
-        """
-        if reference in self.mappings:
-            resolved = self.mappings[reference]
-            # Transform possessive: "mon" → "ton"
-            display_ref = reference.replace("mon ", "ton ")
-            return f"{display_ref} ({resolved})"
-        return reference
 ```
 
 ### State Key
@@ -273,74 +258,26 @@ MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS=2000
 
 ## Intégration
 
-### Router Node
+The resolution runs inside the query analysis, not in a node of its own (each
+point below is read from the code):
 
-```python
-# router_node_v3.py (lignes 563-605)
-
-async def _resolve_memory_references(
-    state: MessagesState,
-    user_query: str,
-    memory_facts: str | None,
-    config: RunnableConfig,
-) -> dict[str, Any]:
-    """Resolve memory-based references before planning."""
-
-    settings = get_settings()
-    if not settings.memory_reference_resolution_enabled:
-        return {"resolved_references": None}
-
-    service = get_memory_reference_resolution_service()
-
-    resolved = await service.resolve_pre_planner(
-        query=user_query,
-        memory_facts=memory_facts,
-        user_language=state.get("user_language", "fr"),
-        config=config,  # CRITICAL: propagate for token tracking
-    )
-
-    if resolved.has_resolutions():
-        return {
-            "resolved_references": {
-                "original_query": resolved.original_query,
-                "enriched_query": resolved.enriched_query,
-                "mappings": resolved.mappings,
-            }
-        }
-
-    return {"resolved_references": None}
-```
-
-### Planner Node
-
-```python
-# planner_node_v3.py
-
-def _get_query_for_planning(state: MessagesState) -> str:
-    """Get enriched query if available."""
-    resolved = state.get("resolved_references")
-    if resolved and resolved.get("enriched_query"):
-        return resolved["enriched_query"]
-    return state["current_user_query"]
-```
-
-### Response Node
-
-```python
-# response_node.py
-
-def _format_with_mappings(response: str, state: MessagesState) -> str:
-    """Format response with natural reference phrasing."""
-    resolved = state.get("resolved_references")
-    if not resolved or not resolved.get("mappings"):
-        return response
-
-    # Example: "ton frère (jean dupond)"
-    for ref, name in resolved["mappings"].items():
-        display_ref = ref.replace("mon ", "ton ").replace("ma ", "ta ")
-        natural_form = f"{display_ref} ({name})"
-        # ... insert in response
-```
+- **Query analysis** — `MemoryResolver.retrieve_and_resolve`
+  (`services/analysis/memory_resolver.py`) retrieves the memory facts, then calls
+  `resolve_pre_planner(query, memory_facts, config)`. The analysis LLM may add
+  references of its own (`QueryAnalyzerService`), never replacing one the memory
+  service resolved.
+- **State** — `router_node_v3` writes the mappings, `{reference: name}`, under
+  `STATE_KEY_RESOLVED_REFERENCES`; the planner works from the same analysis
+  (`QueryIntelligence.resolved_references`, `english_enriched_query`).
+- **Clarification** — a clarification answer is resolved the same way before it
+  is planned again (`planner_node_v3`, log event
+  `clarification_resolution_memory_success`).
+- **Response** — nothing rewrites the answer: `get_response_prompt` injects the
+  mappings as one context line (`"my brother" = jean dupond`) and the model
+  phrases the reference itself, in the person's language.
+- **ReAct and parameters** — the ReAct context (`nodes/react_context.py`,
+  `<MemoryContext>`) and the parameter guard (`semantic/param_guard.py`) read
+  the same mappings.
 
 ---
 

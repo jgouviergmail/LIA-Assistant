@@ -954,12 +954,8 @@ def build_contacts_agent() -> Any:
         tz = ZoneInfo(settings.prompt_timezone)
         return datetime.now(tz).strftime(settings.prompt_datetime_format)
 
-    context_instructions = """
-## 📋 Contexte Multi-Domaines (V1 - Contacts Only)
-
-Actuellement, seul le domaine "contacts" est actif.
-Les outils resolve_reference, get_context_state, set_current_item fonctionnent avec domain="contacts".
-    """.strip()
+    # One versioned text for every domain agent, rendered for this one (ADR-323)
+    context_instructions = domain_context_instructions("contacts")
 
     # Load versioned prompt template
     contacts_agent_prompt_template = load_prompt("contacts_agent_prompt", version="v1")

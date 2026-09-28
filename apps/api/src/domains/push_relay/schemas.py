@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from src.core.constants import SUPPORTED_LANGUAGES
+from src.core.i18n import resolve_language
+from src.core.i18n_types import canonical_language
 from src.domains.push_relay.service import WakeOutcome
 
 
@@ -33,14 +34,21 @@ class DeviceRegisterRequest(BaseModel):
             "A token sent to the wrong gateway is permanently invalid there."
         ),
     )
-    language: str = Field(
-        default="fr",
-        description="Language of the generic wake text, sealed into the handle",
+    language: str | None = Field(
+        default=None,
+        description=(
+            "Language of the generic wake text, sealed into the handle; the "
+            "request's declared language (its Accept-Language) when absent"
+        ),
     )
 
     def normalized_language(self) -> str:
-        """Return the language, or the default when it is not one we speak."""
-        return self.language if self.language in SUPPORTED_LANGUAGES else "fr"
+        """Return the canonical language the wake text will be written in.
+
+        The device's own language when it is one the relay speaks; otherwise
+        the language its registration request declared (ADR-323).
+        """
+        return canonical_language(self.language) or resolve_language()
 
 
 class DeviceRegisterResponse(BaseModel):

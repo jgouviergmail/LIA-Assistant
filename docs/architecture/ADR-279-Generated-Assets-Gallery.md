@@ -5,6 +5,8 @@
 - **Amende** : ADR-226 (génération documentaire), ADR-185 (un compteur montré est
   exact ou n'existe pas), ADR-184 (une borne imposée est publiée), ADR-260 (une
   réinitialisation purge par famille déclarée, jamais par motif)
+- **Amendé par** : [ADR-319](ADR-319-A-Generated-File-Can-Be-Kept.md) (2026-09-25 — un fichier généré peut être conservé
+  au-delà de son échéance)
 - **Périmètre** : `attachments.origin` / `title` / `conversation_id`,
   `/api/v1/generated-assets`, section de réglages « Mes fichiers générés »,
   garde de capacité `ATTACHMENTS`, réinitialisation de conversation
@@ -86,6 +88,10 @@ Arbitrage du propriétaire, 2026-09-10. `delete_all_for_user` prend un paramètr
 personne a mis, rien d'autre. Le TTL, lui, expire toujours tout — la galerie
 n'est pas un archivage, et **la rétention reste à 24 h** (arbitrage : « pour
 l'instant on reste sur 24h »).
+
+*Amendé le 2026-09-25 par [ADR-319](ADR-319-A-Generated-File-Can-Be-Kept.md) : la rétention ne change pas, mais la personne
+peut désormais CONSERVER un fichier depuis la galerie — il n'a plus d'échéance
+(`expires_at IS NULL`), dans deux plafonds par compte publiés avec chaque page.*
 
 C'est la doctrine d'ADR-260 appliquée aux fichiers : une purge retire ce que sa
 famille déclare, jamais ce qui lui ressemble.
@@ -211,7 +217,8 @@ descend à une colonne. Les cibles tactiles tiennent à 320 px.
 **Coûts et limites**
 
 - **La rétention reste 24 h.** La galerie rend l'échéance visible ; elle ne la
-  repousse pas. Une personne qui veut garder un fichier le télécharge.
+  repousse pas. Une personne qui veut garder un fichier le télécharge. *(Amendé par
+  [ADR-319](ADR-319-A-Generated-File-Can-Be-Kept.md) : elle peut désormais le conserver depuis la galerie.)*
 - Trois colonnes et un index de plus sur `attachments`. L'index composite
   `(user_id, origin, created_at)` sert exactement la lecture de la galerie.
 - Le report de la migration est **structurellement incomplet** pour les documents

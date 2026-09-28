@@ -24,6 +24,8 @@ import {
   IDLE_GESTURE_MAX_DELAY_MS,
   IDLE_GESTURE_MIN_DELAY_MS,
   INACTIVITY_ASLEEP_MS,
+  INACTIVITY_DROWSY_MS,
+  INACTIVITY_SLEEPY_MS,
   MASK_APPLY_DELAY_MS,
   MIN_EXPRESSION_HOLD_MS,
   READING_MOVE_MS,
@@ -40,9 +42,16 @@ import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { useEyesWidgetStore } from '@/stores/eyesWidgetStore';
 import { usePsycheStore } from '@/stores/psycheStore';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
+import { useCompanionEnvironmentStore } from '@/stores/companionEnvironmentStore';
 import { EYES_WIDGET_PREFS_KEY } from '@/lib/constants';
 import enTranslations from '../../../../locales/en/translation.json';
 import frTranslations from '../../../../locales/fr/translation.json';
+
+// This suite owns widget behavior with a neutral environment. Acquisition is
+// covered by useCompanionEnvironment.test.tsx and chat-avatar-environment E2E.
+// Leaving that HTTP effect live makes its asynchronous failure reset the store
+// outside act; the expression engine, stores, rig and timers remain real here.
+vi.mock('../useCompanionEnvironment', () => ({ useCompanionEnvironment: vi.fn() }));
 
 function renderWidget(
   props: Partial<Parameters<typeof EyesWidget>[0]> = {}
@@ -71,31 +80,33 @@ function settleMask(): void {
 }
 
 /**
- * Budget for the four tests that advance the clock by fifteen simulated
- * minutes (the dozing stages and the wake performances).
- *
- * Those minutes stopped being free with ADR-252: the widget runs a real
- * animation loop now, so fifteen simulated minutes are roughly 27 000
- * animation frames. Measured 2026-08-31 with coverage instrumentation, this
- * file run on its own: 2.8-3.2 s each — the same order as the suite's
- * documented worst case (~3.3 s, the settings mega-forms). Re-measured
- * 2026-09-05 after ADR-264 (two more channels, the brows riding every idle
- * frame): 3.4-4.0 s each, same conditions. Re-measured 2026-09-18 after
- * ADR-294 (generated speech, per-channel warps, the sketches a resting face
- * plays every 45-120 s — ten of them in a fifteen-minute doze): 7.2-8.1 s each
- * alone with coverage, 44-50 s in the FULL 32-worker run, where this
- * repository measures a ~5-6x stretch — past the 40 s the previous
- * measurement had earned, three green tests reported as failures.
- *
- * That is the cost of simulating a quarter of an hour of animation, not a slow
- * test: the same fifteen minutes cost about 0.01 % of a CPU in a browser. Four
- * rounds of optimisation went in first (loops walked instead of channels, a
- * pure-idle fast path, one settling check per frame, tighter write precision);
- * what is left is inherent. The budget is per-test on purpose — the global
- * default must keep catching a genuinely hung test at 15 s — and it follows
- * the measurement: raise it from a fresh one, never to silence a slow test.
+ * Inactivity and sleep duration use Date.now(); rig motion uses the monotone
+ * RAF clock. Age the former, then run the real heartbeat (1000ms), holds and
+ * transitions. Replaying fifteen minutes of RAF cost 77s in full coverage
+ * without adding an oracle: continuous motion has its own rig tests.
+ * The clock assertion ensures a wall-time jump never fakes a motion delta.
  */
-const LONG_CLOCK_TIMEOUT_MS = 75_000;
+function observeInactivityAt(wallTime: number): void {
+  act(() => {
+    const motionTime = performance.now();
+    vi.setSystemTime(wallTime);
+    expect(performance.now()).toBe(motionTime);
+    vi.advanceTimersByTime(1500);
+  });
+}
+
+/** Observe every real stage instead of jumping directly to the final pose. */
+function fallAsleep(): void {
+  const mountedAt = Date.now();
+  for (const [elapsed, expression] of [
+    [INACTIVITY_DROWSY_MS, 'tired'],
+    [INACTIVITY_SLEEPY_MS, 'sleepy'],
+    [INACTIVITY_ASLEEP_MS, 'sleep'],
+  ] as const) {
+    observeInactivityAt(mountedAt + elapsed);
+    expect(eyesRoot().dataset.expression).toBe(expression);
+  }
+}
 
 function eyesRoot(): HTMLElement {
   const root = document.querySelector('.lia-eyes');
@@ -113,6 +124,7 @@ beforeEach(() => {
   useEyesWidgetStore.getState().reset();
   useEyesSignalsStore.getState().reset();
   usePsycheStore.getState().reset();
+  useCompanionEnvironmentStore.getState().reset();
   useVoiceModeStore.getState().reset();
   useVoiceModeStore.setState({ isEnabled: false, state: 'idle' });
 });
@@ -375,21 +387,15 @@ describe('EyesWidget — expression wiring', () => {
     expect(eyesRoot().dataset.expression).toBe('speaking');
   });
 
-  it(
-    'dozes off from mount without any user gesture (progressive sleep)',
-    () => {
-      // Pinned for the same reason as the wake-startle test: a free-RNG flicker
-      // during the long doze can hold the frame at the assertion instant.
-      vi.spyOn(Math, 'random').mockReturnValue(0.5);
-      renderWidget();
-      expect(eyesRoot().dataset.expression).toBe('neutral');
-      act(() => {
-        vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
-      });
-      expect(eyesRoot().dataset.expression).toBe('sleep');
-    },
-    LONG_CLOCK_TIMEOUT_MS
-  );
+  it('dozes off from mount without any user gesture (progressive sleep)', () => {
+    // Pinned for the same reason as the wake-startle test: a free-RNG flicker
+    // during the long doze can hold the frame at the assertion instant.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    expect(eyesRoot().dataset.expression).toBe('neutral');
+    fallAsleep();
+    expect(eyesRoot().dataset.expression).toBe('sleep');
+  });
 
   it('an error is worried, then decays back to idle after the hold', () => {
     renderWidget({ chatStatus: 'error' });
@@ -600,20 +606,14 @@ describe('EyesWidget — emotes & slapstick', () => {
     expect(document.querySelector('.lia-emote')).toBeNull();
   });
 
-  it(
-    'deep sleep floats the drifting "z"',
-    () => {
-      // Pinned for the same reason as the wake-startle test: a free-RNG flicker
-      // during the long doze can hold the frame at the assertion instant.
-      vi.spyOn(Math, 'random').mockReturnValue(0.5);
-      renderWidget();
-      act(() => {
-        vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
-      });
-      expect(document.querySelector('.lia-emote')?.getAttribute('data-emote')).toBe('z');
-    },
-    LONG_CLOCK_TIMEOUT_MS
-  );
+  it('deep sleep floats the drifting "z"', () => {
+    // Pinned for the same reason as the wake-startle test: a free-RNG flicker
+    // during the long doze can hold the frame at the assertion instant.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    fallAsleep();
+    expect(document.querySelector('.lia-emote')?.getAttribute('data-emote')).toBe('z');
+  });
 
   it('a rare silly beat plays a slapstick gesture then clears (rng-forced swap)', () => {
     // Consumption order at mount: blink delay, idle delay; at the idle tick:
@@ -647,65 +647,53 @@ describe('EyesWidget — character moments', () => {
     expect(eyesRoot().dataset.expression).not.toBe('surprise');
   });
 
-  it(
-    'waking from DEEP sleep plays the full startle: jolt, look around, settle',
-    () => {
-      // 0.5 keeps the idle life benign across the long doze + settle window:
-      // silly roll declines (0.5 > SILLY_PROBABILITY) and every gesture pick
-      // lands on saccade/glance/perk, none of which touch data-expression —
-      // free RNG here let a flicker steal the frame right at the settle
-      // assertion (seen only on CI runners).
-      vi.spyOn(Math, 'random').mockReturnValue(0.5);
-      renderWidget();
-      act(() => {
-        // Fall asleep, then STAY asleep past the short-nap threshold: the
-        // startle is earned by deep sleep, a quick doze only gets the short
-        // recollection (see the short-nap test).
-        vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + SHORT_NAP_MS + 1500);
-      });
-      expect(eyesRoot().dataset.expression).toBe('sleep');
-      fireEvent.keyDown(document.body, { key: 'a' });
-      act(() => {
-        vi.advanceTimersByTime(10);
-      });
-      expect(eyesRoot().dataset.expression).toBe('surprise');
-      act(() => {
-        vi.advanceTimersByTime(WAKE_PERFORMANCE[0].ms + 10);
-      });
-      expect(eyesRoot().dataset.expression).toBe('attentive');
-      const total = WAKE_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
-      act(() => {
-        vi.advanceTimersByTime(total + 1200);
-      });
-      expect(eyesRoot().dataset.expression).toBe('neutral');
-    },
-    LONG_CLOCK_TIMEOUT_MS
-  );
+  it('waking from DEEP sleep plays the full startle: jolt, look around, settle', () => {
+    // 0.5 keeps the idle life benign across the long doze + settle window:
+    // silly roll declines (0.5 > SILLY_PROBABILITY) and every gesture pick
+    // lands on saccade/glance/perk, none of which touch data-expression —
+    // free RNG here let a flicker steal the frame right at the settle
+    // assertion (seen only on CI runners).
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    fallAsleep();
+    // Age the sleep that actually landed, then let the real heartbeat run:
+    // inactivity alone cannot earn the deep-sleep startle.
+    observeInactivityAt(Date.now() + SHORT_NAP_MS);
+    expect(eyesRoot().dataset.expression).toBe('sleep');
+    fireEvent.keyDown(document.body, { key: 'a' });
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    expect(eyesRoot().dataset.expression).toBe('surprise');
+    act(() => {
+      vi.advanceTimersByTime(WAKE_PERFORMANCE[0].ms + 10);
+    });
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    const total = WAKE_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
+    act(() => {
+      vi.advanceTimersByTime(total + 1200);
+    });
+    expect(eyesRoot().dataset.expression).toBe('neutral');
+  });
 
-  it(
-    'waking from a SHORT nap is a quick recollection, not a startle',
-    () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0.5);
-      renderWidget();
-      act(() => {
-        vi.advanceTimersByTime(INACTIVITY_ASLEEP_MS + 1500);
-      });
-      expect(eyesRoot().dataset.expression).toBe('sleep');
-      // Woken moments after dozing off: attentive beat, then back to the room —
-      // never the full jolt.
-      fireEvent.keyDown(document.body, { key: 'a' });
-      act(() => {
-        vi.advanceTimersByTime(10);
-      });
-      expect(eyesRoot().dataset.expression).toBe('attentive');
-      const total = WAKE_SHORT_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
-      act(() => {
-        vi.advanceTimersByTime(total + 1200);
-      });
-      expect(eyesRoot().dataset.expression).toBe('neutral');
-    },
-    LONG_CLOCK_TIMEOUT_MS
-  );
+  it('waking from a SHORT nap is a quick recollection, not a startle', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    renderWidget();
+    fallAsleep();
+    expect(eyesRoot().dataset.expression).toBe('sleep');
+    // Woken moments after dozing off: attentive beat, then back to the room —
+    // never the full jolt.
+    fireEvent.keyDown(document.body, { key: 'a' });
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    expect(eyesRoot().dataset.expression).toBe('attentive');
+    const total = WAKE_SHORT_PERFORMANCE.reduce((sum, s) => sum + s.ms, 0);
+    act(() => {
+      vi.advanceTimersByTime(total + 1200);
+    });
+    expect(eyesRoot().dataset.expression).toBe('neutral');
+  });
 });
 
 describe('EyesWidget — motion one-shots', () => {

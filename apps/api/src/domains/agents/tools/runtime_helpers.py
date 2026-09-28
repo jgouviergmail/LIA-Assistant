@@ -127,8 +127,6 @@ References
 ----------
 - LangGraph Store Documentation: https://langchain-ai.github.io/langgraph/reference/store/
 - AsyncPostgresStore Source: langgraph/store/postgres/aio.py
-- Integration Guide: D:\\Developpement\\LIA\\docs\\evolutionsGoogle\\INTEGRATION_GUIDE.md (Section 5.7)
-- Error #5 Documentation: INTEGRATION_GUIDE.md - Erreur Critique #5
 """
 
 from contextlib import suppress
@@ -139,8 +137,8 @@ from fastapi import HTTPException
 from langchain.tools import ToolRuntime
 from langgraph.store.base import BaseStore
 
-from src.core.config import settings
 from src.core.field_names import FIELD_ERROR_MESSAGE, FIELD_ERROR_TYPE
+from src.core.i18n import get_locale_for_language, normalize_language, resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
@@ -574,17 +572,16 @@ async def get_user_preferences(
 
     Returns:
         Tuple of (timezone: str, language: str, locale: str).
-        Defaults: ("UTC", settings.default_language, matching BCP 47 locale).
+        Defaults: ("UTC", the declared language, its BCP 47 locale).
 
     Example:
         >>> timezone, language, locale = await get_user_preferences(runtime)
         >>> formatted_date = format_date(email_date, timezone, locale)
     """
-    from src.core.i18n import get_locale_for_language
     from src.domains.users.preferences_cache import UserPreferencesCache
 
     user_timezone = "UTC"
-    user_language = settings.default_language
+    user_language: str = resolve_language()
 
     try:
         user_id_raw = tool_user_id_str(runtime)
@@ -602,9 +599,7 @@ async def get_user_preferences(
                     user = await user_service.get_user_by_id(user_id)
                     if user:
                         user_timezone = user.timezone if user.timezone else "UTC"
-                        user_language = (
-                            user.language if user.language else settings.default_language
-                        )
+                        user_language = normalize_language(user.language)
                         UserPreferencesCache.set(str(user_id), user_timezone, user_language)
                         logger.debug(
                             "get_user_preferences_success",
@@ -624,7 +619,6 @@ async def get_user_preferences(
 
 async def get_user_language_safe(
     runtime: ToolRuntime[LiaRuntimeContext, Any],
-    default: str = settings.default_language,
 ) -> str:
     """Get user language from runtime preferences with safe fallback.
 
@@ -633,15 +627,15 @@ async def get_user_language_safe(
 
     Args:
         runtime: LangGraph ToolRuntime configuration
-        default: Fallback language if preferences unavailable
 
     Returns:
-        User language code (e.g., "fr", "en") or default
+        User language code (e.g., "fr", "en"), or the declared language when
+        the preferences are unavailable (ADR-323).
 
     Example:
         >>> language = await get_user_language_safe(self.runtime)
         >>> # Instead of:
-        >>> # language = settings.default_language
+        >>> # language = resolve_language()
         >>> # try:
         >>> #     _, language, _ = await get_user_preferences(self.runtime)
         >>> # except Exception:
@@ -652,7 +646,7 @@ async def get_user_language_safe(
         return language
     except (ValueError, KeyError, RuntimeError, AttributeError) as e:
         logger.debug("user_language_fallback", error=str(e))
-        return default
+        return resolve_language()
 
 
 # =============================================================================
@@ -900,7 +894,7 @@ async def resolve_connector_default(
     Resolve user's connector preference name to API ID (case-insensitive).
 
     Combines preference lookup with case-insensitive resolution:
-    1. Gets user's configured preference name (e.g., "Famille" for calendar)
+    1. Gets user's configured preference name (e.g., "Family" for calendar)
     2. Resolves name to API ID using case-insensitive matching
     3. Falls back to default ID if name not found
 
@@ -925,7 +919,7 @@ async def resolve_connector_default(
         ...     resolve_calendar_name,
         ...     fallback_id="primary",
         ... )
-        >>> # User configured "famille" -> resolves to ID of "Famille" calendar
+        >>> # User configured "family" -> resolves to ID of "Family" calendar
     """
     try:
         # Get user's configured preference name
@@ -971,7 +965,7 @@ def get_original_user_message(runtime: ToolRuntime[LiaRuntimeContext, Any]) -> s
     contract.
 
     This is useful for tools that need to detect location phrases
-    like "chez moi" or "nearby" in the original query.
+    like "at home" or "nearby" in the original query, in the person's language.
 
     Args:
         runtime: ToolRuntime containing config with user message
@@ -981,7 +975,7 @@ def get_original_user_message(runtime: ToolRuntime[LiaRuntimeContext, Any]) -> s
 
     Example:
         >>> user_msg = get_original_user_message(runtime)
-        >>> if "chez moi" in user_msg.lower():
+        >>> if "at home" in user_msg.lower():
         ...     # Use home location
     """
     context = getattr(runtime, "context", None)

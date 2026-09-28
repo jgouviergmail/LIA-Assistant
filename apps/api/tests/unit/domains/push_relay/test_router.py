@@ -21,11 +21,14 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from src.core.config import settings
+from src.core.i18n import language_scope
 from src.domains.push_relay.dependencies import (
     get_push_relay_service,
     rate_limit_relay_register,
 )
 from src.domains.push_relay.router import router
+from src.domains.push_relay.schemas import DeviceRegisterRequest
 from src.domains.push_relay.service import WakeOutcome
 
 pytestmark = pytest.mark.unit
@@ -80,7 +83,15 @@ class TestRegistration:
 
         # Sealing an unknown language would produce a device that can only ever
         # be woken in the fallback anyway — decided here, once.
-        assert service.register.await_args.kwargs["language"] == "fr"
+        assert service.register.await_args.kwargs["language"] == settings.default_language
+
+    def test_a_language_we_do_not_speak_reads_the_request_s_declared_one(self) -> None:
+        """The fallback is what the registration request declared (ADR-323)."""
+        declared = next(code for code in ("de", "it") if code != settings.default_language)
+        request = DeviceRegisterRequest(device_token=_DEVICE_TOKEN, language="klingon")
+
+        with language_scope(declared):
+            assert request.normalized_language() == declared
 
     @pytest.mark.parametrize(
         "token",

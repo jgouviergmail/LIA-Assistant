@@ -37,7 +37,7 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 61 LLM types: 51 (v1.18.0) + voice_transcription (ADR-080)
+        """Should have 65 LLM types: 51 (v1.18.0) + voice_transcription (ADR-080)
         + voice_tts (ADR-081) + personality_translation (audit wave 3, N-219.1)
         + telephony_synthesis (ADR-127) + telephony_agent (ADR-127 routing fix)
         + open_loop_extraction (ADR-139) + document_generation (ADR-226)
@@ -46,8 +46,10 @@ class TestLLMDefaults:
         + relation_debrief (the daily relationship debrief)
         + email_digest (ADR-287)
         + image_prompt_enhancement (ADR-315)
+        + radio_writer, radio_analyst, radio_verifier and radio_voice (ADR-324)
+        + radio_translator (the radio page's article, ADR-324)
         - router and context_resolver (ADR-244: no get_llm() caller anywhere)."""
-        assert len(LLM_DEFAULTS) == 61
+        assert len(LLM_DEFAULTS) == 66
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",
@@ -64,6 +66,14 @@ class TestLLMDefaults:
         config = LLM_DEFAULTS[llm_type]
         assert config.provider == expected_provider
         assert config.model == expected_model
+
+    def test_the_radio_verifier_has_the_writers_room(self) -> None:
+        """A verdict over a whole analysis, its reasoning included, fits in the cap
+        (measured 2026-09-26: three refusals at exactly the former 4 000 tokens)."""
+        verifier = LLM_DEFAULTS["radio_verifier"].max_tokens
+        writer = LLM_DEFAULTS["radio_writer"].max_tokens
+        assert verifier is not None and writer is not None
+        assert verifier >= writer
 
     def test_planner_has_timeout(self) -> None:
         """Planner timeout raised to 90s (ADR-221: prod p99 44.7s over 30d)."""

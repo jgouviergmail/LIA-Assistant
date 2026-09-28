@@ -319,6 +319,12 @@
       "stack": ["Prometheus / Loki / Alertmanager reads", "Per-recipe evidence"],
       "src": "7cf9e87a4874"
     },
+    "t.radio": {
+      "name": "Radio: newsroom and antenna",
+      "role": "An instance newsroom reads public feeds with no model; one antenna per listener decides through a deterministic grid, has each segment written and checked, voiced and mixed — only while someone listens.",
+      "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"],
+      "src": "3779500de599"
+    },
     "t.postgres": {
       "name": "PostgreSQL and pgvector",
       "role": "The source of truth: accounts, conversations, graph checkpoints, vectors; migrations in a single chain, sessions that live no longer than their queries.",

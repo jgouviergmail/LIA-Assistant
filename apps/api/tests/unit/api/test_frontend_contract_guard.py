@@ -55,8 +55,18 @@ def hook_source() -> str:
     return HOOK.read_text(encoding="utf-8")
 
 
+def _served() -> set[str]:
+    """What the API SERVES: the serialization schema.
+
+    The validation schema also lists fields read from the row and never sent
+    (``exclude=True`` — the condition ledger, ADR-322); the browser cannot
+    declare what never reaches it.
+    """
+    return set(ScheduledActionResponse.model_json_schema(mode="serialization")["properties"])
+
+
 def test_the_browser_declares_every_field_the_api_serves(hook_source: str) -> None:
-    served = set(ScheduledActionResponse.model_json_schema()["properties"])
+    served = _served()
     declared = _declared_fields(hook_source, "ScheduledAction")
     missing = served - declared - NOT_RENDERED
     assert missing == set(), (
@@ -66,7 +76,7 @@ def test_the_browser_declares_every_field_the_api_serves(hook_source: str) -> No
 
 
 def test_the_browser_declares_nothing_the_api_stopped_serving(hook_source: str) -> None:
-    served = set(ScheduledActionResponse.model_json_schema()["properties"])
+    served = _served()
     declared = _declared_fields(hook_source, "ScheduledAction")
     stale = declared - served
     assert stale == set(), (

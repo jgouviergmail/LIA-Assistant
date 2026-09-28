@@ -285,11 +285,11 @@ class TestPlanApprovalInteraction:
         en_fallback = interaction.get_fallback_question("en")
         assert "approval" in en_fallback.lower() or "proceed" in en_fallback.lower()
 
-        # Test unknown falls back to default language (project default, may be fr or en)
-        from src.core.i18n import DEFAULT_LANGUAGE
+        # An unknown language falls back to the instance's configured default.
+        from src.core.config import settings
 
         unknown_fallback = interaction.get_fallback_question("xy")  # Truly unknown language
-        default_fallback = interaction.get_fallback_question(DEFAULT_LANGUAGE)
+        default_fallback = interaction.get_fallback_question(settings.default_language)
         assert unknown_fallback == default_fallback
 
 

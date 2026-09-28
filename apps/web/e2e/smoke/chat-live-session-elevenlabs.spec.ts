@@ -18,6 +18,7 @@
  * No backend, LLM, or paid provider is contacted.
  */
 import { test, expect, type MockRoute } from '../fixtures';
+import { liveSessionDeadlines } from '../fixtures/live';
 
 test.use({
   launchOptions: {
@@ -69,10 +70,7 @@ const START = {
   mode: 'delegated',
   run_id: `live_session_${SESSION}`,
   credential: SIGNED_URL,
-  credential_expires_at: '2030-01-01T00:00:00Z',
-  connect_deadline_at: '2030-01-01T00:00:00Z',
   connection: 'token',
-  expires_at: '2030-01-01T00:00:00Z',
   session_max_minutes: 30,
   idle_timeout_seconds: 300,
   setup: SETUP,
@@ -150,7 +148,17 @@ function routes(chatBodies: Array<Record<string, unknown>>, endBodies: unknown[]
       },
     },
     { url: '**/api/v1/live/config', json: LIVE_CONFIG },
-    { url: '**/api/v1/live/sessions', method: 'POST', json: START },
+    {
+      url: '**/api/v1/live/sessions',
+      method: 'POST',
+      handler: route =>
+        route.fulfill({
+          json: {
+            ...START,
+            ...liveSessionDeadlines(START.session_max_minutes, LIVE_CONFIG.connect_window_seconds),
+          },
+        }),
+    },
     {
       url: `**/api/v1/live/sessions/${SESSION}/turns`,
       method: 'POST',

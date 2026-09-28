@@ -186,3 +186,47 @@ class TestFold:
         rehearsal = _run(action, None)
         folded = fold_runs_by_slot([newer, older, rehearsal])  # order-independent
         assert folded == {(action.id, MON): newer}
+
+
+class TestAConditionRoutinesWeek:
+    """No schedule to draw: its cells are the checks that FIRED this week (ADR-322)."""
+
+    def test_each_fire_of_the_week_is_a_cell_at_its_own_instant(self) -> None:
+        watch = _action(recurrence_spec=None)
+        tuesday = datetime(2026, 8, 4, 13, 20, tzinfo=UTC)  # 15:20 Paris
+        wednesday = datetime(2026, 8, 5, 7, 40, tzinfo=UTC)  # 09:40 Paris
+        runs = [
+            _run(watch, tuesday),
+            _run(watch, wednesday, outcome=ScheduledRunOutcome.FAILURE, error="boom", manual=True),
+        ]
+
+        [week] = build_week([watch], runs, now=NOW)
+
+        assert [(c.day, c.hour, c.minute) for c in week.cells] == [(2, 15, 20), (3, 9, 40)]
+        assert [c.outcome for c in week.cells] == [
+            ScheduledRunOutcome.SUCCESS,
+            ScheduledRunOutcome.FAILURE,
+        ]
+        assert week.cells[1].manual is True
+        assert week.cells[1].error == "boom"
+
+    def test_a_fire_of_last_week_is_not_this_weeks(self) -> None:
+        watch = _action(recurrence_spec=None)
+        sunday_before = datetime(2026, 8, 2, 20, 0, tzinfo=UTC)  # 22:00 Paris, Sunday
+
+        [week] = build_week([watch], [_run(watch, sunday_before)], now=NOW)
+
+        assert week.cells == []
+
+    def test_a_watch_that_never_fired_draws_nothing(self) -> None:
+        [week] = build_week([_action(recurrence_spec=None)], [], now=NOW)
+
+        assert week.cells == []
+
+    def test_another_routines_fire_is_not_its_own(self) -> None:
+        watch, other = _action(recurrence_spec=None), _action(recurrence_spec=None)
+        tuesday = datetime(2026, 8, 4, 13, 20, tzinfo=UTC)
+
+        weeks = build_week([watch, other], [_run(other, tuesday)], now=NOW)
+
+        assert [len(week.cells) for week in weeks] == [0, 1]

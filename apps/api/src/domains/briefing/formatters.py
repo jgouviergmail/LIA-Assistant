@@ -6,11 +6,12 @@ Pure functions: no DB, no I/O, no global state. Trivially unit-testable.
 from __future__ import annotations
 
 from contextlib import suppress
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from src.core.geo_utils import wind_deg_to_cardinal
+from src.core.i18n import resolve_language
 from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context
 from src.domains.briefing.schemas import (
@@ -377,7 +378,7 @@ def _detect_forecast_alert(
             if ts is None:
                 continue
             dt = datetime.fromtimestamp(int(ts), tz=user_tz)
-            return ForecastAlert(kind=kind, time=dt.strftime("%H:%M"))
+            return ForecastAlert(kind=kind, time=dt.strftime("%H:%M"), starts_at=dt.astimezone(UTC))
         except ValueError, TypeError, OSError:
             continue
     return None
@@ -406,35 +407,48 @@ def is_event_past(raw_event: dict[str, Any], now: datetime, user_tz: ZoneInfo) -
         False also when end is missing/unparseable (we don't drop events
         on unknown end — they remain visible).
     """
-    end_field = raw_event.get("end")
     # A provider that sends `end` as a bare string instead of the Google-shaped
     # dict must not crash the whole agenda fetch: the contract above is "we
     # don't drop events on unknown end", and an AttributeError here would take
     # the entire briefing section down with it.
-    if not end_field or not isinstance(end_field, dict):
-        return False
-    # All-day: end is the day AFTER the last day (Google convention).
-    date_str = end_field.get("date")
-    if date_str and not end_field.get("dateTime"):
-        try:
-            end_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=user_tz)
-            return end_date <= now.astimezone(user_tz)
-        except ValueError, TypeError:
-            return False
-    raw = end_field.get("dateTime")
-    if not raw:
-        return False
+    end = event_instant(raw_event.get("end"), user_tz)
+    return end is not None and end <= now
+
+
+def event_instant(dt_field: object, user_tz: tzinfo) -> datetime | None:
+    """The instant a provider's start/end field names, whatever its shape.
+
+    The ONE reading of the three providers' shapes: Google's offset, Microsoft's
+    separate ``timeZone``, Apple's naive datetime (the user's own zone, correct
+    for CalDAV), and the all-day ``date`` (local midnight of that day). It used
+    to be written twice, once to format a time and once to test an end.
+
+    Args:
+        dt_field: The provider's ``start`` or ``end`` value.
+        user_tz: The zone a naive or all-day value is read in.
+
+    Returns:
+        The aware instant, or ``None`` when the field is missing or unreadable.
+    """
+    if not isinstance(dt_field, dict):
+        return None
+    date_str = dt_field.get("date")
+    raw = dt_field.get("dateTime")
     try:
-        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-        if dt.tzinfo is None:
-            event_tz_str = end_field.get("timeZone")
-            try:
-                dt = dt.replace(tzinfo=ZoneInfo(event_tz_str) if event_tz_str else user_tz)
-            except KeyError, ValueError:
-                dt = dt.replace(tzinfo=user_tz)
-        return dt <= now.astimezone(dt.tzinfo or user_tz)
+        if date_str and not raw:
+            return datetime.combine(date.fromisoformat(date_str), datetime.min.time(), user_tz)
+        if not raw:
+            return None
+        dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
     except ValueError, TypeError:
-        return False
+        return None
+    if dt.tzinfo is not None:
+        return dt
+    event_tz_str = dt_field.get("timeZone")
+    try:
+        return dt.replace(tzinfo=ZoneInfo(event_tz_str) if event_tz_str else user_tz)
+    except KeyError, ValueError:
+        return dt.replace(tzinfo=user_tz)
 
 
 def format_agenda_event(
@@ -446,7 +460,8 @@ def format_agenda_event(
     so multi-provider behaviour is consistent across the app. Both start and
     end are formatted; end is None if missing or formatting fails. The
     ``language`` argument drives the locale-aware date / "tomorrow" / "all
-    day" rendering.
+    day" rendering. The provider id and the start instant travel beside the
+    display strings, for a reader that must know WHICH event this is (ADR-322).
     """
     title = raw_event.get("summary") or V3Messages.get_untitled_event(language)
     location = raw_event.get("location")
@@ -458,11 +473,15 @@ def format_agenda_event(
         # Skip the placeholder for missing data so the UI can hide the line.
         if formatted_end and formatted_end != "?":
             end_local = formatted_end
+    start_at = event_instant(raw_event.get("start"), user_tz)
+    event_id = raw_event.get("id")
     return AgendaEventItem(
         title=title,
         start_local=start_local,
         end_local=end_local,
         location=location if location else None,
+        id=str(event_id) if event_id else None,
+        start_at=start_at.astimezone(UTC) if start_at is not None else None,
     )
 
 
@@ -496,25 +515,15 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo, langu
     if not raw:
         return "?"
 
+    instant = event_instant(dt_field, user_tz)
+    if instant is None:
+        return str(raw)
     try:
-        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-        if dt.tzinfo is None:
-            event_tz_str = dt_field.get("timeZone")
-            if event_tz_str:
-                try:
-                    event_tz = ZoneInfo(event_tz_str)
-                except KeyError, ValueError:
-                    event_tz = user_tz
-            else:
-                event_tz = user_tz
-            dt = dt.replace(tzinfo=event_tz)
-
-        local_dt = dt.astimezone(user_tz)
         # Lower-case the helper output to keep the "tomorrow" / "demain" word
         # mid-string in lowercase — matches the briefing reminder pattern
         # (cf. _format_trigger_at_local).
         return format_time_with_date_context(
-            local_dt,
+            instant.astimezone(user_tz),
             reference_dt=datetime.now(user_tz),
             locale=language,
             include_year=True,
@@ -534,8 +543,8 @@ def _format_all_day(date_str: str, user_tz: ZoneInfo, language: str) -> str:
             and the date format.
 
     Returns:
-        Locale-aware string, e.g. "toute la journée" / "demain (toute la
-        journée)" / "07/05/2026 (toute la journée)".
+        Locale-aware string, e.g. "all day" / "tomorrow (all day)" /
+        "07/05/2026 (all day)".
     """
     all_day_word = V3Messages.get_all_day(language, long_form=True).lower()
     try:
@@ -582,11 +591,13 @@ def format_email_item(raw_msg: dict[str, Any], user_tz: ZoneInfo, language: str)
     sender_name, sender_email = _parse_from_header(raw_from)
     subject = (raw_msg.get("subject") or "").strip() or "(no subject)"
     received_local = _format_email_internal_date(raw_msg.get("internalDate"), user_tz, language)
+    message_id = raw_msg.get("id")
     return MailItem(
         sender_name=sender_name,
         sender_email=sender_email,
         subject=subject,
         received_local=received_local,
+        id=str(message_id) if message_id else None,
     )
 
 
@@ -699,7 +710,7 @@ def _format_trigger_at_local(
         formatted = format_time_with_date_context(
             local_dt,
             reference_dt=datetime.now(user_tz),
-            locale=language or "en",
+            locale=resolve_language(language),
             include_year=True,
             time_first=True,
         )

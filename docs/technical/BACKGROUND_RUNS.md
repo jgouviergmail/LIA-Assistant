@@ -6,8 +6,12 @@ endpoint is a mere subscriber. Navigation, tab close, or a dropped mobile
 connection no longer kill the generation — the turn (user message, assistant
 response, token records) is always persisted.
 
-**Feature flag**: `BACKGROUND_RUNS_ENABLED` (default `false`). Flag OFF, the
-legacy inline SSE path runs unchanged — instant rollback without rebuild.
+**Feature flag**: `BACKGROUND_RUNS_ENABLED` — on when unset (the default
+declared in `core/config/background_runs.py`); the three standard templates
+(`.env.example`, `.env.prod.example`, `.env.min.prod.example`) set it off, and
+the demonstrator's two templates leave it unset, so the demonstrator runs it
+on. Flag OFF, the legacy inline SSE path runs unchanged — instant rollback
+without rebuild.
 
 ## Architecture
 
@@ -103,27 +107,34 @@ Proven by POC (2026-07): without a drain, uvicorn worker recycling
 with the lifespan drain, uvicorn waits (30/30). Wiring:
 
 1. Lifespan shutdown FIRST drains chat producers
-   (`BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS`, 45 s), THEN generic
-   fire-and-forget tasks (`SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS`,
-   15 s) — before any infrastructure teardown (checkpointer, DB, Redis).
-2. Compose `stop_grace_period: 90s` on the api service (dev + prod): the
-   docker default 10 s would SIGKILL mid-drain.
+   (`BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS`), THEN generic
+   fire-and-forget tasks (`SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS`) —
+   before any infrastructure teardown (checkpointer, DB, Redis).
+2. Compose `stop_grace_period` on the api service of every compose file
+   that runs the API (dev, prod, the demonstrator): the docker default
+   10 s would SIGKILL mid-drain. The connection wait, the drains and a
+   margin are summed against it by `test_graceful_shutdown_budget_guard.py`
+   (production and the demonstrator, which runs the production image).
 3. Logs: `chat_producers_drain_started/finished`,
    `chat_producers_drain_incomplete` (pending > 0 → those runs end
    `killed`).
 
 ## Settings
 
+Each default is the constant the setting declares (`core/constants.py`, read
+by `core/config/background_runs.py`), never restated here: `.env.example`
+and `.env.prod.example` set their own values.
+
 | Env var | Default | Notes |
 |---|---|---|
-| `BACKGROUND_RUNS_ENABLED` | `false` | Master switch / instant rollback |
-| `BACKGROUND_RUNS_STREAM_MAXLEN` | `10000` | ~122 KB per 1000 token chunks (measured) |
-| `BACKGROUND_RUNS_STREAM_TTL_SECONDS` | `3600` | Post-terminal EXPIRE; bounds Redis memory; must cover the Lot 2 reattach window |
-| `BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS` | `7200` | Mid-run EXPIRE NX armed at the first chunk (hard-kill leak bound); boot guard: ≥ `STREAM_TTL`; must exceed the longest run |
-| `BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS` | `20` | Subscriber orphan exit window (lock missing AND chunk-silent); boot guard: ≥ 2× `HEARTBEAT` |
-| `BACKGROUND_RUNS_XREAD_BLOCK_MS` | `2000` | **Must stay well below `REDIS_SOCKET_TIMEOUT`×1000** — redis-py raises `TimeoutError` past it (POC-proven). Also the SSE keepalive cadence |
-| `BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` | `45` | Drain + generic-task timeout must stay below `stop_grace_period` (90 s) with margin |
-| `SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS` | `15` | Generic fire-and-forget drain (memory/interest extraction…) |
+| `BACKGROUND_RUNS_ENABLED` | on (see above) | Master switch / instant rollback |
+| `BACKGROUND_RUNS_STREAM_MAXLEN` | `DEFAULT_BACKGROUND_RUNS_STREAM_MAXLEN` | ~122 KB per 1000 token chunks (measured) |
+| `BACKGROUND_RUNS_STREAM_TTL_SECONDS` | `DEFAULT_BACKGROUND_RUNS_STREAM_TTL_SECONDS` | Post-terminal EXPIRE; bounds Redis memory; must cover the Lot 2 reattach window |
+| `BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS` | `DEFAULT_BACKGROUND_RUNS_STREAM_SAFETY_TTL_SECONDS` | Mid-run EXPIRE NX armed at the first chunk (hard-kill leak bound); boot guard: ≥ `STREAM_TTL`; must exceed the longest run. Also the longest a channel turn holds the person's claim: a Telegram turn still running past it is stopped as wedged ([CHANNELS_INTEGRATION.md](CHANNELS_INTEGRATION.md)) |
+| `BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS` | `DEFAULT_BACKGROUND_RUNS_ORPHAN_GRACE_SECONDS` | Subscriber orphan exit window (lock missing AND chunk-silent); boot guard: ≥ 2× `HEARTBEAT` |
+| `BACKGROUND_RUNS_XREAD_BLOCK_MS` | `DEFAULT_BACKGROUND_RUNS_XREAD_BLOCK_MS` | **Must stay well below `REDIS_SOCKET_TIMEOUT`×1000** — redis-py raises `TimeoutError` past it (POC-proven). Also the SSE keepalive cadence |
+| `BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` | `DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS` | With the connection wait and the generic drain, must fit the compose `stop_grace_period` (guarded, see above) |
+| `SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS` | `DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS` | Generic fire-and-forget drain (memory/interest extraction…) |
 
 ## Observability
 

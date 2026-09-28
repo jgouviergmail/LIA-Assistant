@@ -322,3 +322,25 @@ Google Maps Platform — had holes in every direction the audit looked.
   all four ledgers (usage log, summary row, `user_statistics` 273 → 274
   requests, instance ledger 0,520804 → 0,555708 €); a forced briefing weather
   refresh filed its eight calls under `briefing_cards_<hex>`.
+
+## Amendment 2026-09-27 — a euro is billed once, and whatever happened next
+
+**Amends:** decision 1 (every platform-paid token answers to both ceilings);
+measured with ADR-263's amendment of the same day, which joined the ledger to the
+decision register by run on dev.
+
+- **Billed once.** An interest's `llm_reflection` content source billed its tokens
+  under a run of its own while both of its callers — the interest sweep and the
+  heartbeat's enrichment — add the content's tokens to what they hand the runner:
+  every reflection counted twice against the person's ceilings (a 1 992-token
+  reflection inside the 4 143-token row of the sweep that used it; 49 in twelve
+  days). The source bills nothing itself; its road is `caller`, accountant the
+  runner.
+- **Billed whatever happened next.** The runner billed a sweep after a successful
+  dispatch only. A notification that reached nobody, and a generation that failed
+  after its model call, are now billed all the same under the sweep's run and filed
+  `failed`; the heartbeat's message failure hands back the decision's and the
+  enrichment's tokens it would have taken with it.
+- **Billed under the act.** The heartbeat's skip is billed under the sweep's run
+  (the accounting the runner publishes), and a journal consolidation bills its model
+  call and every embedding it writes under ONE run.

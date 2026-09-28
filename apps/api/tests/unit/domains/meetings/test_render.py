@@ -108,7 +108,8 @@ def test_markdown_carries_every_section_in_order_with_localized_headers() -> Non
     report = _report()
     markdown = render_markdown(report, build_header(_meeting(), report, language="fr"))
     assert markdown.startswith("# Point <projet> & budget\n\n*Compte rendu de réunion*\n")
-    assert "- **Participants** : Marie (Chef de projet), S2" in markdown
+    # The French colon takes a no-break space: the punctuation is the language's own.
+    assert "- **Participants**\u00a0: Marie (Chef de projet), S2" in markdown
     assert (
         markdown.index("## Résumé")
         < markdown.index("## Décisions")
@@ -134,6 +135,7 @@ def test_sectioned_document_maps_every_kind_to_blocks() -> None:
     bullets = [block for block in content.blocks if block.kind == "bullets"]
     assert any(block.items == ["Go", "<b>pas</b> de no-go"] for block in bullets)
     assert any(block.items == ["Relancer · S2 · 2026-09-05"] for block in bullets)
+    assert any("Participants: Marie (Chef de projet), S2" in block.items for block in bullets)
 
 
 def test_html_escapes_everything_the_model_or_the_user_typed() -> None:

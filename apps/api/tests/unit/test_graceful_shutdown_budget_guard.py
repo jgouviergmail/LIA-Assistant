@@ -1,4 +1,4 @@
-"""The production stop budget must fit inside ``stop_grace_period``.
+"""The production image's stop budget must fit inside ``stop_grace_period``.
 
 Uvicorn shuts down in two SEQUENTIAL phases (``uvicorn.server.Server.shutdown``):
 it first waits for in-flight connections, bounded by ``--timeout-graceful-shutdown``,
@@ -24,11 +24,17 @@ The flag only works when uvicorn IS the signalled process: the entrypoint's
 ``exec "$@"`` is what makes that true, so this guard checks it too — a plain
 ``"$@"`` would leave the shell holding PID 1 and swallow SIGTERM, which is
 precisely how the first de-risking run of this fix measured a false negative.
+
+Every compose service running that image is summed: production, and the
+demonstrator, which runs it unmodified — and declared no period at all, so
+Docker's 10 s default would have SIGKILLed its drain midway (review 12 of
+the ADR-323 lot).
 """
 
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 import yaml
@@ -37,6 +43,7 @@ from src.core.constants import (
     DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS,
     DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS,
 )
+from src.domains.radio.constants import LOOP_STOP_TIMEOUT_S
 from tests._repo_paths import repo_root_or_skip
 
 pytestmark = pytest.mark.unit
@@ -45,6 +52,14 @@ REPO_ROOT = repo_root_or_skip()
 API_DOCKERFILE = REPO_ROOT / "apps" / "api" / "Dockerfile.prod"
 API_ENTRYPOINT = REPO_ROOT / "apps" / "api" / "docker-entrypoint.sh"
 COMPOSE_PROD = REPO_ROOT / "docker-compose.prod.yml"
+COMPOSE_DEMO = REPO_ROOT / "docker-compose.demo-instance.yml"
+
+# Every compose service that runs the production image — its CMD, hence its
+# connection wait, and its lifespan drains.
+PRODUCTION_IMAGE_SERVICES = [
+    pytest.param(COMPOSE_PROD, "api", id="prod-api"),
+    pytest.param(COMPOSE_DEMO, "demo-instance-api", id="demo-instance-api"),
+]
 
 # Seconds kept between the summed shutdown budget and the SIGKILL deadline, to
 # cover interpreter teardown and the 0.1s poll granularity of uvicorn's loop.
@@ -72,11 +87,18 @@ def _flag_value(tokens: list[str], flag: str) -> str | None:
     return None
 
 
-def _stop_grace_period_seconds() -> int:
-    """``stop_grace_period`` of the api service, in seconds."""
-    compose = yaml.safe_load(COMPOSE_PROD.read_text(encoding="utf-8"))
-    raw = (compose.get("services") or {}).get("api", {}).get("stop_grace_period")
-    assert raw is not None, "the api service must declare stop_grace_period"
+def _service(compose_path: Path, service: str) -> dict[str, object]:
+    """The definition of ``service`` in ``compose_path``."""
+    compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
+    definition = (compose.get("services") or {}).get(service)
+    assert isinstance(definition, dict), f"{compose_path.name} has no {service} service"
+    return definition
+
+
+def _stop_grace_period_seconds(compose_path: Path, service: str) -> int:
+    """``stop_grace_period`` of ``service`` in ``compose_path``, in seconds."""
+    raw = _service(compose_path, service).get("stop_grace_period")
+    assert raw is not None, f"{service} in {compose_path.name} must declare stop_grace_period"
     text = str(raw).strip()
     match = re.fullmatch(r"(?P<value>\d+)(?P<unit>[smh]?)", text)
     assert match, f"unsupported stop_grace_period format: {text!r}"
@@ -100,21 +122,39 @@ class TestGracefulShutdownBudget:
             value.isdigit() and int(value) > 0
         ), f"--timeout-graceful-shutdown must be a positive number of seconds, got {value!r}"
 
-    def test_summed_budget_fits_within_stop_grace_period(self) -> None:
+    @pytest.mark.parametrize(("compose_path", "service"), PRODUCTION_IMAGE_SERVICES)
+    def test_the_service_runs_the_command_this_guard_reads(
+        self, compose_path: Path, service: str
+    ) -> None:
+        """The connection wait is read from ``Dockerfile.prod``: a service that
+        builds another file, or overrides the command, would escape the sum."""
+        definition = _service(compose_path, service)
+        build = definition.get("build")
+
+        assert isinstance(build, dict) and build.get("dockerfile") == "Dockerfile.prod"
+        assert "command" not in definition and "entrypoint" not in definition
+
+    @pytest.mark.parametrize(("compose_path", "service"), PRODUCTION_IMAGE_SERVICES)
+    def test_summed_budget_fits_within_stop_grace_period(
+        self, compose_path: Path, service: str
+    ) -> None:
         """Connection wait + lifespan drain + margin must precede SIGKILL."""
         value = _flag_value(_api_cmd(), "--timeout-graceful-shutdown")
         assert value is not None  # covered by the test above
         connection_wait = int(value)
 
+        # Every bounded wait of the lifespan shutdown, in the order it runs:
+        # chat producers, generic tasks, the radio's session loops (ADR-324).
         lifespan_drain = (
             DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS
             + DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS
+            + LOOP_STOP_TIMEOUT_S
         )
         total = connection_wait + lifespan_drain + SIGKILL_SAFETY_MARGIN_SECONDS
-        grace = _stop_grace_period_seconds()
+        grace = _stop_grace_period_seconds(compose_path, service)
 
         assert total <= grace, (
-            f"shutdown budget {total}s (connection wait {connection_wait}s + lifespan "
+            f"{service}: shutdown budget {total}s (connection wait {connection_wait}s + lifespan "
             f"drain {lifespan_drain}s + {SIGKILL_SAFETY_MARGIN_SECONDS}s margin) exceeds "
             f"stop_grace_period {grace}s: the phases are SEQUENTIAL in "
             f"uvicorn.server.Server.shutdown, so raising one means lowering the other "

@@ -266,9 +266,10 @@ PHONE_FIELD_NAMES = {
 ### 2bis. Content Fields — rédaction sensible au niveau (audit 2026-07, C7)
 
 Depuis la vague 2 de l'audit, un quatrième jeu de champs existe : `CONTENT_FIELD_NAMES`
-(destinataires `to`/`cc`/`bcc`, `subject`, `body`, adresses, coordonnées `lat`/`lon`,
-noms résolus `contact_name`/`display_label`, `mappings`, previews `content_preview`/
-`result_preview`, `params` bruts, texte de requêtes `original_query`/`final_query`/…).
+(destinataires `to`/`cc`/`bcc`, `subject`, `body`, adresses, coordonnées
+`lat`/`lng`/`lon`/`latitude`/`longitude`, noms résolus `contact_name`/`display_label`,
+`mappings`, previews `content_preview`/`result_preview`, `params` bruts, texte de
+requêtes `original_query`/`final_query`/…).
 
 Politique : **compteurs/IDs à INFO ; contenus à DEBUG ou rédigés.**
 
@@ -277,11 +278,25 @@ Politique : **compteurs/IDs à INFO ; contenus à DEBUG ou rédigés.**
   `method_name` structlog et active `sanitize_dict(..., redact_content=True)`.
 - À `DEBUG` : ils passent tels quels (moins la pseudonymisation pattern-based
   des emails), pour le troubleshooting.
+- **Un compte n'est pas un contenu** (2026-09-25) : sous un nom exact, un entier,
+  un booléen ou `None` passe — les comptes `location` et `content` du recensement
+  des types sémantiques (`by_category`) sortaient `[REDACTED]`. Un flottant (il peut
+  être une coordonnée), un texte, une liste ou un dict reste rédigé. Exception : sous
+  un nom de **coordonnée**, dont les nombres SONT le contenu, tout reste rédigé.
+- **Un fait d'une autre forme porte un nom qui dit ce qu'il est.** Sous un nom de
+  contenu, un identifiant ou un réglage serait perdu : douze lignes des sessions
+  vocales journalisaient leur identifiant sous `origin=` (le point de départ d'un
+  itinéraire) et le relais de notifications son bundle id sous `topic=` — devenus
+  `origin_id=` et `bundle_id=`. Le garde
+  `test_log_content_guard.py::test_no_fact_is_logged_under_a_name_the_filter_withholds`
+  refuse le contraire, en demandant au filtre lui-même ce qu'il masquerait (noms
+  exacts seulement : un suffixe ne masque que du texte, et l'AST ne dit pas si une
+  valeur en est).
 
 C'est un **filet systémique** : les sites d'appel restent la première ligne de
 défense (ne pas logger de contenu à INFO), mais un futur `subject=` ou `lat=`
 à INFO ne peut plus fuir de PII. Tests : `tests/unit/infrastructure/observability/
-test_pii_filter.py::TestContentFieldRedactionAtInfo`.
+test_pii_filter.py::TestContentFieldRedactionAtInfo` et `::TestContentFieldNamesKeepFacts`.
 
 #### Extension CA-1 (audit S9, 2026-07)
 
@@ -360,6 +375,7 @@ de la personne. Réponse en quatre couches ([ADR-317](../architecture/ADR-317-A-
 | Citations | `observability/quoted_content.py` | au-dessus de DEBUG, sur toute chaîne **et sur le traceback rendu** : `DETAIL`/`CONTEXT` de PostgreSQL, `[parameters: …]`, argument asyncpg, messages PostgreSQL qui citent leur entrée, `input_value=` de Pydantic (jusqu'au dernier marqueur de la ligne) — la contrainte, la table, la requête et la classe restent |
 | URL | `pii_filter.sanitize_url_query` | au-dessus de DEBUG, les paramètres de recherche (`q`, `query`, `$search`, `srsearch`, `input`, `address`…) ; à **tous** les niveaux, les clés de fournisseur en query string (`key=` Google, `appid=` OpenWeatherMap), qu'une `HTTPStatusError` rend avec l'URL |
 | Noms | `CONTENT_FIELD_NAMES`, `_CONTENT_FIELD_SUFFIXES` | noms exacts ajoutés seulement quand AUCUNE ligne ne les emploie à autre chose (`query`, `topic`, `keyword`, `input`, `stdout`…) ; suffixes (`*_preview` sauf `*_id_preview`, `*_query`, `*_content`, `*_text`…) qui ne rédigent que du texte ou des listes — `has_content=True` ou `extra_body={…}` restent |
+| Ingestion (2026-09-25) | `infrastructure/observability/promtail/promtail-config.yml` | les autres conteneurs écrivent du texte brut que ce filtre ne voit jamais : pendant un redémarrage de l'API, Next.js journalisait « Failed to proxy <url> » avec toute la query string proxifiée (le `?token=` du webhook Pub/Sub). Promtail masque les MÊMES paramètres pour chaque ligne avant Loki : identifiants et coordonnées toujours, texte de recherche hors DEBUG (une ligne sans niveau compte comme au-dessus) ; seule la valeur est remplacée, arrêtée aussi à une barre oblique inverse (Promtail lit les lignes de l'API échappées en JSON : manger le `\` d'un guillemet échappé casserait la ligne). `test_promtail_query_redaction_guard.py` tient ses deux listes égales à celles du filtre et fait tourner ses expressions contre `sanitize_url_query` sur un corpus ; le pipeline a d'abord été exécuté par Promtail 3.2.1 lui-même (`-dry-run -stdin`) |
 
 `STRUCTLOG_META_FIELDS` se réduit aux quatre champs d'enveloppe que la chaîne écrit
 et qu'aucun appelant n'écrit (`event`, `logger`, `level`, `timestamp`) : aucun
@@ -387,9 +403,43 @@ qui ne correspond plus à aucune ligne fait échouer le test.
 
 **Limites énoncées** : les messages de nos propres exceptions en général (30 sites
 `raise` interpolent une valeur ; les cinq personnels ont été corrigés), les textes
-d'erreur de fournisseurs hors formats reconnus, le niveau DEBUG en production (les
-contenus y sont permis par la politique), et les lignes déjà stockées dans Loki
-jusqu'à l'expiration de la rétention.
+d'erreur de fournisseurs hors formats reconnus, et le niveau DEBUG en production (les
+contenus y sont permis par la politique).
+
+#### Purge de l'historique Loki (2026-09-25)
+
+Le correctif d'ADR-317 ne purgeait rien : Loki gardait sept jours de lignes écrites
+avant lui.
+Deux demandes de suppression ont été posées sur le compacteur de production
+(`deletion_mode: filter-and-delete`) :
+
+| Flux | Fenêtre | Pourquoi |
+|------|---------|----------|
+| `{container="lia-api-prod"}` | du début de la rétention au démarrage de l'image corrigée (2026-09-25T03:42:17Z) | toute ligne de l'API antérieure au correctif peut porter les mots d'une personne |
+| `{container="lia-web-prod"} \|= "token="` | toute la rétention | le secret du webhook Pub/Sub, en clair dans « Failed to proxy » |
+
+Une ligne supprimée disparaît des requêtes dès l'acceptation de la demande (mesuré :
+dernière heure avant le correctif, 1 811 lignes → 0 ; l'heure suivante, 2 548 lignes
+intactes ; 322 lignes web → 0), puis est effacée physiquement après la période
+d'annulation de 24 h et la compaction suivante — le statut de la demande passe alors
+de `received` à `processed`. Le déploiement avait recréé les deux conteneurs : les
+journaux `json-file` de Docker des anciens sont partis avec eux. Le Loki de dev n'a
+pas été purgé : sa rétention de sept jours l'efface d'elle-même.
+
+Procédure (depuis l'hôte, lecture seule hormis la demande elle-même ; `start`/`end`
+en secondes Unix) :
+
+```bash
+# Poser la demande (réponse 204) ; le compacteur la traite par tranches de 24 h
+docker exec lia-loki-prod wget -qO- --post-data='' \
+  'http://localhost:3100/loki/api/v1/delete?query=<LogQL encodé>&start=<début>&end=<fin>'
+# Suivre son statut (received → processed)
+docker exec lia-loki-prod wget -qO- 'http://localhost:3100/loki/api/v1/delete'
+```
+
+Vérifier sur une **fenêtre témoin** qui contient des lignes (la dernière heure après
+la fenêtre supprimée) : une requête hors rétention répond aussi `success` avec zéro
+série.
 
 ### 3. Regex Patterns (Industry Standards)
 

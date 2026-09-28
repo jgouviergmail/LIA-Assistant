@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_webhook_signature
+from src.core.i18n import normalize_language
 from src.core.security.utils import encrypt_data
 from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
@@ -104,7 +105,7 @@ async def activate(
         api_key=body.api_key,
         agent_phone_number_id=body.agent_phone_number_id,
         webhook_secret=body.webhook_secret,
-        user_language=(user.language or settings.default_language),
+        user_language=normalize_language(user.language),
         user_name=user_name,
         caller_number_display=body.caller_number_display,
     )
@@ -300,7 +301,7 @@ async def start_identity_verification(
     """Place the verification call; the code is kept server-side for its TTL."""
     started = await (await _verification(db)).start(
         user.id,
-        language=user.language or settings.default_language,
+        language=normalize_language(user.language),
         display_name=resolve_user_display_name(user.full_name, user.email),
     )
     return TelephonyIdentityVerifyResponse(
@@ -320,7 +321,7 @@ async def confirm_identity_verification(
 ) -> TelephonyIdentityResponse:
     """Judge the typed code (bounded attempts, constant-time compare)."""
     identity = await (await _verification(db)).confirm(
-        user.id, body.code, language=user.language or settings.default_language
+        user.id, body.code, language=normalize_language(user.language)
     )
     return _identity_response(identity)
 
@@ -337,7 +338,7 @@ async def set_identity_number(
 ) -> TelephonyIdentityResponse:
     """Store the number in E.164; a changed number loses its verification."""
     identity = await TelephonyIdentityService(db).set_number(
-        user.id, body.phone_number, language=user.language or settings.default_language
+        user.id, body.phone_number, language=normalize_language(user.language)
     )
     return _identity_response(identity)
 
@@ -372,10 +373,10 @@ async def update_identity(
         identity = await service.set_rich_context(user.id, body.rich_context_enabled)
     if body.disabled_domains is not None:
         identity = await service.set_disabled_domains(
-            user.id, body.disabled_domains, language=user.language or settings.default_language
+            user.id, body.disabled_domains, language=normalize_language(user.language)
         )
     if body.call_mode is not None:
         identity = await service.set_call_mode(
-            user.id, body.call_mode, language=user.language or settings.default_language
+            user.id, body.call_mode, language=normalize_language(user.language)
         )
     return _identity_response(identity)

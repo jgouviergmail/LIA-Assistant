@@ -164,6 +164,35 @@ class TestOnlyTheOwnerCloses:
         assert outcome.effect.status is EffectStatus.FAILED
         assert outcome.effect.error_code == "timeout"
 
+    async def test_a_cancelled_owner_closes_its_row_abandoned(
+        self, async_session: AsyncSession, user: User
+    ) -> None:
+        """Cut before the result came back: « we cannot tell » is ABANDONED, fenced like any close."""
+        repo = EffectLedgerRepository(async_session)
+        outcome = await repo.claim(_request(user, key="call-6"))
+        assert outcome.claim_token is not None
+
+        assert (
+            await repo.close_abandoned(outcome.effect.id, uuid.uuid4(), error_code="cancelled")
+            is False
+        ), "a stale owner cannot abandon a row it no longer holds"
+        assert (
+            await repo.close_abandoned(
+                outcome.effect.id, outcome.claim_token, error_code="cancelled"
+            )
+            is True
+        )
+        assert (
+            await repo.close_success(outcome.effect.id, outcome.claim_token, provider_ref="late")
+            is False
+        ), "a late result cannot rewrite what was already settled"
+
+        await async_session.refresh(outcome.effect)
+        assert outcome.effect.status is EffectStatus.ABANDONED
+        assert outcome.effect.error_code == "cancelled"
+        assert outcome.effect.closed_at is not None
+        assert outcome.effect.settled_notarised_at is None, "the notary seals it like any settle"
+
 
 class TestTakeoverAndRetry:
     async def test_a_live_claim_is_never_abandoned(

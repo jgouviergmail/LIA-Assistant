@@ -3,6 +3,7 @@
 **Statut**: ✅ IMPLEMENTED (2026-07-29)
 **Date**: 2026-07-29
 **Décideurs**: Équipe LIA (programme UX Actions 2026-07-28, lot F / N-07)
+**Amendé par**: [ADR-322](ADR-322-One-Clock-Per-Routine.md) (2026-09-25) — une routine sur condition n'a plus de planification : le système la vérifie à sa propre cadence, et l'empreinte de l'ensemble devient un registre de faits
 
 ## Contexte
 
@@ -23,6 +24,7 @@ Deux contraintes de conception :
 ## Décision
 
 **Phase 1 = « horaire OU condition », l'horloge reste le cron pour les deux.**
+*(Retiré par [ADR-322](ADR-322-One-Clock-Per-Routine.md) : une routine a UNE horloge — sa récurrence, ou les vérifications du système.)*
 Une routine CONDITION évalue sa condition à chaque tick et ne s'exécute que si
 elle est remplie ET que le fait est nouveau (déduplication par empreinte).
 

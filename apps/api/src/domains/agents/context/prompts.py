@@ -8,7 +8,7 @@ Usage:
     # In agent prompt
     context_instructions = get_context_instructions("contacts_agent")
     system_prompt = f'''
-    Tu es un assistant...
+    You are an assistant...
 
     {context_instructions}
 
@@ -39,9 +39,9 @@ def get_context_instructions(agent_name: str) -> str:
         >>> # For contacts_agent with "contacts" context registered
         >>> instructions = get_context_instructions("contacts_agent")
         >>> print(instructions)
-        ## Références Contextuelles (Disponibles: contacts)
+        ## Contextual References (Available: contacts)
 
-        Tu peux utiliser `resolve_reference` pour résoudre des références...
+        You can use `resolve_reference` to resolve references to previously listed items...
 
     Integration:
         # In prompts.py
@@ -49,7 +49,7 @@ def get_context_instructions(agent_name: str) -> str:
             context_instructions = get_context_instructions("contacts_agent")
 
             system_prompt = f'''
-            Tu es un assistant...
+            You are an assistant...
 
             {context_instructions}
 

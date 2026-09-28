@@ -32,6 +32,7 @@ from src.core.constants import (
     COMPACTION_UI_ESTIMATE_SECONDS_PER_CHUNK,
     COMPACTION_UI_ESTIMATE_TOKENS_PER_CHUNK,
 )
+from src.core.i18n import resolve_language
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.models import MessagesState
 from src.domains.agents.services.compaction_service import CompactionService
@@ -182,7 +183,7 @@ async def compaction_node(state: MessagesState, config: RunnableConfig) -> dict[
         return {}
 
     # Perform compaction
-    language = state.get("user_language", "en")
+    language = resolve_language(state.get("user_language"))
     preserve_n = settings.compaction_preserve_recent_messages
 
     # Emit `compaction_start` so the frontend can lock the chat input and show

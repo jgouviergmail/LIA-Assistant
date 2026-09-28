@@ -202,7 +202,8 @@ class TestApprovalGateNodeStateMetrics:
         # Verify keys were tracked
         tracked_keys = {s.labels.get("key") for s in approval_samples}
         assert STATE_KEY_PLAN_APPROVED in tracked_keys
-        assert STATE_KEY_PLAN_REJECTION_REASON in tracked_keys
+        # Nothing to approve is no refusal: no rejection reason is written.
+        assert STATE_KEY_PLAN_REJECTION_REASON not in tracked_keys
 
 
 class TestTaskOrchestratorNodeStateMetrics:

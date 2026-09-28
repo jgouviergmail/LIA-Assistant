@@ -51,6 +51,7 @@ const ALL_AVAILABLE: SettingsSearchAvailability = {
   peersEnabled: true,
   sandboxEgressEnabled: true,
   liveEnabled: true,
+  radioEnabled: true,
   debugUserAccess: true,
 };
 
@@ -115,7 +116,10 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 63 since the usage preferences joined Preferences / Personalization
     // (ADR-311, 2026-09-24): the exchange rhythm the ReAct loop shapes its
     // prompt for, frequent or occasional.
-    expect(TOKENS).toHaveLength(63);
+    // 64 since the radio section joined Preferences / Voice & Media
+    // (ADR-324, 2026-09-26): what the personal radio talks about, its
+    // voices, and how a session listens.
+    expect(TOKENS).toHaveLength(64);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

@@ -215,7 +215,7 @@ def get_windowed_messages(
         - 20 turns (response): Reduces from ~6000 tokens to ~3000 tokens
 
     Note:
-        Contextual references (e.g., "Affiche ses détails" referencing earlier search)
+        Contextual references (e.g., "Show their details" referencing earlier search)
         are resolved via Store, not message history. Store persists all contexts
         regardless of windowing, ensuring no loss of business context.
 
@@ -295,13 +295,13 @@ def get_response_windowed_messages(messages: list[BaseMessage]) -> list[BaseMess
     - References to earlier conversation
     - Creative synthesis of agent results
 
-    Uses settings.response_message_window_size (default: 20 turns).
+    Uses settings.response_message_window_size.
 
     Args:
         messages: Full conversation history.
 
     Returns:
-        SystemMessages + last 20 turns (~40 messages).
+        SystemMessages + the last ``response_message_window_size`` turns.
 
     Performance:
         Reduces response TTFT at 50 turns from ~2500ms to ~1200ms (52% improvement).

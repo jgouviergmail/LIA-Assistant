@@ -29,6 +29,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from src.domains.briefing.schemas import MailItem
 from src.domains.scheduled_actions.mail_watches import mail_matches
 
 pytestmark = pytest.mark.unit
@@ -67,9 +68,11 @@ def _gmail(subject: str, name: str, email: str) -> dict[str, Any]:
     }
 
 
-def _briefing(subject: str, name: str, email: str) -> Any:
+def _briefing(subject: str, name: str, email: str) -> MailItem:
     """What the executor holds: the briefing's display projection."""
-    return SimpleNamespace(subject=subject, sender_name=name, sender_email=email)
+    return MailItem(
+        subject=subject, sender_name=name, sender_email=email, received_local="09:00", id="m-1"
+    )
 
 
 async def _executor_says(subject: str, name: str, email: str, query: str) -> bool:

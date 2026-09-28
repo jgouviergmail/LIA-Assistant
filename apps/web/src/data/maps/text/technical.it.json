@@ -323,6 +323,12 @@
       "stack": ["Lettura di Prometheus / Loki / Alertmanager", "Prove per ricetta"],
       "src": "7cf9e87a4874"
     },
+    "t.radio": {
+      "name": "Radio: redazione e antenna",
+      "role": "Una redazione dell'istanza legge i feed pubblici senza modello; un'antenna per ascoltatore decide con un palinsesto deterministico, fa scrivere e verificare ogni segmento, leggerlo e mixarlo, solo finché qualcuno ascolta.",
+      "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"],
+      "src": "3779500de599"
+    },
     "t.postgres": {
       "name": "PostgreSQL e pgvector",
       "role": "La fonte di verità: account, conversazioni, checkpoint del grafo, vettori; migrazioni in un'unica catena, sessioni che non vivono più a lungo delle loro query.",

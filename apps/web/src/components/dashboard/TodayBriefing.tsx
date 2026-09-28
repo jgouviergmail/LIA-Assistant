@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Sunrise } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useBriefing } from '@/hooks/useBriefing';
@@ -44,8 +45,10 @@ import { CardsGridSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
  * Layout (top → bottom):
  *   1. Hero LIA (marketing card — its headline is the LLM greeting once it arrives,
  *      a static localized tagline as fallback while the LLM call is in flight)
- *   2. Quick Access (Help + Settings)
- *   3. "Mon dashboard" 9-card grid (with the synthesis above the cards)
+ *   2. Quick Access (Help, Capabilities, Workboard, Registers, Settings)
+ *   3. The page's lead-in (`aboveBriefing` — the radio, ADR-324), kept when the
+ *      briefing fails: what it carries does not depend on the briefing
+ *   4. "Mon dashboard" 9-card grid (with the synthesis above the cards)
  */
 /**
  * Ordered VISIBLE sections (UXR Lot 5, B4) — pure, pinned by tests: the
@@ -143,7 +146,12 @@ function BriefingCardsGrid({
   );
 }
 
-export function TodayBriefing() {
+export function TodayBriefing({
+  aboveBriefing,
+}: {
+  /** What the page places between the quick-access bar and « My dashboard ». */
+  aboveBriefing?: ReactNode;
+}) {
   const { t, i18n } = useTranslation();
   const {
     cards,
@@ -170,6 +178,7 @@ export function TodayBriefing() {
     return (
       <div className="space-y-8 sm:space-y-10">
         <QuickAccessCompact lng={lng} />
+        {aboveBriefing}
         <BriefingError onRetry={refetchAll} />
       </div>
     );
@@ -194,6 +203,10 @@ export function TodayBriefing() {
 
       {/* Quick Access — placed ABOVE the cards grid as requested */}
       <QuickAccessCompact lng={lng} />
+
+      {/* The page's lead-in (the radio): under the quick-access bar, right
+          above « My dashboard » — never above the hero (owner request). */}
+      {aboveBriefing}
 
       <section className="space-y-4" aria-labelledby="briefing-section-heading">
         <div className="flex items-center justify-between">

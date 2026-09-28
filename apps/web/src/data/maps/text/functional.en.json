@@ -317,6 +317,12 @@
       "goal": "Reach LIA without a screen.",
       "src": "4fe7ee13e992"
     },
+    "f.radio": {
+      "name": "Personal radio",
+      "role": "An on-demand station in your language: your day and the world's news, written, checked and voiced for you while you listen, every sentence with its source.",
+      "goal": "Hear your day and the world without reading, knowing what it costs.",
+      "src": "3518a88aef30"
+    },
     "f.security": {
       "name": "Accounts and security",
       "role": "Server-side cookie sessions, two-factor authentication, activation by an administrator, a caller address that cannot be spoofed.",

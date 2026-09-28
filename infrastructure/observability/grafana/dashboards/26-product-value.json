@@ -849,7 +849,7 @@
           "title": "Agent execution outcomes (1h rate)",
           "type": "timeseries",
           "datasource": "$datasource",
-          "description": "OUT technical quality (E3): agent executions by outcome (success/failure/partial_success/user_abandoned). E1/E2 result quality arrives Phase 2.",
+          "description": "OUT technical quality (E3): agent executions by outcome (success/failure/partial_success), each turn judged on its own evidence; a turn that left no agent execution to read (a chat answer, a skill the response ran itself) is not counted. E1/E2 result quality arrives Phase 2.",
           "gridPos": {
             "h": 8,
             "w": 12,

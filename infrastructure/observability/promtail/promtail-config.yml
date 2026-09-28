@@ -41,6 +41,22 @@ scrape_configs:
       # Stage 1: Extraction des labels Docker
       - docker: {}
 
+      # Stage 1bis: a URL's credentials never reach Loki, whatever wrote the line.
+      #
+      # The API's PII filter masks them in its own lines, but every OTHER container
+      # writes raw text: while the API restarts, Next.js logs « Failed to proxy
+      # <url> » with the proxied request's whole query string — the Pub/Sub
+      # webhook's `?token=` among them (322 production lines in a week, deleted
+      # from Loki on 2026-09-25, ADR-317). Only the VALUE is replaced, on a `?`/`&`
+      # boundary, exactly as `sanitize_url_query` does: the parameter names are
+      # `_SENSITIVE_QUERY_PARAMS` (credentials and coordinates), held equal by
+      # apps/api/tests/unit/test_promtail_query_redaction_guard.py. The value also
+      # stops at a backslash: the API's lines arrive JSON-escaped, and eating the
+      # `\` of an escaped quote would break the line's JSON.
+      - replace:
+          expression: '(?i)[?&](?:token|access_token|refresh_token|id_token|code|code_verifier|code_challenge|secret|client_secret|password|passwd|pwd|api_key|apikey|key|appid|state|sig|signature|session|sessionid|jwt|authorization|lat|lng|lon|latitude|longitude|origin|dest|destination)=([^&\s#"''\\]+)'
+          replace: '[REDACTED]'
+
       # Stage 2: Parsing JSON (logs structlog de l'API)
       #
       # On extrait UNIQUEMENT ce que les stages suivants consomment : l'horodatage
@@ -90,6 +106,16 @@ scrape_configs:
       # Stage 5: Ajout de labels statiques
       - static_labels:
           job: api
+
+      # Stage 5bis: a URL's search text is withheld above DEBUG, like the API's own
+      # lines (`_CONTENT_QUERY_PARAMS`: `?q=`, `$search=`…). A line with no level
+      # (Next.js, every non-structlog container) is treated as above DEBUG.
+      - match:
+          selector: '{job="api", level!="debug"}'
+          stages:
+            - replace:
+                expression: '(?i)[?&](?:q|query|search|search_query|srsearch|\$search|\$filter|input|text|textquery|keyword|keywords|term|terms|titles|name|address|prompt|question|subject|body)=([^&\s#"''\\]+)'
+                replace: '[REDACTED]'
 
       # Pas de stage `output` : il REMPLACE la ligne par un seul champ. Avec
       # `source: message`, toute entree structlog portant une cle `message`

@@ -6,7 +6,7 @@
   "perFile": {
     "src/app/[lng]/dashboard/chat/page.tsx": {
       "count": 1,
-      "max": 22
+      "max": 21
     },
     "src/components/chat/ChatInput.tsx": {
       "count": 1,
@@ -18,7 +18,7 @@
     },
     "src/components/chat/MarkdownContent.tsx": {
       "count": 1,
-      "max": 22
+      "max": 21
     },
     "src/components/dashboard/BriefingCard.tsx": {
       "count": 1,

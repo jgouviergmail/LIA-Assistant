@@ -30,12 +30,33 @@ import httpx
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 from src.domains.connectors.clients.base_api_key_client import BaseAPIKeyClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+#: OpenWeatherMap's ``lang`` for a canonical language it spells differently.
+_OWM_LANG_OF: dict[str, str] = {"zh-CN": "zh_cn"}
+
+
+def _owm_lang(lang: str | None) -> str:
+    """OpenWeatherMap's ``lang`` for a language.
+
+    An explicit code passes verbatim, except the canonical codes
+    OpenWeatherMap spells differently (``zh-CN`` is ``zh_cn``); an absent one
+    is the declared language (ADR-323).
+
+    Args:
+        lang: A language code, or None.
+
+    Returns:
+        The value of OpenWeatherMap's ``lang`` parameter.
+    """
+    code = lang or resolve_language()
+    return _OWM_LANG_OF.get(code, code)
 
 
 class OpenWeatherMapClient(BaseAPIKeyClient):
@@ -204,7 +225,7 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
         city: str | None = None,
         country: str | None = None,
         units: str = "metric",
-        lang: str = "en",
+        lang: str | None = None,
     ) -> dict[str, Any]:
         """
         Get current weather conditions.
@@ -259,7 +280,7 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
         city: str | None = None,
         country: str | None = None,
         units: str = "metric",
-        lang: str = "en",
+        lang: str | None = None,
         cnt: int | None = None,
     ) -> dict[str, Any]:
         """
@@ -315,7 +336,7 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
         city: str | None = None,
         country: str | None = None,
         units: str = "metric",
-        lang: str = "en",
+        lang: str | None = None,
         days: int = 5,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> dict[str, Any]:
@@ -374,12 +395,12 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
         city: str | None = None,
         country: str | None = None,
         units: str = "metric",
-        lang: str = "en",
+        lang: str | None = None,
     ) -> dict[str, Any]:
         """Build query parameters for weather API calls (appid injected by base)."""
         params: dict[str, Any] = {
             "units": units,
-            "lang": lang,
+            "lang": _owm_lang(lang),
         }
 
         if lat is not None and lon is not None:

@@ -20,6 +20,7 @@ from src.core.field_names import (
     FIELD_TOKENS_CACHE,
     FIELD_TOKENS_IN,
     FIELD_TOKENS_OUT,
+    FIELD_TTS_COST_EUR,
 )
 
 
@@ -124,7 +125,7 @@ class TokenSummaryDTO:
     google_api_cost_eur: float = 0.0
     image_generation_requests: int = 0
     image_generation_cost_eur: float = 0.0
-    # TTS (paid providers) — silo on conversation_messages.tts_cost_eur,
+    # Paid speech synthesis — the run's row carries it (ADR-324), and it is
     # included in the consolidated cost surfaced to the frontend.
     tts_cost_eur: float = 0.0
 
@@ -154,7 +155,7 @@ class TokenSummaryDTO:
             google_api_cost_eur=mem_summary.get(FIELD_GOOGLE_API_COST_EUR, 0.0),
             image_generation_requests=mem_summary.get(FIELD_IMAGE_GENERATION_REQUESTS, 0),
             image_generation_cost_eur=mem_summary.get(FIELD_IMAGE_GENERATION_COST_EUR, 0.0),
-            tts_cost_eur=float(mem_summary.get("tts_cost_eur", 0.0) or 0.0),
+            tts_cost_eur=float(mem_summary.get(FIELD_TTS_COST_EUR, 0.0) or 0.0),
         )
 
     @classmethod
@@ -182,7 +183,7 @@ class TokenSummaryDTO:
             google_api_cost_eur=data.get(FIELD_GOOGLE_API_COST_EUR, 0.0),
             image_generation_requests=data.get(FIELD_IMAGE_GENERATION_REQUESTS, 0),
             image_generation_cost_eur=data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0.0),
-            tts_cost_eur=float(data.get("tts_cost_eur", 0.0) or 0.0),
+            tts_cost_eur=float(data.get(FIELD_TTS_COST_EUR, 0.0) or 0.0),
         )
 
     @classmethod

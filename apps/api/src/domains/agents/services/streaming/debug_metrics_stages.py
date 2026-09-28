@@ -12,6 +12,7 @@ reconstructed from a checkpoint (HITL resume), so every read goes through
 
 from typing import Any
 
+from src.core.i18n import resolve_language
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -304,7 +305,10 @@ def build_hitl(
 
     Two sources compose: the streaming-level interrupt of THIS run (the turn
     ended waiting for the user) and the state flags a resumed run carries
-    (approval, clarification, FOR_EACH cancellation).
+    (refusal, clarification, FOR_EACH cancellation). ``plan_approved`` travels
+    with its three values (ADR-263) and draws no section by itself: the gate
+    writes True on every plan it passes, which is nobody's decision — only a
+    refusal (False, written by the person's cancel) is one.
 
     Args:
         debug_metrics: Debug payload mutated in place.
@@ -320,10 +324,11 @@ def build_hitl(
     draft_result = draft_result if isinstance(draft_result, dict) else None
     # A confirmed draft with no interrupt and no plan approval used to produce
     # NO section at all: the one turn where a person actually acted was the one
-    # the panel said nothing about.
+    # the panel said nothing about. The response node clears the decision once
+    # it executed the draft: the streaming service hands back the one it saw.
     if not (
         hitl_interrupt
-        or plan_approved
+        or plan_approved is False
         or clarification_response
         or for_each_cancelled
         or draft_result
@@ -334,7 +339,7 @@ def build_hitl(
             "interrupted": bool(hitl_interrupt),
             "interrupt_action_type": (hitl_interrupt or {}).get("action_type"),
             "interrupt_tool_name": (hitl_interrupt or {}).get("tool_name"),
-            "plan_approved": bool(plan_approved),
+            "plan_approved": plan_approved if isinstance(plan_approved, bool) else None,
             "clarification_response": clarification_response,
             "clarification_field": state.get("clarification_field"),
             "for_each_cancelled": bool(for_each_cancelled),
@@ -366,7 +371,6 @@ async def add_interest_detection(
     if not user_id or not state:
         return
     try:
-        from src.core.config import get_settings
         from src.domains.interests.services.extraction_service import (
             analyze_interests_for_debug,
         )
@@ -375,7 +379,7 @@ async def add_interest_detection(
             user_id=user_id,
             messages=state.get("messages", []),
             session_id=run_id,
-            user_language=state.get("user_language", get_settings().default_language),
+            user_language=resolve_language(state.get("user_language")),
         )
         debug_metrics["interest_profile"] = interest_detection
         logger.debug(

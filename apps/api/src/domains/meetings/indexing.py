@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import MEETINGS_SPACE_KIND
+from src.core.i18n import normalize_language
 from src.core.i18n_meetings import get_space_description, get_space_name
 from src.domains.meetings.models import Meeting, MeetingIndexState
 from src.domains.meetings.render import minutes_filename_stem, render_all
@@ -178,7 +179,7 @@ async def index_minutes(meeting_id: UUID) -> bool:
             )
             return False
         user = await UserRepository(db).get_by_id(meeting.user_id)
-        language = str(getattr(user, "language", None) or settings.default_language)
+        language = normalize_language(getattr(user, "language", None))
         try:
             report = MeetingReport.model_validate(meeting.report_current)
             space = await ensure_meetings_space(db, meeting.user_id, language)

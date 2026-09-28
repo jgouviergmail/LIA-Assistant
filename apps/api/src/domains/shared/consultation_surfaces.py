@@ -171,6 +171,24 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "mail": "email",
         },
     ),
+    # A condition routine is the person's own standing instruction too:
+    # « tell me when Marie replies ». The system checks it on its own cadence
+    # (every ten minutes by default), day and night (ADR-322), and each check
+    # that OPENS a source is one row — nobody asked at that minute, but nobody
+    # else decided either.
+    # Checked twice a day before ADR-322, those reads were filed nowhere.
+    "routine_condition": ConsultationSurface(
+        key="routine_condition",
+        prefix="routine_condition:",
+        source="scheduled",
+        domains={
+            "tasks": "task",
+            "weather": "weather",
+            "mails": "email",
+            "documents": "document",
+            "agenda": "event",
+        },
+    ),
     # The push-driven wake reads the METADATA of new mail and calendar changes
     # to decide whether waking the person is worth it (ADR-261). Nobody asked;
     # it runs on a scheduler, on their mailbox, and — unlike a sweep that then
@@ -262,6 +280,44 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "recent_exchanges": "automation",
             "tasks": "task",
             **{domain: domain for domain in PHONE_DOMAINS},
+        },
+    ),
+    # The personal radio (ADR-324): the listener STARTED the session, so every
+    # read serves their request — the briefing's authorship. The sections the
+    # Today Briefing carries reuse ITS cache and readers: only a live fetch is a
+    # consultation. One row per source a gathering opened (including the radio's
+    # own readers and the listener's taste), filed under the session's run.
+    "radio": ConsultationSurface(
+        key="radio",
+        prefix="radio:",
+        source="user",
+        domains={
+            "tickets": "ticket",
+            "meetings": "document",
+            # LIA's own past notifications: « I checked what I had told you ».
+            "notifications": "automation",
+            "relations": "contact",
+            "spaces": "document",
+            "bookmarks": "context",
+            "conversation": "context",
+            "interests": "interest",
+            "memories": "context",
+            # The listener's interests searched with their OWN key, their stories filed
+            # as the station's material (ADR-324 decision 40).
+            "brave": "brave",
+            "perplexity": "perplexity",
+            # The journal's « done » and « ahead » parts (decision 41): live reads of the
+            # calendar, the tasks, the sent mail, the reminders that rang and LIA's own
+            # register, plus the day's own sources when their shared cache is cold.
+            "agenda": "event",
+            "tasks": "task",
+            "mails": "email",
+            "reminders": "reminder",
+            "actions": "automation",
+            "weather": "weather",
+            "birthdays": "contact",
+            "health": "health",
+            "commitments": "automation",
         },
     ),
     # Geocoding the address the person is setting: their own action, their own

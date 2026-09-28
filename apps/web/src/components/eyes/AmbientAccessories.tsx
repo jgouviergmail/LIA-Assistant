@@ -2,9 +2,14 @@
 export function AmbientAccessories() {
   return (
     <>
-      <span className="lia-weather lia-weather--rain">
+      <span className="lia-ambient-weather lia-ambient-weather--rain">
         <svg viewBox="0 0 100 100" focusable="false">
-          <g className="lia-weather-fall" stroke="#9ac8da" strokeWidth="3" strokeLinecap="round">
+          <g
+            className="lia-ambient-weather-fall"
+            stroke="#9ac8da"
+            strokeWidth="3"
+            strokeLinecap="round"
+          >
             <path d="M8 2L6 9M28 -5L26 2M78 -3L76 4M94 7L92 14" />
           </g>
           <path
@@ -24,7 +29,7 @@ export function AmbientAccessories() {
           />
         </svg>
       </span>
-      <span className="lia-weather lia-weather--storm">
+      <span className="lia-ambient-weather lia-ambient-weather--storm">
         <svg viewBox="0 0 110 95" focusable="false">
           <path
             d="M18 47C-2 44 2 22 22 22C25 0 55 -2 65 17C88 8 106 28 94 44Q89 49 77 48Z"
@@ -40,7 +45,7 @@ export function AmbientAccessories() {
           />
           <path d="M57 42L43 65H55L45 84L76 56H60L69 42Z" fill="#f3d28a" />
           <g
-            className="lia-weather-fall lia-weather-fall--slant"
+            className="lia-ambient-weather-fall lia-ambient-weather-fall--slant"
             stroke="#9bbcd0"
             strokeWidth="3"
             strokeLinecap="round"
@@ -49,7 +54,7 @@ export function AmbientAccessories() {
           </g>
         </svg>
       </span>
-      <span className="lia-weather lia-weather--cold">
+      <span className="lia-ambient-weather lia-ambient-weather--cold">
         <svg viewBox="0 0 140 55" focusable="false">
           <path d="M14 8Q69 24 123 6L128 23Q72 42 12 25Z" fill="currentColor" />
           <path d="M89 21L119 17L120 47L96 50Z" fill="currentColor" />
@@ -63,7 +68,7 @@ export function AmbientAccessories() {
           <path d="M99 48V54M105 47V53M112 46V52M118 45V51" stroke="currentColor" strokeWidth="3" />
         </svg>
       </span>
-      <span className="lia-weather lia-weather--freezing">
+      <span className="lia-ambient-weather lia-ambient-weather--freezing">
         <svg viewBox="0 0 150 70" focusable="false">
           <path
             d="M25 27Q39 11 58 8L55 17L47 15L43 27L36 24L30 33Z M126 41Q140 58 143 77L134 71L137 63L128 59L133 53Z"
@@ -79,16 +84,16 @@ export function AmbientAccessories() {
             strokeWidth="3"
             strokeLinecap="round"
           />
-          <g className="lia-weather-breath" fill="#d8eef2">
+          <g className="lia-ambient-weather-breath" fill="#d8eef2">
             <ellipse cx="132" cy="101" rx="10" ry="5" />
             <ellipse cx="143" cy="98" rx="7" ry="6" />
           </g>
         </svg>
       </span>
-      <span className="lia-weather lia-weather--snow">
+      <span className="lia-ambient-weather lia-ambient-weather--snow">
         <svg viewBox="0 0 150 100" focusable="false">
           <g
-            className="lia-weather-fall lia-weather-fall--snow"
+            className="lia-ambient-weather-fall lia-ambient-weather-fall--snow"
             fill="none"
             stroke="#d8eff5"
             strokeWidth="2"
@@ -100,9 +105,9 @@ export function AmbientAccessories() {
           </g>
         </svg>
       </span>
-      <span className="lia-weather lia-weather--hot">
+      <span className="lia-ambient-weather lia-ambient-weather--hot">
         <svg viewBox="0 0 65 75" focusable="false">
-          <g className="lia-weather-fan">
+          <g className="lia-ambient-weather-fan">
             <path d="M32 62L2 25Q31 -5 62 25Z" fill="#deb789" />
             <path
               d="M32 62L12 18M32 62L25 11M32 62L40 11M32 62L53 18"
@@ -114,9 +119,9 @@ export function AmbientAccessories() {
           </g>
         </svg>
       </span>
-      <span className="lia-weather lia-weather--heat">
+      <span className="lia-ambient-weather lia-ambient-weather--heat">
         <svg viewBox="0 0 28 45" focusable="false">
-          <g className="lia-weather-sweat">
+          <g className="lia-ambient-weather-sweat">
             <path d="M14 3Q11 15 5 24C-4 43 30 45 23 25Q17 14 14 3Z" fill="#83bac8" />
             <path
               d="M10 22Q4 32 11 35"
@@ -129,7 +134,7 @@ export function AmbientAccessories() {
           </g>
         </svg>
       </span>
-      <span className="lia-weather lia-weather--fog">
+      <span className="lia-ambient-weather lia-ambient-weather--fog">
         <svg viewBox="0 0 160 45" focusable="false">
           <path
             d="M8 14Q39 1 72 15T146 13M22 26Q53 15 88 27T155 24M3 37Q35 27 69 38T136 35"
@@ -140,7 +145,7 @@ export function AmbientAccessories() {
           />
         </svg>
       </span>
-      <span className="lia-weather lia-weather--wind">
+      <span className="lia-ambient-weather lia-ambient-weather--wind">
         <svg viewBox="0 0 65 85" focusable="false">
           <path d="M48 9Q10 10 12 46Q37 60 48 9Z" fill="#9aaf75" />
           <path
@@ -152,7 +157,7 @@ export function AmbientAccessories() {
           />
         </svg>
       </span>
-      <span className="lia-weather lia-weather--night">
+      <span className="lia-ambient-weather lia-ambient-weather--night">
         <svg viewBox="0 0 65 65" focusable="false">
           <path d="M44 8A24 24 0 1 0 54 46A24 24 0 0 1 44 8Z" fill="#d9d9b5" />
           <path d="M48 19L50 25L56 27L50 29L48 35L46 29L40 27L46 25Z" fill="#f2eac8" opacity=".7" />

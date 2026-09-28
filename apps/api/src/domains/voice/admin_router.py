@@ -34,6 +34,7 @@ from src.domains.voice.voices_catalog import (
     VoiceOption,
     get_edge_voices,
     get_elevenlabs_voices,
+    get_gemini_voices,
     get_openai_voices,
 )
 
@@ -46,7 +47,7 @@ router = APIRouter(
 )
 
 
-VoiceProviderName = Literal["edge", "openai", "elevenlabs"]
+VoiceProviderName = Literal["edge", "openai", "elevenlabs", "gemini"]
 
 
 class VoiceOptionPayload(BaseModel):
@@ -87,8 +88,8 @@ async def list_voices(
 ) -> VoicesResponse:
     """Return the voice catalogue used by the Configuration LLM voice picker.
 
-    - ``edge`` and ``openai`` return a curated static list (their voice
-      sets are stable and well-documented).
+    - ``edge``, ``openai`` and ``gemini`` return a curated static list
+      (their voice sets are stable and well-documented).
     - ``elevenlabs`` triggers a live ``GET /v1/voices`` call against the
       configured account (custom + shared voices are account-scoped). The
       ``voices_read`` scope is required on the API key. A 502 is surfaced
@@ -101,6 +102,10 @@ async def list_voices(
     if provider == "openai":
         return VoicesResponse(
             provider="openai", voices=_to_payload(get_openai_voices()), source="static"
+        )
+    if provider == "gemini":
+        return VoicesResponse(
+            provider="gemini", voices=_to_payload(get_gemini_voices()), source="static"
         )
     if provider == "elevenlabs":
         api_key = LLMConfigOverrideCache.get_api_key(ELEVENLABS_PROVIDER_NAME)

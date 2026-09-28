@@ -31,7 +31,7 @@ from typing import Any
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 
-from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n import resolve_language
 from src.core.i18n_hitl import HitlMessages, ReformulationKind
 from src.infrastructure.observability.logging import get_logger
 
@@ -191,12 +191,12 @@ def _build_plan_modifications_from_classifier(
 
 
 def build_edit_reformulated_intent(
-    modifications: list[dict[str, Any]], user_language: str = DEFAULT_LANGUAGE
+    modifications: list[dict[str, Any]], user_language: str | None = None
 ) -> str | None:
     """
     Build a reformulated user intent from EDIT modifications, localized.
 
-    When a user EDITs parameters via HITL (e.g., "recherche plutot jean" instead of "jean"),
+    When a user EDITs parameters via HITL (e.g., "search for jean instead" rather than "jean"),
     we need to update the HumanMessage to match the new parameters. Otherwise, the
     response_node sees the original message but agent_results from modified query,
     causing LLM confusion.
@@ -223,6 +223,7 @@ def build_edit_reformulated_intent(
         >>> build_edit_reformulated_intent(mods, "en")
         'search jean'
     """
+    user_language = resolve_language(user_language)
     for mod in modifications:
         if mod.get("modification_type") != "edit_params":
             continue
@@ -279,24 +280,23 @@ async def resolve_user_language(graph: CompiledStateGraph, runnable_config: Runn
     """Read the user's language from the checkpointed graph state.
 
     Reformulations injected on resume must match the user's language, which was
-    written to the graph state during the original turn. Falls back to the
-    configured default language if the state cannot be read.
+    written to the graph state during the original turn.
 
     Args:
         graph: The compiled graph to read the checkpointed state from.
         runnable_config: RunnableConfig identifying the thread/checkpoint.
 
     Returns:
-        The user's language code (raw; callers normalize as needed).
+        The user's language code, canonical; the declared language when the
+        checkpoint carries none or cannot be read (ADR-323).
     """
     try:
         snapshot = await graph.aget_state(runnable_config, subgraphs=False)
-        return snapshot.values.get("user_language") or DEFAULT_LANGUAGE
+        return resolve_language(snapshot.values.get("user_language"))
     except Exception as exc:
         logger.warning(
             "resolve_user_language_failed",
             error=str(exc),
             error_type=type(exc).__name__,
-            fallback=DEFAULT_LANGUAGE,
         )
-        return DEFAULT_LANGUAGE
+        return resolve_language()

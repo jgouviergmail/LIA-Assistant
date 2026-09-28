@@ -23,6 +23,7 @@ from src.core.exceptions import (
     raise_user_not_found,
 )
 from src.core.field_names import FIELD_IS_ACTIVE
+from src.core.i18n import language_from_header, normalize_language, resolve_language
 from src.core.security import (
     # Removed: create_access_token, create_refresh_token (BFF Pattern migration v0.3.0)
     # OAuth helpers moved to src.core.oauth module (v0.4.0 refactoring)
@@ -125,7 +126,9 @@ class AuthService:
             "full_name": data.full_name,
             "timezone": data.timezone
             or DEFAULT_USER_DISPLAY_TIMEZONE,  # Browser detection or default
-            "language": data.language or settings.default_language,  # Browser detection or default
+            "language": resolve_language(
+                data.language
+            ),  # The browser's, else the request's declared one
             FIELD_IS_ACTIVE: False,  # Requires email verification
             "is_verified": False,
             "memory_enabled": True,  # Long-term memory enabled by default
@@ -287,7 +290,7 @@ class AuthService:
         await self._send_pending_activation_notification(
             user_email=user.email,
             user_name=user.full_name,
-            user_language=user.language or settings.default_language,
+            user_language=user.language,
         )
 
         return UserResponse.model_validate(user)
@@ -603,11 +606,10 @@ class AuthService:
         full_name = userinfo.get("name")
         picture_url = userinfo.get("picture")
 
-        # Detect language from Google's locale field
-        # Google returns locale like "en", "fr", "es", "zh-CN", etc.
-        from src.core.i18n import get_language_from_header
-
-        detected_language = get_language_from_header(userinfo.get("locale", ""))
+        # Google's locale field ("en", "fr", "zh-CN"...) when the instance
+        # offers it (SUPPORTED_LANGUAGES), else the language the sign-in request
+        # declared (ADR-323).
+        detected_language = language_from_header(userinfo.get("locale")) or resolve_language()
 
         # Check if user exists by OAuth provider
         user = await self.repository.get_by_oauth_provider("google", google_id)
@@ -755,7 +757,7 @@ class AuthService:
             await self._send_pending_activation_notification(
                 user_email=user.email,
                 user_name=user.full_name,
-                user_language=user.language or settings.default_language,
+                user_language=user.language,
             )
 
         return user
@@ -773,9 +775,13 @@ class AuthService:
     # ========================================================================
 
     async def _send_verification_email(
-        self, email: str, token: str, user_name: str | None = None, language: str = "fr"
+        self, email: str, token: str, user_name: str | None, language: str
     ) -> None:
-        """Send email verification email via SMTP."""
+        """Send email verification email via SMTP.
+
+        ``language`` is the account's stored language, read here — a known
+        person's e-mail never falls back to the declared language (ADR-323).
+        """
         from src.core.constants import EMAIL_VERIFY_PATH
         from src.infrastructure.email import get_email_service
 
@@ -786,7 +792,7 @@ class AuthService:
             user_email=email,
             user_name=user_name,
             verification_url=verification_url,
-            user_language=language,
+            user_language=normalize_language(language),
         )
 
         if sent:
@@ -804,9 +810,14 @@ class AuthService:
             )
 
     async def _send_password_reset_email(
-        self, email: str, token: str, user_name: str | None = None, language: str = "fr"
+        self, email: str, token: str, user_name: str | None, language: str
     ) -> None:
-        """Send password reset email via SMTP."""
+        """Send password reset email via SMTP.
+
+        ``language`` is the account's stored language, read here — the reset
+        route is unauthenticated, so the declared language is the requester's,
+        never the account's (ADR-323).
+        """
         from src.core.constants import EMAIL_RESET_PASSWORD_PATH
         from src.infrastructure.email import get_email_service
 
@@ -817,7 +828,7 @@ class AuthService:
             user_email=email,
             user_name=user_name,
             reset_url=reset_url,
-            user_language=language,
+            user_language=normalize_language(language),
         )
 
         if sent:
@@ -858,6 +869,7 @@ class AuthService:
                 new_user_email=user_email,
                 new_user_name=user_name,
                 registration_method=registration_method,
+                admin_language=normalize_language(admin.language),
             )
 
             if sent:
@@ -874,16 +886,19 @@ class AuthService:
                 )
 
     async def _send_pending_activation_notification(
-        self, user_email: str, user_name: str | None, user_language: str = "fr"
+        self, user_email: str, user_name: str | None, user_language: str
     ) -> None:
-        """Send notification to user that their account is pending admin activation."""
+        """Send notification to user that their account is pending admin activation.
+
+        ``user_language`` is the account's language, read here (ADR-323).
+        """
         from src.infrastructure.email import get_email_service
 
         email_service = get_email_service()
         sent = await email_service.send_pending_activation_notification(
             user_email=user_email,
             user_name=user_name,
-            user_language=user_language,
+            user_language=normalize_language(user_language),
         )
 
         if sent:

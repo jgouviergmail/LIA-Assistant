@@ -5,18 +5,18 @@ Resolves implicit memory-based references (relational, temporal, contextual)
 to concrete entity names BEFORE the planner generates the execution plan.
 
 This service is complementary to reference_resolver.py which handles
-contextual references (ordinals, demonstratives like "le premier", "celui-ci").
+contextual references (ordinals, demonstratives like "the first", "this one").
 
 Use Cases:
-    1. "recherche l'adresse de mon frère"
-       → memory contains "J'ai un frère... jean dupond"
-       → resolved_query: "recherche l'adresse de jean dupond"
-       → mappings: {"mon frère": "jean dupond"}
+    1. "find my brother's address"
+       → memory contains "I have a brother... jean dupond"
+       → resolved_query: "find jean dupond's address"
+       → mappings: {"my brother": "jean dupond"}
 
-    2. "envoie un email à ma femme"
-       → memory contains "Mon épouse s'appelle Corinne"
-       → resolved_query: "envoie un email à Corinne"
-       → mappings: {"ma femme": "Corinne"}
+    2. "send an e-mail to my wife"
+       → memory contains "My wife's name is Corinne"
+       → resolved_query: "send an e-mail to Corinne"
+       → mappings: {"my wife": "Corinne"}
 
 Architecture:
     Router ──memory_facts──► MemoryReferenceResolutionService
@@ -31,7 +31,7 @@ Key Features:
     - LLM-based extraction (robust, multilingual)
     - Fail-safe: returns original query if no resolution
     - Timeout protection: 500ms max, fallback to original
-    - Stores mappings for natural responses ("ton frère (jean)")
+    - Stores mappings for natural responses ("your brother (jean)")
 
 Configuration:
     - NOTE: Memory reference resolution is always enabled
@@ -71,13 +71,13 @@ class ResolvedReferences:
         original_query: User's original query (unchanged)
         enriched_query: Query with references replaced by resolved names
         mappings: Dict mapping references to resolved names
-                  Example: {"mon frère": "jean dupond"}
+                  Example: {"my brother": "jean dupond"}
 
     Usage:
         >>> result = ResolvedReferences(
-        ...     original_query="recherche l'adresse de mon frère",
-        ...     enriched_query="recherche l'adresse de jean dupond",
-        ...     mappings={"mon frère": "jean dupond"},
+        ...     original_query="find my brother's address",
+        ...     enriched_query="find jean dupond's address",
+        ...     mappings={"my brother": "jean dupond"},
         ... )
         >>> # Planner uses enriched_query
         >>> # Response node uses mappings for natural phrasing
@@ -90,29 +90,6 @@ class ResolvedReferences:
     def has_resolutions(self) -> bool:
         """Check if any references were resolved."""
         return len(self.mappings) > 0
-
-    def format_for_response(self, reference: str) -> str:
-        """
-        Format a reference for natural response.
-
-        Example:
-            >>> result.format_for_response("mon frère")
-            "ton frère (jean dupond)"
-
-        Args:
-            reference: Original reference text
-
-        Returns:
-            Natural phrasing with resolved name in parentheses
-        """
-        if reference in self.mappings:
-            resolved = self.mappings[reference]
-            # Transform possessive: "mon" → "ton", "ma" → "ta"
-            display_ref = (
-                reference.replace("mon ", "ton ").replace("ma ", "ta ").replace("mes ", "tes ")
-            )
-            return f"{display_ref} ({resolved})"
-        return reference
 
 
 # =============================================================================
@@ -132,14 +109,13 @@ class MemoryReferenceResolutionService:
     Example:
         >>> service = MemoryReferenceResolutionService()
         >>> result = await service.resolve_pre_planner(
-        ...     query="recherche l'adresse de mon frère",
-        ...     memory_facts="J'ai un frère né en 1981 qui s'appelle jean dupond",
-        ...     user_language="fr",
+        ...     query="find my brother's address",
+        ...     memory_facts="I have a brother born in 1981 named jean dupond",
         ... )
         >>> result.enriched_query
-        "recherche l'adresse de jean dupond"
+        "find jean dupond's address"
         >>> result.mappings
-        {"mon frère": "jean dupond"}
+        {"my brother": "jean dupond"}
     """
 
     def __init__(self) -> None:
@@ -150,19 +126,17 @@ class MemoryReferenceResolutionService:
         self,
         query: str,
         memory_facts: str | None,
-        user_language: str = "fr",
         config: RunnableConfig | None = None,
     ) -> ResolvedReferences:
         """
         Resolve memory-based references before planner execution.
 
         Uses a single LLM call to detect AND resolve personal references
-        (e.g., "my wife", "mon frère") using memory facts. No hardcoded patterns.
+        (e.g., "my wife", "my brother") using memory facts. No hardcoded patterns.
 
         Args:
             query: User's original query (any language)
             memory_facts: Formatted memory facts from semantic search (or None)
-            user_language: User's language code (unused, LLM handles multilingual)
             config: RunnableConfig from graph (for token tracking propagation)
 
         Returns:
@@ -325,7 +299,7 @@ class MemoryReferenceResolutionService:
         Single LLM call to detect AND resolve all personal references.
 
         Uses a JSON-output prompt that instructs the LLM to:
-        1. Detect personal references (my wife, mon frère, etc.)
+        1. Detect personal references (my wife, my brother, etc.)
         2. Resolve them using memory facts
         3. Return both the enriched query and mappings
 

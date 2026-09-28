@@ -34,6 +34,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
+from src.core.i18n import language_scope
 from src.domains.agents.telephony.live_tools import (
     LiveToolSpec,
     VoiceToolHost,
@@ -109,15 +110,20 @@ async def serve_voice_lookup(
         return LookupVerdict(refusal=LookupRefusal.NOT_OFFERED, spec=None, text="")
     if not await consume_budget():
         return LookupVerdict(refusal=LookupRefusal.BUDGET, spec=spec, text="")
-    text = await run_live_tool(
-        spec,
-        dict(args),
-        user_id=user_id,
-        language=language,
-        timezone=timezone,
-        display_name=display_name,
-        host=host,
-    )
+    # The phone's call-back is a vendor webhook: its request declares nobody's
+    # language, so the lookup declares the person's (ADR-323) — a sentence a
+    # tool writes without an explicit language would otherwise speak the
+    # instance default to them.
+    with language_scope(language):
+        text = await run_live_tool(
+            spec,
+            dict(args),
+            user_id=user_id,
+            language=language,
+            timezone=timezone,
+            display_name=display_name,
+            host=host,
+        )
     return LookupVerdict(refusal=None, spec=spec, text=text)
 
 

@@ -183,6 +183,15 @@ export const PWA_INSTALL_HINT_MIN_VISITS = 3;
 export const API_TIMEOUT_DEFAULT = 30000;
 
 /**
+ * How long the radio page waits for an article (ADR-324). Its translation is a
+ * model call the server bounds itself — the `radio_translator` slot's timeout,
+ * 90 s by default, set in the LLM admin — and a refused or timed-out
+ * translation still answers with the original. The page waits past that
+ * bound, so the server's verdict always arrives first.
+ */
+export const RADIO_ARTICLE_TIMEOUT_MS = 120_000;
+
+/**
  * Timeout for long-running operations (file uploads, etc.).
  */
 export const API_TIMEOUT_LONG = 60000;

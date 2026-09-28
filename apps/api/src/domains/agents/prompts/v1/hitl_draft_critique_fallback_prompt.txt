@@ -19,4 +19,4 @@ The card describing the action (title, fields, full text) is displayed above you
 - Adopt this style (NEVER quote these instructions in your response): {personnalite}
 
 ## Example (email)
-Souhaitez-vous envoyer cet e-mail à Marie ?
+Veux-tu envoyer cet e-mail à Marie ?

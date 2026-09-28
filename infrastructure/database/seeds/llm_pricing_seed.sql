@@ -49,7 +49,6 @@ INSERT INTO llm_models (
 ) VALUES
     ('openai', 'chatgpt-image-latest', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'image', NULL, NULL, false),
     ('openai', 'computer-use-preview', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
-    ('openai', 'embedding-001', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'embedding', NULL, NULL, true),
     ('openai', 'gpt-4.1', 1047576, 32768, true, true, true, true, true, false, true, true, true, true, 'chat', NULL, NULL, true),
     ('openai', 'gpt-4.1-mini', 1047576, 16384, true, true, true, true, true, false, true, true, true, true, 'chat', NULL, NULL, true),
     ('openai', 'gpt-4.1-nano', 1047576, 16384, true, true, true, true, true, false, true, true, true, true, 'chat', NULL, NULL, true),
@@ -116,7 +115,6 @@ INSERT INTO llm_models (
     ('openai', 'o3-pro', 8192, 4096, true, true, false, true, false, true, false, false, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'openai_o_series', true),
     ('openai', 'o4-mini', 200000, 100000, true, true, true, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'openai_o_series', true),
     ('openai', 'o4-mini-deep-research', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'chat', NULL, NULL, true),
-    ('openai', 'text-embedding-004', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'embedding', NULL, NULL, true),
     ('openai', 'text-embedding-3-large', 8192, 0, false, false, false, false, false, false, false, false, false, false, 'embedding', NULL, NULL, true),
     ('openai', 'text-embedding-3-small', 8192, 0, false, false, false, false, false, false, false, false, false, false, 'embedding', NULL, NULL, true),
     ('openai', 'text-embedding-ada-002', 8192, 0, false, false, false, false, false, false, false, false, false, false, 'embedding', NULL, NULL, true),
@@ -166,18 +164,28 @@ INSERT INTO llm_models (
     ('ollama', 'llama3.2', 131072, 4096, true, true, false, true, true, false, true, true, true, true, 'chat', NULL, NULL, true),
     ('ollama', 'mistral', 32768, 4096, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
     ('ollama', 'qwen2.5', 131072, 8192, true, true, false, true, false, false, true, true, false, true, 'chat', NULL, NULL, true),
-    ('gemini', 'gemini-2.0-flash', 1000000, 8192, true, true, false, true, true, false, true, true, false, false, 'chat', NULL, NULL, true),
-    ('gemini', 'gemini-2.0-flash-001', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, true),
-    ('gemini', 'gemini-2.0-flash-exp', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, true),
-    ('gemini', 'gemini-2.0-flash-lite', 1000000, 8192, true, true, false, true, true, false, true, true, false, false, 'chat', NULL, NULL, true),
-    ('gemini', 'gemini-2.0-flash-lite-001', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, true),
-    ('gemini', 'gemini-2.0-flash-live-001', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, true),
+    -- An inactive Gemini row is a model the Gemini API no longer serves: absent
+    -- from its own model list (GET /v1beta/models, 2026-09-26) and, but for
+    -- the experimental gemini-2.0-flash-exp, past the shutdown its deprecations
+    -- page announced. Migration 70fd39bf9e8d retires them on upgraded instances.
+    ('gemini', 'gemini-2.0-flash', 1000000, 8192, true, true, false, true, true, false, true, true, false, false, 'chat', NULL, NULL, false),
+    ('gemini', 'gemini-2.0-flash-001', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, false),
+    ('gemini', 'gemini-2.0-flash-exp', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, false),
+    ('gemini', 'gemini-2.0-flash-lite', 1000000, 8192, true, true, false, true, true, false, true, true, false, false, 'chat', NULL, NULL, false),
+    ('gemini', 'gemini-2.0-flash-lite-001', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, false),
+    ('gemini', 'gemini-2.0-flash-live-001', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, false),
     ('gemini', 'gemini-2.0-flash-preview-image-generation', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'image', NULL, NULL, false),
-    ('gemini', 'gemini-2.5-flash', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', NULL, 'gemini_2_5', true),
+    -- The rows of the sixteen models the Gemini pricing page lists carry the
+    -- limits and capabilities their model page states
+    -- (ai.google.dev/gemini-api/docs/models/<name>, read 2026-09-26) and the
+    -- levels the thinking guide lists; migration 70fd39bf9e8d carries them to
+    -- upgraded instances (a guard holds both equal). The other Gemini rows were
+    -- not read against a page.
+    ('gemini', 'gemini-2.5-flash', 1048576, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'gemini_2_5', true),
     ('gemini', 'gemini-2.5-flash-image', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'image', NULL, NULL, false),
     ('gemini', 'gemini-2.5-flash-image-preview', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'image', NULL, NULL, false),
-    ('gemini', 'gemini-2.5-flash-lite', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', NULL, 'gemini_2_5_lite', true),
-    ('gemini', 'gemini-2.5-flash-lite-preview-09-2025', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, true),
+    ('gemini', 'gemini-2.5-flash-lite', 1048576, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'gemini_2_5_lite', true),
+    ('gemini', 'gemini-2.5-flash-lite-preview-09-2025', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, false),
     -- The live (speech-to-speech) models, ADR-300 wave 3: kind `realtime`, required
     -- by no slot, so a live model is never offered to a chat or STT slot. The
     -- native-audio name used to carry `audio`, which offered a bidi model to the
@@ -185,28 +193,43 @@ INSERT INTO llm_models (
     ('gemini', 'gemini-2.5-flash-native-audio-latest', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('gemini', 'gemini-2.5-flash-native-audio-preview-09-2025', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('gemini', 'gemini-2.5-flash-native-audio-preview-12-2025', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
-    ('gemini', 'gemini-2.5-flash-preview-09-2025', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, true),
-    ('gemini', 'gemini-2.5-flash-preview-tts', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
-    ('gemini', 'gemini-2.5-pro', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', NULL, 'gemini_2_5_pro', true),
-    ('gemini', 'gemini-2.5-pro-preview-tts', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('gemini', 'gemini-2.5-flash-preview-09-2025', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, false),
+    ('gemini', 'gemini-2.5-flash-preview-tts', 8192, 16384, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('gemini', 'gemini-2.5-pro', 1048576, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'gemini_2_5_pro', true),
+    ('gemini', 'gemini-2.5-pro-preview-tts', 8192, 16384, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('gemini', 'gemini-3.1-flash-lite-preview', 8192, 4096, true, true, false, true, false, true, true, true, false, false, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, 'gemini_3_x_flash', true),
     ('gemini', 'gemini-3.1-flash-live-preview', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
-    ('gemini', 'gemini-3.1-pro-preview', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'gemini_3_x_pro', true),
+    ('gemini', 'gemini-3.1-pro-preview', 1048576, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'gemini_3_x_pro', true),
     ('gemini', 'gemini-3.8-live', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('gemini', 'gemini-3.8-live-extended-thinking', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('gemini', 'gemini-3.5-flash', 1048576, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, NULL, true),
-    ('gemini', 'gemini-3.5-flash-lite', 1000000, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', NULL, NULL, true),
-    ('gemini', 'gemini-3.6-flash', 1000000, 64000, true, true, false, true, true, true, true, true, true, true, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, NULL, true),
-    ('gemini', 'gemini-3.7-flash', 1000000, 64000, true, true, false, true, true, true, true, true, true, true, 'chat', '["low", "medium", "high"]'::jsonb, NULL, true),
+    ('gemini', 'gemini-3.5-flash-lite', 1048576, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, NULL, true),
+    ('gemini', 'gemini-3.6-flash', 1048576, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, NULL, true),
+    ('gemini', 'gemini-3.7-flash', 1048576, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', '["low", "medium", "high"]'::jsonb, NULL, true),
     -- gemini-3.8-flash, from ai.google.dev/gemini-api/docs/models/gemini-3.8-flash
     -- (2026-09-23): input 1 048 576 / output 65 536 tokens, text + image + video
     -- + audio + PDF in, function calling and structured outputs; thinking
     -- levels low/medium/high only — `minimal` "returns an error", so the
     -- ladder narrowing below is what keeps a slot from sending it.
     ('gemini', 'gemini-3.8-flash', 1048576, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', '["low", "medium", "high"]'::jsonb, NULL, true),
-    ('gemini', 'gemini-3-flash-preview', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, 'gemini_3_x_flash', true),
+    -- Four Gemini models added 2026-09-26, each read on its page under
+    -- ai.google.dev/gemini-api/docs/models/<name>. gemini-3.1-flash-lite (the
+    -- stable release of the preview above): input 1 048 576 / output 65 536,
+    -- text + image + video + audio + PDF in, function calling, structured
+    -- outputs, thinking; no penalty, like every Gemini 3.1 row. The three
+    -- speech models: text in, audio out, input 8 192 / output 16 384, no tool,
+    -- no structured output, no thinking.
+    ('gemini', 'gemini-3.1-flash-lite', 1048576, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, NULL, true),
+    ('gemini', 'gemini-3.8-flash-tts', 8192, 16384, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('gemini', 'gemini-3.8-flash-lite-tts', 8192, 16384, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('gemini', 'gemini-3.1-flash-tts-preview', 8192, 16384, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('gemini', 'gemini-3-flash-preview', 1048576, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, 'gemini_3_x_flash', true),
     ('gemini', 'gemini-3-pro-image-preview', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'image', NULL, NULL, false),
-    ('gemini', 'gemini-3-pro-preview', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'gemini_3_x_pro', true),
+    ('gemini', 'gemini-3-pro-preview', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'gemini_3_x_pro', false),
+    -- Google's first embedding models, once filed under openai; shut down, and
+    -- absent from the Gemini API's own model list (2026-09-26).
+    ('gemini', 'embedding-001', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'embedding', NULL, NULL, false),
+    ('gemini', 'text-embedding-004', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'embedding', NULL, NULL, false),
     ('gemini', 'gemini-embedding-001', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'embedding', NULL, NULL, true),
     ('qwen', 'qwen3.5-flash', 1000000, 65536, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_5', true),
     ('qwen', 'qwen3.5-plus', 1000000, 65536, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_5', true),
@@ -308,24 +331,24 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('eleven_flash_v2_5', 50.000000, NULL, 0.000000, 'per_1m_tokens', '2026-05-07T23:30:05.533720+00:00', true),
     ('eleven_multilingual_v2', 100.000000, NULL, 0.000000, 'per_1m_tokens', '2026-05-07T23:21:36.066849+00:00', true),
     ('eleven_turbo_v2_5', 50.000000, NULL, 0.000000, 'per_1m_tokens', '2026-05-07T23:22:01.375346+00:00', true),
-    ('embedding-001', 0.150000, NULL, 0.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.0-flash', 0.100000, 0.025000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.0-flash-001', 0.100000, 0.025000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.0-flash-exp', 0.100000, 0.025000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.0-flash-lite', 0.075000, NULL, 0.300000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.0-flash-lite-001', 0.075000, NULL, 0.300000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.0-flash-live-001', 0.350000, NULL, 1.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('embedding-001', 0.150000, NULL, 0.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('gemini-2.0-flash', 0.100000, 0.025000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('gemini-2.0-flash-001', 0.100000, 0.025000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('gemini-2.0-flash-exp', 0.100000, 0.025000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('gemini-2.0-flash-lite', 0.075000, NULL, 0.300000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('gemini-2.0-flash-lite-001', 0.075000, NULL, 0.300000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('gemini-2.0-flash-live-001', 0.350000, NULL, 1.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-2.0-flash-preview-image-generation', 0.100000, 0.025000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-2.5-flash', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gemini-2.5-flash-image', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-2.5-flash-image-preview', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-2.5-flash-lite', 0.100000, 0.010000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.5-flash-lite-preview-09-2025', 0.100000, 0.010000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('gemini-2.5-flash-lite-preview-09-2025', 0.100000, 0.010000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-2.5-flash-native-audio-latest', 0.500000, NULL, 2.000000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
     ('gemini-2.5-flash-native-audio-preview-09-2025', 1.000000, NULL, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-2.5-flash-native-audio-preview-09-2025', 0.500000, NULL, 2.000000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
     ('gemini-2.5-flash-native-audio-preview-12-2025', 0.500000, NULL, 2.000000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
-    ('gemini-2.5-flash-preview-09-2025', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('gemini-2.5-flash-preview-09-2025', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-2.5-flash-preview-tts', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-2.5-flash-preview-tts', 0.500000, NULL, 10.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gemini-2.5-pro', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
@@ -352,9 +375,19 @@ INSERT INTO _lia_pricing_bundle VALUES
     -- the future would retire this one at once — the tariff must be edited
     -- on that date.
     ('gemini-3.8-flash', 0.750000, 0.075000, 3.750000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    -- Standard paid tier, read 2026-09-26 on ai.google.dev/gemini-api/docs/pricing
+    -- (migration 7b3e9d1f5c2a carries these four to upgraded instances; a guard
+    -- test holds both equal). A speech model bills TEXT in on the input axis and
+    -- AUDIO out on the output axis, as the vendor's usage report counts them.
+    -- The two 3.8 speech models double on 2027-01-01 (1.00 in, 0.25 cached,
+    -- 18.00 / 12.00 out) and, like gemini-3.8-flash above, nothing switches them.
+    ('gemini-3.1-flash-lite', 0.250000, 0.025000, 1.500000, 'per_1m_tokens', '2026-09-26T00:00:00+00:00', true),
+    ('gemini-3.8-flash-tts', 0.500000, 0.125000, 9.000000, 'per_1m_tokens', '2026-09-26T00:00:00+00:00', true),
+    ('gemini-3.8-flash-lite-tts', 0.500000, 0.125000, 6.000000, 'per_1m_tokens', '2026-09-26T00:00:00+00:00', true),
+    ('gemini-3.1-flash-tts-preview', 1.000000, NULL, 20.000000, 'per_1m_tokens', '2026-09-26T00:00:00+00:00', true),
     ('gemini-3-flash-preview', 0.500000, 0.050000, 3.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gemini-3-pro-image-preview', 2.000000, 0.200000, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
-    ('gemini-3-pro-preview', 2.000000, 0.200000, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('gemini-3-pro-preview', 2.000000, 0.200000, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-embedding-001', 0.150000, NULL, 0.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gpt-4.1', 2.000000, 0.500000, 8.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gpt-4.1-mini', 0.400000, 0.100000, 1.600000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
@@ -471,7 +504,7 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('sonar-pro', 3.000000, NULL, 15.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('sonar-reasoning', 1.000000, NULL, 5.000000, 'per_1m_tokens', '2025-12-11T00:21:29.172878+00:00', false),
     ('sonar-reasoning-pro', 2.000000, NULL, 8.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('text-embedding-004', 0.150000, NULL, 0.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('text-embedding-004', 0.150000, NULL, 0.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('text-embedding-3-large', 0.130000, NULL, 0.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('text-embedding-3-small', 0.020000, NULL, 0.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('text-embedding-ada-002', 0.100000, NULL, 0.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
@@ -621,5 +654,58 @@ WHERE m.id = p.model_id AND p.is_active AND m.model_name IN (
     'gemini-2.5-flash-native-audio-preview-12-2025',
     'gemini-2.5-flash-native-audio-latest'
 );
+
+-- ============================================================================
+-- Shutdown dates (2026-09-26) — what Google's deprecations page announces
+-- (ai.google.dev/gemini-api/docs/deprecations), NULL where it lists a model
+-- with no shutdown announced. The vendor outranks the registries that copied
+-- it: LiteLLM had dated the three Gemini 2.5 chat models 2026-10-20, which
+-- Google serves until further notice. Absolute values, idempotent; migration
+-- 70fd39bf9e8d writes the same, and a guard test holds the two equal.
+-- ============================================================================
+UPDATE llm_models m
+SET deprecation_date = CAST(v.shutdown AS date)
+FROM (VALUES
+    ('gemini-3.8-flash', NULL),
+    ('gemini-3.8-flash-tts', NULL),
+    ('gemini-3.8-flash-lite-tts', NULL),
+    ('gemini-3.8-live', NULL),
+    ('gemini-3.8-live-extended-thinking', NULL),
+    ('gemini-3.7-flash', NULL),
+    ('gemini-3.6-flash', NULL),
+    ('gemini-3.5-flash', NULL),
+    ('gemini-3.5-flash-lite', NULL),
+    ('gemini-3.1-flash-lite', '2027-05-07'),
+    ('gemini-3.1-flash-lite-preview', '2026-05-25'),
+    ('gemini-3.1-flash-tts-preview', NULL),
+    ('gemini-3.1-flash-live-preview', NULL),
+    ('gemini-3.1-pro-preview', NULL),
+    ('gemini-3-flash-preview', NULL),
+    ('gemini-3-pro-preview', '2026-03-09'),
+    ('gemini-3-pro-image-preview', '2026-06-25'),
+    ('gemini-2.5-pro', NULL),
+    ('gemini-2.5-pro-preview-tts', NULL),
+    ('gemini-2.5-flash', NULL),
+    ('gemini-2.5-flash-preview-tts', NULL),
+    ('gemini-2.5-flash-preview-09-2025', '2026-02-17'),
+    ('gemini-2.5-flash-image', '2026-10-02'),
+    ('gemini-2.5-flash-image-preview', '2026-01-15'),
+    ('gemini-2.5-flash-lite', NULL),
+    ('gemini-2.5-flash-lite-preview-09-2025', '2026-03-31'),
+    ('gemini-2.5-flash-native-audio-preview-12-2025', NULL),
+    ('gemini-2.0-flash', '2026-06-01'),
+    ('gemini-2.0-flash-001', '2026-06-01'),
+    ('gemini-2.0-flash-lite', '2026-06-01'),
+    ('gemini-2.0-flash-lite-001', '2026-06-01'),
+    ('gemini-2.0-flash-live-001', '2025-12-09'),
+    ('gemini-2.0-flash-preview-image-generation', '2025-11-14'),
+    ('gemini-embedding-2', NULL),
+    ('gemini-embedding-2-preview', '2026-08-10'),
+    ('gemini-embedding-001', '2028-05-14'),
+    ('text-embedding-004', '2026-01-14'),
+    ('embedding-001', '2025-10-30')
+) AS v(model_name, shutdown)
+WHERE m.model_name = v.model_name
+  AND m.deprecation_date IS DISTINCT FROM CAST(v.shutdown AS date);
 
 SET session_replication_role = DEFAULT;

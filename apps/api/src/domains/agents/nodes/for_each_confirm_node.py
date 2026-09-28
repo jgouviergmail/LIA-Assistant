@@ -34,6 +34,7 @@ from langgraph.types import interrupt
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import (
     HITL_DECISION_APPROVE,
     HITL_DECISION_EDIT,
@@ -143,7 +144,7 @@ async def for_each_confirm_node(
             }
         ],
         "generate_question_streaming": True,
-        "user_language": state.get("user_language", "fr"),
+        "user_language": resolve_language(state.get("user_language")),
         "user_timezone": state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
     }
 
@@ -204,7 +205,6 @@ async def for_each_confirm_node(
             indices_to_keep = await filter_service.filter(
                 item_previews=item_previews,
                 exclude_criteria=exclude_criteria,
-                user_language=state.get("user_language", "fr"),
                 run_id=run_id,
             )
         except Exception as filter_error:

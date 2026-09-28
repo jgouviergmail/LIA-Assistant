@@ -1,17 +1,13 @@
 """
 Password validation utilities.
 
-Centralized password policy enforcement for non-OAuth accounts.
-This module provides validation functions and error messages for password requirements.
-
-Password Policy:
-- Minimum 10 characters
-- At least 2 uppercase letters
-- At least 2 special characters
-- At least 2 digits
+Centralized password policy enforcement for non-OAuth accounts: a minimum and a
+maximum length, and minimum counts of uppercase letters, digits and special
+characters — the ``PASSWORD_*`` constants of ``core/constants.py`` are the
+policy. A violation is reported in the declared language (the request's), one
+sentence per rule broken.
 """
 
-import re
 from dataclasses import dataclass
 
 from src.core.constants import (
@@ -22,6 +18,7 @@ from src.core.constants import (
     PASSWORD_MIN_UPPERCASE,
     PASSWORD_SPECIAL_CHARS,
 )
+from src.core.i18n import _
 
 
 @dataclass
@@ -45,35 +42,45 @@ def validate_password(password: str) -> PasswordValidationResult:
         password: The password to validate
 
     Returns:
-        PasswordValidationResult with validation status and any errors
+        PasswordValidationResult with validation status and any errors, each
+        written in the declared language
     """
     errors: list[str] = []
 
-    # Check minimum length
     if len(password) < PASSWORD_MIN_LENGTH:
-        errors.append(f"Le mot de passe doit contenir au moins {PASSWORD_MIN_LENGTH} caractères.")
+        errors.append(
+            _("Password must be at least {count} characters long.").format(
+                count=PASSWORD_MIN_LENGTH
+            )
+        )
 
-    # Check maximum length
     if len(password) > PASSWORD_MAX_LENGTH:
-        errors.append(f"Le mot de passe ne peut pas dépasser {PASSWORD_MAX_LENGTH} caractères.")
+        errors.append(
+            _("Password cannot be longer than {count} characters.").format(
+                count=PASSWORD_MAX_LENGTH
+            )
+        )
 
-    # Count uppercase letters
     uppercase_count = sum(1 for c in password if c.isupper())
     if uppercase_count < PASSWORD_MIN_UPPERCASE:
         errors.append(
-            f"Le mot de passe doit contenir au moins {PASSWORD_MIN_UPPERCASE} lettres majuscules."
+            _("Password must contain at least {count} uppercase letters.").format(
+                count=PASSWORD_MIN_UPPERCASE
+            )
         )
 
-    # Count digits
     digit_count = sum(1 for c in password if c.isdigit())
     if digit_count < PASSWORD_MIN_DIGITS:
-        errors.append(f"Le mot de passe doit contenir au moins {PASSWORD_MIN_DIGITS} chiffres.")
+        errors.append(
+            _("Password must contain at least {count} digits.").format(count=PASSWORD_MIN_DIGITS)
+        )
 
-    # Count special characters
     special_count = sum(1 for c in password if c in PASSWORD_SPECIAL_CHARS)
     if special_count < PASSWORD_MIN_SPECIAL:
         errors.append(
-            f"Le mot de passe doit contenir au moins {PASSWORD_MIN_SPECIAL} caractères spéciaux ({PASSWORD_SPECIAL_CHARS[:10]}...)."
+            _("Password must contain at least {count} special characters ({examples}...).").format(
+                count=PASSWORD_MIN_SPECIAL, examples=PASSWORD_SPECIAL_CHARS[:10]
+            )
         )
 
     return PasswordValidationResult(
@@ -101,27 +108,3 @@ def validate_password_strict(password: str) -> str:
     if not result.is_valid:
         raise ValueError(result.error_message)
     return password
-
-
-def get_password_requirements_message() -> str:
-    """
-    Get a human-readable message describing password requirements.
-
-    Returns:
-        Formatted string with password requirements
-    """
-    return (
-        f"Le mot de passe doit contenir au moins {PASSWORD_MIN_LENGTH} caractères, "
-        f"dont {PASSWORD_MIN_UPPERCASE} majuscules, "
-        f"{PASSWORD_MIN_DIGITS} chiffres et "
-        f"{PASSWORD_MIN_SPECIAL} caractères spéciaux."
-    )
-
-
-# Regex pattern for client-side validation (JavaScript compatible)
-PASSWORD_REGEX_PATTERN = (
-    f"^(?=(?:.*[A-Z]){{{PASSWORD_MIN_UPPERCASE},}})"  # At least N uppercase
-    f"(?=(?:.*[0-9]){{{PASSWORD_MIN_DIGITS},}})"  # At least N digits
-    f"(?=(?:.*[{re.escape(PASSWORD_SPECIAL_CHARS)}]){{{PASSWORD_MIN_SPECIAL},}})"  # At least N special
-    f".{{{PASSWORD_MIN_LENGTH},{PASSWORD_MAX_LENGTH}}}$"  # Length constraint
-)

@@ -33,7 +33,7 @@ from src.core.field_names import (
     FIELD_TOTAL_TOKENS_IN,
     FIELD_TOTAL_TOKENS_OUT,
 )
-from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+from src.core.i18n import resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.domains.conversations.models import (
     Conversation,
@@ -41,6 +41,11 @@ from src.domains.conversations.models import (
     ConversationMessage,
 )
 from src.domains.conversations.repository import ConversationRepository
+from src.domains.conversations.sync_signal import (
+    CONVERSATION_RESET,
+    arm_after_archive,
+    arm_conversation_signal,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -72,9 +77,9 @@ class ConversationService:
             user_id: User UUID
             db: Database session
             language: Raw or canonical language code, used only when a title has
-                to be generated (creation / reactivation). ``None`` keeps the
-                historical French default — pass it whenever the caller has a
-                user context.
+                to be generated (creation / reactivation). ``None`` writes it in
+                the declared language (ADR-323) — pass it whenever the caller has
+                a user context.
 
         Returns:
             Active conversation (deleted_at IS NULL)
@@ -207,7 +212,8 @@ class ConversationService:
         - Preserves the conversation record (avoids id=user_id duplicate key)
         - Resets stats to 0 and generates a fresh localized title
         - Purges all conversation_messages
-        - Purges ALL attachments of the USER (AI-generated images included)
+        - Purges the user's UPLOADED attachments; a file LIA generated belongs
+          to the person and keeps its own deadline (ADR-279)
         - Purges the per-conversation token summaries
         - Purges the LangGraph checkpoints EXPLICITLY via ``adelete_thread()``
           (the thread id is the conversation id, which survives the reset — so
@@ -221,13 +227,12 @@ class ConversationService:
             user_id: User UUID
             db: Database session
             language: Raw or canonical language code used for the fresh title.
-                ``None`` keeps the historical French default.
+                ``None`` writes it in the declared language (ADR-323).
 
         Note:
             - Conversation record persists (id stays valid)
             - All messages are deleted (cascade from conversation_messages)
             - Audit log created for compliance and debugging
-            - LangGraph checkpoints handled automatically via thread_id
         """
         # Get active conversation
         conversation = await self.get_active_conversation(user_id, db)
@@ -285,6 +290,10 @@ class ConversationService:
         # Delete all messages using repository
         repo = ConversationRepository(db)
         await repo.delete_messages_for_conversation(conversation.id)
+        # The person's other tabs empty theirs once this commits (ADR-320).
+        arm_conversation_signal(
+            db, user_id=user_id, conversation_id=conversation.id, kind=CONVERSATION_RESET
+        )
 
         # Delete the user's UPLOADS (evolution F4 — File Attachments).
         #
@@ -706,6 +715,12 @@ class ConversationService:
 
             conversation_message_archived_total.labels(role=role).inc()
 
+        # Every path that writes a message comes through here — the chat, a
+        # Telegram turn, a voice relay, a routine, a reminder, another device —
+        # so the person's open tabs are told HERE, once the caller commits
+        # (ADR-320).
+        await arm_after_archive(db, message)
+
         # Note: Caller is responsible for commit to allow batching
 
         return message
@@ -778,8 +793,8 @@ class ConversationService:
         Example:
             >>> await service.update_last_user_message(
             ...     conversation_id,
-            ...     "recherche jean",
-            ...     {"hitl_edit": True, "original_content": "recherche jean"}
+            ...     "search jean",
+            ...     {"hitl_edit": True, "original_content": "search jean"}
             ... )
         """
         repo = ConversationRepository(db)
@@ -1038,13 +1053,11 @@ class ConversationService:
                 msg_data[FIELD_TOKENS_OUT] = summary.total_completion_tokens
                 msg_data[FIELD_TOKENS_CACHE] = summary.total_cached_tokens
                 # Historical cost from message_token_summary (stored at execution
-                # time): the row's billed total (model + Maps Platform + images).
-                # TTS cost lives per-message on conversation_messages (silo,
-                # mirror STT). Add it to the displayed cost so the bubble
-                # badge surfaces a single grand total.
-                tts_cost = float(msg.tts_cost_eur) if msg.tts_cost_eur is not None else 0.0
-                grand_total = float(summary.billed_cost_eur) + tts_cost
-                msg_data[FIELD_COST_EUR] = grand_total if grand_total else None
+                # time): the row's billed total — model, Maps Platform, images
+                # and paid speech (ADR-324). The bubble keeps its own TTS share
+                # for the 🔊 badge; adding it here would count it twice.
+                billed = float(summary.billed_cost_eur)
+                msg_data[FIELD_COST_EUR] = billed if billed else None
                 # Google API tracking
                 msg_data[FIELD_GOOGLE_API_REQUESTS] = summary.google_api_requests
 
@@ -1189,15 +1202,10 @@ class ConversationService:
                 msg_data[FIELD_TOKENS_IN] = token_dict["prompt_tokens"]
                 msg_data[FIELD_TOKENS_OUT] = token_dict["completion_tokens"]
                 msg_data[FIELD_TOKENS_CACHE] = token_dict["cached_tokens"]
-                # Use historical cost from message_token_summary (stored at execution time)
-                # PLUS the per-message TTS cost so the bubble badge surfaces a
-                # single grand total (LLM + Google API + TTS, mirror v1).
-                base_cost = token_dict.get("cost_eur") or 0.0
-                tts_cost = float(message.tts_cost_eur) if message.tts_cost_eur is not None else 0.0
-                grand_total = float(base_cost) + tts_cost
-                msg_data[FIELD_COST_EUR] = (
-                    grand_total if grand_total else token_dict.get("cost_eur")
-                )
+                # The historical billed total (message_token_summary): model,
+                # Maps Platform, images and paid speech (ADR-324) — the bubble's
+                # own TTS share is already in it.
+                msg_data[FIELD_COST_EUR] = token_dict.get("cost_eur")
                 # Google API tracking
                 msg_data[FIELD_GOOGLE_API_REQUESTS] = token_dict.get(FIELD_GOOGLE_API_REQUESTS)
 
@@ -1405,20 +1413,19 @@ class ConversationService:
         """
         Generate the default conversation title, localized.
 
-        This is the i18n chokepoint for the title: the raw locale is routed
-        through ``normalize_language`` here (``zh`` → ``zh-CN``, ``fr-FR`` →
-        ``fr``) so ``APIMessages`` — which, like every table in that module,
-        does a plain lookup — always receives a backend-canonical code.
+        The raw locale is resolved here (``zh`` → ``zh-CN``, ``fr-FR`` →
+        ``fr``, absent → the declared language) before ``APIMessages`` reads its
+        table.
 
         The date is taken from an aware UTC datetime, per the systemic rule
         forbidding ``date.today()``.
 
         Args:
-            language: Raw or canonical language code. ``None`` keeps the
-                historical French default, for callers with no user context.
+            language: Raw or canonical language code. ``None`` writes the
+                title in the declared language (ADR-323).
 
         Returns:
             Localized title, e.g. ``"Conversation du 26/07/2026"``.
         """
-        canonical = normalize_language(language) if language else DEFAULT_LANGUAGE
+        canonical = resolve_language(language)
         return APIMessages.conversation_default_title(datetime.now(UTC).date(), canonical)

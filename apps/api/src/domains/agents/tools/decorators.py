@@ -126,7 +126,7 @@ def connector_tool(
         ...     query: str,
         ...     runtime: Annotated[ToolRuntime, InjectedToolArg],
         ... ) -> str:
-        ...     '''Recherche des contacts Google par nom, email ou téléphone.'''
+        ...     '''Search Google contacts by name, e-mail or phone number.'''
         ...     # Implementation
         ...     pass
 
@@ -142,7 +142,7 @@ def connector_tool(
         ...     body: str,
         ...     runtime: Annotated[ToolRuntime, InjectedToolArg],
         ... ) -> str:
-        ...     '''Envoie un email via Gmail.'''
+        ...     '''Send an e-mail through Gmail.'''
         ...     # Implementation
         ...     pass
 
@@ -342,11 +342,12 @@ def with_user_preferences(func: Callable[..., T]) -> Callable[..., T]:
     fetching that appears in 25+ tool methods. It automatically:
     1. Fetches user timezone, language, and locale from database
     2. Injects them into kwargs as 'user_timezone' and 'locale'
-    3. Falls back to defaults ("UTC", "fr") on any error
+    3. Falls back to "UTC" and the declared language's locale on any error
 
     The decorated function receives:
         - user_timezone: str (from user.timezone or "UTC")
-        - locale: str (from user.language or "fr")
+        - locale: str (the BCP 47 locale of user.language, else of the declared
+          language — ADR-323)
 
     This centralizes the user preferences lookup pattern and makes it
     explicit via decorator rather than hidden in each tool's implementation.
@@ -368,12 +369,12 @@ def with_user_preferences(func: Callable[..., T]) -> Callable[..., T]:
         ...     query: str,
         ...     runtime: Annotated[ToolRuntime, InjectedToolArg],
         ...     user_timezone: str = "UTC",  # Injected by decorator
-        ...     locale: str = "fr",          # Injected by decorator
+        ...     locale: str | None = None,   # Injected by decorator
         ... ) -> UnifiedToolOutput:
         ...     # user_timezone and locale are already available
         ...     # No need for try-except get_user_preferences() boilerplate
         ...     events = await client.search_events(query)
-        ...     return self.build_events_output(events, user_timezone=user_timezone, locale=locale)
+        ...     return build_events_output(events, user_timezone=user_timezone, locale=locale)
 
     Note:
         - This decorator should be applied AFTER @connector_tool (closer to the function)
@@ -382,7 +383,7 @@ def with_user_preferences(func: Callable[..., T]) -> Callable[..., T]:
     """
     from functools import wraps
 
-    from src.core.config import settings
+    from src.core.i18n import get_locale_for_language
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -391,7 +392,7 @@ def with_user_preferences(func: Callable[..., T]) -> Callable[..., T]:
 
         # Default values
         user_timezone = "UTC"
-        locale = settings.default_language
+        locale = get_locale_for_language(None)
 
         if runtime:
             # Silent fallback to defaults

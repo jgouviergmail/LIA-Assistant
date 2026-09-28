@@ -352,6 +352,23 @@ TABLE_RULES: dict[str, TableRule] = {
         "(decrypted at export); audio files exported when kept.",
     ),
     "meeting_templates": _PURGED_FULL,
+    # The personal radio (ADR-324): the listener's settings, and the sites they
+    # added to their newsroom — purged and handed back with them. The same
+    # table holds the shipped catalogue (owner_id NULL), which is the
+    # instance's: the purge and the export read the owner's rows only.
+    "radio_preferences": _PURGED_FULL,
+    "radio_feeds": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason="The sites a listener added (owner_id = the account); catalogue rows "
+        "have no owner and are not user data.",
+    ),
+    "radio_news_items": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.EXCLUDED,
+        reason="Public articles read from the feeds; those of a listener's own site "
+        "go with it by FK cascade, and the site itself is what the export hands back.",
+    ),
     "meeting_preferences": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,

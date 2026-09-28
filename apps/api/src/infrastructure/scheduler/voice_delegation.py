@@ -220,7 +220,7 @@ async def _run_supervised(
         # (two vendor webhooks on two workers) must not start a turn it would
         # cancel at its first poll — a router call paid for nothing.
         if await _superseded(redis, key, request.request_id):
-            logger.info("voice_delegation_superseded_before_lease", origin=session.origin_id)
+            logger.info("voice_delegation_superseded_before_lease", origin_id=session.origin_id)
             return _Stepped.SUPERSEDED
         try:
             async with active_run_lease(
@@ -233,10 +233,10 @@ async def _run_supervised(
                     return await _run_until_superseded(redis, key, request.request_id, stream)
         except ActiveRunLockLost:
             # The person's own typed turn took the thread: it wins.
-            logger.info("voice_delegation_taken_over", origin=session.origin_id)
+            logger.info("voice_delegation_taken_over", origin_id=session.origin_id)
             return _Stepped.SUPERSEDED
         if loop.time() >= deadline:
-            logger.info("voice_delegation_busy", origin=session.origin_id)
+            logger.info("voice_delegation_busy", origin_id=session.origin_id)
             return _Stepped.BUSY
         await asyncio.sleep(SUPERSEDE_POLL_SECONDS)
 
@@ -329,11 +329,11 @@ async def delegate(request: DelegationRequest, *, context: RunContext) -> Delega
     except TimeoutError:
         # The turn goes on in the thread — still supervised, so the next
         # request cancels it; the voice says the answer will be in the chat.
-        logger.info("voice_delegation_timed_out", origin=session.origin_id)
+        logger.info("voice_delegation_timed_out", origin_id=session.origin_id)
         return _line(DelegationOutcome.TIMED_OUT)
     except Exception as exc:  # noqa: BLE001 — never an exception to the voice
         logger.error(
-            "voice_delegation_failed", origin=session.origin_id, error_type=type(exc).__name__
+            "voice_delegation_failed", origin_id=session.origin_id, error_type=type(exc).__name__
         )
         return _line(DelegationOutcome.FAILED)
     if verdict is _Stepped.SUPERSEDED:

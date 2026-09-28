@@ -308,6 +308,8 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
         sent_by: UUID,
         expires_at: datetime | None = None,
         recipient_ids: Sequence[UUID] | None = None,
+        *,
+        source_language: str,
     ) -> AdminBroadcast:
         """
         Create a new broadcast message with its audience (ADR-312).
@@ -318,6 +320,8 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
             expires_at: Optional expiration datetime
             recipient_ids: The accounts a SELECTED broadcast is addressed to;
                 None addresses everyone. A duplicate id is one recipient.
+            source_language: The language every translation is made from —
+                the sending admin's account language (ADR-323).
 
         Returns:
             Created AdminBroadcast (flushed, recipients included)
@@ -325,6 +329,7 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
         audience = BroadcastAudience.ALL if recipient_ids is None else BroadcastAudience.SELECTED
         broadcast = AdminBroadcast(
             message=message,
+            source_language=source_language,
             sent_by=sent_by,
             expires_at=expires_at,
             audience=audience.value,

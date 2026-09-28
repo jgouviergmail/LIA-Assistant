@@ -34,7 +34,7 @@ from src.core.constants import (
     REMINDER_OCCURRENCES_PREVIEW,
 )
 from src.core.dependencies import get_db
-from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n import normalize_language
 from src.core.recurrence import RecurrenceSpec, describe, occurrences
 from src.core.session_dependencies import get_current_active_session
 from src.core.time_utils import now_utc
@@ -202,7 +202,7 @@ async def list_reminder_details(
     reminders, total = await ReminderService(db).list_pending_page(
         user.id, limit=limit, offset=offset
     )
-    language = user.language or DEFAULT_LANGUAGE
+    language = normalize_language(user.language)
     return ReminderDetailPage(
         reminders=[ReminderDetail.of(r, language) for r in reminders],
         total=total,
@@ -247,7 +247,7 @@ async def create_reminder(
     timezone = user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE
     reminder = await ReminderService(db).create_reminder(user.id, payload, timezone)
     await db.commit()
-    return ReminderDetail.of(reminder, user.language or DEFAULT_LANGUAGE)
+    return ReminderDetail.of(reminder, normalize_language(user.language))
 
 
 @router.patch(
@@ -292,7 +292,7 @@ async def update_reminder(
         reminder_id=reminder_id, user_id=user.id, data=payload, user_timezone=timezone
     )
     await db.commit()
-    return ReminderDetail.of(reminder, user.language or DEFAULT_LANGUAGE)
+    return ReminderDetail.of(reminder, normalize_language(user.language))
 
 
 @router.delete(

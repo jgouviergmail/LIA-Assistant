@@ -143,7 +143,7 @@ class TestSemanticValidationOutput:
             confidence=0.85,
             issues=[issue],
             reasoning="Plan has cardinality issues",
-            clarification_questions=["Voulez-vous UN ou TOUS les contacts ?"],
+            clarification_questions=["Veux-tu UN ou TOUS les contacts ?"],
         )
 
         assert output.is_valid is False
@@ -492,9 +492,7 @@ class TestPlanSemanticValidator:
                     ],
                     confidence=0.8,
                     requires_clarification=True,
-                    clarification_questions=[
-                        "Voulez-vous envoyer à UN contact ou TOUS les contacts ?"
-                    ],
+                    clarification_questions=["Veux-tu envoyer à UN contact ou TOUS les contacts ?"],
                     validation_duration_seconds=0.6,
                     used_fallback=False,
                 )

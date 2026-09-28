@@ -109,6 +109,39 @@ def with_performed_effects(
     return {**message_metadata, FIELD_PERFORMED_EFFECTS: effects}
 
 
+def with_archived_message_ids(
+    done_metadata: dict[str, Any],
+    *,
+    user_message_id: uuid.UUID | None,
+    assistant_message_id: uuid.UUID | None,
+) -> dict[str, Any]:
+    """Attach the DB ids of the rows a turn archived to its ``done`` chunk.
+
+    The answer's id lets the live bubble target the feedback endpoint at once
+    (QW-5, ADR-138); the question's lets a later sync of the thread recognise
+    BOTH live bubbles as the rows they became, rather than add them a second
+    time (ADR-320). An id is absent when that row could not be archived.
+
+    Args:
+        done_metadata: The ``done`` metadata assembled so far.
+        user_message_id: The person's row, archived before the run.
+        assistant_message_id: The answer's row.
+
+    Returns:
+        The input unchanged (same object) when neither row exists, otherwise a
+        NEW dict carrying the ids that do.
+    """
+    ids = {
+        key: str(value)
+        for key, value in (
+            ("archived_user_message_id", user_message_id),
+            ("archived_message_id", assistant_message_id),
+        )
+        if value is not None
+    }
+    return {**done_metadata, **ids} if ids else done_metadata
+
+
 def with_companion_metadata(
     metadata: dict[str, Any], expressivity: object, activity: ActivitySnapshot | None
 ) -> dict[str, Any]:

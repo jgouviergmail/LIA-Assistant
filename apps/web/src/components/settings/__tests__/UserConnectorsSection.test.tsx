@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { makeConnector } from '@/__tests__/factories';
-import { useRevisionStore } from '@/stores/revisionStore';
+import { INITIAL_REVISIONS, useRevisionStore } from '@/stores/revisionStore';
 import {
   queryResult,
   mutationResult,
@@ -91,7 +91,7 @@ async function openGoogleFamily(user: ReturnType<typeof render>['user']) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useRevisionStore.setState({ revisions: { live_connectors: 0 } });
+  useRevisionStore.setState({ revisions: { ...INITIAL_REVISIONS } });
   deleteConnector = mutateSpy().mockResolvedValue(undefined);
   useApiMutation.mockReturnValue(mutationResult({ mutate: deleteConnector }));
   // The preference dropdown inside a connected card fetches its items.
@@ -207,37 +207,66 @@ describe('UserConnectorsSection — disconnect', () => {
 describe('UserConnectorsSection — shared OAuth reconnection', () => {
   it('starts one Google authorization immediately when all expired services share one known account', async () => {
     stub([
-      makeConnector({ id: 'mail', connector_type: 'google_gmail', status: 'error', oauth_grant_id: 'same' }),
-      makeConnector({ id: 'calendar', connector_type: 'google_calendar', status: 'error', oauth_grant_id: 'same' }),
+      makeConnector({
+        id: 'mail',
+        connector_type: 'google_gmail',
+        status: 'error',
+        oauth_grant_id: 'same',
+      }),
+      makeConnector({
+        id: 'calendar',
+        connector_type: 'google_calendar',
+        status: 'error',
+        oauth_grant_id: 'same',
+      }),
     ]);
     post.mockResolvedValue({ authorization_url: 'https://accounts.google.com/oauth' });
     const { user } = render();
     await user.click(screen.getByRole('button', { name: /critical_title/ }));
-    await user.click(screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.google_action' }));
+    await user.click(
+      screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.google_action' })
+    );
     await waitFor(() => expect(post).toHaveBeenCalledOnce());
     expect(post).toHaveBeenCalledWith('/connectors/oauth-bulk/google/authorize', {
       connector_types: ['google_gmail', 'google_calendar'],
     });
     expect(navigateToAuthorizationUrl).toHaveBeenCalledWith(
-      'https://accounts.google.com/oauth', 'bulk-reconnect'
+      'https://accounts.google.com/oauth',
+      'bulk-reconnect'
     );
   });
 
   it('makes the user choose services before one Microsoft authorization when accounts differ', async () => {
     stub([
-      makeConnector({ id: 'outlook', connector_type: 'microsoft_outlook', status: 'error', oauth_grant_id: 'first' }),
-      makeConnector({ id: 'calendar', connector_type: 'microsoft_calendar', status: 'error', oauth_grant_id: 'second' }),
+      makeConnector({
+        id: 'outlook',
+        connector_type: 'microsoft_outlook',
+        status: 'error',
+        oauth_grant_id: 'first',
+      }),
+      makeConnector({
+        id: 'calendar',
+        connector_type: 'microsoft_calendar',
+        status: 'error',
+        oauth_grant_id: 'second',
+      }),
     ]);
     post.mockResolvedValue({ authorization_url: 'https://login.microsoftonline.com/common/oauth' });
     const { user } = render();
     await user.click(screen.getByRole('button', { name: /critical_title/ }));
-    await user.click(screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.microsoft_action' }));
+    await user.click(
+      screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.microsoft_action' })
+    );
     expect(post).not.toHaveBeenCalled();
     await user.click(screen.getByRole('checkbox', { name: /Outlook/ }));
-    await user.click(screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.confirm' }));
-    await waitFor(() => expect(post).toHaveBeenCalledWith(
-      '/connectors/oauth-bulk/microsoft/authorize', { connector_types: ['microsoft_outlook'] }
-    ));
+    await user.click(
+      screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.confirm' })
+    );
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith('/connectors/oauth-bulk/microsoft/authorize', {
+        connector_types: ['microsoft_outlook'],
+      })
+    );
   });
 });
 
@@ -268,9 +297,7 @@ describe('UserConnectorsSection — keyless services are not the account’s', (
     stub(KEYLESS.map((connector_type, i) => makeConnector({ id: `k${i}`, connector_type })));
     render();
 
-    expect(
-      await screen.findByRole('button', { name: EXTERNAL_FAMILY })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: EXTERNAL_FAMILY })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /settings\.connectors\.connected_api_key/ })
     ).not.toBeInTheDocument();

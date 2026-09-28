@@ -15,12 +15,6 @@ Usage:
     # Get fallback message
     msg = HitlMessages.get_fallback(HitlMessageType.CLARIFICATION, "fr")
 
-    # Get action label
-    label = HitlMessages.get_action_label("confirm", "de")
-
-    # Get action prompt
-    prompt = HitlMessages.get_action_prompt("fr")
-
     # Get clarification header
     header = HitlMessages.get_clarification_header("zh-CN")
 
@@ -30,7 +24,7 @@ Created: 2025-12-06
 from enum import Enum, StrEnum
 from typing import Any
 
-from src.core.i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, Language
+from src.core.i18n import SUPPORTED_LANGUAGES, resolve_language
 
 
 class HitlMessageType(str, Enum):
@@ -51,39 +45,39 @@ class HitlMessageType(str, Enum):
 
 _FALLBACK_MESSAGES: dict[HitlMessageType, dict[str, str]] = {
     HitlMessageType.CLARIFICATION: {
-        "fr": "J'ai besoin de clarifications pour mieux comprendre ta demande. Peux-tu préciser ?",
+        "fr": "J'ai besoin de clarifications pour mieux comprendre ta demande. Peux-tu préciser ?",
         "en": "I need clarification to better understand your request. Can you provide more details?",
-        "es": "Necesito aclaraciones para entender mejor su solicitud. ¿Puede proporcionar más detalles?",
-        "de": "Ich benötige Klarstellungen, um Ihre Anfrage besser zu verstehen. Können Sie genauer werden?",
+        "es": "Necesito aclaraciones para entender mejor tu solicitud. ¿Puedes proporcionar más detalles?",
+        "de": "Ich benötige Klarstellungen, um deine Anfrage besser zu verstehen. Kannst du genauer werden?",
         "it": "Ho bisogno di chiarimenti per capire meglio la tua richiesta. Puoi fornire più dettagli?",
-        "zh-CN": "我需要更多信息来理解您的请求。您能提供更多细节吗？",
+        "zh-CN": "我需要更多信息来理解你的请求。你能提供更多细节吗？",
     },
     HitlMessageType.DRAFT_CRITIQUE: {
-        "fr": "J'ai préparé une action qui nécessite ta validation. Veux-tu confirmer, modifier ou annuler ?",
+        "fr": "J'ai préparé une action qui nécessite ta validation. Veux-tu confirmer, modifier ou annuler ?",
         "en": "I've prepared an action that requires your approval. Would you like to confirm, edit, or cancel?",
         "es": "He preparado una acción que requiere tu aprobación. ¿Quieres confirmar, modificar o cancelar?",
         "de": "Ich habe eine Aktion vorbereitet, die deine Genehmigung erfordert. Möchtest du bestätigen, bearbeiten oder abbrechen?",
         "it": "Ho preparato un'azione che richiede la tua approvazione. Vuoi confermare, modificare o annullare?",
-        "zh-CN": "我准备了一个需要您确认的操作。您想确认、修改还是取消？",
+        "zh-CN": "我准备了一个需要你确认的操作。你想确认、修改还是取消？",
     },
     HitlMessageType.PLAN_APPROVAL: {
-        "fr": "Ce plan nécessite ton approbation. Valides-tu pour continuer ?",
+        "fr": "Ce plan nécessite ton approbation. Valides-tu pour continuer ?",
         "en": "This plan requires your approval. Do you confirm to proceed?",
         "es": "Este plan requiere tu aprobación. ¿Confirmas para continuar?",
         "de": "Dieser Plan erfordert deine Genehmigung. Bestätigst du, um fortzufahren?",
         "it": "Questo piano richiede la tua approvazione. Confermi per procedere?",
-        "zh-CN": "此计划需要您的批准。您确认继续吗？",
+        "zh-CN": "此计划需要你的批准。你确认继续吗？",
     },
     HitlMessageType.TOOL_CONFIRMATION: {
-        "fr": "Cette action nécessite ta confirmation. Dois-je continuer ?",
+        "fr": "Cette action nécessite ta confirmation. Dois-je continuer ?",
         "en": "This action requires your confirmation. Should I proceed?",
         "es": "Esta acción requiere tu confirmación. ¿Debo continuar?",
         "de": "Diese Aktion erfordert deine Bestätigung. Soll ich fortfahren?",
         "it": "Questa azione richiede la tua conferma. Devo procedere?",
-        "zh-CN": "此操作需要您的确认。我应该继续吗？",
+        "zh-CN": "此操作需要你的确认。我应该继续吗？",
     },
     HitlMessageType.ENTITY_DISAMBIGUATION: {
-        "fr": "J'ai trouvé plusieurs correspondances. Peux-tu préciser laquelle tu souhaites ?",
+        "fr": "J'ai trouvé plusieurs correspondances. Peux-tu préciser laquelle tu souhaites ?",
         "en": "I found multiple matches. Can you specify which one you want?",
         "es": "Encontré varias coincidencias. ¿Puedes especificar cuál quieres?",
         "de": "Ich habe mehrere Treffer gefunden. Kannst du angeben, welchen du möchtest?",
@@ -91,71 +85,21 @@ _FALLBACK_MESSAGES: dict[HitlMessageType, dict[str, str]] = {
         "zh-CN": "我找到了多个匹配项。你能指定你想要哪一个吗？",
     },
     HitlMessageType.DESTRUCTIVE_CONFIRM: {
-        "fr": "Cette opération affecte plusieurs éléments. Confirmes-tu ?",
+        "fr": "Cette opération affecte plusieurs éléments. Confirmes-tu ?",
         "en": "This operation affects multiple items. Do you confirm?",
         "es": "Esta operación afecta a varios elementos. ¿Confirmas?",
-        "de": "Diese Operation betrifft mehrere Elemente. Bestätigen Sie?",
+        "de": "Diese Operation betrifft mehrere Elemente. Bestätigst du?",
         "it": "Questa operazione interessa più elementi. Confermi?",
         "zh-CN": "此操作会影响多个项目。确认吗？",
     },
     HitlMessageType.FOR_EACH_CONFIRMATION: {
-        "fr": "Cette action va s'appliquer à plusieurs éléments. Confirmes-tu l'exécution ?",
+        "fr": "Cette action va s'appliquer à plusieurs éléments. Confirmes-tu l'exécution ?",
         "en": "This action will apply to multiple items. Do you confirm execution?",
         "es": "Esta acción se aplicará a varios elementos. ¿Confirmas la ejecución?",
-        "de": "Diese Aktion wird auf mehrere Elemente angewendet. Bestätigen Sie die Ausführung?",
+        "de": "Diese Aktion wird auf mehrere Elemente angewendet. Bestätigst du die Ausführung?",
         "it": "Questa azione verrà applicata a più elementi. Confermi l'esecuzione?",
         "zh-CN": "此操作将应用于多个项目。确认执行吗？",
     },
-}
-
-# =============================================================================
-# ACTION LABELS - Button labels for draft actions
-# =============================================================================
-
-_ACTION_LABELS: dict[str, dict[str, str]] = {
-    "fr": {
-        "confirm": "Confirmer",
-        "edit": "Modifier",
-        "cancel": "Annuler",
-    },
-    "en": {
-        "confirm": "Confirm",
-        "edit": "Edit",
-        "cancel": "Cancel",
-    },
-    "es": {
-        "confirm": "Confirmar",
-        "edit": "Modificar",
-        "cancel": "Cancelar",
-    },
-    "de": {
-        "confirm": "Bestätigen",
-        "edit": "Bearbeiten",
-        "cancel": "Abbrechen",
-    },
-    "it": {
-        "confirm": "Conferma",
-        "edit": "Modifica",
-        "cancel": "Annulla",
-    },
-    "zh-CN": {
-        "confirm": "确认",
-        "edit": "编辑",
-        "cancel": "取消",
-    },
-}
-
-# =============================================================================
-# ACTION PROMPTS - "What would you like to do?" in each language
-# =============================================================================
-
-_ACTION_PROMPTS: dict[str, str] = {
-    "fr": "Que veux-tu faire ?",
-    "en": "What would you like to do?",
-    "es": "¿Qué quieres hacer?",
-    "de": "Was möchtest du tun?",
-    "it": "Cosa vuoi fare?",
-    "zh-CN": "你想怎么做？",
 }
 
 # =============================================================================
@@ -185,7 +129,7 @@ _DRAFT_SEQUENCE_SUMMARY: dict[str, str] = {
 }
 
 _CLARIFICATION_HEADERS: dict[str, str] = {
-    "fr": "J'ai besoin de clarifications sur les points suivants :",
+    "fr": "J'ai besoin de clarifications sur les points suivants :",
     "en": "I need clarification on the following points:",
     "es": "Necesito aclaraciones sobre los siguientes puntos:",
     "de": "Ich benötige Klarstellungen zu folgenden Punkten:",
@@ -199,112 +143,63 @@ _CLARIFICATION_HEADERS: dict[str, str] = {
 
 # Headers for multiple entities disambiguation
 _DISAMBIGUATION_MULTIPLE_ENTITIES: dict[str, str] = {
-    "fr": 'J\'ai trouvé plusieurs "{query}" :',
-    "en": 'I found multiple matches for "{query}":',
-    "es": 'Encontré varias coincidencias para "{query}":',
-    "de": 'Ich habe mehrere Treffer für "{query}" gefunden:',
-    "it": 'Ho trovato più corrispondenze per "{query}":',
-    "zh-CN": '我找到了多个"{query}"的匹配项：',
+    "fr": "J'ai trouvé plusieurs « {query} » :",
+    "en": "I found multiple matches for “{query}”:",
+    "es": "Encontré varias coincidencias para «{query}»:",
+    "de": "Ich habe mehrere Treffer für „{query}“ gefunden:",
+    "it": "Ho trovato più corrispondenze per «{query}»:",
+    "zh-CN": "我找到了多个“{query}”的匹配项：",
 }
 
-# Headers for multiple fields disambiguation (e.g., multiple emails for one contact)
-_DISAMBIGUATION_MULTIPLE_FIELDS: dict[str, str] = {
-    "fr": "{name} a plusieurs {field_type}s. Lequel veux-tu utiliser ?",
-    "en": "{name} has multiple {field_type}s. Which one would you like to use?",
-    "es": "{name} tiene varios {field_type}s. ¿Cuál quieres usar?",
-    "de": "{name} hat mehrere {field_type}s. Welche möchtest du verwenden?",
-    "it": "{name} ha più {field_type}. Quale vuoi usare?",
-    "zh-CN": "{name}有多个{field_type}。你想用哪个？",
+# Header for one entity with several values of a field (e.g. two emails for
+# one contact): a whole sentence per field and language. A label pluralised
+# by appending « s » read « addresss » and « Telefonnummers », and the
+# pronoun agrees with the field (fr « Laquelle » for an address).
+_DISAMBIGUATION_MULTIPLE_FIELDS: dict[str, dict[str, str]] = {
+    "email": {
+        "fr": "{name} a plusieurs adresses email. Laquelle veux-tu utiliser ?",
+        "en": "{name} has several email addresses. Which one would you like to use?",
+        "es": "{name} tiene varias direcciones de correo. ¿Cuál quieres usar?",
+        "de": "{name} hat mehrere E-Mail-Adressen. Welche möchtest du verwenden?",
+        "it": "{name} ha più indirizzi email. Quale vuoi usare?",
+        "zh-CN": "{name}有多个电子邮件地址。你想用哪个？",
+    },
+    "phone": {
+        "fr": "{name} a plusieurs numéros de téléphone. Lequel veux-tu utiliser ?",
+        "en": "{name} has several phone numbers. Which one would you like to use?",
+        "es": "{name} tiene varios números de teléfono. ¿Cuál quieres usar?",
+        "de": "{name} hat mehrere Telefonnummern. Welche möchtest du verwenden?",
+        "it": "{name} ha più numeri di telefono. Quale vuoi usare?",
+        "zh-CN": "{name}有多个电话号码。你想用哪个？",
+    },
+    "address": {
+        "fr": "{name} a plusieurs adresses. Laquelle veux-tu utiliser ?",
+        "en": "{name} has several addresses. Which one would you like to use?",
+        "es": "{name} tiene varias direcciones. ¿Cuál quieres usar?",
+        "de": "{name} hat mehrere Adressen. Welche möchtest du verwenden?",
+        "it": "{name} ha più indirizzi. Quale vuoi usare?",
+        "zh-CN": "{name}有多个地址。你想用哪个？",
+    },
+}
+
+# The same header for a field no sentence above names: said without its label.
+_DISAMBIGUATION_MULTIPLE_VALUES: dict[str, str] = {
+    "fr": "{name} a plusieurs valeurs possibles. Laquelle veux-tu utiliser ?",
+    "en": "{name} has several possible values. Which one would you like to use?",
+    "es": "{name} tiene varios valores posibles. ¿Cuál quieres usar?",
+    "de": "{name} hat mehrere mögliche Werte. Welchen möchtest du verwenden?",
+    "it": "{name} ha più valori possibili. Quale vuoi usare?",
+    "zh-CN": "{name}有多个可选值。你想用哪个？",
 }
 
 # Footer asking for selection
 _DISAMBIGUATION_CHOICE_PROMPT: dict[str, str] = {
-    "fr": "\n\nIndique le numéro de ton choix (ex: 1, 2...):",
-    "en": "\n\nPlease indicate your choice by number (e.g., 1, 2...):",
-    "es": "\n\nIndica el número de tu elección (ej: 1, 2...):",
-    "de": "\n\nBitte gib die Nummer deiner Wahl an (z.B. 1, 2...):",
-    "it": "\n\nIndica il numero della tua scelta (es: 1, 2...):",
-    "zh-CN": "\n\n请指出你的选择编号（例如：1, 2...）：",
-}
-
-# Domain-specific labels
-_DOMAIN_LABELS: dict[str, dict[str, str]] = {
-    "contacts": {
-        "fr": "contact",
-        "en": "contact",
-        "es": "contacto",
-        "de": "Kontakt",
-        "it": "contatto",
-        "zh-CN": "联系人",
-    },
-    "emails": {
-        "fr": "email",
-        "en": "email",
-        "es": "correo",
-        "de": "E-Mail",
-        "it": "email",
-        "zh-CN": "邮件",
-    },
-    "events": {
-        "fr": "événement",
-        "en": "event",
-        "es": "evento",
-        "de": "Termin",
-        "it": "evento",
-        "zh-CN": "活动",
-    },
-    "tasks": {
-        "fr": "tâche",
-        "en": "task",
-        "es": "tarea",
-        "de": "Aufgabe",
-        "it": "attività",
-        "zh-CN": "任务",
-    },
-    "files": {
-        "fr": "fichier",
-        "en": "file",
-        "es": "archivo",
-        "de": "Datei",
-        "it": "file",
-        "zh-CN": "文件",
-    },
-    "labels": {
-        "fr": "label",
-        "en": "label",
-        "es": "etiqueta",
-        "de": "Label",
-        "it": "etichetta",
-        "zh-CN": "标签",
-    },
-}
-
-# Field type labels for multiple fields disambiguation
-_FIELD_TYPE_LABELS: dict[str, dict[str, str]] = {
-    "email": {
-        "fr": "adresse email",
-        "en": "email address",
-        "es": "dirección de correo",
-        "de": "E-Mail-Adresse",
-        "it": "indirizzo email",
-        "zh-CN": "电子邮件地址",
-    },
-    "phone": {
-        "fr": "numéro de téléphone",
-        "en": "phone number",
-        "es": "número de teléfono",
-        "de": "Telefonnummer",
-        "it": "numero di telefono",
-        "zh-CN": "电话号码",
-    },
-    "address": {
-        "fr": "adresse",
-        "en": "address",
-        "es": "dirección",
-        "de": "Adresse",
-        "it": "indirizzo",
-        "zh-CN": "地址",
-    },
+    "fr": "\n\nIndique le numéro de ton choix (ex. : 1, 2…) :",
+    "en": "\n\nPlease indicate your choice by number (e.g. 1, 2…):",
+    "es": "\n\nIndica el número de tu elección (p. ej.: 1, 2…):",
+    "de": "\n\nBitte gib die Nummer deiner Wahl an (z. B. 1, 2 …):",
+    "it": "\n\nIndica il numero della tua scelta (ad es. 1, 2…):",
+    "zh-CN": "\n\n请指出你的选择编号（例如：1、2……）：",
 }
 
 # =============================================================================
@@ -319,16 +214,15 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "operation_prefix": "Cette action va",
         "items_suffix": "éléments",
         "items_suffix_one": "élément",
-        "confirm_question": "Veux-tu continuer ?",
+        "confirm_question": "Veux-tu continuer ?",
         "mutation_send": "envoyer",
         "mutation_create": "créer",
         "mutation_update": "modifier",
         "mutation_delete": "supprimer",
         "mutation_default": "affecter",
         "operations_header": "Opérations",
-        "more_suffix": "de plus",
         "affected_items": "Éléments concernés",
-        "and_more": "et {count} autre(s)...",
+        "and_more": "et {count} autre(s)…",
         "item_date_connector": "le",  # "test le 06 février 2026"
     },
     "en": {
@@ -343,9 +237,8 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "mutation_delete": "delete",
         "mutation_default": "affect",
         "operations_header": "Operations",
-        "more_suffix": "more",
         "affected_items": "Affected items",
-        "and_more": "and {count} more...",
+        "and_more": "and {count} more…",
         "item_date_connector": "on",  # "test on February 6, 2026"
     },
     "es": {
@@ -360,9 +253,8 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "mutation_delete": "eliminar",
         "mutation_default": "afectar",
         "operations_header": "Operaciones",
-        "more_suffix": "más",
         "affected_items": "Elementos afectados",
-        "and_more": "y {count} más...",
+        "and_more": "y {count} más…",
         "item_date_connector": "el",  # "test el 6 de febrero de 2026"
     },
     "de": {
@@ -377,9 +269,8 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "mutation_delete": "löschen",
         "mutation_default": "betreffen",
         "operations_header": "Operationen",
-        "more_suffix": "weitere",
         "affected_items": "Betroffene Elemente",
-        "and_more": "und {count} weitere...",
+        "and_more": "und {count} weitere …",
         "item_date_connector": "am",  # "test am 6. Februar 2026"
     },
     "it": {
@@ -394,9 +285,8 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "mutation_delete": "eliminerà",
         "mutation_default": "modificherà",
         "operations_header": "Operazioni",
-        "more_suffix": "altri",
         "affected_items": "Elementi interessati",
-        "and_more": "e {count} altri...",
+        "and_more": "e altri {count}…",
         "item_date_connector": "il",  # "test il 6 febbraio 2026"
     },
     "zh-CN": {
@@ -411,9 +301,8 @@ _FOR_EACH_CONFIRM_UI: dict[str, dict[str, str]] = {
         "mutation_delete": "删除",
         "mutation_default": "影响",
         "operations_header": "操作",
-        "more_suffix": "更多",
         "affected_items": "受影响的项目",
-        "and_more": "以及其他 {count} 项...",
+        "and_more": "以及其他 {count} 项……",
         "item_date_connector": "",  # Chinese uses no connector: "test 2026年2月6日"
     },
 }
@@ -429,9 +318,9 @@ _FOR_EACH_EDIT_UI: dict[str, dict[str, str]] = {
         "exclude_action": "Modifier la liste",
         "items_excluded": "**{count}** élément(s) retiré(s) de la liste.",
         "all_items_excluded": "Tous les éléments ont été retirés. Opération annulée.",
-        "filtered_list_header": "Liste mise à jour ({count} éléments restants) :",
+        "filtered_list_header": "Liste mise à jour ({count} éléments restants) :",
         "filter_instruction": "Tu peux retirer des éléments en décrivant lesquels exclure.",
-        "no_criteria": "Je n'ai pas compris quels éléments retirer. Peux-tu préciser ?",
+        "no_criteria": "Je n'ai pas compris quels éléments retirer. Peux-tu préciser ?",
     },
     "en": {
         "exclude_action": "Modify list",
@@ -470,8 +359,8 @@ _FOR_EACH_EDIT_UI: dict[str, dict[str, str]] = {
         "items_excluded": "已从列表中移除 **{count}** 个项目。",
         "all_items_excluded": "所有项目已被移除。操作已取消。",
         "filtered_list_header": "更新后的列表（剩余 {count} 个项目）：",
-        "filter_instruction": "您可以通过描述要排除的项目来移除它们。",
-        "no_criteria": "我不明白要移除哪些项目。您能说明吗？",
+        "filter_instruction": "你可以通过描述要排除的项目来移除它们。",
+        "no_criteria": "我不明白要移除哪些项目。你能说明吗？",
     },
 }
 
@@ -483,44 +372,50 @@ _DESTRUCTIVE_CONFIRM_UI: dict[str, dict[str, str]] = {
     "fr": {
         "title": "Confirmation requise",
         "affected_items": "Éléments concernés",
-        "and_more": "et {count} autre(s)...",
+        "and_more": "et {count} autre(s)…",
         "default_warning": "Cette action est irréversible.",
-        "confirm_question": "Confirmes-tu cette suppression ?",
+        "confirm_question": "Confirmes-tu cette suppression ?",
+        "unnamed_item": "élément sans nom",
     },
     "en": {
         "title": "Confirmation required",
         "affected_items": "Affected items",
-        "and_more": "and {count} more...",
+        "and_more": "and {count} more…",
         "default_warning": "This action cannot be undone.",
         "confirm_question": "Do you confirm this deletion?",
+        "unnamed_item": "unnamed item",
     },
     "es": {
         "title": "Confirmación requerida",
         "affected_items": "Elementos afectados",
-        "and_more": "y {count} más...",
+        "and_more": "y {count} más…",
         "default_warning": "Esta acción es irreversible.",
         "confirm_question": "¿Confirmas esta eliminación?",
+        "unnamed_item": "elemento sin nombre",
     },
     "de": {
         "title": "Bestätigung erforderlich",
         "affected_items": "Betroffene Elemente",
-        "and_more": "und {count} weitere...",
+        "and_more": "und {count} weitere …",
         "default_warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
         "confirm_question": "Bestätigst du diese Löschung?",
+        "unnamed_item": "Element ohne Namen",
     },
     "it": {
         "title": "Conferma richiesta",
         "affected_items": "Elementi interessati",
-        "and_more": "e altri {count}...",
+        "and_more": "e altri {count}…",
         "default_warning": "Questa azione è irreversibile.",
         "confirm_question": "Confermi questa eliminazione?",
+        "unnamed_item": "elemento senza nome",
     },
     "zh-CN": {
         "title": "需要确认",
         "affected_items": "受影响的项目",
-        "and_more": "以及其他 {count} 项...",
+        "and_more": "以及其他 {count} 项……",
         "default_warning": "此操作无法撤销。",
         "confirm_question": "确认删除吗？",
+        "unnamed_item": "未命名项目",
     },
 }
 
@@ -694,13 +589,13 @@ _DESTRUCTIVE_OPERATION_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "unknown": "Stai per eseguire un'operazione su **{count} elemento/i**.",
     },
     "zh-CN": {
-        "delete_emails": "您即将删除 **{count} 封邮件**。",
-        "delete_contacts": "您即将删除 **{count} 个联系人**。",
-        "delete_events": "您即将删除 **{count} 个日程**。",
-        "delete_tasks": "您即将删除 **{count} 个任务**。",
-        "delete_files": "您即将删除 **{count} 个文件**。",
-        "delete_labels": "您即将删除 **{count} 个标签**。",
-        "unknown": "您即将对 **{count} 个项目** 执行操作。",
+        "delete_emails": "你即将删除 **{count} 封邮件**。",
+        "delete_contacts": "你即将删除 **{count} 个联系人**。",
+        "delete_events": "你即将删除 **{count} 个日程**。",
+        "delete_tasks": "你即将删除 **{count} 个任务**。",
+        "delete_files": "你即将删除 **{count} 个文件**。",
+        "delete_labels": "你即将删除 **{count} 个标签**。",
+        "unknown": "你即将对 **{count} 个项目** 执行操作。",
     },
 }
 
@@ -711,15 +606,15 @@ _DESTRUCTIVE_OPERATION_DESCRIPTIONS: dict[str, dict[str, str]] = {
 # Questions per domain when content is insufficient
 _INSUFFICIENT_CONTENT_QUESTIONS: dict[str, dict[str, str]] = {
     "email": {
-        "fr": "Que souhaites-tu écrire dans cet email ?",
+        "fr": "Que souhaites-tu écrire dans cet email ?",
         "en": "What would you like to write in this email?",
         "es": "¿Qué quieres escribir en este email?",
         "de": "Was möchtest du in diese E-Mail schreiben?",
         "it": "Cosa vuoi scrivere in questa email?",
-        "zh-CN": "您想在这封邮件中写什么？",
+        "zh-CN": "你想在这封邮件中写什么？",
     },
     "email_subject": {
-        "fr": "Quel est le sujet de cet email ?",
+        "fr": "Quel est le sujet de cet email ?",
         "en": "What is the subject of this email?",
         "es": "¿Cuál es el asunto de este email?",
         "de": "Was ist der Betreff dieser E-Mail?",
@@ -727,50 +622,50 @@ _INSUFFICIENT_CONTENT_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "这封邮件的主题是什么？",
     },
     "event": {
-        "fr": "De quoi s'agit-il pour cet événement ? (titre, description...)",
-        "en": "What is this event about? (title, description...)",
-        "es": "¿De qué trata este evento? (título, descripción...)",
-        "de": "Worum geht es bei diesem Termin? (Titel, Beschreibung...)",
-        "it": "Di cosa tratta questo evento? (titolo, descrizione...)",
-        "zh-CN": "这个活动是关于什么的？（标题、描述...）",
+        "fr": "De quoi s'agit-il pour cet événement ? (titre, description…)",
+        "en": "What is this event about? (title, description…)",
+        "es": "¿De qué trata este evento? (título, descripción…)",
+        "de": "Worum geht es bei diesem Termin? (Titel, Beschreibung …)",
+        "it": "Di cosa tratta questo evento? (titolo, descrizione…)",
+        "zh-CN": "这个活动是关于什么的？（标题、描述……）",
     },
     "task": {
-        "fr": "Quelle est cette tâche ? (titre, description...)",
-        "en": "What is this task about? (title, description...)",
-        "es": "¿De qué trata esta tarea? (título, descripción...)",
-        "de": "Was ist diese Aufgabe? (Titel, Beschreibung...)",
-        "it": "Di cosa tratta questa attività? (titolo, descrizione...)",
-        "zh-CN": "这个任务是关于什么的？（标题、描述...）",
+        "fr": "Quelle est cette tâche ? (titre, description…)",
+        "en": "What is this task about? (title, description…)",
+        "es": "¿De qué trata esta tarea? (título, descripción…)",
+        "de": "Was ist diese Aufgabe? (Titel, Beschreibung …)",
+        "it": "Di cosa tratta questa attività? (titolo, descrizione…)",
+        "zh-CN": "这个任务是关于什么的？（标题、描述……）",
     },
     "contact": {
-        "fr": "Quelles informations veux-tu ajouter pour ce contact ?",
+        "fr": "Quelles informations veux-tu ajouter pour ce contact ?",
         "en": "What information would you like to add for this contact?",
         "es": "¿Qué información quieres añadir para este contacto?",
         "de": "Welche Informationen möchtest du für diesen Kontakt hinzufügen?",
         "it": "Quali informazioni vuoi aggiungere per questo contatto?",
-        "zh-CN": "您想为这个联系人添加什么信息？",
+        "zh-CN": "你想为这个联系人添加什么信息？",
     },
     "email_reply": {
-        "fr": "Que souhaites-tu répondre ?",
+        "fr": "Que souhaites-tu répondre ?",
         "en": "What would you like to reply?",
         "es": "¿Qué quieres responder?",
         "de": "Was möchtest du antworten?",
         "it": "Cosa vuoi rispondere?",
-        "zh-CN": "您想回复什么？",
+        "zh-CN": "你想回复什么？",
     },
     "email_forward": {
-        "fr": "À qui souhaites-tu transférer cet email ?",
+        "fr": "À qui souhaites-tu transférer cet email ?",
         "en": "Who would you like to forward this email to?",
         "es": "¿A quién quieres reenviar este email?",
         "de": "An wen möchtest du diese E-Mail weiterleiten?",
         "it": "A chi vuoi inoltrare questa email?",
-        "zh-CN": "您想将这封邮件转发给谁？",
+        "zh-CN": "你想将这封邮件转发给谁？",
     },
 }
 
 # Generic fallback for unknown domains
 _INSUFFICIENT_CONTENT_GENERIC: dict[str, str] = {
-    "fr": "Peux-tu me donner plus de détails sur ce que tu souhaites faire ?",
+    "fr": "Peux-tu me donner plus de détails sur ce que tu souhaites faire ?",
     "en": "Can you give me more details about what you want to do?",
     "es": "¿Puedes darme más detalles sobre lo que quieres hacer?",
     "de": "Kannst du mir mehr Details geben, was du tun möchtest?",
@@ -799,7 +694,7 @@ _INSUFFICIENT_CONTENT_GENERIC: dict[str, str] = {
 _SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
     # --- Scope: how many items, and which ones ---------------------------
     "cardinality_mismatch": {
-        "fr": "Veux-tu que je le fasse pour tous les éléments concernés, ou pour un seul ?",
+        "fr": "Veux-tu que je le fasse pour tous les éléments concernés, ou pour un seul ?",
         "en": "Should I do this for every matching item, or just one?",
         "es": "¿Lo hago para todos los elementos, o solo para uno?",
         "de": "Soll ich das für alle betroffenen Einträge tun oder nur für einen?",
@@ -807,7 +702,7 @@ _SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "需要我对所有相关项目执行，还是只对其中一个？",
     },
     "for_each_missing_cardinality": {
-        "fr": "Veux-tu que je le fasse pour tous les éléments concernés, ou pour un seul ?",
+        "fr": "Veux-tu que je le fasse pour tous les éléments concernés, ou pour un seul ?",
         "en": "Should I do this for every matching item, or just one?",
         "es": "¿Lo hago para todos los elementos, o solo para uno?",
         "de": "Soll ich das für alle betroffenen Einträge tun oder nur für einen?",
@@ -815,23 +710,23 @@ _SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "需要我对所有相关项目执行，还是只对其中一个？",
     },
     "for_each_max_exceeded": {
-        "fr": "Cela concerne beaucoup d'éléments. Sur combien veux-tu que j'agisse ?",
+        "fr": "Cela concerne beaucoup d'éléments. Sur combien veux-tu que j'agisse ?",
         "en": "That covers a lot of items. How many should I act on?",
         "es": "Esto afecta a muchos elementos. ¿Sobre cuántos quieres que actúe?",
         "de": "Das betrifft viele Einträge. Bei wie vielen soll ich handeln?",
         "it": "Riguarda molti elementi. Su quanti vuoi che agisca?",
-        "zh-CN": "这涉及很多项目。您希望我处理多少个？",
+        "zh-CN": "这涉及很多项目。你希望我处理多少个？",
     },
     "scope_overflow": {
-        "fr": "Je risque d'en faire plus que ce que tu demandes. Peux-tu préciser ce que je dois traiter ?",
+        "fr": "Je risque d'en faire plus que ce que tu demandes. Peux-tu préciser ce que je dois traiter ?",
         "en": "I might do more than you asked. Can you tell me exactly what to cover?",
         "es": "Podría hacer más de lo que pides. ¿Puedes precisar qué debo tratar?",
         "de": "Ich würde mehr tun als gewünscht. Kannst du genauer sagen, was ich abdecken soll?",
         "it": "Rischio di fare più di quanto chiedi. Puoi precisare cosa devo trattare?",
-        "zh-CN": "我可能会超出您的要求。能否明确我需要处理的范围？",
+        "zh-CN": "我可能会超出你的要求。能否明确我需要处理的范围？",
     },
     "scope_underflow": {
-        "fr": "Je risque d'en oublier une partie. Peux-tu préciser tout ce que je dois traiter ?",
+        "fr": "Je risque d'en oublier une partie. Peux-tu préciser tout ce que je dois traiter ?",
         "en": "I might leave part of it out. Can you tell me everything I should cover?",
         "es": "Podría dejarme una parte. ¿Puedes precisar todo lo que debo tratar?",
         "de": "Ich könnte einen Teil auslassen. Kannst du sagen, was alles dazugehört?",
@@ -840,58 +735,58 @@ _SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
     },
     # --- Missing or wrong information ------------------------------------
     "insufficient_content": {
-        "fr": "Il me manque des informations pour agir. Peux-tu m'en dire un peu plus ?",
+        "fr": "Il me manque des informations pour agir. Peux-tu m'en dire un peu plus ?",
         "en": "I am missing some information to act. Can you tell me a bit more?",
         "es": "Me falta información para actuar. ¿Puedes contarme un poco más?",
         "de": "Mir fehlen Informationen zum Handeln. Kannst du mir mehr sagen?",
         "it": "Mi mancano informazioni per agire. Puoi dirmi qualcosa in più?",
-        "zh-CN": "我还缺少一些信息才能执行。您能再补充一点吗？",
+        "zh-CN": "我还缺少一些信息才能执行。你能再补充一点吗？",
     },
     "wrong_parameters": {
-        "fr": "Certaines informations ne me semblent pas justes. Peux-tu me les confirmer ?",
+        "fr": "Certaines informations ne me semblent pas justes. Peux-tu me les confirmer ?",
         "en": "Some of the details do not look right. Can you confirm them?",
         "es": "Algunos datos no me parecen correctos. ¿Puedes confirmármelos?",
         "de": "Einige Angaben wirken nicht stimmig. Kannst du sie bestätigen?",
         "it": "Alcune informazioni non mi sembrano corrette. Puoi confermarmele?",
-        "zh-CN": "有些信息看起来不太对。您能确认一下吗？",
+        "zh-CN": "有些信息看起来不太对。你能确认一下吗？",
     },
     "missing_step": {
-        "fr": "Il me manque une étape pour aller au bout. Peux-tu me préciser ce que tu attends ?",
+        "fr": "Il me manque une étape pour aller au bout. Peux-tu me préciser ce que tu attends ?",
         "en": "I am missing a step to see this through. Can you tell me what you expect?",
         "es": "Me falta un paso para completarlo. ¿Puedes precisar qué esperas?",
         "de": "Mir fehlt ein Schritt bis zum Ende. Kannst du sagen, was du erwartest?",
         "it": "Mi manca un passaggio per arrivare in fondo. Puoi precisare cosa ti aspetti?",
-        "zh-CN": "我还缺少一个步骤才能完成。您能说明期望的结果吗？",
+        "zh-CN": "我还缺少一个步骤才能完成。你能说明期望的结果吗？",
     },
     # --- Ambiguity: acting now would be a guess ---------------------------
     "dangerous_ambiguity": {
-        "fr": "Ta demande peut se comprendre de plusieurs façons, et l'action est irréversible. Peux-tu confirmer ce que je dois faire ?",
+        "fr": "Ta demande peut se comprendre de plusieurs façons, et l'action est irréversible. Peux-tu confirmer ce que je dois faire ?",
         "en": "Your request can be read several ways and the action cannot be undone. Can you confirm what I should do?",
         "es": "Tu petición puede entenderse de varias formas y la acción es irreversible. ¿Puedes confirmar qué debo hacer?",
         "de": "Deine Anfrage lässt mehrere Deutungen zu und die Aktion ist endgültig. Kannst du bestätigen, was ich tun soll?",
         "it": "La tua richiesta si può intendere in più modi e l'azione è irreversibile. Puoi confermare cosa devo fare?",
-        "zh-CN": "您的请求有多种理解方式，而该操作无法撤销。能否确认我应该怎么做？",
+        "zh-CN": "你的请求有多种理解方式，而该操作无法撤销。能否确认我应该怎么做？",
     },
     "implicit_assumption": {
-        "fr": "Je devrais deviner une information que tu n'as pas donnée. Peux-tu me la préciser ?",
+        "fr": "Je devrais deviner une information que tu n'as pas donnée. Peux-tu me la préciser ?",
         "en": "I would have to guess something you have not told me. Can you fill it in?",
         "es": "Tendría que adivinar un dato que no me has dado. ¿Puedes precisármelo?",
         "de": "Ich müsste etwas erraten, das du nicht gesagt hast. Kannst du es ergänzen?",
         "it": "Dovrei indovinare un dato che non mi hai dato. Puoi precisarmelo?",
-        "zh-CN": "我需要猜测您未提供的信息。能否补充说明？",
+        "zh-CN": "我需要猜测你未提供的信息。能否补充说明？",
     },
     # --- The assistant cannot do it as asked ------------------------------
     "hallucinated_capability": {
-        "fr": "Je ne sais pas faire cela tel quel. Peux-tu me dire autrement ce que tu veux obtenir ?",
+        "fr": "Je ne sais pas faire cela tel quel. Peux-tu me dire autrement ce que tu veux obtenir ?",
         "en": "I cannot do that as asked. Can you tell me differently what you want to achieve?",
         "es": "No sé hacer eso tal cual. ¿Puedes decirme de otra forma qué quieres conseguir?",
         "de": "So kann ich das nicht tun. Kannst du anders beschreiben, was du erreichen willst?",
         "it": "Non so farlo così com'è. Puoi dirmi in altro modo cosa vuoi ottenere?",
-        "zh-CN": "我无法按原样完成。您能换个方式说明想达成什么吗？",
+        "zh-CN": "我无法按原样完成。你能换个方式说明想达成什么吗？",
     },
     # --- The plan does not hold together ----------------------------------
     "ghost_dependency": {
-        "fr": "Je n'arrive pas à enchaîner les étapes de ta demande. Peux-tu me la décrire en une phrase simple ?",
+        "fr": "Je n'arrive pas à enchaîner les étapes de ta demande. Peux-tu me la décrire en une phrase simple ?",
         "en": "I cannot chain the steps of your request. Can you describe it in one simple sentence?",
         "es": "No consigo encadenar los pasos de tu petición. ¿Puedes describirla en una frase sencilla?",
         "de": "Ich bekomme die Schritte nicht verkettet. Kannst du es in einem einfachen Satz beschreiben?",
@@ -899,7 +794,7 @@ _SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "我无法把各个步骤串联起来。能否用一句话简单描述？",
     },
     "logical_cycle": {
-        "fr": "Les étapes de ta demande tournent en rond. Peux-tu me dire par quoi commencer ?",
+        "fr": "Les étapes de ta demande tournent en rond. Peux-tu me dire par quoi commencer ?",
         "en": "The steps of your request loop back on themselves. Can you tell me where to start?",
         "es": "Los pasos de tu petición dan vueltas. ¿Puedes decirme por dónde empezar?",
         "de": "Die Schritte drehen sich im Kreis. Kannst du sagen, womit ich anfangen soll?",
@@ -907,7 +802,7 @@ _SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "这些步骤形成了循环。能否告诉我应该从哪里开始？",
     },
     "for_each_invalid_reference": {
-        "fr": "Je n'arrive pas à relier cette action aux éléments concernés. Peux-tu me dire sur quoi l'appliquer ?",
+        "fr": "Je n'arrive pas à relier cette action aux éléments concernés. Peux-tu me dire sur quoi l'appliquer ?",
         "en": "I cannot tie this action to the items involved. Can you tell me what to apply it to?",
         "es": "No consigo vincular esta acción con los elementos. ¿Puedes decirme sobre qué aplicarla?",
         "de": "Ich kann die Aktion den Einträgen nicht zuordnen. Worauf soll ich sie anwenden?",
@@ -915,7 +810,7 @@ _SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "我无法把该操作与相关项目对应起来。能否说明应用到哪些内容？",
     },
     "for_each_missing_item_ref": {
-        "fr": "Je ne sais pas à quels éléments appliquer cette action. Peux-tu me les indiquer ?",
+        "fr": "Je ne sais pas à quels éléments appliquer cette action. Peux-tu me les indiquer ?",
         "en": "I do not know which items to apply this to. Can you point them out?",
         "es": "No sé a qué elementos aplicar esto. ¿Puedes indicármelos?",
         "de": "Ich weiß nicht, auf welche Einträge ich das anwenden soll. Kannst du sie nennen?",
@@ -936,7 +831,7 @@ _SEMANTIC_ISSUE_QUESTIONS: dict[str, dict[str, str]] = {
 _CONTENT_TOO_LONG_QUESTION: dict[str, str] = {
     "fr": (
         "Le contenu fait {length} caractères, mais la limite est de {max}. "
-        "Peux-tu le raccourcir, ou veux-tu que je le résume ?"
+        "Peux-tu le raccourcir, ou veux-tu que je le résume ?"
     ),
     "en": (
         "The content is {length} characters long, but the limit is {max}. "
@@ -954,7 +849,7 @@ _CONTENT_TOO_LONG_QUESTION: dict[str, str] = {
         "Il contenuto è di {length} caratteri, ma il limite è {max}. "
         "Puoi accorciarlo, o vuoi che lo riassuma?"
     ),
-    "zh-CN": "内容共 {length} 个字符，但上限为 {max}。您可以缩短它，或者由我来为您总结，好吗？",
+    "zh-CN": "内容共 {length} 个字符，但上限为 {max}。你可以缩短它，或者由我来为你总结，好吗？",
 }
 
 
@@ -968,15 +863,15 @@ _CONTENT_TOO_LONG_QUESTION: dict[str, str] = {
 _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
     # Email fields (priority: recipient > subject > body)
     "email.recipient": {
-        "fr": "À qui veux-tu envoyer cet email ?",
+        "fr": "À qui veux-tu envoyer cet email ?",
         "en": "Who do you want to send this email to?",
         "es": "¿A quién quieres enviar este email?",
         "de": "An wen möchtest du diese E-Mail senden?",
         "it": "A chi vuoi inviare questa email?",
-        "zh-CN": "您想把这封邮件发给谁？",
+        "zh-CN": "你想把这封邮件发给谁？",
     },
     "email.subject": {
-        "fr": "Quel est le sujet de cet email ?",
+        "fr": "Quel est le sujet de cet email ?",
         "en": "What is the subject of this email?",
         "es": "¿Cuál es el asunto de este email?",
         "de": "Was ist der Betreff dieser E-Mail?",
@@ -984,34 +879,34 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "这封邮件的主题是什么？",
     },
     "email.body": {
-        "fr": "Que souhaites-tu écrire dans cet email ?",
+        "fr": "Que souhaites-tu écrire dans cet email ?",
         "en": "What would you like to write in this email?",
         "es": "¿Qué quieres escribir en este email?",
         "de": "Was möchtest du in diese E-Mail schreiben?",
         "it": "Cosa vuoi scrivere in questa email?",
-        "zh-CN": "您想在这封邮件中写什么？",
+        "zh-CN": "你想在这封邮件中写什么？",
     },
     # Email reply fields (only body needed — recipient and subject are implicit)
     "email_reply.body": {
-        "fr": "Que souhaites-tu répondre ?",
+        "fr": "Que souhaites-tu répondre ?",
         "en": "What would you like to reply?",
         "es": "¿Qué quieres responder?",
         "de": "Was möchtest du antworten?",
         "it": "Cosa vuoi rispondere?",
-        "zh-CN": "您想回复什么？",
+        "zh-CN": "你想回复什么？",
     },
     # Email forward fields (recipient required, body optional)
     "email_forward.recipient": {
-        "fr": "À qui souhaites-tu transférer cet email ?",
+        "fr": "À qui souhaites-tu transférer cet email ?",
         "en": "Who would you like to forward this email to?",
         "es": "¿A quién quieres reenviar este email?",
         "de": "An wen möchtest du diese E-Mail weiterleiten?",
         "it": "A chi vuoi inoltrare questa email?",
-        "zh-CN": "您想将这封邮件转发给谁？",
+        "zh-CN": "你想将这封邮件转发给谁？",
     },
     # Event fields (priority: title > start_datetime > end_or_duration)
     "event.title": {
-        "fr": "Quel est le titre de cet événement ?",
+        "fr": "Quel est le titre de cet événement ?",
         "en": "What is the title of this event?",
         "es": "¿Cuál es el título de este evento?",
         "de": "Was ist der Titel dieses Termins?",
@@ -1019,7 +914,7 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "这个活动的标题是什么？",
     },
     "event.start_datetime": {
-        "fr": "Quand commence cet événement ?",
+        "fr": "Quand commence cet événement ?",
         "en": "When does this event start?",
         "es": "¿Cuándo empieza este evento?",
         "de": "Wann beginnt dieser Termin?",
@@ -1027,7 +922,7 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "这个活动什么时候开始？",
     },
     "event.end_or_duration": {
-        "fr": "Quelle est la durée ou l'heure de fin ?",
+        "fr": "Quelle est la durée ou l'heure de fin ?",
         "en": "What is the duration or end time?",
         "es": "¿Cuál es la duración o la hora de fin?",
         "de": "Wie lange dauert es oder wann endet es?",
@@ -1036,7 +931,7 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
     },
     # Task fields (priority: title > priority > due_date)
     "task.title": {
-        "fr": "Quel est le titre de cette tâche ?",
+        "fr": "Quel est le titre de cette tâche ?",
         "en": "What is the title of this task?",
         "es": "¿Cuál es el título de esta tarea?",
         "de": "Was ist der Titel dieser Aufgabe?",
@@ -1044,7 +939,7 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "这个任务的标题是什么？",
     },
     "task.priority": {
-        "fr": "Quelle est la priorité de cette tâche ?",
+        "fr": "Quelle est la priorité de cette tâche ?",
         "en": "What is the priority of this task?",
         "es": "¿Cuál es la prioridad de esta tarea?",
         "de": "Welche Priorität hat diese Aufgabe?",
@@ -1052,7 +947,7 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "这个任务的优先级是什么？",
     },
     "task.due_date": {
-        "fr": "Pour quand est cette tâche ?",
+        "fr": "Pour quand est cette tâche ?",
         "en": "When is this task due?",
         "es": "¿Para cuándo es esta tarea?",
         "de": "Bis wann ist diese Aufgabe fällig?",
@@ -1061,7 +956,7 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
     },
     # Contact fields (priority: name > email > phone)
     "contact.name": {
-        "fr": "Quel est le nom complet de ce contact ?",
+        "fr": "Quel est le nom complet de ce contact ?",
         "en": "What is the full name of this contact?",
         "es": "¿Cuál es el nombre completo de este contacto?",
         "de": "Wie ist der vollständige Name dieses Kontakts?",
@@ -1069,7 +964,7 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "这个联系人的全名是什么？",
     },
     "contact.email": {
-        "fr": "Quelle est l'adresse email de ce contact ?",
+        "fr": "Quelle est l'adresse email de ce contact ?",
         "en": "What is the email address of this contact?",
         "es": "¿Cuál es el email de este contacto?",
         "de": "Wie ist die E-Mail-Adresse dieses Kontakts?",
@@ -1077,7 +972,7 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
         "zh-CN": "这个联系人的电子邮件地址是什么？",
     },
     "contact.phone": {
-        "fr": "Quel est le numéro de téléphone de ce contact ?",
+        "fr": "Quel est le numéro de téléphone de ce contact ?",
         "en": "What is the phone number of this contact?",
         "es": "¿Cuál es el teléfono de este contacto?",
         "de": "Wie ist die Telefonnummer dieses Kontakts?",
@@ -1119,6 +1014,18 @@ _FIELD_OPTION_LABELS: dict[str, dict[str, dict[str, str]]] = {
             "zh-CN": "低",
         },
     },
+}
+
+#: How a clarification question offers its choices: the list separator and
+#: the brackets around the list, per language (Chinese: « 、 » and full-width
+#: brackets, after the question's own full-width « ？ »).
+_FIELD_OPTIONS_LIST: dict[str, tuple[str, str]] = {
+    "fr": (", ", " ({options})"),
+    "en": (", ", " ({options})"),
+    "es": (", ", " ({options})"),
+    "de": (", ", " ({options})"),
+    "it": (", ", " ({options})"),
+    "zh-CN": ("、", "（{options}）"),
 }
 
 # =============================================================================
@@ -1317,82 +1224,6 @@ EARLY_RECIPIENT_PATTERNS: list[str] = [" to ", " for "]
 # the registry.
 
 # =============================================================================
-# DRAFT SUMMARIES - Templates for draft type summaries
-# =============================================================================
-
-
-# =============================================================================
-# ACTION DESCRIPTIONS - Extended descriptions for action buttons
-# =============================================================================
-
-_ACTION_DESCRIPTIONS: dict[str, dict[str, str]] = {
-    "fr": {
-        "confirm": "exécuter maintenant",
-        "edit": "modifier le contenu",
-        "cancel": "abandonner",
-    },
-    "en": {
-        "confirm": "execute now",
-        "edit": "modify content",
-        "cancel": "abort",
-    },
-    "es": {
-        "confirm": "ejecutar ahora",
-        "edit": "modificar contenido",
-        "cancel": "abandonar",
-    },
-    "de": {
-        "confirm": "jetzt ausführen",
-        "edit": "Inhalt bearbeiten",
-        "cancel": "abbrechen",
-    },
-    "it": {
-        "confirm": "esegui ora",
-        "edit": "modifica contenuto",
-        "cancel": "annulla",
-    },
-    "zh-CN": {
-        "confirm": "立即执行",
-        "edit": "修改内容",
-        "cancel": "放弃",
-    },
-}
-
-# =============================================================================
-# DEFAULT PERSONALITY INSTRUCTIONS
-# =============================================================================
-# Fallback personality instructions for LLM when no custom personality is provided.
-# Used in HITL question generators to maintain consistent assistant behavior.
-
-_DEFAULT_PERSONALITY: dict[str, str] = {
-    "fr": """Tu es un assistant équilibré et professionnel.
-- Réponds de manière claire et concise.
-- Adapte ton ton au contexte de la conversation.
-- Sois utile sans être excessif.""",
-    "en": """You are a balanced and professional assistant.
-- Respond in a clear and concise manner.
-- Adapt your tone to the context of the conversation.
-- Be helpful without being excessive.""",
-    "es": """Eres un asistente equilibrado y profesional.
-- Responde de manera clara y concisa.
-- Adapta tu tono al contexto de la conversación.
-- Sé útil sin ser excesivo.""",
-    "de": """Du bist ein ausgewogener und professioneller Assistent.
-- Antworte klar und prägnant.
-- Passe deinen Ton dem Kontext des Gesprächs an.
-- Sei hilfreich, ohne übertrieben zu sein.""",
-    "it": """Sei un assistente equilibrato e professionale.
-- Rispondi in modo chiaro e conciso.
-- Adatta il tuo tono al contesto della conversazione.
-- Sii utile senza essere eccessivo.""",
-    "zh-CN": """你是一个平衡且专业的助手。
-- 以清晰简洁的方式回答。
-- 根据对话的上下文调整你的语气。
-- 提供帮助但不要过度。""",
-}
-
-
-# =============================================================================
 # HITL RESUMPTION — reformulated user intents (EDIT) and refusal (REJECT)
 # =============================================================================
 # When a user EDITs a HITL draft/plan, the original user message is replaced by
@@ -1572,7 +1403,7 @@ class HitlResumeMessage(str, Enum):
 
 _RESUME_MESSAGES: dict[HitlResumeMessage, dict[str, str]] = {
     HitlResumeMessage.CLARIFY_WHAT_TO_CHANGE: {
-        "fr": "Tu veux modifier quelque chose ? Peux-tu préciser exactement quoi ?",
+        "fr": "Tu veux modifier quelque chose ? Peux-tu préciser exactement quoi ?",
         "en": "Do you want to change something? Can you tell me exactly what?",
         "es": "¿Quieres cambiar algo? ¿Puedes decirme exactamente qué?",
         "de": "Möchtest du etwas ändern? Kannst du mir genau sagen, was?",
@@ -1603,46 +1434,12 @@ class HitlMessages:
     Centralized HITL message provider.
 
     Provides all translated strings for HITL interactions across all 6 languages.
-    Falls back to English if requested language is not available.
+    Every language is read through ``resolve_language`` (ADR-323).
 
     Example:
         >>> HitlMessages.get_fallback(HitlMessageType.PLAN_APPROVAL, "de")
         "Dieser Plan erfordert deine Genehmigung. Bestätigst du, um fortzufahren?"
-
-        >>> HitlMessages.get_action_label("confirm", "it")
-        "Conferma"
     """
-
-    @staticmethod
-    def _normalize_language(language: str) -> str:
-        """
-        Normalize language code to supported format.
-
-        Handles variations like 'zh', 'zh_CN', 'zh-cn' -> 'zh-CN'
-
-        Args:
-            language: Input language code
-
-        Returns:
-            Normalized language code
-        """
-        if not language:
-            return DEFAULT_LANGUAGE
-
-        lang_lower = language.lower().replace("_", "-")
-
-        # Handle Chinese variants
-        if lang_lower.startswith("zh"):
-            return "zh-CN"
-
-        # Extract base language code
-        base_lang = lang_lower.split("-")[0]
-
-        # Check if it's a supported language (uses centralized SUPPORTED_LANGUAGES)
-        if base_lang in SUPPORTED_LANGUAGES:
-            return base_lang
-
-        return DEFAULT_LANGUAGE
 
     @staticmethod
     def get_fallback(message_type: HitlMessageType, language: str) -> str:
@@ -1656,25 +1453,9 @@ class HitlMessages:
         Returns:
             Fallback message in requested language
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         messages = _FALLBACK_MESSAGES.get(message_type, {})
         return messages.get(lang, messages.get("en", ""))
-
-    @staticmethod
-    def get_action_label(action: str, language: str) -> str:
-        """
-        Get action button label.
-
-        Args:
-            action: Action name (confirm, edit, cancel)
-            language: Language code
-
-        Returns:
-            Translated action label
-        """
-        lang = HitlMessages._normalize_language(language)
-        labels = _ACTION_LABELS.get(lang, _ACTION_LABELS["en"])
-        return labels.get(action, action)
 
     @staticmethod
     def get_reformulation(kind: ReformulationKind, language: str, **params: object) -> str:
@@ -1688,7 +1469,7 @@ class HitlMessages:
         Returns:
             The localized reformulation in the user's language.
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         # Direct indexing (not .get): a ReformulationKind always has an entry —
         # the exhaustiveness test guards this, so a missing kind fails loudly in
         # CI rather than silently returning an empty message.
@@ -1707,7 +1488,7 @@ class HitlMessages:
         Returns:
             The localized refusal-steering message in the user's language.
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         template = _REJECT_ENRICHED_MESSAGE.get(lang, _REJECT_ENRICHED_MESSAGE["en"])
         return template.format(user_response=user_response)
 
@@ -1728,7 +1509,7 @@ class HitlMessages:
                 empty string would ship an invisible blank question. Both the
                 enum coverage and the six-language coverage are asserted in CI.
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         templates = _RESUME_MESSAGES[message]
         return templates.get(lang, templates["en"])
 
@@ -1742,52 +1523,8 @@ class HitlMessages:
         Returns:
             The localized "user refused this action" sentence.
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         return _USER_REFUSED_ACTION.get(lang, _USER_REFUSED_ACTION["en"])
-
-    @staticmethod
-    def get_action_labels(language: str) -> dict[str, str]:
-        """
-        Get all action labels for a language.
-
-        Args:
-            language: Language code
-
-        Returns:
-            Dict with confirm, edit, cancel labels
-        """
-        lang = HitlMessages._normalize_language(language)
-        return _ACTION_LABELS.get(lang, _ACTION_LABELS["en"])
-
-    @staticmethod
-    def get_action_prompt(language: str) -> str:
-        """
-        Get action prompt ("What would you like to do?").
-
-        Args:
-            language: Language code
-
-        Returns:
-            Translated action prompt
-        """
-        lang = HitlMessages._normalize_language(language)
-        return _ACTION_PROMPTS.get(lang, _ACTION_PROMPTS["en"])
-
-    @staticmethod
-    def get_action_description(action: str, language: str) -> str:
-        """
-        Get action description for extended button text.
-
-        Args:
-            action: Action name (confirm, edit, cancel)
-            language: Language code
-
-        Returns:
-            Translated action description
-        """
-        lang = HitlMessages._normalize_language(language)
-        descriptions = _ACTION_DESCRIPTIONS.get(lang, _ACTION_DESCRIPTIONS["en"])
-        return descriptions.get(action, "")
 
     @staticmethod
     def get_draft_sequence_position(index: int, total: int, language: str) -> str:
@@ -1804,7 +1541,7 @@ class HitlMessages:
         Returns:
             The translated, emphasised position line.
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         template = _DRAFT_SEQUENCE_POSITION.get(lang, _DRAFT_SEQUENCE_POSITION["en"])
         return template.format(index=index, total=total)
 
@@ -1823,7 +1560,7 @@ class HitlMessages:
         Returns:
             The translated, emphasised title.
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         template = _DRAFT_SEQUENCE_SUMMARY.get(lang, _DRAFT_SEQUENCE_SUMMARY["en"])
         return template.format(count=count)
 
@@ -1838,7 +1575,7 @@ class HitlMessages:
         Returns:
             Translated header for multiple clarification questions
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         return _CLARIFICATION_HEADERS.get(lang, _CLARIFICATION_HEADERS["en"])
 
     @staticmethod
@@ -1858,43 +1595,6 @@ class HitlMessages:
         from src.domains.agents.drafts.display import get_draft_emoji as _get
 
         return _get(draft_type)
-
-    @staticmethod
-    def format_draft_critique_actions(
-        language: str,
-        include_descriptions: bool = True,
-    ) -> str:
-        """
-        Format the action buttons section for draft critique.
-
-        Args:
-            language: Language code
-            include_descriptions: Whether to include action descriptions
-
-        Returns:
-            Formatted HTML string with action buttons
-        """
-        lang = HitlMessages._normalize_language(language)
-        labels = HitlMessages.get_action_labels(lang)
-        prompt = HitlMessages.get_action_prompt(lang)
-
-        # A Markdown list, and nothing else: the three ``<br/>`` this used to
-        # append to each item were redundant with the list itself, and were
-        # read out as typed by every surface that renders no markup.
-        if include_descriptions:
-            descriptions = _ACTION_DESCRIPTIONS.get(lang, _ACTION_DESCRIPTIONS["en"])
-            return (
-                f"{prompt}\n\n"
-                f"- ✅ **{labels['confirm']}** : {descriptions['confirm']}\n"
-                f"- ✏️ **{labels['edit']}** : {descriptions['edit']}\n"
-                f"- 🚫 **{labels['cancel']}** : {descriptions['cancel']}"
-            )
-        return (
-            f"{prompt}\n\n"
-            f"- ✅ **{labels['confirm']}**\n"
-            f"- ✏️ **{labels['edit']}**\n"
-            f"- 🚫 **{labels['cancel']}**"
-        )
 
     @staticmethod
     def format_clarification_questions(
@@ -1951,23 +1651,23 @@ class HitlMessages:
         Returns:
             Formatted question string with numbered choices
 
-        Example output (fr, multiple_entities):
-            J'ai trouvé plusieurs "Jean Dupont" :
+        Example output (en, multiple_entities):
+            I found multiple matches for “Jean Dupont”:
 
-            1. Jean Dupont (jean@work.com)
-            2. Jean-Pierre Dupont (jp@home.com)
+            **1.** Jean Dupont (jean@work.com)
+            **2.** Jean-Pierre Dupont (jp@home.com)
 
-            Indique le numéro de ton choix (ex: 1, 2...):
+            Please indicate your choice by number (e.g. 1, 2…):
 
-        Example output (fr, multiple_fields):
-            Jean Dupont a plusieurs adresse emails. Lequel veux-tu utiliser ?
+        Example output (en, multiple_fields):
+            Jean Dupont has several email addresses. Which one would you like to use?
 
-            1. jean@work.com
-            2. jean.dupont@personal.com
+            **1.** jean@work.com
+            **2.** jean.dupont@personal.com
 
-            Indique le numéro de ton choix (ex: 1, 2...):
+            Please indicate your choice by number (e.g. 1, 2…):
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
 
         if not candidates:
             return HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, language)
@@ -1978,13 +1678,10 @@ class HitlMessages:
             contact_name = (
                 candidates[0].get("parent_name", original_query) if candidates else original_query
             )
-            field_type_labels = _FIELD_TYPE_LABELS.get(target_field, {})
-            field_type_label = field_type_labels.get(lang, target_field)
-
-            header_template = _DISAMBIGUATION_MULTIPLE_FIELDS.get(
-                lang, _DISAMBIGUATION_MULTIPLE_FIELDS["en"]
+            sentences = _DISAMBIGUATION_MULTIPLE_FIELDS.get(
+                target_field, _DISAMBIGUATION_MULTIPLE_VALUES
             )
-            header = header_template.format(name=contact_name, field_type=field_type_label)
+            header = sentences[lang].format(name=contact_name)
         else:
             # Multiple entities (default)
             header_template = _DISAMBIGUATION_MULTIPLE_ENTITIES.get(
@@ -1995,7 +1692,7 @@ class HitlMessages:
         # Build numbered choices
         choices = []
         for i, candidate in enumerate(candidates, 1):
-            choice_line = HitlMessages._format_candidate_line(candidate, i, domain, lang)
+            choice_line = HitlMessages._format_candidate_line(candidate, i, domain)
             choices.append(choice_line)
 
         choices_text = "\n".join(choices)
@@ -2010,19 +1707,21 @@ class HitlMessages:
         candidate: dict[str, Any],
         index: int,
         domain: str,
-        language: str,
     ) -> str:
         """
         Format a single candidate line for disambiguation display.
+
+        A candidate carries what ``EntityResolutionService`` puts in it: a name,
+        an id and, for a contact, the e-mail or phone the action needs — the
+        only details a line can show.
 
         Args:
             candidate: Candidate item dict with display info
             index: 1-based index for display
             domain: Entity domain for formatting
-            language: Language code
 
         Returns:
-            Formatted candidate line (e.g., "1. Jean Dupont (jean@work.com)")
+            Formatted candidate line (e.g., "**1.** Jean Dupont (jean@work.com)")
         """
         # Extract display fields based on domain and available data
         name = candidate.get("name") or candidate.get("display_name") or candidate.get("value", "")
@@ -2039,30 +1738,6 @@ class HitlMessages:
             if phone and not email:
                 details.append(phone)
 
-        # For emails domain, show subject/from
-        elif domain == "emails":
-            subject = candidate.get("subject", "")
-            if subject:
-                # Truncate long subjects
-                if len(subject) > 40:
-                    subject = subject[:37] + "..."
-                details.append(f'"{subject}"')
-            sender = candidate.get("from") or candidate.get("sender", "")
-            if sender:
-                details.append(f"de {sender}")
-
-        # For events domain, show date/time
-        elif domain == "events":
-            start = candidate.get("start") or candidate.get("start_time", "")
-            if start:
-                details.append(start)
-
-        # For tasks domain, show due date
-        elif domain == "tasks":
-            due = candidate.get("due") or candidate.get("due_date", "")
-            if due:
-                details.append(f"due: {due}")
-
         # For field disambiguation (multiple emails/phones), name IS the value
         if not name and candidate.get("value"):
             name = candidate.get("value", "")
@@ -2073,38 +1748,6 @@ class HitlMessages:
             return f"**{index}.** {name} ({details_str})"
         else:
             return f"**{index}.** {name}"
-
-    @staticmethod
-    def get_domain_label(domain: str, language: str) -> str:
-        """
-        Get translated domain label.
-
-        Args:
-            domain: Domain identifier (contacts, emails, events, tasks, files)
-            language: Language code
-
-        Returns:
-            Translated domain label
-        """
-        lang = HitlMessages._normalize_language(language)
-        domain_labels = _DOMAIN_LABELS.get(domain, {})
-        return domain_labels.get(lang, domain)
-
-    @staticmethod
-    def get_field_type_label(field_type: str, language: str) -> str:
-        """
-        Get translated field type label.
-
-        Args:
-            field_type: Field type identifier (email, phone, address)
-            language: Language code
-
-        Returns:
-            Translated field type label
-        """
-        lang = HitlMessages._normalize_language(language)
-        field_labels = _FIELD_TYPE_LABELS.get(field_type, {})
-        return field_labels.get(lang, field_type)
 
     # =========================================================================
     # INSUFFICIENT CONTENT METHODS
@@ -2126,10 +1769,10 @@ class HitlMessages:
             Translated clarification question
 
         Example:
-            >>> HitlMessages.get_insufficient_content_question("email", "fr")
-            "Que souhaites-tu écrire dans cet email ?"
+            >>> HitlMessages.get_insufficient_content_question("email", "en")
+            'What would you like to write in this email?'
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
 
         # Check domain-specific questions
         domain_questions = _INSUFFICIENT_CONTENT_QUESTIONS.get(domain, {})
@@ -2160,10 +1803,10 @@ class HitlMessages:
             types.
 
         Example:
-            >>> HitlMessages.get_semantic_issue_question("cardinality_mismatch", "fr")
-            'Veux-tu que je le fasse pour tous les éléments concernés, ou pour un seul ?'
+            >>> HitlMessages.get_semantic_issue_question("cardinality_mismatch", "en")
+            'Should I do this for every matching item, or just one?'
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         entry = _SEMANTIC_ISSUE_QUESTIONS.get(issue_type)
         if entry:
             return entry.get(lang, entry["en"])
@@ -2192,7 +1835,7 @@ class HitlMessages:
             >>> HitlMessages.get_content_too_long_question(6149, 2000, "en")
             'The content is 6149 characters long, but the limit is 2000. ...'
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         template = _CONTENT_TOO_LONG_QUESTION.get(lang, _CONTENT_TOO_LONG_QUESTION["en"])
         return template.format(length=length, max=max_chars)
 
@@ -2282,12 +1925,12 @@ class HitlMessages:
             Translated field-specific question
 
         Example:
-            >>> HitlMessages.get_field_question("email", "recipient", "fr")
-            "À qui veux-tu envoyer cet email ?"
+            >>> HitlMessages.get_field_question("email", "recipient", "en")
+            'Who do you want to send this email to?'
             >>> HitlMessages.get_field_question("task", "priority", "en")
-            "What is the priority of this task?"
+            'What is the priority of this task?'
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         key = f"{domain}.{field}"
 
         field_questions = _INSUFFICIENT_CONTENT_FIELD_QUESTIONS.get(key, {})
@@ -2318,16 +1961,16 @@ class HitlMessages:
             List of {value, label} dicts if field has options, None otherwise
 
         Example:
-            >>> HitlMessages.get_field_options("task", "priority", "fr")
+            >>> HitlMessages.get_field_options("task", "priority", "en")
             [
-                {"value": "high", "label": "Haute"},
-                {"value": "medium", "label": "Moyenne"},
-                {"value": "low", "label": "Basse"},
+                {"value": "high", "label": "High"},
+                {"value": "medium", "label": "Medium"},
+                {"value": "low", "label": "Low"},
             ]
-            >>> HitlMessages.get_field_options("email", "recipient", "fr")
+            >>> HitlMessages.get_field_options("email", "recipient", "en")
             None
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         key = f"{domain}.{field}"
 
         field_options = _FIELD_OPTION_LABELS.get(key)
@@ -2351,7 +1994,10 @@ class HitlMessages:
         Format field question with options if applicable.
 
         For fields with enumerated options, appends the available choices
-        to the question for better UX.
+        to the question, in the reader's list punctuation. The question keeps
+        its own: it used to be cut at its « ? » and closed on « ? » after a
+        space in every language — « this task ? (High, …) » in English, the
+        French no-break space turned ordinary, « ？ ? » in Chinese.
 
         Args:
             domain: Domain identifier
@@ -2362,17 +2008,15 @@ class HitlMessages:
             Formatted question string, with options appended if applicable
 
         Example:
-            >>> HitlMessages.format_field_question_with_options("task", "priority", "fr")
-            "Quelle est la priorité de cette tâche ? (Haute, Moyenne, Basse)"
+            >>> HitlMessages.format_field_question_with_options("task", "priority", "en")
+            'What is the priority of this task? (High, Medium, Low)'
         """
         question = HitlMessages.get_field_question(domain, field, language)
         options = HitlMessages.get_field_options(domain, field, language)
 
         if options:
-            labels = [opt["label"] for opt in options]
-            options_str = ", ".join(labels)
-            # Remove trailing punctuation and add options
-            question = question.rstrip("?").rstrip() + f" ? ({options_str})"
+            joiner, template = _FIELD_OPTIONS_LIST[resolve_language(language)]
+            question += template.format(options=joiner.join(opt["label"] for opt in options))
 
         return question
 
@@ -2393,9 +2037,10 @@ class HitlMessages:
                           items_suffix_one (singular form, zh-CN duplicates the
                           plural per CLDR), confirm_question, mutation_send,
                           mutation_create, mutation_update, mutation_delete,
-                          mutation_default
+                          mutation_default, operations_header, affected_items,
+                          and_more, item_date_connector
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         return _FOR_EACH_CONFIRM_UI.get(lang, _FOR_EACH_CONFIRM_UI["en"])
 
     @staticmethod
@@ -2414,14 +2059,14 @@ class HitlMessages:
                           filtered_list_header, filter_instruction, no_criteria
 
         Example:
-            >>> HitlMessages.get_for_each_edit_translations("fr")
+            >>> HitlMessages.get_for_each_edit_translations("en")
             {
-                "exclude_action": "Modifier la liste",
-                "items_excluded": "**{count}** élément(s) retiré(s) de la liste.",
+                "exclude_action": "Modify list",
+                "items_excluded": "**{count}** item(s) removed from the list.",
                 ...
             }
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         return _FOR_EACH_EDIT_UI.get(lang, _FOR_EACH_EDIT_UI["en"])
 
     @staticmethod
@@ -2471,9 +2116,10 @@ class HitlMessages:
             language: Language code (fr, en, es, de, it, zh-CN)
 
         Returns:
-            Dict with keys: title, affected_items, and_more, default_warning, confirm_question
+            Dict with keys: title, affected_items, and_more, default_warning,
+            confirm_question, unnamed_item
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         return _DESTRUCTIVE_CONFIRM_UI.get(lang, _DESTRUCTIVE_CONFIRM_UI["en"])
 
     @staticmethod
@@ -2491,7 +2137,7 @@ class HitlMessages:
         Returns:
             Action-specific title, or generic fallback from _DESTRUCTIVE_CONFIRM_UI.
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         titles = _DESTRUCTIVE_CONFIRM_ACTION_TITLES.get(
             lang, _DESTRUCTIVE_CONFIRM_ACTION_TITLES["en"]
         )
@@ -2517,80 +2163,9 @@ class HitlMessages:
         Returns:
             Formatted operation description string
         """
-        lang = HitlMessages._normalize_language(language)
+        lang = resolve_language(language)
         descriptions = _DESTRUCTIVE_OPERATION_DESCRIPTIONS.get(
             lang, _DESTRUCTIVE_OPERATION_DESCRIPTIONS["en"]
         )
         template = descriptions.get(operation_type, descriptions["unknown"])
         return template.format(count=count)
-
-    @staticmethod
-    def get_default_personality(language: str) -> str:
-        """
-        Get default personality instruction for LLM in the user's language.
-
-        Used as fallback when no custom personality is provided in HITL
-        question generators.
-
-        Args:
-            language: Language code (fr, en, es, de, it, zh-CN)
-
-        Returns:
-            Default personality instruction text in the specified language
-
-        Example:
-            >>> HitlMessages.get_default_personality("en")
-            "You are a balanced and professional assistant..."
-        """
-        lang = HitlMessages._normalize_language(language)
-        return _DEFAULT_PERSONALITY.get(lang, _DEFAULT_PERSONALITY["en"])
-
-
-# =============================================================================
-# UTILITY FUNCTION - Get user language with proper fallback
-# =============================================================================
-
-
-def get_user_language(
-    user_language: str | None = None,
-    accept_language_header: str | None = None,
-    default: Language = DEFAULT_LANGUAGE,
-) -> Language:
-    """
-    Get user language with proper fallback chain.
-
-    Priority:
-    1. User's stored language preference (from database)
-    2. Accept-Language header (from browser)
-    3. Default language (fr)
-
-    Args:
-        user_language: User's stored language preference
-        accept_language_header: HTTP Accept-Language header
-        default: Default language to use as fallback
-
-    Returns:
-        Resolved language code
-
-    Example:
-        >>> get_user_language(user_language="de")
-        "de"
-        >>> get_user_language(user_language=None, accept_language_header="en-US,en;q=0.9")
-        "en"
-        >>> get_user_language()
-        "fr"
-    """
-    from src.core.i18n import SUPPORTED_LANGUAGES, get_language_from_header
-
-    # Priority 1: User's stored preference
-    if user_language:
-        normalized = HitlMessages._normalize_language(user_language)
-        if normalized in SUPPORTED_LANGUAGES:
-            return normalized
-
-    # Priority 2: Accept-Language header
-    if accept_language_header:
-        return get_language_from_header(accept_language_header)
-
-    # Priority 3: Default
-    return default

@@ -399,6 +399,48 @@ class TestMakeRequest:
         mock_http_client.post.assert_called_once()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("base_url", "expected_url"),
+        [
+            (None, "https://people.googleapis.com/v1/messages/send"),
+            ("https://upload.example.test/v1", "https://upload.example.test/v1/messages/send"),
+        ],
+    )
+    async def test_make_request_posts_to_the_root_the_call_names(
+        self, client, base_url, expected_url
+    ):
+        """A raw body reaches the root the call names, else ``api_base_url`` (ADR-321).
+
+        Gmail accepts a message carrying a file on its UPLOAD URI only: a send
+        that kept the default root would meet the metadata URI's ~1 MiB refusal.
+        """
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"id": "sent"}
+        mock_response.content = b'{"id": "sent"}'
+
+        mock_http_client = AsyncMock()
+        mock_http_client.post = AsyncMock(return_value=mock_response)
+        client._http_client = mock_http_client
+
+        with (
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch.object(client, "_ensure_valid_token", AsyncMock(return_value="valid_token")),
+        ):
+            await client._make_request(
+                "POST",
+                "/messages/send",
+                extra_headers={"Content-Type": "message/rfc822"},
+                content=b"raw message",
+                base_url=base_url,
+            )
+
+        sent = mock_http_client.post.await_args
+        assert sent.args[0] == expected_url
+        assert sent.kwargs["content"] == b"raw message"
+        assert sent.kwargs["headers"]["Content-Type"] == "message/rfc822"
+
+    @pytest.mark.asyncio
     async def test_make_request_retries_on_429(self, client):
         """Test request retries on 429 rate limit."""
         # First attempt: 429, second attempt: success

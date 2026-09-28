@@ -37,6 +37,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 
 
 class DraftType(str, Enum):
@@ -124,8 +125,8 @@ class BaseDraftInput(BaseModel):
 
     # User language for HITL questions
     user_language: str = Field(
-        default="fr",
-        description="Language for HITL questions",
+        default_factory=resolve_language,
+        description="Language for HITL questions (the declared one when not given)",
     )
 
     # User timezone for datetime formatting in HITL previews
@@ -329,7 +330,7 @@ class EventDeleteDraftInput(BaseDraftInput):
 
     Maps to DeleteEventInput but deferred for user confirmation.
     Homogenized with EventUpdateDraftInput to enable draft type changes
-    (e.g., user says "non déplace le au 23 mai" on a delete HITL).
+    (e.g., user says "no, move it to May 23" on a delete HITL).
     """
 
     event_id: str = Field(..., description="Event ID to delete")
@@ -436,8 +437,11 @@ class PhoneCallDraftInput(BaseDraftInput):
 
     Deferred for user confirmation before LIA actually places the call. The
     callee's number is already resolved at this point (never re-resolved at
-    execution). ``date_window`` is a free-text availability hint (e.g. "cette
-    semaine", "mardi après-midi") that the executor projects to a fetch window.
+    execution). ``date_window`` is the availability window the user stated
+    (e.g. "2026-09-15 full day"). No code acts on it: the pre-fetch window is
+    computed from settings alone (``telephony/service.py``), the call ignores
+    it, and the confirmation card does not show it — only the model writing
+    the confirmation question sees it among the draft's fields.
     """
 
     callee_name: str = Field(..., description="Display name of the person to call")
@@ -445,7 +449,10 @@ class PhoneCallDraftInput(BaseDraftInput):
     objective: str = Field(..., description="What LIA must accomplish on the call")
     date_window: str | None = Field(
         default=None,
-        description="Optional free-text window for availability pre-fetch (e.g. 'this week').",
+        description=(
+            "Optional availability window the user stated (e.g. '2026-09-15 full day'); "
+            "no code acts on it: neither the availability pre-fetch nor the call reads it."
+        ),
     )
 
 
@@ -733,7 +740,7 @@ class Draft(BaseModel):
 
     def get_summary(
         self,
-        user_language: str = "fr",
+        user_language: str | None = None,
         user_timezone: str | None = None,
     ) -> str:
         """Get the one-line summary naming what this draft would do.
@@ -745,7 +752,8 @@ class Draft(BaseModel):
         ``Draft (<value>)`` that 9 of the 26 types actually reached.
 
         Args:
-            user_language: Language code for i18n.
+            user_language: The reader's language; the declared one when absent
+                (ADR-323).
             user_timezone: IANA timezone for datetime formatting (defaults to
                 ``content.user_timezone``).
 
@@ -754,11 +762,11 @@ class Draft(BaseModel):
         """
         from src.domains.agents.drafts.summary_renderer import render_summary
 
-        return render_summary(self, user_language, user_timezone)
+        return render_summary(self, resolve_language(user_language), user_timezone)
 
     def get_detailed_preview(
         self,
-        user_language: str = "fr",
+        user_language: str | None = None,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> str:
         """
@@ -770,7 +778,8 @@ class Draft(BaseModel):
         ``drafts/preview_renderer.py`` (extracted 2026-07, audit cycle 3).
 
         Args:
-            user_language: Language for labels (fr, en, es, de, it, zh-CN)
+            user_language: The labels' language; the declared one when absent
+                (ADR-323).
             user_timezone: User's IANA timezone for datetime formatting
 
         Returns:
@@ -779,4 +788,4 @@ class Draft(BaseModel):
         # Local import: preview_renderer imports DraftType from this module.
         from src.domains.agents.drafts.preview_renderer import render_detailed_preview
 
-        return render_detailed_preview(self, user_language, user_timezone)
+        return render_detailed_preview(self, resolve_language(user_language), user_timezone)

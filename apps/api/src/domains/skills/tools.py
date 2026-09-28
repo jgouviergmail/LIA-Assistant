@@ -16,8 +16,8 @@ from typing import Annotated, Any
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 
-from src.core.config import settings
 from src.core.constants import DEFAULT_TIMEZONE
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import AGENT_QUERY
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -240,8 +240,8 @@ async def run_skill_script(
     )
     enriched_parameters: dict[str, Any] = dict(coerced_parameters or {})
     if "_lang" not in enriched_parameters:
-        enriched_parameters["_lang"] = (
-            context.language if context is not None else settings.default_language
+        enriched_parameters["_lang"] = resolve_language(
+            context.language if context is not None else None
         )
     if "_tz" not in enriched_parameters:
         enriched_parameters["_tz"] = context.timezone if context is not None else DEFAULT_TIMEZONE

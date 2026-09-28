@@ -392,19 +392,26 @@ class TestBuildExecutionStepEvent:
         assert result["emoji"] == "🧭"
         assert result["i18n_key"] == "router_decision"
 
-    def test_includes_additional_data(self):
-        """Test that additional_data is merged into event."""
+    def test_the_event_carries_the_published_fields_and_nothing_else(self) -> None:
+        """What the web reads, and nothing it would wait for: the ``detail``
+        snippet had no writer left once its extractor was deleted."""
         with patch("src.domains.agents.utils.execution_metadata.logger"):
             result = build_execution_step_event(
                 step_type="node",
                 step_name="planner",
                 status="started",
-                additional_data={"custom_field": "custom_value", "count": 5},
             )
 
         assert result is not None
-        assert result["custom_field"] == "custom_value"
-        assert result["count"] == 5
+        assert set(result) == {
+            "type",
+            "step_type",
+            "step_name",
+            FIELD_STATUS,
+            "emoji",
+            "i18n_key",
+            "category",
+        }
 
     def test_status_values(self):
         """Test different status values."""

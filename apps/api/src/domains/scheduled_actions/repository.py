@@ -235,16 +235,22 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         error: str,
         next_trigger_at: datetime | None,
         max_consecutive_failures: int = 5,
+        *,
+        condition_state: dict | None = None,
     ) -> ScheduledAction:
         """
         Mark an action as failed and schedule next trigger.
 
         If consecutive_failures >= max_consecutive_failures, auto-disable
-        the action and set status to ERROR.
+        the action and set status to ERROR. ``condition_state`` (ADR-322): the
+        ledger of a condition routine — its check happened, its new facts stay
+        new — as a full NEW-dict replacement (JSONB rule).
         """
         action.consecutive_failures += 1
         action.last_error = error[:2000]  # Truncate error message
         action.next_trigger_at = next_trigger_at
+        if condition_state is not None:
+            action.condition_state = condition_state
 
         if action.consecutive_failures >= max_consecutive_failures:
             action.is_enabled = False

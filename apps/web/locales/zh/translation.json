@@ -108,13 +108,13 @@
   },
   "activity": {
     "title": "活动",
-    "subtitle": "LIA 在过去 {{days}} 天为您主动完成的一切。",
+    "subtitle": "LIA 在过去 {{days}} 天为你主动完成的一切。",
     "refresh": "刷新",
     "load_more": "显示更多",
     "retry": "重试",
     "error_description": "无法加载活动记录。",
     "empty_title": "暂无内容",
-    "empty_description": "当 LIA 为您采取行动时——通知、日志、习惯、承诺、例行任务——都会显示在这里。",
+    "empty_description": "当 LIA 为你采取行动时——通知、日志、习惯、承诺、例行任务——都会显示在这里。",
     "empty_action": "设置主动服务",
     "partial_warning": "部分来源未响应——此视图可能不完整。",
     "truncated_hint": "部分较早的条目未显示。",
@@ -210,7 +210,7 @@
     },
     "main_feature": {
       "title": "与LIA聊天",
-      "description": "您的个人助手，随时准备帮助您。提问、请求信息或随意交谈。",
+      "description": "你的个人助手，随时准备帮助你。提问、请求信息或随意交谈。",
       "powered_by": "由人工智能驱动"
     },
     "quick_access": {
@@ -224,24 +224,24 @@
       },
       "settings_card": {
         "title": "设置",
-        "description": "管理您的连接器和偏好设置",
+        "description": "管理你的连接器和偏好设置",
         "badge": "配置"
       },
       "security": {
         "title": "安全",
-        "description": "您的数据受到保护和加密",
+        "description": "你的数据受到保护和加密",
         "badge": "活跃",
         "button": "主动保护"
       }
     },
-    "loading": "正在加载您的 Today…",
+    "loading": "正在加载你的 Today…",
     "quick_access_compact": {
       "help": "帮助",
       "settings": "设置",
       "relations": "人际关系",
       "help_sub": "常见问题与支持",
       "settings_sub": "连接器和首选项",
-      "relations_sub": "一览您的联系人",
+      "relations_sub": "一览你的联系人",
       "capabilities": "能力",
       "capabilities_sub": "你的星座",
       "workboard": "工作看板",
@@ -254,7 +254,7 @@
       "synthesis_listen": "收听摘要",
       "synthesis_stop": "停止朗读",
       "section_title": "我的仪表盘",
-      "skeleton_loading": "正在准备您的简报…",
+      "skeleton_loading": "正在准备你的简报…",
       "refresh_all": "全部刷新",
       "refresh_all_tooltip": "强制刷新所有卡片并重新生成问候语和概要",
       "customize": "自定义",
@@ -268,7 +268,7 @@
       "errors": {
         "generic": "发生错误",
         "page_title": "简报不可用",
-        "page_description": "暂时无法加载您的 Today，请稍后再试。",
+        "page_description": "暂时无法加载你的 Today，请稍后再试。",
         "retry": "重试"
       },
       "actions": {
@@ -413,7 +413,7 @@
       }
     },
     "portrait_hint": {
-      "text": "我对您的理解更进一步了。",
+      "text": "我对你的理解更进一步了。",
       "cta": "查看",
       "dismiss": "忽略"
     },
@@ -429,8 +429,8 @@
         "voice": "启用语音",
         "telegram": "关联 Telegram",
         "heartbeat": "启用主动心跳",
-        "space": "创建您的第一个文档空间",
-        "automation": "创建您的第一个自动化"
+        "space": "创建你的第一个文档空间",
+        "automation": "创建你的第一个自动化"
       }
     },
     "install_hint": {
@@ -457,9 +457,9 @@
   "auth": {
     "metadata": {
       "login_title": "登录 - LIA",
-      "login_description": "登录您的 LIA 账户",
+      "login_description": "登录你的 LIA 账户",
       "register_title": "注册 - LIA",
-      "register_description": "创建您的 LIA 账户"
+      "register_description": "创建你的 LIA 账户"
     },
     "email_label": "电子邮件地址",
     "email_placeholder": "you@example.com",
@@ -489,16 +489,16 @@
     },
     "register_page": {
       "title": "注册",
-      "subtitle": "创建您的账户以开始",
+      "subtitle": "创建你的账户以开始",
       "divider": "或注册使用",
       "have_account": "已有账号？",
       "login_link": "登录"
     },
     "registration_success": {
       "title": "注册成功！",
-      "message": "验证邮件已发送到您的邮箱地址。请点击链接验证您的邮箱。",
+      "message": "验证邮件已发送到你的邮箱地址。请点击链接验证你的邮箱。",
       "spam_warning_title": "找不到邮件？",
-      "spam_warning_message": "请检查您的垃圾邮件或垃圾箱文件夹。邮件可能被错误地归类到那里。",
+      "spam_warning_message": "请检查你的垃圾邮件或垃圾箱文件夹。邮件可能被错误地归类到那里。",
       "link_expires": "验证链接将在24小时后过期。",
       "back_to_login": "返回登录"
     },
@@ -511,11 +511,11 @@
     },
     "login": {
       "title": "登录",
-      "subtitle": "登录到您的账户",
+      "subtitle": "登录到你的账户",
       "email": "电子邮件地址",
       "email_placeholder": "you@example.com",
       "password": "密码",
-      "password_placeholder": "输入您的密码",
+      "password_placeholder": "输入你的密码",
       "remember_me": "记住我",
       "submit": "登录",
       "submitting": "登录中...",
@@ -527,7 +527,7 @@
     },
     "register": {
       "title": "注册",
-      "subtitle": "创建您的账户",
+      "subtitle": "创建你的账户",
       "full_name": "全名",
       "full_name_placeholder": "张三",
       "email": "电子邮件地址",
@@ -535,22 +535,22 @@
       "password": "密码",
       "password_placeholder": "至少8个字符",
       "confirm_password": "确认密码",
-      "confirm_password_placeholder": "重新输入您的密码",
+      "confirm_password_placeholder": "重新输入你的密码",
       "submit": "创建账户",
       "submitting": "创建中...",
       "has_account": "已有账号？",
       "login_link": "登录",
       "oauth_separator": "或",
       "google_register": "使用Google注册",
-      "terms": "创建账户即表示您同意我们的{{terms}}和{{privacy}}",
-      "terms_prefix": "创建账户即表示您同意我们的",
+      "terms": "创建账户即表示你同意我们的{{terms}}和{{privacy}}",
+      "terms_prefix": "创建账户即表示你同意我们的",
       "terms_and": "和",
       "terms_link": "服务条款",
       "privacy_link": "隐私政策"
     },
     "errors": {
       "invalid_credentials": "电子邮件或密码无效",
-      "account_inactive": "您的账户未激活",
+      "account_inactive": "你的账户未激活",
       "email_required": "需要电子邮件",
       "email_invalid": "电子邮件格式无效",
       "password_required": "需要密码",
@@ -588,10 +588,10 @@
     },
     "verify_email": {
       "loading_title": "验证中...",
-      "loading_message": "请稍候，我们正在验证您的电子邮件。",
+      "loading_message": "请稍候，我们正在验证你的电子邮件。",
       "success_title": "邮箱验证成功！",
-      "success_message": "您的电子邮件地址已验证。您的账户正在等待管理员激活。",
-      "success_hint": "账户激活后您将收到一封电子邮件。",
+      "success_message": "你的电子邮件地址已验证。你的账户正在等待管理员激活。",
+      "success_hint": "账户激活后你将收到一封电子邮件。",
       "error_title": "验证失败",
       "error_missing_token": "缺少验证令牌。",
       "error_invalid_token": "验证链接无效或已过期。",
@@ -602,13 +602,13 @@
     },
     "forgot_password": {
       "title": "忘记密码？",
-      "subtitle": "输入您的电子邮件地址，我们将向您发送重置密码的链接。",
+      "subtitle": "输入你的电子邮件地址，我们将向你发送重置密码的链接。",
       "email_label": "电子邮件地址",
       "email_placeholder": "your@email.com",
       "submit": "发送重置链接",
       "submitting": "发送中...",
       "success_title": "邮件已发送！",
-      "success_message": "如果存在使用 <strong>{{email}}</strong> 的账户，您将收到一封包含重置密码说明的电子邮件。",
+      "success_message": "如果存在使用 <strong>{{email}}</strong> 的账户，你将收到一封包含重置密码说明的电子邮件。",
       "success_hint": "如果几分钟内没有收到邮件，请检查垃圾邮件文件夹。",
       "back_to_login": "返回登录"
     },
@@ -616,17 +616,17 @@
       "loading_title": "加载中...",
       "loading_message": "请稍候。",
       "title": "重置密码",
-      "subtitle": "请在下方输入您的新密码。",
+      "subtitle": "请在下方输入你的新密码。",
       "invalid_link_title": "链接无效",
       "invalid_link_message": "重置链接无效或已过期。",
       "new_password_label": "新密码",
       "new_password_placeholder": "至少10个字符",
       "confirm_password_label": "确认密码",
-      "confirm_password_placeholder": "确认您的密码",
+      "confirm_password_placeholder": "确认你的密码",
       "submit": "重置密码",
       "submitting": "正在重置...",
       "success_title": "密码已更改！",
-      "success_message": "您的密码已成功重置。现在可以使用新密码登录。",
+      "success_message": "你的密码已成功重置。现在可以使用新密码登录。",
       "login_button": "登录",
       "back_to_login": "返回登录",
       "error_mismatch": "密码不匹配。",
@@ -634,11 +634,11 @@
     },
     "passkey": {
       "login_button": "使用通行密钥登录",
-      "login_pending": "等待您的通行密钥…",
+      "login_pending": "等待你的通行密钥…",
       "login_error": "通行密钥登录失败,请重试。"
     },
     "mfa": {
-      "prompt": "请输入身份验证器应用中的 6 位数代码,或您的备用代码之一。",
+      "prompt": "请输入身份验证器应用中的 6 位数代码,或你的备用代码之一。",
       "code_label": "验证码",
       "code_placeholder": "123456",
       "verify_button": "验证",
@@ -646,7 +646,7 @@
       "invalid_code": "验证码无效或已过期,请重新登录。"
     },
     "stepUp": {
-      "title": "请确认是您本人",
+      "title": "请确认是你本人",
       "description": "此敏感操作需要近期的再次验证(几分钟内有效)。",
       "error": "验证失败,请重试。",
       "passkey_button": "使用通行密钥",
@@ -655,7 +655,7 @@
       "totp_label": "验证器代码或备用代码",
       "totp_submit": "使用代码验证",
       "oauth_google_button": "使用 Google 确认",
-      "oauth_hint": "您将被重定向到 Google 以确认身份，然后返回 LIA — 之后请重新发起该操作。",
+      "oauth_hint": "你将被重定向到 Google 以确认身份，然后返回 LIA — 之后请重新发起该操作。",
       "no_methods": "此账户没有可用的确认方式。请退出登录后重新登录，然后重试。"
     },
     "terms": {
@@ -666,15 +666,15 @@
   "account_inactive": {
     "loading": "加载中...",
     "title": "账户等待激活",
-    "message": "您的LIA账户已创建，正在等待管理员激活。",
+    "message": "你的LIA账户已创建，正在等待管理员激活。",
     "info_title": "下一步：",
-    "info_message": "您的账户激活后，您将收到确认电子邮件。届时您可以登录并使用LIA。",
+    "info_message": "你的账户激活后，你将收到确认电子邮件。届时你可以登录并使用LIA。",
     "spam_warning_title": "找不到邮件？",
-    "spam_warning_message": "请检查您的垃圾邮件或垃圾箱文件夹。邮件可能被错误地归类到那里。",
-    "help": "如果几天后仍未收到电子邮件，请联系您组织的管理员。",
+    "spam_warning_message": "请检查你的垃圾邮件或垃圾箱文件夹。邮件可能被错误地归类到那里。",
+    "help": "如果几天后仍未收到电子邮件，请联系你组织的管理员。",
     "logout": "注销",
     "refresh": "刷新页面",
-    "footer": "感谢您的耐心等待。您的账户激活正在处理中。"
+    "footer": "感谢你的耐心等待。你的账户激活正在处理中。"
   },
   "chat": {
     "title": "聊天",
@@ -727,7 +727,7 @@
       "disable": "禁用语音模式",
       "click_to_speak": "点击说话",
       "click_to_stop": "点击停止",
-      "processing": "正在处理您的语音...",
+      "processing": "正在处理你的语音...",
       "speaking": "正在播放回复...",
       "badge_inactive": "语音",
       "badge_initializing": "初始化中...",
@@ -799,7 +799,7 @@
     "assistant_typing": "助手正在输入...",
     "tab_title_writing": "LIA 正在输入…",
     "message": {
-      "you": "您",
+      "you": "你",
       "assistant": "助手",
       "system": "系统",
       "error": "发送消息失败",
@@ -834,7 +834,7 @@
       "yesterday": "昨天"
     },
     "avatar_alt": {
-      "user": "您",
+      "user": "你",
       "assistant": "LIA"
     },
     "error": {
@@ -843,17 +843,20 @@
     },
     "document_card": {
       "download": "下载 {{name}}",
-      "open": "打开 {{name}}",
-      "open_short": "打开"
+      "open": "打开 {{name}}"
     },
     "document_expiry": {
-      "expired": "该文档已过期，不再可用"
+      "expired": "该文档已过期，不再可用",
+      "kept": "已保留：不会被自动删除",
+      "gone": "该文档已不可用"
     },
     "image_expiry": {
-      "until": "可用至 {{date}} — 下载以保存",
-      "soon_one": "{{count}} 小时后过期 — 下载以保存",
-      "soon_other": "{{count}} 小时后过期 — 下载以保存",
-      "expired": "该图片已过期，不再可用"
+      "until": "可用至 {{date}} — 可在「我生成的文件」中保留或下载",
+      "soon_one": "{{count}} 小时后过期 — 可在「我生成的文件」中保留或下载",
+      "soon_other": "{{count}} 小时后过期 — 可在「我生成的文件」中保留或下载",
+      "expired": "该图片已过期，不再可用",
+      "kept": "已保留：不会被自动删除",
+      "gone": "该图片已不可用"
     },
     "starters": {
       "label": "试试这些",
@@ -863,7 +866,7 @@
     },
     "empty_state": {
       "title": "开始对话",
-      "description": "提出您的第一个问题以开始与LIA的对话。",
+      "description": "提出你的第一个问题以开始与LIA的对话。",
       "night_note": "夜里，LIA 会整理它的记忆。写点什么，它就会为你醒来。"
     },
     "loading_older_messages": "正在加载较早的消息…",
@@ -888,27 +891,20 @@
     },
     "geolocation": {
       "prompt_title": "启用地理定位？",
-      "prompt_description": "为了获得基于您当前位置的准确结果，请启用地理定位。",
+      "prompt_description": "为了获得基于你当前位置的准确结果，请启用地理定位。",
       "enable_button": "启用",
       "dismiss_button": "稍后",
-      "enabled_success": "地理定位已启用！您的搜索将使用您的位置。",
-      "permission_denied": "权限被拒绝。您可以在浏览器设置中启用它。",
+      "enabled_success": "地理定位已启用！你的搜索将使用你的位置。",
+      "permission_denied": "权限被拒绝。你可以在浏览器设置中启用它。",
       "retry_title": "位置不可用",
-      "retry_description": "地理定位已启用，但无法获取您的位置。点击重试。",
+      "retry_description": "地理定位已启用，但无法获取你的位置。点击重试。",
       "retry_button": "重试",
-      "retry_failed": "无法获取您的位置。请检查GPS是否已启用。",
+      "retry_failed": "无法获取你的位置。请检查GPS是否已启用。",
       "reactivate_title": "需要重新启用定位",
-      "reactivate_description": "应用关闭期间,您的设备暂停了位置共享。请重新启用,以便 LIA 继续使用您的真实位置而不是家庭地址。",
+      "reactivate_description": "应用关闭期间,你的设备暂停了位置共享。请重新启用,以便 LIA 继续使用你的真实位置而不是家庭地址。",
       "reactivate_button": "重新启用",
       "detection": {
-        "keywords": [
-          "附近",
-          "周围",
-          "周边",
-          "旁边",
-          "邻近",
-          "住处"
-        ],
+        "keywords": ["附近", "周围", "周边", "旁边", "邻近", "住处"],
         "patterns": [
           "(我|这)(附近|周围|周边)",
           "在我(附近|旁边)",
@@ -1003,7 +999,7 @@
       "remote_error": "搜索失败,请重试。",
       "searching": "搜索中…",
       "load_more": "更多结果",
-      "history_view": "您正在查看对话的历史时刻",
+      "history_view": "你正在查看对话的历史时刻",
       "back_to_present": "回到当前",
       "open_mobile": "搜索历史记录",
       "close_mobile": "关闭搜索",
@@ -1013,11 +1009,11 @@
     "feedback": {
       "up": "这条回答有帮助",
       "down": "这条回答没有帮助",
-      "saved": "感谢您的反馈!",
-      "error": "无法保存您的反馈,请重试。",
+      "saved": "感谢你的反馈!",
+      "error": "无法保存你的反馈,请重试。",
       "comment_placeholder": "哪里出了问题?(可选)",
       "comment_send": "发送",
-      "comment_thanks": "谢谢,您的更正已记录。"
+      "comment_thanks": "谢谢,你的更正已记录。"
     },
     "scroll": {
       "to_bottom": "回到最新消息",
@@ -1028,7 +1024,7 @@
     "followups": {
       "aria": "后续建议"
     },
-    "intent_saved_as_draft": "已达到使用上限——您的请求已保存为草稿。",
+    "intent_saved_as_draft": "已达到使用上限——你的请求已保存为草稿。",
     "selection": {
       "aria": "对所选段落的操作",
       "close": "关闭选择操作",
@@ -1096,7 +1092,7 @@
     },
     "reset_confirm": {
       "title": "删除此对话？",
-      "description": "所有消息都将被删除，您的全部附件（包括 AI 生成的图片）也会一并删除。LIA 还会忘记本次对话的上下文。此操作无法撤销。",
+      "description": "所有消息都将被删除，你附加的文件也会一并删除。LIA 生成的文件会保留在「我生成的文件」中。LIA 还会忘记本次对话的上下文。此操作无法撤销。",
       "confirm": "全部删除"
     },
     "active_call": {
@@ -1145,7 +1141,7 @@
   },
   "settings": {
     "title": "设置",
-    "subtitle": "管理您的偏好设置和账户",
+    "subtitle": "管理你的偏好设置和账户",
     "tabs": {
       "profile": "个人资料",
       "connectors": "连接器",
@@ -1174,7 +1170,7 @@
     },
     "theme": {
       "title": "外观",
-      "description": "选择您喜欢的主题",
+      "description": "选择你喜欢的主题",
       "light": "浅色",
       "dark": "深色",
       "system": "系统",
@@ -1208,7 +1204,7 @@
     },
     "font": {
       "title": "字体",
-      "description": "选择您喜欢的显示字体",
+      "description": "选择你喜欢的显示字体",
       "sample_text": "敏捷的棕色狐狸跳过了懒惰的狗。",
       "info_note": "字体适用于整个界面。衬线字体适合阅读，等宽字体适合代码。",
       "fonts": {
@@ -1252,7 +1248,7 @@
     },
     "profile": {
       "title": "个人资料信息",
-      "description": "管理您的个人信息",
+      "description": "管理你的个人信息",
       "full_name": "全名",
       "email": "电子邮件地址",
       "email_verified": "电子邮件已验证",
@@ -1265,9 +1261,9 @@
     },
     "connectors": {
       "title": "连接器",
-      "description": "管理您与外部服务的连接",
+      "description": "管理你与外部服务的连接",
       "my_connectors": "我的连接器",
-      "my_connectors_description": "连接您的账户以允许LIA访问您的数据",
+      "my_connectors_description": "连接你的账户以允许LIA访问你的数据",
       "connected": "已连接",
       "connected_google": "Google 服务",
       "group_state": {
@@ -1343,15 +1339,15 @@
       },
       "google": {
         "title": "Google",
-        "description": "访问您的Google联系人",
+        "description": "访问你的Google联系人",
         "contacts": "Google联系人",
-        "contacts_description": "读取和写入您的Google联系人",
+        "contacts_description": "读取和写入你的Google联系人",
         "calendar": "Google日历",
-        "calendar_description": "查看和管理您的活动",
+        "calendar_description": "查看和管理你的活动",
         "drive": "Google云端硬盘",
-        "drive_description": "访问您的文件和文档",
+        "drive_description": "访问你的文件和文档",
         "tasks": "Google任务",
-        "tasks_description": "管理您的任务列表",
+        "tasks_description": "管理你的任务列表",
         "places": "Google地点",
         "places_description": "搜索地点和商家",
         "status": {
@@ -1366,7 +1362,7 @@
         "all_already_connected": "所有Google服务已连接",
         "disconnect": "断开",
         "disconnect_all": "全部断开",
-        "disconnect_all_confirm": "您确定要断开所有Google服务的连接吗？",
+        "disconnect_all_confirm": "你确定要断开所有Google服务的连接吗？",
         "disconnect_all_success": "所有Google服务已断开连接",
         "disconnect_all_error": "断开Google服务连接时出错",
         "reconnect": "重新连接",
@@ -1417,27 +1413,27 @@
       },
       "apple": {
         "title": "Apple 服务",
-        "description": "连接您的 Apple iCloud 服务",
+        "description": "连接你的 Apple iCloud 服务",
         "email": "Apple Mail",
         "email_description": "通过 iCloud Mail 阅读和发送电子邮件",
         "calendar": "Apple Calendar",
-        "calendar_description": "查看和管理您的 iCloud 日历事件",
+        "calendar_description": "查看和管理你的 iCloud 日历事件",
         "contacts": "Apple Contacts",
-        "contacts_description": "访问您的 iCloud 联系人",
+        "contacts_description": "访问你的 iCloud 联系人",
         "connect": "连接 Apple iCloud",
-        "connect_description": "输入您的 Apple ID 和应用专用密码",
+        "connect_description": "输入你的 Apple ID 和应用专用密码",
         "apple_id_label": "Apple ID",
         "apple_id_placeholder": "你的.邮箱@icloud.com",
         "app_password_label": "应用专用密码",
         "app_password_placeholder": "xxxx-xxxx-xxxx-xxxx",
-        "app_password_help": "您需要从 Apple 账户生成应用专用密码。",
+        "app_password_help": "你需要从 Apple 账户生成应用专用密码。",
         "app_password_link": "如何生成应用专用密码",
         "app_password_url": "https://support.apple.com/zh-cn/102654",
-        "two_fa_required": "您的 Apple 账户必须启用双重认证",
+        "two_fa_required": "你的 Apple 账户必须启用双重认证",
         "select_services": "选择要连接的服务",
         "test_connection": "测试连接",
-        "test_success": "连接成功！您的凭据有效。",
-        "test_error": "连接失败。请检查您的 Apple ID 和应用专用密码。",
+        "test_success": "连接成功！你的凭据有效。",
+        "test_error": "连接失败。请检查你的 Apple ID 和应用专用密码。",
         "activate": "激活",
         "activate_success": "Apple iCloud 服务连接成功",
         "activate_error": "Apple iCloud 服务连接失败",
@@ -1450,15 +1446,15 @@
       },
       "microsoft": {
         "title": "Microsoft 服务",
-        "description": "连接您的 Microsoft 365 服务",
+        "description": "连接你的 Microsoft 365 服务",
         "outlook": "Microsoft Outlook",
         "outlook_description": "通过 Outlook 阅读和发送电子邮件",
         "calendar": "Microsoft Calendar",
-        "calendar_description": "查看和管理您的日程",
+        "calendar_description": "查看和管理你的日程",
         "contacts": "Microsoft Contacts",
-        "contacts_description": "访问您的 Microsoft 联系人",
+        "contacts_description": "访问你的 Microsoft 联系人",
         "tasks": "Microsoft To Do",
-        "tasks_description": "管理您的任务和任务列表",
+        "tasks_description": "管理你的任务和任务列表",
         "connect": "连接",
         "connect_all": "全部连接",
         "connect_all_error": "连接 Microsoft 服务时出错",
@@ -1470,7 +1466,7 @@
         "title": "外部服务",
         "description": "这些服务需要API密钥才能使用",
         "enter_key": "输入API密钥",
-        "key_placeholder": "在此粘贴您的API密钥...",
+        "key_placeholder": "在此粘贴你的API密钥...",
         "secret_placeholder": "密钥（如适用）",
         "key_name_placeholder": "密钥名称（可选）",
         "validate": "验证",
@@ -1515,22 +1511,22 @@
       },
       "hue": {
         "label": "Philips Hue",
-        "description": "通过LIA控制您的Philips Hue智能灯",
+        "description": "通过LIA控制你的Philips Hue智能灯",
         "mode_select": "选择连接模式",
         "mode_local": "本地连接（同一网络）",
-        "mode_local_desc": "您的LIA服务器必须与Hue Bridge在同一网络中",
+        "mode_local_desc": "你的LIA服务器必须与Hue Bridge在同一网络中",
         "mode_remote": "远程连接（Philips云）",
-        "mode_remote_desc": "通过Philips云从任何地方控制您的灯光",
+        "mode_remote_desc": "通过Philips云从任何地方控制你的灯光",
         "discover_bridges": "搜索网桥",
         "discovering": "正在搜索Hue网桥...",
         "no_bridges_found": "在本地网络上未找到网桥",
-        "select_bridge": "选择您的网桥",
+        "select_bridge": "选择你的网桥",
         "press_button": "按下Hue网桥上的按钮",
         "press_button_desc": "按下网桥顶部的大圆按钮，然后点击配对",
         "pairing_countdown": "剩余{{seconds}}秒",
         "pair_button": "配对",
         "pairing_success": "网桥配对成功！",
-        "pairing_error": "配对失败。您按下了网桥按钮吗？",
+        "pairing_error": "配对失败。你按下了网桥按钮吗？",
         "bridge_unreachable": "网桥无法访问。请检查网络连接。",
         "connect_remote": "通过Philips Hue连接",
         "test_connection": "测试连接"
@@ -1558,18 +1554,18 @@
       },
       "disconnect": "断开连接",
       "disconnect_title": "断开 {{name}} 的连接？",
-      "disconnect_description": "LIA 将无法再读取您的 {{name}} 数据或对其执行操作。{{name}} 侧不会删除任何内容，您可以随时重新连接。",
+      "disconnect_description": "LIA 将无法再读取你的 {{name}} 数据或对其执行操作。{{name}} 侧不会删除任何内容，你可以随时重新连接。",
       "connected_live": "已连接的 Live",
       "available_live": "可用的 Live",
       "live": {
         "label": "实时语音 ({{brand}})",
-        "description": "使用您自己的 {{brand}} 密钥，与 LIA 进行实时语音对话",
-        "billing_notice": "实时会话使用您自己的 {{account}} 账户并在那里计费。LIA 在会话期间自身的工作照常在此计费。",
-        "step_key": "粘贴您的 {{brand}} API 密钥",
+        "description": "使用你自己的 {{brand}} 密钥，与 LIA 进行实时语音对话",
+        "billing_notice": "实时会话使用你自己的 {{account}} 账户并在那里计费。LIA 在会话期间自身的工作照常在此计费。",
+        "step_key": "粘贴你的 {{brand}} API 密钥",
         "key_placeholder": "{{brand}} API 密钥",
         "validate_key": "验证密钥",
         "invalid_key": "此 API 密钥无效，或未列出任何可进行实时对话的模型。",
-        "models_hint": "验证您的 API 密钥以列出它可以开启的实时模型。",
+        "models_hint": "验证你的 API 密钥以列出它可以开启的实时模型。",
         "step_model": "模型",
         "step_voice": "语音",
         "voices_provenance": "服务商不提供语音列表接口：此为其发布的列表，日期 {{date}}。",
@@ -1585,7 +1581,7 @@
     "user": {
       "export": {
         "title": "导出我的消费数据",
-        "description": "将您的个人LLM和Google API消费数据导出为CSV。",
+        "description": "将你的个人LLM和Google API消费数据导出为CSV。",
         "start_date": "开始日期",
         "end_date": "结束日期",
         "preset_current_month": "本月",
@@ -1599,9 +1595,9 @@
         "stt_usage_title": "远程 STT 使用情况",
         "stt_usage_description": "每行对应一次 ElevenLabs Scribe 转录（音频时长 + 费用）。",
         "tts_usage_title": "付费 TTS 使用情况",
-        "tts_usage_description": "每行对应一次付费 TTS 合成（OpenAI / ElevenLabs） — 字符数 + 费用。",
+        "tts_usage_description": "每次付费语音合成一行 — 每条朗读的回答、每次电台会话 — 字符数 + 费用。",
         "summary_title": "我的摘要",
-        "summary_description": "您的消费汇总数据。",
+        "summary_description": "你的消费汇总数据。",
         "download_csv": "下载CSV",
         "exporting": "导出中...",
         "success": "导出下载成功",
@@ -1750,7 +1746,7 @@
           "supports_vision_label": "支持视觉（图像输入）",
           "is_reasoning_model_label": "是推理模型",
           "time_slots_toggle_label": "分时段计价（UTC）",
-          "time_slots_hint": "时段以 UTC 定义——起始时间包含，结束时间不包含；结束早于起始表示跨越午夜。您当前的时区：{{offset}}。",
+          "time_slots_hint": "时段以 UTC 定义——起始时间包含，结束时间不包含；结束早于起始表示跨越午夜。你当前的时区：{{offset}}。",
           "time_slots_base_hint": "上方价格为默认费率；每个时段在其生效期间会覆盖全部三项价格。",
           "time_slots_slot_title": "时段 {{index}}",
           "time_slots_start_label": "开始（UTC）",
@@ -1786,7 +1782,7 @@
           "export": "导出工作簿",
           "import": "导入工作簿",
           "import_title": "导入价格工作簿",
-          "import_description": "在您查看下方的变更之前，不会写入任何内容。",
+          "import_description": "在你查看下方的变更之前，不会写入任何内容。",
           "choose_file": "选择已修改的工作簿",
           "apply": "应用这些变更",
           "applied_title": "变更已应用",
@@ -1916,7 +1912,7 @@
         "stt_usage_title": "远程 STT 使用情况",
         "stt_usage_description": "每行对应一次 ElevenLabs Scribe 转录（音频时长 + 费用）。",
         "tts_usage_title": "付费 TTS 使用情况",
-        "tts_usage_description": "每行对应一次付费 TTS 合成（OpenAI / ElevenLabs） — 字符数 + 费用。",
+        "tts_usage_description": "每次付费语音合成一行 — 每条朗读的回答、每次电台会话 — 字符数 + 费用。",
         "summary_title": "用户汇总",
         "summary_description": "按用户汇总的总计数据，用于计费。",
         "download_csv": "下载 CSV",
@@ -1977,20 +1973,20 @@
           }
         },
         "connector_descriptions": {
-          "google_gmail": "访问您的电子邮件并发送消息",
+          "google_gmail": "访问你的电子邮件并发送消息",
           "google_calendar": "查看并创建日历事件",
-          "google_drive": "管理您的Google云端硬盘文件和文档",
-          "google_contacts": "搜索和管理您的Google联系人",
-          "google_tasks": "管理您的Google任务列表和提醒",
+          "google_drive": "管理你的Google云端硬盘文件和文档",
+          "google_contacts": "搜索和管理你的Google联系人",
+          "google_tasks": "管理你的Google任务列表和提醒",
           "google_places": "搜索地点并获取详细信息",
           "google_routes": "计算路线和方向",
           "openweathermap": "查看当前天气和预报",
           "wikipedia": "搜索百科全书信息",
           "perplexity": "进行AI驱动的网络搜索",
           "brave_search": "通过最新的网络搜索丰富回复内容",
-          "apple_email": "访问您的 iCloud Mail 电子邮件",
-          "apple_calendar": "查看和管理您的 iCloud Calendar 事件",
-          "apple_contacts": "搜索和管理您的 iCloud 联系人",
+          "apple_email": "访问你的 iCloud Mail 电子邮件",
+          "apple_calendar": "查看和管理你的 iCloud Calendar 事件",
+          "apple_contacts": "搜索和管理你的 iCloud 联系人",
           "microsoft_outlook": "通过 Outlook 访问和发送电子邮件",
           "microsoft_calendar": "查看和管理 Microsoft Calendar 事件",
           "microsoft_contacts": "搜索和管理 Microsoft 联系人",
@@ -2282,7 +2278,12 @@
           "health_agent": "回答已导入健康数据相关事实问题的领域智能体",
           "voice_transcription": "语音模式的语音识别（本地 Sherpa 或远程 ElevenLabs Scribe）",
           "voice_tts": "助手语音合成（Edge / OpenAI / ElevenLabs）",
-          "diagnostician": "根据结构化证据和运维手册诊断平台事件（管理员自我诊断）。"
+          "diagnostician": "根据结构化证据和运维手册诊断平台事件（管理员自我诊断）。",
+          "radio_writer": "根据事实撰写个人电台的每个节目段（新闻、听众的一天、评论） - 每段一次结构化调用",
+          "radio_analyst": "阅读一则新闻的完整文章，生成电台播出的专家分析（背景、历史、事实、值得关注之处、前景） - 每个数字都必须来自文章",
+          "radio_verifier": "在播出前，针对听众选择核查的节目，对照所引用的事实逐行核查节目段 - 缺乏依据的行会被删除",
+          "radio_translator": "将听众在电台页面打开的新闻文章翻译成其语言 - 每篇文章每种语言一次结构化调用，并为下一位读者保留",
+          "radio_voice": "个人电台的语音合成引擎：每个角色一个声音，使用听众的语言"
         },
         "voiceTts": {
           "sectionTitle": "语音和提供商设置",
@@ -2301,7 +2302,7 @@
           "similarityBoost": "相似度增强",
           "style": "风格",
           "useSpeakerBoost": "启用扬声器增强",
-          "liveCatalogue": "来自您 ElevenLabs 账户的实时目录"
+          "liveCatalogue": "来自你 ElevenLabs 账户的实时目录"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
         "ollama": {
@@ -2320,6 +2321,7 @@
           "memory": "记忆",
           "background": "后台任务",
           "briefing": "简报",
+          "radio": "个人电台",
           "specialized": "专用"
         },
         "fields": {
@@ -2340,7 +2342,7 @@
           "contextWindow": "上下文窗口（k）",
           "contextWindowCeiling": "已请求：{{requested}} k · 该模型最高可达 {{max}} k。",
           "contextWindowFollowsModel": "留空则沿用模型自身的上下文窗口。",
-          "contextWindowLocalCap": "该模型在您的机器上运行：窗口若超出其显存，模型会被移到 CPU 上运行。"
+          "contextWindowLocalCap": "该模型在你的机器上运行：窗口若超出其显存，模型会被移到 CPU 上运行。"
         },
         "constraints": {
           "reasoningTemp": "推理模型使用固定温度 1.0。此参数将被 API 忽略。",
@@ -2477,7 +2479,7 @@
         "probableCause": "可能原因",
         "recommendedActions": "建议操作",
         "noDiagnosisYet": "暂无诊断——下一个自检周期将生成诊断（在预算允许的情况下）。",
-        "otherLanguage": "暂无您所用语言的版本，显示已生成的版本。",
+        "otherLanguage": "暂无你所用语言的版本，显示已生成的版本。",
         "runbooksMissing": "API 容器中未挂载任何告警运行手册：诊断在没有运维程序的情况下生成。请检查部署包（docs/runbooks）。",
         "contextTitle": "诊断器读取的内容",
         "contextRuntime": "构建 {{version}}（{{commit}}），已运行 {{uptime}} · 证据窗口 {{window}} 分钟",
@@ -2557,17 +2559,17 @@
     },
     "timezone": {
       "title": "时区",
-      "description": "配置您的时区以获得准确的日期和时间",
+      "description": "配置你的时区以获得准确的日期和时间",
       "current": "当前时区",
       "browser_match": "自动检测",
-      "browser_suggestion": "您的浏览器检测到不同的时区。您想使用它吗?",
+      "browser_suggestion": "你的浏览器检测到不同的时区。你想使用它吗?",
       "use_browser": "使用检测到的时区",
       "search_label": "搜索时区",
       "search_placeholder": "巴黎、纽约、东京...",
       "no_results": "未找到时区",
       "update_success": "时区更新成功",
       "update_error": "更新时区时出错",
-      "history_info": "您以前的对话历史保留旧时区。只有新消息将使用新时区。",
+      "history_info": "你以前的对话历史保留旧时区。只有新消息将使用新时区。",
       "info_note": "💡 时区会影响对话和通知中显示的时间和日期。所有时区都使用 IANA 标准。"
     },
     "voice_mode": {
@@ -2586,7 +2588,7 @@
       "stt_mode_remote_description": "通过 ElevenLabs Scribe 提供更高的准确度，按音频分钟计费。",
       "stt_mode_updated_success": "语音转文字后端已更新",
       "stt_remote_unavailable_warning": "远程转录不可用：管理员需要先配置 ElevenLabs API 密钥。",
-      "stt_remote_privacy_notice": "在远程模式下，您的音频会发送到 ElevenLabs（云端）进行转录。本地模式将音频保留在 LIA 内部。"
+      "stt_remote_privacy_notice": "在远程模式下，你的音频会发送到 ElevenLabs（云端）进行转录。本地模式将音频保留在 LIA 内部。"
     },
     "image_generation": {
       "title": "AI 图像生成",
@@ -2622,7 +2624,7 @@
     },
     "mcp": {
       "title": "MCP 服务器",
-      "description": "连接您自己的 MCP 服务器以扩展助手的功能",
+      "description": "连接你自己的 MCP 服务器以扩展助手的功能",
       "add_server": "添加服务器",
       "add_title": "添加 MCP 服务器",
       "edit_title": "编辑 MCP 服务器",
@@ -2721,7 +2723,7 @@
       "display_mode": {
         "title": "显示模式",
         "description": "选择回复渲染格式",
-        "info": "HTML卡片模式显示结构化视觉卡片。富HTML模式使用丰富组件排版回复（提示框、徽章、可折叠部分、表格、分栏、关键数字、代码高亮）。Markdown模式显示纯文本。",
+        "info": "可选择数据卡片、富文本排版、两者结合或Markdown。",
         "modes": {
           "cards": {
             "label": "HTML卡片",
@@ -2733,6 +2735,11 @@
             "description": "排版精美的回复：标题、提示框、徽章、可折叠部分、表格、分栏、关键数字和代码高亮",
             "selected": "富HTML模式已启用"
           },
+          "html_cards": {
+            "label": "富HTML + 卡片",
+            "description": "富文本排版的回复，附带所选结果的卡片",
+            "selected": "富HTML + 卡片模式已启用"
+          },
           "markdown": {
             "label": "Markdown",
             "description": "使用标准Markdown格式的纯文本",
@@ -2743,10 +2750,10 @@
     },
     "usage_preferences": {
       "title": "使用偏好",
-      "description": "让 LIA 适应您的使用方式。",
+      "description": "让 LIA 适应你的使用方式。",
       "exchange_rhythm": {
-        "legend": "您的交流节奏",
-        "hint": "每当 LIA 以 ReAct 模式工作时（包括计划操作和 Workboard），都会按照这个节奏准备发给 AI 模型的请求。该选择从您的下一条消息起生效。",
+        "legend": "你的交流节奏",
+        "hint": "每当 LIA 以 ReAct 模式工作时（包括计划操作和 Workboard），都会按照这个节奏准备发给 AI 模型的请求。该选择从你的下一条消息起生效。",
         "fallback": "如果所配置的 AI 模型无法容纳全部工具，LIA 会为该消息按相关性挑选工具。",
         "options": {
           "frequent": {
@@ -2764,29 +2771,29 @@
     },
     "language": {
       "title": "语言",
-      "description": "配置您首选的界面和邮件语言",
+      "description": "配置你首选的界面和邮件语言",
       "current": "当前语言",
       "browser_match": "与浏览器匹配",
-      "browser_suggestion": "您的浏览器检测到不同的语言。您要使用它吗？",
+      "browser_suggestion": "你的浏览器检测到不同的语言。你要使用它吗？",
       "use_browser": "使用检测到的语言",
       "available_languages": "可用语言",
       "update_success": "语言更新成功",
       "update_error": "更新语言时出错",
-      "persistence_info": "您的语言偏好已保存。通知邮件将使用此语言。",
+      "persistence_info": "你的语言偏好已保存。通知邮件将使用此语言。",
       "info_note": "💡 语言影响用户界面和通知邮件。更改语言会自动更新URL。",
       "selector_label": "语言：{{name}}"
     },
     "interests": {
       "settings": {
         "title": "兴趣",
-        "description": "接收关于您喜爱主题的个性化建议"
+        "description": "接收关于你喜爱主题的个性化建议"
       },
       "enable_proactive": "启用主动建议",
-      "enable_description": "助手会向您发送关于您兴趣的相关内容",
+      "enable_description": "助手会向你发送关于你兴趣的相关内容",
       "show_settings": "显示设置",
       "hide_settings": "隐藏设置",
       "notification_hours": "通知时间窗口",
-      "hours_description": "通知仅在此时间窗口内发送（您的时区）",
+      "hours_description": "通知仅在此时间窗口内发送（你的时区）",
       "notification_frequency": "每日频率",
       "per_day": "每天",
       "count": "个兴趣",
@@ -2796,10 +2803,10 @@
       "blocked_section": "已屏蔽",
       "all_categories": "全部",
       "empty": "暂无兴趣",
-      "empty_hint": "兴趣会在您的对话中自动检测。",
+      "empty_hint": "兴趣会在你的对话中自动检测。",
       "create": "添加",
       "create_title": "添加兴趣",
-      "create_description": "手动添加您感兴趣的主题。",
+      "create_description": "手动添加你感兴趣的主题。",
       "create_button": "添加",
       "create_success": "兴趣已添加",
       "create_error": "添加兴趣时出错",
@@ -2829,8 +2836,8 @@
       "field_topic": "主题",
       "field_category": "类别",
       "topic_placeholder": "例如：人工智能、法国美食...",
-      "info_extraction": "兴趣会从您的对话中自动检测。",
-      "info_gdpr": "您可以随时删除或屏蔽任何主题（GDPR）。",
+      "info_extraction": "兴趣会从你的对话中自动检测。",
+      "info_gdpr": "你可以随时删除或屏蔽任何主题（GDPR）。",
       "categories": {
         "technology": "科技",
         "science": "科学",
@@ -2849,14 +2856,14 @@
         "reflection": "反思"
       },
       "notification": {
-        "title": "为您推荐",
+        "title": "为你推荐",
         "helpful": "有帮助吗？"
       },
       "feedback": {
         "like": "喜欢",
         "dislike": "不太感兴趣",
         "block": "不再建议此主题",
-        "liked": "感谢您的反馈！",
+        "liked": "感谢你的反馈！",
         "disliked": "已记录，我会调整。",
         "blocked": "此主题将不再被建议。",
         "error": "发送反馈时出错",
@@ -2867,7 +2874,7 @@
       "delete_all_success": "所有兴趣已被删除",
       "delete_all_error": "删除兴趣时出错",
       "confirm_delete_all_title": "删除所有兴趣？",
-      "confirm_delete_all_description": "这将永久删除您所有活跃和已屏蔽的兴趣。此操作无法撤销。",
+      "confirm_delete_all_description": "这将永久删除你所有活跃和已屏蔽的兴趣。此操作无法撤销。",
       "delete_all_confirm": "删除全部"
     },
     "peers": {
@@ -3014,11 +3021,11 @@
       "device_remove_error": "移除设备时出错",
       "remove_device_title": "移除此设备？",
       "remove_device_description": "此设备将不再接收推送通知。",
-      "no_devices": "没有已注册的设备。启用通知以接收您的提醒。",
-      "info_text": "通知让您即使在应用关闭时也能收到提醒。",
+      "no_devices": "没有已注册的设备。启用通知以接收你的提醒。",
+      "info_text": "通知让你即使在应用关闭时也能收到提醒。",
       "disable_button": "禁用",
       "disable_title": "禁用通知？",
-      "disable_description": "您将不再在此设备上收到推送通知。您可以随时重新启用它们。",
+      "disable_description": "你将不再在此设备上收到推送通知。你可以随时重新启用它们。",
       "disable_confirm": "禁用",
       "disabled_success": "已禁用此设备的通知",
       "status_badge": {
@@ -3030,7 +3037,7 @@
     },
     "location": {
       "title": "位置",
-      "description": "管理您的位置来源：实时定位、记住的位置和家庭住址",
+      "description": "管理你的位置来源：实时定位、记住的位置和家庭住址",
       "geolocation": {
         "title": "地理位置",
         "permission_status": "权限状态",
@@ -3043,7 +3050,7 @@
       },
       "home": {
         "title": "家庭地址",
-        "placeholder": "输入您的地址...",
+        "placeholder": "输入你的地址...",
         "saved": "家庭地址已保存",
         "cleared": "家庭地址已删除",
         "save_error": "保存地址时出错",
@@ -3053,15 +3060,15 @@
       "last_known": {
         "title": "位置记忆",
         "toggle_label": "记住我的最近位置",
-        "toggle_description": "当无法获取您的实时位置时,LIA 会使用您最近记录的位置——用于聊天、计划操作、主动通知和简报——然后才回退到您的家庭地址。",
-        "privacy_note": "您的位置经过加密且从不保留历史(每次更新都会覆盖上一次)。如果您关闭此选项或删除家庭地址,该位置将被删除。",
+        "toggle_description": "当无法获取你的实时位置时,LIA 会使用你最近记录的位置——用于聊天、计划操作、主动通知和简报——然后才回退到你的家庭地址。",
+        "privacy_note": "你的位置经过加密且从不保留历史(每次更新都会覆盖上一次)。如果你关闭此选项或删除家庭地址,该位置将被删除。",
         "enabled_success": "位置记忆已启用",
         "disabled_success": "位置记忆已禁用,已清除存储的位置",
         "stored_title": "当前存储",
         "stored_coords": "坐标",
         "stored_updated_at": "最近更新",
-        "stored_stale": "此位置已超过有效期——功能将回退到您的家庭地址。",
-        "no_stored": "尚未存储位置。将在您下次发送消息时采集。",
+        "stored_stale": "此位置已超过有效期——功能将回退到你的家庭地址。",
+        "no_stored": "尚未存储位置。将在你下次发送消息时采集。",
         "clear_button": "立即清除",
         "geoloc_required_hint": "请同时启用上方的浏览器定位——否则将永远不会采集任何位置。"
       }
@@ -3123,7 +3130,7 @@
       "edit_description_button": "编辑描述",
       "edit_description_title": "编辑描述",
       "edit_description_label": "描述",
-      "edit_description_hint": "用您的语言编写描述。它将自动翻译成英文（保存在SKILL.md中）和6种界面语言。",
+      "edit_description_hint": "用你的语言编写描述。它将自动翻译成英文（保存在SKILL.md中）和6种界面语言。",
       "edit_description_submit": "保存并翻译",
       "edit_description_saving": "翻译中…",
       "edit_description_success": "\"{{name}}\"的描述已更新并翻译。",
@@ -3354,7 +3361,7 @@
       "guide_scripts_rule_3": "通过 stdin/stdout 以 JSON 格式通信",
       "guide_scripts_rule_4": "需要启用 SKILLS_SCRIPTS_ENABLED 功能标志",
       "guide_skill_tools_title": "技能内部工具",
-      "guide_skill_tools_body": "助手有 3 个特殊工具来与已激活的技能交互。这些工具会自动调用——您无需在指令中引用它们。",
+      "guide_skill_tools_body": "助手有 3 个特殊工具来与已激活的技能交互。这些工具会自动调用——你无需在指令中引用它们。",
       "guide_skilltool_activate": "加载技能的完整指令（L2）",
       "guide_skilltool_read": "从技能中读取参考或资源文件",
       "guide_skilltool_run": "执行 scripts/ 文件夹中的 Python 脚本",
@@ -3368,7 +3375,7 @@
         "channel_frame": "交互框架",
         "channel_image": "图片",
         "channels_undeclared": "默认 — 该技能未声明",
-        "provenance_warning": "此技能从 LIA 外部导入。其指令在可访问您已连接数据的环境中运行 — 请仅保留来源可信的技能。",
+        "provenance_warning": "此技能从 LIA 外部导入。其指令在可访问你已连接数据的环境中运行 — 请仅保留来源可信的技能。",
         "enabled_label": "已启用",
         "open_details": "技能详情：{{name}}",
         "dialogue_badge": "对话"
@@ -3394,15 +3401,15 @@
       "link_button": "关联Telegram",
       "unlink_button": "取消关联",
       "unlink_confirm_title": "取消关联通道？",
-      "unlink_confirm_description": "您将不再在此通道上收到消息和通知。您可以稍后重新关联。",
+      "unlink_confirm_description": "你将不再在此通道上收到消息和通知。你可以稍后重新关联。",
       "linked_as": "已关联为 {{username}}",
       "linked_since": "关联日期：{{date}}",
       "status_active": "已启用",
       "status_inactive": "已禁用",
       "toggle_label": "启用/禁用通道",
       "toggle_success": "通道状态已更新。",
-      "otp_dialog_title": "关联您的Telegram账户",
-      "otp_dialog_instructions": "向Telegram机器人发送以下命令以关联您的账户。",
+      "otp_dialog_title": "关联你的Telegram账户",
+      "otp_dialog_instructions": "向Telegram机器人发送以下命令以关联你的账户。",
       "otp_dialog_step1": "第1步：打开Telegram机器人",
       "otp_dialog_step2": "第2步：向机器人发送此命令",
       "otp_dialog_expires": "此验证码将在 {{time}} 后过期",
@@ -3413,18 +3420,18 @@
     },
     "rag_spaces": {
       "title": "知识空间 (RAG)",
-      "description": "管理您的RAG文档空间以丰富AI对话。",
+      "description": "管理你的RAG文档空间以丰富AI对话。",
       "no_spaces": "尚未创建知识空间。",
-      "create_first": "创建您的第一个空间",
+      "create_first": "创建你的第一个空间",
       "manage_all": "管理所有空间 →"
     },
     "portrait_shortcut": {
-      "title": "LIA 对您的理解",
-      "subtitle": "查看根据您的日志编写的动态画像"
+      "title": "LIA 对你的理解",
+      "subtitle": "查看根据你的日志编写的动态画像"
     },
     "chat_shortcuts": {
       "title": "聊天快捷指令",
-      "description": "您自己的 / 快捷指令：在聊天中输入 / 即可插入预先准备的请求。文本只会被插入，绝不会自动发送。",
+      "description": "你自己的 / 快捷指令：在聊天中输入 / 即可插入预先准备的请求。文本只会被插入，绝不会自动发送。",
       "empty": "暂无个人快捷指令。",
       "count": "{{current}} / {{max}} 个快捷指令",
       "limit_reached": "已达到快捷指令上限——请删除一个后再添加。",
@@ -3437,7 +3444,7 @@
       "remove": "删除快捷指令 /{{id}}",
       "error_invalid_id": "快捷指令只能包含小写字母、数字和连字符。",
       "error_reserved": "该快捷指令名称已被内置命令保留。",
-      "error_duplicate": "您已有同名的快捷指令。",
+      "error_duplicate": "你已有同名的快捷指令。",
       "edit": "编辑快捷指令 /{{id}}",
       "save": "保存",
       "cancel": "取消",
@@ -3447,7 +3454,7 @@
     },
     "my_shortcuts": {
       "title": "我的快捷入口",
-      "description": "固定您最常用的设置区块：之后每个页面都会显示一个悬浮菜单，一键直达。您可以把它拖到任意位置，不需要时收起。",
+      "description": "固定你最常用的设置区块：之后每个页面都会显示一个悬浮菜单，一键直达。你可以把它拖到任意位置，不需要时收起。",
       "count": "已固定 {{current}} / {{max}}",
       "limit_reached": "已达上限——取消一个才能固定另一个。",
       "empty": "尚未固定任何区块：固定第一个后悬浮菜单即会出现。"
@@ -3463,8 +3470,8 @@
     },
     "open_loops": {
       "title": "承诺",
-      "description": "LIA 在您的对话中检测到的承诺 — 可以关闭或在聊天中跟进。",
-      "empty": "目前没有待办承诺。LIA 会根据您的对话自动填充此清单。",
+      "description": "LIA 在你的对话中检测到的承诺 — 可以关闭或在聊天中跟进。",
+      "empty": "目前没有待办承诺。LIA 会根据你的对话自动填充此清单。",
       "owed_title": "我欠",
       "waiting_title": "等待他人",
       "done": "将“{{subject}}”标记为已完成",
@@ -3594,7 +3601,7 @@
     "security": {
       "passkeys": {
         "title": "通行密钥",
-        "description": "使用 Face ID、指纹或设备密码登录。通行密钥可防钓鱼,且永不离开您的设备。",
+        "description": "使用 Face ID、指纹或设备密码登录。通行密钥可防钓鱼,且永不离开你的设备。",
         "add": "添加通行密钥",
         "add_title": "添加通行密钥",
         "add_description": "为此通行密钥命名,然后按照浏览器的指示操作。",
@@ -3614,7 +3621,7 @@
         "rename_error": "无法重命名通行密钥。",
         "rename_aria": "重命名通行密钥 {{name}}",
         "revoke_title": "撤销此通行密钥?",
-        "revoke_description": "“{{name}}”将无法再登录您的账户。请同时从设备的密码管理器中删除它。",
+        "revoke_description": "“{{name}}”将无法再登录你的账户。请同时从设备的密码管理器中删除它。",
         "revoke_confirm": "撤销",
         "revoked": "已撤销通行密钥",
         "revoke_error": "无法撤销通行密钥。",
@@ -3629,22 +3636,22 @@
         "enable": "启用",
         "disable": "停用",
         "regenerate": "重新生成备用代码",
-        "enroll_title": "设置您的身份验证器应用",
+        "enroll_title": "设置你的身份验证器应用",
         "enroll_description": "使用应用扫描二维码(或手动输入密钥),然后输入应用显示的 6 位数代码。",
         "qr_alt": "TOTP 注册二维码",
         "enroll_secret_label": "手动输入密钥",
         "enroll_code_label": "应用显示的代码",
         "enroll_code_placeholder": "123456",
         "enroll_confirm": "激活",
-        "enroll_error": "验证码无效。请检查您的应用后重试。",
+        "enroll_error": "验证码无效。请检查你的应用后重试。",
         "activated": "两步登录已启用",
-        "backup_title": "您的备用代码",
-        "backup_description": "如果您无法使用身份验证器应用,每个代码可使用一次。它们仅显示这一次——请妥善保存。",
+        "backup_title": "你的备用代码",
+        "backup_description": "如果你无法使用身份验证器应用,每个代码可使用一次。它们仅显示这一次——请妥善保存。",
         "backup_copy": "复制代码",
         "backup_copied": "备用代码已复制",
         "backup_done": "我已保存",
         "disable_title": "停用两步登录?",
-        "disable_description": "密码登录将不再需要验证码,您的备用代码也将失效。",
+        "disable_description": "密码登录将不再需要验证码,你的备用代码也将失效。",
         "disable_confirm": "停用",
         "disabled_toast": "两步登录已停用",
         "regenerate_title": "重新生成备用代码?",
@@ -3654,19 +3661,19 @@
       },
       "password": {
         "title": "密码登录",
-        "description_enabled": "您的账户可以使用密码登录。拥有至少 2 个通行密钥后,您可以完全停用密码。",
+        "description_enabled": "你的账户可以使用密码登录。拥有至少 2 个通行密钥后,你可以完全停用密码。",
         "description_disabled": "密码登录已停用。电子邮件重置仍可作为恢复途径。",
         "requirement_hint": "需要至少 2 个有效的通行密钥。",
         "disable": "停用密码登录",
         "disable_title": "停用密码登录?",
-        "disable_description": "之后只有您的通行密钥可以登录。电子邮件重置仍可作为恢复途径。",
+        "disable_description": "之后只有你的通行密钥可以登录。电子邮件重置仍可作为恢复途径。",
         "disable_confirm": "停用",
         "disabled_toast": "密码登录已停用",
         "error_generic": "出现错误,请重试。"
       },
       "devices": {
         "title": "我的设备",
-        "description": "当前登录您账户的所有会话。",
+        "description": "当前登录你账户的所有会话。",
         "unknown_device": "未知设备",
         "current": "本设备",
         "ip": "IP {{ip}}",
@@ -3689,10 +3696,10 @@
       },
       "export": {
         "title": "导出我的数据",
-        "description": "下载您数据的完整存档(对话、记忆、日志、健康、设置等)——JSON 加可读的 Markdown,包含文件。",
+        "description": "下载你数据的完整存档(对话、记忆、日志、健康、设置等)——JSON 加可读的 Markdown,包含文件。",
         "request": "请求导出",
         "in_progress": "导出进行中…",
-        "requested": "导出已排队——就绪后将通知您",
+        "requested": "导出已排队——就绪后将通知你",
         "download": "下载存档",
         "status_pending": "排队中",
         "status_running": "生成中",
@@ -3703,7 +3710,7 @@
         "failed_hint": "导出失败,请重试。",
         "error_generic": "出现错误,请重试。",
         "ready_hint": "归档已就绪 — {{size}} · 有效期至 {{date}}",
-        "expired_hint": "导出生成于 {{created}}，已于 {{expired}} 过期。请重新请求导出以下载您的数据。"
+        "expired_hint": "导出生成于 {{created}}，已于 {{expired}} 过期。请重新请求导出以下载你的数据。"
       },
       "auth": {
         "title": "强身份验证",
@@ -3821,7 +3828,7 @@
       "results_count_one": "找到 {{count}} 项设置",
       "no_results": "没有设置与“{{query}}”匹配",
       "no_results_hint": "换个词试试，或浏览下方的标签页。",
-      "unavailable": "“{{section}}”未显示在此页面，该设置可能在您的账户中不可用。",
+      "unavailable": "“{{section}}”未显示在此页面，该设置可能在你的账户中不可用。",
       "keywords": {
         "language": "语言, 区域设置, 翻译, 界面语言",
         "timezone": "时区, UTC, GMT, 时钟, 时间, 偏移, 地区",
@@ -3883,9 +3890,10 @@
         "admin-registers": "记录, 透明度, 操作, 查阅, 导出, 日志, 审计, 管理，图表，统计，数字，总览, 主动, 主动行动, 第 12 条, 完整导出, 回合",
         "reminders": "提醒, 提醒我, 警报, 通知, 重复提醒, 重复, 便签，重复，每天，时间段",
         "workboard": "workboard 工单板 工单 看板 列 待办 待处理",
-        "generated-assets": "文件 图片 文档 截图 下载 图库 生成 过期 书签 收藏 保存的回答 bookmarks 已索引 知识空间 搜索 与联系人分享 分享者",
+        "generated-assets": "文件 图片 文档 截图 下载 图库 生成 过期 保留 已保留 固定 书签 收藏 保存的回答 bookmarks 已索引 知识空间 搜索 与联系人分享 分享者",
         "sandbox-egress": "沙盒, python, 脚本, 网络, 互联网, 代理, 主机, 授权, 允许, 撤销, 出口, API, 集成",
-        "live-mode": "实时, 语音, 对话, Gemini Live, GPT-Live, OpenAI, ElevenLabs, 代理, 直接会话, 委托, 模型, 思考深度, 静默, 时长, 花费上限, 打断, 按住说话, 麦克风"
+        "live-mode": "实时, 语音, 对话, Gemini Live, GPT-Live, OpenAI, ElevenLabs, 代理, 直接会话, 委托, 模型, 思考深度, 静默, 时长, 花费上限, 打断, 按住说话, 麦克风",
+        "radio": "电台, 广播, 播客, 新闻, 头条, 分析, 评论, 声音, 音乐, 定时, 来源, 网站, 订阅源, RSS, 核查, 收听, 陪伴"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -3954,17 +3962,17 @@
     },
     "workboard": {
       "title": "Workboard",
-      "description": "您的工单，以及 LIA 可以自行执行的内容。",
+      "description": "你的工单，以及 LIA 可以自行执行的内容。",
       "open_board": "打开工单板",
-      "needs_you": "{{count}} 个工单在等您",
-      "needs_you_one": "{{count}} 个工单在等您",
-      "needs_you_other": "{{count}} 个工单在等您",
-      "nothing_waiting": "没有需要您处理的工单。",
+      "needs_you": "{{count}} 个工单在等你",
+      "needs_you_one": "{{count}} 个工单在等你",
+      "needs_you_other": "{{count}} 个工单在等你",
+      "nothing_waiting": "没有需要你处理的工单。",
       "glance": "工单板一览",
       "tile_total": "工单板上的工单",
       "tile_overdue": "已逾期",
       "tile_lia": "由 LIA 处理",
-      "tile_needs_me": "等待您决定",
+      "tile_needs_me": "等待你决定",
       "by_column": "按列",
       "capacity_label": "账户容量",
       "capacity": "{{owned}} / {{max}} 个工单",
@@ -3974,7 +3982,7 @@
     },
     "generated_assets": {
       "title": "我生成的文件",
-      "description": "LIA 为你生成的图片、文档和截图，以及你选择保存的回答。请在文件过期前下载，或立即删除。",
+      "description": "LIA 为你生成的图片、文档和截图，以及你选择保存的回答。文件到期会被自动删除，除非你保留它：你可以保留、下载或立即删除。",
       "family": {
         "images": "图片",
         "documents": "文档",
@@ -4005,7 +4013,6 @@
         "within_hours_other": "{{count}} 小时内"
       },
       "open": "打开 {{name}}",
-      "open_short": "打开",
       "download": "下载 {{name}}",
       "delete": "删除 {{name}}",
       "select": "选择 {{name}}",
@@ -4042,7 +4049,19 @@
       "confirm_delete_description_one": "将立即从你的账户中移除 {{count}} 个文件。",
       "confirm_delete_description_other": "将立即从你的账户中移除 {{count}} 个文件。",
       "shared_by": "由 {{name}} 分享",
-      "share": "与联系人分享 {{name}}"
+      "share": "与联系人分享 {{name}}",
+      "keep": "保留 {{name}}",
+      "kept_line": "已保留：不会被自动删除",
+      "keep_selected_one": "保留 {{count}} 个文件",
+      "keep_selected_other": "保留 {{count}} 个文件",
+      "release_selected_one": "取消保留 {{count}} 个文件",
+      "release_selected_other": "取消保留 {{count}} 个文件",
+      "kept_toast_one": "已保留 {{count}} 个文件",
+      "kept_toast_other": "已保留 {{count}} 个文件",
+      "released_toast_one": "已取消保留 {{count}} 个文件，将像其他文件一样到期",
+      "released_toast_other": "已取消保留 {{count}} 个文件，将像其他文件一样到期",
+      "keep_usage": "已保留文件：{{kept}}/{{max}} · {{size}}/{{maxSize}}",
+      "keep_error": "无法更改保留状态。"
     },
     "bookmarks": {
       "request": "你的请求",
@@ -4079,7 +4098,7 @@
     "live_mode": {
       "title": "实时模式",
       "description": "通过你自己的 Live 连接器与 LIA 实时对话，并选择对话的行为方式",
-      "connector_title": "您的 Live 连接器",
+      "connector_title": "你的 Live 连接器",
       "connector_missing": "尚无 Live 连接器。",
       "connector_link": "在连接器部分进行设置",
       "model": "模型",
@@ -4090,9 +4109,9 @@
       "save_error": "无法更新连接器。",
       "preferences_title": "对话的行为方式",
       "interruptions": "我说话时 LIA 停止",
-      "interruptions_help": "关闭后，LIA 会先说完再听您说话。",
+      "interruptions_help": "关闭后，LIA 会先说完再听你说话。",
       "end_of_speech": "句末判定",
-      "end_of_speech_help": "您停止说话后，LIA 等待多久再回答。",
+      "end_of_speech_help": "你停止说话后，LIA 等待多久再回答。",
       "end_of_speech_calm": "从容",
       "end_of_speech_normal": "正常",
       "end_of_speech_lively": "敏捷",
@@ -4111,7 +4130,7 @@
       "session_max_help": "结束前会询问是否延长；不设限时，会话会一直持续到你结束为止（{{min}}–{{max}}）。",
       "unlimited_hint": "{{value}} = 不设限。",
       "billing_warning_title": "请确认此模型的计费方式。",
-      "billing_warning": "某些实时模型会按秒对整场会话（含等待时间）在您自己的密钥上计费；另一些只对对话计费。长时间静默或不设限可能让账单大幅增加——请根据服务商的定价设置这些时长。",
+      "billing_warning": "某些实时模型会按秒对整场会话（含等待时间）在你自己的密钥上计费；另一些只对对话计费。长时间静默或不设限可能让账单大幅增加——请根据服务商的定价设置这些时长。",
       "duration_out_of_bounds": "输入 {{unlimited}} 表示不设限，或输入 {{min}} 到 {{max}} 之间的值。",
       "unpriced": "你的密钥可发现但未在 LLM 计价中声明 Live 费率（文本和音频费率），因此不提供：{{models}}。请由管理员在那里声明。",
       "budget": "{{provider}} 每次会话的消费上限（€）— 可选",
@@ -4120,12 +4139,12 @@
       "budget_out_of_bounds": "留空表示无上限，或输入大于 0 且不超过 {{max}} € 的金额。",
       "voice_portal": "语音、语言和轮流发言均由智能体决定，在 {{brand}} 门户中设置；LIA 只发送自己的提示词和工具。",
       "agent_models": "语音 {{voice}} · LLM {{llm}}",
-      "vendor_billed": "{{brand}} 上的会话由服务商向您自己的密钥计费：此处无法设置上限——每次会话结束时显示准确金额。"
+      "vendor_billed": "{{brand}} 上的会话由服务商向你自己的密钥计费：此处无法设置上限——每次会话结束时显示准确金额。"
     }
   },
   "relations": {
     "title": "人际关系",
-    "subtitle": "LIA 掌握的、关于您所往来之人的一切——未了的承诺、通话、转达的消息与记忆，集中于一处。",
+    "subtitle": "LIA 掌握的、关于你所往来之人的一切——未了的承诺、通话、转达的消息与记忆，集中于一处。",
     "empty": "暂无关系。随着 LIA 跟进承诺、拨打电话并转达消息，相关的人会出现在这里。",
     "detail_empty": "这个人暂时还没有任何记录。",
     "back": "返回列表",
@@ -4160,7 +4179,7 @@
     "more_not_shown_other": "另有 {{count}} 条未在此显示",
     "peer_link_title": "LIA 连接",
     "peer_link_since": "{{when}}建立连接",
-    "peer_link_nothing_shared": "您暂时没有共享任何内容。",
+    "peer_link_nothing_shared": "你暂时没有共享任何内容。",
     "dormant": "沉寂",
     "dormant_hint": "已超过三个月没有任何动态",
     "sort_label": "排序方式",
@@ -4263,9 +4282,9 @@
   },
   "spaces": {
     "title": "知识空间",
-    "subtitle": "上传文档，用您自己的知识丰富LIA的回答。",
+    "subtitle": "上传文档，用你自己的知识丰富LIA的回答。",
     "create_title": "创建空间",
-    "create_description": "创建一个新的知识空间来组织您的文档。",
+    "create_description": "创建一个新的知识空间来组织你的文档。",
     "create_button": "创建空间",
     "create_success": "空间\"{{name}}\"创建成功。",
     "create_error": "创建空间失败。",
@@ -4288,7 +4307,7 @@
     "description_label": "描述",
     "description_placeholder": "此空间的可选描述...",
     "empty_title": "暂无知识空间",
-    "empty_description": "创建您的第一个空间，开始上传文档并丰富LIA的回答。",
+    "empty_description": "创建你的第一个空间，开始上传文档并丰富LIA的回答。",
     "not_found": "未找到空间。",
     "back_to_spaces": "返回空间",
     "doc_singular": "文档",
@@ -4344,7 +4363,7 @@
         "target_count_one": "{{count}} 个文档",
         "target_count_other": "{{count}} 个文档",
         "submit": "移动",
-        "none_available": "您没有其他空间可以移动这些文档。请先创建一个。"
+        "none_available": "你没有其他空间可以移动这些文档。请先创建一个。"
       },
       "skip": {
         "same_space": "已在此空间中",
@@ -4390,7 +4409,7 @@
       "status_completed": "已同步",
       "status_error": "错误",
       "picker_title": "选择 Google Drive 文件夹",
-      "picker_description": "浏览您的 Google Drive 并选择要同步的文件夹。",
+      "picker_description": "浏览你的 Google Drive 并选择要同步的文件夹。",
       "picker_empty": "未找到文件夹",
       "picker_select": "选择此文件夹",
       "picker_loading": "正在加载文件夹...",
@@ -4496,15 +4515,15 @@
     "chat": {
       "title": "聊天错误",
       "message": "聊天遇到问题。请重试。",
-      "account_inactive": "您的账户已被停用。请查看您的邮件或联系管理员。",
+      "account_inactive": "你的账户已被停用。请查看你的邮件或联系管理员。",
       "http_error": "HTTP错误 {{status}}: {{statusText}}",
-      "network_error": "网络连接错误。请检查您的互联网连接。",
+      "network_error": "网络连接错误。请检查你的互联网连接。",
       "connection_error": "连接错误：{{message}}",
       "server_error": "服务器错误 ({{status}})。请重试。",
       "service_unavailable": "服务暂时不可用。请稍后重试。",
-      "session_expired": "您的会话已过期。请重新登录。",
+      "session_expired": "你的会话已过期。请重新登录。",
       "unknown_error": "流式传输时发生未知错误",
-      "usage_limit_exceeded": "您已达到使用限制。请联系管理员。",
+      "usage_limit_exceeded": "你已达到使用限制。请联系管理员。",
       "instance_budget_exhausted": "演示已达到当日预算上限。将在世界协调时午夜重置，请明天再来。",
       "run_in_progress": "回复正在生成中——正在重新连接。",
       "run_gone": "该回复已在后台完成。历史记录已更新。",
@@ -4539,7 +4558,7 @@
     "expand_photo": "全屏打开照片"
   },
   "hitl": {
-    "default": "您确认此操作吗？",
+    "default": "你确认此操作吗？",
     "approval_required": "需要批准{{count}}个操作",
     "approval_required_plural": "需要批准{{count}}个操作",
     "destructive": "破坏性",
@@ -4611,36 +4630,36 @@
       "thinking": "*💭 正在思考...*"
     },
     "search": {
-      "with_query": "您确认搜索名为{{query}}的联系人吗？",
-      "generic": "您确认此搜索吗？"
+      "with_query": "你确认搜索名为{{query}}的联系人吗？",
+      "generic": "你确认此搜索吗？"
     },
-    "list": "您确认检索列表吗？",
-    "get": "您确认检索此信息吗？",
+    "list": "你确认检索列表吗？",
+    "get": "你确认检索此信息吗？",
     "delete": {
-      "with_target": "⚠️ 您确认删除{{target}}吗？此操作不可逆。",
-      "generic": "⚠️ 您确认此删除吗？此操作不可逆。",
-      "multiple": "⚠️ 您确认删除{{count}}项吗？此操作不可逆。"
+      "with_target": "⚠️ 你确认删除{{target}}吗？此操作不可逆。",
+      "generic": "⚠️ 你确认此删除吗？此操作不可逆。",
+      "multiple": "⚠️ 你确认删除{{count}}项吗？此操作不可逆。"
     },
     "send": {
-      "with_target": "您确认发送给{{to}}吗？",
-      "generic": "您确认此发送吗？",
-      "multiple": "您确认发送{{count}}条消息吗？"
+      "with_target": "你确认发送给{{to}}吗？",
+      "generic": "你确认此发送吗？",
+      "multiple": "你确认发送{{count}}条消息吗？"
     },
     "create": {
-      "with_target": "您确认创建{{target}}吗？",
-      "generic": "您确认此创建吗？",
-      "multiple": "您确认创建{{count}}项吗？"
+      "with_target": "你确认创建{{target}}吗？",
+      "generic": "你确认此创建吗？",
+      "multiple": "你确认创建{{count}}项吗？"
     },
     "update": {
-      "with_target": "您确认修改{{target}}吗？",
-      "generic": "您确认此修改吗？",
-      "multiple": "您确认修改{{count}}项吗？"
+      "with_target": "你确认修改{{target}}吗？",
+      "generic": "你确认此修改吗？",
+      "multiple": "你确认修改{{count}}项吗？"
     },
-    "forward": "您确认转发吗？",
-    "reply": "您确认回复吗？",
-    "generic_action": "您确认执行{{action}}吗？",
-    "multiple_actions": "您确认执行{{count}}个操作吗？",
-    "multiple_similar": "您确认执行{{count}}个类似操作吗？"
+    "forward": "你确认转发吗？",
+    "reply": "你确认回复吗？",
+    "generic_action": "你确认执行{{action}}吗？",
+    "multiple_actions": "你确认执行{{count}}个操作吗？",
+    "multiple_similar": "你确认执行{{count}}个类似操作吗？"
   },
   "execution": {
     "steps": {
@@ -4961,7 +4980,7 @@
         },
         "scheduledActions": {
           "title": "📅 计划操作",
-          "description": "助手自行执行的例行动作：说出节奏——每三天、每隔一个周二、每月第 2 个周二、每月最后一天、9 点到 17 点之间每两小时、直到某个日期或共 N 次——附上一条指令，LIA 便会执行。日期是逐日枚举的，绝不交给 cron：旧引擎会在时钟切换当天整日跳过。结果归档并推送给你，连续五次失败后自动停用。周视图按发生的结果为每个格子上色。序列已结束的例行动作会自行关闭；在简报里的一封邮件上点「监看」，就能盯住对方的回复。"
+          "description": "例行任务采用日程或等待条件（邮件、任务、事件、文档或天气），不会同时使用两种时钟。LIA 按系统频率检查条件。编辑器只显示适用字段，周视图记录实际执行。"
         },
         "mcp": {
           "title": "🔌 MCP（模型上下文协议）",
@@ -5017,7 +5036,7 @@
         },
         "attachments": {
           "title": "📎 照片与文件附件",
-          "description": "通过 📎 按钮、拖放或 Ctrl+V 添加照片和 PDF，先在浏览器中压缩；图片交给视觉模型，PDF 提取文本。「+」还能把知识空间（含已暂停的空间）中的文档作为副本附加到这条消息，并有工具读取邮件附件（文本，扫描件则交给视觉模型）。LIA 生成的内容有自己的图库并标明到期日；重置只移除你上传的，不会移除 LIA 生成的。"
+          "description": "通过 📎 按钮、拖放或 Ctrl+V 添加照片和 PDF，先在浏览器中压缩；图片交给视觉模型，PDF 提取文本。「+」还能把知识空间（含已暂停的空间）中的文档作为副本附加到这条消息，并有工具读取邮件附件（文本，扫描件则交给视觉模型）。LIA 生成的内容有自己的图库，重要的可以保留；重置只移除你上传的，不会移除 LIA 生成的。"
         },
         "skills": {
           "title": "Skills（带地图和交互式迷你应用）",
@@ -5138,6 +5157,10 @@
         "liveVoice": {
           "title": "🎧 Live 模式：两个智能，一道接缝",
           "description": "用你自己的密钥连接实时模型（Gemini Live、GPT-Live 或 ElevenLabs 代理），与 LIA 语音对语音地实时交谈。语音负责对话，并把每个请求委托给 LIA 作为普通聊天回合执行——确认与配额一并——在你说话时绘制在对话中。直接会话则让语音自己读取你的数据而不执行任何操作。服务商的计费只显示、不记录；LIA 的花费在结束卡片上计入。"
+        },
+        "personalRadio": {
+          "title": "播报你一天的电台",
+          "description": "点播节目用你的语言结合个人日程和注明来源的新闻。选择主题、声音及核查级别；收听时查看来源与费用。计时器会结束节目。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -5392,11 +5415,11 @@
           "count": "6",
           "items": {
             "i1": "<b>🗂️ 会议纪要格式库</b> — 三十种开箱即用的模板，按用途归类：会议与团队、转写、对话分析、销售与咨询、技术、个人预约、课程与培训。浏览、预览，把合适的加入我的模板——单个或批量——然后在自己的模板里调整：重命名、调整章节顺序、改写指令、把一个模板派生出多个变体、删除不再需要的。",
-            "i2": "<b>✨ LIA 自动选择格式</b> — 无需任何设置，它读取会上说了什么并选用匹配的格式：项目例会、面谈、就诊和授课的结构并不相同。纪要会写明所用格式，说明它来自您、来自您的默认设置还是它自己的选择，并用一句话解释原因。主动权仍在您手里：在设置中选择默认格式，或在录音横幅上为当前会议选择格式。",
+            "i2": "<b>✨ LIA 自动选择格式</b> — 无需任何设置，它读取会上说了什么并选用匹配的格式：项目例会、面谈、就诊和授课的结构并不相同。纪要会写明所用格式，说明它来自你、来自你的默认设置还是它自己的选择，并用一句话解释原因。主动权仍在你手里：在设置中选择默认格式，或在录音横幅上为当前会议选择格式。",
             "i3": "<b>🔁 事后更换格式</b> — 已生成的纪要可以基于保留的转写内容改用其他格式重写：要么替换现有的，要么得到同一场会议的<b>一份新纪要</b>，它保留与来源的关联，并作为独立文档进入知识空间。顺带的新功能：一种格式现在可以返回<b>完整转写</b>，经过整理、便于阅读，而不是摘要。",
-            "i4": "<b>✉️ 纪要邮件，人人可用</b> — 现在由应用自身的地址发往您账户的邮箱，主题为“会议纪要 · 标题”。不再需要连接邮箱：只要管理员配置了邮件，手动发送和自动发送在任何实例上都能工作。",
-            "i5": "<b>🗃️ 文档在知识空间之间流转</b> — 下载单个文档，或将整批选择打包为使用原始文件名的 zip 压缩包；把文档移动到其他空间，索引和文件一并跟随；一次删除多个。每次批量操作都会告诉您做了什么、跳过了什么以及原因：从 Drive 同步或由会议生成的文档会留在其所有者放置的位置。",
-            "i6": "<b>🎙️ 录音有了自己的位置</b> — 电脑端在页头有专属按钮，手机端在标志菜单中有“录制 / 停止”入口，录制期间触发按钮会闪烁红色；横幅在每个页面跟随您，且绝不会把输入区推出屏幕。输入框的“+”回归本职：附加文件。会议列表也终于支持多选批量删除。"
+            "i4": "<b>✉️ 纪要邮件，人人可用</b> — 现在由应用自身的地址发往你账户的邮箱，主题为“会议纪要 · 标题”。不再需要连接邮箱：只要管理员配置了邮件，手动发送和自动发送在任何实例上都能工作。",
+            "i5": "<b>🗃️ 文档在知识空间之间流转</b> — 下载单个文档，或将整批选择打包为使用原始文件名的 zip 压缩包；把文档移动到其他空间，索引和文件一并跟随；一次删除多个。每次批量操作都会告诉你做了什么、跳过了什么以及原因：从 Drive 同步或由会议生成的文档会留在其所有者放置的位置。",
+            "i6": "<b>🎙️ 录音有了自己的位置</b> — 电脑端在页头有专属按钮，手机端在标志菜单中有“录制 / 停止”入口，录制期间触发按钮会闪烁红色；横幅在每个页面跟随你，且绝不会把输入区推出屏幕。输入框的“+”回归本职：附加文件。会议列表也终于支持多选批量删除。"
           }
         },
         "v1_39_0": {
@@ -5417,10 +5440,10 @@
           "date": "2026 年 9 月",
           "count": "5",
           "items": {
-            "i1": "<b>🛡️ 消息不能再下达指令</b> —— 他人撰写的文本（邮件正文、邀请说明、网页、已连接服务器的返回结果）在 LIA 读取时已被标记为不可信。但当较长的对话被压缩以腾出空间时，这个标记会丢失：发件人的要求可能在之后作为既定事实重新出现。现在摘要会随身携带来源信息，第三方的要求会如实呈现为「他人所写的内容」，绝不会被当作您做出的决定。",
-            "i2": "<b>🎯 长任务不再跑题</b> —— 在非常长的自主任务中，您最初的问题可能被该任务自身产生的中间结果挤出工作记忆。助手于是在不知道被要求做什么的情况下结束工作。现在，无论任务持续多久，您的问题都会被完整保留。",
+            "i1": "<b>🛡️ 消息不能再下达指令</b> —— 他人撰写的文本（邮件正文、邀请说明、网页、已连接服务器的返回结果）在 LIA 读取时已被标记为不可信。但当较长的对话被压缩以腾出空间时，这个标记会丢失：发件人的要求可能在之后作为既定事实重新出现。现在摘要会随身携带来源信息，第三方的要求会如实呈现为「他人所写的内容」，绝不会被当作你做出的决定。",
+            "i2": "<b>🎯 长任务不再跑题</b> —— 在非常长的自主任务中，你最初的问题可能被该任务自身产生的中间结果挤出工作记忆。助手于是在不知道被要求做什么的情况下结束工作。现在，无论任务持续多久，你的问题都会被完整保留。",
             "i3": "<b>🔍 操作记录不再遗忘开头</b> —— 每条回答下方的 ⚙ 面板此前只保留长回合中最近的步骤，并把这个被截断的数字当作总数显示。现在它同时保留最初和最新的操作，给出真实总数，并明确说明有多少中间步骤被隐藏。",
-            "i4": "<b>✅ 多项请求更少遗漏</b> —— 当您一次提出三件事时，内部审核只检查每个计划步骤是否正确，却从不检查是否有遗漏。现在它会先列出您的请求包含哪些要求，再逐项核对计划是否覆盖，未覆盖时会静默修正计划。",
+            "i4": "<b>✅ 多项请求更少遗漏</b> —— 当你一次提出三件事时，内部审核只检查每个计划步骤是否正确，却从不检查是否有遗漏。现在它会先列出你的请求包含哪些要求，再逐项核对计划是否覆盖，未覆盖时会静默修正计划。",
             "i5": "<b>📊 管理员：上下文消耗终于可见</b> —— 两个新指标和一个 Grafana 面板显示每次自主迭代实际向模型发送了多少上下文，以及距离该模型的上限还有多远。"
           }
         },
@@ -5453,7 +5476,7 @@
           "items": {
             "i1": "<b>🧠 LIA 不再悄悄丢失刚学到的内容</b> —— 在一小时的真实使用中，将对话存入记忆、为消息建立索引或获取文档上下文的操作，近半数被服务商拒绝，而且毫无提示：回答照常送达，只是掌握的信息略少。后台任务现在错开时间启动，而不再同时涌出；必要时排队等待，遇到临时故障会重试。",
             "i2": "<b>📊 「平台健康」终于盯住了这一点</b> —— 此前没有任何指标衡量这些操作是否真正成功，只统计尝试次数，而一旦引入重试，这个数字就失去意义。现已新增专门的指标与告警，并附有指引，告诉管理员该动用两个调节手段中的哪一个。",
-            "i3": "<b>🌍 事件诊断使用您的语言</b> —— 事件分析及其建议措施此前一律以英文撰写，而同一页面上的其他内容都已翻译。现在会按每位查看者的语言书写。",
+            "i3": "<b>🌍 事件诊断使用你的语言</b> —— 事件分析及其建议措施此前一律以英文撰写，而同一页面上的其他内容都已翻译。现在会按每位查看者的语言书写。",
             "i4": "<b>🔍 诊断终于言之有物</b> —— 过去几乎每次都回答「证据不足，无法确定确切原因」。这一判断是准确的：交给分析的只有数值，没有它越过的阈值，而孤立的数值无从判断。现在还会附上单位、结论以及两级告警阈值。"
           }
         },
@@ -5509,15 +5532,15 @@
           "count": "2",
           "items": {
             "i1": "<b>🔎 不再有「给我一分钟，我回头告诉你」</b> —— 当一次长搜索触及内部上限时，回合有时会停在助手继续工作前刚写下的那句话上，读起来像是一个永远不会兑现的承诺：回合在答案发出时就结束了，本来就没有什么可等的。现在被中断的调查会先给出**已经**找到的内容，用一句话说明它被中断以及还缺什么，并提议继续。",
-            "i2": "<b>🧠 您的长期指令现在也能到达自主模式</b> —— 在逐步推理模式中，长期记忆从未真正进入推理本身：您记录的关于工作方式的规则只能影响最终措辞，无法影响决策。另一种模式所用的同一份记忆，现在出现在真正做决策的地方。深度搜索也获得了更多空间：助手只要还在有所发现就会继续，而不是停在一个固定计数上。"
+            "i2": "<b>🧠 你的长期指令现在也能到达自主模式</b> —— 在逐步推理模式中，长期记忆从未真正进入推理本身：你记录的关于工作方式的规则只能影响最终措辞，无法影响决策。另一种模式所用的同一份记忆，现在出现在真正做决策的地方。深度搜索也获得了更多空间：助手只要还在有所发现就会继续，而不是停在一个固定计数上。"
           }
         },
         "v1_34_1": {
-          "title": "v1.34.1 — 📌 您的长期指令重新被记住",
+          "title": "v1.34.1 — 📌 你的长期指令重新被记住",
           "date": "2026 年 8 月",
           "count": "2",
           "items": {
-            "i1": "<b>📌 「规则与指令」记忆终于可以创建</b> —— 长期记忆中有一个类别，用于保存您对 LIA 工作方式给出的长期指令（「回答简短一些」「总是先说结论」）。展示它们的界面早已交付，却始终无法被填满：把抽取结果转成记忆的解析器恰恰拒绝了这个类别，而该拒绝只记录在调试级别，于是整个类别在无声中被丢弃。现在这套词汇只有一个权威来源，启动时会对照三处重复声明逐一校验，被拒绝的记忆也会以警告级别记录。",
+            "i1": "<b>📌 「规则与指令」记忆终于可以创建</b> —— 长期记忆中有一个类别，用于保存你对 LIA 工作方式给出的长期指令（「回答简短一些」「总是先说结论」）。展示它们的界面早已交付，却始终无法被填满：把抽取结果转成记忆的解析器恰恰拒绝了这个类别，而该拒绝只记录在调试级别，于是整个类别在无声中被丢弃。现在这套词汇只有一个权威来源，启动时会对照三处重复声明逐一校验，被拒绝的记忆也会以警告级别记录。",
             "i2": "<b>🩺 平台现在能说出自己失去了外部世界</b> —— LIA 会监测自身健康状况，而它上线当天就遇到了一次真实故障：机器不再为容器转发流量，于是所有对外调用都失败，而站点本身依然正常运行。LIA 在六分钟内报告了症状，却无法指出原因。管理员现在可以启用一项对外连接检查，把这件事说清楚；每个健康数值也按服务器声明的单位显示，而不再由界面猜测。"
           }
         },
@@ -5554,10 +5577,10 @@
           "date": "2026年8月",
           "count": "7",
           "items": {
-            "i1": "<b>📱 口袋里的 LIA</b> —— 每个商店一个官方应用，兼容<i>任何</i>自托管的 LIA 服务器：首次启动时输入您服务器的地址即可。界面与网页版完全一致：每项改进即时到达，无需商店更新。",
+            "i1": "<b>📱 口袋里的 LIA</b> —— 每个商店一个官方应用，兼容<i>任何</i>自托管的 LIA 服务器：首次启动时输入你服务器的地址即可。界面与网页版完全一致：每项改进即时到达，无需商店更新。",
             "i2": "<b>🔐 应用内可用 Google 登录</b> —— 并顺带修复了一个真实漏洞：通过 Google 登录会完全跳过两步验证码。现在验证码步骤在所有入口强制执行，应用也不例外。",
-            "i3": "<b>🔔 两个平台都有通知</b> —— Android 直接与<i>您自己</i>服务器的通知项目通信：不经过任何第三方。iPhone 必须经由应用发布者（这是 Apple 的规则）：一个极简中继用一句固定的中性句子唤醒手机 —— 您的真实消息永不离开您的服务器，中继也不知道谁被通知、为何被通知。",
-            "i4": "<b>↩️ 连接服务后回到应用</b> —— 在应用中关联 Gmail、日历或 MCP 服务器，完成后现在会带您回到应用，而不是把您留在浏览器里。",
+            "i3": "<b>🔔 两个平台都有通知</b> —— Android 直接与<i>你自己</i>服务器的通知项目通信：不经过任何第三方。iPhone 必须经由应用发布者（这是 Apple 的规则）：一个极简中继用一句固定的中性句子唤醒手机 —— 你的真实消息永不离开你的服务器，中继也不知道谁被通知、为何被通知。",
+            "i4": "<b>↩️ 连接服务后回到应用</b> —— 在应用中关联 Gmail、日历或 MCP 服务器，完成后现在会带你回到应用，而不是把你留在浏览器里。",
             "i5": "<b>📴 真正的离线屏幕</b> —— 服务器无法访问时，应用会显示自己的界面，带有重试按钮，更重要的是可以<i>更换服务器</i>：地址输错不再需要重装应用。",
             "i6": "<b>🧪 在真实设备上验证</b> —— 自动化测试台在模拟器上驱动真实应用完成十个场景，从首次配置到忘记服务器。它在任何人之前抓住了三个真实缺陷。",
             "i7": "<b>📖 完整的发布指南</b> —— 为想发布自己版本的人准备：账号、签名、两个商店的表单，循序渐进、无需任何先验知识。"
@@ -5582,11 +5605,11 @@
           "date": "2026 年 8 月",
           "count": "5",
           "items": {
-            "i1": "<b>🌑 OLED 模式上线</b> —— 完全纯黑的背景，正是 OLED 屏幕像素真正熄灭的那个数值：更省电，夜间也明显更舒适。顶部的主题按钮变为循环切换：浅色、深色、纯黑，再回到浅色。切换时会从您按下的按钮处展开一个圆形过渡；如果您已在系统中要求减少动态效果，该动画会完全跳过。您的五套配色主题保持不变，只有中性表面变暗。",
-            "i2": "<b>🎨 显示模式改在“设置”中选择</b> —— 外观页面现在提供浅色、深色、跟随系统以及一个“纯黑”开关。“跟随系统”会跟随您的设备，并且重新变得可达：这是每个新账户的默认设置，而仅靠顶部按钮无法回到它。纯黑开关仅在明确选择深色模式时可用，而不会在您不知情的情况下更改您的模式。",
-            "i3": "<b>⌨️ 键盘焦点重新可见</b> —— 三个复选框（记住我、接受条款）在用键盘选中时完全不显示轮廓，让人无法判断自己在表单中的位置，它们也没有强调色。现已修复，轮廓会跟随您的主题。",
+            "i1": "<b>🌑 OLED 模式上线</b> —— 完全纯黑的背景，正是 OLED 屏幕像素真正熄灭的那个数值：更省电，夜间也明显更舒适。顶部的主题按钮变为循环切换：浅色、深色、纯黑，再回到浅色。切换时会从你按下的按钮处展开一个圆形过渡；如果你已在系统中要求减少动态效果，该动画会完全跳过。你的五套配色主题保持不变，只有中性表面变暗。",
+            "i2": "<b>🎨 显示模式改在“设置”中选择</b> —— 外观页面现在提供浅色、深色、跟随系统以及一个“纯黑”开关。“跟随系统”会跟随你的设备，并且重新变得可达：这是每个新账户的默认设置，而仅靠顶部按钮无法回到它。纯黑开关仅在明确选择深色模式时可用，而不会在你不知情的情况下更改你的模式。",
+            "i3": "<b>⌨️ 键盘焦点重新可见</b> —— 三个复选框（记住我、接受条款）在用键盘选中时完全不显示轮廓，让人无法判断自己在表单中的位置，它们也没有强调色。现已修复，轮廓会跟随你的主题。",
             "i4": "<b>👀 修复两处无法阅读的文字</b> —— 标示“由技能作答”的徽章在浅色模式下几乎不可见，而在减少动态效果时，它的动画光泽会停在文字上不动。最不显眼的分区标题——“试试看”、执行轨迹标题——也过于浅淡，难以舒适阅读。",
-            "i5": "<b>⚡ 页面更轻，不再闪烁</b> —— 九种可选字体过去每次访问都会全部下载，为显示其中一种要传输 618 KB；现在只剩 162 KB，显示效果完全相同。您的配色主题现在会在首次绘制之前应用：加载时短暂的蓝色闪烁已经消失。找不到的页面终于会用您的语言作答。"
+            "i5": "<b>⚡ 页面更轻，不再闪烁</b> —— 九种可选字体过去每次访问都会全部下载，为显示其中一种要传输 618 KB；现在只剩 162 KB，显示效果完全相同。你的配色主题现在会在首次绘制之前应用：加载时短暂的蓝色闪烁已经消失。找不到的页面终于会用你的语言作答。"
           }
         },
         "v1_31_2": {
@@ -5654,12 +5677,12 @@
           "date": "2026年8月",
           "count": "6",
           "items": {
-            "i1": "<b>🕐 全新活动页面</b>——LIA 为您所做的一切，汇成一条时间线：已发送的通知、兴趣发现、日志记录、检测到的习惯、跟踪与完成的承诺、已执行的例行任务。数字精确，绝不含糊。",
-            "i2": "<b>💡 等待您批准的建议</b>——提醒中心新增「建议」板块：LIA 主动提出代办、而您尚未决定的例行事项。「交给我」会打开预填好的聊天——未经您确认不会发送任何内容。「暂不」则让它学会少些打扰。",
-            "i3": "<b>📌 说一次，永久记住</b>——「回答短一点」「晚上别再推荐这个」：您的指示会成为持久规则，在记忆面板（「规则与指令」类别）中可见、可编辑。当您纠正 LIA 时，它确认一次、不反复道歉——直接改正。",
-            "i4": "<b>🧠 会记日期的记忆</b>——LIA 能自然地说「上周您告诉我……」。当事实变化（搬家、换工作），旧信息不再被覆盖：它整齐地归档在新信息之后，搜索中不会再出现。",
-            "i5": "<b>🔊 晨间简报可以朗读</b>——晨间摘要上新增「收听」按钮，语音的表现力会随助手的心情变化。若合成失败，您会收到明确提示——不再有静默失败。",
-            "i6": "<b>📈 您的习惯连续天数有了里程碑</b>——习惯面板显示「连续 9 天，达成 7 天里程碑，下一个：30」。聊天建议下方，LIA 还会说明推荐理由（「因为您关注……」）。"
+            "i1": "<b>🕐 全新活动页面</b>——LIA 为你所做的一切，汇成一条时间线：已发送的通知、兴趣发现、日志记录、检测到的习惯、跟踪与完成的承诺、已执行的例行任务。数字精确，绝不含糊。",
+            "i2": "<b>💡 等待你批准的建议</b>——提醒中心新增「建议」板块：LIA 主动提出代办、而你尚未决定的例行事项。「交给我」会打开预填好的聊天——未经你确认不会发送任何内容。「暂不」则让它学会少些打扰。",
+            "i3": "<b>📌 说一次，永久记住</b>——「回答短一点」「晚上别再推荐这个」：你的指示会成为持久规则，在记忆面板（「规则与指令」类别）中可见、可编辑。当你纠正 LIA 时，它确认一次、不反复道歉——直接改正。",
+            "i4": "<b>🧠 会记日期的记忆</b>——LIA 能自然地说「上周你告诉我……」。当事实变化（搬家、换工作），旧信息不再被覆盖：它整齐地归档在新信息之后，搜索中不会再出现。",
+            "i5": "<b>🔊 晨间简报可以朗读</b>——晨间摘要上新增「收听」按钮，语音的表现力会随助手的心情变化。若合成失败，你会收到明确提示——不再有静默失败。",
+            "i6": "<b>📈 你的习惯连续天数有了里程碑</b>——习惯面板显示「连续 9 天，达成 7 天里程碑，下一个：30」。聊天建议下方，LIA 还会说明推荐理由（「因为你关注……」）。"
           }
         },
         "v1_30_13": {
@@ -5730,7 +5753,7 @@
           "date": "2026年8月",
           "items": {
             "i1": "<b>🧩 安装来自整个 AI 生态的插件</b> — LIA 支持开放的 Agent Plugins 标准（agent-plugins.org，由 AWS、Microsoft、OpenAI、Cursor 和 Vercel 共同推动）。为 ChatGPT、Cursor、GitHub Copilot 或 VS Code 打包的插件无需修改即可安装到 LIA——通过 zip 文件或 https 链接——并一步带来其技能和 MCP 服务器。每次安装都会显示完整报告：已安装、已更新、已跳过（及原因）或已移除；卸载则一键移除插件带来的全部内容。设置中新增“插件”板块，支持全部六种语言。",
-            "i2": "<b>🧹 删除账户现在也会清除所有技能和插件文件</b> — 删除账户此前已清空数据库中的数据；现在还会从磁盘中移除您导入的技能文件和已安装的插件文件，真正做到彻底清除。"
+            "i2": "<b>🧹 删除账户现在也会清除所有技能和插件文件</b> — 删除账户此前已清空数据库中的数据；现在还会从磁盘中移除你导入的技能文件和已安装的插件文件，真正做到彻底清除。"
           },
           "count": "2"
         },
@@ -5878,13 +5901,13 @@
             "i1": "<b>🧲 标签与输入框之间的间距终于真正呈现</b> — 标签原语的一个缺陷使每次间距调整都被计算却从未绘制：无论代码怎么写，所有表单都只有约 3 像素的间距。已从根源修复，并在真实截图上校准 — 所有表单如今呼吸一致。",
             "i2": "<b>☰ 行操作只有一种语法</b> — 平板及以上尺寸图标始终可见，删除在静止时就带红色，手机上则是一个带名称的「⋮」菜单。不再有悬停才显现、键盘用户落上去却什么也看不见的按钮。",
             "i3": "<b>📤 导出回到了手机和平板</b>（长期记忆与兴趣中心）— 此前在桌面宽度以下被直接移除 — 且「+ 添加」在任何尺寸都保留文字。",
-            "i4": "<b>🗂️ LIA 连接呈现为五个带图标的可折叠区块</b>，徽章直接显示内部有什么在等待 — 包括待处理请求 — 两个方向的共享镜像展示：您的可编辑，对方的只读。",
+            "i4": "<b>🗂️ LIA 连接呈现为五个带图标的可折叠区块</b>，徽章直接显示内部有什么在等待 — 包括待处理请求 — 两个方向的共享镜像展示：你的可编辑，对方的只读。",
             "i5": "<b>📔 个人日志将全部配置折叠到一个入口</b>，按钮移到分类下方，长条目限制为三行并提供「展开」。",
             "i6": "<b>⏰ 例行任务显示「工作日 08:00」</b>而不再罗列五天，展示下次执行并折叠其余 — 卡片从约八行常显内容缩减为三行。",
             "i7": "<b>🔐 身份验证应用（TOTP）改用开关激活</b>，与其他功能一致 — 打开即进入配置流程，开关只在服务器确认后才切换。",
             "i8": "<b>🧭 连接器分组更名为「Google / Apple / Microsoft / 外部服务」</b>，数据导出终于说明自身状态：就绪时显示大小与有效期，过期时显示生成与过期日期及后续操作。",
             "i9": "<b>🎛️ 每个标题都带有主题色图标</b> — 通知频率、差旅天气（现可折叠）、个性化列表中的每张仪表盘卡片 — 灰色徽章仅保留给非活动状态：「已启用」为绿色，「等待中」为蓝色。",
-            "i10": "<b>🔔 推送通知自动跟随您的全局授权</b> — 每个功能各自的重复开关（可能悄悄静音主动通知）已被移除。",
+            "i10": "<b>🔔 推送通知自动跟随你的全局授权</b> — 每个功能各自的重复开关（可能悄悄静音主动通知）已被移除。",
             "i11": "<b>🫧 来自 LIA 的内容一眼可辨</b> — 在对话流中，主动通知带有浅红色背景，与普通回答区分开来；置顶的记忆以主题色标出，图钉就在文字前面。在手机上，操作栏更紧凑 — 「添加」「清除」「导入」「URL」排在一行 — 连接卡片也把「我分享的」和「对方分享的」分开显示。"
           }
         },
@@ -5923,19 +5946,19 @@
           }
         },
         "v1_27_8": {
-          "title": "v1.27.8 — 🧭 LIA 带来了什么，以及什么可以打断您",
+          "title": "v1.27.8 — 🧭 LIA 带来了什么，以及什么可以打断你",
           "date": "2026 年 8 月",
           "count": "10",
           "items": {
-            "i1": "<b>👍 您对主动通知的好评终于被记录</b> — 归档卡片带着一个虚构的标识，记录接口无法解析，因此每一次评价都静默失败。<b>从未有任何反馈被记录。</b>已归档的卡片不再显示该按钮，而不是提供一个无效的动作。",
-            "i2": "<b>⏰ 在时间变更的夜晚，例行不再执行两次</b> — 那一夜所定的时刻会出现两次，例行会在六十分钟后再次启动。在七个时区的 2026 年过渡中测得 54 次重复执行。现在<b>每个本地日最多执行一次</b>，同时不会在您提前测试时丢失当天的执行。",
+            "i1": "<b>👍 你对主动通知的好评终于被记录</b> — 归档卡片带着一个虚构的标识，记录接口无法解析，因此每一次评价都静默失败。<b>从未有任何反馈被记录。</b>已归档的卡片不再显示该按钮，而不是提供一个无效的动作。",
+            "i2": "<b>⏰ 在时间变更的夜晚，例行不再执行两次</b> — 那一夜所定的时刻会出现两次，例行会在六十分钟后再次启动。在七个时区的 2026 年过渡中测得 54 次重复执行。现在<b>每个本地日最多执行一次</b>，同时不会在你提前测试时丢失当天的执行。",
             "i3": "<b>🔇 十一个开关：连接一项服务不再等于被它打断</b> — 以前要停止邮件相关的提醒，只能<b>断开连接器</b>，同时失去了提问的工具。设置 → 主动性 → 通知主题。默认全部开启，而无法产生任何内容的开关会明确告知（出发建议需要日历）。",
-            "i4": "<b>📜 设置终于展示它们的产出</b> — 最近十条主动通知，以及同样形式的兴趣通知：日期、内容、来源、已给出的评价。此前您可以调整频率，却从未看到结果。早于本版本的兴趣通知不带正文显示：它未被保留，而重建的摘要比缺失更糟。",
+            "i4": "<b>📜 设置终于展示它们的产出</b> — 最近十条主动通知，以及同样形式的兴趣通知：日期、内容、来源、已给出的评价。此前你可以调整频率，却从未看到结果。早于本版本的兴趣通知不带正文显示：它未被保留，而重建的摘要比缺失更糟。",
             "i5": "<b>📁 三个区块可折叠，默认折起</b> — 十一个开关和两份历史记录。面板成为一份可展开的目录，而不是一堵需要滚动的墙；折起的区块不产生任何请求。被拒绝的主题数量仍显示在标题栏：折叠不应掩盖一个决定。",
             "i6": "<b>✨ 空白对话会提出 LIA 已知的当日事项</b> — 一场需要准备的会面、一批邮件、一个等待中的承诺、一条未完成的提醒。为此不会获取任何数据：不唤醒连接器，不消耗配额。没有依据时，通用引导语会回来。",
-            "i7": "<b>🏆 仪表盘以您的成果开场，而非消耗</b> — 确认有用的结果、成功的操作、已执行的例行、已完结的承诺。消息、令牌和费用移入「消耗」。「节省的时间」被<b>舍弃而非估算</b>：这里没有任何数据能度量它。",
-            "i8": "<b>🤝 与已连接的伙伴分享一条回复</b> — 在助手气泡下方，「…」菜单列出已接受的伙伴，并在输入框中准备好请求。未经您确认不会发送任何内容。",
-            "i9": "<b>✅ 承诺的操作就在您阅读它的地方</b> — 标记完成、不再相关、以及修改，直接在仪表盘的「为您」卡片上。完整登记仍只需一次点击。",
+            "i7": "<b>🏆 仪表盘以你的成果开场，而非消耗</b> — 确认有用的结果、成功的操作、已执行的例行、已完结的承诺。消息、令牌和费用移入「消耗」。「节省的时间」被<b>舍弃而非估算</b>：这里没有任何数据能度量它。",
+            "i8": "<b>🤝 与已连接的伙伴分享一条回复</b> — 在助手气泡下方，「…」菜单列出已接受的伙伴，并在输入框中准备好请求。未经你确认不会发送任何内容。",
+            "i9": "<b>✅ 承诺的操作就在你阅读它的地方</b> — 标记完成、不再相关、以及修改，直接在仪表盘的「为你」卡片上。完整登记仍只需一次点击。",
             "i10": "<b>🎨 另外</b> — LIA 的头像通过两个可见缩略图选择；例行可以复制，确认前不会创建任何内容；接下来五次执行的预览按例行所在时区显示时间并标注时间变更；提醒可从其卡片取消；照片画廊可完全使用键盘浏览；新增三个快捷命令；移动端的手势伴有简短的触觉反馈，并且<b>与减弱动画分开设置</b>。"
           }
         },
@@ -7639,6 +7662,19 @@
             "i3": "<b>🔏 你的话不再进入日志</b> — 服务器的技术日志不再记录工具结果的内容，也不记录你对确认问题输入的回答，只记录其长度。"
           }
         },
+        "v2_0_0": {
+          "title": "v2.0.0 — 📻 你的电台、可保留的文件和实时更新的对话",
+          "date": "2026年09月28日 · 12:35 CEST",
+          "count": "6",
+          "items": {
+            "i1": "<b>📻 你的私人电台</b> — 随时开启以你的语言播报的节目，了解自己的日程和注明来源的新闻。你可以选择主题、来源、声音和核查级别，并在收听时查看费用。计时器会结束节目；实例管理员须启用此功能。",
+            "i2": "<b>📌 保留重要文件</b> — 在“我的生成文件”中，可将图片、文档和截图保留至通常期限之后，但须遵守页面显示的账户限额。取消保留后，文件会获得新的期限。",
+            "i3": "<b>✉️ 通过邮件发送文件或回答</b> — 填写主题，也可附上留言。连接邮箱后可选择收件人；没有连接邮箱时，LIA 只能发送到你已验证的地址。表单会提前显示大小限制。",
+            "i4": "<b>🔄 跟随你的对话</b> — 来自其他标签页、设备、通话或例行任务的消息无需刷新即可出现。已加载的旧消息和阅读位置会保留；连接中断后会补上遗漏内容。",
+            "i5": "<b>⏱️ 每项例行任务只有一种时钟</b> — 选择固定日程或触发条件。LIA 按自己的频率检查条件，在满足时执行；编辑器只显示适用字段。",
+            "i6": "<b>🌍 六种语言贯穿始终</b> — 界面、通知和服务器消息遵循账户设定的语言；六套翻译均接受完整性检查。"
+          }
+        },
         "v1_47_4": {
           "title": "v1.47.4 — 🧮 LIA 精确计算而非估算，检索自己知道的内容，并分享你的图片",
           "date": "2026 年 9 月 25 日 04:51（CEST）",
@@ -7692,24 +7728,24 @@
             "answer": "LIA是你的<strong>智能个人助理</strong>，帮助你完成日常任务。由人工智能驱动，LIA可以：<br>• 管理你的<strong>邮件</strong>（阅读、发送、回复）<br>• 组织你的<strong>日历</strong>（事件、约会）<br>• 管理你的<strong>联系人</strong>和<strong>任务</strong><br>• 搜索你的<strong>Google云端硬盘</strong>文件<br>• 查询<strong>天气</strong>和搜索<strong>附近地点</strong><br>• 通过<strong>维基百科</strong>和<strong>Perplexity</strong>搜索信息"
           },
           "q2": {
-            "question": "如何与LIA开始对话？",
-            "answer": "点击左侧菜单中的<strong>聊天</strong>按钮，然后在屏幕底部的输入框中输入你的消息。按Enter发送你的消息。"
+            "question": "如何与 LIA 开始对话？",
+            "answer": "只需 3 步：<br><br>1. 点击左侧菜单中的<strong>聊天</strong><br>2. 在屏幕底部的输入框中输入你的消息<br>3. 按 <strong>Enter</strong> 发送<br><br><strong>💡 提示</strong>：自然地说就好！LIA 能理解这样的句子：\"<em>给我看看这周的邮件</em>\"或\"<em>我明天有什么安排？</em>\""
           },
           "q3": {
             "question": "LIA支持多种语言吗？",
             "answer": "是的，LIA支持<strong>6种语言</strong>：法语、英语、西班牙语、德语、意大利语和简体中文。你可以在<strong>设置 > 偏好设置 > 语言</strong>中更改语言，或使用标题栏中的🌐图标。"
           },
           "q4": {
-            "question": "初始设置需要做什么？",
-            "answer": "要充分利用LIA，我们建议：<br><br>1. <strong>连接你的Google账户</strong>：在设置 > 连接器中连接Gmail、日历、联系人等<br>2. <strong>配置你的时区</strong>：确保日期和时间正确显示<br>3. <strong>设置你的语言</strong>：选择界面和通知的首选语言<br>4. <strong>配置连接器偏好</strong>：为日历和任务设置默认列表<br><br>这些设置只需要一次，之后LIA会使用你的偏好。"
+            "question": "我可以让 LIA 做什么？",
+            "answer": "LIA可以在多个领域帮助你。以下是一些具体示例：<br><br><strong>🌐 多领域</strong><br>• \"<em>这周哪天最适合户外散步，我附近有哪些适合散步的地方（最好附近有喝咖啡和吃点心的地方）？</em>\"<br>• \"<em>告诉我埃菲尔铁塔的历史，找2家附近的酒店和3家评分超过4.5的附近餐厅</em>\"<br>• \"<em>显示我妻子的最近5封邮件</em>\"<br>• \"<em>给我妻子和儿子发邮件解释我会迟到。写得让他们不会生气，用幽默的语气缓和一下。</em>\"<br>• \"<em>安排周五15点到16点和儿子去看医生的预约</em>\"<br>• \"<em>将今天14点的会议改到16点，地点改为38号会议室</em>\"<br>• \"<em>给下次会议的参与者发邮件说我会迟到30分钟，并延长会议30分钟</em>\"<br>• \"<em>这周我有哪些午餐安排？</em>\"<br>• \"<em>周五我有哪些空闲时间？</em>\"<br>• \"<em>显示在Cap Gemini工作的联系人</em>\"<br>• \"<em>明天晚上9点要到达王府井，我应该什么时候出发坐地铁？</em>\"<br>• \"<em>我计划什么时候去看我哥哥？</em>\"<br>• \"<em>给我今晚9点左右前6个频道的电视节目</em>\"<br>• \"<em>给我北京、上海和广州明天的天气</em>\"<br>• \"<em>为我接下来的2个预约创建前一天19点的提醒</em>\"<br>• \"<em>找我哥哥家附近的2家餐厅，给我从家骑自行车的路线</em>\"<br>• \"<em>给我接下来2个预约的驾车路线和天气</em>\"<br>• \"<em>找附近600米内最好的5家餐厅</em>\"<br>• \"<em>找北京10公里范围内评分超过4的2家酒店</em>\"<br>• ...<br><br><strong>👥 联系人</strong><br>• \"<em>显示联系人张伟</em>\"<br>• \"<em>找张伟的电话号码</em>\"<br>• \"<em>张伟的地址是什么？</em>\"<br>• \"<em>搜索姓张的联系人</em>\"<br>• \"<em>电话号码138-1234-5678是谁的？</em>\"<br>• \"<em>在我的联系人中搜索张家人住在哪里</em>\"<br>• \"<em>找住在一起的张家人</em>\"<br>• \"<em>找住在北京的张家人</em>\"<br>• ...<br>• \"<em>创建联系人</em>\"<br>• \"<em>把张伟的电话改成138-9876-5432</em>\"<br>• \"<em>把第三个联系人的电话改成138-9876-5432</em>\"<br>• \"<em>更新我哥哥的地址为北京市长安街2号（记忆）</em>\"<br>• \"<em>删除联系人张伟</em>\"<br>• \"<em>删除列表中第二个联系人</em>\"<br>• ...<br><br><strong>📧 邮件</strong><br>• \"<em>我最近收到的2封邮件是什么？</em>\"<br>• \"<em>我最近3封未读邮件（不包括垃圾邮件）</em>\"<br>• \"<em>搜索我最近发送的3封邮件</em>\"<br>• \"<em>搜索带有个人标签的最近3封收到的邮件</em>\"<br>• \"<em>找我哥哥的最近3封邮件（记忆）</em>\"<br>• \"<em>显示最近3封重要的未读邮件</em>\"<br>• \"<em>搜索我哥哥关于预算的最近3封邮件（记忆）</em>\"<br>• \"<em>列出上周发送的最近3封邮件</em>\"<br>• \"<em>找最近收到的邮件并获取发件人的联系信息</em>\"<br>• ...<br>• \"<em>发送邮件</em>\"<br>• \"<em>给我哥哥和张伟发邮件解释我会迟到。写得让他们不会生气。用随意的语气。（记忆）</em>\"<br>• \"<em>给我妻子发一首浪漫的诗（记忆）</em>\"<br>• \"<em>回复最近收到的邮件说我无法参加并道歉。用正式语气</em>\"<br>• \"<em>将最近收到的邮件转发到我的个人邮箱（记忆）</em>\"<br>• \"<em>将最近发送的邮件转发给张伟</em>\"<br>• \"<em>删除最近收到的两封邮件</em>\"<br>• \"<em>删除列表中第二封邮件</em>\"<br>• \"<em>删除未读的商业邮件</em>\"<br>• ...<br><br><strong>📅 日历</strong><br>• \"<em>显示我的日历</em>\"<br>• \"<em>在工作日历中找我接下来的2个预约</em>\"<br>• \"<em>今天我有什么安排</em>\"<br>• \"<em>这周的会议</em>\"<br>• \"<em>显示下周的预约</em>\"<br>• \"<em>下周我有什么安排？</em>\"<br>• \"<em>搜索1月29日的日程</em>\"<br>• \"<em>找和张伟的预约</em>\"<br>• \"<em>和我哥哥接下来有哪些活动？（记忆）</em>\"<br>• \"<em>找在北京的预约</em>\"<br>• \"<em>下周我什么时候有空？</em>\"<br>• \"<em>周四14点到15点之间有空开会吗？</em>\"<br>• \"<em>找下次看医生的预约</em>\"<br>• ...<br>• \"<em>添加明天21点到午夜的朋友聚会</em>\"<br>• \"<em>安排周一12点到14点和张伟在餐厅的午餐</em>\"<br>• \"<em>创建明天14点一小时的周例会，和张伟在主街</em>\"<br>• \"<em>修改周二的周例会，改到周四15点</em>\"<br>• \"<em>延长周例会一小时</em>\"<br>• \"<em>添加zhangwei@example.com为周例会参与者</em>\"<br>• \"<em>将明天的周例会从14点改到16点</em>\"<br>• \"<em>将周例会的地点改为B会议室</em>\"<br>• \"<em>从周例会中移除zhangwei@example.com</em>\"<br>• \"<em>取消周例会</em>\"<br>• ...<br><br><strong>✅ 任务</strong><br>• \"<em>显示我的任务</em>\"<br>• \"<em>我要做什么？</em>\"<br>• \"<em>列出当前任务</em>\"<br>• \"<em>列出已完成的任务</em>\"<br>• \"<em>列出已过期的任务</em>\"<br>• \"<em>列出今天的任务</em>\"<br>• \"<em>列出本周末前到期的任务</em>\"<br>• ...<br>• \"<em>添加任务打电话给银行</em>\"<br>• \"<em>创建任务续订订阅，截止日期12月31日</em>\"<br>• \"<em>创建任务准备演示文稿，截止日期周五</em>\"<br>• \"<em>修改任务准备演示文稿，延后一天截止日期</em>\"<br>• \"<em>标记任务准备演示文稿为已完成</em>\"<br>• \"<em>删除已完成的任务</em>\"<br>• \"<em>删除任务续订订阅</em>\"<br>• \"<em>我完成了列表中第一个任务</em>\"<br>• \"<em>我完成了所有任务</em>\"<br>• ...<br><br><strong>📁 文件</strong><br>• \"<em>列出我的文件</em>\"<br>• \"<em>显示我的文件夹</em>\"<br>• \"<em>搜索PDF文件</em>\"<br>• \"<em>我最近的5个文件</em>\"<br>• ...<br><br><strong>🔔 提醒（带通知）</strong><br>• \"<em>提醒我19点遛狗</em>\"<br>• \"<em>提醒我周五18点打电话给我哥哥</em>\"<br>• \"<em>提醒我2月13日8点把车送去修理</em>\"<br>• ...<br>• \"<em>删除所有提醒</em>\"<br>• \"<em>删除打电话给张伟的提醒</em>\"<br>• \"<em>删除列表中第二个提醒</em>\"<br>• ...<br><br><strong>📍 谷歌地点</strong><br>• \"<em>我在哪里？</em>\"<br>• \"<em>我在什么地址</em>\"<br>• \"<em>找附近的2家餐厅</em>\"<br>• \"<em>找2家评分超过4的中餐厅</em>\"<br>• \"<em>找现在营业的药店</em>\"<br>• \"<em>餐厅几点开门？</em>\"<br>• \"<em>最近营业的餐厅有多远？</em>\"<br>• \"<em>最近的加油站在哪里？</em>\"<br>• \"<em>显示1公里内的超市</em>\"<br>• \"<em>列出北京市中心的5家意大利餐厅</em>\"<br>• \"<em>找埃菲尔铁塔附近的3家酒店</em>\"<br>• \"<em>搜索上海市中心的博物馆</em>\"<br>• ...<br><br><strong>🗺️ 谷歌路线</strong><br>• \"<em>怎么去北京？</em>\"<br>• \"<em>怎么去我哥哥家？（记忆）</em>\"<br>• \"<em>去张伟家的路线是什么？</em>\"<br>• \"<em>坐公交怎么去北京？</em>\"<br>• \"<em>给我从北京到上海的路线</em>\"<br>• \"<em>骑自行车去北京要多长时间？</em>\"<br>• \"<em>步行去天安门</em>\"<br>• \"<em>坐公交21点到达王府井，我应该什么时候出发？</em>\"<br>• \"<em>不走收费公路去上海</em>\"<br>• \"<em>北京到杭州不走收费公路和高速的路线是什么？</em>\"<br>• \"<em>现在开车去北京要多长时间？</em>\"<br>• ...<br><br><strong>🌤️ 天气</strong><br>• \"<em>今天天气怎么样？</em>\"<br>• \"<em>给我逐小时天气</em>\"<br>• \"<em>查明天的天气</em>\"<br>• \"<em>查未来3天的天气</em>\"<br>• \"<em>这周天气怎么样？</em>\"<br>• \"<em>哪天最适合户外散步？</em>\"<br>• \"<em>这周会下雨吗？</em>\"<br>• \"<em>什么时候停雨？</em>\"<br>• \"<em>哪天风最小？</em>\"<br>• \"<em>查北京、上海和广州明天的天气</em>\"<br>• ...<br><br><strong>🔍 PERPLEXITY</strong><br>• \"<em>搜索iPhone的最新新闻</em>\"<br>• \"<em>在网上搜索明晚前3个频道的电视节目</em>\"<br>• \"<em>中国国家队上场足球赛发生了什么？</em>\"<br>• \"<em>做一个最佳电动汽车的对比</em>\"<br>• \"<em>搜索卢浮宫博物馆的开放时间</em>\"<br>• \"<em>在网上搜索北京到纽约机票的价格</em>\"<br>• \"<em>居里夫人获得诺贝尔奖时多大？</em>\"<br>• ...<br><br><strong>📚 维基百科</strong><br>• \"<em>在维基百科搜索埃菲尔铁塔的信息</em>\"<br>• \"<em>找卢浮宫的完整维基百科文章</em>\"<br>• \"<em>在维基百科找关于光合作用的信息</em>\"<br>• \"<em>给我讲讲法国大革命</em>\"<br>• \"<em>居里夫人是谁？</em>\"<br>• \"<em>搜索与太空探索相关的维基百科文章</em>\"<br>• \"<em>维基百科上与文艺复兴相关的主题有哪些？</em>\"<br>• ..."
           },
           "q5": {
-            "question": "LIA理解什么类型的请求？",
-            "answer": "LIA理解<strong>自然语言</strong>请求。你可以像和人说话一样提问：<br><br>• \"<em>我今天的日程怎么样？</em>\"<br>• \"<em>给玛丽发邮件安排周五的会议</em>\"<br>• \"<em>找张伟的电话号码</em>\"<br>• \"<em>附近有什么好餐厅？</em>\"<br>• \"<em>明天北京天气怎么样？</em>\"<br>• \"<em>2小时后提醒我打电话给医生</em>\"<br>• \"<em>明天早上9点提醒我准备会议</em>\"<br><br>LIA会分析你的请求，选择合适的工具，并给出最相关的回答。"
+            "question": "审批系统是如何运作的？",
+            "answer": "为了保护你的数据，LIA 使用<strong>智能审批系统（Human-in-the-Loop，人在回路）</strong>。在执行任何会修改你数据的操作之前，LIA 都会请你确认：<br><br><strong>🔒 需要审批的操作：</strong><br>• 发送、回复或转发邮件<br>• 创建、修改或删除事件<br>• 创建、修改或删除联系人<br>• 创建或完成任务<br><br><strong>📋 工作方式：</strong><br>1. LIA 为该操作准备一份<strong>草稿</strong><br>2. 你会看到将要执行内容的<strong>详细预览</strong><br>3. 你可以：<br>   • ✅ <strong>批准</strong>：执行该操作<br>   • ✏️ <strong>修改</strong>：在确认前进行更正<br>   • ❌ <strong>取消</strong>：什么都不会执行<br><br><strong>💡 提示</strong>：花点时间检查预览，尤其是邮件！"
           },
           "q6": {
-            "question": "我可以用LIA做什么？",
-            "answer": "LIA可以在多个领域帮助你。以下是一些具体示例：<br><br><strong>🌐 多领域</strong><br>• \"<em>这周哪天最适合户外散步，我附近有哪些适合散步的地方（最好附近有喝咖啡和吃点心的地方）？</em>\"<br>• \"<em>告诉我埃菲尔铁塔的历史，找2家附近的酒店和3家评分超过4.5的附近餐厅</em>\"<br>• \"<em>显示我妻子的最近5封邮件</em>\"<br>• \"<em>给我妻子和儿子发邮件解释我会迟到。写得让他们不会生气，用幽默的语气缓和一下。</em>\"<br>• \"<em>安排周五15点到16点和儿子去看医生的预约</em>\"<br>• \"<em>将今天14点的会议改到16点，地点改为38号会议室</em>\"<br>• \"<em>给下次会议的参与者发邮件说我会迟到30分钟，并延长会议30分钟</em>\"<br>• \"<em>这周我有哪些午餐安排？</em>\"<br>• \"<em>周五我有哪些空闲时间？</em>\"<br>• \"<em>显示在Cap Gemini工作的联系人</em>\"<br>• \"<em>明天晚上9点要到达王府井，我应该什么时候出发坐地铁？</em>\"<br>• \"<em>我计划什么时候去看我哥哥？</em>\"<br>• \"<em>给我今晚9点左右前6个频道的电视节目</em>\"<br>• \"<em>给我北京、上海和广州明天的天气</em>\"<br>• \"<em>为我接下来的2个预约创建前一天19点的提醒</em>\"<br>• \"<em>找我哥哥家附近的2家餐厅，给我从家骑自行车的路线</em>\"<br>• \"<em>给我接下来2个预约的驾车路线和天气</em>\"<br>• \"<em>找附近600米内最好的5家餐厅</em>\"<br>• \"<em>找北京10公里范围内评分超过4的2家酒店</em>\"<br>• ...<br><br><strong>👥 联系人</strong><br>• \"<em>显示联系人张伟</em>\"<br>• \"<em>找张伟的电话号码</em>\"<br>• \"<em>张伟的地址是什么？</em>\"<br>• \"<em>搜索姓张的联系人</em>\"<br>• \"<em>电话号码138-1234-5678是谁的？</em>\"<br>• \"<em>在我的联系人中搜索张家人住在哪里</em>\"<br>• \"<em>找住在一起的张家人</em>\"<br>• \"<em>找住在北京的张家人</em>\"<br>• ...<br>• \"<em>创建联系人</em>\"<br>• \"<em>把张伟的电话改成138-9876-5432</em>\"<br>• \"<em>把第三个联系人的电话改成138-9876-5432</em>\"<br>• \"<em>更新我哥哥的地址为北京市长安街2号（记忆）</em>\"<br>• \"<em>删除联系人张伟</em>\"<br>• \"<em>删除列表中第二个联系人</em>\"<br>• ...<br><br><strong>📧 邮件</strong><br>• \"<em>我最近收到的2封邮件是什么？</em>\"<br>• \"<em>我最近3封未读邮件（不包括垃圾邮件）</em>\"<br>• \"<em>搜索我最近发送的3封邮件</em>\"<br>• \"<em>搜索带有个人标签的最近3封收到的邮件</em>\"<br>• \"<em>找我哥哥的最近3封邮件（记忆）</em>\"<br>• \"<em>显示最近3封重要的未读邮件</em>\"<br>• \"<em>搜索我哥哥关于预算的最近3封邮件（记忆）</em>\"<br>• \"<em>列出上周发送的最近3封邮件</em>\"<br>• \"<em>找最近收到的邮件并获取发件人的联系信息</em>\"<br>• ...<br>• \"<em>发送邮件</em>\"<br>• \"<em>给我哥哥和张伟发邮件解释我会迟到。写得让他们不会生气。用随意的语气。（记忆）</em>\"<br>• \"<em>给我妻子发一首浪漫的诗（记忆）</em>\"<br>• \"<em>回复最近收到的邮件说我无法参加并道歉。用正式语气</em>\"<br>• \"<em>将最近收到的邮件转发到我的个人邮箱（记忆）</em>\"<br>• \"<em>将最近发送的邮件转发给张伟</em>\"<br>• \"<em>删除最近收到的两封邮件</em>\"<br>• \"<em>删除列表中第二封邮件</em>\"<br>• \"<em>删除未读的商业邮件</em>\"<br>• ...<br><br><strong>📅 日历</strong><br>• \"<em>显示我的日历</em>\"<br>• \"<em>在工作日历中找我接下来的2个预约</em>\"<br>• \"<em>今天我有什么安排</em>\"<br>• \"<em>这周的会议</em>\"<br>• \"<em>显示下周的预约</em>\"<br>• \"<em>下周我有什么安排？</em>\"<br>• \"<em>搜索1月29日的日程</em>\"<br>• \"<em>找和张伟的预约</em>\"<br>• \"<em>和我哥哥接下来有哪些活动？（记忆）</em>\"<br>• \"<em>找在北京的预约</em>\"<br>• \"<em>下周我什么时候有空？</em>\"<br>• \"<em>周四14点到15点之间有空开会吗？</em>\"<br>• \"<em>找下次看医生的预约</em>\"<br>• ...<br>• \"<em>添加明天21点到午夜的朋友聚会</em>\"<br>• \"<em>安排周一12点到14点和张伟在餐厅的午餐</em>\"<br>• \"<em>创建明天14点一小时的周例会，和张伟在主街</em>\"<br>• \"<em>修改周二的周例会，改到周四15点</em>\"<br>• \"<em>延长周例会一小时</em>\"<br>• \"<em>添加zhangwei@example.com为周例会参与者</em>\"<br>• \"<em>将明天的周例会从14点改到16点</em>\"<br>• \"<em>将周例会的地点改为B会议室</em>\"<br>• \"<em>从周例会中移除zhangwei@example.com</em>\"<br>• \"<em>取消周例会</em>\"<br>• ...<br><br><strong>✅ 任务</strong><br>• \"<em>显示我的任务</em>\"<br>• \"<em>我要做什么？</em>\"<br>• \"<em>列出当前任务</em>\"<br>• \"<em>列出已完成的任务</em>\"<br>• \"<em>列出已过期的任务</em>\"<br>• \"<em>列出今天的任务</em>\"<br>• \"<em>列出本周末前到期的任务</em>\"<br>• ...<br>• \"<em>添加任务打电话给银行</em>\"<br>• \"<em>创建任务续订订阅，截止日期12月31日</em>\"<br>• \"<em>创建任务准备演示文稿，截止日期周五</em>\"<br>• \"<em>修改任务准备演示文稿，延后一天截止日期</em>\"<br>• \"<em>标记任务准备演示文稿为已完成</em>\"<br>• \"<em>删除已完成的任务</em>\"<br>• \"<em>删除任务续订订阅</em>\"<br>• \"<em>我完成了列表中第一个任务</em>\"<br>• \"<em>我完成了所有任务</em>\"<br>• ...<br><br><strong>📁 文件</strong><br>• \"<em>列出我的文件</em>\"<br>• \"<em>显示我的文件夹</em>\"<br>• \"<em>搜索PDF文件</em>\"<br>• \"<em>我最近的5个文件</em>\"<br>• ...<br><br><strong>🔔 提醒（带通知）</strong><br>• \"<em>提醒我19点遛狗</em>\"<br>• \"<em>提醒我周五18点打电话给我哥哥</em>\"<br>• \"<em>提醒我2月13日8点把车送去修理</em>\"<br>• ...<br>• \"<em>删除所有提醒</em>\"<br>• \"<em>删除打电话给张伟的提醒</em>\"<br>• \"<em>删除列表中第二个提醒</em>\"<br>• ...<br><br><strong>📍 谷歌地点</strong><br>• \"<em>我在哪里？</em>\"<br>• \"<em>我在什么地址</em>\"<br>• \"<em>找附近的2家餐厅</em>\"<br>• \"<em>找2家评分超过4的中餐厅</em>\"<br>• \"<em>找现在营业的药店</em>\"<br>• \"<em>餐厅几点开门？</em>\"<br>• \"<em>最近营业的餐厅有多远？</em>\"<br>• \"<em>最近的加油站在哪里？</em>\"<br>• \"<em>显示1公里内的超市</em>\"<br>• \"<em>列出北京市中心的5家意大利餐厅</em>\"<br>• \"<em>找埃菲尔铁塔附近的3家酒店</em>\"<br>• \"<em>搜索上海市中心的博物馆</em>\"<br>• ...<br><br><strong>🗺️ 谷歌路线</strong><br>• \"<em>怎么去北京？</em>\"<br>• \"<em>怎么去我哥哥家？（记忆）</em>\"<br>• \"<em>去张伟家的路线是什么？</em>\"<br>• \"<em>坐公交怎么去北京？</em>\"<br>• \"<em>给我从北京到上海的路线</em>\"<br>• \"<em>骑自行车去北京要多长时间？</em>\"<br>• \"<em>步行去天安门</em>\"<br>• \"<em>坐公交21点到达王府井，我应该什么时候出发？</em>\"<br>• \"<em>不走收费公路去上海</em>\"<br>• \"<em>北京到杭州不走收费公路和高速的路线是什么？</em>\"<br>• \"<em>现在开车去北京要多长时间？</em>\"<br>• ...<br><br><strong>🌤️ 天气</strong><br>• \"<em>今天天气怎么样？</em>\"<br>• \"<em>给我逐小时天气</em>\"<br>• \"<em>查明天的天气</em>\"<br>• \"<em>查未来3天的天气</em>\"<br>• \"<em>这周天气怎么样？</em>\"<br>• \"<em>哪天最适合户外散步？</em>\"<br>• \"<em>这周会下雨吗？</em>\"<br>• \"<em>什么时候停雨？</em>\"<br>• \"<em>哪天风最小？</em>\"<br>• \"<em>查北京、上海和广州明天的天气</em>\"<br>• ...<br><br><strong>🔍 PERPLEXITY</strong><br>• \"<em>搜索iPhone的最新新闻</em>\"<br>• \"<em>在网上搜索明晚前3个频道的电视节目</em>\"<br>• \"<em>中国国家队上场足球赛发生了什么？</em>\"<br>• \"<em>做一个最佳电动汽车的对比</em>\"<br>• \"<em>搜索卢浮宫博物馆的开放时间</em>\"<br>• \"<em>在网上搜索北京到纽约机票的价格</em>\"<br>• \"<em>居里夫人获得诺贝尔奖时多大？</em>\"<br>• ...<br><br><strong>📚 维基百科</strong><br>• \"<em>在维基百科搜索埃菲尔铁塔的信息</em>\"<br>• \"<em>找卢浮宫的完整维基百科文章</em>\"<br>• \"<em>在维基百科找关于光合作用的信息</em>\"<br>• \"<em>给我讲讲法国大革命</em>\"<br>• \"<em>居里夫人是谁？</em>\"<br>• \"<em>搜索与太空探索相关的维基百科文章</em>\"<br>• \"<em>维基百科上与文艺复兴相关的主题有哪些？</em>\"<br>• ..."
+            "question": "LIA 会出错吗？",
+            "answer": "和所有 AI 助手一样，LIA 有时也可能误解请求。以下是获得最佳结果的方法：<br><br><strong>✅ 良好做法：</strong><br>• 具体一些：\"<em>给 zhang.wei@email.com 发一封邮件</em>\"，而不是\"<em>给张伟发一封邮件</em>\"<br>• 提供上下文：\"<em>查找本周关于 Alpha 项目的邮件</em>\"<br>• 批准操作前先检查预览<br><br><strong>⚠️ 出错时：</strong><br>• 补充更多细节，重新表述你的请求<br>• 使用具体日期（\"<em>1月15日</em>\"），而不是相对日期（\"<em>上周</em>\"）<br>• 重要的邮件务必仔细查看预览<br><br><strong>🛡️ 内置安全：</strong><br>得益于审批系统，任何关键操作都不会在没有你明确确认的情况下执行。"
           },
           "q7": {
             "question": "LIA是如何构建的？",
@@ -7717,7 +7753,7 @@
           },
           "q8": {
             "question": "我可以把 LIA 安装到手机上吗 — 作为 PWA 还是真正的应用？(v1.33.0)",
-            "answer": "可以，有两种方式。<strong>作为 PWA</strong>：在浏览器中打开您的 LIA，使用「添加到主屏幕」— 它会全屏启动、支持离线，在 iOS 16.4+ 上甚至能接收网页推送。<strong>作为原生应用</strong>（新）：从应用商店安装 LIA 应用，在首屏输入一次您服务器的地址，即可获得相同的界面，外加只有原生应用才能做到的能力 — 通过系统浏览器登录、原生通知（Android 上直接来自您服务器自己的 Firebase 项目；iOS 上通过保护隐私的唤醒中继）、授权后自动回到应用的连接器。您的服务器始终是数据唯一的家：应用只是通向它的一扇窗。"
+            "answer": "可以，有两种方式。<strong>作为 PWA</strong>：在浏览器中打开你的 LIA，使用「添加到主屏幕」— 它会全屏启动、支持离线，在 iOS 16.4+ 上甚至能接收网页推送。<strong>作为原生应用</strong>（新）：从应用商店安装 LIA 应用，在首屏输入一次你服务器的地址，即可获得相同的界面，外加只有原生应用才能做到的能力 — 通过系统浏览器登录、原生通知（Android 上直接来自你服务器自己的 Firebase 项目；iOS 上通过保护隐私的唤醒中继）、授权后自动回到应用的连接器。你的服务器始终是数据唯一的家：应用只是通向它的一扇窗。"
           },
           "q9": {
             "question": "我的账号显示等待激活，该怎么办？",
@@ -7725,14 +7761,14 @@
           },
           "q10": {
             "question": "有 Android 或 iPhone 的移动应用吗？",
-            "answer": "有 —— 每个商店一个官方应用，兼容<strong>任何</strong>自托管的 LIA 服务器。首次启动时输入您服务器的地址（必须为 HTTPS）；应用随后加载您自己服务器的界面，因此每项网页改进都会即时到达，无需商店更新。Google 登录、通知，以及从已连接服务（Gmail、日历、MCP 等）返回，均原生可用。若服务器无法访问，内置的离线屏幕提供重试和更换服务器的选项。网页版与 PWA 保持原样运行 —— 应用是补充，绝非替代。"
+            "answer": "有 —— 每个商店一个官方应用，兼容<strong>任何</strong>自托管的 LIA 服务器。首次启动时输入你服务器的地址（必须为 HTTPS）；应用随后加载你自己服务器的界面，因此每项网页改进都会即时到达，无需商店更新。Google 登录、通知，以及从已连接服务（Gmail、日历、MCP 等）返回，均原生可用。若服务器无法访问，内置的离线屏幕提供重试和更换服务器的选项。网页版与 PWA 保持原样运行 —— 应用是补充，绝非替代。"
           }
         }
       },
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "29",
+        "count": "32",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
@@ -7740,7 +7776,7 @@
           },
           "q2": {
             "question": "如何重置对话？",
-            "answer": "要清空并重新开始：<br><br>1. 在聊天标题栏中找到 <strong>🗑️</strong> 按钮<br>2. 点击它<br>3. 在对话框中确认<br><br><strong>⚠️ 实际会被删除的内容：</strong><br>所有消息、<strong>你自己上传的附件</strong>，以及 LIA 从这段对话中建立的上下文。此操作<strong>不可撤销</strong>。<br><br><strong>💡 什么时候值得这么做？</strong><br>• 你要转向一个完全不同的话题<br>• LIA 似乎被此前的上下文干扰了<br>• 你不希望把这段历史留在身后<br><br><strong>✅ 不会被删除的内容：</strong><br><strong>LIA 生成的文件</strong>——图片、文档、截图——会留在「设置 › 我生成的文件」中，直到它们各自到期。LIA 关于你的学习成果存放在对话之外并会保留：长期记忆、它观察到的作息与重复请求、它记录哪些邮件已读的标记、为你调整过的阈值。若要清除这些，请在设置中使用<strong>「全部忘记」</strong>，或删除你的账户。"
+            "answer": "要清空并重新开始：<br><br>1. 在聊天标题栏中找到 <strong>🗑️</strong> 按钮<br>2. 点击它<br>3. 在对话框中确认<br><br><strong>⚠️ 实际会被删除的内容：</strong><br>所有消息、<strong>你自己上传的附件</strong>，以及 LIA 从这段对话中建立的上下文。此操作<strong>不可撤销</strong>。<br><br><strong>💡 什么时候值得这么做？</strong><br>• 你要转向一个完全不同的话题<br>• LIA 似乎被此前的上下文干扰了<br>• 你不希望把这段历史留在身后<br><br><strong>✅ 不会被删除的内容：</strong><br><strong>LIA 生成的文件</strong>——图片、文档、截图——会留在「设置 › 我生成的文件」中，直到它们各自到期；你保留的文件则会一直保留。LIA 关于你的学习成果存放在对话之外并会保留：长期记忆、它观察到的作息与重复请求、它记录哪些邮件已读的标记、为你调整过的阈值。若要清除这些，请在设置中使用<strong>「全部忘记」</strong>，或删除你的账户。"
           },
           "q3": {
             "question": "对话会被保存吗？",
@@ -7751,16 +7787,16 @@
             "answer": "两个需要知道的快捷键：<br><br>• <strong>Enter</strong> = 发送消息<br>• <strong>Shift + Enter</strong> = 换行<br><br><strong>💡 完整示例：</strong><br>要口述一封结构化的邮件，可以输入：<br><br><em>给 John 发一封邮件：<br>主题：项目会议<br>正文：<br>你好 John，<br><br>确认我们明天的会议。<br><br>此致</em><br><br>每行之间用 Shift+Enter，最后按 Enter 一次性发送。"
           },
           "q5": {
-            "question": "为什么消息是逐渐显示的？",
-            "answer": "LIA使用<strong>流式传输</strong>技术实时显示回复：<br><br>• <strong>渐进显示</strong>：文字逐步出现，无需等待完整回复<br>• <strong>视觉反馈</strong>：你可以立即看到LIA正在处理你的请求<br>• <strong>更好的体验</strong>：减少等待的感觉<br><br>对于复杂操作，你可能还会看到<strong>执行步骤</strong>（分析、规划、执行等）。"
+            "question": "LIA 会记住对话的上下文吗？",
+            "answer": "会的！LIA 在整个对话过程中保持<strong>智能上下文</strong>：<br><br><strong>🔗 上下文引用：</strong><br>• \"<em>显示张伟发来的邮件</em>\" → 找到 3 封邮件<br>• \"<em>回复第二封</em>\" → LIA 知道你说的是第 2 封邮件<br>• \"<em>把王芳加到抄送</em>\" → LIA 记得正在处理的草稿<br><br><strong>📋 LIA 会记住：</strong><br>• 之前的搜索结果<br>• 提到过的联系人、邮件和事件<br>• 等待审批的草稿<br>• 对话的脉络<br><br><strong>💡 提示：</strong>使用自然的指代，比如\"<em>第一封</em>\"、\"<em>王芳的那封</em>\"、\"<em>明天的预约</em>\"。"
           },
           "q6": {
-            "question": "如何引用对话中的元素？",
-            "answer": "LIA具有<strong>关联引用</strong>功能，允许你引用之前的结果：<br><br>• \"<em>给他发邮件</em>\"（引用前一个搜索找到的联系人）<br>• \"<em>在我的日历上添加这个会议</em>\"（引用提到的事件）<br>• \"<em>它的电话号码是多少？</em>\"（引用当前联系人）<br><br>LIA会保持<strong>上下文</strong>，理解\"他\"、\"她\"、\"这个\"指的是什么。如果不确定，它会请你澄清。<br><br>这个显示本身是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻脉动，整体淡入回答的第一批文字，撰写时有光标闪烁，等待动画每次回复都会变换形态。如果你在 LIA 工作时切换标签页，标签标题会交替显示「✦ LIA 正在输入…」。一切都遵循系统的「减少动态效果」设置。"
+            "question": "为什么 LIA 有时需要一些时间才回复？",
+            "answer": "回复时间取决于你的请求有多复杂：<br><br><strong>⚡ 快速回复（1-3 秒）：</strong><br>• 简单的对话问题<br>• 天气信息<br>• 维基百科搜索<br><br><strong>⏱️ 中等回复（3-10 秒）：</strong><br>• 搜索你的邮件<br>• 查看日历<br>• 搜索联系人<br><br><strong>🔄 较长回复（10-30 秒）：</strong><br>• 撰写复杂的邮件<br>• 多项组合搜索<br>• 需要多个步骤的操作<br><br><strong>💡 视觉提示：</strong><br>处理期间，你会看到\"<em>🔍 正在分析你的请求...</em>\"或\"<em>📋 正在准备行动计划...</em>\"之类的消息<br><br>这个显示是动态的：已完成的步骤逐渐淡出，当前步骤轻轻呼吸，整块内容随后融入回答的开头几个字；撰写时会有光标闪烁，等待动画每次回复都会换一种形态。如果 LIA 工作时你切换了标签页，标签页标题会与「✦ LIA 正在输入…」交替显示。这一切都遵循你系统的「减少动态效果」设置。"
           },
           "q7": {
-            "question": "如果LIA不理解我的请求怎么办？",
-            "answer": "如果你的请求<strong>模糊</strong>或<strong>不完整</strong>，LIA会请求澄清：<br><br>• <strong>自动澄清</strong>：LIA会提问以更好地理解你的需求<br>• <strong>选项建议</strong>：当有多个可能性时，LIA会提供选择<br>• <strong>确认</strong>：对于敏感操作，LIA会确认其理解<br><br>请随时<strong>用更多细节重新表述</strong>或回答LIA的问题以获得更好的结果。"
+            "question": "如何让 LIA 给出更好的结果？",
+            "answer": "以下是与 LIA 沟通的<strong>最佳做法</strong>：<br><br><strong>✅ 具体一些：</strong><br>❌ \"<em>找一封邮件</em>\"<br>✅ \"<em>查找李明关于预算的邮件</em>\"<br><br><strong>✅ 提供上下文：</strong><br>❌ \"<em>发一封邮件</em>\"<br>✅ \"<em>给 wangfang@example.com 发邮件，确认明天下午 2 点的预约</em>\"<br><br><strong>✅ 使用具体日期：</strong><br>❌ \"<em>前几天的会议</em>\"<br>✅ \"<em>1月15日的会议</em>\"<br><br><strong>✅ 分步进行：</strong><br>复杂任务请拆分成多个请求。<br><br><strong>✅ 检查预览：</strong><br>在批准邮件或修改之前，请仔细查看预览。"
           },
           "q8": {
             "question": "如何在消息中附加照片或文档？",
@@ -7849,13 +7885,25 @@
           "q29": {
             "question": "LIA 写的脚本能访问互联网吗？「三种回答」的提问是什么意思？",
             "answer": "可以，自 v1.46.0 起，且仅限 <strong>ReAct 模式</strong>（⚡）。当某一步需要没有任何工具覆盖的服务时——检查某个 API 是否响应、读取一个订阅源、调用你使用的某个接口——LIA 写的那段简短 Python 脚本可以访问它。<br><br><strong>🚪 只有一道门，绝不直连</strong><br>• 脚本经由一个专用代理出去，仅限 HTTPS，只到它声明的主机——别处都不去<br>• 不声明任何主机的脚本和以前一样完全离线<br>• 私有网络、服务器本身和云元数据一律拒绝<br><br><strong>🔑 你的连接器，无需询问</strong><br>• 你用自己的 API 密钥连接的服务（网页搜索、问答引擎、天气）可以直接访问<br>• 脚本读取一个临时令牌；代理只在该主机上把它换成你的真实密钥——密钥从不进入脚本<br><br><strong>🙋 未知主机会先问你，有三种回答</strong><br>• <strong>允许并带上数据</strong> — 脚本可以把 LIA 本轮收集的内容（你的邮件、日程……）发给该主机<br>• <strong>允许但不带数据</strong> — 脚本运行，但收不到任何这些内容<br>• <strong>拒绝</strong> — LIA 用已有的信息回答<br>• 之后你请求的其余部分继续进行，你的回答会被记为一项许可，可在<strong>设置 → 沙箱网络</strong>中撤销<br><br><strong>💡 值得了解</strong>：每次联网运行都会在启动前写入你的登记簿，管理员可以关闭联网而保留计算器，每一轮都有少量的运行预算。"
+          },
+          "q30": {
+            "question": "其他设备上的消息如何出现？",
+            "answer": "消息保存后，当前对话会收到信号并合并最新历史。旧页面和你的阅读位置会保留；连接中断后会补齐遗漏消息，也不会打断你正在进行的操作。"
+          },
+          "q31": {
+            "question": "不下载也能保留生成文件吗？",
+            "answer": "可以。在“我的生成文件”中，对属于你的图片、文档或截图选择“保留”。图库会显示账户限额。你可以取消保留：文件会获得新的正常期限，而不会立即删除。"
+          },
+          "q32": {
+            "question": "如何通过邮件发送文件或回答？",
+            "answer": "在文件或回答上选择“通过邮件发送”，填写主题，也可添加留言。连接邮箱时可选择收件人；否则 LIA 只能发往账户中已验证的地址。表单会显示可用通道和文件大小上限。"
           }
         }
       },
       "settings": {
         "title": "设置",
         "description": "账户配置和偏好设置",
-        "count": "31",
+        "count": "32",
         "questions": {
           "q1": {
             "question": "如何更改时区？",
@@ -7866,44 +7914,44 @@
             "answer": "更改语言有两种方式：<br><br><strong>快捷方式：</strong><br>点击标题栏中的<strong>地球图标</strong> 🌐 并选择你的语言。<br><br><strong>通过设置：</strong><br>1. 进入<strong>设置</strong>（菜单中的 ⚙️ 图标）<br>2. 在侧栏中，于<strong>偏好设置 › 个性化</strong>下选择<strong>语言</strong><br>3. 该分区会在旁边的面板中打开<br><br><strong>🔄 同步：</strong><br>两种方式保存的是同一项偏好，写入你的个人资料，因此会跨设备跟随你。<br><br><strong>📧 不止于界面：</strong><br>通知邮件以及 LIA 发送的推送通知同样使用这一语言。"
           },
           "q3": {
-            "question": "什么是主题，如何更改？",
-            "answer": "主题控制应用程序的<strong>视觉外观</strong>。转到<strong>设置 > 偏好设置 > 外观</strong>以从5种不同的主题中选择：<br><br>• <strong>专业蓝</strong>（默认）<br>• <strong>青绿</strong>（Turquoise）<br>• <strong>鼠尾草</strong>（Sage）<br>• <strong>玫瑰</strong>（Rose）<br>• <strong>薰衣草</strong>（Lavender）<br><br>每个主题都有<strong>浅色</strong>和<strong>深色</strong>模式，而深色又分两个层次——普通深色，以及为 OLED 屏幕准备的<strong>纯黑</strong>，此时那些像素会真正熄灭。标题栏中的按钮会依次循环这三种状态，其图标显示下一次按下将进入哪一种。在<strong>设置 › 外观</strong>中也可以直接选择模式，包括<strong>跟随系统</strong>；选定深色后，会出现一个<strong>纯黑</strong>开关。"
+            "question": "如何自定义外观（主题）？",
+            "answer": "按你的喜好自定义 LIA 的外观：<br><br><strong>5 种可选主题：</strong><br>• 💙 <strong>专业蓝</strong>：优雅而经典<br>• 🌊 <strong>青绿</strong>：舒缓的蓝绿色<br>• 🌿 <strong>鼠尾草</strong>：自然柔和的绿色<br>• 🌸 <strong>玫瑰</strong>：温暖时尚的玫瑰色<br>• 💜 <strong>薰衣草</strong>：精致的紫色<br><br><strong>浅色、深色、纯黑：</strong><br>每个主题都有浅色和深色两个版本，而深色又有两种深度——普通深色，以及适用于 OLED 屏幕的<strong>纯黑</strong>，这些像素会真正熄灭。标题栏中的按钮在三者之间轮流切换，其图标显示下一次点击会切换到哪一种。在<strong>设置 › 外观</strong>中，你也可以直接选择模式，包括<strong>系统</strong>（跟随你的设备）；选择深色后，还可以打开<strong>纯黑</strong>开关。<br><br><strong>更换主题：</strong><br>进入<strong>设置</strong>（⚙️ 图标）中的<strong>外观</strong>部分。"
           },
           "q4": {
             "question": "如何更新我的个人资料？",
             "answer": "管理你的个人信息：<br><br><strong>可修改：</strong><br>• ✏️ <strong>全名</strong>：应用中显示的名字 —— <strong>设置 > 个人资料</strong><br>• 🌍 <strong>时区</strong>、🌐 <strong>语言</strong>、🎨 <strong>外观</strong>：<strong>设置 > 偏好设置</strong>，位于<strong>个性化</strong>下<br><br><strong>不可修改：</strong><br>• 📧 <strong>邮箱</strong>：它是你的登录标识，注册后固定不变<br><br><strong>💡 小提示：</strong><br>这个名字就是 LIA 称呼你时使用的名字，用昵称和用真名一样合适。"
           },
           "q5": {
-            "question": "如何选择LIA的个性？",
-            "answer": "你可以为LIA选择<strong>沟通风格</strong>：<br><br>转到<strong>设置 > 个人资料</strong>选择预定义的个性。每种个性会影响LIA回复的语气和风格，同时保持相同的功能。<br><br><strong>14种可用人格：</strong><br>• <strong>正常</strong>：平衡专业的风格<br>• <strong>热情</strong>：充满活力和鼓励<br>• <strong>教授</strong>：学术和教育性<br>• <strong>朋友</strong>：随意亲切<br>• <strong>网红</strong>：流行文化和时尚<br>• <strong>哲学家</strong>：深思熟虑和反思<br>• <strong>愤世嫉俗</strong>：讽刺幽默<br>• <strong>诗人</strong>：抒情且富有想象力的表达<br>• <strong>教练</strong>：激励且注重行动<br>• 还有更多——管理员可以添加新人格！<br><br><strong>🌍 6种语言：</strong><br>每个人格自动翻译为法语、英语、西班牙语、德语、意大利语和中文。"
+            "question": "如何自定义 LIA 的风格？",
+            "answer": "LIA 可以按你的喜好调整<strong>沟通风格</strong>：<br><br><strong>🎭 14 种可选个性：</strong><br>• <strong>正常</strong>：中立客观，适合各种场合<br>• <strong>充满热情</strong>：活力十足，充满正能量<br>• <strong>教授</strong>：耐心亲切，讲解清晰有条理<br>• <strong>朋友</strong>：温暖贴心<br>• <strong>影响者</strong>：时髦前卫<br>• <strong>哲学家</strong>：深入思考，观点细腻<br>• <strong>愤世嫉俗</strong>：黑色幽默，一针见血<br>• <strong>JARVIS</strong>：精致、毒舌又忠诚的数字管家<br>• <strong>青少年</strong>：正处于荷尔蒙剧变期的少年<br>• 还有更多——管理员可以添加新的个性！<br><br><strong>🌍 6 种语言：</strong><br>每种个性都有法语、英语、西班牙语、德语、意大利语和中文版本。LIA 会用你的语言、以所选的语气回答。<br><br><strong>两种切换方式：</strong><br>• <strong>快捷方式</strong>：点击标题栏中的 <strong>✨</strong> 图标<br>• <strong>通过设置</strong>：进入<strong>设置</strong>（⚙️ 图标）中的 <strong>LIA风格</strong> 部分<br><br><strong>💡 提示：</strong>多试几种风格，找到最适合你的那一种！"
           },
           "q6": {
-            "question": "如何设置连接器偏好？",
-            "answer": "配置<strong>默认偏好</strong>，让你的体验更加个性化：<br><br>转到<strong>设置 > 连接器 > 偏好设置</strong>以设置：<br>• <strong>默认日历</strong>：将自动创建事件的日历<br>• <strong>默认任务列表</strong>：将创建任务的列表<br>• <strong>家庭地址</strong>：用于「附近」搜索的默认地址<br>• <strong>位置记忆</strong>（opt-in）：记住你的最近位置，当实时位置不可用时 LIA 仍从你所在的地方作答——始终说明其时间，绝不当作当前位置，加密存储，关闭选项后立即删除（家庭地址与位置记忆现位于<strong>设置 > 偏好设置 > 位置</strong>，独立于任何连接器）<br><br><strong>🌐 浏览器地理定位：</strong><br>• <strong>自动地理定位</strong>：每条消息发送你的位置<br>• 转到<strong>设置 > 偏好设置 > 位置</strong><br>• 启用「<em>自动地理定位</em>」以持续使用<br>• 首次使用时浏览器会请求权限<br>• 位置用于本地天气和「附近」搜索<br>• 在手机上，回到应用时位置会静默刷新；如果系统已收回权限，聊天中会出现横幅提议重新启用<br><br><strong>配置方式：</strong><br>1. 转到<strong>设置 > 连接器</strong>（日历、任务）<br>2. 选择你的默认值<br><br><strong>💡 提示：</strong><br>这些偏好可以节省时间，因为你不需要每次都指定使用哪个日历、列表或位置。"
+            "question": "我的偏好设置会同步吗？",
+            "answer": "会的，你的所有偏好设置都会<strong>自动同步</strong>：<br><br><strong>🔄 同步的内容：</strong><br>• 界面语言<br>• 时区<br>• 主题和浅色/深色模式<br>• LIA 的个性风格<br>• 语音偏好<br>• 已启用的连接器<br>• 默认日历和任务偏好<br>• 长期记忆<br><br><strong>📱 多设备：</strong><br>你的偏好设置会跟随你到所有设备。在手机上更换主题，在电脑上也能看到。<br><br><strong>💾 即时保存：</strong><br>每次修改都会立即保存。"
           },
           "q7": {
             "question": "如何启用或禁用LIA的语音？",
             "answer": "LIA具有<strong>双向语音系统</strong>：<br><br><strong>🔊 语音合成（TTS）- LIA与你对话：</strong><br>点击标题栏中的<strong>扬声器图标</strong> 🔊。启用后，LIA会朗读她的回复。<br>• <strong>标准</strong>（默认）：Microsoft Edge TTS - 免费<br>• <strong>HD</strong>：OpenAI TTS - 高级品质（如管理员启用）<br>• <strong>Gemini HD</strong>：Google Gemini TTS - 高级品质（如管理员启用）<br><br><strong>🎙️ 语音模式（STT）- 与LIA对话：</strong><br>在聊天标题中按住语音徽章500毫秒以启用语音模式。<br>• <strong>唤醒词</strong>：说「OK Guy」或「OK Guys」激活录音<br>• <strong>按住说话</strong>：点击覆盖层手动说话<br>• <strong>自动检测</strong>：LIA检测你何时停止说话（1秒静默）<br>• <strong>免费且离线</strong>：转录在本地使用Whisper<br><br><strong>💡 提示：</strong><br>语音模式非常适合免提使用或多任务处理。"
           },
           "q8": {
-            "question": "如何选择男声或女声？",
-            "answer": "选择适合你的<strong>声音性别</strong>：<br><br><strong>🎙️ 可用声音：</strong><br>• <strong>女声</strong>：柔和自然的神经网络语音<br>• <strong>男声</strong>：深沉平静的神经网络语音<br><br><strong>切换方法：</strong><br>1. 转到<strong>主屏幕</strong>（Dashboard）<br>2. 点击<strong>助手图像</strong>（LIA的头像）<br>3. 图像会改变以反映新的性别<br>4. 声音会自动在女声和男声之间切换<br><br><strong>🌍 自动语言：</strong><br>声音会自动适应界面语言。<br><br><strong>⚙️ 品质：</strong><br>LIA使用高品质神经网络语音（标准模式使用微软 Edge TTS，HD模式使用 OpenAI TTS）以提供自然和富有表现力的效果。"
+            "question": "如何更改 LIA 的声音（男声/女声）？",
+            "answer": "选择适合你的<strong>声音性别</strong>：<br><br><strong>🎙️ 可用声音：</strong><br>• <strong>女声</strong>：柔和自然的神经网络语音<br>• <strong>男声</strong>：低沉稳重的神经网络语音<br><br><strong>切换方法：</strong><br>1. 进入<strong>主屏幕</strong>（Dashboard）<br>2. 点击 <strong>LIA 的图像</strong>（头像）<br>3. 图像会变化，体现新的性别<br>4. 声音会自动在女声和男声之间切换<br><br><strong>🌍 自动语言：</strong><br>声音会自动适应界面语言。例如，界面为中文时使用中文语音。<br><br><strong>⚙️ 品质：</strong><br>LIA 使用高品质的神经网络语音（标准模式为 Microsoft Edge TTS，HD 模式为 OpenAI TTS 或 ElevenLabs，取决于管理员的配置），带来自然而富有表现力的效果。"
           },
           "q9": {
             "question": "长期记忆如何工作？",
             "answer": "LIA通过其<strong>智能记忆</strong>了解你：<br><br><strong>🧠 LIA记住什么：</strong><br>• <strong>偏好</strong>：「他喜欢简洁的邮件」、「她喜欢黑咖啡」<br>• <strong>个人信息</strong>：「他的生日是3月15日」<br>• <strong>关系</strong>：「小红是他的姐姐」、「小明是他的同事」<br>• <strong>重要事件</strong>：「他最近换了工作」<br>• <strong>习惯</strong>：「她周二晚上运动」<br>• <strong>敏感领域</strong>：需要谨慎对待的话题<br><br><strong>🔄 自动提取：</strong><br>LIA分析你的对话并在后台自动提取相关信息。<br><br><strong>🔍 双重语义检索：</strong><br>每条记忆都会被索引两次 —— 一次针对其内容，一次针对触发它的关键词。你的问题会与两者分别比对，取更贴近的一路：无论你是否用当初记录时的说法来表达，记忆都能被找回。<br><br><strong>📊 使用：</strong><br>这些记忆个性化LIA的回复。例如，LIA会对你的姐姐说「你好小红」而无需你指定。<br><br><strong>🔎 也会主动检索：</strong><br>除了每条消息时自动想起的内容，LIA 还能针对途中遇到的话题检索自己的记忆——它刚读到的一封邮件的发件人、文档里提到的一个地点。打电话时也一样，它找回的是与你的问题相关的内容，而不是最近的记忆。如果你关闭了记忆，就不会检索任何内容。<br><br><strong>🛡️ 完全控制：</strong><br>在<strong>设置 › 功能 › 长期记忆</strong>中查看、编辑、固定或删除你的记忆。"
           },
           "q10": {
-            "question": "如何管理我的记忆？",
-            "answer": "你可以完全控制LIA的记忆：<br><br>转到<strong>设置 > 个人资料 > 长期记忆</strong>：<br><br>• <strong>查看</strong>所有存储的记忆<br>• <strong>编辑</strong>记忆以更正或细化<br>• <strong>删除</strong>单个记忆或全部<br>• <strong>固定</strong>重要记忆以防止自动清理<br>• <strong>导出</strong>你的数据（GDPR合规）<br><br>你也可以通过主屏幕上头像下方的<strong>🧠记忆图标</strong>临时禁用记忆。<br><br><strong>🔒 你定下的规矩不能被删除：</strong><br>你立下的规则——比如「叫我的名字」「始终用中文回答」——无论是你还是自动清理，都不能删掉它。它依然<strong>可以修改</strong>：这才是改变一条自己定下的规则的真正方式。<br><br><strong>⚠️ 遗忘风险：</strong>接近被自动遗忘的记忆会在列表中标注，以便你及时置顶重要的记忆。"
+            "question": "如何管理我存储的记忆？",
+            "answer": "你可以<strong>完全掌控</strong> LIA 记住的内容：<br><br><strong>📋 查看你的记忆：</strong><br>进入<strong>设置 > 长期记忆</strong>，查看 LIA 记住的所有内容。<br><br><strong>✏️ 修改记忆：</strong><br>• 点击编辑按钮<br>• 更正内容或类别<br>• 调整使用说明<br><br><strong>📌 固定记忆：</strong><br>固定的记忆不会被自动清理，适合保存重要信息。<br><br><strong>🗑️ 删除：</strong><br>• 逐条或批量删除<br>• 可选择保留已固定的记忆<br><br><strong>🔒 指令不会被删除：</strong><br>你设定的规则——「用我的名字称呼我」、「始终用中文回答」——受到保护，你和自动清理都无法删除它。它仍然<strong>可以修改</strong>：这才是更改自己定下的规则的正确方式，也能避免一条指令在没人希望的情况下消失。<br><br><strong>📤 导出：</strong><br>导出你的全部记忆作为备份（符合 GDPR）。<br><br><strong>🔄 自动清理：</strong><br>未固定的记忆会根据保留分数（重要性、新近程度和实际使用情况）自动清除，让系统保持相关。<br><br><strong>⚠️ 遗忘风险：</strong><br>即将被自动遗忘的记忆会在列表中标出，方便你及时固定重要的那些。"
           },
           "q11": {
-            "question": "地理定位是如何工作的？",
-            "answer": "LIA可以使用你的<strong>地理位置</strong>进行天气查询和附近地点搜索：<br><br><strong>如何启用：</strong><br>1. 当你提出基于位置的问题时，会出现弹窗<br>2. 点击<strong>启用</strong>授权浏览器访问<br>3. 你的位置将与该消息一起发送<br><br><strong>隐私：</strong><br>• 你的位置<strong>不会存储</strong>在我们的服务器上<br>• 仅在你有相关查询时发送<br>• 你可以随时在<strong>设置 > 偏好设置 > 位置</strong>中禁用"
+            "question": "如何设置我的地理定位和家庭地址？",
+            "answer": "LIA 可以使用你的<strong>地理位置</strong>进行与情境相关的搜索：<br><br><strong>📍 家庭地址：</strong><br>1. 进入<strong>设置 > 偏好设置 > 位置</strong><br>2. 在<strong>家庭地址</strong>字段中输入你的地址<br>3. 确认保存<br><br><strong>🎯 用法：</strong><br>• \"<em>我家附近的餐厅</em>\"会使用你的地址<br>• \"<em>这里的天气</em>\"会显示你家所在地的天气<br>• \"<em>附近的药店</em>\"会在你的地址周围搜索<br><br><strong>🌐 浏览器地理定位：</strong><br>你也可以通过浏览器授权实时地理定位，获得更精确的结果。<br><br><strong>🔒 隐私：</strong><br>你的地址被安全存储，只用于你的附近搜索请求。"
           },
           "q12": {
-            "question": "如何配置我的家庭地址？",
-            "answer": "设置你的<strong>家庭地址</strong>以便使用\"在家附近\"等表达：<br><br>1. 转到<strong>设置 > 偏好设置 > 家庭地址</strong><br>2. 输入你的完整地址<br>3. 从建议中选择<br>4. 点击<strong>保存</strong><br><br><strong>用法：</strong><br>• \"<em>家里的天气</em>\"<br>• \"<em>家附近的餐厅</em>\"<br>• \"<em>从家到办公室的路线</em>\"<br><br><strong>隐私：</strong>你的地址已<strong>加密</strong>并安全存储，不会与第三方共享。"
+            "question": "LIA 如何理解关系指代？",
+            "answer": "借助记忆，LIA 能理解<strong>对你亲友的指代</strong>：<br><br><strong>👥 指代示例：</strong><br>• \"<em>给我哥哥发一封邮件</em>\" → LIA 会查找对应的联系人<br>• \"<em>我妻子给我发了什么？</em>\" → 在你的邮件中搜索<br>• \"<em>给我的医生打电话</em>\" → 找到 X 医生的联系方式<br><br><strong>🔗 工作方式：</strong><br>1. LIA 从你的对话中提取关系（\"<em>我哥哥叫张伟</em>\"）<br>2. 这些关联保存在你的长期记忆中<br>3. 发出请求时，LIA 会自动把\"<em>我哥哥</em>\"解析为\"<em>张伟</em>\"<br><br><strong>✏️ 自定义关系：</strong><br>你可以在<strong>设置 > 长期记忆</strong>中创建或修改这些关联。<br><br><strong>💡 提示：</strong><br>在对话中自然地提到你的关系：\"<em>我的同事王芳给我发了一个文件</em>\"。"
           },
           "q13": {
             "question": "如何在聊天中查看我的Token消耗？",
@@ -7955,7 +8003,7 @@
           },
           "q25": {
             "question": "在哪里能找到 LIA 为我做的所有文件？",
-            "answer": "在<strong>设置 › 我生成的文件</strong>里。三个图库，每类一个：<strong>图片</strong>、<strong>文档</strong>（报告、演示文稿、表格）和浏览过程中拍下的<strong>网页截图</strong>。<br><br><strong>🔎 你可以做什么：</strong><br>按名称搜索，按创建时间或过期时间筛选，排序，打开，下载，以及批量删除。页面显示的数字是精确总数，而不是当前可见的卡片数。<br><br><strong>⏳ 期限就写在卡片上：</strong><br>生成的文件是带保存期限的附件。卡片会显示它何时到期，最后几个小时颜色会转暖——重要的文件请提前下载。<br><br><strong>🗣️ 或者直接问：</strong><br>\"<em>把你今天早上给我做的报告找出来</em>\"——LIA 会在这些图库中查找，并在聊天里重新展示这些文件，同时给出找到的确切数量。<br><br><strong>为什么会有这个页面：</strong><br>在此之前，找回昨天那份报告的唯一办法，是先找回写出它的那段对话。"
+            "answer": "在<strong>设置 › 我生成的文件</strong>里。三个图库，每类一个：<strong>图片</strong>、<strong>文档</strong>（报告、演示文稿、表格）和浏览过程中拍下的<strong>网页截图</strong>。<br><br><strong>🔎 你可以做什么：</strong><br>按名称搜索，按创建时间或过期时间筛选，排序，打开，下载，保留，以及批量删除。页面显示的数字是精确总数，而不是当前可见的卡片数。<br><br><strong>⏳ 期限就写在卡片上——除非你保留该文件：</strong><br>生成的文件是带保存期限的附件。卡片会显示它何时到期，最后几个小时颜色会转暖。图钉可以让文件超过期限继续保留，受图库上方显示的每个账户上限约束；取消保留会让它重新获得期限，而不是立即删除。<br><br><strong>🗣️ 或者直接问：</strong><br>\"<em>把你今天早上给我做的报告找出来</em>\"——LIA 会在这些图库中查找，并在聊天里重新展示这些文件，同时给出找到的确切数量。<br><br><strong>为什么会有这个页面：</strong><br>在此之前，找回昨天那份报告的唯一办法，是先找回写出它的那段对话。"
           },
           "q26": {
             "question": "管理员如何关闭某个功能？",
@@ -7980,6 +8028,10 @@
           "q31": {
             "question": "管理员如何只向部分用户发送公告？",
             "answer": "在<strong>设置 › 管理 › 广播消息</strong>中。撰写消息，选择<strong>所有用户</strong>或<strong>已选用户</strong>，以及过期时间。<br><br><strong>🎯 只送达目标对象：</strong><br>收件人会与公告一起保存：定向公告只显示给他们，包括在他们下次登录时。未选中任何活跃账户的选择会被拒绝，而不是发给没有人——或发给所有人。<br><br><strong>🗂️ 已发送的广播：</strong><br>历史记录会为每条公告显示其受众、触达的确切人数及其姓名预览、到期日期和所选时长。"
+          },
+          "q32": {
+            "question": "私人电台如何工作？",
+            "answer": "如果实例已启用，可从顶部、仪表盘或电台页面开启。选择主题、来源、声音及可选的核查级别。它仅在收听时播报你的一天和有来源的新闻，显示来源与费用，并在计时器到点时结束。不提供重播或定时节目。"
           }
         }
       },
@@ -7997,28 +8049,28 @@
             "answer": "通过<strong>OAuth 2.0</strong>安全连接你的Google服务：<br><br>1. 转到<strong>设置 > 连接器</strong><br>2. 在<strong>Google</strong>部分，点击<strong>全部连接</strong>或单独选择服务<br>3. 你将被重定向到<strong>Google</strong>以授权<br>4. 选择要授权的权限<br>5. 授权后返回LIA<br><br>你可以随时在此相同页面<strong>撤销</strong>访问权限。"
           },
           "q3": {
-            "question": "如何配置API密钥连接器？",
-            "answer": "对于<strong>外部服务</strong>（天气、Perplexity），你需要自己的API密钥：<br><br>1. 转到<strong>设置 > 连接器</strong><br>2. 找到所需的服务（OpenWeatherMap、Perplexity）<br>3. 点击<strong>获取密钥</strong>链接以创建供应商账户<br>4. 复制你的API密钥<br>5. 在LIA中粘贴并点击<strong>验证</strong><br><br><strong>维基百科</strong>、<strong>网页浏览</strong>以及实例提供的 Google 服务（地点、天气、环境）始终启用，无需任何操作。"
+            "question": "如何连接外部服务（API 密钥）？",
+            "answer": "部分服务需要<strong>个人 API 密钥</strong>：<br><br><strong>🌤️ OpenWeatherMap（免费）：</strong><br>1. 在 <a href=\"https://openweathermap.org\" target=\"_blank\">openweathermap.org</a> 注册账号<br>2. 获取你的免费 API 密钥<br>3. 在 LIA 中：<strong>设置 > 连接器 > OpenWeatherMap</strong><br>4. 粘贴密钥并点击<strong>激活</strong><br><br><strong>🔍 Perplexity（付费）：</strong><br>1. 在 <a href=\"https://perplexity.ai\" target=\"_blank\">perplexity.ai</a> 注册账号<br>2. 订阅 API 套餐<br>3. 获取你的 API 密钥<br>4. 按上述方法在 LIA 中激活<br><br><strong>📚 无需密钥：</strong><br>维基百科、网页浏览以及你的实例提供的 Google 服务（地点、天气、环境）始终处于启用状态：无需任何激活。<br><br><strong>🔒 密钥安全：</strong><br>你的 API 密钥经过加密并安全存储。"
           },
           "q4": {
             "question": "如何断开服务？",
             "answer": "在<strong>设置 > 连接器</strong>中，点击要删除的连接器旁边的<strong>断开</strong>。<br><br>对于<strong>Google服务</strong>：你也可以点击<strong>全部断开</strong>一次性撤销所有Google服务的访问权限。<br><br><strong>注意</strong>：断开连接会撤销LIA的访问权限，但<strong>不会删除</strong>你Google账户或外部服务中的数据。"
           },
           "q5": {
-            "question": "Google服务使用什么权限？",
-            "answer": "LIA请求<strong>特定权限</strong>以访问每项服务：<br><br>• <strong>Gmail</strong>：读取、发送、管理邮件<br>• <strong>日历</strong>：读取、创建、修改事件<br>• <strong>联系人</strong>：读取和管理你的联系人<br>• <strong>云端硬盘</strong>：读取你的文件（只读）<br>• <strong>任务</strong>：管理你的任务列表<br>• <strong>地点</strong>：搜索地点和商家<br><br>每个权限在授权时都会<strong>明确说明</strong>。你可以随时撤销。"
+            "question": "为什么连接器显示错误？",
+            "answer": "连接器出错可能有以下几种原因：<br><br><strong>🔄 令牌已过期：</strong><br>解决方法：点击<strong>重新连接</strong>以刷新授权。<br><br><strong>🚫 权限已撤销：</strong><br>如果你在 Google 端撤销了访问权限，请重新连接。<br><br><strong>🔑 API 密钥无效：</strong><br>对于使用 API 密钥的服务，请检查你的密钥是否正确且有效。<br><br><strong>⏱️ 超出配额：</strong><br>部分服务有使用限制。请稍候，或升级到更高的套餐。<br><br><strong>🌐 网络问题：</strong><br>检查你的网络连接后重试。<br><br><strong>💡 通用解决方法：</strong><br>断开该服务后重新连接，这能解决大多数问题。"
           },
           "q6": {
-            "question": "我的凭据安全吗？",
-            "answer": "是的，你的凭据<strong>100%安全</strong>：<br><br><strong>🔐 Google — OAuth 2.0：</strong><br>• 你的密码<strong>从不</strong>与LIA共享<br>• 你直接在Google授权<br>• LIA仅接收临时<strong>访问令牌</strong><br>• 你可以通过Google账户设置撤销访问<br><br><strong>🍎 Apple iCloud — 应用专用密码：</strong><br>• 使用应用专用密码（非你的 Apple 密码）<br>• 存储前加密<br>• 可从 appleid.apple.com 撤销<br>• 需要 Apple 双重认证<br><br><strong>🪟 Microsoft 365 — OAuth 2.0：</strong><br>• LIA 绝不会看到你的 Microsoft 密码<br>• 你直接在 Microsoft 登录<br>• 随时可从 Microsoft 账户撤销令牌<br>• 有限权限（Microsoft Graph API）<br><br><strong>🔑 API密钥：</strong><br>• 你的密钥<strong>加密</strong>存储<br>• 从不以明文显示<br>• 可以随时删除"
+            "question": "可以为每个连接器设置偏好吗？",
+            "answer": "可以！部分连接器有<strong>可自定义的偏好设置</strong>：<br><br><strong>📅 Google Calendar：</strong><br>• <strong>默认日历</strong>：新事件的创建位置<br>• 例如：「工作」、「个人」、「家庭」<br>• 除非另有说明，LIA 会使用这个日历<br><br><strong>✅ Google Tasks：</strong><br>• <strong>默认任务列表</strong>：新任务的创建位置<br>• 例如：「我的主列表」、「项目」、「购物」<br><br><strong>📍 位置：</strong><br>• <strong>家庭地址</strong>：「我附近」类搜索的默认地址<br>• <strong>自动地理定位</strong>：发送你的位置以获得精确结果<br>• <strong>位置记忆</strong>（需主动开启）：记住你最后的位置，在无法获取实时位置时，LIA 仍能从你所在的地方回答——始终注明这个位置有多久，从不当作当前位置，加密存储，一关闭该选项就会删除<br>• 这三项都在<strong>设置 > 偏好设置 > 位置</strong>中配置——这些数据属于你的账户，而不是某个连接器<br><br><strong>🌐 浏览器地理定位：</strong><br>• 在位置部分（设置 > 偏好设置）中打开地理定位开关<br>• 浏览器首次会请求授权<br>• 位置用于本地天气和「我附近」类搜索<br>• 在手机上，回到应用时位置会静默刷新；如果系统收回了权限，聊天中的横幅会提示你重新启用<br><br><strong>配置方法：</strong><br>1. 进入<strong>设置</strong>（菜单中的 ⚙️ 图标）<br>2. 打开<strong>连接器</strong>部分<br>3. 找到相应的连接器（Calendar 或 Tasks）<br>4. 配置该连接器的专属偏好<br><br><strong>💡 提示：</strong><br>这些偏好设置能帮你节省时间，不必在每次请求时指定日历、列表或城市。"
           },
           "q7": {
-            "question": "LIA可以使用哪些Google服务？",
-            "answer": "LIA集成了<strong>7项Google服务</strong>：<br><br><strong>📧 Gmail</strong><br>• 搜索所有邮件<br>• 阅读消息内容<br>• 发送、回复、转发<br>• 查看附件<br><br><strong>📅 Google Calendar</strong><br>• 查看日程<br>• 创建事件<br>• 修改或删除<br>• 邀请参与者<br><br><strong>👥 Google Contacts</strong><br>• 按姓名、邮箱、公司搜索<br>• 创建新联系人<br>• 更新信息<br><br><strong>📁 Google Drive</strong><br>• 搜索文件<br>• 阅读文档内容<br>• 浏览文件夹<br><br><strong>✅ Google Tasks</strong><br>• 列出任务<br>• 创建新任务<br>• 标记为完成<br><br><strong>📍 Google Places</strong><br>• 搜索地点<br>• 获取地址和营业时间<br>• 查看评价<br><br><strong>🗺️ Google Routes</strong><br>• 计算路线<br>• 比较交通方式<br>• 估算旅行时间<br><br><strong>ℹ️ 地点和路线无需连接：</strong><br>它们使用你所在实例的 Google 密钥，始终启用，与 Google 天气和 Google 环境一样。"
+            "question": "我可以连接哪些 Google 服务？",
+            "answer": "LIA 集成了 <strong>7 项 Google 服务</strong>：<br><br><strong>📧 Gmail</strong><br>• 搜索你的所有邮件<br>• 阅读邮件内容<br>• 发送、回复、转发<br>• 查看附件<br><br><strong>📅 Google Calendar</strong><br>• 查看你的日程<br>• 创建事件<br>• 修改或删除<br>• 邀请参与者<br><br><strong>👥 Google Contacts</strong><br>• 按姓名、邮箱、公司搜索<br>• 创建新联系人<br>• 更新信息<br><br><strong>📁 Google Drive</strong><br>• 搜索你的文件<br>• 阅读文档内容<br>• 浏览文件夹<br><br><strong>✅ Google Tasks</strong><br>• 列出你的任务<br>• 创建新任务<br>• 标记为已完成<br><br><strong>📍 Google Places</strong><br>• 搜索地点<br>• 获取地址和营业时间<br>• 查看评价<br><br><strong>🗺️ Google Routes</strong><br>• 计算路线<br>• 比较交通方式<br>• 估算行程时间<br><br><strong>ℹ️ Places 和 Routes 无需连接：</strong><br>它们使用你所在实例的 Google 密钥运行，始终处于启用状态，Google 天气和 Google 环境也是如此。"
           },
           "q8": {
-            "question": "如果管理员禁用了连接器会怎样？",
-            "answer": "管理员可以为所有用户<strong>全局禁用</strong>某些连接器。这可能发生在：<br><br>• <strong>维护</strong>：更新期间临时禁用<br>• <strong>安全</strong>：发现问题时禁用<br>• <strong>策略</strong>：限制组织中的某些服务<br><br>当连接器被禁用时：<br>• 在你的设置中显示为不可用<br>• 重新激活后自动恢复可见<br>• 你的配置会被保留"
+            "question": "连接器安全吗？",
+            "answer": "安全是我们的首要任务：<br><br><strong>🔐 Google 服务 — OAuth 2.0：</strong><br>• LIA 永远看不到你的 Google 密码<br>• 你直接在 Google 登录<br>• 令牌可随时撤销<br><br><strong>🍎 Apple 服务 — App 专用密码：</strong><br>• 使用 App 专用密码（不是你的 Apple 密码）<br>• 存入数据库前先加密<br>• 可在 appleid.apple.com 撤销<br>• 需要启用 Apple 双重认证<br><br><strong>🪟 Microsoft 365 服务 — OAuth 2.0：</strong><br>• LIA 永远看不到你的 Microsoft 密码<br>• 你直接在 Microsoft 登录<br>• 令牌可随时在你的 Microsoft 账户中撤销<br>• 权限受限（Microsoft Graph API）<br><br><strong>🔒 最小权限：</strong><br>• 每个连接器只请求必要的权限<br>• 不会过度访问你的数据<br><br><strong>🗄️ 安全存储：</strong><br>• OAuth 令牌和 App 专用密码在数据库中加密存储<br>• API 密钥安全存储<br>• 不以明文存储<br><br><strong>🔄 自动刷新：</strong><br>• Google 和 Microsoft 的令牌会定期过期并自动续期<br>• Apple 的 App 专用密码不会过期（除非更改了 Apple ID 密码）<br><br><strong>📋 审计与日志：</strong><br>• 所有操作都有记录<br>• 可以查看使用历史"
           },
           "q9": {
             "question": "如何连接 Apple iCloud 服务？",
@@ -8245,48 +8297,48 @@
             "answer": "<strong>Gmail</strong> - 请LIA搜索你的邮箱：<br><br>• \"<em>显示我的未读邮件</em>\"<br>• \"<em>查找来自亚马逊的邮件</em>\"<br>• \"<em>搜索关于Johnson项目的邮件</em>\"<br>• \"<em>显示本周收到的邮件</em>\"<br>• \"<em>查找带PDF附件的邮件</em>\"<br><br>LIA显示匹配邮件的摘要，包括发件人、主题和日期。<br><br>没有其他说明时，最近的邮件指的是你的收件箱；有针对性的搜索（发件人、主题、日期）会检索全部邮件，包括归档，从最新的开始。要一次读很多封——\"<em>总结我的未读邮件</em>\"、\"<em>本周的新闻通讯说了什么？</em>\"——LIA 会为每封邮件生成一段简短摘要（见关于邮件摘要的问题）。"
           },
           "q4": {
-            "question": "如何发送、回复或转发邮件？",
-            "answer": "<strong>Gmail</strong> - 描述你想做什么：<br><br>• \"<em>给maria@example.com发一封关于明天会议的邮件</em>\"<br>• \"<em>回复李明的最后一封邮件确认我的出席</em>\"<br>• \"<em>将亚马逊发票转发给accounting@company.com</em>\"<br><br>⚠️ <strong>需要批准</strong>：LIA生成草稿并展示给你。你可以在发送前审查、修改或取消。<br><br><strong>📬 发给自己：</strong><br>\"<em>把这份摘要发邮件给我</em>\"会直接进入你自己的邮箱，无需草稿：收件人就是你自己的地址，任何东西都改变不了它。"
+            "question": "如何查看邮件详情？",
+            "answer": "<strong>Gmail</strong> - 显示完整内容：<br><br><strong>📖 搜索之后：</strong><br>• \"<em>给我看第一封邮件</em>\"<br>• \"<em>读一下李明的邮件</em>\"<br>• \"<em>显示第二封的内容</em>\"<br><br><strong>📖 直接访问：</strong><br>• \"<em>打开亚马逊最新的那封邮件</em>\"<br>• \"<em>显示关于发票的那封邮件的内容</em>\"<br><br><strong>📋 你会看到：</strong><br>• 发件人和收件人<br>• 日期和时间<br>• 完整主题<br>• 以纯净文本显示的正文：去除引用的历史和签名，转换 HTML；长邮件会分段送达，只需请求下一段<br>• 附件列表<br>• 在 Gmail 中打开的链接<br>• Outlook 和 iCloud 邮件同样适用<br><br><strong>💡 导航：</strong><br>读完一封邮件后，你可以说\"<em>回复这封邮件</em>\"或\"<em>把它转发给王芳</em>\"。"
           },
           "q5": {
-            "question": "如何查看我的日历事件？",
-            "answer": "<strong>Google日历</strong> - 询问你的日程：<br><br>• \"<em>我今天有什么安排？</em>\"<br>• \"<em>显示下周的约会</em>\"<br>• \"<em>周五有会议吗？</em>\"<br>• \"<em>查找与Sophie的会议</em>\"<br><br>LIA显示你的事件，包括日期、时间、地点和参与者。"
+            "question": "如何发送邮件？",
+            "answer": "<strong>Gmail</strong> - 带预览的邮件发送：<br><br><strong>📤 简单发送：</strong><br>• \"<em>给 zhangwei@example.com 发邮件：你好，我确认我们明天的预约。</em>\"<br><br><strong>📤 结构化发送：</strong><br>• \"<em>给 wangfang@example.com 发邮件，主题为'项目会议'，内容：王芳你好，你能确认一下周五能否参加会议吗？</em>\"<br><br><strong>📤 带抄送：</strong><br>• \"<em>给 liming@example.com 发一封关于月度报告的邮件，抄送 zhangwei@example.com</em>\"<br><br><strong>✅ 发送流程：</strong><br>1. LIA 生成一份<strong>草稿</strong><br>2. 你会看到<strong>完整预览</strong>（收件人、主题、内容）<br>3. 你可以<strong>批准</strong>、<strong>修改</strong>或<strong>取消</strong><br>4. 只有在你批准后邮件才会发出<br><br><strong>⚠️ 安全提示：</strong><br>务必在预览中核对收件人的邮箱地址！<br><br><strong>📬 发给自己：</strong><br>\"<em>把这份摘要通过邮件发给我</em>\"会直接发到你自己的邮箱，无需草稿：收件人就是你自己的地址，任何东西都无法更改它。"
           },
           "q6": {
-            "question": "如何创建或修改事件？",
-            "answer": "<strong>Google日历</strong> - 描述事件：<br><br>• \"<em>安排明天下午2点与李明的会议</em>\"<br>• \"<em>创建周一上午10点在商业街15号的约会</em>\"<br>• \"<em>将我下午3点的会议移到下午4点</em>\"<br>• \"<em>取消与王芳的会议</em>\"<br><br>⚠️ <strong>需要批准</strong>：LIA在创建/修改前显示事件预览供你验证。"
+            "question": "如何回复或转发邮件？",
+            "answer": "<strong>Gmail</strong> - 回复和转发：<br><br><strong>↩️ 回复：</strong><br>• \"<em>回复李明最新的一封邮件：谢谢，收到！</em>\"<br>• \"<em>回复关于发票的邮件，确认已付款</em>\"<br>• \"<em>回复张伟那封邮件的所有收件人</em>\"<br><br><strong>↪️ 转发：</strong><br>• \"<em>把亚马逊的邮件转发给 caiwu@company.com</em>\"<br>• \"<em>把第二封邮件转发给王芳，附言：供参考</em>\"<br><br><strong>📋 发送前预览：</strong><br>• 你会看到完整的草稿<br>• 邮件会话会被保留<br>• 附件会一并附上（转发时）<br><br><strong>💡 提示：</strong><br>搜索之后，可以用\"<em>第一封</em>\"、\"<em>张伟的那封</em>\"之类的指代来指定邮件。"
           },
           "q7": {
-            "question": "如何搜索我的Google云端硬盘文件？",
-            "answer": "<strong>Google云端硬盘</strong> - 询问你的文件：<br><br>• \"<em>查找预算文件</em>\"<br>• \"<em>在我的云端硬盘中搜索PDF</em>\"<br>• \"<em>显示最近修改的文档</em>\"<br>• \"<em>查找王芳共享的文件</em>\"<br><br>LIA显示匹配文件列表，包括名称、类型和修改日期。"
+            "question": "如何删除邮件？",
+            "answer": "<strong>Gmail</strong> - 安全删除：<br><br><strong>🗑️ 删除一封邮件：</strong><br>• \"<em>删除昨天那封垃圾邮件</em>\"<br>• \"<em>把第一封邮件移到垃圾箱</em>\"<br>• \"<em>删除今天早上的那封广告邮件</em>\"<br><br><strong>⚠️ 安全流程：</strong><br>1. LIA 会向你展示将被删除的邮件<br>2. 你会看到发件人、主题和日期<br>3. 删除前需要确认<br>4. 邮件会被移到<strong>垃圾箱</strong>（不会永久删除）<br><br><strong>♻️ 可以恢复：</strong><br>Gmail 会将垃圾箱中的邮件保留 30 天，之后才会永久删除。<br><br><strong>💡 提示：</strong><br>如需永久删除，请直接在 Gmail 中操作。"
           },
           "q8": {
-            "question": "如何阅读云端硬盘文件？",
-            "answer": "<strong>Google云端硬盘</strong> - 请求内容：<br><br>• \"<em>打开Q3报告文档</em>\"<br>• \"<em>显示会议记录.txt的内容</em>\"<br>• \"<em>阅读项目规格文件</em>\"<br><br>LIA可以阅读文本文档、电子表格和演示文稿的内容，并为你总结。"
+            "question": "如何查看我的日历事件？",
+            "answer": "<strong>Google Calendar</strong> - 查看日程：<br><br><strong>📅 日视图：</strong><br>• \"<em>我今天有什么安排？</em>\"<br>• \"<em>我明天的预约</em>\"<br>• \"<em>1月15日的日程</em>\"<br><br><strong>📅 周视图：</strong><br>• \"<em>显示我这周的安排</em>\"<br>• \"<em>我下周有什么安排？</em>\"<br>• \"<em>我这周的会议</em>\"<br><br><strong>🔍 精确搜索：</strong><br>• \"<em>查找和王芳的会议</em>\"<br>• \"<em>我下次看医生是什么时候？</em>\"<br>• \"<em>这周在办公室的事件</em>\"<br><br><strong>📋 显示的信息：</strong><br>• 事件标题<br>• 日期和时间<br>• 地点（如有）<br>• 参与者<br>• 在 Google Calendar 中打开的链接"
           },
           "q9": {
-            "question": "如何管理我的任务？",
-            "answer": "<strong>Google Tasks / Microsoft To Do</strong> — 管理你的任务列表：<br><br><strong>📋 查看任务：</strong><br>• \"<em>显示我的任务</em>\"<br>• \"<em>这周我需要做什么？</em>\"<br>• \"<em>列出我的进行中任务</em>\"<br><br><strong>➕ 创建任务：</strong><br>• \"<em>创建任务：给银行打电话</em>\"<br>• \"<em>创建任务'准备演示文稿'截止周五</em>\"<br><br><strong>✅ 完成任务：</strong><br>• \"<em>将'发送报告'任务标记为完成</em>\"<br>• \"<em>第一个任务完成了</em>\"<br><br><strong>📝 任务列表：</strong><br>• \"<em>显示我的任务列表</em>\"<br>• \"<em>项目列表的任务</em>\"<br><br><strong>💡 提示：</strong><br>在设置中配置默认任务列表可节省时间。无论你使用 Google Tasks 还是 Microsoft To Do，命令完全相同——LIA 自动使用活动的供应商。"
+            "question": "如何创建日历事件？",
+            "answer": "<strong>Google Calendar</strong> - 创建事件：<br><br><strong>➕ 简单创建：</strong><br>• \"<em>明天下午 2 点创建一个预约</em>\"<br>• \"<em>安排周一上午 10 点开会</em>\"<br><br><strong>➕ 详细创建：</strong><br>• \"<em>创建一个'项目会议'事件，明天下午 2 点到 4 点，在 A 会议室</em>\"<br>• \"<em>安排周五中午和张伟在小酒馆餐厅吃午饭</em>\"<br><br><strong>➕ 带参与者：</strong><br>• \"<em>明天下午 2 点和 liming@example.com、wangfang@example.com 开个会</em>\"<br><br><strong>✅ 创建流程：</strong><br>1. LIA 生成事件草稿<br>2. 你会看到所有细节（日期、时间、地点、参与者）<br>3. 你可以修改或批准<br>4. 确认后事件才会创建<br><br><strong>💡 提示：</strong><br>在设置中配置你的默认日历，就不必每次都指定了。"
           },
           "q10": {
-            "question": "什么是修改的草稿系统？",
-            "answer": "对于任何修改数据的操作（创建、编辑、删除、发送），LIA使用<strong>人在回路（HITL）</strong>系统：<br><br>1. LIA生成操作的<strong>草稿</strong><br>2. 你看到一张<strong>卡片</strong>，列出所有字段（收件人、主题、正文……）<br>3. 你可以：<strong>批准</strong>、<strong>编辑</strong>或<strong>取消</strong><br>4. 只有在你明确批准后才会执行操作<br><br>这确保你始终对自己数据的更改拥有完全控制权。<br><br><strong>📚 一次多份草稿：</strong><br>在一句话里要求两封邮件：LIA 先列出它准备好的内容，然后一次显示一份草稿（\"<em>第 1 份草稿，共 2 份</em>\"），每份都有自己的卡片和自己的批准 / 编辑 / 取消。在你最后一次回答之前什么都不会发出，报告会说明发给了谁、发了什么——被取消的草稿也会列出。你已经以列表形式批准的批量操作（\"<em>删除这 5 封邮件</em>\"）仍只需一次确认。<br><br><strong>✉️ 一个例外：</strong><br>发给你自己的邮件无需草稿即可发出：收件人是你自己的地址，任何东西都改变不了它——即使是混进 LIA 所读邮件里的一段文字也不行。"
+            "question": "如何修改或删除事件？",
+            "answer": "<strong>Google Calendar</strong> - 修改与删除：<br><br><strong>✏️ 修改事件：</strong><br>• \"<em>把我下午 3 点的会议改到 4 点</em>\"<br>• \"<em>把明天会议的地点改为：B 会议室</em>\"<br>• \"<em>把王芳加为周一会议的参与者</em>\"<br>• \"<em>把会议延长一小时</em>\"<br><br><strong>🗑️ 删除事件：</strong><br>• \"<em>取消明天的会议</em>\"<br>• \"<em>删除和马丁医生的预约</em>\"<br>• \"<em>取消我周五的所有事件</em>\"<br><br><strong>⚠️ 需要批准：</strong><br>任何修改或删除都需要你的明确确认。<br><br><strong>📧 通知：</strong><br>如果事件有参与者，Google Calendar 会自动通知他们相关变更。"
           },
           "q11": {
-            "question": "如何阅读邮件的完整内容？",
-            "answer": "<strong>Gmail</strong> - 请求邮件详情：<br><br>• \"<em>显示亚马逊的完整邮件</em>\"<br>• \"<em>打开关于Johnson项目的邮件</em>\"<br>• \"<em>阅读王芳昨天发的邮件</em>\"<br><br>LIA显示完整内容：发件人、收件人、抄送、日期、主题和正文。你也可以请求摘要。正文干净到达——引用的历史和签名已移除，HTML 已转为文本——长邮件分段到达，只需要求下一段即可。Outlook 和 iCloud Mail 同样适用。"
+            "question": "如何搜索我的 Google Drive 文件？",
+            "answer": "<strong>Google Drive</strong> - 浏览你的文件：<br><br><strong>🔍 按名称搜索：</strong><br>• \"<em>找到预算文件</em>\"<br>• \"<em>搜索第三季度报告文档</em>\"<br>• \"<em>会议记录文件在哪里？</em>\"<br><br><strong>🔍 按类型搜索：</strong><br>• \"<em>显示我的 PDF 文件</em>\"<br>• \"<em>列出我 Drive 里的电子表格</em>\"<br>• \"<em>查找演示文稿</em>\"<br><br><strong>🔍 按日期/共享搜索：</strong><br>• \"<em>本周修改过的文件</em>\"<br>• \"<em>王芳共享的文档</em>\"<br>• \"<em>我最近的文件</em>\"<br><br><strong>📋 结果：</strong><br>LIA 会显示每个文件的名称、类型、大小和修改日期，并附上在 Drive 中打开的链接。<br><br><strong>💡 接下来：</strong><br>说\"<em>打开第一个</em>\"或\"<em>读一下报告的内容</em>\"即可访问文件。"
           },
           "q12": {
-            "question": "如何回复或转发邮件？",
-            "answer": "<strong>Gmail</strong> - 请求回复或转发：<br><br><strong>📩 回复：</strong><br>• \"<em>回复张伟的邮件</em>\"<br>• \"<em>确认这封邮件中的约会</em>\"<br><br><strong>📤 转发：</strong><br>• \"<em>将这封邮件转发给王芳</em>\"<br>• \"<em>将报告转发给我的老板</em>\"<br><br>⚠️ <strong>需要批准</strong>：LIA会显示回复/转发的预览供你确认。"
+            "question": "如何读取 Drive 文件？",
+            "answer": "<strong>Google Drive</strong> - 读取内容：<br><br><strong>📖 读取文档：</strong><br>• \"<em>打开第三季度报告文档</em>\"<br>• \"<em>给我看笔记文件的内容</em>\"<br>• \"<em>读第一个文件</em>\"<br><br><strong>📊 支持的文件类型：</strong><br>• 📄 文本文档（Google Docs、.txt、.docx）<br>• 📊 电子表格（Google Sheets、.xlsx）- 保留结构<br>• 📽️ 演示文稿（Google Slides、.pptx）- 幻灯片文字<br>• 📝 纯文本文件<br><br><strong>⚠️ 限制：</strong><br>• 不显示图片和图表（仅文本）<br>• 超大文件可能会被截断<br>• 二进制文件（视频、zip）无法读取<br><br><strong>💡 提示：</strong><br>对于复杂文件，可以请 LIA 总结：\"<em>总结一下报告的内容</em>\""
           },
           "q13": {
-            "question": "如何删除邮件？",
-            "answer": "<strong>Gmail</strong> - 请求删除：<br><br>• \"<em>删除垃圾公司的邮件</em>\"<br>• \"<em>删除订阅邮件的最后一封</em>\"<br>• \"<em>删除关于过期项目的邮件</em>\"<br><br>⚠️ <strong>需要批准</strong>：LIA会在删除前显示邮件供你确认。<br><br><strong>💡 注意：</strong><br>邮件会被移动到<strong>垃圾箱</strong>，不会被永久删除。你可以在30天内通过Gmail恢复。"
+            "question": "如何管理我的任务？",
+            "answer": "<strong>Google Tasks / Microsoft To Do</strong> — 任务管理：<br><br><strong>📋 查看任务：</strong><br>• \"<em>显示我的任务</em>\"<br>• \"<em>我有什么要做的？</em>\"<br>• \"<em>列出我进行中的任务</em>\"<br><br><strong>➕ 创建任务：</strong><br>• \"<em>添加一个任务：给银行打电话</em>\"<br>• \"<em>创建一个任务'准备演示文稿'，截止周五</em>\"<br>• \"<em>提醒我明天发送报告</em>\"<br><br><strong>✅ 完成任务：</strong><br>• \"<em>把'给银行打电话'这个任务标记为已完成</em>\"<br>• \"<em>我完成了第一个任务</em>\"<br><br><strong>📝 任务列表：</strong><br>• \"<em>显示我的任务列表</em>\"<br>• \"<em>项目列表里的任务</em>\"<br>• \"<em>在购物列表里创建一个任务</em>\"<br><br><strong>💡 提示：</strong><br>在设置中配置默认任务列表可以节省时间。无论你使用 Google Tasks 还是 Microsoft To Do，命令都一样——LIA 会自动使用当前启用的服务。"
           },
           "q14": {
-            "question": "如何修改或删除事件？",
-            "answer": "<strong>Google日历</strong> - 修改你的事件：<br><br><strong>✏️ 修改：</strong><br>• \"<em>将我下午3点的会议移到下午4点</em>\"<br>• \"<em>更改与李明会议的地点</em>\"<br>• \"<em>将Sophie添加到周二的会议</em>\"<br><br><strong>🗑️ 删除：</strong><br>• \"<em>取消与王芳的会议</em>\"<br>• \"<em>删除周五的医生预约</em>\"<br><br>⚠️ <strong>需要批准</strong>：LIA会显示更改预览供你确认。"
+            "question": "什么是草稿与审批系统？",
+            "answer": "为了保护你的数据，任何修改操作都会经过<strong>草稿系统</strong>：<br><br><strong>🔒 工作方式：</strong><br>1. 你请求一个操作（\"<em>给张伟发一封邮件</em>\"）<br>2. LIA 准备一份<strong>草稿</strong><br>3. 你会看到一张包含所有字段的<strong>卡片</strong>（收件人、主题、正文……）<br>4. 三个选项：<br>   • ✅ <strong>批准</strong>：执行该操作<br>   • ✏️ <strong>修改</strong>：更正草稿<br>   • ❌ <strong>取消</strong>：什么都不会执行<br><br><strong>📋 涉及的操作：</strong><br>• 发送、回复、转发邮件<br>• 创建、修改、删除事件<br>• 创建、修改联系人<br>• 创建、完成任务<br>• 删除邮件<br><br><strong>🛡️ 优势：</strong><br>• 每个重要操作前都经过核对<br>• 可以更正错误<br>• 完全掌控你的数据<br>• 未经你同意，不会执行任何不可逆的操作<br><br><strong>📚 同时处理多份草稿：</strong><br>在一句话里请求两封邮件：LIA 会先列出它准备好的内容，然后一次展示一份草稿（\"<em>第 1 份草稿，共 2 份</em>\"），每份都有自己的卡片和自己的批准 / 修改 / 取消。在你给出最后一个答复之前，什么都不会发出；报告会说明发出了什么、发给了谁——被取消的草稿也会列在其中。你作为清单批准的批量操作（\"<em>删除这 5 封邮件</em>\"）只需一次确认。<br><br><strong>✉️ 一个例外：</strong><br>发给你自己的邮件无需草稿即可发出：它的收件人就是你自己的地址，任何东西都无法更改——即使是混在 LIA 所读邮件中的一段文字也不行。"
           },
           "q15": {
             "question": "如何使用上下文引用？",
@@ -8340,16 +8392,16 @@
             "answer": "<strong>Perplexity AI</strong> - 两种使用模式：<br><br><strong>🔍 搜索模式</strong>（新闻、网络搜索）：<br>• \"<em>人工智能最新消息</em>\"<br>• \"<em>苹果公司最新动态</em>\"<br>• \"<em>昨天的足球比赛结果</em>\"<br>• \"<em>巴黎到东京的机票价格</em>\"<br><br>→ 适用于：<strong>最新新闻</strong>、事件、趋势、实时价格。<br><br><strong>❓ 提问模式</strong>（复杂问题、综合分析）：<br>• \"<em>解释区块链是如何工作的</em>\"<br>• \"<em>电动汽车的优缺点是什么？</em>\"<br>• \"<em>比较不同的机器学习方法</em>\"<br>• \"<em>分析目前房地产市场趋势</em>\"<br><br>→ 适用于：<strong>深入分析</strong>、综合、比较、复杂解释。<br><br><strong>💡 如何选择？</strong><br>• 新闻/最近事实 → \"<em>搜索...</em>\"、\"<em>新闻...</em>\"<br>• 复杂问题 → \"<em>解释...</em>\"、\"<em>分析...</em>\"、\"<em>比较...</em>\"<br><br><strong>📌 来源和引用：</strong><br>Perplexity始终提供其答案所使用的网络来源。<br><br><strong>⚠️ 需要配置：</strong><br>Perplexity需要API密钥（付费服务）。"
           },
           "q6": {
-            "question": "何时使用Perplexity与维基百科？",
-            "answer": "根据你的需求选择：<br><br><strong>维基百科</strong>适合：<br>• 历史事实和既定知识<br>• 科学定义和概念<br>• 传记和百科全书信息<br><br><strong>Perplexity</strong>适合：<br>• 时事和最新新闻<br>• 产品比较和评测<br>• 实时信息（价格、时间表）<br>• 需要多个最新来源的问题"
+            "question": "什么时候用 Perplexity，什么时候用维基百科？",
+            "answer": "根据你的需求选择合适的工具：<br><br><strong>📚 用维基百科查：</strong><br>• 公认的历史事实<br>• 科学定义和概念<br>• 知名人物传记<br>• 地理信息<br>• 经过核实的百科内容<br>• ✅ 免费，无需配置<br><br><strong>🔍 用 PERPLEXITY 查：</strong><br>• 时事和最新新闻<br>• 产品对比和评测<br>• 实时信息（价格、营业时间）<br>• 当前的趋势和观点<br>• 需要多个来源的问题<br>• ⚠️ 需要 API 密钥<br><br><strong>💡 具体示例：</strong><br>• \"<em>电灯泡是谁发明的？</em>\" → 维基百科（历史事实）<br>• \"<em>目前最好的 LED 灯泡是哪款？</em>\" → Perplexity（最新对比）"
           },
           "q7": {
-            "question": "如何搜索地点？",
-            "answer": "<strong>Google地点</strong> - 查找附近的地点：<br><br>• \"<em>找附近的餐厅</em>\"<br>• \"<em>搜索现在营业的药店</em>\"<br>• \"<em>最近的加油站在哪里？</em>\"<br>• \"<em>找北京市中心的意大利餐厅</em>\"<br><br>LIA显示地点的地址、评分、营业时间和联系信息。"
+            "question": "如何用 Google Places 搜索地点？",
+            "answer": "<strong>Google Places</strong> - 地点搜索：<br><br><strong>📍 附近搜索：</strong><br>• \"<em>找我附近的餐厅</em>\"<br>• \"<em>现在营业的药店</em>\"<br>• \"<em>最近的加油站在哪里？</em>\"<br>• \"<em>1 公里内的超市</em>\"<br><br><strong>📍 按区域搜索：</strong><br>• \"<em>上海静安区的意大利餐厅</em>\"<br>• \"<em>外滩附近的酒店</em>\"<br>• \"<em>北京市中心的博物馆</em>\"<br><br><strong>📊 显示的信息：</strong><br>• 地点名称和地址<br>• 评分（星级）和评价数量<br>• 营业时间<br>• 电话号码<br>• 与你所在位置的距离<br><br><strong>💡 配置：</strong><br>对于\"<em>我附近</em>\"类搜索，请在设置中配置你的默认位置，或直接说明城市。"
           },
           "q8": {
             "question": "如何获取地点详情？",
-            "answer": "<strong>Google地点</strong> - 获取更多信息：<br><br>• \"<em>显示卢浮宫博物馆的详情</em>\"<br>• \"<em>主街星巴克的营业时间</em>\"<br>• \"<em>上海希尔顿酒店的评价</em>\"<br>• \"<em>王医生诊所的电话号码</em>\"<br><br>LIA提供详细信息：<strong>地点照片</strong>（点击放大2倍）、确切地址、电话、网站、营业时间和用户评价。<br><br><strong>📷 可点击照片：</strong><br>地点照片可点击，在模态窗口中放大显示。"
+            "answer": "<strong>Google Places</strong> - 详细信息：<br><br><strong>📋 查询详情：</strong><br>• \"<em>给我看故宫博物院的详情</em>\"<br>• \"<em>南京路那家星巴克的营业时间</em>\"<br>• \"<em>马丁医生诊所的电话号码</em>\"<br>• \"<em>上海万豪酒店的评价</em>\"<br><br><strong>📊 可获取的信息：</strong><br>• <strong>地点照片</strong>：点击可放大（2 倍缩放）<br>• 带 GPS 坐标的<strong>准确地址</strong><br>• <strong>电话号码</strong><br>• <strong>官方网站</strong><br>• <strong>营业时间</strong>（逐日）<br>• <strong>平均评分</strong>和评价数量<br>• <strong>价格区间</strong>（餐厅）<br>• 提供的<strong>服务类型</strong><br><br><strong>📷 可点击的照片：</strong><br>地点照片可以点击，并会在模态窗口中放大显示。点击任意位置或按 Esc 键即可关闭。<br><br><strong>💡 搜索之后：</strong><br>说\"<em>第一个的更多详情</em>\"或\"<em>那家意大利餐厅的营业时间</em>\"即可深入了解。"
           },
           "q9": {
             "question": "如何组合多个服务？",
@@ -8510,7 +8562,7 @@
           },
           "q6": {
             "question": "主动通知是否受使用限制影响？",
-            "answer": "是的，会自动暂停。"
+            "answer": "会。当你达到使用限制时，主动通知会<strong>自动暂停</strong>，直到你的限制被重置或由管理员调整。"
           },
           "q7": {
             "question": "我在旅行时天气提醒如何工作？(v1.16.7)",
@@ -8545,7 +8597,7 @@
       "scheduled_actions": {
         "title": "计划操作",
         "description": "使用LIA自动执行定期任务",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "什么是计划操作？",
@@ -8569,7 +8621,7 @@
           },
           "q6": {
             "question": "计划操作是否受使用限制影响？",
-            "answer": "是的，达到限制时计划操作将被阻止。"
+            "answer": "会。当你达到使用限制时，计划操作会被<strong>阻止</strong>。该操作仍保持计划状态，会在下一个周期或管理员调整你的限制后自动恢复。"
           },
           "q7": {
             "question": "可以直接在聊天中创建自动化任务吗？(v1.25.13)",
@@ -8581,7 +8633,11 @@
           },
           "q9": {
             "question": "LIA 能守候一封回信，并在它到达的那一分钟告诉我吗？（v1.44.2）",
-            "answer": "可以。在今日简报中，邮件卡片提供<em>守候 … 的回信</em>：轻点一下即创建一条以该<strong>发件人</strong>为键（绝不以主题为键）的条件例程，有效期两周，LIA 还会先确认你没有重复守候同一个人。<br><br><strong>按分钟服务：</strong>过去条件例程只在执行器经过时才被检查，最多要等两小时。现在，同一个响应你邮箱的唤醒会在回信落地时立即服务这条守候——它只是把下一次检查提前；例程本身仍在原来的地方运行，仍受你惯常的限制。<br><br><strong>而且它会自行结束：</strong>到达系列终点的例程现在会被<em>关闭</em>，而不是永远保持「活动」。在设置 → 计划操作中它显示为已完成，你可以删除或重新创建。"
+            "answer": "不能。请在编辑器中选择定时任务或条件任务。LIA 按系统针对该来源的频率检查条件，有新的匹配事实时才执行；未命中的检查不会生成执行记录。编辑器只显示适用字段，并可设置最后一天。"
+          },
+          "q10": {
+            "question": "例行任务能同时使用日程和条件吗？",
+            "answer": "不能。请在编辑器中选择定时任务或条件任务。LIA 按系统针对该来源的频率检查条件，有新的匹配事实时才执行；未命中的检查不会生成执行记录。编辑器只显示适用字段，并可设置最后一天。"
           }
         }
       },
@@ -8687,7 +8743,7 @@
           },
           "q12": {
             "question": "我可以安装插件吗？（v1.30.7）",
-            "answer": "<p>可以。LIA 支持开放的 <b>Agent Plugins</b> 标准（agent-plugins.org）：插件是一个便携式软件包，打包了技能和 MCP 服务器，同一个包可以在 ChatGPT、Cursor、GitHub Copilot、VS Code——以及 LIA 中使用。在<b>设置 → 插件</b>中导入 .zip 文件或粘贴 https 链接即可。安装会按组件显示完整报告：已安装、已更新、已跳过（附原因——例如 LIA 有意不运行的服务器类型）或已移除。插件的技能和 MCP 服务器随后与您手动创建的完全一样：自由启用或停用，在 MCP 板块配置服务器认证。要更新插件，导入其新版本即可——保留的组件会更新，消失的组件会移除，您配置的凭据会保留。要移除插件，直接卸载：它带来的一切随之移除（单独删除插件组件会被拒绝，这样插件永远不会被悄悄拆散）。</p>"
+            "answer": "<p>可以。LIA 支持开放的 <b>Agent Plugins</b> 标准（agent-plugins.org）：插件是一个便携式软件包，打包了技能和 MCP 服务器，同一个包可以在 ChatGPT、Cursor、GitHub Copilot、VS Code——以及 LIA 中使用。在<b>设置 → 插件</b>中导入 .zip 文件或粘贴 https 链接即可。安装会按组件显示完整报告：已安装、已更新、已跳过（附原因——例如 LIA 有意不运行的服务器类型）或已移除。插件的技能和 MCP 服务器随后与你手动创建的完全一样：自由启用或停用，在 MCP 板块配置服务器认证。要更新插件，导入其新版本即可——保留的组件会更新，消失的组件会移除，你配置的凭据会保留。要移除插件，直接卸载：它带来的一切随之移除（单独删除插件组件会被拒绝，这样插件永远不会被悄悄拆散）。</p>"
           }
         }
       },
@@ -8854,7 +8910,7 @@
         "questions": {
           "q1": {
             "question": "我的对话是私密的吗？",
-            "answer": "是的，你的所有对话都是私密和安全的。它们只能由你访问，不会与第三方共享。数据以安全和加密的方式存储。"
+            "answer": "是的，你的对话<strong>严格保密</strong>：<br><br><strong>🔐 保密性：</strong><br>• 只有<strong>你</strong>能访问你的对话<br>• 不与任何第三方共享<br>• 管理员无法阅读你的消息<br><br><strong>🗄️ 安全存储：</strong><br>• 数据存储在安全的数据库中<br>• 用户之间完全隔离<br>• 敏感数据经过加密<br><br><strong>🧠 AI 的使用：</strong><br>• 你的对话仅为回答你而被处理<br>• 不会用于训练模型<br>• 不做任何营销分析"
           },
           "q2": {
             "question": "我的数据如何受到保护？",
@@ -8963,36 +9019,36 @@
             "answer": "使用限制是<strong>由管理员设定的配额</strong>，用于让资源消耗保持可预期：<br><br><strong>📊 三个维度：</strong><br>• <strong>令牌</strong>（提示词 + 回复 + 缓存）—— AI 处理的数据量<br>• <strong>消息数</strong> —— 你发送的消息条数<br>• <strong>费用（欧元）</strong> —— LLM 与 Google API 的合计费用<br><br><strong>📅 两种模式：</strong><br>• <strong>按周期</strong> —— 以你的账户创建日期为锚点的滚动月周期，而不是每月 1 号<br>• <strong>全局</strong> —— 自注册以来的累计总量，永不重置<br><br>每个维度都可以单独设定数值或保持不限，互不影响。"
           },
           "q2": {
-            "question": "计费周期如何计算？",
-            "answer": "从账户创建日期开始的月度滚动周期。"
+            "question": "计费周期是如何计算的？",
+            "answer": "计费周期是一个与你账户创建日期对齐的<strong>滚动月度周期</strong>：<br><br><strong>📅 示例：</strong><br>如果你在 1 月 15 日注册，你的周期就是从每月 15 日到下月 15 日。这与仪表盘上显示的周期相同。"
           },
           "q3": {
             "question": "达到限制时会发生什么？",
-            "answer": "消息输入和语音被禁用。主动通知和计划操作也被阻止。请联系管理员。"
+            "answer": "当达到某项限制时：<br><br><strong>🔒 阻止：</strong><br>• 输入框和语音输入会被<strong>禁用</strong><br>• 一条<strong>红色横幅</strong>会说明情况<br>• <strong>主动通知</strong>和<strong>计划操作</strong>也会被阻止<br><br><strong>🔓 解除阻止：</strong><br>• 等待下一个周期（周期限制）<br>• 联系管理员调整你的配额"
           },
           "q4": {
-            "question": "管理员可以手动封禁用户吗？",
-            "answer": "可以，通过设置 > 管理 > 限制管理即时生效。"
+            "question": "管理员可以手动阻止某个用户吗？",
+            "answer": "可以。管理员可以通过<strong>设置 > 管理 > 限制管理</strong>随时<strong>阻止或解除阻止</strong>任何用户。可以填写原因，该原因会显示给用户。"
           },
           "q5": {
             "question": "可以设置哪些类型的限制？",
-            "answer": "3个维度 × 2种模式 = 6种可能的限制（令牌、消息、成本 × 周期/全局）。"
+            "answer": "<strong>3 个维度 × 2 种模式 = 6 种可能的限制：</strong><br><br>• <strong>每周期 token 数</strong>或<strong>全局</strong><br>• <strong>每周期消息数</strong>或<strong>全局</strong><br>• <strong>每周期 EUR 费用</strong>或<strong>全局</strong><br><br>每个维度都可以设为具体数值，或保持<strong>不限</strong>。"
           },
           "q6": {
-            "question": "管理员是否受限制？",
-            "answer": "是的，但他们可以调整自己的限制。"
+            "question": "管理员也受限制约束吗？",
+            "answer": "是的，包括管理员在内的所有用户都受限制约束。不过，管理员可以通过管理界面<strong>调整自己的限制</strong>。"
           },
           "q7": {
-            "question": "没有配置限制会怎样？",
-            "answer": "无限制访问，直到配置限制。"
+            "question": "如果没有配置任何限制会怎样？",
+            "answer": "如果某个用户没有限制记录，则拥有<strong>无限制访问</strong>。限制会在注册时自动创建（使用默认值），或由管理员手动创建。"
           },
           "q8": {
-            "question": "在哪里查看当前使用量？",
-            "answer": "在仪表板上通过专用磁贴查看，带有颜色编码。"
+            "question": "在哪里可以查看我当前的用量？",
+            "answer": "你的用量可以在<strong>仪表盘</strong>上的专门卡片中查看：<br><br><strong>📊 卡片：</strong><br>• <strong>周期限制</strong> — 当前周期的用量<br>• <strong>全局限制</strong> — 自注册以来的总用量<br><br><strong>🎨 颜色代码：</strong><br>• 🟢 绿色：< 60%<br>• 🟡 黄色：60-80%<br>• 🟠 橙色：80-95%<br>• 🔴 红色：> 95%"
           },
           "q9": {
-            "question": "限制如何执行？",
-            "answer": "5层纵深防御架构。基础设施故障时fail-open。"
+            "question": "限制是如何执行的？",
+            "answer": "LIA 采用<strong>五层纵深防御</strong>架构：<br><br>1. <strong>路由器</strong> — 在流式传输前返回 HTTP 429<br>2. <strong>服务层</strong> — 为计划操作返回 SSE 错误<br>3. <strong>LLM 守卫</strong> — 每次调用 LLM 前集中检查<br>4. <strong>主动任务运行器</strong> — 跳过被阻止的用户<br>5. <strong>直接调用迁移</strong> — 全面覆盖<br><br><strong>⚡ 故障放行（Fail-open）：</strong>当 Redis/数据库出现故障时允许访问（这是成本控制，而非安全机制）。"
           },
           "q10": {
             "question": "达到限额之前会有提醒吗？",
@@ -9069,8 +9125,8 @@
             "answer": "<p>要求助手创建图像：<em>\"生成一张宇航员猫的图像\"</em>。图像以卡片形式显示在回复下方。</p>"
           },
           "q2": {
-            "question": "可以编辑已生成的图像吗？",
-            "answer": "<p>可以！要求助手：<em>\"让它更逼真\"</em>。会自动使用最新的图像。</p>"
+            "question": "可以修改生成的图片吗？",
+            "answer": "<p>可以！生成图片后，请助手修改它：<em>「让它更逼真一些」</em>。助手会自动使用最新的那张图片。</p>"
           },
           "q3": {
             "question": "如何配置质量和尺寸？",
@@ -9090,7 +9146,7 @@
           },
           "q7": {
             "question": "生成的图片能保留多久？",
-            "answer": "并非永久。生成的图片是带有到期时间的附件，定时清理任务每隔数小时就会删除已过期的附件。<br><br><strong>🕒 卡片会显示什么：</strong><br>服务端返回的到期时间，以及在最后几小时切换为警示色，让你还来得及下载。<br><br><strong>为什么不把时长写死：</strong><br>保留时长由管理员配置，写死在界面里的数值迟早会变成谎言。早于该功能生成的图片则宁可什么都不显示，也不去猜测。<br><br><strong>💡 建议：</strong><br>只要某张图片对你重要，就尽快使用下载按钮——这是让它超过到期时间仍然保留下来的唯一办法。"
+            "answer": "并非永久——除非你保留它。生成的图片是带有到期时间的附件，定时清理任务每隔数小时就会删除已过期的附件。<br><br><strong>🕒 卡片会显示什么：</strong><br>服务端返回的到期时间，以及在最后几小时切换为警示色。已保留的图片会标明已保留；已不存在的图片会直接说明，而不再显示日期。<br><br><strong>为什么不把时长写死：</strong><br>保留时长由管理员配置，写死在界面里的数值迟早会变成谎言。早于该功能生成的图片则宁可什么都不显示，也不去猜测。<br><br><strong>💡 建议：</strong><br>想让图片超过到期时间仍然保留，就在<strong>设置 › 我生成的文件</strong>中保留它（卡片上的图钉）：已保留的图片永远不会被自动删除，但受页面上显示的账户上限约束。你也可以下载它。"
           },
           "q8": {
             "question": "在哪里能找到 LIA 生成过的所有图片？",
@@ -9125,7 +9181,7 @@
           },
           "q4": {
             "question": "文档能保留多久？费用如何？",
-            "answer": "生成的文件在设计上是临时的：每张卡片都显示确切的过期时间，临近时会出现提醒 — 下载文件即可长期保留。费用即写作模型的用量，与其他 AI 使用一样计入账户限额。另有技术性频率限制防止失控循环；正常使用绝不会触及。"
+            "answer": "生成的文件默认是临时的：每张卡片都显示确切的过期时间，临近时会出现提醒 — 可以在「设置 › 我生成的文件」中保留该文件（不会被自动删除，受账户上限约束），也可以下载。费用即写作模型的用量，与其他 AI 使用一样计入账户限额。另有技术性频率限制防止失控循环；正常使用绝不会触及。"
           },
           "q5": {
             "question": "谁可以关闭文档生成？",
@@ -9616,6 +9672,10 @@
       "live_band": {
         "title": "你说话时的一条横条",
         "desc": "在 Live 会话中，对话上方的一条横条说明一切：你正在与 LIA 交谈、刚刚说过的话的字幕、聊天处理请求时显示的「LIA 正在处理你的请求」，以及——在最后一行字幕下方、以一道竖线隔开——服务商向你计费的金额，仅供参考，不记录在任何地方。下方的对话继续滚动：每个委托的请求都作为你的一轮对话落在那里。"
+      },
+      "radio_companion": {
+        "title": "按你的选择播放的电台",
+        "desc": "从页面顶部启动个人电台。小播放器伴随你浏览 LIA，显示新闻及来源，并在设定时间停止。无人收听时不会制作节目。"
       }
     },
     "scenes": {
@@ -9825,6 +9885,12 @@
         "frequent": "频繁",
         "occasional": "偶尔",
         "cost": "每条消息的成本"
+      },
+      "radio_companion": {
+        "news": "公开新闻",
+        "day": "你的一天",
+        "source": "查看来源",
+        "timer": "睡眠定时"
       }
     },
     "craft": {
@@ -9980,11 +10046,11 @@
       "description": "助手记住的关于你的信息"
     },
     "enable_memory": "启用长期记忆",
-    "enable_description": "允许助手记住您的偏好和重要信息。",
+    "enable_description": "允许助手记住你的偏好和重要信息。",
     "enabled_success": "长期记忆已启用",
     "disabled_success": "长期记忆已禁用",
     "empty": "暂无记忆",
-    "empty_hint": "记忆会在您的对话过程中自动创建。",
+    "empty_hint": "记忆会在你的对话过程中自动创建。",
     "export": "导出",
     "delete_all": "清除",
     "delete_success": "记忆已删除",
@@ -9992,9 +10058,9 @@
     "delete_all_success": "所有记忆已删除",
     "delete_all_error": "删除记忆时出错",
     "confirm_delete_all_title": "删除所有记忆？",
-    "confirm_delete_all_description": "此操作不可撤销。您的所有记忆将被永久删除。",
-    "privacy_note": "此信息已安全存储，仅您可以访问。",
-    "gdpr_note": "您可以随时导出或删除您的数据（GDPR）。",
+    "confirm_delete_all_description": "此操作不可撤销。你的所有记忆将被永久删除。",
+    "privacy_note": "此信息已安全存储，仅你可以访问。",
+    "gdpr_note": "你可以随时导出或删除你的数据（GDPR）。",
     "categories": {
       "preference": "偏好",
       "personal": "个人信息",
@@ -10042,21 +10108,21 @@
     "updated_at": "更新于",
     "last_accessed": "最后访问",
     "usage_count": "{{count}} 次使用",
-    "confirm_delete_all_with_pinned": "您有 {{count}} 个已固定的记忆。您想怎么做？",
+    "confirm_delete_all_with_pinned": "你有 {{count}} 个已固定的记忆。你想怎么做？",
     "delete_all_keep_pinned": "保留已固定",
     "delete_all_including_pinned": "全部删除",
     "delete_all_keep_pinned_success": "未固定的记忆已删除",
     "create": "添加",
     "create_title": "创建记忆",
-    "create_description": "将新记忆添加到您的长期记忆中。",
+    "create_description": "将新记忆添加到你的长期记忆中。",
     "create_button": "创建",
     "create_success": "记忆已创建",
     "create_error": "创建记忆时出错",
-    "confirm_delete_pinned_description": "此记忆已被固定。您确定要永久删除它吗？",
+    "confirm_delete_pinned_description": "此记忆已被固定。你确定要永久删除它吗？",
     "confirm_delete_pinned_title": "删除此固定记忆？",
     "count_one": "{{count}} 条记忆",
     "count_other": "{{count}} 条记忆",
-    "procedural_never_deleted": "这些指令属于您：LIA 从不自行删除它们。当您说了新的内容，她可以更正其中一条，而您随时可以自行删除。"
+    "procedural_never_deleted": "这些指令属于你：LIA 从不自行删除它们。当你说了新的内容，她可以更正其中一条，而你随时可以自行删除。"
   },
   "designSystem": {
     "cards": {
@@ -10172,7 +10238,7 @@
       "tip": "LIA越了解你，回复就越相关！",
       "pin_tip": "记得置顶重要的记忆，以免它随时间遗忘！",
       "settings_tip": "你可以在设置中管理记忆。",
-      "portrait_tip": "随着时间推移,LIA 会把对您的理解汇总成一幅画像,可在设置中查看"
+      "portrait_tip": "随着时间推移,LIA 会把对你的理解汇总成一幅画像,可在设置中查看"
     },
     "page5": {
       "title": "你的兴趣爱好",
@@ -10316,7 +10382,7 @@
           "example8": "我下一个约会是什么时候，并创建一个提前1小时的提醒"
         }
       },
-      "examples_hint": "点击示例即可立即试用——它会预填充聊天内容，未经您的确认不会发送任何内容。"
+      "examples_hint": "点击示例即可立即试用——它会预填充聊天内容，未经你的确认不会发送任何内容。"
     }
   },
   "broadcast": {
@@ -10353,7 +10419,7 @@
       "technology": "科技",
       "travel": "旅游"
     },
-    "confirm_delete_all_description": "此操作将永久删除您所有的活跃和已屏蔽的兴趣。此操作不可撤销。",
+    "confirm_delete_all_description": "此操作将永久删除你所有的活跃和已屏蔽的兴趣。此操作不可撤销。",
     "confirm_delete_all_title": "删除所有兴趣？",
     "confirm_delete_description": "此操作不可撤销。",
     "confirm_delete_title": "删除此兴趣？",
@@ -10361,7 +10427,7 @@
     "count_plural": "个兴趣",
     "create": "添加",
     "create_button": "添加",
-    "create_description": "手动添加您感兴趣的主题。",
+    "create_description": "手动添加你感兴趣的主题。",
     "create_error": "添加时出错",
     "create_success": "兴趣已添加",
     "create_title": "添加兴趣",
@@ -10378,8 +10444,8 @@
     "edit_description": "编辑主题、类别或权重信号。",
     "edit_title": "编辑兴趣",
     "empty": "暂无兴趣",
-    "empty_hint": "兴趣会从您的对话中自动检测。",
-    "enable_description": "助手将向您发送与您兴趣相关的内容",
+    "empty_hint": "兴趣会从你的对话中自动检测。",
+    "enable_description": "助手将向你发送与你兴趣相关的内容",
     "enable_proactive": "启用主动建议",
     "enabled_success": "主动建议已启用",
     "export": "导出",
@@ -10390,7 +10456,7 @@
       "disliked": "已记录，我会调整。",
       "error": "发送反馈时出错",
       "like": "喜欢",
-      "liked": "感谢您的反馈！",
+      "liked": "感谢你的反馈！",
       "thanks": "谢谢！"
     },
     "feedback_error": "保存时出错",
@@ -10400,18 +10466,18 @@
     "field_positive_signals": "正面信号",
     "field_topic": "主题",
     "hide_settings": "隐藏设置",
-    "hours_description": "仅在此时间段内发送通知（您的时区）",
-    "info_extraction": "兴趣会从您的对话中自动检测。",
-    "info_gdpr": "您可以随时删除或屏蔽主题（GDPR）。",
+    "hours_description": "仅在此时间段内发送通知（你的时区）",
+    "info_extraction": "兴趣会从你的对话中自动检测。",
+    "info_gdpr": "你可以随时删除或屏蔽主题（GDPR）。",
     "notification": {
       "helpful": "有帮助吗？",
-      "title": "为您推荐"
+      "title": "为你推荐"
     },
     "notification_frequency": "每日频率",
     "notification_hours": "通知时间段",
     "per_day": "每天",
     "settings": {
-      "description": "接收关于您喜爱主题的个性化建议",
+      "description": "接收关于你喜爱主题的个性化建议",
       "title": "兴趣"
     },
     "settings_error": "更新时出错",
@@ -10430,7 +10496,7 @@
     "update_success": "兴趣已更新",
     "history": {
       "title": "最近的通知",
-      "description": "LIA 最近向您发送的兴趣更新。",
+      "description": "LIA 最近向你发送的兴趣更新。",
       "empty": "暂无兴趣通知。",
       "error": "无法加载历史记录。",
       "count": "已显示 {{shown}} 条，共 {{total}} 条",
@@ -10459,7 +10525,7 @@
       "description": "无需询问即可获取有用信息"
     },
     "enable_proactive": "启用主动通知",
-    "enable_description": "助手将主动通知您有关事件、天气和兴趣的信息",
+    "enable_description": "助手将主动通知你有关事件、天气和兴趣的信息",
     "notification_frequency": "通知频率",
     "max_per_day": "每日最大数量",
     "per_day": "/ 天",
@@ -10479,7 +10545,7 @@
     "feedback": {
       "like": "有用的通知",
       "dislike": "不太有用",
-      "liked": "感谢您的反馈！",
+      "liked": "感谢你的反馈！",
       "disliked": "已记录，我会调整。",
       "error": "发送反馈时出错"
     },
@@ -10519,7 +10585,7 @@
       "trigger_push": "响应推送通知",
       "trigger_moment": "回应了一个时刻"
     },
-    "source_requires": "需要{{sources}}，而您已将其关闭"
+    "source_requires": "需要{{sources}}，而你已将其关闭"
   },
   "notifications": {
     "already_enabled": "通知已经启用。",
@@ -10529,7 +10595,7 @@
     "enable_button": "启用通知",
     "enable_failed": "启用通知失败",
     "enabled_success": "通知已成功启用！",
-    "info_text": "通知让您可以在应用程序关闭或在后台运行时收到提醒。",
+    "info_text": "通知让你可以在应用程序关闭或在后台运行时收到提醒。",
     "ios_install_instructions": "要在 iPhone/iPad 上接收通知，请先将此应用添加到主屏幕（分享 > 添加到主屏幕）。",
     "ios_pwa_required": "iOS 需要安装应用",
     "not_configured": "推送通知未配置。",
@@ -10537,7 +10603,7 @@
     "permission_blocked_help": "要启用通知，请转到浏览器设置并允许此网站的通知。",
     "permission_denied": "通知权限被拒绝",
     "title": "通知",
-    "unsupported": "您的浏览器不支持通知。"
+    "unsupported": "你的浏览器不支持通知。"
   },
   "scheduled_actions": {
     "settings": {
@@ -10551,7 +10617,7 @@
     "edit_success": "计划操作已修改",
     "delete_success": "计划操作已删除",
     "confirm_delete_title": "删除计划操作？",
-    "confirm_delete_description": "此操作将被永久删除。之前的结果保留在您的对话中。",
+    "confirm_delete_description": "此操作将被永久删除。之前的结果保留在你的对话中。",
     "toggle_enabled": "操作已启用",
     "toggle_disabled": "操作已暂停",
     "field_title": "标题",
@@ -10563,7 +10629,6 @@
       "kind_time": "在设定的时间",
       "kind_condition": "当满足某个条件时",
       "time_hint_time": "例行任务在所选日期的该时间运行。",
-      "time_hint_condition": "在所选日期的该时间检查条件；仅当条件满足时才运行。",
       "condition_type": "条件",
       "condition": {
         "task_overdue": "有任务逾期",
@@ -10582,7 +10647,12 @@
       },
       "query_required": "此条件需要一个筛选词。",
       "requires_approval": "执行前先征求我同意",
-      "requires_approval_hint": "LIA 会通知您，并仅在您于聊天中确认后才执行。"
+      "requires_approval_hint": "LIA 会通知你，并仅在你于聊天中确认后才执行。",
+      "mode_hint_condition": "无需设定时间：LIA 会自行检查条件，仅在出现新情况时运行该例程。",
+      "watch_until": "监视至（可选）",
+      "watch_until_hint": "包含当天。不设日期时，将持续监视，直到你暂停它。",
+      "until_past": "这一天已经过去了。",
+      "condition_cadence": "约每 {{minutes}} 分钟检查一次，全天候 — 每天最多运行 {{max}} 次。"
     },
     "days": {
       "d1": "周一",
@@ -10605,10 +10675,10 @@
     "never_executed": "从未",
     "execution_count": "执行次数",
     "empty": "没有计划操作",
-    "empty_hint": "创建您的第一个操作来自动化重复任务",
+    "empty_hint": "创建你的第一个操作来自动化重复任务",
     "limit_reached": "操作数量已达上限",
     "test_now": "测试",
-    "test_now_launched": "执行已启动 - 结果将出现在您的对话中",
+    "test_now_launched": "执行已启动 - 结果将出现在你的对话中",
     "error_create": "创建失败",
     "error_update": "修改失败",
     "error_delete": "删除失败",
@@ -10616,15 +10686,13 @@
     "duplicate": "复制",
     "duplicate_suffix": "（副本）",
     "next_executions": "接下来的执行",
-    "next_evaluations": "接下来的评估窗口",
     "clock_change": "（时间变更）",
     "toggle_aria": "启用或停用{{title}}",
     "next_run": "下次执行",
-    "next_evaluation": "下次评估",
     "number_aria": "例程 {{n}}",
     "timeline": {
       "title": "本周视图",
-      "description": "按日期和时间查看您的例程，以及本周的执行结果",
+      "description": "按日期和时间查看你的例程，以及本周的执行结果",
       "caption": "例程周计划，时间以 {{zone}} 为准",
       "hours_in_zone": "时间以 {{zone}} 为准",
       "zones_mixed": "例程分布在多个时区：每个标记按其所在时区的当地时间放置",
@@ -10632,14 +10700,14 @@
       "today": "今天",
       "unavailable": "本周的执行状态暂不可用，计划仍会显示。",
       "chip_aria": "{{n}}，{{title}}，{{time}}，{{state}}",
-      "condition_kind": "在此时间检查条件",
+      "condition_kind": "由其条件触发",
       "run_at": "已于 {{when}} 执行",
       "legend_title": "图例",
       "state": {
         "idle": "未执行",
         "success": "已执行",
         "failure": "执行失败",
-        "proposed": "已提议，等待您的确认",
+        "proposed": "已提议，等待你的确认",
         "paused": "已暂停",
         "skipped_condition": "条件未满足",
         "skipped_hitl": "已跳过，聊天中有待确认的操作",
@@ -10647,7 +10715,18 @@
       }
     },
     "section_what": "要做什么",
-    "section_execution": "执行方式"
+    "section_execution": "执行方式",
+    "section_trigger": "何时运行",
+    "section_condition": "等待什么",
+    "last_check": "上次检查：{{when}}",
+    "last_check_never": "尚未检查",
+    "last_check_failed": "上次检查失败（{{when}}）：{{reason}}",
+    "last_check_error": {
+      "not_configured": "数据源未设置",
+      "unavailable": "数据源没有响应"
+    },
+    "check_now": "立即检查",
+    "check_now_launched": "检查已启动 - 如有新情况，结果将出现在你的对话中"
   },
   "landing": {
     "meta": {
@@ -10678,10 +10757,10 @@
       "title_line2_highlight": "AI",
       "title_line2_after": "。",
       "title_line3": "你的规则。",
-      "subtitle_top": "LIA不是又一个聊天机器人，\n而是一个了解你、有性格的AI。",
-      "subtitle_line1": "她记住重要的事，察觉细微的变化，顺应你的心情。",
-      "subtitle_line2": "在幕后，她为你打理邮件、日程和智能家居。",
-      "subtitle_line3": "而说「好」的权力，始终在你手里。",
+      "subtitle_top": "一位把你在意的一切连接起来的助手。",
+      "subtitle_line1": "服务、记忆与计划，终于能够协同运作。",
+      "subtitle_line2": "上手简单，也能按你的想法自由定制。",
+      "subtitle_line3": "决定权始终在你手中。",
       "cta_primary": "加入BETA",
       "scroll_hint": "向下滚动探索",
       "trust_agents": "AI代理",
@@ -10693,6 +10772,23 @@
       "cta_demo": "引导演示",
       "intro_paragraph": "LIA是一个开源的个人AI助手，协调20+个专业代理来管理你的邮件、日历、联系人、文件、任务、提醒、网络搜索、天气、路线和智能家居。兼容Google Workspace、Apple iCloud和Microsoft 365，LIA使用自然语言工作，对每个敏感操作进行人工验证。",
       "cta_star": "Star"
+    },
+    "promise": {
+      "eyebrow": "为你而设的 AI",
+      "title": "让一切互相关联，掌控权仍属于你。",
+      "lead": "LIA 诞生于法国，是可免费安装的开源个人助手。无需技术背景，用自然语言就能开始；喜欢探索的用户也可以深入定制。",
+      "ecosystem": {
+        "title": "一个生态，而不是一堆应用",
+        "body": "邮件、日历、文档、智能家居和计划由同一条线串联。LIA 关联你交给它的信息，记住重要的事，随着日常变化主动提供帮助，也会按你的要求行动。"
+      },
+      "trust": {
+        "title": "看得见的信任",
+        "body": "源代码公开。自行托管时，数据保存在你的设备上；你选择的外部服务可能收到完成请求所需的信息。敏感操作须经你批准，操作记录和费用可查看，数据也可导出。"
+      },
+      "freedom": {
+        "title": "在自己的设备上，随时使用",
+        "body": "通过 Docker 将 LIA 安装在 ARM64 树莓派、Windows 或 Linux 电脑、Mac 上。可通过 Ollama 使用本地 AI，也可选择 Claude、GPT、DeepSeek 等服务。在网页、iOS 或 Android 上使用，并为家人朋友开设独立账户。部分外部服务可能收费。"
+      }
     },
     "chat_mockup": {
       "aria": "动画演示：四个真实场景——LIA 并行调度多个智能体并等待你的确认、主动交叉分析天气与日程、拨打真实电话完成预订、并直接在聊天中创建迷你应用。工作时可以看到幕后的编排过程。",
@@ -10899,7 +10995,7 @@
       },
       "attachments": {
         "title": "照片与附件",
-        "description": "为消息附加照片和 PDF——📎 按钮、拖放，或用 Ctrl+V 粘贴截图——发送前在浏览器中压缩。「+」还会列出你知识空间中的每份文档（包括已暂停的空间），作为该条消息的副本。图片由视觉模型读取，文档文本被提取，LIA 据此推理——当你让她读某封邮件的附件时也一样。她生成的文件有专属图库，每张卡片标明到期日；重置对话只移除你发送的内容，绝不移除她生成的。"
+        "description": "为消息附加照片和 PDF——📎 按钮、拖放，或用 Ctrl+V 粘贴截图——发送前在浏览器中压缩。「+」还会列出你知识空间中的每份文档（包括已暂停的空间），作为该条消息的副本。图片由视觉模型读取，文档文本被提取，LIA 据此推理——当你让她读某封邮件的附件时也一样。 她生成的文件有专属图库；每张卡片显示当前期限或你已选择保留。重置对话只移除你发送的内容，不会移除她生成的文件。"
       },
       "languages": {
         "title": "多语言",
@@ -11028,6 +11124,22 @@
       "live_voice": {
         "title": "用你自己的密钥，与她实时对话",
         "description": "点一下语音菜单，你就在与 LIA 实时交谈——她边听边答，你可以打断她，字幕在对话上方的横条中滚动。实时模型由你自己连接：Gemini Live、GPT-Live 或你的 ElevenLabs 代理。她负责对话，把每个请求交给聊天在你说话时执行——确认与费用磁贴一应俱全。直接会话则让她为你朗读数据而不执行任何操作。服务商的计费只显示，从不记录。"
+      },
+      "chat_sync": {
+        "title": "一段对话，处处同步",
+        "description": "来自其他标签页、设备、通话或例行任务的回答，无需刷新即可进入当前对话。聊天界面将已保存消息合并到历史中，而不会替换整页；旧消息、阅读位置和正在进行的操作都会保留。连接中断后会从服务器补齐。"
+      },
+      "email_share": {
+        "title": "通过邮件发送你的成果",
+        "description": "发送生成的图片、文档或截图，或将聊天回答作为 Markdown 文件发送；可填写主题和留言。已连接邮箱时可选择收件人，否则 LIA 的邮件中继只会发往你已验证的地址。发送前表单会显示所用通道及文件大小限制。"
+      },
+      "generated_files": {
+        "title": "由你决定保留的文件",
+        "description": "LIA 生成的图片、文档和截图有专属图库与可见期限。你可以在账户显示的数量和大小限额内，永久保留重要文件。取消保留后会开始新的期限；聊天卡片会显示文件的当前状态。"
+      },
+      "personal_radio": {
+        "title": "播报你一天的电台",
+        "description": "想听时就开启私人电台。固定节目编排将你的日程与注明来源的新闻结合，以你的语言和所选声音播报。你可选择主题、来源及可选的模型核查；播放器显示来源和费用。节目仅在收听时制作，并在计时器到点时结束；实例管理员决定是否提供电台。"
       }
     },
     "use_cases": {
@@ -11108,7 +11220,7 @@
       },
       "realtime": {
         "title": "实时流式传输",
-        "description": "实时查看每个执行步骤——路由、规划、验证、工具调用——然后逐token流式查看响应。无黑盒，无等待。生成与连接解耦：断开连接后回复仍在服务器端继续执行，重新连接时回放，并可随时停止。 一条无声死去的连接 —— 被手机挂起的标签页 —— 会通过它的静默被识别出来，并自动从中断处接续。"
+        "description": "正在生成的回答会实时传输路由、规划、工具调用和文字。连接中断后，生成仍在服务器继续，重新连接时会补回。每次已提交的对话变更还会发送不含内容的信号；浏览器读取经过身份验证的历史，将新记录合并而不替换旧页面或移动阅读位置。重连后会补齐遗漏的信号。"
       },
       "stack": {
         "title": "现代技术栈",
@@ -11410,7 +11522,7 @@
       "p3_d": "你能读到的代码就是正在运行的代码。可自托管，小到一台树莓派。",
       "p3_link": "查看代码",
       "p4_t": "由 AI 编写，由人类主导",
-      "p4_d": "超过 72 万行源代码——在 AI 辅助下开发，经人工审查，并依照公开方法审计。",
+      "p4_d": "超过 78 万行源代码——在 AI 辅助下开发，经人工审查，并依照公开方法审计。",
       "p4_link": "阅读实践分享",
       "honest": "免费公测，7×24 小时生产运行。",
       "cta": "知情地试用"
@@ -11968,7 +12080,7 @@
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",
         "excerpt": "LIA 的语音领域结合了免费的本地 STT（Sherpa-onnx Whisper，可选远程 ElevenLabs Scribe 以获得更高精度）、目录驱动的 TTS（Edge / OpenAI / ElevenLabs），以及自 v1.47 起用你自己的 Gemini、OpenAI 或 ElevenLabs 密钥运行的实时 Live 模式。按句级流式合成在约 1 秒内带来第一段音频。按消息的成本归属使付费语音调用完全可审计。",
-        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和你的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>一句话在哪里结束</h2><p>「按句」切分的前提是知道一句话在哪里结束 —— 而仅凭一个句点说明不了这一点。只有<strong>后面跟着空格</strong>，或位于输入末尾时，分隔符才会结束一句话：「现在 3.5 度」因此保持完整，而不会先读成「现在三。」再在另一段音频里读「五度」。价格、版本号和网址同理。在逐句流式路径上，这条规则更是必需的：缓冲区是逐个 token 增长的，所以 <code>\"3.\"</code> 是一个完全正常的中间状态 —— 在它上面分发，等于还没读完就开口。管线中的两个切分器由一张共享的用例表以及一个要求二者一致的测试共同钉住。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p><h2>当 LIA 打给你</h2><p>语音并不止步于浏览器。在<em>电话 · 我的身份</em>中登记你的号码，让 LIA 打过来并读出一个验证码，你输入确认；此后，“八点打给我，聊聊我的一天”——或者一条这样说的例程——就会让你的电话响起，无需确认卡片：卡片保护的是第三方，而这里该确认的人正是接电话的人。在电话里，语音助手带着聊天所知的一切，并在启用实时查询后边聊边读取 LIA——邮件、日历、任务、联系人、文件、地点、天气、记忆——使用与聊天相同的只读工具，每个结果都压缩为语音能说出的内容；她不执行任何操作。挂断后，你说的话会作为你自己的一轮对话回放到聊天中，带有电话标记，任何请求都在那里等待你的确认。</p><h2>Live 模式：两个智能，一道接缝</h2><p>自 v1.47 起，语音图标多了第三种用途：在你用自己密钥连接的实时模型上进行<strong>实时的语音对语音会话</strong>——通过 WebSocket 的 Gemini Live、通过 WebRTC 的 GPT-Live，或声音和轮次控制都留在其门户上的 ElevenLabs 代理。音频从不经过 LIA 服务器：API 铸造一次性凭证并生成配置，浏览器原样重放并自行打开连接。</p><p>设计的核心是两个智能之间的一道接缝。语音模型拥有对话——倾听、说话、打断、填补等待——并通过唯一声明的函数 <code>send_to_lia</code> <strong>把每一次数据或操作请求委托</strong>给聊天引擎。浏览器把这次调用变成你自己会话下的普通聊天回合：同样的确认、登记和配额，在你说话时绘制在对话中。LIA 需要问的问题就是语音接下来说的话，结束卡片汇总 LIA 自己的花费。服务商在你密钥上的计费折算为参考计数器显示出来，从不记录。</p><p><strong>直接会话</strong>把电话线路搬进浏览器：语音自己持有 LIA 的只读工具——你允许的领域——为你读取而不执行任何操作，你的话在结束时作为你的消息转达。在真实会话中测得，工具声明占配置的九成，首个回合的成本约为委托模式的九倍：直接会话换来的是低延迟，从来不是省钱。同样的两种模式——Live 与直接 Live——现在也管理 LIA 打给你的电话，两条线路共用一次结束流程。</p><p>在 iPhone 和 iPad 上，ElevenLabs 智能体使用其服务商的原生音频连接（WebRTC），比原始音频流在这些设备上更稳定；按 IP 地址受限的 Gemini 密钥会被 Google 从浏览器端拒绝，LIA 会明确指出这一点，而不是让会话无故失败。</p><h2>从一句语音指令到两小时的会议</h2><p>同一个麦克风现在可以录下整场会议。这对语音引擎的改变比对界面更大：本地 Whisper 只解码一个三十秒的窗口，对更长的内容会默默返回前三十秒——语音输入从未遇到这个缺陷，因为一句指令很短。长音频现在由语音活动检测器切成语音窗口，每个窗口单独解码，因此再长的录音也不成问题。远程引擎一次请求处理整个文件并区分发言人；引擎链从管理员的引擎依次到 ElevenLabs、OpenAI 和本地模型，拒绝的提供商会把接力交给下一个。纪要是一次填充用户模板的结构化调用，而每一项付费单位——引擎处的音频、模型处的 token——都会写在生成的卡片、会议页面和列表上。</p>"
+        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和你的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>一句话在哪里结束</h2><p>「按句」切分的前提是知道一句话在哪里结束 —— 而仅凭一个句点说明不了这一点。只有<strong>后面跟着空格</strong>，或位于输入末尾时，分隔符才会结束一句话：「现在 3.5 度」因此保持完整，而不会先读成「现在三。」再在另一段音频里读「五度」。价格、版本号和网址同理。在逐句流式路径上，这条规则更是必需的：缓冲区是逐个 token 增长的，所以 <code>\"3.\"</code> 是一个完全正常的中间状态 —— 在它上面分发，等于还没读完就开口。管线中的两个切分器由一张共享的用例表以及一个要求二者一致的测试共同钉住。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p><h2>当 LIA 打给你</h2><p>语音并不止步于浏览器。在<em>电话 · 我的身份</em>中登记你的号码，让 LIA 打过来并读出一个验证码，你输入确认；此后，“八点打给我，聊聊我的一天”——或者一条这样说的例程——就会让你的电话响起，无需确认卡片：卡片保护的是第三方，而这里该确认的人正是接电话的人。在电话里，语音助手带着聊天所知的一切，并在启用实时查询后边聊边读取 LIA——邮件、日历、任务、联系人、文件、地点、天气、记忆——使用与聊天相同的只读工具，每个结果都压缩为语音能说出的内容；她不执行任何操作。挂断后，你说的话会作为你自己的一轮对话回放到聊天中，带有电话标记，任何请求都在那里等待你的确认。</p><h2>Live 模式：两个智能，一道接缝</h2><p>自 v1.47 起，语音图标多了第三种用途：在你用自己密钥连接的实时模型上进行<strong>实时的语音对语音会话</strong>——通过 WebSocket 的 Gemini Live、通过 WebRTC 的 GPT-Live，或声音和轮次控制都留在其门户上的 ElevenLabs 代理。音频从不经过 LIA 服务器：API 铸造一次性凭证并生成配置，浏览器原样重放并自行打开连接。</p><p>设计的核心是两个智能之间的一道接缝。语音模型拥有对话——倾听、说话、打断、填补等待——并通过唯一声明的函数 <code>send_to_lia</code> <strong>把每一次数据或操作请求委托</strong>给聊天引擎。浏览器把这次调用变成你自己会话下的普通聊天回合：同样的确认、登记和配额，在你说话时绘制在对话中。LIA 需要问的问题就是语音接下来说的话，结束卡片汇总 LIA 自己的花费。服务商在你密钥上的计费折算为参考计数器显示出来，从不记录。</p><p><strong>直接会话</strong>把电话线路搬进浏览器：语音自己持有 LIA 的只读工具——你允许的领域——为你读取而不执行任何操作，你的话在结束时作为你的消息转达。在真实会话中测得，工具声明占配置的九成，首个回合的成本约为委托模式的九倍：直接会话换来的是低延迟，从来不是省钱。同样的两种模式——Live 与直接 Live——现在也管理 LIA 打给你的电话，两条线路共用一次结束流程。</p><p>在 iPhone 和 iPad 上，ElevenLabs 智能体使用其服务商的原生音频连接（WebRTC），比原始音频流在这些设备上更稳定；按 IP 地址受限的 Gemini 密钥会被 Google 从浏览器端拒绝，LIA 会明确指出这一点，而不是让会话无故失败。</p><h2>从一句语音指令到两小时的会议</h2><p>同一个麦克风现在可以录下整场会议。这对语音引擎的改变比对界面更大：本地 Whisper 只解码一个三十秒的窗口，对更长的内容会默默返回前三十秒——语音输入从未遇到这个缺陷，因为一句指令很短。长音频现在由语音活动检测器切成语音窗口，每个窗口单独解码，因此再长的录音也不成问题。远程引擎一次请求处理整个文件并区分发言人；引擎链从管理员的引擎依次到 ElevenLabs、OpenAI 和本地模型，拒绝的提供商会把接力交给下一个。纪要是一次填充用户模板的结构化调用，而每一项付费单位——引擎处的音频、模型处的 token——都会写在生成的卡片、会议页面和列表上。</p><h2>由你决定何时收听</h2><p>个人电台与语音对话并行：共享编辑室收集公开新闻，个人电台将你选择的来源与获准使用的日常信息结合。由你启动，查看来源和费用，设置睡眠定时，并可随时停止。节目不会留存供重播。</p>"
       },
       "knowledge-spaces": {
         "title": "知识空间：将文档转化为AI智能",
@@ -11988,7 +12100,7 @@
       "reminders-scheduling": {
         "title": "提醒和计划操作：自动化你的日常",
         "excerpt": "用自然语言创建提醒并安排定期操作。",
-        "body": "<h2>自然语言提醒</h2><p>使用LIA创建提醒就像说话一样简单：</p><ul><li>\"提醒我明天9点给Marie打电话\"</li><li>\"30分钟后提醒：检查烤箱\"</li><li>\"今晚记得买面包\"</li></ul><p>LIA自动解释时间表达式，并使用正确的时区创建提醒。</p><h2>提醒生命周期</h2><p>每个提醒遵循精确的生命周期：<strong>PENDING → PROCESSING → 通知后删除</strong>。提醒现在可以<strong>重复</strong>——每天、每周一和周四、每月 15 日、在某个时段内每两小时。每次通知之后，LIA 只会问一句：下一次该设定在何时？若还有下一次，提醒便重新设定；若已没有——单次场合已消费，或系列已到期——则删除。两种情况同一条规则，这也正是「通知后删除」一直以来的含义。每个提醒包含三个关键字段：</p><ul><li><code>content</code> — LIA理解的内容（必要时会重新表述）</li><li><code>original_message</code> — 用户的原始文本</li><li><code>trigger_at</code> — UTC触发时间</li></ul><p>切换到 <code>PROCESSING</code> 是一个<strong>租约</strong>，而不是不可逆的终点：选取查询只看 <code>PENDING</code> 行，因此正在处理中的提醒不会被两个并发轮次重复取走。任何提前退出都会释放它 —— 使用额度已达上限、没有已注册设备 —— 提醒随即回到 <code>PENDING</code>，等待下一轮。若不释放，恰好在用户用尽额度那一分钟到期的提醒就会被彻底丢失，既无报错也无痕迹。</p><h2>时区管理</h2><p>所有提醒以<strong>UTC</strong>存储在数据库中。用户的IANA时区（如：<code>Europe/Paris</code>、<code>America/New_York</code>）被跟踪并用于将相对时间表达式（\"明天9点\"）转换为绝对UTC时间戳。显示时始终转换为用户的本地时区。</p><h2>推送通知</h2><p>提醒通过<strong>Firebase Cloud Messaging（FCM）</strong>发送，支持浏览器和移动端通知。即使应用未打开也能收到通知。</p><p>通知的标题和正文会以用户自己的语言呈现，六种受支持的语言均可。区域设置的规范化由标题表本身完成，而非交给每个调用方，因为调用方持有的是各种写法的原始区域设置 —— 而唯一本该规范化却没有这么做的地方，正是向中文用户发送英文标题的原因。</p><p>这句话本身在模型能够停止推理的地方以不推理方式请求，并使用一个小的回答预算——在默认会思考的模型上，思考会计入该预算。一条回来是空的、或被供应商报告为在预算处截断的回答绝不会被发送：简单版的提醒会代替它发出，因此通知绝不会只剩一个铃铛。</p><h2>计划操作</h2><p>计划操作（Scheduled Actions）是一个<strong>独立领域</strong>，比简单提醒更进一步。它与<strong>APScheduler</strong>集成，可安排LIA自动执行的定期任务：</p><ul><li>每天早上7点的天气摘要</li><li>每2小时检查重要邮件</li><li>每周一的任务周报</li></ul><h2>合理限制</h2><p>为防止滥用，每个用户最多可同时拥有20个活跃计划操作。带退避的重试逻辑处理临时故障。</p>"
+        "body": "<h2>自然语言提醒</h2><p>使用LIA创建提醒就像说话一样简单：</p><ul><li>\"提醒我明天9点给Marie打电话\"</li><li>\"30分钟后提醒：检查烤箱\"</li><li>\"今晚记得买面包\"</li></ul><p>LIA自动解释时间表达式，并使用正确的时区创建提醒。</p><h2>提醒生命周期</h2><p>每个提醒遵循精确的生命周期：<strong>PENDING → PROCESSING → 通知后删除</strong>。提醒现在可以<strong>重复</strong>——每天、每周一和周四、每月 15 日、在某个时段内每两小时。每次通知之后，LIA 只会问一句：下一次该设定在何时？若还有下一次，提醒便重新设定；若已没有——单次场合已消费，或系列已到期——则删除。两种情况同一条规则，这也正是「通知后删除」一直以来的含义。每个提醒包含三个关键字段：</p><ul><li><code>content</code> — LIA理解的内容（必要时会重新表述）</li><li><code>original_message</code> — 用户的原始文本</li><li><code>trigger_at</code> — UTC触发时间</li></ul><p>切换到 <code>PROCESSING</code> 是一个<strong>租约</strong>，而不是不可逆的终点：选取查询只看 <code>PENDING</code> 行，因此正在处理中的提醒不会被两个并发轮次重复取走。任何提前退出都会释放它 —— 使用额度已达上限、没有已注册设备 —— 提醒随即回到 <code>PENDING</code>，等待下一轮。若不释放，恰好在用户用尽额度那一分钟到期的提醒就会被彻底丢失，既无报错也无痕迹。</p><h2>时区管理</h2><p>所有提醒以<strong>UTC</strong>存储在数据库中。用户的IANA时区（如：<code>Europe/Paris</code>、<code>America/New_York</code>）被跟踪并用于将相对时间表达式（\"明天9点\"）转换为绝对UTC时间戳。显示时始终转换为用户的本地时区。</p><h2>推送通知</h2><p>提醒通过<strong>Firebase Cloud Messaging（FCM）</strong>发送，支持浏览器和移动端通知。即使应用未打开也能收到通知。</p><p>通知的标题和正文会以用户自己的语言呈现，六种受支持的语言均可。区域设置的规范化由标题表本身完成，而非交给每个调用方，因为调用方持有的是各种写法的原始区域设置 —— 而唯一本该规范化却没有这么做的地方，正是向中文用户发送英文标题的原因。</p><p>这句话本身在模型能够停止推理的地方以不推理方式请求，并使用一个小的回答预算——在默认会思考的模型上，思考会计入该预算。一条回来是空的、或被供应商报告为在预算处截断的回答绝不会被发送：简单版的提醒会代替它发出，因此通知绝不会只剩一个铃铛。</p><h2>计划操作</h2><p>计划操作（Scheduled Actions）是一个<strong>独立领域</strong>，比简单提醒更进一步。它与<strong>APScheduler</strong>集成，可安排LIA自动执行的定期任务：</p><ul><li>每天早上7点的天气摘要</li><li>每2小时检查重要邮件</li><li>每周一的任务周报</li></ul><h2>合理限制</h2><p>为防止滥用，每个用户最多可同时拥有20个活跃计划操作。带退避的重试逻辑处理临时故障。</p><h2>每项例行任务只有一种时钟</h2><p>例行任务按日程或条件运行。定时任务遵循重复规则；条件任务按来源的节奏检查，只有出现新的匹配事实才行动。两者都在同一历史中显示实际执行，并遵守相同的审批和费用限制。</p>"
       },
       "sub-agents": {
         "title": "子智能体：用于复杂问题的临时专家",
@@ -12006,9 +12118,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>只记录事实、绝不记录原话的日志</h2><p>遵循 <strong>OWASP 日志备忘录</strong>，debug 级别以上的一行日志只携带<strong>事实</strong>——数量、长度、标识符、错误代码、URL 的主机名——绝不携带某人写下的文字，或模型关于他们写下的文字：没有搜索内容，没有兴趣，没有文件、标签或空间的名称，也没有浏览过的网页。</p><p>这条规则<strong>按值</strong>核查，而不是按字段名：一项测试会读取代码中的每一个日志调用，拒绝预览或任何由内容派生的值，无论它叫什么名字。错误信息所<strong>引用</strong>的内容——被 PostgreSQL 拒绝的值、校验的输入——会在写入日志之前被移除，数据库错误以其事实描述：代码、约束、表。服务商密钥在每个被记录的地址中都会被遮蔽。有两个限制照实说明：外部服务以未知格式返回的错误仍可能引用某个值；debug 级别（生产环境中关闭）会保留更多内容。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>登记册</strong>页面下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "589个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：589 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 589个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中：只记事实，绝不记人们的原话</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>39个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。39个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p>"
+        "title": "606个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：606 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 606个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中：只记事实，绝不记人们的原话</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>39个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。39个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：155个提示作为代码管理",
@@ -12129,8 +12241,8 @@
       "current_usage": "当前使用量"
     },
     "warning": {
-      "warning": "您已使用配额的 {{percent}}%。",
-      "critical": "您已达到配额的 {{percent}}%。",
+      "warning": "你已使用配额的 {{percent}}%。",
+      "critical": "你已达到配额的 {{percent}}%。",
       "resets_on": "{{date}} 重置",
       "dimension": {
         "cycle_tokens": "本周期的 token",
@@ -12143,15 +12255,15 @@
     },
     "blocked": {
       "title": "已达限制",
-      "message": "您已达到使用限制。请联系管理员。",
+      "message": "你已达到使用限制。请联系管理员。",
       "tooltip": "使用限制已达"
     },
     "error": {
       "loading": "加载使用限制失败",
-      "limit_exceeded": "您的使用限制已超出。消息未发送。"
+      "limit_exceeded": "你的使用限制已超出。消息未发送。"
     },
     "tile": {
-      "title": "您的限制",
+      "title": "你的限制",
       "messages": "消息",
       "tokens": "令牌",
       "cost": "费用",
@@ -12245,11 +12357,11 @@
     "description": "iPhone 数据上传 + 心率和步数可视化",
     "ingestion": {
       "title": "数据上传接口",
-      "description": "配置您的 iPhone 自动化，按天批量上传测量数据。",
+      "description": "配置你的 iPhone 自动化，按天批量上传测量数据。",
       "stepsUrlLabel": "步数 URL (POST)",
       "heartRateUrlLabel": "心率 URL (POST)",
       "urlCopied": "地址已复制。",
-      "payloadHint": "JSON 正文：测量数组 [{\"date_start\":\"…\",\"date_end\":\"…\",\"steps\":1234,\"o\":\"iphone\"}]。请求头 Authorization: Bearer <您的令牌>。"
+      "payloadHint": "JSON 正文：测量数组 [{\"date_start\":\"…\",\"date_end\":\"…\",\"steps\":1234,\"o\":\"iphone\"}]。请求头 Authorization: Bearer <你的令牌>。"
     },
     "tokens": {
       "newLabel": "新令牌（可选备注）",
@@ -12269,10 +12381,10 @@
     },
     "agents": {
       "title": "助手",
-      "description": "授权助手读取您的健康数据，以回答您的问题，支持主动通知，并丰富其日志和记忆。",
+      "description": "授权助手读取你的健康数据，以回答你的问题，支持主动通知，并丰富其日志和记忆。",
       "toggle": "助手访问",
-      "enabled_hint": "助手可以查看您的健康数据（步数、心率）。",
-      "disabled_hint": "助手无法访问您的健康数据（默认已禁用）。",
+      "enabled_hint": "助手可以查看你的健康数据（步数、心率）。",
+      "disabled_hint": "助手无法访问你的健康数据（默认已禁用）。",
       "enabled_toast": "健康助手已启用。",
       "disabled_toast": "健康助手已禁用。"
     },
@@ -12314,7 +12426,7 @@
       "deleteStepsDescription": "所有步数测量将被删除。心率数据将被保留。",
       "deleteAll": "全部删除",
       "deleteAllTitle": "永久删除所有健康数据？",
-      "deleteAllDescription": "所有行将被永久删除。您的上传令牌仍然有效。",
+      "deleteAllDescription": "所有行将被永久删除。你的上传令牌仍然有效。",
       "deleted": "数据已删除。",
       "deletedAll": "所有数据已删除。"
     }
@@ -12364,8 +12476,8 @@
       "title": "了解心理系统",
       "overview": {
         "title": "工作原理",
-        "intro": "心理引擎赋予您的助手一个动态的心理状态，随每次互动而演变。助手不再是固定的个性，而是拥有波动的情绪、触发和衰减的情感、随时间加深的关系，以及塑造其情感反应的人格特质。",
-        "principle": "设计原则：助手从不说「我很高兴」——相反，它的词汇变得更温暖，能量更高，建议更大胆。您感受到一个鲜活的个性，却没有明确的情感声明。",
+        "intro": "心理引擎赋予你的助手一个动态的心理状态，随每次互动而演变。助手不再是固定的个性，而是拥有波动的情绪、触发和衰减的情感、随时间加深的关系，以及塑造其情感反应的人格特质。",
+        "principle": "设计原则：助手从不说「我很高兴」——相反，它的词汇变得更温暖，能量更高，建议更大胆。你感受到一个鲜活的个性，却没有明确的情感声明。",
         "layer5": "第5层 — 动机与自我效能（每次会话）",
         "layer4": "第4层 — 关系（周/月）",
         "layer3": "第3层 — 22种情感（分钟）",
@@ -12464,7 +12576,7 @@
         "neuroticism_effect": "高 = 情感冲击更强。低 = 冷静克制，反应迟钝。",
         "agreeableness": "宜人性",
         "agreeableness_mod": "共情与韧性",
-        "agreeableness_effect": "高 = 强烈反映您的情感。低 = 有抵抗力，在消极时拉回中性。",
+        "agreeableness_effect": "高 = 强烈反映你的情感。低 = 有抵抗力，在消极时拉回中性。",
         "conscientiousness": "尽责性",
         "conscientiousness_mod": "恢复速度",
         "conscientiousness_effect": "高 = 快速恢复基线。低 = 情绪持续。",
@@ -12478,17 +12590,17 @@
       "relationship": {
         "title": "关系",
         "description": "关系分4个阶段推进。进展是单向的——深度永远不会降低。",
-        "intro": "您与助手之间的关系经历4个阶段。进展是单向的——深度永远不会降低，就像真实的关系随时间成熟。",
+        "intro": "你与助手之间的关系经历4个阶段。进展是单向的——深度永远不会降低，就像真实的关系随时间成熟。",
         "orientation": "专业、有分寸。不假设亲密关系。",
         "exploratory": "更自由地展示个性。引用过去的交流。",
-        "affective": "个人化且直接。使用幽默。记住您的偏好。",
+        "affective": "个人化且直接。使用幽默。记住你的偏好。",
         "stable": "值得信赖的伙伴。坦率，在需要时建设性地挑战。",
         "metrics_title": "跟踪指标：",
         "depth_desc": "随每次高质量互动对数增长。永不降低。",
         "warmth_desc": "活跃的温暖感会在缺席时衰减，但在接触时快速恢复。",
         "trust_desc": "基于互动质量的贝叶斯积累。冲突解决（破裂-修复）给予信任加成。",
         "resonance_title": "共鸣",
-        "resonance_desc": "您与助手之间计算出的情感对齐度。共情匹配提升温暖度，稳定关系中的坦诚分歧提升信任度。"
+        "resonance_desc": "你与助手之间计算出的情感对齐度。共情匹配提升温暖度，稳定关系中的坦诚分歧提升信任度。"
       },
       "lifecycle": {
         "title": "消息生命周期",
@@ -12496,7 +12608,7 @@
         "pre": "1. 回复前",
         "pre_desc": "加载心理状态 → 应用向基线的衰减 → 应用昼夜调节 → 编译行为指令 → 注入提示词。助手在生成回复前读取自己的情绪、情感和关系指令。",
         "during": "2. 回复中",
-        "during_desc": "LLM遵循情绪、情感和关系指令来调整语调。最后它进行自我评估：这次互动触发了什么情感？用户的情绪如何？这个评估对您是隐藏的。",
+        "during_desc": "LLM遵循情绪、情感和关系指令来调整语调。最后它进行自我评估：这次互动触发了什么情感？用户的情绪如何？这个评估对你是隐藏的。",
         "post": "3. 回复后",
         "post_desc": "处理自我评估：创建/强化情感（神经质调节强度），在PAD空间中推动情绪，从用户情感倾向应用感染（宜人性调节力度），交叉抑制相反情感，更新关系指标、动机和自我效能。新的情感状态被发送到界面。"
       },
@@ -12510,7 +12622,7 @@
         "curiosity_effect": "探索新角度，提出后续问题，建议相关话题。",
         "engagement_source": "互动质量",
         "engagement_effect": "更严谨、更主动。处于心流状态——主动采取行动。",
-        "dynamics": "两种动机都使用平滑的移动平均（20%新信号，80%先前值）。它们从不跳跃——而是逐渐趋向您交流的质量和能量。",
+        "dynamics": "两种动机都使用平滑的移动平均（20%新信号，80%先前值）。它们从不跳跃——而是逐渐趋向你交流的质量和能量。",
         "efficacy_title": "自我效能",
         "efficacy_desc": "助手在不同领域（规划、技术、情感支持等）追踪自己的信心。高信心意味着更大胆的建议；低信心意味着更谨慎和严谨。根据质量反馈在每次互动后更新。",
         "transitions_title": "叙事过渡",
@@ -12518,7 +12630,7 @@
       },
       "settings_explanation": {
         "title": "表现力与稳定性（见设置）",
-        "description": "表现力和稳定性让您可以自定义情感行为。",
+        "description": "表现力和稳定性让你可以自定义情感行为。",
         "expr_low": "冷静克制：情感几乎不影响输出",
         "expr_mid": "适中：微妙的语调变化",
         "expr_high": "非常有表现力：强烈的情感色彩",
@@ -12642,7 +12754,7 @@
     "sections": {
       "offers": {
         "title": "建议",
-        "subtitle": "LIA 主动提出代办的例行事项——等待您的决定。",
+        "subtitle": "LIA 主动提出代办的例行事项——等待你的决定。",
         "empty": "当前没有待决建议。",
         "error": "无法加载建议。",
         "accept": "交给我——打开聊天",
@@ -12762,7 +12874,8 @@
       "telephony": "通话",
       "meetings": "会议",
       "bookmarks": "书签",
-      "live": "实时语音"
+      "live": "实时语音",
+      "radio": "电台"
     },
     "items": {
       "stt": "语音输入（转写）",
@@ -12796,7 +12909,7 @@
       "habits": "习得的习惯",
       "habits_description": "LIA 从个人节奏中推断出的内容。关闭后关闭习惯界面。",
       "heartbeat": "主动通知",
-      "heartbeat_description": "LIA 主动联系您。关闭后关闭主动性界面及其历史。",
+      "heartbeat_description": "LIA 主动联系你。关闭后关闭主动性界面及其历史。",
       "peers": "LIA 连接",
       "peers_description": "账户之间的连接。关闭后关闭连接界面；已有连接保留。",
       "psyche": "心理画像",
@@ -12822,7 +12935,11 @@
       "bookmarks": "书签",
       "bookmarks_description": "通过气泡上的书签，把一条回答保存在对话之外。关闭后，书签操作消失；已保存的内容仍可阅读和删除。",
       "live": "实时语音模式",
-      "live_description": "基于本人服务商密钥的实时语音会话，每个请求都交由聊天处理。关闭后将关闭实时路由。"
+      "live_description": "基于本人服务商密钥的实时语音会话，每个请求都交由聊天处理。关闭后将关闭实时路由。",
+      "email_share": "通过邮件发送",
+      "email_share_description": "通过邮件发送生成的文件或回答：从本人的邮箱发出，或经 LIA 的中继发送到本人地址。关闭后相关接口停止服务，不会删除任何内容。",
+      "radio": "个人电台",
+      "radio_description": "按需制作的个人电台，使用本人的语言，内容来自实例收集的新闻和本人的一天。关闭后电台接口停止服务，新闻编辑部暂停；设置和已添加的网站会保留。"
     }
   },
   "showroom": {
@@ -13346,7 +13463,7 @@
       },
       "offline_long": "已离线较长时间：音频暂存在此设备上。网络恢复后请尽快停止并完成。",
       "format_label": "纪要格式",
-      "format_auto": "默认（自动，或您的偏好）",
+      "format_auto": "默认（自动，或你的偏好）",
       "format_saved": "已为本次会议保存格式"
     },
     "toasts": {
@@ -13459,7 +13576,7 @@
       "confirm_delete_transcript_title": "删除转写文本？",
       "confirm_delete_transcript_description": "纪要将保留；转写文本无法恢复，纪要也将无法重新生成。",
       "confirm_regenerate_title": "重新生成纪要？",
-      "confirm_regenerate_description": "LIA 将根据转写内容以相同格式重新撰写会议纪要。您对这份纪要的修改将被替换。",
+      "confirm_regenerate_description": "LIA 将根据转写内容以相同格式重新撰写会议纪要。你对这份纪要的修改将被替换。",
       "confirm_reset_title": "恢复自动生成的版本？",
       "confirm_reset_description": "你的修改将被 LIA 生成的纪要替换。",
       "cost_breakdown": "{{total}}（转写 {{stt}} · 纪要 {{minutes}}）",
@@ -13468,13 +13585,13 @@
       "format": "格式",
       "format_selection": {
         "auto": "由 LIA 选择",
-        "user": "由您选择",
-        "preference": "您的默认格式"
+        "user": "由你选择",
+        "preference": "你的默认格式"
       },
       "change_format": "更改格式…",
       "reformat": {
         "title": "更改格式",
-        "description": "LIA 将根据转写内容，以您选择的格式重新撰写会议纪要。",
+        "description": "LIA 将根据转写内容，以你选择的格式重新撰写会议纪要。",
         "template_label": "格式",
         "mode_label": "如何处理结果",
         "mode_replace": "替换这份纪要",
@@ -13520,7 +13637,7 @@
         "nl": "荷兰语"
       },
       "auto_email_label": "纪要就绪后发送到我的邮箱",
-      "auto_email_hint": "由 LIA 从其自身地址发送到您的邮箱。",
+      "auto_email_hint": "由 LIA 从其自身地址发送到你的邮箱。",
       "keep_audio_label": "处理后保留音频",
       "keep_audio_none": "处理完成后立即删除",
       "keep_audio_hours_one": "{{count}} 小时",
@@ -13620,7 +13737,7 @@
         "learning": "课程与培训"
       },
       "title": "会议纪要模板",
-      "subtitle": "LIA 撰写会议纪要所用的格式：内置模板库和您自己的模板。",
+      "subtitle": "LIA 撰写会议纪要所用的格式：内置模板库和你自己的模板。",
       "new": "新建模板",
       "builtin_badge": "内置",
       "transcript_badge": "完整转写",
@@ -13631,7 +13748,7 @@
       "edit": "编辑",
       "delete": "删除",
       "row_actions": "操作 — {{name}}",
-      "empty_custom": "您还没有自己的模板。复制一个内置模板进行调整，或从头创建。",
+      "empty_custom": "你还没有自己的模板。复制一个内置模板进行调整，或从头创建。",
       "limit_reached": "已达到 {{count}} 个模板的上限。请删除一个后再创建。",
       "saved": "模板已保存",
       "load_failed": "无法加载模板。",
@@ -13670,7 +13787,7 @@
       "deleted_other": "已删除 {{count}} 个模板",
       "skipped_one": "{{count}} 个模板保持不变：{{reasons}}",
       "skipped_other": "{{count}} 个模板保持不变：{{reasons}}",
-      "preference_reset": "您的默认纪要格式指向了已删除的模板：已恢复为自动。",
+      "preference_reset": "你的默认纪要格式指向了已删除的模板：已恢复为自动。",
       "confirm_delete_title_one": "删除此模板？",
       "confirm_delete_title_other": "删除所选模板？",
       "confirm_delete_description_one": "“{{name}}”将被移除。已用它撰写的会议纪要会保留。",
@@ -13687,9 +13804,9 @@
   },
   "effects": {
     "journal": {
-      "description": "LIA 代您执行的一切，按记录呈现。",
+      "description": "LIA 代你执行的一切，按记录呈现。",
       "empty_action": "前往对话",
-      "empty_description": "为您执行的操作将显示在这里。",
+      "empty_description": "为你执行的操作将显示在这里。",
       "empty_filtered_description": "请尝试其他状态。",
       "empty_filtered_title": "没有操作符合此筛选条件",
       "empty_title": "尚无任何操作",
@@ -13700,7 +13817,7 @@
       "source": {
         "scheduled": "计划任务",
         "subagent": "子代理",
-        "user": "应您的要求",
+        "user": "应你的要求",
         "proactive": "LIA 主动"
       },
       "status": {
@@ -13770,15 +13887,17 @@
       "create_reminder_tool": "已创建提醒「{{target}}」",
       "call_me_tool": "已给你打电话（{{target}}）",
       "send_email_to_me_tool": "已给你发送邮件（{{target}}）",
-      "proactive_notification": "已发送通知（{{kind}}）"
+      "proactive_notification": "已发送通知（{{kind}}）",
+      "peer_image_share": "与互联用户分享了一张图片",
+      "email_share": "已向 {{count}} 位收件人发送电子邮件"
     },
     "export": {
       "group_label": "导出此记录",
       "markdown": "导出（可读）",
       "csv": "导出（CSV）",
       "technical": "技术格式",
-      "markdown_hint": "可阅读的文档，含您自己的措辞。",
-      "csv_hint": "可统计的表格，含您自己的措辞。",
+      "markdown_hint": "可阅读的文档，含你自己的措辞。",
+      "csv_hint": "可统计的表格，含你自己的措辞。",
       "technical_hint": "JSON Lines：同样的事件，但不含任何内容，标识符已假名化。可随报告附上，而不泄露所说的内容。"
     }
   },
@@ -13861,7 +13980,7 @@
     },
     "seal": {
       "loading": "正在加载封存状态",
-      "disabled": "本实例未启用记录封存。您的登记册仍然完整可读；缺少的只是它们未被修改的证明。",
+      "disabled": "本实例未启用记录封存。你的登记册仍然完整可读；缺少的只是它们未被修改的证明。",
       "not_yet": "尚未封存",
       "sealed_until": "记录已封存至 {{date}}",
       "pending_one": "{{count}} 行尚未封存",
@@ -14046,7 +14165,7 @@
   "reminders": {
     "settings": {
       "title": "提醒",
-      "description": "LIA 会在何时提醒您什么。",
+      "description": "LIA 会在何时提醒你什么。",
       "count_one": "{{count}} 个提醒",
       "count_other": "{{count}} 个提醒",
       "capped": "（显示前 {{shown}} 个）"
@@ -14070,7 +14189,7 @@
   },
   "workboard": {
     "title": "Workboard",
-    "subtitle": "您的工单：您在做什么、您交给 LIA 的事、别人欠您的事。",
+    "subtitle": "你的工单：你在做什么、你交给 LIA 的事、别人欠你的事。",
     "columns": {
       "idea": "想法",
       "todo": "待办",
@@ -14106,7 +14225,7 @@
       "actions": "工单操作",
       "drag_card": "移动工单 {{title}}",
       "run_running": "LIA 正在处理",
-      "run_waiting": "等待您的回复",
+      "run_waiting": "等待你的回复",
       "run_failed": "上次执行失败",
       "run_succeeded": "LIA 已回复",
       "column_of": "{{title}} 的列",
@@ -14167,7 +14286,7 @@
     "form": {
       "new_title": "新建工单",
       "title": "标题",
-      "title_hint": "用您自己的话写下要做的事。",
+      "title_hint": "用你自己的话写下要做的事。",
       "description": "描述",
       "description_hint": "如果把这个工单交给 LIA，这就是它将遵循的指令。",
       "priority": "优先级",
@@ -14190,19 +14309,19 @@
       "no_step": "还没有步骤。",
       "no_history": "还没有发生任何事。",
       "comment_placeholder": "写一条评论…",
-      "author_user": "您",
+      "author_user": "你",
       "author_lia": "LIA",
       "author_peer": "某个联系人",
       "loading": "正在加载工单…",
       "read_only": "这是所有者的原话：只有他能修改标题和描述。",
       "editable": "编辑该工单、发表评论，并跟踪 LIA 对它做了什么。",
-      "confirming_hint": "LIA 已准备好一项操作，正在等待您的确认：请用评论回复（「是」「否」或要改什么），然后把工单交给它。",
+      "confirming_hint": "LIA 已准备好一项操作，正在等待你的确认：请用评论回复（「是」「否」或要改什么），然后把工单交给它。",
       "usage": "费用",
       "usage_runs_one": "{{count}} 次执行",
       "usage_runs_other": "{{count}} 次执行",
       "outcome_success": "LIA 已回复",
-      "outcome_waiting": "等待您的回复",
-      "outcome_confirming": "一项操作等待您的确认",
+      "outcome_waiting": "等待你的回复",
+      "outcome_confirming": "一项操作等待你的确认",
       "outcome_failed": "失败",
       "outcome_skipped_quota": "已推迟——配额已用完",
       "outcome_skipped_busy": "已推迟——当时有对话进行中"
@@ -14212,7 +14331,7 @@
       "status_changed": "更改了列",
       "assigned": "已转交",
       "returned": "已退回给所有者",
-      "returned_by_run": "LIA 把工单交还给您",
+      "returned_by_run": "LIA 把工单交还给你",
       "released": "已退回给所有者——连接已移除",
       "approved": "操作已批准",
       "refused": "操作已拒绝",
@@ -14236,7 +14355,7 @@
     },
     "empty": {
       "title": "工单板还是空的",
-      "description": "工单是一件有自己生命周期的事：您可以自己做，也可以交给 LIA。",
+      "description": "工单是一件有自己生命周期的事：你可以自己做，也可以交给 LIA。",
       "filtered_title": "没有匹配的工单",
       "filtered_description": "工单板并不空，是这些筛选条件没有结果。",
       "column": "这里没有内容",
@@ -14259,14 +14378,14 @@
       "comment_required": "评论不能为空。",
       "comment_too_long": "评论太长了。",
       "depth_exceeded": "步骤不能再包含子步骤。",
-      "parent_not_owned": "该工单不在您的工单板上。",
-      "too_many_tickets": "您的工单板已满。",
+      "parent_not_owned": "该工单不在你的工单板上。",
+      "too_many_tickets": "你的工单板已满。",
       "too_many_children": "这个工单的步骤数量已达上限。",
-      "assignee_not_connected": "您与该用户没有连接。",
+      "assignee_not_connected": "你与该用户没有连接。",
       "cross_account_delegation": "由他人负责的工单不能交给 LIA。",
       "peer_cannot_delete": "只有所有者可以删除这个工单。",
       "peer_cannot_edit_field": "这是所有者的原话。",
-      "peer_cannot_reassign": "您只能把这个工单交还。",
+      "peer_cannot_reassign": "你只能把这个工单交还。",
       "run_now_requires_lia": "先把工单交给 LIA，再让它执行。",
       "answer_required": "请先用评论回复——「是」「否」或要改什么——然后把工单交给 LIA。",
       "max_runs_reached": "LIA 已达到该工单的执行次数上限。",
@@ -14312,10 +14431,10 @@
     "status": {
       "minting": "正在准备会话…",
       "connecting": "正在连接…",
-      "live": "您正在与 LIA 对话",
+      "live": "你正在与 LIA 对话",
       "reconnecting": "正在重新连接…",
       "ending": "正在结束…",
-      "delegating": "LIA 正在处理您的请求…",
+      "delegating": "LIA 正在处理你的请求…",
       "time_left_one": "剩余 {{count}} 秒",
       "time_left_other": "剩余 {{count}} 秒",
       "idle_countdown_one": "无人说话 — 会话将在 {{count}} 秒后结束",
@@ -14325,14 +14444,14 @@
     },
     "captions": {
       "title": "实时会话",
-      "you": "您",
+      "you": "你",
       "lia": "LIA",
       "show": "显示字幕",
       "hide": "隐藏字幕"
     },
     "composer_locked": "实时会话进行中 — 请说话，或结束会话后再输入。",
     "outcome": {
-      "ended": "由您结束",
+      "ended": "由你结束",
       "expired": "已达到会话时长上限",
       "idle_timeout": "长时间静默后结束",
       "hidden": "页面切换到后台时结束",
@@ -14397,17 +14516,320 @@
       "hint": "按服务商的报告在你自己的密钥上计数——仅供参考，不做任何记录。",
       "context": "上下文 {{value}}",
       "cost_unavailable": "费用不可用（未声明音频费率）",
-      "vendor_billed": "由服务商向您的密钥计费——准确金额在结束时显示",
-      "vendor_hint": "平台不对本次会话定价：服务商向您的密钥计费，并在会话结束后说明金额。"
+      "vendor_billed": "由服务商向你的密钥计费——准确金额在结束时显示",
+      "vendor_hint": "平台不对本次会话定价：服务商向你的密钥计费，并在会话结束后说明金额。"
     },
     "direct_notice": "直接会话：LIA 为你读取你的数据，通话期间不执行任何操作；结束时，你的请求将作为你的一条消息转入你的对话。",
     "vendor_bill": {
-      "total": "{{brand}} 就本次会话向您的密钥收取了 {{total}}",
+      "total": "{{brand}} 就本次会话向你的密钥收取了 {{total}}",
       "unstated": "未说明的金额",
       "shares": "LLM {{llm}} 积分（{{llmModel}}），通话 {{call}} 积分（{{voice}}）",
       "duration": "{{seconds}} 秒",
       "credits_one": "{{count}} 积分",
       "credits_other": "{{count}} 积分"
+    }
+  },
+  "email_share": {
+    "button": "通过邮件发送",
+    "button_named": "通过邮件发送 {{name}}",
+    "title": "通过邮件发送",
+    "description_mailbox": "从你已连接的邮箱发出，收件人由你决定。",
+    "description_relay": "由 LIA 发送到你自己的地址。",
+    "description_unavailable": "目前无法通过邮件发送。",
+    "unavailable": "请在“{{path}}”中连接邮箱，或验证你账户的邮箱地址，才能通过邮件发送文件和回答。",
+    "reconnect_hint": "需要重新连接你的邮箱（{{path}}）才能发给其他人。",
+    "loading": "正在确认发送方式…",
+    "load_error": "无法确认发送方式，请重试。",
+    "attachment_size": "{{name}} · {{size}}",
+    "max_size": "此方式可发送的最大文件：{{size}}。",
+    "too_large": "此文件超出该方式可发送的大小（最多 {{size}}）。",
+    "to_label": "收件人",
+    "to_placeholder": "name@example.com, another@example.com",
+    "to_self": "收件人：{{address}}（你自己的地址）",
+    "to_invalid": "不是邮箱地址：{{entries}}",
+    "to_too_many": "最多 {{max}} 位收件人。",
+    "subject_label": "主题",
+    "message_label": "留言（可选）",
+    "message_placeholder": "在文件上方写几句话…",
+    "characters": "{{count}} / {{max}}",
+    "send": "发送",
+    "sent_one": "邮件已发送给 {{count}} 位收件人。",
+    "sent_other": "邮件已发送给 {{count}} 位收件人。",
+    "sent_to_self": "邮件已发送到你的地址。",
+    "answer_subject": "LIA 于 {{date}} 的回答",
+    "errors": {
+      "file_gone": "此文件已不存在。",
+      "too_large": "此文件超出该方式可发送的大小。",
+      "no_recipient": "请至少添加一位收件人。",
+      "recipients_locked": "未连接邮箱时，LIA 只会发送到你自己的地址。",
+      "unavailable": "目前无法发送：请连接邮箱或验证你的地址。",
+      "mailbox_reconnect": "你的邮箱连接已过期：请在“{{path}}”中重新连接。",
+      "refused": "你的邮箱拒绝了这封邮件。",
+      "failed": "邮件未能发出，请稍后重试。",
+      "rate_limited": "短时间内发送的邮件过多，请几分钟后再试。",
+      "generic": "邮件未能发送。"
+    }
+  },
+  "radio": {
+    "station_name": "LIA 电台",
+    "header": {
+      "start": "打开电台",
+      "stop": "关闭电台"
+    },
+    "banner": {
+      "idle": "已关闭",
+      "starting": "正在调频…",
+      "starting_eta": "正在调频 — 约 {{seconds}} 秒后开始播音",
+      "waiting": "节目间隙",
+      "playing": "正在播出",
+      "paused": "已暂停",
+      "ending": "即将结束播出…",
+      "minutes_left_one": "剩余 {{count}} 分钟",
+      "minutes_left_other": "剩余 {{count}} 分钟",
+      "cost_label": "目前费用",
+      "estimate": "{{minutes}} 分钟约 {{cost}}",
+      "estimate_hourly": "每小时约 {{cost}}",
+      "estimate_label": "计划收听的预估费用",
+      "pause": "暂停",
+      "resume": "继续",
+      "stop": "停止",
+      "open": "文字稿与来源",
+      "collapse": "收起电台播放器",
+      "expand": "展开电台播放器",
+      "restart": "重新开始",
+      "dismiss": "关闭"
+    },
+    "errors": {
+      "start_failed": "电台无法启动 — 请稍后再试。",
+      "connection_lost": "与电台的连接已中断。",
+      "radio_instance_full": "此实例上的电台目前繁忙 — 请过几分钟再试。",
+      "radio_no_voice": "电台没有可用的声音 — 需要管理员进行设置。",
+      "radio_voice_unavailable": "此实例上的电台声音不可用 — 需要管理员检查。",
+      "radio_budget_reached": "你的电台已达到 {{max}} 的支出上限 — 可在 {{lifts}} 起重新播放。",
+      "radio_timer_too_long": "此定时超过了实例允许的时长 — 最多 {{max}} 分钟。",
+      "radio_voice_unknown": "此声音已不再提供 — 请选择其他声音。",
+      "radio_personality_unknown": "此个性已不再提供 — 请选择其他个性。",
+      "radio_source_limit_one": "最多 {{count}} 个网站 — 请先移除一个再添加。",
+      "radio_source_limit_other": "最多 {{count}} 个网站 — 请先移除一个再添加。"
+    },
+    "end_reason": {
+      "timer": "电台已在你设定的时间结束播出。",
+      "listener": "你已关闭电台。",
+      "idle": "电台已停止：没有人在收听。",
+      "failures": "电台已停止：节目无法制作。",
+      "budget": "电台已停止：已达到支出上限。",
+      "other": "电台已停止。"
+    },
+    "formats": {
+      "opening": "开场",
+      "journal": "日志",
+      "headlines": "新闻标题",
+      "bulletin": "新闻简报",
+      "brief": "快讯",
+      "analysis": "分析",
+      "column": "社论",
+      "number": "数字解读",
+      "sign_off": "结束播出",
+      "flash": "快讯",
+      "nothing_new": "暂无新内容",
+      "dossier": "深度报道",
+      "debate": "辩论",
+      "discussion": "漫谈"
+    },
+    "roles": {
+      "host": "LIA",
+      "anchor": "主播",
+      "expert": "专家",
+      "columnist": "社论",
+      "speaker_a": "观点 1",
+      "speaker_b": "观点 2",
+      "speaker_c": "观点 3"
+    },
+    "page": {
+      "title": "电台",
+      "subtitle": "你的一天与世界新闻，在你收听时为你撰写和播报。",
+      "start_description": "LIA 以你的一天开场，然后播报你关注的媒体的新闻 — 每档节目在你收听时撰写，每句话都标明来源。",
+      "timer_label": "自动关闭",
+      "timer_default": "按我的设置",
+      "timer_none": "不自动关闭",
+      "timer_minutes_one": "{{count}} 分钟后",
+      "timer_minutes_other": "{{count}} 分钟后",
+      "company_label": "与他人一起收听",
+      "company_description": "本次收听期间不会播出任何个人内容。",
+      "cost_note": "每档节目都为你撰写和播报 — 其费用实时显示在页眉下方，并计入你的用量。",
+      "start": "打开电台",
+      "between_programmes": "下一档节目正在准备中 — 在此期间播放电台的音乐。",
+      "next": "接下来：{{format}} — {{title}}",
+      "transcript_label": "文字稿",
+      "sources_label": "来源：",
+      "unavailable": "此实例不提供电台。"
+    },
+    "settings": {
+      "title": "电台",
+      "description": "你的电台讲什么，听起来怎样。",
+      "save_failed": "无法保存你的电台设置。",
+      "unavailable": "暂时无法读取电台设置。",
+      "programmes": {
+        "title": "节目",
+        "summary": "设置各类节目的播出频率。",
+        "description": "每个节目多久回来一次。新闻标题、新闻简报、快讯和数字解读总是带来你没听过的内容；其他新闻节目可以从各自的角度回到某个话题——从不连续两次，也从不在同一节目中出现两次。开场和结束播出属于电台。",
+        "hints": {
+          "journal": "你的日志分三版：{{noon}} 点前，计划与待办——约会、提醒、任务、承诺、未读邮件、要记下的事；{{noon}} 点起，你上午做了什么、还剩什么；{{evening}} 点起，回顾你的一天，再看明天和这一周。",
+          "headlines": "主要新闻标题，每条一句话并注明报道媒体（最多 {{stories}} 条）。",
+          "bulletin": "新闻播报：最多 {{stories}} 条新闻，每条几句话，整点播出。",
+          "brief": "一条新闻，播报时注明媒体，用几句话讲述。",
+          "analysis": "与专家一起深入解读一条新闻——背景、来龙去脉、值得注意之处、可能的发展——基于文章全文。",
+          "column": "电台对一条新闻的社论，先报出标题和媒体，以观点的形式呈现。",
+          "number": "从一篇文章中选出的一个醒目数字，并根据文章内容加以解释。",
+          "dossier": "与专家一起深入一个主题——起因、背景、事实所示、可能的走向——最后留下一个开放的问题，依据文章全文。",
+          "debate": "一位主持人与电台的两三位评论员就一个话题持相反观点；主持人最后总结他们的共识与分歧。",
+          "discussion": "电台的两三位评论员，对话题充满兴趣，一起聊一条新闻。"
+        }
+      },
+      "frequency": {
+        "off": "从不",
+        "rare": "很少",
+        "normal": "正常",
+        "often": "经常"
+      },
+      "sources": {
+        "title": "你的生活上节目",
+        "description": "电台可以谈论你一天中的哪些内容。关闭的来源永远不会被读取。"
+      },
+      "source": {
+        "agenda": "约会",
+        "reminders": "提醒",
+        "tasks": "任务",
+        "commitments": "承诺",
+        "tickets": "工单",
+        "birthdays": "生日",
+        "mails": "未读邮件",
+        "actions": "LIA 做了什么",
+        "weather": "天气",
+        "health": "健康",
+        "meetings": "会议",
+        "notifications": "通知",
+        "relations": "该联系的人",
+        "spaces": "知识空间",
+        "bookmarks": "收藏的回答",
+        "conversation": "进行中的对话"
+      },
+      "news": {
+        "title": "新闻来源",
+        "description": "每个来源都会翻译成你的语言播出：取消勾选你不想听的来源。",
+        "totals": "过去 {{hours}} 小时内你的来源的文章：{{stories}} · 尚未收听：{{unheard}}",
+        "counts": "文章：{{stories}} · 未收听：{{unheard}}",
+        "with_language": "{{name}}（{{language}}）",
+        "failing": "无响应",
+        "base_title": "电台的来源",
+        "base_hint": "多种语言的主流媒体和独立声音——默认全部勾选。",
+        "forget": "忘记已收听的内容",
+        "forget_title": "忘记已收听的内容？",
+        "forget_description": "你已听过的每条内容都可能再次播出。此操作无法撤销。",
+        "forget_confirm": "忘记",
+        "forgotten": "已完成：每条内容都可以再次播出。",
+        "forget_failed": "无法忘记已收听的内容，请稍后再试。"
+      },
+      "sites": {
+        "title": "你的网站",
+        "hint_one": "添加你喜欢的网站：电台会找到它的订阅源。最多 {{count}} 个网站。",
+        "hint_other": "添加你喜欢的网站：电台会找到它的订阅源。最多 {{count}} 个网站。",
+        "address": "网站地址",
+        "check": "检查",
+        "checking": "正在查找该网站的订阅源…",
+        "add": "添加",
+        "found_one": "{{title}} — 当前有 {{count}} 篇文章。",
+        "found_other": "{{title}} — 当前有 {{count}} 篇文章。",
+        "empty": "还没有添加任何网站。",
+        "remove": "移除 {{title}}",
+        "check_failed": "无法检查该网站，请稍后再试。",
+        "rate_limited": "短时间内检查或添加网站的次数过多，请过几分钟再试。",
+        "add_failed": "无法添加该网站。",
+        "remove_failed": "无法移除该网站。",
+        "outcome": {
+          "not_public": "该地址无法访问任何公开内容，请检查。",
+          "unreachable": "该网站暂时没有响应。",
+          "forbidden": "该网站不允许机器人读取。",
+          "no_feed": "该网站没有发布电台可读取的订阅源。"
+        },
+        "paused": "已暂停——电台不再读取。",
+        "rename": "重命名 {{title}}",
+        "rename_title": "重命名网站",
+        "rename_label": "播出时的名称",
+        "rename_save": "保存",
+        "change_failed": "无法修改该网站。"
+      },
+      "voices": {
+        "title": "声音",
+        "description": "为电台命名，并选择个性和播报声音。",
+        "station_name": "电台名称",
+        "station_name_hint": "由主持人在节目中说出，并显示在播放器上。留空则使用“{{name}}”。",
+        "personality": "电台个性",
+        "personality_chat": "与聊天中相同",
+        "automatic": "自动"
+      },
+      "verification": {
+        "off": "不核查",
+        "news": "核查新闻",
+        "all": "全部核查"
+      },
+      "listening": {
+        "title": "收听",
+        "description": "设置事实核查、自动停止和陪伴收听。",
+        "verification": "由第二个模型核查",
+        "verification_hint": "启用核查后，第二个模型会将有来源的陈述与其引用的事实逐一比对。不受事实支持的句子会被删除；若剩余内容过少或核查失败，该节目可能无法播出。增加核查会提高费用，也可能延迟播放。",
+        "verification_cost_zero": "没有节目会被模型复读。",
+        "verification_cost_one": "{{count}} 类节目在播出前会被模型复读——每次复读都会计费。",
+        "verification_cost_other": "{{count}} 类节目在播出前会被模型复读——每次复读都会计费。",
+        "timer": "自动停止",
+        "timer_default_one": "实例默认（{{count}} 分钟）",
+        "timer_default_other": "实例默认（{{count}} 分钟）",
+        "company": "默认以陪伴模式收听"
+      },
+      "budget": {
+        "title": "电台支出",
+        "description": "查看电台开支与额度。",
+        "spent": "过去 {{hours}} 小时内，你的电台已花费 {{spent}}（上限 {{limit}}），包括收听和文章翻译。",
+        "reached": "已达上限：你的电台可在 {{lifts}} 起重新播放。"
+      },
+      "source_hints": {
+        "agenda": "你今天的约会，读自你已连接的日历。",
+        "reminders": "即将到期的提醒。",
+        "tasks": "已逾期或即将到期的任务。",
+        "commitments": "在你的交流中发现的：你欠别人的事，或你在等别人的事。",
+        "tickets": "Workboard 中等待你回复或已过期的工单。",
+        "birthdays": "你的联系人即将到来的生日。",
+        "mails": "你今天的未读邮件：发件人和主题。",
+        "actions": "LIA 今天为你完成的操作，取自她自己的记录——在日志的中午版与晚间版中播报。",
+        "weather": "你所在地的天气，每次收听只说一次。",
+        "health": "你今天的健康数据与平均值的对比。",
+        "meetings": "你最近录制的会议中的决定和行动。",
+        "notifications": "LIA 最近主动告诉你的事情。",
+        "relations": "有一段时间没有联系的收藏联系人。",
+        "spaces": "最近添加到你的知识空间的文档。",
+        "bookmarks": "你最近收藏的 LIA 回答。",
+        "conversation": "你最近问 LIA 的问题，以便接续话题。"
+      }
+    },
+    "dashboard": {
+      "open": "打开电台"
+    },
+    "article": {
+      "section_title": "本次收听的文章",
+      "section_description": "打开一篇文章即可用你的语言完整阅读 — 每篇译文只计费一次，之后再次阅读不再收费。",
+      "loading": "正在读取文章 — 翻译可能需要一分钟……",
+      "error": "无法读取这篇文章。",
+      "translated": "机器翻译 · 原文语言：{{language}}",
+      "translated_unknown": "机器翻译",
+      "translation_failed": "无法完成翻译：以下是文章的原文。",
+      "budget_reached": "你的电台已达到支出上限：以下是文章的原文，未经翻译。",
+      "summary_only": "该媒体仅提供此摘要 — 完整文章请见其网站。",
+      "cut": "文章较长：其余内容请见该媒体网站。",
+      "cost": "翻译费用：{{cost}}",
+      "empty": "该媒体未发布这篇文章的正文。",
+      "read_original": "在 {{outlet}} 阅读",
+      "original": "原文",
+      "original_label": "原文 — {{outlet}}，在新标签页中打开"
     }
   }
 }

@@ -5,6 +5,7 @@ Tests for location phrase detection, distance reference translations,
 price level translations, and route-related i18n functions.
 """
 
+from src.core.config import settings
 from src.domains.agents.utils.i18n_location import (
     CURRENT_PHRASES,
     DISTANCE_REFERENCE,
@@ -19,7 +20,6 @@ from src.domains.agents.utils.i18n_location import (
     TRANSPORT_MODES,
     DistanceSource,
     LocationType,
-    _normalize_language,
     contains_current_reference,
     contains_home_reference,
     contains_query_reference,
@@ -312,57 +312,6 @@ class TestDetectLocationTypeCaseInsensitive:
 
 
 # ============================================================================
-# Tests for _normalize_language function
-# ============================================================================
-
-
-class TestNormalizeLanguage:
-    """Tests for _normalize_language function."""
-
-    def test_normalize_french(self):
-        """Test normalizing French."""
-        assert _normalize_language("fr") == "fr"
-        assert _normalize_language("FR") == "fr"
-        assert _normalize_language("fr-FR") == "fr"
-
-    def test_normalize_english(self):
-        """Test normalizing English."""
-        assert _normalize_language("en") == "en"
-        assert _normalize_language("EN") == "en"
-        assert _normalize_language("en-US") == "en"
-        assert _normalize_language("en-GB") == "en"
-
-    def test_normalize_spanish(self):
-        """Test normalizing Spanish."""
-        assert _normalize_language("es") == "es"
-        assert _normalize_language("es-ES") == "es"
-        assert _normalize_language("es-MX") == "es"
-
-    def test_normalize_german(self):
-        """Test normalizing German."""
-        assert _normalize_language("de") == "de"
-        assert _normalize_language("de-DE") == "de"
-
-    def test_normalize_italian(self):
-        """Test normalizing Italian."""
-        assert _normalize_language("it") == "it"
-        assert _normalize_language("it-IT") == "it"
-
-    def test_normalize_chinese(self):
-        """Test normalizing Chinese."""
-        assert _normalize_language("zh-CN") == "zh-CN"
-        assert _normalize_language("zh_CN") == "zh-CN"
-        assert _normalize_language("zh") == "zh-CN"
-        assert _normalize_language("ZH") == "zh-CN"
-
-    def test_normalize_unknown_defaults_to_french(self):
-        """Test that unknown language defaults to French."""
-        assert _normalize_language("pt") == "fr"
-        assert _normalize_language("ja") == "fr"
-        assert _normalize_language("unknown") == "fr"
-
-
-# ============================================================================
 # Tests for helper functions
 # ============================================================================
 
@@ -443,10 +392,10 @@ class TestGetFallbackMessage:
         message = get_fallback_message("de")
         assert "Standort" in message
 
-    def test_unknown_defaults_to_french(self):
-        """Test that unknown language defaults to French."""
+    def test_unknown_reads_the_instance_default(self):
+        """An unsupported language reads the instance's configured default."""
         message = get_fallback_message("ja")
-        assert message == FALLBACK_MESSAGES["fr"]
+        assert message == FALLBACK_MESSAGES[settings.default_language]
 
 
 # ============================================================================
@@ -467,10 +416,10 @@ class TestGetHomeConfigSuggestion:
         suggestion = get_home_config_suggestion("en")
         assert "Settings" in suggestion
 
-    def test_unknown_defaults_to_french(self):
-        """Test that unknown language defaults to French."""
+    def test_unknown_reads_the_instance_default(self):
+        """An unsupported language reads the instance's configured default."""
         suggestion = get_home_config_suggestion("ja")
-        assert suggestion == HOME_CONFIG_SUGGESTION["fr"]
+        assert suggestion == HOME_CONFIG_SUGGESTION[settings.default_language]
 
 
 # ============================================================================
@@ -484,7 +433,7 @@ class TestGetDistanceReference:
     def test_browser_french(self):
         """Test browser reference in French."""
         result = get_distance_reference("browser", "fr")
-        assert result == "depuis votre position"
+        assert result == "depuis ta position"
 
     def test_browser_english(self):
         """Test browser reference in English."""
@@ -494,7 +443,7 @@ class TestGetDistanceReference:
     def test_home_french(self):
         """Test home reference in French."""
         result = get_distance_reference("home", "fr")
-        assert result == "depuis votre domicile"
+        assert result == "depuis ton domicile"
 
     def test_home_english(self):
         """Test home reference in English."""
@@ -866,9 +815,8 @@ class TestEdgeCases:
         assert result == LocationType.QUERY
 
     def test_language_with_underscore(self):
-        """Test language code with underscore."""
-        assert _normalize_language("fr_FR") == "fr"
-        assert _normalize_language("zh_CN") == "zh-CN"
+        """A locale written with an underscore reads its language's phrases."""
+        assert detect_location_type("chez moi", "fr_FR") == LocationType.HOME
 
     def test_uppercase_language_code(self):
         """Test uppercase language code."""

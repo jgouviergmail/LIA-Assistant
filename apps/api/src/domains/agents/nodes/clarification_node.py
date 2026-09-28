@@ -34,6 +34,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import (
     STATE_KEY_CLARIFICATION_FIELD,
     STATE_KEY_CLARIFICATION_RESPONSE,
@@ -66,14 +67,16 @@ async def clarification_node(
     Args:
         state: LangGraph state dict containing:
             - semantic_validation: SemanticValidationResult (or dict)
-            - user_language: Language code (fr, en, es)
+            - user_language: Language code (fr, en, es, de, it, zh-CN)
         config: Optional RunnableConfig for LangGraph
 
     Returns:
         Dict with state updates:
-            - clarification_response: User's clarification (from Command resume)
-            - needs_replan: True (triggers planner regeneration)
-            - planner_iteration: Incremented iteration counter
+            - clarification_response / clarification_field: the person's answer
+            - needs_replan: True when the answer adds information (the planner
+              regenerates the plan); a confirmation writes plan_approved=True
+              instead
+            - planner_iteration is left alone: an answer is no auto-replan
 
     Raises:
         None: Errors are logged but don't block execution
@@ -83,10 +86,10 @@ async def clarification_node(
         >>> state = {
         ...     "semantic_validation": {
         ...         "requires_clarification": True,
-        ...         "clarification_questions": ["Voulez-vous UN ou TOUS les contacts ?"],
+        ...         "clarification_questions": ["Do you want ONE contact or ALL of them?"],
         ...         "issues": [{"type": "cardinality_mismatch", ...}],
         ...     },
-        ...     "user_language": "fr",
+        ...     "user_language": "en",
         ... }
         >>>
         >>> # After interrupt + Command(resume={"clarification": "All contacts"})
@@ -101,7 +104,7 @@ async def clarification_node(
     """
     # Extract semantic validation result
     semantic_validation = state.get("semantic_validation")
-    user_language = state.get("user_language", "fr")
+    user_language = resolve_language(state.get("user_language"))
 
     # Safety check: Only proceed if clarification is required
     if not semantic_validation:
@@ -293,8 +296,8 @@ async def clarification_node(
     # =========================================================================
     # Without this exit, a cancel intent loops forever: the planner replans
     # (with or without the cancel text) and the validator re-flags the same
-    # issues. Reuses the plan-rejection contract the response node already
-    # renders (same as approval-gate rejection).
+    # issues. Reuses the plan-rejection contract the response node renders —
+    # its only producer since the approval gate stopped refusing a missing plan.
     if clarification_cancelled:
         updated_semantic_validation["clarification_cancelled"] = True
         logger.info(

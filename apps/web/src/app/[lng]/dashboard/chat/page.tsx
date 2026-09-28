@@ -2,9 +2,9 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
-import { useConversation, ConversationTotals } from '@/hooks/useConversation';
+import { useConversation, type ConversationTotals } from '@/hooks/useConversation';
+import { useChatServerSync } from '@/hooks/useChatServerSync';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
-import { useNotifications } from '@/hooks/useNotifications';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Message } from '@/types/chat';
@@ -24,7 +24,6 @@ import { WifiOff, Trash2, Search, X } from 'lucide-react';
 import { VoiceModeBadge } from '@/components/voice/VoiceModeBadge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { logger } from '@/lib/logger';
-import { toPlainPreview, NOTIFICATION_PREVIEW_MAX_LENGTH } from '@/lib/notification-preview';
 import { sentHistoryOf } from '@/lib/sent-history';
 import { hitlAwaitsUser, visibleChatSurfaces } from '@/lib/chat-surfaces';
 import { visibleFollowups, visibleMotivation } from '@/components/chat/FollowupChips';
@@ -41,8 +40,9 @@ import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig, type AppConfig } from '@/hooks/useAppConfig';
 import { BookmarkStateProvider } from '@/lib/bookmark-state-context';
 import { PeersAvailabilityProvider } from '@/lib/peers/availability-context';
+import { EmailShareAvailabilityProvider } from '@/lib/email-share/availability-context';
+import { emailShareAvailable } from '@/lib/email-share/share';
 import { peersAvailable } from '@/lib/peers/image-share';
-import { archivedCardsFromMetadata } from '@/hooks/useConversation';
 import { useInputDraft } from '@/hooks/useInputDraft';
 import { useSkills } from '@/hooks/useSkills';
 import {
@@ -118,26 +118,6 @@ function composerLocks(flags: {
  */
 function bookmarksEnabled(config: AppConfig | null): boolean {
   return config?.features?.bookmarks_enabled ?? false;
-}
-
-/**
- * Toast title + tint for a proactive push (module-level — CC discipline).
- * Peer notifications (Lot 7) reuse their chat-bubble tint so they read as
- * "peer" at a glance; interests title with their topic; the rest stays generic.
- * NOTE: decision_reason is internal English LLM reasoning — NOT user-facing.
- */
-function proactiveToastPresentation(metadata?: Record<string, unknown>): {
-  message: string;
-  className: string | undefined;
-} {
-  const isPeer =
-    typeof metadata?.type === 'string' && (metadata.type as string).startsWith('proactive_peer');
-  const peerName = (metadata?.sender_name ?? metadata?.peer_name) as string | undefined;
-  const topic = metadata?.interest_topic as string | undefined;
-  return {
-    message: isPeer ? `🤝 ${peerName || 'Info'}` : topic ? `💡 ${topic}` : '💡 Info',
-    className: isPeer ? '!bg-primary/10 !border-primary/25' : undefined,
-  };
 }
 
 /**
@@ -220,6 +200,7 @@ export default function ChatPage() {
     sendMessage,
     setMessages,
     appendMessage,
+    mergeServerPage,
     clearMessages,
     currentDebugMetrics, // Debug Panel: Scoring metrics for current request
     debugMetricsHistory, // Debug Panel: Cumulative history of all request metrics
@@ -254,6 +235,7 @@ export default function ChatPage() {
   const {
     loadConversationPage,
     loadOlderMessages,
+    readNewestPage,
     searchMessages,
     isLoadingOlder,
     loadConversationTotals,
@@ -293,140 +275,10 @@ export default function ChatPage() {
     }
   }, [showDebugPanel, debugMetricsValid, debugMetricsErrors]);
 
-  // Callback to handle reminder notifications
-  // Uses appendMessage instead of reloading history to avoid race conditions
-  // during streaming or user input. The message is already archived backend-side.
-  const handleReminder = useCallback(
-    (content: string, reminderId: string) => {
-      // 1. Immediate feedback via toast popup (no icon - already in message)
-      // Flattened for the toast only: the appended chat message below keeps the
-      // original content so ReactMarkdown renders it normally.
-      toast.info(toPlainPreview(content), {
-        duration: 5000,
-      });
-
-      // 2. Append reminder message locally (no API reload needed)
-      // The backend has already archived this message in the conversation,
-      // so it will be present on next page refresh. This approach:
-      // - Avoids race conditions with ongoing streaming
-      // - Provides immediate visual feedback
-      // - Eliminates unnecessary network requests
-      const reminderMessage: Message = {
-        id: reminderId || `reminder_${Date.now()}`,
-        content: content,
-        role: 'assistant',
-        timestamp: new Date(),
-        metadata: { type: 'reminder_notification' },
-      };
-
-      appendMessage(reminderMessage);
-    },
-    [appendMessage]
-  );
-
-  // Callback to handle proactive notifications (interest, heartbeat, future types)
-  // Same pattern as reminders: append locally to avoid race conditions
-  // The relayed turn of a DIRECT live session settled (ADR-301): its rows
-  // and the rewritten closing card are in the thread — reload it, never
-  // append a bubble that exists nowhere.
-  const reloadConversation = useCallback(
-    async (reason: string) => {
-      try {
-        const page = await loadConversationPage();
-        if (page.messages.length > 0) {
-          setMessages(page.messages);
-        }
-        // Reset pagination state — list snaps back to the newest page.
-        setHasMoreOlder(page.hasMore);
-        setOldestCursor(page.nextCursor);
-      } catch (error) {
-        logger.warn(`Failed to reload conversation after ${reason}`, {
-          component: 'ChatPage',
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    },
-    [loadConversationPage, setMessages]
-  );
-
-  const handleProactiveNotification = useCallback(
-    (content: string, targetId: string, metadata?: Record<string, unknown>) => {
-      if (metadata?.event === 'live_relay') {
-        toast.info(content, { duration: 5000 });
-        void reloadConversation('live relay');
-        return;
-      }
-      // 1. Toast — title/tint derived module-level (peers vs interest vs generic)
-      const presentation = proactiveToastPresentation(metadata);
-      toast.info(presentation.message, {
-        duration: 5000,
-        description: toPlainPreview(content, NOTIFICATION_PREVIEW_MAX_LENGTH),
-        className: presentation.className,
-      });
-
-      // 2. Append proactive message locally with token data from metadata
-      const proactiveType = (metadata?.type as string) || 'proactive_interest';
-      const proactiveMessage: Message = {
-        id: targetId || `proactive_${Date.now()}`,
-        content: content,
-        role: 'assistant',
-        timestamp: new Date(),
-        // Populate token fields from metadata (centrally injected by runner)
-        tokensIn: metadata?.tokens_in as number | undefined,
-        tokensOut: metadata?.tokens_out as number | undefined,
-        tokensCache: metadata?.tokens_cache as number | undefined,
-        costEur: metadata?.cost_eur as number | undefined,
-        // The cards the archived row carries — an image a connection shared
-        // (ADR-316) shows live exactly as it will after a reload.
-        ...archivedCardsFromMetadata(metadata),
-        metadata: {
-          type: proactiveType,
-          target_id: targetId,
-          ...metadata,
-        },
-      };
-
-      appendMessage(proactiveMessage);
-    },
-    [appendMessage, reloadConversation]
-  );
-
-  // Callback to handle scheduled action execution results
-  // Unlike reminders/interests (which send full content via SSE), scheduled actions
-  // send truncated content (500 chars) via SSE. The full response is already archived
-  // by stream_chat_response, so we reload the conversation history to display it.
-  const handleScheduledAction = useCallback(
-    async (content: string, _actionId: string, title: string) => {
-      // 1. Toast notification with action title
-      toast.info(title, {
-        duration: 5000,
-        description: toPlainPreview(content, NOTIFICATION_PREVIEW_MAX_LENGTH),
-      });
-
-      // 2. Reload full conversation history (result already archived by stream_chat_response)
-      await reloadConversation('scheduled action');
-    },
-    [reloadConversation]
-  );
-
-  // Connect to SSE notifications for real-time reminders, proactive notifications, and scheduled actions
-  // Only connect when user is authenticated (prevents 401 errors on SSE endpoint)
-  // SSE now uses relative URL to go through Next.js proxy (same origin)
-  // Note: Admin broadcasts are handled by BroadcastProvider (independent SSE/FCM listeners)
   // Expressive eyes: per-turn signal wiring (new turn, post-response reaction,
   // typing activity, notification pings). Lives in its own hook — the page's
   // render function sits under the complexity ratchet.
   const eyesWiring = useEyesChatWiring(chatStatus, messages);
-
-  useNotifications({
-    enableSSE: true,
-    enableFCM: true,
-    isAuthenticated: !!user && !isLoading,
-    onNotification: eyesWiring.onNotification,
-    onReminder: handleReminder,
-    onProactiveNotification: handleProactiveNotification,
-    onScheduledAction: handleScheduledAction,
-  });
 
   // Handle message change from ChatInput (geolocation prompt detection +
   // draft persistence — debounced, empty clears immediately).
@@ -507,6 +359,26 @@ export default function ChatPage() {
     setMessages,
     setHasMoreOlder,
     setOldestCursor,
+  });
+
+  // ADR-320: the thread follows the server without ever being reloaded —
+  // notifications keep their toast, and every message that lands elsewhere
+  // is MERGED into the thread once it is free (hooks/useChatServerSync).
+  useChatServerSync({
+    signedIn: !!user,
+    authLoading: isLoading,
+    apiAvailable,
+    isTyping,
+    historyView,
+    isLoadingOlder,
+    messages,
+    readNewestPage,
+    mergeServerPage,
+    clearMessages,
+    setApiTotals,
+    setHasMoreOlder,
+    setOldestCursor,
+    onNotification: eyesWiring.onNotification,
   });
   // Mobile (< 880px): the header shows a 🔍 toggle; the input row unfolds in
   // the ChatSearchBar. Desktop keeps the inline header field.
@@ -766,23 +638,18 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, apiAvailable]);
 
-  // Reload messages when app returns from background
-  // Fixes: notifications (reminders, proactive) sent while app is backgrounded
-  // are not displayed until manual refresh. The OS may drop SSE connection
-  // when app is in background to save battery.
+  // Foreground return (ADR-117 Lot 2): the OS may have dropped the run's
+  // stream while backgrounded — if the run is still going, silently
+  // reattach. What else arrived meanwhile is merged by the sync, which asks
+  // on its own on this same return (ADR-320); comparing page LENGTHS here
+  // missed every message once 50 were loaded.
   const isReloadingRef = useRef(false);
-  const lastMessageCountRef = useRef(0);
-
-  // Track message count for comparison
-  useEffect(() => {
-    lastMessageCountRef.current = messages.length;
-  }, [messages.length]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const handleVisibilityChange = async () => {
-      // Guard: only reload when visible, authenticated, not typing, and not already reloading
+      // Guard: only when visible, authenticated, not typing, not already running
       if (
         document.visibilityState !== 'visible' ||
         !user ||
@@ -796,32 +663,21 @@ export default function ChatPage() {
       isReloadingRef.current = true;
 
       try {
-        const page = await loadConversationPage();
-
-        // ADR-117 Lot 2: the OS may have dropped the SSE subscription while
-        // backgrounded — if the run is still going, silently reattach (the
-        // isTyping guard above already skips this when a stream is active).
         const resumed = await checkAndResumeActiveRun();
-
-        // Update when there are new messages (avoid unnecessary re-renders)
-        // OR when a resume just started: a connection dropped mid-stream may
-        // have left a stale partial bubble + error bubble behind — replace
-        // with DB truth so the resumed bubble isn't duplicated. The reducer's
-        // SET_MESSAGES anti-race guard preserves the resuming bubble itself.
-        if (page.messages.length > lastMessageCountRef.current || resumed) {
-          logger.debug('New messages detected on foreground return', {
-            component: 'ChatPage',
-            previousCount: lastMessageCountRef.current,
-            newCount: page.messages.length,
-            resumed,
-          });
+        if (resumed) {
+          // A connection dropped mid-stream may have left a stale partial
+          // bubble + error bubble behind — replace with DB truth so the
+          // resumed bubble isn't duplicated. The reducer's SET_MESSAGES
+          // anti-race guard preserves the resuming bubble itself. A failed
+          // read THROWS (caught below): an empty page must never replace
+          // the thread.
+          const page = await readNewestPage();
           setMessages(page.messages);
-          // Pagination state aligned with the freshly loaded newest page.
           setHasMoreOlder(page.hasMore);
           setOldestCursor(page.nextCursor);
         }
       } catch (error) {
-        logger.warn('Failed to reload messages on visibility change', {
+        logger.warn('Failed to resume the run on visibility change', {
           component: 'ChatPage',
           error: error instanceof Error ? error.message : String(error),
         });
@@ -835,7 +691,7 @@ export default function ChatPage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user, apiAvailable, isTyping, loadConversationPage, setMessages, checkAndResumeActiveRun]);
+  }, [user, apiAvailable, isTyping, readNewestPage, setMessages, checkAndResumeActiveRun]);
 
   // W4a: the confirmation is an in-app AlertDialog, not `window.confirm` — an
   // OS dialog ignores the theme, the chosen typography and the app's language
@@ -891,15 +747,14 @@ export default function ChatPage() {
           `--connector-banner-h` is the height of the connector-health banner
           the dashboard layout may insert ABOVE this shell, and
           `--meeting-banner-h` the height of the sticky recording banner
-          (ADR-259) placed above the page content; each defaults to 0px,
+          (ADR-259) and `--radio-banner-h` the radio's bar under it (ADR-324),
+          both placed above the page content; each defaults to 0px,
           so this arithmetic is unchanged whenever no banner is mounted. Without
           it, a broken connector would push the composer below the fold — the
           constant above cannot know about a block added after it was written. */}
-      <div className="flex h-[calc(100vh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px))] supports-[height:100dvh]:h-[calc(100dvh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px))] gap-4">
+      <div className="flex h-[calc(100vh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px)-var(--radio-banner-h,0px))] supports-[height:100dvh]:h-[calc(100dvh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px)-var(--radio-banner-h,0px))] gap-4">
         {/* Main Chat Area */}
-        <div
-          className="flex flex-col flex-1 min-w-0 bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden"
-        >
+        <div className="flex flex-col flex-1 min-w-0 bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden">
           {/* Messages area. The header + search + banner block is STICKY INSIDE
               this scroll container (2026-07-30): backdrop-blur only renders
               what actually passes behind the surface, and this chat shell is a
@@ -1117,32 +972,34 @@ export default function ChatPage() {
                 />
                 <BookmarkStateProvider enabled={bookmarksEnabled(appConfig)}>
                   <PeersAvailabilityProvider available={peersAvailable(appConfig)}>
-                    <ChatMessageList
-                      messages={displayedMessages}
-                      isTyping={isTyping && !searchQuery}
-                      activeStreamId={searchQuery ? null : activeStreamId}
-                      streamPhase={streamPhase}
-                      browserScreenshot={browserScreenshot}
-                      // Scroll-up pagination — disabled while the user is searching
-                      // (search filters client-side over already-loaded messages
-                      // only, so a sentinel would conflate "no match in this page"
-                      // with "more remote history exists").
-                      hasMoreOlder={hasMoreOlder && !searchQuery}
-                      isLoadingOlder={isLoadingOlder}
-                      onLoadOlder={handleLoadOlder}
-                      searchHighlight={highlightTerm}
-                      // UXR Lot 3 (A3): floating return button — in history view it
-                      // delegates to the QW-2 return-to-present page swap.
-                      historyView={historyView}
-                      onReturnToPresent={handleReturnToPresent}
-                      ownSendTick={ownSendTick}
-                      onRetry={handleRetry}
-                      onPrefillComposer={handleFollowupPick}
-                      // W8: an empty chat offers three ways in. Same rail as the
-                      // follow-up chips — it prefills the composer, never sends.
-                      onStarterPick={handleFollowupPick}
-                      groundedSuggestions={groundedSuggestions}
-                    />
+                    <EmailShareAvailabilityProvider available={emailShareAvailable(appConfig)}>
+                      <ChatMessageList
+                        messages={displayedMessages}
+                        isTyping={isTyping && !searchQuery}
+                        activeStreamId={searchQuery ? null : activeStreamId}
+                        streamPhase={streamPhase}
+                        browserScreenshot={browserScreenshot}
+                        // Scroll-up pagination — disabled while the user is searching
+                        // (search filters client-side over already-loaded messages
+                        // only, so a sentinel would conflate "no match in this page"
+                        // with "more remote history exists").
+                        hasMoreOlder={hasMoreOlder && !searchQuery}
+                        isLoadingOlder={isLoadingOlder}
+                        onLoadOlder={handleLoadOlder}
+                        searchHighlight={highlightTerm}
+                        // UXR Lot 3 (A3): floating return button — in history view it
+                        // delegates to the QW-2 return-to-present page swap.
+                        historyView={historyView}
+                        onReturnToPresent={handleReturnToPresent}
+                        ownSendTick={ownSendTick}
+                        onRetry={handleRetry}
+                        onPrefillComposer={handleFollowupPick}
+                        // W8: an empty chat offers three ways in. Same rail as the
+                        // follow-up chips — it prefills the composer, never sends.
+                        onStarterPick={handleFollowupPick}
+                        groundedSuggestions={groundedSuggestions}
+                      />
+                    </EmailShareAvailabilityProvider>
                   </PeersAvailabilityProvider>
                 </BookmarkStateProvider>
               </div>

@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import AGENT_BROWSER, CONTEXT_DOMAIN_BROWSERS
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import (
@@ -221,12 +222,10 @@ async def _get_session(
     if pool is None:
         raise ValueError("Browser not enabled")
 
-    # Extract user preferences from runtime config for browser locale/timezone
-    (runtime.config.get("configurable") or {}) if runtime else {}
-    # Language and timezone come from the typed context (ADR-231); its own
-    # defaults are the canonical ones, so the inline "fr" literal is gone.
+    # The browser's locale and timezone come from the typed context (ADR-231);
+    # without one, the declared language (ADR-323).
     _ctx = tool_runtime_context(runtime)
-    user_language = _ctx.language if _ctx is not None else settings.default_language
+    user_language = resolve_language(_ctx.language if _ctx is not None else None)
     user_timezone = _ctx.timezone if _ctx is not None else DEFAULT_USER_DISPLAY_TIMEZONE
 
     session = await pool.acquire_session(user_id, user_language, user_timezone)

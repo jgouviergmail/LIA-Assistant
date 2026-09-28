@@ -122,6 +122,20 @@ export function getApiErrorDetail(error: unknown): string | undefined {
  * @returns The code, or `undefined` when the refusal is not coded.
  */
 export function getApiErrorCode(error: unknown): string | undefined {
+  const code = getApiErrorFields(error)?.code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+/**
+ * The facts a coded refusal carries beside its code (`detail: { code, max_minutes }`).
+ *
+ * A bound the API enforces travels with the refusal that names it, so the
+ * sentence can quote it rather than a number the page would have to guess.
+ *
+ * @param error - Anything a `catch` block received.
+ * @returns The coded refusal's `detail`, or `undefined` when the refusal is not coded.
+ */
+export function getApiErrorFields(error: unknown): Readonly<Record<string, unknown>> | undefined {
   if (!isRecord(error)) {
     return undefined;
   }
@@ -130,5 +144,44 @@ export function getApiErrorCode(error: unknown): string | undefined {
     return undefined;
   }
   const code = data.detail.code;
-  return typeof code === 'string' && code.trim() ? code : undefined;
+  return typeof code === 'string' && code.trim() ? data.detail : undefined;
+}
+
+/**
+ * The HTTP status a rejected API call carries, when it carries one.
+ *
+ * Duck-typed like the rest of this module, so it serves the browser client's
+ * `ApiError` without importing it.
+ *
+ * @param error - Anything a `catch` block received.
+ * @returns The status, or `undefined` for a transport failure.
+ */
+export function getApiErrorStatus(error: unknown): number | undefined {
+  const status = isRecord(error) ? error.status : undefined;
+  return typeof status === 'number' ? status : undefined;
+}
+
+/**
+ * The refusals whose `detail` the API translated for the reader (a ceiling, an
+ * operator's switch). Any other failure keeps the caller's own sentence: a
+ * 404's or a 500's detail is an English fallback nobody should read.
+ */
+const TRANSLATED_REFUSALS: ReadonlySet<number> = new Set([403, 409]);
+
+/**
+ * The sentence to show for a refused mutation.
+ *
+ * Duck-typed on `.status` like the rest of this module, so it serves the
+ * browser client's `ApiError` without importing it.
+ *
+ * @param error - What the mutation rejected with.
+ * @param fallback - The caller's own translated sentence.
+ * @returns The server's translated sentence when it carries one, else the fallback.
+ */
+export function refusalSentence(error: unknown, fallback: string): string {
+  const status = getApiErrorStatus(error);
+  if (status !== undefined && TRANSLATED_REFUSALS.has(status)) {
+    return getApiErrorDetail(error) ?? fallback;
+  }
+  return fallback;
 }

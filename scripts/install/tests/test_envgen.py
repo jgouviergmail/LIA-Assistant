@@ -213,3 +213,11 @@ def test_live_mode_follows_the_wizard_answer_and_defaults_to_disabled() -> None:
     public = replace(_public(Exposure.LAN), live_mode=True)
     env = derive_environment(public, generate_secrets())
     assert env["LIVE_ENABLED"] == "true"
+
+
+def test_personal_radio_follows_the_wizard_answer_and_defaults_to_disabled() -> None:
+    env = derive_environment(_public(Exposure.LAN), generate_secrets())
+    assert env["RADIO_ENABLED"] == "false"
+    public = replace(_public(Exposure.LAN), personal_radio=True)
+    env = derive_environment(public, generate_secrets())
+    assert env["RADIO_ENABLED"] == "true"

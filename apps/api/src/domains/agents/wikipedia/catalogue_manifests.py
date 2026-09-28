@@ -24,7 +24,7 @@ _LANG_PARAM = ParameterSchema(
     name="language",
     type="string",
     required=False,
-    description="Lang code (e.g. 'fr', 'en'). Def: 'fr'.",
+    description="Lang code (e.g. 'fr', 'en'). Def: the user's.",
     semantic_type="language_code",
 )
 

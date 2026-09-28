@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 
+from src.core.config import settings
 from src.core.i18n import SUPPORTED_LANGUAGES
 from src.core.i18n_api_messages import APIMessages
 
@@ -64,25 +65,25 @@ class TestConversationDefaultTitle:
             "Conversation du 26/07/2026"
         )
 
-    def test_unknown_language_falls_back_to_english(self) -> None:
+    def test_unknown_language_falls_back_to_the_instance_default(self) -> None:
+        """An unsupported code reads as the instance default, like at the chokepoint."""
         assert APIMessages.conversation_default_title(
             SAMPLE, "pt"
-        ) == APIMessages.conversation_default_title(SAMPLE, "en")
+        ) == APIMessages.conversation_default_title(SAMPLE, settings.default_language)
 
     def test_table_is_keyed_on_the_backend_canonical_chinese_code(self) -> None:
-        """Backend canonical is ``zh-CN``. This table follows the module's
-        convention (plain ``.get(language, en)``, no normalization) — routing a
-        raw locale through ``normalize_language`` is the CALLER's job, and is
-        pinned on the service below. A table keyed on ``zh`` would break the
-        nominal path, so the canonical code must resolve."""
+        """Backend canonical is ``zh-CN``: a table keyed on ``zh`` would break
+        the nominal path, so the canonical code must resolve (the lookup
+        normalises any other spelling itself, ADR-323)."""
         assert APIMessages.conversation_default_title(
             SAMPLE, "zh-CN"
         ) != APIMessages.conversation_default_title(SAMPLE, "en")
 
-    def test_no_language_defaults_to_french(self) -> None:
-        """Callers that cannot resolve a language keep today's behaviour."""
+    def test_no_language_reads_the_instance_default(self) -> None:
+        """A caller that names no language writes in the declared one — here,
+        with nothing declared, the instance's configured default (ADR-323)."""
         assert APIMessages.conversation_default_title(SAMPLE) == (
-            APIMessages.conversation_default_title(SAMPLE, "fr")
+            APIMessages.conversation_default_title(SAMPLE, settings.default_language)
         )
 
 
@@ -121,17 +122,15 @@ class TestServiceGeneratesLocalizedTitle:
         generated = ConversationService()._generate_title(language)
         assert skeleton(generated) == skeleton(reference)
 
-    def test_defaults_to_french_when_no_language_is_given(self) -> None:
+    def test_no_language_reads_the_instance_default(self) -> None:
         from src.domains.conversations.service import ConversationService
 
         service = ConversationService()
-        assert service._generate_title() == service._generate_title("fr")
+        assert service._generate_title() == service._generate_title(settings.default_language)
 
     def test_normalizes_a_raw_locale_before_lookup(self) -> None:
-        """The service is the chokepoint: a raw frontend locale (``zh``,
-        ``fr-FR``) must be routed through ``normalize_language`` so it lands on
-        the backend-canonical entry instead of silently falling back to
-        English."""
+        """A raw frontend locale (``zh``, ``fr-FR``) lands on its backend-canonical
+        entry, never on another language's."""
         from src.domains.conversations.service import ConversationService
 
         service = ConversationService()
@@ -140,7 +139,7 @@ class TestServiceGeneratesLocalizedTitle:
 
 
 class TestEveryCallSitePassesTheLanguage:
-    """No caller may silently fall back to French.
+    """No caller may silently write the title in a language nobody chose.
 
     The localized table and the localized helper are useless if the callers
     keep invoking ``get_or_create_conversation(user_id, db)``. That is exactly
@@ -181,5 +180,6 @@ class TestEveryCallSitePassesTheLanguage:
         ]
         assert offenders == [], (
             "these callers create a conversation without stating a language, so "
-            "its user-facing default title falls back to French: " + ", ".join(offenders)
+            "its user-facing default title is written in a language nobody chose: "
+            + ", ".join(offenders)
         )

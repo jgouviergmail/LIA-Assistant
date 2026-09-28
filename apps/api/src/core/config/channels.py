@@ -186,7 +186,11 @@ class ChannelsSettings(BaseSettings):
         default=CHANNEL_MESSAGE_LOCK_TTL_SECONDS_DEFAULT,
         ge=30,
         le=300,
-        description="Redis lock TTL per-user for sequential message processing (seconds).",
+        description=(
+            "Crash bound of the person's turn claim (seconds): a running turn re-arms "
+            "it several times within it, so the claim expires under a turn only when "
+            "its worker died or the cache stayed unreachable."
+        ),
     )
 
     telegram_update_dedup_ttl_seconds: int = Field(

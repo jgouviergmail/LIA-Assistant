@@ -23,9 +23,13 @@
  *  - a failed turn is reported as FAILED (the server-side bridge's own word,
  *    ADR-301), never as an exception at the voice — nor as « still working »
  *    about a turn that will never land in the chat;
- *  - an empty request is answered without a turn.
+ *  - an empty request is answered without a turn;
+ *  - LIA's pending question is flattened and bounded like an answer: it
+ *    carries the draft card, which reached the voice as raw Markdown or
+ *    `lia-card` HTML, never cut (review 14).
  */
 import { htmlToPlainText } from '@/lib/html-plain-text';
+import { readAsMarkdown } from '@/lib/markdown-references';
 
 import type { LiveDelegation, LiveDelivery } from './types';
 
@@ -121,8 +125,16 @@ export function boundToTokens(text: string, maxTokens: number, cutLine: string):
   return `${kept.trimEnd()} ${cutLine}`;
 }
 
-/** Markdown, HTML documents and cards → the prose a voice can say. */
+/**
+ * Markdown, HTML documents and cards → the prose a voice can say, every
+ * character reference read as the chat reads it (`readAsMarkdown`, the twin
+ * of the server's `read_as_markdown`, pinned by the shared corpus).
+ */
 export function flattenForVoice(content: string): string {
+  return readAsMarkdown(content, flattenShielded);
+}
+
+function flattenShielded(content: string): string {
   return htmlToPlainText(content)
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/^#{1,6}\s+(.+)$/gm, '$1.')
@@ -235,16 +247,18 @@ export class DelegationBridge {
   }
 
   /**
-   * What the voice is handed once the turn ended: the question, else the
-   * bounded answer — with the delivery note of the register it was said in.
+   * What the voice is handed once the turn ended: LIA's question, else its
+   * answer — either flattened and bounded — with the delivery note of the
+   * register it was said in.
    */
   private async result(): Promise<{ result: string; note: string | null }> {
     const { text, pendingQuestion, register } = await this.deps.readAnswer();
     const note = (register && this.deps.toneLines?.[register]) || null;
-    if (pendingQuestion) return { result: pendingQuestion, note };
+    // The question IS the result, and it is said like one: it carries the
+    // draft card, which the server's bridge flattens and bounds the same way.
     return {
       result: boundToTokens(
-        flattenForVoice(text),
+        flattenForVoice(pendingQuestion || text),
         this.deps.resultMaxTokens,
         this.deps.lines.result_cut
       ),

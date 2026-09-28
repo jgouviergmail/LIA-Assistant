@@ -22,7 +22,7 @@ from src.core.field_names import (
     FIELD_STATUS,
     FIELD_SUCCESS,
 )
-from src.core.i18n import normalize_language
+from src.core.i18n import resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_hitl import HitlMessages
 from src.core.i18n_types import Language
@@ -39,7 +39,7 @@ def format_agent_results_for_prompt(
     current_turn_id: int | None = None,
     data_registry: dict[str, Any] | None = None,
     user_timezone: str = "UTC",
-    user_language: str = "en",
+    user_language: str | None = None,
     override_action: str | None = None,
     user_viewport: str = "desktop",
     use_text_summary: bool = True,  # DEPRECATED - kept for compatibility
@@ -56,7 +56,7 @@ def format_agent_results_for_prompt(
         current_turn_id: Optional turn ID to filter results.
         data_registry: DEPRECATED - no longer used (data in {data_for_filtering}).
         user_timezone: User's IANA timezone. Default: "UTC".
-        user_language: User's language code. Default: "en".
+        user_language: User's language code. Default: the declared language.
         override_action: Optional action override. Default: None.
         user_viewport: Device viewport type. Default: "desktop".
         use_text_summary: DEPRECATED - ignored.
@@ -72,7 +72,9 @@ def format_agent_results_for_prompt(
 
     # Only format status messages (errors, connector_disabled, user_rejected)
     # Data details are now in {data_for_filtering} via generate_data_for_filtering()
-    status_messages = _format_status_messages(agent_results, current_turn_id, user_language)
+    status_messages = _format_status_messages(
+        agent_results, current_turn_id, resolve_language(user_language)
+    )
 
     return status_messages
 
@@ -183,7 +185,7 @@ def _error_summaries(*, agent_name: str, result: dict[str, Any], language: Langu
 def _format_status_messages(
     agent_results: dict[str, Any],
     current_turn_id: int | None = None,
-    user_language: str = "en",
+    user_language: str | None = None,
 ) -> str:
     """Format status messages for agent results.
 
@@ -202,7 +204,7 @@ def _format_status_messages(
         Formatted status messages string (empty when there is nothing to say).
     """
     summaries: list[str] = []
-    language = normalize_language(user_language)
+    language = resolve_language(user_language)
 
     for composite_key, result in agent_results.items():
         agent_name = _agent_name_for(composite_key, current_turn_id)

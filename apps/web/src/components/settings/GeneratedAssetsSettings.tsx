@@ -19,12 +19,23 @@
  *   card, because a file that vanishes without warning is the defect the
  *   expiry notice was written for;
  * - a bulk delete reports what it removed AND what it skipped: a file that
- *   expired between the listing and the click must not be counted as deleted.
+ *   expired between the listing and the click must not be counted as deleted;
+ * - a file may be KEPT past its deadline (ADR-319), one at a time or as a
+ *   selection, within ceilings the section states before a click is refused.
  */
 
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Bookmark, Camera, FileText, FolderOpen, ImageIcon, Trash2 } from 'lucide-react';
+import {
+  Bookmark,
+  Camera,
+  FileText,
+  FolderOpen,
+  ImageIcon,
+  Pin,
+  PinOff,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { BookmarkList } from '@/components/settings/generated-assets/BookmarkList';
@@ -40,17 +51,24 @@ import { useConfirm } from '@/components/ui/use-confirm';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { PeersAvailabilityProvider } from '@/lib/peers/availability-context';
+import { EmailShareAvailabilityProvider } from '@/lib/email-share/availability-context';
+import { emailShareAvailable } from '@/lib/email-share/share';
 import { peersAvailable } from '@/lib/peers/image-share';
 import { useGeneratedAssets } from '@/hooks/useGeneratedAssets';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { refusalSentence } from '@/lib/api-error';
 import { formatFileSize } from '@/lib/format';
+import { isKept, keepOffered } from '@/lib/generated-assets/display';
 import { activeAssetFilterCount } from '@/lib/generated-assets/filters';
 import type {
+  GeneratedAsset,
   GeneratedAssetFamily,
   GeneratedAssetFilters,
+  GeneratedAssetKeepUsage,
   GeneratedAssetsDeleteResult,
+  GeneratedAssetsKeepResult,
 } from '@/types/generated-assets';
 
 const FAMILIES: readonly { key: GeneratedAssetFamily; icon: typeof ImageIcon }[] = [
@@ -98,47 +116,121 @@ export function GeneratedAssetsSettings({ lng }: GeneratedAssetsSettingsProps) {
       {/* A generated image may be shared with a connection (ADR-316): read
           ONCE here from the configuration, never by every card. */}
       <PeersAvailabilityProvider available={peersAvailable(config)}>
-        <Tabs value={shown} onValueChange={value => setTab(value as SectionTab)}>
-          <TabsList className={`grid w-full ${columns}`}>
-            {/* Equal columns are ~60-80 px each at 320 px: the mark yields to
+        <EmailShareAvailabilityProvider available={emailShareAvailable(config)}>
+          <Tabs value={shown} onValueChange={value => setTab(value as SectionTab)}>
+            <TabsList className={`grid w-full ${columns}`}>
+              {/* Equal columns are ~60-80 px each at 320 px: the mark yields to
               the word below `sm` (the `SkillGuideModal` precedent), because a
               tab reading « Docu… » names nothing. */}
+              {FAMILIES.map(({ key, icon: Icon }) => (
+                <TabsTrigger
+                  key={key}
+                  value={key}
+                  className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm"
+                >
+                  <Icon className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
+                  <span className="truncate">{t(`settings.generated_assets.family.${key}`)}</span>
+                </TabsTrigger>
+              ))}
+              {bookmarksEnabled && (
+                <TabsTrigger
+                  value={BOOKMARKS_TAB}
+                  className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm"
+                  data-testid="bookmarks-tab"
+                >
+                  <Bookmark className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
+                  <span className="truncate">
+                    {t('settings.generated_assets.family.bookmarks')}
+                  </span>
+                </TabsTrigger>
+              )}
+            </TabsList>
             {FAMILIES.map(({ key, icon: Icon }) => (
-              <TabsTrigger
-                key={key}
-                value={key}
-                className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm"
-              >
-                <Icon className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
-                <span className="truncate">{t(`settings.generated_assets.family.${key}`)}</span>
-              </TabsTrigger>
+              <TabsContent key={key} value={key} className="mt-4">
+                {/* Mounted only while its tab is open: four lists fetching at
+                once would open four pages nobody is looking at. */}
+                {shown === key && <Gallery lng={lng} family={key} icon={Icon} />}
+              </TabsContent>
             ))}
             {bookmarksEnabled && (
-              <TabsTrigger
-                value={BOOKMARKS_TAB}
-                className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm"
-                data-testid="bookmarks-tab"
-              >
-                <Bookmark className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
-                <span className="truncate">{t('settings.generated_assets.family.bookmarks')}</span>
-              </TabsTrigger>
+              <TabsContent value={BOOKMARKS_TAB} className="mt-4">
+                {shown === BOOKMARKS_TAB && <BookmarkList lng={lng} />}
+              </TabsContent>
             )}
-          </TabsList>
-          {FAMILIES.map(({ key, icon: Icon }) => (
-            <TabsContent key={key} value={key} className="mt-4">
-              {/* Mounted only while its tab is open: four lists fetching at
-                once would open four pages nobody is looking at. */}
-              {shown === key && <Gallery lng={lng} family={key} icon={Icon} />}
-            </TabsContent>
-          ))}
-          {bookmarksEnabled && (
-            <TabsContent value={BOOKMARKS_TAB} className="mt-4">
-              {shown === BOOKMARKS_TAB && <BookmarkList lng={lng} />}
-            </TabsContent>
-          )}
-        </Tabs>
+          </Tabs>
+        </EmailShareAvailabilityProvider>
       </PeersAvailabilityProvider>
     </SettingsSection>
+  );
+}
+
+/** What a family holds, what the account keeps, and what to do with a selection. */
+function GalleryToolbar({
+  lng,
+  total,
+  totalBytes,
+  keep,
+  chosen,
+  onKeep,
+  onRelease,
+  onDelete,
+}: {
+  lng: Language;
+  total: number;
+  totalBytes: number;
+  keep: GeneratedAssetKeepUsage | null;
+  chosen: readonly GeneratedAsset[];
+  onKeep: (assets: readonly GeneratedAsset[]) => void;
+  onRelease: (assets: readonly GeneratedAsset[]) => void;
+  onDelete: () => void;
+}) {
+  const { t } = useTranslation(lng);
+  const offered = keepOffered(keep);
+  const toKeep = chosen.filter(asset => !isKept(asset));
+  const toRelease = chosen.filter(isKept);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="space-y-0.5">
+        <p className="text-sm text-muted-foreground">
+          {/* Both figures are EXACT over the whole filtered set, never over the
+              page: a gallery says how many files it holds and how much room
+              they take (ADR-185). */}
+          {t('settings.generated_assets.total', { count: total })}
+          {totalBytes > 0 && ` · ${formatFileSize(totalBytes)}`}
+        </p>
+        {keep && offered && (
+          // The ceilings are STATED before a click is refused (ADR-184).
+          <p className="text-xs text-muted-foreground" data-testid="generated-assets-keep-usage">
+            {t('settings.generated_assets.keep_usage', {
+              kept: keep.kept_files,
+              max: keep.max_files,
+              size: formatFileSize(keep.kept_bytes),
+              maxSize: formatFileSize(keep.max_bytes),
+            })}
+          </p>
+        )}
+      </div>
+      {chosen.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {offered && toKeep.length > 0 && (
+            <Button size="sm" onClick={() => onKeep(toKeep)}>
+              <Pin className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              {t('settings.generated_assets.keep_selected', { count: toKeep.length })}
+            </Button>
+          )}
+          {toRelease.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => onRelease(toRelease)}>
+              <PinOff className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              {t('settings.generated_assets.release_selected', { count: toRelease.length })}
+            </Button>
+          )}
+          <Button variant="destructive" size="sm" onClick={onDelete}>
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+            {t('settings.generated_assets.delete_selected', { count: chosen.length })}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -164,12 +256,42 @@ function Gallery({
     { ids: string[] },
     GeneratedAssetsDeleteResult
   >({ method: 'POST', componentName: 'GeneratedAssetsSettings' });
+  const { mutate: changeKeep, loading: keeping } = useApiMutation<
+    { ids: string[]; kept: boolean },
+    GeneratedAssetsKeepResult
+  >({ method: 'POST', componentName: 'GeneratedAssetsSettings' });
 
   const activeCount = useMemo(() => activeAssetFilterCount(filters), [filters]);
-  const chosen = useMemo(
-    () => gallery.items.filter(item => selected.has(item.id)).map(item => item.id),
+  const chosenAssets = useMemo(
+    () => gallery.items.filter(item => selected.has(item.id)),
     [gallery.items, selected]
   );
+  const chosen = useMemo(() => chosenAssets.map(item => item.id), [chosenAssets]);
+
+  /** Keep files past their deadline, or release them — and say what changed. */
+  const setKept = async (assets: readonly GeneratedAsset[], kept: boolean) => {
+    if (assets.length === 0 || keeping) return;
+    let result: GeneratedAssetsKeepResult | undefined;
+    try {
+      result = await changeKeep('/generated-assets/keep', {
+        ids: assets.map(asset => asset.id),
+        kept,
+      });
+    } catch (error) {
+      // A ceiling refusal carries the server's translated sentence (ADR-319).
+      toast.error(refusalSentence(error, t('settings.generated_assets.keep_error')));
+      return;
+    }
+    if (!result) return;
+    if (result.updated.length > 0) {
+      const key = kept ? 'kept_toast' : 'released_toast';
+      toast.success(t(`settings.generated_assets.${key}`, { count: result.updated.length }));
+    }
+    if (result.skipped.length > 0) {
+      toast.info(t('settings.generated_assets.skipped', { count: result.skipped.length }));
+    }
+    gallery.refetch();
+  };
 
   const deleteChosen = async () => {
     if (chosen.length === 0 || removing) return;
@@ -182,11 +304,16 @@ function Gallery({
       destructive: true,
     });
     if (!ok) return;
-    const result = await removeMany('/generated-assets/delete', { ids: chosen });
-    if (!result) {
-      toast.error(t('common.error'));
+    let result: GeneratedAssetsDeleteResult | undefined;
+    try {
+      result = await removeMany('/generated-assets/delete', { ids: chosen });
+    } catch (error) {
+      // The mutation REJECTS on failure (it never resolves to null): without
+      // this catch a refused delete was an unhandled rejection and no toast.
+      toast.error(refusalSentence(error, t('common.error')));
       return;
     }
+    if (!result) return;
     setSelected(new Set());
     // What actually went, and what did not: a file the cleanup removed between
     // the listing and the click is skipped, never counted as deleted.
@@ -207,21 +334,16 @@ function Gallery({
           reader came to look at their files, not at four fields and a button. */}
       <GeneratedAssetFiltersBar filters={filters} onChange={setFilters} collapsible={!wide} />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          {/* Both figures are EXACT over the whole filtered set, never over the
-              page: a gallery says how many files it holds and how much room
-              they take (ADR-185). */}
-          {t('settings.generated_assets.total', { count: gallery.total })}
-          {gallery.totalBytes > 0 && ` · ${formatFileSize(gallery.totalBytes)}`}
-        </p>
-        {chosen.length > 0 && (
-          <Button variant="destructive" size="sm" onClick={() => void deleteChosen()}>
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-            {t('settings.generated_assets.delete_selected', { count: chosen.length })}
-          </Button>
-        )}
-      </div>
+      <GalleryToolbar
+        lng={lng}
+        total={gallery.total}
+        totalBytes={gallery.totalBytes}
+        keep={gallery.keep}
+        chosen={chosenAssets}
+        onKeep={assets => void setKept(assets, true)}
+        onRelease={assets => void setKept(assets, false)}
+        onDelete={() => void deleteChosen()}
+      />
 
       {gallery.firstLoad ? (
         <>
@@ -266,6 +388,8 @@ function Gallery({
           totalPages={gallery.totalPages}
           onPage={gallery.setPage}
           onDeleted={gallery.refetch}
+          keepOffered={keepOffered(gallery.keep)}
+          onKeepToggle={asset => void setKept([asset], !isKept(asset))}
         />
       )}
     </div>

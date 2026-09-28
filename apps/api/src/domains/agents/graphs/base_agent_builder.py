@@ -38,6 +38,7 @@ from typing_extensions import TypedDict
 
 from src.core.config import settings
 from src.core.field_names import FIELD_AGENT_NAME, FIELD_METADATA, FIELD_STATUS
+from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 from src.infrastructure.observability.logging import get_logger
@@ -763,10 +764,27 @@ def create_agent_config_from_settings(
     return config
 
 
+def domain_context_instructions(domain: str) -> str:
+    """The context-tool block of a domain agent's system prompt.
+
+    One versioned text (``agent_context_domain_instructions``) for every agent
+    whose results feed a registry domain, rendered for that domain.
+
+    Args:
+        domain: The registry domain the agent's results are stored under
+            (e.g. ``"events"``, ``"files"``).
+
+    Returns:
+        The rendered block, ready for the agent prompt's ``{context_instructions}``.
+    """
+    return load_prompt("agent_context_domain_instructions").format(domain=domain).strip()
+
+
 __all__ = [
     "AgentConfig",
     "LLMConfig",
     "build_generic_agent",
     "create_agent_config_from_settings",
     "create_agent_wrapper_node",  # Phase 6: Generic wrapper for callback propagation
+    "domain_context_instructions",
 ]

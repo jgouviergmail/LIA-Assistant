@@ -5,8 +5,8 @@
  * an OS dialog with no theme, no chosen typography, buttons labelled by the
  * operating system rather than by the app, and a blocked main thread. Its
  * wording was also wrong — it announced "the conversation history" while the
- * endpoint additionally purges every attachment of the user, AI-generated
- * images included.
+ * endpoint additionally purges the person's uploads. Generated files are
+ * retained in their gallery, as the current reset contract states.
  *
  * A browser is the only place that can prove the replacement really gates the
  * request: a unit test can assert the dialog renders, not that no DELETE goes
@@ -68,8 +68,10 @@ test.describe('reset conversation confirmation', () => {
     await expect(dialog).toBeVisible();
     expect(resetCalls, 'nothing may be deleted while the dialog is merely open').toBe(0);
 
-    // It says what is actually purged — attachments included.
-    await expect(dialog.getByText(/pièces jointes/i)).toBeVisible();
+    // It states both sides of the current contract: uploads removed,
+    // generated files retained in their gallery.
+    await expect(dialog.getByText(/les fichiers que tu as joints/)).toBeVisible();
+    await expect(dialog.getByText(/Les fichiers générés par LIA restent/)).toBeVisible();
 
     await dialog.getByRole('button', { name: 'Tout supprimer' }).click();
     await expect.poll(() => resetCalls).toBe(1);

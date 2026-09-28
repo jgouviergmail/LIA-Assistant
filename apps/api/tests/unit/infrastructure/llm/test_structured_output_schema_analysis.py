@@ -7,6 +7,12 @@ from the JSON schema alone, before any network call, and NOTHING re-checks it:
 a wrong "compatible" verdict surfaces later as an OpenAI rejection on a hot
 path, a wrong "incompatible" one silently gives up schema conformance.
 
+The strict SHAPE is the other: every object must state
+``additionalProperties: false`` and require every property, because the
+Responses path every current OpenAI model takes sends the schema unconverted
+(measured 2026-09-26: three schemas judged compatible answered 400 on every
+call).
+
 The depth walker is the subtle one. Pydantic v2 does not inline nested models —
 it emits them under ``$defs`` and references them with ``$ref``, so a walker
 that only descends ``properties`` and ``items`` sees a FLAT schema and reports
@@ -16,7 +22,7 @@ depth 1 for a model nested seven levels deep.
 from typing import Any
 
 import pytest
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.infrastructure.llm.structured_output import (
     _analyze_schema_strict_compatibility,
@@ -42,8 +48,26 @@ MAX_NESTING = 5
 class Flat(BaseModel):
     """The nominal strict-compatible shape."""
 
+    model_config = ConfigDict(extra="forbid")
+
     reasoning: str
     next_node: str
+
+
+class FlatTolerant(BaseModel):
+    """The same fields, extra keys tolerated: not strict-SHAPED."""
+
+    reasoning: str
+    next_node: str
+
+
+class WithDefault(BaseModel):
+    """Extra keys forbidden, but one field optional: not strict-SHAPED either."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reasoning: str
+    next_node: str = "end"
 
 
 class WithOpenDict(BaseModel):
@@ -59,21 +83,37 @@ class WithAnyField(BaseModel):
 
 
 class Leaf(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     value: str
 
 
 class Level3(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     leaf: Leaf
 
 
 class Level2(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     child: Level3
 
 
 class Nested(BaseModel):
     """Nested models are ``$ref``-ed, never inlined."""
 
+    model_config = ConfigDict(extra="forbid")
+
     child: Level2
+
+
+class NestedTolerant(BaseModel):
+    """A strict-shaped root over a child that tolerates extra keys."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    child: FlatTolerant
 
 
 class SelfReferential(BaseModel):
@@ -254,6 +294,21 @@ class TestStrictCompatibilityVerdict:
         compatible, reason = _analyze_schema_strict_compatibility(Flat)
         assert compatible is True
         assert reason == "compatible"
+
+    @pytest.mark.parametrize(
+        ("schema", "missing"),
+        [
+            (FlatTolerant, "/ allows extra keys"),
+            (WithDefault, "/ leaves next_node optional"),
+            (NestedTolerant, "/$defs/FlatTolerant allows extra keys"),
+        ],
+    )
+    def test_a_schema_without_the_strict_shape_goes_by_function_calling(
+        self, schema: type[BaseModel], missing: str
+    ) -> None:
+        compatible, reason = _analyze_schema_strict_compatibility(schema)
+        assert compatible is False
+        assert reason == f"not_strict_shaped: {missing}"
 
     def test_dict_any_schema_is_rejected(self) -> None:
         compatible, reason = _analyze_schema_strict_compatibility(WithOpenDict)

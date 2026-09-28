@@ -17,6 +17,7 @@ from uuid import UUID, uuid4
 import pytest
 from langchain.tools import ToolRuntime
 
+from src.core.i18n import language_scope
 from src.domains.agents.tools.base import APIKeyConnectorTool, ConnectorTool
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.connectors.models import ConnectorType
@@ -241,7 +242,12 @@ class TestKeylessServiceWithheldByTheInstance:
         service = MagicMock()
         service.is_connector_active = AsyncMock(return_value=False)
 
-        with patch("src.domains.agents.tools.base.get_dependencies", return_value=_deps(service)):
+        # The assertions read the English wording of a message written in the
+        # declared language.
+        with (
+            language_scope("en"),
+            patch("src.domains.agents.tools.base.get_dependencies", return_value=_deps(service)),
+        ):
             result = await _PlacesProbeTool().execute(_runtime(str(uuid4())))
 
         self._assert_instance_error(result)
@@ -251,6 +257,7 @@ class TestKeylessServiceWithheldByTheInstance:
         service.is_connector_active = AsyncMock(return_value=False)
 
         with (
+            language_scope("en"),
             patch(
                 "src.domains.connectors.provider_resolver.resolve_active_connector",
                 new=AsyncMock(return_value=ConnectorType.GOOGLE_WEATHER),

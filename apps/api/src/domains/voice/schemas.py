@@ -12,6 +12,8 @@ from typing import Final
 
 from pydantic import BaseModel, Field
 
+from src.core.i18n import resolve_language
+
 # Mapping from short ``audio_format`` token returned by ``TTSClient``
 # implementations (``mp3`` / ``opus`` / ``aac`` / ``flac`` / ``wav`` /
 # ``pcm``) to the corresponding MIME type used in
@@ -48,8 +50,8 @@ class VoiceCommentRequest(BaseModel):
         description="Personality prompt instruction for the voice comment style",
     )
     user_language: str = Field(
-        default="fr",
-        description="User's preferred language (ISO 639-1 code)",
+        default_factory=resolve_language,
+        description="User's preferred language (the declared one when not given)",
     )
     current_datetime: str = Field(
         ...,

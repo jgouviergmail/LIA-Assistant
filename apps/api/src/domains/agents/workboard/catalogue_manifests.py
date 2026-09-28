@@ -104,8 +104,8 @@ create_ticket_catalogue_manifest = ToolManifest(
     description=(
         "Creates a ticket on the user's workboard. Use when they want to keep "
         "track of something to do, note an idea, or ask LIA to take a task on "
-        "('mets ça sur mon tableau', 'crée un ticket pour…', 'note que je dois "
-        "…', 'occupe-toi de…'). Set assignee='lia' when they ask LIA to DO it "
+        "('put this on my board', 'create a ticket for…', 'note that I have "
+        "to…', 'take care of…'). Set assignee='lia' when they ask LIA to DO it "
         "— LIA then runs it on its own and comments the result on the ticket. "
         "To break a complex task down, create the parent first and call this "
         "again with parent_ticket for each step. NOT for a provider to-do "
@@ -245,8 +245,8 @@ update_ticket_catalogue_manifest = ToolManifest(
     description=(
         "Changes a ticket on the workboard: its column, priority, dates, "
         "title, description, who holds it, or whether the user follows it. "
-        "Use for 'passe ce ticket en cours', 'termine…', 'repousse… à jeudi', "
-        "'donne ce ticket à Marie', 'confie ça à LIA'. Set run_now=true to "
+        "Use for 'move this ticket to in progress', 'close…', 'push… back to "
+        "Thursday', 'give this ticket to Marie', 'hand this to LIA'. Set run_now=true to "
         "ask LIA to run a ticket it holds right away instead of waiting for "
         "the sweep. Only the fields given are changed."
     ),
@@ -407,9 +407,9 @@ list_tickets_catalogue_manifest = ToolManifest(
     description=(
         "Lists what is on the user's workboard, with the EXACT total beside "
         "the page. Filter by column, by who holds it, by priority, by what is "
-        "overdue, or by a fragment of the title. Use for 'qu'est-ce qu'il y a "
-        "sur mon tableau', 'qu'est-ce qui est en retard', 'ce que LIA a en "
-        "cours', 'les tickets de Marie'."
+        "overdue, or by a fragment of the title. Use for 'what is on my "
+        "board', 'what is overdue', 'what LIA is working on', 'Marie's "
+        "tickets'."
     ),
     parameters=[
         ParameterSchema(
@@ -503,7 +503,7 @@ get_ticket_catalogue_manifest = ToolManifest(
         "Reads ONE ticket in full: its description, its steps, its comment "
         "thread, and what the last LIA run produced — its outcome, what it "
         "cost, and the error code when it failed. Use before acting on a "
-        "ticket the user names, and to answer 'où en est…'."
+        "ticket the user names, and to answer 'where does … stand'."
     ),
     parameters=[_TICKET_REFERENCE],
     outputs=[

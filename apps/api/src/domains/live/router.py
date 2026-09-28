@@ -23,6 +23,7 @@ from src.core.constants import (
     LIVE_TURN_TEXT_MAX_CHARS,
 )
 from src.core.dependencies import get_db
+from src.core.i18n import normalize_language
 from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
 from src.domains.feature_switches.guard import capability_dependencies
@@ -68,7 +69,7 @@ router = APIRouter(
 
 
 def _language(user: User) -> str:
-    return user.language or settings.default_language
+    return normalize_language(user.language)
 
 
 @router.get("/config", response_model=LiveConfigResponse, summary="The bounds the client honours")

@@ -21,7 +21,12 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
-import type { GeneratedAssetFamily, GeneratedAssetFilters, GeneratedAssetList } from '@/types/generated-assets';
+import type {
+  GeneratedAssetFamily,
+  GeneratedAssetFilters,
+  GeneratedAssetKeepUsage,
+  GeneratedAssetList,
+} from '@/types/generated-assets';
 
 /** Rows per page. One rhythm for the three galleries. */
 export const GALLERY_PAGE_SIZE = 24;
@@ -32,6 +37,9 @@ export interface UseGeneratedAssetsReturn {
   total: number;
   /** EXACT bytes behind that count. */
   totalBytes: number;
+  /** What the account keeps past the deadline, and its ceilings (ADR-319);
+   *  null before the first payload. */
+  keep: GeneratedAssetKeepUsage | null;
   page: number;
   totalPages: number;
   setPage: (page: number) => void;
@@ -109,6 +117,7 @@ export function useGeneratedAssets(
     items: data?.items ?? [],
     total: data?.total ?? 0,
     totalBytes: data?.total_bytes ?? 0,
+    keep: data?.keep ?? null,
     page: shownPage,
     totalPages,
     setPage: useCallback((next: number) => setPage(Math.max(1, next)), []),

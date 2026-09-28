@@ -22,6 +22,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
+from src.core.i18n import language_scope
 from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 
 API_KEY = "BSA-test-key-1234567890"
@@ -103,8 +104,11 @@ class TestBraveSearchSuccess:
 
         assert captured[0].headers["X-Subscription-Token"] == API_KEY
 
-    async def test_query_params_include_q_count_and_language(self, client):
+    async def test_query_params_include_q_count_and_language(self):
         """q, count and search_lang are always sent."""
+        # Built with no language: the declared one, in Brave's own spelling.
+        with language_scope("zh-CN"):
+            client = BraveSearchClient(api_key=API_KEY, user_id=uuid4(), rate_limit_per_second=1000)
         captured: list[httpx.Request] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -119,7 +123,7 @@ class TestBraveSearchSuccess:
         params = dict(captured[0].url.params)
         assert params["q"] == "hello world"
         assert params["count"] == "7"
-        assert params["search_lang"] == "fr"  # constructor default
+        assert params["search_lang"] == "zh-hans"
 
     async def test_count_is_capped_per_endpoint(self, client):
         """count is capped at 20 for web and 50 for news."""

@@ -690,7 +690,8 @@ class DisplayModePreferenceRequest(BaseModel):
 
     response_display_mode: str = Field(
         ...,
-        description="Response display mode: 'cards' (HTML data cards), 'html' (rich formatting), 'markdown' (plain text)",
+        description="Response display mode: 'cards' (HTML data cards), 'html' (rich formatting), "
+        "'html_cards' (rich HTML with selected data cards), 'markdown' (plain text)",
     )
 
 

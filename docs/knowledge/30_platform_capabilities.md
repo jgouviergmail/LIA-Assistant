@@ -17,7 +17,7 @@ families so a wall of switches stays readable:
 - **reach and tools** — web search · web browsing · skills · MCP servers ·
   external channels · delegated sub-agents · the ephemeral Python sandbox ·
   the sandbox's network access (a switch of its own: an operator may keep the
-  calculator without the exit)
+  calculator without the exit) · sending a file or an answer by e-mail
 - **work and initiative** — the ticket board · proactive notifications ·
   anticipated moments · open loops
 - **people** — connections between accounts · relationship debriefs

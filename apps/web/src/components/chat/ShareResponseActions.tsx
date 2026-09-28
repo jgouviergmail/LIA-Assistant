@@ -1,5 +1,6 @@
 /**
- * « Share » and « Download » at the end of the assistant bubble action row.
+ * « Share », « Download » and « Send by e-mail » at the end of the assistant
+ * bubble action row.
  *
  * They replaced a « … » menu that hid both behind one more click (owner
  * request, 2026-09-24):
@@ -14,6 +15,8 @@
  *   capability: `send_peer_message` returns a draft the person confirms, so
  *   picking a connection PREFILLS the composer and the request takes the
  *   ordinary road, HITL confirmation included.
+ * - **Send by e-mail** attaches the very `.md` file Download writes (ADR-321);
+ *   its dialog, and the account's options, exist only once it is pressed.
  *
  * The connections are read only while that menu is open: this row renders on
  * every assistant bubble, and a closed menu on twenty bubbles must cost
@@ -35,8 +38,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { EmailShareButton } from '@/components/email-share/EmailShareButton';
 import { usePeerRecipientsState } from '@/hooks/usePeerRecipients';
 import type { ConnectionView } from '@/hooks/usePeerConnections';
+import { fallbackLng, isLanguage } from '@/i18n/settings';
+import { formatDate } from '@/lib/format';
 import { messageToPlainText } from '@/lib/message-clipboard';
 import { usePeersAvailable } from '@/lib/peers/availability-context';
 import { connectionsSettingsPath } from '@/lib/peers/recipients';
@@ -80,7 +86,7 @@ export function ShareResponseActions({
   timestamp,
   onPrefillComposer,
 }: ShareResponseActionsProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const peersAvailable = usePeersAvailable();
   const canRelay = Boolean(onPrefillComposer) && peersAvailable;
@@ -130,6 +136,21 @@ export function ShareResponseActions({
       >
         <Download className={ICON_CLASS} aria-hidden="true" />
       </ActionChipButton>
+      {/* The very file « Download » writes, sent by e-mail (ADR-321). */}
+      <EmailShareButton
+        variant="chip"
+        getSource={() => ({
+          kind: 'markdown',
+          filename: exportBaseName(timestamp),
+          text: messageToPlainText(content),
+        })}
+        defaultSubject={t('email_share.answer_subject', {
+          date: formatDate(timestamp, isLanguage(i18n.language) ? i18n.language : fallbackLng, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          }),
+        })}
+      />
     </>
   );
 }

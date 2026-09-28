@@ -23,6 +23,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.core.i18n import normalize_language
 from src.core.repository import BaseRepository
 from src.domains.chat.models import MessageTokenSummary, UserStatistics
 from src.domains.connectors.models import Connector, ConnectorStatus
@@ -275,17 +276,19 @@ class UserRepository(BaseRepository[User]):
         """
         Group user IDs by their language preference.
 
+        Keyed on the CANONICAL code (ADR-323): two spellings of one language
+        (``fr`` and ``fr-FR``, ``zh`` and ``zh-CN``) are one group, so the
+        language is translated once and every reader finds its translation.
+
         Args:
             rows: List of (user_id, language) tuples from query result
 
         Returns:
-            Dict mapping language code to list of user UUIDs.
+            Dict mapping canonical language code to list of user UUIDs.
         """
         grouped: dict[str, list[UUID]] = {}
         for user_id, language in rows:
-            if language not in grouped:
-                grouped[language] = []
-            grouped[language].append(user_id)
+            grouped.setdefault(normalize_language(language), []).append(user_id)
         return grouped
 
     async def get_active_users_grouped_by_language(self) -> dict[str, list[UUID]]:

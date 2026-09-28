@@ -30,8 +30,7 @@ const GROUP_DELIMITER = /<br\s*\/?>\s*<br\s*\/?>\s*<strong>(.*?)<\/strong>\s*<br
 /**
  * Grouping only kicks in when the answer clearly follows the grouped shape;
  * below this many headings the answer renders untouched. Guards against
- * accidentally restructuring answers that merely contain a bold run (e.g. the
- * zh q4, which is a different, short answer).
+ * accidentally restructuring answers that merely contain a bold run.
  */
 const MIN_GROUPS = 3;
 

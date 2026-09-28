@@ -80,7 +80,7 @@ def collect_resolved_person_names(
     """Extract normalized person names from the turn's identity mappings.
 
     The memory-resolution pipeline produces mappings whose values are person
-    names by construction ({"mon frère": "Marc Lemoine"}), which makes
+    names by construction ({"my brother": "Marc Lemoine"}), which makes
     exact matching against them a deterministic signal.
 
     Args:

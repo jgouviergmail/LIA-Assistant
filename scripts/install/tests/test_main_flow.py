@@ -44,6 +44,7 @@ ANSWERS = {
     "default_language": "fr",
     "observability": "no",
     "skill_sandbox": "no",
+    "personal_radio": "no",
     "admin_password": PASSWORD,
     "provider_key_deepseek": "dk-CANARY-11",
     "provider_key_openai": "sk-CANARY-22",

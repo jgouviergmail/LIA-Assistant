@@ -38,12 +38,14 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, DRAFT_RESULT_EXCERPT_MAX_CHARS
-from src.core.i18n import _, normalize_language
+from src.core.i18n import _, resolve_language
 from src.core.i18n_drafts import (
     EXCERPT_QUOTES,
     compose_result_header,
     get_draft_preview_labels,
+    label_separator,
 )
+from src.core.text_clip import clip_spelled, one_line
 from src.domains.agents.drafts.card_html import CardSurface, to_html_result
 from src.domains.agents.drafts.card_spec import (
     Block,
@@ -52,10 +54,13 @@ from src.domains.agents.drafts.card_spec import (
     ResultItem,
     ResultSpec,
     Row,
+    linkable,
+    shown_value,
     to_markdown_lines,
 )
 from src.domains.agents.drafts.display import (
     get_draft_display_config,
+    item_label,
     resolve_nested_value,
 )
 from src.domains.agents.drafts.markdown_grammar import (
@@ -63,6 +68,7 @@ from src.domains.agents.drafts.markdown_grammar import (
     readable,
 )
 from src.domains.agents.drafts.models import DraftAction
+from src.domains.shared.markdown_literal import markdown_data_literal
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -96,8 +102,6 @@ _STATUS_MARKS = {
     "error": "❌",
 }
 
-_URL_PREFIXES = ("http://", "https://")
-
 
 def _headline(domain_emoji: str, mark: str, message: str) -> str:
     """The first line: what happened, named once.
@@ -115,7 +119,7 @@ def _headline(domain_emoji: str, mark: str, message: str) -> str:
     Returns:
         The headline, with no leading or trailing whitespace.
     """
-    text = message.strip()
+    text = one_line(message)
     if text and "**" not in text:
         text = f"**{text}**"
     return " ".join(part for part in (domain_emoji, mark, text) if part)
@@ -161,8 +165,11 @@ def _detail_value(
             text = format_datetime_for_display(value, user_tz, user_lang, include_time=True)
 
     last_key = field.content_key.rsplit(".", 1)[-1]
-    if last_key in _TEXT_FIELDS and len(text) > _TEXT_FIELD_MAX_CHARS:
-        text = text[:_TEXT_FIELD_MAX_CHARS] + "…"
+    if last_key in _TEXT_FIELDS:
+        # Cut on a word, ellipsis included, like the label and the excerpt
+        # beside it — never folded: a body keeps its paragraphs. Spelled
+        # first, so what is spelled out never passes the bound.
+        text = clip_spelled(text, _TEXT_FIELD_MAX_CHARS)
     return text
 
 
@@ -194,10 +201,13 @@ def _detail_lines(
         if text is None:
             continue
         label = labels.get(field.label_key, field.content_key)
-        if text.startswith(_URL_PREFIXES):
-            # A URL-valued field (a conference link) reads as a link, never as
-            # a raw URL dump.
-            rows.append(Note(f"{field.emoji} [{label}]({text})"))
+        if field.is_link and linkable(text):
+            # A field DECLARED a link (a conference link) reads as one, never
+            # as a raw URL dump — and only a URL that cannot end the link
+            # early: « …/x) ![](https://…) » would have drawn an image after
+            # it. Any other value is data, a URL included: a task titled with
+            # one read « [Tâche](https://evil.example/login) » (review 14).
+            rows.append(Note(label, href=text, emoji=field.emoji))
         elif "\n" in text:
             # A value carrying its own paragraphs cannot live in a list item:
             # the second paragraph escapes the item and the list ends there.
@@ -211,7 +221,10 @@ def _detail_lines(
     html_link = data.get("html_link")
     if html_link:
         link_label = _("Link", user_lang)
-        rows.append(Note(f"🔗 [{link_label}]({html_link})"))
+        link = str(html_link)
+        rows.append(
+            Note(link_label, href=link, emoji="🔗") if linkable(link) else Row(link_label, link)
+        )
     return rows + blocks
 
 
@@ -222,9 +235,10 @@ def _batch_locale(batch_results: list[dict[str, Any]]) -> tuple[Language, str]:
         batch_results: The per-item results.
 
     Returns:
-        ``(language, timezone)``, falling back to the app defaults.
+        ``(language, timezone)``: the declared language and the default
+        timezone when no item carries one (ADR-323).
     """
-    raw_lang = "fr"
+    raw_lang: str | None = None
     user_tz = DEFAULT_USER_DISPLAY_TIMEZONE
     for item in batch_results:
         item_data = item.get("data") if isinstance(item.get("data"), dict) else {}
@@ -233,7 +247,7 @@ def _batch_locale(batch_results: list[dict[str, Any]]) -> tuple[Language, str]:
         user_tz = content.get("user_timezone") or user_tz
         if content.get("user_language") and content.get("user_timezone"):
             break
-    return normalize_language(raw_lang), user_tz
+    return resolve_language(raw_lang), user_tz
 
 
 def _item_label(config: DraftDisplayConfig | None, content: dict[str, Any]) -> str:
@@ -244,17 +258,11 @@ def _item_label(config: DraftDisplayConfig | None, content: dict[str, Any]) -> s
         content: That item's stored draft content.
 
     Returns:
-        The label, whitespace-collapsed and bounded, or ``""`` when the
-        registry's keys resolve to nothing.
+        The label on one line (its typography's spaces kept), cut on a word
+        at the bound, ellipsis included — or ``""`` when the registry's keys
+        resolve to nothing.
     """
-    for key in config.item_label_fields if config else ():
-        value = resolve_nested_value(content, key) if "." in key else content.get(key)
-        if value:
-            label = " ".join(str(value).split())
-            if len(label) > _ITEM_LABEL_MAX_CHARS:
-                return label[: _ITEM_LABEL_MAX_CHARS - 3] + "..."
-            return label
-    return ""
+    return clip_spelled(item_label(config, content), _ITEM_LABEL_MAX_CHARS)
 
 
 def _item_secondary(
@@ -300,13 +308,12 @@ def _excerpt(text: str, user_lang: Language) -> str:
         user_lang: The person's language, which owns its quotation marks.
 
     Returns:
-        The text whitespace-collapsed, cut at the excerpt bound with an
-        ellipsis, between the language's own quotation marks.
+        The text on one line (its typography's spaces kept), cut on a word
+        at the excerpt bound, ellipsis included, between the language's own
+        quotation marks.
     """
-    flat = " ".join(text.split())
-    if len(flat) > DRAFT_RESULT_EXCERPT_MAX_CHARS:
-        flat = flat[: DRAFT_RESULT_EXCERPT_MAX_CHARS - 1].rstrip() + "…"
-    opening, closing = EXCERPT_QUOTES.get(user_lang, EXCERPT_QUOTES["en"])
+    flat = clip_spelled(one_line(text), DRAFT_RESULT_EXCERPT_MAX_CHARS)
+    opening, closing = EXCERPT_QUOTES[user_lang]
     return f"{opening}{flat}{closing}"
 
 
@@ -443,7 +450,7 @@ def _describe_batch(
         emoji=domain_emoji,
         mark=_STATUS_MARKS["success" if status == "success" else "partial_error"],
         headline=_batch_headline(draft_type, config, data, user_lang),
-        separator=get_draft_preview_labels(user_lang)["separator"],
+        separator=label_separator(user_lang),
         lines=(),
         items=_describe_items(draft_type, config, batch_results, user_lang, user_tz),
     )
@@ -458,13 +465,13 @@ def _describe_single(
     """The description of a single confirmed draft's success: its detail fields."""
     draft = data.get("_draft_content", {}) if isinstance(data, dict) else {}
     draft = draft if isinstance(draft, dict) else {}
-    user_lang = normalize_language(draft.get("user_language") or "fr")
+    user_lang = resolve_language(draft.get("user_language"))
     user_tz = draft.get("user_timezone") or DEFAULT_USER_DISPLAY_TIMEZONE
     return ResultSpec(
         emoji=domain_emoji,
         mark=_STATUS_MARKS["success"],
         headline=message,
-        separator=get_draft_preview_labels(user_lang)["separator"],
+        separator=label_separator(user_lang),
         lines=tuple(_detail_lines(config, draft, data, user_lang, user_tz)),
         items=(),
     )
@@ -506,32 +513,56 @@ def describe_execution_result(result: dict[str, Any] | None) -> ResultSpec | Non
     if status == "success":
         return _describe_single(domain_emoji, config, message, data)
 
+    # The two specs below carry no row: their separator joins nothing. Their
+    # message is an executor's words, and an error may quote what a provider
+    # answered: it is drawn as data, like every value of a card.
     if status == "partial_error":
         # Non-batch partial_error fallback (defensive — batch is handled above).
         counted = f"{data.get('success_count', 0)}/{data.get('total_count', 0)}"
         return ResultSpec(
-            domain_emoji, _STATUS_MARKS["partial_error"], f"{message} ({counted})", " : ", (), ()
+            domain_emoji,
+            _STATUS_MARKS["partial_error"],
+            f"{_drawn(message)} ({counted})",
+            "",
+            (),
+            (),
         )
 
     if status in ("cancelled", "error"):
-        return ResultSpec(domain_emoji, _STATUS_MARKS[status], message, " : ", (), ())
+        return ResultSpec(domain_emoji, _STATUS_MARKS[status], _drawn(message), "", (), ())
 
     return None
 
 
 def _item_markdown(item: ResultItem, separator: str) -> str:
-    """One Markdown row per batch item: its outcome, its name, its key fields."""
+    """One Markdown row per batch item: its outcome, its name, its key fields.
+
+    The name, the fields and the excerpt are the item's own data, drawn as
+    themselves like a single result's rows (``to_markdown_lines``).
+    """
     if not item.label:
-        return plain_row(f"{item.mark} {item.label}".rstrip())
-    parts = [f"{item.mark} **{item.label}**"]
+        return plain_row(item.mark)
+    parts = [f"{item.mark} **{_drawn(item.label)}**"]
     if item.secondary:
-        parts.append(item.secondary)
-    fields = " · ".join(f"{row.label}{separator}{readable(row.value)}" for row in item.fields)
+        parts.append(_drawn(item.secondary))
+    fields = " · ".join(f"{row.label}{separator}{_drawn(row.value)}" for row in item.fields)
     if fields:
         parts.append(fields)
     if item.excerpt:
-        parts.append(item.excerpt)
+        parts.append(_drawn(item.excerpt))
     return plain_row(" — ".join(parts))
+
+
+def _drawn(value: object) -> str:
+    """A batch item's value on its row, drawn as itself.
+
+    Args:
+        value: What the item holds.
+
+    Returns:
+        The shown value (``shown_value``), every inline mark referenced.
+    """
+    return markdown_data_literal(shown_value(value))
 
 
 def _joined(headline: str, rows: list[str]) -> str:

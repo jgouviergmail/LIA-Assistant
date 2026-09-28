@@ -72,6 +72,13 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "domains/interests/services/content_sources/brave_source.py": "interest",
     "domains/interests/services/content_sources/perplexity_source.py": "interest",
     "domains/interests/services/content_sources/wikipedia_source.py": "interest",
+    # The listener's interests searched with their own key when a radio session
+    # starts, each search filed on the radio surface (ADR-324 decision 40).
+    "domains/radio/interest_search.py": "radio",
+    # The journal's done/ahead reads, recorded once per source by ListenerDay.
+    "domains/radio/readers/agenda.py": "radio",
+    "domains/radio/readers/sent_mail.py": "radio",
+    "domains/radio/readers/tasks.py": "radio",
 }
 
 #: Touches a client without reading anyone's data. Each entry is an argument,
@@ -88,6 +95,12 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
     "domains/relations/providers/client.py": (
         "The 360° assembly's own client factory. What it fetches is recorded "
         "by the relation_debrief surface, at the assembly that asked for it."
+    ),
+    "domains/briefing/companion.py": (
+        "Imports only the weather client's pure condition-code normalizer. "
+        "It projects weather already fetched by the briefing into a passive "
+        "snapshot; it opens no connector and reads no additional user data. "
+        "The briefing fetcher's read is recorded by the briefing surface."
     ),
     "domains/push_channels/sync.py": (
         "Registers and renews Google push WATCH subscriptions. It tells "
@@ -121,6 +134,13 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "dataclass of bytes) to read what the tool already downloaded: it opens no "
         "connection. The download is made by get_email_attachment_tool, which the "
         "tool gate records."
+    ),
+    "domains/email_share/service.py": (
+        "SENDS, and reads nothing: at the person's explicit click it hands one of "
+        "their own generated files, or an answer they are looking at, to their own "
+        "mailbox (ADR-321). It opens the mailbox through the door only to call "
+        "``send_email``, and reads the client CLASS for its published file ceiling; "
+        "no message, folder or contact of the provider is fetched."
     ),
     "infrastructure/security/web_risk.py": (
         "Imports the Google API COUNTER, not a client: it accounts for calls " "someone else made."

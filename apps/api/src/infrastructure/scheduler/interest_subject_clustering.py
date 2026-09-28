@@ -22,7 +22,7 @@ from uuid import UUID
 from sqlalchemy import ColumnElement, Select, func, select
 
 from src.core.config import settings
-from src.core.i18n import get_language_name
+from src.core.i18n import get_language_name, normalize_language
 from src.domains.agents.prompts import load_prompt
 from src.domains.interests.models import InterestStatus, UserInterest
 from src.infrastructure.database import get_db_context
@@ -112,7 +112,7 @@ async def recluster_user_subjects(user_id: UUID) -> int:
         from src.domains.users.models import User
 
         user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-        language = getattr(user, "language", None) or settings.default_language
+        language = normalize_language(getattr(user, "language", None))
         # The reads end before the model is asked (ADR-304); the labels are
         # written on the same (still attached) rows once it answered.
         await db.commit()

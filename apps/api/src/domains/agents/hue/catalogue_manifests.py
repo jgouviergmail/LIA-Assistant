@@ -298,7 +298,7 @@ activate_hue_scene_catalogue_manifest = ToolManifest(
     description=(
         "**Tool: activate_hue_scene_tool** - Activate a Philips Hue scene.\n"
         "Applies preconfigured lighting settings.\n"
-        "**Use for**: 'Activate movie mode', 'Set relax scene', 'Ambiance lecture'."
+        "**Use for**: 'Activate movie mode', 'Set relax scene', 'Reading light'."
     ),
     semantic_keywords=[
         "activate hue scene ambiance",

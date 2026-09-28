@@ -15,6 +15,7 @@ backend value without the wizard (or vice versa) turns CI red:
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -77,3 +78,49 @@ def test_provider_base_urls_mirror_the_adapter_defaults() -> None:
 
     for provider in verify._BASE_URLS:
         assert verify._BASE_URLS[provider] == _BASE_URL_DEFAULTS[provider]
+
+
+def test_new_capability_defaults_boot_the_real_settings() -> None:
+    """The minimal install profile must express what the composed API loads.
+
+    Radio is a deliberate installer opt-in. The other new capabilities may use
+    their code defaults, but those defaults must remain bootable together.
+    """
+    from scripts.install.envgen import generate_secrets
+
+    from src.core.config import Settings
+
+    profile = {}
+    template = Path(repo_root_or_skip(), ".env.min.prod.example")
+    for line in template.read_text(encoding="utf-8").splitlines():
+        entry = line.split("#", 1)[0].strip()
+        if "=" in entry:
+            key, value = entry.split("=", 1)
+            profile[key] = value.strip()
+
+    assert profile["RADIO_ENABLED"] == "false"
+    secrets = generate_secrets()
+    required = {
+        "database_url": "postgresql+asyncpg://lia:test@localhost:5432/lia",
+        "redis_url": "redis://localhost:6379/0",
+        "secret_key": secrets["SECRET_KEY"],
+        "fernet_key": secrets["FERNET_KEY"],
+    }
+    defaults = {
+        "radio_enabled": profile["RADIO_ENABLED"],
+        "email_share_enabled": Settings.model_fields["email_share_enabled"].default,
+        "generated_assets_keep_max_files": Settings.model_fields[
+            "generated_assets_keep_max_files"
+        ].default,
+        "generated_assets_keep_max_mb": Settings.model_fields[
+            "generated_assets_keep_max_mb"
+        ].default,
+    }
+    settings = Settings(_env_file=None, **required, **defaults)
+    assert settings.radio_enabled is False
+    assert settings.email_share_enabled is True
+    assert settings.generated_assets_keep_max_files == 100
+    assert settings.generated_assets_keep_max_mb == 500
+    assert Settings(
+        _env_file=None, **required, **{**defaults, "radio_enabled": "true"}
+    ).radio_enabled

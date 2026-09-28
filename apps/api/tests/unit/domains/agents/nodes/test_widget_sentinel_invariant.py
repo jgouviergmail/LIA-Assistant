@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from src.core.field_names import FIELD_REGISTRY_ID
 from src.domains.agents.display.sentinel_filter import count_widget_sentinels
 from src.domains.agents.nodes.response_node import _render_response_html
@@ -47,12 +49,12 @@ def _skill_app_item(registry_id: str, skill_name: str = "interactive-map") -> di
     }
 
 
-def _render(content: str, registry: dict[str, Any]) -> str:
+def _render(content: str, registry: dict[str, Any], display_mode: str = "html") -> str:
     return _render_response_html(
         final_content=content,
         current_turn_registry=registry,
         resolved_context_for_html=None,
-        user_display_mode="html",
+        user_display_mode=display_mode,
         user_viewport="desktop",
         user_language="fr",
         user_timezone="Europe/Paris",
@@ -61,7 +63,8 @@ def _render(content: str, registry: dict[str, Any]) -> str:
 
 
 class TestSentinelInvariant:
-    def test_llm_copy_is_replaced_not_duplicated(self) -> None:
+    @pytest.mark.parametrize("display_mode", ["cards", "html", "html_cards", "markdown"])
+    def test_llm_copy_is_replaced_not_duplicated(self, display_mode: str) -> None:
         """The exact production shape: the model wrote the sentinel itself."""
         registry = {"skill_app_545e26": _skill_app_item("skill_app_545e26")}
         content = (
@@ -70,7 +73,7 @@ class TestSentinelInvariant:
             + "</div>"
         )
 
-        out = _render(content, registry)
+        out = _render(content, registry, display_mode)
 
         assert count_widget_sentinels(out) == 1
         assert out.count('data-registry-id="skill_app_545e26"') == 1

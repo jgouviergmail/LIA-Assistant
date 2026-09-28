@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from src.core.config import settings
 from src.core.constants import SUPPORTED_LANGUAGES
 from src.core.i18n_dates import format_elapsed, format_short_stamp
 from src.core.i18n_proactive import ProactiveMessages
@@ -62,15 +63,15 @@ class TestLocalizedTitle:
         """`zh` is the FRONTEND spelling; it must not degrade to English."""
         assert get_localized_title("zh") == get_localized_title("zh-CN")
 
-    def test_unknown_language_resolves_to_the_configured_default(self) -> None:
+    def test_unknown_language_resolves_to_the_configured_default(self, monkeypatch) -> None:
         """`normalize_language` is the contract: unsupported → default language.
 
-        Not English: the chokepoint answers with the configured default, which
-        is what every other localized surface does.
+        Not English, and not a French literal either: the default is pinned to
+        German here, and the chokepoint answers with it.
         """
-        from src.core.i18n import DEFAULT_LANGUAGE
-
-        assert get_localized_title("kl") == get_localized_title(DEFAULT_LANGUAGE)
+        monkeypatch.setattr(settings, "default_language", "de")
+        assert get_localized_title("kl") == get_localized_title("de")
+        assert get_localized_title("kl") != get_localized_title("fr")
 
     def test_a_regional_variant_resolves_to_its_base_language(self) -> None:
         assert get_localized_title("fr-FR") == get_localized_title("fr")

@@ -14,7 +14,8 @@ Features:
   redaction (SEC-012)
 - URL query-string credential stripping — verification/reset/OAuth links
   (SEC-012), provider keys (`key=`, `appid=`)
-- Above DEBUG: content field names and suffixes redacted, a URL's search
+- Above DEBUG: content field names and suffixes redacted (a count, a flag or
+  an absence kept, except under a coordinate name), a URL's search
   parameters withheld, and what an error text QUOTES of a row or an input
   (PostgreSQL DETAIL, Pydantic input_value, tracebacks included) withheld —
   `quoted_content.py` (ADR-317)
@@ -199,7 +200,11 @@ PHONE_FIELD_NAMES = {
 # coordinates, resolved names, memory previews, raw tool params, query text).
 # Policy (audit wave 2, C7): counters/IDs at INFO; contents at DEBUG or redacted.
 # These fields are REDACTED at INFO and above, passed through at DEBUG — a
-# systemic net so a future `subject=`/`lat=` at INFO cannot leak PII again.
+# systemic net so a future `subject=`/`lat=` at INFO cannot leak PII again. A
+# count, a flag or an absence under one of them stays (`_is_content_field`),
+# except under a coordinate name; a fact of any other shape is withheld, so it
+# is logged under a name saying what it is (`origin_id=`, never `origin=` —
+# guarded by `test_log_content_guard.py`).
 CONTENT_FIELD_NAMES = {
     # Email / messaging contents
     "to",
@@ -213,6 +218,7 @@ CONTENT_FIELD_NAMES = {
     "address",
     "address_preview",
     "lat",
+    "lng",
     "lon",
     "latitude",
     "longitude",
@@ -363,6 +369,14 @@ _CONTENT_FIELD_SUFFIXES = (
     "_input",
 )
 _IDENTIFIER_PREVIEW_SUFFIX = "_id_preview"
+
+# Content names whose NUMBERS are the content: a coordinate is a number, and even
+# a rounded one places a person on a map (`lng` is Google's spelling, already
+# withheld in a URL). Every other content name holds words, so an integer under
+# it is a count — `location=3` is how many places, not where one is — and stays
+# readable above DEBUG (2026-09-25: the semantic type registry's `by_category`
+# census logged its `location` and `content` counts as `[REDACTED]`).
+_COORDINATE_FIELD_NAMES = frozenset({"lat", "lng", "lon", "latitude", "longitude"})
 
 # Structlog metadata fields — never sanitize these. They are the developer-controlled
 # log envelope (event name, logger module, level, timestamp) and never contain user
@@ -667,19 +681,35 @@ def _sanitize_event_text(text: str, *, redact_content: bool) -> str:
     return EMAIL_PATTERN.sub(lambda m: pseudonymize_email(m.group(0)), text)
 
 
+def _is_count_or_flag(value: Any) -> bool:
+    """Whether a value can only be a count, a flag or an absence — never words.
+
+    Args:
+        value: A field's value.
+
+    Returns:
+        True for ``None``, a boolean or an integer (``bool`` is an ``int``);
+        False for a float, which may be a coordinate, and for anything else.
+    """
+    return value is None or isinstance(value, int)
+
+
 def _is_content_field(key_lower: str, value: Any) -> bool:
     """Whether a field carries the person's words, by its name (and its type).
 
     Args:
         key_lower: The field name, lower-cased.
-        value: Its value — a suffix only ever redacts text.
+        value: Its value — a suffix only ever redacts text, and an exact
+            content name spares a count, a flag or an absence unless the name
+            is a coordinate's.
 
     Returns:
-        True for an exact content name, or a content suffix holding a string
-        or a list of them.
+        True for an exact content name holding anything but a count, a flag or
+        an absence (any value at all for a coordinate name), or a content
+        suffix holding a string or a list of them.
     """
     if key_lower in CONTENT_FIELD_NAMES:
-        return True
+        return key_lower in _COORDINATE_FIELD_NAMES or not _is_count_or_flag(value)
     return (
         isinstance(value, str | list | tuple | set | frozenset)
         and key_lower.endswith(_CONTENT_FIELD_SUFFIXES)

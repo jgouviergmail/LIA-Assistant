@@ -17,10 +17,13 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     REMINDER_PROCESSING_STALE_TIMEOUT_MINUTES_DEFAULT,
+    SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES_DEFAULT,
+    SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY_DEFAULT,
     SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
     SCHEDULED_ACTIONS_MAX_CONCURRENCY,
     SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS,
     SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES,
+    SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES_DEFAULT,
 )
 
 
@@ -71,6 +74,51 @@ class SchedulerSettings(BaseSettings):
             "are purged at every executor tick. Symptom if too low: the export "
             "of a user's own execution history is short. Symptom if too high: "
             "the table grows with every routine of every account."
+        ),
+    )
+
+    # ------------------------------------------------------------------------
+    # Condition routines (ADR-322): the system's clock, not the person's
+    # ------------------------------------------------------------------------
+
+    scheduled_actions_condition_check_minutes: int = Field(
+        default=SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES_DEFAULT,
+        ge=5,
+        le=1440,
+        description=(
+            "How often a condition routine reading the person's mail, tasks, "
+            "calendar or documents is checked, day and night. Each routine is "
+            "phase-shifted by its own id so checks never align. Never shorter "
+            "than the cache its source reads through, when it has one (the "
+            "mail search: the effective interval is the larger of the two). "
+            "Symptom if too low: more provider calls and more consultation "
+            "rows for no fresher answer. Symptom if too high: a watched fact "
+            "is announced later."
+        ),
+    )
+
+    scheduled_actions_weather_check_minutes: int = Field(
+        default=SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES_DEFAULT,
+        ge=10,
+        le=1440,
+        description=(
+            "How often a weather-change routine is checked. The forecast comes "
+            "in hourly or three-hourly slots, and on the Google provider every "
+            "check is two billed calls on the deployment's key, attributed to "
+            "the routine's owner."
+        ),
+    )
+
+    scheduled_actions_condition_max_fires_per_day: int = Field(
+        default=SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY_DEFAULT,
+        ge=1,
+        le=96,
+        description=(
+            "Most runs one condition routine may start in one local day. A new "
+            "fact past the cap is not dropped: it stays new and runs on the "
+            "next day's first check if it still holds. Symptom if too low: a "
+            "busy watch falls silent until midnight. Symptom if too high: a "
+            "flapping source becomes a stream of pipelines and notifications."
         ),
     )
 

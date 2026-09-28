@@ -16,8 +16,9 @@ from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.config import settings
 from src.core.constants import (
-    DEFAULT_LANGUAGE,
+    DEFAULT_LANGUAGE_DEFAULT,
     DEFAULT_USER_DISPLAY_TIMEZONE,
     HEARTBEAT_MAX_PER_DAY_DEFAULT,
     HEARTBEAT_MIN_PER_DAY_DEFAULT,
@@ -96,11 +97,15 @@ class User(
         server_default=DEFAULT_USER_DISPLAY_TIMEZONE,
         comment="User timezone (IANA timezone name) for personalized timestamp display",
     )
+    # Sign-up, sign-in and the admin bootstrap each write a language
+    # (ADR-323). An ORM insert that names none takes the instance's CONFIGURED
+    # default, read at insert time; the DDL default is the setting's own
+    # constant because a schema default cannot read a setting.
     language: Mapped[str] = mapped_column(
         String(10),
-        default=DEFAULT_LANGUAGE,
+        default=lambda: settings.default_language,
         nullable=False,
-        server_default=DEFAULT_LANGUAGE,
+        server_default=DEFAULT_LANGUAGE_DEFAULT,
         comment="User preferred language (ISO 639-1 code: fr, en, es, de, it, zh-CN) for emails and notifications",
     )
 
@@ -247,13 +252,14 @@ class User(
     # ADR-083 Phase 2 cleanup: per-user `sub_agents_enabled` column removed
     # (Option B). Delegation is gated by the global SUB_AGENTS_ENABLED flag.
 
-    # Response display mode: "cards" (HTML data cards), "html" (rich HTML), "markdown" (plain)
+    # Response display mode: cards, html, html_cards (rich HTML + selected cards), markdown.
     response_display_mode: Mapped[str] = mapped_column(
         String(20),
         default="cards",
         nullable=False,
         server_default="cards",
-        comment="Response display mode: cards (HTML data cards), html (rich formatting), markdown (plain text).",
+        comment="Response display mode: cards (HTML data cards), html (rich formatting), "
+        "html_cards (rich HTML with selected data cards), markdown (plain text).",
     )
 
     # Theme preferences (persisted per user)

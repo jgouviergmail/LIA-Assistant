@@ -8,6 +8,9 @@ All functions preserve immutability - input lists are never modified.
 """
 
 import re
+from collections.abc import Callable
+from html.parser import HTMLParser
+from itertools import groupby
 from typing import Any
 
 from langchain_core.messages import (
@@ -25,6 +28,8 @@ from src.core.constants import (
     CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER,
 )
 from src.core.turn_verdicts import note_verdict
+from src.domains.agents.display.plain_text import strip_html_if_markup
+from src.domains.shared.markdown_literal import read_as_markdown
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_langgraph import langgraph_history_repairs_total
@@ -92,9 +97,9 @@ def _neutralize_assistant_formatting(content: str) -> str:
     ``CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER`` so the model treats it as a stripped
     excerpt rather than a style precedent.
 
-    HTML answers keep the existing minimization (text before the first tag only),
-    avoiding re-injection of full card payloads into context. The call is idempotent:
-    content already carrying the marker is returned unchanged.
+    Rich HTML synthesis survives as text, while data cards and widget payloads
+    remain excluded. The call is idempotent: content already carrying the marker
+    is returned unchanged.
 
     Args:
         content: The assistant message content (already coerced to ``str``).
@@ -107,14 +112,14 @@ def _neutralize_assistant_formatting(content: str) -> str:
         # Idempotency guard: never double-strip or double-prefix.
         return content
 
-    # For HTML answers, keep only the leading prose (mirrors the non-neutralized
-    # branch) so we do not pour entire card markup back into the context window.
+    # For HTML answers, keep only what the non-neutralized branch keeps, so we
+    # do not pour entire card markup back into the context window. Markdown is
+    # read as the chat reads it — a value drawn as
+    # « jean_dupont&#64;example.com » is an address — and stripped of its style.
     if 'class="lia-' in content or "class='lia-" in content:
-        text = _prose_of_html_answer(content)
+        text = _prose_of_html_answer(content, neutralize=True)
     else:
-        text = content
-
-    text = _strip_markdown_syntax(text)
+        text = read_as_markdown(content, _strip_markdown_syntax)
     if not text:
         return CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER
     return f"{CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER} {text}"
@@ -126,10 +131,103 @@ def _neutralize_assistant_formatting(content: str) -> str:
 _DRAFT_CARD_MARKERS = ('class="lia-card lia-draft', "class='lia-card lia-draft")
 
 
-def _prose_of_html_answer(content: str) -> str:
+class _RichHistoryHtml(HTMLParser):
+    """Keep synthesis markup from lia-response roots, excluding data subtrees.
+
+    Nested cards cannot be removed with a tag regex. The stack distinguishes
+    the prose root from its data cards/widgets, including truncated subtrees.
+    Attributes are never copied, references remain encoded until the existing
+    plain-text reader runs, and no HTML is executed or fetched.
+    """
+
+    _EXCLUDED_CLASSES = frozenset(
+        {"lia-card", "lia-skill-app", "lia-mcp-app", "material-symbols-outlined"}
+    )
+    _EXCLUDED_TAGS = frozenset({"script", "style", "head", "template", "iframe", "object"})
+    _VOID_TAGS = frozenset(
+        {
+            "area",
+            "base",
+            "br",
+            "col",
+            "embed",
+            "hr",
+            "img",
+            "input",
+            "link",
+            "meta",
+            "param",
+            "source",
+            "track",
+            "wbr",
+        }
+    )
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self.parts: list[str] = []
+        self._stack: list[tuple[str, bool, bool]] = []
+        self._open_tags: dict[str, int] = {}
+
+    def _visible(self) -> bool:
+        return bool(self._stack and self._stack[-1][1] and not self._stack[-1][2])
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        classes = set((dict(attrs).get("class") or "").split())
+        active = "lia-response" in classes or bool(self._stack and self._stack[-1][1])
+        excluded = bool(
+            classes & self._EXCLUDED_CLASSES
+            or tag in self._EXCLUDED_TAGS
+            or (self._stack and self._stack[-1][2])
+        )
+        if active and not excluded:
+            self.parts.append(f"<{tag}>")
+        elif self._visible():
+            self.parts.append(" ")
+        if tag not in self._VOID_TAGS:
+            self._stack.append((tag, active, excluded))
+            self._open_tags[tag] = self._open_tags.get(tag, 0) + 1
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
+        if tag not in self._VOID_TAGS:
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        # An unmatched closing tag cannot release a hidden subtree. Counts
+        # avoid rescanning the stack for every malformed closing tag.
+        if not self._open_tags.get(tag):
+            return
+        visible = self._visible()
+        while self._stack:
+            # A malformed ancestor close must not escape the excluded root:
+            # <p><div class="lia-card">... </p> private ... </div>.
+            opened, _, excluded = self._stack[-1]
+            if excluded and opened != tag and (len(self._stack) == 1 or not self._stack[-2][2]):
+                return
+            opened, _, _ = self._stack.pop()
+            self._open_tags[opened] -= 1
+            if opened == tag:
+                break
+        if visible:
+            self.parts.append(f"</{tag}>")
+
+    def handle_data(self, data: str) -> None:
+        if self._visible():
+            self.parts.append(data)
+
+    def handle_entityref(self, name: str) -> None:
+        self.handle_data(f"&{name};")
+
+    def handle_charref(self, name: str) -> None:
+        self.handle_data(f"&#{name};")
+
+
+def _prose_of_html_answer(content: str, *, neutralize: bool = False) -> str:
     """What the model reads of an assistant answer that carries HTML.
 
-    A DATA card (weather, an e-mail listed) is reduced to the prose before it,
+    Rich synthesis inside ``lia-response`` is flattened to text. A DATA card
+    (weather, an e-mail listed) is reduced to the prose before it,
     the historical rule: the data is in the registry, and markup poured back
     into the context is markup the model re-emits. A DRAFT card (ADR-289) is
     flattened to its text instead — reducing it would erase from the
@@ -138,15 +236,53 @@ def _prose_of_html_answer(content: str) -> str:
 
     Args:
         content: The assistant message content, HTML included.
+        neutralize: Whether the Markdown around the cards loses its style
+            too (the html display mode's history).
 
     Returns:
-        Text only.
+        Text only, its character references read as the chat reads them.
     """
+    markdown = _strip_markdown_syntax if neutralize else None
     if any(marker in content for marker in _DRAFT_CARD_MARKERS):
-        from src.domains.agents.display.plain_text import strip_html_if_markup
+        return _draft_answer_text(content, markdown)
+    leading = read_as_markdown(_extract_text_before_html(content), markdown)
+    if "lia-response" not in content:
+        return leading
+    synthesis = _RichHistoryHtml()
+    synthesis.feed(content)
+    synthesis.close()
+    # The wrapper also identifies a truncated root as markup for the shared
+    # flattener. Do not strip Markdown from HTML text: code and literal card
+    # values may contain pipes, asterisks or a spelled-out Markdown link.
+    rich = read_as_markdown("<div>" + "".join(synthesis.parts) + "</div>", strip_html_if_markup)
+    return " ".join(part for part in (leading, " ".join(rich.split())) if part)
 
-        return " ".join(strip_html_if_markup(content).split())
-    return _extract_text_before_html(content)
+
+def _is_draft_card_line(line: str) -> bool:
+    return any(marker in line for marker in _DRAFT_CARD_MARKERS)
+
+
+def _draft_answer_text(content: str, markdown: Callable[[str], str] | None) -> str:
+    """An answer carrying a draft card, on one line: the card's words as data.
+
+    A card is one line of HTML (``drafts/card_html``) whose values are what
+    was sent or run: its text is flattened alone, its references read once,
+    and no Markdown rule touches it — stripped as Markdown, a subject « A | B »
+    lost its bar and « [x](https://y.example) » its address (review 14). The
+    lines around it are LIA's Markdown (the question, the rule before it).
+
+    Args:
+        content: The assistant message content.
+        markdown: How the Markdown around the cards is flattened (None keeps it).
+
+    Returns:
+        The answer's text on one line.
+    """
+    parts = [
+        read_as_markdown("\n".join(lines), strip_html_if_markup if is_card else markdown)
+        for is_card, lines in groupby(content.split("\n"), key=_is_draft_card_line)
+    ]
+    return " ".join(" ".join(parts).split())
 
 
 def _extract_text_before_html(content: str) -> str:
@@ -163,8 +299,8 @@ def _extract_text_before_html(content: str) -> str:
         Text before first HTML tag, stripped. Empty string if no text found.
 
     Example:
-        >>> _extract_text_before_html("Voici la météo!\\n\\n<div class='lia-card'>...")
-        "Voici la météo!"
+        >>> _extract_text_before_html("Here is the weather!\\n\\n<div class='lia-card'>...")
+        "Here is the weather!"
         >>> _extract_text_before_html("<div class='lia-card'>...")
         ""
     """
@@ -200,10 +336,10 @@ def filter_conversational_messages(messages: list[BaseMessage]) -> list[BaseMess
     Example:
         >>> from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
         >>> messages = [
-        ...     HumanMessage(content="email de jean"),
+        ...     HumanMessage(content="jean's e-mail"),
         ...     AIMessage(content="", tool_calls=[{"id": "call_123", "name": "search"}]),  # Filtered out
         ...     ToolMessage(content='{"results": [...]}', tool_call_id="call_123"),  # Filtered out
-        ...     AIMessage(content="Voici l'email de jean"),  # Kept
+        ...     AIMessage(content="Here is jean's e-mail"),  # Kept
         ... ]
         >>> filtered = filter_conversational_messages(messages)
         >>> len(filtered)  # 2 (HumanMessage + final AIMessage)
@@ -545,24 +681,22 @@ def filter_for_llm_context(
     Args:
         messages: Full message history from state.
         neutralize_formatting: When ``True`` (used only by the response node in the
-            ``html`` display mode), every retained assistant answer is rewritten to
+            ``html`` / ``html_cards`` display modes), every retained assistant answer is rewritten to
             style-free text tagged with ``CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER``
             (see ``_neutralize_assistant_formatting``). This removes the Markdown/HTML
             style precedent that otherwise accumulates in history and overrides the
             HTML output directive over multi-turn conversations. Defaults to ``False``,
-            i.e. the historical behaviour (Markdown answers kept verbatim, HTML answers
-            reduced to their leading prose) — so the ``cards`` and ``markdown`` display
-            modes, the planner path, and all existing callers are byte-for-byte
-            unchanged.
+            i.e. Markdown answers kept verbatim. In either path rich HTML synthesis
+            survives as text, while data cards and widget payloads stay excluded.
 
     Returns:
         Filtered list for LLM context.
 
     Example:
         >>> messages = [
-        ...     HumanMessage(content="salut"),
-        ...     AIMessage(content="Bonjour!"),  # Kept (simple chat)
-        ...     HumanMessage(content="recherche contacts jean"),
+        ...     HumanMessage(content="hi"),
+        ...     AIMessage(content="Hello!"),  # Kept (simple chat)
+        ...     HumanMessage(content="search contacts jean"),
         ...     ToolMessage(content='{"items": [...]}'),  # Kept (JSON)
         ...     AIMessage(content="<div class='lia-card'>...</div>"),  # Excluded (HTML)
         ... ]
@@ -602,8 +736,11 @@ def filter_for_llm_context(
                     # Placeholder so LLM knows query was handled
                     filtered.append(AIMessage(content=CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER))
                 continue
-            # Keep simple chat responses
-            filtered.append(msg)
+            # Keep simple chat responses — their character references read as
+            # the person saw them (a PLAIN card's values), the message kept
+            # whole when there was nothing to read.
+            read = read_as_markdown(content)
+            filtered.append(msg if read == content else AIMessage(content=read))
         elif isinstance(msg, SystemMessage):
             # Keep ONLY the compaction summary. It carries the compacted conversation
             # history and is the response LLM's sole source for it (the `compaction_summary`
@@ -676,6 +813,61 @@ def drop_current_turn_responses(messages: list[BaseMessage]) -> list[BaseMessage
     return list(messages[: last_human_idx + 1])
 
 
+def current_turn_responses(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Every message that follows the last ``HumanMessage`` — the current turn's own.
+
+    What ``drop_current_turn_responses`` removes, counted from the END: the
+    reducer trims the head by tokens, so a position taken when the turn
+    started moves while it runs. Whatever reads « what this turn did » reads
+    it here — a whole-thread read restated an earlier turn's failures as the
+    current one's.
+
+    Args:
+        messages: Full message history from state, in chronological order.
+
+    Returns:
+        A new list of the messages after the last ``HumanMessage``. A history
+        holding none — the reducer re-pins the turn's question when it trims
+        (``_ensure_turn_anchor``), so one that never held any — is returned
+        whole.
+    """
+    for index in range(len(messages) - 1, -1, -1):
+        if isinstance(messages[index], HumanMessage):
+            return list(messages[index + 1 :])
+    return list(messages)
+
+
+#: ``ToolMessage.artifact`` of the answer to a call that did NOT run — declined
+#: by the person, a repeat the loop guard blocked, or a sandbox run whose
+#: network access the person refused. An artifact is never sent to a model and
+#: survives the checkpoint like ``status``.
+TOOL_CALL_NOT_RUN = "tool_call_not_run"
+
+
+def tool_call_not_run(content: str, tool_call_id: str, name: str) -> ToolMessage:
+    """The answer to a call that never ran: neither a success nor a failure.
+
+    Never ``status="error"`` (ADR-303): the call broke nothing, and the honesty
+    directive would tell the person their own refusal was a breakdown.
+
+    Args:
+        content: What the model is told instead of a result.
+        tool_call_id: The id of the call it answers.
+        name: The tool the call named.
+
+    Returns:
+        The ToolMessage, marked so a reader of outcomes counts no verdict.
+    """
+    return ToolMessage(
+        content=content, tool_call_id=tool_call_id, name=name, artifact=TOOL_CALL_NOT_RUN
+    )
+
+
+def tool_call_ran(message: ToolMessage) -> bool:
+    """Whether this ToolMessage answers a call that actually ran."""
+    return getattr(message, "artifact", None) != TOOL_CALL_NOT_RUN
+
+
 def split_messages_by_turn(
     messages: list[BaseMessage],
 ) -> list[tuple[HumanMessage, list[BaseMessage]]]:
@@ -700,7 +892,7 @@ def split_messages_by_turn(
         ...     print(f"User: {user_msg.content}")
         ...     print(f"  Responses: {len(responses)} messages")
         >>> # Output:
-        >>> # User: email de jean
+        >>> # User: jean's e-mail
         >>> #   Responses: 5 messages (AIMessage with tool_calls, ToolMessage, AIMessage)
     """
     turns = []
@@ -732,6 +924,8 @@ def split_messages_by_turn(
 
 
 __all__ = [
+    "TOOL_CALL_NOT_RUN",
+    "current_turn_responses",
     "drop_current_turn_responses",
     "extract_system_messages",
     "filter_by_message_types",
@@ -740,6 +934,8 @@ __all__ = [
     "filter_tool_messages",
     "remove_orphan_tool_messages",
     "split_messages_by_turn",
+    "tool_call_not_run",
+    "tool_call_ran",
 ]
 
 

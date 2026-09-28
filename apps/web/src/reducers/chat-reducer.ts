@@ -26,6 +26,7 @@ import { initialHitlCardState } from '@/types/hitl';
 import { performedEffectsFromMetadata } from '@/lib/performed-effects-hydration';
 import { capTraceSteps } from '@/types/execution-trace';
 import { Message } from '@/types/chat';
+import { mergeServerPage } from '@/lib/chat-merge';
 import { generateUUID } from '@/lib/utils';
 import { DEBUG_METRICS_HISTORY_KEY } from '@/lib/constants';
 
@@ -83,8 +84,13 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
       ...(metadata.expressivity ? { expressivity: metadata.expressivity } : {}),
       ...(metadata.cancelled ? { interrupted: true, interrupt_reason: 'cancelled' } : {}),
       // QW-5 (ADR-138): DB id of the archived row — the feedback buttons only
-      // render when a message can be targeted server-side.
-      ...(metadata.archived_message_id ? { message_db_id: metadata.archived_message_id } : {}),
+      // render when a message can be targeted server-side. Never over a row the
+      // bubble already names (ADR-320): the fallback below can land on an
+      // EARLIER answer, and renamed, that row would come back as a second copy
+      // at the next merge while the bubble took the new answer's words.
+      ...(metadata.archived_message_id && !m.metadata?.message_db_id
+        ? { message_db_id: metadata.archived_message_id }
+        : {}),
       // UXR Lot 4 (A2): follow-up chips — same field name as the archived
       // message_metadata so live and reloaded rows read identically.
       ...(metadata.followup_suggestions?.length
@@ -133,6 +139,33 @@ function applyDoneToMessages(
 
   return messages.map((m, index) =>
     index === lastAssistantIndex ? applyDoneMetadata(m, metadata) : m
+  );
+}
+
+/** The question of the turn a `done` closes learns its archived row (ADR-320).
+ *
+ * The user bubble is created by the client before the run starts, so only
+ * the `done` can tell it which row it became; without that a later merge of
+ * the server page would have to recognise it by its words. The question is the
+ * last user bubble BEFORE the answer: a live-session row appended while the
+ * answer streamed comes after it, and must not take the question's row. A
+ * bubble that already names its row is never renamed: that row would come
+ * back as a second copy at the next merge. */
+function withArchivedQuestion(
+  messages: Message[],
+  answerId: string,
+  metadata: StreamDoneMetadata
+): Message[] {
+  const rowId = metadata.archived_user_message_id;
+  if (!rowId || messages.some(m => m.id === rowId || m.metadata?.message_db_id === rowId)) {
+    return messages;
+  }
+  const answerIndex = messages.findIndex(m => m.id === answerId);
+  let index = (answerIndex < 0 ? messages.length : answerIndex) - 1;
+  while (index >= 0 && messages[index].role !== 'user') index -= 1;
+  if (index < 0 || typeof messages[index].metadata?.message_db_id === 'string') return messages;
+  return messages.map((m, i) =>
+    i === index ? { ...m, metadata: { ...m.metadata, message_db_id: rowId } } : m
   );
 }
 
@@ -295,6 +328,13 @@ const ACTION_HANDLERS: ChatActionHandlers = {
       ...state,
       messages: newMessages,
     };
+  },
+
+  // ADR-320: what the server holds joins what is on screen — nothing on
+  // screen remounts, moves or disappears (see lib/chat-merge.ts).
+  MERGE_SERVER_PAGE: (state, action) => {
+    const { messages } = mergeServerPage(state.messages, action.payload.messages);
+    return messages === state.messages ? state : { ...state, messages };
   },
 
   APPEND_MESSAGE: (state, action) => {
@@ -479,7 +519,11 @@ const ACTION_HANDLERS: ChatActionHandlers = {
 
     // Update message with metadata if provided
     const updatedMessages = metadata
-      ? applyDoneToMessages(state.messages, messageId, metadata)
+      ? withArchivedQuestion(
+          applyDoneToMessages(state.messages, messageId, metadata),
+          messageId,
+          metadata
+        )
       : state.messages;
 
     // Update conversation totals

@@ -7,7 +7,7 @@ codes: ``zh-CN`` for Chinese; every raw variant routes through the single
 
 from __future__ import annotations
 
-from src.core.i18n import normalize_language
+from src.core.i18n import resolve_language
 
 #: Per-language notification strings. ``body`` interpolates {severity} and
 #: {title} (the incident's human title, not translated — it names the outage).
@@ -22,22 +22,22 @@ INCIDENT_NOTIFICATION_STRINGS: dict[str, dict[str, str]] = {
     "fr": {
         "title": "Incident plateforme détecté",
         "body": (
-            "Un incident {severity} est ouvert sur votre instance LIA : {title}. "
-            "Ouvrez Réglages > Santé de la plateforme pour le diagnostic et les preuves."
+            "Un incident {severity} est ouvert sur ton instance LIA : {title}. "
+            "Ouvre Réglages > Santé de la plateforme pour le diagnostic et les preuves."
         ),
     },
     "de": {
         "title": "Plattform-Vorfall erkannt",
         "body": (
-            "Auf Ihrer LIA-Instanz ist ein Vorfall ({severity}) offen: {title}. "
-            "Öffnen Sie Einstellungen > Plattformzustand für Diagnose und Belege."
+            "Auf deiner LIA-Instanz ist ein Vorfall ({severity}) offen: {title}. "
+            "Öffne Einstellungen > Plattformzustand für Diagnose und Belege."
         ),
     },
     "es": {
         "title": "Incidente de plataforma detectado",
         "body": (
-            "Hay un incidente {severity} abierto en su instancia de LIA: {title}. "
-            "Abra Ajustes > Salud de la plataforma para ver el diagnóstico y las evidencias."
+            "Hay un incidente {severity} abierto en tu instancia de LIA: {title}. "
+            "Abre Ajustes > Salud de la plataforma para ver el diagnóstico y las evidencias."
         ),
     },
     "it": {
@@ -50,13 +50,11 @@ INCIDENT_NOTIFICATION_STRINGS: dict[str, dict[str, str]] = {
     "zh-CN": {
         "title": "检测到平台事件",
         "body": (
-            "您的 LIA 实例上有一个 {severity} 级事件：{title}。"
+            "你的 LIA 实例上有一个 {severity} 级事件：{title}。"
             "请打开 设置 > 平台健康 查看诊断结果和证据。"
         ),
     },
 }
-
-_DEFAULT_LANGUAGE = "en"
 
 
 def get_incident_notification(
@@ -69,15 +67,13 @@ def get_incident_notification(
 
     Args:
         language: Raw user language (any variant; routed through
-            ``normalize_language``).
+            ``resolve_language``, the declared language when absent).
         severity: Incident severity token ('critical'/'warning').
         title: Incident human title (kept verbatim — it names the outage).
 
     Returns:
         (notification_title, notification_body) in the user's language.
     """
-    normalized = normalize_language(language or _DEFAULT_LANGUAGE)
-    entries = INCIDENT_NOTIFICATION_STRINGS.get(
-        normalized, INCIDENT_NOTIFICATION_STRINGS[_DEFAULT_LANGUAGE]
-    )
+    normalized = resolve_language(language)
+    entries = INCIDENT_NOTIFICATION_STRINGS.get(normalized, INCIDENT_NOTIFICATION_STRINGS["en"])
     return entries["title"], entries["body"].format(severity=severity, title=title)

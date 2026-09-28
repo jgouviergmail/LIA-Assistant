@@ -4,17 +4,47 @@ Uses SMTP with template-based emails.
 """
 
 import asyncio
+import html
 import smtplib
+from collections.abc import Sequence
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import cast
 
 import structlog
 
 from src.core.config import settings
-from src.core.i18n import Language, _
+from src.core.i18n import _, normalize_language
+from src.core.i18n_drafts import label_separator
+from src.infrastructure.email.outgoing import OutgoingAttachment, with_attachments
 
 logger = structlog.get_logger(__name__)
+
+
+def _reason_lines(reason: str | None, language: str) -> tuple[str, str]:
+    """The reason line of a notification, as HTML and as plain text.
+
+    A reason nobody gave is no line at all. The placeholders it replaced were
+    French for everyone: « Reason: Non spécifiée » in the deactivation e-mail
+    (the label translated, the value not), « Raison : Raison non spécifiée » in
+    the connector one.
+
+    Args:
+        reason: The administrator's words, or None.
+        language: The reader's language.
+
+    Returns:
+        ``(html, text)`` — both empty when there is no reason. The text is a
+        whole paragraph of the plain-text body, its blank line included, so a
+        body without one keeps a single blank line between its paragraphs.
+    """
+    if not reason:
+        return "", ""
+    label = _("Reason", language)
+    separator = label_separator(language)
+    return (
+        f"<p><strong>{label}{separator}</strong>{html.escape(reason)}</p>",
+        f"\n        {label}{separator}{reason}\n",
+    )
 
 
 class EmailService:
@@ -55,6 +85,7 @@ class EmailService:
         subject: str,
         html_body: str,
         text_body: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> bool:
         """
         Send an email.
@@ -64,25 +95,23 @@ class EmailService:
             subject: Email subject
             html_body: HTML email body
             text_body: Plain text email body (optional, falls back to HTML)
+            attachments: Files following the body (ADR-321); none keeps the
+                message the plain ``alternative`` it always was.
 
         Returns:
             True if email sent successfully, False otherwise
         """
         try:
-            # Create message
-            msg = MIMEMultipart("alternative")
+            # The typed words: plain text (fallback) then HTML.
+            alternative = MIMEMultipart("alternative")
+            if text_body:
+                alternative.attach(MIMEText(text_body, "plain"))
+            alternative.attach(MIMEText(html_body, "html"))
+
+            msg = with_attachments(alternative, attachments)
             msg["Subject"] = subject
             msg["From"] = self.smtp_from
             msg["To"] = to_email
-
-            # Attach plain text (fallback)
-            if text_body:
-                part1 = MIMEText(text_body, "plain")
-                msg.attach(part1)
-
-            # Attach HTML
-            part2 = MIMEText(html_body, "html")
-            msg.attach(part2)
 
             # The SMTP exchange is synchronous (smtplib): it runs in a worker
             # thread so the event loop keeps serving SSE while the relay answers.
@@ -102,8 +131,8 @@ class EmailService:
         self,
         user_email: str,
         user_name: str | None,
-        reason: str,
-        user_language: str = "fr",
+        reason: str | None,
+        user_language: str,
     ) -> bool:
         """
         Send notification when user account is deactivated by admin.
@@ -111,14 +140,15 @@ class EmailService:
         Args:
             user_email: User's email address
             user_name: User's full name (optional)
-            reason: Reason for deactivation
-            user_language: User's preferred language (fr, en, es, de, it)
+            reason: The administrator's reason; no line when none was given
+            user_language: The language of the person the e-mail reaches —
+                required: a known person's e-mail never falls back to the
+                declared language, which may be someone else's (ADR-323).
 
         Returns:
             True if email sent successfully
         """
-        # Cast user_language to Language type for type safety
-        lang = cast(Language, user_language)
+        lang = normalize_language(user_language)
 
         # Internationalized subject
         subject = _("Your LIA account has been deactivated", lang)
@@ -126,12 +156,12 @@ class EmailService:
         display_name = user_name or user_email
 
         # Internationalized content
-        greeting = _("Hello", lang)
+        greeting = _("Hello {name},", lang).format(name=display_name)
         body_text = _(
             "We inform you that your LIA account has been deactivated by an administrator.",
             lang,
         )
-        reason_label = _("Reason", lang)
+        reason_html, reason_text = _reason_lines(reason, lang)
         no_access_text = _("You can no longer access the application.", lang)
         error_text = _("If you think this is an error, please contact the administrator.", lang)
         auto_email_text = _("This is an automated email, please do not reply.", lang)
@@ -140,9 +170,9 @@ class EmailService:
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h2 style="color: #d32f2f;">{_("Account deactivated", lang)}</h2>
-            <p>{greeting} {display_name},</p>
+            <p>{html.escape(greeting)}</p>
             <p>{body_text}</p>
-            <p><strong>{reason_label}:</strong> {reason}</p>
+            {reason_html}
             <p>{no_access_text}</p>
             <p>{error_text}</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
@@ -156,12 +186,10 @@ class EmailService:
         text_body = f"""
         {_("Account deactivated", lang)}
 
-        {greeting} {display_name},
+        {greeting}
 
         {body_text}
-
-        {reason_label}: {reason}
-
+{reason_text}
         {no_access_text}
 
         {error_text}
@@ -176,7 +204,7 @@ class EmailService:
         self,
         user_email: str,
         user_name: str | None,
-        user_language: str = "fr",
+        user_language: str,
     ) -> bool:
         """
         Send notification when user account is reactivated by admin.
@@ -184,13 +212,14 @@ class EmailService:
         Args:
             user_email: User's email address
             user_name: User's full name (optional)
-            user_language: User's preferred language (fr, en, es, de, it)
+            user_language: The language of the person the e-mail reaches —
+                required: a known person's e-mail never falls back to the
+                declared language, which may be someone else's (ADR-323).
 
         Returns:
             True if email sent successfully
         """
-        # Cast user_language to Language type for type safety
-        lang = cast(Language, user_language)
+        lang = normalize_language(user_language)
 
         # Internationalized subject
         subject = _("Your LIA account has been reactivated", lang)
@@ -198,18 +227,19 @@ class EmailService:
         display_name = user_name or user_email
 
         # Internationalized content
-        greeting = _("Hello", lang)
+        greeting = _("Hello {name},", lang).format(name=display_name)
         body_text = _("We inform you that your LIA account has been reactivated.", lang)
         access_text = _("You can now access the application again.", lang)
         login_button_text = _("Log in", lang)
         auto_email_text = _("This is an automated email, please do not reply.", lang)
         login_link_text = _("Login link", lang)
+        separator = label_separator(lang)
 
         html_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h2 style="color: #2e7d32;">{_("Account reactivated", lang)}</h2>
-            <p>{greeting} {display_name},</p>
+            <p>{html.escape(greeting)}</p>
             <p>{body_text}</p>
             <p>{access_text}</p>
             <p><a href="{settings.frontend_url}/login" style="display: inline-block; padding: 10px 20px; background-color: #1976d2; color: #fff; text-decoration: none; border-radius: 4px;">{login_button_text}</a></p>
@@ -224,13 +254,13 @@ class EmailService:
         text_body = f"""
         {_("Account reactivated", lang)}
 
-        {greeting} {display_name},
+        {greeting}
 
         {body_text}
 
         {access_text}
 
-        {login_link_text}: {settings.frontend_url}/login
+        {login_link_text}{separator}{settings.frontend_url}/login
 
         ---
         {auto_email_text}
@@ -242,8 +272,9 @@ class EmailService:
         self,
         user_email: str,
         user_name: str | None,
-        connector_type: str,
-        reason: str,
+        connector_label: str,
+        reason: str | None,
+        user_language: str,
     ) -> bool:
         """
         Send notification when a connector type is disabled globally.
@@ -251,59 +282,67 @@ class EmailService:
         Args:
             user_email: User's email address
             user_name: User's full name (optional)
-            connector_type: Type of connector (e.g., "google_contacts")
-            reason: Reason for disabling
+            connector_label: The connector's display name, as the registry names it
+                (``get_connector_display_name``) — written verbatim, escaped in HTML
+            reason: The administrator's reason; no line when none was given
+            user_language: The language of the person the e-mail reaches —
+                required: a known person's e-mail never falls back to the
+                declared language, which may be someone else's (ADR-323).
 
         Returns:
             True if email sent successfully
         """
-        subject = f"Connecteur {connector_type} désactivé"
-
+        lang = normalize_language(user_language)
         display_name = user_name or user_email
 
-        connector_labels = {
-            "gmail": "Gmail",
-            "google_drive": "Google Drive",
-            "google_calendar": "Google Calendar",
-            "google_contacts": "Google Contacts",
-            "slack": "Slack",
-            "notion": "Notion",
-            "github": "GitHub",
-        }
-        connector_label = connector_labels.get(connector_type, connector_type)
+        subject = _("Connector {connector} disabled", lang).format(connector=connector_label)
+        heading = _("Connector disabled", lang)
+        greeting = _("Hello {name},", lang).format(name=display_name)
+        disabled = _(
+            "We inform you that the connector {connector} has been disabled by an administrator.",
+            lang,
+        )
+        reason_html, reason_text = _reason_lines(reason, lang)
+        revoked_text = _(
+            "Your existing connection has been revoked and you can no longer use this connector.",
+            lang,
+        )
+        questions_text = _("If you have any questions, please contact the administrator.", lang)
+        auto_email_text = _("This is an automated email, please do not reply.", lang)
+        disabled_html = disabled.format(
+            connector=f"<strong>{html.escape(connector_label)}</strong>"
+        )
 
         html_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <h2 style="color: #f57c00;">Connecteur désactivé</h2>
-            <p>Bonjour {display_name},</p>
-            <p>Nous vous informons que le connecteur <strong>{connector_label}</strong> a été désactivé par un administrateur.</p>
-            <p><strong>Raison :</strong> {reason}</p>
-            <p>Votre connexion existante a été révoquée et vous ne pouvez plus utiliser ce connecteur.</p>
-            <p>Si vous avez des questions, veuillez contacter l'administrateur.</p>
+            <h2 style="color: #f57c00;">{heading}</h2>
+            <p>{html.escape(greeting)}</p>
+            <p>{disabled_html}</p>
+            {reason_html}
+            <p>{revoked_text}</p>
+            <p>{questions_text}</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
             <p style="font-size: 12px; color: #666;">
-                Ceci est un email automatique, merci de ne pas y répondre.
+                {auto_email_text}
             </p>
         </body>
         </html>
         """
 
         text_body = f"""
-        Connecteur désactivé
+        {heading}
 
-        Bonjour {display_name},
+        {greeting}
 
-        Nous vous informons que le connecteur {connector_label} a été désactivé par un administrateur.
+        {disabled.format(connector=connector_label)}
+{reason_text}
+        {revoked_text}
 
-        Raison : {reason}
-
-        Votre connexion existante a été révoquée et vous ne pouvez plus utiliser ce connecteur.
-
-        Si vous avez des questions, veuillez contacter l'administrateur.
+        {questions_text}
 
         ---
-        Ceci est un email automatique, merci de ne pas y répondre.
+        {auto_email_text}
         """
 
         return await self.send_email(user_email, subject, html_body, text_body)
@@ -313,7 +352,7 @@ class EmailService:
         user_email: str,
         user_name: str | None,
         verification_url: str,
-        user_language: str = "fr",
+        user_language: str,
     ) -> bool:
         """
         Send email verification link to new user.
@@ -322,17 +361,19 @@ class EmailService:
             user_email: User's email address
             user_name: User's full name (optional)
             verification_url: Full URL for email verification
-            user_language: User's preferred language (fr, en, es, de, it)
+            user_language: The language of the person the e-mail reaches —
+                required: a known person's e-mail never falls back to the
+                declared language, which may be someone else's (ADR-323).
 
         Returns:
             True if email sent successfully
         """
-        lang = cast(Language, user_language)
+        lang = normalize_language(user_language)
 
         subject = _("Verify your LIA account email", lang)
         display_name = user_name or user_email
 
-        greeting = _("Hello", lang)
+        greeting = _("Hello {name},", lang).format(name=display_name)
         welcome_text = _(
             "Welcome to LIA! Please verify your email address to activate your account.", lang
         )
@@ -341,12 +382,13 @@ class EmailService:
         ignore_text = _("If you did not create an account, you can ignore this email.", lang)
         auto_email_text = _("This is an automated email, please do not reply.", lang)
         verify_link_text = _("Verification link", lang)
+        separator = label_separator(lang)
 
         html_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h2 style="color: #1976d2;">{_("Email verification", lang)}</h2>
-            <p>{greeting} {display_name},</p>
+            <p>{html.escape(greeting)}</p>
             <p>{welcome_text}</p>
             <p>
                 <a href="{verification_url}" style="display: inline-block; padding: 12px 24px; background-color: #1976d2; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold;">
@@ -366,11 +408,11 @@ class EmailService:
         text_body = f"""
         {_("Email verification", lang)}
 
-        {greeting} {display_name},
+        {greeting}
 
         {welcome_text}
 
-        {verify_link_text}: {verification_url}
+        {verify_link_text}{separator}{verification_url}
 
         {link_expires_text}
 
@@ -387,7 +429,7 @@ class EmailService:
         user_email: str,
         user_name: str | None,
         reset_url: str,
-        user_language: str = "fr",
+        user_language: str,
     ) -> bool:
         """
         Send password reset link to user.
@@ -396,29 +438,32 @@ class EmailService:
             user_email: User's email address
             user_name: User's full name (optional)
             reset_url: Full URL for password reset
-            user_language: User's preferred language (fr, en, es, de, it)
+            user_language: The language of the person the e-mail reaches —
+                required: a known person's e-mail never falls back to the
+                declared language, which may be someone else's (ADR-323).
 
         Returns:
             True if email sent successfully
         """
-        lang = cast(Language, user_language)
+        lang = normalize_language(user_language)
 
         subject = _("Reset your LIA password", lang)
         display_name = user_name or user_email
 
-        greeting = _("Hello", lang)
+        greeting = _("Hello {name},", lang).format(name=display_name)
         request_text = _("We received a request to reset your password.", lang)
         reset_button_text = _("Reset my password", lang)
         link_expires_text = _("This link expires in 1 hour for security reasons.", lang)
         ignore_text = _("If you did not request a password reset, you can ignore this email.", lang)
         auto_email_text = _("This is an automated email, please do not reply.", lang)
         reset_link_text = _("Reset link", lang)
+        separator = label_separator(lang)
 
         html_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h2 style="color: #f57c00;">{_("Password reset", lang)}</h2>
-            <p>{greeting} {display_name},</p>
+            <p>{html.escape(greeting)}</p>
             <p>{request_text}</p>
             <p>
                 <a href="{reset_url}" style="display: inline-block; padding: 12px 24px; background-color: #f57c00; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold;">
@@ -438,11 +483,11 @@ class EmailService:
         text_body = f"""
         {_("Password reset", lang)}
 
-        {greeting} {display_name},
+        {greeting}
 
         {request_text}
 
-        {reset_link_text}: {reset_url}
+        {reset_link_text}{separator}{reset_url}
 
         {link_expires_text}
 
@@ -458,7 +503,7 @@ class EmailService:
         self,
         user_email: str,
         user_name: str | None,
-        user_language: str = "fr",
+        user_language: str,
     ) -> bool:
         """
         Send notification to user that their account is pending admin activation.
@@ -470,17 +515,19 @@ class EmailService:
         Args:
             user_email: User's email address
             user_name: User's full name (optional)
-            user_language: User's preferred language (fr, en, es, de, it, zh-CN)
+            user_language: The language of the person the e-mail reaches —
+                required: a known person's e-mail never falls back to the
+                declared language, which may be someone else's (ADR-323).
 
         Returns:
             True if email sent successfully
         """
-        lang = cast(Language, user_language)
+        lang = normalize_language(user_language)
 
         subject = _("Your LIA account is pending activation", lang)
         display_name = user_name or user_email
 
-        greeting = _("Hello", lang)
+        greeting = _("Hello {name},", lang).format(name=display_name)
         welcome_text = _("Welcome to LIA! Your account has been created successfully.", lang)
         pending_text = _("Your account is currently pending activation by an administrator.", lang)
         notify_text = _("You will receive an email once your account has been activated.", lang)
@@ -491,7 +538,7 @@ class EmailService:
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h2 style="color: #f57c00;">{_("Account pending activation", lang)}</h2>
-            <p>{greeting} {display_name},</p>
+            <p>{html.escape(greeting)}</p>
             <p>{welcome_text}</p>
             <p>{pending_text}</p>
             <p>{notify_text}</p>
@@ -507,7 +554,7 @@ class EmailService:
         text_body = f"""
         {_("Account pending activation", lang)}
 
-        {greeting} {display_name},
+        {greeting}
 
         {welcome_text}
 
@@ -529,6 +576,8 @@ class EmailService:
         new_user_email: str,
         new_user_name: str | None,
         registration_method: str = "email",
+        *,
+        admin_language: str,
     ) -> bool:
         """
         Send notification to admin when a new user registers.
@@ -538,58 +587,74 @@ class EmailService:
             new_user_email: New user's email address
             new_user_name: New user's full name (optional)
             registration_method: Method of registration (email, google, etc.)
+            admin_language: The administrator's own language — required, like
+                every language of an e-mail addressed to a known person.
 
         Returns:
             True if email sent successfully
         """
-        subject = f"[LIA] Nouvel utilisateur en attente d'activation: {new_user_email}"
+        lang = normalize_language(admin_language)
         display_name = new_user_name or new_user_email
+        admin_url = f"{settings.frontend_url}/dashboard/admin/users"
+
+        subject = _("[LIA] New user awaiting activation: {email}", lang).format(
+            email=new_user_email
+        )
+        heading = _("New user registered", lang)
+        intro = _("A new user has registered on LIA and is waiting for your activation:", lang)
+        email_label = _("Email", lang)
+        name_label = _("Name", lang)
+        method_label = _("Method", lang)
+        manage_label = _("Manage users", lang)
+        admin_link_label = _("Administration link", lang)
+        separator = label_separator(lang)
+        auto_email_text = _("This is an automated email from LIA.", lang)
 
         html_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <h2 style="color: #1976d2;">Nouvel utilisateur inscrit</h2>
-            <p>Un nouvel utilisateur s'est inscrit sur LIA et attend votre activation :</p>
+            <h2 style="color: #1976d2;">{heading}</h2>
+            <p>{intro}</p>
             <table style="border-collapse: collapse; margin: 20px 0;">
                 <tr>
-                    <td style="padding: 8px; font-weight: bold; color: #666;">Email :</td>
-                    <td style="padding: 8px;">{new_user_email}</td>
+                    <td style="padding: 8px; font-weight: bold; color: #666;">{email_label}{separator}</td>
+                    <td style="padding: 8px;">{html.escape(new_user_email)}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px; font-weight: bold; color: #666;">Nom :</td>
-                    <td style="padding: 8px;">{display_name}</td>
+                    <td style="padding: 8px; font-weight: bold; color: #666;">{name_label}{separator}</td>
+                    <td style="padding: 8px;">{html.escape(display_name)}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px; font-weight: bold; color: #666;">Méthode :</td>
-                    <td style="padding: 8px;">{registration_method}</td>
+                    <td style="padding: 8px; font-weight: bold; color: #666;">{method_label}{separator}</td>
+                    <td style="padding: 8px;">{html.escape(registration_method)}</td>
                 </tr>
             </table>
             <p>
-                <a href="{settings.frontend_url}/dashboard/admin/users" style="display: inline-block; padding: 10px 20px; background-color: #1976d2; color: #fff; text-decoration: none; border-radius: 4px;">
-                    Gérer les utilisateurs
+                <a href="{admin_url}" style="display: inline-block; padding: 10px 20px; background-color: #1976d2; color: #fff; text-decoration: none; border-radius: 4px;">
+                    {manage_label}
                 </a>
             </p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
             <p style="font-size: 12px; color: #666;">
-                Ceci est un email automatique de LIA.
+                {auto_email_text}
             </p>
         </body>
         </html>
         """
 
         text_body = f"""
-        Nouvel utilisateur inscrit
+        {heading}
 
-        Un nouvel utilisateur s'est inscrit sur LIA et attend votre activation :
+        {intro}
 
-        Email : {new_user_email}
-        Nom : {display_name}
-        Méthode : {registration_method}
+        {email_label}{separator}{new_user_email}
+        {name_label}{separator}{display_name}
+        {method_label}{separator}{registration_method}
 
-        Lien administration : {settings.frontend_url}/dashboard/admin/users
+        {admin_link_label}{separator}{admin_url}
 
         ---
-        Ceci est un email automatique de LIA.
+        {auto_email_text}
         """
 
         return await self.send_email(admin_email, subject, html_body, text_body)

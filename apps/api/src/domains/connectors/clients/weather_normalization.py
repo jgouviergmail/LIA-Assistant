@@ -17,6 +17,78 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
+# Google condition enums must become OWM `weather[0].main` values at the
+# provider boundary. Older cached briefing payloads may still hold the enum;
+# the companion projection uses this same conversion when reading them.
+# https://developers.google.com/maps/documentation/weather/reference/rest/v1/WeatherCondition
+_GOOGLE_TO_OWM_MAIN: dict[str, str] = {
+    "CLEAR": "Clear",
+    "MOSTLY_CLEAR": "Clear",
+    "PARTLY_CLOUDY": "Clouds",
+    "MOSTLY_CLOUDY": "Clouds",
+    "CLOUDY": "Clouds",
+    "FOG": "Fog",
+    "HAZE": "Haze",
+    "WINDY": "Squall",
+    "WIND_AND_RAIN": "Rain",
+    "DRIZZLE": "Drizzle",
+    "LIGHT_RAIN_SHOWERS": "Rain",
+    "CHANCE_OF_SHOWERS": "Rain",
+    "SCATTERED_SHOWERS": "Rain",
+    "LIGHT_RAIN": "Rain",
+    "RAIN": "Rain",
+    "HEAVY_RAIN": "Rain",
+    "RAIN_SHOWERS": "Rain",
+    "HEAVY_RAIN_SHOWERS": "Rain",
+    "LIGHT_TO_MODERATE_RAIN": "Rain",
+    "MODERATE_TO_HEAVY_RAIN": "Rain",
+    "RAIN_PERIODICALLY_HEAVY": "Rain",
+    "SNOW": "Snow",
+    "LIGHT_SNOW": "Snow",
+    "HEAVY_SNOW": "Snow",
+    "SNOW_SHOWERS": "Snow",
+    "LIGHT_SNOW_SHOWERS": "Snow",
+    "CHANCE_OF_SNOW_SHOWERS": "Snow",
+    "SCATTERED_SNOW_SHOWERS": "Snow",
+    "HEAVY_SNOW_SHOWERS": "Snow",
+    "LIGHT_TO_MODERATE_SNOW": "Snow",
+    "MODERATE_TO_HEAVY_SNOW": "Snow",
+    "SNOWSTORM": "Snow",
+    "SNOW_PERIODICALLY_HEAVY": "Snow",
+    "HEAVY_SNOW_STORM": "Snow",
+    "BLOWING_SNOW": "Snow",
+    "RAIN_AND_SNOW": "Snow",
+    "SLEET": "Snow",
+    "HAIL": "Snow",
+    "HAIL_SHOWERS": "Snow",
+    "THUNDERSTORM": "Thunderstorm",
+    "THUNDERSHOWER": "Thunderstorm",
+    "LIGHT_THUNDERSTORM_RAIN": "Thunderstorm",
+    "SCATTERED_THUNDERSTORMS": "Thunderstorm",
+    "HEAVY_THUNDERSTORM": "Thunderstorm",
+}
+_OWM_MAINS = frozenset(_GOOGLE_TO_OWM_MAIN.values()) | {
+    "Mist",
+    "Smoke",
+    "Dust",
+    "Sand",
+    "Ash",
+    "Tornado",
+    "Unknown",
+}
+
+
+def canonical_weather_main(value: str) -> str:
+    """Return the OWM main code for Google or already normalized conditions.
+
+    Future provider values become Unknown instead of silently pretending to be
+    clear, rain or another condition that would drive the avatar incorrectly.
+    """
+    if value in _OWM_MAINS:
+        return value
+    return _GOOGLE_TO_OWM_MAIN.get(value, "Unknown")
+
+
 def aggregate_daily_forecast(
     forecast: dict[str, Any], days: int, user_timezone: str
 ) -> dict[str, Any]:

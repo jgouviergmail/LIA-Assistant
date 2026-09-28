@@ -140,7 +140,7 @@ class TestTheQuestion:
         text = critique(interaction, "task", {"title": "Relancer le devis"})
 
         assert "Cette action est irréversible" not in text
-        assert text.rstrip().endswith("confirmer, modifier ou annuler ?")
+        assert text.rstrip().endswith("confirmer, modifier ou annuler\xa0?")
 
     @pytest.mark.parametrize("language", LANGUAGES)
     def test_every_language_ends_on_a_question(

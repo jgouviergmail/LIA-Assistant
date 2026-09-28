@@ -68,6 +68,12 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Re-measured 2026-09-25 after ADR-319..322 (a kept file and its
+        // cards, the chat merged with the server page, the e-mail share
+        // dialog, the routine studio's one clock — ~150 new tests):
+        // statements 82.21 / branches 77.20 / functions 79.95 / lines 83.03.
+        // `statements` rises 79 -> 80, `branches` 74 -> 75 and `lines`
+        // 80 -> 81 (floor(measured - 2)); `functions` does not cross a step.
         // Re-measured 2026-09-24 after ADR-312..316 (the broadcast history
         // table, the prompt-enhancement switch, the image-share dialog, button
         // and gallery controls, the peers error codes — ~60 new tests):
@@ -380,10 +386,10 @@ export default defineConfig({
         // tests): statements 80.04 / branches 75.39 / functions 77.29 /
         // lines 80.80. `statements` rises 77 -> 78 and `functions` 74 -> 75
         // (floor(measured - 2)); `branches` and `lines` do not cross a step.
-        statements: 79,
-        branches: 74,
+        statements: 80,
+        branches: 75,
         functions: 77,
-        lines: 80,
+        lines: 81,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

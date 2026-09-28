@@ -61,6 +61,7 @@ from src.domains.briefing.schemas import (
     BirthdaysData,
     DocumentItem,
     DocumentsData,
+    ForecastAlert,
     ForYouAutomationItem,
     ForYouData,
     ForYouLoopItem,
@@ -128,20 +129,7 @@ async def fetch_weather(
             so everything below is provider-agnostic (lot E, 2026-08).
         ConnectorAccessError: on HTTP/network failure (token expired, rate-limit, etc.).
     """
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        client = await resolve_weather_client(user.id, connector_service)
-        if client is None:
-            raise ConnectorNotConfiguredError("openweathermap")
-
-        try:
-            location = await UserLocationService(db).get_effective_location_for_proactive(user)
-        except NoLocationAvailableError:
-            raise ConnectorNotConfiguredError("location") from None
-
-        # AQ/pollen enrichment (2026-08): whether it runs is READ here; the
-        # provider is called below, once this session is closed (ADR-304).
-        environment_active = await environment_enrichment_active(user.id, connector_service)
+    client, location, environment_active = await _open_weather(user, with_environment=True)
 
     # Fail-quiet: None and the card renders exactly as before.
     environment = (
@@ -187,6 +175,89 @@ async def fetch_weather(
     )
 
 
+async def _open_weather(user: User, *, with_environment: bool) -> tuple[Any, Any, bool]:
+    """The weather client, the effective location, and whether AQ/pollen runs.
+
+    Read in ONE session, closed before any provider is called (ADR-304). The
+    client is closed here when a later read refuses — it used to leak on the
+    « no location » path.
+
+    Args:
+        user: Whose weather.
+        with_environment: Whether to read the air-quality/pollen switch at all.
+
+    Returns:
+        ``(client, location, environment_active)`` — the caller closes the client.
+
+    Raises:
+        ConnectorNotConfiguredError: No weather provider, or no usable location.
+    """
+    async with get_db_context() as db:
+        connector_service = ConnectorService(db)
+        client = await resolve_weather_client(user.id, connector_service)
+        if client is None:
+            raise ConnectorNotConfiguredError("openweathermap")
+        try:
+            try:
+                location = await UserLocationService(db).get_effective_location_for_proactive(user)
+            except NoLocationAvailableError:
+                raise ConnectorNotConfiguredError("location") from None
+            # AQ/pollen enrichment (2026-08): whether it runs is READ here; the
+            # provider is called by the caller, once this session is closed.
+            environment_active = with_environment and await environment_enrichment_active(
+                user.id, connector_service
+            )
+        except BaseException:
+            await client.close()
+            raise
+    return client, location, environment_active
+
+
+async def fetch_forecast_alert(
+    *, user: User, user_tz: ZoneInfo, language: str
+) -> ForecastAlert | None:
+    """The next notable weather change, and nothing else — what a weather routine checks.
+
+    Two provider calls where the card makes up to five: no city name and no air
+    quality or pollen, which a condition never reads and which the Google
+    provider bills on every check (ADR-322).
+
+    Args:
+        user: Whose weather.
+        user_tz: Their zone, for the alert's local time.
+        language: Their language, for the provider's labels.
+
+    Returns:
+        The alert, or ``None`` when no change is coming.
+
+    Raises:
+        ConnectorNotConfiguredError: No weather provider, or no usable location.
+        ConnectorAccessError: On HTTP/network failure.
+    """
+    from src.domains.briefing.formatters import _detect_forecast_alert
+
+    client, location, _ = await _open_weather(user, with_environment=False)
+    try:
+        current, forecast = await asyncio.gather(
+            client.get_current_weather(
+                lat=location.lat, lon=location.lon, units="metric", lang=language
+            ),
+            client.get_forecast(
+                lat=location.lat,
+                lon=location.lon,
+                units="metric",
+                lang=language,
+                cnt=BRIEFING_WEATHER_FORECAST_CNT,
+            ),
+        )
+    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ConnectorAPIError) as exc:
+        cause = getattr(exc, "last_error", None) or exc
+        raise ConnectorAccessError("openweathermap", _classify_http_error(cause), str(exc)) from exc
+    finally:
+        await client.close()
+    return _detect_forecast_alert(current=current, forecast=forecast, user_tz=user_tz)
+
+
 # =============================================================================
 # Agenda (multi-provider)
 # =============================================================================
@@ -197,6 +268,7 @@ async def fetch_agenda(
     user: User,
     user_tz: ZoneInfo,
     language: str,
+    lookahead_hours: int | None = None,
 ) -> AgendaData:
     """Fetch the next ~24 h calendar events from the active provider.
 
@@ -205,6 +277,10 @@ async def fetch_agenda(
     default calendar see their actual events). The ``language`` argument is
     forwarded to ``format_agenda_event`` so event times are rendered in the
     user's locale (today / tomorrow / dd-mm-yyyy ordering).
+
+    ``lookahead_hours`` narrows or widens the window for a reader with its own
+    — a calendar routine asking « within the next N hours » (ADR-322) — and
+    defaults to the card's ``briefing_agenda_lookahead_hours``.
 
     Raises:
         ConnectorNotConfiguredError: if no active calendar connector for the user.
@@ -228,12 +304,11 @@ async def fetch_agenda(
             raise ConnectorNotConfiguredError("calendar")
 
         now = datetime.now(UTC)
+        window = timedelta(hours=lookahead_hours or settings.briefing_agenda_lookahead_hours)
         try:
             result = await access.client.list_events(
                 time_min=now.isoformat(),
-                time_max=(
-                    now + timedelta(hours=settings.briefing_agenda_lookahead_hours)
-                ).isoformat(),
+                time_max=(now + window).isoformat(),
                 max_results=settings.briefing_max_agenda_items,
                 calendar_id=access.calendar_id,
                 fields=["id", "summary", "start", "end", "location"],
@@ -494,21 +569,28 @@ def _task_to_item(task: dict[str, Any], today_local: date) -> TaskItem | None:
         except ValueError, TypeError:
             # Provider sent an unparseable due — keep the task, undated.
             logger.debug("briefing_task_due_unparseable", raw_due=str(raw_due)[:40])
+    task_id = task.get("id")
     return TaskItem(
         title=task.get("title") or "Untitled",
         due_date_iso=due_date_iso,
         days_until_due=days_until,
         overdue=days_until is not None and days_until < 0,
+        id=str(task_id) if task_id else None,
     )
 
 
-async def fetch_tasks(*, user: User, user_tz: ZoneInfo) -> TasksData:
+async def fetch_tasks(*, user: User, user_tz: ZoneInfo, whole_page: bool = False) -> TasksData:
     """Fetch strictly pending/overdue tasks from the active tasks provider.
 
     Scope (2026-07-22 arbitration): open items only, overdue (unbounded past)
     + due within ``briefing_tasks_horizon_days``; undated tasks are outside
     the card's temporal scope (the provider ``due_max`` filter excludes
     them). ``days_until_due`` renders client-side.
+
+    ``whole_page`` keeps every task of the provider's page instead of the
+    card's first ``briefing_max_tasks_items``. A task routine (ADR-322) waits
+    for the NEWEST overdue task, which the card's oldest-first cut drops as
+    soon as the person has that many older ones.
 
     Raises:
         ConnectorNotConfiguredError: if no active tasks connector.
@@ -550,7 +632,8 @@ async def fetch_tasks(*, user: User, user_tz: ZoneInfo) -> TasksData:
     items = [item for task in raw_items if (item := _task_to_item(task, today_local)) is not None]
     # Overdue first (oldest due first), then due ascending; undated last.
     items.sort(key=lambda t: (t.days_until_due is None, t.days_until_due or 0))
-    items = items[: settings.briefing_max_tasks_items]
+    if not whole_page:
+        items = items[: settings.briefing_max_tasks_items]
     return TasksData(items=items, overdue_count=sum(1 for t in items if t.overdue))
 
 
@@ -604,12 +687,14 @@ async def fetch_documents(
             except ValueError, TypeError:
                 # Unparseable Drive timestamp — the '?' placeholder renders.
                 logger.debug("briefing_document_modified_unparseable")
+        file_id = f.get("id")
         items.append(
             DocumentItem(
                 name=f.get("name") or "Untitled",
                 modified_local=modified_local,
                 web_view_link=f.get("webViewLink"),
                 mime_type=f.get("mimeType"),
+                id=str(file_id) if file_id else None,
             )
         )
     return DocumentsData(items=items)
@@ -626,18 +711,25 @@ def _soonest_upcoming(
     ``min(..., key=lambda a: a.next_trigger_at)`` would still be typed
     ``datetime | None`` and would compare against None on an unlucky row.
 
+    A condition routine never counts (ADR-322): its trigger is the system's next
+    CHECK, minutes away, and « next automation in 6 min » would announce a run
+    that only happens if the awaited fact does.
+
     Args:
         actions: The account's routines, paused ones included.
         now: Reference instant (UTC).
 
     Returns:
-        The soonest enabled routine and its instant, or ``None`` when none is
-        armed.
+        The soonest enabled scheduled routine and its instant, or ``None`` when
+        none is armed.
     """
+    from src.domains.scheduled_actions.models import TriggerKind
+
     dated = [
         (action, action.next_trigger_at)
         for action in actions
         if action.is_enabled
+        and action.trigger_kind != TriggerKind.CONDITION.value
         and action.next_trigger_at is not None
         and action.next_trigger_at >= now
     ]

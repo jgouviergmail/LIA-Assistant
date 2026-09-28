@@ -3,9 +3,9 @@
 Names and descriptions of every catalogue template, and the label of every
 section key a template may use. The KINDS and the model INSTRUCTIONS live with
 the catalogue (``domains/meetings/template_catalogue.py``); this module holds
-what the user READS, keyed by the backend-canonical language code (``zh-CN``).
-``normalize_language`` from ``core.i18n`` is the only entry point for raw
-locale strings.
+what the user READS, keyed by the backend-canonical language code (``zh-CN``);
+every lookup goes through ``resolve_language`` from ``core.i18n`` — a raw
+locale normalised, an absent one the declared language (ADR-323).
 
 Section labels are shared across templates: ``decisions`` reads the same in a
 project meeting and in a bank appointment, so one entry serves both.
@@ -16,10 +16,9 @@ the size ratchet. Every value is a 6-tuple in ``_LANGUAGES`` order.
 
 from __future__ import annotations
 
-from src.core.i18n import normalize_language
+from src.core.i18n import resolve_language
 
 _LANGUAGES: tuple[str, ...] = ("en", "fr", "de", "es", "it", "zh-CN")
-_DEFAULT = "en"
 
 _Six = tuple[str, str, str, str, str, str]
 
@@ -296,8 +295,8 @@ _TEMPLATE_DESCRIPTIONS: dict[str, _Six] = {
     ),
     "meeting_secretary": (
         "An executive assistant's notes: executive summary, your own commitments, a breakdown by topic.",
-        "Les notes d'un assistant de direction : synthèse, vos propres engagements, un détail par sujet.",
-        "Die Notizen einer Assistenz: Kurzfassung, Ihre eigenen Zusagen, eine Aufschlüsselung nach Thema.",
+        "Les notes d'un assistant de direction : synthèse, tes propres engagements, un détail par sujet.",
+        "Die Notizen einer Assistenz: Kurzfassung, deine eigenen Zusagen, eine Aufschlüsselung nach Thema.",
         "Las notas de un asistente de dirección: resumen ejecutivo, tus compromisos, un desglose por tema.",
         "Le note di un assistente di direzione: sintesi, i tuoi impegni, un dettaglio per argomento.",
         "行政助理式笔记：执行摘要、你自己的承诺、按议题的详细分解。",
@@ -488,8 +487,8 @@ _TEMPLATE_DESCRIPTIONS: dict[str, _Six] = {
     ),
     "bank_advisor_appointment": (
         "Your situation, the products proposed, conditions and fees, decisions, documents to provide, next steps.",
-        "Votre situation, les produits proposés, conditions et frais, décisions, documents à fournir, suite.",
-        "Ihre Situation, vorgeschlagene Produkte, Konditionen und Gebühren, Entscheidungen, einzureichende Unterlagen, nächste Schritte.",
+        "Ta situation, les produits proposés, conditions et frais, décisions, documents à fournir, suite.",
+        "Deine Situation, vorgeschlagene Produkte, Konditionen und Gebühren, Entscheidungen, einzureichende Unterlagen, nächste Schritte.",
         "Tu situación, los productos propuestos, condiciones y comisiones, decisiones, documentos por aportar, siguientes pasos.",
         "La tua situazione, i prodotti proposti, condizioni e spese, decisioni, documenti da fornire, passi successivi.",
         "你的情况、推荐产品、条件与费用、决定、需提供的文件、后续步骤。",
@@ -1154,9 +1153,8 @@ for _table in (_TEMPLATE_NAMES, _TEMPLATE_DESCRIPTIONS, _SECTION_LABELS):
 
 
 def _index(language: str | None) -> int:
-    """Position of the resolved language in every tuple (the chokepoint decides the fallback)."""
-    code = normalize_language(language or "")
-    return _LANGUAGES.index(code) if code in _LANGUAGES else _LANGUAGES.index(_DEFAULT)
+    """Position of the resolved language in every tuple (the declared one when absent)."""
+    return _LANGUAGES.index(resolve_language(language))
 
 
 def get_template_name(key: str, language: str | None) -> str:

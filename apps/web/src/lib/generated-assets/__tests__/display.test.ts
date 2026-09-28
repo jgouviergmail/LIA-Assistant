@@ -13,6 +13,8 @@ import {
   assetLabel,
   assetOpenHref,
   expiryTone,
+  isKept,
+  keepOffered,
 } from '@/lib/generated-assets/display';
 import type { GeneratedAsset } from '@/types/generated-assets';
 
@@ -96,5 +98,30 @@ describe('expiryTone', () => {
     // Saying « plenty of time » about a date nobody could read is the wrong
     // way to be wrong: the person would not save the file.
     expect(expiryTone('not-a-date', now)).toBe('text-destructive');
+  });
+});
+
+describe('isKept', () => {
+  it('reads a file with no deadline as kept, and a deadline as not kept', () => {
+    // ADR-319: the kept state IS the absent deadline — one column, one answer.
+    expect(isKept({ expires_at: null })).toBe(true);
+    expect(isKept({ expires_at: '2026-09-11T08:00:00Z' })).toBe(false);
+  });
+});
+
+describe('keepOffered', () => {
+  const usage = { kept_files: 0, kept_bytes: 0, max_files: 100, max_bytes: 500 * 1024 * 1024 };
+
+  it('offers keeping when both ceilings leave room for a file', () => {
+    expect(keepOffered(usage)).toBe(true);
+  });
+
+  it('offers nothing when EITHER ceiling is 0 — every keep would be refused', () => {
+    expect(keepOffered({ ...usage, max_files: 0 })).toBe(false);
+    expect(keepOffered({ ...usage, max_bytes: 0 })).toBe(false);
+  });
+
+  it('offers nothing before the first payload', () => {
+    expect(keepOffered(null)).toBe(false);
   });
 });

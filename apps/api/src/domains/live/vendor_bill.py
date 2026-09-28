@@ -27,6 +27,7 @@ from src.core.constants import (
     LIVE_VENDOR_BILL_SETTLE_ATTEMPTS,
     LIVE_VENDOR_BILL_SETTLE_INTERVAL_SECONDS,
 )
+from src.core.i18n import resolve_language
 from src.domains.connectors.models import ConnectorType
 from src.domains.live.providers import PROVIDERS, VendorBilling
 from src.domains.live.schemas import LiveVendorBill
@@ -67,7 +68,9 @@ async def fetch_vendor_bill(
     if provider is None or not isinstance(provider, VendorBilling):
         return None
     try:
-        connector = await connectors.connector_of(user, record.provider, language="en")
+        connector = await connectors.connector_of(
+            user, record.provider, language=resolve_language()
+        )
         api_key = await connectors.api_key_of(user.id, ConnectorType(connector.connector_type))
         bill: LiveVendorBill | None = None
         for attempt in range(1, LIVE_VENDOR_BILL_SETTLE_ATTEMPTS + 1):

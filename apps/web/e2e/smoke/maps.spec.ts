@@ -22,13 +22,19 @@ test.describe('maps — reaching the section and reading a map', () => {
     await page.goto('/fr');
     await awaitStyledPage(page, 'landing');
     const header = page.getByRole('banner').or(page.locator('header')).first();
-    await header.getByRole('link', { name: 'Cartes' }).click();
-    await expect(page).toHaveURL(/\/maps$/);
+    // A client-side link returns before Next's cold route has compiled. Wait
+    // for navigation with the suite's navigation budget, then read the page.
+    await Promise.all([
+      page.waitForURL(/\/maps$/),
+      header.getByRole('link', { name: 'Cartes' }).click(),
+    ]);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(
       'Trois cartes pour comprendre'
     );
-    await page.getByRole('article').getByRole('link', { name: 'Carte fonctionnelle' }).click();
-    await expect(page).toHaveURL(/\/maps\/functional$/);
+    await Promise.all([
+      page.waitForURL(/\/maps\/functional$/),
+      page.getByRole('article').getByRole('link', { name: 'Carte fonctionnelle' }).click(),
+    ]);
     await expect(
       page.getByRole('navigation', { name: 'Les cartes de LIA' }).getByRole('link', {
         name: 'Carte fonctionnelle',

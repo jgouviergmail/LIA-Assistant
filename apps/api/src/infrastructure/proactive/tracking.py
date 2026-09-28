@@ -26,6 +26,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.context import current_tracker
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 from src.infrastructure.observability.logging import get_logger
@@ -62,6 +63,23 @@ def out_of_turn_spend(run_id: str, user_id: UUID, session_id: str) -> TrackingCo
     return TrackingContext(run_id, user_id, session_id, None)
 
 
+def ambient_run_id() -> str | None:
+    """The run the enclosing accounting files under, when one is open.
+
+    A task's step runs inside the runner's :func:`out_of_turn_spend`, which
+    publishes itself as the ambient tracker for the whole act: a spend the step
+    bills through :func:`track_proactive_tokens` belongs to THAT run — the one
+    its reads were collected in — never to a run of its own (ADR-324 decision
+    31: a heartbeat's skip was filed apart from the sweep that read the
+    sources for it).
+
+    Returns:
+        The ambient run id, or None outside any accounting.
+    """
+    tracker = current_tracker.get()
+    return None if tracker is None else tracker.run_id
+
+
 def generate_proactive_run_id(task_type: str, target_id: str) -> str:
     """Generate a unique run_id for a proactive task execution.
 
@@ -86,6 +104,8 @@ async def _record_out_of_turn(
     task_type: str,
     run_id: str,
     source: str,
+    *,
+    failed: bool = False,
 ) -> None:
     """File one row in the decision register for a run LIA started itself.
 
@@ -111,6 +131,8 @@ async def _record_out_of_turn(
             the plumbing, not for the initiative: the briefing is reached only
             from a request, a reminder is the person's own deferred
             instruction, and only a runner sweep is LIA's own idea.
+        failed: Whether the run spent and then did not deliver — a generation
+            broken after its model call, a notification that reached nobody.
     """
     try:
         from src.domains.agents.effects.decision_recorder import record_decision
@@ -123,7 +145,7 @@ async def _record_out_of_turn(
         # The work is done and paid for by the time this runs, so the outcome
         # is known. Leaving it at the ``interrupted`` default would file every
         # successful briefing as an interruption.
-        decision.outcome = DecisionOutcome.ANSWERED
+        decision.outcome = DecisionOutcome.FAILED if failed else DecisionOutcome.ANSWERED
         decision.route = task_type
         await record_decision(decision)
     except Exception as exc:  # noqa: BLE001 - observing must never break the observed
@@ -150,6 +172,7 @@ async def track_proactive_tokens(
     run_id: str | None = None,
     llm_type: str | None = None,
     tokens_cache_write: int = 0,
+    failed: bool = False,
 ) -> str | None:
     """
     Persist token usage from a proactive task.
@@ -184,6 +207,8 @@ async def track_proactive_tokens(
         tokens_cache_write: The part of ``tokens_in`` Claude wrote to its
             prompt cache, owed the write surcharge (ADR-306). Every caller
             passes it -- ``test_cache_write_reaches_every_price``.
+        failed: The run spent and did not deliver: it is billed all the same,
+            and filed as ``failed`` in the decision register.
 
     Returns:
         run_id if tokens were tracked, None if no tokens to track
@@ -263,7 +288,7 @@ async def track_proactive_tokens(
             )
             await tracker.commit()
 
-        await _record_out_of_turn(user_id, task_type, run_id, source)
+        await _record_out_of_turn(user_id, task_type, run_id, source, failed=failed)
 
         logger.info(
             "proactive_tokens_tracked",

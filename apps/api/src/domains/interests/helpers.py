@@ -10,6 +10,7 @@ Provides shared utilities for:
 
 from uuid import UUID
 
+from src.core.i18n import resolve_language
 from src.domains.connectors.models import ConnectorType
 from src.infrastructure.observability.logging import get_logger
 
@@ -61,14 +62,14 @@ async def get_connector_api_key(
 
 # Locality suffixes for locally-anchored interest content (P9, Lot 6).
 # Appended to the localized search query when a city is resolved and the
-# INTERESTS_LOCAL_ANCHOR_ENABLED flag is on ("expo à Lyon ce week-end").
+# INTERESTS_LOCAL_ANCHOR_ENABLED flag is on ("jazz near Lyon this week").
 LOCALITY_SUFFIX_TEMPLATES: dict[str, str] = {
     "fr": " près de {locality} cette semaine",
     "en": " near {locality} this week",
     "es": " cerca de {locality} esta semana",
     "de": " in der Nähe von {locality} diese Woche",
     "it": " vicino a {locality} questa settimana",
-    "zh": "，{locality}附近，本周",
+    "zh-CN": "，{locality}附近，本周",
 }
 
 
@@ -81,8 +82,7 @@ def anchor_topic_locally(topic: str, user_language: str, locality: str | None) -
     """
     if not locality:
         return topic
-    lang_key = (user_language or "en").split("-")[0].lower()
-    suffix = LOCALITY_SUFFIX_TEMPLATES.get(lang_key, LOCALITY_SUFFIX_TEMPLATES["en"])
+    suffix = LOCALITY_SUFFIX_TEMPLATES[resolve_language(user_language)]
     return topic + suffix.format(locality=locality)
 
 
@@ -100,35 +100,18 @@ def build_localized_search_query(
     Args:
         topic: Interest topic to search for
         user_language: User's language code (e.g., "fr", "fr-FR", "en-US")
-        templates: Dict mapping base language codes to query templates
-            with a ``{topic}`` placeholder
+        templates: Dict mapping every canonical language code to a query
+            template with a ``{topic}`` placeholder
 
     Returns:
-        Localized search query string (falls back to "en" template)
+        Localized search query string
 
     Example:
-        >>> templates = {"fr": "Actualités sur {topic}", "en": "News about {topic}"}
-        >>> build_localized_search_query("IA", "fr-FR", templates)
-        'Actualités sur IA'
+        With a table keyed on every canonical code, ``"fr-FR"`` reads the
+        ``"fr"`` template, an absent code the declared language's, and a code
+        no supported language matches the instance default's (ADR-323).
     """
-    base_lang = user_language.split("-")[0].lower()
-    template = templates.get(base_lang, templates.get("en", "Recent news about {topic}"))
-    return template.format(topic=topic)
-
-
-def normalize_language_code(language: str) -> str:
-    """
-    Extract base language code from a locale string (ISO 639-1).
-
-    Handles various formats: "fr", "fr-FR", "en_US", "zh-CN".
-
-    Args:
-        language: Language/locale string
-
-    Returns:
-        Base language code (e.g., "fr", "en", "zh")
-    """
-    return language.lower().replace("_", "-").split("-")[0]
+    return templates[resolve_language(user_language)].format(topic=topic)
 
 
 async def generate_interest_embedding(text: str) -> list[float] | None:

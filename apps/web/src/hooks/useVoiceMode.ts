@@ -49,6 +49,7 @@ import { useSherpaKws } from '@/hooks/useSherpaKws';
 import { isSherpaKwsSupported } from '@/lib/audio/sherpaKws';
 import { useVoiceModeStore, type VoiceModeState } from '@/stores/voiceModeStore';
 import { useLiveHoldsMicrophone } from '@/stores/liveStore';
+import { useRadioHoldsAudio } from '@/stores/radioStore';
 import { useMeetingIsCapturing } from '@/stores/meetingRecorderStore';
 import {
   VOICE_INPUT_SAMPLE_RATE,
@@ -125,10 +126,13 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
   const { onTranscription, onStartSpeaking, onStopSpeaking, onError, onWakeWordDetected } = options;
   // ADR-258: one microphone owner at a time — the wake-word detector and its
   // listening loop pause while a meeting records or a live session runs
-  // (ADR-299), and resume by themselves.
+  // (ADR-299), and resume by themselves. The radio (ADR-324) holds the
+  // SPEAKERS, not the microphone — but a wake word its host says must never
+  // wake the assistant, so the detector stands aside for it too.
   const meetingCapturing = useMeetingIsCapturing();
   const liveCapturing = useLiveHoldsMicrophone();
-  const microphoneTaken = meetingCapturing || liveCapturing;
+  const radioOnAir = useRadioHoldsAudio();
+  const microphoneTaken = meetingCapturing || liveCapturing || radioOnAir;
 
   // Store state
   const {
@@ -902,6 +906,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
         isEnabled,
         meetingCapturing,
         liveCapturing,
+        radioOnAir,
         state,
         kwsIsReady,
         isKwsSupported,
@@ -1019,6 +1024,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
     isEnabled,
     meetingCapturing,
     liveCapturing,
+    radioOnAir,
     microphoneTaken,
     state,
     kwsIsReady,

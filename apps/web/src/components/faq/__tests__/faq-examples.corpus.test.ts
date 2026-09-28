@@ -123,11 +123,12 @@ describe('FAQ corpus — coverage across locales', () => {
   });
 
   it('documents the known content drift between locales', () => {
-    // The FAQ answers are authored, not machine-translated: German and Chinese
-    // legitimately carry fewer examples than French. The i18n parity guard
-    // checks KEYS, never HTML content, so nothing else would report this.
-    // Pinned as a fact rather than left as a surprise.
+    // The FAQ answers are authored, not machine-translated, so a locale can
+    // legitimately carry a few examples fewer than French. The i18n parity
+    // guard checks KEYS, never HTML content, so nothing else would report a
+    // translation that drifted. Realigned on French on 2026-09-25 (spread 23,
+    // from under 80): shrink-only, like every ratchet here.
     const spread = Math.max(...Object.values(counts)) - Math.min(...Object.values(counts));
-    expect(spread, `unexpected spread across locales: ${JSON.stringify(counts)}`).toBeLessThan(80);
+    expect(spread, `unexpected spread across locales: ${JSON.stringify(counts)}`).toBeLessThan(40);
   });
 });

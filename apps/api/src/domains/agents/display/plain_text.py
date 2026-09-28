@@ -10,7 +10,7 @@ markup first, or the user hears tags read aloud and reads ``<div
 class="lia-response">`` on their lock screen.
 
 This module owns the *detection* half as well, and that is the point of it
-existing: :func:`html_to_text` ends with ``re.sub(r"<[^>]+>", "", text)``,
+existing: :func:`html_to_text` ends with ``re.sub(r"<[^<>]+>", "", text)``,
 which would happily delete ``"< 5 and y >"`` from the prose
 ``"x < 5 and y > 3"``. Stripping therefore runs only when genuine HTML element
 tags are present, so the helpers are safe to apply unconditionally at any
@@ -30,14 +30,16 @@ order, and is the ONE door for such a surface — a ticket comment, where
 
 import re
 
+from src.domains.shared.markdown_literal import read_as_markdown
+
 # Recognised HTML element tags emitted by the response/display layer.
 _TAGS = (
     r"div|p|span|style|script|h[1-6]|ul|ol|li|table|thead|tbody|tr|td|th"
     r"|a|strong|em|b|i|blockquote|code|pre"
 )
-_OPEN_TAG_RE = re.compile(rf"<({_TAGS})\b[^>]*>", re.IGNORECASE)
+_OPEN_TAG_RE = re.compile(rf"<({_TAGS})\b[^<>]*>", re.IGNORECASE)
 _CLOSE_TAG_RE = re.compile(rf"</({_TAGS})\s*>", re.IGNORECASE)
-_VOID_TAG_RE = re.compile(r"<(?:br|hr|img)\b[^>]*/?>", re.IGNORECASE)
+_VOID_TAG_RE = re.compile(r"<(?:br|hr|img)\b[^<>]*/?>", re.IGNORECASE)
 # ``<tag attr="value">`` — an attribute is a signal prose never produces, and it
 # is what keeps a *truncated* document (opening tags, no closing ones) detected.
 _ATTR_TAG_RE = re.compile(rf"""<(?:{_TAGS})\s+[a-z-]+\s*=\s*["']""", re.IGNORECASE)
@@ -55,7 +57,7 @@ _ATTR_TAG_RE = re.compile(rf"""<(?:{_TAGS})\s+[a-z-]+\s*=\s*["']""", re.IGNORECA
 # server renders double quotes, but the pattern must not silently miss an icon
 # over a quoting detail.
 _ICON_SPAN_RE = re.compile(
-    r"""<span[^>]*class=["'][^"']*material-symbols-outlined[^"']*["'][^>]*>[^<]*</span\s*>""",
+    r"""<span[^<>]*class=["'][^"']*material-symbols-outlined[^"']*["'][^<>]*>[^<]*</span\s*>""",
     re.IGNORECASE,
 )
 
@@ -64,7 +66,7 @@ def looks_like_html(text: str) -> bool:
     """Cheaply detect genuine HTML markup (not a bare '<' in prose or code).
 
     Guards :func:`strip_html_if_markup`, whose stripper ends with
-    ``re.sub(r"<[^>]+>", "", text)`` and would otherwise delete chunks of prose.
+    ``re.sub(r"<[^<>]+>", "", text)`` and would otherwise delete chunks of prose.
     Merely spotting a lone ``<tag`` is not enough: single-letter element names
     collide with ordinary comparisons and generics, so ``"if x<a and b>c"``,
     ``"count<b et total>i"`` and ``"vector<i> v; map<p,tr> m;"`` were all
@@ -179,8 +181,13 @@ def markdown_to_plain_text(text: str) -> str:
     be flattened onto one line; the fences go before the emphasis, so a code
     fence's language tag is never mistaken for content; a table's delimiter row
     goes before the bullet rule, which would otherwise read its dashes as a
-    list; and the emphasis pass runs twice, because a nested pair
-    (``**a `b`**``) only becomes a pair of its own once the outer one is gone.
+    list; the emphasis pass runs twice, because a nested pair (``**a `b`**``)
+    only becomes a pair of its own once the outer one is gone. Character
+    references are read as the chat reads them (``read_as_markdown``): a
+    valid one outside code is its character — a value drawn as itself
+    (``markdown_data_literal``) and LIA's own « &#233; » alike —, one
+    inside a code span stays as typed, and none of them is ever read as a
+    mark by the steps below or decoded a second time by the HTML stripper.
 
     Args:
         text: Content, possibly Markdown, possibly HTML, possibly both.
@@ -190,6 +197,18 @@ def markdown_to_plain_text(text: str) -> str:
     """
     if not text:
         return text
+    return read_as_markdown(text, _flatten_markup)
+
+
+def _flatten_markup(text: str) -> str:
+    """The steps of :func:`markdown_to_plain_text`, in their load-bearing order.
+
+    Args:
+        text: Content whose character references were read and shielded.
+
+    Returns:
+        The same text, marks removed and lines kept.
+    """
     out = strip_html_if_markup(_BR_RE.sub("\n", text))
     out = _MD_FENCE_RE.sub("", out)
     out = _MD_HEADING_RE.sub("", out)

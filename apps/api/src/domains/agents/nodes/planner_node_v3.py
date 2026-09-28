@@ -27,12 +27,12 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
-from src.core.config import settings
 from src.core.constants import (
     CLARIFICATION_RECIPIENT_FIELDS,
     EXECUTION_MODE_PIPELINE,
     TOOL_NAME_DELEGATE_SUB_AGENT,
 )
+from src.core.i18n import resolve_language
 from src.core.run_config import run_id_of
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_query_intelligence_from_state,
@@ -45,13 +45,13 @@ from src.domains.agents.constants import (
     STATE_KEY_MESSAGES,
     STATE_KEY_NEEDS_REPLAN,
     STATE_KEY_PLANNER_ITERATION,
+    STATE_KEY_PLANNING_RESULT,
     STATE_KEY_ROUTING_HISTORY,
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_VALIDATION_RESULT,
 )
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
-    runtime_language,
     runtime_user_id_str,
 )
 from src.domains.agents.models import MessagesState
@@ -68,10 +68,6 @@ from src.infrastructure.observability.metrics_agents import (
 from src.infrastructure.observability.tracing import trace_node
 
 logger = get_logger(__name__)
-
-
-# New state keys for v3
-STATE_KEY_PLANNING_RESULT = "planning_result"
 
 
 @trace_node("planner_v3")
@@ -322,7 +318,7 @@ async def planner_node_v3(
             if not english_query:
                 english_query = intelligence.original_query
 
-            user_language = state.get("user_language", settings.default_language)
+            user_language = resolve_language(state.get("user_language"))
 
             early_result = detect_early_insufficient_content(
                 query_intelligence=intelligence,
@@ -338,10 +334,13 @@ async def planner_node_v3(
                     issue_count=len(early_result.issues),
                     msg="Early detection saved planner LLM call(s)",
                 )
-                # Return early with semantic_validation set for clarification routing
+                # Return early with semantic_validation set for clarification
+                # routing, the replan consumed like on the other returns (F6):
+                # left set, an empty answer's replan came back here for ever.
                 early_state_update = {
                     STATE_KEY_EXECUTION_PLAN: None,
                     STATE_KEY_SEMANTIC_VALIDATION: early_result,
+                    STATE_KEY_NEEDS_REPLAN: False,
                 }
                 track_state_updates(state, early_state_update, "planner", run_id)
                 return early_state_update
@@ -760,8 +759,7 @@ async def _resolve_clarification_reference(
             get_memory_reference_resolution_service,
         )
 
-        config.get("configurable", {})
-        # Use langgraph_user_id (str) like QueryAnalyzerService
+        # The acting user, from the typed runtime context (ADR-231)
         user_id = runtime_user_id_str(None)
 
         if not user_id:
@@ -788,15 +786,10 @@ async def _resolve_clarification_reference(
         memory_facts_str = "\n".join(f"- {fact}" for fact in memory_facts)
 
         # Resolve using memory reference resolution service
-        # Extract user_language from config for multilingual resolution
-        config.get("configurable", {}) if config else {}
-        user_language = runtime_language()
-
         resolution_service = get_memory_reference_resolution_service()
         result = await resolution_service.resolve_pre_planner(
             query=clarification_response,
             memory_facts=memory_facts_str,
-            user_language=user_language,
             config=config,
         )
 

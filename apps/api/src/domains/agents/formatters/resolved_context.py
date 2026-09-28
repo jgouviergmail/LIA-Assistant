@@ -2,7 +2,7 @@
 Resolved context formatting for reference turns.
 
 This module provides functions for formatting resolved context items
-(from reference resolution like "montre moi le deuxième") for both
+(from reference resolution like "show me the second one") for both
 LLM prompts and HTML injection.
 
 Usage:
@@ -15,8 +15,8 @@ Usage:
 
 from typing import Any
 
-from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 from src.domains.agents.display.config import config_for_viewport
 from src.domains.agents.display.html_renderer import get_html_renderer
 from src.domains.agents.formatters.text_summary import generate_text_summary_for_items
@@ -78,7 +78,7 @@ def format_resolved_context_for_prompt(
     resolved_context: dict[str, Any],
     use_text_summary: bool = False,
     user_viewport: str = "desktop",
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
 ) -> str:
     """
     Format resolved context items for LLM prompt.
@@ -90,7 +90,7 @@ def format_resolved_context_for_prompt(
     IMPORTANT: This function NEVER returns HTML. HTML is injected AFTER LLM
     via generate_html_for_resolved_context().
 
-    When a user makes a reference to previous results (e.g., "montre moi le deuxième"),
+    When a user makes a reference to previous results (e.g., "show me the second one"),
     this function formats the resolved items for the LLM prompt.
 
     Args:
@@ -113,13 +113,13 @@ def format_resolved_context_for_prompt(
 
     # Pure HTML mode - always use the text summary
     # HTML is injected AFTER the LLM via generate_html_for_resolved_context()
-    return generate_text_summary_for_items(items, domain, user_language)
+    return generate_text_summary_for_items(items, domain, resolve_language(user_language))
 
 
 def generate_html_for_resolved_context(
     resolved_context: dict[str, Any],
     user_viewport: str = "desktop",
-    user_language: str = settings.default_language,
+    user_language: str | None = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> str:
     """
@@ -150,7 +150,7 @@ def generate_html_for_resolved_context(
 
     # Get display config
     config = config_for_viewport(user_viewport)
-    config.language = user_language
+    config.language = resolve_language(user_language)
     config.timezone = user_timezone
 
     html_renderer = get_html_renderer()

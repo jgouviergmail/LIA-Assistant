@@ -78,10 +78,19 @@ class Personality(BaseModel):
     )
 
     # Relationships
+    # Ordered: the last fallback of get_translation is the FIRST WRITTEN, and an
+    # unordered collection returned whatever the heap held (it flipped after the
+    # UPDATEs a propagation performs). Among rows written together, the one an
+    # administrator wrote comes first.
     translations: Mapped[list[PersonalityTranslation]] = relationship(
         back_populates="personality",
         cascade="all, delete-orphan",
         lazy="selectin",
+        order_by=lambda: (
+            PersonalityTranslation.created_at,
+            PersonalityTranslation.is_auto_translated,
+            PersonalityTranslation.language_code,
+        ),
     )
     users: Mapped[list[User]] = relationship(
         back_populates="personality",
@@ -100,21 +109,18 @@ class Personality(BaseModel):
         """
         Get translation for a specific language with fallback.
 
-        Priority: requested language -> fr -> en -> first available
+        Priority: requested language -> the instance's default language -> the
+        first written (the collection is ordered by creation, an administrator's
+        text first among rows written together). No step prefers a language of
+        the code's own choosing (ADR-323): an English step between the last two
+        used to decide for the instance.
         """
-        # Try exact match
-        for t in self.translations:
-            if t.language_code == language_code:
-                return t
-
-        # Try fallbacks
-        fallback_languages = (settings.default_language, "en")
-        for fallback in fallback_languages:
+        for wanted in (language_code, settings.default_language):
             for t in self.translations:
-                if t.language_code == fallback:
+                if t.language_code == wanted:
                     return t
 
-        # Return first available
+        # Return the first written
         return self.translations[0] if self.translations else None
 
 
@@ -123,7 +129,8 @@ class PersonalityTranslation(BaseModel):
     Localized personality metadata (title and description).
 
     Each personality can have multiple translations, one per supported language.
-    Translations can be manually created or auto-translated via GPT-4.1-nano.
+    Translations can be written by an administrator or auto-translated by the
+    configured translation model.
 
     Attributes:
         personality_id: FK to parent personality

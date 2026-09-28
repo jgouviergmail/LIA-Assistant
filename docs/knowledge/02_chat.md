@@ -19,7 +19,7 @@ To clear history and start over:
 
 **⚠️ What is actually deleted:** Every message, **the attachments you uploaded yourself** — and the context LIA had built from this conversation (`POST /conversations/me/reset` also clears the token summaries, the LangGraph checkpoints and the tool contexts). The action is **irreversible**.
 
-**✅ What is NOT deleted:** **the files LIA produced** — images, documents, browser screenshots — stay in Settings › My generated files until their own deadline: a file LIA made for you belongs to you, not to the conversation that happened to produce it. And what LIA learned about you lives outside the conversation and stays — your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. Each stored value declares what it is, and a reset only clears what a conversation created (a value whose family is unknown is kept, never guessed). To erase the learning too, use **Forget everything** in the settings, or delete your account.
+**✅ What is NOT deleted:** **the files LIA produced** — images, documents, browser screenshots — stay in Settings › My generated files until their own deadline, or for good if you keep them: a file LIA made for you belongs to you, not to the conversation that happened to produce it. And what LIA learned about you lives outside the conversation and stays — your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. Each stored value declares what it is, and a reset only clears what a conversation created (a value whose family is unknown is kept, never guessed). To erase the learning too, use **Forget everything** in the settings, or delete your account.
 
 **💡 When to reset?**
 • When you completely change topics
@@ -478,3 +478,9 @@ in **Settings > Personalization > Eyes style**, with live previews. The same
 face greets visitors on the public home page, in the capsule look, with a spot
 of its own that never moves the chat's. Under reduced-motion system settings
 the eyes stay still.
+
+## Do new messages appear by themselves?
+Yes. When a message lands in your conversation from elsewhere — another tab or device, Telegram, a voice session, a routine, a reminder — the chat adds it without reloading the page: what is already on screen stays as it is, your selection and open panels included. If you are reading higher up, you are not moved; the round button at the bottom counts what arrived. Nothing changes while an answer is being written: the new messages join once it is done. And if the connection dropped (network, a laptop asleep), the chat catches up when it comes back or when you return to the tab.
+
+## Can I send an answer by e-mail?
+Yes. Under each answer, « Send by e-mail » attaches the answer as the very Markdown file « Download » gives you, with the subject and the words you choose — LIA writes nothing in your place. It leaves from your connected mailbox, or, without one, goes to your own verified address. The answers you kept (« Bookmarks ») can be sent the same way.

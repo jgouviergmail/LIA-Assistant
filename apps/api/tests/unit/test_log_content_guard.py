@@ -18,23 +18,44 @@ A value is content when it is
 
 Metadata about content is not content: ``len(query)``, ``bool(body)``,
 ``list(draft.keys())``, ``query_length``, ``has_query``, ``tool.name``.
+
+A few fields hold text somebody TYPED under a name that reads like a code — an
+administrator's ``disabled_reason``, a manual block's ``blocked_reason``, the
+words a person rejected a plan with. They are declared by their full name
+(``TYPED_TEXT_FIELDS``), whoever owns them: a row read as ``config`` is not
+configuration. A generic ``reason`` that is typed text cannot be told from a code
+by any rule, so the modules where it is typed are pinned
+(``TYPED_REASON_MODULES``): whatever the event, the length, never the text —
+pinning events let a NEW event log it under a generic name. A key read through
+a field constant (``row[FIELD_BLOCKED_REASON]``) is read as the field it names.
 A value that is a person's content but must stay (a security event keeping the
 refused host, a system space's fixed name) is ALLOWED below with its reason; an
 allowance that no longer matches a line fails, so the list only ever shrinks.
 
 What a caught exception's text quotes (a database row, a refused input) is not
 this guard's: ``error=str(e)`` is withheld by the filter's quotation rules
-(``observability/quoted_content.py``).
+(``observability/quoted_content.py``). Nor is a splatted mapping
+(``**fields``): its keys are built at run time, and the filter reads them there.
+
+The rule has a reverse: a FACT logged under a name the filter withholds is lost.
+An exact content name keeps a count, a flag or an absence and nothing else, so
+twelve voice-session lines that logged their session's id as ``origin=`` read
+``[REDACTED]`` above DEBUG (2026-09-25). A fact is named after what it is
+(``origin_id=``) — the filter itself is asked what it would withhold.
 """
 
 from __future__ import annotations
 
 import ast
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 import pytest
+
+from src.infrastructure.observability.pii_filter import CONTENT_FIELD_NAMES, sanitize_dict
+from tests._ast_bindings import binding
 
 pytestmark = pytest.mark.unit
 
@@ -120,6 +141,39 @@ _CONTENT_WORDS = frozenset(
         "response",
     }
 )
+
+#: Full names of fields that hold text somebody typed, whatever their last word.
+TYPED_TEXT_FIELDS = frozenset(
+    {
+        "disabled_reason",
+        "blocked_reason",
+        "rejection_reason",
+        "plan_rejection_reason",
+        "change_reason",
+    }
+)
+
+#: Modules whose generic ``reason`` is text an administrator typed: no log
+#: value above DEBUG in them carries a ``reason`` leaf, whatever the event.
+TYPED_REASON_MODULES = frozenset(
+    {"domains/users/service.py", "domains/users/account_deletion_service.py"}
+)
+
+
+@cache
+def _field_constants() -> dict[str, str]:
+    """The string each ``core/field_names.py`` constant names (``FIELD_X`` → ``x``)."""
+    tree = ast.parse((SRC / "core" / "field_names.py").read_text(encoding="utf-8"))
+    return {
+        target.id: node.value.value
+        for node in tree.body
+        if isinstance(node, ast.Assign | ast.AnnAssign)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+        for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+        if isinstance(target, ast.Name)
+    }
+
 
 #: Last word parts that turn a content name into metadata about it.
 _META_WORDS = frozenset(
@@ -283,7 +337,7 @@ _TEXT_METHODS = frozenset(
 
 @dataclass(frozen=True)
 class Offense:
-    """A value above DEBUG that carries the person's words."""
+    """A value above DEBUG that carries the person's words, or a fact the filter hides."""
 
     module: str
     line: int
@@ -416,6 +470,8 @@ def _is_metadata_name(name: str) -> bool:
 def _is_content_name(name: str, owner: str | None = None) -> bool:
     """Whether a leaf name designates the person's words (not metadata about them)."""
     words = _words(name)
+    if name.lower() in TYPED_TEXT_FIELDS:
+        return True
     if not words or name.startswith("__") or _is_metadata_name(name):
         return False
     if words[-1] == "name":
@@ -442,17 +498,14 @@ def _leaves(node: ast.expr) -> Iterator[tuple[str, str | None]]:
     elif isinstance(node, ast.Attribute):
         if node.attr == "value" or (node.attr == "name" and not _personal_owner(node.value)):
             return  # an enum member's value, a code object's name
+        if node.attr.lower() in TYPED_TEXT_FIELDS:
+            yield node.attr, _owner_word(node.value)  # typed text, even on a config row
+            return
         if _owner_word(node.value) in {"settings", "config"}:
             return  # configuration, never a person's words
         yield node.attr, _owner_word(node.value)
     elif isinstance(node, ast.Subscript):
-        index = node.slice
-        if isinstance(index, ast.Constant) and isinstance(index.value, str):
-            yield index.value, _owner_word(node.value)
-        elif isinstance(index, ast.Name):
-            yield index.id, _owner_word(node.value)  # `summary[FIELD_TOKENS_IN]`
-        else:
-            yield from _leaves(node.value)
+        yield from _subscript_leaves(node)
     elif isinstance(node, ast.Call):
         yield from _call_leaves(node)
     elif isinstance(node, ast.JoinedStr):
@@ -482,6 +535,18 @@ def _leaves(node: ast.expr) -> Iterator[tuple[str, str | None]]:
         yield from _leaves(node.value)
 
 
+def _subscript_leaves(node: ast.Subscript) -> Iterator[tuple[str, str | None]]:
+    """A subscript read: the key it names, else what it is taken from."""
+    index = node.slice
+    if isinstance(index, ast.Constant) and isinstance(index.value, str):
+        yield index.value, _owner_word(node.value)
+    elif isinstance(index, ast.Name):
+        # `row[FIELD_BLOCKED_REASON]` reads the field the constant names.
+        yield _field_constants().get(index.id, index.id), _owner_word(node.value)
+    else:
+        yield from _leaves(node.value)
+
+
 def _personal_owner(node: ast.expr) -> bool:
     return _owner_word(node) in _PERSONAL_OWNERS
 
@@ -505,7 +570,8 @@ def _call_leaves(node: ast.Call) -> Iterator[tuple[str, str | None]]:
             if isinstance(key, ast.Constant) and isinstance(key.value, str):
                 yield key.value, _owner_word(func.value)
             elif isinstance(key, ast.Name):
-                yield key.id, _owner_word(func.value)
+                # `row.get(FIELD_BLOCKED_REASON)` reads the field the constant names.
+                yield _field_constants().get(key.id, key.id), _owner_word(func.value)
             else:
                 yield from _leaves(func.value)
             return
@@ -602,8 +668,33 @@ def _is_log_call(node: ast.Call) -> bool:
     )
 
 
-def _offenses() -> list[Offense]:
-    found: list[Offense] = []
+#: The keyword under which an f-string event name is read.
+_EVENT_KEYWORD = "<event>"
+
+#: Calls whose result is an integer or a boolean.
+_SCALAR_CALLS = frozenset({"len", "bool", "int", "any", "all", "isinstance", "hash", "id"})
+
+
+@dataclass(frozen=True)
+class LogValue:
+    """One value a log call above DEBUG passes."""
+
+    module: str
+    line: int
+    event: str
+    keyword: str
+    value: ast.expr
+
+    def offense(self) -> Offense:
+        return Offense(
+            self.module, self.line, self.event, self.keyword, ast.unparse(self.value)[:120]
+        )
+
+
+@cache
+def _log_values() -> tuple[LogValue, ...]:
+    """Every value every log call of ``src`` passes above DEBUG, read once."""
+    found: list[LogValue] = []
     for path in sorted(SRC.rglob("*.py")):
         module = str(path.relative_to(SRC)).replace("\\", "/")
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -616,19 +707,70 @@ def _offenses() -> list[Offense]:
                 if isinstance(first, ast.Constant) and isinstance(first.value, str)
                 else ast.unparse(first) if first is not None else ""
             )
-            values: list[tuple[str, ast.expr]] = [
-                (keyword.arg, keyword.value)
+            found.extend(
+                LogValue(module, node.lineno, event, keyword.arg, keyword.value)
                 for keyword in node.keywords
                 if keyword.arg is not None and keyword.arg not in _IGNORED_KEYWORDS
-            ]
+            )
             if isinstance(first, ast.JoinedStr):
-                values.append(("<event>", first))
-            for keyword, value in values:
-                if _carries_content("" if keyword == "<event>" else keyword, value):
-                    found.append(
-                        Offense(module, node.lineno, event, keyword, ast.unparse(value)[:120])
-                    )
-    return found
+                found.append(LogValue(module, node.lineno, event, _EVENT_KEYWORD, first))
+    return tuple(found)
+
+
+def _offenses() -> list[Offense]:
+    return [
+        logged.offense()
+        for logged in _log_values()
+        if _carries_content(
+            "" if logged.keyword == _EVENT_KEYWORD else logged.keyword, logged.value
+        )
+    ]
+
+
+def _is_scalar(value: ast.expr) -> bool:
+    """Whether a value is, statically, an integer, a boolean or ``None``."""
+    if isinstance(value, ast.Constant):
+        return value.value is None or isinstance(value.value, int)
+    if isinstance(value, ast.Compare) or (
+        isinstance(value, ast.UnaryOp) and isinstance(value.op, ast.Not)
+    ):
+        return True
+    return (
+        isinstance(value, ast.Call)
+        and isinstance(value.func, ast.Name)
+        and value.func.id in _SCALAR_CALLS
+    )
+
+
+def _is_fact(value: ast.expr) -> bool:
+    """A value made of identifiers, codes, quantities or configuration — no words."""
+    if _is_metadata(value):
+        return True
+    if next(_sliced(value), None) is not None:
+        return False  # a preview is the words, cut short
+    return all(_is_metadata_name(leaf) for leaf, _ in _leaves(value))
+
+
+def _withholds(keyword: str, value: ast.expr) -> bool:
+    """Whether the filter withholds this value above DEBUG, by its field NAME.
+
+    The filter itself is asked, with a stand-in of the value's shape. Only an
+    EXACT content name withholds a fact: a suffix withholds text alone, and
+    whether a value is text is not something the AST says.
+    """
+    if keyword.lower() not in CONTENT_FIELD_NAMES:
+        return False
+    stand_in: object = 0 if _is_scalar(value) else "fact"
+    logged: object = sanitize_dict({keyword: stand_in}, redact_content=True)[keyword]
+    return logged != stand_in
+
+
+def _hidden_facts() -> list[Offense]:
+    return [
+        logged.offense()
+        for logged in _log_values()
+        if _withholds(logged.keyword, logged.value) and _is_fact(logged.value)
+    ]
 
 
 def _value(source: str) -> ast.expr:
@@ -646,6 +788,12 @@ def _value(source: str) -> ast.expr:
         ("name", "name"),
         ("sample", "instruction_value[:200]"),
         ("msg", "f'{tool}.{name}={value} clamped'"),
+        ("reason", "config.disabled_reason"),
+        ("blocked", "data.blocked_reason"),
+        ("rejected_because", "state.get('plan_rejection_reason')"),
+        ("blocked", "row[FIELD_BLOCKED_REASON]"),  # read as the field it names
+        ("blocked", "row.get(FIELD_BLOCKED_REASON)"),  # through .get, too
+        ("change_reason", "update.change_reason"),  # an administrator's words
     ],
 )
 def test_the_rule_sees_content(keyword: str, source: str) -> None:
@@ -666,6 +814,7 @@ def test_the_rule_sees_content(keyword: str, source: str) -> None:
         ("message", "'Service recovered, circuit closed'"),
         ("message", "f'Tool {manifest.name} registered'"),
         ("skill_name", "name"),
+        ("disabled_reason_length", "len(config.disabled_reason or '')"),
     ],
 )
 def test_metadata_about_content_passes(keyword: str, source: str) -> None:
@@ -681,7 +830,129 @@ def test_no_log_line_above_debug_carries_the_person_s_words() -> None:
     )
 
 
+def _aliases_of(tree: ast.AST) -> dict[str, frozenset[str]]:
+    """Every local name of a tree mapped to the leaves of what was bound to it —
+    by ``=``, an annotation or ``:=``."""
+    aliases: dict[str, set[str]] = {}
+    for node in ast.walk(tree):
+        if (bound := binding(node)) is not None:
+            name, value = bound
+            aliases.setdefault(name, set()).update(leaf for leaf, _owner in _leaves(value))
+    return {name: frozenset(leaves) for name, leaves in aliases.items()}
+
+
+@cache
+def _local_aliases(module: str) -> dict[str, frozenset[str]]:
+    """Every local name of a module mapped to the leaves of what was assigned to it."""
+    return _aliases_of(ast.parse((SRC / module).read_text(encoding="utf-8")))
+
+
+def _carries_a_reason(value: ast.expr, aliases: Mapping[str, frozenset[str]]) -> bool:
+    """Whether a value reads a ``reason`` — directly, under any ``*_reason`` name,
+    or through a local alias (``why = data.reason`` then ``why=why``)."""
+    pending = [leaf for leaf, _owner in _leaves(value)]
+    seen: set[str] = set()
+    while pending:
+        leaf = pending.pop()
+        if leaf in seen:
+            continue
+        seen.add(leaf)
+        words = _words(leaf)
+        if words and words[-1] == "reason":
+            return True
+        pending.extend(aliases.get(leaf, ()))
+    return False
+
+
+@pytest.mark.parametrize(
+    ("source", "aliases"),
+    [
+        ("update_data.reason", {}),
+        ("deletion_reason", {}),
+        ("why", {"why": frozenset({"reason"})}),
+        ("note", {"note": frozenset({"why"}), "why": frozenset({"reason"})}),
+    ],
+)
+def test_a_pinned_reason_is_seen_through_its_names(
+    source: str, aliases: dict[str, frozenset[str]]
+) -> None:
+    assert _carries_a_reason(_value(source), aliases)
+
+
+def test_a_reason_s_length_is_no_reason() -> None:
+    assert not _carries_a_reason(_value("len(reason)"), {})
+
+
+@pytest.mark.parametrize(
+    "source",
+    ["why: str = data.reason", "if (why := data.reason):\n    pass", "why = data.reason"],
+)
+def test_a_reason_is_followed_through_every_binding(source: str) -> None:
+    """Read on ``x = …`` alone, an annotated or walrus alias carried the reason
+    past the guard."""
+    assert _carries_a_reason(_value("why"), _aliases_of(ast.parse(source)))
+
+
+def test_a_typed_reason_is_logged_by_its_length_never_its_text() -> None:
+    """An administrator's typed reason, under the generic name no rule can read:
+    in the modules where ``reason`` is typed text, no log value carries it —
+    whatever the event, a new one included."""
+    pinned = [logged for logged in _log_values() if logged.module in TYPED_REASON_MODULES]
+    gone = TYPED_REASON_MODULES - {logged.module for logged in pinned}
+    assert not gone, f"pinned modules no line logs from any more — remove them: {sorted(gone)}"
+    leaked = [
+        f"  {logged.module}:{logged.line} {logged.event} {logged.keyword}"
+        for logged in pinned
+        if _carries_a_reason(logged.value, _local_aliases(logged.module))
+    ]
+    assert not leaked, "an administrator's reason reaches the logs:\n" + "\n".join(leaked)
+
+
 def test_every_allowance_still_matches_a_line() -> None:
     live = {offense.key for offense in _offenses()}
     stale = sorted(key for key in ALLOWED if key not in live)
     assert not stale, f"allowances that match no line any more — remove them: {stale}"
+
+
+@pytest.mark.parametrize(
+    ("keyword", "source"),
+    [
+        ("origin", "session.origin_id"),
+        ("topic", "settings.apns_topic"),
+        ("content", "round(ratio, 2)"),
+        ("title", "'Weekly digest'"),
+        ("lat", "len(points)"),
+    ],
+)
+def test_the_reverse_rule_sees_a_withheld_fact(keyword: str, source: str) -> None:
+    """An identifier, a setting, a float, a constant, and a count under a coordinate."""
+    value = _value(source)
+    assert _withholds(keyword, value)
+    assert _is_fact(value)
+
+
+@pytest.mark.parametrize(
+    ("keyword", "source"),
+    [
+        ("recipients", "len(message['toRecipients'])"),
+        ("content", "bool(body)"),
+        ("location", "None"),
+        ("origin_id", "session.origin_id"),
+        ("to", "to"),
+        ("cost_prompt", "total_prompt_tokens"),
+    ],
+)
+def test_the_reverse_rule_passes_what_is_kept_or_is_content(keyword: str, source: str) -> None:
+    """Counts, flags and absences are kept; words are the filter's to hide; suffixes are out."""
+    value = _value(source)
+    assert not (_withholds(keyword, value) and _is_fact(value))
+
+
+def test_no_fact_is_logged_under_a_name_the_filter_withholds() -> None:
+    hidden = _hidden_facts()
+    listing = "\n".join(f"  {o.module}:{o.line} {o.event} {o.keyword}={o.source}" for o in hidden)
+    assert not hidden, (
+        f"{len(hidden)} fact(s) logged above DEBUG under a content name the PII filter "
+        f"withholds — they reach the logs as [REDACTED]; name the field after what it is "
+        f"(`origin_id=`, `bundle_id=`, `location_count=`):\n{listing}"
+    )

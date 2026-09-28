@@ -22,6 +22,7 @@ from src.core.constants import (
     PLACES_FEATURE_FIELD_TO_I18N_KEY,
     PLACES_MAX_GALLERY_PHOTOS,
 )
+from src.core.i18n import resolve_language
 from src.domains.agents.utils.distance import calculate_distance_sync
 from src.domains.agents.utils.i18n_location import get_price_level
 from src.domains.connectors.media_attribution import with_attribution
@@ -175,7 +176,7 @@ def _format_place(
     center_lat: float | None = None,
     center_lon: float | None = None,
     distance_source: str | None = None,
-    language: str = settings.default_language,
+    language: str | None = None,
 ) -> dict[str, Any]:
     """
     Format a place for consistent output.
@@ -190,6 +191,7 @@ def _format_place(
     Returns:
         Formatted place dict with optional distance fields
     """
+    language = resolve_language(language)
     display_name = place.get("displayName", {})
     location = place.get("location", {})
     hours = place.get("currentOpeningHours", {})

@@ -14,6 +14,7 @@ import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
+from src.core.i18n_api_messages import APIMessages
 from src.core.middleware import (
     ErrorHandlerMiddleware,
     LoggingMiddleware,
@@ -311,7 +312,7 @@ class TestErrorHandlerMiddleware:
         assert response.status_code == 500
         body = response.json()
         assert body["error"] == "Internal server error"
-        assert body["detail"] == "An unexpected error occurred"
+        assert body["detail"] == APIMessages.unexpected_error()
         assert body["request_id"]  # propagated from RequestIDMiddleware
 
     def test_debug_mode_exposes_exception_detail(self):
@@ -394,6 +395,23 @@ class TestSetupMiddleware:
         assert response.json()["error"] == "Internal server error"
         # Security headers apply to error responses too
         assert response.headers["X-Frame-Options"] == "DENY"
+
+    def test_full_stack_error_speaks_the_language_the_request_declared(self):
+        """The web client shows ``detail`` to the person (ADR-323)."""
+        app = FastAPI()
+
+        @app.get("/error")
+        async def error_endpoint() -> dict:
+            raise ValueError("boom")
+
+        setup_middleware(app)
+        client = TestClient(app, raise_server_exceptions=False)
+        with patch("src.core.middleware.settings.debug", False):
+            response = client.get("/error", headers={"Accept-Language": "it"})
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == APIMessages.unexpected_error("it")
+        assert response.json()["detail"] != APIMessages.unexpected_error("en")
 
     def test_websocket_scope_passthrough(self):
         """Non-http scopes traverse the stack untouched."""

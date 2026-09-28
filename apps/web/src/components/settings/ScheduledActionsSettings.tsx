@@ -11,6 +11,7 @@ import {
   PencilLine,
   Play,
   Plus,
+  Radar,
   Trash2,
   Zap,
 } from 'lucide-react';
@@ -68,15 +69,24 @@ import {
   type TriggerKind,
 } from '@/hooks/useScheduledActions';
 import { RecurrenceEditor, type RecurrenceLimits } from '@/components/recurrence/RecurrenceEditor';
+import { formatLocalDateInput } from '@/lib/date-format';
 import { renderOccurrences } from '@/lib/occurrences';
 import { emptyRecurrence, recurrenceIsComplete } from '@/lib/recurrence';
-import { duplicateTitle, numberByTriggerTime, routineCardId } from '@/lib/scheduled-actions';
+import {
+  duplicateTitle,
+  isConditionRoutine,
+  numberByTriggerTime,
+  routineCardId,
+  sameCondition,
+} from '@/lib/scheduled-actions';
 import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
 import { toast } from 'sonner';
 
 interface ScheduledActionsSettingsProps {
   lng: Language;
 }
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * What a ROUTINE may ask of the recurrence engine.
@@ -101,19 +111,30 @@ function browserTimezone(): string {
   }
 }
 
-/** The reader's today, as `YYYY-MM-DD` — a new recurrence starts there. */
+/**
+ * The reader's today, as `YYYY-MM-DD` in THEIR calendar — a new recurrence
+ * starts there, and a watch cannot end before it. Never `toISOString()`, which
+ * reads the UTC day and names yesterday for half the night in Paris.
+ */
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatLocalDateInput(new Date());
 }
 
 interface FormState {
   title: string;
   action_prompt: string;
+  /**
+   * The schedule of the time mode. KEPT while the condition mode is chosen, so
+   * switching back restores it — but only the chosen mode's fields are ever
+   * sent (ADR-322).
+   */
   recurrence: RecurrenceSpec;
   // N-07 (flattened for the form; assembled into ConditionConfig on save).
   trigger_kind: TriggerKind;
   condition_type: ConditionType;
   condition_query: string;
+  /** The last watched day, `YYYY-MM-DD`, or '' for no end. */
+  condition_until: string;
   requires_approval: boolean;
   execution_mode: ExecutionMode;
 }
@@ -125,6 +146,7 @@ const EMPTY_FORM: FormState = {
   trigger_kind: 'time',
   condition_type: 'task_overdue',
   condition_query: '',
+  condition_until: '',
   requires_approval: false,
   execution_mode: 'react',
 };
@@ -141,14 +163,27 @@ const CONDITION_TYPES: readonly ConditionType[] = [
 /** Condition types whose studio form shows the text-filter field. */
 const QUERY_CONDITION_TYPES: readonly ConditionType[] = ['mail_match', 'calendar_event'];
 
-/** Assemble the API ConditionConfig from the flattened form (null for time). */
-function buildConditionConfig(form: FormState): ConditionConfig | null {
+/**
+ * Assemble the API ConditionConfig from the flattened form (null for time).
+ *
+ * Parameters the studio does not edit (`kinds`, `within_hours`, set through
+ * the API) are carried over from the edited routine while its type stays the
+ * same: an unrelated edit must not erase what the person set elsewhere.
+ */
+function buildConditionConfig(
+  form: FormState,
+  editing: ConditionConfig | null = null
+): ConditionConfig | null {
   if (form.trigger_kind !== 'condition') return null;
+  const kept = editing?.type === form.condition_type ? editing : null;
   const config: ConditionConfig = { type: form.condition_type };
+  if (kept?.kinds) config.kinds = kept.kinds;
+  if (kept?.within_hours) config.within_hours = kept.within_hours;
   const query = form.condition_query.trim();
   if (query && QUERY_CONDITION_TYPES.includes(form.condition_type)) {
     config.query = query;
   }
+  if (form.condition_until) config.until = form.condition_until;
   return config;
 }
 
@@ -163,42 +198,90 @@ function formStateFromAction(action: ScheduledAction): FormState {
   return {
     title: action.title,
     action_prompt: action.action_prompt,
-    recurrence: action.recurrence,
+    // A condition routine has no schedule: the time mode starts from a blank
+    // one if the person switches to it.
+    recurrence: action.recurrence ?? emptyRecurrence(todayIso()),
     trigger_kind: action.trigger_kind ?? 'time',
     condition_type: action.condition_config?.type ?? 'task_overdue',
     condition_query: action.condition_config?.query ?? '',
+    condition_until: action.condition_config?.until ?? '',
     requires_approval: action.requires_approval ?? false,
     execution_mode: (action.execution_mode ?? 'react') as ExecutionMode,
   };
 }
 
 /**
+ * The clock half of an edit (ADR-322): the chosen mode's clock, and the mode
+ * itself when it changed. Switching mode sends the new mode's WHOLE clock; the
+ * server drops the other one.
+ */
+function clockUpdate(
+  form: FormState,
+  editing: ScheduledAction,
+  conditionConfig: ConditionConfig | null
+): ScheduledActionUpdate {
+  const kindChanged = form.trigger_kind !== (editing.trigger_kind ?? 'time');
+  const mode: ScheduledActionUpdate = kindChanged ? { trigger_kind: form.trigger_kind } : {};
+  if (form.trigger_kind === 'condition') {
+    const changed = kindChanged || !sameCondition(conditionConfig, editing.condition_config);
+    return changed ? { ...mode, condition_config: conditionConfig } : {};
+  }
+  const changed =
+    kindChanged || JSON.stringify(form.recurrence) !== JSON.stringify(editing.recurrence);
+  return changed ? { ...mode, recurrence: form.recurrence } : {};
+}
+
+/**
  * Diff the form against the edited action into a minimal update payload
- * (pure — keeps handleSave under the CC cap). Kind + condition travel
- * together (the backend enforces coherence); a changed condition alone also
- * ships.
+ * (pure — keeps handleSave under the CC cap).
  */
 function buildUpdatePayload(
   form: FormState,
   editing: ScheduledAction,
   conditionConfig: ConditionConfig | null
 ): ScheduledActionUpdate {
-  const update: ScheduledActionUpdate = {};
+  const update: ScheduledActionUpdate = clockUpdate(form, editing, conditionConfig);
   if (form.title !== editing.title) update.title = form.title;
   if (form.action_prompt !== editing.action_prompt) update.action_prompt = form.action_prompt;
-  if (JSON.stringify(form.recurrence) !== JSON.stringify(editing.recurrence))
-    update.recurrence = form.recurrence;
-  if (form.trigger_kind !== (editing.trigger_kind ?? 'time')) {
-    update.trigger_kind = form.trigger_kind;
-    update.condition_config = conditionConfig;
-  } else if (JSON.stringify(conditionConfig) !== JSON.stringify(editing.condition_config ?? null)) {
-    update.condition_config = conditionConfig;
-  }
   if (form.requires_approval !== (editing.requires_approval ?? false))
     update.requires_approval = form.requires_approval;
   if (form.execution_mode !== (editing.execution_mode ?? 'react'))
     update.execution_mode = form.execution_mode;
   return update;
+}
+
+/** The create payload: the chosen mode's clock only, never both (ADR-322). */
+function buildCreatePayload(
+  form: FormState,
+  conditionConfig: ConditionConfig | null
+): ScheduledActionCreate {
+  const base = {
+    title: form.title.trim(),
+    action_prompt: form.action_prompt.trim(),
+    trigger_kind: form.trigger_kind,
+    requires_approval: form.requires_approval,
+    execution_mode: form.execution_mode,
+  };
+  return form.trigger_kind === 'condition'
+    ? { ...base, condition_config: conditionConfig }
+    : { ...base, recurrence: form.recurrence };
+}
+
+/** Why the condition fields cannot be saved yet, or null when they can. */
+function conditionProblem(form: FormState): 'query_required' | 'until_past' | null {
+  if (form.trigger_kind !== 'condition') return null;
+  if (form.condition_type === 'mail_match' && !form.condition_query.trim()) {
+    return 'query_required';
+  }
+  if (form.condition_until && form.condition_until < todayIso()) return 'until_past';
+  return null;
+}
+
+/** Whether the form holds a complete routine of its chosen mode. */
+function formIsComplete(form: FormState): boolean {
+  if (!form.title.trim() || !form.action_prompt.trim()) return false;
+  if (form.trigger_kind === 'condition') return conditionProblem(form) === null;
+  return recurrenceIsComplete(form.recurrence);
 }
 
 /** One rendered occurrence line (time + zone + clock-change flag). */
@@ -222,10 +305,42 @@ function OccurrenceLine({
 }
 
 /**
- * The card's execution block: ONE visible line — the next run (or evaluation,
- * for a condition routine: its cron says when the condition is EVALUATED, and
- * claiming to know when it will become true would be an invention) — with the
- * later occurrences, the last execution and the counter folded behind a
+ * The last check of a condition routine (ADR-322): when the system last looked,
+ * or why it could not. Its next check is minutes away and says nothing, so it
+ * is never shown — a watch runs when the awaited fact happens.
+ */
+function LastCheckLine({
+  action,
+  t,
+  formatDateTime,
+}: {
+  action: ScheduledAction;
+  t: Translate;
+  formatDateTime: (iso: string | null) => string;
+}) {
+  if (action.last_check_error) {
+    return (
+      <p className="text-warning">
+        {t('scheduled_actions.last_check_failed', {
+          when: formatDateTime(action.last_checked_at ?? null),
+          reason: t(`scheduled_actions.last_check_error.${action.last_check_error}`),
+        })}
+      </p>
+    );
+  }
+  return (
+    <p>
+      {action.last_checked_at
+        ? t('scheduled_actions.last_check', { when: formatDateTime(action.last_checked_at) })
+        : t('scheduled_actions.last_check_never')}
+    </p>
+  );
+}
+
+/**
+ * The card's execution block: ONE visible line — the next run of a scheduled
+ * routine, the last check of a condition routine — with the later
+ * occurrences, the last execution and the counter folded behind a
  * disclosure. The card drops from ~8 always-visible lines to 3 (owner
  * arbitration 2026-08-05).
  */
@@ -237,7 +352,7 @@ function ActionScheduleBlock({
 }: {
   action: ScheduledAction;
   intlLocale: string;
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: Translate;
   formatDateTime: (iso: string | null) => string;
 }) {
   // NO fallback on `next_trigger_at`: it is nullable since the recurrence
@@ -250,29 +365,26 @@ function ActionScheduleBlock({
     intlLocale
   );
   const [next, ...later] = occurrences;
-  const isCondition = (action.trigger_kind ?? 'time') === 'condition';
   const clockChangeLabel = t('scheduled_actions.clock_change');
 
   return (
     <div className="space-y-1.5 text-xs text-muted-foreground">
-      {next && (
-        <p>
-          {t(isCondition ? 'scheduled_actions.next_evaluation' : 'scheduled_actions.next_run')}
-          {': '}
-          <OccurrenceLine run={next} clockChangeLabel={clockChangeLabel} />
-        </p>
+      {isConditionRoutine(action) ? (
+        <LastCheckLine action={action} t={t} formatDateTime={formatDateTime} />
+      ) : (
+        next && (
+          <p>
+            {t('scheduled_actions.next_run')}
+            {': '}
+            <OccurrenceLine run={next} clockChangeLabel={clockChangeLabel} />
+          </p>
+        )
       )}
       <Disclosure icon={Info} title={t('common.details')}>
         <div className="space-y-1.5 text-xs text-muted-foreground">
           {later.length > 0 && (
             <div>
-              <span>
-                {t(
-                  isCondition
-                    ? 'scheduled_actions.next_evaluations'
-                    : 'scheduled_actions.next_executions'
-                )}
-              </span>
+              <span>{t('scheduled_actions.next_executions')}</span>
               <ul className="mt-0.5 space-y-0.5" role="list">
                 {later.map(run => (
                   <li key={run.iso}>
@@ -312,27 +424,21 @@ function getStatusBadgeVariant(action: ScheduledAction): BadgeTone {
 }
 
 /**
- * The trigger question (N-07): does the routine fire at every tick, or only
- * when a condition is met — and which one.
- *
- * Its own component for the same reason the recurrence editor is split by
- * question: the condition's per-type branches pushed the dialog past the
- * shrink-only complexity ratchet.
+ * The first question the form asks (ADR-322): which clock the routine runs on.
+ * Everything below it follows the answer — a schedule, or a condition the
+ * system checks — so the two are never asked together.
  */
-function ConditionFields({
+function TriggerModeFields({
   form,
   setForm,
-  conditionInvalid,
   t,
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
-  conditionInvalid: boolean;
-  t: (key: string, options?: Record<string, unknown>) => string;
+  t: Translate;
 }) {
   return (
-    <>
-      {/* N-07 studio: trigger kind */}
+    <FormSection icon={Zap} title={t('scheduled_actions.section_trigger')}>
       <div className="space-y-3">
         <Label htmlFor="sa-trigger-kind">{t('scheduled_actions.studio.trigger_kind')}</Label>
         <Select
@@ -350,49 +456,228 @@ function ConditionFields({
           </SelectContent>
         </Select>
       </div>
+      <p className="text-xs text-muted-foreground">
+        {form.trigger_kind === 'condition'
+          ? t('scheduled_actions.studio.mode_hint_condition')
+          : t('scheduled_actions.studio.time_hint_time')}
+      </p>
+    </FormSection>
+  );
+}
 
-      {/* N-07 studio: condition config (condition kind only) */}
-      {form.trigger_kind === 'condition' && (
-        <div className="space-y-3 rounded-lg border border-border/40 p-3">
-          <Label htmlFor="sa-condition-type">{t('scheduled_actions.studio.condition_type')}</Label>
-          <Select
-            value={form.condition_type}
-            onValueChange={v => setForm(f => ({ ...f, condition_type: v as ConditionType }))}
-          >
-            <SelectTrigger id="sa-condition-type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CONDITION_TYPES.map(type => (
-                <SelectItem key={type} value={type}>
-                  {t(`scheduled_actions.studio.condition.${type}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {QUERY_CONDITION_TYPES.includes(form.condition_type) && (
-            <div className="space-y-3">
-              <Label htmlFor="sa-condition-query">
-                {t(`scheduled_actions.studio.query_label.${form.condition_type}`)}
-              </Label>
-              <Input
-                id="sa-condition-query"
-                value={form.condition_query}
-                maxLength={120}
-                onChange={e => setForm(f => ({ ...f, condition_query: e.target.value }))}
-                placeholder={t(`scheduled_actions.studio.query_ph.${form.condition_type}`)}
-              />
-              {conditionInvalid && (
-                <p className="text-xs text-destructive" role="alert">
-                  {t('scheduled_actions.studio.query_required')}
-                </p>
-              )}
-            </div>
-          )}
+/**
+ * What a condition routine waits for (ADR-322): the condition, its filter,
+ * the last day it watches, and the system's clock stated as the server
+ * applies it — before anything is saved.
+ */
+function ConditionFields({
+  form,
+  setForm,
+  checkMinutes,
+  maxFiresPerDay,
+  t,
+}: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  checkMinutes: number | undefined;
+  maxFiresPerDay: number | undefined;
+  t: Translate;
+}) {
+  const problem = conditionProblem(form);
+  return (
+    <FormSection icon={Radar} title={t('scheduled_actions.section_condition')}>
+      <div className="space-y-3">
+        <Label htmlFor="sa-condition-type">{t('scheduled_actions.studio.condition_type')}</Label>
+        <Select
+          value={form.condition_type}
+          onValueChange={v => setForm(f => ({ ...f, condition_type: v as ConditionType }))}
+        >
+          <SelectTrigger id="sa-condition-type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CONDITION_TYPES.map(type => (
+              <SelectItem key={type} value={type}>
+                {t(`scheduled_actions.studio.condition.${type}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {QUERY_CONDITION_TYPES.includes(form.condition_type) && (
+        <div className="space-y-3">
+          <Label htmlFor="sa-condition-query">
+            {t(`scheduled_actions.studio.query_label.${form.condition_type}`)}
+          </Label>
+          <Input
+            id="sa-condition-query"
+            value={form.condition_query}
+            maxLength={120}
+            onChange={e => setForm(f => ({ ...f, condition_query: e.target.value }))}
+            placeholder={t(`scheduled_actions.studio.query_ph.${form.condition_type}`)}
+          />
         </div>
       )}
-    </>
+      <div className="space-y-3">
+        <Label htmlFor="sa-condition-until">{t('scheduled_actions.studio.watch_until')}</Label>
+        <Input
+          id="sa-condition-until"
+          type="date"
+          value={form.condition_until}
+          min={todayIso()}
+          onChange={e => setForm(f => ({ ...f, condition_until: e.target.value }))}
+          aria-describedby="sa-condition-until-hint"
+        />
+        <p id="sa-condition-until-hint" className="text-xs text-muted-foreground">
+          {t('scheduled_actions.studio.watch_until_hint')}
+        </p>
+      </div>
+      {problem && (
+        <p className="text-xs text-destructive" role="alert">
+          {t(`scheduled_actions.studio.${problem}`)}
+        </p>
+      )}
+      {checkMinutes !== undefined && maxFiresPerDay !== undefined && (
+        <p className="text-xs text-muted-foreground">
+          {t('scheduled_actions.studio.condition_cadence', {
+            minutes: checkMinutes,
+            max: maxFiresPerDay,
+          })}
+        </p>
+      )}
+    </FormSection>
   );
+}
+
+/** One routine's card: rank, title, state, actions, schedule and last error. */
+function RoutineCard({
+  action,
+  number,
+  intlLocale,
+  executing,
+  t,
+  formatDateTime,
+  onExecute,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  onToggle,
+}: {
+  action: ScheduledAction;
+  number: number;
+  intlLocale: string;
+  executing: boolean;
+  t: Translate;
+  formatDateTime: (iso: string | null) => string;
+  onExecute: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      id={routineCardId(action.id)}
+      tabIndex={-1}
+      data-routine-card={action.id}
+      className="rounded-lg border bg-card p-4 space-y-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    >
+      {/* Row 1: Rank + Title + Status + Actions + Toggle */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <RoutineNumberChip
+            number={number}
+            tone={action.is_enabled ? 'idle' : 'paused'}
+            kind={action.trigger_kind ?? 'time'}
+            className="shrink-0"
+          />
+          <span className="sr-only">{t('scheduled_actions.number_aria', { n: number })}</span>
+          <span className="font-medium truncate">{action.title}</span>
+          <Badge variant={getStatusBadgeVariant(action)} className="shrink-0">
+            {statusLabel(action, t)}
+          </Badge>
+        </div>
+        <RowActions
+          menuLabel={t('common.actions_for', { name: action.title })}
+          actions={[
+            {
+              key: 'execute',
+              // A condition routine's « test » is a CHECK: it runs only if
+              // something new is there (ADR-322).
+              label: t(
+                isConditionRoutine(action)
+                  ? 'scheduled_actions.check_now'
+                  : 'scheduled_actions.test_now'
+              ),
+              icon: Play,
+              disabled: executing,
+              onSelect: onExecute,
+            },
+            { key: 'edit', label: t('common.edit'), icon: Pencil, onSelect: onEdit },
+            {
+              key: 'duplicate',
+              label: t('scheduled_actions.duplicate'),
+              icon: Copy,
+              onSelect: onDuplicate,
+            },
+            {
+              key: 'delete',
+              label: t('common.delete'),
+              icon: Trash2,
+              tone: 'destructive',
+              onSelect: onDelete,
+            },
+          ]}
+        />
+        {/* Named, and named with the ROUTINE: a Radix `Switch` is a
+          `<button role="switch">`, which jsx-a11y cannot see is anonymous —
+          axe reported it `critical`. On a list of several, "switch, on" says
+          nothing about what is about to be turned off. */}
+        <Switch
+          checked={action.is_enabled}
+          onCheckedChange={onToggle}
+          aria-label={t('scheduled_actions.toggle_aria', { title: action.title })}
+        />
+      </div>
+
+      {/* Prompt (truncated) */}
+      <p className="text-sm text-muted-foreground line-clamp-1">{action.action_prompt}</p>
+
+      {/* The server's sentence: a schedule, or the system's check cadence. */}
+      <p className="text-xs text-muted-foreground flex items-center gap-1">
+        <Clock className="h-3 w-3" aria-hidden="true" />
+        {action.schedule_display}
+      </p>
+
+      <ActionScheduleBlock
+        action={action}
+        intlLocale={intlLocale}
+        t={t}
+        formatDateTime={formatDateTime}
+      />
+
+      {/* Error message — a signal, never folded */}
+      {action.last_error && (
+        <p className="text-xs text-destructive line-clamp-1">{action.last_error}</p>
+      )}
+    </div>
+  );
+}
+
+/** A routine's status, in words. */
+function statusLabel(action: ScheduledAction, t: Translate): string {
+  // BEFORE the disabled flag: the executor closes a finished routine
+  // (ADR-281), so reading `is_enabled` first would report every ended series
+  // as paused — and "it finished" is not "you stopped it".
+  if (action.status === 'completed') return t('scheduled_actions.status.finished');
+  if (!action.is_enabled) return t('scheduled_actions.status.paused');
+  if (action.status === 'error') return t('scheduled_actions.status.error');
+  if (action.status === 'executing') return t('scheduled_actions.status.executing');
+  // A null trigger means the series is over: saying "active" would be a
+  // claim the routine cannot honour. Still needed between the last run and
+  // the executor tick that closes the row.
+  if (action.next_trigger_at === null) return t('scheduled_actions.status.finished');
+  return t('scheduled_actions.status.active');
 }
 
 export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps) {
@@ -402,6 +687,8 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
   const {
     actions,
     total,
+    conditionCheckMinutes,
+    conditionMaxFiresPerDay,
     loading,
     initialLoading,
     week,
@@ -437,11 +724,6 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     card.scrollIntoView?.({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
     card.focus({ preventScroll: true });
   }, []);
-
-  // The schedule line is the SERVER's sentence (`schedule_display`): one
-  // authority, composed from localized clauses, and the only place that knows
-  // how a monthly or stepped recurrence reads in six languages.
-  const formatSchedule = useCallback((action: ScheduledAction) => action.schedule_display, []);
 
   // Format datetime for display
   const formatDateTime = (isoString: string | null) => {
@@ -487,23 +769,12 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     setShowCreateDialog(true);
   };
 
-  // N-07: a mail_match condition without its filter cannot be saved.
-  const conditionInvalid =
-    form.trigger_kind === 'condition' &&
-    form.condition_type === 'mail_match' &&
-    !form.condition_query.trim();
+  const canSave = formIsComplete(form) && !creating && !updating;
 
   // Save (create or update)
   const handleSave = async () => {
-    if (
-      !form.title.trim() ||
-      !form.action_prompt.trim() ||
-      !recurrenceIsComplete(form.recurrence) ||
-      conditionInvalid
-    ) {
-      return;
-    }
-    const conditionConfig = buildConditionConfig(form);
+    if (!formIsComplete(form)) return;
+    const conditionConfig = buildConditionConfig(form, editingAction?.condition_config ?? null);
 
     try {
       if (editingAction) {
@@ -514,16 +785,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
         }
         setEditingAction(null);
       } else {
-        const data: ScheduledActionCreate = {
-          title: form.title.trim(),
-          action_prompt: form.action_prompt.trim(),
-          recurrence: form.recurrence,
-          trigger_kind: form.trigger_kind,
-          condition_config: conditionConfig,
-          requires_approval: form.requires_approval,
-          execution_mode: form.execution_mode,
-        };
-        await createAction(data);
+        await createAction(buildCreatePayload(form, conditionConfig));
         toast.success(t('scheduled_actions.create_success'));
         setShowCreateDialog(false);
       }
@@ -566,30 +828,20 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     }
   };
 
-  // Execute now
+  // Execute now — or, for a condition routine, check now
   const handleExecute = async (action: ScheduledAction) => {
     try {
       await executeAction(action.id);
-      toast.success(t('scheduled_actions.test_now_launched'));
+      toast.success(
+        t(
+          isConditionRoutine(action)
+            ? 'scheduled_actions.check_now_launched'
+            : 'scheduled_actions.test_now_launched'
+        )
+      );
     } catch {
       toast.error(t('scheduled_actions.error_execute'));
     }
-  };
-
-  // Status label
-  const getStatusLabel = (action: ScheduledAction) => {
-    // BEFORE the disabled flag: the executor closes a finished routine
-    // (ADR-281), so reading `is_enabled` first would report every ended series
-    // as paused — and "it finished" is not "you stopped it".
-    if (action.status === 'completed') return t('scheduled_actions.status.finished');
-    if (!action.is_enabled) return t('scheduled_actions.status.paused');
-    if (action.status === 'error') return t('scheduled_actions.status.error');
-    if (action.status === 'executing') return t('scheduled_actions.status.executing');
-    // A null trigger means the series is over: saying "active" would be a
-    // claim the routine cannot honour. Still needed between the last run and
-    // the executor tick that closes the row.
-    if (action.next_trigger_at === null) return t('scheduled_actions.status.finished');
-    return t('scheduled_actions.status.active');
   };
 
   // Form dialog content (shared between create and edit)
@@ -605,9 +857,9 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           <DialogDescription>{t('scheduled_actions.settings.description')}</DialogDescription>
         </DialogHeader>
 
-        {/* Two named groups rather than one column of inputs: the form asks
-            two different questions, and `space-y-6` gives the boundary between
-            them more air than the gap inside each. */}
+        {/* Named groups rather than one column of inputs: what to do, which
+            clock it runs on (ADR-322: asked FIRST, since everything below
+            follows the answer), that clock's fields, and how it runs. */}
         <div className="space-y-6 py-4">
           <FormSection icon={PencilLine} title={t('scheduled_actions.section_what')}>
             <div className="space-y-3">
@@ -634,40 +886,35 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             </div>
           </FormSection>
 
-          {/* When it runs — the generic editor, mounted with the ROUTINE's caps.
-              A reminder mounts the same component with its own, which is what
-              makes the component generic rather than a routines widget. */}
-          <RecurrenceEditor
-            value={form.recurrence}
-            onChange={recurrence => setForm(f => ({ ...f, recurrence }))}
-            limits={ROUTINE_LIMITS}
-            timezone={editingAction?.user_timezone ?? browserTimezone()}
-            idPrefix="sa"
-            sentence={editingAction?.schedule_display}
-            occurrences={editingAction?.next_occurrences}
-            finished={editingAction != null && editingAction.next_trigger_at === null}
-          />
-          {/* The third question the routine form asks, and the reminder form
-              does not: how it runs. Its trigger, the condition gating it, and
-              whether it proposes before acting — grouped like the other two,
-              rather than trailing below them as a bare column of controls. */}
-          <FormSection icon={Zap} title={t('scheduled_actions.section_execution')}>
+          <TriggerModeFields form={form} setForm={setForm} t={t} />
+
+          {form.trigger_kind === 'condition' ? (
             <ConditionFields
               form={form}
               setForm={setForm}
-              conditionInvalid={conditionInvalid}
+              checkMinutes={conditionCheckMinutes?.[form.condition_type]}
+              maxFiresPerDay={conditionMaxFiresPerDay}
               t={t}
             />
+          ) : (
+            // When it runs — the generic editor, mounted with the ROUTINE's
+            // caps. A reminder mounts the same component with its own, which
+            // is what makes the component generic rather than a routines widget.
+            <RecurrenceEditor
+              value={form.recurrence}
+              onChange={recurrence => setForm(f => ({ ...f, recurrence }))}
+              limits={ROUTINE_LIMITS}
+              timezone={editingAction?.user_timezone ?? browserTimezone()}
+              idPrefix="sa"
+              // The server's sentence and runs describe the STORED schedule —
+              // none when the routine being edited is a condition routine.
+              sentence={editingAction?.recurrence ? editingAction.schedule_display : undefined}
+              occurrences={editingAction?.recurrence ? editingAction.next_occurrences : undefined}
+              finished={editingAction?.recurrence != null && editingAction.next_trigger_at === null}
+            />
+          )}
 
-            {/* What the trigger does with the time chosen above. It used to sit
-                between the two groups, the one line still outside the template;
-                it explains the trigger, so it belongs beside it. */}
-            <p className="text-xs text-muted-foreground">
-              {form.trigger_kind === 'condition'
-                ? t('scheduled_actions.studio.time_hint_condition')
-                : t('scheduled_actions.studio.time_hint_time')}
-            </p>
-
+          <FormSection icon={Play} title={t('scheduled_actions.section_execution')}>
             {/* N-07 studio: propose-first mode */}
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -698,17 +945,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={
-              !form.title.trim() ||
-              !form.action_prompt.trim() ||
-              !recurrenceIsComplete(form.recurrence) ||
-              conditionInvalid ||
-              creating ||
-              updating
-            }
-          >
+          <Button onClick={handleSave} disabled={!canSave}>
             {(creating || updating) && <LoadingSpinner className="mr-2 h-4 w-4" />}
             {t('common.save')}
           </Button>
@@ -792,94 +1029,20 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
         {!initialLoading && numbered.length > 0 && (
           <div className="space-y-3">
             {numbered.map(({ action, number }) => (
-              <div
+              <RoutineCard
                 key={action.id}
-                id={routineCardId(action.id)}
-                tabIndex={-1}
-                data-routine-card={action.id}
-                className="rounded-lg border bg-card p-4 space-y-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                {/* Row 1: Rank + Title + Status + Actions + Toggle */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <RoutineNumberChip
-                      number={number}
-                      tone={action.is_enabled ? 'idle' : 'paused'}
-                      kind={action.trigger_kind ?? 'time'}
-                      className="shrink-0"
-                    />
-                    <span className="sr-only">
-                      {t('scheduled_actions.number_aria', { n: number })}
-                    </span>
-                    <span className="font-medium truncate">{action.title}</span>
-                    <Badge variant={getStatusBadgeVariant(action)} className="shrink-0">
-                      {getStatusLabel(action)}
-                    </Badge>
-                  </div>
-                  <RowActions
-                    menuLabel={t('common.actions_for', { name: action.title })}
-                    actions={[
-                      {
-                        key: 'execute',
-                        label: t('scheduled_actions.test_now'),
-                        icon: Play,
-                        disabled: executing,
-                        onSelect: () => void handleExecute(action),
-                      },
-                      {
-                        key: 'edit',
-                        label: t('common.edit'),
-                        icon: Pencil,
-                        onSelect: () => handleOpenEdit(action),
-                      },
-                      {
-                        key: 'duplicate',
-                        label: t('scheduled_actions.duplicate'),
-                        icon: Copy,
-                        onSelect: () => handleOpenDuplicate(action),
-                      },
-                      {
-                        key: 'delete',
-                        label: t('common.delete'),
-                        icon: Trash2,
-                        tone: 'destructive',
-                        onSelect: () => setDeletingActionId(action.id),
-                      },
-                    ]}
-                  />
-                  {/* Named, and named with the ROUTINE: a Radix `Switch` is a
-                    `<button role="switch">`, which jsx-a11y cannot see is
-                    anonymous — axe reported it `critical`. On a list of
-                    several, "switch, on" says nothing about what is about to
-                    be turned off. */}
-                  <Switch
-                    checked={action.is_enabled}
-                    onCheckedChange={() => handleToggle(action)}
-                    aria-label={t('scheduled_actions.toggle_aria', { title: action.title })}
-                  />
-                </div>
-
-                {/* Prompt (truncated) */}
-                <p className="text-sm text-muted-foreground line-clamp-1">{action.action_prompt}</p>
-
-                {/* Schedule, synthesised ("Weekdays at 08:00") */}
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" aria-hidden="true" />
-                  {formatSchedule(action)}
-                </p>
-
-                <ActionScheduleBlock
-                  action={action}
-                  intlLocale={intlLocale}
-                  t={t}
-                  formatDateTime={formatDateTime}
-                />
-
-                {/* Error message — a signal, never folded */}
-                {action.last_error && (
-                  <p className="text-xs text-destructive line-clamp-1">{action.last_error}</p>
-                )}
-              </div>
+                action={action}
+                number={number}
+                intlLocale={intlLocale}
+                executing={executing}
+                t={t}
+                formatDateTime={formatDateTime}
+                onExecute={() => void handleExecute(action)}
+                onEdit={() => handleOpenEdit(action)}
+                onDuplicate={() => handleOpenDuplicate(action)}
+                onDelete={() => setDeletingActionId(action.id)}
+                onToggle={() => void handleToggle(action)}
+              />
             ))}
           </div>
         )}

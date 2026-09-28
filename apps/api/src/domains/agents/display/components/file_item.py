@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
-from src.domains.agents.constants import CONTEXT_DOMAIN_FILES
+from src.domains.agents.constants import CONTEXT_DOMAIN_FILES, FILE_CONTENT_TYPE_BINARY
 from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
@@ -157,6 +158,32 @@ class FileItem(BaseComponent):
 
         return actions
 
+    @staticmethod
+    def _content_preview(data: dict[str, Any], language: str) -> str:
+        """The content preview block: a text file's first characters, a binary one named.
+
+        Args:
+            data: The file payload.
+            language: The reader's language.
+
+        Returns:
+            The block's HTML, or an empty string when there is nothing to preview.
+        """
+        content = (
+            V3Messages.get_binary_content(language)
+            if data.get("content_type") == FILE_CONTENT_TYPE_BINARY
+            else data.get("content", "")
+        )
+        if not content or not isinstance(content, str):
+            return ""
+        content_preview = content[:200] + "..." if len(content) > 200 else content
+        return (
+            f'<div class="lia-file__content-preview">'
+            f"{icon(Icons.FILE)}"
+            f"<span>{escape_html(content_preview)}</span>"
+            f"</div>"
+        )
+
     def _render_card(
         self,
         title: str,
@@ -212,16 +239,10 @@ class FileItem(BaseComponent):
                     f"</div>"
                 )
 
-            # Content preview (for text files)
-            content = data.get("content", "")
-            if content and isinstance(content, str):
-                content_preview = content[:200] + "..." if len(content) > 200 else content
-                detail_sections.append(
-                    f'<div class="lia-file__content-preview">'
-                    f"{icon(Icons.FILE)}"
-                    f"<span>{escape_html(content_preview)}</span>"
-                    f"</div>"
-                )
+            # Content preview (for text files; a binary file is named, not shown)
+            content_html = self._content_preview(data, ctx.language)
+            if content_html:
+                detail_sections.append(content_html)
 
             # Sharing info
             permissions = data.get("permissions", [])
@@ -281,6 +302,7 @@ class FileItem(BaseComponent):
 
         # File meta lines
         meta_parts = []
+        separator = label_separator(ctx.language)
         if data and data.get("parentPath"):
             meta_parts.append(render_file_meta(Icons.FOLDER, data["parentPath"]))
         if size_str:
@@ -288,7 +310,7 @@ class FileItem(BaseComponent):
             if owner:
                 size_owner_text += f" · {owner}"
             meta_parts.append(render_file_meta("straighten", size_owner_text))
-        meta_parts.append(render_file_meta(Icons.EDIT, f"{modified_label} : {modified}"))
+        meta_parts.append(render_file_meta(Icons.EDIT, f"{modified_label}{separator}{modified}"))
         if data:
             created = data.get("createdTime", "")
             if created:
@@ -296,7 +318,7 @@ class FileItem(BaseComponent):
                     created, ctx.language, ctx.timezone, include_time=True
                 )
                 meta_parts.append(
-                    render_file_meta(Icons.CALENDAR, f"{created_label} : {created_str}")
+                    render_file_meta(Icons.CALENDAR, f"{created_label}{separator}{created_str}")
                 )
         meta_html = "\n".join(meta_parts)
 

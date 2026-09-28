@@ -2,6 +2,7 @@
 
 **Status**: accepted — 2026-09-24 (owner request: under the broadcast form, the paginated history of what was sent — date, recipients, expiry)
 **Amends**: the admin broadcast feature (`domains/notifications`), ADR-185 (exact totals), ADR-184 (published bounds)
+**Amended by**: [ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md) (2026-09-25 — a broadcast stores the language it is translated from — the sending administrator's account language —, `admin_broadcasts.source_language`, migration `343c834a3a07`)
 
 ## Context
 

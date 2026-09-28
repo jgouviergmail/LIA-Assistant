@@ -56,7 +56,8 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from src.core.config import settings
+from src.core.i18n import resolve_language
+from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_dates import (
     _extract_language,
     get_day_name,
@@ -162,9 +163,7 @@ def calculate_cache_age_seconds(cached_at: str) -> int:
         return 0  # Fail-safe: assume fresh data
 
 
-def get_current_datetime_context(
-    timezone_str: str = "UTC", language: str = settings.default_language
-) -> str:
+def get_current_datetime_context(timezone_str: str = "UTC", language: str | None = None) -> str:
     """
     Get current datetime formatted for LLM context.
 
@@ -178,6 +177,7 @@ def get_current_datetime_context(
     Returns:
         Formatted datetime string (e.g., "lundi 30 novembre 2025, 14:30 (Europe/Paris)")
     """
+    language = resolve_language(language)
     try:
         tz: ZoneInfo | dt.timezone = ZoneInfo(timezone_str)
     except Exception:
@@ -528,7 +528,7 @@ def convert_to_user_timezone(
 def format_datetime_for_display(
     dt_input: str | int | datetime | None,
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
     include_time: bool = True,
     include_day_name: bool = True,
 ) -> str:
@@ -543,12 +543,14 @@ def format_datetime_for_display(
     Args:
         dt_input: Datetime in various formats
         user_timezone: User's IANA timezone
-        locale: User's locale (e.g., "fr", "en", "zh-CN")
+        locale: User's locale (e.g., "fr", "en", "zh-CN"); the declared
+            language's when None (ADR-323)
         include_time: Whether to include time component
         include_day_name: Whether to include day of week name
 
     Returns:
-        Formatted datetime string, or "Date inconnue" if parsing fails
+        Formatted datetime string, or the unknown-date placeholder in the same
+        language when the input cannot be read
 
     Examples:
         >>> format_datetime_for_display("2025-12-02T14:30:00+01:00", "Europe/Paris", "fr")
@@ -557,13 +559,12 @@ def format_datetime_for_display(
         >>> format_datetime_for_display(1733142600000, "America/New_York", "en")
         "Monday 02 December 2025 at 08:30"
     """
+    lang = _extract_language(locale)
     dt = convert_to_user_timezone(dt_input, user_timezone)
     if dt is None:
-        return "Date inconnue"
+        return APIMessages.date_unknown(lang)
 
     try:
-        lang = _extract_language(locale)
-
         day_num = dt.day
         month = dt.month
         year = dt.year
@@ -602,7 +603,7 @@ def format_datetime_for_display(
             input_length=len(str(dt_input)),
             error=str(e),
         )
-        return "Date inconnue"
+        return APIMessages.date_unknown(lang)
 
 
 def is_iso_datetime_string(value: str) -> bool:
@@ -628,7 +629,7 @@ def is_iso_datetime_string(value: str) -> bool:
 def format_value_if_iso_datetime(
     value: str,
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
     include_time: bool = True,
     include_day_name: bool = False,
 ) -> str:
@@ -641,7 +642,7 @@ def format_value_if_iso_datetime(
     Args:
         value: String value to potentially format
         user_timezone: User's IANA timezone
-        locale: User's locale for formatting
+        locale: User's locale for formatting; the declared language's when None (ADR-323)
         include_time: Whether to include time in output
         include_day_name: Whether to include day name in output
 
@@ -722,7 +723,7 @@ def is_rfc2822_datetime_string(value: str) -> bool:
 def format_value_if_datetime_string(
     value: str,
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
     include_time: bool = True,
     include_day_name: bool = False,
 ) -> str:
@@ -736,7 +737,7 @@ def format_value_if_datetime_string(
     Args:
         value: String value to potentially format
         user_timezone: User's IANA timezone
-        locale: User's locale for formatting
+        locale: User's locale for formatting; the declared language's when None (ADR-323)
         include_time: Whether to include time in output
         include_day_name: Whether to include day name in output
 
@@ -830,7 +831,7 @@ def format_time_only(
 def format_date_only(
     dt_input: str | int | datetime | None,
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> str:
     """
     Format datetime as date only in user's timezone and locale.
@@ -838,7 +839,7 @@ def format_date_only(
     Args:
         dt_input: Datetime in various formats
         user_timezone: User's IANA timezone
-        locale: User's locale
+        locale: User's locale; the declared language's when None (ADR-323)
 
     Returns:
         Formatted date string (e.g., "02 décembre 2025")
@@ -855,7 +856,7 @@ def format_date_only(
 def format_time_with_date_context(
     target_dt: datetime,
     reference_dt: datetime | None = None,
-    locale: str = "fr",
+    locale: str | None = None,
     *,
     include_year: bool = False,
     time_first: bool = False,
@@ -878,7 +879,8 @@ def format_time_with_date_context(
         target_dt: The datetime to format (must be timezone-aware)
         reference_dt: Reference datetime for "today/tomorrow" comparison.
                      If None, uses current time in target_dt's timezone.
-        locale: Language code for "tomorrow" translation (fr, en, es, de, it, zh-CN)
+        locale: Language code for "tomorrow" translation (fr, en, es, de, it,
+            zh-CN); the declared language when None (ADR-323)
         include_year: When True, include the 4-digit year in the date prefix
                      for non-today/non-tomorrow dates (UI that displays dates
                      far enough into the future to need disambiguation).
@@ -929,7 +931,7 @@ def format_time_with_date_context(
         return time_str
     elif target_date == tomorrow_date:
         # Tomorrow - add "tomorrow" prefix
-        tomorrow_word = V3Messages.get_tomorrow(locale)
+        tomorrow_word = V3Messages.get_tomorrow(resolve_language(locale))
         return f"{time_str} {tomorrow_word}" if time_first else f"{tomorrow_word} {time_str}"
     else:
         # Other date - add date prefix (locale-aware format)
@@ -1095,7 +1097,7 @@ def is_future(
 def convert_event_dates_in_payload(
     event: dict[str, Any],
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> dict[str, Any]:
     """
     Convert all date fields in a Google Calendar event payload to user's timezone.
@@ -1110,7 +1112,8 @@ def convert_event_dates_in_payload(
     Args:
         event: Google Calendar event dict
         user_timezone: User's IANA timezone
-        locale: User's locale for formatted strings
+        locale: User's locale for formatted strings; the declared language's
+            when None (ADR-323)
 
     Returns:
         The modified event dict
@@ -1181,7 +1184,7 @@ def convert_event_dates_in_payload(
 def convert_email_dates_in_payload(
     email: dict[str, Any],
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> dict[str, Any]:
     """
     Convert date fields in a Gmail message payload to user's timezone.
@@ -1191,7 +1194,7 @@ def convert_email_dates_in_payload(
     Args:
         email: Gmail message dict
         user_timezone: User's IANA timezone
-        locale: User's locale
+        locale: User's locale; the declared language's when None (ADR-323)
 
     Returns:
         The modified email dict with added 'date_formatted' field
@@ -1249,7 +1252,7 @@ def convert_email_dates_in_payload(
 def convert_task_dates_in_payload(
     task: dict[str, Any],
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> dict[str, Any]:
     """
     Convert date fields in a Google Tasks payload to user's timezone.
@@ -1260,7 +1263,7 @@ def convert_task_dates_in_payload(
     Args:
         task: Google Tasks dict
         user_timezone: User's IANA timezone
-        locale: User's locale
+        locale: User's locale; the declared language's when None (ADR-323)
 
     Returns:
         The modified task dict with formatted date fields
@@ -1316,7 +1319,7 @@ def convert_task_dates_in_payload(
 def convert_file_dates_in_payload(
     file: dict[str, Any],
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> dict[str, Any]:
     """
     Convert date fields in a Google Drive file payload to user's timezone.
@@ -1324,7 +1327,7 @@ def convert_file_dates_in_payload(
     Args:
         file: Google Drive file dict
         user_timezone: User's IANA timezone
-        locale: User's locale
+        locale: User's locale; the declared language's when None (ADR-323)
 
     Returns:
         The modified file dict with formatted date fields
@@ -1365,7 +1368,7 @@ def convert_file_dates_in_payload(
 def convert_weather_dates_in_payload(
     weather: dict[str, Any],
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> dict[str, Any]:
     """
     Convert date fields in weather API payload to user's timezone.
@@ -1375,7 +1378,7 @@ def convert_weather_dates_in_payload(
     Args:
         weather: Weather data dict
         user_timezone: User's IANA timezone
-        locale: User's locale
+        locale: User's locale; the declared language's when None (ADR-323)
 
     Returns:
         The modified weather dict with formatted date fields

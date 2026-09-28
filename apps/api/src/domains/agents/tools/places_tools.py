@@ -217,7 +217,7 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
 
         if needs_geocoded_viewport and location:
             # Geocode the location to get center for viewport restriction
-            geocode_result = await forward_geocode(location, language="fr")
+            geocode_result = await forward_geocode(location)
             if geocode_result:
                 geocoded_lat, geocoded_lon, _, _ = geocode_result
                 logger.info(
@@ -415,11 +415,11 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
                 return {
                     "success": False,
                     "error": "query_required",
-                    "message": "Requête de recherche requise.",
+                    "message": "A search query is required.",
                 }
 
             # Build location restriction (viewport) ONLY if we have a resolved location
-            # When user specifies explicit location ("restaurants à Paris"), restriction_lat is None
+            # When user specifies explicit location ("restaurants in Paris"), restriction_lat is None
             # and Google will interpret the city from the query directly
             location_restriction: dict[str, Any] | None = None
             if restriction_lat is not None and restriction_lon is not None:
@@ -562,18 +562,15 @@ async def search_places_tool(
     1. Text search (query provided): Finds places matching a description
        - "Italian restaurants in Paris"
        - "hotels near Gare de Lyon"
-       - "pharmacie ouverte"
+       - "pharmacy open now"
     2. Proximity search (only place_type): Finds places near user's location
        - "restaurants nearby" → place_type="restaurant"
        - "cafes around here" → place_type="cafe"
 
     Location resolution is automatic:
     - Browser geolocation (if shared)
-    - Home address (if "chez moi", "domicile" mentioned)
-    - Current location (if "nearby", "près d'ici" mentioned)
-
-    IMPORTANT: This tool requires Google Places connector to be activated.
-    Go to Settings > Connectors to authorize Google Places.
+    - Home address (when the user mentions their home, e.g. "at home")
+    - Current location (when the user says "nearby", "near here")
 
     Args:
         runtime: Tool runtime (injected)
@@ -594,11 +591,11 @@ async def search_places_tool(
 
     Examples:
         - search_places(query="sushi restaurants Lyon")
-        - search_places(query="pharmacie", open_now=True)
+        - search_places(query="pharmacy", open_now=True)
         - search_places(place_type="restaurant") # Proximity search
-        - search_places(query="bar terrasse") # Text search with criteria
+        - search_places(query="bar with a terrace") # Text search with criteria
         - search_places(query="restaurant", min_rating=4.0) # High-rated only
-        - search_places(query="café", price_levels=["PRICE_LEVEL_INEXPENSIVE"])
+        - search_places(query="coffee shop", price_levels=["PRICE_LEVEL_INEXPENSIVE"])
     """
     return await _search_places_tool_instance.execute(
         runtime=runtime,
@@ -932,7 +929,7 @@ async def get_place_details_tool(
     - Batch: place_ids=["abc123", "def456"] → fetch multiple places in parallel
 
     MULTI-ORDINAL FIX (2026-01-01): Added batch mode for multi-reference queries.
-    Example: "detail du 1 et du 2" → place_ids=["id1", "id2"]
+    Example: "details of 1 and 2" → place_ids=["id1", "id2"]
 
     Retrieves comprehensive details including:
     - Name, address, coordinates
@@ -940,9 +937,6 @@ async def get_place_details_tool(
     - Opening hours
     - Reviews and ratings
     - Photos
-
-    IMPORTANT: This tool requires Google Places connector to be activated.
-    Go to Settings > Connectors to authorize Google Places.
 
     Args:
         place_id: Google Place ID for single mode (obtained from search results)
@@ -1098,7 +1092,7 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
     Get current location tool using reverse geocoding.
 
     Uses browser geolocation (WiFi-based) and Google Geocoding API
-    to provide the user's current address when they ask "où suis-je?".
+    to provide the user's current address when they ask "where am I?".
     """
 
     connector_type = ConnectorType.GOOGLE_PLACES
@@ -1340,9 +1334,9 @@ async def get_current_location_tool(
     Get user's current location using browser geolocation and reverse geocoding.
 
     This tool answers questions like:
-    - "Où suis-je ?" (Where am I?)
-    - "À quelle adresse je suis ?" (What address am I at?)
-    - "Quelle est ma position actuelle ?" (What is my current position?)
+    - "Where am I?"
+    - "What address am I at?"
+    - "What is my current position?"
 
     Uses WiFi-based browser geolocation to get coordinates, then performs
     reverse geocoding via Google Geocoding API to get the full address.
@@ -1363,9 +1357,9 @@ async def get_current_location_tool(
         - GPS coordinates
 
     Examples:
-        User: "Où suis-je ?"
-        User: "C'est quoi mon adresse actuelle ?"
-        User: "Je suis à quelle adresse ?"
+        User: "Where am I?"
+        User: "What's my current address?"
+        User: "Which address am I at?"
     """
     return await _get_current_location_tool_instance.execute(runtime=runtime)
 
@@ -1395,10 +1389,11 @@ async def get_places_tool(
     min_rating: float | None = None,
     price_levels: list[str] | None = None,
     force_refresh: bool = False,
-    language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Get places with full details - unified search and retrieval.
+
+    Names and details come in the user's language (the run's context).
 
     Architecture Simplification (2026-01):
     - Replaces search_places_tool + get_place_details_tool
@@ -1430,14 +1425,12 @@ async def get_places_tool(
             PRICE_LEVEL_INEXPENSIVE, PRICE_LEVEL_MODERATE,
             PRICE_LEVEL_EXPENSIVE, PRICE_LEVEL_VERY_EXPENSIVE
         force_refresh: Bypass cache (default False).
-        language: Language code for results (e.g., "fr", "en", "es", "de", "it", "zh-CN").
-            If not provided, uses user's preferred language from runtime context.
 
     Returns:
         UnifiedToolOutput with registry items containing place data.
 
     Examples:
-        - get_places_tool(query="cafés ouverts", open_now=True)
+        - get_places_tool(query="open cafes", open_now=True)
         - get_places_tool(query="restaurant", min_rating=4.0)
         - get_places_tool(query="bar", price_levels=["PRICE_LEVEL_MODERATE"])
     """

@@ -80,7 +80,6 @@ export type SSEHandlerMap = Partial<Record<string, SSEHandler>>;
 export interface ProgressMessageMetadata {
   emoji?: string;
   i18n_key?: string;
-  detail?: string;
   tool_name?: string;
   /** Reasoning sub-type discriminator (live chain-of-thought) */
   step_type?: string;

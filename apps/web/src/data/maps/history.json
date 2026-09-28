@@ -2327,6 +2327,80 @@
         "f.telephony"
       ],
       "technical": ["t.toolsys", "t.registers", "t.storage", "t.embeddings"]
+    },
+    {
+      "adr": 319,
+      "date": "2026-09-25",
+      "theme": "knowledge",
+      "functional": ["f.images", "f.documents", "f.chat"],
+      "technical": ["t.storage", "t.postgres", "t.scheduler", "t.web"]
+    },
+    {
+      "adr": 320,
+      "date": "2026-09-25",
+      "theme": "experience",
+      "functional": ["f.chat", "f.notifications"],
+      "technical": ["t.sse", "t.redis", "t.postgres", "t.web"]
+    },
+    {
+      "adr": 321,
+      "date": "2026-09-25",
+      "theme": "connectors",
+      "functional": ["f.mail", "f.documents", "f.images", "f.bookmarks", "f.chat"],
+      "technical": ["t.connclients", "t.fastapi", "t.web", "t.storage", "t.metrics"]
+    },
+    {
+      "adr": 322,
+      "date": "2026-09-25",
+      "theme": "proactive",
+      "functional": ["f.routines", "f.mail", "f.briefing", "f.activity"],
+      "technical": ["t.scheduler", "t.postgres", "t.registers", "t.web"]
+    },
+    {
+      "adr": 323,
+      "date": "2026-09-25",
+      "theme": "experience",
+      "functional": [
+        "f.notifications",
+        "f.admin",
+        "f.connectors",
+        "f.memory",
+        "f.planning",
+        "f.security",
+        "f.personality",
+        "f.hitl",
+        "f.routines",
+        "f.workboard"
+      ],
+      "technical": [
+        "t.i18n",
+        "t.promptsys",
+        "t.channels",
+        "t.connclients",
+        "t.config",
+        "t.postgres",
+        "t.toolsys",
+        "t.bff",
+        "t.planner",
+        "t.hitl",
+        "t.response",
+        "t.metrics"
+      ]
+    },
+    {
+      "adr": 324,
+      "date": "2026-09-26",
+      "theme": "voice",
+      "functional": ["f.radio", "f.voice", "f.briefing", "f.costs", "f.admin"],
+      "technical": [
+        "t.radio",
+        "t.voiceinfra",
+        "t.scheduler",
+        "t.metrics",
+        "t.alerts",
+        "t.dashboards",
+        "t.web"
+      ]
     }
   ]
 }

@@ -48,7 +48,7 @@ class GoogleCalendarPreferences(BaseConnectorPreferences):
     default_calendar_name: str | None = Field(
         default=None,
         max_length=100,
-        description="Nom du calendrier par defaut pour creer les evenements",
+        description="Name of the default calendar new events are created in",
     )
 
 
@@ -66,7 +66,7 @@ class GoogleTasksPreferences(BaseConnectorPreferences):
     default_task_list_name: str | None = Field(
         default=None,
         max_length=100,
-        description="Nom de la liste de taches par defaut",
+        description="Name of the default task list",
     )
 
 
@@ -84,7 +84,7 @@ class AppleCalendarPreferences(BaseConnectorPreferences):
     default_calendar_name: str | None = Field(
         default=None,
         max_length=100,
-        description="Nom du calendrier par defaut pour creer les evenements",
+        description="Name of the default calendar new events are created in",
     )
 
 
@@ -102,7 +102,7 @@ class MicrosoftCalendarPreferences(BaseConnectorPreferences):
     default_calendar_name: str | None = Field(
         default=None,
         max_length=100,
-        description="Nom du calendrier par defaut pour creer les evenements",
+        description="Name of the default calendar new events are created in",
     )
 
 
@@ -120,7 +120,7 @@ class MicrosoftTasksPreferences(BaseConnectorPreferences):
     default_task_list_name: str | None = Field(
         default=None,
         max_length=100,
-        description="Nom de la liste de taches par defaut",
+        description="Name of the default task list",
     )
 
 
@@ -142,16 +142,16 @@ class PreferencesRequest(BaseModel):
         str_strip_whitespace=True,
     )
 
-    # Google Calendar preferences
+    # Calendar preferences (Google, Apple and Microsoft calendars)
     default_calendar_name: str | None = Field(
         default=None,
         max_length=100,
-        description="Nom du calendrier par defaut (Google Calendar)",
+        description="Name of the default calendar (any calendar connector)",
     )
 
-    # Google Tasks preferences
+    # Task list preferences (Google and Microsoft tasks)
     default_task_list_name: str | None = Field(
         default=None,
         max_length=100,
-        description="Nom de la liste de taches par defaut (Google Tasks)",
+        description="Name of the default task list (any tasks connector)",
     )

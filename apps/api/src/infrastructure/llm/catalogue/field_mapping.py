@@ -33,6 +33,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from src.infrastructure.llm.catalogue.registry_match import match_litellm, match_modelsdev
+from src.infrastructure.llm.catalogue.vendor_announcements import announced_shutdown
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -48,10 +49,12 @@ class RegistryFacts:
         supports_tools: Whether the model accepts tool calls.
         supports_structured_output: Whether it accepts a response schema.
         supports_vision: Whether it accepts image attachments.
-        deprecation_date: Provider retirement date published by LiteLLM.
+        deprecation_date: Provider retirement date — the one the vendor's own
+            page announces (``vendor_announcements``), else LiteLLM's copy.
         registry_status: models.dev status verbatim (``deprecated`` /
             ``beta`` / ``None``). A second, independent retirement signal: it
-            covers the preview models providers retire without a date.
+            covers the preview models providers retire without a date. Dropped
+            when the vendor lists the model with no shutdown announced.
         matched_registries: Which registries knew this model at all. It is
             what separates "models.dev lists it and says nothing" from
             "models.dev does not list it", a distinction :func:`is_retired`
@@ -244,7 +247,19 @@ def registry_facts(provider: str, model: str, *, kind: str | None = None) -> Reg
 
     sources: dict[str, str] = {}
     booleans = _boolean_facts(ll, md, sources)
-    deprecation = _deprecation_date((ll or {}).get("deprecation_date"))
+    deprecation: tuple[str | None, date | None] = (
+        "litellm",
+        _deprecation_date((ll or {}).get("deprecation_date")),
+    )
+    status: tuple[str | None, Any] = ("modelsdev", (md or {}).get("status"))
+    announced, shutdown = announced_shutdown(provider, model)
+    if announced:
+        # The vendor's own page outranks the copies (see vendor_announcements):
+        # its date replaces the registry's, and a model it lists with no
+        # shutdown announced is not « deprecated » whatever a registry flags.
+        deprecation = ("vendor", shutdown)
+        if shutdown is None:
+            status = ("vendor", None)
 
     return RegistryFacts(
         max_input_tokens=_record(sources, "max_input_tokens", _max_input(ll, md)),
@@ -256,10 +271,8 @@ def registry_facts(provider: str, model: str, *, kind: str | None = None) -> Reg
         supports_tools=booleans.get("supports_tools"),
         supports_structured_output=booleans.get("supports_structured_output"),
         supports_vision=booleans.get("supports_vision"),
-        deprecation_date=_record(sources, "deprecation_date", ("litellm", deprecation)),
-        registry_status=_record(
-            sources, "registry_status", ("modelsdev", (md or {}).get("status"))
-        ),
+        deprecation_date=_record(sources, "deprecation_date", deprecation),
+        registry_status=_record(sources, "registry_status", status),
         matched_registries=frozenset(
             name for name, entry in (("litellm", ll), ("modelsdev", md)) if entry is not None
         ),

@@ -16,6 +16,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
+from src.core.i18n import resolve_language
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
     runtime_user_id_str,
@@ -102,7 +103,7 @@ async def _resolve_recurrence_suggestion(
     return await evaluate_suggestion(
         user_id,
         signature,
-        language=state.get("user_language", settings.default_language),
+        language=resolve_language(state.get("user_language")),
         local_today=datetime.now(user_tz).date(),
         settings=settings,
     )

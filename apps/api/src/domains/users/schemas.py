@@ -5,12 +5,11 @@ Users domain schemas (Pydantic models for API).
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pydantic_core.core_schema import ValidationInfo
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.constants import IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT
 from src.core.exchange_rhythm import ExchangeRhythm
-from src.core.field_names import FIELD_IS_ACTIVE
+from src.core.i18n import _
 from src.domains.shared.schemas import (
     FontFamilyValidatorMixin,
     ImageGenerationValidatorMixin,
@@ -110,8 +109,11 @@ class UserProfile(UserBase, LanguageValidatorMixin):
     """Schema for user profile response with additional user-specific fields."""
 
     # Additional fields not in UserBase
+    # Required: a profile is read from a row whose language is NOT NULL, and a
+    # known person's language never falls back to the requester's (ADR-323).
     language: str = Field(
-        default="fr", description="User's preferred language (fr, en, es, de, it)"
+        ...,
+        description="User's preferred language (fr, en, es, de, it, zh-CN)",
     )
     personality_id: UUID | None = Field(None, description="User's preferred LLM personality ID")
     home_address: str | None = Field(
@@ -242,14 +244,17 @@ class UserActivationUpdate(BaseModel):
         None, description="Reason for deactivation (required when deactivating)"
     )
 
-    @field_validator("reason")
-    @classmethod
-    def validate_deactivation_reason(cls, v: str | None, info: ValidationInfo) -> str | None:
-        """Require reason when deactivating user."""
-        is_active = info.data.get(FIELD_IS_ACTIVE)
-        if is_active is False and not v:
-            raise ValueError("reason is required when deactivating a user")
-        return v
+    @model_validator(mode="after")
+    def require_a_deactivation_reason(self) -> UserActivationUpdate:
+        """A deactivation states its reason: the account holder is told it.
+
+        Checked on the whole model — a field validator never runs on an omitted
+        field, so ``{"is_active": false}`` used to pass without one. The refusal
+        speaks the declared language: the acting administrator reads it.
+        """
+        if not self.is_active and not (self.reason and self.reason.strip()):
+            raise ValueError(_("A deactivation must state its reason."))
+        return self
 
 
 class UserActivationResponse(BaseModel):

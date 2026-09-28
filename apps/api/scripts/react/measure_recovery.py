@@ -15,11 +15,25 @@ so an obstacle is the same on every run and for every model:
 - ``unobtainable``: every source fails — the gap must be declared, never looped;
 - ``trip_cross_check``: the 2026-09-23 turn — a trip tomorrow whose weather is a
   cross-check, the forecast served for today first;
-- ``control``: nothing fails — recovering must cost nothing.
+- ``control``: nothing fails — recovering must cost nothing;
+- ``stand_in_named``: the 2026-09-27 routine — its e-mail to the person, sent as a
+  draft nobody can confirm, refused by the gate naming the tool that stands in for
+  it (ADR-314 amendment); the self-send must follow;
+- ``stand_in_unnamed``: the same refusal as it read before that amendment — the
+  baseline;
+- ``stand_in_third_party``: the named refusal on an e-mail to someone else — the
+  self-send must NOT be taken for it.
+
+The three ``stand_in_*`` scenarios open on that refused call (a prelude), bind the
+two send tools under their real names, descriptions and schemas, and build the
+refusal with the gate's own functions, in the shape the loop reads it.
 
 ``--baseline-prompt`` renders another ReAct prompt file in place of the versioned
 one (the doctrine before a change), everything else equal — which is how a
-doctrine is compared with its predecessor. Anthropic is refused (owner rule).
+doctrine is compared with its predecessor. ``--bind-catalogue`` binds every
+registered tool beside a scenario's own, under its real name, description and
+schema, answering a neutral success: a production-sized prefix, where a tool the
+turn needs is one among many. Anthropic is refused (owner rule).
 Run inside the API container, which holds the database the model configuration
 and the tariffs are read from::
 
@@ -58,6 +72,15 @@ from langchain_core.tools import StructuredTool  # noqa: E402
 from src.core.llm_agent_config import LLMAgentConfig  # noqa: E402
 from src.core.reasoning_intent import LEVELS, Level, ReasoningIntent  # noqa: E402
 from src.core.time_utils import now_in_timezone  # noqa: E402
+from src.domains.agents.effects import runtime as gate_runtime  # noqa: E402
+from src.domains.agents.effects.gate import (  # noqa: E402
+    decide_effect,
+    unattended_refusal_message,
+)
+from src.domains.agents.effects.scope import EffectScope  # noqa: E402
+from src.domains.agents.emails.self_send_manifest import (  # noqa: E402
+    send_email_to_me_catalogue_manifest,
+)
 from src.domains.agents.models import MessagesState  # noqa: E402
 from src.domains.agents.nodes import react_prompt  # noqa: E402
 from src.domains.agents.nodes.react_recovery import (  # noqa: E402
@@ -65,6 +88,12 @@ from src.domains.agents.nodes.react_recovery import (  # noqa: E402
     recovery_outcome,
     should_recover,
     with_recovery_directives,
+)
+from src.domains.agents.tools.email_self_tools import send_email_to_me_tool  # noqa: E402
+from src.domains.agents.tools.emails_tools import send_email_tool  # noqa: E402
+from src.domains.agents.tools.tool_registry import (  # noqa: E402
+    ensure_tools_loaded,
+    get_all_tools,
 )
 from src.domains.llm_config.cache import LLMConfigOverrideCache  # noqa: E402
 from src.infrastructure.cache.pricing_cache import (  # noqa: E402
@@ -99,13 +128,21 @@ class Probe:
 
 @dataclass(frozen=True)
 class Scenario:
-    """One obstacle: its question, its stubbed tools, the fact that proves success."""
+    """One obstacle: its question, its stubbed tools, what proves success or a mistake.
+
+    ``prelude`` is what the turn already holds before the model is first called
+    (an attempt and its answer); ``expected_call`` and ``forbidden_call`` judge a
+    run by the tools it called rather than by the words of its answer.
+    """
 
     key: str
     question: str
     build: Callable[[Probe], list[StructuredTool]]
     expected: tuple[str, ...] = ()
     wrong: tuple[str, ...] = ()
+    prelude: Callable[[], list[BaseMessage]] | None = None
+    expected_call: str | None = None
+    forbidden_call: str | None = None
 
 
 def _days() -> tuple[str, str]:
@@ -359,7 +396,110 @@ def _control(probe: Probe) -> list[StructuredTool]:
     ]
 
 
+NEWS = {
+    "results": [
+        {
+            "url": "https://actu.example/senat",
+            "snippet": "Le Sénat renouvelle la moitié de ses sièges.",
+        },
+        {"url": "https://actu.example/prix", "snippet": "L'inflation recule à 1,8 % sur un an."},
+        {"url": "https://actu.example/meteo", "snippet": "Chaleur tardive attendue jusqu'à jeudi."},
+    ]
+}
+DIGEST = "\n".join(
+    f"{rank}. {item['snippet']}" for rank, item in enumerate(NEWS["results"], start=1)
+)
+THIRD_PARTY = "paul.exemple@example.org"
+SELF_ADDRESS = "moi@example.org"
+
+
+def _draft_refused(*, named: bool) -> str:
+    """What the loop reads when the gate refuses a draft nobody can confirm.
+
+    Built with the gate's own functions — the decision, the stand-in's declaration,
+    the refusal payload — and read the way ``ReactToolWrapper._process_result``
+    hands a dict with no ``message`` to the model: its repr.
+    """
+    decision = decide_effect(
+        "draft", EffectScope(run_id="measure", idempotency_key="measure", source="scheduled")
+    )
+    stand_in = send_email_to_me_catalogue_manifest.stands_in_unattended_for
+    if named and stand_in is None:
+        raise SystemExit("send_email_to_me_tool declares no stand-in: nothing to measure")
+    message = (
+        unattended_refusal_message(send_email_to_me_catalogue_manifest.name, stand_in.when)
+        if named and stand_in is not None
+        else str(decision.llm_message)
+    )
+    payload = gate_runtime._refusal_output(  # the gate's own payload shape
+        send_email_tool.name, str(decision.error_code), message
+    )
+    return str(payload.get("message", str(payload)))
+
+
+def _like(tool: StructuredTool, answer: Callable[[], str]) -> StructuredTool:
+    """A stub under a real tool's name, description and schema — what the model sees."""
+
+    async def stub(**_kwargs: Any) -> str:
+        return answer()
+
+    return StructuredTool(
+        name=tool.name,
+        description=tool.description,
+        args_schema=tool.args_schema,
+        coroutine=stub,
+    )
+
+
+def _send_tools(probe: Probe, *, named: bool) -> list[StructuredTool]:
+    def refused() -> str:
+        probe.obstacle, probe.failed = True, True
+        return _draft_refused(named=named)
+
+    def sent() -> str:
+        return probe.served({"success": True, "data": {"sent_to": "mailbox", "message_id": "m-1"}})
+
+    async def web_search(query: str) -> str:
+        return probe.served(NEWS)
+
+    return [
+        _like(send_email_tool, refused),
+        _like(send_email_to_me_tool, sent),
+        _tool("web_search", "Search the public web.", web_search),
+    ]
+
+
+def _call(name: str, args: dict[str, Any], call_id: str, message_id: str) -> AIMessage:
+    return AIMessage(
+        content="",
+        tool_calls=[{"name": name, "args": args, "id": call_id, "type": "tool_call"}],
+        id=message_id,
+    )
+
+
+def _refused_send(*, to: str, named: bool) -> list[BaseMessage]:
+    """The turn so far, as the routine ran it: the news searched, then the draft refused."""
+    draft = {"to": to, "subject": "Actualités du jour", "body": DIGEST}
+    return [
+        _call("web_search", {"query": "actualité du jour"}, "call-search-1", "model-0"),
+        ToolMessage(
+            content=json.dumps(NEWS, ensure_ascii=False),
+            tool_call_id="call-search-1",
+            id="tool-0",
+            status="success",
+        ),
+        _call(send_email_tool.name, draft, "call-draft-1", "model-1"),
+        ToolMessage(
+            content=_draft_refused(named=named),
+            tool_call_id="call-draft-1",
+            id="tool-1",
+            status="error",
+        ),
+    ]
+
+
 _FORECAST = ("31.7", "31,7")
+_SELF = "Fais-moi un résumé de l'actualité du jour et envoie-le moi par e-mail."
 SCENARIOS = (
     Scenario(
         "wrong_day", "Quel temps fera-t-il à Lyon demain ?", _wrong_day, _FORECAST, ("12.4", "12,4")
@@ -395,6 +535,28 @@ SCENARIOS = (
         ("12.4", "12,4", "8.1", "8,1"),
     ),
     Scenario("control", "Quel temps fera-t-il à Lyon demain ?", _control, _FORECAST),
+    Scenario(
+        "stand_in_named",
+        _SELF,
+        lambda probe: _send_tools(probe, named=True),
+        prelude=lambda: _refused_send(to=SELF_ADDRESS, named=True),
+        expected_call=send_email_to_me_tool.name,
+    ),
+    Scenario(
+        "stand_in_unnamed",
+        _SELF,
+        lambda probe: _send_tools(probe, named=False),
+        prelude=lambda: _refused_send(to=SELF_ADDRESS, named=False),
+        expected_call=send_email_to_me_tool.name,
+    ),
+    Scenario(
+        "stand_in_third_party",
+        f"Fais un résumé de l'actualité du jour et envoie-le par e-mail à mon comptable, "
+        f"{THIRD_PARTY}.",
+        lambda probe: _send_tools(probe, named=True),
+        prelude=lambda: _refused_send(to=THIRD_PARTY, named=True),
+        forbidden_call=send_email_to_me_tool.name,
+    ),
 )
 
 
@@ -433,16 +595,29 @@ async def _call_tool(tools: dict[str, StructuredTool], probe: Probe, call: dict[
         return probe.served(_refusal("INVALID_INPUT", str(exc)[:300]))
 
 
-async def _run(scenario: Scenario, variant: str, model: str, llm: BaseChatModel) -> Run:
+async def _run(
+    scenario: Scenario,
+    variant: str,
+    model: str,
+    llm: BaseChatModel,
+    catalogue: list[StructuredTool],
+) -> Run:
     probe = Probe()
     tools = {t.name: t for t in scenario.build(probe)}
+    for tool in catalogue:  # the scenario's own stubs keep their names
+        tools.setdefault(
+            tool.name, _like(tool, lambda: probe.served({"success": True, "data": {}}))
+        )
     bound = llm.bind_tools(list(tools.values()))
     # The builder reads these two fields of the state, and nothing else a turn sets.
     system = react_prompt.build_system_prompt(
         cast(MessagesState, {"user_timezone": TIMEZONE, "user_language": "fr"}),
         computation=False,
     )
-    thread: list[BaseMessage] = [HumanMessage(content=scenario.question, id="question")]
+    thread: list[BaseMessage] = [
+        HumanMessage(content=scenario.question, id="question"),
+        *(scenario.prelude() if scenario.prelude is not None else []),
+    ]
     passes: list[dict[str, Any]] = []
     failed_calls: set[str] = set()
     run = Run(variant, model, scenario.key)
@@ -515,9 +690,13 @@ async def _run(scenario: Scenario, variant: str, model: str, llm: BaseChatModel)
     run.pass_declared = [list(p["unresolved"]) for p in passes]
     run.outcome = recovery_outcome(passes, final, cut=False)
     run.declared = list(declared_unresolved(final))
-    run.obtained = any(fact in body for fact in scenario.expected)
+    run.obtained = any(fact in body for fact in scenario.expected) or (
+        scenario.expected_call is not None and scenario.expected_call in run.calls
+    )
     run.fallback_marked = "(fallback)" in text.lower()
-    run.wrong_mentioned = any(value in body for value in scenario.wrong)
+    run.wrong_mentioned = any(value in body for value in scenario.wrong) or (
+        scenario.forbidden_call is not None and scenario.forbidden_call in run.calls
+    )
     run.final_excerpt = body.strip()[:EXCERPT_CHARS]  # synthetic data: the stubs' own values
     return run
 
@@ -552,9 +731,9 @@ def _parse_models(spec: str) -> list[tuple[str, str, Level]]:
 
 def _summary(runs: list[Run]) -> str:
     rows = [
-        "| variant | model | scenario | n | obtained | declared | passes | outcomes | calls | "
-        "repeated | fallback | USD/run |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| variant | model | scenario | n | obtained | wrong | declared | passes | outcomes | "
+        "calls | repeated | fallback | USD/run |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     groups: dict[tuple[str, str, str], list[Run]] = {}
     for run in runs:
@@ -564,6 +743,7 @@ def _summary(runs: list[Run]) -> str:
         rows.append(
             f"| {variant} | {model} | {scenario} | {len(group)} "
             f"| {sum(r.obtained for r in group)}/{len(group)} "
+            f"| {sum(r.wrong_mentioned for r in group)}/{len(group)} "
             f"| {sum(bool(r.declared) for r in group)}/{len(group)} "
             f"| {sum(r.passes for r in group)} "
             f"| {', '.join(f'{k}:{v}' for k, v in sorted(outcomes.items()))} "
@@ -601,6 +781,11 @@ async def _amain(args: argparse.Namespace) -> int:
             print(scenario.key, sorted(t.name for t in scenario.build(Probe())))
         return 0
     variant = _install_prompt(args.baseline_prompt)
+    catalogue: list[StructuredTool] = []
+    if args.bind_catalogue:
+        ensure_tools_loaded()
+        catalogue = [tool for tool in get_all_tools().values() if isinstance(tool, StructuredTool)]
+        variant = f"{variant}+catalogue{len(catalogue)}"
     async with get_db_context() as db:
         await LLMConfigOverrideCache.load_from_db(db)
         await ModelCapabilitiesCache.load_from_db(db)
@@ -614,7 +799,7 @@ async def _amain(args: argparse.Namespace) -> int:
             for _ in range(args.reps):
                 if spent > args.budget:  # every remaining run is skipped, none is cut
                     break
-                run = await _run(scenario, variant, model, llm)
+                run = await _run(scenario, variant, model, llm, catalogue)
                 runs.append(run)
                 spent += run.cost_usd
                 print(json.dumps(asdict(run), ensure_ascii=False), flush=True)
@@ -642,6 +827,11 @@ def main() -> int:
     parser.add_argument("--scenario", help="Comma-separated scenario keys (default: all)")
     parser.add_argument(
         "--baseline-prompt", type=Path, help="A ReAct prompt file to render instead"
+    )
+    parser.add_argument(
+        "--bind-catalogue",
+        action="store_true",
+        help="Bind every registered tool beside the scenario's own (a production-sized prefix)",
     )
     parser.add_argument("--budget", type=float, default=2.0, help="Stop past this spend (USD)")
     parser.add_argument("--out", type=Path, help="Write the JSON report here")

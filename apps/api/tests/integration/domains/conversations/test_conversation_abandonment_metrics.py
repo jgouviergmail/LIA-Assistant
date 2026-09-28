@@ -23,6 +23,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.orm import Session
 
 from src.domains.conversations.models import Conversation
 from src.domains.conversations.service import ConversationService
@@ -147,6 +148,11 @@ def mock_db_session():
     # (AsyncSessionTransaction) — a bare AsyncMock breaks the `async with` form
     # (AC-012, see FakeSavepointTransaction above).
     db.begin_nested = MagicMock(side_effect=FakeSavepointTransaction)
+    # A reset arms its sync signal on the session's own transaction (ADR-320):
+    # it keeps its pending set in ``sync_session.info`` and listens to that
+    # session's ``after_commit``. A real (unbound) ``Session`` honours both; an
+    # AsyncMock child answered ``info.setdefault`` with a coroutine.
+    db.sync_session = Session()
     return db
 
 

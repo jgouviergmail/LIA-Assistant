@@ -6,10 +6,10 @@ references that need to be resolved to specific data (email addresses, phone
 numbers, event IDs, etc.) for completing actions.
 
 Use Cases:
-    1. "Envoie un email à Jean Dupont"
+    1. "Send an e-mail to Jean Dupont"
        → Search contacts, find Jean, extract email for send_email_tool
 
-    2. "Planifie un rdv avec Marie Martin demain"
+    2. "Schedule a meeting with Marie Martin tomorrow"
        → Search contacts, find Marie, extract email for calendar invitation
 
     3. Contact has multiple emails
@@ -337,6 +337,7 @@ class EntityResolutionService:
                         intended_action=intended_action,
                         field_name=field_name,
                         field_values=value,
+                        target_field=target_fields[0],
                     )
 
             # Single value - auto-resolve
@@ -364,7 +365,7 @@ class EntityResolutionService:
         return ResolvedEntity(
             status=ResolutionStatus.NO_TARGET_FIELD,
             resolved_item=item,
-            error_message=f"Le {domain} trouvé n'a pas de {target_fields[0]}",
+            error_message=APIMessages.entity_missing_field(domain, target_fields[0]),
         )
 
     def _extract_value(self, value: Any) -> str:
@@ -402,6 +403,7 @@ class EntityResolutionService:
         intended_action: str,
         field_name: str,
         field_values: list[Any],
+        target_field: str,
     ) -> ResolvedEntity:
         """
         Create disambiguation context for multiple field values.
@@ -415,6 +417,9 @@ class EntityResolutionService:
             intended_action: Target action
             field_name: Field with multiple values
             field_values: List of field values
+            target_field: The field the action needs, as the question names it
+                (``email``, ``phone``) — never the provider's key: ``phoneNumbers``
+                stripped of its ``s`` named a field no sentence knows
 
         Returns:
             ResolvedEntity with disambiguation context
@@ -448,7 +453,7 @@ class EntityResolutionService:
             domain=domain,
             original_query=original_query,
             intended_action=intended_action,
-            target_field=field_name.rstrip("s"),  # emails -> email
+            target_field=target_field,
             candidates=candidates,
             registry_ids=[item.get("resource_name", item.get("id", ""))],
         )
@@ -573,7 +578,8 @@ class EntityResolutionService:
         Called after user selects from disambiguation options.
 
         Args:
-            choice: User's choice (index number or ordinal like "2", "le premier")
+            choice: User's choice — an index such as "2", "2nd" or "1er" (a
+                number, with or without its ordinal suffix)
             disambiguation_context: Original disambiguation context
             items: Original items list
 

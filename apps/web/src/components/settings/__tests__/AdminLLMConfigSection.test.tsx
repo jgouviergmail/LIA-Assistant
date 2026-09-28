@@ -124,6 +124,7 @@ interface TypeConfigOptions {
   isOverridden?: boolean;
   requiredKind?: LLMModelKind;
   requiredCapabilities?: string[];
+  category?: string;
 }
 
 function typeConfig(
@@ -135,6 +136,7 @@ function typeConfig(
     isOverridden = false,
     requiredKind = 'chat',
     requiredCapabilities = [],
+    category = 'pipeline',
   }: TypeConfigOptions = {}
 ): LLMTypeConfig {
   return {
@@ -142,7 +144,7 @@ function typeConfig(
     info: {
       llm_type: llmType,
       display_name: displayName,
-      category: 'pipeline',
+      category,
       description_key: `desc.${llmType}`,
       required_capabilities: requiredCapabilities,
       power_tier: null,
@@ -211,6 +213,25 @@ describe('type cards', () => {
     expect(screen.getByText('Planner')).toBeTruthy();
     expect(screen.getAllByText('settings.admin.llmConfig.types.default')).toHaveLength(1);
     expect(screen.getAllByText('settings.admin.llmConfig.types.overridden')).toHaveLength(1);
+  });
+
+  it('draws every category a type carries, one the page does not know last, never lost', () => {
+    renderSection([
+      typeConfig('future_slot', 'Future Slot', { category: 'future_family' }),
+      typeConfig('radio_writer', 'Radio Script Writer', { category: 'radio' }),
+      typeConfig('router', 'Router'),
+    ]);
+    for (const name of ['Future Slot', 'Radio Script Writer', 'Router']) {
+      expect(screen.getByText(name)).toBeTruthy();
+    }
+    const headings = screen
+      .getAllByRole('heading', { level: 4 })
+      .map(heading => heading.textContent);
+    expect(headings).toEqual([
+      'settings.admin.llmConfig.categories.pipeline',
+      'settings.admin.llmConfig.categories.radio',
+      'settings.admin.llmConfig.categories.future_family',
+    ]);
   });
 });
 

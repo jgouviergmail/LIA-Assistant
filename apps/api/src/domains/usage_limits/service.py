@@ -690,10 +690,10 @@ class UsageLimitService:
         for field_name, value in update_data.items():
             setattr(limit, field_name, value)
 
-        await self.db.flush()
-        await self.db.refresh(limit)
-
-        # Invalidate cache
+        # Committed BEFORE the cache forgets the old verdict: a check running
+        # in between on its own session would otherwise re-cache what this
+        # change replaces, and the change would wait out the cache TTL.
+        await self.db.commit()
         await self.invalidate_cache_static(user_id)
 
         logger.info(
@@ -731,10 +731,10 @@ class UsageLimitService:
         limit.blocked_at = datetime.now(UTC) if data.is_usage_blocked else None
         limit.blocked_by = admin_id if data.is_usage_blocked else None
 
-        await self.db.flush()
-        await self.db.refresh(limit)
-
-        # Invalidate cache
+        # Committed BEFORE the cache forgets the old verdict: a check running
+        # in between on its own session would otherwise re-cache « allowed »,
+        # and the block would be ignored until the cache TTL ran out.
+        await self.db.commit()
         await self.invalidate_cache_static(user_id)
 
         logger.info(
@@ -742,7 +742,8 @@ class UsageLimitService:
             user_id=str(user_id),
             admin_id=str(admin_id),
             is_blocked=data.is_usage_blocked,
-            reason=data.blocked_reason,
+            # The administrator's words about a person (ADR-317): their size only.
+            reason_length=len(data.blocked_reason or ""),
         )
 
         return await self._build_admin_response(user_id)

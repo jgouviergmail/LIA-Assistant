@@ -34,13 +34,13 @@ from typing import Any
 from langgraph.runtime import get_runtime
 from langgraph.store.base import BaseStore
 
-from src.core.config import settings
 from src.core.constants import (
     DEFAULT_TIMEZONE,
     EXECUTION_MODE_PIPELINE,
     RESPONSE_DISPLAY_MODE_DEFAULT,
 )
 from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
+from src.core.i18n import resolve_language
 
 # ``BaseStore`` and ``asyncio`` are imported at RUNTIME, not under TYPE_CHECKING:
 # every tool's parameter is annotated ``ToolRuntime[LiaRuntimeContext, Any]``, and
@@ -86,7 +86,7 @@ class LiaRuntimeContext:
         voice_enabled: User preference — spoken replies. The progressive chat
             TTS starts on it; the response node reads it to keep a conversational
             reply free of markup while a voice listens.
-        display_mode: Render mode the user chose (cards / html / markdown).
+        display_mode: Render mode the user chose (cards / html / html_cards / markdown).
         execution_mode: Pipeline or ReAct (ADR-070).
         exchange_rhythm: What the ReAct loop shapes its prompt for — the person's
             choice, else the instance default (ADR-311). The router publishes it
@@ -122,7 +122,7 @@ class LiaRuntimeContext:
     execution_mode: str = EXECUTION_MODE_PIPELINE
     exchange_rhythm: ExchangeRhythm = field(default_factory=lambda: effective_exchange_rhythm(None))
     timezone: str = DEFAULT_TIMEZONE
-    language: str = field(default_factory=lambda: settings.default_language)
+    language: str = field(default_factory=resolve_language)
     display_name: str | None = None
 
     deps: Any = None
@@ -196,9 +196,9 @@ def runtime_language(default: str | None = None) -> str:
     """The run's language, backend-canonical.
 
     Args:
-        default: What to answer outside a run. ``None`` means the configured
-            default language — the same source the context itself uses, so the
-            two can never disagree.
+        default: What to answer outside a run. ``None`` means the declared
+            language (ADR-323) — the same source the context itself uses, so
+            the two can never disagree.
 
     Returns:
         The language code.
@@ -206,7 +206,7 @@ def runtime_language(default: str | None = None) -> str:
     context = runtime_context_if_running()
     if context is not None:
         return context.language
-    return default if default is not None else settings.default_language
+    return resolve_language(default)
 
 
 def runtime_timezone(default: str = DEFAULT_TIMEZONE) -> str:
@@ -255,7 +255,7 @@ def runtime_browser_context() -> Any:
 
 
 def runtime_display_mode(default: str = RESPONSE_DISPLAY_MODE_DEFAULT) -> str:
-    """The render mode the user chose (cards / html / markdown).
+    """The render mode the user chose (cards / html / html_cards / markdown).
 
     Args:
         default: What to answer outside a run.

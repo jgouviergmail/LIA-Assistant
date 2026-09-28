@@ -13,6 +13,7 @@ pins is the ORDER and the FAILURE MODES, which is where a gate goes wrong:
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from types import SimpleNamespace
 from typing import Any
@@ -67,8 +68,13 @@ def ledger() -> Any:
         def __init__(self) -> None:
             self.claims: list[Any] = []
             self.closed: list[tuple[str, Any]] = []
+            self.abandoned: list[str] = []
             self.refusals: list[tuple[Any, str]] = []
             self.claim_result: Any = "win"
+            self.lost_status: str | None = None
+            self.abandon_gate: asyncio.Event | None = None
+            self.close_gate: asyncio.Event | None = None
+            self.closing = asyncio.Event()
 
         async def claim(self, request: Any) -> Any:
             self.claims.append(request)
@@ -82,10 +88,22 @@ def ledger() -> Any:
                     claim_token=None,
                     served_result={"success": True, "data": {"served": True}},
                 )
+            if self.claim_result == "lost":  # the key is held by a row with no result
+                return gate_runtime.ClaimTicket(
+                    effect_id=uuid.uuid4(), claim_token=None, served_status=self.lost_status
+                )
             return None  # ledger unavailable
 
         async def close(self, effect_id: Any, token: Any, *, outcome: Any) -> None:
+            self.closing.set()
+            if self.close_gate is not None:
+                await self.close_gate.wait()  # a slow database, for a mid-close stop
             self.closed.append(("success" if outcome.succeeded else "failure", outcome))
+
+        async def abandon(self, effect_id: Any, token: Any, *, error_code: str) -> None:
+            if self.abandon_gate is not None:
+                await self.abandon_gate.wait()  # a slow database, for re-delivery
+            self.abandoned.append(error_code)
 
         async def refuse(self, request: Any, *, error_code: str) -> None:
             self.refusals.append((request, error_code))
@@ -196,6 +214,115 @@ class TestLedgeredEffect:
             with pytest.raises(RuntimeError):
                 await gated(room="Salon")
         assert ledger.closed[0][0] == "failure"
+
+
+def _in_flight() -> tuple[asyncio.Event, Any]:
+    """A tool that starts its effect and never hears back from the provider."""
+    started = asyncio.Event()
+
+    async def _slow(**_kwargs: Any) -> dict[str, Any]:
+        started.set()
+        await asyncio.Event().wait()
+        raise AssertionError("the provider never answers")
+
+    return started, _slow
+
+
+class TestACancelledEffect:
+    """Cut before its result came back, an effect's outcome is unknown: ABANDONED.
+
+    Production, 2026-09-25: a routine attempt reached its 300 s bound while a
+    browser task was in flight. ``asyncio.wait_for`` cancelled it, the close
+    only ran on ``Exception`` — which a cancellation is not — and the row stayed
+    CLAIMED for good, firing ``EffectLedgerClaimedOrphans`` every two hours.
+    """
+
+    async def test_an_attempt_bound_abandons_the_row(self, ledger: Any) -> None:
+        _started, slow = _in_flight()
+        gated = gate_runtime.gated("browser_task_tool", slow)
+        with _install(ledger), _policy("reversible"), effect_scope(_scope()):
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(gated(task="read"), timeout=0.05)
+
+        assert ledger.abandoned == ["cancelled"]
+        assert ledger.closed == [], "no result came back: nothing to close it FROM"
+
+    async def test_the_turn_stays_cancelled(self, ledger: Any) -> None:
+        started, slow = _in_flight()
+        gated = gate_runtime.gated("browser_task_tool", slow)
+        with _install(ledger), _policy("reversible"), effect_scope(_scope()):
+            run = asyncio.ensure_future(gated(task="read"))
+            await started.wait()
+            run.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await run
+        assert ledger.abandoned == ["cancelled"]
+
+    async def test_a_second_cancellation_does_not_lose_the_row(self, ledger: Any) -> None:
+        """A cancellation re-delivered while the row is written must not cut the write."""
+        started, slow = _in_flight()
+        ledger.abandon_gate = asyncio.Event()
+        gated = gate_runtime.gated("browser_task_tool", slow)
+        with _install(ledger), _policy("reversible"), effect_scope(_scope()):
+            run = asyncio.ensure_future(gated(task="read"))
+            await started.wait()
+            run.cancel()
+            await asyncio.sleep(0)  # the handler starts the write
+            run.cancel()  # a shutdown insists
+            await asyncio.sleep(0)
+            ledger.abandon_gate.set()
+            with pytest.raises(asyncio.CancelledError):
+                await run
+        assert ledger.abandoned == ["cancelled"]
+
+    @pytest.mark.parametrize("fails", [False, True], ids=["after-a-result", "after-a-raise"])
+    async def test_a_stop_while_the_ending_is_written_does_not_lose_it(
+        self, ledger: Any, fails: bool
+    ) -> None:
+        """The effect is over, its row is being closed, and the stop lands then."""
+
+        async def _quick(**_kwargs: Any) -> dict[str, Any]:
+            if fails:
+                raise RuntimeError("provider down")
+            return {"success": True, "data": {"id": "m-1"}}
+
+        ledger.close_gate = asyncio.Event()
+        gated = gate_runtime.gated("control_hue_light_tool", _quick)
+        with _install(ledger), _policy("reversible"), effect_scope(_scope()):
+            run = asyncio.ensure_future(gated(room="Salon"))
+            await ledger.closing.wait()
+            run.cancel()
+            await asyncio.sleep(0)
+            ledger.close_gate.set()
+            with pytest.raises(asyncio.CancelledError):
+                await run
+        assert [kind for kind, _outcome in ledger.closed] == ["failure" if fails else "success"]
+        assert ledger.abandoned == [], "the result came back: nothing is unknown"
+
+
+class TestAKeyAlreadyHeldWithoutAResult:
+    """Three different facts, three different answers — and nothing runs twice."""
+
+    @pytest.mark.parametrize(
+        ("status", "code", "says"),
+        [
+            ("abandoned", "effect_abandoned", "whether it happened is not known"),
+            ("failed", "effect_failed", "did not succeed"),
+            ("claimed", "effect_already_performed", "already performed"),
+        ],
+    )
+    async def test_the_answer_follows_what_the_row_knows(
+        self, ledger: Any, status: str, code: str, says: str
+    ) -> None:
+        ledger.claim_result, ledger.lost_status = "lost", status
+        gated = gate_runtime.gated("browser_task_tool", _tool)
+        with _install(ledger), _policy("reversible"), effect_scope(_scope()):
+            result = await gated(task="read")
+
+        assert CALLS == [], "a held key is never performed again"
+        assert result["success"] is False
+        assert result["error"].endswith(f"[{code}]")
+        assert says in result["error"]
 
 
 class TestTheApprovalIsSpentOnce:

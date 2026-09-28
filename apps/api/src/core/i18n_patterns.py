@@ -9,7 +9,7 @@ Provides language-specific patterns for:
 Supported languages: fr, en, es, de, it, zh-CN
 """
 
-from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.core.i18n_types import Language
 
 # =============================================================================
@@ -264,8 +264,7 @@ def get_ordinal_map(language: Language | None = None) -> dict[str, int]:
         Dictionary mapping ordinal words to their numeric values.
     """
     if language:
-        default_lang: Language = settings.default_language  # type: ignore[assignment]
-        return ORDINAL_MAPS.get(language, ORDINAL_MAPS[default_lang])
+        return ORDINAL_MAPS[resolve_language(language)]
 
     # Combine all languages for universal recognition
     combined: dict[str, int] = {}
@@ -287,8 +286,7 @@ def get_keyword_map(language: Language | None = None) -> dict[str, int]:
         Dictionary mapping keywords to their special index values.
     """
     if language:
-        default_lang: Language = settings.default_language  # type: ignore[assignment]
-        return KEYWORD_MAPS.get(language, KEYWORD_MAPS[default_lang])
+        return KEYWORD_MAPS[resolve_language(language)]
 
     # Combine all languages for universal recognition
     combined: dict[str, int] = {}
@@ -310,8 +308,7 @@ def get_ordinal_suffix_patterns(language: Language | None = None) -> list[str]:
         List of regex patterns for matching ordinal suffixes.
     """
     if language:
-        default_lang: Language = settings.default_language  # type: ignore[assignment]
-        return ORDINAL_SUFFIX_PATTERNS.get(language, ORDINAL_SUFFIX_PATTERNS[default_lang])
+        return ORDINAL_SUFFIX_PATTERNS[resolve_language(language)]
 
     # Combine all languages for universal recognition
     combined: list[str] = []
@@ -348,146 +345,3 @@ def get_all_keywords() -> set[str]:
     for lang_map in KEYWORD_MAPS.values():
         words.update(word.lower() for word in lang_map.keys())
     return words
-
-
-# =============================================================================
-# INDEX TO ORDINAL LABELS (for output generation)
-# =============================================================================
-
-# Maps 1-based index to ordinal labels for each language
-# Used when generating prompts/outputs with ordinal references
-# Includes abbreviated forms commonly used in user interfaces
-INDEX_TO_ORDINAL_LABELS: dict[Language, dict[int, str]] = {
-    "fr": {
-        1: "premier/1er",
-        2: "deuxième/2ème",
-        3: "troisième/3ème",
-        4: "quatrième/4ème",
-        5: "cinquième/5ème",
-        6: "sixième/6ème",
-        7: "septième/7ème",
-        8: "huitième/8ème",
-        9: "neuvième/9ème",
-        10: "dixième/10ème",
-        -1: "dernier",
-    },
-    "en": {
-        1: "first/1st",
-        2: "second/2nd",
-        3: "third/3rd",
-        4: "fourth/4th",
-        5: "fifth/5th",
-        6: "sixth/6th",
-        7: "seventh/7th",
-        8: "eighth/8th",
-        9: "ninth/9th",
-        10: "tenth/10th",
-        -1: "last",
-    },
-    "es": {
-        1: "primero/1º",
-        2: "segundo/2º",
-        3: "tercero/3º",
-        4: "cuarto/4º",
-        5: "quinto/5º",
-        6: "sexto/6º",
-        7: "séptimo/7º",
-        8: "octavo/8º",
-        9: "noveno/9º",
-        10: "décimo/10º",
-        -1: "último",
-    },
-    "de": {
-        1: "erste/1.",
-        2: "zweite/2.",
-        3: "dritte/3.",
-        4: "vierte/4.",
-        5: "fünfte/5.",
-        6: "sechste/6.",
-        7: "siebte/7.",
-        8: "achte/8.",
-        9: "neunte/9.",
-        10: "zehnte/10.",
-        -1: "letzte",
-    },
-    "it": {
-        1: "primo/1º",
-        2: "secondo/2º",
-        3: "terzo/3º",
-        4: "quarto/4º",
-        5: "quinto/5º",
-        6: "sesto/6º",
-        7: "settimo/7º",
-        8: "ottavo/8º",
-        9: "nono/9º",
-        10: "decimo/10º",
-        -1: "ultimo",
-    },
-    "zh-CN": {
-        1: "第一/1",
-        2: "第二/2",
-        3: "第三/3",
-        4: "第四/4",
-        5: "第五/5",
-        6: "第六/6",
-        7: "第七/7",
-        8: "第八/8",
-        9: "第九/9",
-        10: "第十/10",
-        -1: "最后",
-    },
-}
-
-
-def get_ordinal_label_for_index(index: int, language: Language | None = None) -> str:
-    """
-    Get ordinal label for a 1-based index in the specified language.
-
-    Used when generating prompts/outputs that need to reference items by ordinal.
-
-    Args:
-        index: 1-based index (1 = first, 2 = second, etc.) or -1 for last
-        language: Target language or None for default (fr)
-
-    Returns:
-        Ordinal label string (e.g., "deuxième/2ème" for index=2, language="fr")
-
-    Example:
-        >>> get_ordinal_label_for_index(2, "fr")
-        'deuxième/2ème'
-        >>> get_ordinal_label_for_index(1, "en")
-        'first/1st'
-        >>> get_ordinal_label_for_index(15, "fr")
-        '15ème'
-    """
-    lang: Language = language or settings.default_language  # type: ignore[assignment]
-
-    # Handle unsupported language with fallback
-    if lang not in INDEX_TO_ORDINAL_LABELS:
-        lang = "fr"  # Default fallback
-
-    label_map = INDEX_TO_ORDINAL_LABELS[lang]
-
-    # Direct lookup for known ordinals
-    if index in label_map:
-        return label_map[index]
-
-    # Dynamic generation for larger numbers
-    if lang == "fr":
-        return f"{index}ème"
-    elif lang == "en":
-        # English ordinal suffix rules
-        if 11 <= index <= 13:
-            return f"{index}th"
-        suffix = {1: "st", 2: "nd", 3: "rd"}.get(index % 10, "th")
-        return f"{index}{suffix}"
-    elif lang == "es":
-        return f"{index}º"
-    elif lang == "de":
-        return f"{index}."
-    elif lang == "it":
-        return f"{index}º"
-    elif lang == "zh-CN":
-        return f"第{index}"
-    else:
-        return f"{index}ème"  # Fallback to French style

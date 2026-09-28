@@ -1206,7 +1206,7 @@ async def execute_plan_parallel(
     Phase 5.2B-asyncio: Replaces broken LangGraph Command+Send pattern.
     Data Registry LOT 5.2: Accumulates registry items from registry-enabled tools.
     BugFix 2025-11-30: Added initial_registry to support items[N].field resolution
-                       from previous turns (e.g., "details du premier" after search).
+                       from previous turns (e.g., "details of the first" after a search).
     BugFix 2025-12-19: Added turn_id to inject into RegistryItem.meta for context resolution.
     BugFix 2026-01-19: Added initial_completed_steps for FOR_EACH HITL pre-execution.
                        When provider steps are pre-executed for accurate HITL count,

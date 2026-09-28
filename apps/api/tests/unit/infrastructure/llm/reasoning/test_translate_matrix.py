@@ -28,6 +28,7 @@ MODELS = [
     ("deepseek", "deepseek-v4-flash"),
     ("gemini", "gemini-3.5-flash"),
     ("gemini", "gemini-2.5-flash"),
+    ("gemini", "gemini-2.5-pro"),
     ("qwen", "qwen3.5-plus"),
     ("perplexity", "sonar-reasoning"),
     ("ollama", "llama3.2"),
@@ -69,13 +70,57 @@ def test_provider_default_produces_no_kwarg_on_any_family() -> None:
         assert translate(ReasoningIntent(), profile, model, 128_000) == {}
 
 
+#: What the Gemini API accepted and refused, measured 2026-09-26 (« Please
+#: choose a value between 0 and 24576 » / « between 128 and 32768 »).
+_GEMINI_BUDGET_RANGES: dict[str, tuple[int, int]] = {
+    "gemini-2.5-flash": (0, 24_576),
+    "gemini-2.5-pro": (128, 32_768),
+}
+
+
+@pytest.mark.parametrize("model", sorted(_GEMINI_BUDGET_RANGES))
+@pytest.mark.parametrize("max_output", [256, 4_096, 65_536, 1_048_576])
+def test_a_gemini_budget_derived_from_a_depth_stays_in_the_accepted_range(
+    model: str, max_output: int
+) -> None:
+    """The ratio applies to the output cap, which is larger than the budget the
+    API accepts: 65 536 made ``high`` 52 428 and every such call a 400."""
+    low, high = _GEMINI_BUDGET_RANGES[model]
+    profile = resolve_reasoning_profile("gemini", model)
+    for level in ("minimal", "low", "medium", "high"):
+        produced = translate(ReasoningIntent(level=level), profile, model, max_output)
+        assert low <= produced["thinking_budget"] <= high, (model, level, max_output)
+
+
+def test_gemini_2_5_pro_is_never_asked_to_stop_thinking() -> None:
+    """« Budget 0 is invalid. This model only works in thinking mode. »"""
+    profile = resolve_reasoning_profile("gemini", "gemini-2.5-pro")
+    assert profile.can_disable is False
+    assert profile.budget_range == (128, 32_768)
+    produced = translate(ReasoningIntent(level="none"), profile, "gemini-2.5-pro", 65_536)
+    assert produced["thinking_budget"] >= 128
+
+
+def test_gemini_2_5_flash_can_still_stop_thinking() -> None:
+    profile = resolve_reasoning_profile("gemini", "gemini-2.5-flash")
+    produced = translate(ReasoningIntent(level="none"), profile, "gemini-2.5-flash", 65_536)
+    assert produced["thinking_budget"] == 0
+
+
+def test_an_explicit_gemini_budget_is_the_operators() -> None:
+    """Only a DERIVED budget is clamped; an explicit one is validated on write."""
+    profile = resolve_reasoning_profile("gemini", "gemini-2.5-flash")
+    intent = ReasoningIntent(level="low", budget_tokens=2_048)
+    assert translate(intent, profile, "gemini-2.5-flash", 65_536)["thinking_budget"] == 2_048
+
+
 def test_a_budget_never_falls_below_the_anthropic_floor() -> None:
     """Anthropic rejects a thinking budget under its documented minimum."""
     from src.core.constants import ANTHROPIC_MIN_THINKING_BUDGET_TOKENS
 
     profile = resolve_reasoning_profile("anthropic", "claude-opus-4-5")
     for level in ("minimal", "low", "medium", "high", "xhigh"):
-        produced = translate(ReasoningIntent(level=level), profile, "claude-opus-4-5", 512)  # type: ignore[arg-type]
+        produced = translate(ReasoningIntent(level=level), profile, "claude-opus-4-5", 512)
         assert produced["thinking"]["budget_tokens"] >= ANTHROPIC_MIN_THINKING_BUDGET_TOKENS
 
 
@@ -115,8 +160,8 @@ def test_the_identity_sentinel_never_reaches_a_provider() -> None:
             for budget in BUDGETS:
                 for exclude in (False, True):
                     produced = translate(
-                        ReasoningIntent(  # type: ignore[arg-type]
-                            level=level,
+                        ReasoningIntent(
+                            level=level,  # type: ignore[arg-type]
                             budget_tokens=budget,
                             exclude_from_output=exclude,
                         ),

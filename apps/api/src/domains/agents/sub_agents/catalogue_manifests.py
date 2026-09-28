@@ -108,9 +108,9 @@ delegate_to_sub_agent_catalogue_manifest = ToolManifest(
                 "(sections, depth). For deep analysis tasks the planner "
                 "typically writes 800-1500 chars; for simple summaries a short "
                 "persona of 50-200 chars is enough. "
-                "Examples: 'expert comptable specialise en analyse financiere', "
-                "'specialiste transport ferroviaire', "
-                "'analyste de donnees marketing'."
+                "Examples: 'chartered accountant specialised in financial analysis', "
+                "'rail transport specialist', "
+                "'marketing data analyst'."
             ),
             constraints=[
                 ParameterConstraint(kind="min_length", value=5),

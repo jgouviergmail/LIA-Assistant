@@ -51,7 +51,7 @@ def render_introspection_prompt(
     current_chars: int,
     max_chars: int,
     size_warning: str,
-    user_language: str,
+    language_name: str,
     max_entry_chars: int,
     health_context: str,
     inner_state_section: str,
@@ -72,7 +72,7 @@ def render_introspection_prompt(
         current_chars: Total characters currently used by active entries.
         max_chars: The user's configured total-size ceiling.
         size_warning: Pre-computed size warning (may be empty).
-        user_language: The user's configured language code.
+        language_name: The NAME of the language to write in (``get_language_name``).
         max_entry_chars: Per-entry character ceiling.
         health_context: Optional health-metrics block (may be empty).
         inner_state_section: Optional psyche block (may be empty).
@@ -96,7 +96,7 @@ def render_introspection_prompt(
         current_chars=current_chars,
         max_chars=max_chars,
         size_warning=size_warning,
-        user_language=user_language,
+        user_language=language_name,
         max_entry_chars=max_entry_chars,
         health_context=health_context,
         inner_state_section=inner_state_section,
@@ -111,7 +111,7 @@ def build_introspection_prompt(
     current_chars: int,
     max_chars: int,
     size_warning: str,
-    user_language: str,
+    language_name: str,
     max_entry_chars: int,
     health_context: str,
     inner_state_section: str,
@@ -126,7 +126,7 @@ def build_introspection_prompt(
         current_chars: Total characters currently used by active entries.
         max_chars: The user's configured total-size ceiling.
         size_warning: Pre-computed size warning (may be empty).
-        user_language: The user's configured language code.
+        language_name: The NAME of the language to write in (``get_language_name``).
         max_entry_chars: Per-entry character ceiling.
         health_context: Optional health-metrics block (may be empty).
         inner_state_section: Optional psyche block (may be empty).
@@ -145,7 +145,7 @@ def build_introspection_prompt(
         current_chars=current_chars,
         max_chars=max_chars,
         size_warning=size_warning,
-        user_language=user_language,
+        language_name=language_name,
         max_entry_chars=max_entry_chars,
         health_context=health_context,
         inner_state_section=inner_state_section,
@@ -165,7 +165,7 @@ def render_consolidation_prompt(
     current_datetime: str,
     conversation_history_section: str,
     usage_patterns_section: str,
-    user_language: str,
+    language_name: str,
     max_entry_chars: int,
     size_management_instruction: str,
     health_signals_section: str,
@@ -191,7 +191,7 @@ def render_consolidation_prompt(
         current_datetime: Current UTC timestamp, human-readable.
         conversation_history_section: Optional recent-history block.
         usage_patterns_section: Optional usage-pattern block.
-        user_language: The user's configured language code.
+        language_name: The NAME of the language to write in (``get_language_name``).
         max_entry_chars: Per-entry character ceiling.
         size_management_instruction: Pre-computed size directive.
         health_signals_section: Optional health-metrics block.
@@ -214,7 +214,7 @@ def render_consolidation_prompt(
         current_datetime=current_datetime,
         conversation_history_section=conversation_history_section,
         usage_patterns_section=usage_patterns_section,
-        user_language=user_language,
+        user_language=language_name,
         max_entry_chars=max_entry_chars,
         size_management_instruction=size_management_instruction,
         health_signals_section=health_signals_section,
@@ -237,7 +237,7 @@ def build_consolidation_prompt(
     current_datetime: str,
     conversation_history_section: str,
     usage_patterns_section: str,
-    user_language: str,
+    language_name: str,
     max_entry_chars: int,
     size_management_instruction: str,
     health_signals_section: str,
@@ -261,7 +261,7 @@ def build_consolidation_prompt(
         current_datetime: Current UTC timestamp, human-readable.
         conversation_history_section: Optional recent-history block.
         usage_patterns_section: Optional usage-pattern block.
-        user_language: The user's configured language code.
+        language_name: The NAME of the language to write in (``get_language_name``).
         max_entry_chars: Per-entry character ceiling.
         size_management_instruction: Pre-computed size directive.
         health_signals_section: Optional health-metrics block.
@@ -284,7 +284,7 @@ def build_consolidation_prompt(
         current_datetime=current_datetime,
         conversation_history_section=conversation_history_section,
         usage_patterns_section=usage_patterns_section,
-        user_language=user_language,
+        language_name=language_name,
         max_entry_chars=max_entry_chars,
         size_management_instruction=size_management_instruction,
         health_signals_section=health_signals_section,

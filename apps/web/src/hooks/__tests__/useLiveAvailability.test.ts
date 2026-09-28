@@ -8,7 +8,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { bumpRevision, useRevisionStore } from '@/stores/revisionStore';
+import { bumpRevision, INITIAL_REVISIONS, useRevisionStore } from '@/stores/revisionStore';
 
 const h = vi.hoisted(() => ({
   liveEnabled: true,
@@ -35,7 +35,7 @@ describe('useLiveAvailability', () => {
     h.connectors = undefined;
     h.reads = [];
     h.deps = [];
-    useRevisionStore.setState({ revisions: { live_connectors: 0 } });
+    useRevisionStore.setState({ revisions: { ...INITIAL_REVISIONS } });
   });
 
   it('is false and reads nothing when the instance flag is off', () => {

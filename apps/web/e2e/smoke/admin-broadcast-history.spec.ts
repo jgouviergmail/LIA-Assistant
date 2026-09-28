@@ -93,7 +93,7 @@ test.describe('the sent-broadcasts history', () => {
     await expect(page.getByText('Maintenance window number 1', { exact: true })).toBeVisible();
     await expect.poll(() => asked).toEqual(['limit=10&offset=0']);
 
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: 'Next, page 2', exact: true }).click();
     await expect(page.getByText('Maintenance window number 11')).toBeVisible();
     expect(asked).toContain('limit=10&offset=10');
   });

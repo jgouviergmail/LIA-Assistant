@@ -29,7 +29,7 @@ from pydantic import ValidationError
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n import get_language_name
+from src.core.i18n import get_language_name, normalize_language
 from src.core.i18n_telephony import get_return_phrases
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
@@ -343,7 +343,7 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
         status = map_status(payload)
         call_seconds = extract_call_seconds(payload)
         user = await db.get(User, call.user_id)
-        language = user.language if user else settings.default_language
+        language = normalize_language(user.language if user else None)
         user_timezone = _user_display_timezone(user)
         # The reads end here (ADR-304): every path below asks a model, a
         # vendor or a push service before it writes, and each write commits

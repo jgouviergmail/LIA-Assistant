@@ -21,8 +21,14 @@ export const EXECUTING_REFRESH_INTERVAL_MS = 10_000;
  */
 export type ScheduledActionStatus = 'active' | 'executing' | 'error' | 'completed';
 
-/** N-07: how a routine decides to run at its cron tick. */
+/**
+ * Which clock a routine runs on (N-07, ADR-322) — one, never both: its own
+ * schedule, or the system's checks of a condition.
+ */
 export type TriggerKind = 'time' | 'condition';
+
+/** Why a condition routine's last check could not read its source. */
+export type ConditionCheckError = 'not_configured' | 'unavailable';
 
 /** N-07 condition types — mirror of the backend CONDITION_TYPES. */
 export type ConditionType =
@@ -41,6 +47,8 @@ export interface ConditionConfig {
   query?: string;
   /** calendar_event only: look-ahead window in hours. */
   within_hours?: number;
+  /** The last local day watched, `YYYY-MM-DD`, included; absent = no end. */
+  until?: string;
 }
 
 // The recurrence vocabulary now lives in `types/recurrence`, beside no
@@ -62,14 +70,18 @@ export interface ScheduledAction {
   user_id: string;
   title: string;
   action_prompt: string;
-  recurrence: RecurrenceSpec;
+  /** The schedule of a TIME routine; **null** for a condition routine (ADR-322). */
+  recurrence: RecurrenceSpec | null;
   user_timezone: string;
   trigger_kind: TriggerKind;
   condition_config: ConditionConfig | null;
   requires_approval: boolean;
   /** `pipeline` | `react` — how LIA runs it when it fires (ADR-276). */
   execution_mode: string;
-  /** UTC instant of the next run; **null** when the series is over. */
+  /**
+   * UTC instant of the next run — of the next CHECK for a condition routine,
+   * which is why no surface shows it as a run; **null** when nothing follows.
+   */
   next_trigger_at: string | null;
   is_enabled: boolean;
   status: ScheduledActionStatus;
@@ -105,17 +117,24 @@ export interface ScheduledAction {
    * it costs a colour, never a chip.
    */
   week_slots?: ScheduledActionWeekSlot[];
+  /** Condition routines: how often the system checks, in minutes (the applied value). */
+  check_interval_minutes?: number | null;
+  /** Condition routines: when the condition was last checked (UTC). */
+  last_checked_at?: string | null;
+  /** Condition routines: why that check could not read its source. */
+  last_check_error?: ConditionCheckError | null;
   created_at: string;
   updated_at: string;
 }
 
 /**
- * Create payload.
+ * Create payload: a `recurrence` for a time routine, a `condition_config`
+ * for a condition routine — never both (ADR-322).
  */
 export interface ScheduledActionCreate {
   title: string;
   action_prompt: string;
-  recurrence: RecurrenceSpec;
+  recurrence?: RecurrenceSpec;
   trigger_kind?: TriggerKind;
   condition_config?: ConditionConfig | null;
   requires_approval?: boolean;
@@ -202,6 +221,14 @@ export interface ScheduledActionWeekResponse {
 export interface ScheduledActionListResponse {
   scheduled_actions: ScheduledAction[];
   total: number;
+  /**
+   * How often the system checks each condition type, in minutes — published
+   * so the studio states it before a routine exists (ADR-322). Optional: a
+   * cached payload predating the field must still parse.
+   */
+  condition_check_minutes?: Partial<Record<ConditionType, number>>;
+  /** Most runs one condition routine may start in one local day. */
+  condition_max_fires_per_day?: number;
 }
 
 const ENDPOINT = '/scheduled-actions';
@@ -248,6 +275,8 @@ export function useScheduledActions() {
 
   const actions = listData?.scheduled_actions ?? [];
   const total = listData?.total ?? 0;
+  const conditionCheckMinutes = listData?.condition_check_minutes;
+  const conditionMaxFiresPerDay = listData?.condition_max_fires_per_day;
   const week = isWeekResponse(weekData) ? weekData : null;
   // The FIRST load only. `useApiQuery` raises `loading` on every refetch too,
   // and swapping the section for a spinner then unmounts every card — the
@@ -286,10 +315,12 @@ export function useScheduledActions() {
     async (data: ScheduledActionCreate) => {
       const result = await createMutation.mutate(ENDPOINT, data);
       if (result) {
-        // Optimistic: add to list
+        // Optimistic: add to list — the rest of the payload (the published
+        // clock of condition routines) is kept, not dropped until the next poll.
         setData(prev => {
           if (!prev) return prev;
           return {
+            ...prev,
             scheduled_actions: [...prev.scheduled_actions, result],
             total: prev.total + 1,
           };
@@ -327,6 +358,7 @@ export function useScheduledActions() {
       setData(prev => {
         if (!prev) return prev;
         return {
+          ...prev,
           scheduled_actions: prev.scheduled_actions.filter(a => a.id !== actionId),
           total: prev.total - 1,
         };
@@ -395,6 +427,10 @@ export function useScheduledActions() {
     // Data
     actions,
     total,
+    /** Check interval per condition type, in minutes, as the server applies it. */
+    conditionCheckMinutes,
+    /** Most runs one condition routine may start in a day. */
+    conditionMaxFiresPerDay,
     loading,
     initialLoading,
     error,

@@ -152,3 +152,44 @@ class TestContentSourceIntegration:
         """Test that ContentSource.HEARTBEAT matches task_type."""
         task = HeartbeatProactiveTask()
         assert ContentSource.HEARTBEAT.value == task.task_type
+
+
+# ---------------------------------------------------------------------------
+# A skip is billed under the sweep that decided it (ADR-272, ADR-263 amendment 2026-09-27)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestASkipIsBilledUnderItsSweep:
+    """The decision to say nothing belongs to the run that read the sources.
+
+    The sweep's consultations and its embeddings were filed under the runner's
+    run while the skip's tokens — and its row in the decision register — went
+    under a run of their own: the reads pointed at a run that decided nothing,
+    and the decision at one that read nothing.
+    """
+
+    async def test_the_skip_is_filed_under_the_run_of_the_sweep(self) -> None:
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, patch
+
+        from src.core.context import current_tracker
+
+        tracked = AsyncMock(return_value="run")
+        token = current_tracker.set(SimpleNamespace(run_id="proactive_heartbeat_abc_12345678"))  # type: ignore[arg-type]
+        try:
+            with patch("src.infrastructure.proactive.tracking.track_proactive_tokens", tracked):
+                await HeartbeatProactiveTask()._track_skip_tokens(uuid4(), 100, 20, 0, 0)
+        finally:
+            current_tracker.reset(token)
+
+        assert tracked.await_args.kwargs["run_id"] == "proactive_heartbeat_abc_12345678"
+
+    async def test_outside_a_sweep_the_skip_keeps_a_run_of_its_own(self) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        tracked = AsyncMock(return_value="run")
+        with patch("src.infrastructure.proactive.tracking.track_proactive_tokens", tracked):
+            await HeartbeatProactiveTask()._track_skip_tokens(uuid4(), 100, 20, 0, 0)
+
+        assert tracked.await_args.kwargs["run_id"] is None

@@ -108,8 +108,8 @@ async def pre_execute_for_each_providers(
     3. Count actual items in results
 
     This ensures HITL shows the real number of items affected, not the schema
-    default (for_each_max). For example, "Crée un rappel pour mes 2 prochains rdv"
-    will show "2 éléments" instead of "10 éléments".
+    default (for_each_max). For example, "Create a reminder for my next 2 meetings"
+    will show "2 items" instead of "10 items".
 
     Args:
         execution_plan: The full ExecutionPlan

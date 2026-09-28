@@ -23,6 +23,7 @@ from src.domains.agents.services.hitl.interactions.draft_critique import (
     CARD_SEPARATOR,
     DraftCritiqueInteraction,
 )
+from src.domains.shared.markdown_literal import read_as_markdown
 
 pytestmark = pytest.mark.unit
 
@@ -126,7 +127,7 @@ class TestWhenTheModelFails:
         )
 
         assert "irréversible" in text
-        assert "Confirmes-tu cette suppression ?" in text
+        assert "Confirmes-tu cette suppression\xa0?" in text
 
 
 class TestAnUnknownType:
@@ -164,6 +165,7 @@ class TestTheOtherPathsAreUntouched:
 
         text = await _collect(interaction, _context(batch_total=2, batch_drafts=drafts))
 
-        assert text.count("a@x.org") == 1
-        assert text.count("b@x.org") == 1
+        shown = read_as_markdown(text)
+        assert shown.count("a@x.org") == 1
+        assert shown.count("b@x.org") == 1
         generator.assert_not_called()

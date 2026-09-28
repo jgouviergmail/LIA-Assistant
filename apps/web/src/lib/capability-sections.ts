@@ -49,6 +49,7 @@ export const CAPABILITY_SECTION: Readonly<Record<string, SettingsSectionToken>> 
   channels: 'channels',
   telephony: 'telephony-calls',
   live: 'live-mode',
+  radio: 'radio',
   spaces: 'rag-spaces',
   journals: 'journals',
   skills: 'skills',

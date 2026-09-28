@@ -445,10 +445,11 @@ tasks:
   react:recovery:measure:
     desc: Measure how the ReAct loop recovers from obstacles on real models (PAID, on demand — ADR-310)
     dir: "{{.API_DIR}}"
-    # A MEASUREMENT, never a gate: eight scenarios of deterministic stub tools
+    # A MEASUREMENT, never a gate: eleven scenarios of deterministic stub tools
     # (wrong day served, error then fix, empty until relaxed, dedicated tool
     # down, truncated list, unobtainable, the 2026-09-23 trip whose weather is
-    # a cross-check, clean control) through the loop's own
+    # a cross-check, clean control, and a draft send refused unattended —
+    # its stand-in named, not named, or for a third party) through the loop's own
     # functions, on the models passed (`--models provider:model@level,...`,
     # Anthropic refused), stopping past `--budget` USD. `--baseline-prompt FILE`
     # renders another ReAct prompt, which is how a doctrine meets its predecessor.
@@ -1065,9 +1066,9 @@ tasks:
     desc: Backend unit tests with coverage and the CI floor (mirrors the CI job step)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=74
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=75
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=74
+      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=75
         platforms: [linux, darwin]
 
   test:backend:agents:
@@ -1504,13 +1505,13 @@ tasks:
   security:scan:docker:
     desc: Scan Docker images with Trivy (using Docker)
     cmds:
-      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL lia-api:latest
+      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL lia-api:latest
         platforms: [windows]
-      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL lia-api:latest
+      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL lia-api:latest
         platforms: [linux, darwin]
-      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL lia-web:latest
+      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL lia-web:latest
         platforms: [windows]
-      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL lia-web:latest
+      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL lia-web:latest
         platforms: [linux, darwin]
 
   sbom:generate:

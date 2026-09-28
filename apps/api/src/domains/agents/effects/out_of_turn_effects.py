@@ -15,8 +15,10 @@ LIA's own initiative a person actually experiences.
 
 The consultation register got its own out-of-turn recorder
 (:func:`record_out_of_turn_consultation`); this is its counterpart for the
-action register, and it keeps ADR-263's two-stage shape rather than writing a
-finished row:
+action register — LIA's notifications, and the acts a PERSON asks for with a
+click outside any turn (a shared image, a send by e-mail: ``USER_ACTION_RECORDER``,
+installed into ``domains/shared/action_sink``) — and it keeps ADR-263's
+two-stage shape rather than writing a finished row:
 
 - **CLAIMED before the effect happens.** A push leaves the process; a claim
   written afterwards would be lost by the very crash it exists to survive.
@@ -33,8 +35,11 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import Any
 
 import structlog
+
+from src.domains.shared.action_sink import USER_ACTION_CAPABILITIES, install_action_recorder
 
 logger = structlog.get_logger(__name__)
 
@@ -50,6 +55,11 @@ NOTIFICATION_POLICY: str = "reversible"
 
 #: Out of the graph, like every other out-of-turn row (ADR-270).
 OUT_OF_TURN_EXECUTION_MODE: str = "direct"
+
+#: What a person's clicked act claims: it communicates to a third party, and
+#: the click in its dialog IS the confirmation the owner rule asks for
+#: (ADR-263, 2026-09-03; ADR-316, ADR-321).
+USER_ACTION_POLICY: str = "confirm"
 
 
 @dataclass
@@ -134,34 +144,22 @@ async def _claim(
         notification then goes out unrecorded rather than not at all.
     """
     try:
-        from src.domains.agents.effects.digest import args_digest
         from src.domains.agents.effects.models import EffectSource
-        from src.domains.agents.effects.runtime import _LEDGER
-        from src.domains.agents.effects.schemas import ClaimRequest
 
-        arguments = {"kind": task_type}
-        return await _LEDGER.claim(
-            ClaimRequest(
-                user_id=user_id,
-                thread_id=run_id,
-                run_id=run_id,
-                source=EffectSource.PROACTIVE.value,
-                execution_mode=OUT_OF_TURN_EXECUTION_MODE,
-                tool_name=NOTIFICATION_CAPABILITY,
-                mutation_policy=NOTIFICATION_POLICY,
-                # One claim per sweep AND per thing said: a retry of the same
-                # run must not add a second « LIA notified you » to the
-                # person's register — and the second thing a run says must
-                # not be lost as a retry of the first. Measured 2026-09-09: a
-                # followed ticket's « finished » was dispatched, and its row
-                # was lost to the claim « started » had taken under the run.
-                idempotency_key=_idempotency_key(run_id, occurrence),
-                args_digest=args_digest(NOTIFICATION_CAPABILITY, arguments),
-                label={
-                    "i18n_key": f"effects.labels.{NOTIFICATION_CAPABILITY}",
-                    "values": arguments,
-                },
-            )
+        return await _claim_effect(
+            user_id=user_id,
+            run_id=run_id,
+            source=EffectSource.PROACTIVE.value,
+            capability=NOTIFICATION_CAPABILITY,
+            policy=NOTIFICATION_POLICY,
+            # One claim per sweep AND per thing said: a retry of the same run
+            # must not add a second « LIA notified you » to the person's
+            # register — and the second thing a run says must not be lost as a
+            # retry of the first. Measured 2026-09-09: a followed ticket's
+            # « finished » was dispatched, and its row was lost to the claim
+            # « started » had taken under the run.
+            idempotency_key=_idempotency_key(run_id, occurrence),
+            arguments={"kind": task_type},
         )
     except Exception as exc:  # noqa: BLE001 - the register never costs a notification
         logger.warning(
@@ -170,6 +168,50 @@ async def _claim(
             error_type=type(exc).__name__,
         )
         return None
+
+
+async def _claim_effect(
+    *,
+    user_id: uuid.UUID,
+    run_id: str,
+    source: str,
+    capability: str,
+    policy: str,
+    idempotency_key: str,
+    arguments: dict[str, Any],
+) -> object:
+    """Claim one out-of-turn act in the ledger, in its own committed transaction.
+
+    Args:
+        user_id: Whose register it lands in.
+        run_id: The act's run, shared with the registers it joins.
+        source: Under whose authority it ran.
+        capability: The bounded name it is recorded under.
+        policy: The mutation policy the row carries.
+        idempotency_key: What makes a retry the same row.
+        arguments: Bounded values, digested and read by the label.
+
+    Returns:
+        The claim ticket.
+    """
+    from src.domains.agents.effects.digest import args_digest
+    from src.domains.agents.effects.runtime import _LEDGER
+    from src.domains.agents.effects.schemas import ClaimRequest
+
+    return await _LEDGER.claim(
+        ClaimRequest(
+            user_id=user_id,
+            thread_id=run_id,
+            run_id=run_id,
+            source=source,
+            execution_mode=OUT_OF_TURN_EXECUTION_MODE,
+            tool_name=capability,
+            mutation_policy=policy,
+            idempotency_key=idempotency_key,
+            args_digest=args_digest(capability, arguments),
+            label={"i18n_key": f"effects.labels.{capability}", "values": arguments},
+        )
+    )
 
 
 async def _close(ticket: object, *, delivered: bool) -> None:
@@ -195,9 +237,58 @@ async def _close(ticket: object, *, delivered: bool) -> None:
         )
 
 
+class _UserActionRecorder:
+    """The register's side of ``domains/shared/action_sink``: a person's clicked act.
+
+    Each act runs under a run of its own (``<capability>_<hex>``): there is no
+    turn around a click, and a fresh run keeps two shares of one minute two
+    rows. Only the declared capabilities are recorded — a name nobody declared
+    would reach the register without a label anybody can read.
+    """
+
+    async def claim(
+        self, *, user_id: Any, capability: str, arguments: dict[str, str]
+    ) -> object | None:
+        """Take the right to act; None when the capability is unknown or the ledger failed."""
+        if capability not in USER_ACTION_CAPABILITIES:
+            logger.warning("user_action_capability_unknown", capability=capability)
+            return None
+        try:
+            from src.domains.agents.effects.models import EffectSource
+
+            run_id = f"{capability}_{uuid.uuid4().hex}"
+            return await _claim_effect(
+                user_id=user_id,
+                run_id=run_id,
+                source=EffectSource.USER.value,
+                capability=capability,
+                policy=USER_ACTION_POLICY,
+                idempotency_key=f"{run_id}:{capability}",
+                arguments=dict(arguments),
+            )
+        except Exception as exc:  # noqa: BLE001 - the register never costs the act
+            logger.warning(
+                "user_action_not_claimed", capability=capability, error_type=type(exc).__name__
+            )
+            return None
+
+    async def settle(self, ticket: object | None, *, succeeded: bool) -> None:
+        """Close the claimed row from what the act reported; nothing claimed, nothing to close."""
+        if ticket is not None:
+            await _close(ticket, delivered=succeeded)
+
+
+#: The one recorder of a person's clicked acts, installed into the seam here
+#: (every path that imports the register) and by the boot (declared, ADR-270).
+USER_ACTION_RECORDER = _UserActionRecorder()
+install_action_recorder(USER_ACTION_RECORDER)
+
+
 __all__ = [
     "NOTIFICATION_CAPABILITY",
     "NOTIFICATION_POLICY",
+    "USER_ACTION_POLICY",
+    "USER_ACTION_RECORDER",
     "ProactiveEffect",
     "proactive_notification_effect",
 ]

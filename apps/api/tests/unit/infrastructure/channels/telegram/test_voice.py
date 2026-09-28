@@ -13,8 +13,8 @@ import pytest
 # MagicMock AudioSegment to unrelated files). ffmpeg-dependent decoding
 # (``AudioSegment.from_ogg``) is patched per-test, scope-safe, instead.
 from src.infrastructure.channels.telegram.voice import (
-    _MAX_VOICE_DURATION_SECONDS,
     _TARGET_SAMPLE_RATE,
+    MAX_VOICE_DURATION_SECONDS,
     _download_voice_file,
     _ogg_to_pcm_float,
     transcribe_voice_message,
@@ -67,7 +67,7 @@ class TestTranscribeVoiceMessage:
         """Voice messages exceeding max duration should be rejected."""
         bot = AsyncMock()
         result = await transcribe_voice_message(
-            bot, "file_123", voice_duration_seconds=_MAX_VOICE_DURATION_SECONDS + 1
+            bot, "file_123", voice_duration_seconds=MAX_VOICE_DURATION_SECONDS + 1
         )
         assert result is None
 

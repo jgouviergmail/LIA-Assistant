@@ -303,6 +303,12 @@
       "stack": ["读取 Prometheus / Loki / Alertmanager", "按配方收集的证据"],
       "src": "7cf9e87a4874"
     },
+    "t.radio": {
+      "name": "电台：编辑部与天线",
+      "role": "实例编辑部不借助模型读取公开订阅源；每位听众一个天线，由确定性节目表决定内容，让每个片段被撰写、核查、配音和混音——只在有人收听时运行。",
+      "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"],
+      "src": "3779500de599"
+    },
     "t.postgres": {
       "name": "PostgreSQL 与 pgvector",
       "role": "唯一的事实来源：账户、对话、图的检查点、向量；迁移构成唯一一条链，会话的寿命不超过它所服务的查询。",

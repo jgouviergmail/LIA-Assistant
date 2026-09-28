@@ -17,7 +17,9 @@ References:
     - ADR-001: Constants Centralization Strategy
 """
 
-from typing import TYPE_CHECKING, Final, Literal
+from typing import TYPE_CHECKING, Final, Literal, get_args
+
+from src.core.i18n_types import Language
 
 if TYPE_CHECKING:
     from src.core.recurrence.spec import RecurrenceLimits
@@ -362,7 +364,7 @@ PROMPT_CACHE_WRITE_MULTIPLIER = 1.25
 # RESPONSE LLM CONTEXT — STYLE NEUTRALIZATION (HTML enriched display mode)
 # ============================================================================
 # Prefix prepended to each prior assistant answer when its formatting is stripped
-# out of the response LLM's conversational history. In the "html" display mode the
+# out of the response LLM's conversational history. In "html" / "html_cards" modes the
 # response prompt carries a strong directive to emit rich ``lia-response`` HTML;
 # however the history filter erases prior HTML answers (kept only as text) while
 # retaining Markdown ones verbatim. That asymmetry makes the visible history look
@@ -370,16 +372,17 @@ PROMPT_CACHE_WRITE_MULTIPLIER = 1.25
 # inferring that plain/Markdown is the norm and overriding the HTML directive. We
 # therefore neutralize the *style* (not the content) of every prior assistant turn
 # and tag it with this marker so the model knows the formatting was intentionally
-# omitted and must NOT be treated as a style precedent. French, to match the sibling
-# placeholder ``CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER`` used in the same filter.
-CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER = "[réponse précédente, mise en forme omise]"
+# omitted and must NOT be treated as a style precedent. Technical English, like
+# every marker only the model reads (ADR-256) — the model answers in the person's
+# language whatever the language of its scaffolding.
+CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER = "[previous answer, formatting omitted]"
 
 # Placeholder substituted for a prior HTML-only assistant answer (a data card with no
 # leading prose) in the response LLM's conversational history. It signals that the
 # query was answered and rendered visually, without pouring the card markup back into
 # the context window. Used by ``filter_for_llm_context`` in the non-neutralized
-# (cards/markdown) branch. French, consistent with the sibling marker above.
-CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER = "[Résultats affichés]"
+# (cards/markdown) branch. Technical English, like the sibling marker above.
+CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER = "[Results displayed]"
 
 # Placeholder substituted for an interactive widget sentinel
 # (``lia-skill-app`` / ``lia-mcp-app``) in the history served to the ReAct loop.
@@ -387,9 +390,9 @@ CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER = "[Résultats affichés]"
 # the current-turn registry. Leaving it in the model's context taught it to
 # write its own — producing duplicate widgets, and sometimes one pointing at a
 # registry id from an earlier turn (dead on reload). The marker preserves the
-# fact that a widget WAS displayed, without showing how to write one. French,
-# consistent with the two sibling placeholders above.
-CONTEXT_WIDGET_DISPLAYED_PLACEHOLDER = "[Widget interactif affiché]"
+# fact that a widget WAS displayed, without showing how to write one. Technical
+# English, like the two sibling placeholders above.
+CONTEXT_WIDGET_DISPLAYED_PLACEHOLDER = "[Interactive widget displayed]"
 
 # ============================================================================
 # EXTERNAL CONTENT WRAPPING (prompt injection prevention)
@@ -439,7 +442,7 @@ TOOL_CONTEXT_CONFIDENCE_THRESHOLD = 0.7
 # Field sets for different use cases (optimized for token efficiency and UX)
 
 # Minimal preview for listing contacts (4 fields, ~110 tokens/contact)
-# Use case: "liste mes contacts" - quick overview like a phone book
+# Use case: "list my contacts" - quick overview like a phone book
 GOOGLE_CONTACTS_LIST_FIELDS = [
     "names",  # Display name, given/family names
     "photos",  # Profile photos (essential for UX)
@@ -448,7 +451,7 @@ GOOGLE_CONTACTS_LIST_FIELDS = [
 ]
 
 # Contact card for search results - essential fields only
-# Use case: "recherche mathieu" - contact identification card
+# Use case: "search mathieu" - contact identification card
 # Limited to: name, emails, phones, addresses, birthday, photo
 # Extended fields (organizations, relations, biographies, etc.) are reserved for get_contact_details
 GOOGLE_CONTACTS_SEARCH_FIELDS = [
@@ -546,7 +549,8 @@ GOOGLE_CONTACTS_ALL_FIELDS = (
 
 # Emails body truncation (for LLM consumption optimization)
 # Body is limited to prevent token bloat with very long email bodies
-# Long emails get truncated with "... [lire la suite sur <provider>](url)" link
+# Long emails are truncated; the e-mail card draws the localized « read more »
+# link (V3Messages.get_read_more)
 EMAILS_BODY_MAX_LENGTH_DEFAULT = 20000  # Characters
 
 # Emails URL shortening threshold (for readability in email body)
@@ -562,7 +566,7 @@ HTML_TEXT_LINK_LABEL: str = "link"
 # characters of prose — most messages fit in one part, a newsletter in two.
 EMAIL_BODY_PART_TOKENS_DEFAULT: int = 1_500
 # ADR-287: one digest per message, computed once by a small model and cached —
-# the unit « résume mes non lus » and a morning routine reason over. The key
+# the unit « summarise my unread e-mails » and a morning routine reason over. The key
 # carries the language and the schema version (a prompt change is a version
 # bump, never a silent restatement); a message never changes, so 30 days.
 REDIS_KEY_EMAIL_DIGEST_PREFIX: str = "email:digest:"
@@ -605,7 +609,7 @@ EMAIL_ATTACHMENT_RATE_LIMIT_MAX_CALLS_DEFAULT: int = 12
 EMAIL_ATTACHMENT_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 60
 
 # Minimal preview for listing/searching emails (~150 tokens/email)
-# Use case: "recherche mes emails de john" - quick overview
+# Use case: "search my e-mails from john" - quick overview
 GOOGLE_GMAIL_LIST_FIELDS = [
     "id",  # Message ID
     "threadId",  # Thread ID (for conversation grouping)
@@ -615,7 +619,7 @@ GOOGLE_GMAIL_LIST_FIELDS = [
 ]
 
 # Standard message fields for search results (~300 tokens/email)
-# Use case: "affiche mes derniers emails" - email card with headers
+# Use case: "show my latest e-mails" - email card with headers
 GOOGLE_GMAIL_SEARCH_FIELDS = GOOGLE_GMAIL_LIST_FIELDS + [
     "payload/headers",  # Email headers (From, To, Subject, Date)
     "payload/mimeType",  # MIME type (text/plain, multipart/alternative, etc.)
@@ -692,7 +696,7 @@ GOOGLE_CALENDAR_REQUIRED_FIELDS = ["summary"]
 # Using field projection reduces API response size, token usage, and latency.
 
 # Minimal preview for listing files (~120 tokens/file)
-# Use case: "liste mes fichiers" - quick overview with clickable links
+# Use case: "list my files" - quick overview with clickable links
 GOOGLE_DRIVE_LIST_FIELDS = [
     "id",  # File ID
     "name",  # File name
@@ -704,7 +708,7 @@ GOOGLE_DRIVE_LIST_FIELDS = [
 ]
 
 # Standard file fields for search results (~200 tokens/file)
-# Use case: "recherche budget.xlsx" - file card
+# Use case: "search budget.xlsx" - file card
 GOOGLE_DRIVE_SEARCH_FIELDS = GOOGLE_DRIVE_LIST_FIELDS + [
     "owners",  # File owners (displayName, emailAddress)
     "parents",  # Parent folder IDs
@@ -857,6 +861,21 @@ SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS = 90
 # not a user-tunable threshold. The FCM push body uses the real user-facing
 # setting instead (PROACTIVE_NOTIFICATION_MAX_LENGTH).
 SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH = 500
+#: How often the system checks a CONDITION routine's condition (ADR-322). A
+#: routine that waits for something has no schedule of its own: the cadence is
+#: the system's, one per source family, and never shorter than the cache its
+#: source reads through when it has one — a check faster than the cache only
+#: re-reads Redis.
+SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES_DEFAULT = 10
+#: The forecast comes in hourly (Google) or three-hourly (OpenWeatherMap)
+#: slots, and every check is two billed calls on the Google provider: checking
+#: it every ten minutes would pay six times an hour for one answer.
+SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES_DEFAULT = 60
+#: Most runs a condition routine may start in one local day. The checks are
+#: free; a run is a full agent pipeline and a notification, so a source that
+#: flaps must not turn into a stream of them. Twelve, like the most moments a
+#: timed routine may declare a day (``RECURRENCE_ROUTINE_MAX_TIMES_PER_DAY``).
+SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY_DEFAULT = 12
 
 # ============================================================================
 # TELEPHONY (agentic outbound calls)
@@ -1311,10 +1330,13 @@ STEP_UP_ERROR_CODE = "step_up_required"  # typed 403 detail.error (NEVER a plain
 # INTERNATIONALIZATION (I18N)
 # ============================================================================
 
-# Supported languages for UI messages (not LLM prompts)
-# zh-CN: Simplified Chinese (mainland China) - matching frontend locale
-SUPPORTED_LANGUAGES = ["fr", "en", "es", "de", "it", "zh-CN"]
-DEFAULT_LANGUAGE = "fr"
+# Supported languages for UI messages (not LLM prompts), derived from the ONE
+# declaration (core.i18n_types.Language) — zh-CN: Simplified Chinese, the
+# backend-canonical code (the frontend spells it zh; normalize_language maps
+# every spelling here)
+SUPPORTED_LANGUAGES: list[str] = list(get_args(Language))
+# The instance's default language is the DEFAULT_LANGUAGE setting, read through
+# core.i18n (its own default: DEFAULT_LANGUAGE_DEFAULT) — no copy here (ADR-323).
 
 # Display locale (BCP 47) per supported language, used for date/number
 # formatting in tool payloads. Never derive a locale as f"{lang}-{lang.upper()}"
@@ -1330,10 +1352,9 @@ LANGUAGE_TO_LOCALE = {
 }
 
 # Boot-time completeness guard (ADR-085): refuse to boot if a supported
-# language has no display locale.
-assert set(LANGUAGE_TO_LOCALE) == set(
-    SUPPORTED_LANGUAGES
-), "LANGUAGE_TO_LOCALE must cover exactly SUPPORTED_LANGUAGES"
+# language has no display locale — a RuntimeError, which ``python -O`` keeps.
+if set(LANGUAGE_TO_LOCALE) != set(SUPPORTED_LANGUAGES):
+    raise RuntimeError("LANGUAGE_TO_LOCALE must cover exactly SUPPORTED_LANGUAGES")
 
 # ============================================================================
 # CURRENCY & PRICING
@@ -1858,8 +1879,9 @@ DEFAULT_BACKGROUND_RUNS_STREAM_TTL_SECONDS = 1800
 # a block >= socket_timeout raises TimeoutError on redis-py 8).
 DEFAULT_BACKGROUND_RUNS_XREAD_BLOCK_MS = 2000
 # Lifespan shutdown: max wait for in-flight chat producers (POC-4b) then for
-# generic fire-and-forget tasks. Their sum must stay below the compose
-# stop_grace_period (90s) with margin.
+# generic fire-and-forget tasks. Their sum, after uvicorn's connection wait,
+# must fit the compose stop_grace_period with margin
+# (summed by test_graceful_shutdown_budget_guard.py).
 DEFAULT_BACKGROUND_RUNS_DRAIN_TIMEOUT_SECONDS = 60
 DEFAULT_SHUTDOWN_BACKGROUND_TASKS_TIMEOUT_SECONDS = 15
 # Lot 2 — active-run lock: TTL kept alive by the producer heartbeat; a killed
@@ -2198,10 +2220,12 @@ FOR_EACH_STEP_ATTRIBUTES = frozenset(
 # Reference: nodes/task_orchestrator_node.py
 FOR_EACH_PRE_EXECUTION_METADATA_KEY = "pre_execution_for_hitl"
 
-# FOR_EACH HITL thresholds (defaults, configurable via settings)
-# These thresholds determine when HITL confirmation is required
-FOR_EACH_APPROVAL_THRESHOLD = 5  # 5+ iterations = requires approval (non-mutation)
-FOR_EACH_WARNING_THRESHOLD = 10  # 10+ iterations = warning level (non-mutation)
+# FOR_EACH HITL thresholds for read-only operations (defaults, configurable via
+# settings, read by ``scope_detector.detect_for_each_scope``): from the first,
+# an advisory is noted and NO approval asked, despite its name; from the
+# second, HITL approval is asked.
+FOR_EACH_APPROVAL_THRESHOLD = 5
+FOR_EACH_WARNING_THRESHOLD = 10
 
 # Scope detection thresholds (used by scope_detector.py)
 # Used for detecting dangerous scope in operations (bulk delete, etc.)
@@ -2627,7 +2651,7 @@ INTEREST_PERPLEXITY_RETURN_RELATED_QUESTIONS_DEFAULT = False  # Whether to inclu
 # When initial content is flagged as duplicate by the dedup check, the generator
 # retries once with a modified topic (e.g., "IA : perspectives futures") to force
 # different search results and LLM output. One random angle is picked per retry.
-# Key: base language code (ISO 639-1), Value: list of angle suffixes.
+# Key: canonical language code, Value: list of angle suffixes.
 INTEREST_CONTENT_DIVERSITY_ANGLES: dict[str, list[str]] = {
     "fr": [
         "tendances actuelles",
@@ -2679,7 +2703,7 @@ INTEREST_CONTENT_DIVERSITY_ANGLES: dict[str, list[str]] = {
         "aspetti poco conosciuti",
         "dati chiave e statistiche",
     ],
-    "zh": [
+    "zh-CN": [
         "当前趋势",
         "深度分析",
         "历史与演变",
@@ -3192,7 +3216,7 @@ LLM_CACHE_TTL_SECONDS_DEFAULT = 60  # Aligned from .env.prod (was 300)
 # returns 404, and the legacy `.app` host now 301-redirects). Verified 2026-05-21.
 CURRENCY_API_URL_DEFAULT = "https://api.frankfurter.dev/v1"
 CURRENCY_API_TIMEOUT_SECONDS_DEFAULT = 5.0
-DEFAULT_LANGUAGE_DEFAULT = "fr"
+DEFAULT_LANGUAGE_DEFAULT: Final = "fr"
 ENTITY_RESOLUTION_AUTO_THRESHOLD_DEFAULT = 0.9
 ENTITY_RESOLUTION_MAX_CANDIDATES_DEFAULT = 5
 FORMAT_TRUNCATE_SUBJECT_LENGTH_DEFAULT = 70  # Aligned from .env.prod (was 55)
@@ -3721,7 +3745,7 @@ RELATION_DEBRIEF_MAX_NOTABLE_FACTS_DEFAULT = 5
 # ============================================================================
 # MEMORY REFERENCE EXTRACTION (3-Phase Resolution Pipeline)
 # ============================================================================
-# Phase 1: LLM nano extracts personal references from query (e.g., "ma femme").
+# Phase 1: LLM nano extracts personal references from query (e.g., "my wife").
 MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS = 30.0  # Nano model, strict latency budget
 
 # ============================================================================
@@ -3735,15 +3759,12 @@ MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS = 30.0  # Nano model, strict latency
 DEFAULT_TIMEZONE = "UTC"
 
 # Default IANA timezone for user-facing display when user timezone is unknown.
-# Used as fallback in tools (routes, calendar, reminders) for French-speaking users.
+# Used as fallback in tools (routes, calendar, reminders) whatever the language.
 # This is separate from DEFAULT_TIMEZONE which is for internal storage.
 DEFAULT_USER_DISPLAY_TIMEZONE = "Europe/Paris"
 
-# Default locale for formatting (used when user_language is not set in state)
-DEFAULT_LOCALE = "en-US"
-
-# Note: DEFAULT_LANGUAGE and LANGUAGE_TO_LOCALE are defined in the I18N
-# section above.
+# Note: LANGUAGE_TO_LOCALE is defined in the I18N section above; the default
+# language is the DEFAULT_LANGUAGE setting, never a constant here (ADR-323).
 
 # Per-worker TTL cache for user display preferences (timezone/language) used
 # by tools — avoids one User query per tool call (audit wave 3, N-129).
@@ -4266,7 +4287,7 @@ PLANNER_PRESERVABLE_PARAM_NAMES: frozenset[str] = _build_preservable_param_names
 PLANNER_FIELD_TO_PARAM_NAMES: dict[str, frozenset[str]] = _build_field_to_param_names_map()
 
 # Clarification fields that represent recipients and may need memory/contacts resolution
-# These fields might contain relational references like "ma femme" that need resolution to email
+# These fields might contain relational references like "my wife" that need resolution to email
 CLARIFICATION_RECIPIENT_FIELDS: frozenset[str] = frozenset(
     ["to", "recipient", "attendees", "participants"]
 )
@@ -4507,6 +4528,12 @@ CHANNEL_OTP_REDIS_PREFIX = "channel_otp:"
 CHANNEL_OTP_ATTEMPTS_REDIS_PREFIX = "channel_otp_attempts:"
 CHANNEL_MESSAGE_LOCK_PREFIX = "channel_msg_lock:"
 CHANNEL_RATE_LIMIT_REDIS_PREFIX = "channel_rate:"
+# The per-user rate window, and the window a refusal is answered once in: an
+# account that keeps writing — deactivated, switched off, over its rate — is
+# told once per window, never once per message. The notice lives in the rate's
+# own key family.
+CHANNEL_RATE_WINDOW_SECONDS = 60
+CHANNEL_REFUSAL_NOTICE_REDIS_PREFIX = f"{CHANNEL_RATE_LIMIT_REDIS_PREFIX}notice:"
 CHANNEL_OTP_TTL_SECONDS_DEFAULT = 300  # 5 min
 CHANNEL_OTP_LENGTH_DEFAULT = 6
 CHANNEL_OTP_MAX_ATTEMPTS_DEFAULT = 5  # Brute-force protection per chat_id
@@ -4621,8 +4648,48 @@ ATTACHMENTS_ALLOWED_DOC_TYPES_DEFAULT = "application/pdf"
 # Lifecycle
 ATTACHMENTS_TTL_HOURS_DEFAULT = 24
 
+# Keeping a generated file past its deadline (ADR-319): the gallery lets a
+# person exempt some files from the cleanup. Bounded per account, because
+# nothing else would bound the disk those files hold.
+GENERATED_ASSETS_KEEP_MAX_FILES_DEFAULT = 100
+GENERATED_ASSETS_KEEP_MAX_MB_DEFAULT = 500
+
 # PDF processing
 ATTACHMENTS_MAX_PDF_TEXT_CHARS_DEFAULT = 50000
+
+# ============================================================================
+# EMAIL SHARE (ADR-321) — a generated file or an answer sent by e-mail
+# ============================================================================
+
+# What each road accepts, read from its provider (never guessed): the largest
+# file a person may send is DERIVED from these, never typed a second time.
+#: Gmail ``users.messages.send`` through its UPLOAD URI: the ``maxSize`` of the
+#: API's discovery document (read 2026-09-25). The metadata URI the plain send
+#: uses takes far less — a public report measured 1 048 576 bytes — which is why
+#: a message carrying a file always takes the upload URI.
+GMAIL_SEND_MESSAGE_MAX_BYTES: Final = 36_700_160
+GOOGLE_GMAIL_UPLOAD_BASE_URL = "https://gmail.googleapis.com/upload/gmail/v1"
+#: iCloud Mail: « the size of incoming and outgoing messages (20MB) » (Apple
+#: Support 102198). Mail Drop, which goes further, is not reachable over SMTP.
+APPLE_MAIL_MESSAGE_MAX_BYTES: Final = 20_000_000
+#: Microsoft Graph carries a file « under 3 MB » inside the request itself;
+#: beyond that it needs an upload session, which this road does not open.
+OUTLOOK_INLINE_ATTACHMENT_MAX_BYTES: Final = 3_000_000
+#: Postfix's default ``message_size_limit``: what LIA's own relay is assumed to
+#: accept until the operator states their relay's real limit.
+EMAIL_SHARE_RELAY_MAX_MESSAGE_BYTES_DEFAULT = 10_240_000
+
+# What a person types, bounded — and published, because it is enforced.
+EMAIL_SHARE_SUBJECT_MAX_CHARS: Final = 200
+EMAIL_SHARE_MESSAGE_MAX_CHARS: Final = 5_000
+#: An answer travels as the `.md` file « Download » writes; a chat answer is a
+#: few thousand characters, so this bounds a request body, not a real answer.
+EMAIL_SHARE_MARKDOWN_MAX_CHARS: Final = 200_000
+EMAIL_SHARE_MAX_RECIPIENTS: Final = 10
+
+# Per-account sliding window on the send route.
+EMAIL_SHARE_RATE_LIMIT_CALLS_DEFAULT = 10
+EMAIL_SHARE_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 600
 
 # ============================================================================
 # RAG SPACES (Knowledge Spaces with Document Upload)
@@ -5618,12 +5685,22 @@ QWEN_IMAGE_RESULT_HOST_SUFFIXES: tuple[str, ...] = (".aliyuncs.com",)
 # Response display mode (user preference)
 RESPONSE_DISPLAY_MODE_CARDS: str = "cards"
 RESPONSE_DISPLAY_MODE_HTML: str = "html"
+RESPONSE_DISPLAY_MODE_HTML_CARDS: str = "html_cards"
 RESPONSE_DISPLAY_MODE_MARKDOWN: str = "markdown"
 RESPONSE_DISPLAY_MODE_DEFAULT: str = RESPONSE_DISPLAY_MODE_CARDS
 RESPONSE_DISPLAY_MODE_CHOICES: tuple[str, ...] = (
     RESPONSE_DISPLAY_MODE_CARDS,
     RESPONSE_DISPLAY_MODE_HTML,
+    RESPONSE_DISPLAY_MODE_HTML_CARDS,
     RESPONSE_DISPLAY_MODE_MARKDOWN,
+)
+RESPONSE_DISPLAY_MODES_WITH_HTML: tuple[str, ...] = (
+    RESPONSE_DISPLAY_MODE_HTML,
+    RESPONSE_DISPLAY_MODE_HTML_CARDS,
+)
+RESPONSE_DISPLAY_MODES_WITH_CARDS: tuple[str, ...] = (
+    RESPONSE_DISPLAY_MODE_CARDS,
+    RESPONSE_DISPLAY_MODE_HTML_CARDS,
 )
 
 # User preference defaults
@@ -6442,6 +6519,11 @@ BOOKMARKS_DOCUMENT_NAME_EXCERPT_CHARS: int = 60
 #: initiative: ``proactive_<task_type>``. ONE prefix, read by the heartbeat's
 #: context sources and by the bookmarks (a notification answers no request).
 PROACTIVE_MESSAGE_TYPE_PREFIX: str = "proactive_"
+#: ``message_metadata["type"]`` of the message a reminder leaves in the chat when it
+#: rings — the person's own deferred instruction, never an initiative. Written by the
+#: reminder scheduler and read by the radio's journal (ADR-324 decision 41): writer and
+#: reader share the constant, never a convention.
+REMINDER_NOTIFICATION_MESSAGE_TYPE: str = "reminder_notification"
 
 # =============================================================================
 # Live mode (ADR-299)
@@ -6629,3 +6711,127 @@ EFFECT_ACTIVITY_MAX_ACTIONS_DEFAULT: int = 20
 EFFECT_ACTIVITY_WINDOW_DAYS_DEFAULT: int = 7
 #: Most generated files one gallery lookup returns — and shows as cards.
 GENERATED_FILES_SEARCH_MAX_RESULTS_DEFAULT: int = 10
+
+
+# =============================================================================
+# RADIO (ADR-324) — defaults of the RadioSettings module (core/config/radio.py).
+# Editorial rules of the grid and of the script contract stay in
+# domains/radio/constants.py.
+# =============================================================================
+
+# --- Sessions -----------------------------------------------------------------
+#: The automatic stop a session gets when the listener chose none (owner Q8).
+RADIO_TIMER_MINUTES_DEFAULT: int = 30
+#: The longest automatic stop a listener may choose (published, enforced).
+RADIO_TIMER_MAX_MINUTES_DEFAULT: int = 120
+#: Sessions the instance runs at once (``radio:active``): each one holds a loop,
+#: its model calls and its voices.
+RADIO_MAX_ACTIVE_SESSIONS_DEFAULT: int = 20
+#: What one listener's radio may spend over a rolling day — sessions and article
+#: translations (owner decision 2026-09-27, ADR-324 decision 37).
+RADIO_BUDGET_24H_EUR_DEFAULT: float = 2.0
+#: How long a session's Redis keys outlive their last write: past the pause
+#: timeout, so a paused session is still there for the loop to end it.
+RADIO_RECORD_TTL_SECONDS_DEFAULT: int = 1_800
+#: The loop lease (one worker drives a session), renewed every tick.
+RADIO_LOOP_LEASE_SECONDS_DEFAULT: int = 30
+RADIO_LOOP_TICK_SECONDS_DEFAULT: float = 2.0
+#: The music a listener hears before the first segment, at most.
+RADIO_FIRST_DELAY_SECONDS_DEFAULT: float = 20.0
+#: How long the listener's day and the news desk stay read before a refresh.
+RADIO_DESK_TTL_SECONDS_DEFAULT: int = 300
+#: How often a session looks for what LIA just wrote to the listener — the news
+#: flash's delay, at most (ADR-324 decision 32).
+RADIO_FLASH_POLL_SECONDS_DEFAULT: float = 15.0
+#: No report from the player for this long: nobody listens.
+RADIO_IDLE_TIMEOUT_SECONDS_DEFAULT: int = 60
+#: Paused this long (not the station's music: a pause): the session ends.
+RADIO_PAUSE_TIMEOUT_SECONDS_DEFAULT: int = 900
+#: Productions failing in a row before the session ends.
+RADIO_FAILURES_MAX_DEFAULT: int = 3
+RADIO_LOOKAHEAD_SAFETY_DEFAULT: float = 1.5
+RADIO_LOOKAHEAD_MARGIN_SECONDS_DEFAULT: float = 15.0
+#: What one listener's own programmes remember hearing (never twice a day).
+RADIO_AIRED_LEDGER_TTL_SECONDS_DEFAULT: int = 86_400
+#: Two headlines at least this close in meaning tell one event (ADR-324 decision
+#: 34): measured 2026-09-27, the two closest distinct events at 0.898; the articles
+#: of one event at 0.906 or more, but for one big story's angles (0.874 to 0.898).
+RADIO_SAME_EVENT_SIMILARITY_DEFAULT: float = 0.9
+#: The listener's strongest interests searched for stories when a session starts, with
+#: their own search key (ADR-324 decision 40); 0 = none.
+RADIO_INTEREST_TOPICS_MAX_DEFAULT: int = 3
+#: The stories one interest's search keeps (the shortlists take what airs).
+RADIO_INTEREST_STORIES_MAX_DEFAULT: int = 5
+#: An interest searched within this window is not searched again: a session reuses
+#: the stories the last search filed (seconds).
+RADIO_INTEREST_FRESH_SECONDS_DEFAULT: int = 6 * 3_600
+
+# --- Production -----------------------------------------------------------------
+# Stage timings size the look-ahead; PESSIMISTIC on purpose (an optimistic one
+# opens gaps, a pessimistic one only produces a little earlier). Measured
+# 2026-09-26 on dev: writer 3-17 s, analyst 5-8 s, the free engine 0.1 to 0.9 s
+# of synthesis per second of audio depending on its load, mix under 1 s. They are
+# the instance's guess: a session adds the most its own productions overran them
+# (``pacing.ran_late``) — a writer slot that thinks took 15 to 65 s (2026-09-27).
+RADIO_STAGE_WRITER_SECONDS_DEFAULT: float = 12.0
+RADIO_STAGE_ANALYSIS_SECONDS_DEFAULT: float = 10.0
+RADIO_TTS_REALTIME_FACTOR_DEFAULT: float = 0.9
+RADIO_TTS_CONCURRENCY_DEFAULT: int = 3
+#: Attempts per line while a voice failure is transient (the free engine answers
+#: without audio once in 24 syntheses, measured 2026-09-26).
+RADIO_TTS_LINE_ATTEMPTS_DEFAULT: int = 3
+#: The longest a voice line waits after a provider's rate limit before trying again
+#: (the provider's own delay when it names one, bounded by this).
+RADIO_TTS_RATE_LIMIT_WAIT_MAX_SECONDS_DEFAULT: int = 30
+#: The radio produced before a session's cost is extrapolated to its planned
+#: listening (seconds of audio): a rate read off the first programme alone is noise.
+RADIO_COST_ESTIMATE_MIN_AUDIO_SECONDS_DEFAULT: int = 120
+RADIO_STAGE_MIX_SECONDS_DEFAULT: float = 1.0
+#: The station's music between two programmes (ADR-324 decision 36): a breath the
+#: listener hears, and fewer programmes produced — and billed — over a long listening.
+RADIO_SEGMENT_GAP_SECONDS_DEFAULT: float = 5.0
+RADIO_MIX_TIMEOUT_SECONDS_DEFAULT: int = 60
+RADIO_ANALYSIS_MIN_POINTS_DEFAULT: int = 4
+RADIO_ANALYSIS_MAX_POINTS_DEFAULT: int = 6
+#: The longest verbatim quotation a segment may air (fair use).
+RADIO_QUOTE_MAX_CHARS_DEFAULT: int = 120
+#: The model verifier's reach when the listener chose none: news formats.
+RADIO_VERIFICATION_DEFAULT: Final = "news"  # Literal-typed for the settings field
+
+# --- Newsroom -------------------------------------------------------------------
+RADIO_NEWSROOM_INTERVAL_SECONDS_DEFAULT: int = 300
+#: Due feeds one pass reads: the 27 base sources and up to 20 sites per recent listener,
+#: each read every quarter hour (measured 2026-09-27: at 20 per pass, 37 feeds already
+#: needed two passes; a pass of 20 ended well inside its 240 s bound).
+RADIO_NEWSROOM_FEEDS_PER_PASS_DEFAULT: int = 60
+RADIO_NEWSROOM_TEXTS_PER_PASS_DEFAULT: int = 20
+#: A feed is read again after this long (conditional requests: a 304 is cheap).
+RADIO_NEWSROOM_FEED_INTERVAL_SECONDS_DEFAULT: int = 900
+RADIO_NEWSROOM_BACKOFF_MAX_SECONDS_DEFAULT: int = 21_600
+RADIO_NEWSROOM_FEED_MAX_BYTES_DEFAULT: int = 4 * 1024 * 1024
+RADIO_NEWSROOM_PAGE_MAX_BYTES_DEFAULT: int = 4 * 1024 * 1024
+RADIO_NEWSROOM_TEXT_ATTEMPTS_MAX_DEFAULT: int = 3
+RADIO_NEWSROOM_RETENTION_SECONDS_DEFAULT: int = 48 * 3_600
+#: The newsroom reads for listeners: the catalogue while anyone started a session
+#: within this window, a listener's own sites while they did. A week keeps a
+#: weekly listener's news warm; an instance nobody listens to reads nothing.
+RADIO_NEWSROOM_LISTENER_WINDOW_SECONDS_DEFAULT: int = 7 * 86_400
+RADIO_NEWSROOM_CONCURRENCY_DEFAULT: int = 4
+#: Under the job's own interval, so two passes never overlap.
+RADIO_NEWSROOM_PASS_TIMEOUT_SECONDS_DEFAULT: int = 240
+#: Sites one listener may add to their newsroom (owner decision 2026-09-27).
+RADIO_CUSTOM_SOURCES_MAX_DEFAULT: int = 20
+#: Previewing a site fetches up to ~15 bounded requests: rate-limited per account.
+RADIO_SOURCE_PREVIEW_RATE_LIMIT_CALLS_DEFAULT: int = 10
+RADIO_SOURCE_PREVIEW_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 600
+
+# --- Media --------------------------------------------------------------------------
+RADIO_STORAGE_PATH_DEFAULT: str = "/app/data/radio"
+#: The orphan sweep removes a session directory older than this with no live
+#: session behind it (never a live one, never a non-UUID directory).
+RADIO_MEDIA_ORPHAN_AGE_SECONDS_DEFAULT: int = 3_600
+RADIO_MEDIA_SWEEP_INTERVAL_SECONDS_DEFAULT: int = 900
+
+# --- Scheduler job ids -------------------------------------------------------------
+SCHEDULER_JOB_RADIO_NEWSROOM_COLLECT: str = "radio_newsroom_collect"
+SCHEDULER_JOB_RADIO_MEDIA_SWEEP: str = "radio_media_sweep"

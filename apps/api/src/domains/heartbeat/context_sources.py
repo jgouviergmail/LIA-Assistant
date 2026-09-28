@@ -25,6 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
+from src.core.i18n import normalize_language
 from src.core.time_utils import resolve_user_timezone
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.heartbeat.schemas import WeatherChange
@@ -686,7 +687,7 @@ async def fetch_departure_advice(
 
     from src.domains.users.user_location_service import NoLocationAvailableError
 
-    language = getattr(user, "language", None) or settings.default_language
+    language = normalize_language(getattr(user, "language", None))
     try:
         advice = await _compute_departure_advice(user, target, target_start, user_tz, language)
         if advice is None:

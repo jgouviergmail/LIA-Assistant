@@ -38,36 +38,11 @@ def service() -> MemoryReferenceResolutionService:
 
 
 class TestResolvedReferences:
-    """The value object the planner and the response node both read."""
+    """The value object the planner reads (the response prompt reads its mappings)."""
 
     def test_has_resolutions_reflects_the_mappings(self) -> None:
         assert not ResolvedReferences("q", "q", {}).has_resolutions()
         assert ResolvedReferences("q", "q", {"ma femme": "Jane"}).has_resolutions()
-
-    def test_format_for_response_turns_the_possessive_around(self) -> None:
-        """The user wrote "mon frère"; LIA answers "ton frère (Jean Dupond)"."""
-        result = ResolvedReferences("q", "q", {"mon frère": "Jean Dupond"})
-
-        assert result.format_for_response("mon frère") == "ton frère (Jean Dupond)"
-
-    @pytest.mark.parametrize(
-        "reference,expected",
-        [
-            ("mon frère", "ton frère (X)"),
-            ("ma femme", "ta femme (X)"),
-            ("mes parents", "tes parents (X)"),
-        ],
-    )
-    def test_every_possessive_form_is_turned_around(self, reference: str, expected: str) -> None:
-        result = ResolvedReferences("q", "q", {reference: "X"})
-
-        assert result.format_for_response(reference) == expected
-
-    def test_an_unresolved_reference_is_returned_verbatim(self) -> None:
-        """Never invent a parenthesis around a name we do not have."""
-        result = ResolvedReferences("q", "q", {"ma femme": "Jane"})
-
-        assert result.format_for_response("mon cousin") == "mon cousin"
 
 
 class TestFailSafeLadder:

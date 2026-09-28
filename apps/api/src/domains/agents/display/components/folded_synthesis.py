@@ -121,7 +121,6 @@ def render_folded_synthesis(
         trigger_text=V3Messages.get_see_more(ctx.language),
         content_html=format_synthesis_html(rest),
         initially_open=False,
-        language=ctx.language,
         with_separator=False,
     )
 

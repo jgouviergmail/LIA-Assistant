@@ -11,19 +11,22 @@ conversation never fed the journals whatever the user had enabled.
 One resolver, one contract, two callers. Adding a preference here now reaches
 every channel by construction.
 
-Fail-closed by design: with no user row (lookup failed, account unresolved) the
-long-term-state preferences are off. We never write to the personal journals or
-the psyche state of someone we could not identify.
+Both callers resolve a real account row: a lookup that failed or found nobody
+is answered and refused before this resolver runs (ADR-323), so nothing is ever
+written to the journals or the psyche state of someone unidentified.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
-from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import normalize_language
 from src.core.user_display import resolve_user_display_name
+
+if TYPE_CHECKING:
+    from src.domains.users.models import User
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +50,7 @@ class ChannelUserPreferences:
     display_name: str | None
 
 
-def resolve_channel_preferences(user: Any | None) -> ChannelUserPreferences:
+def resolve_channel_preferences(user: User) -> ChannelUserPreferences:
     """Resolve the conversation preferences of a channel-bound user.
 
     The ``getattr`` fallbacks mirror ``agents/api/router.py`` exactly, so a
@@ -56,25 +59,13 @@ def resolve_channel_preferences(user: Any | None) -> ChannelUserPreferences:
     default to true.
 
     Args:
-        user: Loaded ``User`` row, or None when the lookup failed or returned
-            nothing.
+        user: The loaded account row.
 
     Returns:
-        Fully resolved preferences; fail-closed on journals and psyche when
-        ``user`` is None.
+        Fully resolved preferences.
     """
-    if user is None:
-        return ChannelUserPreferences(
-            language=settings.default_language,
-            timezone=DEFAULT_USER_DISPLAY_TIMEZONE,
-            memory_enabled=True,
-            journals_enabled=False,
-            psyche_enabled=False,
-            display_name=None,
-        )
-
     return ChannelUserPreferences(
-        language=getattr(user, "language", None) or settings.default_language,
+        language=normalize_language(getattr(user, "language", None)),
         timezone=getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE,
         memory_enabled=getattr(user, "memory_enabled", True),
         journals_enabled=getattr(user, "journals_enabled", False),

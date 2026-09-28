@@ -59,12 +59,18 @@ class TestHistoryRoute:
         now = datetime.now(UTC)
 
         to_all = await repo.create_broadcast(
-            message="Maintenance tonight", sent_by=admin.id, expires_at=now + timedelta(days=7)
+            message="Maintenance tonight",
+            sent_by=admin.id,
+            expires_at=now + timedelta(days=7),
+            source_language="en",
         )
         to_all.created_at = now - timedelta(minutes=5)
         to_all.total_recipients = 3
         targeted = await repo.create_broadcast(
-            message="For you two", sent_by=admin.id, recipient_ids=[bob.id, alice.id]
+            message="For you two",
+            sent_by=admin.id,
+            recipient_ids=[bob.id, alice.id],
+            source_language="en",
         )
         targeted.total_recipients = 2
         targeted.fcm_sent = 1
@@ -105,7 +111,10 @@ class TestHistoryRoute:
         repo = BroadcastRepository(async_session)
         sent = datetime.now(UTC) - timedelta(days=40)
         old = await repo.create_broadcast(
-            message="Old news", sent_by=admin.id, expires_at=sent + timedelta(days=30)
+            message="Old news",
+            sent_by=admin.id,
+            expires_at=sent + timedelta(days=30),
+            source_language="en",
         )
         old.created_at = sent
         await async_session.commit()

@@ -8,6 +8,7 @@ and the fields the response derives.
 """
 
 from datetime import UTC, date, datetime
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -121,7 +122,7 @@ class TestScheduledActionUpdate:
             ScheduledActionUpdate(recurrence=dense)
 
 
-def _response(recurrence: RecurrenceSpec, **over: object) -> ScheduledActionResponse:
+def _response(recurrence: RecurrenceSpec | None, **over: object) -> ScheduledActionResponse:
     """A response built from the fields the ORM supplies."""
     base: dict[str, object] = {
         "id": uuid4(),
@@ -145,7 +146,7 @@ def _response(recurrence: RecurrenceSpec, **over: object) -> ScheduledActionResp
         "updated_at": datetime(2026, 9, 1, tzinfo=UTC),
     }
     base.update(over)
-    return ScheduledActionResponse(**base)  # type: ignore[arg-type]
+    return ScheduledActionResponse.model_validate(base)
 
 
 class TestScheduledActionResponse:
@@ -310,3 +311,151 @@ class TestAnExplicitNullIsNotAnAbsentField:
             {"recurrence": weekly((7, 15)).model_dump(mode="json")}
         )
         assert update.recurrence is not None
+
+
+class TestOneClockPerRoutine:
+    """ADR-322: a schedule, or a condition the system checks — never both."""
+
+    def _base(self, **overrides: object) -> dict[str, object]:
+        data: dict[str, object] = {"title": "Routine", "action_prompt": "fais un point"}
+        data.update(overrides)
+        return data
+
+    def test_a_condition_routine_needs_no_schedule(self) -> None:
+        created = ScheduledActionCreate(
+            **self._base(
+                trigger_kind="condition",
+                condition_config=ConditionConfig(type="mail_match", query="devis"),
+            )
+        )
+
+        assert created.recurrence is None
+
+    def test_a_condition_routine_refuses_a_schedule(self) -> None:
+        with pytest.raises(ValidationError, match="no recurrence"):
+            ScheduledActionCreate(
+                **self._base(
+                    recurrence=weekly((9, 0)),
+                    trigger_kind="condition",
+                    condition_config=ConditionConfig(type="task_overdue"),
+                )
+            )
+
+    def test_a_scheduled_routine_still_needs_its_schedule(self) -> None:
+        with pytest.raises(ValidationError, match="recurrence is required"):
+            ScheduledActionCreate(**self._base())
+
+
+class TestTheLastWatchedDay:
+    def test_every_condition_type_may_stop_on_a_day(self) -> None:
+        config = ConditionConfig(type="task_overdue", until=date(2026, 10, 12))
+
+        # Stored as JSON: a date object in a JSONB column fails at flush.
+        assert config.stored() == {"type": "task_overdue", "until": "2026-10-12"}
+
+    def test_an_unreadable_day_is_refused_at_the_door(self) -> None:
+        with pytest.raises(ValidationError):
+            ConditionConfig.model_validate({"type": "task_overdue", "until": "someday"})
+
+
+class TestTheWeatherKinds:
+    def test_the_kinds_are_stored_in_one_order_whatever_the_order_sent(self) -> None:
+        # Ticking « snow » then « rain » is the condition « rain » then « snow »:
+        # another order must not read as another condition, whose ledger would
+        # start over and announce the same forecast again.
+        one = ConditionConfig(type="weather_change", kinds=["snow", "rain", "rain"])
+        two = ConditionConfig(type="weather_change", kinds=["rain", "snow"])
+
+        assert one.stored() == two.stored() == {"type": "weather_change", "kinds": ["rain", "snow"]}
+
+
+class TestAParameterItsTypeDoesNotRead:
+    """Accepted, stored, displayed and DROPPED — refused instead (ADR-268's rule)."""
+
+    @pytest.mark.parametrize(
+        ("config", "stray"),
+        [
+            ({"type": "task_overdue", "query": "facture"}, "query"),
+            ({"type": "mail_match", "query": "devis", "kinds": ["rain"]}, "kinds"),
+            ({"type": "document_added", "within_hours": 3}, "within_hours"),
+            ({"type": "weather_change", "query": "pluie"}, "query"),
+        ],
+    )
+    def test_it_is_refused(self, config: dict[str, object], stray: str) -> None:
+        with pytest.raises(ValidationError, match=stray):
+            ConditionConfig.model_validate(config)
+
+    def test_what_a_type_reads_is_accepted(self) -> None:
+        config = ConditionConfig(type="calendar_event", query="dentiste", within_hours=6)
+
+        assert config.stored() == {"type": "calendar_event", "query": "dentiste", "within_hours": 6}
+
+
+class TestAConditionRoutineResponse:
+    """The card, the hub and the chat read the system's clock, not a schedule."""
+
+    def _condition(self, **over: object) -> ScheduledActionResponse:
+        base: dict[str, object] = {
+            "trigger_kind": "condition",
+            "condition_config": {"type": "task_overdue", "until": "2026-10-12"},
+            "condition_state": {
+                "seen": ["k1"],
+                "last_checked_at": "2026-09-25T12:10:00+00:00",
+                "last_check_error": "unavailable",
+            },
+        }
+        base.update(over)
+        return _response(None, **base)
+
+    def test_it_states_its_check_cadence_and_last_day(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.core.config import settings
+
+        monkeypatch.setattr(settings, "scheduled_actions_condition_check_minutes", 10)
+        with patch("src.domains.scheduled_actions.schemas.resolve_language", return_value="en"):
+            response = self._condition()
+
+        assert response.schedule_display == "Checked about every 10 min, until 12/10/2026"
+        assert response.check_interval_minutes == 10
+
+    def test_it_carries_its_last_check_and_never_its_facts(self) -> None:
+        response = self._condition()
+
+        assert response.last_checked_at == datetime(2026, 9, 25, 12, 10, tzinfo=UTC)
+        assert response.last_check_error == "unavailable"
+        assert "condition_state" not in response.model_dump()
+        assert "seen" not in response.model_dump_json()
+
+    def test_it_has_no_schedule_to_show(self) -> None:
+        response = self._condition()
+
+        assert response.recurrence is None
+        assert response.next_occurrences == []
+        assert response.times_of_day == []
+        assert response.week_slots == []
+        assert response.runs_per_day == 0
+
+    def test_a_scheduled_routine_has_no_check_clock(self) -> None:
+        response = _response(weekly((8, 0)))
+
+        assert response.check_interval_minutes is None
+        assert response.last_checked_at is None
+
+
+class TestTheListPublishesTheClock:
+    def test_the_cadence_of_every_type_and_the_daily_cap_are_published(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.core.config import settings
+        from src.domains.scheduled_actions.models import CONDITION_TYPES
+        from src.domains.scheduled_actions.schemas import ScheduledActionListResponse
+
+        monkeypatch.setattr(settings, "scheduled_actions_weather_check_minutes", 60)
+        monkeypatch.setattr(settings, "scheduled_actions_condition_max_fires_per_day", 7)
+
+        listing = ScheduledActionListResponse(scheduled_actions=[], total=0)
+
+        assert set(listing.condition_check_minutes) == set(CONDITION_TYPES)
+        assert listing.condition_check_minutes["weather_change"] == 60
+        assert listing.condition_max_fires_per_day == 7

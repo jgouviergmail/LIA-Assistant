@@ -60,6 +60,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Enable the Live voice mode? Each person talks with LIA in real time on a live model they connect with their OWN Gemini, OpenAI or ElevenLabs key; the instance pays only what LIA itself spends inside a session (yes/no)",
         "fr": "Activer le mode Live vocal ? Chaque personne parle avec LIA en temps réel sur un modèle live qu'elle connecte avec SA PROPRE clé Gemini, OpenAI ou ElevenLabs ; l'instance ne paie que ce que LIA elle-même dépense dans une session (yes/no)",
     },
+    "question.personal_radio": {
+        "en": "Enable the personal radio? Programmes are produced on demand while someone listens, using the instance's configured writing and voice providers; their cost is charged to the listener (yes/no)",
+        "fr": "Activer la radio personnelle ? Les émissions sont produites à la demande pendant l'écoute avec les fournisseurs de rédaction et de voix configurés sur l'instance ; leur coût est imputé à l'auditeur (yes/no)",
+    },
     "question.admin_password": {
         "en": "Administrator password (min {min_length} chars, {min_uppercase} uppercase, {min_digits} digits, {min_special} special; input hidden)",
         "fr": "Mot de passe administrateur (min {min_length} caractères, {min_uppercase} majuscules, {min_digits} chiffres, {min_special} spéciaux ; saisie masquée)",

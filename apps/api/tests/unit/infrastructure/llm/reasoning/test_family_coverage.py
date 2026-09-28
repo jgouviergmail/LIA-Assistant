@@ -72,7 +72,9 @@ def _split_values(row: str) -> list[str]:
     Quote-aware on purpose: a JSONB literal such as ``'["low", "medium"]'`` puts
     commas inside a quoted field, and a naive split shifts every column after it.
     """
-    fields, current, in_quote = [], [], False
+    fields: list[str] = []
+    current: list[str] = []
+    in_quote = False
     for char in row:
         if char == "'":
             in_quote = not in_quote
@@ -187,6 +189,23 @@ def test_the_family_covers_every_reasoning_model_in_the_catalogue() -> None:
         "Check the provider's documentation: if the rules are right, the CATALOGUE "
         "row is stale and the model belongs in KNOWN_WIDENINGS with its evidence."
     )
+
+
+def test_no_speech_model_is_offered_a_reasoning_ladder() -> None:
+    """A text-to-speech model does not think, whatever its name starts with.
+
+    The admin form offers the RESOLVED profile (ADR-245), so a speech model a
+    broad prefix rule places in a chat family is shown a thinking ladder that
+    nothing sends and nothing honours — the two Gemini 2.5 speech rows carried
+    the budget widget until 2026-09-26.
+    """
+    offered = [
+        f"{row['provider']}/{row['model_name']}"
+        for row in _catalogue_rows()
+        if row["kind"] == "tts"
+        and resolve_reasoning_profile(row["provider"], row["model_name"]).family != "none"
+    ]
+    assert offered == [], f"these speech models resolve to a reasoning family: {offered}"
 
 
 def test_a_family_that_can_disable_offers_a_way_to_say_so() -> None:

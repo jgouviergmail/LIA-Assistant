@@ -1,7 +1,7 @@
 {
-  "version": "1.47.4",
-  "releaseDate": "2026-09-25",
-  "releases": 269,
+  "version": "2.0.0",
+  "releaseDate": "2026-09-28",
+  "releases": 270,
   "milestones": [
     {
       "version": "1.0.0",
@@ -196,11 +196,11 @@
       "date": "2026-09-20"
     },
     {
-      "version": "1.47.4",
-      "date": "2026-09-25"
+      "version": "2.0.0",
+      "date": "2026-09-28"
     }
   ],
-  "domains": 51,
+  "domains": 53,
   "infra": 26,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
@@ -519,6 +519,12 @@
     "315": "ADR-315-Image-Prompt-Enhancement.md",
     "316": "ADR-316-Sharing-A-Generated-Image-With-A-Connection.md",
     "317": "ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md",
-    "318": "ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md"
+    "318": "ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md",
+    "319": "ADR-319-A-Generated-File-Can-Be-Kept.md",
+    "320": "ADR-320-The-Chat-Follows-The-Server-Without-A-Reload.md",
+    "321": "ADR-321-A-File-Or-An-Answer-Sent-By-E-Mail.md",
+    "322": "ADR-322-One-Clock-Per-Routine.md",
+    "323": "ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md",
+    "324": "ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md"
   }
 }

@@ -6,6 +6,7 @@
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useCatalogueInvalidationListener } from '@/lib/catalogue-invalidation-context';
+import { bumpRevision, SLOT_REVISIONS } from '@/stores/revisionStore';
 import type {
   LLMConfigListResponse,
   LLMTypeConfig,
@@ -86,14 +87,22 @@ export function useLLMConfig() {
     componentName: COMPONENT_NAME,
   });
 
+  /** A slot another screen reads from (the radio's voices) makes that screen re-read. */
+  const announce = (llmType: string) => {
+    const revised = SLOT_REVISIONS[llmType];
+    if (revised) bumpRevision(revised);
+  };
+
   const updateConfig = async (llmType: string, data: LLMTypeConfigUpdate) => {
     const result = await updateConfigMutate(`/admin/llm-config/types/${llmType}`, data);
+    announce(llmType);
     await refetchConfigs();
     return result;
   };
 
   const resetConfig = async (llmType: string) => {
     const result = await resetConfigMutate(`/admin/llm-config/types/${llmType}/reset`);
+    announce(llmType);
     await refetchConfigs();
     return result;
   };

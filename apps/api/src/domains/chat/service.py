@@ -28,6 +28,8 @@ from src.core.field_names import (
     FIELD_TOKENS_CACHE,
     FIELD_TOKENS_IN,
     FIELD_TOKENS_OUT,
+    FIELD_TTS_CHARACTERS,
+    FIELD_TTS_COST_EUR,
 )
 from src.domains.chat.models import (
     UserStatistics,
@@ -55,6 +57,7 @@ from src.domains.chat.tracking_records import (
     TokenUsageRecord,
     TTSUsageRecord,
     breakdown_entry,
+    tts_usage_record,
 )
 from src.infrastructure.database import get_db_context
 
@@ -498,14 +501,17 @@ class TrackingContext:
         model: str,
         characters: int,
         duration_ms: float = 0.0,
+        *,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
     ) -> None:
         """Record a TTS synthesis call (synchronous; uses pre-loaded pricing cache).
 
-        Mirrors the STT cost-attribution pattern but on the assistant bubble.
-        Each call adds to an in-memory list; the aggregate (sum of characters
-        and cost) is later read by ``get_tts_usage_for_archive()`` and
-        persisted on ``conversation_messages.tts_*`` columns by
-        ``archive_message`` of the assistant turn.
+        Each call adds to an in-memory list. The run's commit files it like
+        every other family — on the run's own row (``message_token_summary``,
+        ADR-324) and in ``user_statistics``; a chat turn also stamps its answer's
+        share on the assistant bubble, read by ``get_tts_usage_for_archive()``
+        (mirror of the STT attribution).
 
         Edge TTS is free and MUST NOT call this method (the row stays NULL).
         Free providers don't carry a meaningful "USD per character" axis, so
@@ -516,32 +522,16 @@ class TrackingContext:
             model: TTS model used (``tts-1``, ``tts-1-hd``, ``eleven_*``, …).
             characters: Number of characters synthesised in this call.
             duration_ms: Synthesis duration in milliseconds (debug panel hint).
+            input_tokens: Text tokens billed, for a token-billed engine.
+            output_tokens: Audio tokens billed, for a token-billed engine.
         """
-        from src.infrastructure.cache.pricing_cache import (
-            get_cached_cost_usd_eur,
-            get_cached_usd_eur_rate,
-        )
-
-        # TTS is character-billed; the pricing cache treats characters as
-        # ``prompt_tokens`` (cf. ADR-081 — tts pricing rows live on the same
-        # ``per_1m_tokens`` axis as chat models, with chars-as-tokens).
-        cost_usd_f, cost_eur_f = get_cached_cost_usd_eur(
-            model=model,
-            prompt_tokens=characters,
-            completion_tokens=0,
-            cached_tokens=0,
-            cache_write_tokens=0,
-        )
-        usd_to_eur_rate = Decimal(str(get_cached_usd_eur_rate()))
-
-        record = TTSUsageRecord(
-            provider=provider,
-            model=model,
-            characters=characters,
-            cost_usd=Decimal(str(cost_usd_f)),
-            cost_eur=Decimal(str(cost_eur_f)),
-            usd_to_eur_rate=usd_to_eur_rate,
-            duration_ms=duration_ms,
+        record = tts_usage_record(
+            provider,
+            model,
+            characters,
+            duration_ms,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )
         self._tts_records.append(record)
 
@@ -639,10 +629,10 @@ class TrackingContext:
             # Image Generation tracking
             FIELD_IMAGE_GENERATION_REQUESTS: image_generation_requests,
             FIELD_IMAGE_GENERATION_COST_EUR: image_generation_cost_eur,
-            # TTS tracking (mirror Google API / image gen pattern; aggregated
-            # into user_statistics by create_or_update via the same flow)
-            "tts_characters": tts_characters,
-            "tts_cost_eur": tts_cost_eur,
+            # TTS tracking (mirror Google API / image gen pattern): the run's
+            # row and user_statistics, by create_or_update via the same flow
+            FIELD_TTS_CHARACTERS: tts_characters,
+            FIELD_TTS_COST_EUR: tts_cost_eur,
         }
 
         # DEBUG: Log detailed breakdown by node for token verification.
@@ -842,35 +832,9 @@ class TrackingContext:
             summary = await chat_repo.get_token_summary_by_run_id(self.run_id)
 
             if summary:
-                # Pull TTS cost from the assistant row attached to this run_id
-                # (silo on conversation_messages.tts_cost_eur, mirror STT). The
-                # tracker.get_tts_usage_for_archive() in-memory bucket is the
-                # primary source; the DB lookup below covers the case where
-                # this method is called from a fresh worker context.
-                tts_cost_value = 0.0
-                tts_in_memory = self.get_tts_usage_for_archive()
-                if tts_in_memory and tts_in_memory.get("tts_cost_eur") is not None:
-                    tts_cost_value = float(tts_in_memory["tts_cost_eur"])
-                else:
-                    try:
-                        from sqlalchemy import select as sa_select
-
-                        from src.domains.conversations.models import ConversationMessage
-
-                        tts_stmt = sa_select(ConversationMessage.tts_cost_eur).where(
-                            ConversationMessage.message_metadata.contains({"run_id": self.run_id}),
-                            ConversationMessage.role == "assistant",
-                            ConversationMessage.tts_cost_eur.is_not(None),
-                        )
-                        tts_row = (await db.execute(tts_stmt)).first()
-                        if tts_row and tts_row[0] is not None:
-                            tts_cost_value = float(tts_row[0])
-                    except Exception as tts_lookup_err:
-                        logger.debug(
-                            "aggregated_summary_tts_lookup_failed",
-                            run_id=self.run_id,
-                            error=str(tts_lookup_err),
-                        )
+                # The run's paid speech is on its own row (ADR-324), committed
+                # like every other family — whichever tracker recorded it.
+                tts_cost_value = float(summary.tts_cost_eur or 0)
 
                 logger.debug(
                     "aggregated_summary_retrieved_from_db",
@@ -898,7 +862,7 @@ class TrackingContext:
                     FIELD_IMAGE_GENERATION_COST_EUR: float(
                         getattr(summary, "image_generation_cost_eur", 0) or 0
                     ),
-                    "tts_cost_eur": tts_cost_value,
+                    FIELD_TTS_COST_EUR: tts_cost_value,
                 }
             else:
                 # Fallback to in-memory if DB not yet updated (should not happen normally)

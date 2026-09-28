@@ -182,7 +182,7 @@
           "placement": "bottom"
         }
       },
-      "description": "Total inbound messages rejected (rate limited, locked, unbound). Empty panel = zero events in the window (healthy)."
+      "description": "Rate of inbound messages and button presses rejected, one series per reason (the counter's help text lists them). Empty panel = zero events in the window (healthy)."
     },
     {
       "id": 4,
@@ -424,7 +424,7 @@
       "panels": [
         {
           "id": 9,
-          "title": "HITL Decisions via Channel",
+          "title": "HITL Questions via Channel",
           "type": "timeseries",
           "datasource": "$datasource",
           "gridPos": {
@@ -461,7 +461,7 @@
               "placement": "bottom"
             }
           },
-          "description": "Total HITL decisions made via channels."
+          "description": "HITL questions sent via channels, by interaction type (the decision label carries the type the interaction wrote)."
         },
         {
           "id": 10,

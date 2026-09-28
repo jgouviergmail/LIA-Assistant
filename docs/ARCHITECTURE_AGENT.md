@@ -353,6 +353,7 @@ from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.graphs.base_agent_builder import (
     build_generic_agent,
     create_agent_config_from_settings,
+    domain_context_instructions,
 )
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.observability.logging import get_logger
@@ -412,15 +413,10 @@ def build_{domain}_agent() -> Any:
     # loaded via load_prompt(). Never inline prompt fragments in .py »).
     {domain}_agent_prompt_template = load_prompt("{domain}_agent_prompt", version="v1")
 
-    # Instructions de contexte spécifiques au domaine
-    context_instructions = """
-Le domaine "{domain}" est actif pour stocker les résultats.
-Les outils resolve_reference, get_context_state fonctionnent avec domain="{domain}".
-
-Exemples de références contextuelles :
-- $context.{domain}.0 → Premier élément des résultats
-- $context.{domain}.current → Élément actuellement sélectionné
-    """.strip()
+    # Le bloc des outils de contexte : UN texte versionné pour tous les domaines
+    # (`prompts/v1/agent_context_domain_instructions.txt`), rendu pour celui-ci,
+    # comme le font les cinq builders de domaine (ADR-323).
+    context_instructions = domain_context_instructions("{domain}")
 
     # `current_datetime` reste un placeholder : il est résolu à chaque tour par
     # le builder générique, pas figé au démarrage.
@@ -466,9 +462,11 @@ Ajouter dans la section des manifestes d'agents :
 {DOMAIN}_AGENT_MANIFEST = AgentManifest(
     name="{domain}_agent",
     description=(
-        "Agent spécialisé dans les opérations {description}. "
-        "Description des capacités principales. "
-        "Les opérations d'écriture nécessitent une confirmation utilisateur via HITL."
+        # English code documentation: no prompt reads it (the planner's export
+        # carries the agent's name and tools only — ADR-323).
+        "Agent specialised in {description} operations. "
+        "Main capabilities, in one or two sentences. "
+        "Write operations require the user's confirmation through HITL."
     ),
     tools=[
         "search_{domain}_tool",

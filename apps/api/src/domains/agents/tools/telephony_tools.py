@@ -23,6 +23,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
 from src.core.config import get_settings
+from src.core.i18n import resolve_language
 from src.core.i18n_telephony import get_tool_phrases
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.drafts import PhoneCallDraftInput
@@ -405,7 +406,7 @@ async def place_phone_call_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     date_window: str | None = None,
     user_timezone: str = "UTC",
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """Place an outbound phone call on the user's behalf (creates a draft for confirmation).
 
@@ -417,7 +418,10 @@ async def place_phone_call_tool(
         contact: Contact name to resolve, or a raw international phone number.
         objective: Goal LIA pursues during the call.
         runtime: LangChain tool runtime.
-        date_window: Optional free-text availability window (e.g. 'this week').
+        date_window: Optional availability window the user stated (e.g.
+            '2026-09-15 full day'), recorded with the draft only — the availability
+            pre-fetch does not read it, so a date the callee must hear belongs in
+            ``objective``.
         user_timezone: User timezone (injected by @with_user_preferences).
         locale: User language (injected by @with_user_preferences).
 
@@ -432,7 +436,7 @@ async def place_phone_call_tool(
     user_id = parse_user_id(config.user_id)
     return await _build_place_phone_call_output(
         user_id=user_id,
-        locale=locale,
+        locale=locale or resolve_language(),
         contact=contact,
         objective=objective,
         date_window=date_window,
@@ -467,7 +471,7 @@ async def execute_phone_call_draft(
     from src.domains.telephony.service import TelephonyExecutionError, TelephonyService
     from src.infrastructure.database.session import get_db_context
 
-    lang = draft_content.get("user_language", "fr")
+    lang = resolve_language(draft_content.get("user_language"))
     callee_name = draft_content.get("callee_name", "")
     phrases = get_tool_phrases(lang)
 

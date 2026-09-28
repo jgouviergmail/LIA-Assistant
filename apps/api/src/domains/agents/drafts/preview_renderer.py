@@ -17,9 +17,12 @@ flatten it with :func:`~src.domains.agents.display.plain_text.markdown_to_plain_
 
 The golden characterization net
 (``tests/unit/domains/agents/drafts/test_detailed_preview_characterization.py``)
-pins the exact output for every ``DraftType`` and every rendering branch. It is
-regenerated ONLY on a deliberate change, old and new tables diffed line by line
-— that is what proves a vocabulary change touched the form and nothing else.
+pins the exact output for every ``DraftType`` and every rendering branch;
+what each character that opens markup becomes is pinned by
+``test_card_spec.py``, ``test_tool_call_arguments.py`` and the shared
+data-literal corpus. It is regenerated ONLY on a deliberate change, old and
+new tables diffed line by line — that is what proves a vocabulary change
+touched the form and nothing else; its docstring lists every regeneration.
 
 Architecture invariants:
 - Every ``DraftType`` value MUST have an entry in :data:`_PREVIEW_RENDERERS`.
@@ -48,7 +51,9 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n_drafts import get_draft_preview_labels
+from src.core.i18n import resolve_language
+from src.core.i18n_drafts import get_draft_preview_labels, label_separator
+from src.core.text_clip import clip_data
 from src.domains.agents.drafts.card_html import CardSurface, to_html_card
 from src.domains.agents.drafts.card_spec import (
     Block,
@@ -60,6 +65,7 @@ from src.domains.agents.drafts.card_spec import (
     to_markdown_lines,
 )
 from src.domains.agents.drafts.models import DraftType
+from src.domains.shared.markdown_literal import markdown_data_literal
 
 if TYPE_CHECKING:
     from src.domains.agents.drafts.models import Draft
@@ -531,13 +537,13 @@ def _render_label_delete(
             lines.append(_row(lbl, "sublabels_included", len(sublabels)))
             sublabel_names = [s.get("name", "?") for s in sublabels[:5]]
             if len(sublabels) > 5:
-                sublabel_names.append(f"... (+{len(sublabels) - 5})")
+                sublabel_names.append(f"… (+{len(sublabels) - 5})")
             lines.append(_note(", ".join(sublabel_names)))
     return lines
 
 
 def _argument_value(value: Any) -> str:
-    """Render one tool argument as data the user can read.
+    """Render one value a program produced as data the user can read.
 
     Two leaks this closes, both measured on a real MCP call: ``True``/``None``
     and ``{'k': 'v'}`` are PYTHON spellings on a card read by a human in six
@@ -545,11 +551,16 @@ def _argument_value(value: Any) -> str:
     question, not a payload dump.
 
     Args:
-        value: The argument value, straight from a third-party tool call.
+        value: A third-party tool's label, one of its call's argument names
+            or values, or the purpose the model stated for a sandbox run —
+            whose typography is folded too: it is read to decide, not to be
+            admired.
 
     Returns:
         A short, language-neutral rendering; strings pass through, everything
-        else takes its JSON spelling, and both are truncated.
+        else takes its JSON spelling, and both are drawn by ``clip_data`` —
+        every space folded, what nobody sees spelled out, cut inside a token
+        so a URL keeps its host, the ellipsis stating the cut.
     """
     if isinstance(value, str):
         text = value
@@ -558,10 +569,7 @@ def _argument_value(value: Any) -> str:
             text = json.dumps(value, ensure_ascii=False, default=str)
         except TypeError, ValueError:
             text = str(value)
-    text = " ".join(text.split())
-    if len(text) > _TOOL_CALL_MAX_VALUE_CHARS:
-        text = f"{text[:_TOOL_CALL_MAX_VALUE_CHARS]}…"
-    return text
+    return clip_data(text, _TOOL_CALL_MAX_VALUE_CHARS)
 
 
 def _render_tool_call(
@@ -570,19 +578,24 @@ def _render_tool_call(
     """Render a tool call awaiting confirmation (ADR-263).
 
     Shows WHAT will run and with WHICH arguments, because that is exactly what
-    the user is being asked to allow. The values come from a third-party tool
-    call, so they are rendered as data — one ``key: value`` per line, never
-    interpreted — and the list is capped: a confirmation card is a question,
-    not a payload dump.
+    the user is being asked to allow. Its names and values come from a third
+    party, so they are drawn as data on every surface — on one line, what
+    nobody sees spelled out, never interpreted as markup
+    (``to_markdown_lines``) — and a confirmation card is a question, not a
+    payload dump: at most ``_TOOL_CALL_MAX_ARGS`` arguments, each cut to its
+    bound, and the arguments left out COUNTED, since the approval replays
+    every one of them.
     """
     tool_label = content.get("tool_label") or content.get("tool_name") or "?"
-    lines: list[PreviewLine] = [_row(lbl, "tool", tool_label)]
+    lines: list[PreviewLine] = [_row(lbl, "tool", _argument_value(tool_label))]
     arguments = content.get("tool_args")
     if isinstance(arguments, dict) and arguments:
         shown = list(arguments.items())[:_TOOL_CALL_MAX_ARGS]
-        rendered = ", ".join(f"{key}: {_argument_value(value)}" for key, value in shown)
+        rendered = ", ".join(
+            f"{_argument_value(str(key))}: {_argument_value(value)}" for key, value in shown
+        )
         if len(arguments) > _TOOL_CALL_MAX_ARGS:
-            rendered += ", …"
+            rendered += f", … (+{len(arguments) - _TOOL_CALL_MAX_ARGS})"
         lines.append(_row(lbl, "details", rendered))
     return lines
 
@@ -622,7 +635,7 @@ def _turn_data_wording(summary: Any, lbl: dict[str, str]) -> str:
         return lbl["turn_data_none"]
     from src.core.i18n_treatments import render_treatment_domain
 
-    language = str(summary.get("language") or "en")
+    language = resolve_language(summary.get("language"))
     parts = [
         f"{count} {render_treatment_domain(str(kind), language)}"
         for kind, count in sorted(counts.items())
@@ -872,7 +885,7 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
 
 def render_detailed_preview(
     draft: Draft,
-    user_language: str = "fr",
+    user_language: str | None = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> str:
     """Render the detailed preview of a draft for user confirmation.
@@ -892,6 +905,7 @@ def render_detailed_preview(
         depth — the startup completeness assert makes this unreachable for
         ``DraftType`` values).
     """
+    user_language = resolve_language(user_language)
     if _PREVIEW_RENDERERS.get(draft.type) is None:
         return draft.get_summary(user_language)
 
@@ -903,7 +917,7 @@ def render_detailed_preview(
 
 def build_card_spec(
     draft: Draft,
-    user_language: str = "fr",
+    user_language: str | None = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> CardSpec:
     """Describe the card a person confirms (ADR-289).
@@ -913,7 +927,8 @@ def build_card_spec(
 
     Args:
         draft: The draft to describe.
-        user_language: Language for the labels (fr, en, es, de, it, zh-CN).
+        user_language: Language for the labels (fr, en, es, de, it, zh-CN);
+            the declared language when absent.
         user_timezone: The person's IANA timezone for the dates.
 
     Returns:
@@ -921,6 +936,7 @@ def build_card_spec(
         lines at all for a type with no renderer (unreachable for
         ``DraftType`` values, which the startup assert keeps complete).
     """
+    user_language = resolve_language(user_language)
     from src.core.time_utils import format_datetime_for_display
     from src.domains.agents.drafts.display import get_draft_emoji
 
@@ -936,12 +952,12 @@ def build_card_spec(
     return CardSpec(
         emoji=get_draft_emoji(draft.type.value),
         title=card_title(draft, user_language),
-        separator=lbl["separator"],
+        separator=label_separator(user_language),
         lines=tuple(lines),
     )
 
 
-def card_title(draft: Draft, user_language: str = "fr") -> str:
+def card_title(draft: Draft, user_language: str | None = None) -> str:
     """What a confirmation card is headed with: the thing's own name.
 
     Read from the display registry's ``item_label_fields`` — the same field a
@@ -956,20 +972,18 @@ def card_title(draft: Draft, user_language: str = "fr") -> str:
     Returns:
         A one-line title, never empty.
     """
-    from src.domains.agents.drafts.display import get_draft_display_config, resolve_nested_value
+    from src.domains.agents.drafts.display import get_draft_display_config, item_label
     from src.domains.agents.drafts.summary_renderer import render_summary
 
-    config = get_draft_display_config(draft.type.value)
-    for key in config.item_label_fields if config else ():
-        value = resolve_nested_value(draft.content, key) if "." in key else draft.content.get(key)
-        if value:
-            return " ".join(str(value).split())
-    return render_summary(draft, user_language)
+    # Named as a batch row is (``item_label``): the same words, the same spaces.
+    label = item_label(get_draft_display_config(draft.type.value), draft.content)
+    # The summary draws each value it quotes on one line, spelled (``render_summary``).
+    return label or render_summary(draft, resolve_language(user_language))
 
 
 def render_confirmation_card(
     draft: Draft,
-    user_language: str = "fr",
+    user_language: str | None = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     surface: CardSurface = CardSurface.PLAIN,
 ) -> str:
@@ -995,14 +1009,17 @@ def render_confirmation_card(
 
     Returns:
         For ``PLAIN``: ``{emoji} **{title}**``, a blank line, the detailed
-        preview — Markdown only, stripped at both ends. For ``CHAT``: one line
-        of ``lia-card`` HTML.
+        preview — Markdown only, stripped at both ends; the title is a thing's
+        name, drawn as itself (``markdown_data_literal``). For ``CHAT``: one
+        line of ``lia-card`` HTML.
     """
+    user_language = resolve_language(user_language)
     if surface is CardSurface.CHAT:
         return to_html_card(build_card_spec(draft, user_language, user_timezone))
     from src.domains.agents.drafts.display import get_draft_emoji
 
-    header = f"{get_draft_emoji(draft.type.value)} **{card_title(draft, user_language)}**".strip()
+    title = markdown_data_literal(card_title(draft, user_language))
+    header = f"{get_draft_emoji(draft.type.value)} **{title}**".strip()
     preview = render_detailed_preview(draft, user_language, user_timezone)
     return f"{header}\n\n{preview}".strip()
 

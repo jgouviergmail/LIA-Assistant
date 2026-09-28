@@ -1,7 +1,8 @@
 """Central i18n for the live voice mode (ADR-299).
 
 Six languages keyed by the backend canonical code (``zh-CN`` for Chinese);
-a raw locale is routed through ``normalize_language`` on lookup. ``summary_body`` is a ``str.format`` template with
+every lookup goes through ``resolve_language`` — a raw locale normalised, an
+absent one the declared language (ADR-323). ``summary_body`` is a ``str.format`` template with
 ``minutes``, ``delegations``, ``voice_turns`` and ``cost`` (euros, already
 formatted) — the chat meter's vocabulary, never the provider's;
 ``summary_body_direct`` takes ``minutes``, ``cost`` and ``relay`` — the fate of
@@ -16,7 +17,7 @@ ratchet. The domain modules import the accessor below.
 
 from __future__ import annotations
 
-from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+from src.core.i18n import resolve_language
 
 LIVE_PHRASES: dict[str, dict[str, str]] = {
     "en": {
@@ -75,7 +76,7 @@ LIVE_PHRASES: dict[str, dict[str, str]] = {
         "mint_rate_limited": "Trop de demandes en peu de temps ; attends une minute.",
         "voice_sample": "Bonjour, je suis LIA. Voici ma voix.",
         "session_not_found": "Cette session live n'existe pas ou est terminée.",
-        "session_expired": "Cette session live a atteint sa limite avant la prolongation ; ouvre-en une nouvelle.",
+        "session_expired": "Cette session live a atteint sa limite avant la prolongation ; ouvres-en une nouvelle.",
         "credential_invalid": "Cette clé de connexion a déjà servi ou a expiré ; reconnecte-toi pour en obtenir une nouvelle.",
         "summary_extended": "prolongée ×{count}",
         "provider_refused": "Le fournisseur a refusé ce modèle : {detail}",
@@ -114,24 +115,24 @@ LIVE_PHRASES: dict[str, dict[str, str]] = {
     },
     "de": {
         "connector_missing": (
-            "Aktivieren Sie einen Live-Connector, bevor Sie eine Sprachsitzung starten."
+            "Aktiviere einen Live-Connector, bevor du eine Sprachsitzung startest."
         ),
         "session_in_progress": "Auf diesem Konto ist bereits eine Live-Sitzung geöffnet.",
         "instance_busy": (
-            "Auf dieser Instanz sind gerade zu viele Live-Sitzungen geöffnet; versuchen Sie "
+            "Auf dieser Instanz sind gerade zu viele Live-Sitzungen geöffnet; versuche "
             "es gleich noch einmal."
         ),
-        "mint_rate_limited": "Zu viele Anfragen in kurzer Zeit; warten Sie eine Minute.",
+        "mint_rate_limited": "Zu viele Anfragen in kurzer Zeit; warte eine Minute.",
         "voice_sample": "Hallo, ich bin LIA. So klinge ich.",
         "session_not_found": "Diese Live-Sitzung existiert nicht oder ist beendet.",
         "session_expired": "Diese Live-Sitzung hat ihr Limit vor der Verlängerung erreicht; starte eine neue.",
-        "credential_invalid": "Dieser Verbindungsschlüssel wurde bereits verwendet oder ist abgelaufen; verbinden Sie sich erneut, um einen neuen zu erhalten.",
+        "credential_invalid": "Dieser Verbindungsschlüssel wurde bereits verwendet oder ist abgelaufen; verbinde dich erneut, um einen neuen zu erhalten.",
         "summary_extended": "verlängert ×{count}",
         "provider_refused": "Der Anbieter hat dieses Modell abgelehnt: {detail}",
-        "voice_unknown": "Die Stimme {voice} bietet der Anbieter nicht an; wählen Sie eine aus der Liste.",
-        "model_unpriced": "Für das Modell {model} ist unter LLM-Preise kein Live-Tarif hinterlegt (Text- UND Audio-Tarif, oder ein Minutenpreis); ein Administrator hinterlegt ihn, oder wählen Sie in den Live-Einstellungen ein anderes Modell.",
-        "mode_unsupported": "Dieses Modell kann keine direkte Sitzung führen; starten Sie eine Live-Sitzung oder wählen Sie in den Live-Einstellungen ein Modell, das es kann.",
-        "thinking_level_unknown": "Die Denkstufe {level} bietet dieses Modell nicht an; wählen Sie eine aus der Liste.",
+        "voice_unknown": "Die Stimme {voice} bietet der Anbieter nicht an; wähle eine aus der Liste.",
+        "model_unpriced": "Für das Modell {model} ist unter LLM-Preise kein Live-Tarif hinterlegt (Text- UND Audio-Tarif, oder ein Minutenpreis); ein Administrator hinterlegt ihn, oder wähle in den Live-Einstellungen ein anderes Modell.",
+        "mode_unsupported": "Dieses Modell kann keine direkte Sitzung führen; starte eine Live-Sitzung oder wähle in den Live-Einstellungen ein Modell, das es kann.",
+        "thinking_level_unknown": "Die Denkstufe {level} bietet dieses Modell nicht an; wähle eine aus der Liste.",
         "summary_title": "Live-Sitzung",
         "summary_body": (
             "{minutes} Min · {delegations} Anfrage(n) an LIA · {voice_turns} "
@@ -150,7 +151,7 @@ LIVE_PHRASES: dict[str, dict[str, str]] = {
         "relay_unanswered": "nicht übertragen: niemand hat geantwortet",
         "relay_call_failed": "nicht übertragen: die Leitung ist ausgefallen",
         "summary_recap": "Zusammenfassung: {recap}",
-        "outcome_ended": "von Ihnen beendet",
+        "outcome_ended": "von dir beendet",
         "outcome_expired": "hat das Sitzungslimit erreicht",
         "outcome_idle_timeout": "nach langer Stille beendet",
         "outcome_hidden": "beendet, als die Seite in den Hintergrund ging",
@@ -159,7 +160,7 @@ LIVE_PHRASES: dict[str, dict[str, str]] = {
         "outcome_error": "mit einem Fehler beendet",
         "outcome_mic_denied": "konnte nicht starten: Mikrofon verweigert",
         "outcome_superseded": "durch eine neue Sitzung ersetzt",
-        "outcome_budget_reached": "beim von Ihnen festgelegten Ausgabenlimit beendet",
+        "outcome_budget_reached": "beim von dir festgelegten Ausgabenlimit beendet",
     },
     "es": {
         "connector_missing": "Activa un conector Live antes de abrir una sesión de voz.",
@@ -288,7 +289,7 @@ LIVE_PHRASES: dict[str, dict[str, str]] = {
         "relay_unanswered": "未转入：无人接听",
         "relay_call_failed": "未转入：线路故障",
         "summary_recap": "摘要：{recap}",
-        "outcome_ended": "由您结束",
+        "outcome_ended": "由你结束",
         "outcome_expired": "已达到会话时长上限",
         "outcome_idle_timeout": "长时间静默后结束",
         "outcome_hidden": "页面切换到后台时结束",
@@ -303,9 +304,8 @@ LIVE_PHRASES: dict[str, dict[str, str]] = {
 
 
 def get_live_phrases(language: str | None) -> dict[str, str]:
-    """The live phrases of a language (the default language when unknown)."""
-    key = normalize_language(language) if language else DEFAULT_LANGUAGE
-    return LIVE_PHRASES.get(key, LIVE_PHRASES[DEFAULT_LANGUAGE])
+    """The live phrases of a language (the declared language when absent)."""
+    return LIVE_PHRASES[resolve_language(language)]
 
 
 __all__ = ["LIVE_PHRASES", "get_live_phrases"]

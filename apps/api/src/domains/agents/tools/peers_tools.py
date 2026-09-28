@@ -86,7 +86,7 @@ async def send_peer_message_tool(
         str,
         "The message to relay, written as ADDRESSED TO the recipient (direct "
         "address, second person) in the USER'S OWN LANGUAGE (never translate). "
-        "Convert indirect speech: 'ask Paul how he is doing' -> message 'How "
+        "Convert indirect speech: 'ask Paul how they are doing' -> message 'How "
         "are you doing?'. The recipient's own assistant conveys its intent in "
         "its own voice.",
     ],
@@ -101,7 +101,7 @@ async def send_peer_message_tool(
     Replies included: relays are STATELESS (no message_id/thread) — replying
     to a relayed message is simply sending a new one. Recipient matching is
     accent- and case-insensitive; the message stays in the user's language and
-    is phrased in DIRECT ADDRESS: an indirect request ("ask X how he is
+    is phrased in DIRECT ADDRESS: an indirect request ("ask X how they are
     doing") becomes the words meant for the recipient ("how are you doing?").
 
     Args:

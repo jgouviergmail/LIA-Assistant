@@ -335,6 +335,12 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/generated-assets",
         "POST /api/v1/generated-assets/delete",
         "DELETE /api/v1/generated-assets/{asset_id}",
+        # Keeping one's own files past their deadline (ADR-319): the gallery
+        # offers the pin whenever the ceiling is above zero, so a hidden route
+        # would be a button that fails. Bounded by the demonstrator's own, much
+        # lower ceilings (`.env.demo-instance*`), and the nightly account purge
+        # removes a visitor's directory whole, kept files included.
+        "POST /api/v1/generated-assets/keep",
         # The answers a visitor keeps (ADR-282): a COPY of their own bubble
         # into their own rows, bounded by BOOKMARKS_MAX_PER_USER, no model
         # spend, no external effect. The bubble shows the toggle whenever the

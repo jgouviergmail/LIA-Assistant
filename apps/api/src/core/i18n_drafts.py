@@ -7,8 +7,11 @@ Used by DraftExecutionResult to display localized messages.
 Supported languages: fr, en, es, de, it, zh-CN
 """
 
-from src.core.i18n import DEFAULT_LANGUAGE, normalize_language
+import re
+
+from src.core.i18n import resolve_language
 from src.core.i18n_types import Language
+from src.core.text_clip import ELLIPSIS, one_line, spell_unseen
 
 # ============================================================================
 # SUCCESS MESSAGES
@@ -300,16 +303,16 @@ DRAFT_ERROR_MESSAGES: dict[Language, str] = {
 # flight (ADR-263). Repeating it is the one thing the gate must not do, and
 # reporting a success it knows nothing about is the one thing it must not say.
 DRAFT_ALREADY_CLAIMED_MESSAGES: dict[Language, str] = {
-    "fr": "Cette action est déjà enregistrée sans résultat connu : elle n'a pas "
-    "été relancée. Vérifiez avant de réessayer.",
+    "fr": "Cette action est déjà enregistrée sans résultat connu : elle n'a pas "
+    "été relancée. Vérifie avant de réessayer.",
     "en": "This action is already on record with no known result: it was not "
     "retried. Please check before trying again.",
     "es": "Esta acción ya está registrada sin resultado conocido: no se ha "
-    "reintentado. Compruébelo antes de volver a intentarlo.",
+    "reintentado. Compruébalo antes de volver a intentarlo.",
     "de": "Diese Aktion ist bereits ohne bekanntes Ergebnis erfasst: Sie wurde "
-    "nicht wiederholt. Bitte prüfen Sie es, bevor Sie es erneut versuchen.",
+    "nicht wiederholt. Bitte prüfe es, bevor du es erneut versuchst.",
     "it": "Questa azione è già registrata senza un risultato noto: non è stata "
-    "ripetuta. Verifichi prima di riprovare.",
+    "ripetuta. Verifica prima di riprovare.",
     "zh-CN": "此操作已记录但结果未知：未重试。请先确认再重试。",
 }
 
@@ -348,7 +351,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "phone_call": "Appel à {name} : {objective}",
         # Draft header
         "draft_created": "📄 **Brouillon créé** : {title}",
-        "action_required": "**Action requise** : confirmez, modifiez ou annulez.",
+        "action_required": "**Action requise** : confirme, modifie ou annule.",
         "devops_task": "Tâche serveur {server} : {task}",
         # Nine draft types reached no branch at all before lot 13 and were
         # titled « Draft (tool_call) » — the enum value, in English, in every
@@ -420,7 +423,7 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "label_delete": "Eliminar etiqueta: {name}",
         "phone_call": "Llamada a {name}: {objective}",
         "draft_created": "📄 **Borrador creado**: {title}",
-        "action_required": "**Acción requerida**: confirme, modifique o cancele.",
+        "action_required": "**Acción requerida**: confirma, modifica o cancela.",
         "devops_task": "Tarea de servidor en {server}: {task}",
         # Nine draft types reached no branch at all before lot 13 and were
         # titled « Draft (tool_call) » — the enum value, in English, in every
@@ -514,21 +517,21 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "email_to": "发送邮件给 {to}",
         "email_reply_to": "回复 {to}",
         "email_forward_to": "转发给 {to}",
-        "email_delete": "删除邮件: {subject}",
-        "event_create": "事件: {summary} 于 {start}",
-        "event_update": "修改事件: {summary}",
-        "event_delete": "删除事件: {summary}",
-        "contact_create": "联系人: {name}",
-        "contact_update": "修改联系人: {name}",
-        "contact_delete": "删除联系人: {name}",
-        "task_create": "任务: {title}",
-        "task_update": "修改任务: {title}",
-        "task_delete": "删除任务: {title}",
-        "file_delete": "删除文件: {name}",
-        "label_delete": "删除标签: {name}",
-        "phone_call": "致电 {name}: {objective}",
-        "draft_created": "📄 **草稿已创建**: {title}",
-        "action_required": "**需要操作**: 确认、修改或取消。",
+        "email_delete": "删除邮件：{subject}",
+        "event_create": "事件：{summary} 于 {start}",
+        "event_update": "修改事件：{summary}",
+        "event_delete": "删除事件：{summary}",
+        "contact_create": "联系人：{name}",
+        "contact_update": "修改联系人：{name}",
+        "contact_delete": "删除联系人：{name}",
+        "task_create": "任务：{title}",
+        "task_update": "修改任务：{title}",
+        "task_delete": "删除任务：{title}",
+        "file_delete": "删除文件：{name}",
+        "label_delete": "删除标签：{name}",
+        "phone_call": "致电 {name}：{objective}",
+        "draft_created": "📄 **草稿已创建**：{title}",
+        "action_required": "**需要操作**：确认、修改或取消。",
         "devops_task": "服务器任务 {server}：{task}",
         # Nine draft types reached no branch at all before lot 13 and were
         # titled « Draft (tool_call) » — the enum value, in English, in every
@@ -956,53 +959,52 @@ DRAFT_RECIPIENT_CONNECTOR: dict[Language, str] = {
 # ============================================================================
 
 
-def _stringify_recipient(value: object) -> str:
-    """Normalize an email recipient field to a compact one-line string.
+#: How long a row's recipients may grow before the next ones are counted rather
+#: than shown — the first is shown whole, whatever its length.
+_RECIPIENT_PREVIEW_MAX_CHARS = 60
+#: What separates two recipients on a row.
+_RECIPIENT_JOINER = ", "
 
-    A draft ``to`` field is either a single address string or a list of
-    addresses. This collapses internal whitespace, joins a list with commas,
-    and bounds the length so a long recipient list stays on one preview row.
+
+def _stringify_recipient(value: object) -> str:
+    """Draw an email recipient field on one preview row, every recipient whole.
+
+    A draft ``to`` field is either one string — which may name several
+    addresses — or a list of them. Each is drawn on one line (``one_line``: a
+    display name keeps its no-break spaces) and spelled where it would mislead
+    (``spell_unseen``). A recipient is NEVER cut: a display name the sender
+    chose pushed the address it names out of the row — « support@your-bank
+    .example Customer Service Team… » for a reply going to
+    ``attacker@evil.example`` (review 14). A list shows its recipients in order
+    while they fit :data:`_RECIPIENT_PREVIEW_MAX_CHARS` — the first always,
+    whatever its length — and counts the others (« … (+3) »).
 
     Args:
         value: Raw recipient value from the draft content (str, list, or None).
 
     Returns:
-        A compact recipient string, or ``""`` when the value is empty.
+        The recipients as a person reads them, or ``""`` when the value is empty.
     """
     if not value:
         return ""
-    if isinstance(value, (list, tuple)):
-        parts = [" ".join(str(v).split()) for v in value if v]
-        recipient = ", ".join(p for p in parts if p)
-    else:
-        recipient = " ".join(str(value).split())
-    if len(recipient) > 60:
-        recipient = recipient[:57].rstrip() + "..."
-    return recipient
+    raw = value if isinstance(value, (list, tuple)) else [value]
+    recipients = [drawn for v in raw if v and (drawn := spell_unseen(one_line(str(v))))]
+    shown: list[str] = []
+    length = 0
+    for recipient in recipients:
+        added = len(recipient) + (len(_RECIPIENT_JOINER) if shown else 0)
+        if shown and length + added > _RECIPIENT_PREVIEW_MAX_CHARS:
+            break
+        shown.append(recipient)
+        length += added
+    left_out = len(recipients) - len(shown)
+    drawn = _RECIPIENT_JOINER.join(shown)
+    return f"{drawn}{_RECIPIENT_JOINER}{ELLIPSIS} (+{left_out})" if left_out else drawn
 
 
-def _normalize_language(language: str | None) -> Language:
-    """
-    Normalize language code to supported Language type.
-
-    Args:
-        language: Language code (e.g., "fr", "en", "zh-CN", "zh")
-
-    Returns:
-        Normalized Language code
-
-    Example:
-        >>> _normalize_language("zh")
-        "zh-CN"
-        >>> _normalize_language("fr-FR")
-        "fr"
-    """
-    if not language:
-        return DEFAULT_LANGUAGE
-
-    # Single normalization chokepoint (audit wave 2, zh) — DRAFT_* tables are
-    # keyed on its output (all 6 canonical languages, zh-CN included)
-    return normalize_language(language)
+#: A placeholder of a message template, and one written between quotes.
+_PLACEHOLDER = re.compile(r"\{(\w+)\}")
+_QUOTED_PLACEHOLDER = re.compile(r"\s*'\{(\w+)\}'")
 
 
 def get_draft_success_message(
@@ -1013,10 +1015,17 @@ def get_draft_success_message(
     """
     Get localized success message for a draft type.
 
+    The template is Markdown (``phone_call`` emphasises its name); each value
+    is put in ONCE, as the caller drew it — never read as a template, never
+    touched by the removal of a placeholder nobody filled (a summary
+    holding « '{title}' » lost it, and « {summary} » in a name was filled).
+
     Args:
         draft_type: Draft type (e.g., "email", "event", "contact")
-        language: Target language code (default: fr)
-        **kwargs: Placeholder values (name, summary, title)
+        language: Target language code (default: the declared language)
+        **kwargs: Placeholder values (name, summary, title), drawn by the
+            caller for the Markdown they land in; an empty one removes its
+            placeholder, the quotes around it included.
 
     Returns:
         Localized success message with placeholders replaced
@@ -1027,21 +1036,16 @@ def get_draft_success_message(
         >>> get_draft_success_message("email", "en")
         "Sent successfully"
     """
-    lang = _normalize_language(language)
-    messages = DRAFT_SUCCESS_MESSAGES.get(lang, DRAFT_SUCCESS_MESSAGES[DEFAULT_LANGUAGE])
+    lang = resolve_language(language)
+    messages = DRAFT_SUCCESS_MESSAGES[lang]
     template = messages.get(draft_type, messages["_default"])
 
-    # Replace placeholders with provided values or empty string
-    for key, value in kwargs.items():
-        template = template.replace(f"{{{key}}}", value or "")
-
-    # Clean up any unreplaced placeholders
-    import re
-
-    template = re.sub(r"\s*'\{[^}]+\}'", "", template)  # Remove '{placeholder}'
-    template = re.sub(r"\{[^}]+\}", "", template)  # Remove remaining {placeholder}
-
-    return template.strip()
+    values = {key: value for key, value in kwargs.items() if value}
+    # A placeholder nobody filled goes, with its quotes: « '{summary}' créé ».
+    template = _QUOTED_PLACEHOLDER.sub(
+        lambda match: match.group(0) if match.group(1) in values else "", template
+    )
+    return _PLACEHOLDER.sub(lambda match: values.get(match.group(1), ""), template).strip()
 
 
 def get_draft_cancel_message(
@@ -1053,7 +1057,7 @@ def get_draft_cancel_message(
 
     Args:
         draft_type: Draft type (e.g., "email", "event", "contact")
-        language: Target language code (default: fr)
+        language: Target language code (default: the declared language)
 
     Returns:
         Localized cancellation message
@@ -1064,8 +1068,8 @@ def get_draft_cancel_message(
         >>> get_draft_cancel_message("event", "en")
         "Event creation cancelled"
     """
-    lang = _normalize_language(language)
-    messages = DRAFT_CANCEL_MESSAGES.get(lang, DRAFT_CANCEL_MESSAGES[DEFAULT_LANGUAGE])
+    lang = resolve_language(language)
+    messages = DRAFT_CANCEL_MESSAGES[lang]
     return messages.get(draft_type, messages["_default"])
 
 
@@ -1076,7 +1080,7 @@ def get_draft_error_message(
     Get localized error message for draft execution failures.
 
     Args:
-        language: Target language code (default: fr)
+        language: Target language code (default: the declared language)
 
     Returns:
         Localized error message
@@ -1085,23 +1089,21 @@ def get_draft_error_message(
         >>> get_draft_error_message("en")
         "Error during execution"
     """
-    lang = _normalize_language(language)
-    return DRAFT_ERROR_MESSAGES.get(lang, DRAFT_ERROR_MESSAGES[DEFAULT_LANGUAGE])
+    lang = resolve_language(language)
+    return DRAFT_ERROR_MESSAGES[lang]
 
 
 def get_draft_already_claimed_message(language: str | None = None) -> str:
     """The localized sentence for a draft that was not repeated (ADR-263).
 
     Args:
-        language: Target language code.
+        language: Target language code; the declared language when absent.
 
     Returns:
-        The localized message, falling back to the default language.
+        The localized message.
     """
-    lang = _normalize_language(language)
-    return DRAFT_ALREADY_CLAIMED_MESSAGES.get(
-        lang, DRAFT_ALREADY_CLAIMED_MESSAGES[DEFAULT_LANGUAGE]
-    )
+    lang = resolve_language(language)
+    return DRAFT_ALREADY_CLAIMED_MESSAGES[lang]
 
 
 def get_draft_summary_label(
@@ -1114,20 +1116,20 @@ def get_draft_summary_label(
 
     Args:
         label_key: Label key (e.g., "email_to", "event_create", "draft_created")
-        language: Target language code (default: fr)
+        language: Target language code (default: the declared language)
         **kwargs: Placeholder values (to, subject, summary, name, title, start)
 
     Returns:
         Localized summary label with placeholders replaced
 
     Example:
-        >>> get_draft_summary_label("email_to", "fr", to="john@example.com", subject="Test")
-        "Email à john@example.com: Test"
+        >>> get_draft_summary_label("email_to", "fr", to="john@example.com")
+        "Email à john@example.com"
         >>> get_draft_summary_label("draft_created", "zh-CN", title="邮件草稿")
-        "📄 **草稿已创建**: 邮件草稿"
+        "📄 **草稿已创建**：邮件草稿"
     """
-    lang = _normalize_language(language)
-    labels = DRAFT_SUMMARY_LABELS.get(lang, DRAFT_SUMMARY_LABELS[DEFAULT_LANGUAGE])
+    lang = resolve_language(language)
+    labels = DRAFT_SUMMARY_LABELS[lang]
     template = labels.get(label_key, label_key)
 
     # Replace placeholders with provided values
@@ -1144,7 +1146,7 @@ def get_draft_preview_labels(
     Get all preview field labels for a language.
 
     Args:
-        language: Target language code (default: fr)
+        language: Target language code (default: the declared language)
 
     Returns:
         Dict of field labels (to, cc, subject, body, etc.)
@@ -1156,8 +1158,26 @@ def get_draft_preview_labels(
         >>> labels["subject"]
         "主题"
     """
-    lang = _normalize_language(language)
-    return DRAFT_PREVIEW_LABELS.get(lang, DRAFT_PREVIEW_LABELS[DEFAULT_LANGUAGE])
+    lang = resolve_language(language)
+    return DRAFT_PREVIEW_LABELS[lang]
+
+
+def label_separator(language: str | None = None) -> str:
+    """What goes between a label and its value, in ``language``.
+
+    ONE punctuation per language for every surface a person reads — a card, a
+    draft, a dialog, an e-mail, the minutes: a French colon takes a no-break
+    space before it, a Chinese one is full-width. Written in the code, a
+    ``": "`` published English punctuation in six languages and a ``" : "``
+    French punctuation (guard: ``test_label_separator_guard.py``).
+
+    Args:
+        language: The reader's language (default: the declared language).
+
+    Returns:
+        The separator, its trailing space included where the language has one.
+    """
+    return get_draft_preview_labels(language)["separator"]
 
 
 # ============================================================================
@@ -1500,14 +1520,15 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
 # Header word-order template per language.
 # Placeholders: {count}, {noun}, {verb}.
 #: How a language quotes a text it cites — the excerpt of a batch result row
-#: (ADR-289). French, Spanish and Italian use spaced guillemets; English and
+#: (ADR-289), in the catalogs' typography (ADR-323): French guillemets with a
+#: no-break space inside, Spanish and Italian ones with none; English and
 #: Chinese curly double quotes; German its low-high pair.
 EXCERPT_QUOTES: dict[Language, tuple[str, str]] = {
-    "fr": ("« ", " »"),
+    "fr": ("« ", " »"),
     "en": ("“", "”"),
-    "es": ("« ", " »"),
+    "es": ("«", "»"),
     "de": ("„", "“"),
-    "it": ("« ", " »"),
+    "it": ("«", "»"),
     "zh-CN": ("“", "”"),
 }
 
@@ -1552,7 +1573,7 @@ def get_plural_form(count: int, language: str | None = None) -> str:
         >>> get_plural_form(3, "zh-CN")
         'singular'
     """
-    lang = _normalize_language(language)
+    lang = resolve_language(language)
     if lang in _PLURAL_RULES_INVARIANT:
         return "singular"
     if lang in _PLURAL_RULES_SINGULAR_FOR_ZERO:
@@ -1576,13 +1597,19 @@ def format_hitl_item_preview(
 
     Output format::
 
-        {emoji} {Noun} : {label} - {datetime_with_day_name}
+        {emoji} {Noun}{separator}{label} - {datetime_with_day_name}
 
-    Examples (fr):
-        ``🔔 Rappel : Médecin - dimanche 17 mai 2026 à 19:00``
-        ``📧 Email : Confirmation rdv jeudi - jeudi 16 mai 2026 à 14:00``
-        ``📅 Événement : Réunion équipe - lundi 20 mai 2026 à 10:00``
-        ``👤 Contact : Marie Dupont``
+    The separator is the reader's (:func:`label_separator`: a no-break space
+    before the French colon, a full-width colon in Chinese). The row is
+    streamed as Markdown, so the label and the recipient — the draft's own
+    data — are drawn as themselves (``markdown_data_literal``): a subject
+    spelled as a link or an image drew one in the question.
+
+    Examples (en):
+        ``🔔 Reminder: Doctor - Sunday 17 May 2026 at 19:00``
+        ``📧 Email: Appointment confirmed - Thursday 16 May 2026 at 14:00``
+        ``📅 Event: Team meeting - Monday 20 May 2026 at 10:00``
+        ``👤 Contact: Jane Doe``
 
     Args:
         draft_type: Draft type identifier (e.g. ``"reminder_delete"``,
@@ -1593,8 +1620,8 @@ def format_hitl_item_preview(
         content: Item dict carrying the fields declared in the registry's
             ``item_label_fields`` and ``item_secondary_datetime_key``.
             Nested keys are resolved via :func:`resolve_nested_value`.
-        language: Target language (fr/en/es/de/it/zh-CN); falls back to
-            :data:`DEFAULT_LANGUAGE`.
+        language: Target language (fr/en/es/de/it/zh-CN); the declared
+            language when absent (``resolve_language``).
         user_timezone: User's IANA timezone for datetime formatting; falls
             back to :data:`src.core.constants.DEFAULT_USER_DISPLAY_TIMEZONE`.
 
@@ -1608,14 +1635,16 @@ def format_hitl_item_preview(
     from src.core.time_utils import format_datetime_for_display
     from src.domains.agents.drafts.display import (
         get_draft_display_config,
+        item_label,
         resolve_nested_value,
     )
+    from src.domains.shared.markdown_literal import markdown_data_literal
 
     config = get_draft_display_config(draft_type)
     if config is None:
         return None
 
-    lang = _normalize_language(language)
+    lang = resolve_language(language)
     tz = user_timezone or DEFAULT_USER_DISPLAY_TIMEZONE
 
     # Localized capitalized noun (e.g. "rappel" → "Rappel"). Chinese has no
@@ -1623,13 +1652,8 @@ def format_hitl_item_preview(
     noun_entry = DRAFT_RESULT_NOUNS.get(lang, {}).get(config.noun_key)
     noun: str = noun_entry["singular"].capitalize() if noun_entry else ""
 
-    # Extract label using the registry's priority chain.
-    label: str = ""
-    for key in config.item_label_fields:
-        value = resolve_nested_value(content, key) if "." in key else content.get(key)
-        if value:
-            label = " ".join(str(value).split())
-            break
+    # The registry's priority chain, read as the card's title reads it.
+    label = markdown_data_literal(item_label(config, content))
 
     # Optional recipient (send-type drafts only): the WHO of the action — the
     # critical discriminating field when a batch sends to several people (two
@@ -1643,11 +1667,9 @@ def format_hitl_item_preview(
             if "." in config.item_recipient_field
             else content.get(config.item_recipient_field)
         )
-        recipient = _stringify_recipient(rcpt_value)
+        recipient = markdown_data_literal(_stringify_recipient(rcpt_value))
         if recipient:
-            connector = DRAFT_RECIPIENT_CONNECTOR.get(
-                lang, DRAFT_RECIPIENT_CONNECTOR[DEFAULT_LANGUAGE]
-            )
+            connector = DRAFT_RECIPIENT_CONNECTOR[lang]
             noun_display = f"{noun} {connector} {recipient}"
 
     # Extract and format the contextual datetime (with weekday name).
@@ -1670,10 +1692,11 @@ def format_hitl_item_preview(
             except ValueError, TypeError:
                 dt_str = ""
 
-    # Compose: "{emoji} {Noun[ connector recipient]} : {label}" + optional date.
+    # Compose: "{emoji} {Noun[ connector recipient]}{separator}{label}" + optional
+    # date — the separator is the reader's punctuation (ADR-323).
     head_parts: list[str] = [config.emoji]
     if noun_display and label:
-        head_parts.append(f"{noun_display} : {label}")
+        head_parts.append(f"{noun_display}{label_separator(lang)}{label}")
     elif noun_display:
         head_parts.append(noun_display)
     elif label:
@@ -1707,8 +1730,8 @@ def compose_result_header(
         verb_past_key: Key in :data:`DRAFT_RESULT_VERBS_PAST` (e.g.
             ``"deleted"``). Sourced from
             :attr:`DraftDisplayConfig.verb_past_key`.
-        language: Target language code (fr/en/es/de/it/zh-CN); falls back
-            to :data:`DEFAULT_LANGUAGE`.
+        language: Target language code (fr/en/es/de/it/zh-CN); the declared
+            language when absent (``resolve_language``).
 
     Returns:
         Localized, grammatically agreed header string.
@@ -1729,7 +1752,7 @@ def compose_result_header(
         >>> compose_result_header(3, 3, "reminder", "deleted", "zh-CN")
         '已删除 3 个提醒'
     """
-    lang = _normalize_language(language)
+    lang = resolve_language(language)
 
     noun_entry = DRAFT_RESULT_NOUNS[lang][noun_key]
     verb_entry = DRAFT_RESULT_VERBS_PAST[lang][verb_past_key]

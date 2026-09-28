@@ -17,6 +17,7 @@ from src.domains.agents.drafts.card_spec import to_markdown_lines
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.preview_renderer import _render_email_filter
 from src.domains.agents.tools.gmail_settings_tools import execute_email_filter_draft
+from src.domains.shared.markdown_literal import read_as_markdown
 
 pytestmark = pytest.mark.unit
 
@@ -39,13 +40,14 @@ class TestPreview:
             labels,
             lambda s: s or "",
         )
-        joined = "\n".join(to_markdown_lines(lines, labels["separator"]))
-        assert "news@x.com" in joined
-        assert "promo" in joined
-        assert "Newsletters" in joined
-        # Archive action is stated; unrequested actions are not.
-        assert "archiv" in joined.lower()
-        assert "lu" not in joined.split("archiv")[0].lower() or True
+        # What the person reads: the card's values read as the chat reads them.
+        shown = read_as_markdown("\n".join(to_markdown_lines(lines, labels["separator"])))
+        assert "news@x.com" in shown
+        assert "promo" in shown
+        assert "Newsletters" in shown
+        # The requested action is stated; the unrequested one is not.
+        assert labels["filter_archive"] in shown
+        assert labels["filter_mark_read"] not in shown
 
     def test_query_criterion_is_shown(self) -> None:
         labels = get_draft_preview_labels("fr")

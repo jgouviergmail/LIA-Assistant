@@ -29,8 +29,9 @@ effect_claims_total = Counter(
 
 effect_outcomes_total = Counter(
     "lia_effect_outcomes_total",
-    "Claimed effects closed from an explicit result, by policy and outcome "
-    "(a tool that reported failure closes as failed, never as succeeded)",
+    "Claimed effects closed, by policy and outcome: succeeded or failed from an "
+    "explicit result (a tool that reported failure closes as failed, never as "
+    "succeeded), abandoned when the run was cancelled before the result came back",
     ["policy", "status"],
 )
 

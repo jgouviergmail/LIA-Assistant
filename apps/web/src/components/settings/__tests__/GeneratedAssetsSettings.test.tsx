@@ -14,9 +14,10 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import { GeneratedAssetsSettings } from '@/components/settings/GeneratedAssetsSettings';
-import type { GeneratedAsset } from '@/types/generated-assets';
+import { ApiError } from '@/lib/api-client';
+import type { GeneratedAsset, GeneratedAssetKeepUsage } from '@/types/generated-assets';
 
 const gallery = vi.hoisted(() => ({
   items: [] as GeneratedAsset[],
@@ -27,6 +28,7 @@ const gallery = vi.hoisted(() => ({
   firstLoad: false,
   loading: false,
   error: null as Error | null,
+  keep: null as GeneratedAssetKeepUsage | null,
   calls: [] as unknown[],
 }));
 vi.mock('@/hooks/useGeneratedAssets', () => ({
@@ -105,6 +107,7 @@ beforeEach(() => {
   gallery.totalBytes = 0;
   gallery.error = null;
   gallery.firstLoad = false;
+  gallery.keep = null;
   gallery.calls = [];
 });
 
@@ -190,6 +193,32 @@ describe('what a gallery states', () => {
     expect(mark.className).toContain('h-36');
   });
 
+  it('makes the card its own door: ONE open link, no separate « Open » button', () => {
+    // Owner request 2026-09-25: a clickable card beside an « Open » button said
+    // the same thing twice — and a screen reader listed each file three times
+    // (thumbnail, type mark, button). The title is the one link; the card
+    // around it is clickable through its stretched pseudo-element.
+    gallery.items = [
+      asset({ id: 'doc-1', mime_type: 'application/pdf', original_filename: 'bilan.pdf' }),
+    ];
+    gallery.total = 1;
+
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    const card = screen.getByTestId('generated-asset-card');
+    const links = within(card).getAllByRole('link');
+    const openLinks = links.filter(
+      link => link.getAttribute('aria-label') === 'settings.generated_assets.open'
+    );
+    expect(openLinks).toHaveLength(1);
+    expect(openLinks[0]).toHaveAttribute('href', expect.stringContaining('/attachments/doc-1'));
+    expect(openLinks[0]).toHaveAttribute('target', '_blank');
+    expect(within(card).queryByText('settings.generated_assets.open_short')).toBeNull();
+    // The only other link is the download; the type mark is no longer one.
+    expect(links).toHaveLength(2);
+    expect(screen.getByTestId('generated-asset-typemark').tagName).toBe('DIV');
+  });
+
   it('says « nothing yet » differently from « no match »', () => {
     gallery.total = 0;
 
@@ -234,6 +263,154 @@ describe('deleting a selection', () => {
     renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
 
     expect(screen.queryByRole('button', { name: /delete_selected/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('keeping a file past its deadline (ADR-319)', () => {
+  const KEEP_ON: GeneratedAssetKeepUsage = {
+    kept_files: 1,
+    kept_bytes: 2048,
+    max_files: 100,
+    max_bytes: 500 * 1024 * 1024,
+  };
+  const SECOND = 'a1b2c3d4-0000-4000-8000-000000000002';
+
+  it('says a kept file is kept, where its deadline was', () => {
+    gallery.items = [asset({ expires_at: null })];
+    gallery.total = 1;
+    gallery.keep = KEEP_ON;
+
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    expect(screen.getByText('settings.generated_assets.kept_line')).toBeInTheDocument();
+    expect(screen.queryByText(/settings.generated_assets.expires_at/)).not.toBeInTheDocument();
+  });
+
+  it('keeps a file with one pin whose name stays the same in both states', async () => {
+    gallery.items = [asset()];
+    gallery.total = 1;
+    gallery.keep = KEEP_ON;
+    mutate.mockResolvedValue({ updated: [asset().id], skipped: [], keep: KEEP_ON });
+
+    const { user } = renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+    const pin = screen.getByRole('button', { name: 'settings.generated_assets.keep' });
+    expect(pin).toHaveAttribute('aria-pressed', 'false');
+    await user.click(pin);
+
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith('/generated-assets/keep', {
+        ids: [asset().id],
+        kept: true,
+      })
+    );
+    expect(toast.success).toHaveBeenCalled();
+  });
+
+  it('releases a kept file from the same pin', async () => {
+    gallery.items = [asset({ expires_at: null })];
+    gallery.total = 1;
+    gallery.keep = KEEP_ON;
+    mutate.mockResolvedValue({ updated: [asset().id], skipped: [], keep: KEEP_ON });
+
+    const { user } = renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+    const pin = screen.getByRole('button', { name: 'settings.generated_assets.keep' });
+    expect(pin).toHaveAttribute('aria-pressed', 'true');
+    await user.click(pin);
+
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith('/generated-assets/keep', {
+        ids: [asset().id],
+        kept: false,
+      })
+    );
+  });
+
+  it('states the ceilings before a click is refused', () => {
+    gallery.items = [asset()];
+    gallery.total = 1;
+    gallery.keep = KEEP_ON;
+
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    expect(screen.getByTestId('generated-assets-keep-usage')).toHaveTextContent(
+      'settings.generated_assets.keep_usage'
+    );
+  });
+
+  it('offers no pin when keeping is off — but a kept file can still be released', () => {
+    gallery.items = [asset(), asset({ id: SECOND, expires_at: null })];
+    gallery.total = 2;
+    gallery.keep = { ...KEEP_ON, max_files: 0 };
+
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    const pins = screen.getAllByRole('button', { name: 'settings.generated_assets.keep' });
+    expect(pins).toHaveLength(1);
+    expect(pins[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByTestId('generated-assets-keep-usage')).not.toBeInTheDocument();
+  });
+
+  it("shows the server's own sentence when a ceiling refuses", async () => {
+    gallery.items = [asset()];
+    gallery.total = 1;
+    gallery.keep = KEEP_ON;
+    mutate.mockRejectedValue(new ApiError('conflict', 409, { detail: 'Limite atteinte' }));
+
+    const { user } = renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+    await user.click(screen.getByRole('button', { name: 'settings.generated_assets.keep' }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Limite atteinte'));
+  });
+
+  it('keeps and releases a selection, each action taking only its own files', async () => {
+    gallery.items = [asset(), asset({ id: SECOND, expires_at: null })];
+    gallery.total = 2;
+    gallery.keep = KEEP_ON;
+    mutate.mockResolvedValue({ updated: [asset().id], skipped: [], keep: KEEP_ON });
+
+    const { user } = renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+    const boxes = screen.getAllByRole('checkbox', { name: 'settings.generated_assets.select' });
+    for (const box of boxes) await user.click(box);
+    expect(
+      screen.getByRole('button', { name: /settings.generated_assets.release_selected/ })
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: /settings.generated_assets.keep_selected/ })
+    );
+
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith('/generated-assets/keep', {
+        ids: [asset().id],
+        kept: true,
+      })
+    );
+  });
+});
+
+describe('a refused mutation says so', () => {
+  it('a bulk delete that fails is reported, never an unhandled rejection', async () => {
+    // `useApiMutation` REJECTS on failure; the section used to test the
+    // result for null, so a refused delete surfaced nothing at all.
+    gallery.items = [asset()];
+    gallery.total = 1;
+    mutate.mockRejectedValue(new Error('boom'));
+
+    const { user } = renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+    await user.click(screen.getByRole('checkbox', { name: 'settings.generated_assets.select' }));
+    await user.click(screen.getByRole('button', { name: /delete_selected/ }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('common.error'));
+  });
+
+  it('a single delete that fails is reported too', async () => {
+    gallery.items = [asset()];
+    gallery.total = 1;
+    mutate.mockRejectedValue(new Error('boom'));
+
+    const { user } = renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+    await user.click(screen.getByRole('button', { name: 'settings.generated_assets.delete' }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('common.error'));
   });
 });
 

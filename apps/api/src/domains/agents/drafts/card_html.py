@@ -4,8 +4,9 @@ The chat draws data as ``lia-card`` HTML cards; a draft about to become one of
 those data is drawn the same way, from the same description the Markdown form
 is drawn from (:mod:`~src.domains.agents.drafts.card_spec`). The classes are
 the ones the data cards already use — the stylesheet knows them and the
-sanitiser lets them through — and every value is escaped: a subject is data,
-never markup.
+sanitiser lets them through — and every value is the one the Markdown form
+shows (``card_spec.shown_value``), escaped: a subject is data, never markup.
+A link is drawn only where the description says there is one.
 
 A surface that renders no markup keeps the Markdown form: a ticket comment
 (escaped text flattened by
@@ -17,9 +18,11 @@ RUN, not by a caller's guess — see :func:`card_surface`.
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 
 from src.core.constants import RESPONSE_DISPLAY_MODE_MARKDOWN
+from src.core.text_clip import one_line
 from src.domains.agents.api.run_origin import out_of_turn_origin_ctx, plain_surface_ctx
 from src.domains.agents.context.runtime_context import runtime_display_mode
 from src.domains.agents.display.components.base import (
@@ -27,6 +30,7 @@ from src.domains.agents.display.components.base import (
     escape_html,
     render_desc_block,
     render_section_header,
+    safe_url,
 )
 from src.domains.agents.display.icons import Icons
 from src.domains.agents.drafts.card_spec import (
@@ -36,8 +40,9 @@ from src.domains.agents.drafts.card_spec import (
     ResultItem,
     ResultSpec,
     Row,
+    shown_value,
 )
-from src.domains.agents.drafts.markdown_grammar import readable
+from src.domains.shared.markdown_literal import read_as_markdown
 
 __all__ = ["CardSurface", "card_surface", "to_html_card", "to_html_result"]
 
@@ -125,16 +130,23 @@ def _row_html(row: Row, separator: str) -> str:
         if icon_name
         else ""
     )
-    text = f"<strong>{escape_html(row.label)}</strong>{escape_html(separator)}{escape_html(readable(row.value))}"
+    text = f"<strong>{escape_html(row.label)}</strong>{escape_html(separator)}{escape_html(shown_value(row.value))}"
     return f'<div class="lia-d-row">{icon}<span>{text}</span></div>'
 
 
 def _note_html(note: Note) -> str:
-    return f'<div class="lia-d-row"><span>{escape_html(note.text)}</span></div>'
+    text = escape_html(shown_value(note.text))
+    href = safe_url(note.href) if note.href else ""
+    if href:
+        text = f'<a href="{href}" target="_blank" rel="noopener">{text}</a>'
+    if note.emoji:
+        text = f"{escape_html(note.emoji)} {text}"
+    return f'<div class="lia-d-row"><span>{text}</span></div>'
 
 
 def _block_html(block: Block) -> str:
-    text = "<br>".join(escape_html(line) for line in block.text.split("\n"))
+    shown = shown_value(block.text, one_row=False)
+    text = "<br>".join(escape_html(line) for line in shown.split("\n"))
     return render_section_header(block.label, Icons.DESCRIPTION, "indigo") + render_desc_block(
         text, with_border=False
     )
@@ -144,12 +156,37 @@ def _block_html(block: Block) -> str:
 _MARK_COLORS: dict[str, str] = {"✅": "green", "⚠️": "amber", "🚫": "gray", "❌": "red"}
 
 
-def _card_top(emoji: str, title: str, color: str) -> str:
+#: LIA's own emphasis in a result's headline (``phone_call``); a value's marks
+#: are references, which the reader keeps out of this rule's reach.
+_HEADLINE_BOLD = re.compile(r"\*\*(?=\S)(.+?)(?<=\S)\*\*")
+
+
+def _headline_html(headline: str) -> str:
+    """A result's headline — Markdown, its values drawn as data — in HTML.
+
+    Escaped whole, LIA's own emphasis showed as literal asterisks
+    (« J'appelle **Paul** »), and a value's references as typed.
+
+    Args:
+        headline: The described headline (``ResultSpec.headline``).
+
+    Returns:
+        One line of HTML: LIA's emphasis drawn, every value's character
+        written back escaped.
+    """
+    return read_as_markdown(
+        one_line(headline),
+        lambda text: _HEADLINE_BOLD.sub(r"<strong>\1</strong>", escape_html(text)),
+        restore=escape_html,
+    )
+
+
+def _card_top(emoji: str, title_html: str, color: str) -> str:
     return (
         '<div class="lia-card-top">'
         f'<div class="lia-illus lia-illus--{color}"><span style="font-size:var(--lia-text-lg)">{escape_html(emoji)}</span></div>'
         '<div class="lia-card-top__info">'
-        f'<div class="lia-card-top__title">{escape_html(title)}</div>'
+        f'<div class="lia-card-top__title">{title_html}</div>'
         "</div></div>"
     )
 
@@ -168,15 +205,15 @@ def _lines_html(lines: tuple[Row | Note | Block, ...], separator: str) -> list[s
 
 def _item_html(item: ResultItem, separator: str, first: bool) -> str:
     first_class = " lia-sec--first" if first else ""
-    title = f"{item.mark} {item.label}".strip()
+    title = f"{item.mark} {shown_value(item.label)}".strip()
     if item.secondary:
-        title += f" — {item.secondary}"
+        title += f" — {shown_value(item.secondary)}"
     parts = [
         f'<div class="lia-sec{first_class}"><span class="lia-sec__label">{escape_html(title)}</span></div>'
     ]
     parts.extend(_row_html(row, separator) for row in item.fields)
     if item.excerpt:
-        parts.append(render_desc_block(escape_html(item.excerpt), with_border=False))
+        parts.append(render_desc_block(escape_html(shown_value(item.excerpt)), with_border=False))
     return "".join(parts)
 
 
@@ -194,7 +231,7 @@ def to_html_result(spec: ResultSpec) -> str:
     # The illustration wears the family's emoji and the title its mark; with
     # no family (an unknown type), the mark moves to the illustration.
     title = f"{spec.mark} {spec.headline}".strip() if spec.emoji else spec.headline
-    top = _card_top(spec.emoji or spec.mark, title, color)
+    top = _card_top(spec.emoji or spec.mark, _headline_html(title), color)
     parts = _lines_html(spec.lines, spec.separator)
     parts.extend(
         _item_html(item, spec.separator, first=index == 0) for index, item in enumerate(spec.items)
@@ -212,6 +249,6 @@ def to_html_card(spec: CardSpec) -> str:
         One line of HTML: the emoji and the title on top, the rows and notes as
         detail rows, each block as a section over a description block.
     """
-    top = _card_top(spec.emoji, spec.title, "indigo")
+    top = _card_top(spec.emoji, escape_html(shown_value(spec.title)), "indigo")
     parts = _lines_html(spec.lines, spec.separator)
     return compact_html(f'<div class="lia-card lia-draft">{top}{"".join(parts)}</div>')

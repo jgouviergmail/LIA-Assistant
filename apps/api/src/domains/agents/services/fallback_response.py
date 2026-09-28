@@ -32,16 +32,15 @@ def get_simple_fallback_message(language: str | None = None) -> str:
     — never an inline hardcoded string (audit wave 2, N-99).
 
     Args:
-        language: Raw user locale; defaults to the configured default language.
+        language: Raw user locale; the declared language when absent (ADR-323).
 
     Returns:
         Localized fallback message.
     """
-    from src.core.config import settings
+    from src.core.i18n import resolve_language
     from src.domains.agents.api.error_messages import SSEErrorMessages
-    from src.domains.agents.utils.i18n_location import normalize_language
 
-    lang = normalize_language(language or settings.default_language)
+    lang = resolve_language(language)
     return SSEErrorMessages.simple_fallback(lang)
 
 

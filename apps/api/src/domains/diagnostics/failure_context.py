@@ -196,6 +196,22 @@ def extract_failures_from_tool_messages(
     return failures
 
 
+def tool_message_failed(message: ToolMessage) -> bool:
+    """Whether a ToolMessage reports a failure — the verdict every reader shares.
+
+    The honesty directive tells the model what failed and the business
+    outcome counts the turn from the SAME verdict, so the two can never
+    disagree about one call.
+
+    Args:
+        message: One ToolMessage of the run.
+
+    Returns:
+        True when the call failed (structural status or a declared failure).
+    """
+    return _tool_message_failure(message) is not None
+
+
 def _tool_message_failure(message: ToolMessage) -> tuple[str, str] | None:
     """``(error_code, text)`` when this ToolMessage reports a failure, else None.
 

@@ -31,7 +31,8 @@ class ArticleCard(BaseComponent):
     Design:
     - Title + Wikipedia badge at top-right (like Perplexity format)
     - Full summary text with configurable truncation
-    - "...voir la suite sur Wikipedia" link when truncated
+    - a localized "read more on Wikipedia" link, always shown (prefixed by an
+      ellipsis when the summary is truncated)
     - Image thumbnail (if available)
     """
 

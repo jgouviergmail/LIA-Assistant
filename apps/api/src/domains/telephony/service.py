@@ -353,8 +353,9 @@ class TelephonyService:
             callee_display: Human-readable callee name (never the raw number).
             callee_phone: Plaintext E.164 number (stored encrypted; sent to the vendor).
             objective: What the agent must accomplish on the call.
-            date_window: Free-text availability window hint (currently advisory —
-                the pre-fetch window is [now, now + prefetch_window_days]).
+            date_window: The availability window the person stated — ignored:
+                the pre-fetch window is [now, now + prefetch_window_days]
+                whatever it says.
             user_language: Language for the availability summary + agent.
             kind: Which mandate the call runs under (lot 2). The baked agent
                 serves ``THIRD_PARTY``; ``SELF`` and ``VERIFICATION`` send a

@@ -67,3 +67,19 @@ when it arrived ».
   light mode, below AA. The descriptions of the two dialog primitives now use
   `text-foreground/80` (allowed by the contrast contract); other muted text inside
   dialogs is left to a design decision on the glass itself.
+
+## Amendment 2026-09-27 — the share is an action in the register
+
+**Amends:** decision 4, which recorded the share in the `peer_image_shares` ledger
+alone (owner request: every act reaches the transparency registers with its
+classification; ADR-263's amendment of the same day).
+
+A share is now also one row in `agent_effects`: the sender's act (source `user`),
+policy `confirm` — the click in the dialog is the confirmation —, executed
+`direct`, one fresh run per click, labelled « Shared an image with a connection »
+in the six languages. It is claimed after the connection, the image and both
+quotas were checked (a refused share files nothing) and settled from the commit of
+the copy and its ledger row, never from the absence of an exception
+(`recorded_action`, the `shared/action_sink` seam the register installs at import:
+`agents` imports `peers`, so `peers` cannot import the register). The comment is
+not copied into the row. No model decides anything, so no turn is filed.

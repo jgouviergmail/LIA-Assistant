@@ -30,6 +30,7 @@ from src.core.exceptions import (
     raise_permission_denied,
 )
 from src.core.field_names import FIELD_CONNECTOR_TYPE, FIELD_STATUS, FIELD_USER_ID
+from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.security import (
     # OAuth helpers moved to src.core.oauth module (v0.4.0 refactoring)
@@ -46,6 +47,7 @@ from src.domains.connectors.models import (
     ConnectorType,
     OAuthGrant,
     get_conflicting_connector_types,
+    get_connector_display_name,
 )
 from src.domains.connectors.oauth_grant_lifecycle import delete_shared_connector
 from src.domains.connectors.oauth_grant_runtime import (
@@ -142,10 +144,7 @@ class ConnectorService:
         Returns:
             ConnectorHealthResponse with health status for each connector
         """
-        from src.domains.connectors.models import (
-            get_connector_authorize_path,
-            get_connector_display_name,
-        )
+        from src.domains.connectors.models import get_connector_authorize_path
         from src.domains.connectors.schemas import (
             ConnectorHealthItem,
             ConnectorHealthResponse,
@@ -2177,7 +2176,7 @@ class ConnectorService:
 
         # If disabling, revoke all active connectors of this type
         if not update_data.is_enabled:
-            await self._revoke_all_connectors_by_type(connector_type)
+            await self._revoke_all_connectors_by_type(connector_type, update_data.disabled_reason)
 
         await self.db.commit()
         await self.db.refresh(config)
@@ -2186,7 +2185,8 @@ class ConnectorService:
             "connector_global_config_updated",
             connector_type=connector_type.value,
             is_enabled=update_data.is_enabled,
-            disabled_reason=update_data.disabled_reason,
+            # The administrator's own words: their length, never the text (ADR-317).
+            disabled_reason_length=len(update_data.disabled_reason or ""),
             admin_user_id=str(admin_user_id),
         )
 
@@ -2208,13 +2208,20 @@ class ConnectorService:
                 resource_type=f"{connector_type.value} connector",
             )
 
-    async def _revoke_all_connectors_by_type(self, connector_type: ConnectorType) -> None:
+    async def _revoke_all_connectors_by_type(
+        self, connector_type: ConnectorType, disabled_reason: str | None
+    ) -> None:
         """
         Revoke all active connectors of a specific type (when admin disables globally).
-        Sends email notification to affected users.
+
+        Commits the revocation, then e-mails each affected person — with no
+        transaction open while the mail server answers (ADR-304): the reason
+        travels in from the caller, which just wrote it, rather than being read
+        back after the commit.
 
         Args:
             connector_type: Type of connector to revoke
+            disabled_reason: The administrator's own words, shown to each person.
         """
         # Get all active connectors of this type (with user relationship loaded)
         connectors = await self.repository.get_all_connectors_by_type(
@@ -2247,22 +2254,19 @@ class ConnectorService:
 
         await self.db.commit()
 
-        # Send email notifications to affected users
+        # Send email notifications to affected users — nothing below touches the
+        # database, so no transaction is open across a send (ADR-304).
         email_service = get_email_service()
-        disabled_reason = None
-
-        # Get the disabled_reason from global config
-        config = await self.repository.get_global_config_by_type(connector_type)
-        if config:
-            disabled_reason = config.disabled_reason or APIMessages.reason_not_specified()
-
         email_sent_count = 0
         for user in users_affected.values():
+            # Each affected person reads the e-mail in their own language (ADR-323).
+            language = normalize_language(user.language)
             success = await email_service.send_connector_disabled_notification(
                 user_email=user.email,
                 user_name=user.full_name,
-                connector_type=connector_type.value,
-                reason=disabled_reason or APIMessages.reason_not_specified(),
+                connector_label=get_connector_display_name(connector_type),
+                reason=disabled_reason,
+                user_language=language,
             )
             if success:
                 email_sent_count += 1

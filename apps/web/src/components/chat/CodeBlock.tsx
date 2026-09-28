@@ -24,31 +24,12 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { readScrollBoxOverflow, type OverflowState } from '@/lib/scroll-box';
 import { SyntaxHighlighter, LANGUAGE_LOADERS, loadStyle, type PrismStyle } from './codeblock-lazy';
 
 interface CodeBlockProps {
   language: string;
   children: string;
-}
-
-/** What the frame announces about its scroll box. */
-interface OverflowState {
-  overflowing: boolean;
-  scrolledEnd: boolean;
-}
-
-/**
- * Pixels that may remain to the right and still count as « the end ». The
- * reserved scrollbar gutter is not part of the scrollable range: measured
- * 2026-09-17, the box stopped 10 px short of `scrollWidth - clientWidth`, so
- * an exact equality never turned the cue off.
- */
-const SCROLL_END_TOLERANCE_PX = 16;
-
-function readOverflow(box: HTMLElement): OverflowState {
-  const overflowing = box.scrollWidth > box.clientWidth + 1;
-  const remaining = box.scrollWidth - (box.scrollLeft + box.clientWidth);
-  return { overflowing, scrolledEnd: !overflowing || remaining <= SCROLL_END_TOLERANCE_PX };
 }
 
 /**
@@ -75,7 +56,7 @@ function useScrollBoxOverflow(
     // and must not re-render the frame when nothing changed.
     const measure = () =>
       setState(prev => {
-        const next = readOverflow(box);
+        const next = readScrollBoxOverflow(box);
         return prev.overflowing === next.overflowing && prev.scrolledEnd === next.scrolledEnd
           ? prev
           : next;

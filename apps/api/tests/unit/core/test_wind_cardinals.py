@@ -11,8 +11,11 @@ through i18n. These tests pin the code table, the localization table for the
 six languages, and the fact that neither can grow a hole.
 """
 
+from unittest.mock import patch
+
 import pytest
 
+from src.core.config import settings
 from src.core.geo_utils import WIND_CARDINAL_CODES, wind_deg_to_cardinal
 from src.core.i18n_v3 import V3Messages
 
@@ -120,9 +123,10 @@ class TestWindCardinalLocalization:
     def test_an_unsupported_language_falls_back_to_the_default_one(
         self, language: str | None
     ) -> None:
-        # `_normalize_language` returns DEFAULT_LANGUAGE ("fr"), not English —
-        # the whole V3Messages surface behaves this way.
-        assert V3Messages.get_wind_cardinal("W", language) == "O"  # type: ignore[arg-type]
+        # An unsupported language reads the instance's configured default, not
+        # English — pinned to French so the assertion reads a known table.
+        with patch.object(settings, "default_language", "fr"):
+            assert V3Messages.get_wind_cardinal("W", language) == "O"  # type: ignore[arg-type]
 
     @pytest.mark.parametrize("code", ["", "X", "NNE", "n"])
     def test_an_unknown_code_yields_nothing_rather_than_a_guess(self, code: str) -> None:

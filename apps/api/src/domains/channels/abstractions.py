@@ -108,24 +108,16 @@ class BaseChannelSender(ABC):
         """
 
     @abstractmethod
-    async def edit_message(
-        self,
-        channel_user_id: str,
-        message_id: str,
-        new_text: str,
-        parse_mode: str = "HTML",
-    ) -> bool:
+    async def remove_keyboard(self, channel_user_id: str, message_id: str) -> bool:
         """
-        Edit an existing message (e.g., remove HITL buttons after decision).
+        Take the buttons off a message, its text kept (a HITL question answered).
 
         Args:
             channel_user_id: Provider-specific user identifier.
-            message_id: Provider-specific message ID to edit.
-            new_text: New message text.
-            parse_mode: Text formatting mode.
+            message_id: Provider-specific ID of the message carrying the buttons.
 
         Returns:
-            True if edited successfully, False otherwise.
+            True if the buttons are off, False when the provider refused.
         """
 
 

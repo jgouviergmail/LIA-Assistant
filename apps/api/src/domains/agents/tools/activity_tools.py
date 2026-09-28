@@ -24,6 +24,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
 from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.core.i18n_effects import render_effect_label
 from src.core.i18n_treatments import render_treatment_domain
 from src.core.time_utils import resolve_user_timezone
@@ -220,7 +221,7 @@ async def get_my_activity_tool(
         listed=len(report.actions),
         consultations_total=report.consultations_total,
     )
-    language = context.language if context is not None else settings.default_language
+    language = resolve_language(context.language if context is not None else None)
     return _answer(report, filters, language, zone, (since, until))
 
 

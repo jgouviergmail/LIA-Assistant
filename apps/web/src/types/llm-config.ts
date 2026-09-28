@@ -226,18 +226,8 @@ export interface OllamaModelsResponse {
 
 // --- UI helpers ---
 
-export const LLM_CATEGORY_LABELS: Record<string, string> = {
-  pipeline: 'Pipeline',
-  domain_agents: 'Domain Agents',
-  query_response: 'Query & Response',
-  hitl: 'HITL',
-  memory: 'Memory',
-  background: 'Background',
-  briefing: 'Briefing',
-  specialized: 'Specialized',
-};
-
-export const LLM_CATEGORIES_ORDER = [
+/** The order the admin screen draws the categories in (the backend's own order). */
+export const LLM_CATEGORIES_ORDER: readonly string[] = [
   'pipeline',
   'domain_agents',
   'query_response',
@@ -245,5 +235,19 @@ export const LLM_CATEGORIES_ORDER = [
   'memory',
   'background',
   'briefing',
+  'radio',
   'specialized',
 ];
+
+/**
+ * The categories to draw: the declared ones in their order, then any category a
+ * type carries that this list does not know yet — drawn LAST, never lost. Keyed
+ * on the declared list alone, a new backend category made its types vanish from
+ * the screen in silence.
+ */
+export function orderedCategories(present: Iterable<string>): string[] {
+  const unknown = [...new Set(present)].filter(
+    category => !LLM_CATEGORIES_ORDER.includes(category)
+  );
+  return [...LLM_CATEGORIES_ORDER, ...unknown];
+}

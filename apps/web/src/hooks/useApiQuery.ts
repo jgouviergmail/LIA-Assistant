@@ -58,6 +58,24 @@ export interface UseApiQueryResult<T> {
   setData: React.Dispatch<React.SetStateAction<T | undefined>>;
 }
 
+/** Normalize and report a current request's failure at the API boundary. */
+function reportQueryFailure(
+  error: Error,
+  endpoint: string,
+  component: string,
+  params: Record<string, QueryParamValue> | undefined
+): Error {
+  const failure =
+    error instanceof ApiError ? error : new Error(error.message || 'Failed to fetch data');
+  logger.error(`API query failed: ${endpoint}`, failure, {
+    component,
+    endpoint,
+    params,
+    status: error instanceof ApiError ? error.status : undefined,
+  });
+  return failure;
+}
+
 export function useApiQuery<T = unknown>(
   endpoint: string,
   options: UseApiQueryOptions<T>
@@ -84,6 +102,7 @@ export function useApiQuery<T = unknown>(
   const [data, setData] = useState<T | undefined>(initialData);
   const [loading, setLoading] = useState<boolean>(enabled);
   const [error, setError] = useState<Error | null>(null);
+  const activeRequest = useRef<AbortController | null>(null);
 
   // Use refs for callbacks - synced after every commit (render-phase ref
   // writes are forbidden). The refs are only read on the async fetch path,
@@ -100,14 +119,22 @@ export function useApiQuery<T = unknown>(
   // infinite loops when callers pass inline objects
   const paramsKey = JSON.stringify(params);
   const configKey = JSON.stringify(config);
+  const callerSignal = config?.signal;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- paramsKey is the JSON identity of params
   const stableParams = useMemo(() => params, [paramsKey]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- configKey is the JSON identity of config
-  const stableConfig = useMemo(() => config, [configKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- signal has identity; the other options have JSON identity
+  const stableConfig = useMemo(() => config, [configKey, callerSignal]);
 
   const fetchData = useCallback(
-    async (signal?: AbortSignal) => {
-      if (!enabled) return;
+    async (lifetime: AbortSignal) => {
+      if (!enabled || lifetime.aborted) return;
+
+      activeRequest.current?.abort();
+      const request = new AbortController();
+      activeRequest.current = request;
+      const signals = [request.signal, lifetime];
+      if (stableConfig?.signal) signals.push(stableConfig.signal);
+      const signal = AbortSignal.any(signals);
 
       setLoading(true);
       setError(null);
@@ -115,57 +142,70 @@ export function useApiQuery<T = unknown>(
       try {
         const response = await apiClient.get<T>(endpoint, {
           params: stableParams,
-          signal,
           ...stableConfig,
+          signal,
         });
 
+        if (signal.aborted) return;
         setData(response);
         onSuccessRef.current?.(response);
       } catch (err) {
         const error = err as Error;
 
         // Don't set error for aborted requests
-        if (error.name === 'AbortError') {
+        if (signal.aborted || error.name === 'AbortError') {
           return;
         }
 
-        const errorObj =
-          error instanceof ApiError ? error : new Error(error.message || 'Failed to fetch data');
-
+        const errorObj = reportQueryFailure(error, endpoint, componentName, stableParams);
         setError(errorObj);
-
-        logger.error(`API query failed: ${endpoint}`, errorObj, {
-          component: componentName,
-          endpoint,
-          params: stableParams,
-          status: error instanceof ApiError ? error.status : undefined,
-        });
-
         onErrorRef.current?.(errorObj);
       } finally {
-        setLoading(false);
+        // An old request's completion must not hide a newer request's spinner.
+        if (activeRequest.current === request) {
+          activeRequest.current = null;
+          setLoading(false);
+        }
       }
     },
     [endpoint, componentName, enabled, stableParams, stableConfig]
   );
 
+  const activeEffect = useRef<{
+    controller: AbortController;
+    read: typeof fetchData;
+  } | null>(null);
+
   // Fetch on mount and when dependencies change
   useEffect(() => {
     const abortController = new AbortController();
-    fetchData(abortController.signal);
+    activeEffect.current = { controller: abortController, read: fetchData };
+    // Finish synchronous effect setup/cleanup before doing external IO. The
+    // Strict Mode probe (or an immediate unmount) then cancels an unsent read,
+    // rather than aborting a request the server may already be handling.
+    queueMicrotask(() => {
+      void fetchData(abortController.signal);
+    });
 
     return () => {
       abortController.abort();
+      activeRequest.current?.abort();
+      activeRequest.current = null;
+      activeEffect.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deps spread is intentional for dynamic dependencies
   }, [fetchData, ...deps]);
 
-  // Stable refetch function that doesn't change between renders
-  const refetch = useCallback(() => fetchData(), [fetchData]);
+  // A mutation may retain this callback across a navigation or an unmount.
+  // It must not restart the old query or cancel the new screen's read.
+  const refetch = useCallback(() => {
+    const effect = activeEffect.current;
+    return effect?.read === fetchData ? fetchData(effect.controller.signal) : Promise.resolve();
+  }, [fetchData]);
 
   return {
     data,
-    loading,
+    loading: enabled && loading,
     error,
     refetch,
     setData,

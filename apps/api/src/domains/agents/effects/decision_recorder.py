@@ -101,6 +101,20 @@ async def record_decision(decision: TurnDecision) -> None:
     await _write_logged(decision)
 
 
+async def record_decision_once(decision: TurnDecision) -> None:
+    """Write the row of an act that cannot be resumed; a second filing changes nothing.
+
+    For a run out of any conversation whose end more than one party may see —
+    a radio session is closed by its loop, or by the service when no loop holds
+    it (ADR-263 amendment 2026-09-27). Merged, two closers racing would read as a turn
+    run twice. Best-effort like :func:`record_decision`.
+
+    Args:
+        decision: The completed record.
+    """
+    await _write_logged(decision, once=True)
+
+
 async def _write_shielded(decision: TurnDecision) -> None:
     """Write the turn, surviving a cancellation delivered during cleanup.
 
@@ -125,7 +139,7 @@ async def _write_shielded(decision: TurnDecision) -> None:
         raise asyncio.CancelledError
 
 
-async def _write_logged(decision: TurnDecision) -> None:
+async def _write_logged(decision: TurnDecision, *, once: bool = False) -> None:
     """Write, and turn a failure into a log rather than a raised task.
 
     The register is best-effort: losing a row must never take the turn down
@@ -134,18 +148,22 @@ async def _write_logged(decision: TurnDecision) -> None:
 
     Args:
         decision: The record to persist.
+        once: Whether a second filing of the run is a duplicate rather than a
+            new segment.
     """
     try:
-        await _write(decision)
+        await _write(decision, once=once)
     except Exception:
         logger.exception("decision_write_failed", run_id=decision.run_id)
 
 
-async def _write(decision: TurnDecision) -> None:
-    """Upsert the turn's row.
+async def _write(decision: TurnDecision, *, once: bool = False) -> None:
+    """Upsert the turn's row — or, for an act filed once, insert it unless it exists.
 
     Args:
         decision: The record to persist.
+        once: Whether a second filing of the run is a duplicate rather than a
+            new segment.
     """
     if decision.user_id is None:
         # No account named the turn — a probe, a boot check, a test harness.
@@ -157,7 +175,11 @@ async def _write(decision: TurnDecision) -> None:
 
     ended_at = datetime.now(UTC)
     async with get_db_context() as db:
-        await DecisionRepository(db).record(decision, ended_at=ended_at)
+        repository = DecisionRepository(db)
+        if once:
+            await repository.record_once(decision, ended_at=ended_at)
+        else:
+            await repository.record(decision, ended_at=ended_at)
         await db.commit()
 
     from src.infrastructure.observability.metrics_effects import decisions_total
@@ -169,4 +191,9 @@ async def _write(decision: TurnDecision) -> None:
     ).inc()
 
 
-__all__ = ["CANCELLATION_GRACE_ATTEMPTS", "decision_recorder", "record_decision"]
+__all__ = [
+    "CANCELLATION_GRACE_ATTEMPTS",
+    "decision_recorder",
+    "record_decision",
+    "record_decision_once",
+]

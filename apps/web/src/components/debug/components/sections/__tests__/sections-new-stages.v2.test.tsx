@@ -226,7 +226,8 @@ describe('HitlSection', () => {
           interrupted: true,
           interrupt_action_type: 'draft_critique',
           interrupt_tool_name: 'send_email_tool',
-          plan_approved: false,
+          // An interrupted run has no verdict yet (ADR-263's null).
+          plan_approved: null,
           clarification_response: null,
           clarification_field: null,
           for_each_cancelled: false,
@@ -237,6 +238,7 @@ describe('HitlSection', () => {
     expect(screen.getByText('Human in the Loop')).toBeInTheDocument();
     expect(screen.getByText('draft_critique')).toBeInTheDocument();
     expect(screen.getByText(/waiting/i)).toBeInTheDocument();
+    expect(screen.queryByText('User decision')).not.toBeInTheDocument();
   });
 
   it('shows a resumed run with the user decision', () => {
@@ -256,6 +258,56 @@ describe('HitlSection', () => {
       />
     );
     expect(screen.getByText(/oui, envoie/)).toBeInTheDocument();
+    // The gate approves every plan it passes: not drawn as a decision —
+    // neither refused nor approved, no Plan row at all.
+    expect(screen.queryByText('refused')).not.toBeInTheDocument();
+    expect(screen.queryByText('Plan')).not.toBeInTheDocument();
+    expect(screen.queryByText(/approved/i)).not.toBeInTheDocument();
+  });
+
+  it('draws the draft a person acted on', () => {
+    open(
+      ['hitl'],
+      <HitlSection
+        data={{
+          interrupted: false,
+          interrupt_action_type: null,
+          interrupt_tool_name: null,
+          plan_approved: null,
+          clarification_response: null,
+          clarification_field: null,
+          for_each_cancelled: false,
+          cancellation_reason: null,
+          draft_type: 'email',
+          draft_action: 'confirm',
+          draft_edit_iterations: 2,
+        }}
+      />
+    );
+    expect(screen.getByText('User decision')).toBeInTheDocument();
+    expect(screen.getByText('confirm')).toBeInTheDocument();
+    expect(screen.getByText('email')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('draws a refusal as the user decision', () => {
+    open(
+      ['hitl'],
+      <HitlSection
+        data={{
+          interrupted: false,
+          interrupt_action_type: null,
+          interrupt_tool_name: null,
+          plan_approved: false,
+          clarification_response: null,
+          clarification_field: null,
+          for_each_cancelled: false,
+          cancellation_reason: null,
+        }}
+      />
+    );
+    expect(screen.getByText('User decision')).toBeInTheDocument();
+    expect(screen.getByText('refused')).toBeInTheDocument();
   });
 });
 

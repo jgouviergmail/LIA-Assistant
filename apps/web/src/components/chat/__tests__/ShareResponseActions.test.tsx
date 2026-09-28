@@ -38,6 +38,16 @@ const { usePeerRecipientsState } = vi.hoisted(() => ({
 }));
 vi.mock('@/hooks/usePeerRecipients', () => ({ usePeerRecipientsState }));
 
+const { emailDialog } = vi.hoisted(() => ({ emailDialog: vi.fn() }));
+vi.mock('@/components/email-share/EmailShareDialog', () => ({
+  EmailShareDialog: (props: unknown) => {
+    emailDialog(props);
+    return null;
+  },
+}));
+
+import { EmailShareAvailabilityProvider } from '@/lib/email-share/availability-context';
+
 import { ShareResponseActions } from '../ShareResponseActions';
 
 const CONTENT = '# Été\n\nRéponse **markdown** à partager.';
@@ -260,5 +270,31 @@ describe('Share — a connection can receive the answer', () => {
       expect(wording, `${lng} must name the recipient`).toContain('{{recipient}}');
       expect(wording, `${lng} must carry the answer`).toContain('{{content}}');
     }
+  });
+});
+
+describe('Send by e-mail — the very file Download writes (ADR-321)', () => {
+  it('attaches the answer as the same Markdown under the same dated name', async () => {
+    const { user } = renderWithProviders(
+      <EmailShareAvailabilityProvider available>
+        <ShareResponseActions content={CONTENT} timestamp={TIMESTAMP} />
+      </EmailShareAvailabilityProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: 'email_share.button' }));
+    await user.click(screen.getByRole('button', { name: 'chat.message.download_md' }));
+
+    expect(downloadMarkdown).toHaveBeenCalledWith(CONTENT, 'lia-2026-07-28-19-42');
+    expect(emailDialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: { kind: 'markdown', filename: 'lia-2026-07-28-19-42', text: CONTENT },
+      })
+    );
+  });
+
+  it('is absent where the page does not offer sending by e-mail', () => {
+    renderActions();
+
+    expect(screen.queryByRole('button', { name: 'email_share.button' })).not.toBeInTheDocument();
   });
 });

@@ -1,0 +1,26 @@
+# How the radio directs a voice engine that takes its direction in words (a
+# style prompt per call — Gemini's speech metadata, ADR-324). `key|text`,
+# technical English: the engine reads the direction, the listener never hears
+# it. Read by domains/radio/delivery.py (load_style_phrases), which refuses the
+# file without a template or a role; a guard holds it complete over every role
+# and every non-neutral energy, pace and tone of the script schema.
+
+template|Read this as {role}, {qualities}.
+template.plain|Read this as {role}.
+
+role.host|a warm radio host speaking to one listener
+role.anchor|a clear, credible news anchor
+role.expert|a knowledgeable analyst, measured and precise
+role.columnist|an editorialist with a personal, engaged voice
+role.speaker_a|a knowledgeable commentator, lively and conversational
+role.speaker_b|a commentator with a contrasting view, direct and curious
+role.speaker_c|a thoughtful commentator, measured and nuanced
+
+energy.calm|calmly
+energy.lively|with energy
+pace.slow|at an unhurried pace
+pace.brisk|briskly
+tone.warm|warmly
+tone.serious|in a serious tone
+tone.upbeat|upbeat
+tone.concerned|with concern

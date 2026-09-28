@@ -30,7 +30,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
 from src.core.constants import VOICE_TTS_MS_PER_CHAR_HEURISTIC
-from src.core.i18n import get_language_name
+from src.core.i18n import get_language_name, resolve_language
 from src.core.time_utils import now_in_timezone
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.voice.factory import TTSConfig, get_tts_client, get_tts_config
@@ -122,7 +122,7 @@ class VoiceCommentService:
         service = VoiceCommentService()
         async for chunk in service.stream_voice_comment(
             context_summary="User asked for emails, found 5 unread messages.",
-            personality_instruction="Tu es enthousiaste et encourageante.",
+            personality_instruction="You are enthusiastic and encouraging.",
             user_language="fr",
         ):
             yield ChatStreamChunk(type="voice_audio_chunk", content=chunk.model_dump())
@@ -528,7 +528,7 @@ class VoiceCommentService:
         self,
         context_summary: str,
         personality_instruction: str,
-        user_language: str = "fr",
+        user_language: str | None = None,
         current_datetime: str | None = None,
         user_query: str = "",
         user_timezone: str | None = None,
@@ -557,6 +557,7 @@ class VoiceCommentService:
             phrase_index respects dispatch order, so the consumer can sort if
             strict playback order matters).
         """
+        user_language = resolve_language(user_language)
         current_datetime = _resolve_prompt_datetime(current_datetime, user_timezone)
 
         request = VoiceCommentRequest(
@@ -742,7 +743,7 @@ class VoiceCommentService:
     async def stream_direct_tts(
         self,
         text: str,
-        user_language: str = "fr",
+        user_language: str | None = None,
         max_sentences: int | None = None,
     ) -> AsyncGenerator[VoiceAudioChunk]:
         """
@@ -760,6 +761,7 @@ class VoiceCommentService:
         Yields:
             VoiceAudioChunk for each synthesized sentence.
         """
+        user_language = resolve_language(user_language)
         if not text or not text.strip():
             logger.debug("voice_direct_tts_empty_text")
             return

@@ -20,6 +20,17 @@ import { useLoggingContext } from '@/lib/logging-context';
 const CONVERSATION_PAGE_SIZE = 50;
 
 /**
+ * A 404 means « no conversation yet » — the one failure that is an answer.
+ * Read structurally: the client throws `ApiError` (`status`), and doubles may
+ * still throw an axios-like error (`response.status`).
+ */
+function isNotFound(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const { status, response } = error as { status?: unknown; response?: { status?: unknown } };
+  return status === 404 || response?.status === 404;
+}
+
+/**
  * Hook for managing conversation state and persistence
  */
 
@@ -37,9 +48,9 @@ export interface Conversation {
  * Narrow the untyped JSONB message metadata to the archived card payloads
  * (generated images/documents, browser screenshot). Pure, module-level: keeps
  * the message mapper's cyclomatic complexity bounded, and names the same
- * shapes the live SSE path uses so the two boundaries cannot drift. Exported
- * for the live proactive bubble (an image a connection shared, ADR-316), which
- * carries the very same metadata as the row it archives.
+ * shapes the live SSE path uses so the two boundaries cannot drift. A proactive
+ * message (an image a connection shared, ADR-316) reaches the thread through
+ * the sync since ADR-320, as its archived row — through this very helper.
  */
 export function archivedCardsFromMetadata(metadata: Record<string, unknown> | null | undefined): {
   generatedImages?: GeneratedImage[];
@@ -132,6 +143,10 @@ export interface UseConversationReturn {
    *  ``nextCursor`` from the previous response. No-op (returns an empty page
    *  with ``hasMore=false``) if a fetch is already in flight. */
   loadOlderMessages: (beforeCursor: string) => Promise<ConversationPage>;
+  /** The newest page for a sync of the thread (ADR-320). Unlike
+   *  ``loadConversationPage`` a transport failure THROWS: an empty page
+   *  would read as « the conversation is empty ». A 404 is an empty page. */
+  readNewestPage: () => Promise<ConversationPage>;
   /** Server-side history search (QW-2): accent/case-insensitive substring
    *  match over the WHOLE conversation, keyset-paginated. Throws on transport
    *  errors (the caller owns the error state); a 404 (no conversation yet)
@@ -240,7 +255,7 @@ export const useConversation = (): UseConversationReturn => {
    * (oldest → newest) before being returned.
    */
   const fetchPage = useCallback(
-    async (before?: string): Promise<ConversationPage> => {
+    async (before?: string, strict = false): Promise<ConversationPage> => {
       if (!user) {
         return { messages: [], hasMore: false, nextCursor: null };
       }
@@ -283,19 +298,17 @@ export const useConversation = (): UseConversationReturn => {
         };
       } catch (error: unknown) {
         // 404 is expected for new users without conversation - not an error
-        if (error && typeof error === 'object' && 'response' in error) {
-          const axiosError = error as { response?: { status?: number } };
-          if (axiosError.response?.status === 404) {
-            logger.debug(
-              'conversation_not_found',
-              withContext({
-                component: 'useConversation',
-                reason: 'no_conversation_yet',
-              })
-            );
-            return { messages: [], hasMore: false, nextCursor: null };
-          }
+        if (isNotFound(error)) {
+          logger.debug(
+            'conversation_not_found',
+            withContext({
+              component: 'useConversation',
+              reason: 'no_conversation_yet',
+            })
+          );
+          return { messages: [], hasMore: false, nextCursor: null };
         }
+        if (strict) throw error;
 
         logger.error(
           before ? 'conversation_older_load_failed' : 'conversation_history_load_failed',
@@ -354,6 +367,8 @@ export const useConversation = (): UseConversationReturn => {
     [user, fetchPage]
   );
 
+  const readNewestPage = useCallback(() => fetchPage(undefined, true), [fetchPage]);
+
   /**
    * Server-side history search (QW-2) — same endpoint, with ``search``.
    *
@@ -386,11 +401,8 @@ export const useConversation = (): UseConversationReturn => {
           nextCursor: response.next_cursor,
         };
       } catch (error: unknown) {
-        if (error && typeof error === 'object' && 'response' in error) {
-          const axiosError = error as { response?: { status?: number } };
-          if (axiosError.response?.status === 404) {
-            return { rows: [], hasMore: false, nextCursor: null };
-          }
+        if (isNotFound(error)) {
+          return { rows: [], hasMore: false, nextCursor: null };
         }
         logger.error(
           'conversation_search_failed',
@@ -504,6 +516,7 @@ export const useConversation = (): UseConversationReturn => {
     isLoadingOlder,
     loadConversationPage,
     loadOlderMessages,
+    readNewestPage,
     searchMessages,
     loadConversationTotals,
     resetConversation,

@@ -49,6 +49,7 @@ from uuid import UUID
 import structlog
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 from src.core.i18n_drafts import get_draft_summary_label
 from src.domains.agents.data_registry.models import (
     RegistryItem,
@@ -82,6 +83,7 @@ from src.domains.agents.drafts.models import (
     TaskUpdateDraftInput,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.shared.markdown_literal import read_as_markdown
 
 logger = structlog.get_logger(__name__)
 
@@ -107,8 +109,7 @@ class DraftService:
         >>> output = service.create_email_draft(
         ...     EmailDraftInput(to="john@example.com", subject="Hi", body="..."),
         ... )
-        >>> print(output.message)
-        "Brouillon email créé: Email à john@example.com: Hi"
+        >>> print(output.message)  # the draft's summary, in the declared language
     """
 
     def __init__(self) -> None:
@@ -127,7 +128,7 @@ class DraftService:
         related_registry_ids: list[str] | None = None,
         source_tool: str | None = None,
         source_step_id: str | None = None,
-        user_language: str = "fr",
+        user_language: str | None = None,
     ) -> UnifiedToolOutput:
         """
         Create a draft of any type.
@@ -146,6 +147,7 @@ class DraftService:
         Returns:
             UnifiedToolOutput with DRAFT RegistryItem
         """
+        user_language = resolve_language(user_language)
         # Create the Draft object
         draft = Draft(
             type=draft_type,
@@ -891,7 +893,7 @@ class DraftService:
         self,
         draft: Draft,
         source_tool: str | None = None,
-        user_language: str = "fr",
+        user_language: str | None = None,
     ) -> RegistryItem:
         """
         Convert a Draft to a RegistryItem.
@@ -904,6 +906,7 @@ class DraftService:
         Returns:
             RegistryItem with draft payload including detailed preview
         """
+        user_language = resolve_language(user_language)
         # Extract user_timezone from draft content (set by BaseDraftInput)
         user_timezone = draft.content.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
 
@@ -933,7 +936,7 @@ class DraftService:
     def _build_draft_summary(
         self,
         draft: Draft,
-        user_language: str = "fr",
+        user_language: str | None = None,
     ) -> str:
         """
         Build LLM summary for a draft with detailed content preview.
@@ -946,16 +949,24 @@ class DraftService:
             user_language: Language for summary (fr, en, es, de, it, zh-CN)
 
         Returns:
-            Human-readable summary string with full draft details
+            Human-readable summary string with full draft details. The
+            preview draws each value with character references so the chat
+            shows its characters; the model reads them back
+            (``read_as_markdown``), since a model handed
+            ``jean_dupont&#64;example.com`` could reuse it as an address
+            (review 14). The header's title is written raw, and read as such.
         """
+        user_language = resolve_language(user_language)
         # Extract user_timezone from draft content (set by BaseDraftInput)
         user_timezone = draft.content.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
 
         # Get the brief title for the header
         draft_title = draft.get_summary(user_language)
 
-        # Get the detailed preview with full content
-        detailed_preview = draft.get_detailed_preview(user_language, user_timezone)
+        # Get the detailed preview with full content, its values read back
+        detailed_preview = read_as_markdown(
+            draft.get_detailed_preview(user_language, user_timezone)
+        )
 
         # Build the full summary with header, content preview, and action prompt
         # Using centralized i18n for all 6 supported languages
@@ -1012,7 +1023,7 @@ def create_email_draft(
     is_html: bool = False,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "send_email_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create an email draft.
@@ -1040,7 +1051,7 @@ def create_email_draft(
         bcc=bcc,
         is_html=is_html,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_email_draft(draft_input, source_tool=source_tool)
 
@@ -1051,7 +1062,7 @@ def create_reminder_delete_draft(
     trigger_at: str = "",
     related_registry_ids: list[str] | None = None,
     source_tool: str = "cancel_reminder_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """Convenience function to create a reminder delete draft.
 
@@ -1074,7 +1085,7 @@ def create_reminder_delete_draft(
         content=content,
         trigger_at=trigger_at,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_reminder_delete_draft(draft_input, source_tool=source_tool)
 
@@ -1087,7 +1098,7 @@ def create_email_delete_draft(
     thread_id: str | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "delete_email_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create an email delete draft.
@@ -1116,7 +1127,7 @@ def create_email_delete_draft(
         date=date,
         thread_id=thread_id,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_email_delete_draft(draft_input, source_tool=source_tool)
 
@@ -1132,7 +1143,7 @@ def create_email_reply_draft(
     thread_id: str | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "reply_email_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create an email reply draft.
@@ -1166,7 +1177,7 @@ def create_email_reply_draft(
         original_from=original_from,
         thread_id=thread_id,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_email_reply_draft(draft_input, source_tool=source_tool)
 
@@ -1182,7 +1193,7 @@ def create_email_forward_draft(
     attachments: list[dict[str, Any]] | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "forward_email_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create an email forward draft.
@@ -1216,7 +1227,7 @@ def create_email_forward_draft(
         original_from=original_from,
         attachments=attachments or [],
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_email_forward_draft(draft_input, source_tool=source_tool)
 
@@ -1232,7 +1243,7 @@ def create_event_draft(
     calendar_id: str | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "create_event_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
     user_timezone: str | None = None,
     add_conference: bool = False,
 ) -> UnifiedToolOutput:
@@ -1269,7 +1280,7 @@ def create_event_draft(
         calendar_id=calendar_id,
         add_conference=add_conference,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
         user_timezone=user_timezone or timezone,
     )
     return service.create_event_draft(draft_input, source_tool=source_tool)
@@ -1283,7 +1294,7 @@ def create_contact_draft(
     notes: str | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "create_contact_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a contact draft.
@@ -1309,7 +1320,7 @@ def create_contact_draft(
         organization=organization,
         notes=notes,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_contact_draft(draft_input, source_tool=source_tool)
 
@@ -1327,7 +1338,7 @@ def create_update_event_draft(
     current_event: dict[str, Any] | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "update_event_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create an event update draft.
@@ -1363,7 +1374,7 @@ def create_update_event_draft(
         calendar_id=calendar_id,
         current_event=current_event or {},
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_event_update_draft(draft_input, source_tool=source_tool)
 
@@ -1382,7 +1393,7 @@ def create_delete_event_draft(
     calendar_id: str | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "delete_event_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create an event delete draft.
@@ -1423,7 +1434,7 @@ def create_delete_event_draft(
         send_updates=send_updates,
         calendar_id=calendar_id,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_event_delete_draft(draft_input, source_tool=source_tool)
 
@@ -1439,7 +1450,7 @@ def create_contact_update_draft(
     current_contact: dict[str, Any] | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "update_contact_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a contact update draft.
@@ -1471,7 +1482,7 @@ def create_contact_update_draft(
         address=address,
         current_contact=current_contact or {},
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_contact_update_draft(draft_input, source_tool=source_tool)
 
@@ -1487,7 +1498,7 @@ def create_contact_delete_draft(
     address: str | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "delete_contact_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a contact delete draft.
@@ -1521,7 +1532,7 @@ def create_contact_delete_draft(
         notes=notes,
         address=address,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_contact_delete_draft(draft_input, source_tool=source_tool)
 
@@ -1533,7 +1544,7 @@ def create_task_draft(
     task_list_id: str = "@default",
     related_registry_ids: list[str] | None = None,
     source_tool: str = "create_task_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a task draft.
@@ -1557,7 +1568,7 @@ def create_task_draft(
         due=due,
         task_list_id=task_list_id,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_task_create_draft(draft_input, source_tool=source_tool)
 
@@ -1572,7 +1583,7 @@ def create_task_update_draft(
     current_task: dict[str, Any] | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "update_task_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a task update draft.
@@ -1602,7 +1613,7 @@ def create_task_update_draft(
         task_list_id=task_list_id,
         current_task=current_task or {},
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_task_update_draft(draft_input, source_tool=source_tool)
 
@@ -1617,7 +1628,7 @@ def create_task_delete_draft(
     current_task: dict[str, Any] | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "delete_task_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a task delete draft.
@@ -1649,7 +1660,7 @@ def create_task_delete_draft(
         task_list_id=task_list_id,
         current_task=current_task or {},
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_task_delete_draft(draft_input, source_tool=source_tool)
 
@@ -1659,7 +1670,7 @@ def create_file_delete_draft(
     file: dict[str, Any] | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "delete_file_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a file delete draft.
@@ -1679,7 +1690,7 @@ def create_file_delete_draft(
         file_id=file_id,
         file=file or {},
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_file_delete_draft(draft_input, source_tool=source_tool)
 
@@ -1691,7 +1702,7 @@ def create_label_delete_draft(
     children_only: bool = False,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "delete_label_tool",
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a label delete draft.
@@ -1715,7 +1726,7 @@ def create_label_delete_draft(
         sublabels=sublabels or [],
         children_only=children_only,
         related_registry_ids=related_registry_ids or [],
-        user_language=user_language,
+        user_language=resolve_language(user_language),
     )
     return service.create_label_delete_draft(draft_input, source_tool=source_tool)
 

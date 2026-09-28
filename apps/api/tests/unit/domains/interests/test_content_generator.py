@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.core.config import settings
 from src.core.constants import INTEREST_CONTENT_DIVERSITY_ANGLES
 from src.domains.interests.services.content_sources.base import (
     ContentGenerationContext,
@@ -217,15 +218,18 @@ class TestPickDiversityAngle:
         assert angle is not None
         assert angle in INTEREST_CONTENT_DIVERSITY_ANGLES["fr"]
 
-    def test_unknown_language_falls_back_to_english(self):
-        """Test that unknown language falls back to English angles."""
+    def test_unknown_language_falls_back_to_the_instance_default(self, monkeypatch):
+        """An unsupported code reads as the instance default, like at the chokepoint —
+        pinned to German here, so a French literal fallback cannot pass."""
+        monkeypatch.setattr(settings, "default_language", "de")
         angle = InterestContentGenerator._pick_diversity_angle("ja")
         assert angle is not None
-        assert angle in INTEREST_CONTENT_DIVERSITY_ANGLES["en"]
+        assert angle in INTEREST_CONTENT_DIVERSITY_ANGLES["de"]
+        assert angle not in INTEREST_CONTENT_DIVERSITY_ANGLES["fr"]
 
     def test_all_supported_languages_have_angles(self):
         """Test that all supported languages return angles."""
-        for lang in ["fr", "en", "es", "de", "it", "zh"]:
+        for lang in ["fr", "en", "es", "de", "it", "zh-CN"]:
             angle = InterestContentGenerator._pick_diversity_angle(lang)
             assert angle is not None, f"No angle for {lang}"
 
@@ -235,11 +239,11 @@ class TestApplyAngleToTopic:
     """Tests for _apply_angle_to_topic."""
 
     def test_basic_format(self):
-        """Test basic angle application."""
+        """The query the sources run: the topic, then its angle."""
         result = InterestContentGenerator._apply_angle_to_topic(
-            "Films de SF", "perspectives futures"
+            "Sci-fi films", "future perspectives"
         )
-        assert result == "Films de SF : perspectives futures"
+        assert result == "Sci-fi films : future perspectives"
 
     def test_preserves_original_topic(self):
         """Test that original topic is preserved in output."""

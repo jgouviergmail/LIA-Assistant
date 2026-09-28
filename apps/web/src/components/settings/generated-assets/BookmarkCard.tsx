@@ -5,8 +5,9 @@
  *
  * The request that produced it, quoted and clamped; the answer rendered by the
  * chat's own component (`MarkdownContent`, so markdown AND the `lia-response`
- * HTML documents keep their form); the answer's date; and the three things a
- * person came for — share it, download it as Markdown, let it go.
+ * HTML documents keep their form); the answer's date; and what a person came
+ * for — share it, download it as Markdown, send that file by e-mail (ADR-321),
+ * let it go.
  *
  * Two rules from the galleries: a download is built client-side from what is
  * already local (the chat's export path), and delete asks first.
@@ -17,6 +18,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { MarkdownContent } from '@/components/chat/MarkdownContent';
+import { EmailShareButton } from '@/components/email-share/EmailShareButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LLMUsageBadge } from '@/components/ui/llm-usage-badge';
@@ -66,15 +68,16 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
     }
   };
 
+  // The ONE export text: « Download » writes it, « Send by e-mail » attaches it.
+  const exportText = () =>
+    bookmarkToMarkdown(bookmark, {
+      request: t('settings.bookmarks.export_request'),
+      answer: t('settings.bookmarks.export_answer'),
+      kept: t('settings.bookmarks.export_kept', { when: answeredOn }),
+    });
+
   const download = () => {
-    downloadMarkdown(
-      bookmarkToMarkdown(bookmark, {
-        request: t('settings.bookmarks.export_request'),
-        answer: t('settings.bookmarks.export_answer'),
-        kept: t('settings.bookmarks.export_kept', { when: answeredOn }),
-      }),
-      bookmarkExportBaseName(bookmark)
-    );
+    downloadMarkdown(exportText(), bookmarkExportBaseName(bookmark));
   };
 
   const deleteOne = async () => {
@@ -183,6 +186,15 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
         >
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
         </Button>
+        <EmailShareButton
+          variant="ghost"
+          getSource={() => ({
+            kind: 'markdown',
+            filename: bookmarkExportBaseName(bookmark),
+            text: exportText(),
+          })}
+          defaultSubject={t('email_share.answer_subject', { date: answeredOn })}
+        />
         <Button
           variant="ghost"
           size="sm"

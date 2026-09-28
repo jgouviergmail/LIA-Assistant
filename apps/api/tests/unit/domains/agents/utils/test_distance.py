@@ -116,14 +116,14 @@ class TestDistanceResult:
             km=5.2,
             formatted="5.2 km",
             mode=DistanceMode.DRIVING,
-            reference="depuis votre position",
+            reference="depuis ta position",
             duration_minutes=15,
         )
 
         assert result.km == 5.2
         assert result.formatted == "5.2 km"
         assert result.mode == DistanceMode.DRIVING
-        assert result.reference == "depuis votre position"
+        assert result.reference == "depuis ta position"
         assert result.duration_minutes == 15
 
     def test_result_is_frozen(self):
@@ -159,12 +159,12 @@ class TestDistanceResult:
             km=1.5,
             formatted="1.5 km",
             mode=DistanceMode.STRAIGHT_LINE,
-            reference="depuis votre domicile",
+            reference="depuis ton domicile",
         )
 
         data = result.to_dict()
 
-        assert data["distance_reference"] == "depuis votre domicile"
+        assert data["distance_reference"] == "depuis ton domicile"
 
     def test_to_dict_with_duration(self):
         """Test to_dict includes duration when present."""
@@ -385,7 +385,7 @@ class TestCalculateDistance:
     @patch("src.domains.agents.utils.distance.get_distance_reference")
     async def test_with_browser_source(self, mock_get_ref):
         """Test with browser source adds reference."""
-        mock_get_ref.return_value = "depuis votre position"
+        mock_get_ref.return_value = "depuis ta position"
 
         result = await calculate_distance(
             PARIS_LAT,
@@ -396,14 +396,14 @@ class TestCalculateDistance:
             language="fr",
         )
 
-        assert result.reference == "depuis votre position"
+        assert result.reference == "depuis ta position"
         mock_get_ref.assert_called_once_with("browser", "fr")
 
     @pytest.mark.asyncio
     @patch("src.domains.agents.utils.distance.get_distance_reference")
     async def test_with_home_source(self, mock_get_ref):
         """Test with home source adds reference."""
-        mock_get_ref.return_value = "depuis votre domicile"
+        mock_get_ref.return_value = "depuis ton domicile"
 
         result = await calculate_distance(
             PARIS_LAT,
@@ -414,7 +414,7 @@ class TestCalculateDistance:
             language="fr",
         )
 
-        assert result.reference == "depuis votre domicile"
+        assert result.reference == "depuis ton domicile"
         mock_get_ref.assert_called_once_with("home", "fr")
 
     @pytest.mark.asyncio
@@ -537,7 +537,7 @@ class TestCalculateDistanceSync:
     @patch("src.domains.agents.utils.distance.get_distance_reference")
     def test_with_source_adds_reference(self, mock_get_ref):
         """Test with source parameter adds reference."""
-        mock_get_ref.return_value = "depuis votre position"
+        mock_get_ref.return_value = "depuis ta position"
 
         result = calculate_distance_sync(
             PARIS_LAT,
@@ -548,12 +548,12 @@ class TestCalculateDistanceSync:
             language="fr",
         )
 
-        assert result.reference == "depuis votre position"
+        assert result.reference == "depuis ta position"
 
     @patch("src.domains.agents.utils.distance.get_distance_reference")
     def test_with_different_language(self, mock_get_ref):
         """Test with different language."""
-        mock_get_ref.return_value = "von Ihrem Standort"
+        mock_get_ref.return_value = "von deinem Standort"
 
         result = calculate_distance_sync(
             PARIS_LAT,
@@ -564,7 +564,7 @@ class TestCalculateDistanceSync:
             language="de",
         )
 
-        assert result.reference == "von Ihrem Standort"
+        assert result.reference == "von deinem Standort"
         mock_get_ref.assert_called_once_with("browser", "de")
 
     def test_km_rounded_to_2_decimals(self):
@@ -879,7 +879,7 @@ class TestDistanceIntegration:
     @patch("src.domains.agents.utils.distance.get_distance_reference")
     async def test_full_flow_with_reference(self, mock_get_ref):
         """Test complete flow with reference text."""
-        mock_get_ref.return_value = "depuis votre position"
+        mock_get_ref.return_value = "depuis ta position"
 
         result = await calculate_distance(
             PARIS_LAT,
@@ -892,7 +892,7 @@ class TestDistanceIntegration:
 
         data = result.to_dict()
         assert "distance_reference" in data
-        assert data["distance_reference"] == "depuis votre position"
+        assert data["distance_reference"] == "depuis ta position"
 
     def test_sync_and_async_give_same_distance(self):
         """Test that sync and async versions give same distance."""

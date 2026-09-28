@@ -154,7 +154,8 @@ async def write_setting(
         old_value=old_value,
         new_value=new_value,
         admin_user_id=str(admin_user_id),
-        change_reason=change_reason,
+        # The reason is an administrator's words: the audit row above keeps them.
+        change_reason_length=len(change_reason or ""),
     )
     return setting
 

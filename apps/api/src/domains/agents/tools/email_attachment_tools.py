@@ -27,6 +27,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
 from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
@@ -187,7 +188,7 @@ class GetEmailAttachmentTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         """The language, the account and the turn config the reading runs under."""
         runtime = self.runtime
         if runtime is None:
-            return settings.default_language, str(user_id), None
+            return resolve_language(), str(user_id), None
         _, language, _ = await get_user_preferences(runtime)
         return language, tool_user_id_str(runtime), getattr(runtime, "config", None)
 

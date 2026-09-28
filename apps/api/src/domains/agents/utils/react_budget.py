@@ -8,7 +8,9 @@ Two questions live here, and they are the same subject:
   uninformed guess must never under-budget a hard query, so the adaptive path
   only ever SAVES on provably simple ones.
 - **May it keep going?** :func:`react_exit_reason` (ADR-170, ADR-248, ADR-256) —
-  the arithmetic over what the turn has actually spent.
+  the arithmetic over what the turn has actually spent, and whether the provider
+  cut the model's last output at its budget (ADR-275): a cut output never enters
+  the thread, so the loop has nothing to continue from.
 
 The rule this module exists to keep whole: **the stop condition has exactly one
 implementation** (ADR-248). The router applies :func:`react_exit_reason` to
@@ -50,6 +52,8 @@ import time
 from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
+    from langchain_core.messages import BaseMessage
+
     from src.domains.agents.models import MessagesState
 
 __all__ = [
@@ -59,6 +63,7 @@ __all__ = [
     "abandoned_call_message",
     "effective_react_budget",
     "loop_compute_seconds",
+    "loop_cut_reason",
     "loop_tool_seconds",
     "react_exit_reason",
     "react_iteration_budget",
@@ -95,6 +100,7 @@ class ReactTurnReset(TypedDict):
     react_call_digests: dict[str, int]
     react_scripts: list[dict[str, Any]]
     react_recovery_passes: list[dict[str, Any]]
+    react_output_truncated: bool
 
 
 def react_turn_reset() -> ReactTurnReset:
@@ -133,6 +139,9 @@ def react_turn_reset() -> ReactTurnReset:
         # ADR-310: a turn starts with no recovery pass — the recovery predicate
         # counts them, so a stale list would forbid the next turn's pass.
         react_recovery_passes=[],
+        # ADR-275 (amended): a cut output ends ITS turn; left set, it would end
+        # every later turn of the thread at its first call.
+        react_output_truncated=False,
     )
 
 
@@ -208,13 +217,19 @@ def react_exit_reason(state: MessagesState) -> str | None:
     thought too long when in fact a sub-agent did — the same invented diagnosis
     ADR-182 removed, pointing the other way.
 
+    A cut output is checked FIRST: when the call that exhausted a budget is also
+    the one the provider cut, the cut is what explains an answer with nothing in
+    it.
+
     Args:
         state: Current graph state.
 
     Returns:
-        ``"max_iterations"``, ``"compute_budget"``, ``"tool_budget"``, or None
-        to keep going.
+        ``"output_truncated"``, ``"max_iterations"``, ``"compute_budget"``,
+        ``"tool_budget"``, or None to keep going.
     """
+    if state.get("react_output_truncated"):
+        return "output_truncated"
     if int(state.get("react_iteration", 0)) >= react_iteration_budget(state):
         return "max_iterations"
     from src.core.config import settings as _settings
@@ -227,6 +242,35 @@ def react_exit_reason(state: MessagesState) -> str | None:
     if tool_elapsed > 0.0 and tool_elapsed > _settings.react_tool_budget_seconds:
         return "tool_budget"
     return None
+
+
+def loop_cut_reason(state: MessagesState, last_message: BaseMessage | None) -> str | None:
+    """Why the loop's last message is NOT a finished answer, or None when it is.
+
+    ``react_finalize_node``'s reading of :func:`react_exit_reason` — the same
+    predicate the router decided on, never a second one. Two ways to stop short:
+
+    - the last message still carries tool calls nobody will run: the stop
+      condition that ended the loop, or ``pending_tool_calls`` when none did (a
+      draft hand-off, a graph interrupt);
+    - the provider cut the model's output at its budget: the cut message never
+      entered the thread, so the last message is whatever preceded it.
+
+    Any other stop condition met ON a final answer is not a cut: a model that
+    answered on its last allowed iteration finished, and naming the budget
+    there would call a complete answer interrupted.
+
+    Args:
+        state: Current graph state.
+        last_message: The thread's last message.
+
+    Returns:
+        The stop condition to report, or None.
+    """
+    exit_reason = react_exit_reason(state)
+    if getattr(last_message, "tool_calls", None):
+        return exit_reason or "pending_tool_calls"
+    return exit_reason if exit_reason == "output_truncated" else None
 
 
 def loop_compute_seconds(state: MessagesState) -> float:

@@ -856,7 +856,7 @@ class TestGlobalConfig:
         ) as mock_revoke:
             await service.update_global_config(ConnectorType.GOOGLE_GMAIL, update_data, admin_id)
 
-            mock_revoke.assert_called_once_with(ConnectorType.GOOGLE_GMAIL)
+            mock_revoke.assert_called_once_with(ConnectorType.GOOGLE_GMAIL, "Disabled")
 
     async def test_update_global_config_enable_no_revoke(self, service, async_session):
         """Test that enabling connector type does not revoke connectors."""
@@ -928,7 +928,7 @@ class TestRevokeAllConnectorsByType:
     async def test_revoke_all_connectors_no_connectors(self, service, async_session):
         """Test revoking when no connectors exist."""
         # Should not raise
-        await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_GMAIL)
+        await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_GMAIL, None)
 
     async def test_revoke_all_connectors_single_connector(
         self, service, sample_user, async_session
@@ -949,7 +949,7 @@ class TestRevokeAllConnectorsByType:
                 )
                 mock_email.return_value = mock_email_service
 
-                await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_GMAIL)
+                await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_GMAIL, None)
 
         # Verify connector was revoked
         await async_session.refresh(connector)
@@ -978,7 +978,7 @@ class TestRevokeAllConnectorsByType:
                 )
                 mock_email.return_value = mock_email_service
 
-                await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_GMAIL)
+                await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_GMAIL, None)
 
         # Verify both connectors were revoked
         await async_session.refresh(connector1)
@@ -1011,7 +1011,9 @@ class TestRevokeAllConnectorsByType:
                 )
                 mock_email.return_value = mock_email_service
 
-                await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_GMAIL)
+                await service._revoke_all_connectors_by_type(
+                    ConnectorType.GOOGLE_GMAIL, "Security update"
+                )
 
                 # Verify email was sent
                 mock_email_service.send_connector_disabled_notification.assert_called_once()
@@ -1045,7 +1047,7 @@ class TestRevokeAllConnectorsByType:
                 )
                 mock_email.return_value = mock_email_service
 
-                await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_GMAIL)
+                await service._revoke_all_connectors_by_type(ConnectorType.GOOGLE_GMAIL, None)
 
         # Verify only active connector was revoked
         mock_revoke.assert_called_once()

@@ -4,7 +4,7 @@
 
 **Versione**: 2.2
 **Data**: 2026-09-24
-**Applicazione**: LIA v1.47.4
+**Applicazione**: LIA v2.0.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test) — 51 domini funzionali | **720.000+** |
-| Test automatizzati, eseguiti a ogni commit e rilascio | **41.000+** |
-| Decisioni di architettura documentate (ADR) | **317** |
-| Versioni rilasciate a ritmo regolare | **269** |
+| Righe di codice sorgente (esclusi i test) — 53 domini funzionali | **781.000+** |
+| Test automatizzati, eseguiti a ogni commit e rilascio | **46.000+** |
+| Decisioni di architettura documentate (ADR) | **323** |
+| Versioni rilasciate a ritmo regolare | **270** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 317 documentate:
+Tre decisioni strutturanti, tra le 323 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -66,6 +66,8 @@ Un sistema che si pilota con gli strumenti:
 - **Consegna**: deployment containerizzato, migrazioni di schema automatizzate, immagini pubblicate per due architetture hardware (amd64/arm64).
 - **Costi**: infrastruttura frugale per scelta — circa 150 € di hardware, zero licenze, componenti open source dimensionati sul bisogno reale.
 - **Conformità**: sicurezza rivista punto di accesso per punto di accesso; cifratura dei dati personali; ciclo di vita degli account allineato al GDPR.
+
+Il prodotto rende visibili le scelte tecniche alla misura di una persona. La conversazione la segue tra dispositivi senza disturbare la lettura; la radio parte quando sceglie di ascoltare e nomina fonti e costo delle notizie. La durata di un file generato può essere prolungata consapevolmente. Il lavoro programmato e i controlli delle condizioni hanno orologi distinti. Sono promesse osservabili, sostenute da fonti, limiti e test, non dalla pretesa che l'assistente sappia già ciò che la persona desidera.
 
 ## 6. La prova
 

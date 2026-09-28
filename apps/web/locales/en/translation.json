@@ -851,17 +851,20 @@
     },
     "document_card": {
       "download": "Download {{name}}",
-      "open": "Open {{name}}",
-      "open_short": "Open"
+      "open": "Open {{name}}"
     },
     "document_expiry": {
-      "expired": "This document has expired and is no longer available"
+      "expired": "This document has expired and is no longer available",
+      "kept": "Kept: never deleted automatically",
+      "gone": "This document is no longer available"
     },
     "image_expiry": {
-      "until": "Available until {{date}} — download it to keep it",
-      "soon_one": "Expires in {{count}} hour — download it to keep it",
-      "soon_other": "Expires in {{count}} hours — download it to keep it",
-      "expired": "This image has expired and is no longer available"
+      "until": "Available until {{date}} — keep it in “My generated files” or download it",
+      "soon_one": "Expires in {{count}} hour — keep it in “My generated files” or download it",
+      "soon_other": "Expires in {{count}} hours — keep it in “My generated files” or download it",
+      "expired": "This image has expired and is no longer available",
+      "kept": "Kept: never deleted automatically",
+      "gone": "This image is no longer available"
     },
     "starters": {
       "label": "Try one of these",
@@ -909,13 +912,7 @@
       "reactivate_description": "Your device paused location sharing while the app was closed. Re-enable it so LIA keeps using your real position instead of your home address.",
       "reactivate_button": "Re-enable",
       "detection": {
-        "keywords": [
-          "nearby",
-          "vicinity",
-          "neighborhood",
-          "surroundings",
-          "area"
-        ],
+        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -1110,7 +1107,7 @@
     },
     "reset_confirm": {
       "title": "Delete this conversation?",
-      "description": "Every message will be deleted, along with all your attachments — AI-generated images included. LIA also forgets the context of this conversation. This cannot be undone.",
+      "description": "Every message will be deleted, along with the files you attached. The files LIA generated stay in “My generated files”. LIA also forgets the context of this conversation. This cannot be undone.",
       "confirm": "Delete everything"
     },
     "active_call": {
@@ -1430,7 +1427,7 @@
       "display_mode": {
         "title": "Display Mode",
         "description": "Choose the response rendering format",
-        "info": "HTML Cards mode displays structured visual cards. Rich HTML mode lays out answers with rich components (callouts, badges, collapsible sections, tables, columns, key figures, highlighted code). Markdown mode shows plain text.",
+        "info": "Choose data cards, rich formatting, both together, or Markdown.",
         "modes": {
           "cards": {
             "label": "HTML Cards",
@@ -1441,6 +1438,11 @@
             "label": "Rich HTML",
             "description": "Laid-out answers: headings, callouts, badges, collapsible sections, tables, columns, key figures and highlighted code",
             "selected": "Rich HTML mode enabled"
+          },
+          "html_cards": {
+            "label": "Rich HTML + cards",
+            "description": "Richly formatted answers with cards for the selected results",
+            "selected": "Rich HTML + cards mode enabled"
           },
           "markdown": {
             "label": "Markdown",
@@ -1820,7 +1822,7 @@
         "stt_usage_title": "Remote STT Usage",
         "stt_usage_description": "Per-message rows for ElevenLabs Scribe transcriptions (audio duration + cost).",
         "tts_usage_title": "Paid TTS Usage",
-        "tts_usage_description": "Per-message rows for paid TTS synthesis (OpenAI / ElevenLabs) — characters + cost.",
+        "tts_usage_description": "One row per paid speech synthesis — each answer read aloud, each radio session — characters + cost.",
         "summary_title": "My Summary",
         "summary_description": "Aggregated totals of your consumption.",
         "download_csv": "Download CSV",
@@ -2137,7 +2139,7 @@
         "stt_usage_title": "Remote STT Usage",
         "stt_usage_description": "Per-message rows for ElevenLabs Scribe transcriptions (audio duration + cost).",
         "tts_usage_title": "Paid TTS Usage",
-        "tts_usage_description": "Per-message rows for paid TTS synthesis (OpenAI / ElevenLabs) — characters + cost.",
+        "tts_usage_description": "One row per paid speech synthesis — each answer read aloud, each radio session — characters + cost.",
         "summary_title": "Per-User Summary",
         "summary_description": "Aggregated totals by user for billing.",
         "download_csv": "Download CSV",
@@ -2503,7 +2505,12 @@
           "health_agent": "Domain agent answering factual questions about ingested health data",
           "voice_transcription": "Speech-to-text for the voice mode (Sherpa local or ElevenLabs Scribe remote)",
           "voice_tts": "Text-to-speech for assistant voice synthesis (Edge / OpenAI / ElevenLabs)",
-          "diagnostician": "Diagnoses platform incidents from typed evidence and runbooks (admin self-diagnostics)."
+          "diagnostician": "Diagnoses platform incidents from typed evidence and runbooks (admin self-diagnostics).",
+          "radio_writer": "Writes each segment of the personal radio (news, the listener's day, a column) from its facts - one structured call per segment",
+          "radio_analyst": "Reads a story's full article and draws the expert analysis the radio airs (context, history, facts, what to watch, outlook) - every figure must come from the article",
+          "radio_verifier": "Re-reads each line of a segment against the facts it cites before it airs, for the programmes the listener asked to have checked - an unsupported line is dropped",
+          "radio_translator": "Translates a news article the radio page opens into the listener's language - one structured call per article and language, kept for the next reader",
+          "radio_voice": "Text-to-speech engine that voices the personal radio: one voice per role, in the listener's language"
         },
         "voiceTts": {
           "sectionTitle": "Voice & provider tuning",
@@ -2541,6 +2548,7 @@
           "memory": "Memory",
           "background": "Background Tasks",
           "briefing": "Briefing",
+          "radio": "Personal radio",
           "specialized": "Specialized"
         },
         "fields": {
@@ -3898,9 +3906,10 @@
         "admin-registers": "registers, transparency, actions, consultations, export, journal, audit, admin, charts, statistics, figures, overview, initiative, proactive, article 12, complete extraction, turns",
         "reminders": "reminder, remind me, alert, notification, recurring reminder, repeat, snooze, post-it, recurrence, every day, time window",
         "workboard": "workboard board tickets ticket kanban columns todo backlog",
-        "generated-assets": "files images documents screenshots downloads gallery generated expiry bookmarks bookmark kept answers saved answers favourites indexed knowledge space search share with a connection shared by",
+        "generated-assets": "files images documents screenshots downloads gallery generated expiry keep kept pin bookmarks bookmark kept answers saved answers favourites indexed knowledge space search share with a connection shared by",
         "sandbox-egress": "sandbox, python, script, network, internet, proxy, hosts, permissions, allow, revoke, egress, API, integration",
-        "live-mode": "live, real time, voice, speech to speech, Gemini Live, GPT-Live, OpenAI, ElevenLabs, agent, direct session, delegation, model, thinking level, silence, duration, spend ceiling, interruptions, push to talk, conversation, microphone"
+        "live-mode": "live, real time, voice, speech to speech, Gemini Live, GPT-Live, OpenAI, ElevenLabs, agent, direct session, delegation, model, thinking level, silence, duration, spend ceiling, interruptions, push to talk, conversation, microphone",
+        "radio": "radio, station, podcast, news, bulletin, headlines, analysis, column, voices, music, timer, sources, sites, feeds, RSS, verification, listening, in company"
       }
     },
     "haptics": {
@@ -3988,7 +3997,7 @@
     },
     "generated_assets": {
       "title": "My generated files",
-      "description": "The images, documents and screenshots LIA produced for you, and the answers you chose to keep. Download the files before they expire, or remove them now.",
+      "description": "The images, documents and screenshots LIA produced for you, and the answers you chose to keep. A file expires unless you keep it: keep it, download it or remove it now.",
       "family": {
         "images": "Images",
         "documents": "Documents",
@@ -4019,7 +4028,6 @@
         "within_hours_other": "Within {{count}} hours"
       },
       "open": "Open {{name}}",
-      "open_short": "Open",
       "download": "Download {{name}}",
       "delete": "Delete {{name}}",
       "select": "Select {{name}}",
@@ -4056,7 +4064,19 @@
       "confirm_delete_description_one": "{{count}} file will be removed from your account, now.",
       "confirm_delete_description_other": "{{count}} files will be removed from your account, now.",
       "shared_by": "Shared by {{name}}",
-      "share": "Share {{name}} with a connection"
+      "share": "Share {{name}} with a connection",
+      "keep": "Keep {{name}}",
+      "kept_line": "Kept: never deleted automatically",
+      "keep_selected_one": "Keep {{count}} file",
+      "keep_selected_other": "Keep {{count}} files",
+      "release_selected_one": "Stop keeping {{count}} file",
+      "release_selected_other": "Stop keeping {{count}} files",
+      "kept_toast_one": "{{count}} file kept",
+      "kept_toast_other": "{{count}} files kept",
+      "released_toast_one": "{{count}} file is no longer kept: it will expire like the others",
+      "released_toast_other": "{{count}} files are no longer kept: they will expire like the others",
+      "keep_usage": "Kept files: {{kept}} of {{max}} · {{size}} of {{maxSize}}",
+      "keep_error": "What is kept could not be changed."
     },
     "bookmarks": {
       "request": "Your request",
@@ -4975,7 +4995,7 @@
         },
         "scheduledActions": {
           "title": "📅 Scheduled Actions",
-          "description": "Recurring actions the assistant runs on its own: say the rhythm — every three days, every other Tuesday, the 2nd Tuesday, the last day, every two hours between 9 and 5, until a date or N times — attach an instruction, and LIA runs it. Days are enumerated, never handed to a cron: the previous engine skipped the day at a clock change. Results archived in the conversation and pushed to you, auto-disabled after five failures. A week view colours each cell by what happened. A finished series closes on its own, and « Watch » on a briefing e-mail posts a watch for the reply."
+          "description": "A routine follows a schedule or waits for a condition (mail, task, event, document or weather); it never uses both clocks. LIA checks conditions at the system’s cadence. The editor shows only relevant fields, and the week view records what actually ran."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -5031,7 +5051,7 @@
         },
         "attachments": {
           "title": "📎 Photos & File Attachments",
-          "description": "Photos and PDFs through the 📎 button, drag and drop or Ctrl+V; images go to a vision model, PDFs have their text extracted. The « + » also attaches a document of one of your knowledge spaces — paused or not — as a copy for that message, and a tool reads your e-mails' attachments (text, or the vision model for a scan). What LIA produces has its own gallery, the expiry on each card; a reset removes what you put in, never what LIA made."
+          "description": "Photos and PDFs through the 📎 button, drag and drop or Ctrl+V; images go to a vision model, PDFs have their text extracted. The « + » also attaches a document of one of your knowledge spaces — paused or not — as a copy for that message, and a tool reads your e-mails' attachments (text, or the vision model for a scan). What LIA produces has its gallery, where you keep what matters; a reset removes what you put in, never what LIA made."
         },
         "skills": {
           "title": "Skills (with interactive maps & mini-apps)",
@@ -5152,6 +5172,10 @@
         "liveVoice": {
           "title": "🎧 Live mode: two intelligences, one seam",
           "description": "A real-time, voice-to-voice conversation on a live model you connect with your own key — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and delegates every request to LIA, which runs it as an ordinary chat turn, confirmations and quotas included, drawn in the thread while you speak. A direct session lets the voice read your data itself and act on nothing. What the provider bills is shown, never recorded; what LIA spends is on the closing card."
+        },
+        "personalRadio": {
+          "title": "A radio about your day",
+          "description": "On-demand spoken programmes blend your day with sourced news in your language. Choose topics, voices and verification; see sources and cost as you listen. A timer ends each session."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -7653,6 +7677,19 @@
             "i3": "<b>🔏 Your words stay out of the logs</b> — the server's technical logs no longer record the content of a tool result or the answer you type to a confirmation question, only their length."
           }
         },
+        "v2_0_0": {
+          "title": "v2.0.0 — 📻 Your own radio, files you can keep, and a conversation that stays current",
+          "date": "28 September 2026 · 12:35 CEST",
+          "count": "6",
+          "items": {
+            "i1": "<b>📻 Your personal radio</b> — Start it when you want: a spoken programme about your day and cited news, in your language. Choose subjects, sources, voices and a verification level; see its spending as it plays. It stops on your timer and is available only when your instance enables it.",
+            "i2": "<b>📌 Keep the files that matter</b> — In My generated files, keep selected images, documents and screenshots beyond their usual deadline, within the account limits shown there. Stop keeping one and it receives a fresh deadline.",
+            "i3": "<b>✉️ Send a file or answer by e-mail</b> — Add a subject and optional note. A connected mailbox can address chosen recipients; without one, LIA can send only to your verified address. The form shows the size limit before sending.",
+            "i4": "<b>🔄 A conversation that follows you</b> — Messages from another tab, device, call or routine appear without reloading. Older messages and your reading position stay in place, and the connection catches up after an interruption.",
+            "i5": "<b>⏱️ One clock per routine</b> — Choose a schedule or a condition. LIA checks a condition on its own cadence and acts when it matches; the studio shows only the fields that apply.",
+            "i6": "<b>🌍 Six languages throughout</b> — Interface text, notifications and server messages use the account's declared language, with completeness checks across all six translations."
+          }
+        },
         "v1_47_4": {
           "title": "v1.47.4 — 🧮 LIA computes instead of estimating, searches what it knows and shares your images",
           "date": "25 September 2026 · 04:51 CEST",
@@ -7746,7 +7783,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Using chat and conversations",
-        "count": "29",
+        "count": "32",
         "questions": {
           "q1": {
             "question": "Can I have multiple conversations at the same time?",
@@ -7754,7 +7791,7 @@
           },
           "q2": {
             "question": "How do I reset a conversation?",
-            "answer": "To clear everything and start over:<br><br>1. In the chat header, find the <strong>🗑️</strong> button<br>2. Click it<br>3. Confirm in the dialog<br><br><strong>⚠️ What is actually deleted:</strong><br>Every message, <strong>the attachments you uploaded yourself</strong>, and the context LIA had built from this conversation. The action is <strong>irreversible</strong>.<br><br><strong>💡 When is it worth it?</strong><br>• You switch to a completely different topic<br>• LIA seems confused by earlier context<br>• You would rather not leave that history behind<br><br><strong>✅ What is NOT deleted:</strong><br><strong>The files LIA produced</strong> — images, documents, screenshots — stay in Settings › My generated files until their own deadline. What LIA learned about you lives outside the conversation and stays: your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. To erase those, use <strong>Forget everything</strong> in the settings, or delete your account."
+            "answer": "To clear everything and start over:<br><br>1. In the chat header, find the <strong>🗑️</strong> button<br>2. Click it<br>3. Confirm in the dialog<br><br><strong>⚠️ What is actually deleted:</strong><br>Every message, <strong>the attachments you uploaded yourself</strong>, and the context LIA had built from this conversation. The action is <strong>irreversible</strong>.<br><br><strong>💡 When is it worth it?</strong><br>• You switch to a completely different topic<br>• LIA seems confused by earlier context<br>• You would rather not leave that history behind<br><br><strong>✅ What is NOT deleted:</strong><br><strong>The files LIA produced</strong> — images, documents, screenshots — stay in Settings › My generated files until their own deadline, or for good once you keep them. What LIA learned about you lives outside the conversation and stays: your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. To erase those, use <strong>Forget everything</strong> in the settings, or delete your account."
           },
           "q3": {
             "question": "Are conversations saved?",
@@ -7863,13 +7900,25 @@
           "q29": {
             "question": "Can a script LIA writes reach the Internet? What does the three-answer question mean?",
             "answer": "Yes, since v1.46.0 and only in <strong>ReAct mode</strong> (⚡). When a step needs a service no tool covers — checking that an API answers, reading a feed, calling an endpoint you use — the short Python script LIA writes may reach it.<br><br><strong>🚪 One door, never a direct line</strong><br>• the script goes out through a dedicated proxy, HTTPS only, to the hosts it declares — and nowhere else<br>• a script that declares no host stays fully offline, as before<br>• private networks, the server itself and cloud metadata are always refused<br><br><strong>🔑 Your connectors, without a question</strong><br>• the services you connected with your own API key (web search, answer engine, weather) are reachable right away<br>• the script reads a temporary token; the proxy swaps it for your real key on that host alone — the key never enters the script<br><br><strong>🙋 An unknown host is asked, with three answers</strong><br>• <strong>Allow with the data</strong> — the script may send what LIA gathered this turn (your mails, events…) to that host<br>• <strong>Allow without the data</strong> — the script runs, but receives none of it<br>• <strong>Refuse</strong> — LIA answers with what it already has<br>• the rest of your request then goes on, and your answer is remembered as a permission you can revoke in <strong>Settings → Sandbox network</strong><br><br><strong>💡 Good to know</strong>: every network run is written to your register before it starts, an administrator can switch the network off while keeping the calculator, and each turn has a small budget of runs."
+          },
+          "q30": {
+            "question": "How do new messages from my other devices appear?",
+            "answer": "The open conversation receives a signal after a message is saved, then merges the latest history. It keeps older pages and your reading place; after a connection break it catches up. An action you are taking is not interrupted."
+          },
+          "q31": {
+            "question": "Can I keep a generated file without downloading it?",
+            "answer": "Yes. Open My generated files and choose Keep on your own generated image, document or screenshot. The gallery shows the limits for your account. Stop keeping it whenever you wish: the file receives a new normal deadline, not an immediate deletion."
+          },
+          "q32": {
+            "question": "How do I send a generated file or an answer by e-mail?",
+            "answer": "Use Send by e-mail on the file or answer, add a subject and an optional note. A connected mailbox can send to chosen recipients; without one, LIA can send only to your verified account address. The form shows the available route and maximum file size."
           }
         }
       },
       "settings": {
         "title": "Settings",
         "description": "Account configuration and preferences",
-        "count": "31",
+        "count": "32",
         "questions": {
           "q1": {
             "question": "How do I change my timezone?",
@@ -7881,7 +7930,7 @@
           },
           "q3": {
             "question": "How do I customize appearance (themes)?",
-            "answer": "Customize LIA's appearance to your taste:<br><br><strong>5 themes available:</strong><br>• 💙 <strong>Professional Blue</strong>: elegant and timeless<br>• 🌊 <strong>Teal</strong>: deep teal, sophisticated and calming<br>• 🌿 <strong>Sage</strong>: modern sage green, natural and organic<br>• 🌹 <strong>Rose</strong>: dusty rose, elegant and warm<br>• 💜 <strong>Lavender</strong>: soft lavender, refined and creative<br><br><strong>Light, dark, absolute black:</strong><br>Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and <strong>absolute black</strong> for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In <strong>Settings › Appearance</strong> you can also pick the mode directly, including <strong>System</strong> (follow your device), with an <strong>Absolute black</strong> switch available once dark is selected.<br><br><strong>To change theme:</strong><br>Go to <strong>Settings</strong> (⚙️ icon) and find the <strong>Theme</strong> section."
+            "answer": "Customize LIA's appearance to your taste:<br><br><strong>5 themes available:</strong><br>• 💙 <strong>Professional Blue</strong>: elegant and timeless<br>• 🌊 <strong>Teal</strong>: deep teal, sophisticated and calming<br>• 🌿 <strong>Sage</strong>: modern sage green, natural and organic<br>• 🌹 <strong>Rose</strong>: dusty rose, elegant and warm<br>• 💜 <strong>Lavender</strong>: soft lavender, refined and creative<br><br><strong>Light, dark, absolute black:</strong><br>Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and <strong>absolute black</strong> for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In <strong>Settings › Appearance</strong> you can also pick the mode directly, including <strong>System</strong> (follow your device), with an <strong>Absolute black</strong> switch available once dark is selected.<br><br><strong>To change theme:</strong><br>Go to <strong>Settings</strong> (⚙️ icon), <strong>Appearance</strong> section."
           },
           "q4": {
             "question": "How do I update my profile?",
@@ -7889,7 +7938,7 @@
           },
           "q5": {
             "question": "How do I customize LIA's style?",
-            "answer": "LIA can adapt its <strong>communication style</strong> to your preferences:<br><br><strong>14 available personalities:</strong><br>• <strong>Normal</strong>: balanced and professional responses<br>• <strong>Enthusiastic</strong>: energetic and motivating tone<br>• <strong>Professor</strong>: educational and thorough explanations<br>• <strong>Friend</strong>: relaxed and warm tone<br>• <strong>Influencer</strong>: trendy and engaging style<br>• <strong>Philosopher</strong>: reflective and insightful<br>• <strong>Cynic</strong>: sharp and witty observations<br>• <strong>Poet</strong>: lyrical and imaginative expression<br>• <strong>Coach</strong>: motivational and action-oriented<br>• And more — administrators can add new ones!<br><br><strong>🌍 6 languages:</strong><br>Each personality is automatically translated into French, English, Spanish, German, Italian and Chinese.<br><br><strong>Two methods to change:</strong><br>• <strong>Quick method</strong>: click the <strong>✨</strong> icon in the title bar<br>• <strong>Via settings</strong>: go to <strong>Settings</strong> (⚙️ icon), <strong>Personality</strong> section<br><br><strong>💡 Tip:</strong> Try different styles to find the one that suits you best!"
+            "answer": "LIA can adapt its <strong>communication style</strong> to your preferences:<br><br><strong>🎭 14 available personalities:</strong><br>• <strong>Normal</strong>: neutral and factual, suitable for every situation<br>• <strong>Enthusiastic</strong>: dynamic and motivated, overflowing with positive energy<br>• <strong>Teacher</strong>: patient and caring, clear and structured explanations<br>• <strong>Friend</strong>: warm and close<br>• <strong>Influencer</strong>: trendy and on the cutting edge<br>• <strong>Philosopher</strong>: deep reflection and nuanced perspectives<br>• <strong>Cynical</strong>: dark humor and impactful truths<br>• <strong>JARVIS</strong>: sophisticated, sarcastic, dedicated digital butler<br>• <strong>Teenager</strong>: a teenager in the midst of hormonal changes<br>• And more — administrators can add new ones!<br><br><strong>🌍 6 languages:</strong><br>Each personality exists in French, English, Spanish, German, Italian and Chinese. LIA answers in the chosen tone, in your language.<br><br><strong>Two methods to change:</strong><br>• <strong>Quick method</strong>: click the <strong>✨</strong> icon in the title bar<br>• <strong>Via settings</strong>: go to <strong>Settings</strong> (⚙️ icon), <strong>LIA Style</strong> section<br><br><strong>💡 Tip:</strong> Try different styles to find the one that suits you best!"
           },
           "q6": {
             "question": "Are my preferences synchronized?",
@@ -7901,7 +7950,7 @@
           },
           "q8": {
             "question": "How do I change LIA's voice (male/female)?",
-            "answer": "Choose the <strong>voice gender</strong> that suits you:<br><br><strong>🎙️ Available voices:</strong><br>• <strong>Female</strong>: soft and natural neural voice<br>• <strong>Male</strong>: deep and calm neural voice<br><br><strong>To change:</strong><br>1. Go to the <strong>Dashboard</strong> (home screen)<br>2. Click on the <strong>assistant's image</strong> (LIA's avatar)<br>3. The image changes to reflect the new gender<br>4. The voice automatically switches between female and male<br><br><strong>🌍 Automatic language:</strong><br>The voice automatically adapts to the interface language. For example, a French voice if the interface is in French.<br><br><strong>⚙️ Quality:</strong><br>LIA uses high-quality neural voices (Microsoft Edge TTS in standard mode, or OpenAI/Gemini TTS in HD mode) for a natural and expressive rendering."
+            "answer": "Choose the <strong>voice gender</strong> that suits you:<br><br><strong>🎙️ Available voices:</strong><br>• <strong>Female</strong>: soft and natural neural voice<br>• <strong>Male</strong>: deep and calm neural voice<br><br><strong>To change:</strong><br>1. Go to the <strong>Dashboard</strong> (home screen)<br>2. Click on the <strong>assistant's image</strong> (LIA's avatar)<br>3. The image changes to reflect the new gender<br>4. The voice automatically switches between female and male<br><br><strong>🌍 Automatic language:</strong><br>The voice automatically adapts to the interface language. For example, a French voice if the interface is in French.<br><br><strong>⚙️ Quality:</strong><br>LIA uses high-quality neural voices (Microsoft Edge TTS in standard mode, OpenAI TTS or ElevenLabs in HD mode, as configured by the administrator) for a natural and expressive rendering."
           },
           "q9": {
             "question": "How does long-term memory work?",
@@ -7969,7 +8018,7 @@
           },
           "q25": {
             "question": "Where do I find everything LIA has made for me?",
-            "answer": "In <strong>Settings › My generated files</strong>. Three galleries, one per family: <strong>images</strong>, <strong>documents</strong> (reports, decks, workbooks) and the <strong>screenshots</strong> taken while browsing.<br><br><strong>🔎 What you can do:</strong><br>Search by name, narrow to a creation or expiry window, sort, open, download, and delete a selection. The count shown is the exact total, not the number of visible cards.<br><br><strong>⏳ The deadline is on the card:</strong><br>A generated file is an attachment with a retention period. The card shows when it ends, and the tone warms in the final hours — download what matters before then.<br><br><strong>🗣️ Or just ask:</strong><br>\"<em>Find the report you made me this morning</em>\" — LIA looks in these galleries and shows the files again in the chat, with the exact number found.<br><br><strong>Why this page exists:</strong><br>Before, the only route to yesterday's report was finding the conversation that wrote it."
+            "answer": "In <strong>Settings › My generated files</strong>. Three galleries, one per family: <strong>images</strong>, <strong>documents</strong> (reports, decks, workbooks) and the <strong>screenshots</strong> taken while browsing.<br><br><strong>🔎 What you can do:</strong><br>Search by name, narrow to a creation or expiry window, sort, open, download, keep, and delete a selection. The count shown is the exact total, not the number of visible cards.<br><br><strong>⏳ The deadline is on the card — unless you keep the file:</strong><br>A generated file is an attachment with a retention period. The card shows when it ends, and the tone warms in the final hours. The pin keeps a file past its deadline, within a limit per account shown above the gallery; releasing it gives it a new deadline, never an immediate deletion.<br><br><strong>🗣️ Or just ask:</strong><br>\"<em>Find the report you made me this morning</em>\" — LIA looks in these galleries and shows the files again in the chat, with the exact number found.<br><br><strong>Why this page exists:</strong><br>Before, the only route to yesterday's report was finding the conversation that wrote it."
           },
           "q26": {
             "question": "How does an administrator switch a feature off?",
@@ -7994,6 +8043,10 @@
           "q31": {
             "question": "How does an administrator send an announcement to some users only?",
             "answer": "In <strong>Settings › Administration › Broadcast Message</strong>. Write the message, choose <strong>All users</strong> or <strong>Selected users</strong>, and when it expires.<br><br><strong>🎯 It reaches whom it targets:</strong><br>The recipients are stored with it: a targeted announcement is shown to them only, including at their next sign-in. A selection that targets no active account is refused, rather than going to nobody — or to everybody.<br><br><strong>🗂️ Sent broadcasts:</strong><br>The history shows, for each announcement, its audience, the exact number of people reached with a preview of their names, its expiry date and the delay chosen."
+          },
+          "q32": {
+            "question": "How does the personal radio work?",
+            "answer": "Start it from the header, dashboard or Radio page if your instance enables it. Choose topics, sources, voices and an optional verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and stops when your timer ends. There is no replay or scheduled edition."
           }
         }
       },
@@ -8559,7 +8612,7 @@
       "scheduled_actions": {
         "title": "Scheduled Actions",
         "description": "Automate recurring tasks with LIA",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "What is a scheduled action?",
@@ -8595,7 +8648,11 @@
           },
           "q9": {
             "question": "Can LIA watch for a reply and tell me the minute it arrives? (v1.44.2)",
-            "answer": "Yes. On the Today briefing, a mail card offers <em>Watch for a reply from …</em>: one tap creates a condition routine keyed on that <strong>sender</strong> (never on the subject), valid for two weeks, and LIA already checks that you are not watching that person twice.<br><br><strong>Served to the minute:</strong> a condition routine used to be checked only when the executor passed by, up to two hours later. Now the same wake-up that reacts to your mailbox serves the watch as soon as the reply lands — it only brings the routine's next check forward; the routine itself still runs where it always did, under your usual limits.<br><br><strong>And it ends by itself:</strong> a routine that reaches the end of its series is now <em>closed</em>, not left \"active\" forever. In Settings → Scheduled actions it reads as completed, and you can delete it or set it up again."
+            "answer": "No. Choose a scheduled routine or a condition routine in the editor. LIA checks the latter on the system's cadence for that source and runs it when a new matching fact appears; an unmet check does not create a run. The editor shows the relevant fields and the optional last day."
+          },
+          "q10": {
+            "question": "Can a routine have both a schedule and a condition?",
+            "answer": "No. Choose a scheduled routine or a condition routine in the editor. LIA checks the latter on the system's cadence for that source and runs it when a new matching fact appears; an unmet check does not create a run. The editor shows the relevant fields and the optional last day."
           }
         }
       },
@@ -8661,7 +8718,7 @@
           },
           "q2": {
             "question": "How do I import a skill?",
-            "answer": "<p>In <strong>Settings &gt; Features &gt; My Skills</strong>, click <strong>Import skill</strong> and select a <code>.md</code> or <code>.zip</code> file. Compatible skills are available on <strong>skillsmp.com</strong> or GitHub.</p>"
+            "answer": "<p>In <strong>Settings &gt; Features &gt; My skills</strong>, click <strong>Import</strong> and select:</p><ul><li>A <code>.md</code> file (a single SKILL.md)</li><li>A <code>.zip</code> file (the complete folder with scripts/, references/, assets/)</li></ul><p>Compatible skills are available on marketplaces such as <strong>skillsmp.com</strong> or on GitHub.</p>"
           },
           "q3": {
             "question": "How do I create my own skill?",
@@ -9104,7 +9161,7 @@
           },
           "q7": {
             "question": "How long does a generated image stay available?",
-            "answer": "Not indefinitely. A generated image is an attachment with an expiry, and a scheduled cleanup removes expired attachments every few hours.<br><br><strong>🕒 What the card shows:</strong><br>The deadline returned by the server, and an alert tone in the final hours so downloading stays possible in time.<br><br><strong>Why not a hard-coded duration:</strong><br>The retention window is configurable by the administrator, so a value written into the interface would eventually be wrong. Images that predate this feature show nothing rather than guess.<br><br><strong>💡 Tip:</strong><br>Use the download button as soon as an image matters to you — that is the only way to keep it past the deadline."
+            "answer": "Not indefinitely — unless you keep it. A generated image is an attachment with an expiry, and a scheduled cleanup removes expired attachments every few hours.<br><br><strong>🕒 What the card shows:</strong><br>The deadline returned by the server, and an alert tone in the final hours. A kept image says it is kept; an image that no longer exists says so instead of showing a date.<br><br><strong>Why not a hard-coded duration:</strong><br>The retention window is configurable by the administrator, so a value written into the interface would eventually be wrong. Images that predate this feature show nothing rather than guess.<br><br><strong>💡 Tip:</strong><br>To keep an image past its deadline, keep it from <strong>Settings › My generated files</strong> (the pin on its card): a kept image is never deleted automatically, within your account's limit shown there. You can also download it."
           },
           "q8": {
             "question": "Where do I find every image LIA has created?",
@@ -9139,7 +9196,7 @@
           },
           "q4": {
             "question": "How long does a document stay available, and what does it cost?",
-            "answer": "Generated files are temporary by design: each card shows its exact expiry deadline, and a warning appears when it gets close — download the file to keep it. The cost is the writer model's usage, counted like the rest of your AI usage within your account's limits. A technical rate limit additionally protects against runaway loops; normal use never hits it."
+            "answer": "Generated files are temporary by default: each card shows its exact expiry deadline, and a warning appears when it gets close — keep the file from Settings › My generated files (never deleted automatically, within your account's limit), or download it. The cost is the writer model's usage, counted like the rest of your AI usage within your account's limits. A technical rate limit additionally protects against runaway loops; normal use never hits it."
           },
           "q5": {
             "question": "Who can turn document generation off?",
@@ -9630,6 +9687,10 @@
       "live_band": {
         "title": "A band while you talk",
         "desc": "In a live session, one band above the thread says everything: that you are talking with LIA, the captions of what was just said, « LIA is working on your request » while the chat runs it, and — under the last caption, set off by a bar — what the provider is charging you, indicative and recorded nowhere. The thread beneath keeps scrolling: each delegated request lands there as a turn of yours."
+      },
+      "radio_companion": {
+        "title": "A radio that listens to your choices",
+        "desc": "Start your own station from the header. Its little player follows you around LIA, shows the story and its source, and signs off at the time you choose. No programme is made while nobody listens."
       }
     },
     "scenes": {
@@ -9839,6 +9900,12 @@
         "frequent": "Frequent",
         "occasional": "Occasional",
         "cost": "Cost of each message"
+      },
+      "radio_companion": {
+        "news": "Public news",
+        "day": "Your day",
+        "source": "See the source",
+        "timer": "Sleep timer"
       }
     },
     "craft": {
@@ -10648,7 +10715,6 @@
       "kind_time": "At the set time",
       "kind_condition": "When a condition is met",
       "time_hint_time": "The routine runs at this time on the chosen days.",
-      "time_hint_condition": "The condition is checked at this time on the chosen days; the routine runs only if it holds.",
       "condition_type": "Condition",
       "condition": {
         "task_overdue": "A task is overdue",
@@ -10667,7 +10733,12 @@
       },
       "query_required": "A filter is required for this condition.",
       "requires_approval": "Ask me before running",
-      "requires_approval_hint": "LIA notifies you and only acts after you confirm in the chat."
+      "requires_approval_hint": "LIA notifies you and only acts after you confirm in the chat.",
+      "mode_hint_condition": "No schedule: LIA checks the condition on its own and runs the routine only when something new happens.",
+      "watch_until": "Watch until (optional)",
+      "watch_until_hint": "That day included. Without a date, it keeps watching until you pause it.",
+      "until_past": "This day is already over.",
+      "condition_cadence": "Checked about every {{minutes}} min, day and night — at most {{max}} runs a day."
     },
     "days": {
       "d1": "Mon",
@@ -10701,11 +10772,9 @@
     "duplicate": "Duplicate",
     "duplicate_suffix": "(copy)",
     "next_executions": "Next runs",
-    "next_evaluations": "Next evaluation windows",
     "clock_change": "(clocks change)",
     "toggle_aria": "Enable or disable {{title}}",
     "next_run": "Next run",
-    "next_evaluation": "Next evaluation",
     "number_aria": "Routine {{n}}",
     "timeline": {
       "title": "Week view",
@@ -10717,7 +10786,7 @@
       "today": "Today",
       "unavailable": "This week's execution states are unavailable. The schedule is still shown.",
       "chip_aria": "{{n}}, {{title}}, {{time}}, {{state}}",
-      "condition_kind": "Condition checked at this time",
+      "condition_kind": "Triggered by its condition",
       "run_at": "Ran {{when}}",
       "legend_title": "Legend",
       "state": {
@@ -10732,7 +10801,18 @@
       }
     },
     "section_what": "What to do",
-    "section_execution": "How it runs"
+    "section_execution": "How it runs",
+    "section_trigger": "When it runs",
+    "section_condition": "What it waits for",
+    "last_check": "Last check: {{when}}",
+    "last_check_never": "Not checked yet",
+    "last_check_failed": "Last check failed ({{when}}): {{reason}}",
+    "last_check_error": {
+      "not_configured": "the source is not set up",
+      "unavailable": "the source did not answer"
+    },
+    "check_now": "Check now",
+    "check_now_launched": "Check started - if something new is there, the result will appear in your conversation"
   },
   "landing": {
     "meta": {
@@ -10763,10 +10843,10 @@
       "title_line2_highlight": "AI",
       "title_line2_after": ".",
       "title_line3": "Your rules.",
-      "subtitle_top": "LIA isn't just another chatbot.\nShe's an AI that knows you — and has a character of her own.",
-      "subtitle_line1": "She remembers what matters, notices what changes, tunes in to your mood.",
-      "subtitle_line2": "Behind the scenes, she orchestrates your emails, your calendar, your home.",
-      "subtitle_line3": "You keep the power to say yes — or no.",
+      "subtitle_top": "An assistant that connects everything that matters to you.",
+      "subtitle_line1": "Your services, memories, and plans finally work together.",
+      "subtitle_line2": "Easy every day, yours to make your own.",
+      "subtitle_line3": "And always under your control.",
       "cta_primary": "Join the BETA",
       "scroll_hint": "Scroll to explore",
       "trust_agents": "AI agents",
@@ -10778,6 +10858,23 @@
       "cta_demo": "Guided demo",
       "intro_paragraph": "LIA is an open-source personal AI assistant that orchestrates 20+ specialized agents to manage your emails, calendar, contacts, files, tasks, reminders, web search, weather, routes, and smart home. Compatible with Google Workspace, Apple iCloud, and Microsoft 365, LIA works in natural language with human validation of every sensitive action. Available in 6 interface languages, with voice mode and 7 LLM providers to choose from.",
       "cta_star": "Star"
+    },
+    "promise": {
+      "eyebrow": "AI shaped around you",
+      "title": "Everything connects. You stay in control.",
+      "lead": "Made in France, LIA is an open-source personal assistant that is free to install. Talk to it naturally, with no technical knowledge needed, and explore deeper customization whenever you want.",
+      "ecosystem": {
+        "title": "One ecosystem, not a pile of apps",
+        "body": "Email, calendar, documents, home, and plans share a common thread. LIA connects what you entrust to it, remembers what matters, and offers help as your days unfold — or acts when you ask."
+      },
+      "trust": {
+        "title": "Trust you can check",
+        "body": "The code is open. On a self-hosted instance, your data stays with you; external services you choose may receive information needed for your request. Sensitive actions wait for your approval, actions and costs are visible, and your data can be exported."
+      },
+      "freedom": {
+        "title": "At home, on every screen",
+        "body": "Install LIA with Docker on a Raspberry Pi ARM64, a Windows or Linux PC, or a Mac. Run local AI through Ollama or choose Claude, GPT, DeepSeek, and others. Use LIA on the web, iOS, or Android, and give loved ones their own accounts. Some external services may charge fees."
+      }
     },
     "chat_mockup": {
       "aria": "Animated demo: four real scenes — LIA orchestrates several agents in parallel and waits for your approval, crosses the weather with your agenda on her own initiative, places a real phone call to book a table, and builds a mini-app right in the chat. The orchestration backstage shows while she works.",
@@ -10984,7 +11081,7 @@
       },
       "attachments": {
         "title": "Photos & attachments",
-        "description": "Attach photos and PDFs to your messages — the 📎 button, drag and drop or a simple Ctrl+V to paste a screenshot — compressed in the browser before they leave. The « + » also offers every document of your knowledge spaces, a paused space included, as a copy for that message. Images are read by a vision model, the text of documents is extracted, and LIA reasons over the content — the attachments of your e-mails too, when you ask her to read one. The files she produces have their own gallery, with the expiry shown on every card; resetting a conversation removes what you sent, never what she made."
+        "description": "Attach photos and PDFs to your messages — the 📎 button, drag and drop or a simple Ctrl+V to paste a screenshot — compressed in the browser before they leave. The « + » also offers every document of your knowledge spaces, a paused space included, as a copy for that message. Images are read by a vision model, the text of documents is extracted, and LIA reasons over the content — the attachments of your e-mails too, when you ask her to read one. The files she produces have their own gallery; each card shows its current deadline or that you chose to keep it. Resetting a conversation removes what you sent, never what she made."
       },
       "languages": {
         "title": "Multilingual",
@@ -11113,6 +11210,22 @@
       "live_voice": {
         "title": "Talk with her live, on your own key",
         "description": "One entry of the voice menu and you are talking with LIA in real time — she answers as she listens, you interrupt her, captions run in a band above the thread. The live model is one you connect yourself: Gemini Live, GPT-Live or your ElevenLabs agent. She holds the conversation and hands every request to the chat, which runs it while you speak — confirmations and cost tiles included. A direct session lets her read your data aloud and act on nothing. What the provider bills is shown, never recorded."
+      },
+      "chat_sync": {
+        "title": "One conversation, everywhere",
+        "description": "A reply that arrives from another tab, device, call or routine joins the open conversation without a reload. The chat merges committed messages into the history instead of replacing the page, so older messages, the place you were reading and any action in progress stay put. After a connection break it catches up from the server."
+      },
+      "email_share": {
+        "title": "Send your work by e-mail",
+        "description": "Send a generated image, document or screenshot, or a chat answer as a Markdown file, with a subject and an optional message. Your connected mailbox can reach recipients you choose. Without one, LIA's relay can send only to your verified address. The form shows the selected route and its file-size limit before you send."
+      },
+      "generated_files": {
+        "title": "Files you choose to keep",
+        "description": "LIA's generated images, documents and screenshots have their own gallery and a visible lifetime. Keep the few that matter with no expiry, within the account's published limits on number and size. If you stop keeping one, it gets a fresh deadline; the chat card reflects the file's current state."
+      },
+      "personal_radio": {
+        "title": "A radio about your day",
+        "description": "Start a personal station when you want to listen. A fixed programme grid mixes your day with sourced news, in your language and with voices you choose. You choose topics, sources and optional model verification, while the player shows sources and spending. Production runs only while you listen and ends at your timer; the instance administrator decides whether radio is offered."
       }
     },
     "use_cases": {
@@ -11193,7 +11306,7 @@
       },
       "realtime": {
         "title": "Real-time streaming",
-        "description": "See each execution step in real time — routing, planning, validation, tool calls — then watch the response stream token by token. No black box, no waiting. Generation itself is detached from the connection: answers keep executing server-side through disconnects, replay on reattach, and stop on demand. A connection that dies without saying so — a tab suspended by the phone — is recognised by its silence, then picked back up on its own right where it left off."
+        "description": "The active answer streams its routing, planning, tool calls and text as they happen. Generation runs on the server beyond a dropped connection and replays on reattach. Separately, every committed conversation change sends a content-free signal; the browser reads authenticated history and merges the new rows without replacing older pages or moving the reader. Reconnection catches up on signals it missed."
       },
       "stack": {
         "title": "Modern stack",
@@ -11495,7 +11608,7 @@
       "p3_d": "The code you can read is the code that runs. Self-hostable down to a Raspberry Pi.",
       "p3_link": "View the code",
       "p4_t": "Written by an AI, directed by a human",
-      "p4_d": "720,000+ source lines — built with AI assistance, human review and published audit methods.",
+      "p4_d": "780,000+ source lines — built with AI assistance, human review and published audit methods.",
       "p4_link": "Read the story",
       "honest": "Free beta, running in production 24/7.",
       "cta": "Try it, knowing everything"
@@ -12053,7 +12166,7 @@
       "voice-mode": {
         "title": "Voice Mode: Talk to LIA Like a Personal Assistant",
         "excerpt": "LIA's voice domain combines a free local STT (Sherpa-onnx Whisper, opt-in remote ElevenLabs Scribe for higher accuracy), a catalogue-driven TTS (Edge / OpenAI / ElevenLabs) and, since v1.47, a real-time Live mode on your own Gemini, OpenAI or ElevenLabs key. Sentence-level streaming brings the first audio chunk in ~1 second. Per-message cost attribution makes paid voice calls fully auditable.",
-        "body": "<h2>Three activation modes</h2><p>LIA supports three ways to interact by voice:</p><ul><li><strong>Wake word</strong> — say \"OK Guy\" to start listening hands-free. Detection runs entirely in the browser via Sherpa-onnx WASM (English-only model). No audio leaves the browser for wake-word detection.</li><li><strong>Push-to-talk</strong> — hold the microphone button to speak. Optimized for mobile.</li><li><strong>Automatic end-of-speech detection (VAD)</strong> — listening stops automatically after ~0.75 s of silence.</li></ul><h2>Speech-to-text: local default, remote opt-in</h2><p>Each user picks an STT mode in <strong>Settings → Voice mode</strong>:</p><ul><li><strong>Local</strong> (default, free) — Sherpa-onnx Whisper running on the LIA server in <strong>16 kHz mono</strong> with INT8 quantization. Supports <strong>99+ languages</strong>. Audio never leaves the LIA server.</li><li><strong>Remote</strong> (opt-in) — ElevenLabs Scribe at $0.22/h, billed by audio duration. Higher accuracy on conversational speech, especially in noisy environments. A discreet 🎤 badge on each user message bubble surfaces the duration and EUR cost; the cost flows into your usual <strong>Cost</strong> dashboard tile and your usage limits — no separate quota.</li></ul><p>Two admin-side safety levers protect against cost spikes when remote is enabled: a global kill switch (<code>ELEVENLABS_STT_ENABLED</code>) and a per-clip duration cap (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, default 300 s) verified before any provider call.</p><h2>Catalogue-driven text-to-speech</h2><p>Voice synthesis is now configured from a single admin form (Configuration LLM → Voice TTS), with three providers seeded from day one:</p><ul><li><strong>Edge TTS</strong> — Microsoft neural voices, free, default. SSML rate / pitch / volume tuning.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> or <code>tts-1-hd</code>, premium voices (alloy, echo, fable, onyx, nova, shimmer). Speed + response_format tuning.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. Stability, similarity_boost, style and use_speaker_boost tuning. Live voice picker pulls custom and library voices from the configured account.</li></ul><p>For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Audio formats supported: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — selected per provider.</p><h2>Sentence-level streaming for sub-second latency</h2><p>The voice pipeline now dispatches TTS synthesis <strong>per complete sentence in parallel</strong>, instead of waiting for the full LLM response. The first sentence starts playing in <strong>about one second</strong> while the assistant is still composing the rest of the answer. A persistent HTTP keep-alive on ElevenLabs saves another ~100–300 ms per sentence on calls #2…N. In-order delivery is enforced via a buffered queue — failed slots are skipped without stalling the stream.</p><h2>Where a sentence ends</h2><p>Splitting \"by sentence\" presupposes knowing where a sentence ends — and a period alone does not say. A delimiter closes a sentence only when <strong>a space follows it</strong>, or at the end of the input: \"it's 3.5 degrees\" therefore stays in one piece, instead of being read as \"it's three.\" and then, in a separate audio clip, \"point five degrees\". The same holds for prices, version numbers and web addresses. On the progressive path the rule is doubly necessary: the buffer grows token by token, so <code>\"3.\"</code> is a perfectly normal transient state — dispatching on it amounts to speaking before you have finished reading. Both splitters in the pipeline are pinned by a shared case table and by a test that requires them to agree.</p><h2>Voice comments and exports</h2><p>LIA can attach short <strong>voice comments</strong> (a TTS narrative aside) to its responses. Audio streams over WebSocket with a single-use BFF ticket (60-second TTL) for security. Two new CSV exports — <code>stt-usage</code> and <code>tts-usage</code> — list every paid voice call with its conversation, message ID, provider, duration / characters and EUR cost. The existing <code>consumption-summary</code> export gains STT and TTS columns so totals stay in one place.</p><h2>When LIA calls you</h2><p>The voice does not stop at the browser. Declare your own number under <em>Telephony · My identity</em>, let LIA call it and read a code you type back, and from then on \"call me at eight to go over my day\" — or a routine that says it — rings your phone with no confirmation card: the card protects a third party, and here the person who would confirm is the one who picks up. On the line the voice agent carries what the chat knows and, when live lookups are enabled, reads LIA as you talk — mails, calendar, tasks, contacts, files, places, weather, memory — through the same read-only tools the chat uses, each result reduced to what a voice can say; it acts on nothing. When you hang up, what you said is replayed in the chat as your own turn, with a phone badge, and any request waits there for your confirmation.</p><h2>Live mode: two intelligences, one seam</h2><p>Since v1.47 the voice icon opens a third thing: a <strong>real-time, speech-to-speech session</strong> on a live model you connect with your own key — Gemini Live over a WebSocket, GPT-Live over WebRTC, or an ElevenLabs agent whose voice and turn-taking stay on its portal. The audio never transits the LIA server: the API mints a single-use credential and renders the setup, the browser replays it and opens the connection itself.</p><p>The design is one seam between two intelligences. The voice model owns the conversation — listening, speaking, interrupting, filling a wait — and <strong>delegates every request for data or action</strong> to the chat engine through one declared function, <code>send_to_lia</code>. The browser turns that call into an ordinary chat turn under your own session: the same confirmations, the same registers, the same quotas, drawn in the thread while you speak. A question LIA needs to ask is what the voice says next, and the closing card adds up what LIA herself spent. What the provider bills on your key is folded into an indicative meter and shown, never recorded.</p><p>A <strong>direct session</strong> takes the phone's line into the browser: the voice holds LIA's read-only tools itself — the domains you allow — reads for you and acts on nothing, your words relayed at the end as a message from you. Measured on a real session, the tool declarations weigh ninety percent of the setup and the first turn costs about nine times the delegated one: a direct session buys latency, never economy. The same two modes, Live and Live direct, now govern the calls LIA makes to you, with one closing for both lines.</p><p>On iPhone and iPad, an ElevenLabs agent goes through its provider's native audio link (WebRTC), steadier than the raw stream on those devices; and a Gemini key restricted by IP address, which Google refuses from the browser, is named as such rather than letting the session fail without explanation.</p><h2>From a spoken command to a two-hour meeting</h2><p>The same microphone now records a whole meeting. That changed the speech engines more than the interface: the local Whisper decoded one thirty-second window and silently returned the first thirty seconds of anything longer — a defect voice input never met, because a command is short. Long audio is now cut into speech windows by a voice-activity detector, each window decoded on its own, so no recording is too long. The remote engines take the whole file in one request and separate the speakers; the chain walks from the administrator's engine to ElevenLabs, OpenAI and the local model, and a provider that refuses hands over to the next. The minutes are one structured call that fills the user's template, and every paid unit — audio at the engine, tokens at the model — is stated on the resulting card, the meeting page and the list.</p>"
+        "body": "<h2>Three activation modes</h2><p>LIA supports three ways to interact by voice:</p><ul><li><strong>Wake word</strong> — say \"OK Guy\" to start listening hands-free. Detection runs entirely in the browser via Sherpa-onnx WASM (English-only model). No audio leaves the browser for wake-word detection.</li><li><strong>Push-to-talk</strong> — hold the microphone button to speak. Optimized for mobile.</li><li><strong>Automatic end-of-speech detection (VAD)</strong> — listening stops automatically after ~0.75 s of silence.</li></ul><h2>Speech-to-text: local default, remote opt-in</h2><p>Each user picks an STT mode in <strong>Settings → Voice mode</strong>:</p><ul><li><strong>Local</strong> (default, free) — Sherpa-onnx Whisper running on the LIA server in <strong>16 kHz mono</strong> with INT8 quantization. Supports <strong>99+ languages</strong>. Audio never leaves the LIA server.</li><li><strong>Remote</strong> (opt-in) — ElevenLabs Scribe at $0.22/h, billed by audio duration. Higher accuracy on conversational speech, especially in noisy environments. A discreet 🎤 badge on each user message bubble surfaces the duration and EUR cost; the cost flows into your usual <strong>Cost</strong> dashboard tile and your usage limits — no separate quota.</li></ul><p>Two admin-side safety levers protect against cost spikes when remote is enabled: a global kill switch (<code>ELEVENLABS_STT_ENABLED</code>) and a per-clip duration cap (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, default 300 s) verified before any provider call.</p><h2>Catalogue-driven text-to-speech</h2><p>Voice synthesis is now configured from a single admin form (Configuration LLM → Voice TTS), with three providers seeded from day one:</p><ul><li><strong>Edge TTS</strong> — Microsoft neural voices, free, default. SSML rate / pitch / volume tuning.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> or <code>tts-1-hd</code>, premium voices (alloy, echo, fable, onyx, nova, shimmer). Speed + response_format tuning.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. Stability, similarity_boost, style and use_speaker_boost tuning. Live voice picker pulls custom and library voices from the configured account.</li></ul><p>For paid providers, a 🔊 badge on the assistant message shows the character count and the EUR cost; Edge stays free with no badge. Audio formats supported: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — selected per provider.</p><h2>Sentence-level streaming for sub-second latency</h2><p>The voice pipeline now dispatches TTS synthesis <strong>per complete sentence in parallel</strong>, instead of waiting for the full LLM response. The first sentence starts playing in <strong>about one second</strong> while the assistant is still composing the rest of the answer. A persistent HTTP keep-alive on ElevenLabs saves another ~100–300 ms per sentence on calls #2…N. In-order delivery is enforced via a buffered queue — failed slots are skipped without stalling the stream.</p><h2>Where a sentence ends</h2><p>Splitting \"by sentence\" presupposes knowing where a sentence ends — and a period alone does not say. A delimiter closes a sentence only when <strong>a space follows it</strong>, or at the end of the input: \"it's 3.5 degrees\" therefore stays in one piece, instead of being read as \"it's three.\" and then, in a separate audio clip, \"point five degrees\". The same holds for prices, version numbers and web addresses. On the progressive path the rule is doubly necessary: the buffer grows token by token, so <code>\"3.\"</code> is a perfectly normal transient state — dispatching on it amounts to speaking before you have finished reading. Both splitters in the pipeline are pinned by a shared case table and by a test that requires them to agree.</p><h2>Voice comments and exports</h2><p>LIA can attach short <strong>voice comments</strong> (a TTS narrative aside) to its responses. Audio streams over WebSocket with a single-use BFF ticket (60-second TTL) for security. Two new CSV exports — <code>stt-usage</code> and <code>tts-usage</code> — list every paid voice call with its conversation, message ID, provider, duration / characters and EUR cost. The existing <code>consumption-summary</code> export gains STT and TTS columns so totals stay in one place.</p><h2>When LIA calls you</h2><p>The voice does not stop at the browser. Declare your own number under <em>Telephony · My identity</em>, let LIA call it and read a code you type back, and from then on \"call me at eight to go over my day\" — or a routine that says it — rings your phone with no confirmation card: the card protects a third party, and here the person who would confirm is the one who picks up. On the line the voice agent carries what the chat knows and, when live lookups are enabled, reads LIA as you talk — mails, calendar, tasks, contacts, files, places, weather, memory — through the same read-only tools the chat uses, each result reduced to what a voice can say; it acts on nothing. When you hang up, what you said is replayed in the chat as your own turn, with a phone badge, and any request waits there for your confirmation.</p><h2>Live mode: two intelligences, one seam</h2><p>Since v1.47 the voice icon opens a third thing: a <strong>real-time, speech-to-speech session</strong> on a live model you connect with your own key — Gemini Live over a WebSocket, GPT-Live over WebRTC, or an ElevenLabs agent whose voice and turn-taking stay on its portal. The audio never transits the LIA server: the API mints a single-use credential and renders the setup, the browser replays it and opens the connection itself.</p><p>The design is one seam between two intelligences. The voice model owns the conversation — listening, speaking, interrupting, filling a wait — and <strong>delegates every request for data or action</strong> to the chat engine through one declared function, <code>send_to_lia</code>. The browser turns that call into an ordinary chat turn under your own session: the same confirmations, the same registers, the same quotas, drawn in the thread while you speak. A question LIA needs to ask is what the voice says next, and the closing card adds up what LIA herself spent. What the provider bills on your key is folded into an indicative meter and shown, never recorded.</p><p>A <strong>direct session</strong> takes the phone's line into the browser: the voice holds LIA's read-only tools itself — the domains you allow — reads for you and acts on nothing, your words relayed at the end as a message from you. Measured on a real session, the tool declarations weigh ninety percent of the setup and the first turn costs about nine times the delegated one: a direct session buys latency, never economy. The same two modes, Live and Live direct, now govern the calls LIA makes to you, with one closing for both lines.</p><p>On iPhone and iPad, an ElevenLabs agent goes through its provider's native audio link (WebRTC), steadier than the raw stream on those devices; and a Gemini key restricted by IP address, which Google refuses from the browser, is named as such rather than letting the session fail without explanation.</p><h2>From a spoken command to a two-hour meeting</h2><p>The same microphone now records a whole meeting. That changed the speech engines more than the interface: the local Whisper decoded one thirty-second window and silently returned the first thirty seconds of anything longer — a defect voice input never met, because a command is short. Long audio is now cut into speech windows by a voice-activity detector, each window decoded on its own, so no recording is too long. The remote engines take the whole file in one request and separate the speakers; the chain walks from the administrator's engine to ElevenLabs, OpenAI and the local model, and a provider that refuses hands over to the next. The minutes are one structured call that fills the user's template, and every paid unit — audio at the engine, tokens at the model — is stated on the resulting card, the meeting page and the list.</p><h2>Listening on your terms</h2><p>Personal Radio is a listening experience alongside voice conversation: a shared newsroom collects public stories, while your station combines your chosen sources with the parts of your day you permit. You start it, see the sources and spending, set a sleep timer, and can stop it at any moment. It creates no replay.</p>"
       },
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Turn Your Documents into AI Intelligence",
@@ -12073,7 +12186,7 @@
       "reminders-scheduling": {
         "title": "Reminders and Scheduled Actions: Automate Your Daily Life",
         "excerpt": "Create reminders in natural language and schedule recurring actions. LIA handles timing, timezones, and push notifications.",
-        "body": "<h2>Natural language reminders</h2><p>Creating a reminder with LIA is as simple as saying:</p><ul><li>\"Remind me to call Marie tomorrow at 9am\"</li><li>\"Reminder in 30 minutes: check the oven\"</li><li>\"Remember to buy bread tonight\"</li></ul><p>LIA automatically interprets time expressions and creates the reminder with the correct timezone.</p><h2>Reminder lifecycle</h2><p>Each reminder follows a precise lifecycle: <strong>PENDING → PROCESSING → deleted</strong> after notification. A reminder can now <strong>repeat</strong> — every day, Monday and Thursday, the 15th of the month, every two hours within a window. After each notification LIA simply asks what to arm next: if an occurrence remains, the reminder re-arms; if none does — a consumed single occurrence, or a series that has run out — it is deleted. One rule in both cases, and exactly what “delete after notification” always meant. Each reminder contains three key fields:</p><ul><li><code>content</code> — The content understood by LIA (reformulated if needed)</li><li><code>original_message</code> — The user's exact text</li><li><code>trigger_at</code> — The trigger time in UTC</li></ul><p>The move to <code>PROCESSING</code> is a <strong>lease</strong>, not a point of no return: the selection query only ever looks at <code>PENDING</code> rows, so a reminder already being handled cannot be picked up twice by two concurrent passes. Every early exit releases it — usage limit reached, no registered device — and the reminder returns to <code>PENDING</code> for the next pass. Without that release, a reminder falling due in the very minute a user hits their quota would be lost for good, with no error and no trace.</p><h2>Timezone management</h2><p>All reminders are stored in <strong>UTC</strong> in the database. The user's IANA timezone (e.g., <code>Europe/Paris</code>, <code>America/New_York</code>) is tracked and used to convert relative time expressions (\"tomorrow at 9am\") into absolute UTC timestamps. Display is always converted to the user's local timezone.</p><h2>Push notifications</h2><p>Reminders are delivered via <strong>Firebase Cloud Messaging (FCM)</strong> for browser and mobile notifications. Notifications arrive even when the app isn't open.</p><p>The notification title and body are rendered in the user's own language, across all six supported languages. Locale normalisation is done by the title table itself rather than by each caller, because callers hold raw locales of every spelling — and the one place that had to normalise and did not sent Chinese users English titles.</p><p>The sentence itself is asked of the model without reasoning wherever the model can stop, on a small answer budget — on a model that thinks by default, the thinking is billed inside that budget. An answer that comes back empty, or that the provider reports as cut at its budget, is never sent: the plain reminder goes out in its place, so a notification is never a bell and nothing else.</p><h2>Scheduled actions</h2><p>Scheduled Actions constitute a <strong>separate domain</strong> that goes beyond simple reminders. They integrate with <strong>APScheduler</strong> to schedule recurring tasks that LIA executes automatically:</p><ul><li>Weather summary every morning at 7am</li><li>Important email check every 2 hours</li><li>Weekly task report every Monday</li></ul><h2>Reasonable limits</h2><p>To prevent abuse, each user can have up to 20 active scheduled actions simultaneously. Retry logic with backoff handles temporary failures.</p>"
+        "body": "<h2>Natural language reminders</h2><p>Creating a reminder with LIA is as simple as saying:</p><ul><li>\"Remind me to call Marie tomorrow at 9am\"</li><li>\"Reminder in 30 minutes: check the oven\"</li><li>\"Remember to buy bread tonight\"</li></ul><p>LIA automatically interprets time expressions and creates the reminder with the correct timezone.</p><h2>Reminder lifecycle</h2><p>Each reminder follows a precise lifecycle: <strong>PENDING → PROCESSING → deleted</strong> after notification. A reminder can now <strong>repeat</strong> — every day, Monday and Thursday, the 15th of the month, every two hours within a window. After each notification LIA simply asks what to arm next: if an occurrence remains, the reminder re-arms; if none does — a consumed single occurrence, or a series that has run out — it is deleted. One rule in both cases, and exactly what “delete after notification” always meant. Each reminder contains three key fields:</p><ul><li><code>content</code> — The content understood by LIA (reformulated if needed)</li><li><code>original_message</code> — The user's exact text</li><li><code>trigger_at</code> — The trigger time in UTC</li></ul><p>The move to <code>PROCESSING</code> is a <strong>lease</strong>, not a point of no return: the selection query only ever looks at <code>PENDING</code> rows, so a reminder already being handled cannot be picked up twice by two concurrent passes. Every early exit releases it — usage limit reached, no registered device — and the reminder returns to <code>PENDING</code> for the next pass. Without that release, a reminder falling due in the very minute a user hits their quota would be lost for good, with no error and no trace.</p><h2>Timezone management</h2><p>All reminders are stored in <strong>UTC</strong> in the database. The user's IANA timezone (e.g., <code>Europe/Paris</code>, <code>America/New_York</code>) is tracked and used to convert relative time expressions (\"tomorrow at 9am\") into absolute UTC timestamps. Display is always converted to the user's local timezone.</p><h2>Push notifications</h2><p>Reminders are delivered via <strong>Firebase Cloud Messaging (FCM)</strong> for browser and mobile notifications. Notifications arrive even when the app isn't open.</p><p>The notification title and body are rendered in the user's own language, across all six supported languages. Locale normalisation is done by the title table itself rather than by each caller, because callers hold raw locales of every spelling — and the one place that had to normalise and did not sent Chinese users English titles.</p><p>The sentence itself is asked of the model without reasoning wherever the model can stop, on a small answer budget — on a model that thinks by default, the thinking is billed inside that budget. An answer that comes back empty, or that the provider reports as cut at its budget, is never sent: the plain reminder goes out in its place, so a notification is never a bell and nothing else.</p><h2>Scheduled actions</h2><p>Scheduled Actions constitute a <strong>separate domain</strong> that goes beyond simple reminders. They integrate with <strong>APScheduler</strong> to schedule recurring tasks that LIA executes automatically:</p><ul><li>Weather summary every morning at 7am</li><li>Important email check every 2 hours</li><li>Weekly task report every Monday</li></ul><h2>Reasonable limits</h2><p>To prevent abuse, each user can have up to 20 active scheduled actions simultaneously. Retry logic with backoff handles temporary failures.</p><h2>One clock per routine</h2><p>A routine follows either a schedule or a condition. A scheduled one runs by its recurrence rule; a condition is checked at the cadence of its source and acts only when a new matching fact appears. Both show their real runs in the same history and obey the same approval and spending limits.</p>"
       },
       "sub-agents": {
         "title": "Sub-Agents: Ephemeral Experts for Complex Questions",
@@ -12091,9 +12204,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>Logs that keep facts, never words</h2><p>Following the <strong>OWASP Logging Cheat Sheet</strong>, a log line above debug level carries <strong>facts</strong> — counts, lengths, identifiers, error codes, a URL's host — and never the text a person wrote, or a model wrote about them: no search, no interest, no name of a file, a label or a space, no page visited.</p><p>The rule is checked <strong>by the value</strong>, not by the field name: a test reads every logging call in the code and refuses a preview or a value derived from content, whatever it is called. What an error message <strong>quotes</strong> — a value PostgreSQL rejected, a validation input — is withheld before the line is written, and a database error is described by its facts: code, constraint, table. Provider keys are masked in every logged address. Two limits are stated as they are: an external service's error in an unknown format can still quote a value, and the debug level — off in production — keeps more.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>Protecting data also means making sure it survives incidents. The production database is backed up automatically every night, with 7 days, 4 weeks and 6 months of history kept, in a dedicated directory with restrictive permissions. And because a backup only counts once a restore has been proven, the procedure is tested for real: the latest dump is restored into a disposable container and compared against the live database (schema revision, row counts) — a drill that ships with the stack.</p><h2>A complete record, not a sample</h2><p>Three registers kept automatically say what LIA <strong>did</strong> for you, what it <strong>consulted</strong> to answer you, and what it undertook <strong>on its own initiative</strong>. They carry no content: a consultation keeps the capability — \"your calendar\" — and never what was searched for, because writing it down would copy the very data the register exists to make accountable.</p><p>The record you download from the <strong>Registers</strong> page is <strong>complete</strong>. It used to carry a row ceiling: a real protection, since the whole document was assembled in memory on a Raspberry Pi, but applied to the wrong variable. What was scarce was memory; what was bounded was the truth. A server-side cursor now bounds the buffer: whatever the volume, the file carries everything your filters name, the exact count is stated in the header alongside the instant of generation, and the download is compressed on the fly when your browser accepts it.</p>"
       },
       "observability": {
-        "title": "589 Prometheus Metrics, 30 Grafana Dashboards, and Langfuse Tracing",
-        "excerpt": "LIA offers enterprise-grade observability with 589 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 589 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki: facts, never people's words</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>39 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 39 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30 Grafana dashboards</h2><p>LIA provides 30 Grafana dashboards numbered 01 to 30: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, and live. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 29 vital alerts — among them API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration traces every LLM call — tokens consumed (input/output/cache), response time, model used, estimated cost and request context — and seven Prometheus metrics of its own follow prompt versions, evaluation scores, A/B variants, trace depth and agent handoffs. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p><p>The same principle caught up with the tool success rate. A tool fails by <em>returning</em> a failure, never by raising an exception, and the counter only watched exceptions: the rate was 1.0 by construction, and the two alerts that read it could not fire. One predicate now decides what a success is, for the register, the metrics and the ReAct loop — the displayed rate goes down, because it finally tells the truth.</p>"
+        "title": "606 Prometheus Metrics, 30 Grafana Dashboards, and Langfuse Tracing",
+        "excerpt": "LIA offers enterprise-grade observability with 606 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 606 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki: facts, never people's words</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>39 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 39 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30 Grafana dashboards</h2><p>LIA provides 30 Grafana dashboards numbered 01 to 30: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, and live. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 29 vital alerts — among them API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration traces every LLM call — tokens consumed (input/output/cache), response time, model used, estimated cost and request context — and seven Prometheus metrics of its own follow prompt versions, evaluation scores, A/B variants, trace depth and agent handoffs. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p><p>The same principle caught up with the tool success rate. A tool fails by <em>returning</em> a failure, never by raising an exception, and the counter only watched exceptions: the rate was 1.0 by construction, and the two alerts that read it could not fire. One predicate now decides what a success is, for the register, the metrics and the ReAct loop — the displayed rate goes down, because it finally tells the truth.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 155 Prompts Managed as Code",
@@ -12768,7 +12881,8 @@
       "telephony": "Calls",
       "meetings": "Meetings",
       "bookmarks": "Bookmarks",
-      "live": "Live"
+      "live": "Live",
+      "radio": "Radio"
     },
     "items": {
       "stt": "Voice input (speech-to-text)",
@@ -12828,7 +12942,11 @@
       "bookmarks": "Bookmarks",
       "bookmarks_description": "Keep an answer out of a conversation with the bookmark on its bubble. Switching this off removes the bookmark action; what was already kept stays readable and deletable.",
       "live": "Live voice mode",
-      "live_description": "A real-time voice session on the person's own provider key, delegating every request to the chat. Turning it off closes the live routes."
+      "live_description": "A real-time voice session on the person's own provider key, delegating every request to the chat. Turning it off closes the live routes.",
+      "email_share": "Sending by e-mail",
+      "email_share_description": "Send a generated file or an answer by e-mail, from the person's mailbox or LIA's relay to their own address. Turning it off closes the routes; nothing is deleted.",
+      "radio": "Personal radio",
+      "radio_description": "A personal radio produced on demand in the person's language, from the news the instance collects and their own day. Turning it off closes the radio routes and pauses the newsroom; settings and added sites are kept."
     }
   },
   "showroom": {
@@ -13776,7 +13894,9 @@
       "create_reminder_tool": "Created the reminder “{{target}}”",
       "call_me_tool": "Called you on the phone ({{target}})",
       "send_email_to_me_tool": "Sent you an e-mail ({{target}})",
-      "proactive_notification": "Notification sent ({{kind}})"
+      "proactive_notification": "Notification sent ({{kind}})",
+      "peer_image_share": "Shared an image with a connection",
+      "email_share": "Sent an e-mail to {{count}} recipient(s)"
     },
     "export": {
       "group_label": "Export this register",
@@ -14414,6 +14534,309 @@
       "duration": "{{seconds}} s",
       "credits_one": "{{count}} credit",
       "credits_other": "{{count}} credits"
+    }
+  },
+  "email_share": {
+    "button": "Send by e-mail",
+    "button_named": "Send {{name}} by e-mail",
+    "title": "Send by e-mail",
+    "description_mailbox": "It leaves from your connected mailbox, to whoever you choose.",
+    "description_relay": "It goes to your own address, sent by LIA.",
+    "description_unavailable": "There is no way to send it by e-mail right now.",
+    "unavailable": "Connect a mailbox in {{path}}, or verify your account's e-mail address, to send files and answers by e-mail.",
+    "reconnect_hint": "Your mailbox needs to be reconnected ({{path}}) to write to someone else.",
+    "loading": "Checking how it can be sent…",
+    "load_error": "Could not check how it can be sent. Try again.",
+    "attachment_size": "{{name}} · {{size}}",
+    "max_size": "Largest file by this road: {{size}}.",
+    "too_large": "This file is heavier than this road carries ({{size}} at most).",
+    "to_label": "To",
+    "to_placeholder": "name@example.com, another@example.com",
+    "to_self": "To: {{address}} (your own address)",
+    "to_invalid": "Not an e-mail address: {{entries}}",
+    "to_too_many": "At most {{max}} recipients.",
+    "subject_label": "Subject",
+    "message_label": "Message (optional)",
+    "message_placeholder": "A few words above the file…",
+    "characters": "{{count}} / {{max}}",
+    "send": "Send",
+    "sent_one": "E-mail sent to {{count}} recipient.",
+    "sent_other": "E-mail sent to {{count}} recipients.",
+    "sent_to_self": "E-mail sent to your address.",
+    "answer_subject": "LIA's answer of {{date}}",
+    "errors": {
+      "file_gone": "This file no longer exists.",
+      "too_large": "This file is heavier than this road carries.",
+      "no_recipient": "Add at least one recipient.",
+      "recipients_locked": "Without a connected mailbox, LIA only writes to your own address.",
+      "unavailable": "No way to send it right now: connect a mailbox or verify your address.",
+      "mailbox_reconnect": "Your mailbox connection expired: reconnect it in {{path}}.",
+      "refused": "Your mailbox refused the message.",
+      "failed": "The e-mail could not be sent. Try again in a moment.",
+      "rate_limited": "Too many e-mails in a short time. Try again in a few minutes.",
+      "generic": "The e-mail could not be sent."
+    }
+  },
+  "radio": {
+    "station_name": "LIA Radio",
+    "header": {
+      "start": "Start the radio",
+      "stop": "Stop the radio"
+    },
+    "banner": {
+      "idle": "Off",
+      "starting": "Tuning in…",
+      "starting_eta": "Tuning in — the first voice in about {{seconds}} s",
+      "waiting": "Between two programmes",
+      "playing": "On air",
+      "paused": "Paused",
+      "ending": "Signing off…",
+      "minutes_left_one": "{{count}} min left",
+      "minutes_left_other": "{{count}} min left",
+      "cost_label": "Cost so far",
+      "estimate": "≈ {{cost}} for {{minutes}} min",
+      "estimate_hourly": "≈ {{cost}} per hour",
+      "estimate_label": "Estimated cost of the planned listening",
+      "pause": "Pause",
+      "resume": "Resume",
+      "stop": "Stop",
+      "open": "Transcript and sources",
+      "collapse": "Minimize radio player",
+      "expand": "Expand radio player",
+      "restart": "Start again",
+      "dismiss": "Dismiss"
+    },
+    "errors": {
+      "start_failed": "The radio could not start — try again in a moment.",
+      "connection_lost": "The connection to the radio was lost.",
+      "radio_instance_full": "The radio is busy on this instance — try again in a few minutes.",
+      "radio_no_voice": "The radio has no voice to speak with — an administrator must set one.",
+      "radio_voice_unavailable": "The radio's voices are not available on this instance — an administrator must check them.",
+      "radio_budget_reached": "Your radio has spent its limit of {{max}} — it can play again from {{lifts}}.",
+      "radio_timer_too_long": "This timer is longer than the instance allows — {{max}} minutes at most.",
+      "radio_voice_unknown": "This voice is no longer offered — choose another one.",
+      "radio_personality_unknown": "This personality is no longer offered — choose another one.",
+      "radio_source_limit_one": "Up to {{count}} site — remove it before adding another.",
+      "radio_source_limit_other": "Up to {{count}} sites — remove one before adding another."
+    },
+    "end_reason": {
+      "timer": "The radio signed off at the time you set.",
+      "listener": "You stopped the radio.",
+      "idle": "The radio stopped: nobody was listening.",
+      "failures": "The radio stopped: its programmes could not be produced.",
+      "budget": "The radio stopped: a spending limit was reached.",
+      "other": "The radio stopped."
+    },
+    "formats": {
+      "opening": "Opening",
+      "journal": "Journal",
+      "headlines": "Headlines",
+      "bulletin": "News bulletin",
+      "brief": "Brief",
+      "analysis": "Analysis",
+      "column": "Editorial",
+      "number": "The figure",
+      "sign_off": "Sign-off",
+      "flash": "News flash",
+      "nothing_new": "Nothing new",
+      "dossier": "In depth",
+      "debate": "The debate",
+      "discussion": "Talking it through"
+    },
+    "roles": {
+      "host": "LIA",
+      "anchor": "Anchor",
+      "expert": "Expert",
+      "columnist": "Editorialist",
+      "speaker_a": "Commentator 1",
+      "speaker_b": "Commentator 2",
+      "speaker_c": "Commentator 3"
+    },
+    "page": {
+      "title": "Radio",
+      "subtitle": "Your day and the world's news, written and voiced for you while you listen.",
+      "start_description": "LIA opens with your day, then brings in the news from the outlets you follow — each programme is written while you listen, and every sentence shows its source.",
+      "timer_label": "Automatic stop",
+      "timer_default": "As in my settings",
+      "timer_none": "No automatic stop",
+      "timer_minutes_one": "After {{count}} minute",
+      "timer_minutes_other": "After {{count}} minutes",
+      "company_label": "Listening in company",
+      "company_description": "Nothing about you airs during this session.",
+      "cost_note": "Each programme is written and voiced for you — its cost shows live under the header and counts in your usage.",
+      "start": "Start the radio",
+      "between_programmes": "The next programme is being prepared — the station's music plays meanwhile.",
+      "next": "Next: {{format}} — {{title}}",
+      "transcript_label": "Transcript",
+      "sources_label": "Sources:",
+      "unavailable": "The radio is not offered on this instance."
+    },
+    "settings": {
+      "title": "Radio",
+      "description": "What your radio talks about, and how it sounds.",
+      "save_failed": "Your radio settings could not be saved.",
+      "unavailable": "The radio settings cannot be read right now.",
+      "programmes": {
+        "title": "Programmes",
+        "summary": "Choose how often each type of programme airs.",
+        "description": "How often each programme comes back. The headlines, the bulletin, the briefs and the figure always bring stories you haven't heard; the other news programmes may come back to one, from their own angle — never twice in a row, never twice in the same programme. The opening and the sign-off belong to the station.",
+        "hints": {
+          "journal": "Your journal in three editions: until {{noon}}:00, what's planned and to do — appointments, reminders, tasks, commitments, unread e-mails, things to note; from {{noon}}:00, what you did this morning and what's left; from {{evening}}:00, a look back at your day, then tomorrow and the week.",
+          "headlines": "The main headlines, one sentence each with the outlet that reports it (up to {{stories}}).",
+          "bulletin": "The news: up to {{stories}} stories told in a few sentences, on the hour.",
+          "brief": "One news story, announced with its outlet and told in a few sentences.",
+          "analysis": "One story unpacked with an expert — context, background, what to watch, how it could evolve — from the article's full text.",
+          "column": "The station's editorial on one news story, announced with its headline and outlet, said as a view.",
+          "number": "A striking figure from an article, explained from what the article says.",
+          "dossier": "One story in depth with an expert — how it began, the context, what the facts show, what could come next — closing on an open question, from the article's full text.",
+          "debate": "A moderator and two or three of the station's commentators with opposed views on one story; the moderator sums up where they agree and where they differ.",
+          "discussion": "Two or three of the station's commentators, keen on the subject, talk one story through."
+        }
+      },
+      "frequency": {
+        "off": "Never",
+        "rare": "Rarely",
+        "normal": "Normally",
+        "often": "Often"
+      },
+      "sources": {
+        "title": "Your life on air",
+        "description": "What of your own day the radio may talk about. A source switched off is never read."
+      },
+      "source": {
+        "agenda": "Appointments",
+        "reminders": "Reminders",
+        "tasks": "Tasks",
+        "commitments": "Commitments",
+        "tickets": "Tickets",
+        "birthdays": "Birthdays",
+        "mails": "Unread e-mails",
+        "actions": "What LIA did",
+        "weather": "Weather",
+        "health": "Health",
+        "meetings": "Meetings",
+        "notifications": "Notifications",
+        "relations": "People to get back to",
+        "spaces": "Knowledge spaces",
+        "bookmarks": "Kept answers",
+        "conversation": "Conversation under way"
+      },
+      "news": {
+        "title": "News sources",
+        "description": "Every source airs translated into your language: untick the ones you do not want to hear.",
+        "totals": "Stories from your sources over the last {{hours}} hours: {{stories}} · not heard yet: {{unheard}}",
+        "counts": "Stories: {{stories}} · not heard: {{unheard}}",
+        "with_language": "{{name}} ({{language}})",
+        "failing": "Not answering",
+        "base_title": "The radio’s sources",
+        "base_hint": "Major outlets and independent voices, in several languages — all ticked by default.",
+        "forget": "Forget what I heard",
+        "forget_title": "Forget what you heard?",
+        "forget_description": "Every story you already heard may air again. This cannot be undone.",
+        "forget_confirm": "Forget",
+        "forgotten": "Done: every story can air again.",
+        "forget_failed": "What you heard could not be forgotten — try again in a moment."
+      },
+      "sites": {
+        "title": "Your sites",
+        "hint_one": "Add a site you like: the radio finds its feed. Up to {{count}} site.",
+        "hint_other": "Add a site you like: the radio finds its feed. Up to {{count}} sites.",
+        "address": "Site address",
+        "check": "Check",
+        "checking": "Looking for the site's feed…",
+        "add": "Add",
+        "found_one": "{{title}} — {{count}} article right now.",
+        "found_other": "{{title}} — {{count}} articles right now.",
+        "empty": "No site added yet.",
+        "remove": "Remove {{title}}",
+        "check_failed": "The site could not be checked — try again in a moment.",
+        "rate_limited": "Too many site checks or additions in a short time. Try again in a few minutes.",
+        "add_failed": "The site could not be added.",
+        "remove_failed": "The site could not be removed.",
+        "outcome": {
+          "not_public": "Nothing public can be reached at this address — check it.",
+          "unreachable": "This site does not answer right now.",
+          "forbidden": "This site does not let robots read it.",
+          "no_feed": "This site publishes no feed the radio can read."
+        },
+        "paused": "Paused — the radio no longer reads it.",
+        "rename": "Rename {{title}}",
+        "rename_title": "Rename the site",
+        "rename_label": "Name heard on air",
+        "rename_save": "Save",
+        "change_failed": "The site could not be changed."
+      },
+      "voices": {
+        "title": "Voices",
+        "description": "Name your station and choose its personality and voices.",
+        "station_name": "Station name",
+        "station_name_hint": "Said on air by the host and shown on the player. Leave it empty for “{{name}}”.",
+        "personality": "Station personality",
+        "personality_chat": "The same as in the chat",
+        "automatic": "Automatic"
+      },
+      "verification": {
+        "off": "No check",
+        "news": "Check the news",
+        "all": "Check every programme"
+      },
+      "listening": {
+        "title": "Listening",
+        "description": "Choose the fact check, automatic stop and listening in company.",
+        "verification": "Checking by a second model",
+        "verification_hint": "When enabled, a second model compares the episode’s sourced claims with the facts they cite before it airs. Unsupported lines are removed; an episode may be dropped if too little remains or the check fails. More checking adds cost and may delay playback.",
+        "verification_cost_zero": "No programme is re-read by a model.",
+        "verification_cost_one": "{{count}} kind of programme is re-read by a model before it airs — every reading is billed.",
+        "verification_cost_other": "{{count}} kinds of programme are re-read by a model before they air — every reading is billed.",
+        "timer": "Automatic stop",
+        "timer_default_one": "Instance default ({{count}} minute)",
+        "timer_default_other": "Instance default ({{count}} minutes)",
+        "company": "Listen in company by default"
+      },
+      "budget": {
+        "title": "Your radio's spending",
+        "description": "See what your radio has spent against its limit.",
+        "spent": "Over the last {{hours}} hours, your radio has spent {{spent}} of the {{limit}} allowed — sessions and article translations included.",
+        "reached": "Limit reached: your radio can play again from {{lifts}}."
+      },
+      "source_hints": {
+        "agenda": "Your appointments today, read from your connected calendar.",
+        "reminders": "Your reminders coming due.",
+        "tasks": "Your tasks overdue or due soon.",
+        "commitments": "What you owe someone, or are waiting for from someone, spotted in your exchanges.",
+        "tickets": "Workboard tickets waiting on your answer or past their due date.",
+        "birthdays": "Your contacts' upcoming birthdays.",
+        "mails": "Today's unread e-mails: sender and subject.",
+        "actions": "The actions LIA carried out for you today, from her own register — in the noon and evening editions of the journal.",
+        "weather": "The weather where you are, said once a session.",
+        "health": "Today's health figures compared with your average.",
+        "meetings": "Decisions and actions from your recently recorded meetings.",
+        "notifications": "What LIA recently told you on her own initiative.",
+        "relations": "Favorites you haven't heard from in a while.",
+        "spaces": "Documents recently added to your knowledge spaces.",
+        "bookmarks": "LIA's answers you kept recently.",
+        "conversation": "The question you recently asked LIA, to pick up the thread."
+      }
+    },
+    "dashboard": {
+      "open": "Open the radio"
+    },
+    "article": {
+      "section_title": "Articles of this session",
+      "section_description": "Open one to read it whole, in your language — a translation is billed once, then read again at no cost.",
+      "loading": "Reading the article — a translation can take a minute…",
+      "error": "The article could not be read.",
+      "translated": "Machine translation · original language: {{language}}",
+      "translated_unknown": "Machine translation",
+      "translation_failed": "The translation could not be made: here is the article in its original language.",
+      "budget_reached": "Your radio's spending limit is reached: here is the article in its original language, untranslated.",
+      "summary_only": "The outlet shares only this summary — the whole article is on its site.",
+      "cut": "A long article: the rest is on the outlet’s site.",
+      "cost": "Translation cost: {{cost}}",
+      "empty": "The outlet published no text for this article.",
+      "read_original": "Read it on {{outlet}}",
+      "original": "Original",
+      "original_label": "Original — {{outlet}}, in a new tab"
     }
   }
 }

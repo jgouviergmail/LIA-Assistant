@@ -136,10 +136,32 @@ class TestFoundAndShown:
             url=f"/api/v1/attachments/{cat.id}",
             alt_text="A cat",
             expires_at=cat.expires_at.isoformat(),
+            kept=False,
         )
         conversation, card = documents.call_args.args
         assert conversation == CONVERSATION
-        assert (card.doc_type, card.filename) == ("pdf", "Quarterly report.PDF")
+        assert (card.doc_type, card.filename, card.kept) == ("pdf", "Quarterly report.PDF", False)
+
+    async def test_a_kept_file_says_so_and_its_card_states_no_deadline(self) -> None:
+        # ADR-319: a file the person kept has no deadline. The lookup must tell
+        # the model it is kept (not « expires None »), and the card it shows
+        # says so LIVE, as the history read path will after a reload — never
+        # a deadline the file no longer has.
+        kept = _file(AttachmentOrigin.GENERATED_IMAGE, 30, "generated_cat.png", "A cat")
+        kept.expires_at = None
+        gallery = _Gallery({AttachmentOrigin.GENERATED_IMAGE: ([kept], 1)})
+
+        output, images, _documents = await _call(gallery)
+
+        (item,) = (output.structured_data or {})["files"]
+        assert (item["kept"], item["expires"]) == (True, None)
+        images.assert_called_once_with(
+            CONVERSATION,
+            url=f"/api/v1/attachments/{kept.id}",
+            alt_text="A cat",
+            expires_at=None,
+            kept=True,
+        )
 
     async def test_only_what_can_still_be_opened_is_asked_for(self) -> None:
         gallery = _Gallery({})

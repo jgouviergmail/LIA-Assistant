@@ -14,11 +14,15 @@ leak one turn's metadata into another.
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 import pytest
 
-from src.domains.agents.api.archive_metadata import build_assistant_metadata
+from src.domains.agents.api.archive_metadata import (
+    build_assistant_metadata,
+    with_archived_message_ids,
+)
 
 pytestmark = [pytest.mark.unit]
 
@@ -165,3 +169,36 @@ class TestTheFifthEnricher:
             "a pre-translated sentence in the payload would freeze the user's "
             "language at archive time"
         )
+
+
+class TestArchivedMessageIds:
+    """The done chunk names the rows the turn archived (ADR-320)."""
+
+    def test_both_rows_travel_as_strings(self) -> None:
+        question, answer = uuid.uuid4(), uuid.uuid4()
+
+        produced = with_archived_message_ids(
+            {"tokens_in": 1}, user_message_id=question, assistant_message_id=answer
+        )
+
+        assert produced == {
+            "tokens_in": 1,
+            "archived_user_message_id": str(question),
+            "archived_message_id": str(answer),
+        }
+
+    def test_a_row_that_could_not_be_archived_is_not_named(self) -> None:
+        # The archive-first write is best-effort: a missing id must not be sent
+        # as « None », which a client would read as an id.
+        answer = uuid.uuid4()
+
+        produced = with_archived_message_ids({}, user_message_id=None, assistant_message_id=answer)
+
+        assert produced == {"archived_message_id": str(answer)}
+
+    def test_nothing_archived_returns_the_same_dict(self) -> None:
+        base: dict[str, Any] = {"tokens_in": 1}
+
+        produced = with_archived_message_ids(base, user_message_id=None, assistant_message_id=None)
+
+        assert produced is base

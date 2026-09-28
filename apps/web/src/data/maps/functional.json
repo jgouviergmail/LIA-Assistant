@@ -201,7 +201,7 @@
       "id": "f.mail",
       "group": "g.act",
       "icon": "mail",
-      "domains": ["agents", "connectors"],
+      "domains": ["agents", "connectors", "email_share"],
       "surfaces": ["/dashboard/chat"],
       "deps": ["f.connectors", "f.hitl"]
     },
@@ -414,6 +414,14 @@
       "domains": ["telephony", "voice_sessions"],
       "surfaces": ["/dashboard/settings"],
       "deps": ["f.live", "f.chat", "f.connectors"]
+    },
+    {
+      "id": "f.radio",
+      "group": "g.voice",
+      "icon": "radio",
+      "domains": ["radio"],
+      "surfaces": ["/dashboard/radio"],
+      "deps": ["f.voice", "f.briefing", "f.interests", "f.memory", "f.personality", "f.costs"]
     },
     {
       "id": "f.security",

@@ -159,7 +159,7 @@ class TestSemanticValidatorNode:
                 ],
                 confidence=0.8,
                 requires_clarification=True,
-                clarification_questions=["Voulez-vous UN ou TOUS les contacts ?"],
+                clarification_questions=["Veux-tu UN ou TOUS les contacts ?"],
                 validation_duration_seconds=0.7,
                 used_fallback=False,
             )
@@ -207,7 +207,7 @@ class TestClarificationNode:
         """Create semantic validation that requires clarification."""
         return {
             "requires_clarification": True,
-            "clarification_questions": ["Voulez-vous UN ou TOUS les contacts ?"],
+            "clarification_questions": ["Veux-tu UN ou TOUS les contacts ?"],
             "issues": [
                 {
                     "issue_type": {"value": "cardinality_mismatch"},
@@ -624,7 +624,7 @@ class TestSemanticValidationIntegration:
                 ],
                 confidence=0.8,
                 requires_clarification=True,
-                clarification_questions=["Voulez-vous UN ou TOUS ?"],
+                clarification_questions=["Veux-tu UN ou TOUS ?"],
                 validation_duration_seconds=0.6,
                 used_fallback=False,
             )

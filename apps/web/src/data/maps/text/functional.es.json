@@ -317,6 +317,12 @@
       "goal": "Contactar con LIA sin pantalla.",
       "src": "4fe7ee13e992"
     },
+    "f.radio": {
+      "name": "Radio personal",
+      "role": "Una emisora a demanda en tu idioma: tu día y la actualidad del mundo, escritos, verificados y locutados para ti mientras escuchas, cada frase con su fuente.",
+      "goal": "Escuchar tu día y el mundo sin leer, sabiendo lo que cuesta.",
+      "src": "3518a88aef30"
+    },
     "f.security": {
       "name": "Cuentas y seguridad",
       "role": "Sesiones por cookie del lado del servidor, doble factor, activación por un administrador, dirección del llamante imposible de falsificar.",

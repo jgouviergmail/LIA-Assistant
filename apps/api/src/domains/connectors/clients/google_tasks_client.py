@@ -182,6 +182,7 @@ class GoogleTasksClient(BaseGoogleClient):
         show_hidden: bool = False,
         due_min: str | None = None,
         due_max: str | None = None,
+        completed_min: str | None = None,
     ) -> dict[str, Any]:
         """
         List tasks in a task list.
@@ -193,6 +194,8 @@ class GoogleTasksClient(BaseGoogleClient):
             show_hidden: Include hidden tasks (default: False)
             due_min: Filter tasks due after this RFC 3339 timestamp
             due_max: Filter tasks due before this RFC 3339 timestamp
+            completed_min: Filter tasks completed after this RFC 3339 timestamp
+                (with ``show_completed``; the radio's journal reads a day's)
 
         Returns:
             Dict with 'items' list containing task data
@@ -214,6 +217,8 @@ class GoogleTasksClient(BaseGoogleClient):
             params["dueMin"] = due_min
         if due_max:
             params["dueMax"] = due_max
+        if completed_min:
+            params["completedMin"] = completed_min
 
         response = await self._make_request(
             "GET",

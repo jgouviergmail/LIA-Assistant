@@ -11,7 +11,7 @@ A skill is a **SKILL.md** file that extends the assistant's capabilities with ex
 - **Generator**: Python script emits an image artifact (QR code, chart) via the SkillScriptOutput JSON contract
 
 ## How do I import a skill?
-In **Settings > Features > My Skills**, click **Import skill** and select a .md or .zip file. Compatible skills are available on **skillsmp.com** or GitHub. Limits: 100 KB for SKILL.md, 50 KB per resource file, 20 skills max per user.
+In **Settings > Features > My skills**, click **Import** and select a .md or .zip file. Compatible skills are available on **skillsmp.com** or GitHub. Limits: 100 KB for SKILL.md, 50 KB per resource file, 20 skills max per user.
 
 ## How do I create my own skill?
 **The easiest way: just ask LIA!** Say something like "*create a skill for [your need]*" and the built-in **Skill Generator** will guide you step by step: need analysis, archetype selection (any of the 5 archetypes), generation, automatic validation — and **direct import**: the finished skill lands in **My Skills** immediately, ready to use, no manual upload.

@@ -34,6 +34,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RECURRENCE_REMINDER_LIMITS
+from src.core.i18n import resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.recurrence import RecurrenceError, describe, recurrence_from_parameters
 from src.core.time_utils import format_datetime_for_display, now_utc
@@ -213,7 +214,7 @@ async def create_reminder_tool(
     max_occurrences: Annotated[int | None, RECURRENCE_DOCS["max_occurrences"]] = None,
     starting_on: Annotated[str | None, RECURRENCE_DOCS["starting_on"]] = None,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """Create a reminder, once or repeating.
 
@@ -254,6 +255,7 @@ async def create_reminder_tool(
         UnifiedToolOutput with a confirmation message, or a failure the model
         can relay.
     """
+    locale = resolve_language(locale)
     from src.domains.reminders.service import ReminderService
     from src.infrastructure.database.session import get_db_context
 
@@ -415,7 +417,7 @@ async def create_reminder_tool(
 async def list_reminders_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """List pending reminders for the user.
 
@@ -430,6 +432,7 @@ async def list_reminders_tool(
     Returns:
         UnifiedToolOutput with reminders list and formatted message
     """
+    locale = resolve_language(locale)
     from src.domains.reminders.service import ReminderService
     from src.infrastructure.database.session import get_db_context
 
@@ -536,11 +539,11 @@ async def list_reminders_tool(
 async def cancel_reminder_tool(
     reminder_identifier: Annotated[
         str,
-        "ID du rappel (UUID) ou référence naturelle ('next', 'le prochain', 'prochain')",
+        "Reminder ID (UUID), or 'next' for the upcoming reminder",
     ],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    locale: str = "fr",
+    locale: str | None = None,
 ) -> UnifiedToolOutput:
     """Cancel a pending reminder (creates draft for user confirmation).
 
@@ -556,6 +559,7 @@ async def cancel_reminder_tool(
     Returns:
         UnifiedToolOutput with DRAFT RegistryItem (requires_confirmation=True)
     """
+    locale = resolve_language(locale)
     from src.core.exceptions import ResourceConflictError, ResourceNotFoundError
     from src.domains.agents.drafts import create_reminder_delete_draft
     from src.domains.reminders.service import ReminderService

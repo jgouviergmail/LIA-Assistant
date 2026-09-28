@@ -2453,7 +2453,7 @@
           "title": "Pricing cache fallbacks (by reason)",
           "type": "timeseries",
           "datasource": "$datasource",
-          "description": "Cost computations that fell back because the in-memory pricing cache had no row for the model. Sustained fallbacks mean unpriced usage. Empty panel = zero events in the window (healthy).",
+          "description": "Cost computations that fell back to zero: the in-memory pricing cache was not built yet (cache_not_initialized) or had no row for the model (model_not_found). Each pricing door counts its own miss, so one unpriced call counts two or three times. Sustained fallbacks mean unpriced usage. Empty panel = zero events in the window (healthy).",
           "gridPos": {
             "h": 8,
             "w": 9,

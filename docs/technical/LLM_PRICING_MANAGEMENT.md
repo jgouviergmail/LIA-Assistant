@@ -60,7 +60,7 @@ graph TB
 | Anthropic | claude-sonnet-4, claude-opus-4 | Seeded in DB |
 | DeepSeek | deepseek-flash, deepseek-v4-pro, deepseek-v4-flash (retired alias), deepseek-chat, deepseek-reasoner | Seeded in DB (deepseek-flash also by migration `e9b5d7f3a2c4`) |
 | Perplexity | sonar-pro, sonar-reasoning | Seeded in DB |
-| Gemini | gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3.1-pro-preview | Seeded in DB (gemini-3.8-flash carries the price valid through 2026-12-31; it doubles on 2027-01-01 and must be edited then) |
+| Gemini | gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3.1-flash-lite, gemini-3.1-pro-preview; speech: gemini-3.8-flash-tts, gemini-3.8-flash-lite-tts, gemini-3.1-flash-tts-preview, gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts | Seeded in DB (the 2026-09-26 additions — gemini-3.1-flash-lite and three speech models — also by migration `7b3e9d1f5c2a`; gemini-3.8-flash and the two 3.8 speech models carry the price valid through 2026-12-31; they double on 2027-01-01 and must be edited then) |
 | Qwen | qwen3.8-max, qwen3.8-flash, qwen3.7-max, qwen3.7-plus, qwen3.7-flash, qwen3.6-plus, qwen3.6-flash, qwen3.5-plus, qwen3.5-flash, qwen3-max | Seeded in DB (Germany (Frankfurt) grid, Global deployment scope, for the models added 2026-09-23 — see [LLM_PROVIDERS.md](./LLM_PROVIDERS.md)) |
 | Ollama | * (local models) | Free (0.00) |
 
@@ -380,9 +380,9 @@ prix saisi par un administrateur reste. **Non exprimés, et donc non facturés �
 prix** : les paliers long contexte (OpenAI au-delà de 272K, Gemini au-delà de 200K, les
 tranches Qwen), les frais par requête de Perplexity (5 à 14 $ les 1 000 selon la
 profondeur de recherche) et les quotas gratuits mensuels de Google Maps. Gemini 3.6, 3.7
-et 3.8 Flash doublent le 2027-01-01 : rien ne bascule seul, les tarifs sont à éditer ce
-jour-là. Ne figurent plus sur les pages des éditeurs, donc invérifiables et laissés tels
-quels : les préversions `gpt-4o-*`, les `codex` et `chat-latest` versionnés, `o1-mini`,
+et 3.8 Flash, ainsi que les modèles vocaux 3.8 Flash TTS et 3.8 Flash-Lite TTS, doublent
+le 2027-01-01 : rien ne bascule seul, les tarifs sont à éditer ce jour-là. Ne figurent
+plus sur les pages des éditeurs, donc invérifiables et laissés tels quels : les préversions `gpt-4o-*`, les `codex` et `chat-latest` versionnés, `o1-mini`,
 `o3-deep-research`, `o4-mini-deep-research`, `computer-use-preview`, la famille
 `gemini-2.0-*`, les préversions Gemini `09-2025`, `gemini-3-pro-preview`,
 `gemini-embedding-001` (toujours servi), `text-embedding-004`, `embedding-001` et

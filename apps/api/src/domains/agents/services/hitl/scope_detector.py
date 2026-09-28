@@ -10,10 +10,14 @@ Detection Criteria:
     - Broad scope indicators ("all", "every", "entire")
     - Time range deletions ("all emails from last week")
 
-Integration Points:
-    - Planner node: Before creating execution plan
-    - Tool node: Before executing destructive tools
-    - Draft service: Before bulk draft operations
+Integration (ADR-323):
+    - ``detect_for_each_scope`` is live: the FOR_EACH preparation, the task
+      orchestrator and the parallel executor read it.
+    - In ``src/``, ``detect_dangerous_scope`` is reached only through
+      ``should_escalate_to_destructive_confirm``, which no production code
+      calls (tests call both): the
+      DESTRUCTIVE_CONFIRM dialog is registered and emitted by no node, and
+      ADR-323 lists this chain among those to delete together.
 
 Usage:
     >>> from src.domains.agents.services.hitl.scope_detector import (
@@ -25,10 +29,10 @@ Usage:
     ...     operation_type="delete_emails",
     ...     query="delete all emails from Jean",  # english_query from semantic pivot
     ...     affected_count=15,
-    ...     language="en",  # Use "en" when query is from semantic pivot
     ... )
     >>> if scope.requires_confirmation:
-    ...     # Trigger DESTRUCTIVE_CONFIRM HITL
+    ...     # The DESTRUCTIVE_CONFIRM dialog this was written to trigger
+    ...     # is emitted by no node (see Integration above).
     ...     ...
 
 References:
@@ -129,20 +133,17 @@ def detect_dangerous_scope(
     operation_type: str | None = None,
     query: str | None = None,
     affected_count: int = 1,
-    language: str = "en",
 ) -> DangerousScope:
     """
     Detect if an operation has dangerous scope requiring enhanced confirmation.
 
     IMPORTANT: Query should be english_query from semantic pivot. All patterns
-    are English-only. The `language` parameter is kept for backward compatibility
-    but is ignored (patterns are always English).
+    are English-only.
 
     Args:
         operation_type: Type of operation (e.g., "delete_emails")
         query: Query for pattern analysis (use english_query from semantic pivot)
         affected_count: Known number of affected items
-        language: Ignored (kept for backward compat). All patterns are English.
 
     Returns:
         DangerousScope with classification and confirmation requirement
@@ -265,7 +266,8 @@ def should_escalate_to_destructive_confirm(
     """
     Check if a tool execution should escalate to DESTRUCTIVE_CONFIRM.
 
-    Called by tool node after initial query to assess scope.
+    Written for the tool node, which never called it: no production code
+    does (see the module docstring).
 
     IMPORTANT: Do NOT use tool_args["query"] for pattern matching - it's transformed
     (e.g., Gmail syntax). Use original_query (english_query from semantic pivot) instead.
@@ -344,11 +346,17 @@ def detect_for_each_scope(
     """
     Detect if a for_each operation requires HITL approval.
 
-    Decision matrix:
-        - Mutation + 3+ iterations → Always requires approval (HIGH risk)
-        - Non-mutation + 10+ iterations → Requires approval (MEDIUM risk)
-        - Non-mutation + 5+ iterations → Advisory warning (LOW risk)
-        - Otherwise → No approval needed
+    Decision matrix — every threshold a setting, read as the code reads it:
+        - A mutation, ``for_each_mutation_threshold`` iterations or more →
+          requires approval (HIGH risk); two or more below that threshold →
+          advisory (MEDIUM risk).
+        - A read-only operation, ``for_each_warning_threshold`` iterations or
+          more → requires approval (MEDIUM risk).
+        - A read-only operation, ``for_each_approval_threshold`` iterations or
+          more → advisory only (LOW risk): despite its name, that threshold
+          asks for no approval.
+        - More iterations than ``for_each_max`` → requires approval.
+        - Otherwise → no approval needed.
 
     Args:
         iteration_count: Number of items to iterate over
@@ -368,9 +376,11 @@ def detect_for_each_scope(
         >>> scope.requires_approval  # True
         >>> scope.risk_level  # ScopeRisk.HIGH
     """
-    # Determine if this is a mutation tool. Both production call sites pass
-    # is_mutation=False ("auto-detected from tool_name"), so this IS the
-    # deciding oracle — delegate to the canonical one rather than a local copy.
+    # Determine if this is a mutation tool. All three production call sites
+    # (the FOR_EACH preparation, the task orchestrator, the parallel
+    # executor) pass is_mutation=False and leave the tool's name to decide, so
+    # this IS the deciding oracle — delegate to the canonical one rather than a
+    # local copy.
     if not is_mutation:
         from src.domains.agents.orchestration.plan_predicates import tool_is_mutation
 
@@ -382,8 +392,8 @@ def detect_for_each_scope(
     reason = ""
 
     if is_mutation:
-        # Mutations are always more risky
-        # Threshold from settings (default=1, configurable via FOR_EACH_MUTATION_THRESHOLD env var)
+        # Mutations are always more risky; the threshold is a setting
+        # (FOR_EACH_MUTATION_THRESHOLD).
         mutation_threshold = settings.for_each_mutation_threshold
         if iteration_count >= mutation_threshold:
             risk_level = ScopeRisk.HIGH

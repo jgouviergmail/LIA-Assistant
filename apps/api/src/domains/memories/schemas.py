@@ -66,35 +66,35 @@ class MemoryBase(BaseModel):
 
     content: str = Field(
         ...,
-        description="Le fait ou l'information en une phrase concise",
+        description="The fact or piece of information, in one concise sentence",
         min_length=3,
         max_length=500,
     )
     category: MemoryCategoryType = Field(
         ...,
-        description="Catégorie de la mémoire",
+        description="Category of the memory",
     )
     emotional_weight: int = Field(
         default=0,
         ge=-10,
         le=10,
-        description="Poids émotionnel de -10 (trauma) à +10 (joie)",
+        description="Emotional weight, from -10 (trauma) to +10 (joy)",
     )
     trigger_topic: str = Field(
         default="",
-        description="Mot-clé déclencheur",
+        description="Trigger keyword",
         max_length=100,
     )
     usage_nuance: str = Field(
         default="",
-        description="Comment utiliser cette information",
+        description="How to use this information",
         max_length=300,
     )
     importance: float = Field(
         default=0.7,
         ge=0.0,
         le=1.0,
-        description="Score d'importance (0.0-1.0)",
+        description="Importance score (0.0-1.0)",
     )
 
 

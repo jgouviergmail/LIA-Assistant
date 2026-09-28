@@ -11,9 +11,9 @@ import base64
 import hashlib
 import json
 import re
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from email.header import Header
-from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr, getaddresses
@@ -27,6 +27,7 @@ from src.core.constants import (
     GMAIL_FORMAT_FULL,
     GMAIL_FORMAT_METADATA,
     GMAIL_LABELS_CACHE_TTL,
+    GMAIL_SEND_MESSAGE_MAX_BYTES,
     GOOGLE_GMAIL_API_BASE_URL,
     REDIS_KEY_GMAIL_LABELS_PREFIX,
     REDIS_KEY_GMAIL_MESSAGE_PREFIX,
@@ -39,17 +40,24 @@ from src.domains.connectors.clients.base_google_client import (
     apply_max_items_limit,
 )
 from src.domains.connectors.clients.gmail_attachments_mixin import GmailAttachmentsMixin
+from src.domains.connectors.clients.gmail_send_mixin import GmailSendMixin
 from src.domains.connectors.clients.gmail_threads_mixin import GmailThreadsMixin
 from src.domains.connectors.clients.normalizers.html_text import html_to_text
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.email.outgoing import (
+    OutgoingAttachment,
+    attachment_part,
+    max_file_bytes,
+    with_attachments,
+)
 
 logger = structlog.get_logger(__name__)
 
 
-class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClient):
+class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin, BaseGoogleClient):
     """
     Google Gmail API client with OAuth, rate limiting, caching, and error handling.
 
@@ -74,6 +82,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
     # Required by BaseGoogleClient
     connector_type = ConnectorType.GOOGLE_GMAIL
     api_base_url = GOOGLE_GMAIL_API_BASE_URL
+    OUTGOING_FILE_MAX_BYTES = max_file_bytes(GMAIL_SEND_MESSAGE_MAX_BYTES)
 
     def __init__(
         self,
@@ -290,7 +299,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
 
         Args:
             addresses: Email address(es), possibly with display names
-                       (e.g., '"Jérôme G" <email@example.com>, john@example.com')
+                       (e.g., '"Élodie Exemple" <email@example.com>, john@example.com')
 
         Returns:
             RFC 2047 encoded email address string.
@@ -299,8 +308,8 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
             ValueError: If any email address has invalid format (missing TLD, etc.)
 
         Example:
-            >>> GoogleGmailClient._encode_email_header('"Jérôme G" <jean@example.com>')
-            '=?utf-8?q?J=C3=A9r=C3=B4me_G?= <jean@example.com>'
+            >>> GoogleGmailClient._encode_email_header('"Élodie Exemple" <elodie@example.com>')
+            '=?utf-8?q?=C3=89lodie_Exemple?= <elodie@example.com>'
         """
         # Parse all addresses (handles comma-separated with quoted names)
         addresses_list = getaddresses([addresses])
@@ -311,8 +320,8 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
             # This prevents cryptic "Invalid To header" errors from the API
             if email and not validate_email(email):
                 raise ValueError(
-                    f"Format d'adresse email invalide: '{email}'. "
-                    f"L'adresse doit contenir un domaine complet (ex: user@example.com)"
+                    f"Invalid email address format: '{email}'. "
+                    "The address must include a complete domain (e.g. user@example.com)."
                 )
 
             if name:
@@ -594,6 +603,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
         cc: str | None = None,
         bcc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """
         Send an email via Gmail API.
@@ -605,6 +615,8 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
             cc: CC recipients (optional, comma-separated).
             bcc: BCC recipients (optional, comma-separated).
             is_html: True if body is HTML, False for plain text (default False).
+            attachments: Files to attach (ADR-321); a message carrying one
+                leaves through the upload URI (``GmailSendMixin``).
 
         Returns:
             Dict with:
@@ -623,11 +635,9 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
             ...     body="Hi John,\n\nConfirming our meeting tomorrow at 2pm.\n\nBest regards"
             ... )
         """
-        # Build MIME message
-        if is_html:
-            message = MIMEText(body, "html", "utf-8")
-        else:
-            message = MIMEText(body, "plain", "utf-8")
+        message = with_attachments(
+            MIMEText(body, "html" if is_html else "plain", "utf-8"), attachments
+        )
 
         # Encode headers with RFC 2047 for non-ASCII characters
         message["To"] = self._encode_email_header(to)
@@ -638,12 +648,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
         if bcc:
             message["Bcc"] = self._encode_email_header(bcc)
 
-        # Encode to base64url
-        raw_message = self._encode_base64url(message.as_string())
-
-        # Send via Gmail API
-        json_data = {"raw": raw_message}
-        response = await self._make_request("POST", "/users/me/messages/send", json_data=json_data)
+        response = await self._send_message(message, with_files=bool(attachments))
 
         logger.info(
             "gmail_email_sent",
@@ -849,54 +854,30 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
                 text_part = MIMEText(full_body, "plain", "utf-8")
             message.attach(text_part)
 
-            # Fetch and attach each attachment
+            # Fetch and attach each attachment — one that fails does not stop
+            # the others. The part is the shared outgoing one (ADR-321).
             for att_info in attachments_info:
+                filename = att_info.get("filename", "attachment")
+                mime_type = att_info.get("mime_type", "application/octet-stream")
                 try:
-                    # Download attachment data
                     att_data = await self.get_attachment(message_id, att_info["attachment_id"])
-
-                    # Determine MIME type
-                    mime_type = att_info.get("mime_type", "application/octet-stream")
-                    maintype, subtype = (
-                        mime_type.split("/", 1)
-                        if "/" in mime_type
-                        else ("application", "octet-stream")
+                    message.attach(
+                        attachment_part(OutgoingAttachment(filename, mime_type, att_data))
                     )
-
-                    # Create attachment part
-                    att_part = MIMEBase(maintype, subtype)
-                    att_part.set_payload(att_data)
-
-                    # Encode in base64
-                    from email import encoders
-
-                    encoders.encode_base64(att_part)
-
-                    # Set Content-Disposition header with filename
-                    filename = att_info.get("filename", "attachment")
-                    att_part.add_header(
-                        "Content-Disposition",
-                        "attachment",
-                        filename=filename,
-                    )
-
-                    message.attach(att_part)
-
-                    logger.debug(
-                        "gmail_forward_attachment_added",
-                        filename=filename,
-                        mime_type=mime_type,
-                        size=att_info.get("size", 0),
-                    )
-
                 except Exception as e:
+                    # The failure's class, never its text (ADR-317).
                     logger.warning(
                         "gmail_forward_attachment_failed",
                         attachment_id=att_info.get("attachment_id"),
-                        error=str(e),
+                        error_type=type(e).__name__,
                     )
-                    # Continue with other attachments even if one fails
                     continue
+                logger.debug(
+                    "gmail_forward_attachment_added",
+                    filename=filename,
+                    mime_type=mime_type,
+                    size=att_info.get("size", 0),
+                )
         else:
             # Simple text message without attachments
             if is_html:
@@ -911,19 +892,16 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
         if cc:
             message["Cc"] = self._encode_email_header(cc)
 
-        # Encode to base64url
-        raw_message = self._encode_base64url(message.as_string())
-
-        # Send via Gmail API (no threadId - creates new thread)
-        json_data = {"raw": raw_message}
-        response = await self._make_request("POST", "/users/me/messages/send", json_data=json_data)
+        # A new thread; with files it takes the upload URI (ADR-321).
+        response = await self._send_message(message, with_files=has_attachments)
 
         logger.info(
             "gmail_email_forwarded",
             user_id=str(self.user_id),
             message_id=response.get("id"),
             original_message_id=message_id,
-            to=to,
+            # A count, never the addresses: they are the person's (ADR-317).
+            recipients=len(to.split(",")),
             attachments_count=len(attachments_info),
         )
 

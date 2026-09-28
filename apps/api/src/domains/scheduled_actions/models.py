@@ -1,8 +1,11 @@
 """Scheduled Actions domain models.
 
-A routine stores a ``RecurrenceSpec`` (``src/core/recurrence``) — which
-calendar days it serves, and which moments inside them. The scheduler polls
-for due rows on ``next_trigger_at`` (UTC), which is NULL when nothing follows.
+A routine runs on ONE of two clocks (ADR-322). A TIME routine stores a
+``RecurrenceSpec`` (``src/core/recurrence``) — which calendar days it serves,
+and which moments inside them. A CONDITION routine stores no schedule: the
+system checks its condition (``domains/scheduled_actions/trigger.py``). The
+scheduler polls for due rows on ``next_trigger_at`` (UTC), which is NULL when
+nothing follows.
 """
 
 from datetime import datetime
@@ -12,6 +15,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -48,16 +52,20 @@ class ScheduledActionStatus(str, Enum):
 
 
 class TriggerKind(str, Enum):
-    """How a routine decides to run at its cron tick (N-07 phase 1).
+    """Which clock a routine runs on (N-07, ADR-322) — one, never both.
 
-    The schedule stays cron-shaped for BOTH kinds — a CONDITION routine
-    evaluates its condition at each tick and only proceeds when it is met
-    AND the fact is new (dedup fingerprint in ``condition_state``). True
-    event-driven triggers (Gmail watch/PubSub) are a documented phase 2.
+    A TIME routine runs at every instant of its recurrence. A CONDITION
+    routine has no recurrence: the system checks its condition on a per-type
+    cadence (``trigger.py``, every ten minutes by default for the connector
+    sources) and it runs only on a NEW fact
+    (``condition_state``). N-07 phase 1 kept « cron as the clock for both
+    kinds », so a condition was only read at the hours its schedule named — a
+    mail watch answered eight to sixteen hours late. The push wake still brings
+    a mail watch's check forward (ADR-281).
     """
 
-    TIME = "time"  # Fire at every tick (historical behavior)
-    CONDITION = "condition"  # Fire only when the configured condition is met
+    TIME = "time"  # Runs at every instant of its recurrence
+    CONDITION = "condition"  # Checked by the system; runs on a new fact
 
 
 # Condition vocabulary (N-07 phase 1). The EVALUATORS live in
@@ -108,22 +116,27 @@ class ScheduledAction(BaseModel):
     title: Mapped[str] = mapped_column(
         String(200),
         nullable=False,
-        doc="User-facing title - 'Recherche meteo'",
+        doc="User-facing title - 'Weather lookup'",
     )
     action_prompt: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        doc="Prompt sent to agent pipeline - 'recherche la meteo du jour'",
+        doc="Prompt sent to agent pipeline - 'look up today's weather'",
     )
 
     # Schedule — ONE authority (generic recurrence, `src/core/recurrence`).
     # The three cron columns this replaces could not describe a routine firing
     # twice a day, and keeping them beside the spec would let the row disagree
-    # with itself. SQL `comment=` mirrors the migration EXACTLY.
-    recurrence: Mapped[dict] = mapped_column(
-        JSONB,
-        nullable=False,
-        comment="RecurrenceSpec: which calendar days, and which moments in them.",
+    # with itself. NULL for a condition routine, which has no schedule: the
+    # table's CHECK holds the pairing (ADR-322). SQL `comment=` mirrors the
+    # migration EXACTLY.
+    recurrence: Mapped[dict | None] = mapped_column(
+        # ``none_as_null``: a Python None is SQL NULL, never the JSON ``null``
+        # the CHECK below would read as a schedule (measured on dev: the
+        # first condition routine created through the service was refused).
+        JSONB(none_as_null=True),
+        nullable=True,
+        comment="TIME kind only: RecurrenceSpec, which days and moments. NULL for a condition.",
     )
     user_timezone: Mapped[str] = mapped_column(
         String(50),
@@ -144,26 +157,27 @@ class ScheduledAction(BaseModel):
         comment="Next execution (UTC); NULL = nothing follows.",
     )
 
-    # N-07 phase 1: trigger evolution — cron stays the clock for both kinds.
-    # SQL `comment=` mirrors the migration EXACTLY (the replay check compares
-    # them); richer context lives in the class docstring and ADR-175.
+    # N-07, ADR-322: which clock the routine runs on. SQL `comment=` mirrors
+    # the migration EXACTLY (the replay check compares them); richer context
+    # lives in TriggerKind and ADR-322.
     trigger_kind: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         default=TriggerKind.TIME.value,
         server_default=TriggerKind.TIME.value,
-        comment="time = fire at every tick; condition = fire only when met (N-07)",
+        comment="time = runs on its recurrence; condition = checked by the system (ADR-322)",
     )
     condition_config: Mapped[dict | None] = mapped_column(
-        JSONB,
+        JSONB(none_as_null=True),
         nullable=True,
-        comment="CONDITION kind only: {type, params} — schema-validated.",
+        comment="CONDITION kind only: {type, params, until} — schema-validated.",
     )
-    # Dedup ledger — writes are full NEW-dict replacements (JSONB rule).
+    # Fact ledger — writes are full NEW-dict replacements (JSONB rule),
+    # through ``condition_ledger.ConditionLedger`` alone.
     condition_state: Mapped[dict | None] = mapped_column(
-        JSONB,
+        JSONB(none_as_null=True),
         nullable=True,
-        comment="Dedup ledger: {last_fingerprint, last_fired_at}.",
+        comment="Fact ledger: {seen, last_checked_at, last_check_error, last_fired_at}.",
     )
     requires_approval: Mapped[bool] = mapped_column(
         Boolean,
@@ -226,8 +240,8 @@ class ScheduledAction(BaseModel):
     # Relationship
     user: Mapped[User] = relationship("User", back_populates="scheduled_actions", lazy="selectin")
 
-    # Partial index for scheduler poll query (hot path)
     __table_args__ = (
+        # Partial index for scheduler poll query (hot path)
         Index(
             "ix_scheduled_actions_due",
             "next_trigger_at",
@@ -235,18 +249,29 @@ class ScheduledAction(BaseModel):
                 "is_enabled = true AND status = 'active' AND next_trigger_at IS NOT NULL"
             ),
         ),
+        # One clock per routine (ADR-322): the rule `schemas.trigger_mode_refusal`
+        # states to the API caller, held by the table for every other writer.
+        CheckConstraint(
+            "(trigger_kind = 'time' AND recurrence IS NOT NULL AND condition_config IS NULL)"
+            " OR (trigger_kind = 'condition' AND recurrence IS NULL"
+            " AND condition_config IS NOT NULL)",
+            name="ck_scheduled_actions_one_clock",
+        ),
     )
 
     @property
-    def recurrence_spec(self) -> RecurrenceSpec:
-        """The stored schedule, parsed.
+    def recurrence_spec(self) -> RecurrenceSpec | None:
+        """The stored schedule, parsed; ``None`` for a condition routine.
 
         A property rather than a column type: the row keeps plain JSONB, so a
         migration or an admin query never depends on the Python model.
 
         Returns:
-            The recurrence this routine follows.
+            The recurrence this routine follows, or ``None`` when the system's
+            checks are its clock.
         """
+        if self.recurrence is None:
+            return None
         return RecurrenceSpec.model_validate(self.recurrence)
 
     def __repr__(self) -> str:
@@ -262,11 +287,18 @@ class ScheduledRunOutcome(str, Enum):
     Five values, one per exit of the executor, so the weekly timeline can say
     WHY a cell is not green rather than leaving a silent blank: the two skips
     and the proposal happen BEFORE the pipeline runs and count no execution.
+
+    ``skipped_condition`` has had NO producer since ADR-322: a condition
+    routine is now checked by the system, every ten minutes by default, and a
+    row per unmet check would have written 144 a day per routine at that
+    default — the check is recorded on the routine's ledger instead
+    (``last_checked_at``). The value stays so the rows written before stay
+    readable until the retention purges them.
     """
 
     SUCCESS = "success"  # The pipeline answered.
     FAILURE = "failure"  # Every attempt failed (error kept on the row).
-    SKIPPED_CONDITION = "skipped_condition"  # Condition not met, or the same fact again.
+    SKIPPED_CONDITION = "skipped_condition"  # Legacy (pre ADR-322): an unmet check.
     PROPOSED = "proposed"  # Propose-first: notified, waiting for the user's click.
     SKIPPED_HITL = "skipped_hitl"  # A HITL interrupt was pending on the conversation.
 
@@ -302,7 +334,10 @@ class ScheduledActionRun(Base, UUIDMixin):
     slot_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-        comment="The scheduled instant this run served (UTC); NULL = a rehearsal.",
+        comment=(
+            "The instant this run served (UTC): a time routine's slot, a condition "
+            "routine's check; NULL = a rehearsal."
+        ),
     )
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

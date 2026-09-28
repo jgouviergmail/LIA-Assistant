@@ -1,0 +1,634 @@
+{
+  "generator": "scripts/assets/generate_radio_music.py",
+  "model": "lyria-3.5",
+  "generated_at": "2026-09-26T18:43:08+00:00",
+  "processing": "silence trimmed, two-pass linear loudnorm I=-18:TP=-1.5:LRA=11, fade-out 3.0s, stereo 44.1 kHz MP3 128k",
+  "rights": "Generated for LIA by the project with Lyria (SynthID watermark); no third-party work is included.",
+  "spent_this_run_usd": 4.32,
+  "tracks": {
+    "calm/calm-01.mp3": {
+      "file": "calm/calm-01.mp3",
+      "mood": "calm",
+      "prompt": "Ambient piano: soft felt piano, warm pads, gentle reverb, 66 BPM, C major, peaceful. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "7bb8b8c09807143691dcb905155ce2a65f2922ca4e67a7acef0df1ddcb95cbd1",
+      "sha256": "3c415f22e758035e7ff731cabb1941bbc13465f755557dca09d3f7b093c38393",
+      "duration_seconds": 118.021,
+      "raw_duration_seconds": 119.432,
+      "input_lufs": -11.66
+    },
+    "calm/calm-02.mp3": {
+      "file": "calm/calm-02.mp3",
+      "mood": "calm",
+      "prompt": "Calm lo-fi: soft drums, mellow guitar, warm keys, 72 BPM, A minor, soothing. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]\n[[B3]]\n[[C4]]\n[[D5]]"
+      ],
+      "raw_sha256": "3ebf39a137cb98fd0b465bba3cb24211519b3a689d337dd8b73852063789b2d6",
+      "sha256": "a90d84055e0e738a708c9c616ec479e3096b9754f37d23271fdb419fb5aa9ed4",
+      "duration_seconds": 117.185,
+      "raw_duration_seconds": 119.641,
+      "input_lufs": -12.49
+    },
+    "calm/calm-03.mp3": {
+      "file": "calm/calm-03.mp3",
+      "mood": "calm",
+      "prompt": "Ambient textures: slowly evolving synth pads, soft bells, no drums, 60 BPM, D major, serene. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "8c598a2614f015a62d988096a40f331637b63686afcb49c5a922ffb9341cd21f",
+      "sha256": "5e73a41a837bac73c1b964e5e88f43b365c1f206773a4a7d3b49fdf333afec9c",
+      "duration_seconds": 114.887,
+      "raw_duration_seconds": 114.939,
+      "input_lufs": -12.22
+    },
+    "calm/calm-04.mp3": {
+      "file": "calm/calm-04.mp3",
+      "mood": "calm",
+      "prompt": "Acoustic calm: fingerpicked guitar, soft strings, 70 BPM, E major, gentle. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]\n[[B3]]\n[[D4]]"
+      ],
+      "raw_sha256": "a434e2fba22adebfeae545a2116d6813b753fa70bccf548d49571ae87a726f46",
+      "sha256": "8541d4b252a37a87385b51bf4bc34c294fba988ebbe242b1367bf4d0eb270e71",
+      "duration_seconds": 120.607,
+      "raw_duration_seconds": 121.94,
+      "input_lufs": -11.63
+    },
+    "calm/calm-05.mp3": {
+      "file": "calm/calm-05.mp3",
+      "mood": "calm",
+      "prompt": "Chill electronic: soft plucks, airy pads, light beat, 80 BPM, F major, relaxed focus. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "828e36cc0ffd9b9b184814b0a952d84803f2a29e461584280ef734e583862ebd",
+      "sha256": "8d1888877a41f373f29884b6c654d37149f90deafc19e3e8080296c05dfc7ff7",
+      "duration_seconds": 120.79,
+      "raw_duration_seconds": 122.358,
+      "input_lufs": -12.78
+    },
+    "calm/calm-06.mp3": {
+      "file": "calm/calm-06.mp3",
+      "mood": "calm",
+      "prompt": "Minimal piano and cello: sparse piano, sustained cello, 64 BPM, B minor, contemplative. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "df16fcd22bfb2baa83955e9cc8c7fe50204a79be7afa63e3780b8a82dc5e3174",
+      "sha256": "7f9da922af8b0916bbfc67113adf70e098ca39d2c767afd66dc53953e17a6fff",
+      "duration_seconds": 116.402,
+      "raw_duration_seconds": 116.767,
+      "input_lufs": -10.96
+    },
+    "calm/calm-07.mp3": {
+      "file": "calm/calm-07.mp3",
+      "mood": "calm",
+      "prompt": "Soft jazz ballad: brushed drums, bass, piano, 68 BPM, D-flat major, tender. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]\n[[B3]]\n[[D4]]"
+      ],
+      "raw_sha256": "374e733b328107e5237f21c0feffd2b41576e7c08c9bee2a5056e7387ccc532b",
+      "sha256": "3199d82c712c562429a1c7d3cfc3a7b02964a887cbe79dbf33ebf862b8f7973d",
+      "duration_seconds": 117.29,
+      "raw_duration_seconds": 118.152,
+      "input_lufs": -12.53
+    },
+    "calm/calm-08.mp3": {
+      "file": "calm/calm-08.mp3",
+      "mood": "calm",
+      "prompt": "Restful ambient: soft pads, gentle marimba, subtle rain texture, 74 BPM, G major, restful. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "e28528a1f5b2928f4acb76d5ba46d8c48db089b1cc9fadfa5d72eb201257f3be",
+      "sha256": "9f24a4e1328119f71fbeed087757c19ef748ec8ed398415f4447aa55475ea10e",
+      "duration_seconds": 126.276,
+      "raw_duration_seconds": 128.94,
+      "input_lufs": -11.95
+    },
+    "calm/calm-09.mp3": {
+      "file": "calm/calm-09.mp3",
+      "mood": "calm",
+      "prompt": "Downtempo chillout: warm bass, soft percussion, electric piano, 84 BPM, C minor, smooth. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "31302d91e7afc9f3fddad945b01ffe10cb34716954ef6863fa0fb5ef10633256",
+      "sha256": "99f64487860fe4c56d95129cb2ecbb25a951e3a0e5125c7115cbd3c6f215b970",
+      "duration_seconds": 117.603,
+      "raw_duration_seconds": 120.215,
+      "input_lufs": -13.52
+    },
+    "calm/calm-10.mp3": {
+      "file": "calm/calm-10.mp3",
+      "mood": "calm",
+      "prompt": "Harp and pads: soft harp arpeggios, warm synth pads, 62 BPM, A major, calm and luminous. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "995183659c98154fee2c20832dab0bf2b7145977c9daadc12832a381a42687d4",
+      "sha256": "eb540de568500ef06be9479529a448e83e9a7f47c42b47d05867fd9f590a2669",
+      "duration_seconds": 115.801,
+      "raw_duration_seconds": 115.957,
+      "input_lufs": -11.76
+    },
+    "calm/calm-11.mp3": {
+      "file": "calm/calm-11.mp3",
+      "mood": "calm",
+      "prompt": "Lo-fi study beat: dusty drums, soft piano, warm bass, 76 BPM, F minor, focused calm. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "48a2c07a59666bcba9f5efd99a195b41d4335571b17e5a43b4f5721e7a07c351",
+      "sha256": "7e176d7c9cb07bb5ab460ec7a1b11e86c16cc9f45bcab87a1ef9f4cc122b6166",
+      "duration_seconds": 124.343,
+      "raw_duration_seconds": 126.38,
+      "input_lufs": -12.69
+    },
+    "calm/calm-12.mp3": {
+      "file": "calm/calm-12.mp3",
+      "mood": "calm",
+      "prompt": "Light post-rock: clean reverberant guitars, soft pads, gentle drums, 82 BPM, E major, spacious. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "a1732f39331274cda603cb55457499acec653b4ad6c98740c073afc672e643ec",
+      "sha256": "347b5f0316b767e31cc1d9f1dded085db1661c9f071c86ecdf4f0ed3762c21fe",
+      "duration_seconds": 118.988,
+      "raw_duration_seconds": 120.555,
+      "input_lufs": -12.67
+    },
+    "evening/evening-01.mp3": {
+      "file": "evening/evening-01.mp3",
+      "mood": "evening",
+      "prompt": "Smooth evening jazz: brushed drums, gently walking upright bass, warm Rhodes, soft muted-brass pads without a lead solo, 84 BPM, B-flat major. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "46150eea88f7c5440bb64d76757c6ff8a9d389eb436e03bd33587f58357800aa",
+      "sha256": "530cc730729acd71ee83856920956d68384232752daf39e0033b10f3ae2cb9a4",
+      "duration_seconds": 117.864,
+      "raw_duration_seconds": 119.797,
+      "input_lufs": -12.87
+    },
+    "evening/evening-02.mp3": {
+      "file": "evening/evening-02.mp3",
+      "mood": "evening",
+      "prompt": "Neo-soul evening groove: laid-back drums, warm bass, electric piano chords, subtle guitar, 78 BPM, D-flat major, intimate. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "8609d5e93047404692ee89fb5b28e0f45ca9119b0bf592bf1f51e647cc5abc80",
+      "sha256": "b9ef46de021e0c0180f1db473270ffb0e32444469f717613da76f0d3e804499b",
+      "duration_seconds": 127.242,
+      "raw_duration_seconds": 129.358,
+      "input_lufs": -13.61
+    },
+    "evening/evening-03.mp3": {
+      "file": "evening/evening-03.mp3",
+      "mood": "evening",
+      "prompt": "Downtempo lounge: deep bass, soft kick, airy pads, gentle guitar textures, 92 BPM, F minor, relaxed and elegant. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "f5088b1bced1a2c5ce0340990d0af6cdf760a96db931d41e0dd0d056e8c8af62",
+      "sha256": "b5fc14d0f504064f170fed08715fa9660b3fd0cdf45662a5e1fc6cb6b7cb575a",
+      "duration_seconds": 123.063,
+      "raw_duration_seconds": 123.167,
+      "input_lufs": -12.57
+    },
+    "evening/evening-04.mp3": {
+      "file": "evening/evening-04.mp3",
+      "mood": "evening",
+      "prompt": "Late-night lo-fi: dusty drums, mellow piano chords, warm bass, soft vinyl ambience, 80 BPM, E-flat major, cosy. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]"
+      ],
+      "raw_sha256": "388af17ae42e994e1f60ce267c614da762718915ed58894d60535937e981fc76",
+      "sha256": "e8b488f5b3a190689e22af65556497a3a6bd55bbe6d866a11887f70faaf312d0",
+      "duration_seconds": 123.037,
+      "raw_duration_seconds": 125.126,
+      "input_lufs": -12.92
+    },
+    "evening/evening-05.mp3": {
+      "file": "evening/evening-05.mp3",
+      "mood": "evening",
+      "prompt": "Cinematic evening: soft strings, felt piano, gentle pulse, 72 BPM, A-flat major, reflective and warm. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]"
+      ],
+      "raw_sha256": "c2abf147af6eb3fd6857d358484c7591812475e40e3609e0e5925be45db7c8b1",
+      "sha256": "70971e6f8c98bc2d3bd39945de242ee01943be3f9ab6465971c821d9e1e571dc",
+      "duration_seconds": 112.17,
+      "raw_duration_seconds": 113.084,
+      "input_lufs": -12.34
+    },
+    "evening/evening-06.mp3": {
+      "file": "evening/evening-06.mp3",
+      "mood": "evening",
+      "prompt": "Evening bossa nova: nylon guitar, soft brushes, round bass, light flute-like pad, 88 BPM, D major, calm and sophisticated. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[B2]]\n[[C3]]"
+      ],
+      "raw_sha256": "460009f0b693833d64ae2433180e749ec2dab097eb5295d42622ed04776ebbcf",
+      "sha256": "d70c7cf2decb54892d5facda005edd6ff947070df19c2d85b800c545dda5d855",
+      "duration_seconds": 114.991,
+      "raw_duration_seconds": 115.043,
+      "input_lufs": -12.03
+    },
+    "evening/evening-07.mp3": {
+      "file": "evening/evening-07.mp3",
+      "mood": "evening",
+      "prompt": "Chill house evening: soft four-on-the-floor, warm chords, deep bass, 100 BPM, G minor, smooth city night. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "9f31d4b67344ea7dbdad4cb0fdea75560bbcd06c4c7ecb532412491d08a3770c",
+      "sha256": "d8179e1f7cd68ad241e2632eae15ee52d554752efda47dfeac865cfd36c91c28",
+      "duration_seconds": 118.988,
+      "raw_duration_seconds": 122.201,
+      "input_lufs": -13.0
+    },
+    "evening/evening-08.mp3": {
+      "file": "evening/evening-08.mp3",
+      "mood": "evening",
+      "prompt": "Acoustic evening: warm fingerpicked guitar, cello, soft percussion, 76 BPM, C major, homely and gentle. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "45a980b711709f8273c6bfb2225fdb8fcc86a9cb319ab8739422508fa8eaee20",
+      "sha256": "c663941e8e2c8dfe24e3bb5a81d52584580472b1c94dace20a48a6f856ebc2b4",
+      "duration_seconds": 125.597,
+      "raw_duration_seconds": 126.72,
+      "input_lufs": -12.23
+    },
+    "evening/evening-09.mp3": {
+      "file": "evening/evening-09.mp3",
+      "mood": "evening",
+      "prompt": "Light trip-hop: slow breakbeat, warm bass, dusty keys, subtle strings, 86 BPM, A minor, mellow and moody. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "e4c7a4e8b4a620610fd4f87654a4af93ba8b9320525af6bea71d5bfce4ec9bd1",
+      "sha256": "8b4e25d9ede0cc058a1c6b5616167472cd5f9ae51fd922a0d7537c8ba722d462",
+      "duration_seconds": 122.645,
+      "raw_duration_seconds": 124.369,
+      "input_lufs": -12.53
+    },
+    "evening/evening-10.mp3": {
+      "file": "evening/evening-10.mp3",
+      "mood": "evening",
+      "prompt": "Soul-jazz lounge: organ pads, soft drums, round bass, clean guitar, 90 BPM, F major, warm. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "ef0cc3ec1cdba6c0d1c09c828b507c65578fc840ff5b0a8f741032053ab4b29f",
+      "sha256": "c4446dfdbdf1bbec20abf159a4f6cd81c4ce785f311c6a8b73c3ccf3a19ce3e7",
+      "duration_seconds": 116.95,
+      "raw_duration_seconds": 120.372,
+      "input_lufs": -12.93
+    },
+    "evening/evening-11.mp3": {
+      "file": "evening/evening-11.mp3",
+      "mood": "evening",
+      "prompt": "Ambient electronic sunset: evolving pads, soft arpeggio, gentle beat, 94 BPM, E major, dreamy. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "a19ad5a47000e35a1d4f8b543f662df53d96d28dee4ffe5b6d940879a069ab76",
+      "sha256": "0ae413b24c607babad3df2438f36fc23d47363905e4829ee8e7a1ee68a1daf72",
+      "duration_seconds": 115.54,
+      "raw_duration_seconds": 118.152,
+      "input_lufs": -12.0
+    },
+    "evening/evening-12.mp3": {
+      "file": "evening/evening-12.mp3",
+      "mood": "evening",
+      "prompt": "Evening piano trio: piano, brushed drums, upright bass, 82 BPM, G major, relaxed and elegant, no virtuoso solos. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]\n[[B3]]\n[[D4]]"
+      ],
+      "raw_sha256": "af07d9a90ca0f44a879d9b890c73e482b7ef8f069dd1979ab70773faf6db31b3",
+      "sha256": "6fbdc5ea2a25f10317bb73ac3b70a52146298c6998ec833740ad23e88973acbc",
+      "duration_seconds": 121.6,
+      "raw_duration_seconds": 122.88,
+      "input_lufs": -12.34
+    },
+    "morning/morning-01.mp3": {
+      "file": "morning/morning-01.mp3",
+      "mood": "morning",
+      "prompt": "Bright acoustic pop radio bed: strummed acoustic guitar, handclaps, glockenspiel accents, warm bass, 112 BPM, G major, sunny and optimistic. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "5adf56ddb0800454445712c503dbadcfa17f75d4982a754375636590219ec60e",
+      "sha256": "ff68ae5594431d7c028a82c6dbb5e5d02791c4ba68ab433a34e96d8864aaaaa5",
+      "duration_seconds": 116.898,
+      "raw_duration_seconds": 121.704,
+      "input_lufs": -12.11
+    },
+    "morning/morning-02.mp3": {
+      "file": "morning/morning-02.mp3",
+      "mood": "morning",
+      "prompt": "Light funk morning groove: clean muted electric guitar, round bass, crisp hi-hats, Rhodes chords, 108 BPM, E major, upbeat and friendly. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "2196588df2191d2c4606edc9620596ad51e0a7fbf59c8a3c7c7be3055fb0bfdf",
+      "sha256": "7e92d0d03233658cff228035b2704515d5c874b264bcbbb37acfa02bad22df74",
+      "duration_seconds": 112.562,
+      "raw_duration_seconds": 114.73,
+      "input_lufs": -13.0
+    },
+    "morning/morning-03.mp3": {
+      "file": "morning/morning-03.mp3",
+      "mood": "morning",
+      "prompt": "Uplifting indie folk: fingerpicked guitar, ukulele, soft kick and shaker, light piano, 116 BPM, D major, fresh morning energy. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "0d140e3defd92d5e815fefb2c780838e247149f2453019405a8ae65232df2c2f",
+      "sha256": "f04ed685e736d58c7cec956991c766a22697e8c4ad0b93db7cd95da9505f35ff",
+      "duration_seconds": 117.133,
+      "raw_duration_seconds": 117.185,
+      "input_lufs": -12.23
+    },
+    "morning/morning-04.mp3": {
+      "file": "morning/morning-04.mp3",
+      "mood": "morning",
+      "prompt": "Feel-good electronic pop: plucky synths, soft four-on-the-floor kick, airy pads, 120 BPM, A major, bright and positive. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "0955c14cca2f487dcc5c2dc70e3e5b1caad209dd7ee4c30b8166b01c8f557e7a",
+      "sha256": "d272b0bde2b3b52ca6d8c6a2ec7e24091b4ee06b8ac19385514f0a54feb760be",
+      "duration_seconds": 118.622,
+      "raw_duration_seconds": 122.358,
+      "input_lufs": -12.56
+    },
+    "morning/morning-05.mp3": {
+      "file": "morning/morning-05.mp3",
+      "mood": "morning",
+      "prompt": "Sunny bossa-pop: nylon guitar, light brushes, round bass, soft flute-like pads, 104 BPM, F major, relaxed but cheerful. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "43cb96570e97384f3450e310914dc6f4f83bdcd4994ae4c93a699418b65e8fe3",
+      "sha256": "11720f1bdc65daa772591f67767bf42f51c683383d60e8809602c6166482a13c",
+      "duration_seconds": 118.674,
+      "raw_duration_seconds": 119.693,
+      "input_lufs": -12.7
+    },
+    "morning/morning-06.mp3": {
+      "file": "morning/morning-06.mp3",
+      "mood": "morning",
+      "prompt": "Piano pop morning: bouncy piano chords, claps, soft synth bass, tambourine, 110 BPM, C major, hopeful and clean. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "049f2ba6121282568a28ed1417456f011c845683da33107f1e2615cadbbc7892",
+      "sha256": "2dfc395f8f745cb3e10e22f1774bde61a47c30aae70d2338522902e161f1ed91",
+      "duration_seconds": 117.969,
+      "raw_duration_seconds": 119.171,
+      "input_lufs": -12.35
+    },
+    "morning/morning-07.mp3": {
+      "file": "morning/morning-07.mp3",
+      "mood": "morning",
+      "prompt": "Light tropical house: marimba-like plucks, soft kick, warm bass, airy chords, 112 BPM, B-flat major, breezy. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "9875c55c8429c8a37d1957acca879b2494cbbc26e18caf758b45223a62b2777c",
+      "sha256": "0a7a306632107b8b1be55b656560bcd275f7c3bf4fa0338bb75964bbf399ea7a",
+      "duration_seconds": 116.637,
+      "raw_duration_seconds": 117.812,
+      "input_lufs": -13.29
+    },
+    "morning/morning-08.mp3": {
+      "file": "morning/morning-08.mp3",
+      "mood": "morning",
+      "prompt": "Light orchestral morning: pizzicato strings, soft woodwinds, light percussion, 100 BPM, D major, a gentle awakening that builds a little. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "28f145615d0cfebe84cbbe84951720cc7291b03c20d36853e25638a6313ac5cc",
+      "sha256": "0d933eb7cd48d6dcfc0b2dc5281f18b25147d79fc41c667ab30a7f08b4cdeecd",
+      "duration_seconds": 106.789,
+      "raw_duration_seconds": 108.826,
+      "input_lufs": -11.61
+    },
+    "morning/morning-09.mp3": {
+      "file": "morning/morning-09.mp3",
+      "mood": "morning",
+      "prompt": "Retro soul morning: warm organ, clean guitar licks, laid-back drums, round bass, 98 BPM, E-flat major, feel-good. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "7a7f5e51dbfabac60677e06a85aadd0bfbcf8906af3fd0f2ba15cebf74b457c2",
+      "sha256": "b3a03773cfbd78a3ab3242c3653e4a404c494579d83dbf795dcbd278d7aaf886",
+      "duration_seconds": 122.122,
+      "raw_duration_seconds": 124.212,
+      "input_lufs": -12.83
+    },
+    "morning/morning-10.mp3": {
+      "file": "morning/morning-10.mp3",
+      "mood": "morning",
+      "prompt": "Acoustic chill-hop brunch: mellow guitar loop, soft drums, warm bass, light keys, 92 BPM, A major, easygoing. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]\n[[E4]]"
+      ],
+      "raw_sha256": "7cb84ed0dea50117df9da9b499ffd8b0bba26dea4166d695968981b5d0006762",
+      "sha256": "f975f263aa29393335c1db7e9c294b6db28498cadb1fb62bb831c58fac8db218",
+      "duration_seconds": 119.092,
+      "raw_duration_seconds": 121.182,
+      "input_lufs": -13.23
+    },
+    "morning/morning-11.mp3": {
+      "file": "morning/morning-11.mp3",
+      "mood": "morning",
+      "prompt": "Warm acoustic anthem, restrained: strummed guitars, piano, light drums, 118 BPM, G major, confident and warm, never cheesy. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "fafe7a052c6daf7b805024b794ab56709468c1d07640eadc17d7702473ecc80a",
+      "sha256": "71ef129d7e77b66ffb005a9e1527c7a716eb54bf2d9d9321ede361557eec9d37",
+      "duration_seconds": 121.887,
+      "raw_duration_seconds": 124.003,
+      "input_lufs": -12.27
+    },
+    "morning/morning-12.mp3": {
+      "file": "morning/morning-12.mp3",
+      "mood": "morning",
+      "prompt": "Light nu-disco: filtered guitar, smooth bass line, soft disco hi-hats, string pads, 114 BPM, A major, danceable but restrained. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]\n[[B3]]\n[[C4]]\n[[D5]]\n[[C6]]\n[[E7]]"
+      ],
+      "raw_sha256": "28a82c84be619d2139957f6d21f3898c8356f98e430240294b087395dbf5e9de",
+      "sha256": "2e9e9bd3a76845efe4b30d7849466b28053692787828f0eb640d44007ac44169",
+      "duration_seconds": 118.1,
+      "raw_duration_seconds": 120.163,
+      "input_lufs": -12.66
+    },
+    "news/news-01.mp3": {
+      "file": "news/news-01.mp3",
+      "mood": "news",
+      "prompt": "Modern radio news underscore: pulsing muted synth arpeggio, warm sub bass, crisp light percussion, 104 BPM, D minor, neutral and focused. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "517046ec9a82e3c1d35ccecd0efca9cc91fff1c992ef613428697b9d32f41c66",
+      "sha256": "5aa9053ed121f3548adaf355e1a5c94998389ec6dad86ac753a536fb5bd06059",
+      "duration_seconds": 114.442,
+      "raw_duration_seconds": 115.696,
+      "input_lufs": -13.51
+    },
+    "news/news-02.mp3": {
+      "file": "news/news-02.mp3",
+      "mood": "news",
+      "prompt": "Newsroom bed: ticking hi-hat pattern, deep synth pulses, sparse piano notes, 110 BPM, A minor, serious but calm. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "9307ce0ed658136c17c6881ab115a5c720e92723bad0e6c34cf38491c453d0e0",
+      "sha256": "4730825fd40f6d9f64c2fbdd3f413b61f6eebf595af42b1a521aa37f2bcef74b",
+      "duration_seconds": 118.361,
+      "raw_duration_seconds": 120.294,
+      "input_lufs": -12.92
+    },
+    "news/news-03.mp3": {
+      "file": "news/news-03.mp3",
+      "mood": "news",
+      "prompt": "Documentary news bed: staccato strings, soft low drum hits, steady pulse, 96 BPM, E minor, measured and authoritative. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "5d1cbf4d0901e091ca8023c9d5d3efe275c417005e86733556d9ce48ba167a84",
+      "sha256": "dede399b8ecff4844839d437b0c280eda1f28466b01d821de39291119bc90e0e",
+      "duration_seconds": 114.521,
+      "raw_duration_seconds": 116.611,
+      "input_lufs": -12.43
+    },
+    "news/news-04.mp3": {
+      "file": "news/news-04.mp3",
+      "mood": "news",
+      "prompt": "Technology news underscore: glassy synth plucks, minimal electronic beat, soft bass, 118 BPM, C minor, forward-moving and clean. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "30cecf753c0ca8bfca828af298e74ce5a83126e9e052c592062aca6e4d3f95e4",
+      "sha256": "72c59a151626285619ada19f8006c153525b398b4a8f89902d51ee3170ef599b",
+      "duration_seconds": 117.969,
+      "raw_duration_seconds": 119.458,
+      "input_lufs": -11.66
+    },
+    "news/news-05.mp3": {
+      "file": "news/news-05.mp3",
+      "mood": "news",
+      "prompt": "Minimal electronic news bed: quiet steady kick, sidechained pads, subtle arpeggio, 122 BPM, F minor, alert and neutral. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "d201d38df01fd75dea2013d17fb9bbecf2bc11ff3de72aa6a9a3f3ff694f63fe",
+      "sha256": "5d49e8e5bbabd8c50648f0f27aea3fe1927c16f440e32ae24e6d9bd0c61b1e19",
+      "duration_seconds": 112.431,
+      "raw_duration_seconds": 112.797,
+      "input_lufs": -13.62
+    },
+    "news/news-06.mp3": {
+      "file": "news/news-06.mp3",
+      "mood": "news",
+      "prompt": "World news bed: piano ostinato, cello drone, light percussion, 100 BPM, G minor, global and sober. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "a7aa280f73ecb639fa5bec06296abb05a89ce459e11423649ca254cb9aeae073",
+      "sha256": "94a5f14f8c4c94310431b742869fe09f2adaac56325d65c82f772df024d7d6d0",
+      "duration_seconds": 119.275,
+      "raw_duration_seconds": 121.887,
+      "input_lufs": -11.64
+    },
+    "news/news-07.mp3": {
+      "file": "news/news-07.mp3",
+      "mood": "news",
+      "prompt": "Business news underscore: muted guitar ostinato, electronic percussion, warm synth chords, 112 BPM, B minor, confident and neutral. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "b31a1a61a4126e9b17457c6d351b7f0b60d3aa47bb0978a40d6217e88fc54a17",
+      "sha256": "5f92ebcc58d0b12f6d750df7fd2dc464f31f504fb4a6d467e6af143019455bd4",
+      "duration_seconds": 123.455,
+      "raw_duration_seconds": 125.597,
+      "input_lufs": -12.75
+    },
+    "news/news-08.mp3": {
+      "file": "news/news-08.mp3",
+      "mood": "news",
+      "prompt": "Investigative news bed: dark ambient pads, heartbeat-like soft kick, sparse metallic textures, 90 BPM, C-sharp minor, suspense without drama. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "5db2ad84b60164f707558631167ef51dd175ad9d9715613f5490d6f7c1e790d3",
+      "sha256": "6a443bfd709381157d0e14a7fcc9307d69e1f4c0a51658bb88f35bfa5768b01d",
+      "duration_seconds": 119.745,
+      "raw_duration_seconds": 121.94,
+      "input_lufs": -14.07
+    },
+    "news/news-09.mp3": {
+      "file": "news/news-09.mp3",
+      "mood": "news",
+      "prompt": "Restrained headline bed: driving eighth-note synth bass, crisp rim clicks, 124 BPM, D minor, urgent but never alarming. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]"
+      ],
+      "raw_sha256": "c1897c3e08091125e04ddf0e4b6b76dcd10432788c0fae6a30a4419eab35501b",
+      "sha256": "1735ce8482ae7a66a9ace0fcf977f23502c561c7e07b094b33f85896e7905892",
+      "duration_seconds": 115.775,
+      "raw_duration_seconds": 115.879,
+      "input_lufs": -13.52
+    },
+    "news/news-10.mp3": {
+      "file": "news/news-10.mp3",
+      "mood": "news",
+      "prompt": "Analytical news bed: soft Rhodes chords, gentle electronic beat, subtle arpeggios, 98 BPM, E-flat minor, thoughtful. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "bd7a80aebcec6561d3e00658b502cce5319b31344a4e4fa67c53067abf3149cc",
+      "sha256": "c85086ded6256dd8582789d0be3a0dada37f293aa848c73e6fecf233be84f641",
+      "duration_seconds": 116.715,
+      "raw_duration_seconds": 116.846,
+      "input_lufs": -13.09
+    },
+    "news/news-11.mp3": {
+      "file": "news/news-11.mp3",
+      "mood": "news",
+      "prompt": "Hybrid orchestral news bed: pizzicato and synth pulses, soft brass pads, 108 BPM, A minor, steady and informative. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "9c1acddc4075aa776614b1ddc4ea4ecdc1e666c059a581dc60a33ad88379dd28",
+      "sha256": "a1a91126d000fc178da4a4efdfd6c34208387dc17edb31973fc79ae27a035dc8",
+      "duration_seconds": 120.007,
+      "raw_duration_seconds": 122.619,
+      "input_lufs": -12.54
+    },
+    "news/news-12.mp3": {
+      "file": "news/news-12.mp3",
+      "mood": "news",
+      "prompt": "Clean modern news bed: light percussion, bell-like plucks, warm pads, 116 BPM, F major, neutral and contemporary. About two minutes long. Structure: a short intro, a long steady body with subtle variations, a gentle outro that resolves. Understated melody that leaves room for a speaking voice; broadcast-quality, balanced mix. Instrumental only, no vocals, no choir, no humming, no spoken words.",
+      "sections": [
+        "[[A0]]\n[[B1]]\n[[C2]]"
+      ],
+      "raw_sha256": "cf19922230253e7ad3b23ad32fad2af1e909f25af72bc9887c571cc01aacd991",
+      "sha256": "7f6883e9c1eb45903cf1df61482ca90a90c1be17e5e8335cb6d52d3594ec6e68",
+      "duration_seconds": 117.838,
+      "raw_duration_seconds": 119.484,
+      "input_lufs": -12.58
+    }
+  }
+}

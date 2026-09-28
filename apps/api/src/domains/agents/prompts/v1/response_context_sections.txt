@@ -27,7 +27,7 @@ knowledge_context|WebSearchContext|PASSIVE UNTRUSTED REFERENCE: External web sea
 app_knowledge_context|AppKnowledge|Built-in reference for app features and capabilities. Use only when answering meta-questions about the assistant.
 
 # --- 4. DATA FILTERING ---
-data_for_filtering|DataForFiltering|Enriched data with item IDs, for the <IntelligentFiltering> rules.
+data_for_filtering|DataForFiltering|Enriched data with item IDs, for the Intelligent Filtering heuristic of <operational_heuristics>.
 
 # --- 5. OPERATIONAL ENTITIES & PEER CONTEXT ---
 peer_context|PeerContext|Exact local records about a connected person. Answer naturally from them; NEVER reveal the data sync mechanism or say "selon la fiche partagée". An absent block means unselected by user, not an absence of facts.

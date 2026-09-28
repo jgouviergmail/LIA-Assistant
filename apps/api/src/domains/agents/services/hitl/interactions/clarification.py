@@ -45,6 +45,7 @@ from src.infrastructure.observability.logging import get_logger
 
 from ..protocols import HitlInteractionType
 from ..registry import HitlInteractionRegistry
+from .text_tokens import text_tokens
 
 if TYPE_CHECKING:
     from ..question_generator import HitlQuestionGenerator
@@ -73,10 +74,10 @@ class ClarificationInteraction:
         >>> interaction = ClarificationInteraction(question_generator=generator)
         >>> async for token in interaction.generate_question_stream(
         ...     context={
-        ...         "clarification_questions": ["Voulez-vous envoyer à UN ou TOUS les contacts ?"],
+        ...         "clarification_questions": ["Send to ONE contact or to ALL of them?"],
         ...         "semantic_issues": [{"type": "cardinality_mismatch", ...}],
         ...     },
-        ...     user_language="fr",
+        ...     user_language="en",
         ... ):
         ...     print(token, end="", flush=True)
 
@@ -120,7 +121,7 @@ class ClarificationInteraction:
             context: Interrupt context with:
                 - clarification_questions: list of pre-generated questions (optional)
                 - semantic_issues: list of issue dicts (type, description, etc)
-            user_language: Language code (fr, en, es)
+            user_language: Language code (fr, en, es, de, it, zh-CN)
             user_timezone: User's IANA timezone for datetime context
             tracker: Optional TokenTrackingCallback
 
@@ -161,11 +162,10 @@ class ClarificationInteraction:
             start_time = time.time()
             token_count = 0
 
-            # Stream word by word for consistent interface
-            # (simpler than implementing streaming for pre-generated text)
-            words = full_question.split()
-            for i, word in enumerate(words):
-                # Track TTFT on first word
+            # Stream token by token for consistent interface — its lines and
+            # its no-break spaces kept (text_tokens).
+            for i, token in enumerate(text_tokens(full_question)):
+                # Track TTFT on first token
                 if i == 0:
                     ttft = time.time() - start_time
                     hitl_question_ttft_seconds.labels(type="clarification").observe(ttft)
@@ -175,7 +175,7 @@ class ClarificationInteraction:
                     )
 
                 token_count += 1
-                yield word + " "
+                yield token
 
             # Track completion metrics
             total_duration = time.time() - start_time
@@ -196,8 +196,8 @@ class ClarificationInteraction:
             # (Future enhancement - Phase 2 iteration 2)
             # For now, yield fallback
             fallback = self.get_fallback_question(user_language)
-            for word in fallback.split():
-                yield word + " "
+            for token in text_tokens(fallback):
+                yield token
 
             logger.warning(
                 "clarification_question_generated_from_fallback",

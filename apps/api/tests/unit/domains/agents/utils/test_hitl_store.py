@@ -206,6 +206,58 @@ class TestGetInterrupt:
         assert call_kwargs["ex"] == 7200
 
 
+class TestGetPending:
+    """get_pending(): the flattened question every resuming door reads."""
+
+    @pytest.mark.asyncio
+    async def test_the_payload_is_flattened_with_the_envelope_s_instant(self) -> None:
+        """The run it was asked on sits at the top, where the chat router, the
+        voice delegation and the channels read it; the envelope's instant wins
+        over the payload's own ``interrupt_ts``."""
+        mock_redis = AsyncMock()
+        stored = {
+            "schema_version": SCHEMA_VERSION,
+            "interrupt_ts": "2026-09-26T10:30:00+00:00",
+            "interrupt_data": {
+                "action_requests": [{"type": "clarification"}],
+                "run_id": "run-asked",
+                "interrupt_ts": "1758882600.0",
+            },
+        }
+        mock_redis.get = AsyncMock(return_value=json.dumps(stored))
+        store = HITLStore(redis_client=mock_redis, ttl_seconds=3600)
+
+        pending = await store.get_pending("thread_123")
+
+        assert pending == {
+            "action_requests": [{"type": "clarification"}],
+            "run_id": "run-asked",
+            "interrupt_ts": "2026-09-26T10:30:00+00:00",
+        }
+
+    @pytest.mark.asyncio
+    async def test_nothing_pending_reads_as_none(self) -> None:
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=None)
+        store = HITLStore(redis_client=mock_redis, ttl_seconds=3600)
+
+        assert await store.get_pending("thread_123") is None
+
+    @pytest.mark.asyncio
+    async def test_an_old_schema_is_flattened_like_a_new_one(self) -> None:
+        """A plain payload written before versioning reads the same way."""
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=json.dumps({"run_id": "run-old"}))
+        mock_redis.set = AsyncMock()
+        store = HITLStore(redis_client=mock_redis, ttl_seconds=3600)
+
+        pending = await store.get_pending("thread_123")
+
+        assert pending is not None
+        assert pending["run_id"] == "run-old"
+        assert pending["interrupt_ts"]
+
+
 class TestDeleteInterrupt:
     """Tests for delete_interrupt() method."""
 

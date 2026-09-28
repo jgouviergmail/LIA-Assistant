@@ -228,7 +228,14 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
     (
         "gemini",
         (
+            # Speech models do not think (« Thinking: Not supported » on each
+            # model page): without these, the ``gemini-3`` and ``gemini-2.5``
+            # rules below offered a thinking ladder on the voice slot.
+            "gemini-3.8-flash-tts",
+            "gemini-3.8-flash-lite-tts",
             "gemini-3.1-flash-tts-preview",
+            "gemini-2.5-flash-preview-tts",
+            "gemini-2.5-pro-preview-tts",
             "gemini-2.0",
             "gemini-1.5",
             "embedding-",
@@ -287,6 +294,23 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
         ("gemini-3",),
         ReasoningProfile(
             "gemini_level", ("minimal", "low", "medium", "high"), False, None, False, True
+        ),
+    ),
+    # Gemini 2.5 Pro, measured 2026-09-26 on the API: « Budget 0 is invalid.
+    # This model only works in thinking mode », and any budget outside
+    # 128..32768 is a 400. No off switch, and its own range; 2.5 Flash, same
+    # day, accepts 0..24576 — the family's. The narrower name comes first (the
+    # speech model ``gemini-2.5-pro-preview-tts`` is placed above, as no-reasoning).
+    (
+        "gemini",
+        ("gemini-2.5-pro",),
+        ReasoningProfile(
+            "gemini_budget",
+            ("minimal", "low", "medium", "high"),
+            True,
+            (128, 32768),
+            False,
+            True,
         ),
     ),
     (

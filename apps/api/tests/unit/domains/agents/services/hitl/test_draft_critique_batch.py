@@ -22,6 +22,7 @@ import pytest
 from src.domains.agents.services.hitl.interactions.draft_critique import (
     DraftCritiqueInteraction,
 )
+from src.domains.shared.markdown_literal import read_as_markdown
 
 
 def _batch(draft_type: str) -> list[dict]:
@@ -44,6 +45,28 @@ def _batch(draft_type: str) -> list[dict]:
 def interaction() -> DraftCritiqueInteraction:
     """``_generate_batch_critique`` does not touch the question generator."""
     return DraftCritiqueInteraction(question_generator=None)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("language", "header"),
+    [
+        ("fr", "**Éléments concernés\u00a0:**"),
+        ("en", "**Affected items:**"),
+        ("zh-CN", "**受影响的项目：**"),
+    ],
+)
+def test_the_items_header_takes_its_languages_punctuation(
+    interaction: DraftCritiqueInteraction, language: str, header: str
+) -> None:
+    """« label : » was written with the French space in every language."""
+    msg = interaction._generate_batch_critique(
+        draft_type="email_delete",
+        batch_drafts=_batch("email_delete"),
+        batch_total=2,
+        user_language=language,
+    )
+
+    assert header in msg, msg
 
 
 # =============================================================================
@@ -163,8 +186,38 @@ def test_email_batch_shows_distinct_recipients(
         batch_total=2,
         user_language="fr",
     )
-    assert "matheo@example.com" in msg, msg
-    assert "hua@example.com" in msg, msg
+    assert "matheo@example.com" in read_as_markdown(msg), msg
+    assert "hua@example.com" in read_as_markdown(msg), msg
     # The two item rows must not be identical.
     rows = [line for line in msg.splitlines() if line.startswith("- ")]
     assert len(rows) == 2 and rows[0] != rows[1], rows
+
+
+async def test_the_streamed_batch_keeps_its_no_break_spaces(
+    interaction: DraftCritiqueInteraction,
+) -> None:
+    """The reader receives what the renderer wrote: ``str.split()`` broke the
+    French no-break space and re-emitted an ordinary one — the string above was
+    right and the chat was not."""
+    no_break_space = chr(0xA0)
+    prepared = interaction._generate_batch_critique(
+        draft_type="email_delete",
+        batch_drafts=_batch("email_delete"),
+        batch_total=2,
+        user_language="fr",
+    )
+    context = {
+        "draft_type": "email_delete",
+        "draft_id": "d1",
+        "draft_content": {},
+        "batch_total": 2,
+        "batch_drafts": _batch("email_delete"),
+    }
+
+    streamed = "".join(
+        [token async for token in interaction.generate_question_stream(context, "fr")]
+    )
+
+    assert prepared.count(no_break_space) > 0
+    assert streamed.count(no_break_space) == prepared.count(no_break_space)
+    assert streamed.count("\n") >= prepared.count("\n")

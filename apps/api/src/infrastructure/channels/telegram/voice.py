@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 _TARGET_SAMPLE_RATE = 16000
 
 # Maximum voice duration we'll process (seconds)
-_MAX_VOICE_DURATION_SECONDS = 120
+MAX_VOICE_DURATION_SECONDS = 120
 
 
 async def transcribe_voice_message(
@@ -49,11 +49,11 @@ async def transcribe_voice_message(
         Transcribed text, or None if transcription failed or was empty.
     """
     # Reject overly long voice messages
-    if voice_duration_seconds and voice_duration_seconds > _MAX_VOICE_DURATION_SECONDS:
+    if voice_duration_seconds and voice_duration_seconds > MAX_VOICE_DURATION_SECONDS:
         logger.warning(
             "telegram_voice_too_long",
             duration=voice_duration_seconds,
-            max_duration=_MAX_VOICE_DURATION_SECONDS,
+            max_duration=MAX_VOICE_DURATION_SECONDS,
         )
         return None
 

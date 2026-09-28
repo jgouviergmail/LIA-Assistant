@@ -13,6 +13,7 @@ Scopes required:
 """
 
 import base64
+from collections.abc import Sequence
 from typing import Any
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -20,6 +21,7 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.constants import OUTLOOK_INLINE_ATTACHMENT_MAX_BYTES
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
@@ -37,6 +39,7 @@ from src.domains.connectors.clients.normalizers.microsoft_email_normalizer impor
 )
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
+from src.infrastructure.email.outgoing import OutgoingAttachment
 
 logger = structlog.get_logger(__name__)
 
@@ -68,6 +71,8 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
     """
 
     connector_type = ConnectorType.MICROSOFT_OUTLOOK
+    # A file rides INSIDE the send request (an upload session is not built).
+    OUTGOING_FILE_MAX_BYTES = OUTLOOK_INLINE_ATTACHMENT_MAX_BYTES
 
     def __init__(
         self,
@@ -330,6 +335,7 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
         cc: str | None = None,
         bcc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """
         Send a new email via Microsoft Graph.
@@ -341,6 +347,8 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
             cc: Comma-separated CC addresses (optional).
             bcc: Comma-separated BCC addresses (optional).
             is_html: Whether body is HTML (default: False).
+            attachments: Files to attach, each carried in the request as a
+                ``fileAttachment`` (ADR-321) — ``OUTGOING_FILE_MAX_BYTES`` each.
 
         Returns:
             Dict with send confirmation.
@@ -360,6 +368,10 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
             message_body["message"]["ccRecipients"] = _build_recipients(cc)
         if bcc:
             message_body["message"]["bccRecipients"] = _build_recipients(bcc)
+        if attachments:
+            message_body["message"]["attachments"] = [
+                _file_attachment(attachment) for attachment in attachments
+            ]
 
         await self._make_request("POST", "/me/sendMail", json_data=message_body)
 
@@ -547,6 +559,26 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
         # Microsoft Graph uses $filter on parentFolderId,
         # which is handled in build_search_filter()
         return query
+
+
+def _file_attachment(attachment: OutgoingAttachment) -> dict[str, str]:
+    """One file as Graph carries it inside a message (ADR-321).
+
+    Args:
+        attachment: The file.
+
+    Returns:
+        The ``fileAttachment`` resource, its bytes in base64.
+    """
+    content_type = attachment.mime_type
+    if attachment.charset:
+        content_type = f"{content_type}; charset={attachment.charset}"
+    return {
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        "name": attachment.filename,
+        "contentType": content_type,
+        "contentBytes": base64.b64encode(attachment.data).decode("ascii"),
+    }
 
 
 def _build_recipients(addresses_str: str) -> list[dict[str, Any]]:

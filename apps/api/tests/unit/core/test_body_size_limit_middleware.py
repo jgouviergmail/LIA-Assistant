@@ -17,7 +17,8 @@ import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
-from src.core.middleware import BodySizeLimitMiddleware
+from src.core.i18n_api_messages import APIMessages
+from src.core.middleware import BodySizeLimitMiddleware, RequestLanguageMiddleware
 
 
 @pytest.fixture
@@ -91,7 +92,30 @@ class TestBodiesOverTheCeiling:
         response = client.post("/echo", content=b"x" * (limit_bytes + 1))
 
         assert response.status_code == 413
-        assert response.json()["detail"] == "Request body too large"
+        assert response.json()["detail"] == APIMessages.request_body_too_large()
+
+    def test_the_refusal_speaks_the_language_the_request_declared(
+        self, monkeypatch: pytest.MonkeyPatch, limit_bytes: int
+    ):
+        """The web client shows ``detail`` to the person (ADR-323)."""
+        monkeypatch.setattr(
+            "src.core.middleware.settings.max_request_body_bytes", limit_bytes, raising=False
+        )
+        app = FastAPI()
+        app.add_middleware(BodySizeLimitMiddleware)
+        app.add_middleware(RequestLanguageMiddleware)  # added last, runs first
+
+        @app.post("/echo")
+        async def echo(request: Request) -> dict[str, int]:
+            return {"received": len(await request.body())}
+
+        response = TestClient(app).post(
+            "/echo", content=b"x" * (limit_bytes + 1), headers={"Accept-Language": "de-DE"}
+        )
+
+        assert response.status_code == 413
+        assert response.json()["detail"] == APIMessages.request_body_too_large("de")
+        assert response.json()["detail"] != APIMessages.request_body_too_large("en")
 
     def test_handler_never_runs_for_an_oversized_body(self, client: TestClient, limit_bytes: int):
         """The refusal is not the handler's — the body never reaches it."""

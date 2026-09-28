@@ -409,8 +409,8 @@ async def search_emails_tool(
         user_service = UserService(db)
         user = await user_service.get_user_by_id(user_id)
         user_timezone = user.timezone or "UTC"
-        user_language = user.language or "fr"
-        locale = f"{user_language}-{user_language.upper()}"
+        user_language = normalize_language(user.language)
+        locale = get_locale_for_language(user_language)
 
         # 3. Appelle Gmail API
         connector_service = ConnectorService(db)
@@ -594,13 +594,14 @@ CREATE TABLE users (
 # Si timezone non défini
 user_timezone = user.timezone or "UTC"
 
-# Si language non défini
-user_language = user.language or "fr"
+# Langue d'une personne connue : normalize_language, qui rend le défaut
+# d'instance (DEFAULT_LANGUAGE) si le compte n'en a pas (ADR-323)
+user_language = normalize_language(user.language)
 
-# Locale généré
-locale = f"{user_language}-{user_language.upper()}"
-# "fr" => "fr-FR"
-# "en" => "en-EN"
+# Locale d'affichage : lue dans LANGUAGE_TO_LOCALE, jamais dérivée du code
+# (« en-EN » et « zh-ZH » n'existent pas — audit N-129)
+locale = get_locale_for_language(user_language)
+# "fr" => "fr-FR", "en" => "en-US", "zh-CN" => "zh-CN"
 ```
 
 ### Timezones supportés

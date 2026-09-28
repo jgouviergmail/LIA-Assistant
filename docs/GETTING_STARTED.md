@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.47.4
+**Compatibility**: LIA v2.0.0
 
 ## Table of Contents
 
@@ -38,6 +38,8 @@ Two user-toggleable execution modes (switchable in the chat header):
 
 Both modes converge on the same streaming response (SSE) and the same HITL (Human-in-the-Loop) approval system.
 
+The guided self-host installer now asks whether to offer the **personal radio**. It is off on a fresh guided installation until the operator opts in: programmes are produced on demand in the existing API service using the configured writing and voice providers, and their cost is charged to the listener. The installer sets `RADIO_ENABLED` from that answer; no extra Compose service or boot step is needed. Configure the radio model and voice slots in the Admin UI before enabling it. See [the self-hosting guide](guides/GUIDE_SELF_HOSTING.md) and [radio design](technical/RADIO.md).
+
 ### Key Figures
 
 | | |
@@ -48,8 +50,8 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 | Voice providers | ElevenLabs (STT/TTS), Edge TTS (free), OpenAI TTS + local Whisper STT |
 | Configurable LLM slots | 54 (admin UI, hot-reloaded) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 419 |
-| Grafana dashboards | 25 |
+| Prometheus metrics | 606 |
+| Grafana dashboards | 31 |
 | Built-in FAQ knowledge base | 200+ Q/A (auto-indexed at startup) |
 
 ### Technical Architecture
@@ -1680,7 +1682,7 @@ In development the equivalent is `task db:seed:sql` (or `task db:reset`), which 
 
 ### Observability
 
-- [ ] Grafana up (http://localhost:3001) — 25 dashboards load
+- [ ] Grafana up (http://localhost:3001) — 31 dashboards load
 - [ ] Prometheus up (http://localhost:9090)
 - [ ] Langfuse up in dev (http://localhost:3002) if started via `task dev:langfuse` with `LANGFUSE_ENABLED=true`
 

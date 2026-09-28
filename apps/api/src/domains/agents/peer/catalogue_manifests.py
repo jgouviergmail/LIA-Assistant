@@ -26,7 +26,7 @@ PEER_AGENT_MANIFEST = AgentManifest(
     description=(
         "Agent specialized in connections with OTHER USERS of this LIA "
         "instance: relay a message to a connected user through their own "
-        "assistant ('dis à Marie que…', 'demande à Paul comment il va'), "
+        "assistant ('tell Marie that…', 'ask Paul how things are going'), "
         "list who the user is connected to, check a connected user's "
         "availability or shared tasks. Sending requires user confirmation "
         "(draft). NOT for the user's own contacts/emails (use contact/email)."
@@ -59,13 +59,13 @@ send_peer_message_catalogue_manifest = ToolManifest(
         "assistant will convey it in its own voice and language, naming the "
         "sender. Returns a draft the user must confirm — nothing is sent "
         "before confirmation. Use when the user asks to tell/ask something "
-        "to a person they are connected with ('passe un message à…', 'dis "
-        "à…', 'demande à…'). ALSO the way to REPLY to a relayed message: "
+        "to a person they are connected with ('pass a message to…', 'tell…', "
+        "'ask…'). ALSO the way to REPLY to a relayed message: "
         "relays are stateless (no message_id/thread) — a reply is simply a "
         "new relayed message. recipient_name matching is accent- and "
         "case-insensitive. Keep `message` in the USER'S OWN LANGUAGE (never "
         "translate) and phrase it as ADDRESSED TO the recipient (direct "
-        "address): 'demande à X comment il va' → message='comment vas-tu ?'. "
+        "address): 'ask X how they are' → message='how are you?'. "
         "SELF-CONTAINED single step: recipient_name resolves among the "
         "user's CONNECTIONS on this instance — never add a contacts lookup "
         "step before it."
@@ -88,7 +88,7 @@ send_peer_message_catalogue_manifest = ToolManifest(
             description=(
                 "The message to relay, in the user's own LANGUAGE (never "
                 "translate), phrased as addressed TO the recipient (direct "
-                "address: 'ask X how he is' → 'how are you?') — the "
+                "address: 'ask X how they are' → 'how are you?') — the "
                 "recipient's assistant conveys its intent, never verbatim."
             ),
             constraints=[
@@ -200,7 +200,7 @@ get_peer_availability_catalogue_manifest = ToolManifest(
     description=(
         "Reads a CONNECTED user's calendar availability, at the level THEY "
         "chose to share: busy slots only (free/busy), or slots with event "
-        "titles. Use for 'est-ce que Marie est dispo demain ?'. Refuses when "
+        "titles. Use for 'is Marie free tomorrow?'. Refuses when "
         "the peer does not share their calendar. SELF-CONTAINED single step: "
         "peer_name resolves against the user's connections — never add a "
         "contacts lookup or a calendar/event read alongside this tool."

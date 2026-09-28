@@ -93,5 +93,5 @@ async def get_push_relay_service() -> PushRelayService:
                 apns_client=ApnsClient(credentials),
                 handle_max_age_days=settings.push_relay_handle_max_age_days,
             )
-            logger.info("push_relay_service_ready", topic=settings.apns_topic)
+            logger.info("push_relay_service_ready", bundle_id=settings.apns_topic)
     return _service

@@ -55,6 +55,7 @@ async def ensure_admin(
     Raises:
         ValueError: When the password fails the strict backend policy.
     """
+    from src.core.config import settings
     from src.core.security import get_password_hash
     from src.core.security.password_validation import validate_password_strict
 
@@ -79,10 +80,10 @@ async def ensure_admin(
     now = datetime.now(UTC)
     await db.execute(
         text("""
-            INSERT INTO users (id, email, hashed_password, full_name,
+            INSERT INTO users (id, email, hashed_password, full_name, language,
                                is_active, is_verified, is_superuser,
                                created_at, updated_at)
-            VALUES (:id, :email, :hashed_password, :full_name,
+            VALUES (:id, :email, :hashed_password, :full_name, :language,
                     true, true, true, :now, :now)
             """),
         {
@@ -90,6 +91,9 @@ async def ensure_admin(
             "email": email,
             "hashed_password": get_password_hash(password),
             "full_name": full_name,
+            # The instance's configured default: left to the DDL default, the
+            # first administrator was French whatever DEFAULT_LANGUAGE said.
+            "language": settings.default_language,
             "now": now,
         },
     )

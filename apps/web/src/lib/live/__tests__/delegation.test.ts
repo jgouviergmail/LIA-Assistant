@@ -185,14 +185,27 @@ describe('DelegationBridge', () => {
     expect(await question).toMatchObject({ result: 'Send it?', note: 'LIA said this warmly.' });
   });
 
-  it('a pending question is the result, whole', async () => {
+  it('a pending question is the result, flattened and bounded like an answer', async () => {
+    // The question carries the draft card: raw, the voice got Markdown marks and
+    // references, uncut (review 14) — the server's bridge already flattened it.
+    const card = '**Brouillon** : e-mail à Alex &#60;alex@example.com&#62;\n\nSend it to Alex?';
     const h = harness({
-      readAnswer: () => ({ text: 'ignored', pendingQuestion: 'Send it to Alex?' }),
+      readAnswer: () => ({ text: 'ignored', pendingQuestion: card }),
     });
     const bridge = new DelegationBridge(h.deps);
     const pending = bridge.handle(call(), null);
     h.finish();
-    expect((await pending)?.result).toBe('Send it to Alex?');
+    expect((await pending)?.result).toBe(
+      'Brouillon : e-mail à Alex <alex@example.com> Send it to Alex?'
+    );
+
+    const long = harness({
+      readAnswer: () => ({ text: '', pendingQuestion: `${'word '.repeat(100)}?` }),
+      resultMaxTokens: 5,
+    });
+    const cut = new DelegationBridge(long.deps).handle(call(), null);
+    long.finish();
+    expect((await cut)?.result.endsWith(' (CUT)')).toBe(true);
   });
 
   it('bounds the result to the token budget and states the cut', async () => {

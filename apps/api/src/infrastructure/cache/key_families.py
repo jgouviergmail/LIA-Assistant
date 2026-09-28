@@ -138,6 +138,10 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # The newest request of a voice session's server-side delegation (ADR-301):
     # the running bridge steps aside for it; expires with the turn's bound.
     "voice_delegation:newest": KeyScope.USER_RUNTIME,
+    # A personal radio session (ADR-324): the account's one session, its inbox,
+    # its published state and segments, its loop's lease — a session is a
+    # runtime, never learning, and a reset must not stop the antenna.
+    "radio": KeyScope.USER_RUNTIME,
     "channel_rate": KeyScope.USER_RUNTIME,
     "mcp_oauth_state": KeyScope.USER_RUNTIME,
     # --- global ---------------------------------------------------------------
@@ -159,6 +163,15 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "channel_msg_lock": KeyScope.GLOBAL,
     # Sorted set of live sessions open across workers — the instance cap (ADR-299).
     "live:active": KeyScope.GLOBAL,
+    # Sorted set of radio sessions live across workers — the instance cap and
+    # the audio sweep's keep-list (ADR-324).
+    "radio:active": KeyScope.GLOBAL,
+    # A radio article's translation, per story and language: a public article's
+    # text, shared by every listener who opens it (ADR-324).
+    "radio:article": KeyScope.GLOBAL,
+    # A headline's meaning (its embedding), shared by every listener whose desk
+    # reads it: a public headline, never a person's (ADR-324 decision 34).
+    "radio:headline": KeyScope.GLOBAL,
 }
 
 #: Families whose keys carry no ``:`` separator after the prefix

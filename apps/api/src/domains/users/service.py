@@ -4,7 +4,7 @@ Users service containing business logic for user management.
 
 from contextlib import suppress
 from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
@@ -22,7 +22,7 @@ from src.core.exceptions import (
     raise_user_not_found,
 )
 from src.core.field_names import FIELD_IS_ACTIVE, FIELD_USER_ID
-from src.core.i18n import _
+from src.core.i18n import _, normalize_language
 from src.core.sql_search import LIKE_ESCAPE, escape_like
 from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
@@ -59,6 +59,9 @@ class UserService:
         """
         Get user by ID.
 
+        A caller that must TELL a person their account is deactivated reads
+        the row itself (``UserRepository.get_by_id(include_inactive=True)``).
+
         Args:
             user_id: User UUID
 
@@ -66,7 +69,7 @@ class UserService:
             UserProfile
 
         Raises:
-            HTTPException: If user not found
+            ResourceNotFoundError: If no such active user.
         """
         user = await self.repository.get_by_id(user_id)
 
@@ -789,8 +792,9 @@ class UserService:
         When deactivating:
         - User cannot login
         - Existing sessions are invalidated
-        - Reason is logged
-        - Email notification sent
+        - The reason is kept in the audit log (a log line carries its
+          length only, ADR-317)
+        - Email notification sent, once every write is committed (ADR-304)
 
         Args:
             user_id: User ID to update
@@ -802,7 +806,7 @@ class UserService:
             UserActivationResponse with user profile and email notification status
 
         Raises:
-            HTTPException: If user not found
+            ResourceNotFoundError: If user not found
         """
         user = await self.repository.get_by_id(user_id, include_inactive=True)
         if not user:
@@ -836,6 +840,9 @@ class UserService:
             ip_address=ip_address,
             user_agent=user_agent,
         )
+        # The refreshed read and the audit row end their transaction before the
+        # session invalidation and the e-mail leave (ADR-304).
+        await self.db.commit()
 
         # Initialize email notification tracking
         email_sent = False
@@ -852,29 +859,29 @@ class UserService:
 
                 await UsageLimitService.invalidate_cache_static(user_id)
 
+            # The reason is the administrator's words about a person: the audit
+            # log above keeps it, a log line above DEBUG carries its size (ADR-317).
             logger.warning(
                 "user_deactivated",
                 user_id=str(user_id),
                 email=user.email,
-                reason=update_data.reason,
+                reason_length=len(update_data.reason or ""),
                 admin_user_id=str(admin_user_id),
             )
 
-            # Send email notification
+            # Send email notification, in the language of the person it reaches
+            user_lang = normalize_language(user.language)
             email_service = get_email_service()
             email_sent = await email_service.send_user_deactivated_notification(
                 user_email=user.email,
                 user_name=user.full_name,
-                reason=update_data.reason or "Non spécifiée",
-                user_language=user.language,
+                reason=update_data.reason,
+                user_language=user_lang,
             )
 
             if not email_sent:
-                # Get user's language for error message
-                from src.core.i18n import Language
-
-                user_lang = cast(Language, user.language)
-                email_error = _("Failed to send deactivation email notification", user_lang)
+                # Returned to the ADMIN: written in the declared (the admin's) language.
+                email_error = _("Failed to send deactivation email notification")
                 logger.error(
                     "user_deactivation_email_failed",
                     user_id=str(user_id),
@@ -889,20 +896,17 @@ class UserService:
                 admin_user_id=str(admin_user_id),
             )
 
-            # Send email notification
+            # Send email notification, in the language of the person it reaches
             email_service = get_email_service()
             email_sent = await email_service.send_user_activated_notification(
                 user_email=user.email,
                 user_name=user.full_name,
-                user_language=user.language,
+                user_language=normalize_language(user.language),
             )
 
             if not email_sent:
-                # Get user's language for error message
-                from src.core.i18n import Language
-
-                user_lang = cast(Language, user.language)
-                email_error = _("Failed to send activation email notification", user_lang)
+                # Returned to the ADMIN: written in the declared (the admin's) language.
+                email_error = _("Failed to send activation email notification")
                 logger.error(
                     "user_activation_email_failed",
                     user_id=str(user_id),

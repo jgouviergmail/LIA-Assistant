@@ -48,6 +48,16 @@ def test_projects_only_current_conditions_with_their_original_expiry() -> None:
     assert "private" not in projected.model_dump_json()
 
 
+def test_projects_cached_google_rain_written_before_condition_normalization() -> None:
+    cached = section(condition_code="RAIN")
+
+    projected = project_weather(cached, NOW + timedelta(minutes=20))
+
+    assert projected is not None
+    assert projected.condition_code == "Rain"
+    assert projected.expires_at == NOW + timedelta(seconds=SECTION_WEATHER_TTL_SECONDS)
+
+
 @pytest.mark.parametrize("age", [-1, SECTION_WEATHER_TTL_SECONDS, SECTION_WEATHER_TTL_SECONDS + 1])
 def test_missing_stale_and_future_weather_do_not_drive_the_face(age: int) -> None:
     assert project_weather(None, NOW) is None

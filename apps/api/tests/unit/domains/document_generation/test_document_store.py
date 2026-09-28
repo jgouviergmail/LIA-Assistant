@@ -43,6 +43,7 @@ class TestDocumentStore:
                 "doc_type": "csv",
                 "size_bytes": 42,
                 "expires_at": "2026-08-19T00:00:00+00:00",
+                "kept": False,
             }
         ]
 

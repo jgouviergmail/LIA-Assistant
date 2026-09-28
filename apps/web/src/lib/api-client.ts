@@ -390,13 +390,26 @@ class ApiClient {
   private defaultTimeout = API_TIMEOUT_DEFAULT;
 
   /**
-   * Perform HTTP request.
+   * Perform an HTTP request and read its body as JSON (or text).
    */
   private async request<T>(
     method: string,
     endpoint: string,
     config: RequestConfig = {}
   ): Promise<T> {
+    return handleResponse<T>(await this.send(method, endpoint, config));
+  }
+
+  /**
+   * Build and send a request with every invariant of the client — the session
+   * cookie, the native shell's header, the timeout combined with the caller's
+   * signal. How the body is read is the caller's choice.
+   */
+  private async send(
+    method: string,
+    endpoint: string,
+    config: RequestConfig = {}
+  ): Promise<Response> {
     const { params, timeout = this.defaultTimeout, ...fetchConfig } = config;
 
     const url = buildUrl(endpoint, params);
@@ -438,15 +451,13 @@ class ApiClient {
     // computed Content-Type), a caller-supplied `signal` would drop the
     // timeout, and a caller-supplied `credentials` would break the BFF cookie
     // invariant — silently, since the merge above would still look right.
-    const response = await fetch(url, {
+    return fetch(url, {
       ...fetchConfig,
       method,
       credentials: 'include', // BFF Pattern: Include HTTP-only cookies
       headers,
       signal,
     });
-
-    return handleResponse<T>(response);
   }
 
   /**
@@ -454,6 +465,17 @@ class ApiClient {
    */
   async get<T>(endpoint: string, config?: RequestConfig): Promise<T> {
     return this.request<T>('GET', endpoint, config);
+  }
+
+  /**
+   * GET a binary body (an audio segment) as a Blob, through the same cookie,
+   * header, timeout and 401/403 handling as every JSON call. An error answer
+   * still raises `ApiError` with the server's detail.
+   */
+  async getBlob(endpoint: string, config?: RequestConfig): Promise<Blob> {
+    const response = await this.send('GET', endpoint, config);
+    if (!response.ok) return handleResponse<never>(response);
+    return response.blob();
   }
 
   /**

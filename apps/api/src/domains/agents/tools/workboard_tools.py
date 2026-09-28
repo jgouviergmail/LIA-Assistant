@@ -85,7 +85,7 @@ def _refusal(error: Exception) -> UnifiedToolOutput:
 def _ticket_summary(ticket: Any) -> dict[str, Any]:
     """The bounded view of a ticket a tool hands back.
 
-    Deliberately narrow: an agent answering « où en est ce ticket » needs the
+    Deliberately narrow: an agent answering « where is this ticket at » needs the
     column, the priority and the dates — not the whole row, whose description
     can run to thousands of characters the model would pay for twice.
 
@@ -486,9 +486,9 @@ async def get_ticket_tool(
             },
         }
 
-    # The ticket read becomes the CURRENT one (« celui-là ») and the list from
-    # the last listing is left alone: a read is not a listing, and « le
-    # deuxième » must keep pointing at the board the person was shown.
+    # The ticket read becomes the CURRENT one (« that one ») and the list from
+    # the last listing is left alone: a read is not a listing, and « the second
+    # one » must keep pointing at the board the person was shown.
     output = UnifiedToolOutput.data_success(
         message=f"{payload['ticket']['title']} — {payload['ticket']['status']}.",
         registry_updates=ticket_registry_items(
@@ -519,7 +519,7 @@ async def delete_ticket_tool(
     not delete, and a card they could only ever have refused would be a
     question with one answer. An unattended run deletes nothing either — the
     gate refuses a ``draft`` policy when nobody is there to answer (ADR-263,
-    amended by ADR-276), and the ticket settles « waiting for you ».
+    amended by ADR-276), and the ticket settles "waiting for you".
 
     Args:
         ticket: Which ticket.

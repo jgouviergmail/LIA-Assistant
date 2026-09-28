@@ -14,30 +14,12 @@ References:
 """
 
 from src.core.config import settings
-from src.domains.connectors.clients.wikipedia_client import WikipediaClient
+from src.core.i18n import resolve_language
+from src.domains.connectors.clients.wikipedia_client import WikipediaClient, wikipedia_edition
 from src.domains.interests.services.content_sources.base import ContentResult
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
-
-# Language mapping from user language code to Wikipedia language code
-LANGUAGE_MAP = {
-    "fr": "fr",
-    "en": "en",
-    "es": "es",
-    "de": "de",
-    "it": "it",
-    "zh": "zh",
-    "zh-CN": "zh",
-    "pt": "pt",
-    "ru": "ru",
-    "ja": "ja",
-    "ko": "ko",
-    "ar": "ar",
-    "nl": "nl",
-    "pl": "pl",
-    "sv": "sv",
-}
 
 
 class WikipediaContentSource:
@@ -89,11 +71,8 @@ class WikipediaContentSource:
         Returns:
             Wikipedia language code
         """
-        # Normalize language code (handle "fr-FR" -> "fr")
-        base_lang = user_language.split("-")[0].lower()
-
-        # Check full code first (for "zh-CN"), then base
-        return LANGUAGE_MAP.get(user_language, LANGUAGE_MAP.get(base_lang, "en"))
+        # The person's language, canonical ("fr-FR" -> "fr"), read by its edition.
+        return wikipedia_edition(resolve_language(user_language))
 
     async def generate(
         self,

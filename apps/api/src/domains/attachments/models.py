@@ -13,7 +13,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.models import BaseModel
@@ -179,11 +179,18 @@ class Attachment(BaseModel):
         index=True,
     )
 
-    # Expiration timestamp (TTL safety net for orphan cleanup)
-    expires_at: Mapped[datetime] = mapped_column(
+    # When the cleanup removes the file (the TTL). NULL means the person KEPT
+    # it from the gallery (ADR-319): one column answers « when does this go? »,
+    # so a kept file cannot also carry a deadline that says otherwise. Only a
+    # file LIA produced may be kept — an upload always goes (CHECK below).
+    expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        nullable=False,
+        nullable=True,
         index=True,
+        comment=(
+            "When the cleanup removes the file; NULL = kept by the person "
+            "(generated files only, ADR-319)."
+        ),
     )
 
     # Composite index for user queries (ownership + chronological order)
@@ -191,4 +198,10 @@ class Attachment(BaseModel):
         Index("ix_attachments_user_id_created_at", "user_id", "created_at"),
         # The gallery reads one origin family of one account, newest first.
         Index("ix_attachments_user_id_origin_created_at", "user_id", "origin", "created_at"),
+        # Keeping is a gallery act, and the gallery lists what LIA produced: an
+        # upload with no deadline would be a file no surface can ever remove.
+        CheckConstraint(
+            "expires_at IS NOT NULL OR origin <> 'upload'",
+            name="ck_attachments_upload_expires",
+        ),
     )

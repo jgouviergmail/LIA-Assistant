@@ -31,6 +31,7 @@ from src.core.constants import (
 )
 from src.core.dependencies import get_db
 from src.core.exceptions import ResourceNotFoundError, ValidationError
+from src.core.i18n import normalize_language
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
@@ -517,7 +518,7 @@ async def consolidate_now(
                 error=str(exc),
             )
 
-    user_language = getattr(user, "language", settings.default_language)
+    user_language = normalize_language(getattr(user, "language", None))
     max_total_chars = getattr(
         user, "journal_max_total_chars", settings.journal_default_max_total_chars
     )
@@ -650,7 +651,7 @@ async def portrait_feedback(
 
     # 3. Run a synchronous consolidation. Like the manual /consolidate, it
     #    respects the user's `journal_consolidation_with_history` setting.
-    user_language = getattr(user, "language", settings.default_language)
+    user_language = normalize_language(getattr(user, "language", None))
     max_total_chars = getattr(
         user, "journal_max_total_chars", settings.journal_default_max_total_chars
     )

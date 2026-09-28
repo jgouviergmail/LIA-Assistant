@@ -7,6 +7,7 @@ Created: 2025-11-20
 
 from unittest.mock import patch
 
+from src.core.config import settings
 from src.core.i18n_patterns import (
     KEYWORD_MAPS,
     ORDINAL_MAPS,
@@ -50,13 +51,11 @@ class TestGetOrdinalMap:
         assert en_map["third"] == 3
         assert en_map["tenth"] == 10
 
-    @patch("src.core.i18n_patterns.settings")
-    def test_get_ordinal_map_fallback_to_default(self, mock_settings):
-        """Test fallback to default language for unsupported language."""
-        mock_settings.default_language = "fr"
-
+    def test_get_ordinal_map_fallback_to_default(self):
+        """An unsupported language reads the instance's configured default."""
         # Request unsupported language, should fallback
-        result = get_ordinal_map("unsupported")
+        with patch.object(settings, "default_language", "fr"):
+            result = get_ordinal_map("unsupported")
 
         assert "premier" in result
 
@@ -91,12 +90,10 @@ class TestGetKeywordMap:
         assert en_map["last"] == -1
         assert fr_map["dernier"] == -1
 
-    @patch("src.core.i18n_patterns.settings")
-    def test_get_keyword_map_fallback_to_default(self, mock_settings):
-        """Test fallback to default language for unsupported language."""
-        mock_settings.default_language = "en"
-
-        result = get_keyword_map("unsupported")
+    def test_get_keyword_map_fallback_to_default(self):
+        """An unsupported language reads the instance's configured default."""
+        with patch.object(settings, "default_language", "en"):
+            result = get_keyword_map("unsupported")
 
         assert "last" in result
 
@@ -131,15 +128,12 @@ class TestGetOrdinalSuffixPatterns:
         assert "rd" in patterns_str
         assert "th" in patterns_str
 
-    @patch("src.core.i18n_patterns.settings")
-    def test_get_ordinal_suffix_patterns_fallback(self, mock_settings):
-        """Test fallback to default language."""
-        mock_settings.default_language = "fr"
+    def test_get_ordinal_suffix_patterns_fallback(self):
+        """An unsupported language reads the instance's configured default."""
+        with patch.object(settings, "default_language", "fr"):
+            result = get_ordinal_suffix_patterns("unsupported")
 
-        result = get_ordinal_suffix_patterns("unsupported")
-
-        assert isinstance(result, list)
-        assert len(result) > 0
+        assert result == ORDINAL_SUFFIX_PATTERNS["fr"]
 
 
 class TestGetAllOrdinalWords:

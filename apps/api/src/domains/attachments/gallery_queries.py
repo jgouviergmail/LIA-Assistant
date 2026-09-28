@@ -46,7 +46,9 @@ _DEFAULT_SORT = "created_desc"
 _ORDERINGS: dict[str, Any] = {
     "created_desc": Attachment.created_at.desc(),
     "created_asc": Attachment.created_at.asc(),
-    "expires_asc": Attachment.expires_at.asc(),
+    # A kept file (no deadline, ADR-319) comes LAST: it is the one nobody is
+    # about to lose. Stated, not left to the engine's default NULL placement.
+    "expires_asc": Attachment.expires_at.asc().nulls_last(),
     "name_asc": func.lower(func.coalesce(Attachment.title, Attachment.original_filename)).asc(),
 }
 
@@ -63,11 +65,12 @@ class GalleryFilters:
         created_after: Inclusive lower bound on the creation instant.
         created_before: Inclusive upper bound on the creation instant.
         expires_before: Inclusive upper bound on the expiry instant — « what am
-            I about to lose? ».
+            I about to lose? ». A kept file (no deadline, ADR-319) never matches.
         expires_after: Exclusive lower bound on the expiry instant — « what can
             I still open? ». The cleanup deletes a file only at its next pass, so
             a row past its deadline may still be listed; a lookup that SHOWS what
-            it finds (ADR-318) asks for this bound, the gallery does not.
+            it finds (ADR-318) asks for this bound, the gallery does not. A kept
+            file always matches: it can be opened for as long as it is kept.
         sort: One of :data:`GALLERY_SORTS`.
         limit: Page size.
         offset: Page start.
@@ -129,7 +132,9 @@ def build_gallery_statement(
     if filters.expires_before is not None:
         statement = statement.where(Attachment.expires_at <= filters.expires_before)
     if filters.expires_after is not None:
-        statement = statement.where(Attachment.expires_at > filters.expires_after)
+        statement = statement.where(
+            or_(Attachment.expires_at > filters.expires_after, Attachment.expires_at.is_(None))
+        )
 
     if count:
         return statement

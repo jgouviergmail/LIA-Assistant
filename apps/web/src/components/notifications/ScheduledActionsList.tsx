@@ -15,6 +15,8 @@
  *
  * A disabled routine still LISTS — hiding it would make "why did it not run?"
  * unanswerable — but says so, and shows no next run, because it has none.
+ * Neither does a condition routine (ADR-322): its trigger is the system's next
+ * CHECK, and its sentence already says how often that happens.
  */
 
 import { CalendarClock } from 'lucide-react';
@@ -26,6 +28,7 @@ export interface ScheduledActionRow {
   id: string;
   title: string;
   is_enabled: boolean;
+  trigger_kind: 'time' | 'condition';
   next_trigger_at: string | null;
   schedule_display: string;
 }
@@ -57,7 +60,7 @@ export function ScheduledActionsList({
               )}
             </p>
             <p className="text-[11px] text-muted-foreground">{action.schedule_display}</p>
-            {action.is_enabled && (
+            {action.is_enabled && action.trigger_kind !== 'condition' && (
               <p className="text-[11px] tabular-nums text-muted-foreground">
                 {action.next_trigger_at
                   ? t('notifications_hub.next_run', {

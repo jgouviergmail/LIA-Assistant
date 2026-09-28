@@ -101,6 +101,8 @@ def create_user_rate_limiter(
     action: str,
     max_calls: int,
     window_seconds: int = 60,
+    *,
+    authenticate: Callable[..., Awaitable[User]] = get_current_active_session,
 ) -> Callable[[User], Awaitable[None]]:
     """Factory for per-USER rate limit dependencies on authenticated endpoints.
 
@@ -113,13 +115,16 @@ def create_user_rate_limiter(
         action: Action name for the rate limit key (e.g., "webauthn_enroll").
         max_calls: Maximum number of calls allowed in the window.
         window_seconds: Time window in seconds (default: 60).
+        authenticate: The door the account is read through — the route's own,
+            so a route that waits on the network (and authenticates on a session
+            of its own, ADR-304) is limited without pinning a request session.
 
     Returns:
         Async dependency function for FastAPI (fail-open like the IP variant).
     """
 
     async def rate_limit_dependency(
-        user: User = Depends(get_current_active_session),
+        user: User = Depends(authenticate),
     ) -> None:
         """Per-user rate limit check; raises 429 when the window is exceeded."""
         try:

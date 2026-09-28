@@ -29,6 +29,7 @@ from uuid import UUID
 import structlog
 
 from src.core.exceptions import raise_user_not_found
+from src.core.i18n import resolve_language
 from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.shared.phone_domains import is_phone_domain, unknown_phone_domains
 from src.domains.telephony.callback import live_unavailable_reason
@@ -162,7 +163,9 @@ class TelephonyIdentityService:
         identity = self._identity_of(await self._user(user_id))
         return identity.phone_number if identity.verified else None
 
-    async def set_number(self, user_id: UUID, raw: str, *, language: str = "en") -> PhoneIdentity:
+    async def set_number(
+        self, user_id: UUID, raw: str, *, language: str | None = None
+    ) -> PhoneIdentity:
         """Declare (or re-declare) the number.
 
         Args:
@@ -178,7 +181,7 @@ class TelephonyIdentityService:
         """
         number = to_e164(raw)
         if number is None:
-            raise_phone_number_invalid(language)
+            raise_phone_number_invalid(resolve_language(language))
         user = await self._user(user_id)
         if self._stored_number(user) == number:
             # The same line, typed again: nothing to write, the verification
@@ -209,7 +212,7 @@ class TelephonyIdentityService:
         await self.db.commit()
         logger.info("phone_number_cleared", user_id=str(user_id))
 
-    async def mark_verified(self, user_id: UUID, *, language: str = "en") -> PhoneIdentity:
+    async def mark_verified(self, user_id: UUID, *, language: str | None = None) -> PhoneIdentity:
         """Stamp the declared number as heard — called once a code matched.
 
         Args:
@@ -225,7 +228,7 @@ class TelephonyIdentityService:
         """
         user = await self._user(user_id)
         if self._stored_number(user) is None:
-            raise_phone_number_missing(language)
+            raise_phone_number_missing(resolve_language(language))
         await self.users.update(user, {"phone_number_verified_at": datetime.now(UTC)})
         await self.db.commit()
         logger.info("phone_number_verified", user_id=str(user_id))
@@ -248,7 +251,7 @@ class TelephonyIdentityService:
         return self._identity_of(user)
 
     async def set_call_mode(
-        self, user_id: UUID, mode: str, *, language: str = "en"
+        self, user_id: UUID, mode: str, *, language: str | None = None
     ) -> PhoneIdentity:
         """Choose how the person's own calls run (ADR-301).
 
@@ -270,7 +273,7 @@ class TelephonyIdentityService:
         try:
             stored = as_voice_session_mode(mode)
         except ValueError:
-            raise_phone_call_mode_unknown(language)
+            raise_phone_call_mode_unknown(resolve_language(language))
         user = await self._user(user_id)
         await self.users.update(user, {"phone_call_mode": stored})
         await self.db.commit()
@@ -278,7 +281,7 @@ class TelephonyIdentityService:
         return self._identity_of(user)
 
     async def set_disabled_domains(
-        self, user_id: UUID, domains: list[str], *, language: str = "en"
+        self, user_id: UUID, domains: list[str], *, language: str | None = None
     ) -> PhoneIdentity:
         """Replace the set of phone domains the person switched off (lot 8).
 
@@ -298,7 +301,7 @@ class TelephonyIdentityService:
             ValidationError: On a domain the phone does not offer.
         """
         if unknown_phone_domains(domains):
-            raise_phone_domain_unknown(language)
+            raise_phone_domain_unknown(resolve_language(language))
         user = await self._user(user_id)
         stored = sorted(set(domains))
         await self.users.update(user, {"phone_disabled_domains": stored})

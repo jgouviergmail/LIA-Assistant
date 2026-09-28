@@ -62,9 +62,9 @@ describe('htmlToPlainText', () => {
   });
 
   it('keeps link text and drops the href (backend preserve_links=False)', () => {
-    expect(
-      htmlToPlainText('<p>Voir <a href="https://example.com/x">la page</a> ici</p>')
-    ).toBe('Voir la page ici');
+    expect(htmlToPlainText('<p>Voir <a href="https://example.com/x">la page</a> ici</p>')).toBe(
+      'Voir la page ici'
+    );
   });
 
   it('renders hr as a separator line and br as a line break', () => {
@@ -78,6 +78,20 @@ describe('htmlToPlainText', () => {
     expect(htmlToPlainText('<p>A&nbsp;&amp;&nbsp;B</p>')).toBe('A & B');
     // Quoted markup decodes to literal text — never re-stripped.
     expect(htmlToPlainText('<p>code : &lt;div&gt;</p>')).toBe('code : <div>');
+  });
+
+  it('decodes every reference once, numeric ones included', () => {
+    // One entity after the other decoded « &amp;lt; » twice, and a card's
+    // escaped apostrophe « &#x27; » was read out as typed (review 14).
+    expect(htmlToPlainText('<p>&amp;lt;b&amp;gt; et &#x27;q&#x27; &#233;</p>')).toBe(
+      "&lt;b&gt; et 'q' é"
+    );
+  });
+
+  it('drops inline emphasis tags before the generic strip, as the server does', () => {
+    // Stripped by the generic rule first, a stray « < » ran to the next tag's
+    // « > » and took the words between with it, where the server kept them.
+    expect(htmlToPlainText('<p>a < b <strong>gras</strong> c</p>')).toBe('a < b gras c');
   });
 
   it('flattens table rows with cell separators', () => {
@@ -97,5 +111,14 @@ describe('htmlToPlainText', () => {
     expect(out).toMatch(/^Détails$/m);
     expect(out).toContain('corps');
     expect(out).toMatch(/^Comparatif$/m);
+  });
+
+  it.each(['<', '<h1>', '<a ', '<li'])('reads a run of unclosed %s in linear time', unit => {
+    // A tag never holds a « < », and a heading or a link is read tag by tag,
+    // as the server does: paired lazily, every opening rescanned the text.
+    const started = performance.now();
+    htmlToPlainText(`<p>x</p>${unit.repeat(100_000)}`);
+
+    expect(performance.now() - started).toBeLessThan(1000);
   });
 });

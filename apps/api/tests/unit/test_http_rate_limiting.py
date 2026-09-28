@@ -19,7 +19,8 @@ from fastapi.testclient import TestClient
 
 from src.core.config import Settings
 from src.core.constants import RATE_LIMIT_GLOBAL_EXEMPT_PATHS
-from src.core.middleware import RateLimitMiddleware
+from src.core.i18n_api_messages import APIMessages
+from src.core.middleware import RateLimitMiddleware, RequestLanguageMiddleware
 from src.main import app
 
 # ============================================================================
@@ -125,13 +126,21 @@ def test_root_endpoint_returns_200():
 # ============================================================================
 
 
-def _make_client(*, allowed: bool | Exception, monkeypatch, max_calls: int = 5) -> TestClient:
+def _make_client(
+    *,
+    allowed: bool | Exception,
+    monkeypatch,
+    max_calls: int = 5,
+    declares_language: bool = False,
+) -> TestClient:
     """Build a minimal app carrying only the middleware under test.
 
     Args:
         allowed: Verdict the Redis limiter returns, or an exception it raises.
         monkeypatch: pytest fixture.
         max_calls: Ceiling advertised to the middleware.
+        declares_language: Also mount the request-language layer above it, as
+            the real stack does (ADR-323).
 
     Returns:
         TestClient over an app with one echo route.
@@ -150,6 +159,8 @@ def _make_client(*, allowed: bool | Exception, monkeypatch, max_calls: int = 5) 
 
     test_app = FastAPI()
     test_app.add_middleware(RateLimitMiddleware)
+    if declares_language:
+        test_app.add_middleware(RequestLanguageMiddleware)  # added last, runs first
 
     @test_app.get("/api/v1/thing")
     async def thing() -> dict[str, bool]:
@@ -166,6 +177,24 @@ def _make_client(*, allowed: bool | Exception, monkeypatch, max_calls: int = 5) 
 
 class TestGlobalLimitEnforcement:
     """A request over budget is actually refused."""
+
+    def test_refusal_speaks_the_language_the_request_declared(self, monkeypatch):
+        """The web client shows ``message`` to the person (ADR-323)."""
+        from src.core.config import settings
+
+        client = _make_client(allowed=False, monkeypatch=monkeypatch, declares_language=True)
+        # Neither English nor the instance default: only the declared one passes.
+        declared = next(
+            code for code in ("es", "it", "de") if code not in {"en", settings.default_language}
+        )
+
+        response = client.get("/api/v1/thing", headers={"Accept-Language": declared})
+
+        assert response.status_code == 429
+        assert response.json()["message"] == APIMessages.too_many_requests(declared)
+        assert response.json()["message"] != APIMessages.too_many_requests(
+            settings.default_language
+        )
 
     def test_allowed_request_reaches_the_route(self, monkeypatch):
         """Within budget, nothing changes for the caller."""
@@ -198,6 +227,7 @@ class TestGlobalLimitEnforcement:
         assert response.headers["Retry-After"] == "60"
         body = response.json()
         assert body["error"] == "rate_limit_exceeded"
+        assert body["message"] == APIMessages.too_many_requests()
         assert body["retry_after"] == 60
 
     def test_configured_ceiling_is_the_one_applied(self, monkeypatch):

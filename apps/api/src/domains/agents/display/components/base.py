@@ -10,13 +10,14 @@ import html
 import re
 from abc import ABC, abstractmethod
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import quote
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 
 if TYPE_CHECKING:
     pass
@@ -60,7 +61,7 @@ from src.domains.agents.display.urls import (  # noqa: F401  (re-export)
 # The ``\1`` backreference keeps a ``<style>`` from being closed by a
 # ``</script>``; the lazy body plus a terminating ``\Z`` keeps it linear.
 _BLOCK_ELEMENT_RE = re.compile(
-    r"<(head|style|script)\b[^>]*(?<!/)>.*?(?:</\1\s*>|\Z)",
+    r"<(head|style|script)\b[^<>]*(?<!/)>.*?(?:</\1\s*>|\Z)",
     re.DOTALL | re.IGNORECASE,
 )
 
@@ -110,7 +111,7 @@ class RenderContext:
     """Context for rendering components."""
 
     viewport: Viewport = Viewport.DESKTOP
-    language: str = "fr"
+    language: str = field(default_factory=resolve_language)
     timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE  # User timezone for datetime formatting
     show_secondary: bool = True
     max_items: int = 5
@@ -204,11 +205,33 @@ class BaseComponent(ABC):
 # =============================================================================
 
 
+#: What the chat would read in an HTML card's text once decoded: its math step
+#: reads dollar delimiters there (``rehypeMathInText`` sees inside raw HTML) and
+#: a backslash opens LaTeX delimiters; a reader of Markdown
+#: (``shared.markdown_literal.read_as_markdown``) takes backticks for a code span
+#: where HTML has none. Referenced, each is only its character.
+_CHAT_TEXT_MARKS = str.maketrans({"$": "&#36;", "\\": "&#92;", "`": "&#96;"})
+
+
 def escape_html(text: str | None) -> str:
-    """Safely escape HTML special characters."""
+    """Escape a text for an HTML card of the chat.
+
+    ``html.escape`` makes it text for an HTML parser; the chat then reads math
+    in that DECODED text, so a dollar, a backslash and a backtick are
+    referenced too — measured through the chat's pipeline (review 14): a card
+    value « rm -rf $BACKUP_DIR/$OLD » drew a formula, and so did one holding a
+    backslash before a bracket. The chat takes a referenced dollar as a
+    literal one (``lib/markdown-dollars.ts``).
+
+    Args:
+        text: A text a card shows (None or empty gives an empty string).
+
+    Returns:
+        The text, safe inside an element or a quoted attribute.
+    """
     if not text:
         return ""
-    return html.escape(str(text))
+    return html.escape(str(text)).translate(_CHAT_TEXT_MARKS)
 
 
 def compact_html(html_string: str) -> str:
@@ -294,7 +317,7 @@ def format_phone(phone: str | None) -> str:
 
 def format_date(
     dt: datetime | str | int | None,
-    language: str = "fr",
+    language: str | None = None,
     timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     format_type: DateFormatType = "full",
     include_time: bool = False,
@@ -315,13 +338,14 @@ def format_date(
         format_type: Format type to use:
             - "full": Full date with day name and year
             - "short": Numeric date (dd/mm/yyyy, mm/dd/yyyy, dd.mm.yyyy)
-            - "relative": Relative date (Aujourd'hui, Hier, Lundi, dd/mm)
+            - "relative": Relative date (Today, Yesterday, Monday, dd/mm)
             - "day_month": Day and month only (for birthdays)
         include_time: If True, appends time (HH:MM) with localized preposition
 
     Returns:
         Formatted date string following country conventions
     """
+    language = resolve_language(language)
     from src.core.i18n_dates import get_day_name, get_month_name, get_time_connector
     from src.core.time_utils import convert_to_user_timezone
 
@@ -403,9 +427,9 @@ def format_date(
         diff = now.date() - parsed_dt.date()
 
         if diff.days == 0:
-            base = TODAY_LABELS.get(language, TODAY_LABELS["en"])
+            base = TODAY_LABELS[language]
         elif diff.days == 1:
-            base = YESTERDAY_LABELS.get(language, YESTERDAY_LABELS["en"])
+            base = YESTERDAY_LABELS[language]
         elif diff.days < 7:
             base = day_name
         else:
@@ -423,7 +447,7 @@ def format_date(
 
 def format_relative_date(
     dt: datetime | str | int | None,
-    language: str = "fr",
+    language: str | None = None,
     timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     include_time: bool = False,
 ) -> str:
@@ -441,12 +465,12 @@ def format_relative_date(
     Returns:
         Localized relative date string
     """
-    return format_date(dt, language, timezone, "relative", include_time)
+    return format_date(dt, resolve_language(language), timezone, "relative", include_time)
 
 
 def format_full_date(
     dt: datetime | str | int | None,
-    language: str = "fr",
+    language: str | None = None,
     timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     include_time: bool = False,
 ) -> str:
@@ -471,12 +495,12 @@ def format_full_date(
         - "Saturday, January 3, 2026" (en)
         - "Samstag, 3. Januar 2026" (de)
     """
-    return format_date(dt, language, timezone, "full", include_time)
+    return format_date(dt, resolve_language(language), timezone, "full", include_time)
 
 
 def format_time(
     dt: datetime | str | None,
-    language: str = "fr",
+    language: str | None = None,
     timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> str:
     """
@@ -517,7 +541,7 @@ def format_time(
             dt = dt.astimezone(target_tz)
 
     # Format based on language convention
-    if language == "en":
+    if (resolve_language(language)) == "en":
         # 12-hour format for English
         return dt.strftime("%I:%M %p").lstrip("0")
     else:
@@ -528,7 +552,7 @@ def format_time(
 def format_duration(
     start: datetime | str,
     end: datetime | str,
-    language: str = "fr",
+    language: str | None = None,
 ) -> str:
     """
     Format duration between two datetimes with localized labels.
@@ -541,6 +565,7 @@ def format_duration(
     Returns:
         Formatted duration (e.g., "2h30", "45min", "1 hour 30 min")
     """
+    language = resolve_language(language)
     if isinstance(start, str):
         try:
             start = datetime.fromisoformat(start.replace("Z", "+00:00"))
@@ -616,7 +641,7 @@ def html_to_text(html_content: str | None, preserve_links: bool = False) -> str:
     - Links → [text](url) or just text
     - Tables → basic text extraction
     - Whitespace normalization
-    - HTML entities decoding
+    - HTML entities decoding, once the tags are gone
 
     Args:
         html_content: Raw HTML string from email body
@@ -630,8 +655,10 @@ def html_to_text(html_content: str | None, preserve_links: bool = False) -> str:
 
     text = str(html_content)
 
-    # 1. Decode HTML entities first
-    text = html.unescape(text)
+    # 1. Entities are decoded AFTER the tags are stripped (step 9b): a text
+    # quoting markup (``&lt;marie@example.com&gt;``, a card value escaped by
+    # its renderer) is text, and decoded first it became a tag the strip
+    # removed — the phone read « Marie Dupont » with no address (review 14).
 
     # 2. Remove <head>, <style>, <script> blocks entirely — content included
     text = _BLOCK_ELEMENT_RE.sub("", text)
@@ -651,26 +678,30 @@ def html_to_text(html_content: str | None, preserve_links: bool = False) -> str:
                 return f"[{link_text.strip()}]({url})"
             return link_text.strip()  # type: ignore[no-any-return]
 
+        # The text never crosses another link's opening: paired lazily across
+        # the whole text, each unclosed « <a » rescanned it to the end.
         text = re.sub(
-            r"<a\s+([^>]*)>(.*?)</a>", link_replacer, text, flags=re.DOTALL | re.IGNORECASE
+            r"<a\s+([^<>]*)>((?:(?!<a\b)[\s\S])*?)</a>",
+            link_replacer,
+            text,
+            flags=re.IGNORECASE,
         )
     else:
-        # Just extract link text
-        text = re.sub(r"<a\s+[^>]*>(.*?)</a>", r"\1", text, flags=re.DOTALL | re.IGNORECASE)
+        # Just extract link text: its tags go, its text stays.
+        text = re.sub(r"</?a\b[^<>]*>", "", text, flags=re.IGNORECASE)
 
     # 4. Handle block elements with proper spacing
-    # Headers → newline before and after
-    text = re.sub(
-        r"<h[1-6][^>]*>(.*?)</h[1-6]>", r"\n\n\1\n\n", text, flags=re.DOTALL | re.IGNORECASE
-    )
+    # Headers → newline before and after, each tag on its own: paired lazily,
+    # 20 000 unclosed « <h1> » cost 4.6 s on the event loop (review 14).
+    text = re.sub(r"</?h[1-6]\b[^<>]*>", "\n\n", text, flags=re.IGNORECASE)
 
     # Paragraphs → double newline
     text = re.sub(r"</p>", "\n\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"<p[^>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<p[^<>]*>", "", text, flags=re.IGNORECASE)
 
     # Divs → single newline (common in email formatting)
     text = re.sub(r"</div>", "\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"<div[^>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<div[^<>]*>", "", text, flags=re.IGNORECASE)
 
     # Line breaks
     text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
@@ -679,22 +710,22 @@ def html_to_text(html_content: str | None, preserve_links: bool = False) -> str:
     text = re.sub(r"<hr\s*/?>", "\n---\n", text, flags=re.IGNORECASE)
 
     # 5. Handle lists
-    text = re.sub(r"<li[^>]*>", "\n• ", text, flags=re.IGNORECASE)
+    text = re.sub(r"<li[^<>]*>", "\n• ", text, flags=re.IGNORECASE)
     text = re.sub(r"</li>", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"<[ou]l[^>]*>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[ou]l[^<>]*>", "\n", text, flags=re.IGNORECASE)
     text = re.sub(r"</[ou]l>", "\n", text, flags=re.IGNORECASE)
 
     # 6. Handle tables (basic: extract cell content with spacing)
-    text = re.sub(r"<tr[^>]*>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"<tr[^<>]*>", "\n", text, flags=re.IGNORECASE)
     text = re.sub(r"</tr>", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"<t[dh][^>]*>", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"<t[dh][^<>]*>", " ", text, flags=re.IGNORECASE)
     text = re.sub(r"</t[dh]>", " | ", text, flags=re.IGNORECASE)
-    text = re.sub(r"</?table[^>]*>", "\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"</?tbody[^>]*>", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"</?thead[^>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?table[^<>]*>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?tbody[^<>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?thead[^<>]*>", "", text, flags=re.IGNORECASE)
 
     # 7. Handle blockquotes (common in email replies)
-    text = re.sub(r"<blockquote[^>]*>", "\n> ", text, flags=re.IGNORECASE)
+    text = re.sub(r"<blockquote[^<>]*>", "\n> ", text, flags=re.IGNORECASE)
     text = re.sub(r"</blockquote>", "\n", text, flags=re.IGNORECASE)
     # 7b. The response vocabulary (ADR-177): a definition list reads « label :
     # value » per line, and two adjacent spans (a stat's value and label) keep
@@ -708,12 +739,18 @@ def html_to_text(html_content: str | None, preserve_links: bool = False) -> str:
     text = re.sub(r"</span>\s*(?=<span)", " ", text, flags=re.IGNORECASE)
 
     # 8. Bold/italic → keep text, remove tags
-    text = re.sub(r"</?(?:b|strong)[^>]*>", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"</?(?:i|em)[^>]*>", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"</?(?:u|s|strike)[^>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?(?:b|strong)[^<>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?(?:i|em)[^<>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?(?:u|s|strike)[^<>]*>", "", text, flags=re.IGNORECASE)
 
-    # 9. Remove all remaining HTML tags
-    text = re.sub(r"<[^>]+>", "", text)
+    # 9. Remove all remaining HTML tags — a tag never holds a « < », so a run of
+    # unclosed ones is read once
+    text = re.sub(r"<[^<>]+>", "", text)
+
+    # 9b. Decode the entities of what is left, which is text (step 1). Before
+    # the whitespace rules, as when the decoding came first: a decoded
+    # no-break space at a line's edge is trimmed with the line.
+    text = html.unescape(text)
 
     # 10. Normalize whitespace
     # Multiple spaces → single space
@@ -1012,7 +1049,6 @@ def render_collapsible(
     trigger_text: str,
     content_html: str,
     initially_open: bool = False,
-    language: str = "fr",
     with_separator: bool = True,
 ) -> str:
     """
@@ -1022,7 +1058,6 @@ def render_collapsible(
         trigger_text: Text for the trigger/toggle button
         content_html: HTML content to show when expanded
         initially_open: If True, section starts expanded
-        language: Language for accessibility labels
         with_separator: If True (default), adds an <hr> separator above the
             collapsible. Set to False when the preceding element already
             provides a visual separator (e.g., a chip-row with border-bottom).

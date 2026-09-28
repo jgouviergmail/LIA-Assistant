@@ -55,20 +55,35 @@ class UserChannelBindingRepository(BaseRepository[UserChannelBinding]):
         self,
         channel_type: str,
         channel_user_id: str,
+        *,
+        include_inactive: bool = False,
     ) -> UserChannelBinding | None:
         """
         Get binding by channel type and provider-specific user ID.
 
         This is the hot path for webhook processing: when a Telegram message
         arrives, we look up the binding by (telegram, chat_id) to find the
-        LIA user. Uses the partial index ix_channel_bindings_active_lookup.
+        LIA user. The active-only read uses the partial index
+        ``ix_channel_bindings_active_lookup``; with ``include_inactive`` — the
+        webhook's own reading — the pair's unique index serves it.
+
+        Args:
+            channel_type: The channel (``telegram``).
+            channel_user_id: The user's id on that channel.
+            include_inactive: Also read a binding its owner switched off — for
+                a caller that must TELL that person so (ADR-323). The pair is
+                unique whatever the state (``uq_channel_type_user_id``).
+
+        Returns:
+            The binding, or None.
         """
         stmt = (
             select(UserChannelBinding)
             .where(UserChannelBinding.channel_type == channel_type)
             .where(UserChannelBinding.channel_user_id == channel_user_id)
-            .where(UserChannelBinding.is_active.is_(True))
         )
+        if not include_inactive:
+            stmt = stmt.where(UserChannelBinding.is_active.is_(True))
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 

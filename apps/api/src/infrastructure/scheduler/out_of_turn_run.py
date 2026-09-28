@@ -49,12 +49,12 @@ from uuid import UUID
 
 import structlog
 
-from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
     INSTANCE_BUDGET_EXHAUSTED_ERROR_CODE,
     USAGE_LIMIT_EXCEEDED_ERROR_CODE,
 )
+from src.core.i18n import language_scope, normalize_language
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
@@ -120,7 +120,7 @@ class RunContext:
         language: Backend-canonical language code.
         timezone: IANA zone the person reads wall clocks in.
         display_name: What the assistant calls them.
-        display_mode: ``cards`` | ``html`` | ``markdown``.
+        display_mode: ``cards`` | ``html`` | ``html_cards`` | ``markdown``.
         execution_mode: The person's OWN chat mode — read by a turn spoken by
             them (a relayed phone call, lot 4); an unattended run never uses it.
         memory_enabled: Their long-term memory switch.
@@ -150,7 +150,7 @@ class StreamRequest:
         language: Backend-canonical language code.
         timezone: IANA zone.
         display_name: What the assistant calls them.
-        display_mode: ``cards`` | ``html`` | ``markdown``.
+        display_mode: ``cards`` | ``html`` | ``html_cards`` | ``markdown``.
         timeout_seconds: Hard bound of ONE attempt.
         max_attempts: Attempts including the first.
         retry_delay_seconds: Pause between two attempts.
@@ -280,7 +280,7 @@ async def resolve_run_context(db: Any, user_id: UUID) -> RunContext | None:
         return None
     return RunContext(
         user=user,
-        language=user.language or settings.default_language,
+        language=normalize_language(user.language),
         timezone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
         display_name=resolve_user_display_name(user.full_name, user.email),
         display_mode=getattr(user, "response_display_mode", None) or "cards",
@@ -346,7 +346,10 @@ async def stream_instruction(request: StreamRequest) -> RunResult:
     """
     token = out_of_turn_origin_ctx.set(request.origin) if request.origin is not None else None
     try:
-        return await _attempt_until_settled(request)
+        # Whatever the run writes without an explicit language is written in
+        # the person's own (ADR-323): a routine or a ticket has no request.
+        with language_scope(request.language):
+            return await _attempt_until_settled(request)
     finally:
         if token is not None:
             out_of_turn_origin_ctx.reset(token)

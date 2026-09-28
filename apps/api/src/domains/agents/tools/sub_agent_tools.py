@@ -76,7 +76,7 @@ async def delegate_to_sub_agent_tool(
     expertise: Annotated[
         str,
         "Domain expertise of the sub-agent to create "
-        "(e.g., 'expert comptable', 'specialiste transport ferroviaire')",
+        "(e.g., 'chartered accountant', 'rail transport specialist')",
     ],
     instruction: Annotated[
         str,

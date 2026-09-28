@@ -100,7 +100,10 @@ scheduled_actions
 +-- user_id (UUID, FK users.id CASCADE)
 +-- title (String 200)
 +-- action_prompt (Text)
-+-- recurrence (JSONB) -- RecurrenceSpec : quels jours, quels moments
++-- recurrence (JSONB, nullable) -- RecurrenceSpec d'une routine time ; NULL pour une routine condition (ADR-322)
++-- trigger_kind (String 20: time|condition) -- UNE horloge : la recurrence, ou les verifications du systeme
++-- condition_config (JSONB, nullable) -- routine condition : {type, parametres, until}
++-- condition_state (JSONB, nullable) -- registre des faits deja vus
 +-- user_timezone (String 50, default "Europe/Paris")
 +-- next_trigger_at (DateTime TZ, UTC, nullable) -- Calcule ; NULL = plus rien apres
 +-- is_enabled (Boolean, default true)
@@ -139,9 +142,9 @@ Une ligne par tick, ecrite AU RESULTAT dans la meme transaction que `mark_execut
 
 ### Pipeline d'execution
 
-L'executeur utilise `stream_chat_response()` avec `auto_approve_plan=True`, ce qui injecte `state["plan_approved"] = True` dans l'etat LangGraph. Le noeud `approval_gate_node` skip l'interrupt HITL quand ce flag est `True`.
+L'exécuteur utilise `stream_chat_response()` avec `auto_approve_plan=True`, qui injecte `state["plan_approved"] = True` dans l'état LangGraph — un drapeau inerte : le routeur le remet à `None` au début de chaque tour, avant tout lecteur. Une routine en mode pipeline rencontre donc les clarifications du validateur comme un tour tapé (voir [SCHEDULED_ACTIONS.md](../technical/SCHEDULED_ACTIONS.md), « Pas de contournement HITL »).
 
-Avant execution, un **guard HITL** verifie via `graph.aget_state()` qu'il n'y a pas d'interrupt HITL en attente sur la conversation de l'utilisateur. Si un interrupt est en attente, l'action est skippee sans erreur et reprogrammee au prochain cycle.
+Avant exécution, une **garde HITL** lit l'enregistrement de question en attente dans Redis (`conversation_has_pending_hitl`) — celui sur lequel le chat route la réponse de la personne, jamais le checkpoint du graphe. S'il en existe un, l'action est ignorée sans erreur et reprogrammée au prochain cycle.
 
 > **Note** : Les actions planifiees sont des sources automatisees — elles ne declenchent **ni l'extraction de memoire long terme**, **ni la detection de centres d'interet**. Seules les interactions directes de l'utilisateur alimentent ces systemes d'apprentissage. Le `response_node` detecte les sources automatisees via le prefixe `SCHEDULED_ACTIONS_SESSION_PREFIX` du `session_id`.
 
@@ -172,6 +175,9 @@ Toutes les constantes sont definies dans `apps/api/src/core/constants.py` :
 | `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` | `10` | Seuil recovery pour actions bloquees en `executing` |
 | `SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES` | `5` | Seuil avant auto-disable |
 | `SCHEDULED_ACTIONS_BATCH_SIZE` | `50` | Nombre max d'actions traitees par cycle |
+| `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` | `…_DEFAULT` | Cadence de verification d'une routine sur condition (courrier, taches, agenda, documents) — ADR-322 |
+| `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` | `…_DEFAULT` | Cadence d'une routine meteo — ADR-322 |
+| `SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY` | `…_DEFAULT` | Executions au plus par routine sur condition et par jour local — ADR-322 |
 
 ### Enregistrement du job scheduler
 
@@ -338,8 +344,8 @@ Toute requete qui peut etre traitee par le pipeline d'agents peut etre planifiee
 
 ### Limitations
 
-- Les actions necessitant une **interaction HITL** (confirmation destructive, clarification) sont gereees via le guard HITL : si un interrupt est en attente, l'action est replanifiee sans erreur.
-- `auto_approve_plan=True` bypass l'approbation du plan, mais pas les HITL de type "destructive confirm" ou "draft critique" qui sont generes par les agents eux-memes.
+- Une routine qui rencontre une **interaction HITL** (confirmation destructive, clarification) s'arrête sur la question — comptée en échec — et la question attend dans la conversation ; la garde HITL ne fait que reporter, sans erreur, les routines SUIVANTES tant que l'enregistrement de cette question vit.
+- `auto_approve_plan=True` ne contourne rien : le routeur remet le drapeau à `None` au début du tour. Une clarification du validateur s'arrête sur une question comme dans un tour tapé ; un outil qui doit être confirmé ou rédigé en brouillon (`confirm`, `draft`) est refusé dans une routine, qui ne peut pas porter de brouillon (ADR-276).
 - Le timeout d'execution est de **5 minutes** (`SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS`). Les prompts tres complexes ou lents peuvent echouer par timeout.
 
 ---
@@ -695,7 +701,7 @@ La methode recommandee est d'utiliser l'endpoint `PATCH /scheduled-actions/{id}/
 
 ### L'action est skip a cause du HITL
 
-Le log `scheduled_action_skipped_hitl_pending` indique qu'un interrupt HITL est en attente sur la conversation de l'utilisateur. L'action sera replanifiee au prochain cycle.
+Le log `scheduled_action_skipped_hitl_pending` indique qu'un interrupt HITL est en attente sur la conversation de l'utilisateur. L'action sera replanifiee au prochain cycle, sans compter d'execution ; une routine sur condition garde ses faits neufs et reessaie a sa verification suivante (ADR-322).
 
 Pour debloquer : repondre a l'interrupt HITL dans le chat, ou resumer le graphe LangGraph.
 

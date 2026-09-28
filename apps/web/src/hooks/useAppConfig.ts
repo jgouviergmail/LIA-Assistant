@@ -2,11 +2,20 @@
  * Hook for fetching app-level configuration from the backend.
  *
  * Fetches `/api/v1/config` which returns feature flags, rate limits,
- * i18n settings, etc. The result is cached for the lifetime of the component.
+ * i18n settings, etc. The endpoint is public: a reader never needs to wait for
+ * the session to ask.
+ *
+ * A component starts from the dashboard layout's last read when it is mounted
+ * under it (`AppConfigSeedContext`), then reads its own: a page reached by a
+ * navigation renders its gated parts at once — the home page's radio card used
+ * to land a round trip after the page and push « My dashboard » down — and is
+ * never staler than its own read.
  *
  * Phase: evolution F4 — File Attachments & Vision Analysis
  * Created: 2026-03-09
  */
+
+import { createContext, useContext } from 'react';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
 
@@ -55,6 +64,12 @@ export interface AppConfig {
     // Live voice mode (ADR-299) — gates the Live button, the « Live mode »
     // settings section and the Live connector group.
     live_enabled?: boolean;
+    // Sending by e-mail (ADR-321) — the deployment ceiling of every « Send by
+    // e-mail » action; the effective state is `capabilities.email_share`.
+    email_share_enabled?: boolean;
+    // Personal radio (ADR-324) — the deployment ceiling of the player, the radio
+    // page and its settings; the effective state is `capabilities.radio`.
+    radio_enabled?: boolean;
   };
   // Every capability of the registry with its EFFECTIVE state (deployment
   // ceiling AND operator switch), keyed like `capabilities.items.<key>`.
@@ -65,6 +80,9 @@ export interface AppConfig {
   api_version: string;
 }
 
+/** The dashboard layout's last read of the configuration, the one its pages start from. */
+export const AppConfigSeedContext = createContext<AppConfig | null>(null);
+
 /**
  * Fetch the application configuration from the backend.
  *
@@ -72,9 +90,11 @@ export interface AppConfig {
  * @returns `{ config, loading, error }`
  */
 export function useAppConfig(enabled = true) {
+  const seed = useContext(AppConfigSeedContext);
   const { data, loading, error } = useApiQuery<AppConfig>('/config', {
     componentName: 'useAppConfig',
     enabled,
+    initialData: seed ?? undefined,
   });
 
   return { config: data ?? null, loading, error };

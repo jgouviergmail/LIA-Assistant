@@ -55,18 +55,7 @@ const MIN_RATIO = 0.6;
  * SHRINK-ONLY. `key` → locales whose entry answers a different question.
  * Do not add. Re-align the section instead, then delete the line.
  */
-const ALLOWED: Record<string, readonly string[]> = {
-  // `tool_examples_services` is permuted between {en,fr} and {de,es,it} across
-  // q4..q14: en/fr q11-q12 are the Google Drive answers, de/es/it q11-q12 are
-  // the Gmail ones. Both sets are complete; only the indices disagree. The
-  // de/it q11 entries left on 2026-09-16 (v1.44.7): the Gmail "read in detail"
-  // answers grew past the heuristic's floor when the clean-text paragraph
-  // (ADR-287) joined them.
-  'faq.sections.tool_examples_services.questions.q12.answer': ['it'],
-  // en/fr/es q6 = "preferences per connector"; de/it q6 = "which Google
-  // permissions are requested". Different questions, both answered in full.
-  'faq.sections.connectors.questions.q6.answer': ['de', 'it'],
-};
+const ALLOWED: Record<string, readonly string[]> = {};
 
 interface Finding {
   key: string;
@@ -154,7 +143,8 @@ describe('locale content truncation', () => {
     expect(
       total,
       'the allowlist is shrink-only: 5 entries were open when this guard landed ' +
-        '(2026-07-27), all of them section-level permutations awaiting re-alignment.'
-    ).toBeLessThanOrEqual(5);
+        '(2026-07-27), all of them section-level permutations; the FAQ sections were ' +
+        're-aligned across the six locales on 2026-09-25 and none is left.'
+    ).toBe(0);
   });
 });

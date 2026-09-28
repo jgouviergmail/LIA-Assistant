@@ -51,6 +51,13 @@ CONSULTATION_RECORDERS: Final[dict[str, str]] = {
     # The calendar lookup that hints the minutes (the upload itself is the
     # person's own; the calendar is a source LIA opened).
     "meeting": "domains/meetings/enrichment.py",
+    # Every check of a condition routine opens the source its condition reads
+    # (ADR-322), through the briefing's fetchers but never through the
+    # briefing's own recorder.
+    "routine_condition": "infrastructure/scheduler/condition_evaluators.py",
+    # The personal radio (ADR-324): shared source reads, its own readers and taste,
+    # each gathering in a collector of the session's run.
+    "radio": "domains/radio/consultations.py",
 }
 
 #: Surfaces that spend out of turn WITHOUT opening the person's sources, and

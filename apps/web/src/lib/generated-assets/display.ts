@@ -7,7 +7,7 @@
  */
 
 import { apiResourceUrl } from '@/lib/utils/api-resource-url';
-import type { GeneratedAsset } from '@/types/generated-assets';
+import type { GeneratedAsset, GeneratedAssetKeepUsage } from '@/types/generated-assets';
 
 /** Under this many hours left, the deadline is drawn as a warning. */
 export const EXPIRY_WARNING_HOURS = 6;
@@ -46,6 +46,32 @@ export function assetOpenHref(asset: GeneratedAsset, lng: string): string {
     type: asset.original_filename.split('.').pop() ?? '',
   });
   return `/${lng}/dashboard/documents/${asset.id}?${params.toString()}`;
+}
+
+/**
+ * Whether the person kept this file past its deadline (ADR-319).
+ *
+ * A kept file has NO deadline — one column answers « when does it go? », so
+ * `null` is the kept state itself, never a missing value to guess around.
+ *
+ * @param asset - The file.
+ * @returns True when no cleanup will remove it.
+ */
+export function isKept(asset: Pick<GeneratedAsset, 'expires_at'>): boolean {
+  return asset.expires_at === null;
+}
+
+/**
+ * Whether the account may keep files at all (ADR-319).
+ *
+ * EITHER ceiling at 0 refuses every keep, so offering the pin then would only
+ * lead to a refusal. A file already kept stays releasable whatever this says.
+ *
+ * @param keep - The account's usage and ceilings, null before the first payload.
+ * @returns True when a keep can succeed.
+ */
+export function keepOffered(keep: GeneratedAssetKeepUsage | null): boolean {
+  return keep !== null && keep.max_files > 0 && keep.max_bytes > 0;
 }
 
 /**

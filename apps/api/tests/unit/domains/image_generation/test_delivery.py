@@ -52,6 +52,7 @@ class TestTheCardIsDelivered:
                 "url": "/api/v1/attachments/screenshot",
                 "alt": "The page I visited",
                 "expires_at": "2026-09-26T08:00:00+00:00",
+                "kept": False,
             }
         ]
         assert archived[GENERATED_IMAGES_METADATA_KEY] == done[GENERATED_IMAGES_METADATA_KEY]

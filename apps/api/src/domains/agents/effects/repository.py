@@ -200,6 +200,28 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
             effect_id, claim_token, status=EffectStatus.FAILED, error_code=error_code[:50]
         )
 
+    async def close_abandoned(
+        self, effect_id: uuid.UUID, claim_token: uuid.UUID, *, error_code: str
+    ) -> bool:
+        """Mark the effect ABANDONED: its owner was stopped before the result came back.
+
+        The owner's own counterpart of :meth:`abandon_stale`. A claim cancelled
+        in flight — an attempt's time bound, a stop, a shutdown — cannot tell
+        whether the effect happened, and « we cannot tell » is ABANDONED (the
+        orphan runbook's closing state), never SUCCEEDED.
+
+        Args:
+            effect_id: Row id returned by :meth:`claim`.
+            claim_token: Owner token returned by :meth:`claim`.
+            error_code: Stable, non-free-text code (``cancelled``).
+
+        Returns:
+            True when this call closed the row.
+        """
+        return await self._close(
+            effect_id, claim_token, status=EffectStatus.ABANDONED, error_code=error_code[:50]
+        )
+
     async def refuse(self, req: ClaimRequest, *, error_code: str) -> AgentEffect:
         """Record an effect REFUSED for want of authority — no claim, no effect.
 

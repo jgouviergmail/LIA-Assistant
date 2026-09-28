@@ -1,6 +1,7 @@
 # ADR-024: Internationalization (i18n) Architecture
 
-**Status**: ✅ IMPLEMENTED (2025-12-21)
+**Status**: ✅ IMPLEMENTED (2025-12-21) — backend language resolution amended by
+[ADR-323](ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md)
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Multi-language support for global users
 **Related Documentation**: `docs/technical/I18N.md`
@@ -54,15 +55,15 @@ graph TB
         PROV --> COMP[React Components]
     end
 
-    subgraph "BACKEND (FastAPI)"
+    subgraph "BACKEND (FastAPI) — amended by ADR-323"
         REQ[Request] --> HDR[Accept-Language Header]
-        HDR --> PARSE[get_language_from_header]
+        HDR --> PARSE[language_from_header<br/>declared for the request]
         PARSE --> GT[gettext Translator]
         GT --> PO[(locales/{lng}/LC_MESSAGES/messages.mo)]
         GT --> RESP[API Response]
     end
 
-    subgraph "FALLBACK CHAIN"
+    subgraph "FALLBACK CHAIN (2025 design, amended by ADR-323)"
         LANG[Requested Language] --> CHECK{Available?}
         CHECK -->|Yes| USE[Use translation]
         CHECK -->|No| FR[Fallback to French]
@@ -253,6 +254,13 @@ export function generateStaticParams() {
 
 ### Backend: gettext Configuration
 
+> **Amended by ADR-323 (2026-09-25).** The sample below is the design as decided in
+> 2025. Since ADR-323 the backend holds no `DEFAULT_LANGUAGE` copy: an absent
+> language is the one DECLARED for the request, turn or job, else the
+> `DEFAULT_LANGUAGE` setting (`resolve_language`) — `_` included, whose `language`
+> defaults to `None`, never to `"fr"`; `_n` is gone; and the French fallback chain is replaced by six catalogs guarded
+> complete, so no fallback is ever reached.
+
 ```python
 # apps/api/src/core/i18n.py
 
@@ -302,6 +310,19 @@ def _n(singular: str, plural: str, n: int, language: Language) -> str:
 ```
 
 ### Backend: Language Detection from Headers
+
+> **Amended by ADR-323 (2026-09-25).** The function below is the 2025 design and
+> is gone. `language_from_header` ranks the entries by their `q` weight (an entry
+> weighted `q=0` is a refusal, never chosen), canonicalises each tag through
+> `canonical_language` — the reading `normalize_language` is built on, which
+> answers `None` rather than a default for a tag it does not know —, keeps only
+> what `SUPPORTED_LANGUAGES` offers, and returns `None` for a header naming none
+> of them: a request that says nothing declares nothing (the "ja-JP → fr"
+> example no longer holds). `RequestLanguageMiddleware` declares its answer for
+> the request; an authenticated request then declares the ACCOUNT's language
+> (`_authenticate`, `get_optional_session`), and only a visitor whose header
+> names nothing supported falls to the instance's `DEFAULT_LANGUAGE` — never to
+> a language written in the code.
 
 ```python
 def get_language_from_header(accept_language: str | None) -> Language:

@@ -4,11 +4,15 @@ Approval Gate Node (Phase 8 - HITL Plan-Level).
 Plan-level HITL is now redundant with tool-level HITL: every mutation tool has
 its own downstream confirmation (draft_critique for individual actions,
 for_each_confirmation for bulk operations). This node is therefore a
-pass-through that always approves the plan, avoiding double/triple confirmation.
+pass-through, avoiding double/triple confirmation: it approves every plan that
+carries a validation result and leaves the approval UNKNOWN (``None``) when
+there is no plan or no validation result. It never refuses.
 
-The node stays wired in the graph (planner -> approval_gate -> task_orchestrator)
-so plan-level HITL can be re-enabled later by restoring an interrupt() here
-without re-wiring the graph.
+The node stays wired in the graph (planner -> semantic_validator ->
+approval_gate -> task_orchestrator; a simple plan goes from the planner
+straight to the orchestrator, past both) so plan-level HITL can be
+re-enabled later by restoring an interrupt() here without re-wiring the
+graph.
 """
 
 from typing import Any
@@ -19,7 +23,6 @@ from langchain_core.runnables import RunnableConfig
 from src.domains.agents.constants import (
     STATE_KEY_EXECUTION_PLAN,
     STATE_KEY_PLAN_APPROVED,
-    STATE_KEY_PLAN_REJECTION_REASON,
     STATE_KEY_VALIDATION_RESULT,
 )
 from src.domains.agents.models import MessagesState
@@ -49,20 +52,21 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
     """
     Approval Gate Node - Plan-Level HITL (pass-through).
 
-    Auto-approves the plan: plan-level HITL is superseded by tool-level HITL
-    (draft_critique / for_each_confirmation), so this node passes through to
-    avoid double confirmation.
+    Passes through: plan-level HITL is superseded by tool-level HITL
+    (draft_critique / for_each_confirmation), so this node approves a plan
+    that carries a validation result, writes no verdict (None) otherwise,
+    and never refuses.
 
-    Métriques trackées automatiquement via @track_metrics:
+    Metrics tracked automatically through @track_metrics:
     - agent_node_executions_total{node_name="approval_gate", status="success/error"}
     - agent_node_duration_seconds{node_name="approval_gate"}
 
     Args:
-        state: État du graph avec execution_plan et validation_result
-        config: Configuration LangGraph
+        state: Graph state carrying execution_plan and validation_result
+        config: The LangGraph run configuration
 
     Returns:
-        Dict avec plan_approved flag
+        Dict with the plan_approved flag
     """
     # NOTE: Tool approval is always enabled (no kill switch)
 
@@ -91,20 +95,22 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
     validation_result = state.get(STATE_KEY_VALIDATION_RESULT)
 
     if not execution_plan:
+        # Nothing to approve is not a refusal. A rejection REASON here was read by
+        # the response as the person's own decision, so the answer told them they
+        # had refused a plan they never saw (ADR-323 review). No verdict instead:
+        # the router sends a plan with no step to the response, and runs nothing.
         logger.error("approval_gate_no_execution_plan")
-        result_no_plan: dict[str, Any] = {
-            STATE_KEY_PLAN_APPROVED: False,
-            STATE_KEY_PLAN_REJECTION_REASON: "No execution plan in state",
-        }
+        result_no_plan: dict[str, Any] = {STATE_KEY_PLAN_APPROVED: None}
         track_state_updates(state, result_no_plan, "approval_gate")
         return result_no_plan
 
     if not validation_result:
         # ADR-263: the absence of a verdict is not an approval. `None` is the
-        # third value — "nobody looked" — and it changes nothing today: the
-        # router never reads this key and the only reader tests `is True`. What
-        # it buys is that the effect gate can tell an approval from a silence,
-        # instead of reading a True this branch invented.
+        # third value — "nobody looked" — and it changes nothing that runs:
+        # route_from_approval_gate refuses on an explicit False alone
+        # (`approval_is_refused`), and every reader that SKIPS something on an
+        # approval tests `is True`. What it buys is a state that no longer
+        # claims an approval this branch invented.
         logger.warning(
             "approval_gate_no_verdict",
             plan_id=getattr(execution_plan, "plan_id", None),

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.constants import STATIC_MAP_DESKTOP_HEIGHT, STATIC_MAP_DESKTOP_WIDTH
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import CONTEXT_DOMAIN_LOCATION
 from src.domains.agents.display.components.base import (
@@ -30,6 +29,7 @@ from src.domains.agents.display.components.base import (
     safe_url,
     wrap_with_response,
 )
+from src.domains.agents.display.components.map_hero import render_map_hero
 from src.domains.agents.display.icons import Icons
 from src.infrastructure.observability.logging import get_logger
 
@@ -78,7 +78,9 @@ class LocationCard(BaseComponent):
         static_map_url = data.get("static_map_url", "")
 
         # Display name: locality or first part of address
-        display_name = locality or (address.split(",")[0] if address else "Position")
+        display_name = locality or (
+            address.split(",")[0] if address else V3Messages.get_position(ctx.language)
+        )
 
         # Google Maps URL
         if latitude and longitude:
@@ -103,22 +105,12 @@ class LocationCard(BaseComponent):
         # --- Static map hero image (same pattern as RouteCard) ---
         hero_html = ""
         if static_map_url:
-            map_url = (
-                f"{static_map_url}"
-                f"&width={STATIC_MAP_DESKTOP_WIDTH}"
-                f"&height={STATIC_MAP_DESKTOP_HEIGHT}"
+            hero_html = render_map_hero(
+                static_map_url,
+                maps_url,
+                linked_alt=V3Messages.get_open_in_maps(ctx.language),
+                plain_alt=display_name,
             )
-            map_img = (
-                f'<img src="{safe_url(map_url)}" alt="Location map" '
-                f'class="lia-route__map-image" loading="lazy" />'
-            )
-            if maps_url:
-                hero_html = (
-                    f'<a href="{safe_url(maps_url)}" target="_blank" rel="noopener" '
-                    f'class="lia-route__map-link">{map_img}</a>'
-                )
-            else:
-                hero_html = f'<div class="lia-route__map">{map_img}</div>'
 
         # --- Street View thumbnail (lot SV, 2026-08) ---
         # Only present when the producer confirmed imagery exists (free

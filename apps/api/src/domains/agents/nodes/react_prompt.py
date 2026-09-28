@@ -17,7 +17,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, PYTHON_SANDBOX_TOOL_NAME
-from src.core.i18n import get_language_name
+from src.core.i18n import get_language_name, resolve_language
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
@@ -164,7 +164,7 @@ def build_system_prompt(
     """
     personality = state.get("personality_instruction") or "a helpful, friendly assistant"
     user_tz = state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-    user_lang = state.get("user_language", "fr")
+    user_lang = resolve_language(state.get("user_language"))
 
     # Cross-domain type links (same section the pipeline planner receives,
     # ontology ∪ live manifests). Without it, the ReAct LLM has no signal

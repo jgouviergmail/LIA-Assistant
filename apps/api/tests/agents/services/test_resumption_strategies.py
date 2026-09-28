@@ -9,6 +9,11 @@ was deleted with its Protocol (ADR-222): it had no production caller — resumes
 stream through StreamingService — so its tests kept dead code green.
 """
 
+from collections.abc import Iterator
+
+import pytest
+
+from src.core.i18n import language_scope
 from src.domains.agents.services.hitl.resumption_strategies import (
     _build_plan_modifications_from_classifier,
     build_edit_reformulated_intent,
@@ -218,7 +223,15 @@ class TestBuildEditReformulatedIntent:
     modified results.
 
     Issue #62 Fix: Ensures response_node sees consistent message + results.
+
+    The assertions read the French reformulations, so the class declares
+    French (ADR-323).
     """
+
+    @pytest.fixture(autouse=True)
+    def _french_reader(self) -> Iterator[None]:
+        with language_scope("fr"):
+            yield
 
     def test_returns_none_for_empty_modifications(self):
         """Test that empty modifications list returns None."""

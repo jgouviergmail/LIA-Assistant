@@ -1,0 +1,11 @@
+🚫 PLAN REJECTED BY THE USER (NO DATA AVAILABLE)
+
+WARNING: do NOT invent any data. The plan was explicitly rejected.
+NO operation was executed. NO result exists.
+
+**Reason for the rejection:** {reason}
+**Status:** no action performed
+**Expected answer:** acknowledge the refusal and offer alternatives
+
+ABSOLUTE RULE: mention NO search result, contact or business data.
+The earlier conversational context is VOID (cancelled by the refusal).

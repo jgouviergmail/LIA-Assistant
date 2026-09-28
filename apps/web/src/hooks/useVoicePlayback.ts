@@ -4,6 +4,7 @@ import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMeetingIsCapturing } from '@/stores/meetingRecorderStore';
+import { useRadioHoldsAudio } from '@/stores/radioStore';
 import { AudioQueue, type AudioQueueState } from '@/lib/audio-queue';
 import { logger } from '@/lib/logger';
 import type { VoiceAudioChunk } from '@/types/chat';
@@ -45,6 +46,9 @@ export function useVoicePlayback() {
   // ADR-258: while a meeting records, LIA stays silent — the microphone must
   // never hear a spoken answer, and the transcript must never carry one.
   const meetingCapturing = useMeetingIsCapturing();
+  // ADR-324: while the radio plays, the answer stays written — two voices at
+  // once is neither heard nor understood.
+  const radioOnAir = useRadioHoldsAudio();
 
   /**
    * Configure callbacks on an AudioQueue instance.
@@ -103,7 +107,7 @@ export function useVoicePlayback() {
    */
   const handleVoiceChunk = useCallback(
     async (chunk: VoiceAudioChunk) => {
-      if (!isEnabled || meetingCapturing || !audioQueueRef.current) {
+      if (!isEnabled || meetingCapturing || radioOnAir || !audioQueueRef.current) {
         return;
       }
 
@@ -118,7 +122,7 @@ export function useVoicePlayback() {
         setError(err as Error);
       }
     },
-    [isEnabled, meetingCapturing]
+    [isEnabled, meetingCapturing, radioOnAir]
   );
 
   /**

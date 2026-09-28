@@ -214,8 +214,9 @@ class AdvancedSettings(BaseSettings):
     default_currency: str = Field("EUR", env="DEFAULT_CURRENCY")
     pricing_cache_ttl: int = Field(3600, env="PRICING_CACHE_TTL")
 
-    # i18n
-    default_language: str = Field("fr", env="DEFAULT_LANGUAGE")
+    # i18n — the language of a sentence nobody declared one for (ADR-323):
+    # canonicalised at boot (zh -> zh-CN), an unsupported value refuses to start.
+    default_language: Language = Field(default=DEFAULT_LANGUAGE_DEFAULT, ...)
     supported_languages: list[str] = Field(
         default=["fr", "en", "es", "de", "it", "zh-CN"],
         env="SUPPORTED_LANGUAGES"

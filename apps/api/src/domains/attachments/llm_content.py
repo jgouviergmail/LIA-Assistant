@@ -24,7 +24,7 @@ import structlog
 from langchain_core.messages import HumanMessage
 
 from src.core.config import settings
-from src.core.i18n import normalize_language
+from src.core.i18n import resolve_language
 from src.core.i18n_api_messages import APIMessages
 from src.domains.attachments.models import AttachmentContentType
 
@@ -38,7 +38,7 @@ ATTACHMENT_HINT_MARKER = "<<ATTACHMENTS>>"
 
 def build_attachment_hint(
     attachments: list[dict[str, Any]],
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> str:
     """
     Build a lightweight text hint describing attached files.
@@ -50,7 +50,8 @@ def build_attachment_hint(
     Args:
         attachments: List of attachment metadata dicts with keys:
             content_type, original_filename, mime_type.
-        user_language: ISO 639-1 language code for labels.
+        user_language: ISO 639-1 language code for labels; the declared
+            language when absent.
 
     Returns:
         Human-readable hint string, e.g.:
@@ -58,7 +59,7 @@ def build_attachment_hint(
     """
     # The central table, keyed on the backend canonical code: `zh` used to
     # miss (the table was keyed `zh`) and every Chinese reader got English.
-    labels = APIMessages.attachment_hint_labels(normalize_language(user_language))
+    labels = APIMessages.attachment_hint_labels(resolve_language(user_language))
 
     parts: list[str] = []
     for att in attachments:

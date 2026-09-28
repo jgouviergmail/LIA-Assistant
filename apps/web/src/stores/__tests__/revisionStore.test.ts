@@ -6,11 +6,16 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { bumpRevision, useResourceRevision, useRevisionStore } from '../revisionStore';
+import {
+  bumpRevision,
+  INITIAL_REVISIONS,
+  useResourceRevision,
+  useRevisionStore,
+} from '../revisionStore';
 
 describe('revisionStore', () => {
   beforeEach(() => {
-    useRevisionStore.setState({ revisions: { live_connectors: 0 } });
+    useRevisionStore.setState({ revisions: { ...INITIAL_REVISIONS } });
   });
 
   it('starts at zero and grows by one on every bump of that resource', () => {
@@ -18,6 +23,14 @@ describe('revisionStore', () => {
     bumpRevision('live_connectors');
     bumpRevision('live_connectors');
     expect(useRevisionStore.getState().revisions.live_connectors).toBe(2);
+  });
+
+  it('leaves the other resources where they were', () => {
+    bumpRevision('radio_voices');
+    expect(useRevisionStore.getState().revisions).toEqual({
+      ...INITIAL_REVISIONS,
+      radio_voices: 1,
+    });
   });
 
   it('re-renders a reader following the resource with the new revision', () => {

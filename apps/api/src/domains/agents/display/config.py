@@ -40,13 +40,14 @@ PRINCIPLES:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 from src.core.config import settings
 from src.core.config.agents import V3DisplayConfig as V3DisplayConfigModel
 from src.core.config.agents import get_v3_display_config
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import resolve_language
 
 
 class Viewport(str, Enum):
@@ -121,7 +122,7 @@ class DisplayConfig:
     max_items_per_domain: int = settings.v3_display_max_items_per_domain
     show_secondary_metadata: bool = True
     enable_folding: bool = False  # For mobile mainly
-    language: str = "fr"
+    language: str = field(default_factory=resolve_language)
     timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE  # User timezone for datetime formatting
 
     # Result display options

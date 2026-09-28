@@ -9,12 +9,13 @@
  * action of the product, the least cared-for surface was exactly the wrong
  * trade.
  *
- * The wording was also wrong. It announced "the conversation history", while
- * `POST /conversations/me/reset` additionally purges **every attachment of the
- * user** — AI-generated images included — the token summaries, the LangGraph
- * checkpoints and the tool contexts. The dialog now says what actually
- * happens: a user who is about to lose their generated images deserves to know
- * before, not after.
+ * The wording must say what `POST /conversations/me/reset` actually removes:
+ * the messages, the files the person attached, the token summaries, the
+ * LangGraph checkpoints and the tool contexts. Since ADR-279 the files LIA
+ * generated SURVIVE a reset (they belong to « My generated files »), and the
+ * dialog kept promising their deletion until 2026-09-25 — a false alarm is a
+ * wrong statement too. The other open tabs empty themselves once it commits
+ * (ADR-320).
  */
 
 import { useTranslation } from 'react-i18next';

@@ -95,6 +95,12 @@ class ForecastAlert(BaseModel):
         ...,
         description="Local start time of the change in 'HH:MM' (24 h) format.",
     )
+    # The instant `time` was formatted from. A weather routine keys its facts
+    # on the change's DAY (ADR-322): 'HH:MM' alone made tomorrow's rain at the
+    # same hour read as today's, and the watch stayed silent.
+    starts_at: datetime | None = Field(
+        default=None, description="Start instant of the forecast slot (UTC)."
+    )
 
 
 class AirQuality(BaseModel):
@@ -153,7 +159,7 @@ class WeatherData(BaseModel):
     condition_code: str = Field(
         ..., description="OpenWeatherMap main condition code: 'Clear', 'Rain', 'Snow', etc."
     )
-    description: str = Field(..., description="Localized humanized description (e.g. 'ensoleillé')")
+    description: str = Field(..., description="Localized humanized description (e.g. 'sunny')")
     icon_emoji: str = Field(..., description="Single emoji representing the condition")
     location_city: str | None = Field(None, description="Resolved city name (reverse geocoded)")
     wind_speed_kmh: float | None = Field(
@@ -211,6 +217,13 @@ class AgendaEventItem(BaseModel):
         description="Pre-formatted local end time, e.g. '15:30'. None for events without an end.",
     )
     location: str | None = None
+    # Machine identity beside the display strings (ADR-322): a condition
+    # routine must know WHICH event it has already announced, and `start_local`
+    # rewrites itself at midnight ('09:00 tomorrow' becomes '09:00').
+    id: str | None = Field(default=None, description="Provider event id, when it sent one.")
+    start_at: datetime | None = Field(
+        default=None, description="Start instant (UTC); local midnight for an all-day event."
+    )
 
 
 class AgendaData(BaseModel):
@@ -236,6 +249,9 @@ class MailItem(BaseModel):
     )
     subject: str
     received_local: str = Field(..., description="Pre-formatted local received time")
+    # The message's identity (ADR-322): `received_local` rewrites itself as the
+    # days pass, so it cannot say whether a mail was already announced.
+    id: str | None = Field(default=None, description="Provider message id, when it sent one.")
 
 
 class MailsData(BaseModel):
@@ -328,6 +344,9 @@ class TaskItem(BaseModel):
         description="Days from the user's local today to the due day (negative = overdue)",
     )
     overdue: bool = Field(description="True when the due day is strictly before local today")
+    # Two tasks may share a title; a condition routine must tell them apart
+    # (ADR-322).
+    id: str | None = Field(default=None, description="Provider task id, when it sent one.")
 
 
 class TasksData(BaseModel):
@@ -350,6 +369,9 @@ class DocumentItem(BaseModel):
     )
     web_view_link: str | None = Field(default=None, description="Drive web link")
     mime_type: str | None = None
+    # The file's identity (ADR-322): a document routine announces a file once,
+    # however often it is edited afterwards.
+    id: str | None = Field(default=None, description="Drive file id, when it sent one.")
 
 
 class DocumentsData(BaseModel):

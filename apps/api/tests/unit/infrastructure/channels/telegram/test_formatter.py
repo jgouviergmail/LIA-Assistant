@@ -1,6 +1,10 @@
 """Tests for Telegram message formatter."""
 
+import pytest
+
+from src.core.config import settings
 from src.infrastructure.channels.telegram.formatter import (
+    TELEGRAM_BOT_MESSAGES,
     format_notification,
     get_bot_message,
     markdown_to_telegram_html,
@@ -54,6 +58,91 @@ class TestMarkdownToTelegramHTML:
     def test_ampersand_escaped(self) -> None:
         result = markdown_to_telegram_html("A & B")
         assert result == "A &amp; B"
+
+    def test_references_are_read_as_the_chat_reads_them(self) -> None:
+        """A value a card draws as itself reaches Markdown as ``&#91;``: Telegram
+        shows « [ », and a bracket or an underscore it spells never opens a
+        link or an italic."""
+        result = markdown_to_telegram_html("&#91;x&#93;(https://e.example) &#95;y&#95; & z")
+        assert result == "[x](https://e.example) _y_ &amp; z"
+
+    @pytest.mark.parametrize(
+        ("reference", "drawn"),
+        [
+            ("&#x26;", "&amp;"),
+            ("&#233;", "é"),
+            ("&eacute;", "é"),
+            ("&#0;", "\ufffd"),
+            ("&#xD800;", "\ufffd"),
+            ("&unknownname;", "&amp;unknownname;"),
+            ("&copy=2", "&amp;copy=2"),
+        ],
+    )
+    def test_every_reference_is_read_and_none_is_refused(self, reference: str, drawn: str) -> None:
+        """What the chat draws is what Telegram shows; an invalid reference
+        (``&#0;``) got the whole message refused before it was read."""
+        assert markdown_to_telegram_html(f"a {reference} b") == f"a {drawn} b"
+
+    def test_a_reference_in_code_is_shown_as_typed(self) -> None:
+        """The chat shows ``&#91;`` in a code span; Telegram drew « [ »."""
+        assert markdown_to_telegram_html("tape `&#91;`") == "tape <code>&amp;#91;</code>"
+
+    def test_a_code_block_is_drawn_whole(self) -> None:
+        """Its text as typed: no emphasis, no escape lost."""
+        result = markdown_to_telegram_html("```py\na*b*c <x> &#42;\n```\nfin")
+        assert result == "<pre>a*b*c &lt;x&gt; &amp;#42;\n</pre>fin"
+
+    def test_italics_never_enter_a_link_s_address(self) -> None:
+        """The italic rule ran before the link rule: ``<i>`` landed inside the
+        href of the one link a card draws (review 14)."""
+        result = markdown_to_telegram_html("[Lien](https://drive.example/file/d/1a_B2c_D3/view)")
+        assert result == '<a href="https://drive.example/file/d/1a_B2c_D3/view">Lien</a>'
+
+    @pytest.mark.parametrize(
+        "address",
+        ["mailto:_a_@b.example", "https://a_b.example/_c_/", "https://e.example/*x*"],
+        ids=["mail", "host_the_reader_does_not_read_as_a_url", "star"],
+    )
+    def test_no_address_meets_the_emphasis_rules(self, address: str) -> None:
+        """Only the addresses the reader reads as bare URLs had their marks
+        kept: ``mailto:_a_@…`` still drew ``<i>`` inside its href (review 14)."""
+        assert markdown_to_telegram_html(f"[x]({address})") == f'<a href="{address}">x</a>'
+
+    def test_emphasis_around_a_link_still_draws(self) -> None:
+        assert markdown_to_telegram_html("*a [b](https://e.example/x) c*") == (
+            '<i>a <a href="https://e.example/x">b</a> c</i>'
+        )
+
+    def test_a_bare_url_keeps_its_marks(self) -> None:
+        assert markdown_to_telegram_html("voir https://a.example/_x_/y*z*") == (
+            "voir https://a.example/_x_/y*z*"
+        )
+
+    @pytest.mark.parametrize(
+        ("markdown", "drawn"),
+        [
+            ("max_results: 10, page_token", "max_results: 10, page_token"),
+            ("send_email_tool: 3 items", "send_email_tool: 3 items"),
+            ("_word_ et __gras__", "<i>word</i> et <b>gras</b>"),
+            ("*mot* et **gras**", "<i>mot</i> et <b>gras</b>"),
+        ],
+    )
+    def test_an_underscore_inside_a_word_opens_nothing(self, markdown: str, drawn: str) -> None:
+        """CommonMark's rule: Telegram put ``<i>`` across two names."""
+        assert markdown_to_telegram_html(markdown) == drawn
+
+    @pytest.mark.parametrize(
+        "markdown",
+        ["[x](javascript:alert(1))", "[x](tg://resolve?domain=x)", "[x](ftp://a.example)"],
+    )
+    def test_only_a_web_or_mail_address_becomes_a_link(self, markdown: str) -> None:
+        """A scheme Telegram does not draw gets the whole message refused."""
+        assert "<a " not in markdown_to_telegram_html(markdown)
+
+    def test_a_mail_link_is_drawn_and_a_quote_in_an_address_is_escaped(self) -> None:
+        assert markdown_to_telegram_html(
+            '[écrire](mailto:a@b.example) [q](https://a.example/"x)'
+        ) == ('<a href="mailto:a@b.example">écrire</a> <a href="https://a.example/&quot;x">q</a>')
 
 
 class TestSplitMessage:
@@ -130,7 +219,7 @@ class TestFormatNotification:
 class TestGetBotMessage:
     """Tests for localized bot messages."""
 
-    def test_french_default(self) -> None:
+    def test_french(self) -> None:
         msg = get_bot_message("otp_success", "fr")
         assert "lié avec succès" in msg
 
@@ -144,10 +233,18 @@ class TestGetBotMessage:
             msg = get_bot_message("otp_success", lang)
             assert len(msg) > 0, f"Missing otp_success for {lang}"
 
-    def test_unknown_language_falls_back_to_french(self) -> None:
-        msg = get_bot_message("otp_success", "ja")
-        # Should fallback to French
-        assert "lié avec succès" in msg
+    def test_an_unknown_language_reads_as_the_instance_default(self) -> None:
+        """An unsupported code reads as the instance default (ADR-323)."""
+        assert (
+            get_bot_message("otp_success", "ja")
+            == TELEGRAM_BOT_MESSAGES["otp_success"][settings.default_language]
+        )
+
+    def test_a_chinese_account_reads_chinese(self) -> None:
+        """The tables were keyed on the frontend's `zh`: a zh-CN account read FRENCH."""
+        assert (
+            get_bot_message("otp_success", "zh-CN") == TELEGRAM_BOT_MESSAGES["otp_success"]["zh-CN"]
+        )
 
     def test_unknown_key_returns_empty(self) -> None:
         msg = get_bot_message("nonexistent_key", "fr")
@@ -159,7 +256,6 @@ class TestGetBotMessage:
             "otp_success",
             "otp_invalid",
             "otp_blocked",
-            "processing",
             "busy",
             "unbound",
             "error",

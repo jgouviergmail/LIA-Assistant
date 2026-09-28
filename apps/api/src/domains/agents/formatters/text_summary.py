@@ -15,6 +15,7 @@ Usage:
 
 from typing import Any
 
+from src.core.i18n import resolve_language
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -223,15 +224,13 @@ def _labels_for(user_language: str) -> dict[str, str]:
     Normalizes through the single chokepoint so both Chinese spellings
     ("zh" frontend, "zh-CN" backend) reach the zh-CN table (audit wave 2, zh).
     """
-    from src.domains.agents.utils.i18n_location import normalize_language
-
-    return DOMAIN_LABELS.get(normalize_language(user_language), DOMAIN_LABELS["en"])
+    return DOMAIN_LABELS[resolve_language(user_language)]
 
 
 def generate_text_summary_for_items(
     items: list[dict[str, Any]],
     domain: str,
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> str:
     """
     Generate concise text summary for raw items (not registry format).
@@ -249,6 +248,7 @@ def generate_text_summary_for_items(
     Returns:
         Concise text summary with data details for LLM
     """
+    user_language = resolve_language(user_language)
     if not items:
         return ""
 
@@ -277,7 +277,7 @@ def generate_text_summary_for_items(
 
 def generate_text_summary_for_llm(
     data_registry: dict[str, Any] | None,
-    user_language: str = "fr",
+    user_language: str | None = None,
 ) -> str:
     """
     Generate a concise text summary for the LLM prompt.
@@ -338,7 +338,7 @@ def generate_text_summary_for_llm(
     if not domain_items:
         return ""
 
-    labels = _labels_for(user_language)
+    labels = _labels_for(resolve_language(user_language))
     parts = []
 
     for domain, summaries in domain_items.items():
@@ -353,7 +353,6 @@ def generate_text_summary_for_llm(
 
 def generate_data_for_filtering(
     data_registry: dict[str, Any] | None,
-    user_language: str = "fr",
 ) -> str:
     """
     Generate enriched data summary for LLM context (filtering + commenting).
@@ -376,7 +375,6 @@ def generate_data_for_filtering(
 
     Args:
         data_registry: Registry dict with items
-        user_language: Language code for labels
 
     Returns:
         Formatted string with item IDs and full data details
@@ -424,7 +422,7 @@ def generate_data_for_filtering(
                 lines.append(f"[{item_id}] {text_summary}")
             else:
                 # Fallback for empty payloads
-                lines.append(f"[{item_id}] (données non disponibles)")
+                lines.append(f"[{item_id}] (no data available)")
 
         except (ValueError, KeyError, TypeError, AttributeError) as e:
             # Log error but continue with other items

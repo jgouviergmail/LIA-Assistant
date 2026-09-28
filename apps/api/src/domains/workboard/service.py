@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import raise_invalid_input, raise_not_found_or_unauthorized
+from src.core.i18n import normalize_language
 from src.core.time_utils import now_utc
 from src.domains.shared.text_normalization import fold_name
 from src.domains.users.models import User
@@ -266,7 +267,7 @@ class WorkboardService:
     async def resolve_connected_user_id(self, owner_id: UUID, name: str) -> UUID:
         """The account a NAME refers to, among this user's connections.
 
-        The chat says « donne ce ticket à Marie »; the board stores an id. The
+        The chat says « give this ticket to Marie »; the board stores an id. The
         resolution lives HERE rather than in the tool because the service
         already owns who may hold a ticket, and a tool deciding it again would
         be a second authority on the same question.
@@ -810,7 +811,7 @@ class WorkboardService:
             recipient = await self.db.get(User, user_id)
             if recipient is None:
                 continue
-            language = getattr(recipient, "language", None) or settings.default_language
+            language = normalize_language(getattr(recipient, "language", None))
             await send_proactive_notification(
                 db=self.db,
                 user=recipient,

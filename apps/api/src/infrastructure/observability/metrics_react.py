@@ -47,6 +47,16 @@ react_tool_result_truncated_total = Counter(
     ["tool_name"],
 )
 
+react_output_truncated_total = Counter(
+    "react_output_truncated_total",
+    "ReAct model calls the provider cut at their output budget (ADR-275, amended). "
+    "The cut text is refused — never written to the thread, never served — and "
+    "the turn ends on what the tools returned. Any non-zero rate deserves a look: "
+    "on 2026-09-25 one such output, then kept in the thread, was copied by the "
+    "model into later turns of the account (seven routines the next morning) "
+    "until the conversation was reset",
+)
+
 python_sandbox_egress_runs_total = Counter(
     "python_sandbox_egress_runs_total",
     "Network sandbox runs by outcome (ADR-298): allowed (published to the proxy "

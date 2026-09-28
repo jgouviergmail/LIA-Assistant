@@ -21,6 +21,7 @@ export function mapsMetadata(
   description: string
 ): Metadata {
   const canonical = siteUrl(path, lng);
+  const socialImage = getSiteOrigin()?.concat('/Title.png');
   const alternates: Record<string, string> = {};
   for (const l of languages) alternates[l] = siteUrl(path, l);
   alternates['x-default'] = siteUrl(path, fallbackLng);
@@ -35,13 +36,13 @@ export function mapsMetadata(
       locale: LOCALE_MAP[lng],
       alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
       type: 'website',
-      images: [{ url: '/Title.png', width: 2125, height: 1193, alt: title }],
+      images: socialImage ? [{ url: socialImage, width: 2125, height: 1193, alt: title }] : undefined,
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/Title.png'],
+      images: socialImage ? [socialImage] : undefined,
     },
   };
 }

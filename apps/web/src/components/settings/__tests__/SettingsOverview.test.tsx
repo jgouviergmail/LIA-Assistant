@@ -36,6 +36,7 @@ const AVAILABLE: SettingsSearchAvailability = {
   peersEnabled: true,
   sandboxEgressEnabled: true,
   liveEnabled: true,
+  radioEnabled: true,
   debugUserAccess: true,
 };
 

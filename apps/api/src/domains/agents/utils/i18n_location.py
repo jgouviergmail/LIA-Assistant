@@ -17,7 +17,7 @@ This separation of concerns improves maintainability and i18n compliance.
 
 from enum import Enum
 
-from src.core.i18n import Language, normalize_language
+from src.core.i18n import Language, resolve_language
 
 
 class LocationType(str, Enum):
@@ -281,28 +281,28 @@ FALLBACK_MESSAGES: dict[Language, str] = {
         "Could you specify a place, or enable geolocation in settings?"
     ),
     "es": (
-        "No tengo acceso a su ubicación. "
-        "¿Podría especificar un lugar o activar la geolocalización en la configuración?"
+        "No tengo acceso a tu ubicación. "
+        "¿Podrías especificar un lugar o activar la geolocalización en la configuración?"
     ),
     "de": (
-        "Ich habe keinen Zugriff auf Ihren Standort. "
-        "Könnten Sie einen Ort angeben oder die Geolokalisierung in den Einstellungen aktivieren?"
+        "Ich habe keinen Zugriff auf deinen Standort. "
+        "Könntest du einen Ort angeben oder die Geolokalisierung in den Einstellungen aktivieren?"
     ),
     "it": (
         "Non ho accesso alla tua posizione. "
         "Potresti specificare un luogo o attivare la geolocalizzazione nelle impostazioni?"
     ),
-    "zh-CN": "我无法访问您的位置。您能否指定一个地点，或在设置中启用地理定位？",
+    "zh-CN": "我无法访问你的位置。你能否指定一个地点，或在设置中启用地理定位？",
 }
 
 # Messages suggesting home location configuration
 HOME_CONFIG_SUGGESTION: dict[Language, str] = {
-    "fr": "Vous pouvez configurer votre adresse de domicile dans Paramètres > Localisation.",
+    "fr": "Tu peux configurer ton adresse de domicile dans Paramètres > Localisation.",
     "en": "You can configure your home address in Settings > Location.",
-    "es": "Puede configurar su dirección de domicilio en Configuración > Ubicación.",
-    "de": "Sie können Ihre Heimatadresse unter Einstellungen > Standort konfigurieren.",
+    "es": "Puedes configurar tu dirección de domicilio en Configuración > Ubicación.",
+    "de": "Du kannst deine Heimatadresse unter Einstellungen > Standort konfigurieren.",
     "it": "Puoi configurare il tuo indirizzo di casa in Impostazioni > Posizione.",
-    "zh-CN": "您可以在 设置 > 位置 中配置您的家庭地址。",
+    "zh-CN": "你可以在 设置 > 位置 中配置你的家庭地址。",
 }
 
 
@@ -310,7 +310,7 @@ HOME_CONFIG_SUGGESTION: dict[Language, str] = {
 # DISTANCE REFERENCE TRANSLATIONS
 # =============================================================================
 # Used to indicate the origin point when displaying distances
-# e.g., "350 m depuis votre position" / "780 m depuis votre domicile"
+# e.g., "350 m depuis ta position" / "780 m depuis ton domicile"
 
 
 class DistanceSource:
@@ -323,8 +323,8 @@ class DistanceSource:
 
 DISTANCE_REFERENCE: dict[Language, dict[str, str]] = {
     "fr": {
-        DistanceSource.BROWSER: "depuis votre position",
-        DistanceSource.HOME: "depuis votre domicile",
+        DistanceSource.BROWSER: "depuis ta position",
+        DistanceSource.HOME: "depuis ton domicile",
         DistanceSource.SEARCH_LOCATION: "depuis le lieu recherché",
     },
     "en": {
@@ -333,13 +333,13 @@ DISTANCE_REFERENCE: dict[Language, dict[str, str]] = {
         DistanceSource.SEARCH_LOCATION: "from the searched location",
     },
     "es": {
-        DistanceSource.BROWSER: "desde su ubicación",
-        DistanceSource.HOME: "desde su domicilio",
+        DistanceSource.BROWSER: "desde tu ubicación",
+        DistanceSource.HOME: "desde tu domicilio",
         DistanceSource.SEARCH_LOCATION: "desde la ubicación buscada",
     },
     "de": {
-        DistanceSource.BROWSER: "von Ihrem Standort",
-        DistanceSource.HOME: "von Ihrem Zuhause",
+        DistanceSource.BROWSER: "von deinem Standort",
+        DistanceSource.HOME: "von deinem Zuhause",
         DistanceSource.SEARCH_LOCATION: "vom gesuchten Ort",
     },
     "it": {
@@ -348,8 +348,8 @@ DISTANCE_REFERENCE: dict[Language, dict[str, str]] = {
         DistanceSource.SEARCH_LOCATION: "dalla posizione cercata",
     },
     "zh-CN": {
-        DistanceSource.BROWSER: "从您的位置",
-        DistanceSource.HOME: "从您的住所",
+        DistanceSource.BROWSER: "从你的位置",
+        DistanceSource.HOME: "从你的住所",
         DistanceSource.SEARCH_LOCATION: "从搜索位置",
     },
 }
@@ -406,7 +406,7 @@ PRICE_LEVEL: dict[Language, dict[str, str]] = {
 }
 
 
-def detect_location_type(message: str, language: str = "fr") -> LocationType:
+def detect_location_type(message: str, language: str | None = None) -> LocationType:
     """
     Detect location type from user message.
 
@@ -431,22 +431,22 @@ def detect_location_type(message: str, language: str = "fr") -> LocationType:
     message_lower = message.lower()
 
     # Normalize language code
-    lang = _normalize_language(language)
+    lang = resolve_language(language)
 
     # Check query phrases first (highest priority - user wants to know location)
-    query_phrases = QUERY_PHRASES.get(lang, QUERY_PHRASES["fr"])
+    query_phrases = QUERY_PHRASES[lang]
     for phrase in query_phrases:
         if phrase in message_lower:
             return LocationType.QUERY
 
     # Check home phrases (more specific than current)
-    home_phrases = HOME_PHRASES.get(lang, HOME_PHRASES["fr"])
+    home_phrases = HOME_PHRASES[lang]
     for phrase in home_phrases:
         if phrase in message_lower:
             return LocationType.HOME
 
     # Check current position phrases
-    current_phrases = CURRENT_PHRASES.get(lang, CURRENT_PHRASES["fr"])
+    current_phrases = CURRENT_PHRASES[lang]
     for phrase in current_phrases:
         if phrase in message_lower:
             return LocationType.CURRENT
@@ -454,37 +454,31 @@ def detect_location_type(message: str, language: str = "fr") -> LocationType:
     return LocationType.NONE
 
 
-def get_fallback_message(language: str = "fr") -> str:
+def get_fallback_message(language: str | None = None) -> str:
     """Get localized fallback message when no location is available."""
-    lang = _normalize_language(language)
-    return FALLBACK_MESSAGES.get(lang, FALLBACK_MESSAGES["fr"])
+    lang = resolve_language(language)
+    return FALLBACK_MESSAGES[lang]
 
 
-def get_home_config_suggestion(language: str = "fr") -> str:
+def get_home_config_suggestion(language: str | None = None) -> str:
     """Get localized suggestion to configure home location."""
-    lang = _normalize_language(language)
-    return HOME_CONFIG_SUGGESTION.get(lang, HOME_CONFIG_SUGGESTION["fr"])
+    lang = resolve_language(language)
+    return HOME_CONFIG_SUGGESTION[lang]
 
 
-def contains_home_reference(text: str, language: str = "fr") -> bool:
+def contains_home_reference(text: str, language: str | None = None) -> bool:
     """Check if text contains a home location reference."""
-    return detect_location_type(text, language) == LocationType.HOME
+    return detect_location_type(text, resolve_language(language)) == LocationType.HOME
 
 
-def contains_current_reference(text: str, language: str = "fr") -> bool:
+def contains_current_reference(text: str, language: str | None = None) -> bool:
     """Check if text contains a current position reference."""
-    return detect_location_type(text, language) == LocationType.CURRENT
+    return detect_location_type(text, resolve_language(language)) == LocationType.CURRENT
 
 
-def contains_query_reference(text: str, language: str = "fr") -> bool:
+def contains_query_reference(text: str, language: str | None = None) -> bool:
     """Check if text contains a location query (user wants to know where they are)."""
-    return detect_location_type(text, language) == LocationType.QUERY
-
-
-# Canonical implementation lives in src.core.i18n (audit wave 2, zh) so that
-# core-layer i18n modules can use it without importing from domains.
-# Re-exported here because this module is the historical import point.
-_normalize_language = normalize_language
+    return detect_location_type(text, resolve_language(language)) == LocationType.QUERY
 
 
 # =============================================================================
@@ -492,7 +486,7 @@ _normalize_language = normalize_language
 # =============================================================================
 
 
-def get_distance_reference(source: str | None, language: str = "fr") -> str | None:
+def get_distance_reference(source: str | None, language: str | None = None) -> str | None:
     """
     Get localized distance reference text based on location source.
 
@@ -505,19 +499,19 @@ def get_distance_reference(source: str | None, language: str = "fr") -> str | No
 
     Example:
         >>> get_distance_reference("browser", "fr")
-        "depuis votre position"
+        "depuis ta position"
         >>> get_distance_reference("home", "en")
         "from your home"
     """
     if source is None:
         return None
 
-    lang = _normalize_language(language)
-    lang_refs = DISTANCE_REFERENCE.get(lang, DISTANCE_REFERENCE["fr"])
+    lang = resolve_language(language)
+    lang_refs = DISTANCE_REFERENCE[lang]
     return lang_refs.get(source)
 
 
-def get_price_level(price_code: str | None, language: str = "fr") -> str | None:
+def get_price_level(price_code: str | None, language: str | None = None) -> str | None:
     """
     Get localized price level text from Google Places API code.
 
@@ -537,8 +531,8 @@ def get_price_level(price_code: str | None, language: str = "fr") -> str | None:
     if price_code is None:
         return None
 
-    lang = _normalize_language(language)
-    lang_prices = PRICE_LEVEL.get(lang, PRICE_LEVEL["fr"])
+    lang = resolve_language(language)
+    lang_prices = PRICE_LEVEL[lang]
     return lang_prices.get(price_code, price_code)
 
 
@@ -743,7 +737,7 @@ TRAFFIC_CONDITIONS: dict[Language, dict[str, str]] = {
 }
 
 
-def get_transport_mode(mode: str, language: str = "fr") -> str:
+def get_transport_mode(mode: str, language: str | None = None) -> str:
     """
     Get localized transport mode display string.
 
@@ -760,12 +754,12 @@ def get_transport_mode(mode: str, language: str = "fr") -> str:
         >>> get_transport_mode("TRANSIT", "en")
         "by public transit"
     """
-    lang = _normalize_language(language)
-    lang_modes = TRANSPORT_MODES.get(lang, TRANSPORT_MODES["fr"])
+    lang = resolve_language(language)
+    lang_modes = TRANSPORT_MODES[lang]
     return lang_modes.get(mode, mode.lower())
 
 
-def get_traffic_condition(condition: str | None, language: str = "fr") -> str | None:
+def get_traffic_condition(condition: str | None, language: str | None = None) -> str | None:
     """
     Get localized traffic condition display string.
 
@@ -785,12 +779,12 @@ def get_traffic_condition(condition: str | None, language: str = "fr") -> str | 
     if condition is None:
         return None
 
-    lang = _normalize_language(language)
-    lang_conditions = TRAFFIC_CONDITIONS.get(lang, TRAFFIC_CONDITIONS["fr"])
+    lang = resolve_language(language)
+    lang_conditions = TRAFFIC_CONDITIONS[lang]
     return lang_conditions.get(condition, condition.lower())
 
 
-def get_route_avoidance(avoidance: str, language: str = "fr") -> str:
+def get_route_avoidance(avoidance: str, language: str | None = None) -> str:
     """
     Get localized route avoidance display string.
 
@@ -807,12 +801,12 @@ def get_route_avoidance(avoidance: str, language: str = "fr") -> str:
         >>> get_route_avoidance("highways", "de")
         "Autobahnen"
     """
-    lang = _normalize_language(language)
-    lang_avoidances = ROUTE_AVOIDANCES.get(lang, ROUTE_AVOIDANCES["fr"])
+    lang = resolve_language(language)
+    lang_avoidances = ROUTE_AVOIDANCES[lang]
     return lang_avoidances.get(avoidance, avoidance)
 
 
-def contains_route_reference(text: str, language: str = "fr") -> bool:
+def contains_route_reference(text: str, language: str | None = None) -> bool:
     """
     Check if text contains a route/directions reference.
 
@@ -830,8 +824,8 @@ def contains_route_reference(text: str, language: str = "fr") -> bool:
         False
     """
     text_lower = text.lower()
-    lang = _normalize_language(language)
-    route_phrases = ROUTE_PHRASES.get(lang, ROUTE_PHRASES["fr"])
+    lang = resolve_language(language)
+    route_phrases = ROUTE_PHRASES[lang]
 
     for phrase in route_phrases:
         if phrase in text_lower:

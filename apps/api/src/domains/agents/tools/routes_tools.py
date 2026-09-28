@@ -32,7 +32,7 @@ from pydantic import BaseModel
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, ROUTES_INVALID_DESTINATION_VALUES
-from src.core.i18n import _
+from src.core.i18n import _, resolve_language
 from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context, parse_datetime
 from src.domains.agents.constants import AGENT_ROUTE, CONTEXT_DOMAIN_ROUTES
@@ -418,7 +418,8 @@ async def _resolve_destination(
     destination: str,
     runtime: ToolRuntime[LiaRuntimeContext, Any] | None = None,
     origin_location: ResolvedLocation | dict[str, Any] | str | None = None,
-    language: str = "fr",
+    *,
+    language: str,
 ) -> str | dict[str, Any] | _UnresolvedDestination | None:
     """
     Resolve destination from various sources.
@@ -435,14 +436,15 @@ async def _resolve_destination(
        an unresolvable token — typically a person name the plan failed to
        resolve via contacts — must fail loudly, not be geocoded arbitrarily)
 
-    Cross-domain note: the actual address of "chez mon frère" / "mon RDV de
-    14h" comes from contacts / calendar via semantic domain expansion; this
+    Cross-domain note: the actual address of "my brother's place" / "my 2 pm
+    appointment" comes from contacts / calendar via semantic domain expansion; this
     function is the runtime safety net when that resolution did not happen.
 
     Args:
         destination: Destination string
         runtime: Tool runtime for location access
         origin_location: Resolved origin for proximity-based search
+        language: The person's language, for the Places search's names.
 
     Returns:
         Resolved destination (address string or lat/lon dict), None if
@@ -1318,18 +1320,17 @@ async def get_route_tool(
     destination: Annotated[
         str,
         "Destination address, place name, or coordinates. Examples: 'Lyon, France', "
-        "'10 rue de Rivoli, Paris', 'Tour Eiffel'",
+        "'10 rue de Rivoli, Paris', 'Eiffel Tower'",
     ],
     origin: Annotated[
         str | None,
         "Starting point. If not specified or 'auto', uses current location or home address. "
-        "Examples: 'Paris', 'ma position', 'chez moi'",
+        "Examples: 'Paris', 'Gare de Lyon', or 'auto' for the current location",
     ] = None,
     travel_mode: Annotated[
         str | None,
         "Mode of transport: 'DRIVE' (car), 'WALK' (on foot), 'BICYCLE' (bike), "
-        "'TRANSIT' (public transport), 'TWO_WHEELER' (motorcycle). "
-        "French: 'voiture', 'à pied', 'vélo', 'transports', 'moto'. Default: DRIVE",
+        "'TRANSIT' (public transport), 'TWO_WHEELER' (motorcycle). Default: DRIVE",
     ] = None,
     avoid_tolls: Annotated[
         bool,
@@ -1337,7 +1338,7 @@ async def get_route_tool(
     ] = False,
     avoid_highways: Annotated[
         bool,
-        "Avoid highways/autoroutes. Default: False",
+        "Avoid highways/motorways. Default: False",
     ] = False,
     avoid_ferries: Annotated[
         bool,
@@ -1406,11 +1407,11 @@ async def get_route_tool(
         - get_route(destination="Lyon") - From current location to Lyon
         - get_route(destination="Marseille", origin="Paris", travel_mode="TRANSIT")
         - get_route(destination="Nice", avoid_tolls=True, avoid_highways=True)
-        - get_route(destination="10 rue X", arrival_time="2025-01-15T14:00:00Z") - Arrive by 14h
+        - get_route(destination="10 rue X", arrival_time="2025-01-15T14:00:00Z") - Arrive by 14:00
     """
     try:
         # Get user preferences (timezone, language)
-        language = "fr"
+        language = resolve_language()
         user_timezone = DEFAULT_USER_DISPLAY_TIMEZONE
         if runtime:
             with suppress(ValueError, KeyError, RuntimeError, AttributeError):
@@ -1441,8 +1442,9 @@ async def get_route_tool(
 
         # Check for invalid destination (null, empty, etc.)
         if resolved_destination is None:
+            # Names this tool's parameter: for the model, in English (ADR-256).
             return UnifiedToolOutput.failure(
-                message=_("Invalid or missing destination."),
+                message="Invalid or missing destination.",
                 error_code="destination_invalid",
             )
 
@@ -1452,12 +1454,14 @@ async def get_route_tool(
         # route cached. Recoverable: the LLM fetches the real address
         # (contacts, calendar) or asks the user, then retries.
         if isinstance(resolved_destination, _UnresolvedDestination):
+            # A directive to the MODEL (how to call this tool again): technical
+            # English, never translated (ADR-256).
             return UnifiedToolOutput.failure(
-                message=_(
-                    "Destination '{destination}' is not a resolvable address or place. "
+                message=(
+                    f"Destination '{resolved_destination.query}' is not a resolvable address or place. "
                     "If it refers to a person, first fetch their address from contacts, "
                     "then call this tool again with the exact address."
-                ).format(destination=resolved_destination.query),
+                ),
                 error_code="destination_unresolved",
             )
 
@@ -1467,8 +1471,9 @@ async def get_route_tool(
             waypoints = [wp.strip() for wp in waypoints if wp and wp.strip()]
             max_waypoints = settings.routes_max_waypoints
             if len(waypoints) > max_waypoints:
+                # Bounds this tool's parameter: for the model, in English (ADR-256).
                 return UnifiedToolOutput.failure(
-                    message=_("Maximum {max} waypoints allowed.").format(max=max_waypoints),
+                    message=f"Maximum {max_waypoints} waypoints allowed.",
                     error_code="waypoints_exceeds_limit",
                 )
 
@@ -1498,7 +1503,8 @@ async def get_route_tool(
         # Validate mutually exclusive time parameters
         if departure_time and arrival_time:
             return UnifiedToolOutput.failure(
-                message=_("departure_time and arrival_time are mutually exclusive."),
+                # Names two parameters of this tool: for the model, in English (ADR-256).
+                message="departure_time and arrival_time are mutually exclusive.",
                 error_code="invalid_time_parameters",
             )
 
@@ -1814,25 +1820,27 @@ async def get_route_matrix_tool(
 
     Examples:
         - get_route_matrix(origins=["Paris"], destinations=["Lyon", "Marseille", "Bordeaux"])
-        - get_route_matrix(origins=["Entrepôt A", "Entrepôt B"], destinations=["Client 1", "Client 2", "Client 3"])
+        - get_route_matrix(origins=["Warehouse A", "Warehouse B"], destinations=["Client 1", "Client 2", "Client 3"])
     """
     try:
         # Validate inputs
         if not origins or not destinations:
+            # Names two parameters of this tool: for the model, in English (ADR-256).
             return UnifiedToolOutput.failure(
-                message=_("Origins and destinations are required."),
+                message="Origins and destinations are required.",
                 error_code="validation_error",
             )
 
         max_elements = settings.routes_max_matrix_elements
         if len(origins) * len(destinations) > max_elements:
+            # Bounds this tool's parameters: for the model, in English (ADR-256).
             return UnifiedToolOutput.failure(
-                message=_("Matrix limited to {max} elements.").format(max=max_elements),
+                message=f"origins x destinations is limited to {max_elements} elements.",
                 error_code="matrix_too_large",
             )
 
         # Get user preferences
-        language = "fr"
+        language = resolve_language()
         if runtime:
             with suppress(ValueError, KeyError, RuntimeError, AttributeError):
                 _tz, lang, _locale = await get_user_preferences(runtime)
@@ -1948,7 +1956,7 @@ async def get_route_matrix_tool(
                 enumerate(matrix_results[0]),
                 key=lambda x: x[1].get("distance_km", float("inf")),
             )
-            optimal_order = [idx for idx, _ in sorted_dests]
+            optimal_order = [idx for idx, _row in sorted_dests]
 
         # Build summary (English for semantic pivot)
         total_combinations = len(origins) * len(destinations)

@@ -171,6 +171,34 @@ def _install_ticket_releaser() -> None:
         )
 
 
+def _install_action_recorder() -> None:
+    """Wire the action register into its seam, and prove it (ADR-263, ADR-270).
+
+    A person's clicked acts — a generated image shared with a connection, a
+    file or an answer sent by e-mail — go through no tool, so the gate never
+    records them; the domains that perform them cannot import the register
+    (``agents`` imports ``peers``), so the register installs itself into
+    ``domains/shared/action_sink``. Undeclared, that import is one somebody can
+    reorder away, and the acts would leave « Actions » in silence again.
+
+    Raises:
+        RuntimeError: If the register did not claim the seam.
+    """
+    from src.domains.agents.effects.out_of_turn_effects import USER_ACTION_RECORDER
+    from src.domains.shared.action_sink import (
+        action_recorder_is_installed,
+        install_action_recorder,
+    )
+
+    install_action_recorder(USER_ACTION_RECORDER)
+
+    if not action_recorder_is_installed():
+        raise RuntimeError(
+            "the action register did not claim its seam: every shared image and "
+            "every send by e-mail would leave no action row"
+        )
+
+
 def _install_consultation_sink() -> None:
     """Wire the consultation register into its seam, and prove it (ADR-270).
 
@@ -350,19 +378,45 @@ def _validate_react_context_placement() -> None:
         raise RuntimeError(f"ReAct context placement incomplete: {exc}") from exc
 
 
+def _validate_telegram_keyboard() -> None:
+    """Refuse an HITL interaction type Telegram does not know how to answer (ADR-085).
+
+    Every interaction type is answered by a pair of buttons or by free text,
+    never by a silent fallback (review 13 of the ADR-323 lot).
+
+    Raises:
+        RuntimeError: If a type is undeclared, or a declared one unknown.
+    """
+    try:
+        from src.domains.agents.services.hitl.protocols import HitlInteractionType
+        from src.infrastructure.channels.telegram.hitl_keyboard import (
+            assert_keyboard_completeness,
+        )
+
+        assert_keyboard_completeness(member.value for member in HitlInteractionType)
+    except AssertionError as exc:
+        logger.error("telegram_hitl_keyboard_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Telegram HITL keyboard incomplete: {exc}") from exc
+
+
 def run_failfast_validations() -> None:
     """Run the fail-fast boot validations (die at boot, not at first request).
 
     Validates, in order: LLM configuration completeness, the provider
     usage-accounting registry (ADR-220), the paid-tool call ceilings, the
     embedding configuration (ADR-242), the image families against their
-    provider clients (ADR-305), ToolErrorCode enum
-    completeness, Draft Display Registry exhaustivity (ADR-085), Draft
-    Preview Renderer exhaustivity (ADR-085 pattern), the evidence-driven
-    expansion entity types (ADR-085 pattern), the HITL classifier few-shot
-    coverage (ADR-085 pattern), the ReAct context placement of every provider
-    (ADR-308), the registry content-trust classification (ADR-085 pattern) and
-    the PostgreSQL connection budget (F004).
+    provider clients (ADR-305), ToolErrorCode enum completeness, then the
+    ADR-085 completeness registries — draft display, draft preview, draft
+    summary, the Telegram HITL keyboard, the evidence-driven expansion
+    entity types, the HITL classifier few-shot coverage, the semantic-issue
+    clarification questions, the ReAct context placement of every provider
+    (ADR-308), the registry content-trust classification, the registry
+    result keys, the system-settings registry, the memory-category
+    vocabulary, the diagnostics registries and the Redis key families
+    (ADR-260). It then installs the seams other domains offer (the
+    consultation sink, the action recorder, the proactive notifier, the
+    ticket releaser, the portrait sources) and enforces the PostgreSQL
+    connection budget (F004).
 
     Raises:
         RuntimeError: If any validation fails (the app must not boot).
@@ -445,6 +499,8 @@ def run_failfast_validations() -> None:
     except AssertionError as exc:
         logger.error("draft_summary_renderer_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"Draft summary renderer registry incomplete: {exc}") from exc
+
+    _validate_telegram_keyboard()
 
     # Validate evidence-driven expansion entity types (ADR-085 pattern:
     # fail-fast if an evidence domain maps to an ontology type without the
@@ -535,6 +591,7 @@ def run_failfast_validations() -> None:
     _validate_diagnostics_registries()
     _validate_redis_key_families()
     _install_consultation_sink()
+    _install_action_recorder()
     _install_proactive_notifier()
     _install_ticket_releaser()
     _install_portrait_sources()

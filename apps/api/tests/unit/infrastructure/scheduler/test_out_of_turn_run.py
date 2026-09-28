@@ -29,6 +29,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.core.config import settings
+from src.core.i18n import resolve_language
 from src.domains.agents.api.run_origin import RunOrigin, current_origin
 from src.infrastructure.scheduler.out_of_turn_run import (
     RunOutcome,
@@ -809,3 +811,26 @@ class TestADelegatedVoiceTurn:
         with patch("src.domains.agents.api.service.AgentService", return_value=service):
             result = await stream_instruction(_request())
         assert result.register is None
+
+
+@pytest.mark.unit
+class TestTheRunSpeaksItsPersonsLanguage:
+    """A routine or a ticket has no request: whatever the run writes without an
+    explicit language speaks the person's (ADR-323)."""
+
+    async def test_the_attempts_run_under_the_request_language_then_restore(self) -> None:
+        person = next(code for code in ("it", "es") if code != settings.default_language)
+        heard: list[str] = []
+
+        async def _attempts(_request: StreamRequest) -> MagicMock:
+            heard.append(resolve_language())
+            return MagicMock()
+
+        with patch(
+            "src.infrastructure.scheduler.out_of_turn_run._attempt_until_settled",
+            new=_attempts,
+        ):
+            await stream_instruction(_request(language=person))
+
+        assert heard == [person]
+        assert resolve_language() == settings.default_language

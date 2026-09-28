@@ -169,6 +169,13 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'live-mode',
     declaredIn: 'components/settings/LiveModeSettings.tsx',
   },
+  // The personal radio (ADR-324): what the station says, how and how often,
+  // with which voices, and the sites the listener added to their newsroom.
+  radio: {
+    tab: 'preferences',
+    accordionValue: 'radio',
+    declaredIn: 'components/radio/settings/RadioSettings.tsx',
+  },
   'image-generation': {
     tab: 'preferences',
     accordionValue: 'image-generation',

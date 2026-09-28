@@ -252,6 +252,12 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("meetings"),
         by_user("meeting_templates"),
         by_user("meeting_preferences"),
+        # The personal radio (ADR-324): the listener's settings and the sites
+        # they added. Same soft-delete trap — explicit purge. A site's stories
+        # (radio_news_items) go with it by the FK cascade a real DELETE fires;
+        # catalogue feeds have no owner and are never matched.
+        by_user("radio_preferences"),
+        by_user("radio_feeds", column="owner_id"),
         # Habits (ADR-214): learned rhythm profile + discrete habits.
         by_user("user_habit_profiles"),
         by_user("user_habits"),
@@ -372,18 +378,22 @@ class AccountDeletionService:
         # 2f. Create audit log
         await self._create_audit_log(user, admin_user_id, reason, counts, request)
 
-        # 2g. Invalidate usage limit cache
-        await self._invalidate_usage_limit_cache(user_id)
-
-        # 2h. Commit
+        # 2g. Commit
         await self.db.commit()
+
+        # 2h. Invalidate the usage limit cache — AFTER the commit: a check running
+        # in between on its own session would re-cache the verdict this deletion
+        # replaces, for the cache TTL.
+        await self._invalidate_usage_limit_cache(user_id)
 
         logger.warning(
             "account_deleted",
             user_id=str(user_id),
             email=user.email,
             admin_user_id=str(admin_user_id),
-            reason=reason,
+            # The administrator's words about a person: the audit log keeps them,
+            # a log line above DEBUG carries their size (ADR-317).
+            reason_length=len(reason or ""),
             counts=counts,
         )
 

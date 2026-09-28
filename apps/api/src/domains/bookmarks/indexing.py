@@ -46,6 +46,7 @@ from src.core.constants import (
     BOOKMARKS_DOCUMENT_NAME_EXCERPT_CHARS,
     BOOKMARKS_SPACE_KIND,
 )
+from src.core.i18n import normalize_language
 from src.core.i18n_bookmarks import get_document_labels, get_space_description, get_space_name
 from src.core.time_utils import format_datetime_for_display, resolve_user_timezone
 from src.domains.agents.display.plain_text import looks_like_html
@@ -287,7 +288,7 @@ async def _prepare(bookmark_id: UUID) -> dict[str, Any] | None:
             logger.info("bookmark_index_skipped", bookmark_id=str(bookmark_id), reason="quota")
             return None
         user = await UserRepository(db).get_by_id(user_id)
-        language = str(getattr(user, "language", None) or settings.default_language)
+        language = normalize_language(getattr(user, "language", None))
         zone = resolve_user_timezone(user).key
         # Rendered BEFORE the space is resolved: a name clash with a space the
         # person created by hand rolls the session back, and a rollback expires

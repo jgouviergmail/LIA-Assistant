@@ -401,6 +401,48 @@ today = now_in_timezone(user_timezone).date()
 formatage localisé 6 langues) — lire sa docstring de module avant tout nouveau code
 manipulant des dates.
 
+#### Langue (doctrine de la langue déclarée, ADR-323)
+
+Une phrase s'écrit dans la langue de la personne qui la lit, et le code ne choisit
+jamais cette langue à sa place. La langue d'une requête, d'un tour ou d'une tâche est
+**déclarée** là où la personne devient connue : l'`Accept-Language` de la requête
+(`RequestLanguageMiddleware`), le compte authentifié (`_authenticate`), la personne
+qu'une exécution hors tour, une tournée proactive ou un message Telegram sert
+(`language_scope`). `resolve_language(x)` rend `x` normalisé s'il est donné, sinon la
+langue déclarée, sinon `DEFAULT_LANGUAGE`.
+
+```python
+from src.core.i18n import _, language_scope, normalize_language, resolve_language
+
+# ✅ Une langue optionnelle : la langue déclarée quand elle manque (`_` la résout)
+def render(language: str | None = None) -> str:
+    return _("Preferences updated", language)
+
+# ✅ La langue enregistrée d'une personne CONNUE
+lang = normalize_language(user.language)
+
+# ✅ Un code destiné à un FOURNISSEUR : l'explicite tel quel (zh-TW n'est pas
+# zh-CN), seule l'absence est résolue
+provider_code = language or resolve_language()
+
+# ✅ Un traitement hors requête déclare la personne qu'il sert
+with language_scope(user.language):
+    await serve(user)
+
+# ❌ INTERDITS (le garde CI casse le build)
+# def render(language: str = "fr") / language or "fr" / table.get(lang, "fr")
+# _DEFAULT = "en" / lang = "fr" / Field(default="fr") / MESSAGE = MESSAGES["fr"]
+```
+
+Trois gardes AST tiennent la doctrine : `test_no_language_default_guard.py` (aucune
+langue par défaut, sous chacune des formes que sa docstring énumère),
+`test_language_table_completeness_guard.py` (toute
+table indexée par langue porte exactement `fr`, `en`, `es`, `de`, `it`, `zh-CN` —
+jamais `zh`, le code du frontend) et `test_gettext_catalog_guard.py` (chaque `_()` nomme
+son msgid en littéral, et les six catalogues le traduisent). Ce que seul le **modèle**
+lit (message d'outil, directive, description, exemple) est en anglais technique ou dans
+un prompt versionné : jamais la traduction d'une seule des six langues.
+
 #### Exceptions avalées (doctrine `contextlib.suppress`)
 
 Un handler `except` dont le corps est un simple `pass` est interdit dans `src/` : un
@@ -1029,7 +1071,7 @@ après un local vert — d'où `ci:fast`.
 Gates bloquants sur `main` :
 
 - [ ] Toutes les suites passent (unit, agents, intégration, E2E)
-- [ ] Couverture backend >= **74 %** (source de vérité : `apps/api/pyproject.toml`)
+- [ ] Couverture backend >= **75 %** (source de vérité : `apps/api/pyproject.toml`)
 - [ ] Seuils de couverture frontend par fichier (`apps/web/vitest.config.ts`)
 - [ ] Ruff, Black, MyPy strict, ESLint, `tsc --noEmit` non incrémental
 - [ ] Ratchets shrink-only : a11y, react-hooks, complexité (front et back), dette MyPy, taille de fichiers

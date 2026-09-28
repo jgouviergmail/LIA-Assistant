@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import NoReturn
 
 import structlog
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -70,8 +70,10 @@ from src.domains.peers.constants import (
 )
 from src.domains.peers.models import PeerConnectionStatus, PeerImageShare
 from src.domains.peers.repository import PeersRepository, utc_day_bounds
+from src.domains.shared.action_sink import PEER_IMAGE_SHARE_CAPABILITY, recorded_action
 from src.domains.shared.markdown_literal import literal_quote
 from src.domains.users.models import User
+from src.infrastructure.database.owner_lock import hold_owner_lock
 from src.infrastructure.observability.metrics_registry import peers_image_shares_total
 
 logger = structlog.get_logger(__name__)
@@ -81,6 +83,8 @@ NOT_SHAREABLE_CODE = "peers_image_not_shareable"
 COMMENT_TOO_LONG_CODE = "peers_image_comment_too_long"
 QUOTA_REACHED_CODE = "peers_image_quota_reached"
 _NOT_CONNECTED_CODE = "peers_not_connected"
+#: Scope of the per-sender lock the two daily caps are counted under.
+_SHARE_LOCK_SCOPE = "peer_image_share"
 
 
 @dataclass(frozen=True)
@@ -179,12 +183,23 @@ async def _shareable_source(
         or source.user_id != sender_id
         or source.origin != AttachmentOrigin.GENERATED_IMAGE.value
         or source.status != AttachmentStatus.READY
-        or source.expires_at <= now
+        # A kept image has no deadline (ADR-319): it stays shareable.
+        or (source.expires_at is not None and source.expires_at <= now)
         or not await asyncio.to_thread(_source_file(source).is_file)
     ):
         _refuse("not_shareable", NOT_SHAREABLE_CODE)
     assert source is not None  # narrowed by the refusal above (NoReturn)
     return source
+
+
+def _copy_deadline(now: datetime) -> datetime:
+    """When the recipient's copy expires: the attachments TTL from the share.
+
+    One source for the row that stores it and the result that reports it — the
+    copy's row carries an optional deadline since a kept file has none
+    (ADR-319), and a fresh copy is never kept.
+    """
+    return now + timedelta(hours=settings.attachments_ttl_hours)
 
 
 async def _hold_the_quota(
@@ -195,10 +210,7 @@ async def _hold_the_quota(
     The advisory lock is transaction-scoped: it is released by the commit that
     writes the share, so the next share counts it.
     """
-    await db.execute(
-        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
-        {"key": f"peer_image_share:{sender_id}"},
-    )
+    await hold_owner_lock(db, _SHARE_LOCK_SCOPE, sender_id)
     start, end = utc_day_bounds(now)
     today = (
         PeerImageShare.sender_id == sender_id,
@@ -262,7 +274,7 @@ async def _record(
             "title": source.title,
             "shared_by_name": sender_name,
             "status": AttachmentStatus.READY,
-            "expires_at": now + timedelta(hours=settings.attachments_ttl_hours),
+            "expires_at": _copy_deadline(now),
         }
     )
     share = PeerImageShare(
@@ -314,32 +326,38 @@ async def share_image(
     stored_filename = f"{uuid.uuid4()}{Path(source.stored_filename).suffix}"
     relative_path = f"{recipient.id}/{stored_filename}"
     target = Path(settings.attachments_storage_path) / relative_path
-    try:
-        await asyncio.to_thread(_copy_file, _source_file(source), target)
-        copy, share = await _record(
-            db,
-            source=source,
-            stored_filename=stored_filename,
-            relative_path=relative_path,
-            sender_name=sender_name,
-            recipient_id=recipient.id,
-            sender_id=sender_id,
-            connection_id=connection_id,
-            now=now,
-        )
-        await db.commit()
-    except Exception as exc:
-        # A copy nobody's row points at would outlive every sweep: withdraw it.
-        await db.rollback()
-        await asyncio.to_thread(target.unlink, True)
-        _count("failed")
-        logger.warning(
-            "peer_image_share_failed",
-            sender_id=str(sender_id),
-            connection_id=str(connection_id),
-            error_type=type(exc).__name__,
-        )
-        raise
+    # The sender's act, in the action register (ADR-263): claimed once every
+    # check has passed and before the copy, settled from the commit.
+    async with recorded_action(
+        user_id=sender_id, capability=PEER_IMAGE_SHARE_CAPABILITY, arguments={}
+    ) as act:
+        try:
+            await asyncio.to_thread(_copy_file, _source_file(source), target)
+            copy, share = await _record(
+                db,
+                source=source,
+                stored_filename=stored_filename,
+                relative_path=relative_path,
+                sender_name=sender_name,
+                recipient_id=recipient.id,
+                sender_id=sender_id,
+                connection_id=connection_id,
+                now=now,
+            )
+            await db.commit()
+        except Exception as exc:
+            # A copy nobody's row points at would outlive every sweep: withdraw it.
+            await db.rollback()
+            await asyncio.to_thread(target.unlink, True)
+            _count("failed")
+            logger.warning(
+                "peer_image_share_failed",
+                sender_id=str(sender_id),
+                connection_id=str(connection_id),
+                error_type=type(exc).__name__,
+            )
+            raise
+        act.succeeded = True
 
     _count("shared")
     logger.info(
@@ -358,7 +376,7 @@ async def share_image(
         attachment_id=copy.id,
         url=attachment_url(copy.id),
         title=copy.title or "",
-        expires_at=copy.expires_at,
+        expires_at=_copy_deadline(now),
         comment=words,
     )
 

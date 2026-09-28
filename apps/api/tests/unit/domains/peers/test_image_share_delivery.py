@@ -101,6 +101,7 @@ class TestTheDelivery:
                     "url": "/api/v1/attachments/abc",
                     "alt": "a lighthouse at dusk",
                     "expires_at": EXPIRES.isoformat(),
+                    "kept": False,
                 }
             ],
         }

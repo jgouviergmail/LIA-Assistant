@@ -19,9 +19,10 @@ safe rather than merely functional:
   draft A must never execute draft B.
 
 The entity-disambiguation branch of this module is deliberately NOT covered: its
-only producer is ``agents/tools/entity_resolution_tool.py``, which no module in
-`src/` or `tests/` imports (0 of the 96 registered tools). Testing it would
-manufacture coverage on a path no user can reach.
+only producer was ``agents/tools/entity_resolution_tool.py``, which no module
+imported and which ADR-323 deleted — the branch has no producer at all (listed
+there as found, not fixed). Testing it would manufacture coverage on a path no
+user can reach.
 """
 
 from typing import Any

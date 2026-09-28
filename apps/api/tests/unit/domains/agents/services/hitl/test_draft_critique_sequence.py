@@ -23,6 +23,7 @@ from src.domains.agents.services.hitl.interactions.draft_critique import (
     CARD_SEPARATOR,
     DraftCritiqueInteraction,
 )
+from src.domains.shared.markdown_literal import read_as_markdown
 
 pytestmark = pytest.mark.unit
 
@@ -74,12 +75,6 @@ class TestThePositionOpensTheQuestion:
         )
         assert text.startswith(card + CARD_SEPARATOR)
 
-    async def test_a_pre_generated_summary_is_positioned_too(self) -> None:
-        text = await _collect(
-            _context(draft_summary="Un e-mail à Paul", sequence_index=1, sequence_total=2)
-        )
-        assert text.startswith(HitlMessages.get_draft_sequence_position(1, 2, "fr") + "\n\n")
-
 
 class TestTheSummaryOpensTheFirstQuestion:
     """Before the first card, the person reads what the turn prepared — every
@@ -106,7 +101,7 @@ class TestTheSummaryOpensTheFirstQuestion:
         title = HitlMessages.get_draft_sequence_summary(2, "fr")
         assert text.startswith(title + "\n")
         head, _, rest = text.partition("\n\n")
-        assert "paul@example.org" in head and "Réunion de lundi" in head
+        assert "paul@example.org" in read_as_markdown(head) and "Réunion de lundi" in head
         assert "Call Hua" in head
         assert rest.startswith(HitlMessages.get_draft_sequence_position(1, 2, "fr") + "\n\n")
 
