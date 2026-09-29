@@ -217,7 +217,13 @@ def start(
 def wait_ready(
     url: str, opener: UrlOpener, clock: Clock, timeout_s: int = 300
 ) -> None:
-    """Poll ``url`` until HTTP 200 or raise ``readiness_timeout``."""
+    """Wait for the entrypoint, migrations and serving workers to become ready.
+
+    The entrypoint now resolves the effective Uvicorn worker count from its
+    arguments (reload serves from one process). The installer still gates on
+    the application's /ready response, not a predicted worker count or a
+    container's merely-running state.
+    """
     deadline = clock.monotonic() + timeout_s
     while True:
         request = urllib.request.Request(url, method="GET")

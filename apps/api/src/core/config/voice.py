@@ -28,6 +28,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    ELEVENLABS_TTS_MAX_CONCURRENCY_DEFAULT,
     VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT,
     VOICE_CONTEXT_MAX_CHARS_DEFAULT,
     VOICE_LLM_FREQUENCY_PENALTY_DEFAULT,
@@ -70,6 +71,15 @@ class VoiceSettings(BaseSettings):
     LLM, the local Sherpa STT pipeline, the WebSocket transport defaults,
     and the ElevenLabs Scribe transport defaults.
     """
+
+    elevenlabs_tts_max_concurrency: int = Field(
+        default=ELEVENLABS_TTS_MAX_CONCURRENCY_DEFAULT,
+        ge=1,
+        description=(
+            "Maximum in-flight ElevenLabs TTS requests per API key across all workers. "
+            "Set at or below the account's concurrency allowance."
+        ),
+    )
 
     voice_psyche_prosody_enabled: bool = Field(
         default=True,

@@ -711,3 +711,11 @@ the extra cost of model verification. Your session starts only when you ask,
 shows its sources and spending while it plays, and stops at the timer you set.
 There is no scheduled edition or replay; the newsroom and antenna are part of
 the existing API service. An administrator can turn the whole capability off.
+
+## Can an administrator enable JEV decisions?
+Yes. Under **Settings › Administration › JEV integrations**, the administrator
+enables each bounded use separately, then the general switch. JEV is off on a
+fresh installation and needs its own provider key, decision model and price.
+An uncertain or unavailable decision returns to LIA's existing process. Both
+a paid JEV attempt and its fallback count, and the diagnostic panel shows what
+ran. JEV does not grant permissions or approve actions.

@@ -146,6 +146,7 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "channel_rate": KeyScope.USER_RUNTIME,
     "mcp_oauth_state": KeyScope.USER_RUNTIME,
     # --- global ---------------------------------------------------------------
+    "elevenlabs:tts_slots": KeyScope.GLOBAL,
     "llm_cache": KeyScope.GLOBAL,
     "web_search": KeyScope.GLOBAL,
     "web_fetch": KeyScope.GLOBAL,

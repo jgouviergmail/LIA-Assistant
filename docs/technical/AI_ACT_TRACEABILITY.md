@@ -8,6 +8,7 @@
 >
 > **Related**: [ADR-263](../architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md),
 > [ADR-260](../architecture/ADR-260-Redis-Key-Families-Scope-And-Reset-Purge.md),
+> [ADR-325](../architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md),
 > runbooks [LedgerChainBroken](../runbooks/alerts/LedgerChainBroken.md) and
 > [LedgerNotaryStalled](../runbooks/alerts/LedgerNotaryStalled.md).
 
@@ -71,6 +72,19 @@ Three properties hold across all of them:
   day a purge becomes necessary is a measured day rather than a guess.
 - **The user's own.** Both registers leave with the account archive and die with
   the account.
+
+### Native decision diagnostics have a different lifetime
+
+An optional JEV decision records a bounded, encrypted per-account trace in
+Redis: the submitted question and context preview, the provider's validated
+answer, the consumer's actual choice or fallback, duration and known cost.
+[JEV's diagnostic model](../../apps/api/src/infrastructure/llm/jev_debug_models.py)
+owns the count and age limits. These traces support the
+administrator's diagnostic panel; they are temporary and are **not** entries
+in the tamper-evident `ledger_chain`. A paid native attempt is still attributed
+through the normal spend accounting, including when the existing path is then
+used as fallback. See the [JEV integration guide](JEV_INTEGRATION.md) for the
+per-usage boundaries and activation rules.
 
 ### What the graph could not see (ADR-270, 2026-09-07)
 

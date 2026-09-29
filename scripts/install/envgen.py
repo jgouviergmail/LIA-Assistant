@@ -128,6 +128,9 @@ def derive_environment(
         # Radio has no companion Compose service: the API's on-demand antenna
         # and newsroom run inside its existing workers (ADR-324).
         "RADIO_ENABLED": "true" if public.personal_radio else "false",
+        # Shared across workers and voice surfaces. A self-hoster using
+        # ElevenLabs can lower this to the allowance of their own account.
+        "ELEVENLABS_TTS_MAX_CONCURRENCY": "5",
         "DIAGNOSTICS_WEBHOOK_SECRET": (
             secrets.token_urlsafe(32)
             if public.self_diagnostics and public.observability

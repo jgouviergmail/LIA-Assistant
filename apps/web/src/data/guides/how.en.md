@@ -6,7 +6,7 @@
 
 **Version**: 5.1
 **Date**: 2026-09-24
-**Application**: LIA v2.0.0
+**Application**: LIA v2.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -753,7 +753,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` resolves the effective configuration via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instantiates the model, and applies specific adapters.
 
-### 12.2. 61 LLM configuration types
+### 12.2. 67 LLM configuration types
 
 Each pipeline node is independently configurable via the Admin UI — without redeployment:
 
@@ -763,6 +763,8 @@ Each pipeline node is independently configurable via the Admin UI — without re
 | Response | response, hitl_question_generator |
 | Background | memory_extraction, interest_extraction, journal_extraction, journal_consolidation |
 | Agents | contacts_agent, emails_agent, calendar_agent, browser_agent, etc. |
+
+Some tasks use a native decision rather than a generative chat call. The JEV registry binds each use to its own switch and model slot; a general switch can pause them all. Each operation snapshots its routing, presents bounded candidates, validates the complete answer, and falls back on uncertainty. The shared runtime counts the paid attempt and any fallback separately, while authorization and HITL remain in the normal code path.
 
 ### 12.3. Token Tracking
 
@@ -1850,4 +1852,4 @@ The 324 ADRs document not only the decisions made but also the rejected alternat
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 324 ADRs, and the changelog (v1.0 to v2.0.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 324 ADRs, and the changelog (v1.0 to v2.1.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

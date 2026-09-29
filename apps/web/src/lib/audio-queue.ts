@@ -92,6 +92,7 @@ export class AudioQueue {
   private context: AudioContext | null = null;
   private queue: ArrayBuffer[] = [];
   private isPlaying = false;
+  private playbackGeneration = 0;
   private currentSource: AudioBufferSourceNode | null = null;
   private onPlaybackComplete: (() => void) | null = null;
   private onError: ((error: Error) => void) | null = null;
@@ -135,7 +136,7 @@ export class AudioQueue {
       // Initial resume attempt
       await this.ensureContextRunning();
 
-      audioLogger.log('Initialized, state:', this.context.state);
+      audioLogger.log('Initialized, state:', this.context?.state);
     } catch (error) {
       audioLogger.error('Failed to initialize AudioContext:', error);
       this.onStateChange?.('error');
@@ -192,18 +193,19 @@ export class AudioQueue {
    * Critical for iOS where context can be suspended at any time.
    */
   private async ensureContextRunning(): Promise<boolean> {
-    if (!this.context) return false;
+    const context = this.context;
+    if (!context) return false;
 
-    if (this.context.state === 'running') {
+    if (context.state === 'running') {
       return true;
     }
 
-    if (this.context.state === 'closed') {
+    if (context.state === 'closed') {
       audioLogger.warn('Context is closed, needs reinitialization');
       return false;
     }
 
-    if (this.context.state === 'suspended') {
+    if (context.state === 'suspended') {
       // Check if we have a recent user interaction
       const timeSinceInteraction = Date.now() - this.lastUserInteractionTime;
       const hasRecentInteraction = timeSinceInteraction < AUDIO_USER_INTERACTION_WINDOW_MS;
@@ -219,11 +221,12 @@ export class AudioQueue {
       try {
         this.resumeAttempts++;
         audioLogger.log('Attempting to resume context, attempt:', this.resumeAttempts);
-        await this.context.resume();
+        await context.resume();
+        if (this.context !== context) return false;
 
         // Re-read state after async resume (state may have changed)
         // Cast needed because TS narrowing doesn't understand resume() changes state
-        const newState = this.context.state as AudioContextState;
+        const newState = context.state as AudioContextState;
         if (newState === 'running') {
           audioLogger.log('Context resumed successfully');
           this.resumeAttempts = 0;
@@ -235,7 +238,7 @@ export class AudioQueue {
     }
 
     // Re-read state for final check (cast for same reason)
-    return (this.context.state as AudioContextState) === 'running';
+    return this.context === context && (context.state as AudioContextState) === 'running';
   }
 
   /**
@@ -265,9 +268,12 @@ export class AudioQueue {
    * @returns true if warmup was successful
    */
   async warmup(): Promise<boolean> {
+    const generation = this.playbackGeneration;
     if (!this.context) {
       await this.initialize();
     }
+
+    if (generation !== this.playbackGeneration) return false;
 
     if (!this.context) {
       audioLogger.warn('Cannot warmup: no context');
@@ -283,6 +289,8 @@ export class AudioQueue {
     try {
       // Ensure context is running
       await this.ensureContextRunning();
+
+      if (generation !== this.playbackGeneration) return false;
 
       if (this.context.state !== 'running') {
         audioLogger.warn('Context not running after resume attempt');
@@ -372,39 +380,10 @@ export class AudioQueue {
    * @param audioBase64 - Base64-encoded audio data (MP3)
    */
   async enqueue(audioBase64: string): Promise<void> {
-    if (!this.context) {
-      await this.initialize();
-    }
-
-    if (!this.context) {
-      throw new Error('AudioContext not initialized');
-    }
-
-    // iOS: Warmup if not already done (plays silent buffer to unlock audio)
-    if (isIOSSafari() && !this.isWarmedUp) {
-      audioLogger.log('iOS: Auto-warmup before first enqueue');
-      await this.warmup();
-    }
-
-    // iOS: Check and try to resume context before enqueueing
-    const contextRunning = await this.ensureContextRunning();
-    if (!contextRunning && isIOSSafari()) {
-      audioLogger.warn('iOS: Context not running, audio may not play');
-      this.onStateChange?.('suspended');
-      // Still enqueue - we'll try to play when context resumes
-    }
-
     try {
-      // Convert base64 to ArrayBuffer
-      const arrayBuffer = base64ToArrayBuffer(audioBase64);
-
-      // Add to queue
-      this.queue.push(arrayBuffer);
-
-      // Start playback if not already playing
-      if (!this.isPlaying) {
-        this.playNext();
-      }
+      // Preserve arrival order even when the first chunk must initialize/resume audio.
+      this.queue.push(base64ToArrayBuffer(audioBase64));
+      void this.playNext();
     } catch (error) {
       audioLogger.error('Failed to enqueue audio:', error);
       this.onError?.(error as Error);
@@ -412,54 +391,76 @@ export class AudioQueue {
   }
 
   /**
+   * Prepare the context for the active consumer without removing a queued chunk.
+   */
+  private async preparePlayback(generation: number): Promise<AudioContext | null> {
+    if (!this.context) await this.initialize();
+    if (generation !== this.playbackGeneration) return null;
+    if (isIOSSafari() && !this.isWarmedUp) await this.warmup();
+    const running = await this.ensureContextRunning();
+    if (generation !== this.playbackGeneration) return null;
+    if (!running) {
+      this.isPlaying = false;
+      this.onStateChange?.('suspended');
+      // Retain the queue until a user gesture allows playback.
+      return null;
+    }
+    return this.context;
+  }
+
+  /**
    * Play the next audio chunk in the queue.
    */
   private async playNext(): Promise<void> {
-    if (!this.context || this.queue.length === 0) {
-      this.isPlaying = false;
+    if (this.isPlaying) return;
+    if (this.queue.length === 0) {
       this.onStateChange?.('idle');
       this.onPlaybackComplete?.();
       return;
     }
 
-    // iOS: Check context state before each playback
-    const contextRunning = await this.ensureContextRunning();
-    if (!contextRunning) {
-      audioLogger.warn('Context not running, pausing playback');
-      this.isPlaying = false;
-      this.onStateChange?.('suspended');
-      // Don't clear the queue - we'll resume when context is running
-      return;
-    }
-
+    // Claim the consumer BEFORE any await: SSE may enqueue an entire burst in one tick.
     this.isPlaying = true;
-    this.onStateChange?.('playing');
-    const arrayBuffer = this.queue.shift()!;
+    const generation = this.playbackGeneration;
 
     try {
+      const context = await this.preparePlayback(generation);
+      if (!context || generation !== this.playbackGeneration) return;
+      const arrayBuffer = this.queue.shift()!;
       // Decode the audio data
       // Note: slice(0) creates a copy because decodeAudioData detaches the buffer
-      const audioBuffer = await this.context.decodeAudioData(arrayBuffer.slice(0));
+      const audioBuffer = await context.decodeAudioData(arrayBuffer.slice(0));
+      if (generation !== this.playbackGeneration) return;
 
       // Create source node
-      this.currentSource = this.context.createBufferSource();
-      this.currentSource.buffer = audioBuffer;
-      this.currentSource.connect(this.context.destination);
+      const source = context.createBufferSource();
+      this.currentSource = source;
+      source.buffer = audioBuffer;
+      source.connect(context.destination);
 
       // Handle playback completion
-      this.currentSource.onended = () => {
+      source.onended = () => {
+        if (generation !== this.playbackGeneration || this.currentSource !== source) return;
+        source.disconnect();
         this.currentSource = null;
-        this.playNext();
+        this.isPlaying = false;
+        void this.playNext();
       };
 
       // Start playback
-      this.currentSource.start(0);
+      source.start(0);
+      this.onStateChange?.('playing');
     } catch (error) {
+      if (generation !== this.playbackGeneration) return;
       audioLogger.error('Failed to play audio chunk:', error);
       this.onError?.(error as Error);
       // Continue to next chunk even on error
+      this.currentSource?.disconnect();
       this.currentSource = null;
-      this.playNext();
+      this.isPlaying = false;
+      // An initialization failure cannot be fixed by retrying the same queue forever.
+      if (!this.context) this.queue = [];
+      void this.playNext();
     }
   }
 
@@ -468,9 +469,11 @@ export class AudioQueue {
    * Should be called after user interaction when in suspended state.
    */
   async resumePlayback(): Promise<boolean> {
+    const generation = this.playbackGeneration;
     this.recordUserInteraction();
 
     const running = await this.ensureContextRunning();
+    if (generation !== this.playbackGeneration) return false;
     if (running && this.queue.length > 0 && !this.isPlaying) {
       audioLogger.log('Resuming playback after user interaction');
       this.playNext();
@@ -483,16 +486,20 @@ export class AudioQueue {
    * Stop all playback and clear the queue.
    */
   stop(): void {
+    // Invalidate decoding/resume continuations as well as the currently audible source.
+    this.playbackGeneration++;
     // Clear queue
     this.queue = [];
 
     // Stop current playback
     if (this.currentSource) {
+      this.currentSource.onended = null;
       try {
         this.currentSource.stop();
       } catch {
         // Ignore errors if already stopped
       }
+      this.currentSource.disconnect();
       this.currentSource = null;
     }
 

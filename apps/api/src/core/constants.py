@@ -4616,6 +4616,8 @@ OPENAI_STT_MODEL_DEFAULT = "gpt-4o-mini-transcribe"
 STT_PROVIDER_FALLBACK_ORDER: tuple[str, ...] = (ELEVENLABS_PROVIDER_NAME, OPENAI_PROVIDER_NAME)
 DEFAULT_ELEVENLABS_STT_MODEL = "scribe_v2"
 DEFAULT_ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
+ELEVENLABS_TTS_MAX_CONCURRENCY_DEFAULT = 5
+REDIS_KEY_ELEVENLABS_TTS_SLOTS_PREFIX = "elevenlabs:tts_slots:"
 # ElevenLabs Scribe rejects clips shorter than 100 ms; below the threshold the
 # WebSocket handler short-circuits with an empty transcription.
 STT_MIN_AUDIO_DURATION_SECONDS = 0.1

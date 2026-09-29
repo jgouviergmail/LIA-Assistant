@@ -6,7 +6,7 @@
 - `.github/workflows/ci.yml` — Pipeline CI principale
 - `Taskfile.yml` — **l'implementation reelle de tous les gates** (voir ci-dessous)
 - `.github/workflows/security.yml` — Scans de securite (CodeQL, Trivy, SBOM)
-- `.github/workflows/release.yml` — Build Docker + GitHub Release
+- `.github/workflows/release.yml` — artefacts candidats, promotion des digests qualifiés et GitHub Release
 - `.github/workflows/a11y-matrix.yml` — Matrice navigateurs hebdomadaire (AC-002) : rejoue la suite E2E/axe sur Chromium, Firefox et WebKit (`E2E_ALL_BROWSERS=1`), rapports archives 30 jours
 - `.github/hooks/pre-commit` — Hook Git pre-commit local
 - `scripts/audit/check_ci_parity.py` — Garde : le workflow orchestre, il n'implemente pas
@@ -432,16 +432,21 @@ construction : les tests vivent hors de `apps/api/src`, donc `paths` les ecarte 
 
 ## Release Workflow (`release.yml`)
 
-**Declencheur** : push de tag `v*`
+**Déclencheurs** : un push de tag `v*` construit un **candidat non qualifié** ; la
+publication demande ensuite deux identifiants de runs dans un déclenchement
+manuel. Le candidat ne crée ni tag d'image SemVer ni GitHub Release.
 
 | Job | Description |
 |-----|-------------|
-| **Require green CI** | **Gate (F008)** : bloque la release si `ci.yml` n'a pas conclu `success` pour le SHA taggue. `build-and-push` et `generate-sbom` en dependent. |
-| Build & Push | Images Docker multi-arch (`amd64` + `arm64`) vers `ghcr.io` |
-| Generate SBOM | CycloneDX pour le backend, depuis `requirements.lock.txt` (transitifs inclus) |
-| Create Release | GitHub Release avec changelog + images Docker + SBOM |
+| **Require green CI** | **Gate (F008)** : refuse le candidat si `ci.yml` n'a pas conclu `success` pour le SHA tagué. |
+| **Build candidates** | Construit API et web pour `linux/amd64` et `linux/arm64`, puis enregistre leurs digests immuables. |
+| **Assemble candidate** | Produit le bundle auto-hébergé, son SHA-256, le manifeste candidat et les SBOM API/web. |
+| **Qualification disposable** | `installer-disposable-smoke.yml`, lancé manuellement sur le run candidat, installe depuis zéro sur les quatre parcours architecture × mode (`local`/`prebuilt`) ; chaque preuve est liée au hash du manifeste. |
+| **Promote** | Le run manuel de `release.yml` vérifie les deux identifiants, les quatre preuves et leurs hashes, passe le manifeste à `qualification: passed`, attache les tags SemVer aux **mêmes digests**, puis publie la GitHub Release et ses artefacts. |
 
-Tags semver : `v1.2.3` genere les tags Docker `1.2.3`, `1.2`, `1`, `latest`.
+Une version `v1.2.3` ne génère les tags Docker `1.2.3`, `1.2`, `1` et
+`latest` qu'après cette promotion, sans reconstruction. Une réussite du
+build seule ne prouve pas l'installabilité.
 
 **Deploiement (F008)** — strategie choisie = **build local sur le Pi avec provenance equivalente** (pas d'images GHCR par digest ; le pipeline Windows→Pi build localement). Elle est rendue tracable + reversible :
 

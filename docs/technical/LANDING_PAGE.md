@@ -4,6 +4,12 @@
 >
 > Derniere revision : **démonstration produit partagée et lecture progressive** — six scènes contextuelles communes au hero, aux cas d’usage et aux chapitres ; catalogue visuel hiérarchisé sans perte de contenu ; explications d’ingénierie à la demande, dans l’identité « LIA Cosmos » (ADR-181).
 
+La carte « décision dans des limites claires » présente la bascule JEV comme
+facultative : LIA fournit les choix permis, vérifie le résultat et garde les
+autorisations et confirmations. Les textes correspondants existent dans les six
+locales et restent une explication de conception, sans promesse de gain de
+latence ni de certification réglementaire.
+
 ---
 
 ## Table des matieres

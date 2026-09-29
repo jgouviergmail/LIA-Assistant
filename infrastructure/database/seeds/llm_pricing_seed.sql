@@ -256,6 +256,8 @@ INSERT INTO llm_models (
     ('qwen', 'qwen-image-3.0-pro', 8192, 4096, false, false, false, false, true, false, false, false, false, false, 'image', NULL, NULL, true),
     ('elevenlabs', 'elevenlabs-agents', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, false),
     ('elevenlabs', 'eleven_v3_conversational', 5000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('elevenlabs', 'eleven_v4', 10000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    ('elevenlabs', 'eleven_v4_turbo', 5000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('elevenlabs', 'eleven_flash_v2_5', 40000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('elevenlabs', 'eleven_multilingual_v2', 5000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('elevenlabs', 'eleven_turbo_v2_5', 40000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
@@ -497,6 +499,10 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('gpt-4o-transcribe-diarize', 0.006000, NULL, 0.000000, 'per_audio_minute', '2026-09-02T12:00:00+00:00', true),
     ('elevenlabs-agents', 0.100000, NULL, 0.000000, 'per_audio_minute', '2026-09-19T20:00:00+00:00', false),
     ('eleven_v3_conversational', 50.000000, NULL, 0.000000, 'per_1m_tokens', '2026-09-20T12:00:00+00:00', true),
+    -- ElevenLabs API pricing, after the 72% offer ending 2026-10-12:
+    -- USD 0.08 / 0.04 per 1,000 characters = USD 80 / 40 per million.
+    ('eleven_v4', 80.000000, NULL, 0.000000, 'per_1m_tokens', '2026-10-13T00:00:00+00:00', true),
+    ('eleven_v4_turbo', 40.000000, NULL, 0.000000, 'per_1m_tokens', '2026-10-13T00:00:00+00:00', true),
     ('gpt-live-1', 0.050000, NULL, 0.000000, 'per_audio_minute', '2026-09-19T14:00:00+00:00', true),
     ('scribe_v1', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:19:14.990416+00:00', false),
     ('scribe_v1', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:20:54.056007+00:00', true),

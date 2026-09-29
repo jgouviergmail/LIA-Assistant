@@ -89,6 +89,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-09-29 (v2.1.0): backend 37 003 collected
+ *   (`task test:markers`) + frontend 9 729 passing in 788 files
+ *   (`task test:frontend:coverage`) = 46 732 -> 46000.
  *   Re-measured 2026-09-29 after JEV lots 1-3: backend 36 855 collected
  *   (`task test:markers`) + frontend 9 712 passing in 787 files
  *   (`task test:frontend:coverage`) = 46 567 -> 46000 (unchanged).
@@ -362,7 +365,7 @@ export const LANDING_STATS = {
   uiLanguages: 6,
   tests: 46000,
   adrs: 324,
-  releases: 270,
+  releases: 271,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

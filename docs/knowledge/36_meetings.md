@@ -53,3 +53,10 @@ Yes, as long as the transcript is kept. On the meeting page, **Change the format
 That is what lets you read one meeting two ways: the working minutes on one side, the full cleaned-up transcript on the other, or an analysis format when you want to look at the exchange rather than its conclusions. **Rebuild** stays next to it: it rewrites the minutes with *the same* format, useful right after you changed your sections.
 
 **💡 Good to know:** rewriting costs a new synthesis, billed like the first one, and the dialog says so before you confirm. If you delete the transcript, the minutes stay readable but can no longer be rewritten.
+
+## Who chooses the format of meeting minutes?
+Your explicit choice comes first, then your saved preference. If neither
+applies, LIA chooses among the formats you can use. An administrator may
+optionally enable JEV for this bounded choice; if it abstains or is unavailable,
+the usual selector takes over. The selected format and synthesis cost remain
+visible.

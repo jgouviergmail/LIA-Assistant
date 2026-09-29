@@ -4,7 +4,7 @@
 
 **Versione**: 6.1
 **Data**: 2026-09-24
-**Applicazione**: LIA v2.0.0
+**Applicazione**: LIA v2.1.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -34,6 +34,8 @@ Questi assistenti sono straordinari. Ma condividono tutti lo stesso modello: i t
 LIA sceglie un percorso diverso. Non è un concorrente diretto dei grandi — è un **assistente IA personale che ospiti tu, che capisci, e che controlli tu**. LIA orchestra i migliori modelli di IA sul mercato, agisce nella tua vita digitale, e lo fa con qualità fondamentali che la distinguono.
 
 ---
+
+Un assistente utile deve spiegare dove finisce la sua discrezionalità. L'amministratore può attivare un motore decisionale per un compito preciso, come scegliere il formato di un verbale o qualificare un risultato già ottenuto. Il dubbio riporta al processo abituale; permessi e approvazioni restano in LIA. L'intelligenza aggiuntiva è ispezionabile e disattivabile.
 
 ## 2. Amministrazione semplice
 

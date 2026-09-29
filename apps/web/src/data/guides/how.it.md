@@ -6,7 +6,7 @@
 
 **Versione**: 5.1
 **Data**: 2026-09-24
-**Applicazione**: LIA v2.0.0
+**Applicazione**: LIA v2.1.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -753,7 +753,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 Il `get_llm()` risolve la configurazione effettiva tramite `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), istanzia il modello e applica gli adattatori specifici.
 
-### 12.2. 61 tipi di configurazione LLM
+### 12.2. 67 tipi di configurazione LLM
 
 Ogni nodo della pipeline è configurabile indipendentemente tramite l'Admin UI — senza ridistribuzione:
 
@@ -763,6 +763,8 @@ Ogni nodo della pipeline è configurabile indipendentemente tramite l'Admin UI �
 | Risposta | response, hitl_question_generator |
 | Background | memory_extraction, interest_extraction, journal_extraction, journal_consolidation |
 | Agenti | contacts_agent, emails_agent, calendar_agent, browser_agent, ecc. |
+
+Alcuni compiti usano una decisione nativa anziché una chiamata di chat generativa. Il registro JEV lega ogni uso al proprio interruttore e slot di modello; un interruttore generale li sospende. Ogni operazione fissa il percorso, presenta candidati circoscritti, verifica la risposta completa e ripiega in caso di dubbio. Il runtime comune contabilizza separatamente tentativo a pagamento e ripiego; permessi e HITL restano nel codice ordinario.
 
 ### 12.3. Token Tracking
 
@@ -1858,4 +1860,4 @@ I 324 ADRs documentano non solo le decisioni prese, ma anche le alternative scar
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 324 ADRs e del changelog (da v1.0 a v2.0.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 324 ADRs e del changelog (da v1.0 a v2.1.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

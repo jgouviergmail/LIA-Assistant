@@ -99,6 +99,11 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
             profile[key] = value.strip()
 
     assert profile["RADIO_ENABLED"] == "false"
+    assert profile["ELEVENLABS_TTS_MAX_CONCURRENCY"] == "5"
+    assert (
+        int(profile["ELEVENLABS_TTS_MAX_CONCURRENCY"])
+        == Settings.model_fields["elevenlabs_tts_max_concurrency"].default
+    )
     secrets = generate_secrets()
     required = {
         "database_url": "postgresql+asyncpg://lia:test@localhost:5432/lia",
@@ -108,6 +113,7 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
     }
     defaults = {
         "radio_enabled": profile["RADIO_ENABLED"],
+        "elevenlabs_tts_max_concurrency": profile["ELEVENLABS_TTS_MAX_CONCURRENCY"],
         "email_share_enabled": Settings.model_fields["email_share_enabled"].default,
         "generated_assets_keep_max_files": Settings.model_fields[
             "generated_assets_keep_max_files"
@@ -118,6 +124,7 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
     }
     settings = Settings(_env_file=None, **required, **defaults)
     assert settings.radio_enabled is False
+    assert settings.elevenlabs_tts_max_concurrency == 5
     assert settings.email_share_enabled is True
     assert settings.generated_assets_keep_max_files == 100
     assert settings.generated_assets_keep_max_mb == 500

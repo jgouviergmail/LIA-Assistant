@@ -6,7 +6,7 @@
 
 **Version**: 5.1
 **Datum**: 2026-09-24
-**Application**: LIA v2.0.0
+**Application**: LIA v2.1.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -753,7 +753,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` löst die effektive Konfiguration über `get_llm_config_for_agent(settings, agent_type)` auf (Code-Defaults → DB-Admin-Overrides), instanziiert das Modell und wendet die spezifischen Adapter an.
 
-### 12.2. 61 LLM-Konfigurationstypen
+### 12.2. 67 LLM-Konfigurationstypen
 
 Jeder Knoten der Pipeline ist über die Admin-UI unabhängig konfigurierbar — ohne erneutes Deployment:
 
@@ -763,6 +763,8 @@ Jeder Knoten der Pipeline ist über die Admin-UI unabhängig konfigurierbar — 
 | Antwort | response, hitl_question_generator |
 | Hintergrund | memory_extraction, interest_extraction, journal_extraction, journal_consolidation |
 | Agenten | contacts_agent, emails_agent, calendar_agent, browser_agent, etc. |
+
+Einige Aufgaben verwenden eine native Entscheidung statt eines generativen Chat-Aufrufs. Das JEV-Register bindet jeden Einsatz an einen eigenen Schalter und Modellplatz; ein Hauptschalter pausiert alle. Jede Operation hält ihren Pfad fest, bietet begrenzte Kandidaten an, prüft die gesamte Antwort und fällt bei Unsicherheit zurück. Der gemeinsame Laufzeitpfad zählt kostenpflichtigen Versuch und Rückfall getrennt; Rechte und HITL bleiben im normalen Codepfad.
 
 ### 12.3. Token Tracking
 
@@ -1856,4 +1858,4 @@ Die 324 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auc
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (700+ Dokumente), der 324 ADRs und des Changelogs (v1.0 bis v2.0.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (700+ Dokumente), der 324 ADRs und des Changelogs (v1.0 bis v2.1.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

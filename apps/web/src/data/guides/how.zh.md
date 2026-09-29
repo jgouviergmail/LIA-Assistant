@@ -6,7 +6,7 @@
 
 **版本**：5.1
 **日期**：2026-09-24
-**应用**：LIA v2.0.0
+**应用**：LIA v2.1.0
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -753,7 +753,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` 通过 `get_llm_config_for_agent(settings, agent_type)` 解析有效配置（代码默认值 → 数据库管理员覆盖），实例化模型，并应用特定适配器。
 
-### 12.2. 61 种 LLM 配置类型
+### 12.2. 67 种 LLM 配置类型
 
 管道中的每个节点都可通过 Admin UI 独立配置 — 无需重新部署：
 
@@ -763,6 +763,8 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 | 响应 | response、hitl_question_generator |
 | 后台 | memory_extraction、interest_extraction、journal_extraction、journal_consolidation |
 | 智能体 | contacts_agent、emails_agent、calendar_agent、browser_agent 等 |
+
+部分任务使用原生决策，而不是生成式聊天调用。JEV 注册表为每种用途绑定独立开关和模型配置，总开关可暂停全部用途。每次操作固定所选路径，提交有限候选项，核验完整结果，并在不确定时回退。共享运行时分别记录收费尝试和后续处理；权限与人工确认仍由常规代码执行。
 
 ### 12.3. Token 追踪
 
@@ -1819,4 +1821,4 @@ LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个�
 
 子系统之间的交织 — 心理记忆、贝叶斯学习、语义路由、系统化 HITL、LLM 驱动的主动性、内省日志 — 创造了一个各组件相互增强的系统。HITL 为模式学习提供数据，模式学习降低成本，降低的成本支撑更多功能，更多功能为记忆产生更多数据，记忆改善响应质量。这是一个设计中的良性循环，而非偶然。
 
-*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（700+ 份文档）、324 篇 ADR 及变更日志（v1.0 至 v2.0.0）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*
+*本文档基于源代码（`apps/api/src/`、`apps/web/src/`）、技术文档（700+ 份文档）、324 篇 ADR 及变更日志（v1.0 至 v2.1.0）的分析编写。文中引用的所有指标、版本和模式均可在代码库中验证。*

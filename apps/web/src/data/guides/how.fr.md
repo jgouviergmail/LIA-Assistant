@@ -6,7 +6,7 @@
 
 **Version** : 5.1
 **Date** : 2026-09-24
-**Application** : LIA v2.0.0
+**Application** : LIA v2.1.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -753,7 +753,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 Le `get_llm()` résout la configuration effective via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instancie le modèle, et applique les adaptateurs spécifiques.
 
-### 12.2. 61 types de configuration LLM
+### 12.2. 67 types de configuration LLM
 
 Chaque nœud du pipeline est configurable indépendamment via l'Admin UI — sans redéploiement :
 
@@ -763,6 +763,8 @@ Chaque nœud du pipeline est configurable indépendamment via l'Admin UI — san
 | Réponse | response, hitl_question_generator |
 | Background | memory_extraction, interest_extraction, journal_extraction, journal_consolidation |
 | Agents | contacts_agent, emails_agent, calendar_agent, browser_agent, etc. |
+
+Certaines tâches utilisent une décision native plutôt qu'un appel de conversation générative. Le registre JEV lie chaque usage à sa bascule et à son emplacement de modèle ; une bascule générale les suspend ensemble. Chaque opération fige son routage, présente des candidats bornés, valide la réponse entière et se replie en cas de doute. Le runtime commun compte séparément tentative payante et repli ; droits et HITL restent dans le chemin ordinaire.
 
 ### 12.3. Token Tracking
 
@@ -1863,4 +1865,4 @@ Les 324 ADRs documentent non seulement les décisions prises mais aussi les alte
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 324 ADRs, et du changelog (v1.0 à v2.0.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 324 ADRs, et du changelog (v1.0 à v2.1.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

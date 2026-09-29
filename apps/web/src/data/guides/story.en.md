@@ -4,7 +4,7 @@
 
 **Version**: 2.2
 **Date**: 2026-09-24
-**Application**: LIA v2.0.0
+**Application**: LIA v2.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,14 +18,16 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 53 functional domains | **781,000+** |
+| Source lines (excluding tests) — 53 functional domains | **785,000+** |
 | Automated tests, run on every commit and release | **46,000+** |
 | Documented architecture decisions (ADR) | **324** |
-| Versions shipped at a steady pace | **270** |
+| Versions shipped at a steady pace | **271** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
 Conviction from experience: AI-assisted development can be industrialized today. The limiting factor is not the tool — it is the management framework you give it.
+
+That discipline applies inside the product too. A small model decision can help select a route or format, but LIA constrains its choices, measures its cost and retains the authority to check and confirm the result. Optional native decisions extend that method without turning a model's confidence into permission.
 
 ## 2. The approach
 

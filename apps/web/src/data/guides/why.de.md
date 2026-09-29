@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Datum**: 2026-09-24
-**Anwendung**: LIA v2.0.0
+**Anwendung**: LIA v2.1.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -34,6 +34,8 @@ Diese Assistenten sind bemerkenswert. Doch sie teilen ein gemeinsames Modell: De
 LIA geht einen anderen Weg. Kein direkter Konkurrent der Großen — sondern ein **persönlicher KI-Assistent, den du selbst hostest, verstehst und kontrollierst**. LIA orchestriert die besten KI-Modelle des Marktes, handelt in deinem digitalen Leben und tut dies mit grundlegenden Qualitäten, die ihn auszeichnen.
 
 ---
+
+Ein nützlicher Assistent muss zeigen, wo sein Entscheidungsspielraum endet. Für eine bestimmte Aufgabe kann die Administration einen eng begrenzten Entscheidungsdienst aktivieren, etwa für ein Protokollformat oder einen bereits abgerufenen Treffer. Bei Unsicherheit greift das bisherige Verfahren; Berechtigungen und Freigaben bleiben bei LIA. Die zusätzliche Intelligenz ist prüfbar und abschaltbar.
 
 ## 2. Einfache Administration
 

@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.0.0</strong> — <strong>Your day has a voice, and your work stays within reach.</strong> A personal radio draws on your day and cited news while you listen; you can keep selected generated files, send a file or answer by e-mail, and see the conversation update from your other devices and channels without reloading — 28 September 2026.
+  <strong>Version 2.1.0</strong> — <strong>Clearer choices, a closer look at LIA, steadier speech.</strong> Explore its capabilities in a renewed interactive demo; administrators can enable bounded JEV decisions one use at a time, with fallback and accounted cost, while shared ElevenLabs capacity keeps spoken sequences in order — 29 September 2026.
 </p>
 
 ---
@@ -94,7 +94,7 @@ Under the hood: a FastAPI backend orchestrating 20+ specialised agents with Lang
 
 LIA is hosted at **https://lia.jeyswork.com/** — no installation required.
 
-The [interactive showroom](https://lia.jeyswork.com/demo) runs six guided synthetic missions, one per differentiating mechanism: orchestration under approval, proactivity, persistent memory, outbound calls, rich replies and in-app configuration. Approve, edit or refuse each prepared change through the real approval UI, and read LIA's closing reply rendered by the production pipeline. Everything is labelled synthetic — no account, model or external service is contacted — and a proof drawer links every visible capability to its exact source. When a live demonstrator is published, the same page lists what is switched on there and what is not — read from the demonstrator's own configuration, never kept by hand — before offering the link.
+The [interactive showroom](https://lia.jeyswork.com/demo) runs six guided synthetic missions, one per differentiating mechanism: orchestration under approval, proactivity, persistent memory, outbound calls, rich replies and in-app configuration. Its refreshed product scenes show the steps and results in a recognisable interface. Approve, edit or refuse each prepared change through the real approval UI, and read LIA's closing reply rendered by the production pipeline. Everything is labelled synthetic — no account, model or external service is contacted — and a proof drawer links every visible capability to its exact source. When a live demonstrator is published, the same page lists what is switched on there and what is not — read from the demonstrator's own configuration, never kept by hand — before offering the link.
 
 > **Closed beta** — access is granted at the administrator's discretion. To request an invitation, write to **liamyassistant@gmail.com**.
 
@@ -112,10 +112,10 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **53** functional domains | **781,000+** source lines (excl. tests) | **46,000+** automated tests | **324** ADRs                                                            |
-| **270** versions shipped  | **6 languages**, parity enforced in CI  | **608** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **53** functional domains | **785,000+** source lines (excl. tests) | **46,000+** automated tests | **324** ADRs                                                            |
+| **271** versions shipped  | **6 languages**, parity enforced in CI  | **608** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 781,426 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-09-28). The published technical audit does not score security.
+Source-line figure: 785,055 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-09-29). The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -223,6 +223,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - Push-to-talk or the wake word "OK Guy", detected in the browser by sherpa-onnx so no audio leaves the device for detection.
 - Offline Whisper transcription in the user's own language.
 - Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs) streamed sentence by sentence, first audio in about a second ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
+- ElevenLabs synthesis shares an administrator-set concurrency ceiling across API workers and speech surfaces; the browser plays queued audio in sequence, even when synthesis completes out of order.
 
 #### Live, voice to voice
 
@@ -238,6 +239,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - A deterministic programme grid blends the listener's day with news from identified sources.
 - Models write and voice the segments, while verification decides what may air. The listener chooses subjects, sources, voices and verification, sees sources and live cost, and ends the session with a timer. Production runs only while someone listens.
 - An administrator controls the capability and the guided self-host installer asks before enabling it ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md), [RADIO](docs/technical/RADIO.md)).
+- The radio settings group programme, sources, verification, voices and spending so a listener can see what will be used before starting.
 
 #### An expressive companion
 
@@ -483,6 +485,7 @@ Operators get complete control and real-time visibility without touching configu
 | Area                          | What you control                                                                                                                                                                                                                                                            |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **LLM configuration**         | The model behind every node and slot, provider parameters, prompt versions, the context window per slot                                                                                                                                                                     |
+| **Bounded JEV decisions**      | An independent opt-in switch for each native decision, a general switch, dedicated model and price settings, and diagnostic traces of duration, fallback and spend; uncertain results return to the established path ([ADR-325](docs/architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md), [guide](docs/technical/JEV_INTEGRATION.md)) |
 | **Model catalogue & pricing** | Providers, capability flags, accepted reasoning depths, a provenance badge and prices per model — the source of truth for the LLM factory, with its status against the public registries; image-generation and Google API pricing alongside; live cross-worker invalidation |
 | **Platform capabilities**     | One switch per capability, grouped in families, each row showing the deployment bound, the operator choice and the state actually enforced                                                                                                                                  |
 | **Budgets & limits**          | Per-user token, message and cost quotas with live gauges; the instance daily ceiling in euros, today's spend and what remains                                                                                                                                               |
@@ -765,8 +768,8 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                                            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Backend tests           | 36,618 collected over `tests/` (`pytest --collect-only -q`, 2,123 files, 2026-09-28)                                                             |
-| Frontend tests (vitest) | 9,691 passed across 782 files (`task test:frontend:coverage`, 2026-09-28), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Backend tests           | 37,003 collected over `tests/` (`task test:markers`, 2026-09-29)                                                                                |
+| Frontend tests (vitest) | 9,729 passed across 788 files (`task test:frontend:coverage`, 2026-09-29), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 77% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                           |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                    |
 

@@ -123,14 +123,15 @@ x86 server or workstation works equally well.
 - **How people will reach LIA** — a LAN address, or a domain name if you want
   HTTPS (see §4.2).
 
-Optional capabilities stay switched off until you add their key later in the
-Admin UI, and LIA runs fine without them:
+Optional providers can be added later in the Admin UI, and LIA runs without
+their keys:
 
 | Capability                | Provider   | Without its key                       |
 | ------------------------- | ---------- | ------------------------------------- |
 | Image/vision analysis     | Gemini     | Image understanding is unavailable    |
-| Voice output (TTS)        | ElevenLabs | Spoken answers are unavailable        |
+| Premium voice output (TTS) | ElevenLabs | ElevenLabs speech is unavailable; Edge TTS remains available |
 | MCP App interactive widgets | Anthropic | Widgets fall back to plain responses |
+| Native bounded decisions | TypeSafe (JEV) | Each JEV use stays off; LIA keeps its existing decision paths |
 
 ---
 
@@ -263,6 +264,7 @@ your private `.env` (mode `0600`):
 | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL` | **Deliberately empty**                |
 | `ENVIRONMENT`, `DEBUG`, `LOG_LEVEL` | `production`, `false`, `INFO`              |
 | `DIAGNOSTICS_ENABLED`, `LIVE_ENABLED`, `RADIO_ENABLED` | Your `self_diagnostics` / `live_mode` / `personal_radio` answers |
+| `ELEVENLABS_TTS_MAX_CONCURRENCY` | The application default; lower it to your ElevenLabs account allowance before enabling its speech synthesis |
 
 The two empty `NEXT_PUBLIC_*` values are intentional: the web image is
 host-neutral and same-origin, so the canonical address is resolved at request
@@ -314,6 +316,10 @@ container** — a deliberate privilege. Leave it off unless you need it.
 **Live voice mode** (`live_mode = yes`) publishes the capability: a person then connects a live model — Gemini Live, GPT-Live or an ElevenLabs agent — with **their own key** in *Settings › Connectors* and talks with LIA in real time from the voice icon. The instance provisions nothing for it and pays only what LIA itself spends inside a session; the audio never transits the API. The models offered are those the seeded LLM pricing table declares (the seed ships them); an ElevenLabs agent is billed by the vendor on the person's key. Every bound lives under `LIVE_*` in `.env.prod.example`.
 
 **Personal radio** (`personal_radio = yes`) enables the radio routes and the newsroom inside the existing API service; it adds no Compose service or external bootstrap step. A listener starts a session on demand, pays for its writing and voice synthesis under a published per-account limit, and stops it with the player or timer. Configure the radio's LLM and voice slots in the Admin UI before offering it; the API reports a missing voice instead of silently producing a programme. The installer defaults to `no` so a new host opts into this paid feature deliberately. See [RADIO.md](../technical/RADIO.md).
+
+**JEV native decisions** are configured after installation in *Settings › Administration › JEV integrations*. They have no installer question, Compose service or extra boot step: every use starts off, and an administrator first adds the TypeSafe key, an active decision model and its tariff, then enables individual uses and the general switch. LIA validates each bounded answer and falls back to its existing path when it cannot use it; paid attempts and their fallback are both accounted. See [JEV_INTEGRATION.md](../technical/JEV_INTEGRATION.md).
+
+**ElevenLabs speech capacity** is shared across API workers and voice features. The generated environment includes `ELEVENLABS_TTS_MAX_CONCURRENCY`; match that limit to the allowance on your ElevenLabs account before selecting its TTS in Administration. Finished speech segments still play in their intended order even if synthesis completes out of order.
 
 The same overlay starts the **sandbox egress proxy** (`egress` service,
 [ADR-298](../architecture/ADR-298-Sandbox-Egress-Toolbox.md)): the only way a

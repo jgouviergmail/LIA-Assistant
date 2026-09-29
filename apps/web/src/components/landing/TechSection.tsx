@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import {
   Blocks,
+  BrainCircuit,
   Calculator,
   ClipboardList,
   CloudSun,
@@ -91,6 +92,11 @@ const TECH_ITEMS = [
     key: 'exact_answers',
     icon: Calculator,
     iconBg: 'bg-gradient-to-br from-lime-500/15 to-green-500/15',
+  },
+  {
+    key: 'decision_paths',
+    icon: BrainCircuit,
+    iconBg: 'bg-gradient-to-br from-indigo-500/15 to-cyan-500/15',
   },
   { key: 'stack', icon: Layers, iconBg: 'bg-gradient-to-br from-cyan-500/15 to-sky-500/15' },
   {

@@ -6,7 +6,7 @@
 
 **Versión**: 5.1
 **Fecha**: 2026-09-24
-**Aplicación**: LIA v2.0.0
+**Aplicación**: LIA v2.1.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -753,7 +753,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 El `get_llm()` resuelve la configuración efectiva via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instancia el modelo y aplica los adaptadores específicos.
 
-### 12.2. 61 tipos de configuración LLM
+### 12.2. 67 tipos de configuración LLM
 
 Cada nodo del pipeline es configurable independientemente via la Admin UI — sin redespliegue:
 
@@ -763,6 +763,8 @@ Cada nodo del pipeline es configurable independientemente via la Admin UI — si
 | Respuesta | response, hitl_question_generator |
 | Background | memory_extraction, interest_extraction, journal_extraction, journal_consolidation |
 | Agentes | contacts_agent, emails_agent, calendar_agent, browser_agent, etc. |
+
+Algunas tareas usan una decisión nativa en vez de una llamada de chat generativa. El registro JEV vincula cada uso a su interruptor y espacio de modelo; un interruptor general los pausa. Cada operación fija su ruta, presenta opciones delimitadas, valida la respuesta completa y recurre al proceso habitual ante la duda. El sistema común contabiliza por separado el intento de pago y su alternativa; permisos y HITL siguen en el código ordinario.
 
 ### 12.3. Token Tracking
 
@@ -1856,4 +1858,4 @@ Los 324 ADRs documentan no solo las decisiones tomadas sino también las alterna
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 324 ADRs y del changelog (v1.0 a v2.0.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 324 ADRs y del changelog (v1.0 a v2.1.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-09-29
+
+**Des choix plus lisibles, une démonstration plus concrète et une voix plus régulière.** LIA présente ses usages dans une vitrine remaniée et peut confier certaines décisions circonscrites à JEV, sous le contrôle de l'administrateur. Chaque usage reste facultatif ; les validations, les permissions et la confirmation des actions demeurent dans LIA.
+
+### Added
+
+- **Décisions natives JEV, activables usage par usage** ([ADR-325](docs/architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md)) : sélection du format de compte rendu, qualification de résultats déjà obtenus, consultation bornée, vérification radio, exclusion proposée dans une liste soumise à confirmation et observation des extractions. Une bascule générale conserve les préférences de chaque usage ; l'admin voit les appels, leur coût et leur durée dans le diagnostic.
+- **Contrôle partagé de la synthèse ElevenLabs** : une borne par clé API, commune aux workers et aux surfaces vocales, évite de lancer simultanément plus de requêtes que le compte n'en autorise. Le lecteur web gère la file audio sans perdre l'ordre des séquences.
+
+### Changed
+
+- **Vitrine et démonstration** : parcours de fonctionnalités, scènes interactives et schéma d'architecture réorganisés pour expliquer les usages, la confirmation des actions et la confidentialité. Les réglages radio montrent plus clairement les sources, les voix, les programmes et la dépense.
+- **Choix de modèle et comptabilité** : les décisions JEV utilisent un emplacement dédié, un tarif administré et des plafonds de dépense. Une décision incertaine ou indisponible repasse par le traitement existant ; une tentative payante et son repli sont tous deux comptés. Les observations d'extraction n'effacent aucune extraction existante.
+
+### Fixed
+
+- Les aperçus de pertinence ne retirent pas les résultats canoniques de la réponse finale ; une qualification documentaire ne prétend pas connaître le contenu d'un document entier à partir d'un extrait.
+- Les exclusions proposées avant approbation ne peuvent jamais approuver une action ni élargir le périmètre soumis à la personne.
+- La production vocale ElevenLabs ne dépasse plus la capacité configurée lorsque plusieurs workers ou usages la sollicitent ensemble ; les séquences déjà reçues restent ordonnées dans le navigateur.
+
+### Tests
+
+- Contrats de bascule et de repli, autorisations et dépenses JEV, corpus de qualification indépendants, concurrence ElevenLabs et file audio, parcours frontend des réglages et du diagnostic.
+
 ## [2.0.0] - 2026-09-28
 
 **Une radio personnelle, des fichiers que l'on choisit de garder, et une conversation qui suit les événements sans rechargement.** Cette version rassemble les nouvelles façons d'écouter, de conserver et de partager le travail de LIA, avec des règles de langue et de vérification plus explicites.

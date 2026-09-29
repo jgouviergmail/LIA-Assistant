@@ -4,7 +4,7 @@
 
 **Version**: 2.2
 **Datum**: 2026-09-24
-**Anwendung**: LIA v2.0.0
+**Anwendung**: LIA v2.1.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,14 +18,16 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 53 Fachdomänen | **781.000+** |
+| Quellcodezeilen (ohne Tests) — 53 Fachdomänen | **785.000+** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **46.000+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **324** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **270** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **271** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
 Überzeugung aus Erfahrung: KI-gestützte Entwicklung ist heute industrialisierbar. Der begrenzende Faktor ist nicht das Werkzeug — es ist der Führungsrahmen, den man ihm gibt.
+
+Dieselbe Disziplin gilt auch im Produkt. Eine kleine Modellentscheidung kann einen Weg oder ein Format wählen helfen, doch LIA begrenzt die Auswahl, misst die Kosten und behält die Prüfung und Bestätigung des Ergebnisses. Optionale native Entscheidungen erweitern diese Methode, ohne Modellvertrauen in eine Berechtigung umzudeuten.
 
 ## 2. Der Ansatz
 

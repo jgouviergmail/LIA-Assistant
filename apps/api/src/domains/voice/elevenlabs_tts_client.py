@@ -13,6 +13,7 @@ API key permissions required:
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import time
 from contextlib import suppress
@@ -23,6 +24,7 @@ import structlog
 
 from src.core.constants import DEFAULT_ELEVENLABS_BASE_URL
 from src.domains.llm_config.cache import LLMConfigOverrideCache
+from src.domains.voice.elevenlabs_concurrency import tts_slot
 from src.domains.voice.exceptions import TTSProviderError
 from src.infrastructure.observability.metrics_voice import (
     voice_tts_errors_total,
@@ -142,7 +144,11 @@ class ElevenLabsTTSClient:
         start = time.perf_counter()
         try:
             # Reuse the persistent client (default headers already set).
-            response = await self._http_client.post(url, params=params, json=body)
+            # The quota belongs to the account, across sentences, clients and workers.
+            # Bound queueing + HTTP together so a lease always outlives its request.
+            async with asyncio.timeout(self._timeout_seconds):
+                async with tts_slot(self._api_key, timeout_seconds=self._timeout_seconds):
+                    response = await self._http_client.post(url, params=params, json=body)
         except (TimeoutError, httpx.TimeoutException) as exc:
             voice_tts_errors_total.labels(error_type="timeout", voice_name=voice_id).inc()
             voice_tts_requests_total.labels(status="error", voice_name=voice_id).inc()

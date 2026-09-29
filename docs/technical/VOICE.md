@@ -415,6 +415,24 @@ async for chunk in service.stream_voice_comment(
     yield chunk
 ```
 
+### TTS concurrency and playback
+
+ElevenLabs requests reserve capacity through
+[`elevenlabs_concurrency.py`](../../apps/api/src/domains/voice/elevenlabs_concurrency.py).
+Redis leases share the configured `ELEVENLABS_TTS_MAX_CONCURRENCY` allowance
+across API workers, client instances and TTS surfaces using the same API key.
+The synthesis timeout bounds both waiting and HTTP; completion, failure and
+cancellation release the slot, and abandoned leases expire. Configure the
+allowance at or below the provider account's limit, reserving headroom if
+other applications also use that account. Redis unavailability refuses the
+request rather than bypassing the limit.
+
+The browser's [`AudioQueue`](../../apps/web/src/lib/audio-queue.ts) preserves
+arrival order before asynchronous initialization, reserves its playback
+consumer before any await, and invalidates pending work on stop. Consequently
+a burst of SSE chunks starts only one audible source; a stale decode or end
+event cannot restart audio from a previous turn.
+
 ### Progressive sentence streaming (ADR-082)
 
 Both code paths above (chat-mode `stream_direct_tts` via

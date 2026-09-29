@@ -4,7 +4,7 @@
 
 **Versión**: 2.2
 **Fecha**: 2026-09-24
-**Aplicación**: LIA v2.0.0
+**Aplicación**: LIA v2.1.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,14 +18,16 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests) — 53 dominios funcionales | **781.000+** |
+| Líneas de código fuente (sin tests) — 53 dominios funcionales | **785.000+** |
 | Tests automatizados, ejecutados en cada commit y entrega | **46.000+** |
 | Decisiones de arquitectura documentadas (ADR) | **324** |
-| Versiones entregadas a ritmo regular | **270** |
+| Versiones entregadas a ritmo regular | **271** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
 Convicción de experiencia: el desarrollo asistido por IA es industrializable hoy. El factor limitante no es la herramienta — es el marco de dirección que se le da.
+
+La misma disciplina rige dentro del producto. Una pequeña decisión de modelo puede ayudar a elegir una ruta o un formato, pero LIA limita las opciones, mide el coste y conserva la autoridad para comprobar y confirmar el resultado. Las decisiones nativas opcionales amplían este método sin convertir la confianza del modelo en permiso.
 
 ## 2. El enfoque
 

@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v2.0.0
+**Compatibility**: LIA v2.1.0
 
 ## Table of Contents
 
@@ -39,6 +39,10 @@ Two user-toggleable execution modes (switchable in the chat header):
 Both modes converge on the same streaming response (SSE) and the same HITL (Human-in-the-Loop) approval system.
 
 The guided self-host installer now asks whether to offer the **personal radio**. It is off on a fresh guided installation until the operator opts in: programmes are produced on demand in the existing API service using the configured writing and voice providers, and their cost is charged to the listener. The installer sets `RADIO_ENABLED` from that answer; no extra Compose service or boot step is needed. Configure the radio model and voice slots in the Admin UI before enabling it. See [the self-hosting guide](guides/GUIDE_SELF_HOSTING.md) and [radio design](technical/RADIO.md).
+
+**JEV decisions are optional after installation.** The installer leaves every JEV use off; there is no additional Compose service or bootstrap step. To use one, configure a TypeSafe (Jev) provider key, a decision model and its price in Administration, then enable that use and the general switch under **JEV integrations**. An uncertain decision uses LIA's existing path; both a paid attempt and its fallback count toward spending limits. See the [integration guide](technical/JEV_INTEGRATION.md).
+
+For ElevenLabs speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` is rendered at the application default on a fresh guided install. Set it at or below your account's concurrency allowance before using ElevenLabs TTS. The limit is shared across API workers and speech surfaces; Edge TTS remains the free default.
 
 ### Key Figures
 
@@ -302,6 +306,11 @@ written upgrade procedure lives in
 Its first step is the database backup, and that ordering is not a style
 preference: migrations are applied by the API container's entrypoint the moment
 it starts, and this project ships no downgrade path.
+The entrypoint resolves the effective number of serving workers from its
+Uvicorn arguments before enabling multiprocess metrics; reload mode serves
+from one process. The installer waits for the application's `/ready` response
+after both the first start and the post-bootstrap API recreation, so a running
+container alone is never treated as an installed service.
 
 ---
 
@@ -1203,7 +1212,12 @@ Restore procedure: [runbooks/DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BAC
 
 ## LLM Configuration
 
-LIA drives **54 independently configurable LLM slots** — every pipeline node, domain agent and background task has its own provider/model/parameters. Configuration is resolved as: **code defaults (`LLM_DEFAULTS`) → database overrides** (admin UI), hot-reloaded across workers.
+LIA declares **84 independently configurable model and decision slots** in
+`LLM_TYPES_REGISTRY` (67 static entries and 17 JEV usages). Pipeline nodes,
+domain agents and background tasks select their own provider and model; native
+decision slots expose only the parameters their provider accepts. Configuration
+is resolved as **code defaults (`LLM_DEFAULTS`) → database overrides** (admin
+UI), applied to subsequent operations without restarting workers.
 
 - **Admin UI**: Settings > Administration > LLM Configuration (per-slot provider, model, temperature, max tokens, reasoning effort; provider API keys encrypted at rest).
 - **Providers**: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama (text) + ElevenLabs and Edge (voice). Ollama needs only `OLLAMA_BASE_URL` (the server root; the context window LIA requests and accounts with is set per LLM slot in the admin, ADR-278); Perplexity/Qwen base URLs are parameterizable.

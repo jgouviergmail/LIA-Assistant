@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Date**: 2026-09-24
-**Application**: LIA v2.0.0
+**Application**: LIA v2.1.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -34,6 +34,8 @@ These assistants are remarkable. But they share a common model: your data lives 
 LIA takes a different path. Not a head-on competitor to the giants — a **personal AI assistant that you host, that you understand, and that you control**. LIA orchestrates the best AI models on the market, acts in your digital life, and does so with fundamental qualities that set it apart.
 
 ---
+
+A useful assistant must explain where discretion ends. LIA can let an administrator enable a narrow decision engine for a specific task, such as choosing a meeting format or qualifying an already retrieved result. Uncertainty returns to the established process; permissions and approvals still belong to LIA. This makes new intelligence a choice the operator can inspect and reverse.
 
 ## 2. Simple administration
 
