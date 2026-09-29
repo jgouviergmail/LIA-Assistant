@@ -54,7 +54,8 @@ export type LLMProviderName =
   | 'gemini'
   | 'qwen'
   | 'elevenlabs'
-  | 'edge';
+  | 'edge'
+  | 'typesafe';
 
 /** Who filled a catalogue row's capabilities. Mirrors the backend
  *  ``CapabilityProvenanceLiteral`` / ``LLMCapabilityProvenanceEnum``. */
@@ -83,7 +84,14 @@ export interface CatalogueStatus {
 }
 
 // Mirrors backend LLMModelKindLiteral / PricingUnitLiteral.
-export type LLMModelKindName = 'chat' | 'image' | 'audio' | 'realtime' | 'tts' | 'embedding';
+export type LLMModelKindName =
+  | 'chat'
+  | 'image'
+  | 'audio'
+  | 'realtime'
+  | 'tts'
+  | 'embedding'
+  | 'decision';
 export type LLMPricingUnitName = 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
 
 /** One UTC window of a time-based tariff (ADR-223). Mirrors the backend

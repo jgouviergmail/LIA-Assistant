@@ -50,6 +50,7 @@ class LLMAgentConfig(BaseModel):
         "qwen",
         "elevenlabs",
         "edge",
+        "typesafe",
     ] = Field(
         default="openai",
         description="LLM provider",

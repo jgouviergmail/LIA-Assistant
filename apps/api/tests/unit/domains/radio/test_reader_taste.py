@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -15,6 +16,21 @@ from src.domains.radio.readers import taste as module
 from src.domains.radio.readers.taste import read_taste
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize("section", ["interests", "memories"])
+async def test_cancelled_start_records_only_attempted_sources(
+    section: str, reads: Reads, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def cancelled(user_id: UUID) -> tuple[str, ...]:
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr(module, "_interests" if section == "interests" else "_stated", cancelled)
+    recorder = Recorder()
+    with pytest.raises(asyncio.CancelledError):
+        await read_taste(uuid4(), interests_allowed=True, stated_allowed=True, record=recorder)
+    opened = {"interests"} if section == "interests" else {"interests", "memories"}
+    assert recorder.rows == [(frozenset(opened), frozenset({section}))]
 
 
 @dataclass

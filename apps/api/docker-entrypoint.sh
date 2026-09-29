@@ -122,7 +122,25 @@ fi
 # do not arm the mode therefore UNSET it — the fallback below can then keep its
 # promise whatever the deployment's env file happens to declare.
 _workers="${WEB_CONCURRENCY:-1}"
-case "$*" in *--workers*) _workers=2 ;; esac
+_read_workers=0
+_reload=0
+for _arg in "$@"; do
+    if [ "$_read_workers" = 1 ]; then
+        _workers="$_arg"
+        _read_workers=0
+    fi
+    case "$_arg" in
+        --workers) _read_workers=1 ;;
+        --workers=*) _workers="${_arg#--workers=}" ;;
+        --reload) _reload=1 ;;
+    esac
+done
+# Uvicorn reload always runs ONE serving process. A production worker setting
+# inherited by dev must neither warn on every boot nor arm multiprocess metrics.
+if [ "$_reload" = 1 ]; then
+    _workers=1
+    export WEB_CONCURRENCY=1
+fi
 if [ "$_workers" -gt 1 ] 2>/dev/null; then
     # Non-fatal under `set -e`: if the dir cannot be (re)created, fall back to
     # single-process metrics rather than aborting startup. Dir creation runs

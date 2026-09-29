@@ -65,10 +65,12 @@ import { useLiveChatBindings } from '@/components/live/useLiveChatBindings';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { useLiveHoldsMicrophone } from '@/stores/liveStore';
 import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
+import { isLanguage, fallbackLng, type Language } from '@/i18n/settings';
 
 /** Short locale of an i18n language tag ("fr-FR" → "fr"; default "fr"). */
-function shortLang(language: string | undefined): string {
-  return (language || 'fr').split('-')[0];
+function shortLang(language: string | undefined): Language {
+  const short = (language || fallbackLng).split('-')[0];
+  return isLanguage(short) ? short : fallbackLng;
 }
 
 /**
@@ -205,6 +207,7 @@ export default function ChatPage() {
     currentDebugMetrics, // Debug Panel: Scoring metrics for current request
     debugMetricsHistory, // Debug Panel: Cumulative history of all request metrics
     browserScreenshot, // Browser Screenshots: Current overlay data
+    resultPreviews,
     contextUsage, // Context-usage pill: tokens vs compaction threshold
     hydrateContextUsage, // Seeds the pill from /me/totals on page load
     checkAndResumeActiveRun, // ADR-117 Lot 2: silent reattach to an in-flight run
@@ -979,6 +982,7 @@ export default function ChatPage() {
                         activeStreamId={searchQuery ? null : activeStreamId}
                         streamPhase={streamPhase}
                         browserScreenshot={browserScreenshot}
+                        resultPreviews={resultPreviews}
                         // Scroll-up pagination — disabled while the user is searching
                         // (search filters client-side over already-loaded messages
                         // only, so a sentinel would conflate "no match in this page"
@@ -1073,6 +1077,7 @@ export default function ChatPage() {
         {showDebugPanel && (
           <ResizableDebugPanel>
             <DebugPanel
+              lng={lng}
               key={latestDebugMetrics ? 'has-metrics' : 'no-metrics'}
               metrics={latestDebugMetrics}
               history={debugMetricsHistory}

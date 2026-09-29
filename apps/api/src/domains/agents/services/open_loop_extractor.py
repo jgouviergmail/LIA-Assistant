@@ -34,6 +34,12 @@ from src.infrastructure.llm.token_capture import TokenCaptureHandler
 if TYPE_CHECKING:
     from src.domains.open_loops.repository import OpenLoopRepository
 
+from src.domains.agents.services.jev_extraction_observer import (
+    observe_extractor,
+    start_extraction_observation,
+)
+from src.domains.llm_config.jev_registry import JevUsage
+
 logger = structlog.get_logger(__name__)
 
 # Conversation tail passed to the extraction LLM (turns, not tokens — the
@@ -321,6 +327,7 @@ async def _run_extraction(
         llm = get_llm("open_loop_extraction")
         config = get_llm_config_for_agent(settings, "open_loop_extraction")
         token_capture = TokenCaptureHandler()
+        observation = start_extraction_observation(system_prompt + "\n\n" + user_prompt)
         extraction = await get_structured_output(
             llm=llm,
             messages=[
@@ -332,6 +339,7 @@ async def _run_extraction(
             node_name="open_loop_extraction",
             config=RunnableConfig(callbacks=[token_capture]),
         )
+        observation.set_output(extraction.model_dump_json())
 
         # G-1: every LLM call is billed — persist the extraction spend.
         from src.infrastructure.proactive.tracking import track_proactive_tokens
@@ -379,6 +387,7 @@ async def _run_extraction(
     )
 
 
+@observe_extractor(JevUsage.OBSERVE_OPEN_LOOPS, run_argument="run_id")
 async def extract_open_loops_background(
     *,
     user_id: str,

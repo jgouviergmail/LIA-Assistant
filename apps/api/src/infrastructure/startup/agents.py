@@ -84,7 +84,11 @@ def _assert_effect_completeness(registry: Any) -> None:
 
     guards: tuple[tuple[str, str, Callable[[], None]], ...] = (
         ("effect_gate_incomplete", "Effect gate", assert_effect_gate_completeness),
-        ("effect_labels_incomplete", "Effect labels", assert_effect_label_completeness),
+        (
+            "effect_labels_incomplete",
+            "Effect labels",
+            lambda: assert_effect_label_completeness(registry),
+        ),
         (
             "unattended_stand_ins_incomplete",
             "Unattended stand-ins",

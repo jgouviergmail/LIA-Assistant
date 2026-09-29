@@ -274,7 +274,9 @@ class FCMNotificationService:
         tokens = await self.get_active_tokens(user_id)
 
         if not tokens:
-            logger.warning("no_active_tokens", user_id=str(user_id))
+            # Push enrollment is optional; no device registered is an ordinary
+            # unavailable channel, not a failed delivery attempt.
+            logger.info("no_active_tokens", user_id=str(user_id))
             return FCMBatchResult(
                 success_count=0,
                 failure_count=0,

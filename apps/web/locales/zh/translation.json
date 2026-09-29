@@ -677,6 +677,24 @@
     "footer": "感谢你的耐心等待。你的账户激活正在处理中。"
   },
   "chat": {
+    "result_preview": {
+      "title": "初步结果",
+      "temporary": "LIA 正在准备回答，以下为临时预览。她仍可使用所有已获取的条目。",
+      "match": "可能相关",
+      "unknown": "待核实",
+      "non_match": "可能不相关 — 查看",
+      "scope": "{{kind}}：已评估获取的 {{total}} 项中的 {{evaluated}} 项；另有 {{omitted}} 项未在此预览中显示。这不是来源中可用条目的总数。",
+      "kinds": {
+        "EMAIL": "邮件",
+        "EVENT": "日程",
+        "TASK": "任务",
+        "FILE": "文档",
+        "REMINDER": "提醒",
+        "TICKET": "工单",
+        "MCP_RESULT": "MCP 结果",
+        "NOTE": "文档片段"
+      }
+    },
     "title": "聊天",
     "new_chat": "删除",
     "loading_conversation": "加载对话中...",
@@ -1120,6 +1138,56 @@
     },
     "phone_call_badge": "电话中所说",
     "debug_panel": {
+      "jev": {
+        "title": "JEV 调用",
+        "caller": "调用方",
+        "run": "执行",
+        "time": "时间与耗时",
+        "model": "模型",
+        "action": "触发的操作",
+        "outcome": "结果",
+        "tokens": "输入 / 输出 token",
+        "cost": "按配置费率计算的费用",
+        "context": "发送的上下文",
+        "response": "响应",
+        "confidence": "置信度：{{value}} %",
+        "confidenceHelp": "此分数衡量决策的集中程度，并不代表决策正确的概率。",
+        "probabilities": "候选项概率",
+        "omittedCandidates": "未显示 {{omitted}} 个候选项。",
+        "truncated": "上下文共 {{total}} 个字符，已省略 {{omitted}} 个字符。",
+        "noResponse": "没有可用响应。请查看上方结果。",
+        "refresh": "刷新",
+        "scope": "仅显示在启用调试时收集的您账户的调用。此部分打开时每 5 秒刷新一次。",
+        "retention": "最多保留 {{limit}} 次调用，保留 {{minutes}} 分钟。",
+        "empty": "没有保留的 JEV 调用。禁用 JEV 用途不会产生调用。",
+        "error": "诊断不可用或访问权限已撤销。请刷新重试。",
+        "actions": {
+          "pending": "操作尚未确认",
+          "selected": "已应用决策",
+          "fallback": "已请求现有处理流程",
+          "aborted": "处理已中断",
+          "cancelled": "已取消",
+          "preview": "预览已准备",
+          "observed": "仅观察"
+        },
+        "nativeDuration": "JEV 耗时",
+        "nativeDurationHelp": "这里只统计 JEV 调用耗时，不包括完整回复或后续回退处理。",
+        "unknownCost": "未提供",
+        "technical": "技术详情",
+        "state": "已分析的信息",
+        "question": "请求的决策",
+        "appliedDecision": "LIA 实际采用：{{verdict}}",
+        "actionHelp": {
+          "selected": "LIA 已接受此决策，用于后续处理。",
+          "preview": "这些判断仅用于临时预览。最终模型仍会接收所有原始对象。",
+          "fallback": "LIA 已请求原有处理流程。此记录不代表后续处理已成功。",
+          "pending": "调用组件尚未确认如何使用该回复。",
+          "aborted": "处理因错误中断，尚未确认应用任何决策。",
+          "cancelled": "调用已取消。已知用量仍会计入账单。",
+          "observed": "仅观察：将 JEV 与始终运行的原有提取器进行比较。会增加判断费用，并可能延长流结束时间。不会跳过任何提取。"
+        },
+        "observedResult": "原有提取器的建议（验证前）"
+      },
       "resize": "调整调试面板宽度"
     }
   },
@@ -2283,7 +2351,25 @@
           "radio_analyst": "阅读一则新闻的完整文章，生成电台播出的专家分析（背景、历史、事实、值得关注之处、前景） - 每个数字都必须来自文章",
           "radio_verifier": "在播出前，针对听众选择核查的节目，对照所引用的事实逐行核查节目段 - 缺乏依据的行会被删除",
           "radio_translator": "将听众在电台页面打开的新闻文章翻译成其语言 - 每篇文章每种语言一次结构化调用，并为下一位读者保留",
-          "radio_voice": "个人电台的语音合成引擎：每个角色一个声音，使用听众的语言"
+          "radio_voice": "个人电台的语音合成引擎：每个角色一个声音，使用听众的语言",
+          "jev_filter_email": "在搜索过程中显示临时相关性预览。最终回答仍可使用所有已获取的数据；预览会增加决策费用。",
+          "jev_filter_event": "在搜索过程中显示临时相关性预览。最终回答仍可使用所有已获取的数据；预览会增加决策费用。",
+          "jev_filter_task": "在搜索过程中显示临时相关性预览。最终回答仍可使用所有已获取的数据；预览会增加决策费用。",
+          "jev_filter_file": "在搜索过程中显示临时相关性预览。最终回答仍可使用所有已获取的数据；预览会增加决策费用。",
+          "jev_consultation_path": "为简单列表选择参数固定的只读流程。附加条件仍由现有规划器处理。",
+          "jev_consultation_bounded": "选择今天或明天的日历，以及指定数量的列表。代码负责日期计算并遵守工具限制；不支持的条件交由原有规划器处理。",
+          "jev_filter_document": "对已从文档空间检索到的片段进行分类；片段不能证明整份文档中不存在某项事实。",
+          "jev_filter_mcp": "对已返回的结构化 MCP 结果进行分类；不调用工具、不授予权限，也不删减最终上下文。",
+          "jev_filter_ticket": "对已获授权的工单进行分类，不修改其状态、所有者或最终回答的上下文。",
+          "jev_filter_reminder": "对已获取的提醒进行可撤销的预览分类；最终回答仍可使用全部提醒。",
+          "jev_hitl_exclusion": "仅针对显示的列表提出排除建议。任何一项不确定时，整个列表交由原有筛选器处理。最终选择仍需您确认。",
+          "jev_observe_open_loops": "仅观察：将 JEV 与始终运行的原有提取器进行比较。会增加判断费用，并可能延长流结束时间。不会跳过任何提取。",
+          "jev_observe_journal": "仅观察：将 JEV 与始终运行的原有提取器进行比较。会增加判断费用，并可能延长流结束时间。不会跳过任何提取。",
+          "jev_observe_interests": "仅观察：将 JEV 与始终运行的原有提取器进行比较。会增加判断费用，并可能延长流结束时间。不会跳过任何提取。",
+          "jev_observe_memory": "仅观察：将 JEV 与始终运行的原有提取器进行比较。会增加判断费用，并可能延长流结束时间。不会跳过任何提取。",
+          "jev_initiative_utility": "仅在没有发现有用的操作、建议或后续步骤时跳过完整评估。不确定时仍交给现有评估器。",
+          "jev_radio_verification": "在生成音频前核查每一行有来源的内容。只要有一行不确定，就会将整个脚本交给现有核查器。",
+          "meeting_template_selection": "由 Jev 原生接口选择纪要模板，现有模型仍负责撰写纪要。"
         },
         "voiceTts": {
           "sectionTitle": "语音和提供商设置",
@@ -2555,6 +2641,66 @@
         "article12_hint": "一个时段的全部五类记录汇成一个 JSON Lines 文件：一次对话、一次行动、一次查阅、一次模型调用、记录本身的一处缺口。已做假名化处理，内容完整——不作任何截断——文件头会给出每个来源的精确条数。",
         "article12_export": "全部导出",
         "charts_title": "图表"
+      },
+      "jev": {
+        "title": "JEV 集成",
+        "description": "选择让 JEV 加速 LIA 决策的环节。",
+        "globalLabel": "启用 JEV",
+        "globalHelp": "总开关控制以下所有用途。关闭总开关后，各用途的单独设置会保留。",
+        "active": "已启用 JEV，必要时自动回退到现有处理方式。",
+        "existing": "使用现有处理方式。",
+        "fallbackHelp": "更改适用于新操作。正在进行的操作保留开始时的选择。如果 JEV 不可用或结果不确定，将使用现有处理方式。您明确选择的纪要模板始终优先。",
+        "configure": "LLM 配置",
+        "refresh": "刷新",
+        "saved": "设置已保存，新操作将使用此设置。",
+        "loadError": "无法加载设置，请刷新后重试。",
+        "saveError": "无法确认更改。请检查 TypeSafe 密钥、模型及其价格，刷新后再试。",
+        "readiness": {
+          "missing_key": "请在 LLM 配置中添加 TypeSafe API 密钥。",
+          "unavailable_model": "请在 LLM 配置中选择一个已启用的 TypeSafe 决策模型。",
+          "missing_price": "请在文本 LLM 定价中为所选模型添加有效的 Token 价格。",
+          "unavailable": "配置暂时不可用，现有处理方式仍然可用。"
+        },
+        "usageHelp": {
+          "meeting_template": "选择会议纪要模板；现有模型负责撰写纪要。",
+          "consultation_path": "为简单列表选择参数固定的只读流程。附加条件仍由现有规划器处理。",
+          "consultation_bounded": "选择今天或明天的日历，以及指定数量的列表。代码负责日期计算并遵守工具限制；不支持的条件交由原有规划器处理。",
+          "filter_document": "对已从文档空间检索到的片段进行分类；片段不能证明整份文档中不存在某项事实。",
+          "filter_mcp": "对已返回的结构化 MCP 结果进行分类；不调用工具、不授予权限，也不删减最终上下文。",
+          "filter_ticket": "对已获授权的工单进行分类，不修改其状态、所有者或最终回答的上下文。",
+          "filter_reminder": "对已获取的提醒进行可撤销的预览分类；最终回答仍可使用全部提醒。",
+          "hitl_exclusion": "仅针对显示的列表提出排除建议。任何一项不确定时，整个列表交由原有筛选器处理。最终选择仍需您确认。",
+          "observe_open_loops": "仅观察：将 JEV 与始终运行的原有提取器进行比较。会增加判断费用，并可能延长流结束时间。不会跳过任何提取。",
+          "observe_journal": "仅观察：将 JEV 与始终运行的原有提取器进行比较。会增加判断费用，并可能延长流结束时间。不会跳过任何提取。",
+          "observe_interests": "仅观察：将 JEV 与始终运行的原有提取器进行比较。会增加判断费用，并可能延长流结束时间。不会跳过任何提取。",
+          "observe_memory": "仅观察：将 JEV 与始终运行的原有提取器进行比较。会增加判断费用，并可能延长流结束时间。不会跳过任何提取。",
+          "initiative_utility": "仅在没有发现有用的操作、建议或后续步骤时跳过完整评估。不确定时仍交给现有评估器。",
+          "radio_verification": "在生成音频前核查每一行有来源的内容。只要有一行不确定，就会将整个脚本交给现有核查器。",
+          "filter_email": "在搜索过程中显示临时相关性预览。最终回答仍可使用所有已获取的数据；预览会增加决策费用。",
+          "filter_event": "在搜索过程中显示临时相关性预览。最终回答仍可使用所有已获取的数据；预览会增加决策费用。",
+          "filter_task": "在搜索过程中显示临时相关性预览。最终回答仍可使用所有已获取的数据；预览会增加决策费用。",
+          "filter_file": "在搜索过程中显示临时相关性预览。最终回答仍可使用所有已获取的数据；预览会增加决策费用。"
+        },
+        "usages": {
+          "consultation_path": "已知查询流程",
+          "consultation_bounded": "限定范围查询",
+          "filter_document": "文档片段预览",
+          "filter_mcp": "结构化 MCP 预览",
+          "filter_ticket": "工单预览",
+          "filter_reminder": "提醒预览",
+          "hitl_exclusion": "确认前排除",
+          "observe_open_loops": "未结事项提取观察",
+          "observe_journal": "日志提取观察",
+          "observe_interests": "兴趣提取观察",
+          "observe_memory": "记忆提取观察",
+          "initiative_utility": "主动建议的价值",
+          "radio_verification": "广播事实核查",
+          "meeting_template": "自动选择会议纪要模板",
+          "filter_email": "提前筛选邮件",
+          "filter_event": "提前筛选日程",
+          "filter_task": "提前筛选任务",
+          "filter_file": "提前筛选文档"
+        }
       }
     },
     "timezone": {
@@ -3893,7 +4039,8 @@
         "generated-assets": "文件 图片 文档 截图 下载 图库 生成 过期 保留 已保留 固定 书签 收藏 保存的回答 bookmarks 已索引 知识空间 搜索 与联系人分享 分享者",
         "sandbox-egress": "沙盒, python, 脚本, 网络, 互联网, 代理, 主机, 授权, 允许, 撤销, 出口, API, 集成",
         "live-mode": "实时, 语音, 对话, Gemini Live, GPT-Live, OpenAI, ElevenLabs, 代理, 直接会话, 委托, 模型, 思考深度, 静默, 时长, 花费上限, 打断, 按住说话, 麦克风",
-        "radio": "电台, 广播, 播客, 新闻, 头条, 分析, 评论, 声音, 音乐, 定时, 来源, 网站, 订阅源, RSS, 核查, 收听, 陪伴"
+        "radio": "电台, 广播, 播客, 新闻, 头条, 分析, 评论, 声音, 音乐, 定时, 来源, 网站, 订阅源, RSS, 核查, 收听, 陪伴",
+        "admin-jev": "JEV, TypeSafe, 开关, 延迟, 决策, 会议, 纪要模板, 回退"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -12338,9 +12485,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>只记录事实、绝不记录原话的日志</h2><p>遵循 <strong>OWASP 日志备忘录</strong>，debug 级别以上的一行日志只携带<strong>事实</strong>——数量、长度、标识符、错误代码、URL 的主机名——绝不携带某人写下的文字，或模型关于他们写下的文字：没有搜索内容，没有兴趣，没有文件、标签或空间的名称，也没有浏览过的网页。</p><p>这条规则<strong>按值</strong>核查，而不是按字段名：一项测试会读取代码中的每一个日志调用，拒绝预览或任何由内容派生的值，无论它叫什么名字。错误信息所<strong>引用</strong>的内容——被 PostgreSQL 拒绝的值、校验的输入——会在写入日志之前被移除，数据库错误以其事实描述：代码、约束、表。服务商密钥在每个被记录的地址中都会被遮蔽。有两个限制照实说明：外部服务以未知格式返回的错误仍可能引用某个值；debug 级别（生产环境中关闭）会保留更多内容。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>登记册</strong>页面下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "606个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：606 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 606个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中：只记事实，绝不记人们的原话</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>39个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。39个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p>"
+        "title": "608个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：608 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 608个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中：只记事实，绝不记人们的原话</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>39个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。39个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：155个提示作为代码管理",
@@ -13800,6 +13947,7 @@
       "confirm_reset_title": "恢复自动生成的版本？",
       "confirm_reset_description": "你的修改将被 LIA 生成的纪要替换。",
       "cost_breakdown": "{{total}}（转写 {{stt}} · 纪要 {{minutes}}）",
+      "cost_breakdown_native": "{{total}}（转录 {{stt}} · 纪要 {{minutes}} · 选择 {{selection}}）",
       "cost_unknown": "未定价",
       "transcript_line": "{{speaker}} 在 {{time}} 的发言",
       "format": "格式",

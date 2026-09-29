@@ -1,0 +1,1418 @@
+[
+  {
+    "id": "probe-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The agency plans to launch a probe. The launch depends on a successful safety review. The probe will study a moon. It will not carry passengers. No launch date has been confirmed."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The agency is planning a probe launch.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "A safety review must succeed before launch.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The mission is intended to study a moon.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "No passengers are planned for the probe.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The agency is planning a probe launch.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "probe-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The agency plans to launch a probe. The launch depends on a successful safety review. The probe will study a moon. It will not carry passengers. No launch date has been confirmed."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The agency is planning a probe launch.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "A safety review must succeed before launch.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The mission is intended to study a moon.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "No passengers are planned for the probe.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The agency has launched the probe.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "school-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The school is offering an optional gardening club. Joining is voluntary. Lessons remain unchanged. The club meets on school grounds. Families do not have to purchase equipment."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The school has an optional gardening club.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Participation is voluntary.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Regular lessons are unchanged.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Equipment purchases are not required of families.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The school has an optional gardening club.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "school-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The school is offering an optional gardening club. Joining is voluntary. Lessons remain unchanged. The club meets on school grounds. Families do not have to purchase equipment."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The school has an optional gardening club.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Participation is voluntary.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Regular lessons are unchanged.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Equipment purchases are not required of families.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Every pupil must join the gardening club.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "bridge-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The northern bridge is closed for inspection. The southern bridge remains open. Pedestrians may use the southern bridge. Inspectors have not announced structural damage. A reopening date is not available."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The northern bridge is undergoing an inspection and is closed.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The southern bridge is still open.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Pedestrians can cross using the southern bridge.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "No reopening date has been provided.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The northern bridge is undergoing an inspection and is closed.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "bridge-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The northern bridge is closed for inspection. The southern bridge remains open. Pedestrians may use the southern bridge. Inspectors have not announced structural damage. A reopening date is not available."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The northern bridge is undergoing an inspection and is closed.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The southern bridge is still open.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Pedestrians can cross using the southern bridge.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "No reopening date has been provided.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Inspectors have confirmed structural damage.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "study-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "An observational study found an association between walking and reported wellbeing. It did not establish causation. Participants reported their own wellbeing. The researchers called for further research. It was not a randomized trial."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The observational study found an association with reported wellbeing.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The study does not establish causation.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Wellbeing was self-reported by participants.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The authors called for further research.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The observational study found an association with reported wellbeing.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "study-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "An observational study found an association between walking and reported wellbeing. It did not establish causation. Participants reported their own wellbeing. The researchers called for further research. It was not a randomized trial."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The observational study found an association with reported wellbeing.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The study does not establish causation.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Wellbeing was self-reported by participants.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The authors called for further research.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The study proved that walking causes better wellbeing.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "strike-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The union called off a planned strike after negotiations. Transport services are expected to operate normally. The union said it accepted a temporary agreement. A permanent agreement has not been signed. Members will review the temporary agreement."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The planned strike has been called off.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Normal transport operations are expected.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The union accepted a temporary agreement.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Members will review the temporary arrangement.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The planned strike has been called off.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "strike-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The union called off a planned strike after negotiations. Transport services are expected to operate normally. The union said it accepted a temporary agreement. A permanent agreement has not been signed. Members will review the temporary agreement."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The planned strike has been called off.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Normal transport operations are expected.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The union accepted a temporary agreement.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Members will review the temporary arrangement.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "A permanent agreement has been signed.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "venue-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The theatre is reopening after renovation. Wheelchair access is available in the main hall. The balcony is accessible only by stairs. Booking is required. The programme includes local performers."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The theatre is reopening following renovation.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The main hall offers wheelchair access.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The balcony requires using stairs.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Visitors need to book.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The theatre is reopening following renovation.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "venue-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "The theatre is reopening after renovation. Wheelchair access is available in the main hall. The balcony is accessible only by stairs. Booking is required. The programme includes local performers."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The theatre is reopening following renovation.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The main hall offers wheelchair access.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The balcony requires using stairs.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Visitors need to book.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Every part of the theatre is wheelchair accessible.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "merger-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "Two companies are holding preliminary merger talks. No agreement has been reached. Any deal would need regulatory approval. Both companies continue operating independently. The announcement names no buyer."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The companies are in preliminary merger discussions.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "There is no agreement yet.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "A deal would require regulatory approval.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The companies still operate independently.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The companies are in preliminary merger discussions.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "merger-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "Two companies are holding preliminary merger talks. No agreement has been reached. Any deal would need regulatory approval. Both companies continue operating independently. The announcement names no buyer."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The companies are in preliminary merger discussions.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "There is no agreement yet.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "A deal would require regulatory approval.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The companies still operate independently.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "One company has acquired the other.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "weather-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "Forecasters expect rain in the eastern district tomorrow. The western district is expected to stay dry. Forecasts remain uncertain. No flooding warning has been issued. The report describes a forecast, not observed rainfall."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "Rain is forecast in the eastern district tomorrow.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The west is expected to remain dry.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The forecast is uncertain.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "No flooding warning has been issued.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Rain is forecast in the eastern district tomorrow.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "weather-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "Forecasters expect rain in the eastern district tomorrow. The western district is expected to stay dry. Forecasts remain uncertain. No flooding warning has been issued. The report describes a forecast, not observed rainfall."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "Rain is forecast in the eastern district tomorrow.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The west is expected to remain dry.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The forecast is uncertain.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "No flooding warning has been issued.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Rain has already fallen in the eastern district.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "wildlife-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "Researchers observed otters returning to a river. The population size has not been measured. The observation followed a habitat restoration project. Researchers did not attribute the return to the project with certainty. Monitoring will continue."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "Otters have been observed in the river again.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The population size is unknown.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The observation followed habitat restoration.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Monitoring is set to continue.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Otters have been observed in the river again.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "wildlife-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "Researchers observed otters returning to a river. The population size has not been measured. The observation followed a habitat restoration project. Researchers did not attribute the return to the project with certainty. Monitoring will continue."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "Otters have been observed in the river again.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The population size is unknown.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The observation followed habitat restoration.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Monitoring is set to continue.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The habitat project certainly caused the otters to return.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "concert-supported",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "A concert has been postponed because the venue is unavailable. Tickets remain valid. A replacement date will be announced later. Refunds are available on request. The performers have not cancelled their tour."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The concert has been postponed due to venue unavailability.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Existing tickets remain valid.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "A new date will be announced later.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Refunds can be requested.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The concert has been postponed due to venue unavailability.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "concert-mutated",
+    "language": "en",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "A concert has been postponed because the venue is unavailable. Tickets remain valid. A replacement date will be announced later. Refunds are available on request. The performers have not cancelled their tour."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "The concert has been postponed due to venue unavailability.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Existing tickets remain valid.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "A new date will be announced later.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Refunds can be requested.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "The performers have cancelled their entire tour.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "bibliotheque-supported",
+    "language": "fr",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "La bibliothèque propose désormais le prêt de liseuses. Le service est réservé aux adultes inscrits. Le prêt est gratuit. Les livres papier restent disponibles. Une réservation préalable est nécessaire."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "La bibliothèque prête désormais des liseuses.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Le service concerne les adultes inscrits.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Le prêt de liseuses est gratuit.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Il faut réserver à l’avance.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "La bibliothèque prête désormais des liseuses.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "bibliotheque-mutated",
+    "language": "fr",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "La bibliothèque propose désormais le prêt de liseuses. Le service est réservé aux adultes inscrits. Le prêt est gratuit. Les livres papier restent disponibles. Une réservation préalable est nécessaire."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "La bibliothèque prête désormais des liseuses.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Le service concerne les adultes inscrits.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Le prêt de liseuses est gratuit.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Il faut réserver à l’avance.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Les enfants peuvent emprunter une liseuse sans inscription.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  },
+  {
+    "id": "festival-supported",
+    "language": "fr",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "Le festival aura lieu dans un parc. L’entrée est gratuite mais certains ateliers sont payants. Les animaux ne sont pas admis, sauf les chiens d’assistance. Une annulation reste possible en cas d’intempéries. Le programme est provisoire."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "Le festival est prévu dans un parc.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "L’entrée est gratuite.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Certains ateliers sont payants.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Les chiens d’assistance sont admis.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Le festival est prévu dans un parc.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": []
+  },
+  {
+    "id": "festival-mutated",
+    "language": "fr",
+    "facts": [
+      {
+        "id": "n1",
+        "text": "Le festival aura lieu dans un parc. L’entrée est gratuite mais certains ateliers sont payants. Les animaux ne sont pas admis, sauf les chiens d’assistance. Une annulation reste possible en cas d’intempéries. Le programme est provisoire."
+      }
+    ],
+    "lines": [
+      {
+        "text": "Welcome to Radio 42. Here is the next story.",
+        "kind": "transition",
+        "refs": []
+      },
+      {
+        "text": "Le festival est prévu dans un parc.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "L’entrée est gratuite.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Certains ateliers sont payants.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Les chiens d’assistance sont admis.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "Tous les ateliers sont gratuits.",
+        "kind": "fact",
+        "refs": [
+          "n1"
+        ]
+      },
+      {
+        "text": "This concludes the bulletin. Thank you for listening.",
+        "kind": "transition",
+        "refs": []
+      }
+    ],
+    "expected_unsupported": [
+      5
+    ]
+  }
+]

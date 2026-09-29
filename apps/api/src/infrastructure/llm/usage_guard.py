@@ -39,6 +39,7 @@ logger = structlog.get_logger(__name__)
 #: ``test_usage_guard_at_every_chokepoint`` refuses both an omission and a
 #: declared door that never calls the guard.
 LLM_CHOKEPOINTS: tuple[tuple[str, str], ...] = (
+    ("infrastructure/llm/jev_runtime.py", "choose_many_with_jev"),
     ("infrastructure/llm/invoke_helpers.py", "invoke_with_instrumentation"),
     # The INNERMOST door, not its retry wrapper: ``get_structured_output`` is
     # public and nine modules call it directly, bypassing the wrapper entirely

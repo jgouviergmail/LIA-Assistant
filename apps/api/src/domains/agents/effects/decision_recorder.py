@@ -112,10 +112,10 @@ async def record_decision_once(decision: TurnDecision) -> None:
     Args:
         decision: The completed record.
     """
-    await _write_logged(decision, once=True)
+    await _write_shielded(decision, once=True)
 
 
-async def _write_shielded(decision: TurnDecision) -> None:
+async def _write_shielded(decision: TurnDecision, *, once: bool = False) -> None:
     """Write the turn, surviving a cancellation delivered during cleanup.
 
     One implementation, shared with the consultation register: shielding a
@@ -131,7 +131,7 @@ async def _write_shielded(decision: TurnDecision) -> None:
             cancelled turn stays cancelled.
     """
     cancelled = await write_through_cancellation(
-        lambda: _write_logged(decision),
+        lambda: _write_logged(decision, once=once),
         attempts=CANCELLATION_GRACE_ATTEMPTS,
         label="decision_write",
     )

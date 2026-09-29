@@ -32,6 +32,10 @@ from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.domains.agents.services.jev_extraction_observer import (
+    observe_extractor,
+    start_extraction_observation,
+)
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.journals.constants import (
     JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
@@ -52,6 +56,7 @@ from src.domains.journals.self_eval import (
     count_evidence_signals,
     record_self_eval_funnel,
 )
+from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.shared.extraction_targets import (
     find_last_user_message,
     is_synthetic_message,
@@ -595,6 +600,7 @@ async def _update_user_last_cost(
 # =============================================================================
 
 
+@observe_extractor(JevUsage.OBSERVE_JOURNAL)
 async def extract_journal_entry_background(
     user_id: str,
     messages: list[BaseMessage],
@@ -801,6 +807,7 @@ async def extract_journal_entry_background(
 
         llm = get_llm("journal_extraction")
         _llm_start = _time.time()
+        observation = start_extraction_observation(prompt)
         try:
             result = await invoke_with_instrumentation(
                 llm=llm,
@@ -818,6 +825,7 @@ async def extract_journal_entry_background(
                 )
             raise
         _llm_duration_ms = (_time.time() - _llm_start) * 1000
+        observation.set_output(result.text)
         with suppress(Exception):
             journal_extraction_duration_seconds.labels(outcome="success").observe(
                 _llm_duration_ms / 1000.0

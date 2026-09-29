@@ -225,11 +225,12 @@ function TreatmentRow({ item: entry, when }: TreatmentRowProps) {
       when={when}
       dateTime={entry.occurred_at}
       headlineBadges={
-        entry.repeats > 1 ? (
-          <Badge variant="secondary">
-            {t('treatments.journal.repeats', { count: entry.repeats })}
-          </Badge>
-        ) : undefined
+        <>
+          {entry.tool_name.startsWith('radio:') && <Badge>{t('radio.station_name')}</Badge>}
+          {entry.repeats > 1 && (
+            <Badge>{t('treatments.journal.repeats', { count: entry.repeats })}</Badge>
+          )}
+        </>
       }
       detailBadges={
         // ALWAYS, the way the action register always states its status. Shown

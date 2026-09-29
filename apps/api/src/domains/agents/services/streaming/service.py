@@ -100,6 +100,7 @@ _CHUNK_EVENT_TYPES: dict[str, str] = {
     "router_decision": "STREAM_METADATA",
     "execution_step": "STREAM_METADATA",
     "registry_update": "STREAM_REGISTRY",  # Data Registry: side-channel data
+    "result_preview": "STREAM_REGISTRY",
     "debug_metrics": "STREAM_DEBUG",  # Debug Panel: scoring metrics (DEBUG=true only)
     "error": "STREAM_ERROR",
     "done": "STREAM_COMPLETE",

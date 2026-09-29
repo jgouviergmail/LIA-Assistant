@@ -13,6 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input, raise_llm_type_not_found
 from src.core.session_dependencies import get_current_superuser_session
+from src.domains.llm_config.jev_admin import (
+    JevSettingsResponse,
+    get_jev_settings,
+    update_jev_setting,
+)
+from src.domains.llm_config.jev_settings import JevToggleUpdate
 from src.domains.llm_config.schemas import (
     LLMConfigListResponse,
     LLMTypeConfig,
@@ -32,6 +38,26 @@ router = APIRouter(
 
 
 # --- Provider Keys ---
+
+
+@router.get("/jev", response_model=JevSettingsResponse, summary="Read Jev integration switches")
+async def get_jev(
+    current_user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> JevSettingsResponse:
+    """Read stored preferences and effective availability (admin only)."""
+    return await get_jev_settings(db)
+
+
+@router.patch("/jev", response_model=JevSettingsResponse, summary="Update one Jev switch")
+async def patch_jev(
+    body: JevToggleUpdate,
+    request: Request,
+    current_user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> JevSettingsResponse:
+    """Persist and audit a single preference; future operations read it immediately."""
+    return await update_jev_setting(db, body, admin_user_id=current_user.id, request=request)
 
 
 @router.get(

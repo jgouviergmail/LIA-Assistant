@@ -102,6 +102,28 @@ class SystemSettingKey(str, enum.Enum):
     # "take the demo offline" cannot wait for a rebuild.
     PUBLIC_DEMO_LINK_ENABLED = "public_demo_link_enabled"
 
+    # Native decision routing. Absent means OFF; read without a cache.
+    JEV_ENABLED = "jev_enabled"
+    JEV_MEETING_TEMPLATE_ENABLED = "jev_meeting_template_enabled"
+    JEV_FILTER_EMAIL_ENABLED = "jev_filter_email_enabled"
+    JEV_FILTER_EVENT_ENABLED = "jev_filter_event_enabled"
+    JEV_FILTER_TASK_ENABLED = "jev_filter_task_enabled"
+    JEV_FILTER_FILE_ENABLED = "jev_filter_file_enabled"
+    JEV_RADIO_VERIFICATION_ENABLED = "jev_radio_verification_enabled"
+    JEV_CONSULTATION_PATH_ENABLED = "jev_consultation_path_enabled"
+    JEV_CONSULTATION_BOUNDED_ENABLED = "jev_consultation_bounded_enabled"
+    JEV_OBSERVE_MEMORY_ENABLED = "jev_observe_memory_enabled"
+    JEV_OBSERVE_INTERESTS_ENABLED = "jev_observe_interests_enabled"
+    JEV_OBSERVE_JOURNAL_ENABLED = "jev_observe_journal_enabled"
+    JEV_OBSERVE_OPEN_LOOPS_ENABLED = "jev_observe_open_loops_enabled"
+    JEV_HITL_EXCLUSION_ENABLED = "jev_hitl_exclusion_enabled"
+    JEV_FILTER_REMINDER_ENABLED = "jev_filter_reminder_enabled"
+    JEV_FILTER_TICKET_ENABLED = "jev_filter_ticket_enabled"
+    JEV_FILTER_MCP_ENABLED = "jev_filter_mcp_enabled"
+    JEV_FILTER_DOCUMENT_ENABLED = "jev_filter_document_enabled"
+
+    JEV_INITIATIVE_UTILITY_ENABLED = "jev_initiative_utility_enabled"
+
     # Future settings can be added here:
     # MAINTENANCE_MODE = "maintenance_mode"
     # DEFAULT_LANGUAGE = "default_language"

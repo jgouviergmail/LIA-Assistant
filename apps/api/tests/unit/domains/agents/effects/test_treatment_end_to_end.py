@@ -96,6 +96,7 @@ async def _run_turn(recorded: _Recorded, monkeypatch: pytest.MonkeyPatch) -> lis
             _chunk("token", content="ok", fragment="ok"),
         ],
         original_run_id=RUN_ID,
+        record_treatments=True,
     )
     with (
         patch.object(gate_runtime, "resolve_policy", lambda _n: "read"),

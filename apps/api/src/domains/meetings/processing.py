@@ -37,12 +37,14 @@ from src.core.i18n import normalize_language
 from src.core.i18n_drafts import label_separator
 from src.core.i18n_meetings import get_notification_title
 from src.core.security.utils import encrypt_data
+from src.domains.agents.effects.models import DecisionOutcome
 from src.domains.meetings.audio_store import (
     AudioStorageError,
     MeetingAudioStore,
     normalized_mime_type,
     pcm_duration_seconds,
 )
+from src.domains.meetings.costs import cost_metadata as _cost_metadata
 from src.domains.meetings.engine import ResolvedEngine, resolve_engine
 from src.domains.meetings.enrichment import CalendarMatch, enrich_meeting
 from src.domains.meetings.error_codes import (
@@ -63,6 +65,7 @@ from src.domains.meetings.models import (
     MeetingStatus,
     MeetingSttEnginePreference,
 )
+from src.domains.meetings.native_spend import finalize_native_meeting_run
 from src.domains.meetings.repository import MeetingPreferenceRepository, MeetingRepository
 from src.domains.meetings.schemas import MeetingReport, SectionKind, TemplateSection
 from src.domains.meetings.synthesis import (
@@ -188,6 +191,8 @@ class _Job:
         self.store = MeetingAudioStore(settings.meetings_storage_path)
         self.stage_started = time.monotonic()
         self.stage: MeetingStage = MeetingStage.NORMALIZING
+        self.run_id: str | None = None
+        self.outcome = DecisionOutcome.FAILED
 
     async def heartbeat(
         self, repo: MeetingRepository, values: Mapping[str, Any] | None = None
@@ -457,37 +462,12 @@ async def _notify_ready(
             "index_state": meeting.index_state.value if meeting.index_state else None,
             "stt_provider": outcome.provider.value,
             "gaps": gaps,
-            **_cost_metadata(meeting, outcome, usage),
+            **_cost_metadata(meeting, outcome, usage, run_id=run_id),
         },
         db=db,
         title=get_notification_title(language),
         run_id=run_id,
     )
-
-
-def _cost_metadata(
-    meeting: Meeting, outcome: TranscriptionOutcome, usage: SynthesisUsage
-) -> dict[str, Any]:
-    """The paid units of the exchange, in the shape the chat bubble reads.
-
-    ``tokens_*``, ``model_name`` and ``cost_eur`` are the runner's standard keys
-    (``cost_eur`` = everything this exchange cost); the ``stt_*`` and
-    ``llm_cost_eur`` keys give the card its breakdown. An unknown price stays
-    None rather than counting as zero.
-    """
-    llm_cost = meeting.synthesis_cost_eur
-    priced = [c for c in (outcome.cost_eur, llm_cost) if c is not None]
-    return {
-        "tokens_in": usage.tokens_in,
-        "tokens_out": usage.tokens_out,
-        "tokens_cache": usage.tokens_cache,
-        "model_name": usage.model_name,
-        "llm_cost_eur": llm_cost,
-        "stt_cost_eur": outcome.cost_eur,
-        "stt_audio_duration_seconds": outcome.audio_duration_seconds,
-        "stt_model": outcome.model,
-        "cost_eur": round(sum(priced), 6) if priced else None,
-    }
 
 
 async def _auto_email(
@@ -679,6 +659,7 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     # (Geocoding), the minutes (tokens) — minted once, before the first bill.
     await job.enter_stage(repo, MeetingStage.SYNTHESIZING)
     run_id = generate_proactive_run_id(MEETINGS_PROACTIVE_TASK_TYPE, str(meeting.id))
+    job.run_id = run_id
     calendar, location_label = await enrich_meeting(
         meeting, stopped_at=stopped_at, language=language, run_id=run_id
     )
@@ -689,6 +670,7 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
         calendar_title=calendar.title if calendar else None,
         language=language,
         capture=capture,
+        run_id=run_id,
     )
     synthesis = await _synthesize(
         meeting,
@@ -722,6 +704,7 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     )
     if not completed:
         raise LeaseLostError(f"completion refused for meeting {job.meeting_id}")
+    job.outcome = DecisionOutcome.ANSWERED
     meetings_total.labels(status="ready").inc()
     meeting_recording_duration_seconds.observe(duration)
     logger.info(
@@ -780,6 +763,9 @@ async def process_meeting(meeting_id: UUID) -> None:
         )
         try:
             await _run(job, repo, db, meeting)
+        except asyncio.CancelledError:
+            job.outcome = DecisionOutcome.INTERRUPTED
+            raise
         except LeaseLostError as exc:
             logger.warning("meeting_lease_lost", meeting_id=str(meeting_id), error=str(exc))
         except AudioStorageError as exc:
@@ -801,3 +787,6 @@ async def process_meeting(meeting_id: UUID) -> None:
         except Exception as exc:  # noqa: BLE001 — a PROCESSING row must never be left hanging
             logger.exception("meeting_processing_unexpected", meeting_id=str(meeting_id))
             await _fail_guarded(repo, job, code=ERROR_UNEXPECTED, message=str(exc), transient=True)
+        finally:
+            if job.run_id is not None:
+                await finalize_native_meeting_run(meeting.user_id, job.run_id, job.outcome)

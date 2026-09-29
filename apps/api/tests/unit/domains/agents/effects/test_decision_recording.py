@@ -36,6 +36,29 @@ from src.domains.agents.effects.models import DecisionOutcome
 pytestmark = [pytest.mark.unit]
 
 
+async def test_one_shot_record_survives_cancellation_without_starting_a_second_write() -> None:
+    from src.domains.agents.effects import decision_recorder as module
+
+    entered, release = asyncio.Event(), asyncio.Event()
+    completed: list[bool] = []
+
+    async def write(decision: TurnDecision, *, once: bool = False) -> None:
+        entered.set()
+        await release.wait()
+        completed.append(once)
+
+    with patch.object(module, "_write_logged", write):
+        task = asyncio.create_task(module.record_decision_once(_turn()))
+        await entered.wait()
+        task.cancel()
+        await asyncio.sleep(0)
+        task.cancel()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    assert completed == [True]
+
+
 def _turn(**overrides: object) -> TurnDecision:
     base: dict[str, object] = {
         "run_id": f"run-{uuid.uuid4().hex[:8]}",

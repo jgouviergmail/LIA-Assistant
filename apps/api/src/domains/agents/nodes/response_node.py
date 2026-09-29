@@ -84,6 +84,7 @@ from src.domains.agents.context.runtime_context import (
     runtime_user_id_str,
     runtime_voice_enabled,
 )
+from src.domains.agents.display.collection_preview import CollectionPreview
 
 # V3 Display Architecture imports
 from src.domains.agents.display.config import config_for_viewport
@@ -2601,7 +2602,7 @@ def _build_data_for_filtering(current_turn_registry: dict[str, Any] | None, run_
                 "intelligent_filtering_data_generated",
                 run_id=run_id,
                 item_count=len(current_turn_registry),
-                data_preview=data_for_filtering[:200] if data_for_filtering else "",
+                data_characters=len(data_for_filtering),
             )
         except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:
             # Log error but continue without filtering data
@@ -3112,6 +3113,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
           by @track_metrics decorator. Only business logic error handling remains here.
     """
     run_id = run_id_of(config, "unknown")
+    collection_preview = CollectionPreview()
+    document_preview = CollectionPreview()
 
     logger.info(
         "response_node_started",
@@ -3150,6 +3153,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             override_action,
             personality_instruction,
         ) = _prepare_turn_registry(state, run_id, agent_results_raw)
+        collection_preview.start(state, current_turn_registry, run_id)
         # Registry items produced by the skill ReAct sub-agent (persisted via the
         # merge_registry reducer in state_update, not by in-place mutation — F5).
         skill_registry_updates: dict[str, Any] | None = None
@@ -3186,6 +3190,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
 
         psychological_profile = context_bundle.psychological_profile
         rag_context = context_bundle.rag_context
+        document_preview.start(state, context_bundle.rag_preview_items, run_id)
         app_knowledge_context = context_bundle.app_knowledge_context
         if context_bundle.system_rag_deferred:
             # Latency lot R2: the router-entry prefetch could not evaluate the
@@ -3619,3 +3624,5 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
 
     except (RuntimeError, ValueError, KeyError, TypeError, AttributeError) as e:
         return _response_error_fallback(state, run_id, e)
+    finally:
+        await asyncio.gather(collection_preview.close(), document_preview.close())

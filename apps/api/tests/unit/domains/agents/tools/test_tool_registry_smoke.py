@@ -173,7 +173,7 @@ class TestToolFamiliesRegistered:
 class TestToolInvocationSmoke:
     """Layer 3: invoke every registered tool with minimal mocks.
 
-    Network and event-loop sleeps are blocked so external tools fail fast on
+    HTTP, PostgreSQL and event-loop sleeps are blocked so tools fail fast on
     their error path. The contract: NO programming error may escape the tool
     or be the classified cause of its structured error payload.
     """
@@ -198,6 +198,10 @@ class TestToolInvocationSmoke:
         with (
             patch.object(httpx.AsyncClient, "send", _blocked_request),
             patch.object(httpx.Client, "send", side_effect=httpx.ConnectError("blocked")),
+            # The external-network guard allows loopback. Integrity recording
+            # also opens PostgreSQL before a gated tool runs, so blocking HTTP
+            # alone leaves every tool waiting on a real local database.
+            patch("asyncpg.connect", side_effect=ConnectionError("DB blocked by smoke test")),
             patch("asyncio.sleep", _fast_sleep),
         ):
             for name, tool in sorted(tools.items()):

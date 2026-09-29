@@ -45,6 +45,7 @@ from src.domains.shared.extraction_targets import is_synthetic_message
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig
 
+    from src.domains.agents.data_registry.models import RegistryItem
     from src.domains.agents.models import MessagesState
 
 logger = structlog.get_logger(__name__)
@@ -61,6 +62,7 @@ class ResponseContextBundle:
     psychological_profile: str | None = None
     memory_injection_debug: dict[str, Any] | None = None
     rag_context: str | None = None
+    rag_preview_items: dict[str, RegistryItem] = field(default_factory=dict)
     rag_injection_debug: dict[str, Any] | None = None
     app_knowledge_context: str = ""
     journal_context: str = ""
@@ -174,6 +176,7 @@ async def fetch_user_rag_context(
     config: RunnableConfig,
     last_user_message: str,
     run_id: str,
+    preview_items: dict[str, RegistryItem] | None = None,
 ) -> tuple[str | None, dict[str, Any] | None]:
     """The ``<UserDocuments>`` content for one message — the ONE implementation.
 
@@ -186,6 +189,7 @@ async def fetch_user_rag_context(
         config: RunnableConfig carrying the thread id.
         last_user_message: The person's current message.
         run_id: Current run identifier (embedding cost attribution).
+        preview_items: Optional ephemeral output, populated from the SAME authorized chunks.
 
     Returns:
         ``(prompt_context, injection_debug)`` or ``(None, None)`` when the
@@ -213,6 +217,10 @@ async def fetch_user_rag_context(
                 run_id=run_id,
             )
         if rag_result and rag_result.chunks:
+            if preview_items is not None:
+                from src.domains.agents.display.document_preview import document_preview_registry
+
+                preview_items.update(document_preview_registry(rag_result))
             injection_debug = {
                 "spaces_searched": rag_result.spaces_searched,
                 "chunks_found": rag_result.total_results,
@@ -395,10 +403,15 @@ async def fetch_response_context(
             )
             return None, None
 
+    rag_preview_items: dict[str, RegistryItem] = {}
+
     async def _inject_user_rag() -> tuple[str | None, dict[str, Any] | None]:
         """RAG Spaces context injection (user documents, own DB session)."""
         return await fetch_user_rag_context(
-            config=config, last_user_message=last_user_message, run_id=run_id
+            config=config,
+            last_user_message=last_user_message,
+            run_id=run_id,
+            preview_items=rag_preview_items,
         )
 
     async def _inject_system_rag() -> str:
@@ -622,6 +635,7 @@ async def fetch_response_context(
         psychological_profile=psychological_profile,
         memory_injection_debug=memory_injection_debug,
         rag_context=rag_context,
+        rag_preview_items=rag_preview_items,
         rag_injection_debug=rag_injection_debug,
         app_knowledge_context=app_knowledge_context,
         journal_context=journal_context,

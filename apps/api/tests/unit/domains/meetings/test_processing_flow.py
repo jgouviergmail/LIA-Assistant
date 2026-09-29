@@ -7,6 +7,7 @@ what a lost lease forbids, and that a stage is never left dangling.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any
@@ -77,6 +78,35 @@ def _meeting(**overrides: Any) -> MagicMock:
 
 
 class TestProcessMeeting:
+    @pytest.mark.parametrize("cancelled", [False, True])
+    async def test_a_failed_paid_run_is_closed_even_on_cancellation(
+        self, db_context, repo, monkeypatch, cancelled
+    ):
+        from src.domains.agents.effects.models import DecisionOutcome
+
+        meeting = _meeting()
+        repo.get_by_id.return_value = meeting
+        writer = AsyncMock()
+        monkeypatch.setattr(processing, "finalize_native_meeting_run", writer)
+
+        async def fail(job, *args):
+            job.run_id = "paid-run"
+            if cancelled:
+                raise asyncio.CancelledError
+            raise RuntimeError("synthesis failed")
+
+        monkeypatch.setattr(processing, "_run", fail)
+        if cancelled:
+            with pytest.raises(asyncio.CancelledError):
+                await process_meeting(meeting.id)
+        else:
+            await process_meeting(meeting.id)
+        writer.assert_awaited_once_with(
+            meeting.user_id,
+            "paid-run",
+            DecisionOutcome.INTERRUPTED if cancelled else DecisionOutcome.FAILED,
+        )
+
     async def test_a_lost_claim_touches_nothing(
         self, db_context: MagicMock, repo: AsyncMock
     ) -> None:

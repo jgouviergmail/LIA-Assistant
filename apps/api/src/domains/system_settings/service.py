@@ -128,6 +128,8 @@ async def write_setting(
         )
         db.add(setting)
 
+    # Populate a new row's UUID before the audit references it, in the same transaction.
+    await db.flush()
     db.add(
         AdminAuditLog(
             admin_user_id=admin_user_id,

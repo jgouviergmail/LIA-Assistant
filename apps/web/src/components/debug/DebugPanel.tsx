@@ -22,6 +22,8 @@ import { Accordion } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import type { DebugMetrics } from '@/types/chat';
 import type { DebugMetricsEntry } from '@/types/chat-state';
+import type { Language } from '@/i18n/settings';
+import { JevDebugSection } from './components/sections/JevDebugSection';
 
 // Error boundary
 import { DebugPanelErrorBoundary } from './errors/DebugPanelErrorBoundary';
@@ -82,6 +84,7 @@ import {
 import { DEFAULT_OPEN_SECTIONS } from './utils/constants';
 
 export interface DebugPanelProps {
+  lng?: Language;
   /** Debug metrics (validated by useDebugMetrics) */
   metrics: DebugMetrics | null;
   /** Cumulative metrics history (most recent first) */
@@ -99,7 +102,12 @@ export interface DebugPanelProps {
 export function DebugPanel(props: DebugPanelProps) {
   return (
     <DebugPanelErrorBoundary>
-      <DebugPanelContent {...props} />
+      <div className={cn('flex h-full min-h-0 flex-col', props.className)}>
+        <JevDebugSection lng={props.lng ?? 'en'} />
+        <div className="min-h-0 flex-1">
+          <DebugPanelContent {...props} className={undefined} />
+        </div>
+      </div>
     </DebugPanelErrorBoundary>
   );
 }

@@ -165,7 +165,7 @@ export async function TechSection({ lng }: TechSectionProps) {
               aria-hidden="true"
             />
           </summary>
-          <p className="mt-5 max-w-[80ch] whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-5 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
             {t('landing.tech.intro')}
           </p>
           <div className="mt-6 grid items-start gap-3 md:grid-cols-2">

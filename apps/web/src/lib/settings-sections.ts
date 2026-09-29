@@ -405,6 +405,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'admin-llm-config',
     declaredIn: 'components/settings/AdminLLMConfigSection.tsx',
   },
+  'admin-jev': {
+    tab: 'administration',
+    accordionValue: 'admin-jev',
+    declaredIn: 'components/settings/AdminJevSection.tsx',
+  },
   'admin-personalities': {
     tab: 'administration',
     accordionValue: 'admin-personalities',

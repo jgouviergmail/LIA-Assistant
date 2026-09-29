@@ -184,6 +184,7 @@ class SmartPlannerService:
         # tracks the user's rejection, not the operator's switch.
         from src.domains.agents.registry import get_global_registry
         from src.domains.agents.services.planner_capability_filter import (
+            apply_tool_exclusions,
             merge_capability_exclusions,
         )
 
@@ -230,17 +231,18 @@ class SmartPlannerService:
         )
 
         # F6: Post-filter excluded tools (e.g., sub-agent delegation after user rejection)
-        if exclude_tools:
-            original_count = filtered.tool_count
-            filtered.tools = [t for t in filtered.tools if t["name"] not in exclude_tools]
-            filtered.tool_count = len(filtered.tools)
-            if filtered.tool_count < original_count:
-                logger.info(
-                    "smart_planner_tools_excluded",
-                    excluded=list(exclude_tools),
-                    original_count=original_count,
-                    filtered_count=filtered.tool_count,
-                )
+        apply_tool_exclusions(filtered, exclude_tools)
+
+        from src.domains.agents.services.planner.jev_consultation import try_consultation_plan
+
+        if not (
+            validation_feedback or clarification_response or clarification_field or existing_plan
+        ):
+            native = await try_consultation_plan(
+                intelligence, config, filtered, journal_context=journal_context
+            )
+            if native is not None:
+                return native
 
         logger.info(
             "smart_planner_start",

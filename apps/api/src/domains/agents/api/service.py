@@ -67,6 +67,7 @@ from src.domains.agents.services.streaming.followup_metadata import (
     pop_motivation,
     with_initiative_motivation,
 )
+from src.domains.agents.services.streaming.journey_timing import JourneyTiming
 from src.domains.agents.services.streaming.voice_coordinator import (
     VoiceStreamContext,
     VoiceStreamCoordinator,
@@ -576,6 +577,7 @@ class AgentService(
         # Detect HITL resumption early (needed for message counting logic)
         is_hitl_resumption = original_run_id is not None
         start_time = time.time()
+        journey_timing = JourneyTiming()
         first_token_time = None
         intention_label = "unknown"
         token_count = 0
@@ -878,16 +880,10 @@ class AgentService(
                     # Non-admin: system_setting.debug_panel_user_access_enabled AND user.debug_panel_enabled
                     debug_panel_for_user = False
                     try:
-                        from src.domains.system_settings.service import (
-                            get_debug_panel_enabled,
-                            get_debug_panel_user_access_enabled,
-                        )
+                        from src.domains.system_settings.debug_access import can_read_debug
 
-                        if user_obj and user_obj.is_superuser:
-                            debug_panel_for_user = await get_debug_panel_enabled()
-                        elif user_obj:
-                            user_access = await get_debug_panel_user_access_enabled()
-                            debug_panel_for_user = user_access and user_obj.debug_panel_enabled
+                        if user_obj:
+                            debug_panel_for_user = await can_read_debug(user_obj)
                     except Exception as e:
                         logger.debug("debug_panel_pre_compute_failed", error=str(e))
 
@@ -957,6 +953,9 @@ class AgentService(
                             content_fragment,
                         ) in self._interleave_side_channel(sse_stream, side_channel_queue):
                             activity_summary.observe(sse_chunk.metadata)
+                            journey_timing.observe(
+                                sse_chunk.type, content_fragment, sse_chunk.metadata
+                            )
                             # Track response content for archiving
                             # ✅ CRITICAL FIX: content_replacement should REPLACE, not append
                             # When photos are injected via post-processing, StreamingService emits
@@ -1286,6 +1285,7 @@ class AgentService(
                         duration=duration,
                         ttft=ttft,
                         token_count=token_count,
+                        **journey_timing.measurements(),
                     )
 
                 # === CRITICAL: TrackingContext exits here via __aexit__() ===
@@ -1608,6 +1608,7 @@ class AgentService(
                     attach_tone_to_done(done_metadata, run_id)
                     done_metadata["companion_activity"] = activity_summary.snapshot()
 
+                    journey_timing.log_completed(run_id, done_metadata["cost_eur"])
                     yield ChatStreamChunk(
                         type="done",
                         content="",

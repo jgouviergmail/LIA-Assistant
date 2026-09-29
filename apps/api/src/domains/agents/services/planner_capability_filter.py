@@ -24,6 +24,7 @@ import structlog
 
 if TYPE_CHECKING:
     from src.domains.agents.registry import AgentRegistry
+    from src.domains.agents.services.smart_catalogue_service import FilteredCatalogue
 
 logger = structlog.get_logger(__name__)
 
@@ -95,3 +96,19 @@ async def merge_capability_exclusions(
     hidden = await tools_hidden_by_capabilities(registry)
     merged = set(exclude_tools or set()) | hidden
     return merged or None
+
+
+def apply_tool_exclusions(catalogue: FilteredCatalogue, excluded: set[str] | None) -> None:
+    """Apply user and operator exclusions before any native or generative planner."""
+    if not excluded:
+        return
+    original_count = catalogue.tool_count
+    catalogue.tools = [tool for tool in catalogue.tools if tool["name"] not in excluded]
+    catalogue.tool_count = len(catalogue.tools)
+    if catalogue.tool_count < original_count:
+        logger.info(
+            "smart_planner_tools_excluded",
+            excluded=list(excluded),
+            original_count=original_count,
+            filtered_count=catalogue.tool_count,
+        )

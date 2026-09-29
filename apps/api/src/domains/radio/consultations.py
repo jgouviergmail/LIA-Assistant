@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from time import perf_counter
 from typing import Final
 from uuid import UUID
 
@@ -73,4 +74,26 @@ async def collecting(run_id: str) -> AsyncIterator[None]:
         yield
 
 
-__all__ = ["SURFACE", "collecting", "recorder_for"]
+@asynccontextmanager
+async def consulted(user_id: UUID, run_id: str, section: str) -> AsyncIterator[None]:
+    """Record an attempted read, including empty results, errors and cancellation.
+
+    The collector flushes after the observation, including when the caller is
+    cancelled. No source content belongs in the register.
+    """
+    started = perf_counter()
+    succeeded = False
+    async with collecting(run_id):
+        try:
+            yield
+            succeeded = True
+        finally:
+            opened = frozenset({section})
+            recorder_for(user_id, run_id)(
+                opened=opened,
+                failed=frozenset() if succeeded else opened,
+                duration_ms=int((perf_counter() - started) * 1000),
+            )
+
+
+__all__ = ["SURFACE", "collecting", "consulted", "recorder_for"]

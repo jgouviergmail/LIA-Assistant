@@ -26,6 +26,7 @@ from src.domains.llm_config.reasoning_validation import validate_reasoning_effor
 # (post-migration matrix). Keys: model_name -> (widget, enum_values_or_None,
 # budget_range_or_None).
 _REFERENCE_MATRIX: dict[str, tuple[str, list[str] | None, dict[str, Any] | None]] = {
+    "jev-1.13.0": ("none", None, None),
     # OpenAI reasoning models used in defaults (widget=enum)
     "gpt-5-mini": ("enum", ["minimal", "low", "medium", "high"], None),
     "gpt-5.4-mini": ("enum", ["none", "low", "medium", "high", "xhigh"], None),

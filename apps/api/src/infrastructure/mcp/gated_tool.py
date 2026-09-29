@@ -27,6 +27,8 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
+from pydantic import BaseModel
+
 
 class EffectGatedMCPTool:
     """Mixin installing the effect gate inside an MCP adapter's own call path.
@@ -46,6 +48,22 @@ class EffectGatedMCPTool:
         # annotation here would be collected by pydantic as a FIELD of every
         # adapter that mixes this class in.
         name: str
+        description: str
+        args_schema: type[BaseModel] | dict[str, Any] | None
+
+    @property
+    def tool_call_schema(self) -> dict[str, Any]:
+        """Expose the server's parameter names, retaining Pydantic field aliases.
+
+        MCP parameters contain no LangChain-injected fields. Its default subset
+        builder drops aliases, advertising internal names the server cannot read.
+        """
+        schema = self.args_schema
+        if isinstance(schema, type) and issubclass(schema, BaseModel):
+            declared = schema.model_json_schema()
+        else:
+            declared = schema or {"type": "object", "properties": {}}
+        return {**declared, "description": self.description}
 
     async def _call_server(self, **kwargs: Any) -> Any:
         """Talk to the MCP server. Implemented by each adapter."""
@@ -94,4 +112,13 @@ class EffectGatedMCPTool:
             Whatever the gate returns: the server's result, a confirmation
             draft, a refusal, or the record of an effect already performed.
         """
+        # LangChain validates aliases but passes Python field names to _arun.
+        # Restore the server's names BEFORE the effect gate sees the arguments.
+        schema = self.args_schema
+        if isinstance(schema, type) and issubclass(schema, BaseModel):
+            fields = schema.model_fields
+            kwargs = {
+                (fields[key].alias or key) if key in fields else key: value
+                for key, value in kwargs.items()
+            }
         return await self._effect_gated_call()(**kwargs)

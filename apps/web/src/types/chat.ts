@@ -149,6 +149,7 @@ export type SSEChunkType =
   | 'execution_step'
   // LARS: Registry-First Architecture (side-channel data)
   | 'registry_update'
+  | 'result_preview'
   // Debug Panel: Scoring metrics for threshold tuning (DEBUG=true only)
   | 'debug_metrics'
   | 'debug_metrics_update'
@@ -696,7 +697,7 @@ export interface LLMCall {
   tokens_cache: number; // Cached input tokens
   cost_eur: number; // Cost in EUR for this call
   duration_ms?: number; // v3.2: LLM call duration in milliseconds
-  call_type?: 'chat' | 'embedding' | 'image_generation'; // v3.3/v3.4: call category
+  call_type?: 'chat' | 'embedding' | 'image_generation' | 'decision'; // Call category
   sequence?: number; // v3.3: Chronological order number (per tracking context)
   started_offset_ms?: number; // v3.4: Start position on the run timeline (waterfall)
   // B8 — what was actually SENT and what came back. Recorded since ADR-263

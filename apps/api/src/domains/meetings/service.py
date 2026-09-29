@@ -40,6 +40,7 @@ from src.domains.meetings.models import (
     MeetingStatus,
     MeetingSttEnginePreference,
 )
+from src.domains.meetings.native_spend import selection_charges
 from src.domains.meetings.repository import (
     LIVE_STATUSES,
     MeetingPreferenceRepository,
@@ -161,12 +162,13 @@ def _selection_or_none(value: str | None) -> TemplateSelection | None:
 
 
 def total_cost_eur(meeting: Meeting) -> float | None:
-    """Transcription + minutes, or None while nothing priced was spent.
+    """Transcription, native selection and minutes; None if none were priced.
 
-    A None on one side is an unknown price, not a zero: it neither hides the
-    other side nor turns into a free claim (ADR-185, a count is exact or absent).
+    An unknown component neither hides the other priced components nor turns
+    into a free claim (ADR-185, a count is exact or absent).
     """
     parts = [c for c in (meeting.stt_cost_eur, meeting.synthesis_cost_eur) if c is not None]
+    parts.extend(charge.cost_eur for charge in selection_charges(meeting))
     return round(sum(parts), 6) if parts else None
 
 
@@ -494,6 +496,7 @@ class MeetingService:
             synthesis_tokens_out=meeting.synthesis_tokens_out,
             synthesis_tokens_cache=meeting.synthesis_tokens_cache,
             synthesis_cost_eur=meeting.synthesis_cost_eur,
+            template_selection_usage=selection_charges(meeting),
             total_cost_eur=total_cost_eur(meeting),
             has_transcript=bool(meeting.transcript_encrypted),
             report=report,

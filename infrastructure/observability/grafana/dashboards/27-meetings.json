@@ -474,6 +474,76 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 103,
+      "title": "Jev decisions and fallbacks (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Actual decision outcomes. success uses Jev; disabled uses the existing selector; low_confidence, no_match and provider/configuration failures fall back to the existing selector. Confidence is not a quality guarantee.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "targets": [
+        {
+          "expr": "sum by (usage, outcome) (increase(jev_decisions_total[24h]))",
+          "legendFormat": "{{usage}} / {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 104,
+      "title": "Jev decision path latency p95",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Measured policy, provider and accounting duration. A fallback also pays the existing selector afterwards; this panel is not end-to-end meeting processing time.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, usage, outcome) (rate(jev_decision_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{usage}} / {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ]
 }

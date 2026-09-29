@@ -18,12 +18,12 @@ Created: 2026-02-28
 from __future__ import annotations
 
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Container
 from typing import Any
 
 import structlog
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field, PrivateAttr, create_model
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, create_model
 
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.mcp.gated_tool import EffectGatedMCPTool
@@ -43,6 +43,18 @@ from src.infrastructure.observability.metrics_mcp import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+def _python_field_name(name: str, occupied: Container[str]) -> str:
+    """Keep server names as aliases when they collide with Pydantic's API."""
+    if not (hasattr(BaseModel, name) or name.startswith(("model_validate", "model_dump"))):
+        return name
+    suffix = 0
+    candidate = f"mcp_arg_{suffix}"
+    while candidate in occupied:
+        suffix += 1
+        candidate = f"mcp_arg_{suffix}"
+    return candidate
 
 
 def build_args_schema(
@@ -77,6 +89,7 @@ def build_args_schema(
 
     required_fields = required_of(input_schema)
     field_definitions: dict[str, Any] = {}
+    occupied = set(properties)
 
     for field_name, raw_spec in properties.items():
         if field_name.startswith("_"):
@@ -97,27 +110,35 @@ def build_args_schema(
         # target carries it when the reference site does not.
         description = description_of(field_spec) or description_of(resolved.spec)
 
+        # A server may legitimately name an argument ``json`` or ``model_dump``.
+        # Keep its wire name as an alias; shadowing BaseModel either warns or
+        # destroys validation/serialization. Never collide with another argument.
+        internal_name = _python_field_name(field_name, occupied)
+        occupied.add(internal_name)
+
         if field_name in required_fields:
             # A required parameter the server declared nullable stays nullable:
             # rejecting a value the server accepts would make us stricter than
             # the contract we implement.
             annotation = python_type | None if resolved.nullable else python_type
-            field_definitions[field_name] = (
+            field_definitions[internal_name] = (
                 annotation,
-                Field(description=description),
+                Field(description=description, alias=field_name),
             )
         else:
             default = field_spec.get("default", resolved.spec.get("default"))
-            field_definitions[field_name] = (
+            field_definitions[internal_name] = (
                 python_type | None,
-                Field(default=default, description=description),
+                Field(default=default, description=description, alias=field_name),
             )
 
     if not field_definitions:
         return None
 
     try:
-        return create_model("MCPToolInput", **field_definitions)
+        return create_model(
+            "MCPToolInput", __config__=ConfigDict(validate_by_name=True), **field_definitions
+        )
     except Exception as e:
         logger.warning(
             "mcp_schema_conversion_failed",

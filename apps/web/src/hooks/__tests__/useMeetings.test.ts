@@ -58,6 +58,7 @@ function detail(over: Partial<MeetingDetail> = {}): MeetingDetail {
     synthesis_tokens_out: 0,
     synthesis_tokens_cache: 0,
     synthesis_cost_eur: null,
+    template_selection_usage: [],
     total_cost_eur: 0.2,
     has_transcript: true,
     report: { title: 'Point projet', participants: [], sections: [] },

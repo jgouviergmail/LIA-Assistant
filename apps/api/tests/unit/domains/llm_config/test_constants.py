@@ -37,19 +37,8 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 65 LLM types: 51 (v1.18.0) + voice_transcription (ADR-080)
-        + voice_tts (ADR-081) + personality_translation (audit wave 3, N-219.1)
-        + telephony_synthesis (ADR-127) + telephony_agent (ADR-127 routing fix)
-        + open_loop_extraction (ADR-139) + document_generation (ADR-226)
-        + diagnostician (self-diagnostics spec 2026-08-27)
-        + meeting_synthesis (ADR-258)
-        + relation_debrief (the daily relationship debrief)
-        + email_digest (ADR-287)
-        + image_prompt_enhancement (ADR-315)
-        + radio_writer, radio_analyst, radio_verifier and radio_voice (ADR-324)
-        + radio_translator (the radio page's article, ADR-324)
-        - router and context_resolver (ADR-244: no get_llm() caller anywhere)."""
-        assert len(LLM_DEFAULTS) == 66
+        """A newly exposed configuration slot must be an intentional addition."""
+        assert len(LLM_DEFAULTS) == 84  # Includes independently configured native decisions.
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",
@@ -122,5 +111,6 @@ class TestLLMProviders:
             "qwen",
             "elevenlabs",  # ADR-080 (STT) + ADR-081 (TTS)
             "edge",  # ADR-081 (free TTS provider, default)
+            "typesafe",  # Native decision API, separate from chat adapters.
         }
         assert set(LLM_PROVIDERS.keys()) == expected

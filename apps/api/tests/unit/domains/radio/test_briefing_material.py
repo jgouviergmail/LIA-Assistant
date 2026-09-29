@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -273,3 +274,32 @@ async def test_unknown_section_is_refused_before_io(material: Material) -> None:
     with pytest.raises(ValueError, match="unknown briefing section"):
         await briefing.BriefingService(material.user).read_selected_cards(frozenset({"typo"}))
     assert material.fetched == []
+
+
+async def test_cancelled_shared_read_keeps_completed_and_interrupted_sources(
+    material: Material, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entered = asyncio.Event()
+    completed = asyncio.Event()
+
+    async def weather(**kwargs: object) -> WeatherData:
+        entered.set()
+        await asyncio.Event().wait()
+        raise AssertionError("cancelled source cannot return")
+
+    async def agenda(**kwargs: object) -> AgendaData:
+        result = await material.agenda(**kwargs)
+        completed.set()
+        return result
+
+    monkeypatch.setattr(briefing, "fetch_weather", weather)
+    monkeypatch.setattr(briefing, "fetch_agenda", agenda)
+    task = asyncio.create_task(
+        material.day(frozenset({PersonalSource.AGENDA, PersonalSource.WEATHER})).day()
+    )
+    await entered.wait()
+    await completed.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert material.recorder.rows == [(frozenset({"agenda", "weather"}), frozenset({"weather"}))]

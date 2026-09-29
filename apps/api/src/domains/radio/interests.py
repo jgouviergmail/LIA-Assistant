@@ -163,25 +163,24 @@ async def refresh_interest_stories(
         if await marks.fresh(topic):
             continue
         started = perf_counter()
+        succeeded = False
         try:
             stories = await search.search(topic, language=language, found_at=now)
+            succeeded = True
         except Exception as exc:  # noqa: BLE001 — one blind search, never the session
-            record(
-                opened=frozenset(),
-                failed=frozenset({search.section}),
-                duration_ms=int((perf_counter() - started) * 1000),
-            )
             logger.warning(
                 "radio_interest_search_failed",
                 section=search.section,
                 error_type=type(exc).__name__,
             )
             continue
-        record(
-            opened=frozenset({search.section}),
-            failed=frozenset(),
-            duration_ms=int((perf_counter() - started) * 1000),
-        )
+        finally:
+            section = frozenset({search.section})
+            record(
+                opened=section if succeeded else frozenset(),
+                failed=frozenset() if succeeded else section,
+                duration_ms=int((perf_counter() - started) * 1000),
+            )
         filed += await file([story for story in stories if story.published_at >= oldest])
         await marks.mark(topic)
     return filed

@@ -35,6 +35,7 @@ const BACKEND_CONTRACT_TYPES = [
   'router_decision',
   'execution_step',
   'registry_update',
+  'result_preview',
   'debug_metrics',
   'debug_metrics_update',
   'hitl_interrupt',

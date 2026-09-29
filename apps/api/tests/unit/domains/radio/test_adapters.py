@@ -24,7 +24,6 @@ from src.domains.radio.adapters import (
     bound_call,
     radio_engine,
 )
-from src.domains.radio.constants import FLASH_NOTES_MAX
 from src.domains.radio.editorial import NEWS_MAX_AGE_S
 from src.domains.radio.flash import FlashNote
 from src.domains.radio.formats import RadioFormat, RadioRole
@@ -195,42 +194,6 @@ class TestTheFlashSource:
         silenced = self._setup(disabled_sources=frozenset({PersonalSource.NOTIFICATIONS}))
         assert adapters.flash_source(record, silenced) is None
 
-    async def test_a_look_that_found_something_is_a_consultation_of_the_session(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        events: list[object] = []
-
-        @contextlib.asynccontextmanager
-        async def collecting(run_id: str) -> AsyncIterator[None]:
-            events.append(f"open {run_id}")
-            yield
-            events.append(f"close {run_id}")
-
-        answers = [[], [NOTE]]
-
-        async def read_flash_notes(user_id: UUID, *, after: datetime, limit: int) -> list[Any]:
-            events.append(("read", user_id, after, limit))
-            return answers.pop(0)
-
-        def recorder_for(user_id: UUID, run_id: str) -> Any:
-            def record(**kwargs: Any) -> None:
-                events.append(("filed", run_id, kwargs["opened"], kwargs["failed"]))
-
-            return record
-
-        monkeypatch.setattr(adapters, "collecting", collecting)
-        monkeypatch.setattr(adapters, "read_flash_notes", read_flash_notes)
-        monkeypatch.setattr(adapters, "recorder_for", recorder_for)
-        source = adapters.NotificationFlashes(USER, "radio_run")
-
-        assert await source.since(NOW) == []
-        assert await source.since(NOW) == [NOTE]
-
-        filed = [event for event in events if isinstance(event, tuple) and event[0] == "filed"]
-        assert filed == [("filed", "radio_run", frozenset({"notifications"}), frozenset())]
-        assert ("read", USER, NOW, FLASH_NOTES_MAX) in events
-        assert events[0] == "open radio_run" and events[-1] == "close radio_run"
-
 
 class TestTheNewsDesk:
     async def test_it_reads_the_freshest_stories_no_format_is_too_old_to_air(
@@ -244,10 +207,15 @@ class TestTheNewsDesk:
 
         monkeypatch.setattr(adapters, "news_candidates", news_candidates)
         unticked = frozenset({"https://feeds.example/unticked.xml"})
-        desk = NewsDesk(user_id=USER, disabled_feeds=unticked, clock=lambda: NOW)
+        desk = NewsDesk(
+            user_id=USER, run_id="radio_test", disabled_feeds=unticked, clock=lambda: NOW
+        )
 
         heard, prints = frozenset({"a-story-id"}), frozenset({"a story"})
-        assert await desk.candidates(heard_keys=heard, heard_stories=prints) == []
+        from src.domains.agents.effects.treatments import treatment_collector
+
+        with treatment_collector(run_id="radio_test"):
+            assert await desk.candidates(heard_keys=heard, heard_stories=prints) == []
         assert asked == {
             "user_id": USER,
             "disabled_feeds": unticked,

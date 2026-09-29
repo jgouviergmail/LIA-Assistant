@@ -44,6 +44,7 @@ class LLMProviderEnum(str, enum.Enum):
     qwen = "qwen"
     elevenlabs = "elevenlabs"
     edge = "edge"
+    typesafe = "typesafe"
 
 
 class PricingUnitEnum(str, enum.Enum):
@@ -77,6 +78,7 @@ class LLMModelKindEnum(str, enum.Enum):
     realtime = "realtime"
     tts = "tts"
     embedding = "embedding"
+    decision = "decision"
 
 
 class LLMCapabilityProvenanceEnum(str, enum.Enum):

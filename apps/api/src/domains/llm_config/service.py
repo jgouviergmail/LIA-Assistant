@@ -23,6 +23,10 @@ from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.llm.models import LLMModelKindEnum
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_PROVIDERS, LLM_TYPES_REGISTRY
+from src.domains.llm_config.decision_validation import (
+    validate_decision_config,
+    validate_decision_model,
+)
 from src.domains.llm_config.models import LLMConfigOverride, ProviderApiKey
 from src.domains.llm_config.schemas import (
     LLMTypeConfig,
@@ -374,6 +378,8 @@ class LLMConfigService:
             update.model = None
 
         _refuse_unserved_image_model(llm_type, update.provider, update.model)
+        validate_decision_config(llm_type, update)
+        await validate_decision_model(self.db, llm_type, update)
 
         # === Strict validation of reasoning_effort against what the model offers ===
         # Philosophy A — raw truth: a level the model's resolved ladder does not

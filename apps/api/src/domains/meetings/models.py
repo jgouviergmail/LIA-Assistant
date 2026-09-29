@@ -220,6 +220,11 @@ class Meeting(BaseModel):
     synthesis_cost_eur: Mapped[float | None] = mapped_column(
         Float, nullable=True, comment="None = no administered price for the model"
     )
+    template_selection_usage: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSONB(none_as_null=True),
+        nullable=True,
+        comment="Native selection charges by run, including unsuccessful processing attempts",
+    )
     template_snapshot: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     report_generated: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB(none_as_null=True), nullable=True, comment="Immutable model output"

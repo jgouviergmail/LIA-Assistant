@@ -44,6 +44,7 @@ class SpendRoad(str, Enum):
 #: Keys are posix paths relative to ``src``. Adding a spend site without adding
 #: it here fails the build; leaving one here after deleting the call fails too.
 LLM_SPEND_ROADS: dict[str, SpendRoad] = {
+    "infrastructure/llm/jev_runtime.py": SpendRoad.ACCOUNTED,
     # --- Inside the agent turn: the ambient TrackingContext records these ----
     "domains/agents/graphs/base_agent_builder.py": SpendRoad.TURN,
     "domains/agents/nodes/initiative_node.py": SpendRoad.TURN,

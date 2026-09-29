@@ -20,6 +20,7 @@ from prometheus_client import Counter, Gauge, Histogram
 
 from src.domains.product.constants import (
     DATA_QUALITY_CHECKS,
+    DEVICE_CLASSES,
     FUNNEL_STAGES,
     GAUGE_WINDOWS,
     PRODUCT_REFRESH_JOB,
@@ -158,59 +159,65 @@ async def refresh_product_gauges() -> None:
     from src.domains.product.repository import ProductRepository
     from src.infrastructure.database import get_db_context
 
-    # Snapshot semantics: these families are fully recomputed each refresh;
-    # clearing first prevents a vanished label combination (a device class or
-    # quality check with no data this window) from lingering at a stale value.
-    for family in (
-        product_users_with_useful_outcome,
-        product_value_penetration_ratio,
-        product_activation_rate,
-        product_retention_rate,
-        product_funnel_users,
-        product_data_quality_ratio,
-    ):
-        family.clear()
-
+    # Publish a complete bounded snapshot. clear()/remove() cannot erase the
+    # multiprocess mmap files: vanished cohorts otherwise keep stale ratios.
+    # NaN means no denominator, never a measured zero. Stage values until every
+    # query succeeds, preserving the last complete snapshot on a DB failure.
+    snapshot: list[tuple[Gauge, tuple[str, ...], float]] = []
+    absent = float("nan")
     async with get_db_context() as db:
         repo = ProductRepository(db)
-
         for window_label, days in zip(GAUGE_WINDOWS, (7, 30), strict=True):
             for evidence in USEFUL_EVIDENCE_SELECTORS:
                 count = await repo.count_useful_users(days, evidence)
-                product_users_with_useful_outcome.labels(
-                    window=window_label, evidence=evidence
-                ).set(count)
+                snapshot.append(
+                    (product_users_with_useful_outcome, (window_label, evidence), count)
+                )
 
-            for device, ratio in (await repo.penetration_by_device(days)).items():
-                product_value_penetration_ratio.labels(
-                    window=window_label, device_class=device
-                ).set(ratio)
+            penetration = await repo.penetration_by_device(days)
+            for device in sorted(DEVICE_CLASSES | {"all"}):
+                snapshot.append(
+                    (
+                        product_value_penetration_ratio,
+                        (window_label, device),
+                        penetration.get(device, absent),
+                    )
+                )
 
             activation = await repo.activation_rate(days)
-            if activation is not None:
-                product_activation_rate.labels(
-                    window=window_label, path="all", device_class="all"
-                ).set(activation)
-
-            for stage, count in (await repo.funnel_counts(days)).items():
-                if stage not in FUNNEL_STAGES:  # defensive vocabulary guard
-                    logger.warning("product_funnel_unknown_stage", stage=stage)
-                    continue
-                product_funnel_users.labels(
-                    stage=stage, window=window_label, device_class="all"
-                ).set(count)
+            snapshot.append(
+                (
+                    product_activation_rate,
+                    (window_label, "all", "all"),
+                    activation if activation is not None else absent,
+                )
+            )
+            funnel = await repo.funnel_counts(days)
+            for stage in FUNNEL_STAGES:
+                snapshot.append(
+                    (product_funnel_users, (stage, window_label, "all"), funnel.get(stage, 0))
+                )
+            for stage in funnel.keys() - set(FUNNEL_STAGES):
+                logger.warning("product_funnel_unknown_stage", stage=stage)
 
         for period_label, days in zip(RETENTION_PERIODS, (1, 7, 30), strict=True):
             retention = await repo.retention_rate(days)
-            if retention is not None:
-                product_retention_rate.labels(period=period_label, segment="all").set(retention)
+            snapshot.append(
+                (
+                    product_retention_rate,
+                    (period_label, "all"),
+                    retention if retention is not None else absent,
+                )
+            )
 
-        for check, ratio in (await repo.data_quality_ratios()).items():
-            if check not in DATA_QUALITY_CHECKS:  # defensive vocabulary guard
-                logger.warning("product_quality_unknown_check", check=check)
-                continue
-            product_data_quality_ratio.labels(check=check).set(ratio)
+        quality = await repo.data_quality_ratios()
+        for check in DATA_QUALITY_CHECKS:
+            snapshot.append((product_data_quality_ratio, (check,), quality.get(check, absent)))
+        for check in quality.keys() - set(DATA_QUALITY_CHECKS):
+            logger.warning("product_quality_unknown_check", check=check)
 
+    for family, labels, value in snapshot:
+        family.labels(*labels).set(value)
     product_metrics_last_refresh_timestamp_seconds.labels(refresh_job=PRODUCT_REFRESH_JOB).set(
         time.time()
     )

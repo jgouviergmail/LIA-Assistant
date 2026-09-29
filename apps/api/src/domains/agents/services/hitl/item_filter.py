@@ -26,7 +26,6 @@ Created: 2026-01-30
 from __future__ import annotations
 
 import json
-from contextlib import suppress
 from typing import Any
 
 import structlog
@@ -95,6 +94,12 @@ class ItemFilterService:
         if not exclude_criteria.strip():
             # No criteria - keep all items
             return list(range(len(item_previews)))
+
+        from src.domains.agents.services.hitl.jev_item_filter import try_filter_items
+
+        native_indices = await try_filter_items(item_previews, exclude_criteria, run_id)
+        if native_indices is not None:
+            return native_indices
 
         logger.info(
             "item_filter_started",
@@ -209,12 +214,12 @@ class ItemFilterService:
 
             valid_indices = []
             for idx in indices:
-                if isinstance(idx, int) and 0 <= idx < max_index:
+                if type(idx) is int and 0 <= idx < max_index:
                     valid_indices.append(idx)
                 else:
                     logger.warning(
                         "item_filter_invalid_index",
-                        index=idx,
+                        index_type=type(idx).__name__,
                         max_index=max_index,
                     )
 
@@ -224,17 +229,10 @@ class ItemFilterService:
             log_unreadable_text(
                 logger, "item_filter_json_parse_error", content, level="error", error=str(e)
             )
-            # Fallback: try to extract numbers from response
-            import re
-
-            numbers = re.findall(r"\b(\d+)\b", content)
-            valid_indices = []
-            for num_str in numbers:
-                with suppress(ValueError):
-                    idx = int(num_str)
-                    if 0 <= idx < max_index:
-                        valid_indices.append(idx)
-            return valid_indices
+            # A narrative can mention items to KEEP as well as to exclude.
+            # Never interpret its incidental numbers as permission to narrow
+            # the list. Keep every item for the next human confirmation.
+            return []
 
 
 # Singleton pattern for reuse

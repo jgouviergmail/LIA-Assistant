@@ -136,6 +136,7 @@ function detail(over: Partial<MeetingDetail> = {}): MeetingDetail {
     synthesis_tokens_out: 300,
     synthesis_tokens_cache: 0,
     synthesis_cost_eur: 0.012,
+    template_selection_usage: [],
     total_cost_eur: 0.372,
     has_transcript: true,
     report: report(),

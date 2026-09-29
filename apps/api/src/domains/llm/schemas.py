@@ -24,12 +24,13 @@ ProviderLiteral = Literal[
     "qwen",
     "elevenlabs",
     "edge",
+    "typesafe",
 ]
 
 # Mirrors LLMModelKindEnum / LLMReasoningWidgetEnum / PricingUnitEnum
 # (domains/llm/models.py). Kept as Literal here so the API surface stays
 # import-cycle-free.
-LLMModelKindLiteral = Literal["chat", "image", "audio", "realtime", "tts", "embedding"]
+LLMModelKindLiteral = Literal["chat", "image", "audio", "realtime", "tts", "embedding", "decision"]
 PricingUnitLiteral = Literal["per_1m_tokens", "per_audio_minute", "per_audio_hour"]
 
 

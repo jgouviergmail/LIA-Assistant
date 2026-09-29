@@ -1717,6 +1717,11 @@
       "title": "A radio just for you",
       "summary": "LIA becomes an on-demand radio station in your language: your day, then the news from the outlets it follows and the sites you add, written, checked and voiced for you while you listen. A fixed grid decides what airs, the models only write, and every sentence shows its source. Nothing is produced when nobody listens, nothing is kept afterwards, and what the session costs is shown while it spends.",
       "src": "338514497561"
+    },
+    "325": {
+      "title": "JEV decides, each use keeps its own switch",
+      "summary": "JEV helps LIA choose, route or assess within a defined scope. Each use has a hot switch; when uncertain, the existing process takes over. Previews retain every result, observers never block extraction, and an exclusion never grants approval. Administrators can inspect the context, answer and outcome; every paid call is accounted for. Time savings must be checked across the complete journey before activation.",
+      "src": "7ebe153c5910"
     }
   }
 }

@@ -493,8 +493,10 @@ async def test_each_translation_is_billed_to_the_reader_under_a_run_of_its_own(
     assert budget.asked == [reader, reader]  # the radio's day, before every call
 
 
+@pytest.mark.parametrize("cancelled", [False, True])
 async def test_a_refused_translation_still_says_what_it_cost(
     monkeypatch: pytest.MonkeyPatch,
+    cancelled: bool,
 ) -> None:
     """A ceiling, a cut answer or a provider error after the call was billed: the
     original is shown, and what the reading cost is still said."""
@@ -505,7 +507,7 @@ async def test_a_refused_translation_still_says_what_it_cost(
 
     def bound(slot: str, *, user_id: UUID, callbacks: list[Any]) -> Any:
         async def call(messages: list[BaseMessage], schema: type[BaseModel]) -> BaseModel:
-            raise RuntimeError("the answer was cut")
+            raise asyncio.CancelledError() if cancelled else RuntimeError("the answer was cut")
 
         return call
 
@@ -517,10 +519,15 @@ async def test_a_refused_translation_still_says_what_it_cost(
         return 0.0009
 
     books = ArticleBooks()
-    made = await ModelTranslator(uuid4(), cost_of=cost_of, books=books, budget=Budget()).translate(
+    translator = ModelTranslator(uuid4(), cost_of=cost_of, books=books, budget=Budget())
+    pending = translator.translate(
         title="A headline", text="The text.", url="https://x.example/a", language="fr"
     )
-    assert made == Translated(None, 0.0009)
+    if cancelled:
+        with pytest.raises(asyncio.CancelledError):
+            await pending
+    else:
+        assert await pending == Translated(None, 0.0009)
     assert [translated for _, _, translated in books.filed] == [False]
 
 

@@ -345,6 +345,7 @@ class Harness:
         state: dict | None = None,
         tts_usage_script: list[dict | None] | None = None,
         fail_direct_tts: bool = False,
+        record_treatments: bool = False,
     ) -> None:
         self.script = script
         self.voice_enabled = voice_enabled
@@ -352,6 +353,7 @@ class Harness:
         self.state = state if state is not None else {"messages": [], "metadata": {}}
         self.tts_usage_script = tts_usage_script or []
         self.fail_direct_tts = fail_direct_tts
+        self.record_treatments = record_treatments
         self.graph_stream_kwargs: dict[str, Any] = {}
         self.tracker = FakeTracker()
         self.conv_service = FakeConversationService()
@@ -440,6 +442,12 @@ class Harness:
         service.graph = object()  # short-circuits _ensure_graph_built
 
         with ExitStack() as stack:
+            # Consumers that verify the register supply their own repository
+            # and session doubles, keeping the real recorder in that path.
+            if not self.record_treatments:
+                stack.enter_context(
+                    patch("src.domains.agents.effects.treatment_recorder._flush", AsyncMock())
+                )
             for target, replacement in [
                 (
                     "src.domains.agents.services.conversation_orchestrator"
@@ -470,6 +478,19 @@ class Harness:
                 ("src.infrastructure.database.get_db_context", fake_db_context),
                 ("src.infrastructure.async_utils.safe_fire_and_forget", fake_fire_and_forget),
                 ("src.infrastructure.async_utils.await_run_id_tasks", AsyncMock()),
+                # This is a stream-contract test. The later-added audit sinks
+                # have their own DB suites; do not let their imported sessions
+                # open real connections behind the harness's fake transaction.
+                ("src.domains.agents.effects.decision_recorder._write", AsyncMock()),
+                ("src.domains.agents.api.service.performed_effects", AsyncMock(return_value=[])),
+                (
+                    "src.domains.system_settings.registry._read_from_cache",
+                    AsyncMock(return_value=None),
+                ),
+                (
+                    "src.domains.system_settings.registry._read_from_database",
+                    AsyncMock(return_value=None),
+                ),
                 (
                     "src.infrastructure.mcp.user_context.setup_user_mcp_tools",
                     AsyncMock(return_value=None),
@@ -515,6 +536,29 @@ def _types(chunks: list[ChatStreamChunk]) -> list[str]:
 # ---------------------------------------------------------------------------
 # Scenario 1 — simple conversation message (no tools, voice disabled)
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_char_jev_preview_timing_keeps_first_result_separate_from_answer() -> None:
+    harness = Harness(
+        script=[
+            _router("actionable"),
+            _chunk("result_preview", metadata={"collection": {"items": [{"verdict": "match"}]}}),
+            _token("Answer"),
+        ]
+    )
+    with (
+        pytest.MonkeyPatch.context() as mp,
+        patch("src.domains.agents.services.streaming.journey_timing.logger") as log,
+    ):
+        chunks = await harness.run(mp)
+    assert _types(chunks) == ["router_decision", "result_preview", "token", "done"]
+    log.info.assert_called_once()
+    measurement = log.info.call_args.kwargs
+    assert 0 <= measurement["first_visible_preview_ms"] <= measurement["first_answer_token_ms"]
+    assert measurement["first_useful_ms"] == measurement["first_visible_preview_ms"]
+    assert measurement["duration_ms"] >= measurement["first_answer_token_ms"]
+    assert measurement["cost_eur"] == chunks[-1].metadata["cost_eur"]
 
 
 @pytest.mark.asyncio

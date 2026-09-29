@@ -119,7 +119,8 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 64 since the radio section joined Preferences / Voice & Media
     // (ADR-324, 2026-09-26): what the personal radio talks about, its
     // voices, and how a session listens.
-    expect(TOKENS).toHaveLength(64);
+    // 65 since native JEV routing joined Administration / AI & Connectors.
+    expect(TOKENS).toHaveLength(65);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

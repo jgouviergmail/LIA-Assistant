@@ -33,6 +33,7 @@ import AdminDiagnosticsSection from './AdminDiagnosticsSection';
 import AdminGoogleApiPricingSection from './AdminGoogleApiPricingSection';
 import AdminImagePricingSection from './AdminImagePricingSection';
 import AdminLLMConfigSection from './AdminLLMConfigSection';
+import AdminJevSection from './AdminJevSection';
 import AdminLLMPricingSection from './AdminLLMPricingSection';
 import { AdminMCPServersSettings } from './AdminMCPServersSettings';
 import AdminPersonalitiesSection from './AdminPersonalitiesSection';
@@ -203,6 +204,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   'admin-google-api-pricing': { render: lng => <AdminGoogleApiPricingSection lng={lng} /> },
   'admin-image-pricing': { render: lng => <AdminImagePricingSection lng={lng} /> },
   'admin-llm-config': { feature: 'llm-config', render: lng => <AdminLLMConfigSection lng={lng} /> },
+  'admin-jev': { feature: 'llm-config', render: lng => <AdminJevSection lng={lng} /> },
 
   // ---- Administration / Content & Extensions
   'admin-personalities': { render: lng => <AdminPersonalitiesSection lng={lng} /> },

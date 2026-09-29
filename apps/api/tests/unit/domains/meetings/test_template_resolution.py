@@ -13,6 +13,7 @@ from src.core.config import settings
 from src.core.constants import MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY
 from src.core.exceptions import BaseAPIException
 from src.domains.meetings import template_resolution as module
+from src.domains.meetings.jev_selection import NativeTemplateSelection
 from src.domains.meetings.schemas import (
     SectionKind,
     TemplateCategory,
@@ -29,12 +30,50 @@ from src.domains.meetings.template_resolution import (
     transcript_excerpt,
 )
 from src.domains.meetings.template_service import ResolvedTemplate
+from src.infrastructure.llm.decision_types import DecisionCharge
 from src.infrastructure.llm.structured_output import StructuredOutputError
 from src.infrastructure.observability.metrics_meetings import meeting_template_selection_total
 
 pytestmark = pytest.mark.unit
 
 USER = uuid.uuid4()
+
+
+@pytest.fixture(autouse=True)
+def native_selector(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    selector = AsyncMock(return_value=NativeTemplateSelection())
+    monkeypatch.setattr(module, "select_template_with_jev", selector, raising=False)
+    return selector
+
+
+@pytest.mark.parametrize("native_wins", [True, False])
+async def test_native_selection_or_full_existing_fallback_preserves_separate_spend(
+    native_selector: AsyncMock,
+    fake_service: MagicMock,
+    fake_llm: AsyncMock,
+    native_wins: bool,
+) -> None:
+    charge = DecisionCharge(
+        model="jev-1.13.0",
+        input_tokens=100,
+        output_tokens=4,
+        cost_usd=0.0000042,
+        cost_eur=0.00000378,
+    )
+    native_selector.return_value = NativeTemplateSelection(MINE if native_wins else None, charge)
+    decision = await _decide(_meeting())
+    assert decision.ref == (MINE.ref if native_wins else MEDICAL.ref)
+    assert decision.charge == charge
+    assert fake_llm.await_count == (0 if native_wins else 1)
+
+
+async def test_explicit_choice_skips_native_too(
+    native_selector: AsyncMock,
+    fake_service: MagicMock,
+    fake_llm: AsyncMock,
+) -> None:
+    await _decide(_meeting(template_ref=str(MINE.ref)))
+    native_selector.assert_not_awaited()
 
 
 def _section(key: str) -> TemplateSection:
@@ -144,6 +183,7 @@ async def _decide(meeting, preference=None, capture=None):
         calendar_title="Point projet",
         language="fr",
         capture=capture or MagicMock(),
+        run_id="meeting-test",
     )
 
 
@@ -232,6 +272,7 @@ async def test_the_model_is_told_the_language_by_its_name(
         calendar_title="Point projet",
         language="it",
         capture=MagicMock(),
+        run_id="meeting-language-test",
     )
 
     human = fake_llm.await_args.args[1][-1].content

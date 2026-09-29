@@ -1717,6 +1717,11 @@
       "title": "Una radio solo para ti",
       "summary": "LIA se convierte en una emisora de radio a demanda en tu idioma: tu día y luego la actualidad de los medios que sigue y de los sitios que añades, escritos, verificados y locutados para ti mientras escuchas. Una parrilla fija decide qué se emite, los modelos solo escriben y cada frase muestra su fuente. No se produce nada cuando nadie escucha, no se guarda nada después, y lo que cuesta la sesión se muestra mientras gasta.",
       "src": "338514497561"
+    },
+    "325": {
+      "title": "JEV decide y cada uso conserva su interruptor",
+      "summary": "JEV ayuda a LIA a elegir, orientar o evaluar dentro de un ámbito definido. Cada uso tiene un interruptor en caliente; ante la duda, el proceso existente toma el relevo. Las vistas previas conservan todos los resultados, los observadores no bloquean ninguna extracción y una exclusión nunca equivale a una aprobación. Los administradores ven el contexto, la respuesta y el resultado; cada llamada de pago se contabiliza. El ahorro de tiempo se comprueba en el recorrido completo antes de activar cada uso.",
+      "src": "7ebe153c5910"
     }
   }
 }

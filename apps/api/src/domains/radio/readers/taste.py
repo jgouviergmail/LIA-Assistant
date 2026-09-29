@@ -62,12 +62,15 @@ async def _stated(user_id: UUID) -> tuple[str, ...]:
 
 
 async def _part(
-    section: str, read: Callable[[], Awaitable[tuple[str, ...]]], failed: set[str]
+    section: str, read: Callable[[], Awaitable[tuple[str, ...]]], opened: set[str], failed: set[str]
 ) -> tuple[str, ...]:
+    opened.add(section)
+    succeeded = False
     try:
-        return await read()
+        result = await read()
+        succeeded = True
+        return result
     except Exception as exc:  # noqa: BLE001 — a blind part is empty, never the whole start
-        failed.add(section)
         logger.warning(
             "radio_taste_unavailable",
             section=section,
@@ -75,6 +78,9 @@ async def _part(
             exc_info=True,
         )
         return ()
+    finally:
+        if not succeeded:
+            failed.add(section)
 
 
 async def read_taste(
@@ -95,30 +101,29 @@ async def read_taste(
     Returns:
         The taste; a part not allowed, or not readable, is empty.
     """
-    allowed = {INTERESTS_SECTION: interests_allowed, MEMORIES_SECTION: stated_allowed}
-    opened = frozenset(section for section, may in allowed.items() if may)
-    if not opened:
-        return ListenerTaste()
+    opened: set[str] = set()
     failed: set[str] = set()
     started = perf_counter()
-    taste = ListenerTaste(
-        interests=(
-            await _part(INTERESTS_SECTION, lambda: _interests(user_id), failed)
-            if interests_allowed
-            else ()
-        ),
-        stated=(
-            await _part(MEMORIES_SECTION, lambda: _stated(user_id), failed)
-            if stated_allowed
-            else ()
-        ),
-    )
-    record(
-        opened=opened,
-        failed=frozenset(failed),
-        duration_ms=int((perf_counter() - started) * 1000),
-    )
-    return taste
+    try:
+        return ListenerTaste(
+            interests=(
+                await _part(INTERESTS_SECTION, lambda: _interests(user_id), opened, failed)
+                if interests_allowed
+                else ()
+            ),
+            stated=(
+                await _part(MEMORIES_SECTION, lambda: _stated(user_id), opened, failed)
+                if stated_allowed
+                else ()
+            ),
+        )
+    finally:
+        if opened:
+            record(
+                opened=frozenset(opened),
+                failed=frozenset(failed),
+                duration_ms=int((perf_counter() - started) * 1000),
+            )
 
 
 __all__ = ["INTERESTS_SECTION", "MEMORIES_SECTION", "read_taste"]

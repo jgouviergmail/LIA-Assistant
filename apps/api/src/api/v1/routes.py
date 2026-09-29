@@ -45,6 +45,7 @@ from src.domains.interests.notifications_router import (
 from src.domains.interests.router import router as interests_router
 from src.domains.llm.pricing_sheet_router import router as llm_pricing_sheet_router
 from src.domains.llm.router import router as llm_admin_router
+from src.domains.llm_config.jev_debug_router import router as jev_debug_router
 from src.domains.llm_config.router import router as llm_config_router
 from src.domains.memories.router import router as memories_router
 from src.domains.notifications.router import router as notifications_router
@@ -328,6 +329,7 @@ api_router.include_router(personalities_router)
 api_router.include_router(system_settings_router)
 api_router.include_router(capability_switches_router)
 api_router.include_router(llm_config_router)
+api_router.include_router(jev_debug_router)
 
 
 # Health check endpoint

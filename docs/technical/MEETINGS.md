@@ -3,6 +3,9 @@
 > Décision : [ADR-258](../architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md).
 > Spécification et mesures : `docs/superpowers/specs/2026-09-02-meeting-recording-and-minutes-design.md`.
 
+Le choix automatique du modèle peut utiliser [JEV, activable par usage dans
+l'administration](JEV_INTEGRATION.md), avec repli sur le sélecteur existant.
+
 Depuis le bouton « + » du composeur (celui qui ajoutait déjà un fichier), l'utilisateur
 enregistre une réunion (téléphone ou ordinateur comme micro). À l'arrêt, le serveur transcrit l'ensemble, rédige un
 compte rendu selon **la structure de l'utilisateur** (modèle par utilisateur),

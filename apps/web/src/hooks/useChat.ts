@@ -127,6 +127,7 @@ export interface UseChatReturn {
   debugMetricsHistory: DebugMetricsEntry[];
   // Browser Screenshots: Current overlay data
   browserScreenshot: BrowserScreenshotData | null;
+  resultPreviews: import('@/types/result-preview').QualifiedCollection[];
   clearBrowserScreenshot: () => void;
   // Context-usage pill (2026-05): current conversation token footprint vs the
   // dynamic compaction threshold. `null` until the first turn completes. The
@@ -1029,6 +1030,7 @@ export const useChat = ({
     debugMetricsHistory: state.debugMetricsHistory,
     // Browser Screenshots: Current overlay data
     browserScreenshot: state.browserScreenshot,
+    resultPreviews: state.resultPreviews,
     clearBrowserScreenshot,
     // Context-usage pill: tokens vs compaction threshold (null on first load)
     contextUsage: state.contextUsage,

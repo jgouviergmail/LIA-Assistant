@@ -2,6 +2,10 @@
 
 > Administration dynamique des configurations LLM via interface web, sans redémarrage serveur.
 
+Les [décisions natives JEV](JEV_INTEGRATION.md) utilisent la même configuration
+de fournisseur et le catalogue de tarification, avec une section d'activation
+distincte et une lecture PostgreSQL par opération pour la bascule entre workers.
+
 **Version**: 1.0
 **Date**: 2026-03-08
 **Statut**: Implémenté

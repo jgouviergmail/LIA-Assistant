@@ -394,6 +394,7 @@ function NumberField({
   modified,
   value,
   placeholder,
+  max,
   onValueChange,
   t,
 }: {
@@ -402,6 +403,7 @@ function NumberField({
   modified: boolean;
   value: number | null | undefined;
   placeholder?: string;
+  max?: number;
   onValueChange: (raw: string) => void;
   t: (key: string) => string;
 }) {
@@ -420,6 +422,7 @@ function NumberField({
         aria-labelledby={labelId}
         type="number"
         min="1"
+        max={max}
         value={value ?? ''}
         onChange={e => onValueChange(e.target.value)}
         placeholder={placeholder}
@@ -1027,7 +1030,6 @@ function ReasoningSection({
           )}
         </div>
       )}
-
     </>
   );
 }
@@ -1431,23 +1433,39 @@ function LLMConfigDialog({
             />
           )}
 
-          <SamplingFields
-            form={form}
-            setForm={setForm}
-            visibility={visibility}
-            isModified={isModified}
-            discoveredWindow={discoveredWindow}
-            t={t}
-          />
+          {requiredKind === 'decision' ? (
+            <NumberField
+              labelKey="settings.admin.llmConfig.fields.timeout"
+              tooltipKey="settings.admin.llmConfig.tooltips.timeout"
+              modified={isModified('timeout_seconds')}
+              value={form.timeout_seconds}
+              max={5}
+              onValueChange={raw =>
+                setForm({ ...form, timeout_seconds: raw ? parseInt(raw) : null })
+              }
+              t={t}
+            />
+          ) : (
+            <SamplingFields
+              form={form}
+              setForm={setForm}
+              visibility={visibility}
+              isModified={isModified}
+              discoveredWindow={discoveredWindow}
+              t={t}
+            />
+          )}
 
-          <ReasoningSection
-            form={form}
-            caps={selectedModelCapabilities}
-            anthropicThinkingActive={anthropicThinkingActive}
-            isModified={isModified}
-            onReasoningChange={handleReasoningChange}
-            t={t}
-          />
+          {requiredKind !== 'decision' && (
+            <ReasoningSection
+              form={form}
+              caps={selectedModelCapabilities}
+              anthropicThinkingActive={anthropicThinkingActive}
+              isModified={isModified}
+              onReasoningChange={handleReasoningChange}
+              t={t}
+            />
+          )}
         </div>
 
         <DialogFooter className="flex justify-between sm:justify-between">

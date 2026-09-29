@@ -26,6 +26,7 @@ from src.domains.meetings.models import (
     MeetingSttEnginePreference,
     MeetingSttProvider,
 )
+from src.infrastructure.llm.decision_types import DecisionCharge
 
 #: Upper bound of sections a template may carry — enough for any minutes
 #: format, small enough for one structured-output call.
@@ -453,7 +454,7 @@ class MeetingSummary(BaseModel):
     stt_provider: MeetingSttProvider | None = None
     total_cost_eur: float | None = Field(
         default=None,
-        description="Transcription + minutes, in EUR; None while nothing priced was spent.",
+        description="Priced transcription, selection and minutes in EUR; None if none were priced.",
     )
     last_error_code: str | None = None
     template_ref: str | None = None
@@ -504,6 +505,9 @@ class MeetingDetailResponse(BaseModel):
     synthesis_tokens_cache: int = 0
     synthesis_cost_eur: float | None = Field(
         default=None, description="LLM cost of the minutes (every synthesis pass)."
+    )
+    template_selection_usage: list[DecisionCharge] = Field(
+        default_factory=list, description="Native selection charges, separate from synthesis."
     )
     total_cost_eur: float | None = Field(
         default=None,

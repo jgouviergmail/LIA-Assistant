@@ -80,6 +80,7 @@ const PROVIDER_OPTIONS: readonly LLMProviderName[] = [
   'qwen',
   'elevenlabs',
   'edge',
+  'typesafe',
 ] as const;
 
 type PricingUnitName = 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
@@ -123,6 +124,7 @@ const KIND_OPTIONS: readonly LLMModelKindName[] = [
   'realtime',
   'tts',
   'embedding',
+  'decision',
 ] as const;
 
 export interface LLMModelPricing {

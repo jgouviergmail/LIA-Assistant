@@ -685,6 +685,24 @@
     "footer": "Thank you for your patience. Your account activation is being processed."
   },
   "chat": {
+    "result_preview": {
+      "title": "First results",
+      "temporary": "Provisional preview while LIA prepares her answer. All retrieved items remain available to her.",
+      "match": "Likely relevant",
+      "unknown": "To check",
+      "non_match": "Likely unrelated — inspect",
+      "scope": "{{kind}}: {{evaluated}} assessed out of {{total}} retrieved; {{omitted}} beyond this preview. This is not the total available at the source.",
+      "kinds": {
+        "EMAIL": "Emails",
+        "EVENT": "Events",
+        "TASK": "Tasks",
+        "FILE": "Documents",
+        "REMINDER": "reminders",
+        "TICKET": "tickets",
+        "MCP_RESULT": "MCP results",
+        "NOTE": "document excerpts"
+      }
+    },
     "title": "Chat",
     "new_chat": "Delete",
     "loading_conversation": "Loading conversation...",
@@ -1135,6 +1153,56 @@
     },
     "phone_call_badge": "Said on the phone",
     "debug_panel": {
+      "jev": {
+        "title": "JEV calls",
+        "caller": "Caller",
+        "run": "Run",
+        "time": "Time and duration",
+        "model": "Model",
+        "action": "Triggered action",
+        "outcome": "Outcome",
+        "tokens": "Tokens in / out",
+        "cost": "Cost at configured rate",
+        "context": "Submitted context",
+        "response": "Response",
+        "confidence": "Confidence: {{value}} %",
+        "confidenceHelp": "This measures concentration of the decision, not the probability that it is correct.",
+        "probabilities": "Candidate probabilities",
+        "omittedCandidates": "{{omitted}} candidates omitted.",
+        "truncated": "{{omitted}} of {{total}} context characters omitted.",
+        "noResponse": "No usable response. See the outcome above.",
+        "refresh": "Refresh",
+        "scope": "Only your account’s calls collected while debug was enabled. Refreshes every 5 seconds while open.",
+        "retention": "Up to {{limit}} calls, retained for {{minutes}} minutes.",
+        "empty": "No retained JEV calls. A disabled JEV usage produces no call.",
+        "error": "Diagnostics unavailable or access removed. Refresh to retry.",
+        "actions": {
+          "pending": "Action not yet confirmed",
+          "selected": "Decision applied",
+          "fallback": "Existing processing requested",
+          "aborted": "Processing interrupted",
+          "cancelled": "Cancelled",
+          "preview": "Preview prepared",
+          "observed": "Observation only"
+        },
+        "nativeDuration": "JEV duration",
+        "nativeDurationHelp": "This measures the JEV call, not the complete response or subsequent fallback.",
+        "unknownCost": "Not reported",
+        "technical": "Technical details",
+        "state": "Information examined",
+        "question": "Decision requested",
+        "appliedDecision": "LIA applies: {{verdict}}",
+        "actionHelp": {
+          "selected": "LIA accepted this decision for the next processing step.",
+          "preview": "Only the provisional preview uses these judgments. The final model still receives every source object.",
+          "fallback": "LIA requested the existing processing path. Its success is not confirmed by this trace.",
+          "pending": "The calling component has not yet confirmed what it did with the answer.",
+          "aborted": "Processing stopped because of an error; no applied decision is confirmed.",
+          "cancelled": "The call was cancelled. Any known usage remains accounted for.",
+          "observed": "Observation only: compares JEV with the existing extractor, which always runs. Adds decision cost and may extend stream completion. No extraction is skipped."
+        },
+        "observedResult": "Existing extractor proposal (before validation)"
+      },
       "resize": "Resize the debug panel"
     }
   },
@@ -2510,7 +2578,25 @@
           "radio_analyst": "Reads a story's full article and draws the expert analysis the radio airs (context, history, facts, what to watch, outlook) - every figure must come from the article",
           "radio_verifier": "Re-reads each line of a segment against the facts it cites before it airs, for the programmes the listener asked to have checked - an unsupported line is dropped",
           "radio_translator": "Translates a news article the radio page opens into the listener's language - one structured call per article and language, kept for the next reader",
-          "radio_voice": "Text-to-speech engine that voices the personal radio: one voice per role, in the listener's language"
+          "radio_voice": "Text-to-speech engine that voices the personal radio: one voice per role, in the listener's language",
+          "jev_filter_email": "Shows a provisional relevance preview during searches. Final answers still use all retrieved data; the preview adds a decision cost.",
+          "jev_filter_event": "Shows a provisional relevance preview during searches. Final answers still use all retrieved data; the preview adds a decision cost.",
+          "jev_filter_task": "Shows a provisional relevance preview during searches. Final answers still use all retrieved data; the preview adds a decision cost.",
+          "jev_filter_file": "Shows a provisional relevance preview during searches. Final answers still use all retrieved data; the preview adds a decision cost.",
+          "jev_consultation_path": "Selects an exact read-only path with fixed parameters for simple listings. Additional constraints stay with the existing planner.",
+          "jev_consultation_bounded": "Selects today/tomorrow calendar views and lists with an explicit quantity. Code calculates dates and enforces tool limits; unsupported constraints use the existing planner.",
+          "jev_filter_document": "Qualifies excerpts already retrieved from your document spaces. An excerpt never proves the absence of a fact in a whole document.",
+          "jev_filter_mcp": "Qualifies structured MCP results already returned. Does not call a tool, grant permission or filter the final context.",
+          "jev_filter_ticket": "Qualifies already authorized tickets without changing their status, ownership or final-answer context.",
+          "jev_filter_reminder": "Qualifies already retrieved reminders for a reversible preview; all reminders remain available to the final answer.",
+          "jev_hitl_exclusion": "Proposes exclusions only within the displayed list. Any uncertain item sends the whole list to the existing filter. The final selection still requires your approval.",
+          "jev_observe_open_loops": "Observation only: compares JEV with the existing extractor, which always runs. Adds decision cost and may extend stream completion. No extraction is skipped.",
+          "jev_observe_journal": "Observation only: compares JEV with the existing extractor, which always runs. Adds decision cost and may extend stream completion. No extraction is skipped.",
+          "jev_observe_interests": "Observation only: compares JEV with the existing extractor, which always runs. Adds decision cost and may extend stream completion. No extraction is skipped.",
+          "jev_observe_memory": "Observation only: compares JEV with the existing extractor, which always runs. Adds decision cost and may extend stream completion. No extraction is skipped.",
+          "jev_initiative_utility": "Skips the full initiative evaluator only when no useful action, suggestion or follow-up is identified. Uncertainty keeps the existing evaluator.",
+          "jev_radio_verification": "Checks every sourced line before audio generation. Any uncertain line sends the whole script to the existing verifier.",
+          "meeting_template_selection": "Native Jev selection of the report format; the existing model still writes the minutes."
         },
         "voiceTts": {
           "sectionTitle": "Voice & provider tuning",
@@ -2782,6 +2868,66 @@
         "article12_hint": "All five records of a period in one JSON Lines file: a turn, an effect, a consultation, a model call, a gap in the record. Pseudonymised, complete — nothing is truncated — and the header states the exact count per source.",
         "article12_export": "Export everything",
         "charts_title": "Figures"
+      },
+      "jev": {
+        "title": "JEV integrations",
+        "description": "Choose where JEV can accelerate LIA’s decisions.",
+        "globalLabel": "Enable JEV",
+        "globalHelp": "The global switch applies to all uses below. Turning it off keeps their individual preferences.",
+        "active": "JEV enabled, with automatic fallback.",
+        "existing": "Existing processing is used.",
+        "fallbackHelp": "Each change applies to new operations. Work already in progress keeps its initial choice. An unavailable or uncertain JEV response falls back to the existing processing. Your explicit report-format choices always take precedence.",
+        "configure": "LLM configuration",
+        "refresh": "Refresh",
+        "saved": "Preference saved. New operations use this setting.",
+        "loadError": "Unable to load the settings. Refresh to try again.",
+        "saveError": "The change could not be confirmed. Check the TypeSafe key, model and pricing, then refresh before trying again.",
+        "readiness": {
+          "missing_key": "Add a TypeSafe API key in LLM configuration.",
+          "unavailable_model": "Select an active TypeSafe decision model in LLM configuration.",
+          "missing_price": "Add an active token tariff for the selected model in text LLM pricing.",
+          "unavailable": "Configuration is temporarily unavailable. Existing processing remains available."
+        },
+        "usageHelp": {
+          "meeting_template": "Chooses a meeting report format; the existing model writes the minutes.",
+          "consultation_path": "Selects an exact read-only path with fixed parameters for simple listings. Additional constraints stay with the existing planner.",
+          "consultation_bounded": "Selects today/tomorrow calendar views and lists with an explicit quantity. Code calculates dates and enforces tool limits; unsupported constraints use the existing planner.",
+          "filter_document": "Qualifies excerpts already retrieved from your document spaces. An excerpt never proves the absence of a fact in a whole document.",
+          "filter_mcp": "Qualifies structured MCP results already returned. Does not call a tool, grant permission or filter the final context.",
+          "filter_ticket": "Qualifies already authorized tickets without changing their status, ownership or final-answer context.",
+          "filter_reminder": "Qualifies already retrieved reminders for a reversible preview; all reminders remain available to the final answer.",
+          "hitl_exclusion": "Proposes exclusions only within the displayed list. Any uncertain item sends the whole list to the existing filter. The final selection still requires your approval.",
+          "observe_open_loops": "Observation only: compares JEV with the existing extractor, which always runs. Adds decision cost and may extend stream completion. No extraction is skipped.",
+          "observe_journal": "Observation only: compares JEV with the existing extractor, which always runs. Adds decision cost and may extend stream completion. No extraction is skipped.",
+          "observe_interests": "Observation only: compares JEV with the existing extractor, which always runs. Adds decision cost and may extend stream completion. No extraction is skipped.",
+          "observe_memory": "Observation only: compares JEV with the existing extractor, which always runs. Adds decision cost and may extend stream completion. No extraction is skipped.",
+          "initiative_utility": "Skips the full initiative evaluator only when no useful action, suggestion or follow-up is identified. Uncertainty keeps the existing evaluator.",
+          "radio_verification": "Checks every sourced line before audio generation. Any uncertain line sends the whole script to the existing verifier.",
+          "filter_email": "Shows a provisional relevance preview during searches. Final answers still use all retrieved data; the preview adds a decision cost.",
+          "filter_event": "Shows a provisional relevance preview during searches. Final answers still use all retrieved data; the preview adds a decision cost.",
+          "filter_task": "Shows a provisional relevance preview during searches. Final answers still use all retrieved data; the preview adds a decision cost.",
+          "filter_file": "Shows a provisional relevance preview during searches. Final answers still use all retrieved data; the preview adds a decision cost."
+        },
+        "usages": {
+          "consultation_path": "Known consultation paths",
+          "consultation_bounded": "Bounded consultations",
+          "filter_document": "Document excerpt previews",
+          "filter_mcp": "Structured MCP previews",
+          "filter_ticket": "Ticket previews",
+          "filter_reminder": "Reminder previews",
+          "hitl_exclusion": "Exclusions before approval",
+          "observe_open_loops": "Open-loop extraction observation",
+          "observe_journal": "Journal extraction observation",
+          "observe_interests": "Interest extraction observation",
+          "observe_memory": "Memory extraction observation",
+          "initiative_utility": "Initiative utility",
+          "radio_verification": "Radio fact checking",
+          "meeting_template": "Automatic meeting report format",
+          "filter_email": "Early email filtering",
+          "filter_event": "Early event filtering",
+          "filter_task": "Early task filtering",
+          "filter_file": "Early document filtering"
+        }
       }
     },
     "language": {
@@ -3909,7 +4055,8 @@
         "generated-assets": "files images documents screenshots downloads gallery generated expiry keep kept pin bookmarks bookmark kept answers saved answers favourites indexed knowledge space search share with a connection shared by",
         "sandbox-egress": "sandbox, python, script, network, internet, proxy, hosts, permissions, allow, revoke, egress, API, integration",
         "live-mode": "live, real time, voice, speech to speech, Gemini Live, GPT-Live, OpenAI, ElevenLabs, agent, direct session, delegation, model, thinking level, silence, duration, spend ceiling, interruptions, push to talk, conversation, microphone",
-        "radio": "radio, station, podcast, news, bulletin, headlines, analysis, column, voices, music, timer, sources, sites, feeds, RSS, verification, listening, in company"
+        "radio": "radio, station, podcast, news, bulletin, headlines, analysis, column, voices, music, timer, sources, sites, feeds, RSS, verification, listening, in company",
+        "admin-jev": "JEV, TypeSafe, switches, latency, decision, meeting, report format, fallback"
       }
     },
     "haptics": {
@@ -12424,9 +12571,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>Logs that keep facts, never words</h2><p>Following the <strong>OWASP Logging Cheat Sheet</strong>, a log line above debug level carries <strong>facts</strong> — counts, lengths, identifiers, error codes, a URL's host — and never the text a person wrote, or a model wrote about them: no search, no interest, no name of a file, a label or a space, no page visited.</p><p>The rule is checked <strong>by the value</strong>, not by the field name: a test reads every logging call in the code and refuses a preview or a value derived from content, whatever it is called. What an error message <strong>quotes</strong> — a value PostgreSQL rejected, a validation input — is withheld before the line is written, and a database error is described by its facts: code, constraint, table. Provider keys are masked in every logged address. Two limits are stated as they are: an external service's error in an unknown format can still quote a value, and the debug level — off in production — keeps more.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>Protecting data also means making sure it survives incidents. The production database is backed up automatically every night, with 7 days, 4 weeks and 6 months of history kept, in a dedicated directory with restrictive permissions. And because a backup only counts once a restore has been proven, the procedure is tested for real: the latest dump is restored into a disposable container and compared against the live database (schema revision, row counts) — a drill that ships with the stack.</p><h2>A complete record, not a sample</h2><p>Three registers kept automatically say what LIA <strong>did</strong> for you, what it <strong>consulted</strong> to answer you, and what it undertook <strong>on its own initiative</strong>. They carry no content: a consultation keeps the capability — \"your calendar\" — and never what was searched for, because writing it down would copy the very data the register exists to make accountable.</p><p>The record you download from the <strong>Registers</strong> page is <strong>complete</strong>. It used to carry a row ceiling: a real protection, since the whole document was assembled in memory on a Raspberry Pi, but applied to the wrong variable. What was scarce was memory; what was bounded was the truth. A server-side cursor now bounds the buffer: whatever the volume, the file carries everything your filters name, the exact count is stated in the header alongside the instant of generation, and the download is compressed on the fly when your browser accepts it.</p>"
       },
       "observability": {
-        "title": "606 Prometheus Metrics, 30 Grafana Dashboards, and Langfuse Tracing",
-        "excerpt": "LIA offers enterprise-grade observability with 606 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 606 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki: facts, never people's words</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>39 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 39 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30 Grafana dashboards</h2><p>LIA provides 30 Grafana dashboards numbered 01 to 30: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, and live. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 29 vital alerts — among them API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration traces every LLM call — tokens consumed (input/output/cache), response time, model used, estimated cost and request context — and seven Prometheus metrics of its own follow prompt versions, evaluation scores, A/B variants, trace depth and agent handoffs. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p><p>The same principle caught up with the tool success rate. A tool fails by <em>returning</em> a failure, never by raising an exception, and the counter only watched exceptions: the rate was 1.0 by construction, and the two alerts that read it could not fire. One predicate now decides what a success is, for the register, the metrics and the ReAct loop — the displayed rate goes down, because it finally tells the truth.</p>"
+        "title": "608 Prometheus Metrics, 30 Grafana Dashboards, and Langfuse Tracing",
+        "excerpt": "LIA offers enterprise-grade observability with 608 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 608 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki: facts, never people's words</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>39 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 39 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30 Grafana dashboards</h2><p>LIA provides 30 Grafana dashboards numbered 01 to 30: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard, and live. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 29 vital alerts — among them API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration traces every LLM call — tokens consumed (input/output/cache), response time, model used, estimated cost and request context — and seven Prometheus metrics of its own follow prompt versions, evaluation scores, A/B variants, trace depth and agent handoffs. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p><p>The same principle caught up with the tool success rate. A tool fails by <em>returning</em> a failure, never by raising an exception, and the counter only watched exceptions: the rate was 1.0 by construction, and the two alerts that read it could not fire. One predicate now decides what a success is, for the register, the metrics and the ReAct loop — the displayed rate goes down, because it finally tells the truth.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 155 Prompts Managed as Code",
@@ -13807,6 +13954,7 @@
       "confirm_reset_title": "Restore the generated version?",
       "confirm_reset_description": "Your edits are replaced by the minutes LIA generated.",
       "cost_breakdown": "{{total}} (transcription {{stt}} · minutes {{minutes}})",
+      "cost_breakdown_native": "{{total}} (transcription {{stt}} · minutes {{minutes}} · selection {{selection}})",
       "cost_unknown": "not priced",
       "transcript_line": "Turn of {{speaker}} at {{time}}",
       "format": "Format",

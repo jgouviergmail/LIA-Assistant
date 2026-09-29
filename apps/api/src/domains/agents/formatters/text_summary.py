@@ -387,7 +387,7 @@ def generate_data_for_filtering(
         REGISTRY_EXTERNAL_LEGEND,
     )
     from src.domains.agents.data_registry.trust import is_external
-    from src.domains.agents.display.llm_serializer import payload_to_text
+    from src.domains.agents.display.filter_evidence import payload_to_filter_text
     from src.domains.agents.utils.content_wrapper import injection_notice
 
     lines: list[str] = []
@@ -410,8 +410,8 @@ def generate_data_for_filtering(
             if item_type in ("DRAFT", "MCP_APP", "SKILL_APP"):
                 continue
 
-            # Use generic serializer for full data details
-            text_summary = payload_to_text(payload) if payload else ""
+            # Filtering needs evidence, not a shortened display/voice summary.
+            text_summary = payload_to_filter_text(payload) if payload else ""
             if text_summary:
                 if is_external(item_type):
                     has_external = True

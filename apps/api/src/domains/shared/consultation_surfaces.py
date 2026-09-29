@@ -292,6 +292,7 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
         prefix="radio:",
         source="user",
         domains={
+            "news": "web_search",
             "tickets": "ticket",
             "meetings": "document",
             # LIA's own past notifications: « I checked what I had told you ».

@@ -556,6 +556,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'ai_connectors',
     gate: { kind: 'superuser' },
   },
+  'admin-jev': {
+    titleKey: 'settings.admin.jev.title',
+    descriptionKey: 'settings.admin.jev.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.admin-jev`,
+    group: 'ai_connectors',
+    gate: { kind: 'superuser' },
+  },
 
   // ---- Administration / Content & Extensions
   'admin-personalities': {

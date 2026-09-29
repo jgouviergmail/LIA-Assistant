@@ -93,7 +93,14 @@ export type PowerTier = 'critical' | 'high' | 'medium' | 'low';
 
 /** Kind of model an LLM type expects. Drives the ?kinds= query param when
  * the frontend fetches /llm-config/metadata. */
-export type LLMModelKind = 'chat' | 'image' | 'audio' | 'realtime' | 'tts' | 'embedding';
+export type LLMModelKind =
+  | 'chat'
+  | 'image'
+  | 'audio'
+  | 'realtime'
+  | 'tts'
+  | 'embedding'
+  | 'decision';
 
 export interface LLMTypeInfo {
   llm_type: string;

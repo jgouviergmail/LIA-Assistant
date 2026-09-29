@@ -1717,6 +1717,11 @@
       "title": "Ein Radio nur für dich",
       "summary": "LIA wird zu einem Radiosender auf Abruf in deiner Sprache: dein Tag, dann die Nachrichten der verfolgten Medien und der Websites, die du hinzufügst, für dich geschrieben, geprüft und gesprochen, während du zuhörst. Ein festes Raster entscheidet, was läuft, die Modelle schreiben nur, und jeder Satz zeigt seine Quelle. Nichts wird produziert, wenn niemand zuhört, nichts wird danach behalten, und was die Sitzung kostet, ist zu sehen, während sie Kosten verursacht.",
       "src": "338514497561"
+    },
+    "325": {
+      "title": "JEV entscheidet, jeder Einsatz behält seinen Schalter",
+      "summary": "JEV hilft LIA, innerhalb klarer Grenzen auszuwählen, Anfragen zuzuordnen oder Inhalte zu bewerten. Jeder Einsatz lässt sich im laufenden Betrieb umschalten; bei Unsicherheit übernimmt der bisherige Ablauf. Vorschauen behalten alle Ergebnisse, Beobachter blockieren keine Extraktion und ein Ausschluss ist niemals eine Freigabe. Administratoren sehen Kontext, Antwort und Folge; jeder kostenpflichtige Aufruf wird erfasst. Zeitgewinne werden vor der Aktivierung über den gesamten Ablauf geprüft.",
+      "src": "7ebe153c5910"
     }
   }
 }

@@ -72,12 +72,14 @@ class LLMTypeInfo(BaseModel):
         None,
         description="Visual power tier indicator: critical, high, medium, low, or null",
     )
-    required_kind: Literal["chat", "image", "audio", "realtime", "tts", "embedding"] = Field(
-        default="chat",
-        description=(
-            "The kind of model this LLM type expects. Drives the kinds= filter "
-            "applied by the frontend when fetching /llm-config/metadata."
-        ),
+    required_kind: Literal["chat", "image", "audio", "realtime", "tts", "embedding", "decision"] = (
+        Field(
+            default="chat",
+            description=(
+                "The kind of model this LLM type expects. Drives the kinds= filter "
+                "applied by the frontend when fetching /llm-config/metadata."
+            ),
+        )
     )
 
 
@@ -110,6 +112,7 @@ class LLMTypeConfigUpdate(BaseModel):
             "qwen",
             "elevenlabs",
             "edge",
+            "typesafe",
         ]
         | None
     ) = None
@@ -184,7 +187,7 @@ class ModelCapabilities(BaseModel):
     """
 
     model_id: str
-    kind: Literal["chat", "image", "audio", "realtime", "tts", "embedding"]
+    kind: Literal["chat", "image", "audio", "realtime", "tts", "embedding", "decision"]
     max_output_tokens: int
     supports_tools: bool
     supports_structured_output: bool

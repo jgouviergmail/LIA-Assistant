@@ -10,7 +10,20 @@ import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import type { MeetingActions } from '@/components/meetings/useMeetingActions';
 import type { MeetingDetail } from '@/types/meetings';
 
-import { ProcessingPanel } from '../MeetingDetailPanels';
+import { MeetingFacts, ProcessingPanel } from '../MeetingDetailPanels';
+
+vi.mock('@/i18n/client', async () => {
+  const { createInstance } = await import('i18next');
+  const { default: translation } = await import('../../../../locales/en/translation.json');
+  const instance = createInstance();
+  await instance.init({ lng: 'en', resources: { en: { translation } } });
+  return {
+    useTranslation: () => ({
+      t: (key: string, options?: Record<string, unknown>) =>
+        key.startsWith('meetings.detail.cost') ? instance.t(key, options) : key,
+    }),
+  };
+});
 
 function actions(): MeetingActions {
   return {
@@ -54,6 +67,7 @@ function processing(over: Partial<MeetingDetail> = {}): MeetingDetail {
     synthesis_tokens_out: 0,
     synthesis_tokens_cache: 0,
     synthesis_cost_eur: null,
+    template_selection_usage: [],
     total_cost_eur: null,
     has_transcript: false,
     report: null,
@@ -143,4 +157,27 @@ describe('ProcessingPanel', () => {
     await user.click(screen.getByRole('button', { name: 'meetings.detail.delete' }));
     expect(acts.remove).toHaveBeenCalledTimes(1);
   });
+});
+
+it('keeps an unpriced synthesis visible beside a priced native selection', () => {
+  renderWithProviders(
+    <MeetingFacts
+      lng="en"
+      meeting={processing({
+        stt_cost_eur: 0.1,
+        synthesis_cost_eur: null,
+        total_cost_eur: 0.100038,
+        template_selection_usage: [
+          {
+            model: 'jev-1.13.0',
+            input_tokens: 1000,
+            output_tokens: 20,
+            cost_usd: 0.000042,
+            cost_eur: 0.0000378,
+          },
+        ],
+      })}
+    />
+  );
+  expect(screen.getByText(/minutes not priced/)).toHaveTextContent('selection €0.0000');
 });

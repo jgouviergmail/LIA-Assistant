@@ -1542,7 +1542,7 @@ async def get_tasks_tool(
         task_id: Single task ID for direct fetch.
         task_ids: Multiple task IDs for batch fetch.
         task_list_id: Target task list (default: primary).
-        max_results: Maximum results (default 10, max 50).
+        max_results: Maximum results, bounded by the administrator's configured task limit.
         show_completed: Include completed tasks (default False).
         only_completed: Only completed tasks (default False).
 

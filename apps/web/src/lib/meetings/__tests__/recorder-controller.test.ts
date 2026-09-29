@@ -70,6 +70,7 @@ function detail(over: Partial<MeetingDetail> = {}): MeetingDetail {
     synthesis_tokens_out: 0,
     synthesis_tokens_cache: 0,
     synthesis_cost_eur: null,
+    template_selection_usage: [],
     total_cost_eur: null,
     has_transcript: false,
     report: null,
@@ -518,4 +519,3 @@ describe('edge cases the server decides', () => {
     await h.controller.dispose();
   });
 });
-

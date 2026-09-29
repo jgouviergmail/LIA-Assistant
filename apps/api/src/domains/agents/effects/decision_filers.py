@@ -57,6 +57,12 @@ DECISION_FILERS: Final[dict[str, tuple[str, ...]]] = {
     "infrastructure/proactive/tracking.py": (_OUT_OF_TURN_FUNNEL,),
     "infrastructure/proactive/runner.py": (_OUT_OF_TURN_FUNNEL,),
     "domains/meetings/enrichment.py": (_OUT_OF_TURN_FUNNEL,),
+    # Native selection shares the meeting run. Its finalizer also files failed
+    # synthesis attempts that never reached the normal completion funnel.
+    "infrastructure/llm/jev_runtime.py": (
+        _OUT_OF_TURN_FUNNEL,
+        "domains/meetings/native_spend.py",
+    ),
     # The personal radio: a session, and each article translated on opening.
     "domains/radio/adapters.py": ("domains/radio/register.py",),
     "domains/radio/articles.py": ("domains/radio/register.py",),

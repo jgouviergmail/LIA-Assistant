@@ -293,6 +293,19 @@ describe('dialog save (override diff)', () => {
 // --- dialog: field visibility ---------------------------------------------------
 
 describe('dialog sampling-param visibility', () => {
+  it('native decisions expose only their deadline beside provider and model', async () => {
+    renderSection([
+      typeConfig('meeting_template_selection', 'Jev selection', {
+        requiredKind: 'decision',
+        effective: { provider: 'typesafe', model: 'jev-1.13.0', timeout_seconds: 2 },
+      }),
+    ]);
+    const dialog = await openDialog('Jev selection');
+    expect(within(dialog).queryAllByRole('slider')).toHaveLength(0);
+    expect(within(dialog).getAllByRole('spinbutton')).toHaveLength(1);
+    expect(within(dialog).queryByText('settings.admin.llmConfig.fields.maxTokens')).toBeNull();
+    expect(within(dialog).getByText('settings.admin.llmConfig.fields.timeout')).toBeTruthy();
+  });
   it('shows all four sliders for a fully-capable model', async () => {
     renderSection([typeConfig('router', 'Router')]);
     await openDialog('Router');
@@ -657,7 +670,10 @@ describe('discovered Ollama models (ADR-267)', () => {
   });
 
   it('offers no reasoning widget at all when the server is unreachable (no declaration)', async () => {
-    apiQueryState.current[OLLAMA_MODELS_URL] = { data: { models: [], source: 'fallback' }, loading: false };
+    apiQueryState.current[OLLAMA_MODELS_URL] = {
+      data: { models: [], source: 'fallback' },
+      loading: false,
+    };
     renderSection([ollamaConfig('qwen3.8:27b')]);
     await openDialog('Response');
     expect(screen.queryByText('settings.admin.llmConfig.fields.reasoningEffort')).toBeNull();

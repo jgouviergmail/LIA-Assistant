@@ -69,6 +69,14 @@ PromptVersion = str  # Accept any version string, validated at runtime
 # tests/unit/domains/agents/prompts/test_prompt_name_literal_sync.py —
 # an entry without a file (or a file without an entry) fails CI.
 PromptName = Literal[
+    "jev_collection_question",
+    "jev_document_question",
+    "jev_consultation_question",
+    "jev_bounded_consultation_question",
+    "jev_extraction_question",
+    "jev_hitl_exclusion_question",
+    "jev_initiative_question",
+    "jev_radio_question",
     "response_system_prompt_base",
     "response_plan_rejection_notice",
     "response_context_sections",
@@ -279,6 +287,8 @@ PromptName = Literal[
     "meeting_condense_prompt",
     # Template library (ADR-259): automatic template choice and part-by-part rewrite.
     "meeting_template_selection_prompt",
+    "meeting_template_selection_context",
+    "meeting_jev_selection_prompt",
     "meeting_transcript_rewrite_prompt",
     # Workboard (ADR-276): the brief a ticket becomes when LIA runs it alone,
     # plus the fragments the ticket's own shape switches on. READ BY PATH from

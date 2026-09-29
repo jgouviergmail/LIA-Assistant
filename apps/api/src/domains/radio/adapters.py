@@ -17,11 +17,10 @@ from __future__ import annotations
 
 import asyncio
 import secrets
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from time import perf_counter
 from typing import Any, Final, Protocol
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -37,7 +36,7 @@ from src.core.i18n_radio import radio_station_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_store import read_prompt_file
 from src.core.user_display import resolve_user_display_name
-from src.domains.briefing.schemas import CardsBundle
+from src.domains.briefing.consultations import SelectedCardsReader
 from src.domains.briefing.service import BriefingService
 from src.domains.chat.repository import ChatRepository
 from src.domains.chat.service import TrackingContext
@@ -49,13 +48,14 @@ from src.domains.radio.antenna import Antenna, AntennaCrew, AntennaSetup, DaySou
 from src.domains.radio.budget import radio_spend_blocked
 from src.domains.radio.cast import engine_key
 from src.domains.radio.constants import FLASH_NOTES_MAX
-from src.domains.radio.consultations import collecting, recorder_for
+from src.domains.radio.consultations import collecting, consulted, recorder_for
 from src.domains.radio.day_source import ListenerDay
 from src.domains.radio.delivery import DELIVERY_LINES, load_style_phrases
 from src.domains.radio.editorial import NEWS_MAX_AGE_S, NewsCandidate
 from src.domains.radio.flash import FlashNote
 from src.domains.radio.formats import FORMAT_SPECS, RadioFormat
 from src.domains.radio.interest_search import refresh_listener_interests
+from src.domains.radio.jev_checker import JevLineChecker
 from src.domains.radio.live_store import RadioSessionRecord
 from src.domains.radio.meanings import RedisHeadlineVectors
 from src.domains.radio.orchestrator import FlashSource, Producer
@@ -322,6 +322,7 @@ class NewsDesk:
     """
 
     user_id: UUID
+    run_id: str
     disabled_feeds: frozenset[str]
     clock: Callable[[], datetime]
 
@@ -329,14 +330,15 @@ class NewsDesk:
         self, *, heard_keys: frozenset[str], heard_stories: frozenset[str]
     ) -> list[NewsCandidate]:
         """The freshest stories no news format is too old to air, never heard first."""
-        return await news_candidates(
-            self.user_id,
-            disabled_feeds=self.disabled_feeds,
-            since=self.clock() - timedelta(seconds=NEWS_MAX_AGE_S),
-            limit=NEWS_CANDIDATES_READ_MAX,
-            heard_keys=heard_keys,
-            heard_stories=heard_stories,
-        )
+        async with consulted(self.user_id, self.run_id, "news"):
+            return await news_candidates(
+                self.user_id,
+                disabled_feeds=self.disabled_feeds,
+                since=self.clock() - timedelta(seconds=NEWS_MAX_AGE_S),
+                limit=NEWS_CANDIDATES_READ_MAX,
+                heard_keys=heard_keys,
+                heard_stories=heard_stories,
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -394,10 +396,8 @@ class AccountedProducer:
 class NotificationFlashes:
     """What LIA wrote to the listener since the station last looked — the loop's ``FlashSource``.
 
-    A look that found something is a consultation of the listener's
-    notifications, filed under the session's run (ADR-263); a look that found
-    nothing is not filed: the loop looks every ``RADIO_FLASH_POLL_SECONDS``, and
-    the desk's own reading of the same source is filed when it gathers.
+    Each look is a consultation, including one that finds no notification or
+    fails. The register's UI folds repeated reads without losing their count.
     """
 
     def __init__(self, user_id: UUID, run_id: str) -> None:
@@ -407,16 +407,8 @@ class NotificationFlashes:
 
     async def since(self, after: datetime) -> list[FlashNote]:
         """The notifications sent after ``after``, oldest first, as many as one flash tells."""
-        started = perf_counter()
-        async with collecting(self._run_id):
-            notes = await read_flash_notes(self._user_id, after=after, limit=FLASH_NOTES_MAX)
-            if notes:
-                recorder_for(self._user_id, self._run_id)(
-                    opened=frozenset({PersonalSource.NOTIFICATIONS.value}),
-                    failed=frozenset(),
-                    duration_ms=int((perf_counter() - started) * 1000),
-                )
-        return notes
+        async with consulted(self._user_id, self._run_id, PersonalSource.NOTIFICATIONS.value):
+            return await read_flash_notes(self._user_id, after=after, limit=FLASH_NOTES_MAX)
 
 
 def flash_source(record: RadioSessionRecord, setup: RadioSetup) -> FlashSource | None:
@@ -499,8 +491,13 @@ def _crew(
             template=templates.analyst, station=station, call=call(RADIO_ANALYST_SLOT)
         ),
         checker=(
-            ModelLineChecker(
-                template=templates.verifier, station=station, call=call(RADIO_VERIFIER_SLOT)
+            JevLineChecker(
+                ModelLineChecker(
+                    template=templates.verifier, station=station, call=call(RADIO_VERIFIER_SLOT)
+                ),
+                user_id=record.user_id,
+                run_id=record.run_id,
+                station_name=setup.station_name,
             )
             if checked
             else None
@@ -511,7 +508,7 @@ def _crew(
     )
 
 
-async def _cards_of(user_id: UUID) -> Callable[[frozenset[str]], Awaitable[CardsBundle]]:
+async def _cards_of(user_id: UUID) -> SelectedCardsReader:
     """The shared source readers, filling only the sections the radio permits."""
     async with get_db_context() as db:
         user = await db.get(User, user_id)
@@ -534,7 +531,7 @@ def _antenna(
     setup: RadioSetup,
     *,
     crew: AntennaCrew,
-    cards: Callable[[frozenset[str]], Awaitable[CardsBundle]],
+    cards: SelectedCardsReader,
     redis: Any,
     aired: RedisAiredLedger,
 ) -> Antenna:
@@ -575,7 +572,12 @@ def _antenna(
         ),
         crew=crew,
         day=CollectedDay(listener_day, record.run_id),
-        news=NewsDesk(user_id=record.user_id, disabled_feeds=setup.disabled_feeds, clock=clock),
+        news=NewsDesk(
+            user_id=record.user_id,
+            run_id=record.run_id,
+            disabled_feeds=setup.disabled_feeds,
+            clock=clock,
+        ),
         aired=aired,
         headlines=RedisHeadlineVectors(
             redis,

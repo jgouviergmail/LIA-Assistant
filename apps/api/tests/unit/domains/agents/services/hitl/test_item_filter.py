@@ -350,14 +350,17 @@ class TestParseFilterResponse:
         result = service._parse_filter_response('[0, "string", 2]', max_index=5)
         assert result == [0, 2]
 
-    def test_parse_invalid_json_falls_back_to_regex(self, service):
-        """Test invalid JSON falls back to regex extraction."""
-        result = service._parse_filter_response(
+    @pytest.mark.parametrize(
+        "response",
+        [
             "The indices to exclude are 0 and 2",
-            max_index=5,
-        )
-        assert 0 in result
-        assert 2 in result
+            "Item 0 should be excluded. Item 1 does not match.\n[0]",
+            "Keep item 0. No exclusion is justified; there are 2 candidates.",
+            "[true, false]",
+        ],
+    )
+    def test_commentary_or_booleans_never_become_positional_exclusions(self, service, response):
+        assert service._parse_filter_response(response, max_index=5) == []
 
     def test_parse_non_list_returns_empty(self, service):
         """Test non-list JSON returns empty list."""

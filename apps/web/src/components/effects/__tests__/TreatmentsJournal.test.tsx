@@ -23,6 +23,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) => {
       const dictionary: Record<string, string> = {
+        'radio.station_name': 'LIA Radio',
         'treatments.journal.title': 'What LIA looked at',
         'treatments.journal.description': 'Capabilities consulted',
         'treatments.journal.refresh': 'Refresh',
@@ -89,9 +90,7 @@ function entry(overrides: Partial<TreatmentEntry> = {}): TreatmentEntry {
   };
 }
 
-function state(
-  overrides: Partial<UseTreatmentsJournalResult> = {}
-): UseTreatmentsJournalResult {
+function state(overrides: Partial<UseTreatmentsJournalResult> = {}): UseTreatmentsJournalResult {
   return {
     entries: [entry()],
     total: 1,
@@ -111,6 +110,12 @@ beforeEach(() => {
 });
 
 describe('TreatmentsJournal', () => {
+  it('identifies radio consultations while retaining the consulted domain', () => {
+    hookResult.current = state({ entries: [entry({ tool_name: 'radio:mails' })] });
+    render(<TreatmentsJournal lng="en" />);
+    expect(screen.getByText('LIA Radio')).toBeInTheDocument();
+    expect(screen.getAllByText('radio:mails').length).toBeGreaterThan(0);
+  });
   it('names the DOMAIN, not the tool, as the headline', () => {
     render(<TreatmentsJournal lng="en" />);
 
@@ -265,11 +270,7 @@ describe('TreatmentsJournal', () => {
 
   it('never groups a failure with a success', () => {
     hookResult.current = state({
-      entries: [
-        entry({ id: '1' }),
-        entry({ id: '2', outcome: 'failed' }),
-        entry({ id: '3' }),
-      ],
+      entries: [entry({ id: '1' }), entry({ id: '2', outcome: 'failed' }), entry({ id: '3' })],
       total: 3,
     });
     render(<TreatmentsJournal lng="en" />);
@@ -346,8 +347,6 @@ describe('TreatmentsJournal — the reading it was given', () => {
   it('withholds the export from a filtered reading', () => {
     render(<TreatmentsJournal lng="en" origin="initiative" />);
 
-    expect(
-      screen.queryByRole('group', { name: 'Export this register' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Export this register' })).not.toBeInTheDocument();
   });
 });

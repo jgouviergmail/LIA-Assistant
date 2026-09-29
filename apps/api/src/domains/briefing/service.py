@@ -54,6 +54,7 @@ from src.domains.briefing.constants import (
     SECTION_WEATHER_TTL_SECONDS,
 )
 from src.domains.briefing.consultations import SURFACE as BRIEFING_SURFACE
+from src.domains.briefing.consultations import SectionReadObserver
 from src.domains.briefing.exceptions import (
     ConnectorAccessError,
     ConnectorNotConfiguredError,
@@ -684,6 +685,7 @@ class BriefingService:
         force: bool,
         respect_hidden: bool = True,
         record: bool = True,
+        on_read: SectionReadObserver | None = None,
     ) -> CardSection:
         """Wrap a fetcher with cache + status mapping. **Never raises.**"""
         # 0. UXR Lot 5 (B4): a user-hidden section short-circuits BEFORE any
@@ -711,10 +713,7 @@ class BriefingService:
         # 2. Live fetch + status mapping (extracted — CC discipline).
         # Only THIS branch is a consultation: a cache hit above reads Redis,
         # not the person's mailbox, and a hidden section never runs at all.
-        started = time.perf_counter()
-        section = await self._fetch_and_map(name, fetcher)
-        if record:
-            self._record_consultation(name, section, started)
+        section = await self._read_live_section(name, fetcher, record=record, on_read=on_read)
 
         # 3. Persist on cacheable outcomes (skip ttl=0 and ERROR — errors should
         #    retry next request, not be sticky).
@@ -743,6 +742,31 @@ class BriefingService:
             section=name, status=section.status.value, origin=origin
         ).inc()
         return section
+
+    async def _read_live_section(
+        self,
+        name: str,
+        fetcher: Callable[[], Awaitable[Any]],
+        *,
+        record: bool,
+        on_read: SectionReadObserver | None,
+    ) -> CardSection:
+        """Close each live read even on cancellation, before cache writes or siblings finish."""
+        started = time.perf_counter()
+        section = CardSection(status=CardStatus.ERROR, generated_at=datetime.now(UTC))
+        try:
+            section = await self._fetch_and_map(name, fetcher)
+            return section
+        finally:
+            if record:
+                self._record_consultation(name, section, started)
+            if on_read is not None:
+                try:
+                    on_read(name, section.status)
+                except Exception as exc:  # noqa: BLE001 — observing never breaks the read
+                    logger.warning(
+                        "briefing_read_observer_failed", section=name, error_type=type(exc).__name__
+                    )
 
     async def _fetch_and_map(
         self,
@@ -840,7 +864,9 @@ class BriefingService:
         cards, _missing = await self._read_cached_bundle()
         return cards
 
-    async def read_selected_cards(self, sections: frozenset[str]) -> CardsBundle:
+    async def read_selected_cards(
+        self, sections: frozenset[str], *, on_read: SectionReadObserver | None = None
+    ) -> CardsBundle:
         """Read another surface's allowed sources, filling cold or expired caches.
 
         The caller supplies its own source selection, independent of dashboard display
@@ -851,6 +877,8 @@ class BriefingService:
 
         Args:
             sections: The section names the calling surface permits reading.
+            on_read: Reports each attempted live read, including cancellation,
+                before the bundle completes. Cache hits report nothing.
 
         Returns:
             The bundle with only the selected sections populated.
@@ -870,6 +898,7 @@ class BriefingService:
                     force=False,
                     respect_hidden=False,
                     record=False,
+                    on_read=on_read,
                 )
                 for plan in plans
             )

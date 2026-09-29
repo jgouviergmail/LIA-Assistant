@@ -3,6 +3,8 @@ import { Message, BrowserScreenshotData } from '@/types/chat';
 import type { StreamPhase } from '@/types/chat-state';
 import { ChatMessage } from './ChatMessage';
 import { BrowserScreenshotOverlay } from './BrowserScreenshotOverlay';
+import { ResultPreview } from './ResultPreview';
+import type { QualifiedCollection } from '@/types/result-preview';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { TypingIndicator } from './TypingIndicator';
 import { AnimatedEmoji } from '@/components/ui/animated-emoji';
@@ -31,6 +33,7 @@ export interface ChatMessageListProps {
   /** 'progress' (execution steps) vs 'answer' (real tokens) — drives step/caret styling. */
   streamPhase?: StreamPhase;
   browserScreenshot?: BrowserScreenshotData | null;
+  resultPreviews?: QualifiedCollection[];
   /** When true, the scroll-up sentinel is rendered and triggers ``onLoadOlder``
    *  as soon as it enters the viewport. */
   hasMoreOlder?: boolean;
@@ -252,10 +255,7 @@ function EmptyConversation({
         )}
       </div>
       {onStarterPick && (
-        <EmptyConversationStarters
-          onPick={onStarterPick}
-          grounded={groundedSuggestions ?? []}
-        />
+        <EmptyConversationStarters onPick={onStarterPick} grounded={groundedSuggestions ?? []} />
       )}
     </div>
   );
@@ -375,6 +375,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   activeStreamId = null,
   streamPhase = 'answer',
   browserScreenshot,
+  resultPreviews = [],
   hasMoreOlder = false,
   isLoadingOlder = false,
   onLoadOlder,
@@ -840,6 +841,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
 
         {/* Browser progressive screenshot — inline in chat flow */}
         {browserScreenshot && <BrowserScreenshotOverlay screenshot={browserScreenshot} />}
+        <ResultPreview collections={resultPreviews} hidden={Boolean(searchHighlight)} />
 
         {/* Typing indicator */}
         {isTyping && (

@@ -85,7 +85,7 @@ async def test_boot_populates_the_executor_registry_before_asserting(
     EXECUTOR_REGISTRY.clear()
     seen: list[int] = []
 
-    def _record() -> None:
+    def _record(*args: object) -> None:
         seen.append(len(EXECUTOR_REGISTRY))
 
     with (

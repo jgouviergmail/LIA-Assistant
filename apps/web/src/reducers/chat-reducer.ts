@@ -257,6 +257,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
   // ------------------------------------------------------------------ User
   SEND_MESSAGE: (state, action) => ({
     ...state,
+    resultPreviews: [],
     messages: [...state.messages, action.payload.message],
     status: 'sending',
     streaming: {
@@ -277,6 +278,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
 
   CLEAR_MESSAGES: state => ({
     ...state,
+    resultPreviews: [],
     messages: [],
     status: 'idle',
     streaming: {
@@ -362,6 +364,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
   // ------------------------------------------------------------------ SSE Lifecycle
   SSE_CONNECTING: state => ({
     ...state,
+    resultPreviews: [],
     status: 'sending',
     streaming: {
       ...state.streaming,
@@ -379,6 +382,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
 
   SSE_DISCONNECTED: state => ({
     ...state,
+    resultPreviews: [],
     status: 'idle',
     streaming: {
       currentMessageId: null,
@@ -390,6 +394,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
 
   SSE_ERROR: (state, action) => ({
     ...state,
+    resultPreviews: [],
     status: 'error',
     streaming: {
       ...state.streaming,
@@ -553,6 +558,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
         phase: 'answer',
       },
       browserScreenshot: null, // Clear overlay when stream completes
+      resultPreviews: [],
       contextUsage: nextContextUsage(state, metadata),
       hitl: hitlAfterDone,
     };
@@ -560,6 +566,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
 
   STREAM_ERROR: (state, action) => ({
     ...state,
+    resultPreviews: [],
     status: 'error',
     streaming: {
       ...state.streaming,
@@ -734,6 +741,21 @@ const ACTION_HANDLERS: ChatActionHandlers = {
   }),
 
   // ------------------------------------------------------------------ Browser Screenshots
+  RESULT_PREVIEW: (state, action) => {
+    if (
+      state.status !== 'streaming' ||
+      state.streaming.currentMessageId !== action.payload.messageId
+    )
+      return state;
+    return {
+      ...state,
+      resultPreviews: [
+        ...state.resultPreviews.filter(item => item.kind !== action.payload.collection.kind),
+        action.payload.collection,
+      ],
+    };
+  },
+
   BROWSER_SCREENSHOT: (state, action) => ({ ...state, browserScreenshot: action.payload }),
 
   BROWSER_SCREENSHOT_CLEAR: state => ({ ...state, browserScreenshot: null }),

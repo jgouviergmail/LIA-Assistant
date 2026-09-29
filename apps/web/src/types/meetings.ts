@@ -342,6 +342,14 @@ export interface MeetingDetail {
   synthesis_tokens_cache: number;
   /** LLM cost of the minutes, every synthesis pass included; null = model not priced. */
   synthesis_cost_eur: number | null;
+  /** Native decisions have their own models and tariffs; never reprice them as synthesis. */
+  template_selection_usage: {
+    model: string;
+    input_tokens: number;
+    output_tokens: number;
+    cost_usd: number;
+    cost_eur: number;
+  }[];
   /** Transcription + minutes in EUR; null while nothing priced was spent. */
   total_cost_eur: number | null;
   has_transcript: boolean;
@@ -412,6 +420,8 @@ export interface MeetingNotificationMetadata {
   model_name?: string | null;
   /** LLM cost of the minutes; null when the model has no administered price. */
   llm_cost_eur?: number | null;
+  /** Native template choice, separately priced from the generative minutes. */
+  selection_cost_eur?: number | null;
   /** Transcription cost; null when the engine's model has no administered price (0 for the local engine). */
   stt_cost_eur?: number | null;
   stt_audio_duration_seconds?: number;

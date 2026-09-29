@@ -111,6 +111,40 @@ class SettingSpec(Generic[T]):
 
 
 SETTING_SPECS: dict[SystemSettingKey, SettingSpec[Any]] = {
+    **{
+        key: SettingSpec(key=key, default=False, decode=decode_bool, serialize=encode_bool)
+        for key in (
+            SystemSettingKey.JEV_FILTER_EMAIL_ENABLED,
+            SystemSettingKey.JEV_FILTER_EVENT_ENABLED,
+            SystemSettingKey.JEV_FILTER_TASK_ENABLED,
+            SystemSettingKey.JEV_FILTER_FILE_ENABLED,
+            SystemSettingKey.JEV_RADIO_VERIFICATION_ENABLED,
+            SystemSettingKey.JEV_CONSULTATION_PATH_ENABLED,
+            SystemSettingKey.JEV_CONSULTATION_BOUNDED_ENABLED,
+            SystemSettingKey.JEV_OBSERVE_MEMORY_ENABLED,
+            SystemSettingKey.JEV_OBSERVE_INTERESTS_ENABLED,
+            SystemSettingKey.JEV_OBSERVE_JOURNAL_ENABLED,
+            SystemSettingKey.JEV_OBSERVE_OPEN_LOOPS_ENABLED,
+            SystemSettingKey.JEV_HITL_EXCLUSION_ENABLED,
+            SystemSettingKey.JEV_FILTER_REMINDER_ENABLED,
+            SystemSettingKey.JEV_FILTER_TICKET_ENABLED,
+            SystemSettingKey.JEV_FILTER_MCP_ENABLED,
+            SystemSettingKey.JEV_FILTER_DOCUMENT_ENABLED,
+            SystemSettingKey.JEV_INITIATIVE_UTILITY_ENABLED,
+        )
+    },
+    SystemSettingKey.JEV_ENABLED: SettingSpec(
+        key=SystemSettingKey.JEV_ENABLED,
+        default=False,
+        decode=decode_bool,
+        serialize=encode_bool,
+    ),
+    SystemSettingKey.JEV_MEETING_TEMPLATE_ENABLED: SettingSpec(
+        key=SystemSettingKey.JEV_MEETING_TEMPLATE_ENABLED,
+        default=False,
+        decode=decode_bool,
+        serialize=encode_bool,
+    ),
     SystemSettingKey.SELF_HOST_SEED_BUNDLE: SettingSpec(
         key=SystemSettingKey.SELF_HOST_SEED_BUNDLE,
         default="",

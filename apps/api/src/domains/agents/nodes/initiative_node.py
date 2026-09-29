@@ -71,6 +71,7 @@ from src.domains.agents.nodes.initiative_schemas import (
 from src.domains.agents.nodes.initiative_schemas import (
     InitiativeDecision,
 )
+from src.domains.agents.nodes.jev_initiative import choose_empty_initiative
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.streaming.followup_metadata import (
     push_followups,
@@ -690,18 +691,20 @@ async def _initiative_core(
     from src.infrastructure.llm.reasoning_stream import make_reasoning_emit
 
     try:
-        decision = await asyncio.wait_for(
-            get_structured_output(
-                llm=llm,
-                messages=single_call_messages(prompt),
-                schema=InitiativeDecision,
-                provider=provider,
-                node_name=NODE_INITIATIVE,
-                config=config,
-                reasoning_emit=make_reasoning_emit(NODE_INITIATIVE),
-            ),
-            timeout=INITIATIVE_LLM_TIMEOUT_SECONDS,
-        )
+        decision = await choose_empty_initiative(prompt, str(user_id), run_id)
+        if decision is None:
+            decision = await asyncio.wait_for(
+                get_structured_output(
+                    llm=llm,
+                    messages=single_call_messages(prompt),
+                    schema=InitiativeDecision,
+                    provider=provider,
+                    node_name=NODE_INITIATIVE,
+                    config=config,
+                    reasoning_emit=make_reasoning_emit(NODE_INITIATIVE),
+                ),
+                timeout=INITIATIVE_LLM_TIMEOUT_SECONDS,
+            )
     except (TimeoutError, Exception) as exc:
         logger.warning("initiative_llm_failed", error=str(exc), run_id=run_id)
         return {STATE_KEY_INITIATIVE_ITERATION: iteration + 1}

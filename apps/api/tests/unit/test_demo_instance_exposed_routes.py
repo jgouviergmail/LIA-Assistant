@@ -399,6 +399,9 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
 #: "closed by decision", it is closed by omission, and that is how the gallery
 #: and the kept answers shipped to the demonstrator as empty screens.
 HIDDEN_BY_DECISION: dict[str, str] = {
+    "GET /api/v1/debug/jev": (
+        "native decision diagnostics stay internal; the public demonstrator has no enabled JEV usage"
+    ),
     "/api/v1/admin/*": "the operator's surface; a visitor is never an administrator",
     "/api/v1/usage-limits/admin/*": "the operator's ceilings and blocks",
     "GET /api/v1/users": "the superuser listing of every account (the /users/me routes are exposed)",

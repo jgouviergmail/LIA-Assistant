@@ -573,6 +573,15 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=["structured_output"],
         power_tier=POWER_TIER_HIGH,
     ),
+    "meeting_template_selection": LLMTypeMetadata(
+        llm_type="meeting_template_selection",
+        display_name="Meeting template selection (Jev)",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.meeting_template_selection",
+        required_capabilities=[],
+        power_tier=POWER_TIER_LOW,
+        required_kind=LLMModelKindEnum.decision,
+    ),
     # Meeting minutes (ADR-258): one structured-output call over a whole
     # transcript (an hour of speech is ~12-15k tokens) filling the user's template.
     "meeting_synthesis": LLMTypeMetadata(
@@ -1282,6 +1291,18 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     # Meeting minutes (ADR-258) — gpt-4.1 like document generation: a 1M-token
     # window swallows a three-hour transcript, the pricing rows are active, and
     # structured output is native. Low temperature: minutes report, never invent.
+    "meeting_template_selection": LLMAgentConfig(
+        provider="typesafe",
+        model="jev-1.13.0",
+        # Native decisions have no sampling or output-budget parameters.
+        # Shared configuration placeholders are never sent to the provider.
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1,
+        timeout_seconds=2.0,
+    ),
     "meeting_synthesis": LLMAgentConfig(
         provider="openai",
         model="gpt-4.1",
@@ -1471,6 +1492,39 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
 # user-facing Preferences via ``GET /image-generation/options``.
 
 
+# Native collection judgments share transport capabilities, while each owns its
+# saved configuration and hot switch. The meeting slot supplies the same pinned
+# provider defaults; copies prevent one slot's configuration mutating another.
+for _slot, _name in (
+    ("jev_filter_email", "Email qualification (Jev)"),
+    ("jev_filter_event", "Event qualification (Jev)"),
+    ("jev_filter_task", "Task qualification (Jev)"),
+    ("jev_filter_file", "Document qualification (Jev)"),
+    ("jev_radio_verification", "Radio verification (Jev)"),
+    ("jev_consultation_path", "Known consultation paths (Jev)"),
+    ("jev_consultation_bounded", "Bounded consultations (Jev)"),
+    ("jev_observe_memory", "Memory extraction observation (Jev)"),
+    ("jev_observe_interests", "Interest extraction observation (Jev)"),
+    ("jev_observe_journal", "Journal extraction observation (Jev)"),
+    ("jev_observe_open_loops", "Open-loop extraction observation (Jev)"),
+    ("jev_hitl_exclusion", "HITL item exclusions (Jev)"),
+    ("jev_filter_reminder", "Reminder qualification (Jev)"),
+    ("jev_filter_ticket", "Ticket qualification (Jev)"),
+    ("jev_filter_mcp", "Mcp qualification (Jev)"),
+    ("jev_filter_document", "Document qualification (Jev)"),
+    ("jev_initiative_utility", "Initiative utility (Jev)"),
+):
+    LLM_TYPES_REGISTRY[_slot] = LLMTypeMetadata(
+        llm_type=_slot,
+        display_name=_name,
+        category=CATEGORY_QUERY_RESPONSE,
+        description_key=f"settings.admin.llmConfig.types.{_slot}",
+        required_capabilities=[],
+        power_tier=POWER_TIER_LOW,
+        required_kind=LLMModelKindEnum.decision,
+    )
+    LLM_DEFAULTS[_slot] = LLM_DEFAULTS["meeting_template_selection"].model_copy(deep=True)
+
 # Validate that REGISTRY and DEFAULTS are synchronized
 assert set(LLM_TYPES_REGISTRY.keys()) == set(LLM_DEFAULTS.keys()), (
     f"LLM_TYPES_REGISTRY and LLM_DEFAULTS keys mismatch: "
@@ -1490,6 +1544,7 @@ LLM_PROVIDERS: dict[str, str] = {
     "qwen": "Qwen",
     "elevenlabs": "ElevenLabs",
     "edge": "Edge TTS (Microsoft)",
+    "typesafe": "TypeSafe (Jev)",
 }
 
 # How each CHAT provider gets its token usage accounted on streamed calls

@@ -63,7 +63,7 @@ def _calls_get_llm(path: Path) -> bool:
             continue
         func = node.func
         name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
-        if name == "get_llm":
+        if name in {"get_llm", "TypeSafeClient"}:
             return True
     return False
 

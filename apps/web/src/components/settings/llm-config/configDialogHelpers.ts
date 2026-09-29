@@ -211,6 +211,13 @@ export function buildConfigUpdate(
   const update: LLMTypeConfigUpdate = {};
   const d = config.defaults;
 
+  if (config.info.required_kind === 'decision') {
+    for (const field of ['provider', 'model', 'timeout_seconds'] as const) {
+      if (form[field] !== d[field]) Object.assign(update, { [field]: form[field] });
+    }
+    return update;
+  }
+
   for (const field of SCALAR_OVERRIDE_FIELDS) {
     if (form[field] !== d[field]) {
       Object.assign(update, { [field]: form[field] });

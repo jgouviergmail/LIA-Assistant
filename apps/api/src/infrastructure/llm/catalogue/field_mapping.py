@@ -1,4 +1,4 @@
-"""Merge the two registries into capability facts, with a declared precedence.
+"""Merge offline capability evidence, with a declared precedence.
 
 Only fields LIA may safely import appear here. Four families are excluded by
 measurement, not by caution (see the design spec):
@@ -22,8 +22,9 @@ like a third source for the output cap, but over the 512 entries it duplicates
 only one present) and never carries an output cap nothing else does. It is not
 vendored.
 
-Every fact records the registry it came from, so a reviewer can tell a
-measurement from a guess.
+Every fact records its source. A pinned native model absent from both public
+registries may use explicitly dated vendor evidence declared below; no network
+is consulted by this module.
 """
 
 from __future__ import annotations
@@ -71,6 +72,27 @@ class RegistryFacts:
     registry_status: str | None = None
     matched_registries: frozenset[str] = frozenset()
     sources: dict[str, str] = field(default_factory=dict)
+
+
+# Vendor-curated evidence for a native primitive absent from the two public
+# catalogues. Checked 2026-09-28: https://docs.typesafe.ai/models and /api.
+# Choice has a 32k state + single-question bound (conservatively 32,000 here).
+# It accepts neither chat tools, response schemas nor vision. There is no
+# generative output cap to import; prices, kind and sampling remain curated
+# on the database row exactly like every other provider (ADR-244).
+_VENDOR_CAPABILITIES: dict[tuple[str, str], RegistryFacts] = {
+    ("typesafe", "jev-1.13.0"): RegistryFacts(
+        max_input_tokens=32_000,
+        supports_tools=False,
+        supports_structured_output=False,
+        supports_vision=False,
+        matched_registries=frozenset({"vendor"}),
+        sources=dict.fromkeys(
+            ("max_input_tokens", "supports_tools", "supports_structured_output", "supports_vision"),
+            "vendor:typesafe",
+        ),
+    ),
+}
 
 
 #: Kinds for which no registry publishes a token output cap.
@@ -227,7 +249,7 @@ def _deprecation_date(raw: Any) -> date | None:
 
 
 def registry_facts(provider: str, model: str, *, kind: str | None = None) -> RegistryFacts | None:
-    """Merge both registries for one model, or ``None`` when neither knows it.
+    """Merge public registries, then pinned vendor facts if neither knows the model.
 
     Args:
         provider: LIA provider id.
@@ -243,7 +265,7 @@ def registry_facts(provider: str, model: str, *, kind: str | None = None) -> Reg
     ll = match_litellm(provider, model)
     md = match_modelsdev(provider, model)
     if ll is None and md is None:
-        return None
+        return _VENDOR_CAPABILITIES.get((provider, model))
 
     sources: dict[str, str] = {}
     booleans = _boolean_facts(ll, md, sources)

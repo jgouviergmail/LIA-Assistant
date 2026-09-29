@@ -25,6 +25,8 @@ MeetingPromptName = Literal[
     "meeting_synthesis_prompt",
     "meeting_condense_prompt",
     "meeting_template_selection_prompt",
+    "meeting_template_selection_context",
+    "meeting_jev_selection_prompt",
     "meeting_transcript_rewrite_prompt",
 ]
 

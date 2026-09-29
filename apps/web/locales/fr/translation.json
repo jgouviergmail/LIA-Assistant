@@ -685,6 +685,24 @@
     "footer": "Merci de ta patience. L'activation de ton compte est en cours de traitement."
   },
   "chat": {
+    "result_preview": {
+      "title": "Premiers résultats",
+      "temporary": "Aperçu provisoire pendant que LIA prépare sa réponse. Tous les éléments récupérés restent à sa disposition.",
+      "match": "Probablement pertinent",
+      "unknown": "À vérifier",
+      "non_match": "Probablement hors sujet — consulter",
+      "scope": "{{kind}} : {{evaluated}} évalués sur {{total}} récupérés ; {{omitted}} au-delà de cet aperçu. Ce nombre n’est pas le total disponible à la source.",
+      "kinds": {
+        "EMAIL": "Emails",
+        "EVENT": "Événements",
+        "TASK": "Tâches",
+        "FILE": "Documents",
+        "REMINDER": "rappels",
+        "TICKET": "tickets",
+        "MCP_RESULT": "résultats MCP",
+        "NOTE": "extraits documentaires"
+      }
+    },
     "title": "Chat",
     "new_chat": "Supprimer",
     "loading_conversation": "Chargement de la conversation...",
@@ -1146,6 +1164,56 @@
     },
     "phone_call_badge": "Dit par téléphone",
     "debug_panel": {
+      "jev": {
+        "title": "Appels JEV",
+        "caller": "Appelant",
+        "run": "Exécution",
+        "time": "Date et durée",
+        "model": "Modèle",
+        "action": "Action déclenchée",
+        "outcome": "Résultat",
+        "tokens": "Tokens en entrée / sortie",
+        "cost": "Coût au tarif configuré",
+        "context": "Contexte envoyé",
+        "response": "Réponse",
+        "confidence": "Confiance : {{value}} %",
+        "confidenceHelp": "Ce score mesure la concentration de la décision, pas la probabilité qu’elle soit correcte.",
+        "probabilities": "Probabilités des candidats",
+        "omittedCandidates": "{{omitted}} candidats non affichés.",
+        "truncated": "{{omitted}} caractères omis sur {{total}} caractères de contexte.",
+        "noResponse": "Aucune réponse exploitable. Voir le résultat ci-dessus.",
+        "refresh": "Actualiser",
+        "scope": "Uniquement les appels de votre compte collectés avec le debug activé. Actualisation toutes les 5 secondes tant que la section est ouverte.",
+        "retention": "Au plus {{limit}} appels, conservés {{minutes}} minutes.",
+        "empty": "Aucun appel JEV conservé. Un usage JEV désactivé ne génère aucun appel.",
+        "error": "Diagnostic indisponible ou accès retiré. Actualisez pour réessayer.",
+        "actions": {
+          "pending": "Action pas encore confirmée",
+          "selected": "Décision appliquée",
+          "fallback": "Traitement existant sollicité",
+          "aborted": "Traitement interrompu",
+          "cancelled": "Annulé",
+          "preview": "Aperçu préparé",
+          "observed": "Observation uniquement"
+        },
+        "nativeDuration": "Durée JEV",
+        "nativeDurationHelp": "Cette durée concerne l’appel JEV, pas la réponse complète ni le traitement de repli.",
+        "unknownCost": "Non communiqué",
+        "technical": "Détails techniques",
+        "state": "Informations examinées",
+        "question": "Décision demandée",
+        "appliedDecision": "LIA retient : {{verdict}}",
+        "actionHelp": {
+          "selected": "LIA a retenu cette décision pour la suite du traitement.",
+          "preview": "Ces avis concernent uniquement l’aperçu provisoire. Le modèle final conserve tous les objets sources.",
+          "fallback": "LIA a sollicité le traitement existant. Cette trace ne confirme pas sa réussite ultérieure.",
+          "pending": "Le composant appelant n’a pas encore confirmé l’utilisation de la réponse.",
+          "aborted": "Le traitement s’est interrompu sur une erreur ; aucune décision appliquée n’est confirmée.",
+          "cancelled": "L’appel a été annulé. Toute consommation connue reste comptabilisée.",
+          "observed": "Observation uniquement : compare JEV à l’extracteur existant, qui s’exécute toujours. Ajoute un coût de décision et peut prolonger la clôture du flux. Aucune extraction n’est supprimée."
+        },
+        "observedResult": "Proposition de l’extracteur existant (avant validation)"
+      },
       "resize": "Redimensionner le panneau de debug"
     }
   },
@@ -2825,7 +2893,25 @@
           "radio_analyst": "Lit l'article complet d'une actualité et en tire l'analyse experte diffusée (contexte, historique, faits, points de vigilance, perspectives) - chaque chiffre doit venir de l'article",
           "radio_verifier": "Relit chaque ligne d'un segment face aux faits qu'elle cite avant sa diffusion, pour les émissions que l'auditeur a demandé de vérifier - une ligne non étayée est retirée",
           "radio_translator": "Traduit dans la langue de l'auditeur l'article qu'il ouvre sur la page radio - un appel structuré par article et par langue, gardé pour le lecteur suivant",
-          "radio_voice": "Moteur de synthèse vocale de la radio personnelle : une voix par rôle, dans la langue de l'auditeur"
+          "radio_voice": "Moteur de synthèse vocale de la radio personnelle : une voix par rôle, dans la langue de l'auditeur",
+          "jev_filter_email": "Affiche un aperçu provisoire de pertinence pendant les recherches. La réponse finale conserve toutes les données récupérées ; cet aperçu ajoute un coût de décision.",
+          "jev_filter_event": "Affiche un aperçu provisoire de pertinence pendant les recherches. La réponse finale conserve toutes les données récupérées ; cet aperçu ajoute un coût de décision.",
+          "jev_filter_task": "Affiche un aperçu provisoire de pertinence pendant les recherches. La réponse finale conserve toutes les données récupérées ; cet aperçu ajoute un coût de décision.",
+          "jev_filter_file": "Affiche un aperçu provisoire de pertinence pendant les recherches. La réponse finale conserve toutes les données récupérées ; cet aperçu ajoute un coût de décision.",
+          "jev_consultation_path": "Sélectionne un parcours de lecture aux paramètres fixes pour les listes simples. Les contraintes supplémentaires restent confiées au planificateur existant.",
+          "jev_consultation_bounded": "Sélectionne les agendas aujourd’hui/demain et les listes à quantité explicite. Le code calcule les dates et respecte les limites des outils ; les contraintes non couvertes restent au planificateur existant.",
+          "jev_filter_document": "Qualifie les extraits déjà récupérés dans vos espaces documentaires. Un extrait ne prouve jamais l’absence d’un fait dans un document entier.",
+          "jev_filter_mcp": "Qualifie les résultats MCP structurés déjà reçus. Ne relance aucun outil, n’accorde aucun droit et conserve le contexte final.",
+          "jev_filter_ticket": "Qualifie les tickets déjà autorisés sans modifier leur statut, leur propriétaire ou le contexte de réponse finale.",
+          "jev_filter_reminder": "Qualifie les rappels déjà récupérés pour un aperçu réversible ; tous restent disponibles pour la réponse finale.",
+          "jev_hitl_exclusion": "Propose des exclusions uniquement dans la liste présentée. Un seul élément incertain renvoie toute la liste au filtre existant. Le périmètre final reste soumis à votre confirmation.",
+          "jev_observe_open_loops": "Observation uniquement : compare JEV à l’extracteur existant, qui s’exécute toujours. Ajoute un coût de décision et peut prolonger la clôture du flux. Aucune extraction n’est supprimée.",
+          "jev_observe_journal": "Observation uniquement : compare JEV à l’extracteur existant, qui s’exécute toujours. Ajoute un coût de décision et peut prolonger la clôture du flux. Aucune extraction n’est supprimée.",
+          "jev_observe_interests": "Observation uniquement : compare JEV à l’extracteur existant, qui s’exécute toujours. Ajoute un coût de décision et peut prolonger la clôture du flux. Aucune extraction n’est supprimée.",
+          "jev_observe_memory": "Observation uniquement : compare JEV à l’extracteur existant, qui s’exécute toujours. Ajoute un coût de décision et peut prolonger la clôture du flux. Aucune extraction n’est supprimée.",
+          "jev_initiative_utility": "Évite l’évaluation complète de l’initiative seulement lorsqu’aucune action, suggestion ou suite utile n’est identifiée. En cas de doute, l’évaluateur existant prend la main.",
+          "jev_radio_verification": "Vérifie chaque ligne sourcée avant la génération audio. Une seule ligne incertaine renvoie le script complet au vérificateur existant.",
+          "meeting_template_selection": "Sélection native Jev du modèle de compte rendu ; le modèle existant rédige toujours la synthèse."
         },
         "voiceTts": {
           "sectionTitle": "Voix & réglages provider",
@@ -3097,6 +3183,66 @@
         "article12_hint": "Les cinq enregistrements d'une période dans un seul fichier JSON Lines : un tour, un effet, une consultation, un appel de modèle, une lacune du registre. Pseudonymisé, complet — rien n'est tronqué — et l'en-tête donne le compte exact par source.",
         "article12_export": "Exporter l'ensemble",
         "charts_title": "Figures"
+      },
+      "jev": {
+        "title": "Intégrations JEV",
+        "description": "Choisissez où JEV peut accélérer les décisions de LIA.",
+        "globalLabel": "Activer JEV",
+        "globalHelp": "Le switch global s’applique à tous les usages ci-dessous. Le désactiver conserve leurs préférences individuelles.",
+        "active": "JEV activé, avec retour automatique au traitement existant.",
+        "existing": "Le traitement existant est utilisé.",
+        "fallbackHelp": "Chaque changement s’applique aux nouvelles opérations. Celles déjà en cours conservent leur choix initial. Si JEV est indisponible ou sa réponse incertaine, le traitement existant prend le relais. Vos choix explicites de modèle de compte rendu restent prioritaires.",
+        "configure": "Configuration LLM",
+        "refresh": "Actualiser",
+        "saved": "Préférence enregistrée. Les nouvelles opérations utilisent ce réglage.",
+        "loadError": "Impossible de charger les réglages. Actualisez pour réessayer.",
+        "saveError": "Le changement n’a pas pu être confirmé. Vérifiez la clé TypeSafe, le modèle et sa tarification, puis actualisez avant de réessayer.",
+        "readiness": {
+          "missing_key": "Ajoutez une clé API TypeSafe dans Configuration LLM.",
+          "unavailable_model": "Sélectionnez un modèle de décision TypeSafe actif dans Configuration LLM.",
+          "missing_price": "Ajoutez un tarif par tokens actif pour le modèle choisi dans Tarification LLM texte.",
+          "unavailable": "La configuration est temporairement indisponible. Le traitement existant reste disponible."
+        },
+        "usageHelp": {
+          "meeting_template": "Choisit un modèle de compte rendu ; le modèle existant rédige la synthèse.",
+          "consultation_path": "Sélectionne un parcours de lecture aux paramètres fixes pour les listes simples. Les contraintes supplémentaires restent confiées au planificateur existant.",
+          "consultation_bounded": "Sélectionne les agendas aujourd’hui/demain et les listes à quantité explicite. Le code calcule les dates et respecte les limites des outils ; les contraintes non couvertes restent au planificateur existant.",
+          "filter_document": "Qualifie les extraits déjà récupérés dans vos espaces documentaires. Un extrait ne prouve jamais l’absence d’un fait dans un document entier.",
+          "filter_mcp": "Qualifie les résultats MCP structurés déjà reçus. Ne relance aucun outil, n’accorde aucun droit et conserve le contexte final.",
+          "filter_ticket": "Qualifie les tickets déjà autorisés sans modifier leur statut, leur propriétaire ou le contexte de réponse finale.",
+          "filter_reminder": "Qualifie les rappels déjà récupérés pour un aperçu réversible ; tous restent disponibles pour la réponse finale.",
+          "hitl_exclusion": "Propose des exclusions uniquement dans la liste présentée. Un seul élément incertain renvoie toute la liste au filtre existant. Le périmètre final reste soumis à votre confirmation.",
+          "observe_open_loops": "Observation uniquement : compare JEV à l’extracteur existant, qui s’exécute toujours. Ajoute un coût de décision et peut prolonger la clôture du flux. Aucune extraction n’est supprimée.",
+          "observe_journal": "Observation uniquement : compare JEV à l’extracteur existant, qui s’exécute toujours. Ajoute un coût de décision et peut prolonger la clôture du flux. Aucune extraction n’est supprimée.",
+          "observe_interests": "Observation uniquement : compare JEV à l’extracteur existant, qui s’exécute toujours. Ajoute un coût de décision et peut prolonger la clôture du flux. Aucune extraction n’est supprimée.",
+          "observe_memory": "Observation uniquement : compare JEV à l’extracteur existant, qui s’exécute toujours. Ajoute un coût de décision et peut prolonger la clôture du flux. Aucune extraction n’est supprimée.",
+          "initiative_utility": "Évite l’évaluation complète de l’initiative seulement lorsqu’aucune action, suggestion ou suite utile n’est identifiée. En cas de doute, l’évaluateur existant prend la main.",
+          "radio_verification": "Vérifie chaque ligne sourcée avant la génération audio. Une seule ligne incertaine renvoie le script complet au vérificateur existant.",
+          "filter_email": "Affiche un aperçu provisoire de pertinence pendant les recherches. La réponse finale conserve toutes les données récupérées ; cet aperçu ajoute un coût de décision.",
+          "filter_event": "Affiche un aperçu provisoire de pertinence pendant les recherches. La réponse finale conserve toutes les données récupérées ; cet aperçu ajoute un coût de décision.",
+          "filter_task": "Affiche un aperçu provisoire de pertinence pendant les recherches. La réponse finale conserve toutes les données récupérées ; cet aperçu ajoute un coût de décision.",
+          "filter_file": "Affiche un aperçu provisoire de pertinence pendant les recherches. La réponse finale conserve toutes les données récupérées ; cet aperçu ajoute un coût de décision."
+        },
+        "usages": {
+          "consultation_path": "Parcours de consultation connus",
+          "consultation_bounded": "Consultations bornées",
+          "filter_document": "Aperçus des extraits documentaires",
+          "filter_mcp": "Aperçus MCP structurés",
+          "filter_ticket": "Aperçus des tickets",
+          "filter_reminder": "Aperçus des rappels",
+          "hitl_exclusion": "Exclusions avant confirmation",
+          "observe_open_loops": "Observation des boucles ouvertes",
+          "observe_journal": "Observation du journal",
+          "observe_interests": "Observation des intérêts",
+          "observe_memory": "Observation de la mémoire",
+          "initiative_utility": "Utilité de l’initiative",
+          "radio_verification": "Vérification factuelle radio",
+          "meeting_template": "Choix automatique du modèle de compte rendu",
+          "filter_email": "Filtrage anticipé des emails",
+          "filter_event": "Filtrage anticipé des événements",
+          "filter_task": "Filtrage anticipé des tâches",
+          "filter_file": "Filtrage anticipé des documents"
+        }
       }
     },
     "skills": {
@@ -3920,7 +4066,8 @@
         "generated-assets": "fichiers images documents captures téléchargements galerie générés expiration conserver conservés épingle bookmarks bookmark favoris réponses conservées réponses enregistrées marque-pages indexé espace de connaissances recherche partager avec une connexion partagée par",
         "sandbox-egress": "bac à sable, python, script, réseau, internet, proxy, hôtes, autorisations, autoriser, révoquer, sortie, API, intégration",
         "live-mode": "live, temps réel, vocal, voix, parole, Gemini Live, GPT-Live, OpenAI, ElevenLabs, agent, session directe, délégation, modèle, niveau de réflexion, silence, durée, plafond de dépense, interruptions, appuyer pour parler, conversation, micro",
-        "radio": "radio, station, podcast, actualités, journal, titres, analyse, chronique, voix, musique, minuteur, sources, sites, flux, RSS, vérification, écoute, en compagnie"
+        "radio": "radio, station, podcast, actualités, journal, titres, analyse, chronique, voix, musique, minuteur, sources, sites, flux, RSS, vérification, écoute, en compagnie",
+        "admin-jev": "JEV, TypeSafe, bascules, switch, latence, décision, réunion, compte rendu, repli"
       }
     },
     "haptics": {
@@ -12356,9 +12503,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA est conçu dès l'origine avec la protection des données comme principe fondateur, pas comme un ajout après coup.</p><h2>Chiffrement symétrique Fernet</h2><p>Toutes les données sensibles sont chiffrées avec <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via la fonction <code>encrypt_data()</code>. Cela couvre les tokens OAuth, les credentials des connecteurs, les PII et les credentials des serveurs MCP. Les credentials OAuth sont chiffrés avant écriture en base et déchiffrés à la volée lors de la récupération. Les clés de chiffrement sont gérées séparément des données.</p><h2>Minimisation de la collecte</h2><p>LIA ne collecte que les données strictement nécessaires à son fonctionnement :</p><ul><li>Informations de profil (nom, email, préférences)</li><li>Historique des conversations (chiffré)</li><li>Tokens de connexion aux services (chiffrés)</li><li>Métriques d'usage anonymisées</li></ul><h2>Suppression et cascading</h2><p>La suppression d'un compte utilisateur déclenche un <strong>cascading delete</strong> complet : connecteurs, conversations, paramètres, sessions, mémoires et toutes les données associées sont supprimées irréversiblement. Aucune donnée orpheline ne persiste en base.</p><h2>Sessions et cookies sécurisés</h2><p>Les cookies de session sont configurés avec les attributs <code>HttpOnly</code>, <code>Secure</code> (en production) et <code>SameSite=lax</code>. La durée de session est de 7 jours par défaut, extensible à 30 jours avec l'option \"Se souvenir de moi\". Les tokens à usage unique sont invalidés après première utilisation via un blacklist Redis.</p><h2>Protection des contenus externes</h2><p>Les contenus récupérés depuis des sources externes (emails, pages web, documents) sont tagués comme <code>UNTRUSTED</code> avec un wrapping configurable avant injection dans les prompts. L'outil web_fetch est rate limité à 10 appels par fenêtre de 60 secondes par utilisateur pour prévenir les abus.</p><h2>Des journaux qui gardent des faits, jamais des mots</h2><p>Dans la ligne de l'<strong>OWASP Logging Cheat Sheet</strong>, une ligne de journal au-dessus du niveau debug porte des <strong>faits</strong> — nombres, longueurs, identifiants, codes d'erreur, l'hôte d'une URL — et jamais le texte qu'une personne a écrit, ou qu'un modèle a écrit à son sujet : ni recherche, ni centre d'intérêt, ni nom de fichier, de libellé ou d'espace, ni page consultée.</p><p>La règle est vérifiée <strong>par la valeur</strong>, pas par le nom du champ : un test lit chaque appel de journal du code et refuse un aperçu ou une valeur dérivée d'un contenu, quel que soit son nom. Ce qu'un message d'erreur <strong>cite</strong> — une valeur refusée par PostgreSQL, l'entrée d'une validation — est retiré avant l'écriture de la ligne, et une erreur de base est décrite par ses faits : code, contrainte, table. Les clés des fournisseurs sont masquées dans toute adresse journalisée. Deux limites sont dites telles quelles : l'erreur d'un service externe dans un format inconnu peut encore citer une donnée, et le niveau debug — coupé en production — garde davantage.</p><h2>Portabilité des données (v1.9.1)</h2><p>LIA permet à chaque utilisateur d'<strong>exporter ses propres données de consommation</strong> au format CSV depuis Réglages > Fonctionnalités. Trois types d'export : consommation LLM (tokens et coûts par appel), consommation API Google, et résumé agrégé. Sécurité : le <code>user_id</code> est forcé côté serveur — aucun paramètre n'est exposé, empêchant tout accès aux données d'autres utilisateurs (protection IDOR).</p><h2>Des sauvegardes dont la restauration est prouvée</h2><p>Protéger les données, c'est aussi garantir qu'elles survivent aux incidents. La base de production est sauvegardée automatiquement chaque nuit, avec 7 jours, 4 semaines et 6 mois d'historique conservés, dans un répertoire dédié aux permissions restrictives. Et parce qu'une sauvegarde ne compte qu'une fois la restauration prouvée, la procédure est réellement testée : le dernier dump est restauré dans un conteneur jetable puis comparé à la base vivante (révision de schéma, comptages) — un exercice livré avec la stack.</p><h2>Un dossier complet, pas un échantillon</h2><p>Trois registres tenus automatiquement disent ce que LIA a <strong>fait</strong> pour toi, ce qu'elle a <strong>consulté</strong> pour te répondre et ce qu'elle a entrepris <strong>de sa propre initiative</strong>. Ils ne portent aucun contenu : une consultation retient la capacité — « ton agenda » — et jamais ce qui a été cherché, parce que l'écrire reviendrait à recopier la donnée même que le registre existe pour rendre redevable.</p><p>Le dossier que tu télécharges depuis la page <strong>Registres</strong> est <strong>complet</strong>. Il portait auparavant un plafond de lignes : une protection réelle, puisque le document entier était assemblé en mémoire sur un Raspberry Pi, mais appliquée à la mauvaise variable. Ce qui était rare, c'était la mémoire ; ce qui était borné, c'était la vérité. Un curseur côté serveur borne désormais le tampon : quel que soit le volume, le fichier porte tout ce que tes filtres désignent, le compte exact est annoncé en tête avec l'instant de génération, et le téléchargement est compressé à la volée quand ton navigateur l'accepte.</p>"
       },
       "observability": {
-        "title": "606 métriques Prometheus, 30 dashboards Grafana et tracing Langfuse",
-        "excerpt": "LIA offre une observabilité de niveau entreprise avec 606 métriques, des dashboards Grafana dédiés, du tracing LLM via Langfuse et des alertes e-mail avec runbooks.",
-        "body": "<h2>Les trois piliers de l'observabilité</h2><p>LIA implémente les trois piliers de l'observabilité moderne :</p><ul><li><strong>Métriques</strong> — 606 métriques Prometheus couvrant HTTP, agents, tokens, coûts, OAuth et performance</li><li><strong>Logs</strong> — Journalisation structurée JSON via structlog, centralisée dans Loki : des faits, jamais les mots des personnes</li><li><strong>Traces</strong> — Tracing distribué via OpenTelemetry (Tempo) et tracing LLM via Langfuse</li></ul><h2>39 fichiers de métriques spécialisés</h2><p>Chaque domaine possède son propre fichier de métriques déclaratif. Les 39 modules couvrent : HTTP, agents (SSE/router/LLM/HITL/planner), base de données, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, erreurs, sous-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métriques santé, journaux, téléphonie et limites d'usage. Chaque fichier définit des Counter, Histogram et Gauge Prometheus adaptés au domaine.</p><h2>Définition des métriques Prometheus</h2><p>Chaque domaine définit ses métriques de manière déclarative :</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30 dashboards Grafana</h2><p>LIA fournit 30 tableaux de bord Grafana numérotés de 01 à 30 : app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard et live. Chaque dashboard offre des vues filtrables par utilisateur, par période et par environnement. Le 26e est un cockpit produit : résultats validés (👍 explicite ou action restée non corrigée), funnel d'activation, rétention et coût par résultat utile — le comptage exact vit dans PostgreSQL et Grafana le lit via un rôle en lecture seule restreint aux vues agrégées.</p><h2>KPIs cibles extraits du code</h2><p>LIA surveille des indicateurs précis définis dans le code source : TTFT (Time To First Token) du streaming, latence du routeur entre 0.1 et 2 secondes, durée d'exécution des outils agents entre 0.1 et 10 secondes, confiance routeur p50 &gt; 0.8, coût LLM par requête &lt; 0.05€, taux d'erreur HTTP 5xx &lt; 1%.</p><h2>Alertes e-mail avec runbooks</h2><p>La supervision ne s'arrête pas aux tableaux de bord : un noyau de 29 alertes vitales — parmi elles API, PostgreSQL ou Redis indisponibles, disque, mémoire des conteneurs, taux d'erreurs 5xx, latence de streaming, échec de la sauvegarde quotidienne, URL publique injoignable, certificat TLS proche de l'expiration, limitation de débit hors service — est évalué en continu par Prometheus et notifié par e-mail via Alertmanager. Chaque alerte référence son runbook (procédure de résolution pas à pas), les seuils sont paramétrés par environnement dans des fichiers .env, et des tests unitaires promtool garantissent que les seuils affichés dans les notifications correspondent exactement aux expressions de déclenchement. Une sonde blackbox teste même la chaîne complète de bout en bout, du edge Cloudflare au frontend, exactement comme un utilisateur.</p><h2>Langfuse : tracing LLM dédié</h2><p>L'intégration Langfuse trace chaque appel LLM — tokens consommés (entrée/sortie/cache), temps de réponse, modèle utilisé, coût estimé et contexte de la requête —, et sept métriques Prometheus qui lui sont propres suivent les versions de prompts, les scores d'évaluation, les variantes A/B, la profondeur des traces et les passages de relais entre agents. Cela permet d'identifier les prompts inefficaces, de comparer les modèles LLM entre eux et d'optimiser la consommation de tokens sur la durée.</p><h2>DevOps Claude CLI : diagnostic en langage naturel (v1.13.0)</h2><p>Dernière évolution de la stack observabilité : les administrateurs peuvent désormais diagnostiquer les serveurs directement depuis la conversation LIA. En demandant simplement « Regarde les logs pour voir si tout fonctionne », Claude Code CLI — installé dans le container API Docker — inspecte de manière autonome les logs, vérifie la santé des containers, analyse l'utilisation des ressources et rapporte ses conclusions. Sessions persistantes pour les investigations multi-tours, permissions configurables par environnement (prod en lecture seule, dev en accès complet), et streaming temps réel des étapes d'investigation via SSE.</p><h2>Et depuis la v1.34 : l'assistante lit sa propre télémétrie</h2><p>Tout ce qui précède existait pour les humains ; l'assistante elle-même n'en lisait rien. L'ADR-247 a fermé cette boucle : un auto-contrôle périodique transforme les signaux dorés et des sondes directes en instantanés de santé aux valeurs exactes ; alertes et verdicts critiques convergent vers un incident unique par panne, diagnostiqué par un LLM plafonné par budget et ancré sur les runbooks d'exploitation ; les administrateurs disposent d'un panneau Santé de la plateforme, de notifications proactives et d'outils de chat en lecture seule. Et une panne connue façonne désormais les réponses — les capacités dégradées sont contournées dès la planification, et les étapes en échec expliquées depuis des codes d'erreur typés, jamais des logs bruts. Depuis, le diagnostic n'est plus écrit à partir d'un nombre seul : une recette déclarée par type d'incident dit quelles ventilations et quels événements de journal lire, le dossier est collecté au moment du diagnostic, données personnelles retirées, une source injoignable est déclarée indisponible plutôt que lue comme du silence, et ce que le modèle a lu est montré sous son verdict.</p><h2>Compter les issues, pas les tentatives</h2><p>Un compteur a dû être repensé en v1.38.3. Compter les appels qui atteignent un fournisseur, c'est la vérité sur le fournisseur — et le mauvais dénominateur dès lors qu'on réessaie ces appels, puisqu'un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. Un second compteur enregistre désormais une ligne par opération logique, réessais repliés, et répond à la seule question sur laquelle un exploitant agit : l'appelant a-t-il eu son résultat ? Un troisième dit ce que le lisseur de débit a fait de chaque tentative, parce que « le budget est trop petit » et « Redis est tombé » sont indiscernables dans un booléen et appellent des actions opposées.</p><p>La leçon la plus récente porte sur le choix de ce que l'on mesure. La boucle autonome comptait ses itérations et sa durée — et rien pour ce qui grossit réellement : le prompt délivré au modèle à chaque étape. Mesuré sur le code de production, cela fait 2,3 k tokens à la première itération et 112 k à la quatre-vingt-dixième, parce que chaque résultat d'outil reste dans la conversation que le modèle relit. Deux histogrammes enregistrent désormais la taille délivrée et sa part de la fenêtre de contexte du modèle, alimentés par le compteur mémoïsé que le réducteur d'état maintient déjà, si bien que la mesure ne coûte rien sur le chemin chaud. Aucune politique de compression n'est partie avec eux, délibérément : un système qui agit sur une grandeur qu'il n'a jamais observée optimise une supposition.</p><p>Le même principe a rattrapé le taux de succès des outils. Un outil échoue en <em>renvoyant</em> un échec, jamais en levant une exception, et le compteur ne regardait que les exceptions : le taux valait 1,0 par construction, et les deux alertes qui le lisent ne pouvaient pas se déclencher. Un seul prédicat décide désormais ce qu'est un succès, pour le registre, les métriques et la boucle ReAct — le taux affiché baisse, parce qu'il dit enfin la vérité.</p>"
+        "title": "608 métriques Prometheus, 30 dashboards Grafana et tracing Langfuse",
+        "excerpt": "LIA offre une observabilité de niveau entreprise avec 608 métriques, des dashboards Grafana dédiés, du tracing LLM via Langfuse et des alertes e-mail avec runbooks.",
+        "body": "<h2>Les trois piliers de l'observabilité</h2><p>LIA implémente les trois piliers de l'observabilité moderne :</p><ul><li><strong>Métriques</strong> — 608 métriques Prometheus couvrant HTTP, agents, tokens, coûts, OAuth et performance</li><li><strong>Logs</strong> — Journalisation structurée JSON via structlog, centralisée dans Loki : des faits, jamais les mots des personnes</li><li><strong>Traces</strong> — Tracing distribué via OpenTelemetry (Tempo) et tracing LLM via Langfuse</li></ul><h2>39 fichiers de métriques spécialisés</h2><p>Chaque domaine possède son propre fichier de métriques déclaratif. Les 39 modules couvrent : HTTP, agents (SSE/router/LLM/HITL/planner), base de données, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, erreurs, sous-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métriques santé, journaux, téléphonie et limites d'usage. Chaque fichier définit des Counter, Histogram et Gauge Prometheus adaptés au domaine.</p><h2>Définition des métriques Prometheus</h2><p>Chaque domaine définit ses métriques de manière déclarative :</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30 dashboards Grafana</h2><p>LIA fournit 30 tableaux de bord Grafana numérotés de 01 à 30 : app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard et live. Chaque dashboard offre des vues filtrables par utilisateur, par période et par environnement. Le 26e est un cockpit produit : résultats validés (👍 explicite ou action restée non corrigée), funnel d'activation, rétention et coût par résultat utile — le comptage exact vit dans PostgreSQL et Grafana le lit via un rôle en lecture seule restreint aux vues agrégées.</p><h2>KPIs cibles extraits du code</h2><p>LIA surveille des indicateurs précis définis dans le code source : TTFT (Time To First Token) du streaming, latence du routeur entre 0.1 et 2 secondes, durée d'exécution des outils agents entre 0.1 et 10 secondes, confiance routeur p50 &gt; 0.8, coût LLM par requête &lt; 0.05€, taux d'erreur HTTP 5xx &lt; 1%.</p><h2>Alertes e-mail avec runbooks</h2><p>La supervision ne s'arrête pas aux tableaux de bord : un noyau de 29 alertes vitales — parmi elles API, PostgreSQL ou Redis indisponibles, disque, mémoire des conteneurs, taux d'erreurs 5xx, latence de streaming, échec de la sauvegarde quotidienne, URL publique injoignable, certificat TLS proche de l'expiration, limitation de débit hors service — est évalué en continu par Prometheus et notifié par e-mail via Alertmanager. Chaque alerte référence son runbook (procédure de résolution pas à pas), les seuils sont paramétrés par environnement dans des fichiers .env, et des tests unitaires promtool garantissent que les seuils affichés dans les notifications correspondent exactement aux expressions de déclenchement. Une sonde blackbox teste même la chaîne complète de bout en bout, du edge Cloudflare au frontend, exactement comme un utilisateur.</p><h2>Langfuse : tracing LLM dédié</h2><p>L'intégration Langfuse trace chaque appel LLM — tokens consommés (entrée/sortie/cache), temps de réponse, modèle utilisé, coût estimé et contexte de la requête —, et sept métriques Prometheus qui lui sont propres suivent les versions de prompts, les scores d'évaluation, les variantes A/B, la profondeur des traces et les passages de relais entre agents. Cela permet d'identifier les prompts inefficaces, de comparer les modèles LLM entre eux et d'optimiser la consommation de tokens sur la durée.</p><h2>DevOps Claude CLI : diagnostic en langage naturel (v1.13.0)</h2><p>Dernière évolution de la stack observabilité : les administrateurs peuvent désormais diagnostiquer les serveurs directement depuis la conversation LIA. En demandant simplement « Regarde les logs pour voir si tout fonctionne », Claude Code CLI — installé dans le container API Docker — inspecte de manière autonome les logs, vérifie la santé des containers, analyse l'utilisation des ressources et rapporte ses conclusions. Sessions persistantes pour les investigations multi-tours, permissions configurables par environnement (prod en lecture seule, dev en accès complet), et streaming temps réel des étapes d'investigation via SSE.</p><h2>Et depuis la v1.34 : l'assistante lit sa propre télémétrie</h2><p>Tout ce qui précède existait pour les humains ; l'assistante elle-même n'en lisait rien. L'ADR-247 a fermé cette boucle : un auto-contrôle périodique transforme les signaux dorés et des sondes directes en instantanés de santé aux valeurs exactes ; alertes et verdicts critiques convergent vers un incident unique par panne, diagnostiqué par un LLM plafonné par budget et ancré sur les runbooks d'exploitation ; les administrateurs disposent d'un panneau Santé de la plateforme, de notifications proactives et d'outils de chat en lecture seule. Et une panne connue façonne désormais les réponses — les capacités dégradées sont contournées dès la planification, et les étapes en échec expliquées depuis des codes d'erreur typés, jamais des logs bruts. Depuis, le diagnostic n'est plus écrit à partir d'un nombre seul : une recette déclarée par type d'incident dit quelles ventilations et quels événements de journal lire, le dossier est collecté au moment du diagnostic, données personnelles retirées, une source injoignable est déclarée indisponible plutôt que lue comme du silence, et ce que le modèle a lu est montré sous son verdict.</p><h2>Compter les issues, pas les tentatives</h2><p>Un compteur a dû être repensé en v1.38.3. Compter les appels qui atteignent un fournisseur, c'est la vérité sur le fournisseur — et le mauvais dénominateur dès lors qu'on réessaie ces appels, puisqu'un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. Un second compteur enregistre désormais une ligne par opération logique, réessais repliés, et répond à la seule question sur laquelle un exploitant agit : l'appelant a-t-il eu son résultat ? Un troisième dit ce que le lisseur de débit a fait de chaque tentative, parce que « le budget est trop petit » et « Redis est tombé » sont indiscernables dans un booléen et appellent des actions opposées.</p><p>La leçon la plus récente porte sur le choix de ce que l'on mesure. La boucle autonome comptait ses itérations et sa durée — et rien pour ce qui grossit réellement : le prompt délivré au modèle à chaque étape. Mesuré sur le code de production, cela fait 2,3 k tokens à la première itération et 112 k à la quatre-vingt-dixième, parce que chaque résultat d'outil reste dans la conversation que le modèle relit. Deux histogrammes enregistrent désormais la taille délivrée et sa part de la fenêtre de contexte du modèle, alimentés par le compteur mémoïsé que le réducteur d'état maintient déjà, si bien que la mesure ne coûte rien sur le chemin chaud. Aucune politique de compression n'est partie avec eux, délibérément : un système qui agit sur une grandeur qu'il n'a jamais observée optimise une supposition.</p><p>Le même principe a rattrapé le taux de succès des outils. Un outil échoue en <em>renvoyant</em> un échec, jamais en levant une exception, et le compteur ne regardait que les exceptions : le taux valait 1,0 par construction, et les deux alertes qui le lisent ne pouvaient pas se déclencher. Un seul prédicat décide désormais ce qu'est un succès, pour le registre, les métriques et la boucle ReAct — le taux affiché baisse, parce qu'il dit enfin la vérité.</p>"
       },
       "prompt-engineering": {
         "title": "Système de prompts versionnés : 155 prompts gérés comme du code",
@@ -13818,6 +13965,7 @@
       "confirm_reset_title": "Revenir à la version générée ?",
       "confirm_reset_description": "Tes modifications sont remplacées par le compte rendu généré par LIA.",
       "cost_breakdown": "{{total}} (transcription {{stt}} · compte rendu {{minutes}})",
+      "cost_breakdown_native": "{{total}} (transcription {{stt}} · compte rendu {{minutes}} · sélection {{selection}})",
       "cost_unknown": "non tarifé",
       "transcript_line": "Tour de parole de {{speaker}} à {{time}}",
       "format": "Format",

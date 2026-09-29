@@ -525,6 +525,7 @@
     "321": "ADR-321-A-File-Or-An-Answer-Sent-By-E-Mail.md",
     "322": "ADR-322-One-Clock-Per-Routine.md",
     "323": "ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md",
-    "324": "ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md"
+    "324": "ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md",
+    "325": "ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md"
   }
 }

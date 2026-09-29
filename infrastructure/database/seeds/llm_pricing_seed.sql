@@ -265,7 +265,9 @@ INSERT INTO llm_models (
     -- ElevenLabs key exists. Audio-billed per minute; `-diarize` returns speakers.
     ('openai', 'gpt-4o-transcribe-diarize', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
     ('openai', 'gpt-4o-mini-transcribe', 1, 1, false, false, false, false, false, false, false, false, false, false, 'audio', NULL, NULL, true),
-    ('edge', 'edge-tts', 1, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true)
+    ('edge', 'edge-tts', 1, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
+    -- Native decision API; the output placeholder is never sent as an output budget.
+    ('typesafe', 'jev-1.13.0', 32000, 1, false, false, false, false, false, false, false, false, false, false, 'decision', NULL, NULL, true)
 ON CONFLICT (model_name) DO NOTHING;
 
 -- The bundle is materialised once: the model set below is read TWICE (to retire
@@ -295,6 +297,7 @@ CREATE TEMP TABLE _lia_pricing_bundle (
 -- Flash double on 2027-01-01 (1.50 / 0.15 / 7.50): nothing switches them, the
 -- tariffs must be edited on that date. Long-context tiers are not expressed.
 INSERT INTO _lia_pricing_bundle VALUES
+    ('jev-1.13.0', 0.042000, NULL, 0.000000, 'per_1m_tokens', '2026-09-28T00:00:00+00:00', true),
     ('chatgpt-image-latest', 5.000000, 1.250000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('claude-haiku-4-5', 1.000000, 0.100000, 5.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('claude-opus-4-5', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),

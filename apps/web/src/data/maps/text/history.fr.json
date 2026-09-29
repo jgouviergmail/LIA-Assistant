@@ -1374,6 +1374,10 @@
     "324": {
       "title": "Une radio rien que pour toi",
       "summary": "LIA devient une station de radio à la demande, dans ta langue : ta journée, puis l'actualité des médias suivis et des sites que tu ajoutes, écrites, vérifiées et dites pour toi pendant que tu écoutes. Une grille fixe décide de ce qui passe, les modèles ne font qu'écrire, et chaque phrase montre sa source. Rien n'est produit quand personne n'écoute, rien n'est gardé après, et ce que coûte la session s'affiche pendant qu'elle dépense."
+    },
+    "325": {
+      "title": "JEV décide, chaque usage garde son interrupteur",
+      "summary": "JEV aide LIA à choisir, orienter ou évaluer dans un périmètre précis. Chaque usage possède un interrupteur à chaud ; en cas de doute, le traitement existant reprend la main. Les aperçus conservent tous les résultats, les observateurs ne bloquent aucune extraction et une exclusion ne vaut jamais approbation. Les administrateurs voient le contexte, la réponse et la suite donnée ; chaque appel payant reste compté. Les gains de temps se vérifient sur le parcours complet avant activation."
     }
   }
 }

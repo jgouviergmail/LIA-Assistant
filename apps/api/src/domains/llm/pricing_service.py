@@ -57,7 +57,7 @@ class ModelPrice(NamedTuple):
     time_slots: list[dict[str, Any]] | None = None
 
 
-def _token_cost_usd(
+def token_cost_usd(
     pricing: ModelPrice,
     input_tokens: int,
     output_tokens: int,
@@ -500,7 +500,7 @@ class AsyncPricingService:
 
         # Shared per-million arithmetic; the slot (if any) is resolved at the
         # HISTORICAL instant so a peak-hour message keeps its peak cost.
-        total_cost_usd = _token_cost_usd(
+        total_cost_usd = token_cost_usd(
             pricing, input_tokens, output_tokens, cached_tokens, at_date
         )
 
@@ -619,7 +619,7 @@ class AsyncPricingService:
 
         # Shared per-million arithmetic; the slot (if any) is resolved at the
         # billing instant — the call time unless the caller pins one.
-        total_cost_usd = _token_cost_usd(
+        total_cost_usd = token_cost_usd(
             pricing, input_tokens, output_tokens, cached_tokens, at or datetime.now(UTC)
         )
 

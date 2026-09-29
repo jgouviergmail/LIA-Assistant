@@ -15,7 +15,8 @@ kept when that template no longer exists.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from uuid import UUID
 
 import structlog
 from langchain_core.runnables import RunnableConfig
@@ -33,6 +34,7 @@ from src.core.i18n import get_language_name
 from src.core.i18n_meeting_templates import get_template_name
 from src.core.i18n_meetings import get_selection_fallback_reason
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.domains.meetings.jev_selection import select_template_with_jev
 from src.domains.meetings.models import Meeting, MeetingPreference
 from src.domains.meetings.prompts import build_messages, load_meeting_prompt
 from src.domains.meetings.schemas import TemplateSection, TemplateSelection, TranscriptTurn
@@ -41,6 +43,7 @@ from src.domains.meetings.template_ref import TemplateRef
 from src.domains.meetings.template_service import MeetingTemplateService, ResolvedTemplate
 from src.domains.meetings.templates import parse_sections
 from src.infrastructure.database import get_db_context
+from src.infrastructure.llm.decision_types import DecisionCharge
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
@@ -75,6 +78,7 @@ class TemplateDecision:
     name: str
     selection: TemplateSelection
     reason: str | None
+    charge: DecisionCharge | None = None
 
 
 # ----------------------------------------------------------------------------
@@ -132,11 +136,11 @@ def _decision(
 
 
 async def _try_resolve(
-    service: MeetingTemplateService, user_id: object, ref: str, language: str
+    service: MeetingTemplateService, user_id: UUID, ref: str, language: str
 ) -> ResolvedTemplate | None:
     """A reference, or ``None`` when it no longer resolves (deleted row, unknown key)."""
     try:
-        return await service.resolve(user_id, ref, language)  # type: ignore[arg-type]
+        return await service.resolve(user_id, ref, language)
     except BaseAPIException:
         logger.warning("meeting_template_ref_dangling", ref=ref)
         return None
@@ -155,6 +159,7 @@ async def decide_template(
     calendar_title: str | None,
     language: str,
     capture: TokenCaptureHandler,
+    run_id: str,
 ) -> TemplateDecision:
     """The template for a meeting being processed for the first time.
 
@@ -169,6 +174,7 @@ async def decide_template(
         calendar_title: The overlapping calendar event, a hint for the model.
         language: The user's language (labels and the model's reason).
         capture: The synthesis token capture — the selection's tokens join it.
+        run_id: Shared accounting identity; native tokens have their own model row.
 
     Returns:
         The sections to fill and how they were chosen. Never raises for a
@@ -193,15 +199,30 @@ async def decide_template(
         if not settings.meetings_template_auto_select_enabled:
             return _decision(default, TemplateSelection.PREFERENCE, None, outcome="preference")
         candidates = await service.candidates(meeting.user_id, language)
-    return await _select_automatically(
+    excerpt = transcript_excerpt(render_transcript(turns), MEETINGS_TEMPLATE_AUTO_EXCERPT_CHARS)
+    native = await select_template_with_jev(
+        meeting_id=meeting.id,
+        user_id=meeting.user_id,
+        run_id=run_id,
+        candidates=candidates,
+        excerpt=excerpt,
+        calendar_title=calendar_title,
+    )
+    if native.template is not None:
+        return replace(
+            _decision(native.template, TemplateSelection.AUTO, None, outcome="auto"),
+            charge=native.charge,
+        )
+    existing = await _select_automatically(
         meeting=meeting,
         default=default,
         candidates=candidates,
-        turns=turns,
+        excerpt=excerpt,
         calendar_title=calendar_title,
         language=language,
         capture=capture,
     )
+    return replace(existing, charge=native.charge)
 
 
 async def _select_automatically(
@@ -209,18 +230,21 @@ async def _select_automatically(
     meeting: Meeting,
     default: ResolvedTemplate,
     candidates: list[ResolvedTemplate],
-    turns: Sequence[TranscriptTurn],
+    excerpt: str,
     calendar_title: str | None,
     language: str,
     capture: TokenCaptureHandler,
 ) -> TemplateDecision:
     by_ref = {str(candidate.ref): candidate for candidate in candidates}
-    excerpt = transcript_excerpt(render_transcript(turns), MEETINGS_TEMPLATE_AUTO_EXCERPT_CHARS)
     human = (
-        f"LANGUAGE: {get_language_name(language)}\n"
-        f"CALENDAR EVENT: {calendar_title or 'none'}\n\n"
-        f"CANDIDATES:\n{render_candidates(candidates)}\n\n"
-        f"EXCERPT:\n{excerpt}"
+        load_meeting_prompt("meeting_template_selection_context")
+        .rstrip("\n")
+        .format(
+            language=get_language_name(language),
+            calendar_title=calendar_title or "none",
+            candidates=render_candidates(candidates),
+            excerpt=excerpt,
+        )
     )
     config = get_llm_config_for_agent(settings, MEETINGS_LLM_TYPE)
     try:
@@ -233,7 +257,7 @@ async def _select_automatically(
             config=RunnableConfig(callbacks=[capture]),
         )
     except StructuredOutputError as exc:
-        logger.warning("meeting_template_selection_unavailable", error=str(exc)[:200])
+        logger.warning("meeting_template_selection_unavailable", error_type=type(exc).__name__)
         reason = get_selection_fallback_reason("unavailable", language)
         return _decision(default, TemplateSelection.AUTO, reason, outcome="fallback")
 

@@ -27,10 +27,7 @@ import { MeetingReportView } from '@/components/meetings/MeetingReportView';
 import { MeetingStatusBadge } from '@/components/meetings/MeetingStatusBadge';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import {
-  type MeetingActions,
-  meetingErrorLabel,
-} from '@/components/meetings/useMeetingActions';
+import { type MeetingActions, meetingErrorLabel } from '@/components/meetings/useMeetingActions';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -66,17 +63,24 @@ export function MeetingFacts({ lng, meeting }: { lng: Language; meeting: Meeting
     dateStyle: 'full',
     timeZone: meeting.client_timezone,
   }).format(new Date(meeting.started_at));
-  // The two paid units and their sum; a side with no administered price reads
+  // Each paid unit and their sum; a side with no administered price reads
   // « not priced » rather than zero (ADR-185: exact or absent).
   const unknown = t('meetings.detail.cost_unknown');
+  const nativeCost = meeting.template_selection_usage.reduce((sum, item) => sum + item.cost_eur, 0);
   const costValue =
     meeting.total_cost_eur === null
       ? null
-      : t('meetings.detail.cost_breakdown', {
-          total: formatEuro(meeting.total_cost_eur, 4, lng),
-          stt: costLabel(meeting.stt_cost_eur, lng, unknown),
-          minutes: costLabel(meeting.synthesis_cost_eur, lng, unknown),
-        });
+      : t(
+          meeting.template_selection_usage.length
+            ? 'meetings.detail.cost_breakdown_native'
+            : 'meetings.detail.cost_breakdown',
+          {
+            total: formatEuro(meeting.total_cost_eur, 4, lng),
+            stt: costLabel(meeting.stt_cost_eur, lng, unknown),
+            minutes: costLabel(meeting.synthesis_cost_eur, lng, unknown),
+            selection: costLabel(nativeCost, lng, unknown),
+          }
+        );
   return (
     <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <Fact label={t('meetings.detail.date')} value={date} />

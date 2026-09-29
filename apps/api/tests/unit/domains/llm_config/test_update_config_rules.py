@@ -47,6 +47,7 @@ def _make_service() -> tuple[LLMConfigService, AsyncMock]:
 def _enum_caps(model_id: str) -> SimpleNamespace:
     """Capabilities for an adaptive enum model (opus-4-6 shape), no separate effort."""
     return SimpleNamespace(
+        kind="chat",
         model_id=model_id,
         effort_values=None,
         reasoning_widget="enum",
@@ -118,7 +119,7 @@ class TestUpdateConfigAnthropicTemperatureLock:
         """From Opus 4.7 on a non-default temperature is a 400 whatever the
         thinking (ADR-306): a stored value would be one the runtime never sends."""
         service, _db = _make_service()
-        caps = SimpleNamespace(model_id="claude-opus-4-8", reasoning_enum_values=None)
+        caps = SimpleNamespace(model_id="claude-opus-4-8", reasoning_enum_values=None, kind="chat")
         update = LLMTypeConfigUpdate(
             provider="anthropic",
             model="claude-opus-4-8",
@@ -169,6 +170,7 @@ class TestUpdateConfigReasoningWithoutModel:
     def _caps_for(self, model: str) -> SimpleNamespace:
         """What ``ModelCapabilitiesCache.get`` returns for that default model."""
         return SimpleNamespace(
+            kind="chat",
             model_id=model,
             reasoning_widget="enum",
             reasoning_enum_values=None,
@@ -229,6 +231,7 @@ class TestUpdateConfigThinkingBudgetFloor:
     @staticmethod
     def _deepseek_caps() -> SimpleNamespace:
         return SimpleNamespace(
+            kind="chat",
             model_id="deepseek-v4-flash",
             effort_values=None,
             reasoning_widget="enum",

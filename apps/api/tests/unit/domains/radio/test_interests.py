@@ -3,9 +3,11 @@ item, filed once while fresh, every search a consultation of the listener's own 
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -165,6 +167,25 @@ class Recorded:
 
 
 class TestRefreshing:
+    async def test_an_interrupted_search_is_filed_before_cancellation_propagates(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        search, recorded = Search(), Recorded()
+        monkeypatch.setattr(search, "search", AsyncMock(side_effect=asyncio.CancelledError))
+        with pytest.raises(asyncio.CancelledError):
+            await refresh_interest_stories(
+                ["jazz"],
+                search=search,
+                marks=Marks(),
+                file=Filed(),
+                record=recorded,
+                language="fr",
+                now=NOW,
+                topics_max=3,
+                max_age_s=MAX_AGE_S,
+            )
+        assert recorded.reads == [(frozenset(), frozenset({"brave"}))]
+
     async def test_the_strongest_topics_are_searched_and_their_stories_filed(self) -> None:
         search, marks, filed, recorded = Search(), Marks(), Filed(), Recorded()
         count = await refresh_interest_stories(

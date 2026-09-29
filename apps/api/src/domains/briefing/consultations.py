@@ -16,8 +16,10 @@ owns is the CORRESPONDENCE to the briefing's own section keys, which
 
 from __future__ import annotations
 
-from typing import Final
+from collections.abc import Callable
+from typing import Final, Protocol
 
+from src.domains.briefing.schemas import CardsBundle, CardStatus
 from src.domains.shared.consultation_surfaces import CONSULTATION_SURFACES
 
 #: This surface's key, shared with ``CONSULTATION_RECORDERS``.
@@ -31,6 +33,19 @@ CONSULTATION_PREFIX: Final[str] = _SURFACE.prefix
 
 #: Each section, and the taxonomy noun it reads as.
 SECTION_DOMAINS: Final[dict[str, str]] = dict(_SURFACE.domains)
+
+
+type SectionReadObserver = Callable[[str, CardStatus], None]
+
+
+class SelectedCardsReader(Protocol):
+    """Read selected sources, reporting each live read before the bundle completes."""
+
+    async def __call__(
+        self, sections: frozenset[str], *, on_read: SectionReadObserver | None = None
+    ) -> CardsBundle:
+        """Cache hits and unselected sources never call the observer."""
+        ...
 
 
 def consultation_capability(section: str) -> str:
@@ -49,5 +64,7 @@ __all__ = [
     "CONSULTATION_PREFIX",
     "SECTION_DOMAINS",
     "SURFACE",
+    "SectionReadObserver",
+    "SelectedCardsReader",
     "consultation_capability",
 ]

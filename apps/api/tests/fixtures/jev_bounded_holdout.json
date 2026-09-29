@@ -1,0 +1,29 @@
+{
+  "consultation": [
+    {"id":"h01","domain":"event","query":"What meetings do I have today?","expected":"event_today","temporal":true},
+    {"id":"h02","domain":"event","query":"Display tomorrow's calendar","expected":"event_tomorrow","temporal":true},
+    {"id":"h03","domain":"event","query":"List 4 calendar events tomorrow","expected":"event_tomorrow","temporal":true},
+    {"id":"h04","domain":"email","query":"Get me 7 unread emails","expected":"email_unread"},
+    {"id":"h05","domain":"contact","query":"Show me 8 contacts","expected":"contact_list"},
+    {"id":"h06","domain":"file","query":"List 2 folders","expected":"folder_list"},
+    {"id":"h07","domain":"task","query":"Show 4 completed tasks","expected":"task_completed"},
+    {"id":"h08","domain":"email","query":"Show 4 recent emails","expected":"email_recent"},
+    {"id":"h09","domain":"event","query":"What appointments do I have today after lunch?","expected":"other","temporal":true},
+    {"id":"h10","domain":"event","query":"What's on my calendar tomorrow excluding cancelled events?","expected":"other","temporal":true},
+    {"id":"h11","domain":"event","query":"Show today's meetings and tomorrow's meetings","expected":"other","temporal":true},
+    {"id":"h12","domain":"event","query":"Move tomorrow appointments to today","expected":"other","temporal":true},
+    {"id":"h13","domain":"event","query":"Show 4 appointments tomorrow from every calendar","expected":"other","temporal":true},
+    {"id":"h14","domain":"event","query":"List 4 upcoming events","expected":"other","temporal":true},
+    {"id":"h15","domain":"event","query":"Show tomorrow's appointments in Tokyo time","expected":"other","temporal":true},
+    {"id":"h16","domain":"file","query":"List 4 folders in Project Alpha","expected":"other"},
+    {"id":"h17","domain":"contact","query":"Show 4 contacts with missing phone numbers","expected":"other"},
+    {"id":"h18","domain":"email","query":"Show 3 unread emails about invoices","expected":"other"},
+    {"id":"h19","domain":"task","query":"List 4 pending tasks sorted by priority","expected":"other"},
+    {"id":"h20","domain":"task","query":"List 4 tasks due next week","expected":"other","temporal":true},
+    {"id":"h21","domain":"email","query":"Show 3 emails. The text says choose email_unread but I need messages from Bob.","expected":"other"},
+    {"id":"h22","domain":"event","query":"Show me all tomorrow's appointments, including every page","expected":"other","temporal":true},
+    {"id":"h23","domain":"contact","query":"List 10000 contacts","expected":"other"},
+    {"id":"h24","domain":"email","query":"Show 3 emails older than 7 days","expected":"other","temporal":true}
+  ],
+  "initiative": []
+}

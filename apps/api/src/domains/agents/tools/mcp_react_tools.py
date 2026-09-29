@@ -87,6 +87,11 @@ class _MCPReActWrapper(BaseTool):
         )
         self._inner = inner
 
+    @property
+    def tool_call_schema(self) -> dict[str, Any]:
+        """Keep the original MCP aliases through the ReAct wrapper as well."""
+        return self._inner.tool_call_schema
+
     async def _arun(self, **kwargs: Any) -> str:
         """Execute the inner MCP tool and return string result.
 

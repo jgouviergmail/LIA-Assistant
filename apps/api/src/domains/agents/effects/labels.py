@@ -18,11 +18,14 @@ completeness assert covers exactly the declaring half.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.core.config import settings
 from src.core.constants import MCP_TOOL_NAME_PREFIX
 from src.core.text_clip import clip_on_word
+
+if TYPE_CHECKING:
+    from src.domains.agents.registry import AgentRegistry
 
 #: A builder reads the call arguments and returns the values its wording needs.
 LabelValuesBuilder = Callable[[dict[str, Any]], dict[str, Any]]
@@ -248,7 +251,7 @@ def readable_label(row: Any) -> tuple[str, dict[str, Any]]:
     )
 
 
-def assert_effect_label_completeness() -> None:
+def assert_effect_label_completeness(registry: AgentRegistry | None = None) -> None:
     """Assert every capability that can claim an effect has a label (ADR-085).
 
     Covers the DECLARING half only: a third-party MCP tool derives its label
@@ -266,7 +269,8 @@ def assert_effect_label_completeness() -> None:
 
     missing: list[str] = []
 
-    registry = get_global_registry()
+    if registry is None:
+        registry = get_global_registry()
     for manifest in registry.list_tool_manifests():
         name = str(getattr(manifest, "name", ""))
         if name.startswith(f"{MCP_TOOL_NAME_PREFIX}_"):

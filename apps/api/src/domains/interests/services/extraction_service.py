@@ -59,6 +59,10 @@ from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts import load_prompt
+from src.domains.agents.services.jev_extraction_observer import (
+    observe_extractor,
+    start_extraction_observation,
+)
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.interests.repository import InterestRepository
 from src.domains.interests.schemas import ExtractedInterest
@@ -66,6 +70,7 @@ from src.domains.interests.services.action_applier import (
     apply_interest_actions,
     find_similar_interest,
 )
+from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.shared.extraction_targets import (
     find_last_user_message,
     is_synthetic_message,
@@ -463,6 +468,20 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedInterest]:
 # ============================================================================
 
 
+def _render_extraction_prompt(
+    conversation: str,
+    existing_texts: list[str],
+    user_language: str,
+) -> str:
+    """Render the same complete policy and state for the extractor and observer."""
+    return _get_extraction_prompt().format(
+        conversation=conversation,
+        existing_interests="\n".join(existing_texts) if existing_texts else _no_known_interest(),
+        current_datetime=datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M"),
+        user_language=get_language_name(user_language),
+    )
+
+
 async def _analyze_interests_core(
     user_id: str,
     messages: list[BaseMessage],
@@ -562,13 +581,7 @@ async def _analyze_interests_core(
     conversation = _format_messages_for_extraction(context_messages)
 
     # Build prompt from external file
-    current_datetime = datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M")
-    prompt = _get_extraction_prompt().format(
-        conversation=conversation,
-        existing_interests=("\n".join(existing_texts) if existing_texts else _no_known_interest()),
-        current_datetime=current_datetime,
-        user_language=get_language_name(user_language),
-    )
+    prompt = _render_extraction_prompt(conversation, existing_texts, user_language)
 
     # Get extraction LLM from unified config (LLM_DEFAULTS + admin overrides)
     llm = get_llm("interest_extraction")
@@ -587,6 +600,7 @@ async def _analyze_interests_core(
     import time as _time
 
     _llm_start = _time.time()
+    observation = start_extraction_observation(prompt)
     result = await invoke_with_instrumentation(
         llm=llm,
         llm_type="interest_extraction",
@@ -595,6 +609,7 @@ async def _analyze_interests_core(
         user_id=user_id,
     )
     _llm_duration_ms = (_time.time() - _llm_start) * 1000
+    observation.set_output(result.text)
     result_content = result.text
 
     # DEBUG: Log LLM response
@@ -649,6 +664,7 @@ async def _analyze_interests_core(
 # ============================================================================
 
 
+@observe_extractor(JevUsage.OBSERVE_INTERESTS)
 async def extract_interests_background(
     user_id: str,
     messages: list[BaseMessage],
@@ -786,6 +802,7 @@ async def extract_interests_background(
 # ============================================================================
 
 
+@observe_extractor(JevUsage.OBSERVE_INTERESTS)
 async def analyze_interests_for_debug(
     user_id: str,
     messages: list[BaseMessage],

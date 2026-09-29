@@ -143,6 +143,7 @@ export interface ChatState {
 
   // Browser Screenshots: Current overlay data (progressive screenshots during browsing)
   browserScreenshot: BrowserScreenshotData | null;
+  resultPreviews: import('./result-preview').QualifiedCollection[];
 
   // Compaction v2 (2026-05): state of an in-flight or just-finished history
   // compaction. Drives the chat-input lock (`status === 'compacting'` flows
@@ -184,6 +185,10 @@ export interface ConnectorNotice {
 // ============================================================================
 
 export type ChatAction =
+  | {
+      type: 'RESULT_PREVIEW';
+      payload: { messageId: string; collection: import('./result-preview').QualifiedCollection };
+    }
   // User actions
   | { type: 'SEND_MESSAGE'; payload: { message: Message } }
   | { type: 'CLEAR_MESSAGES' }
@@ -395,6 +400,7 @@ export const initialChatState: ChatState = {
   currentDebugMetrics: null, // Debug Panel: No current metrics at start
   debugMetricsHistory: [], // Debug Panel: Empty history at start
   browserScreenshot: null, // Browser Screenshots: No overlay at start
+  resultPreviews: [],
   compaction: null, // Compaction v2: no compaction in flight or recorded
   contextUsage: null, // Context pill: no measurement yet (first turn not done)
   hitl: initialHitlCardState, // HITL card: no interrupt pending at start

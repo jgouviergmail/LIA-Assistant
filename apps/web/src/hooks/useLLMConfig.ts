@@ -48,7 +48,7 @@ export function useLLMConfig() {
     // filtered out at the API and never appear in the Provider selector.
     // Per-type fine-grained filtering happens client-side via
     // LLMTypeInfo.required_kind.
-    '/admin/llm-config/metadata/models?kinds=chat,image,audio,tts',
+    '/admin/llm-config/metadata/models?kinds=chat,image,audio,tts,decision',
     {
       componentName: COMPONENT_NAME,
       initialData: { providers: {} },

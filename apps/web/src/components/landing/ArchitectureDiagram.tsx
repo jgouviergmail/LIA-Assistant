@@ -60,7 +60,7 @@ export function ArchitectureDiagram() {
       className="mt-10 border-t border-border pt-8 sm:pt-10"
       aria-labelledby="architecture-title"
     >
-      <div className="max-w-3xl">
+      <div>
         <h2
           id="architecture-title"
           className="flex items-center gap-3 text-2xl font-semibold tracking-tight sm:text-3xl"

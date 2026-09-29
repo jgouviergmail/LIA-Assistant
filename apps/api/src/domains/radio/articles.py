@@ -330,15 +330,16 @@ class ModelTranslator:
                 translation = await call(single_call_messages(prompt), ArticleTranslation)
         except Exception as exc:  # noqa: BLE001 — a refused translation shows the original
             logger.warning("radio_article_translation_refused", error_type=type(exc).__name__)
-        try:
-            await self._books(
-                user_id=self._user_id,
-                run_id=run_id,
-                started_at=started_at,
-                translated=translation is not None and bool(translation.text.strip()),
-            )
-        except Exception as exc:  # noqa: BLE001 — observing never breaks the observed
-            logger.warning("radio_article_unfiled", error_type=type(exc).__name__)
+        finally:
+            try:
+                await self._books(
+                    user_id=self._user_id,
+                    run_id=run_id,
+                    started_at=started_at,
+                    translated=translation is not None and bool(translation.text.strip()),
+                )
+            except Exception as exc:  # noqa: BLE001 — observing never breaks the observed
+                logger.warning("radio_article_unfiled", error_type=type(exc).__name__)
         return Translated(translation, await self._cost_of(run_id))
 
 

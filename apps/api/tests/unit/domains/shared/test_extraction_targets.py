@@ -109,9 +109,14 @@ class TestExtractorsHonourTheFlag:
     def test_extractor_imports_the_shared_helpers(self, module_path: str):
         import importlib
 
+        from src.domains.shared.extraction_targets import is_synthetic_message
+
         module = importlib.import_module(module_path)
-        assert hasattr(module, "find_last_user_message")
-        assert hasattr(module, "is_synthetic_message")
+        assert module.find_last_user_message is find_last_user_message
+        # The formatter may live in a dedicated context module. Inspect the
+        # function's actual scope, not an unused import in its caller.
+        formatter = module._format_messages_for_extraction
+        assert formatter.__globals__["is_synthetic_message"] is is_synthetic_message
 
     def test_response_context_targets_the_same_message_as_the_extractors(self):
         """Otherwise the embedding is computed on one text and used for another.

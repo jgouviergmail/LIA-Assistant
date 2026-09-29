@@ -1,0 +1,8 @@
+LANGUAGE: {language}
+CALENDAR EVENT: {calendar_title}
+
+CANDIDATES:
+{candidates}
+
+EXCERPT:
+{excerpt}

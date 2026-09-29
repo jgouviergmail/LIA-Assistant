@@ -240,7 +240,7 @@ const LLMCallSchema = z.object({
   tokens_cache: z.number().min(0),
   cost_eur: z.number().min(0),
   duration_ms: z.number().optional(), // v3.2
-  call_type: z.enum(['chat', 'embedding', 'image_generation']).optional(), // v3.3/v3.4
+  call_type: z.enum(['chat', 'embedding', 'image_generation', 'decision']).optional(),
   sequence: z.number().optional(), // v3.3
   started_offset_ms: z.number().min(0).optional(), // v3.4 waterfall
   // B8 — nullable AND optional: a payload persisted before this carries none

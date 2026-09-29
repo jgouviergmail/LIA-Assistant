@@ -32,7 +32,7 @@ from typing import Any
 
 import structlog
 from langchain_core.tools import BaseTool
-from pydantic import PrivateAttr
+from pydantic import BaseModel, PrivateAttr
 
 logger = structlog.get_logger(__name__)
 
@@ -355,6 +355,11 @@ class ReactToolWrapper(BaseTool):
         )
         self._original_tool = original_tool
         self._hitl_required = hitl_required
+
+    @property
+    def tool_call_schema(self) -> dict[str, Any] | type[BaseModel]:
+        """Retain the wrapped tool's schema, including MCP argument aliases."""
+        return self._original_tool.tool_call_schema
 
     @property
     def hitl_required(self) -> bool:

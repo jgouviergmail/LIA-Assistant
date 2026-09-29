@@ -673,9 +673,19 @@ timer ended it. A defect after the end files the end that stands; a shutdown or
 a takeover files nothing. A translation is filed when the call returns (`failed`
 when nothing usable came back); a reading from the cache files nothing, nor one the
 budget refused (no call was made). The reads
-are the listener's consultations (`consultations.py`) — a news flash's look that
-found notes among them; nothing the radio does is an action, and none of it is
-LIA's initiative.
+are the listener's consultations (`consultations.py`): personal sources, searches,
+reading the stored newsroom material (`radio:news`), and every notification poll
+(`radio:notifications`), including an empty answer. Reading stored news is not a
+claim that the originating website was contacted again. A failed or cancelled
+read is recorded as failed; completed reads survive an interrupted gathering.
+Sources disabled by the listener and briefing cache hits remain unrecorded because
+no source was opened. The account's Consultations tab identifies these rows with
+its translated Radio LIA badge, alongside the consulted domain and exact count;
+repeated polls fold visually without deleting records. A session appears in the
+decision register when it ends, not while it is still playing. An interrupted
+article translation also closes its decision record, and one-shot decision writes
+survive cancellation without duplicating the run. Nothing the radio does is an
+action changing the person's resources, and none of it is LIA's initiative.
 
 ## State and retention
 

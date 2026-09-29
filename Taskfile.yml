@@ -1042,33 +1042,16 @@ tasks:
         platforms: [linux, darwin]
 
   test:backend:unit:coverage:
-    # Re-measured 2026-09-08 after ADR-274 (document craft) and ADR-275
-    # (truncation refused): **73.38%**, so the floor rises 70 -> 71; 72 would
-    # leave 1.38 pt, under the >=2 pt rule.
-    # The CI command, verbatim — including the 65% floor (raised from 63 on
-    # 2026-08-01; measured 66.54% after ADR-194 and its follow-up lots, so the
-    # floor stays at 64: 65 would leave 1.54 pt of headroom, under the >=2 pt
-    # rule. Re-measured 2026-08-04 after ADR-201→204 (provenance, the reading
-    # hub's two read-only routes, interest explainability and the capability
-    # map): 66.87% — still 64, since 65 would leave 1.87 pt. Re-measured again
-    # 2026-08-04 after the hub-counts lot: 66.89% — still 64, 1.89 pt.
-    # Re-measured 2026-08-05 after the production-log remediation lots
-    # (graceful shutdown, deploy staging, checkpoint allowlist, FCM token
-    # invalidation, Loki label policy, client-IP chokepoint, batch concurrency):
-    # 66.99% — still 64, since 65 would leave 1.99 pt, a hair under the >=2 rule.
-    # Re-measured 2026-08-07 after the demonstrator's security-audit lots and
-    # the removal of the legacy live showroom: 67.79% — the floor moves to 65,
-    # since 66 would leave 1.79 pt, again under the >=2 rule.)
-    # `test:backend:unit:fast`
-    # trades coverage for xdist parallelism because the pre-commit hook has a
-    # 5-minute budget; that makes it the right gate for a commit and the wrong
-    # one for reproducing CI, which is what this task is for.
+    # Measured 2026-09-29 after JEV lots 1-8: 79.09%.
+    # Floor 77 keeps >=2 percentage points of headroom; the same floor is
+    # enforced in pyproject.toml. The fast task trades coverage for xdist
+    # within the pre-commit budget; this task reproduces the CI coverage gate.
     desc: Backend unit tests with coverage and the CI floor (mirrors the CI job step)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=75
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=77
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=75
+      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=77
         platforms: [linux, darwin]
 
   test:backend:agents:

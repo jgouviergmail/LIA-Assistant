@@ -25,14 +25,15 @@ for the editions that tell them, what was DONE today and what lies AHEAD this we
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, tzinfo
 from time import perf_counter
 from uuid import UUID
 
 import structlog
 
-from src.domains.briefing.schemas import CardsBundle, CardStatus
+from src.domains.briefing.consultations import SelectedCardsReader
+from src.domains.briefing.schemas import CardStatus
 from src.domains.radio.formats import FORMAT_SPECS, Frequency, RadioFormat, journal_edition
 from src.domains.radio.packs import EDITION_PARTS
 from src.domains.radio.personal import (
@@ -61,7 +62,7 @@ class ListenerDay:
         tz: tzinfo,
         disabled_sources: frozenset[PersonalSource],
         public_mode: bool,
-        cards: Callable[[frozenset[str]], Awaitable[CardsBundle]],
+        cards: SelectedCardsReader,
         readers: Mapping[PersonalSource, SourceReader],
         done_readers: Mapping[PersonalSource, SourceReader],
         ahead_readers: Mapping[PersonalSource, SourceReader],
@@ -105,15 +106,17 @@ class ListenerDay:
         started = perf_counter()
         opened: set[str] = set()
         failed: set[str] = set()
-        drafts = await self._briefing(opened, failed)
-        for source, more in (await self._own(self._clock(), opened, failed)).items():
-            drafts.setdefault(source, []).extend(more)
-        if opened:
-            self._record(
-                opened=frozenset(opened),
-                failed=frozenset(failed),
-                duration_ms=int((perf_counter() - started) * 1000),
-            )
+        try:
+            drafts = await self._briefing(opened, failed)
+            for source, more in (await self._own(self._clock(), opened, failed)).items():
+                drafts.setdefault(source, []).extend(more)
+        finally:
+            if opened:
+                self._record(
+                    opened=frozenset(opened),
+                    failed=frozenset(failed),
+                    duration_ms=int((perf_counter() - started) * 1000),
+                )
         return personal_facts(drafts, disabled=self._silent)
 
     def parts_due(self, now: datetime) -> frozenset[JournalPart]:
@@ -138,17 +141,19 @@ class ListenerDay:
         sources = BRIEFING_SOURCES - self._silent
         if not sources:
             return {}
+        source_by_section = {BRIEFING_SECTIONS[source]: source for source in sources}
+
+        def on_read(section: str, status: CardStatus) -> None:
+            source = source_by_section[section]
+            opened.add(source.value)
+            if status not in (CardStatus.OK, CardStatus.EMPTY):
+                failed.add(source.value)
+
         try:
-            cards = await self._cards(frozenset(BRIEFING_SECTIONS[source] for source in sources))
+            cards = await self._cards(frozenset(source_by_section), on_read=on_read)
         except Exception as exc:  # noqa: BLE001 — the readers' sources still speak
             logger.warning("radio_briefing_unavailable", error_type=type(exc).__name__)
             return {}
-        for source in sources:
-            section = getattr(cards, BRIEFING_SECTIONS[source])
-            if not section.from_cache and section.status is not CardStatus.HIDDEN:
-                opened.add(source.value)
-                if section.status not in (CardStatus.OK, CardStatus.EMPTY):
-                    failed.add(source.value)
         return briefing_drafts(cards)
 
     def _reads(self, now: datetime) -> list[tuple[PersonalSource, SourceReader]]:
@@ -172,12 +177,22 @@ class ListenerDay:
         reads = self._reads(now)
         if not reads:
             return {}
-        results = await asyncio.gather(
-            *(self._read(source, reader, now) for source, reader in reads)
-        )
+
+        async def recorded_read(
+            source: PersonalSource, reader: SourceReader
+        ) -> list[PersonalDraft] | None:
+            opened.add(source.value)
+            succeeded = False
+            try:
+                drafts = await self._read(source, reader, now)
+                succeeded = drafts is not None
+                return drafts
+            finally:
+                if not succeeded:
+                    failed.add(source.value)
+
+        results = await asyncio.gather(*(recorded_read(source, reader) for source, reader in reads))
         outcomes = list(zip(reads, results, strict=True))
-        opened.update(source.value for source, _ in reads)
-        failed.update(source.value for (source, _), drafts in outcomes if drafts is None)
         merged: dict[PersonalSource, list[PersonalDraft]] = {}
         for (source, _), drafts in outcomes:
             if drafts is not None:

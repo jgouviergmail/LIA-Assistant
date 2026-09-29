@@ -116,6 +116,24 @@ function typeConfig(
 }
 
 describe('parseProviderConfig', () => {
+  it('native decisions never serialize inherited generative parameters', () => {
+    const config = typeConfig({}, {}, 'decision');
+    const form = {
+      ...formFromConfig(config),
+      provider: 'typesafe',
+      model: 'jev-1.13.0',
+      temperature: 0.2,
+      max_tokens: 900,
+      context_window: 10000,
+      reasoning_effort: HIGH,
+      timeout_seconds: 2,
+    };
+    expect(buildConfigUpdate(config, form, {})).toEqual({
+      provider: 'typesafe',
+      model: 'jev-1.13.0',
+      timeout_seconds: 2,
+    });
+  });
   it('returns {} for empty, malformed or non-object payloads', () => {
     expect(parseProviderConfig(null)).toEqual({});
     expect(parseProviderConfig('')).toEqual({});

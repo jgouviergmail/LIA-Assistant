@@ -74,11 +74,17 @@ export function MeetingMinutesCard({ lng, metadata, showCosts = false }: Meeting
         )}
         {showCosts && hasCostFacts(metadata) && (
           <p className="text-xs text-muted-foreground" data-testid="meeting-card-costs">
-            {t('meetings.card.cost_line', {
-              stt: costLabel(metadata.stt_cost_eur, lng, unknown),
-              minutes: costLabel(metadata.llm_cost_eur, lng, unknown),
-              total: costLabel(metadata.cost_eur, lng, unknown),
-            })}
+            {t(
+              metadata.selection_cost_eur != null
+                ? 'meetings.detail.cost_breakdown_native'
+                : 'meetings.card.cost_line',
+              {
+                stt: costLabel(metadata.stt_cost_eur, lng, unknown),
+                minutes: costLabel(metadata.llm_cost_eur, lng, unknown),
+                total: costLabel(metadata.cost_eur, lng, unknown),
+                selection: costLabel(metadata.selection_cost_eur, lng, unknown),
+              }
+            )}
           </p>
         )}
       </div>
@@ -88,7 +94,9 @@ export function MeetingMinutesCard({ lng, metadata, showCosts = false }: Meeting
         variant="default"
         // This card only ever renders inside the chat, so the way back is
         // the chat — the same screen the reader is looking at.
-        onClick={() => router.push(withOrigin(`/dashboard/meetings/${metadata.meeting_id}`, 'chat'))}
+        onClick={() =>
+          router.push(withOrigin(`/dashboard/meetings/${metadata.meeting_id}`, 'chat'))
+        }
       >
         {t('meetings.card.open')}
         <ExternalLink className="ml-1 h-3.5 w-3.5" aria-hidden="true" />

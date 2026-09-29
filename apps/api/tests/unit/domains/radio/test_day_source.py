@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Mapping
+import asyncio
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta, timezone, tzinfo
 from uuid import UUID, uuid4
 
 import pytest
 
+from src.domains.briefing.consultations import SectionReadObserver, SelectedCardsReader
 from src.domains.briefing.schemas import (
     AgendaData,
     AgendaEventItem,
@@ -23,6 +25,27 @@ from src.domains.radio.formats import Frequency
 from src.domains.radio.personal import JournalPart, PersonalDraft, PersonalSource
 
 pytestmark = pytest.mark.unit
+
+
+async def test_cancelling_a_gathering_keeps_completed_and_interrupted_consultations() -> None:
+    entered = asyncio.Event()
+
+    class PendingReader(Reader):
+        async def __call__(
+            self, user_id: UUID, *, now: datetime, tz: tzinfo
+        ) -> list[PersonalDraft]:
+            entered.set()
+            await asyncio.Event().wait()
+            return []
+
+    recorder = Recorder()
+    task = asyncio.create_task(_day(Reader([]), PendingReader([]), recorder).day())
+    await entered.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert recorder.rows == [(frozenset({"tickets", "meetings"}), frozenset({"meetings"}))]
+
 
 NOW = datetime(2026, 9, 26, 7, 0, tzinfo=UTC)
 #: The desk's time to live in these tests.
@@ -113,11 +136,15 @@ class Recorder:
         self.rows.append((opened, failed))
 
 
-async def _read_cards(sections: frozenset[str]) -> CardsBundle:
+async def _read_cards(
+    sections: frozenset[str], *, on_read: SectionReadObserver | None = None
+) -> CardsBundle:
     return _cards()
 
 
-async def _broken_cards(sections: frozenset[str]) -> CardsBundle:
+async def _broken_cards(
+    sections: frozenset[str], *, on_read: SectionReadObserver | None = None
+) -> CardsBundle:
     raise ConnectionError("redis unavailable")
 
 
@@ -129,7 +156,7 @@ def _day(
     disabled_sources: frozenset[PersonalSource] = frozenset(),
     public_mode: bool = False,
     journal_frequency: Frequency = Frequency.NORMAL,
-    cards: Callable[[frozenset[str]], Awaitable[CardsBundle]] = _read_cards,
+    cards: SelectedCardsReader = _read_cards,
     done: Mapping[PersonalSource, Reader] | None = None,
     ahead: Mapping[PersonalSource, Reader] | None = None,
     now: datetime = NOW,
@@ -177,7 +204,9 @@ async def test_journal_off_reads_only_weather_even_with_personal_sources_enabled
     tickets, meetings, recorder = Reader([TICKET]), Reader([MEETING]), Recorder()
     selected: list[frozenset[str]] = []
 
-    async def cards(sections: frozenset[str]) -> CardsBundle:
+    async def cards(
+        sections: frozenset[str], *, on_read: SectionReadObserver | None = None
+    ) -> CardsBundle:
         selected.append(sections)
         return _cards()
 

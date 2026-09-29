@@ -232,7 +232,7 @@ class TestCostMetadata:
     """The notification carries both paid units and their honest sum."""
 
     def test_both_units_priced_sum_into_cost_eur(self) -> None:
-        meeting = SimpleNamespace(synthesis_cost_eur=0.0121)
+        meeting = SimpleNamespace(template_selection_usage=None, synthesis_cost_eur=0.0121)
         outcome = _outcome(cost_eur=0.0046)
         meta = processing._cost_metadata(meeting, outcome, SynthesisUsage(1200, 300, 0, "gpt-4.1"))
         assert meta["tokens_in"] == 1200 and meta["model_name"] == "gpt-4.1"
@@ -242,13 +242,13 @@ class TestCostMetadata:
 
     def test_an_unknown_price_neither_hides_the_other_nor_reads_as_free(self) -> None:
         only_stt = processing._cost_metadata(
-            SimpleNamespace(synthesis_cost_eur=None),
+            SimpleNamespace(template_selection_usage=None, synthesis_cost_eur=None),
             _outcome(cost_eur=0.0046),
             SynthesisUsage(1, 1, 0, "m"),
         )
         assert only_stt["cost_eur"] == 0.0046 and only_stt["llm_cost_eur"] is None
         nothing = processing._cost_metadata(
-            SimpleNamespace(synthesis_cost_eur=None),
+            SimpleNamespace(template_selection_usage=None, synthesis_cost_eur=None),
             _outcome(cost_eur=None),
             SynthesisUsage(1, 1, 0, "m"),
         )

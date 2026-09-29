@@ -68,6 +68,9 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Re-measured 2026-09-29 after JEV lots 1-8: statements 82.78,
+        // branches 77.84, functions 80.50, lines 83.65. Floors 80/75/78/81
+        // retain >=2 points; no axis crosses another whole-point step.
         // Re-measured 2026-09-25 after ADR-319..322 (a kept file and its
         // cards, the chat merged with the server page, the e-mail share
         // dialog, the routine studio's one clock — ~150 new tests):
@@ -386,10 +389,34 @@ export default defineConfig({
         // tests): statements 80.04 / branches 75.39 / functions 77.29 /
         // lines 80.80. `statements` rises 77 -> 78 and `functions` 74 -> 75
         // (floor(measured - 2)); `branches` and `lines` do not cross a step.
+        // Re-measured 2026-09-28 with the JEV administration and cost paths:
+        // 82.75 / 77.76 / 80.44 / 83.62. Functions advances with >=2 pt margin.
         statements: 80,
         branches: 75,
-        functions: 77,
+        functions: 78,
         lines: 81,
+        // Hot JEV switches: confirmed writes, failures, refresh and OFF recovery.
+        // Measured 93.94 / 85.19 / 100 / 93.94; preserve a margin per axis.
+        'src/components/settings/AdminJevSection.tsx': {
+          statements: 91,
+          branches: 83,
+          functions: 98,
+          lines: 91,
+        },
+        // Native diagnostics: measured 100 / 97.05 / 100 / 100 and a fully
+        // covered polling hook. Lock the gains with a two-point margin.
+        'src/components/debug/components/sections/JevDebugSection.tsx': {
+          statements: 98,
+          branches: 95,
+          functions: 98,
+          lines: 98,
+        },
+        'src/hooks/useJevDebug.ts': {
+          statements: 98,
+          branches: 98,
+          functions: 98,
+          lines: 98,
+        },
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

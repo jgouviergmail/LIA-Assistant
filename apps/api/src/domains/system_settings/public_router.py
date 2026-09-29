@@ -12,9 +12,9 @@ import structlog
 from fastapi import APIRouter, Depends
 
 from src.core.session_dependencies import get_current_active_session
+from src.domains.system_settings.debug_access import can_read_debug
 from src.domains.system_settings.schemas import DebugPanelStatusResponse
 from src.domains.system_settings.service import (
-    get_debug_panel_enabled,
     get_debug_panel_user_access_enabled,
 )
 from src.domains.users.models import User
@@ -48,12 +48,7 @@ async def get_debug_panel_status(
     """
     user_access_available = await get_debug_panel_user_access_enabled()
 
-    if current_user.is_superuser:
-        # Admin: their debug panel is controlled by the main admin setting
-        enabled = await get_debug_panel_enabled()
-    else:
-        # Non-admin: both admin user-access AND personal preference must be True
-        enabled = user_access_available and current_user.debug_panel_enabled
+    enabled = await can_read_debug(current_user)
 
     return DebugPanelStatusResponse(
         enabled=enabled,

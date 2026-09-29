@@ -71,6 +71,7 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "usage_limit": KeyScope.USER_CACHE,
     "conv:user": KeyScope.USER_CACHE,
     "meetings:start": KeyScope.USER_CACHE,
+    "debug:jev": KeyScope.USER_CACHE,
     "skills:url_import": KeyScope.USER_CACHE,
     "rag": KeyScope.USER_CACHE,
     "bm25": KeyScope.USER_CACHE,
