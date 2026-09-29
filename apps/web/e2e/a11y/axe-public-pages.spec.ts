@@ -155,15 +155,18 @@ ${detail.summary}`
 
     test(`demo page scans clean (${theme})`, async ({ page }, testInfo) => {
       await page.goto('/demo');
-      // Page-ready marker, variant-aware: the classic build renders one
-      // labelled role="img" animation inside main (scoped: the Next dev-tools
-      // overlay also exposes an svg image on dev servers); a guided-showroom
-      // build (NEXT_PUBLIC_DEMO_MODE=guided, the dev container since
-      // 2026-08-06) renders the mission list instead. Either marker means the
-      // page is ready — the axe scan below stays the real oracle and always
-      // covers the whole document.
+      // Page-ready marker, variant-aware: the classic build renders the
+      // product demo, whose scene chooser is a labelled role="group" of
+      // buttons inside main (scoped: the Next dev-tools overlay lives outside
+      // it); a guided-showroom build (NEXT_PUBLIC_DEMO_MODE=guided, the dev
+      // container since 2026-08-06) renders the mission list instead. Either
+      // marker means the page is ready — the axe scan below stays the real
+      // oracle and always covers the whole document.
       await expect(
-        page.locator('main [role="img"]').or(page.locator('main ol button, main ul button').first())
+        page
+          .locator('main [role="group"] button')
+          .or(page.locator('main ol button, main ul button'))
+          .first()
       ).toBeVisible();
 
       const { blocking, summary } = await scanPage(page, testInfo, `/demo-${theme}`);
