@@ -114,9 +114,10 @@ test.describe('the shortcuts dock', () => {
     ]);
     await page.goto('/fr/dashboard/settings?section=my-shortcuts');
 
-    const police = page.getByRole('checkbox', { name: 'Police' });
+    // `exact`: « Taille de police » is a section of its own, whose name contains « Police ».
+    const police = page.getByRole('checkbox', { name: 'Police', exact: true });
     await expect(police).toBeVisible();
-    await expect(page.getByRole('checkbox', { name: 'Apparence' })).toBeChecked();
+    await expect(page.getByRole('checkbox', { name: 'Apparence', exact: true })).toBeChecked();
     // The picker never offers itself.
     await expect(page.getByRole('checkbox', { name: 'Mes raccourcis' })).toHaveCount(0);
 

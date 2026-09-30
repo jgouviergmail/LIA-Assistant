@@ -14,7 +14,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.constants import GOOGLE_DRIVE_FOLDER_MIME
-from src.domains.rag_spaces import drive_ingest, drive_sync
+from src.domains.rag_spaces import drive_ingest, drive_sync, storage_paths
 from src.domains.rag_spaces.models import RAGDriveSyncStatus
 from tests.unit.domains.rag_spaces.drive_fakes import (
     FakeDetachedConnectors,
@@ -89,6 +89,8 @@ async def _run_sync(tmp_path, client: FakeDriveClient) -> tuple[list[dict], list
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "settings", settings_mock),
         patch.object(drive_ingest, "settings", settings_mock),
+        # The stored path is built by storage_paths (ADR-326): patch where it is read.
+        patch.object(storage_paths, "settings", settings_mock),
     ):
         await drive_sync.sync_folder_background(space_id, source_id, user_id)
     return updates, created
@@ -161,6 +163,8 @@ async def test_sync_prunes_a_document_whose_file_left_the_tree(tmp_path) -> None
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "settings", settings_mock),
         patch.object(drive_ingest, "settings", settings_mock),
+        # The stored path is built by storage_paths (ADR-326): patch where it is read.
+        patch.object(storage_paths, "settings", settings_mock),
     ):
         await drive_sync.sync_folder_background(space_id, source_id, user_id)
     assert removed == ["gone"]
