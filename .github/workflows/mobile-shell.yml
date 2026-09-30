@@ -26,6 +26,10 @@ on:
     paths:
       - "apps/mobile/**"
       - ".github/workflows/mobile-shell.yml"
+  # By hand: the builds run `pnpm install` over the whole workspace, so a
+  # lockfile repaired OUTSIDE apps/mobile leaves the last run red with no push
+  # able to re-run it (measured 2026-09-30, the merge of #264 then #266).
+  workflow_dispatch:
 
 permissions:
   contents: read
