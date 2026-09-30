@@ -101,6 +101,8 @@ PromptName = Literal[
     # offer, and its one-line scaffolds (hosts, carriers, the unknown-host rule).
     "react_computation_network_prompt",
     "react_computation_lines",
+    # ADR-327 lot 3: the skill runner's network line (offline, or the reachable hosts).
+    "skill_command_network_lines",
     # ADR-310: what a recovery pass tells the model after its draft declared gaps.
     "react_recovery_directive",
     "runtime_failures_directive",
@@ -175,6 +177,7 @@ PromptName = Literal[
     # Personality title/description translation (admin UI)
     "personality_translation_prompt",
     # Skills system
+    "skill_catalogue_lines",
     "skill_description_translation_prompt",
     "skill_react_agent_prompt",
     "skill_contract_prefix_prompt",

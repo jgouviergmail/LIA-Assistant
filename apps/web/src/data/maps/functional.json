@@ -273,7 +273,7 @@
       "id": "f.skills",
       "group": "g.act",
       "icon": "puzzle",
-      "domains": ["skills", "plugins"],
+      "domains": ["skills", "plugins", "skill_library"],
       "surfaces": ["/dashboard/settings"],
       "deps": ["f.sandbox", "f.mcp"]
     },

@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 5.1
-**Date**: 2026-09-24
-**Application**: LIA v2.1.1
+**Date**: 2026-09-30
+**Application**: LIA v2.2.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 608 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 325 ADRs, 47,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Full transparency | 612 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 326 ADRs, 48,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -89,11 +89,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 47,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
+| Tests | 48,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 325 |
-| Prometheus metrics | 608 definitions |
+| ADRs (Architecture Decision Records) | 326 |
+| Prometheus metrics | 612 definitions |
 | Grafana dashboards | 30 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1057,7 +1057,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 Three surfaces execute something on the user's behalf, and each is treated as hostile by construction.
 
-**Skill scripts run in a throwaway container.** No Docker socket, no network (a script the assistant writes for a computation is the one exception, and it leaves through a single door — the egress proxy of §34), a read-only root filesystem with a small writable tmpfs, an unprivileged uid, every capability dropped, and memory / process / CPU / file-size ceilings. The point is what a child process *inherits*: the API belongs to the `docker` group in production, and a group is inherited — dropping the uid alone would leave the socket reachable. The script SOURCE is handed over as an argument rather than mounted, because the API is itself a container and a bind would resolve against the host; that choice also leaves stdin free for the JSON payload the contract is built on. When no daemon is reachable the execution is refused rather than downgraded — a sandbox that disables itself protects nothing.
+**Skill scripts run in a throwaway container.** No Docker socket, no network (a script the assistant writes for a computation and a skill's command that declares its hosts are the exceptions, and they leave through a single door — the egress proxy of §34), a read-only root filesystem with a small writable tmpfs, an unprivileged uid, every capability dropped, and memory / process / CPU / file-size ceilings. The point is what a child process *inherits*: the API belongs to the `docker` group in production, and a group is inherited — dropping the uid alone would leave the socket reachable. The script SOURCE is handed over as an argument rather than mounted, because the API is itself a container and a bind would resolve against the host; that choice also leaves stdin free for the JSON payload the contract is built on. When no daemon is reachable the execution is refused rather than downgraded — a sandbox that disables itself protects nothing.
 
 **Infrastructure tasks are confirmed, never assumed.** A remote server task is prepared, not run: the confirmation shows the target server, the full task text and the instructions the model itself wrote into the remote prompt — the field an injection would use is exactly the one that must not be hidden. The privilege is verified again at execution, because rights granted when a request was phrased may no longer hold when it is approved.
 
@@ -1093,7 +1093,7 @@ A generated file's deadline is nullable: a person may keep it within published p
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 608 custom metrics (RED pattern) |
+| Prometheus | 612 custom metrics (RED pattern) |
 | Grafana | 30 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1101,7 +1101,7 @@ A generated file's deadline is nullable: a person may keep it within published p
 | Alertmanager | 29-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 608 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 612 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1360,11 +1360,13 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 A library of built-in skills demonstrates the contract: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — each illustrating a different combination of the three channels.
 
-**Skill lifecycle**: every skill enters through a single hardened import pipeline (`SkillImportService`) — strict agentskills.io name validation before any filesystem write (path-traversal guard), zip expansion caps, staging + swap with automatic restore of the previous version on failure, and cross-scope name-conflict rejection (DB + cache as dual authority). The built-in skill-generator uses the same pipeline through the `import_user_skill` tool: a skill created in chat is validated, installed and announced by name in one turn — no manual upload. Skills whose workflow spans several turns declare `dialogue: true` in their frontmatter, which the QueryAnalyzer's chat override respects (their detection survives conversational follow-up answers) while the skill ReAct runner receives the windowed conversation history to resume the dialogue instead of restarting it.
+**Skill lifecycle**: every skill enters through a single hardened import pipeline (`SkillImportService`) — strict agentskills.io name validation before any filesystem write (path-traversal guard), zip expansion caps, staging + swap with automatic restore of the previous version on failure, and names unique per account: every lookup names its scope, and a personal skill shadows a system skill of the same name for its owner alone. The built-in skill-generator uses the same pipeline through the `import_user_skill` tool: a skill created in chat is validated and proposed as a card under the answer, which the person reads and installs in one click — no manual upload, and nothing written by the model enters their skills without that click. Skills whose workflow spans several turns declare `dialogue: true` in their frontmatter, which the QueryAnalyzer's chat override respects (their detection survives conversational follow-up answers) while the skill ReAct runner receives the windowed conversation history to resume the dialogue instead of restarting it.
 
 The skills surface is a **gallery**: cards open a detail sheet with the localized description, the declared **output channels** (the loader reads the `outputs:` frontmatter field the generator validates — parity is CI-pinned), a bundled `assets/preview.png` served by a dedicated endpoint (name-pattern traversal guard, size cap, undifferentiated 404 for admin-disabled skills), and a provenance warning on every non-system skill. Installation accepts a second source besides file upload: an https URL, hardened as described in §19.3, feeding the exact same import pipeline (`skill_url_imports_total{outcome}` counts every path).
 
-**Editing a skill.** Re-importing one's own skill is an atomic upsert (ADR-118), and editing from the chat rests on three conditions: the manifest stays readable although activation strips the frontmatter, so an adjustment keeps the fields it does not touch; a replacement keeps the thumbnail the chat cannot carry; and on a name conflict the generator's prompt asks for the existing skill to be updated rather than copied under a new name. A modification is therefore a **full regeneration** under the same name, preceded by reading the current package. Confirmation lives **in the tool**, not in HITL: a skill shipping a `scripts/` directory runs inside an isolated-thread ReAct sub-agent whose drafts never reach the main graph. It rests on a content-derived token — a plain flag would be a convention the model may skip, whereas a digest can only have been received, and it binds the agreement to the exact package that will be written (ADR-165).
+**Editing a skill.** Re-importing one's own skill is an atomic upsert (ADR-118), and editing from the chat rests on three conditions: the manifest stays readable although activation strips the frontmatter, so an adjustment keeps the fields it does not touch; a replacement keeps the thumbnail the chat cannot carry; and on a name conflict the generator's prompt asks for the existing skill to be updated rather than copied under a new name. A modification is therefore a **full regeneration** under the same name, preceded by reading the current package. The tool **proposes**, only the person installs: the proposal passes every check of the import without writing anything, it is kept in Redis under a per-account cap, its card shows what a replacement adds, changes and removes, and the install — claimed with a token, idempotent — refuses when the replaced skill changed since the card described it (ADR-327).
+
+**Skills written elsewhere.** A skill carries its provenance — system, written by the person, fetched from an address, brought by a plugin or installed from the library — and the last three are **third-party**, decided once per request by a single module (`skills/trust.py`); in doubt, a skill is third-party. A third-party skill is marked in the catalogues, its priority ignored, it never runs a plan, and its instructions run only in the isolated runner, which binds its own scripts and resources and nothing else — no connector. Its answer is drawn without remote images or HTML, and nothing it writes is invisible to the person. The **library** searches skills.sh, reads the GitHub repository the portal names and pins the branch to a commit at preview time: what installs is what was read, every file checked against its git blob SHA, the published audits read under every name the skill may carry, and an update is a folder whose git tree moved. Finally a skill can **run its own commands** (`run_skill_command`) in a copy of its folder inside the throwaway container: the folder and the turn's files go in as one archive on standard input, what it writes under `out/` comes back the same way, and a file keeps its type only when its name and first bytes agree. Every such run starts from a dedicated image — Python, Node, the command-line tools and the promised libraries, no Docker client and no application code — whose every command is executed by a test before it is promised to the model; a command's network goes through the door of §34.
 
 ### 23.8. Conversation history, search and rich chat rendering
 
@@ -1506,7 +1508,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-325 ADRs in MADR format document the major architectural decisions. Some representative examples:
+326 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1723,6 +1725,8 @@ Ask a language model how long a series of layovers adds up to, which names appea
 
 **An unknown host is asked, with three answers, inside the loop.** The card names the hosts and the model's stated purpose with a count of the turn's data — never the data — and the person allows with the data, without it (stdin then carries nothing) or refuses; the answer is remembered as a grant under a published cap. Where the question is settled matters as much as what it asks: the node raises the interrupt itself, like a mutation tool's confirmation, and on resume re-invokes the same call under the answer, so the rest of the request goes on. Handing the card to the draft dispatch would have executed it as an action and answered from its result, dropping every later step — a permission is not an action.
 
+**A skill's command takes the same door.** A command a skill runs declares its hosts the same way and meets the same four statuses, with two differences that follow from where it comes from and where it runs. A skill written elsewhere never receives a connector's token: its commands reach only what the operator or the person allowed. And the card is raised only where its answer can resume the call — the ReAct loop; anywhere else, a turn in Pipeline mode or a routine, nobody could answer it, so the host is refused with the name of the setting where the person allows it by hand. npm, git and curl sit in the image, each pointed at the proxy's authority.
+
 **The prompt is measured before it is trusted.** Told to put `LIA_KEY_X` in the header, a model sends the variable's name as the value; the line therefore spells the read. The libraries the prompt promises live in one table pinned directly and are imported inside the built image on every CI run, and the four roles — compute, diagnose, fill a gap, transform — are stated with the bounds the code enforces, read from settings rather than written in prose.
 
 ## 35. Measuring a colour before shipping it: the settings palette
@@ -1851,8 +1855,8 @@ The same two modes hold for the phone (ADR-301): relaying the conversation at it
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 325 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 47,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 326 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 48,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 325 ADRs, and the changelog (v1.0 to v2.1.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 326 ADRs, and the changelog (v1.0 to v2.2.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

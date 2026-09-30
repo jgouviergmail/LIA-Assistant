@@ -9,7 +9,9 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
- *   Re-measured 2026-09-25 (v1.47.4) on the dev instance = 123 (`tool_count` in
+ *   Re-measured 2026-09-30 (v2.2.0) on the dev instance = 124 (`"tool_manifests": 124`
+ *   in the catalogue stats at boot): `run_skill_command` (ADR-327) joined the catalogue.
+ *   Previous re-measure 2026-09-25 (v1.47.4) on the dev instance = 123 (`tool_count` in
  *   the catalogue log at boot): the six assistant tools of ADR-318, the memory
  *   lookup (ADR-313) and the e-mail to oneself (ADR-314) joined the catalogue.
  *   Previous re-measure 2026-09-18 (v1.45.2) on the dev instance = 115 (`tool_count` in
@@ -89,6 +91,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-09-30 (v2.2.0): backend 38 041 collected
+ *   (`task test:markers`) + frontend 10 136 passing in 802 files
+ *   (`task test:frontend`) = 48 177 -> 48000.
  *   Re-measured 2026-09-30 (v2.1.1): backend 37 483 collected
  *   (`task test:markers`) + frontend 10 052 passing in 796 files
  *   (`task test:frontend:coverage`) = 47 535 -> 47000.
@@ -361,14 +366,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 123,
+  tools: 124,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 608,
+  metrics: 612,
   uiLanguages: 6,
-  tests: 47000,
-  adrs: 325,
-  releases: 272,
+  tests: 48000,
+  adrs: 326,
+  releases: 273,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

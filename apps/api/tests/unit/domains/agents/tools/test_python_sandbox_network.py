@@ -161,11 +161,12 @@ class TestValidation:
     ) -> None:
         """The tool hands the call back as a draft; nothing runs before the answer."""
         from src.core.config import settings
+        from src.domains.agents.python_sandbox.egress.tool_path import settling_questions
         from src.domains.agents.tools import python_sandbox_tools
 
         monkeypatch.setattr(settings, "python_sandbox_egress_ask_enabled", True, raising=False)
         python_sandbox_tools.set_turn_data({"e1": {"type": "EMAIL"}})
-        with patch(EXECUTE, new_callable=AsyncMock) as executor:
+        with patch(EXECUTE, new_callable=AsyncMock) as executor, settling_questions():
             result = await _call(["mystery.example", "api.example.org"], purpose="probe it")
         executor.assert_not_awaited()
         assert result.tool_metadata["requires_confirmation"] is True
@@ -180,6 +181,20 @@ class TestValidation:
         assert "replay" not in content and "code" not in json.dumps(content)
         # A question started no container: it costs none of the turn's runs.
         assert python_sandbox_tools.runs_spent() == 0
+
+    async def test_where_nobody_can_answer_an_unknown_host_is_refused_with_where_to_allow_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A question nobody can settle (a sub-agent, a plan step) is never asked."""
+        from src.core.config import settings
+
+        monkeypatch.setattr(settings, "python_sandbox_egress_ask_enabled", True, raising=False)
+        with patch(EXECUTE, new_callable=AsyncMock) as executor:
+            result = await _call(["mystery.example"])
+        executor.assert_not_awaited()
+        assert result.success is False
+        assert "requires_confirmation" not in (result.tool_metadata or {})
+        assert "mystery.example" in result.message and "Settings" in result.message
 
     async def test_a_refusal_before_the_container_costs_no_run(self) -> None:
         from src.domains.agents.tools import python_sandbox_tools

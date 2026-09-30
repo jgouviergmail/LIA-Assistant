@@ -137,11 +137,13 @@ def _discover_all_resources(skill_dir: Path) -> list[str]:
     return resources
 
 
-def parse_skill_file(path: Path) -> dict[str, Any] | None:
+def parse_skill_file(path: Path, *, check_dir_name: bool = True) -> dict[str, Any] | None:
     """Parse a SKILL.md file into a skill dict.
 
     Lenient validation per agentskills.io client implementation guide:
-    - Name mismatch with directory → warn, load anyway
+    - Name mismatch with directory → warn, load anyway (``check_dir_name``:
+      False for a manifest staged in a temporary folder, as the skill
+      library reads one — the convention is about INSTALLED folders)
     - Name exceeds 64 chars → warn, load anyway
     - Missing description → skip (essential for catalogue)
     - Unparseable YAML → skip
@@ -207,7 +209,7 @@ def parse_skill_file(path: Path) -> dict[str, Any] | None:
         logger.warning("skill_description_too_long", path=str(path), length=len(desc))
 
     # Warn if name doesn't match directory (agentskills.io spec)
-    if name != path.parent.name:
+    if check_dir_name and name != path.parent.name:
         logger.warning("skill_name_dir_mismatch", skill_name=name, dir=path.parent.name)
 
     instructions = parts[2].strip()
@@ -257,6 +259,23 @@ def parse_skill_file(path: Path) -> dict[str, Any] | None:
     return skill
 
 
+def cache_identity(name: str, owner_id: str | None) -> str:
+    """The cache key of one skill: its name WITHIN its scope (ADR-327).
+
+    A name is unique per account, so two people may each keep a ``pdf``: keyed
+    on ``user:<name>`` alone, the second one loaded overwrote the first and
+    one person's skill silently vanished from the cache.
+
+    Args:
+        name: The skill's frontmatter name.
+        owner_id: The owner's id, or None for a system skill.
+
+    Returns:
+        ``admin:<name>`` for a system skill, ``user:<owner>:<name>`` otherwise.
+    """
+    return f"admin:{name}" if owner_id is None else f"user:{owner_id}:{name}"
+
+
 def scan_skills_directory(
     base_path: Path,
     scope: str,
@@ -283,7 +302,7 @@ def scan_skills_directory(
         if skill:
             skill["scope"] = scope
             skill["owner_id"] = owner_id
-            skill["id"] = f"{scope}:{skill['name']}"
+            skill["id"] = cache_identity(skill["name"], owner_id)
             skills.append(skill)
 
     return skills

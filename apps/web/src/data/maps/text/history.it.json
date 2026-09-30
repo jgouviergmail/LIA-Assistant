@@ -1727,6 +1727,11 @@
       "title": "Nessun testo ostile blocca LIA, nessun reindirizzamento la devia",
       "summary": "Le funzioni che appiattiscono un testo per una voce, una notifica o una scheda leggevano alcuni testi in tempo esponenziale: 51 caratteri digitati nella chat costavano 4,5 s, un'e-mail trappola di 32 KB bloccava LIA per 3 s. Ogni schema è riscritto lineare e due test lo garantiscono, sul server come nel browser. La lettura di una pagina web controlla ora ogni reindirizzamento prima di seguirlo e si collega all'indirizzo verificato, mai a una risoluzione successiva del nome.",
       "src": "b378d83b1215"
+    },
+    "327": {
+      "title": "Una skill venuta da fuori è letta come un dato, e la libreria installa ciò che è stato letto",
+      "summary": "Si possono cercare skill su skills.sh o a un indirizzo GitHub, leggerle una per una prima di installarle e tenerle aggiornate; l'installazione prende esattamente il commit letto, ogni file verificato. Una skill scritta fuori da LIA gira a parte, solo con i propri file: mai i connettori della persona, nessuna immagine né contenuto web nelle sue risposte. Una skill può eseguire i propri comandi in una copia usa e getta della sua cartella, con la rete solo verso gli host consentiti, e quella scritta dalla chat entra solo con il clic della persona.",
+      "src": "26f9206a5fb1"
     }
   }
 }

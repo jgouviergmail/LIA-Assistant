@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiClient } from '@/lib/api-client';
 import { Message, type GeneratedDocument, type GeneratedImage } from '@/types/chat';
+import type { SkillProposalCard } from '@/lib/skill-proposals/types';
 import { useAuth } from '@/hooks/useAuth';
 import { CHAT_SEARCH_RESULTS_PAGE_SIZE } from '@/lib/constants';
 import { executionTraceFromMetadata } from '@/lib/execution-trace-hydration';
@@ -55,11 +56,13 @@ export interface Conversation {
 export function archivedCardsFromMetadata(metadata: Record<string, unknown> | null | undefined): {
   generatedImages?: GeneratedImage[];
   generatedDocuments?: GeneratedDocument[];
+  skillProposals?: SkillProposalCard[];
   browserScreenshot?: { url: string; alt: string };
 } {
   return {
     generatedImages: metadata?.generated_images as GeneratedImage[] | undefined,
     generatedDocuments: metadata?.generated_documents as GeneratedDocument[] | undefined,
+    skillProposals: metadata?.skill_proposals as SkillProposalCard[] | undefined,
     browserScreenshot: metadata?.browser_screenshot as { url: string; alt: string } | undefined,
   };
 }

@@ -78,6 +78,17 @@ const RICH_API_MESSAGE = {
         expires_at: '2026-08-19T00:00:00+00:00',
       },
     ],
+    skill_proposals: [
+      {
+        id: 'p'.repeat(32),
+        name: 'ma-skill',
+        description: 'Useful.',
+        replaces: false,
+        files: [{ path: 'SKILL.md', size: 12 }],
+        changes: null,
+        expires_at: '2026-10-01T10:00:00+00:00',
+      },
+    ],
     browser_screenshot: { url: 'https://shot/1.jpg', alt: 'capture' },
   },
   created_at: '2026-01-01T00:01:00Z',
@@ -193,6 +204,7 @@ describe('useConversation — UI message mapping', () => {
         },
       ],
       browserScreenshot: { url: 'https://shot/1.jpg', alt: 'capture' },
+      skillProposals: RICH_API_MESSAGE.message_metadata.skill_proposals,
     });
     expect(page.messages[0].timestamp).toEqual(new Date('2026-01-01T00:01:00Z'));
   });

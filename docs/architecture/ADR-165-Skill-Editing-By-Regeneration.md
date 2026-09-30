@@ -143,3 +143,17 @@ en fait un point de rédaction à surveiller.
 **Sécurité inchangée** : le nom est validé avant toute écriture disque (garde S1
 d'ADR-118), les conflits de portée restent refusés (S2), et le refus de
 confirmation intervient **avant** que quoi que ce soit ne soit mis en scène.
+
+## Amendement 2026-09-30 — la carte remplace le jeton (ADR-327)
+
+Le jeton de remplacement confirmait par la parole du modèle : le refus lui
+rendait le jeton, rien ne l'empêchait de rappeler aussitôt, et une création
+ne demandait rien du tout — une skill pouvait entrer depuis un contenu lu (une
+page, un e-mail) sans que la personne ait dit oui. Décision du propriétaire :
+l'outil **propose**, la carte sous la réponse **installe**. La création et le
+remplacement passent par la même carte, qui énumère ce que le remplacement
+ajoute, modifie et supprime ; le clic est l'acte de la personne et figure au
+registre des actions. `replacement_token` et `_describe_replacement` sont
+supprimés ; une version remplacée qui a changé depuis la proposition est
+refusée (`skill_proposal_stale`). Détails : ADR-327, « a skill written in the
+chat is proposed ».

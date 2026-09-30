@@ -35,6 +35,7 @@ from scripts.install.envgen import (  # noqa: E402
     render_env,
 )
 from scripts.install.manifest import (  # noqa: E402
+    APP_IMAGES,
     ImageArtifact,
     PlatformArtifact,
     SelfHostManifest,
@@ -102,7 +103,7 @@ def _fixture_manifest(services: tuple[str, ...]) -> SelfHostManifest:
         source_context_archive_sha256=_FAKE_DIGEST,
         source_context_tree_sha256=_FAKE_DIGEST,
         images=images,
-        sboms={"api": _FAKE_DIGEST, "web": _FAKE_DIGEST},
+        sboms={app: _FAKE_DIGEST for app in APP_IMAGES},
         qualification="passed",
     )
 
@@ -113,13 +114,13 @@ def _render_scenario(root: Path, public: PublicAnswers) -> list[str]:
     seeds_digest = compute_seed_bundle_sha256(REPO_ROOT)
     sandbox_image = None
     if public.skill_sandbox and public.mode is InstallMode.PREBUILT:
-        sandbox_image = f"ghcr.io/example/lia/api@sha256:{_FAKE_DIGEST}"
+        sandbox_image = f"ghcr.io/example/lia/sandbox@sha256:{_FAKE_DIGEST}"
     (root / "docker-compose.install.yml").write_text(
         render_install_override(
             public,
             seed_intent=True,
             seed_bundle_sha256=seeds_digest,
-            sandbox_api_image=sandbox_image,
+            sandbox_image=sandbox_image,
         ),
         encoding="utf-8",
     )

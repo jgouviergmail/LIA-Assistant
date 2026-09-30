@@ -217,9 +217,9 @@
     },
     "f.skills": {
       "name": "技能与插件",
-      "role": "遵循 Agent Skills 标准的技能和遵循 Agent Plugins 标准的插件，一键安装，并附上逐个组件的报告。",
+      "role": "遵循 Agent Skills 标准的技能——由 LIA 编写、一键安装，或在阅读后从公共技能库中挑选——以及遵循 Agent Plugins 标准的插件；外来技能隔离运行，远离你的连接器。",
       "goal": "赋予 LIA 可移植的本领。",
-      "src": "27fba8d5dbbc"
+      "src": "f14f45e853e1"
     },
     "f.rag": {
       "name": "知识空间",

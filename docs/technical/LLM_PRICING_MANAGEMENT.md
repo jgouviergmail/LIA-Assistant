@@ -56,8 +56,8 @@ graph TB
 
 | Provider | Models | Pricing Source |
 |----------|--------|----------------|
-| OpenAI | gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-terra, gpt-5.6-sol, gpt-5.6-luna, gpt-4.1-mini, gpt-4.1-nano, o1, o1-mini | Seeded in DB (the 2026-09-23 additions — gpt-6-*, gemini-3.8-flash and four Qwen models — also by migration `f6c2a8e4b0d7`, since production never replays the seed) |
-| Anthropic | claude-sonnet-4, claude-opus-4 | Seeded in DB |
+| OpenAI | gpt-6.1-sol, gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-terra, gpt-5.6-sol, gpt-5.6-luna, gpt-4.1-mini, gpt-4.1-nano, o1, o1-mini | Seeded in DB (the 2026-09-23 additions — gpt-6-*, gemini-3.8-flash and four Qwen models — also by migration `f6c2a8e4b0d7`, and gpt-6.1-sol by `fc0147eeb095`, since production never replays the seed) |
+| Anthropic | claude-fable-5-1, claude-fable-5, claude-opus-5-5, claude-opus-5, claude-sonnet-5-5, claude-sonnet-5, claude-opus-4-8, claude-opus-4-7, claude-opus-4-6, claude-sonnet-4-6, claude-opus-4-5, claude-sonnet-4-5, claude-haiku-4-5 | Seeded in DB (the ADR-306 additions also by migration `c3e7a1f5d9b2`, claude-sonnet-5-5 by `fc0147eeb095`) |
 | DeepSeek | deepseek-flash, deepseek-v4-pro, deepseek-v4-flash (retired alias), deepseek-chat, deepseek-reasoner | Seeded in DB (deepseek-flash also by migration `e9b5d7f3a2c4`) |
 | Perplexity | sonar-pro, sonar-reasoning | Seeded in DB |
 | Gemini | gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3.1-flash-lite, gemini-3.1-pro-preview; speech: gemini-3.8-flash-tts, gemini-3.8-flash-lite-tts, gemini-3.1-flash-tts-preview, gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts | Seeded in DB (the 2026-09-26 additions — gemini-3.1-flash-lite and three speech models — also by migration `7b3e9d1f5c2a`; gemini-3.8-flash and the two 3.8 speech models carry the price valid through 2026-12-31; they double on 2027-01-01 and must be edited then) |

@@ -4,9 +4,10 @@ The ``<Computation>`` block and the manifest name the libraries a script may
 use. A name that does not import in the sandbox image sends the model on a
 failing run it then « corrects » for nothing; a name that rides a TRANSITIVE
 dependency dies on somebody else's upgrade. So the catalogue is one declared
-table, every distribution is a DIRECT entry of the manifest (ADR-112), and
-every import name is tried — here on the lockfile CI installs, and in the
-built image by ``task sandbox:libraries:check``.
+table, every distribution is a DIRECT entry of the sandbox image's manifest
+(``requirements-sandbox.txt``, ADR-112 and ADR-327), and every import name is
+tried — here on the lockfile CI installs, and in the built image by
+``task sandbox:libraries:check``.
 """
 
 from __future__ import annotations
@@ -26,8 +27,13 @@ from src.domains.agents.python_sandbox.libraries import (
 
 pytestmark = pytest.mark.unit
 
-_MANIFEST = Path(__file__).resolve().parents[5] / "requirements.txt"
-_DIRECT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*[=<>~!]", re.M)
+_MANIFEST = Path(__file__).resolve().parents[5] / "requirements-sandbox.txt"
+# A requirement line: a name, bare or followed by extras, a specifier or a
+# comment. The sandbox manifest pins nothing itself — its lock is compiled
+# under the API's — so a bare name is a direct entry too.
+_DIRECT = re.compile(
+    r"^[ \t]*([A-Za-z0-9][A-Za-z0-9._-]*)[ \t]*(?:\[[^\]]*\])?(?:[ \t=<>~!#]|$)", re.M
+)
 
 
 def _direct_distributions() -> set[str]:
@@ -56,7 +62,7 @@ class TestTheTableIsWellFormed:
             for lib in PYTHON_SANDBOX_LIBRARIES
             if lib.distribution.lower().replace("_", "-") not in direct
         )
-        assert not missing, f"promised but not pinned directly in requirements.txt: {missing}"
+        assert not missing, f"promised but not pinned directly in {_MANIFEST.name}: {missing}"
 
 
 class TestThePromiseHolds:

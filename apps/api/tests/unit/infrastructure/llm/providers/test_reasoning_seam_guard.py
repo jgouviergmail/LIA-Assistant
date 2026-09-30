@@ -49,6 +49,7 @@ _MATRIX: list[tuple[str, str]] = [
     ("anthropic", "claude-opus-4-8"),
     ("anthropic", "claude-opus-5"),
     ("anthropic", "claude-opus-5-5"),
+    ("anthropic", "claude-sonnet-5-5"),
     ("deepseek", "deepseek-v4-flash"),
     ("gemini", "gemini-3.7-flash"),
     ("qwen", "qwen3.5-plus"),

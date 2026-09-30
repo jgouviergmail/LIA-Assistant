@@ -549,24 +549,16 @@ async def analyze_query(
         # the LLM identifies a matching skill by description alignment, and the
         # deterministic-vs-dynamic distinction is resolved downstream (SkillBypass
         # triggers for deterministic; LLM planner handles the rest).
-        skills_str = "(no skills available)"
-        if getattr(settings, "skills_enabled", False):
-            from src.core.context import active_skills_ctx
-            from src.domains.skills.cache import SkillsCache
+        # One implementation of the list, beside the XML catalogue (ADR-327: a
+        # third-party skill is marked there and here).
+        from src.core.context import active_skills_ctx
+        from src.domains.skills.injection import build_analyzer_skill_list
 
-            _qa_user_id = runtime_user_id_str() or ""
-            _qa_active = active_skills_ctx.get()
-            _qa_skills = SkillsCache.get_for_user(_qa_user_id)
-            _qa_visible = [
-                s
-                for s in _qa_skills
-                if not s.get("disable_model_invocation")
-                and (_qa_active is None or s["name"] in _qa_active)
-            ]
-            if _qa_visible:
-                skills_str = "\n".join(
-                    f"- **{s['name']}**: {s['description']}" for s in _qa_visible
-                )
+        skills_str = build_analyzer_skill_list(
+            runtime_user_id_str() or "",
+            active_skills_ctx.get(),
+            enabled=getattr(settings, "skills_enabled", False),
+        )
 
         # Format prompt - double braces in template become single braces in output
         # Use user's timezone for datetime context so LLM calculates dates correctly
@@ -1182,7 +1174,7 @@ class QueryAnalyzerService:
                     # a multi-turn process — the user's conversational reply IS
                     # part of the skill flow, so the detection is preserved.
                     if analysis_result.skill_name and _is_dialogue_skill(
-                        analysis_result.skill_name
+                        analysis_result.skill_name, runtime_user_id_str(None)
                     ):
                         logger.info(
                             "chat_override_kept_dialogue_skill",

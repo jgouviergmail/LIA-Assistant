@@ -8,7 +8,7 @@ What must hold:
   attached exclusively by promote-images via `imagetools create` (no
   build-push-action step there — promotion never rebuilds);
 - the Web build passes the explicit empty NEXT_PUBLIC_API_URL and the API
-  provenance args; both SBOMs are generated;
+  provenance args; every app image (api, web, sandbox) is built with an SBOM;
 - evidence verification binds the candidate manifest by SHA-256 and checks
   workflow identity/conclusion/repository;
 - release notes verify the bundle checksum BEFORE extracting and never
@@ -96,10 +96,18 @@ def test_web_build_args_and_provenance() -> None:
         assert arg in build_dump
 
 
-def test_both_sboms_are_generated() -> None:
+def test_every_app_image_is_built_and_carries_an_sbom() -> None:
+    """The API, the web app and the skill sandbox (ADR-327 lot 2)."""
+    matrix = _workflow()["jobs"]["build-candidates"]["strategy"]["matrix"]["include"]
+    assert {row["app"]: row["dockerfile"] for row in matrix} == {
+        "api": "./apps/api/Dockerfile.prod",
+        "web": "./apps/web/Dockerfile.prod",
+        "sandbox": "./apps/api/Dockerfile.sandbox",
+    }
     assemble = yaml.safe_dump(_workflow()["jobs"]["assemble-self-host-release"])
-    assert "sbom-api.cdx.json" in assemble
-    assert "sbom-web.cdx.json" in assemble
+    for app in ("api", "web", "sandbox"):
+        assert f"sbom-{app}.cdx.json" in assemble
+        assert f"--app-digests {app}=candidate-digests-{app}.json" in _body()
 
 
 def test_evidence_verification_is_hash_bound() -> None:

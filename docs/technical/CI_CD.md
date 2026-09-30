@@ -377,20 +377,22 @@ Build smoke test (pas de push) avec cache GitHub Actions :
 | Image | Context | Dockerfile |
 |-------|---------|------------|
 | API | `./apps/api` | `Dockerfile.prod` |
+| Bac a sable des skills | `./apps/api` | `Dockerfile.sandbox` |
 | Web | `.` (root) | `apps/web/Dockerfile.prod` |
 
-L'image API est en plus **chargee** sous le tag `lia-api:local` (le tag par
-defaut de la compose) pour que l'etape suivante puisse la DEMARRER :
+L'image du bac a sable (ADR-327 lot 2) est en plus **chargee** sous le tag
+`lia-skill-sandbox:local` (le tag que lisent les fichiers compose) pour que
+l'etape suivante puisse la DEMARRER :
 
 | Step | Commande |
 |------|----------|
-| Sandbox libraries import in the built image | `task sandbox:libraries:check` |
+| Sandbox image holds its promise | `task sandbox:libraries:check` |
 
-Chaque bibliotheque que le bloc `<Computation>` promet au modele
-(`python_sandbox/libraries.py`, ADR-298) est importee dans l'image construite,
-hors ligne (`docker run --network none`, l'assise meme du bac a sable). Le test
-unitaire le prouve sur le lockfile ; une etape amincie ou une bibliotheque
-systeme manquante n'est visible qu'ici.
+L'image est demarree comme une execution la demarre (sans reseau, uid 65534,
+racine en lecture seule) : chaque bibliotheque promise s'importe, chaque
+commande declaree est presente (`skills/sandbox_toolbox.py`), et ni le client
+Docker ni le code applicatif n'y sont. Les tests unitaires tiennent la
+declaration aux entrees de construction ; seule l'image prouve une execution.
 
 #### Secret Scan
 

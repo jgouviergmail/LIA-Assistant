@@ -98,8 +98,13 @@ test.describe('sandbox network settings panel', () => {
     await expect(page.getByText('Allowed by this instance')).toBeVisible();
 
     // Each permission carries its stored scope, and the exact total (3) is
-    // stated against the two rows the page holds (ADR-185).
-    const switches = page.getByRole('switch');
+    // stated against the two rows the page holds (ADR-185). The « Allow a
+    // host » form (ADR-327 lot 3, drawn because the instance asks) carries a
+    // scope switch of its own, so the count is read inside the permissions list.
+    const switches = page
+      .getByRole('list')
+      .filter({ hasText: 'feeds.example.net' })
+      .getByRole('switch');
     await expect(switches).toHaveCount(2);
     await expect(switches.nth(0)).toHaveAttribute('aria-checked', 'true');
     await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'false');

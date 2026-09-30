@@ -100,6 +100,8 @@ class PlatformCapability(str, Enum):
     EMAIL_SHARE = "email_share"
     # ADR-324 — a personal radio produced on demand, and the newsroom behind it.
     RADIO = "radio"
+    # ADR-327 — skills found on a portal, installed and updated from their origin.
+    SKILL_LIBRARY = "skill_library"
 
 
 @dataclass(frozen=True)
@@ -436,6 +438,17 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         setting_key=SystemSettingKey.CAPABILITY_RADIO_ENABLED,
         route_enforced=True,
         service_enforced=True,
+    ),
+    # ADR-327 — the router IS the ability: searching a portal, installing and
+    # updating a skill from its repository. What it installed is a record the
+    # skills section keeps showing, and removing it stays open while it is off;
+    # the skills it installed keep running under the skills switch.
+    PlatformCapability.SKILL_LIBRARY: CapabilitySpec(
+        capability=PlatformCapability.SKILL_LIBRARY,
+        family="reach",
+        env_flag="skill_library_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_SKILL_LIBRARY_ENABLED,
+        route_enforced=True,
     ),
 }
 

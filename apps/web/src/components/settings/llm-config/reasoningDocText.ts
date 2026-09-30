@@ -36,6 +36,8 @@ export const REASONING_DOC_TEXT: Record<string, string> = {
     'Adaptive thinking, off until a depth is chosen. The API refuses temperature and top_p, so neither is sent.',
   anthropic_5:
     'Adaptive thinking is on when left unset and billed inside max_tokens. The API refuses temperature and top_p, so neither is sent.',
+  anthropic_between_tools:
+    'Adaptive thinking is on when left unset and billed inside max_tokens. "none" only turns the up-front thinking off: the notes written between tool calls still come back. The API refuses temperature and top_p, so neither is sent.',
   anthropic_always_on:
     'Thinking cannot be disabled and is billed inside max_tokens. The API refuses temperature and top_p, so neither is sent.',
   deepseek_v4:

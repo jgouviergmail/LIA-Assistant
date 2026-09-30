@@ -128,6 +128,33 @@ describe('HitlActionCard — rendering by kind', () => {
     );
   });
 
+  it('egress draft: says when a skill written elsewhere asks, and only then', () => {
+    const draft = (extra: Record<string, unknown>) => (
+      <HitlActionCard
+        hitl={cardState({
+          payload: payload({
+            kind: 'draft_critique',
+            draftId: 'd1',
+            draftType: 'sandbox_egress',
+            draftContent: {
+              hosts: ['status.example.org'],
+              hosts_unknown: ['status.example.org'],
+              purpose: 'pdf: npm install docx',
+              data_summary: { counts: { file: 1 }, available: true, language: 'en' },
+              ...extra,
+            },
+          }),
+        })}
+        onAction={vi.fn()}
+      />
+    );
+    const { unmount } = render(draft({ third_party_skill: true }));
+    expect(screen.getByRole('note')).toHaveTextContent('chat.hitl.egress.third_party_skill');
+    unmount();
+    render(draft({}));
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
+
   it('egress draft: data that cannot travel is said so', () => {
     render(
       <HitlActionCard

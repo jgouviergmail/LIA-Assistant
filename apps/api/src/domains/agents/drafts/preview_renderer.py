@@ -608,7 +608,8 @@ def _render_sandbox_egress(
     What the person decides on: the hosts nobody permitted yet, the hosts the
     run may reach already, the purpose the model stated, and what the run
     would carry — a COUNT per kind of data, never the data. The code stays
-    where ADR-249 put it: the admin debug panel.
+    where ADR-249 put it: the admin debug panel. When a skill written
+    elsewhere asks (ADR-327), the card says so right above what would travel.
     """
     lines: list[PreviewLine] = []
     unknown = content.get("hosts_unknown") or []
@@ -620,6 +621,8 @@ def _render_sandbox_egress(
     purpose = content.get("purpose")
     if purpose:
         lines.append(_row(lbl, "purpose", _argument_value(purpose)))
+    if content.get("third_party_skill"):
+        lines.append(_note(lbl["third_party_skill_note"]))
     lines.append(_row(lbl, "turn_data", _turn_data_wording(content.get("data_summary"), lbl)))
     return lines
 

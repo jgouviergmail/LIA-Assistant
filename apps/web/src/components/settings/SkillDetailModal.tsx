@@ -7,13 +7,14 @@
  * `assets/preview.png` is ever served — broken/missing falls back to an
  * icon), the localized description, declared output channels (`outputs`
  * frontmatter; null ⇒ the "text" default, labeled as undeclared), and the
- * provenance warning for every NON-admin skill (imported code runs with the
- * user's connectors — the user must trust the source). Actions (download,
- * per-user toggle, delete for user skills) live here.
+ * provenance note for every NON-admin skill: a skill the person wrote runs
+ * with their connectors (they must trust what they imported), one written
+ * elsewhere runs isolated (ADR-327) and a library skill offers its update.
+ * Actions (download, per-user toggle, delete for user skills) live here.
  */
 
 import { useState } from 'react';
-import { AlertTriangle, Blocks, Download, Trash2 } from 'lucide-react';
+import { AlertTriangle, Blocks, Download, Library, ShieldAlert, Trash2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { skillPreviewUrl, type Skill } from '@/hooks/useSkills';
+import { isThirdPartySkill, skillPreviewUrl, type Skill } from '@/hooks/useSkills';
 import { skillTraitTone } from '@/lib/status-tone';
 
 /** Translator shape shared with SkillsSettings (react-i18next `t`). */
@@ -52,6 +53,7 @@ export function SkillDetailModal({
   onDelete,
   downloading,
   toggling,
+  onOpenLibrary,
 }: {
   skill: Skill | null;
   lng: string;
@@ -62,6 +64,8 @@ export function SkillDetailModal({
   onDelete: (skill: Skill) => void;
   downloading: boolean;
   toggling: boolean;
+  /** Opens the library on its installed skills — offered for a library skill. */
+  onOpenLibrary?: () => void;
 }) {
   // Per-skill image failure — a name mismatch means a NEW skill was opened,
   // so the image retries naturally (no state-sync effect needed).
@@ -126,12 +130,29 @@ export function SkillDetailModal({
           )}
         </div>
 
-        {/* Provenance warning — every non-admin skill. */}
-        {!isAdmin && (
+        {/* Provenance — every non-admin skill says what it may do here. */}
+        {!isAdmin && !isThirdPartySkill(skill) && (
           <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
             <p>{t('settings.skills.gallery.provenance_warning')}</p>
           </div>
+        )}
+        {isThirdPartySkill(skill) && (
+          <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+            <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-warning" aria-hidden />
+            <p>{t('settings.skills.library.preview.third_party')}</p>
+          </div>
+        )}
+        {skill.provenance === 'library' && onOpenLibrary && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 self-start"
+            onClick={onOpenLibrary}
+          >
+            <Library className="h-4 w-4" aria-hidden />
+            {t('settings.skills.library.check_update')}
+          </Button>
         )}
 
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">

@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { AlertTriangle, Link2 } from 'lucide-react';
+import { Link2, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -94,9 +94,10 @@ export function ImportFromUrlDialog({
           }}
         />
 
-        <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
-          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
-          <p>{t('settings.skills.gallery.provenance_warning')}</p>
+        {/* A skill from an address is third-party (ADR-327): say what it may do here. */}
+        <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+          <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-warning" aria-hidden />
+          <p>{t('settings.skills.library.preview.third_party')}</p>
         </div>
 
         <DialogFooter>

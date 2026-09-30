@@ -54,25 +54,16 @@ class TestResolvePlanSkillName:
         assert result is None
 
     def test_unknown_skill_when_no_detection_is_dropped(self, planner):
-        with (
-            patch("src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=None),
-            patch("src.domains.skills.cache.SkillsCache.get_by_name", return_value=None),
-        ):
+        with patch("src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=None):
             result = planner._resolve_plan_skill_name(
                 "made-up-skill", self._intel(None), self._config()
             )
         assert result is None
 
     def test_known_skill_when_no_detection_is_kept(self, planner):
-        with (
-            patch(
-                "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
-                return_value=None,
-            ),
-            patch(
-                "src.domains.skills.cache.SkillsCache.get_by_name",
-                return_value={"name": "interactive-map", "scripts": ["render_map.py"]},
-            ),
+        with patch(
+            "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
+            return_value={"name": "interactive-map", "scripts": ["render_map.py"]},
         ):
             result = planner._resolve_plan_skill_name(
                 "interactive-map", self._intel(None), self._config()

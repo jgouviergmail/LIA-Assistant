@@ -37,8 +37,13 @@ from typing import Any, Protocol
 PEER_IMAGE_SHARE_CAPABILITY = "peer_image_share"
 #: A generated file or an answer sent by e-mail (ADR-321).
 EMAIL_SHARE_CAPABILITY = "email_share"
+#: A skill the chat wrote, installed from its card (ADR-327): the model only
+#: proposes, the person's click installs it into their library.
+SKILL_PROPOSAL_INSTALL_CAPABILITY = "skill_proposal_install"
 #: Every act this seam records — the register refuses any other name.
-USER_ACTION_CAPABILITIES = frozenset({PEER_IMAGE_SHARE_CAPABILITY, EMAIL_SHARE_CAPABILITY})
+USER_ACTION_CAPABILITIES = frozenset(
+    {PEER_IMAGE_SHARE_CAPABILITY, EMAIL_SHARE_CAPABILITY, SKILL_PROPOSAL_INSTALL_CAPABILITY}
+)
 
 
 class ActionRecorder(Protocol):

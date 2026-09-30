@@ -157,6 +157,49 @@ skill_url_imports_total = Counter(
     ["outcome"],  # ok | blocked | too_large | fetch_failed | invalid_content | pipeline_rejected
 )
 
+skill_commands_total = Counter(
+    "skill_commands_total",
+    (
+        "Skill commands run in the throwaway container by outcome (ADR-327 lot 2): "
+        "succeeded, failed (a non-zero exit), timed_out, refused (the skill and the "
+        "attached files exceed the carry-in budget) or unavailable (the sandbox "
+        "could not run it)."
+    ),
+    ["outcome"],
+)
+
+skill_library_operations_total = Counter(
+    "skill_library_operations_total",
+    (
+        "Skill library operations by outcome (ADR-327): search, preview, install, "
+        "update_preview, update, installed. The outcome is 'ok' or the stable refusal "
+        "code the person was answered with (skill_library_*)."
+    ),
+    ["operation", "outcome"],
+)
+
+skill_command_egress_total = Counter(
+    "skill_command_egress_total",
+    (
+        "Skill commands that declared hosts (ADR-327 lot 3, through ADR-298's proxy), by "
+        "outcome: allowed (the run was served), asked (an unknown host was asked of the "
+        "person), refused (invalid, not permitted, or nobody could be asked) or "
+        "proxy_unavailable (the proxy could not serve the run)."
+    ),
+    ["outcome"],
+)
+
+skill_proposals_total = Counter(
+    "skill_proposals_total",
+    (
+        "Skills written in the chat, proposed and installed from their card (ADR-327). "
+        "operation: propose (the tool), read (the card), install (the click). The "
+        "outcome is 'ok', 'refused' for a proposal the import checks refused, or the "
+        "stable refusal code the person was answered with (skill_proposal_*)."
+    ),
+    ["operation", "outcome"],
+)
+
 # ============================================================================
 # HITL (Human-in-the-Loop) METRICS
 # ============================================================================

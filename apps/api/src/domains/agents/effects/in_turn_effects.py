@@ -28,6 +28,8 @@ logger = structlog.get_logger(__name__)
 #: The capability a network sandbox run is recorded under. Synthetic and
 #: bounded, like ``proactive_notification``: no catalogue tool carries it.
 SANDBOX_NETWORK_CAPABILITY: str = "python_sandbox_network"
+#: A skill's command that reached hosts (ADR-327 lot 3) — the same act, its own name.
+SKILL_COMMAND_NETWORK_CAPABILITY: str = "skill_command_network"
 
 
 @dataclass
@@ -98,4 +100,9 @@ async def _close(ticket: Any, *, succeeded: bool) -> None:
         logger.warning("in_turn_effect_not_closed", error_type=type(exc).__name__)
 
 
-__all__ = ["SANDBOX_NETWORK_CAPABILITY", "InTurnEffect", "in_turn_effect"]
+__all__ = [
+    "SANDBOX_NETWORK_CAPABILITY",
+    "SKILL_COMMAND_NETWORK_CAPABILITY",
+    "InTurnEffect",
+    "in_turn_effect",
+]

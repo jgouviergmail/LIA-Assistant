@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 5.1
-**Fecha**: 2026-09-24
-**Aplicación**: LIA v2.1.1
+**Fecha**: 2026-09-30
+**Aplicación**: LIA v2.2.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 608 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 325 ADRs, más de 47.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
+| Transparencia total | 612 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Fiabilidad en producción | 326 ADRs, más de 48.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -89,11 +89,11 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | Más de 47.000 pruebas automatizadas con pytest y Vitest (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | Más de 48.000 pruebas automatizadas con pytest y Vitest (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 1.082, de las cuales 48 compartidas mediante conftest |
 | Documentos de documentación | 716 |
-| ADRs (Architecture Decision Records) | 325 |
-| Métricas Prometheus | 608 definiciones |
+| ADRs (Architecture Decision Records) | 326 |
+| Métricas Prometheus | 612 definiciones |
 | Dashboards Grafana | 30 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1059,7 +1059,7 @@ Diseño **fail-open**: los fallos de infraestructura no bloquean a los usuarios.
 
 Tres superficies ejecutan algo por cuenta del usuario, y cada una se trata como hostil por construcción.
 
-**Los scripts de skills se ejecutan en un contenedor desechable.** Sin socket Docker, sin red (un script que la asistente escribe para un cálculo es la única excepción, y sale solo por una única puerta — el proxy de salida del §34), con un sistema de archivos raíz de solo lectura y un pequeño tmpfs escribible, un uid sin privilegios, todas las capacidades retiradas y techos de memoria, procesos, CPU y tamaño de archivo. Lo decisivo es lo que un proceso hijo *hereda*: en producción la API pertenece al grupo `docker`, y un grupo se hereda — cambiar solo de uid dejaría el socket accesible. El CÓDIGO FUENTE del script se pasa como argumento en lugar de montarse, porque la API es ella misma un contenedor y un bind se resolvería contra el host; esa elección también deja stdin libre para la carga JSON sobre la que se apoya el contrato. Sin demonio accesible, la ejecución se rechaza en vez de degradarse — un sandbox que se desactiva solo no protege nada.
+**Los scripts de skills se ejecutan en un contenedor desechable.** Sin socket Docker, sin red (un script que la asistente escribe para un cálculo y el comando de una skill que declara sus hosts son las excepciones, y salen solo por una única puerta — el proxy de salida del §34), con un sistema de archivos raíz de solo lectura y un pequeño tmpfs escribible, un uid sin privilegios, todas las capacidades retiradas y techos de memoria, procesos, CPU y tamaño de archivo. Lo decisivo es lo que un proceso hijo *hereda*: en producción la API pertenece al grupo `docker`, y un grupo se hereda — cambiar solo de uid dejaría el socket accesible. El CÓDIGO FUENTE del script se pasa como argumento en lugar de montarse, porque la API es ella misma un contenedor y un bind se resolvería contra el host; esa elección también deja stdin libre para la carga JSON sobre la que se apoya el contrato. Sin demonio accesible, la ejecución se rechaza en vez de degradarse — un sandbox que se desactiva solo no protege nada.
 
 **Las tareas de infraestructura se confirman, no se presumen.** Una tarea en un servidor remoto se prepara, no se lanza: la confirmación muestra el servidor destino, el texto completo de la tarea y las instrucciones que el propio modelo escribió en el prompt remoto — el campo que usaría una inyección es precisamente el que no debe ocultarse. El privilegio se vuelve a verificar en la ejecución, porque unos derechos concedidos al formular una petición pueden ya no valer al aprobarla.
 
@@ -1095,7 +1095,7 @@ Un archivo generado puede carecer de vencimiento cuando se conserva dentro de lo
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 608 métricas custom (RED pattern) |
+| Prometheus | 612 métricas custom (RED pattern) |
 | Grafana | 30 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
@@ -1103,7 +1103,7 @@ Un archivo generado puede carecer de vencimiento cuando se conserva dentro de lo
 | Alertmanager | Núcleo de 29 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) + webhook hacia LIA: cada alerta se convierte en un incidente dentro del producto (ADR-247) |
 | structlog | Logging estructurado con PII filtering |
 
-**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 608 definidas; las que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. Sin esa guarda, una fuente de heartbeat que falla en abierto puede descartar parte de las señales de salud durante días sin que ninguna métrica lo advierta (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
+**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 612 definidas; las que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. Sin esa guarda, una fuente de heartbeat que falla en abierto puede descartar parte de las señales de salud durante días sin que ninguna métrica lo advierta (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
 
 ### 20.2. Debug Panel integrado
 
@@ -1366,11 +1366,13 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 Una biblioteca de skills integrados demuestra el contrato: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — cada uno ilustrando una combinación distinta de los tres canales.
 
-**Ciclo de vida de las skills**: toda skill entra por un único pipeline de importación reforzado (`SkillImportService`) — validación estricta del nombre agentskills.io antes de cualquier escritura en disco (guarda anti path-traversal), límites de expansión de zips, staging + swap con restauración automática de la versión anterior en caso de fallo, y rechazo de conflictos de nombres entre ámbitos (DB + caché como doble autoridad). El generador de skills integrado usa el mismo pipeline mediante la herramienta `import_user_skill`: una skill creada en el chat se valida, se instala y se anuncia por su nombre en el mismo turno — sin subida manual. Las skills cuyo flujo abarca varios turnos declaran `dialogue: true` en su frontmatter, que el chat override del QueryAnalyzer respeta (su detección sobrevive a las respuestas conversacionales de seguimiento), mientras el runner ReAct de skills recibe el historial de conversación ventaneado para retomar el diálogo en lugar de reiniciarlo.
+**Ciclo de vida de las skills**: toda skill entra por un único pipeline de importación reforzado (`SkillImportService`) — validación estricta del nombre agentskills.io antes de cualquier escritura en disco (guarda anti path-traversal), límites de expansión de zips, staging + swap con restauración automática de la versión anterior en caso de fallo, y nombres únicos por cuenta: cada búsqueda nombra su ámbito, y una skill personal solo oculta una skill de sistema del mismo nombre para quien la posee. El generador de skills integrado usa el mismo pipeline mediante la herramienta `import_user_skill`: una skill creada en el chat se valida y se propone bajo la respuesta, en una tarjeta que la persona lee e instala con un clic — sin subida manual, y nada de lo que escribe el modelo entra en sus skills sin ese clic. Las skills cuyo flujo abarca varios turnos declaran `dialogue: true` en su frontmatter, que el chat override del QueryAnalyzer respeta (su detección sobrevive a las respuestas conversacionales de seguimiento), mientras el runner ReAct de skills recibe el historial de conversación ventaneado para retomar el diálogo en lugar de reiniciarlo.
 
 La superficie de skills es una **galería**: las tarjetas abren una ficha de detalle con la descripción localizada, los **canales de salida** declarados (el loader lee el campo frontmatter `outputs:` que valida el generador — paridad fijada en CI), una `assets/preview.png` incluida servida por un endpoint dedicado (guarda de traversal por patrón de nombre, tope de tamaño, 404 indiferenciado para skills desactivadas por el admin) y un aviso de procedencia en toda skill no-sistema. La instalación acepta una segunda fuente además de la subida de archivo: una URL https, endurecida como se describe en §19.3, alimentando exactamente el mismo pipeline de importación (`skill_url_imports_total{outcome}` cuenta cada camino).
 
-**Modificar una habilidad.** Reimportar la propia habilidad es un upsert atómico (ADR-118), y la edición desde el chat descansa en tres condiciones: el manifiesto sigue siendo legible aunque la activación retire el frontmatter, de modo que un ajuste conserva los campos que no toca; un reemplazo conserva la miniatura que el chat no puede transportar; y ante un conflicto de nombre el prompt del generador pide actualizar la habilidad existente en lugar de crear una copia renombrada. Una modificación es por tanto una **regeneración íntegra** bajo el mismo nombre, precedida por la lectura del paquete actual. La confirmación vive **en la herramienta**, no en el HITL: una habilidad que incluye un directorio `scripts/` se ejecuta en un subagente ReAct de hilo aislado, cuyos borradores nunca llegan al grafo principal. Se apoya en un token derivado del contenido — un simple indicador sería una convención que el modelo puede omitir, mientras que un resumen criptográfico solo puede haber sido recibido, y vincula la conformidad al paquete exacto que se escribirá (ADR-165).
+**Modificar una habilidad.** Reimportar la propia habilidad es un upsert atómico (ADR-118), y la edición desde el chat descansa en tres condiciones: el manifiesto sigue siendo legible aunque la activación retire el frontmatter, de modo que un ajuste conserva los campos que no toca; un reemplazo conserva la miniatura que el chat no puede transportar; y ante un conflicto de nombre el prompt del generador pide actualizar la habilidad existente en lugar de crear una copia renombrada. Una modificación es por tanto una **regeneración íntegra** bajo el mismo nombre, precedida por la lectura del paquete actual. La herramienta **propone** y solo la persona instala: la propuesta pasa todos los controles de la importación sin escribir nada, se guarda en Redis bajo un tope por cuenta, su tarjeta muestra lo que un reemplazo añade, cambia y retira, y la instalación — reclamada con un token, idempotente — se niega si la skill reemplazada cambió desde que la tarjeta la describió (ADR-327).
+
+**Las skills escritas fuera.** Una skill lleva su procedencia — sistema, escrita por la persona, traída de una dirección, aportada por un plugin o instalada desde la biblioteca — y las tres últimas son **de terceros**, algo que decide una vez por petición un único módulo (`skills/trust.py`); ante la duda, una skill es de terceros. Una skill de terceros queda marcada en los catálogos, su prioridad se ignora, nunca ejecuta un plan y sus instrucciones solo corren en el runner aislado, que únicamente vincula sus propios scripts y recursos — ningún conector. Su respuesta se dibuja sin imágenes remotas ni HTML, y nada de lo que escribe queda oculto a la persona. La **biblioteca** busca en skills.sh, lee el repositorio de GitHub que indica el portal y fija la rama en un commit desde la vista previa: lo que se instala es lo que se leyó, cada archivo verificado contra su SHA de blob git, las auditorías publicadas leídas bajo cada nombre posible, y una actualización es una carpeta cuyo árbol git ha cambiado. Por último, una skill puede **ejecutar sus propios comandos** (`run_skill_command`) en una copia de su carpeta, dentro del contenedor desechable: la carpeta y los archivos del turno entran como un archivo empaquetado por la entrada estándar, lo que escribe en `out/` sale del mismo modo, y un archivo solo conserva su tipo si su nombre y sus primeros bytes coinciden. Todas estas ejecuciones parten de una imagen dedicada — Python, Node, las herramientas de línea de comandos y las bibliotecas prometidas, sin cliente Docker ni código de la aplicación — cuyos comandos ejecuta uno a uno un test antes de prometerlos al modelo; la red de un comando pasa por la puerta del §34.
 
 ### 23.8. Historial de conversaciones, búsqueda y renderizado enriquecido del chat
 
@@ -1512,7 +1514,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-325 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+326 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1729,6 +1731,8 @@ Pregunta a un modelo de lenguaje cuánto suman una serie de escalas, qué nombre
 
 **Un host desconocido se pregunta, con tres respuestas, dentro del bucle.** La tarjeta nombra los hosts y el propósito que el modelo declara, con un recuento de los datos del turno — nunca los datos —, y la persona permite con los datos, sin ellos (stdin no lleva entonces nada) o rechaza; la respuesta se recuerda como un permiso bajo un tope publicado. Dónde se resuelve la pregunta importa tanto como lo que pregunta: el nodo lanza él mismo la interrupción, como la confirmación de una herramienta de mutación, y al reanudar vuelve a invocar la misma llamada bajo la respuesta, de modo que el resto de la petición continúa. Entregar la tarjeta al despacho de borradores la habría ejecutado como una acción y habría respondido con su resultado, dejando caer cada paso posterior — un permiso no es una acción.
 
+**El comando de una skill toma la misma puerta.** Un comando que ejecuta una skill declara sus hosts de la misma manera y se encuentra con los mismos cuatro estados, con dos diferencias que se deben a su procedencia y a dónde se ejecuta. Una skill escrita en otro lugar nunca recibe el token de un conector: sus comandos solo alcanzan lo que el operador o la persona autorizó. Y la tarjeta solo se muestra donde su respuesta puede reanudar la llamada — el bucle ReAct; en cualquier otro lugar, un turno en modo Pipeline o una rutina, nadie podría responderla, así que el host se rechaza con el nombre del ajuste donde la persona lo autoriza a mano. npm, git y curl están en la imagen, cada uno apuntando a la autoridad del proxy.
+
 **El prompt se mide antes de confiar en él.** A quien se le dice que ponga `LIA_KEY_X` en la cabecera, un modelo envía el nombre de la variable como valor; la línea deletrea por tanto la lectura. Las bibliotecas que el prompt promete viven en una sola tabla fijada directamente y se importan dentro de la imagen construida en cada pasada de la CI, y los cuatro papeles — calcular, diagnosticar, cubrir un hueco, transformar — se enuncian con los límites que el código impone, leídos de los ajustes en vez de escritos en prosa.
 
 ## 35. Medir un color antes de entregarlo: la paleta de los ajustes
@@ -1857,8 +1861,8 @@ Los mismos dos modos valen para el teléfono (ADR-301): transmitir la conversaci
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 325 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 47.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 326 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 48.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 325 ADRs y del changelog (v1.0 a v2.1.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 326 ADRs y del changelog (v1.0 a v2.2.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

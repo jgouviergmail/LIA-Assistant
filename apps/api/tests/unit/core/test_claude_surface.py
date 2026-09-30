@@ -38,6 +38,10 @@ MEASURED: dict[str, tuple[str, bool, bool, bool]] = {
     # and a replayed thinking block is bound to the conversation that made it.
     "claude-fable-5-1": ("always_on", False, False, True),
     "claude-opus-5-5": ("always_on", False, False, True),
+    # Read on the vendor's migration guide (2026-09-30), NOT measured -- no
+    # Anthropic credit was left for a probe: ``disabled`` refused, its lowest
+    # setting is ``between_tools``, forced tool choice refused, thinking bound.
+    "claude-sonnet-5-5": ("between_tools", False, False, True),
 }
 
 
@@ -64,6 +68,10 @@ def test_a_newer_name_is_never_captured_by_its_older_prefix() -> None:
     assert claude_surface("claude-fable-5").binds_thinking_to_conversation is False
     assert claude_surface("claude-opus-4-8").thinking == "opt_in"
     assert claude_surface("claude-opus-4-7").thinking == "opt_in"
+    # ``claude-sonnet-5`` is a prefix of ``claude-sonnet-5-5``: matched there it
+    # would send ``disabled`` and force the structured-output tool, two 400s.
+    assert claude_surface("claude-sonnet-5-5").thinking == "between_tools"
+    assert claude_surface("claude-sonnet-5").thinking == "default_on"
 
 
 def _facts(model: str) -> tuple[object, ...]:
@@ -92,6 +100,7 @@ def test_the_implicit_effort_is_the_one_the_api_applies_unasked() -> None:
     assert claude_surface("claude-fable-5-1").implicit_effort == "high"
     assert claude_surface("claude-opus-5").implicit_effort == "high"
     assert claude_surface("claude-sonnet-5").implicit_effort == "high"
+    assert claude_surface("claude-sonnet-5-5").implicit_effort == "high"
     assert claude_surface("claude-opus-4-8").implicit_effort is None
     assert claude_surface("claude-opus-4-6").implicit_effort is None
 

@@ -170,11 +170,12 @@ services:
       - LANGFUSE_DEBUG=false
       # Trust X-Forwarded-Proto from Cloudflare (Flexible SSL sends HTTP to origin)
       - FORWARDED_ALLOW_IPS=*
-      # SEC-001: the skill-script sandbox reuses THIS service's image so the
-      # interpreter and installed packages match exactly. Derived from the
-      # SAME variable (B04) so a prebuilt substitution can never leave the
-      # sandbox on a different image.
-      - SKILLS_SCRIPT_SANDBOX_IMAGE=${LIA_API_IMAGE:-lia-api:local}
+      # SEC-001 / ADR-327 lot 2: every sandbox run starts from the DEDICATED
+      # sandbox image (apps/api/Dockerfile.sandbox) — no Docker client, no
+      # application code. A local build tags it `lia-skill-sandbox:local`
+      # (`task sandbox:image:build`); a prebuilt install pins the release's
+      # digest through LIA_SKILL_SANDBOX_IMAGE, as LIA_API_IMAGE pins the API.
+      - SKILLS_SCRIPT_SANDBOX_IMAGE=${LIA_SKILL_SANDBOX_IMAGE:-lia-skill-sandbox:local}
       # Script skills default OFF in the base (ADR-215): they require the
       # Docker socket, which only docker-compose.skill-sandbox.yml grants.
       - SKILLS_SCRIPTS_ENABLED=${SKILLS_SCRIPTS_ENABLED:-false}

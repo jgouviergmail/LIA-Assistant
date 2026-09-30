@@ -34,7 +34,7 @@ class TestEligibility:
         assert not is_responses_api_eligible("gpt-4-turbo")
         assert not is_responses_api_eligible("gpt-3.5-turbo")
 
-    @pytest.mark.parametrize("model", ["gpt-6-astra", "gpt-6-sol", "gpt-6-luna"])
+    @pytest.mark.parametrize("model", ["gpt-6-astra", "gpt-6-sol", "gpt-6-luna", "gpt-6.1-sol"])
     def test_gpt6_goes_through_the_responses_api(self, model: str) -> None:
         """On Chat Completions GPT-6 accepts function calling only with
         ``reasoning_effort=none`` (model pages, 2026-09-23): a tool-using slot

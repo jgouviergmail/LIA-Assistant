@@ -9,7 +9,7 @@ Two halves of the same rule, both measured on production before being written:
   those three ACTIVE connectors were « not configured », every other morning
   from 2026-09-10 to 2026-09-21.
 
-* A declared failure buys NO iteration. ``_is_productive_result`` read
+* A declared failure buys NO iteration. ``is_productive_result`` read
   ``success`` on a dict only, and ``UnifiedToolOutput.failure(...)`` is a
   Pydantic model — so it fell through to ``bool(raw_result)``, always True,
   and a loop failing every call bought itself iterations up to the ceiling.
@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.domains.agents.nodes.react_nodes import _is_productive_result
+from src.domains.agents.nodes.react_result_reading import is_productive_result
 from src.domains.agents.tools.output import UnifiedToolOutput
 
 pytestmark = [pytest.mark.unit]
@@ -33,24 +33,24 @@ class TestDeclaredFailureIsNotProductive:
         failure = UnifiedToolOutput.failure(
             message="Calendar unavailable: token expired.", error_code="AUTHENTICATION_ERROR"
         )
-        assert _is_productive_result(failure) is False
+        assert is_productive_result(failure) is False
 
     def test_a_successful_unified_output_is_productive(self) -> None:
         success = UnifiedToolOutput.data_success(
             message="3 events today", structured_data={"events": [1, 2, 3]}
         )
-        assert _is_productive_result(success) is True
+        assert is_productive_result(success) is True
 
     def test_a_failed_dict_is_not_productive(self) -> None:
-        assert _is_productive_result({"success": False, "error": "boom"}) is False
+        assert is_productive_result({"success": False, "error": "boom"}) is False
 
     def test_a_plain_string_is_still_productive(self) -> None:
         """A tool that answers prose said something — unchanged behaviour."""
-        assert _is_productive_result("Paris: 10-22 °C") is True
+        assert is_productive_result("Paris: 10-22 °C") is True
 
     def test_none_and_empty_are_not_productive(self) -> None:
-        assert _is_productive_result(None) is False
-        assert _is_productive_result("") is False
+        assert is_productive_result(None) is False
+        assert is_productive_result("") is False
 
     def test_an_empty_container_is_not_productive(self) -> None:
         """The docstring's own contract: an empty result teaches nothing.
@@ -59,12 +59,12 @@ class TestDeclaredFailureIsNotProductive:
         declared failure, therefore production » about a payload carrying
         nothing at all (ADR-303 review).
         """
-        assert _is_productive_result({}) is False
-        assert _is_productive_result([]) is False
+        assert is_productive_result({}) is False
+        assert is_productive_result([]) is False
 
     def test_a_dict_that_carries_something_is_productive(self) -> None:
-        assert _is_productive_result({"events": [1, 2]}) is True
-        assert _is_productive_result({"success": True, "data": {}}) is True
+        assert is_productive_result({"events": [1, 2]}) is True
+        assert is_productive_result({"success": True, "data": {}}) is True
 
 
 class TestFailureIsMarkedOnTheToolMessage:
@@ -72,9 +72,9 @@ class TestFailureIsMarkedOnTheToolMessage:
 
     @staticmethod
     def _status_of(result: object) -> str:
-        from src.domains.agents.nodes.react_nodes import _tool_message_status
+        from src.domains.agents.nodes.react_result_reading import tool_message_status
 
-        return _tool_message_status(result)
+        return tool_message_status(result)
 
     def test_a_declared_failure_is_marked_error(self) -> None:
         failure = UnifiedToolOutput.failure(message="Token expired.", error_code="AUTH")

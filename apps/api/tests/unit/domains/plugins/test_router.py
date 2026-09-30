@@ -163,7 +163,7 @@ class TestSkillDeleteLock:
         }
         row = SimpleNamespace(plugin_id=uuid4())
         repo = MagicMock()
-        repo.get_by_name = AsyncMock(return_value=row)
+        repo.get_owned = AsyncMock(return_value=row)
 
         with (
             patch("src.domains.skills.cache.SkillsCache", cache),

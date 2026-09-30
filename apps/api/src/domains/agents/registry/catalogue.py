@@ -143,7 +143,8 @@ REASON_LOCAL_ARTEFACT: Final[str] = (
     "Produces a local artefact for the user; no effect at a third party."
 )
 REASON_SANDBOXED_CONTAINER: Final[str] = (
-    "Runs in the throwaway container (SEC-001): no network, no host filesystem."
+    "Runs in the throwaway container (SEC-001): no host filesystem, and no network "
+    "beyond the hosts a run declares and the person or the operator permits (ADR-298)."
 )
 REASON_USER_VISIBLE_CONTROL: Final[str] = (
     "Navigation under the user's visible control; a submission to a third party "
@@ -151,9 +152,6 @@ REASON_USER_VISIBLE_CONTROL: Final[str] = (
 )
 REASON_INTERNAL_CONTEXT: Final[str] = (
     "Changes only LIA's own conversation context: no user data, no third party."
-)
-REASON_OWN_LIBRARY: Final[str] = (
-    "Installs into the user's own library and is removable from the settings."
 )
 
 # System tools that should ALWAYS be included regardless of strategy

@@ -188,16 +188,25 @@ class TestStaging:
 
 
 class TestConflictAndQuota:
-    def _svc(self, db_row: object = None, db_user_skills: list | None = None) -> SkillImportService:
+    def _svc(
+        self,
+        system_row: object = None,
+        own_row: object = None,
+        db_user_skills: list | None = None,
+    ) -> SkillImportService:
         svc = SkillImportService(db=MagicMock())
         svc.skill_repo = MagicMock()
-        svc.skill_repo.get_by_name = AsyncMock(return_value=db_row)
+        svc.skill_repo.get_system = AsyncMock(return_value=system_row)
+        svc.skill_repo.get_owned = AsyncMock(return_value=own_row)
         svc.skill_repo.get_user_skills = AsyncMock(return_value=db_user_skills or [])
         return svc
 
     def _cache(self, skills: list[dict]):
         m = MagicMock()
         m.get_all.return_value = skills
+        m.get_system_by_name.side_effect = lambda name: next(
+            (s for s in skills if s["name"] == name and s["scope"] == "admin"), None
+        )
         return m
 
     @pytest.mark.asyncio
@@ -212,25 +221,25 @@ class TestConflictAndQuota:
     async def test_shadowing_system_skill_rejected_by_db_row(self) -> None:
         """The DB registration view alone must be enough to reject (race-safe)."""
         row = MagicMock(is_system=True, owner_id=None)
-        svc = self._svc(db_row=row)
+        svc = self._svc(system_row=row)
         cache = self._cache([])  # cache stale/empty — DB still catches it
         with patch("src.domains.skills.cache.SkillsCache", cache):
             with pytest.raises(BaseAPIException):
                 await svc._check_user_conflict("briefing", _OWNER)
 
     @pytest.mark.asyncio
-    async def test_cross_user_collision_rejected(self) -> None:
+    async def test_another_users_skill_of_the_same_name_is_no_collision(self) -> None:
+        """ADR-327: a name is unique per account, not per instance."""
         svc = self._svc()
         other = str(uuid4())
         cache = self._cache([{"name": "mine", "scope": "user", "owner_id": other}])
         with patch("src.domains.skills.cache.SkillsCache", cache):
-            with pytest.raises(BaseAPIException):
-                await svc._check_user_conflict("mine", _OWNER)
+            await svc._check_user_conflict("mine", _OWNER)  # must not raise
 
     @pytest.mark.asyncio
     async def test_own_reimport_allowed(self) -> None:
         row = MagicMock(is_system=False, owner_id=_OWNER, plugin_id=None)
-        svc = self._svc(db_row=row)
+        svc = self._svc(own_row=row)
         cache = self._cache([{"name": "mine", "scope": "user", "owner_id": str(_OWNER)}])
         with patch("src.domains.skills.cache.SkillsCache", cache):
             await svc._check_user_conflict("mine", _OWNER)  # must not raise
@@ -241,22 +250,6 @@ class TestConflictAndQuota:
         cache = self._cache([{"name": "other", "scope": "admin", "owner_id": None}])
         with patch("src.domains.skills.cache.SkillsCache", cache):
             await svc._check_user_conflict("brand-new", _OWNER)  # must not raise
-
-    @pytest.mark.asyncio
-    async def test_admin_import_over_user_skill_rejected(self) -> None:
-        svc = self._svc()
-        cache = self._cache([{"name": "mine", "scope": "user", "owner_id": str(_OWNER)}])
-        with patch("src.domains.skills.cache.SkillsCache", cache):
-            with pytest.raises(BaseAPIException):
-                await svc._check_admin_conflict("mine")
-
-    @pytest.mark.asyncio
-    async def test_admin_reimport_of_system_skill_allowed(self) -> None:
-        row = MagicMock(is_system=True, owner_id=None)
-        svc = self._svc(db_row=row)
-        cache = self._cache([{"name": "briefing", "scope": "admin", "owner_id": None}])
-        with patch("src.domains.skills.cache.SkillsCache", cache):
-            await svc._check_admin_conflict("briefing")  # must not raise
 
     @pytest.mark.asyncio
     async def test_quota_exceeded_rejected(self) -> None:
@@ -359,6 +352,7 @@ class TestImportFilesEndToEnd:
         )
         cache = MagicMock()
         cache.get_all.return_value = []
+        cache.get_system_by_name.return_value = None
         cache.invalidate_and_reload = AsyncMock()
         with (
             patch("src.core.config.get_settings", return_value=settings),
@@ -370,7 +364,8 @@ class TestImportFilesEndToEnd:
     @staticmethod
     def _mock_repo(svc: SkillImportService) -> None:
         svc.skill_repo = MagicMock()
-        svc.skill_repo.get_by_name = AsyncMock(return_value=None)
+        svc.skill_repo.get_system = AsyncMock(return_value=None)
+        svc.skill_repo.get_owned = AsyncMock(return_value=None)
         svc.skill_repo.get_user_skills = AsyncMock(return_value=[])
 
     @pytest.mark.asyncio
@@ -387,6 +382,7 @@ class TestImportFilesEndToEnd:
         )
         cache = MagicMock()
         cache.get_all.return_value = []
+        cache.get_system_by_name.return_value = None
         cache.invalidate_and_reload = AsyncMock()
 
         pref = MagicMock()
@@ -433,6 +429,7 @@ class TestImportFilesEndToEnd:
         )
         cache = MagicMock()
         cache.get_all.return_value = []
+        cache.get_system_by_name.return_value = None
         cache.invalidate_and_reload = AsyncMock()
 
         pref = MagicMock()
@@ -469,3 +466,91 @@ class TestImportFilesEndToEnd:
         with patch("src.core.config.get_settings", return_value=settings):
             with pytest.raises(ValidationError):
                 await svc.import_files({"references/x.md": "# x"}, owner_id=_OWNER)
+
+
+# ---------------------------------------------------------------------------
+# validate_files — a proposal is refused for what its install would be (ADR-327)
+# ---------------------------------------------------------------------------
+
+
+class TestValidateFilesWritesNothing:
+    @staticmethod
+    def _svc() -> SkillImportService:
+        svc = SkillImportService(db=MagicMock())
+        TestImportFilesEndToEnd._mock_repo(svc)
+        return svc
+
+    @staticmethod
+    def _settings(tmp_path: Path, max_per_user: int = 20) -> MagicMock:
+        return MagicMock(
+            skills_users_path=str(tmp_path),
+            skills_max_per_user=max_per_user,
+            skills_zip_max_files=64,
+            skills_zip_max_decompressed_kb=2048,
+        )
+
+    @staticmethod
+    def _cache(skills: list[dict] | None = None) -> MagicMock:
+        cache = MagicMock()
+        cache.get_all.return_value = skills or []
+        cache.get_system_by_name.return_value = None
+        cache.invalidate_and_reload = AsyncMock()
+        return cache
+
+    @pytest.mark.asyncio
+    async def test_a_valid_package_is_parsed_and_nothing_is_written(self, tmp_path: Path) -> None:
+        svc = self._svc()
+        cache = self._cache()
+        with (
+            patch("src.core.config.get_settings", return_value=self._settings(tmp_path)),
+            patch("src.domains.skills.cache.SkillsCache", cache),
+        ):
+            skill = await svc.validate_files(
+                {"SKILL.md": _skill_md("chat-skill"), "references/n.md": "# n\n"},
+                owner_id=_OWNER,
+            )
+
+        assert skill["name"] == "chat-skill"
+        assert not any(tmp_path.iterdir()), "a validation wrote into the live tree"
+        cache.invalidate_and_reload.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_declared_resource_it_does_not_ship_is_refused(self, tmp_path: Path) -> None:
+        manifest = (
+            _skill_md("chat-skill") + "\n## Available resources\n\n- references/gone.md — x\n"
+        )
+        with (
+            patch("src.core.config.get_settings", return_value=self._settings(tmp_path)),
+            patch("src.domains.skills.cache.SkillsCache", self._cache()),
+        ):
+            with pytest.raises(ValidationError):
+                await self._svc().validate_files({"SKILL.md": manifest}, owner_id=_OWNER)
+
+    @pytest.mark.asyncio
+    async def test_the_quota_refuses_a_new_skill(self, tmp_path: Path) -> None:
+        owned = [{"name": f"s{i}", "scope": "user", "owner_id": str(_OWNER)} for i in range(2)]
+        with (
+            patch(
+                "src.core.config.get_settings",
+                return_value=self._settings(tmp_path, max_per_user=2),
+            ),
+            patch("src.domains.skills.cache.SkillsCache", self._cache(owned)),
+        ):
+            with pytest.raises(BaseAPIException) as refused:
+                await self._svc().validate_files(
+                    {"SKILL.md": _skill_md("brand-new")}, owner_id=_OWNER
+                )
+
+        assert refused.value.status_code == 429
+
+    @pytest.mark.asyncio
+    async def test_a_path_leaving_the_package_is_refused(self, tmp_path: Path) -> None:
+        with (
+            patch("src.core.config.get_settings", return_value=self._settings(tmp_path)),
+            patch("src.domains.skills.cache.SkillsCache", self._cache()),
+        ):
+            with pytest.raises(ValidationError):
+                await self._svc().validate_files(
+                    {"SKILL.md": _skill_md("chat-skill"), "../escape.md": "x"},
+                    owner_id=_OWNER,
+                )

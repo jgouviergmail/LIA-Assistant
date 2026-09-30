@@ -38,6 +38,8 @@ class DebugMetricsBuilder:
         cached_tool_scores: Cached per-tool semantic scores (SemanticToolSelector).
         skill_name_resolver: Callable resolving the activated skill name from state
             (``StreamingService.resolve_activated_skill_name``).
+        user_id: The run's person, so the activated skill resolves to THEIR
+            skill of that name (ADR-327); None reads system skills only.
     """
 
     def __init__(
@@ -47,11 +49,13 @@ class DebugMetricsBuilder:
         cached_filtered_catalogue: Any | None,
         cached_tool_scores: dict[str, Any] | None,
         skill_name_resolver: Callable[[dict[str, Any]], str | None],
+        user_id: str | None = None,
     ) -> None:
         self.tracker = tracker
         self._cached_filtered_catalogue = cached_filtered_catalogue
         self._cached_tool_scores = cached_tool_scores
         self._resolve_skill_name = skill_name_resolver
+        self._user_id = user_id
 
     def build(
         self,
@@ -816,7 +820,8 @@ class DebugMetricsBuilder:
             if effective_skill_name:
                 from src.domains.skills.cache import SkillsCache
 
-                skill_data = SkillsCache.get_by_name(effective_skill_name)
+                # The skill THIS person reached by that name (ADR-327).
+                skill_data = SkillsCache.get_by_name_for_user(effective_skill_name, self._user_id)
                 is_deterministic = False
 
                 # Determine activation mode (every branch below assigns it)

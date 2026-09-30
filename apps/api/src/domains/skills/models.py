@@ -10,10 +10,11 @@ metadata (description, descriptions), admin visibility (admin_enabled),
 and per-user activation (is_active).
 """
 
-from typing import TYPE_CHECKING
+from enum import StrEnum
+from typing import TYPE_CHECKING, Final
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Index, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +22,36 @@ from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
     from src.domains.users.models import User
+
+
+class SkillProvenance(StrEnum):
+    """How a skill's content arrived — the basis of what it may do (ADR-327).
+
+    Recorded at every import by the CHANNEL that brought it, never guessed
+    from the content. ``url``, ``plugin`` and ``library`` are THIRD-PARTY: LIA
+    fetched them from someone else, so their instructions never drive a model
+    holding the person's tools, and their outputs are neutralised.
+    """
+
+    #: Shipped with the instance or imported by the administrator.
+    SYSTEM = "system"
+    #: Uploaded by the person, or generated with them in chat.
+    AUTHORED = "authored"
+    #: Fetched by LIA from an https address the person gave.
+    URL = "url"
+    #: Installed by an Agent Plugins package (ADR-225).
+    PLUGIN = "plugin"
+    #: Installed from a skill library (ADR-327).
+    LIBRARY = "library"
+
+
+#: Written elsewhere and fetched by LIA: restricted at run time (ADR-327).
+THIRD_PARTY_PROVENANCES: Final = frozenset(
+    {SkillProvenance.URL, SkillProvenance.PLUGIN, SkillProvenance.LIBRARY}
+)
+#: Owned by the channel that installed them: only that channel replaces them
+#: (a plugin update, a library update) — never an upload or a chat edit.
+MANAGED_PROVENANCES: Final = frozenset({SkillProvenance.PLUGIN, SkillProvenance.LIBRARY})
 
 
 class Skill(BaseModel):
@@ -34,10 +65,12 @@ class Skill(BaseModel):
 
     name: Mapped[str] = mapped_column(
         String(100),
-        unique=True,
         nullable=False,
         index=True,
-        doc="Skill identifier, matches directory name on disk",
+        doc=(
+            "Skill identifier, matches directory name on disk. Unique per SCOPE "
+            "(ADR-327): among system skills, and among one owner's skills."
+        ),
     )
     is_system: Mapped[bool] = mapped_column(
         Boolean,
@@ -70,6 +103,16 @@ class Skill(BaseModel):
             "group uninstall is service-driven."
         ),
     )
+    provenance: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=SkillProvenance.AUTHORED.value,
+        server_default=SkillProvenance.AUTHORED.value,
+        comment=(
+            "How the content arrived: system | authored | url | plugin | library "
+            "(ADR-327). url, plugin and library are third-party."
+        ),
+    )
     description: Mapped[str] = mapped_column(
         String(1024),
         nullable=False,
@@ -98,6 +141,36 @@ class Skill(BaseModel):
             "is_system",
             "admin_enabled",
             postgresql_where="is_system = true",
+        ),
+        # ADR-327: a name is unique per scope. Two people may each keep a
+        # ``pdf``; a system name stays unique among system skills.
+        Index(
+            "uq_skills_system_name",
+            "name",
+            unique=True,
+            postgresql_where="owner_id IS NULL",
+        ),
+        Index(
+            "uq_skills_owner_name",
+            "owner_id",
+            "name",
+            unique=True,
+            postgresql_where="owner_id IS NOT NULL",
+        ),
+        # What the two indexes above rely on: a system skill has no owner and a
+        # person's skill has one. The owner FK CASCADEs (the row goes with its
+        # owner), so no foreign-key action can leave a row between the two.
+        CheckConstraint(
+            "is_system = (owner_id IS NULL)",
+            name="ck_skills_system_has_no_owner",
+        ),
+        # ADR-327: the provenance vocabulary, and a system skill is the only
+        # one of system provenance (the owner FK cascades, so no FK action
+        # moves a row between the two).
+        CheckConstraint(
+            "provenance IN ('system', 'authored', 'url', 'plugin', 'library') "
+            "AND (provenance = 'system') = is_system",
+            name="ck_skills_provenance",
         ),
     )
 

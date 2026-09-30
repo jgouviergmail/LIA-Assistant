@@ -7,6 +7,7 @@ BaseRepository auto-filters by ``is_active`` (soft-delete semantics),
 which conflicts with ``UserSkillState.is_active`` (business toggle).
 """
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -15,10 +16,58 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
-from src.domains.skills.models import Skill, UserSkillState
+from src.domains.skills.models import THIRD_PARTY_PROVENANCES, Skill, UserSkillState
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class StateRow:
+    """One of a person's skill states, with what resolving its name needs."""
+
+    name: str
+    owner_id: UUID | None
+    admin_enabled: bool
+    provenance: str
+    is_active: bool
+
+
+@dataclass(frozen=True)
+class RequestSkillState:
+    """What a person's skill names resolve to for one request (ADR-327).
+
+    Attributes:
+        active: Names whose RESOLVED skill is active — the person's own skill,
+            else an admin-enabled system one. A system skill their own skill
+            shadows is left out, or a person's disabled ``brief`` would read
+            as active because the system ``brief`` is.
+        third_party: Names whose resolved skill was written elsewhere (url,
+            plugin, library), active or not.
+    """
+
+    active: frozenset[str]
+    third_party: frozenset[str]
+
+
+def resolve_request_state(user_id: UUID, rows: list[StateRow]) -> RequestSkillState:
+    """Resolve a person's state rows name by name: their own skill wins.
+
+    Args:
+        user_id: The person.
+        rows: Their states, each with its skill's identity and flags.
+
+    Returns:
+        The active and third-party names.
+    """
+    third_party_values = {p.value for p in THIRD_PARTY_PROVENANCES}
+    own = {row.name: row for row in rows if row.owner_id == user_id}
+    system = {row.name: row for row in rows if row.owner_id is None and row.name not in own}
+    active = {name for name, row in own.items() if row.is_active} | {
+        name for name, row in system.items() if row.is_active and row.admin_enabled
+    }
+    third_party = {name for name, row in own.items() if row.provenance in third_party_values}
+    return RequestSkillState(active=frozenset(active), third_party=frozenset(third_party))
 
 
 class SkillRepository(BaseRepository[Skill]):
@@ -31,11 +80,26 @@ class SkillRepository(BaseRepository[Skill]):
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, Skill)
 
-    async def get_by_name(self, name: str) -> Skill | None:
-        """Get a skill by its unique name."""
-        stmt = select(Skill).where(Skill.name == name)
+    async def get_system(self, name: str) -> Skill | None:
+        """The SYSTEM skill of that name (ADR-327: a name is unique per scope)."""
+        stmt = select(Skill).where(Skill.owner_id.is_(None)).where(Skill.name == name)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_owned(self, owner_id: UUID, name: str) -> Skill | None:
+        """The skill of that name that ``owner_id`` owns, never anyone else's."""
+        stmt = select(Skill).where(Skill.owner_id == owner_id).where(Skill.name == name)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def resolve_for_user(self, user_id: UUID, name: str) -> Skill | None:
+        """The skill a person reaches by that name: their own, else the system one.
+
+        The same override rule as ``SkillsCache.get_by_name_for_user``: a
+        person's own skill shadows a system skill of the same name for that
+        person only, and another person's skill is never reached.
+        """
+        return await self.get_owned(user_id, name) or await self.get_system(name)
 
     async def get_all_system(self, include_disabled: bool = False) -> list[Skill]:
         """Get all system (admin) skills, ordered by name."""
@@ -56,11 +120,10 @@ class SkillRepository(BaseRepository[Skill]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_all_names(self) -> set[str]:
-        """Get all registered skill names."""
-        stmt = select(Skill.name)
-        result = await self.db.execute(stmt)
-        return {row[0] for row in result}
+    async def get_identities(self) -> dict[tuple[UUID | None, str], Skill]:
+        """Every registered skill keyed by its identity: (owner or None, name)."""
+        result = await self.db.execute(select(Skill))
+        return {(row.owner_id, row.name): row for row in result.scalars().all()}
 
     async def get_by_plugin_id(self, plugin_id: UUID) -> list[Skill]:
         """Get the skills installed by one Agent Plugins package (ADR-225)."""
@@ -68,9 +131,13 @@ class SkillRepository(BaseRepository[Skill]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def delete_by_name(self, name: str) -> None:
-        """Delete a skill by name (CASCADE deletes user_skill_states)."""
-        stmt = delete(Skill).where(Skill.name == name)
+    async def delete_by_id(self, skill_id: UUID) -> None:
+        """Delete ONE skill (CASCADE deletes its user_skill_states).
+
+        By id, never by name: a name is unique per account (ADR-327), so a
+        delete by name removed every person's skill of that name.
+        """
+        stmt = delete(Skill).where(Skill.id == skill_id)
         await self.db.execute(stmt)
 
 
@@ -87,27 +154,47 @@ class UserSkillStateRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_active_skill_names(self, user_id: UUID) -> set[str]:
-        """Get names of all active skills for a user (the hot-path query).
+    async def get_request_skill_state(self, user_id: UUID) -> RequestSkillState:
+        """What a person's skill NAMES resolve to this request (the hot-path query).
 
-        Returns skill names where:
-        - user_skill_states.is_active = true
-        - For system skills: skill.admin_enabled = true
-        - For user skills: always included if is_active = true
+        One indexed query over the person's states; the resolution is
+        :func:`resolve_request_state`, the single place that decides it.
+
+        Args:
+            user_id: The person.
+
+        Returns:
+            Their active names and their third-party names.
         """
         stmt = (
-            select(Skill.name)
+            select(
+                Skill.name,
+                Skill.owner_id,
+                Skill.admin_enabled,
+                Skill.provenance,
+                UserSkillState.is_active,
+            )
             .join(UserSkillState, UserSkillState.skill_id == Skill.id)
             .where(UserSkillState.user_id == user_id)
-            .where(UserSkillState.is_active.is_(True))
-            .where(
-                # System skills require admin_enabled, user skills always pass
-                (Skill.is_system.is_(False))
-                | (Skill.admin_enabled.is_(True))
-            )
         )
-        result = await self.db.execute(stmt)
-        return {row[0] for row in result}
+        rows = (await self.db.execute(stmt)).all()
+        return resolve_request_state(
+            user_id,
+            [
+                StateRow(
+                    name=row.name,
+                    owner_id=row.owner_id,
+                    admin_enabled=row.admin_enabled,
+                    provenance=row.provenance,
+                    is_active=row.is_active,
+                )
+                for row in rows
+            ],
+        )
+
+    async def get_active_skill_names(self, user_id: UUID) -> set[str]:
+        """Names of the person's active skills (see :meth:`get_request_skill_state`)."""
+        return set((await self.get_request_skill_state(user_id)).active)
 
     async def get_states_for_user(
         self,

@@ -353,8 +353,12 @@
       "id": "t.skills",
       "layer": "l.integrations",
       "icon": "puzzle",
-      "paths": ["apps/api/src/domains/skills", "apps/api/src/domains/plugins"],
-      "domains": ["skills", "plugins"],
+      "paths": [
+        "apps/api/src/domains/skills",
+        "apps/api/src/domains/plugins",
+        "apps/api/src/domains/skill_library"
+      ],
+      "domains": ["skills", "plugins", "skill_library"],
       "infra": ["archives"],
       "deps": ["t.sandbox", "t.mcp"]
     },

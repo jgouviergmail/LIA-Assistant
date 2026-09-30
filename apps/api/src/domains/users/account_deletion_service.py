@@ -389,7 +389,6 @@ class AccountDeletionService:
         logger.warning(
             "account_deleted",
             user_id=str(user_id),
-            email=user.email,
             admin_user_id=str(admin_user_id),
             # The administrator's words about a person: the audit log keeps them,
             # a log line above DEBUG carries their size (ADR-317).

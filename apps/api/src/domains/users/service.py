@@ -864,7 +864,6 @@ class UserService:
             logger.warning(
                 "user_deactivated",
                 user_id=str(user_id),
-                email=user.email,
                 reason_length=len(update_data.reason or ""),
                 admin_user_id=str(admin_user_id),
             )
@@ -885,14 +884,12 @@ class UserService:
                 logger.error(
                     "user_deactivation_email_failed",
                     user_id=str(user_id),
-                    email=user.email,
                     admin_user_id=str(admin_user_id),
                 )
         else:
             logger.info(
                 "user_activated",
                 user_id=str(user_id),
-                email=user.email,
                 admin_user_id=str(admin_user_id),
             )
 
@@ -910,7 +907,6 @@ class UserService:
                 logger.error(
                     "user_activation_email_failed",
                     user_id=str(user_id),
-                    email=user.email,
                     admin_user_id=str(admin_user_id),
                 )
 
@@ -998,7 +994,6 @@ class UserService:
         logger.warning(
             "user_deleted_gdpr",
             user_id=str(user_id),
-            email=user.email,
             had_connectors=connector_count,
             admin_user_id=str(admin_user_id),
         )

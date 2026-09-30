@@ -215,6 +215,8 @@ class TestInstallHappyPath:
         assert scaffold.skill_importer.import_directory.await_count == 2
         for call in scaffold.skill_importer.import_directory.await_args_list:
             assert call.kwargs["plugin_id"] == _PLUGIN_ROW_ID
+            # A plugin's skill is third-party and managed (ADR-327).
+            assert call.kwargs["provenance"] == "plugin"
         # The supported server was created with provenance + prefixed name
         create_kwargs = scaffold.mcp_service.create_server.await_args.kwargs
         assert create_kwargs["plugin_id"] == _PLUGIN_ROW_ID
@@ -372,7 +374,7 @@ class TestUpdateFlow:
         existing_row = MagicMock(id=_PLUGIN_ROW_ID)
         existing_row.name = "my-plugin"
         scaffold.svc.plugin_repo.get_by_name_for_user = AsyncMock(return_value=existing_row)
-        old_skill = MagicMock()
+        old_skill = MagicMock(id=uuid4())
         old_skill.name = "gone"
         scaffold.skill_repo.get_by_plugin_id = AsyncMock(return_value=[old_skill])
         old_server = MagicMock(id=uuid4())
@@ -392,7 +394,8 @@ class TestUpdateFlow:
             by_key[(PluginComponentKind.MCP_SERVER, "my-plugin:dropped")].status
             is PluginComponentStatus.REMOVED
         )
-        scaffold.pref.delete_skill.assert_awaited_once_with("gone")
+        # The ROW is deleted, never a name other accounts may hold (ADR-327).
+        scaffold.pref.delete_skill.assert_awaited_once_with(old_skill.id)
         scaffold.mcp_service.delete_server.assert_awaited_once()
         assert scaffold.mcp_service.delete_server.await_args.kwargs["allow_plugin_owned"] is True
         scaffold.svc.plugin_repo.create.assert_not_awaited()
@@ -452,7 +455,7 @@ class TestUninstall:
         plugin_row.name = "my-plugin"
         scaffold.svc.plugin_repo.get_by_id = AsyncMock(return_value=plugin_row)
 
-        skill = MagicMock()
+        skill = MagicMock(id=uuid4())
         skill.name = "alpha"
         scaffold.skill_repo.get_by_plugin_id = AsyncMock(return_value=[skill])
         server = MagicMock(id=uuid4())
@@ -468,7 +471,7 @@ class TestUninstall:
 
         await _run(scaffold, lambda: scaffold.svc.uninstall(_PLUGIN_ROW_ID, owner_id=_OWNER))
 
-        scaffold.pref.delete_skill.assert_awaited_once_with("alpha")
+        scaffold.pref.delete_skill.assert_awaited_once_with(skill.id)
         scaffold.mcp_service.delete_server.assert_awaited_once()
         assert scaffold.mcp_service.delete_server.await_args.kwargs["allow_plugin_owned"] is True
         scaffold.svc.plugin_repo.delete.assert_awaited_once_with(plugin_row)

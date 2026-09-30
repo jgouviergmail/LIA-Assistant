@@ -157,13 +157,11 @@ services:
       - LANGFUSE_DEBUG=true
       # Trust X-Forwarded-Proto from reverse proxies
       - FORWARDED_ALLOW_IPS=*
-      # SEC-001: the skill-script sandbox reuses THIS service's image, tagged
-      # `lia-api-dev:latest` above (the 2026-08-03 collision fix — `lia-api`
-      # alone resolved to the PROD tag, absent on a dev host, so every sandbox
-      # run failed with "Script sandbox unavailable"). The dev image installs
-      # its dependencies system-wide, so no PYTHONPATH override applies here —
-      # unlike the prod image, which uses `pip install --user`.
-      - SKILLS_SCRIPT_SANDBOX_IMAGE=lia-api-dev:latest
+      # SEC-001 / ADR-327 lot 2: every sandbox run starts from the DEDICATED
+      # sandbox image — no Docker client, no application code — which the dev
+      # tasks build under this tag before `up` (`task sandbox:image:build`). It
+      # installs its libraries system-wide: no PYTHONPATH override.
+      - SKILLS_SCRIPT_SANDBOX_IMAGE=lia-skill-sandbox:local
       - SKILLS_SCRIPT_SANDBOX_PYTHONPATH=
       # ADR-298: a sandbox run may reach the Internet through the egress proxy
       # below — never directly. Dev switches it on; the prod base keeps it off

@@ -15,7 +15,8 @@ router-local logic carried (audited 2026-07-09):
 - **S2 — cross-scope collision**: ``skills.name`` is globally unique, so a user
   importing a name owned by a system skill or another user silently rewrote the
   other's DB row (and skipped state creation). User imports that would shadow a
-  system skill or collide with another user are now rejected (409).
+  system skill are rejected (409). Since ADR-327 a name is unique per ACCOUNT:
+  another user's skill of the same name is a different skill, not a collision.
 - **S3 — zip expansion**: no decompressed-size / member-count guard (zip-bomb)
   and ``extractall`` wrote the *whole* archive even though only one skill root
   was validated. Extraction is now bounded and scoped to the SKILL.md subtree.
@@ -34,12 +35,14 @@ import re
 import shutil
 import tempfile
 import zipfile
+from collections.abc import Awaitable, Callable
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import yaml
+from sqlalchemy.exc import IntegrityError
 
 from src.core.constants import (
     SKILLS_DESCRIPTION_MAX_LENGTH,
@@ -54,10 +57,18 @@ from src.domains.skills.exceptions import (
     raise_skill_name_conflict,
     raise_skill_quota_exceeded,
 )
+from src.domains.skills.models import SkillProvenance
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from src.domains.skills.models import Skill
+
+#: Called with the import's session and the registered row, BEFORE the commit:
+#: a caller that records something beside the skill (the library's provenance)
+#: records it in the same transaction, so the two never exist one without the other.
+RegistrationHook = Callable[["AsyncSession", "Skill"], Awaitable[None]]
 
 logger = get_logger(__name__)
 
@@ -151,6 +162,26 @@ def parse_incoming_skill_name(files: dict[str, str]) -> tuple[str, str | None]:
     except BaseAPIException as exc:
         return "", str(getattr(exc, "detail", exc))
     return name, None
+
+
+def _chat_package_name(files: dict[str, str]) -> str:
+    """The validated name of a chat package — refused exactly as the import refuses it.
+
+    Args:
+        files: Mapping of relative path to text content.
+
+    Returns:
+        The frontmatter name, validated.
+
+    Raises:
+        ValidationError: No ``SKILL.md``, or a name the contract refuses.
+    """
+    skill_md = files.get("SKILL.md")
+    if not skill_md:
+        raise_skill_invalid_format("import must include a top-level 'SKILL.md' file")
+    name = _parse_frontmatter_name(skill_md)
+    validate_skill_name(name)
+    return name
 
 
 _FENCED_BLOCK = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
@@ -286,6 +317,7 @@ class SkillImportService:
         *,
         owner_id: UUID | None,
         is_system: bool,
+        provenance: SkillProvenance = SkillProvenance.AUTHORED,
     ) -> dict[str, Any]:
         """Import from an uploaded ``SKILL.md`` or ``.zip`` archive.
 
@@ -294,6 +326,9 @@ class SkillImportService:
             filename: Original filename (only its ``.zip`` suffix is used).
             owner_id: Importing user's id (``None`` for system/admin imports).
             is_system: True for admin (system) imports, False for user imports.
+            provenance: The channel (ADR-327): ``authored`` for a file the
+                person handed over, ``url`` for one LIA fetched. Ignored for a
+                system import.
 
         Returns:
             The parsed skill dict (safe subset) for the API response.
@@ -316,7 +351,12 @@ class SkillImportService:
             else:
                 name = await asyncio.to_thread(self._stage_single_md, content, staging)
             return await self._finalize(
-                staging / name, name, owner_id=owner_id, is_system=is_system, settings=settings
+                staging / name,
+                name,
+                owner_id=owner_id,
+                is_system=is_system,
+                settings=settings,
+                provenance=provenance,
             )
 
     async def import_files(
@@ -346,13 +386,7 @@ class SkillImportService:
         from src.core.config import get_settings
 
         settings = get_settings()
-        skill_md = files.get("SKILL.md")
-        if not skill_md:
-            raise_skill_invalid_format("import must include a top-level 'SKILL.md' file")
-
-        name = _parse_frontmatter_name(skill_md)
-        validate_skill_name(name)
-
+        name = _chat_package_name(files)
         with tempfile.TemporaryDirectory(prefix="skill_import_") as staging_root:
             skill_dir = Path(staging_root) / name
             # Offload the blocking file writes off the event loop (CA-4).
@@ -364,6 +398,42 @@ class SkillImportService:
                 is_system=False,
                 settings=settings,
                 carry_over_untransportable=True,
+                provenance=None,
+            )
+
+    async def validate_files(self, files: dict[str, str], *, owner_id: UUID) -> dict[str, Any]:
+        """Run every check :meth:`import_files` runs, and write nothing.
+
+        A skill written in the chat is PROPOSED before the person installs it
+        (ADR-327): the proposal must be refused for exactly what its install
+        would be refused for — the paths and sizes, the manifest, the package's
+        integrity, a system skill's name, a managed skill, the quota — so a
+        card never offers an install that cannot happen.
+
+        Args:
+            files: Mapping of POSIX-relative path to UTF-8 text content.
+            owner_id: The account the skill is for.
+
+        Returns:
+            The parsed skill dict (safe subset).
+
+        Raises:
+            BaseAPIException / ValidationError: exactly as :meth:`import_files`.
+        """
+        from src.core.config import get_settings
+
+        settings = get_settings()
+        name = _chat_package_name(files)
+        with tempfile.TemporaryDirectory(prefix="skill_validate_") as staging_root:
+            skill_dir = Path(staging_root) / name
+            await asyncio.to_thread(self._write_text_files, files, skill_dir, settings)
+            return await self._validated(
+                skill_dir,
+                name,
+                owner_id=owner_id,
+                is_system=False,
+                settings=settings,
+                provenance=None,
             )
 
     async def import_directory(
@@ -371,21 +441,25 @@ class SkillImportService:
         source_dir: Path,
         *,
         owner_id: UUID,
+        provenance: SkillProvenance,
         plugin_id: UUID | None = None,
+        after_register: RegistrationHook | None = None,
     ) -> dict[str, Any]:
-        """Import one already-staged skill directory (ADR-225 plugin path).
+        """Import one already-staged skill directory (plugins, the skill library).
 
-        The source is a plugin's ``skills/<name>/`` child, already extracted
-        by the plugin staging layer with its own S3 guards. The tree is copied
-        into a private staging area and goes through the exact same
-        ``_finalize`` pipeline as every other import path (S1/S2/S4/S5,
-        atomic swap, DB registration, cache reload).
+        The source is a plugin's ``skills/<name>/`` child (ADR-225) or a folder
+        the library downloaded and verified (ADR-327), already staged within
+        its own bounds. The tree is copied into a private staging area and goes
+        through the exact same ``_finalize`` pipeline as every other import
+        path (S1/S2/S4/S5, atomic swap, DB registration, cache reload).
 
         Args:
             source_dir: Directory containing a ``SKILL.md`` (plus resources).
-            owner_id: Importing user's id (plugin imports are always user
-                scope in v1 — ADR-225 arbitrage A).
-            plugin_id: Provenance carried into the DB row atomically.
+            owner_id: Importing user's id (always user scope).
+            provenance: The channel: ``plugin`` or ``library``.
+            plugin_id: Plugin provenance carried into the DB row atomically.
+            after_register: Records what the caller keeps beside the skill,
+                in the registration's own transaction.
 
         Returns:
             The parsed skill dict (safe subset).
@@ -415,6 +489,8 @@ class SkillImportService:
                 is_system=False,
                 settings=settings,
                 plugin_id=plugin_id,
+                provenance=provenance,
+                after_register=after_register,
             )
 
     # ------------------------------------------------------------------
@@ -563,6 +639,8 @@ class SkillImportService:
         settings: Any,
         carry_over_untransportable: bool = False,
         plugin_id: UUID | None = None,
+        provenance: SkillProvenance | None = SkillProvenance.AUTHORED,
+        after_register: RegistrationHook | None = None,
     ) -> dict[str, Any]:
         """Validate the staged skill, then commit it to the live tree + DB.
 
@@ -581,38 +659,24 @@ class SkillImportService:
             plugin_id: Agent Plugins provenance (ADR-225). Carried into the DB
                 row atomically; name collisions are only allowed within the
                 same provenance (see ``_check_user_conflict``).
+            provenance: The import's channel (ADR-327); ``None`` is a chat
+                edit, which keeps the provenance of what it edits.
+            after_register: Called with the session and the registered row
+                before the commit.
         """
         from src.domains.skills.cache import SkillsCache
-        from src.domains.skills.loader import parse_skill_file
         from src.domains.skills.preference_service import SkillPreferenceService
 
-        # S4 — content validation (description present, no XML, parseable).
-        # Blocking read → offload off the event loop (CA-4).
-        skill = await asyncio.to_thread(parse_skill_file, staged_skill_dir / "SKILL.md")
-        if not skill:
-            raise_skill_invalid_format(
-                "SKILL.md validation failed (missing description or invalid format)"
-            )
+        skill = await self._validated(
+            staged_skill_dir,
+            name,
+            owner_id=owner_id,
+            is_system=is_system,
+            settings=settings,
+            plugin_id=plugin_id,
+            provenance=provenance,
+        )
         desc = skill.get("description", "")
-        if len(desc) > SKILLS_DESCRIPTION_MAX_LENGTH:
-            raise_skill_invalid_format(
-                f"Description exceeds {SKILLS_DESCRIPTION_MAX_LENGTH} characters"
-            )
-        # S5 — package integrity. The generator only ever validated the manifest
-        # TEXT, so a skill declaring an interactive output with no script, or
-        # advertising a resource it does not ship, was accepted and simply did
-        # not work. Editing makes that failure mode routine: a regeneration that
-        # drops a script must be rejected, not stored.
-        _validate_package_integrity(skill, staged_skill_dir)
-
-        # S2 — conflict + quota. Admin import is trusted and intentionally
-        # overwrites system skills, but must not capture a USER-owned name
-        # (the DB row would silently flip scope).
-        if is_system:
-            await self._check_admin_conflict(name)
-        else:
-            await self._check_user_conflict(name, owner_id, plugin_id=plugin_id)
-            await self._check_quota(owner_id, name, settings)
 
         # Disk swap: the previous version (if any) is parked in the staging
         # root — outside the scanned skills tree, auto-cleaned with it — so a
@@ -639,19 +703,23 @@ class SkillImportService:
         # the DB never diverge on an error path.
         try:
             svc = SkillPreferenceService(self.db)
-            await svc.create_skill_for_import(
+            row = await svc.create_skill_for_import(
                 name=name,
                 description=desc or name,
                 is_system=is_system,
                 owner_id=owner_id,
                 descriptions=skill.get("descriptions"),
                 plugin_id=plugin_id,
+                provenance=provenance,
             )
+            if after_register is not None:
+                await after_register(self.db, row)
             await self.db.commit()
-        except ValueError:
-            # Identity guard in create_skill_for_import: a concurrent import
-            # won the name between our conflict check and the flush. Restore
-            # the disk and answer the same 409 as the up-front check.
+        except ValueError, IntegrityError:
+            # A concurrent import won the identity between our conflict check
+            # and the flush: the provenance guard of create_skill_for_import,
+            # or the per-scope unique index (ADR-327). Restore the disk and
+            # answer the same 409 as the up-front check.
             await asyncio.to_thread(self._roll_back_disk, target_dir, backup_dir)
             raise_skill_name_conflict(name)
         except Exception:
@@ -666,6 +734,68 @@ class SkillImportService:
             is_system=is_system,
             owner_id=str(owner_id) if owner_id else None,
         )
+        return skill
+
+    async def _validated(
+        self,
+        staged_skill_dir: Path,
+        name: str,
+        *,
+        owner_id: UUID | None,
+        is_system: bool,
+        settings: Any,
+        plugin_id: UUID | None = None,
+        provenance: SkillProvenance | None = SkillProvenance.AUTHORED,
+    ) -> dict[str, Any]:
+        """Every check a staged skill must pass before it is written (S4, S5, S2).
+
+        Shared by the import and by a proposal's validation (ADR-327), so the
+        two can never disagree on what is accepted.
+
+        Args:
+            staged_skill_dir: Fully staged skill directory (temp location).
+            name: Validated skill name.
+            owner_id: Importing user's id (None for system imports).
+            is_system: True for admin/system imports.
+            settings: Application settings.
+            plugin_id: Agent Plugins provenance (ADR-225).
+            provenance: The import's channel; ``None`` is a chat edit.
+
+        Returns:
+            The parsed skill dict.
+
+        Raises:
+            ValidationError / BaseAPIException: on the first check that fails.
+        """
+        from src.domains.skills.loader import parse_skill_file
+
+        # S4 — content validation (description present, no XML, parseable).
+        # Blocking read → offload off the event loop (CA-4).
+        skill = await asyncio.to_thread(parse_skill_file, staged_skill_dir / "SKILL.md")
+        if not skill:
+            raise_skill_invalid_format(
+                "SKILL.md validation failed (missing description or invalid format)"
+            )
+        if len(skill.get("description", "")) > SKILLS_DESCRIPTION_MAX_LENGTH:
+            raise_skill_invalid_format(
+                f"Description exceeds {SKILLS_DESCRIPTION_MAX_LENGTH} characters"
+            )
+        # S5 — package integrity. The generator only ever validated the manifest
+        # TEXT, so a skill declaring an interactive output with no script, or
+        # advertising a resource it does not ship, was accepted and simply did
+        # not work. Editing makes that failure mode routine: a regeneration that
+        # drops a script must be rejected, not stored.
+        _validate_package_integrity(skill, staged_skill_dir)
+
+        # S2 — conflict + quota. An admin import is trusted and upserts the
+        # system skill of that name; a person holding the name does not block
+        # it (ADR-327: names are unique per account, and their own skill keeps
+        # shadowing the system one for them alone).
+        if not is_system:
+            await self._check_user_conflict(
+                name, owner_id, plugin_id=plugin_id, provenance=provenance
+            )
+            await self._check_quota(owner_id, name, settings)
         return skill
 
     @staticmethod
@@ -699,55 +829,42 @@ class SkillImportService:
         if backup_dir.exists():
             shutil.move(str(backup_dir), str(target_dir))
 
-    async def _check_admin_conflict(self, name: str) -> None:
-        """Reject an admin import whose name is already owned by a user skill.
-
-        ``skills.name`` is globally unique: registering a system skill under a
-        user-owned name would silently flip the existing row's scope.
-        Re-importing an existing system skill is allowed (upsert). The DB is
-        the registration authority; the cache adds the disk view.
-        """
-        from src.domains.skills.cache import SkillsCache
-
-        row = await self.skill_repo.get_by_name(name)
-        if row and not row.is_system:
-            raise_skill_name_conflict(name)
-        for s in SkillsCache.get_all():
-            if s["name"] == name and s["scope"] == "user":
-                raise_skill_name_conflict(name)
-
     async def _check_user_conflict(
-        self, name: str, owner_id: UUID | None, *, plugin_id: UUID | None = None
+        self,
+        name: str,
+        owner_id: UUID | None,
+        *,
+        plugin_id: UUID | None = None,
+        provenance: SkillProvenance | None = SkillProvenance.AUTHORED,
     ) -> None:
-        """Reject a user import that shadows a system skill or another user (S2).
+        """Reject a user import that shadows a system skill, or captures a provenance (S2).
 
-        A user re-importing their *own* skill of the same name is allowed
-        (upsert). The existence of another user's skill is not disclosed — the
-        same 409 is raised for system-shadow and cross-user collision. The DB
-        row is the registration authority; the cache adds the disk view.
+        A name is unique per ACCOUNT (ADR-327): another person's skill of that
+        name is a different skill and no conflict at all. What stays refused:
 
-        ADR-225 provenance invariant: a name collision is allowed only within
-        the same provenance. A plugin import never captures a manual skill, a
-        manual import never captures a plugin's skill (arbitrage F), and a
-        third plugin never captures another plugin's skill — only plugin P
-        re-importing its own skill (update) stays an upsert.
+        - shadowing a SYSTEM skill (ADR-118 S2) — seen in the DB or on disk;
+        - ADR-225's provenance invariant on the person's OWN skill of that
+          name: a plugin import never captures a manual skill, a manual import
+          never captures a plugin's skill, a plugin never captures another
+          plugin's — only plugin P re-importing its own skill stays an upsert;
+        - the same rule for every MANAGED channel (ADR-327): a library's skill
+          is replaced by the library only, and the library never captures a
+          skill of another provenance (``captures_managed``).
+
+        The DB row is the registration authority; the cache adds the disk view.
         """
         from src.domains.skills.cache import SkillsCache
+        from src.domains.skills.preference_service import captures_managed
 
-        row = await self.skill_repo.get_by_name(name)
-        if row and (row.is_system or row.owner_id != owner_id):
+        if await self.skill_repo.get_system(name) or SkillsCache.get_system_by_name(name):
             raise_skill_name_conflict(name)
-        if row and row.plugin_id != plugin_id:
+        if owner_id is None:
+            return
+        own = await self.skill_repo.get_owned(owner_id, name)
+        if own is None:
+            return
+        if own.plugin_id != plugin_id or captures_managed(own.provenance, provenance):
             raise_skill_name_conflict(name)
-
-        owner_str = str(owner_id) if owner_id else None
-        for s in SkillsCache.get_all():
-            if s["name"] != name:
-                continue
-            if s["scope"] == "admin":
-                raise_skill_name_conflict(name)
-            if s.get("owner_id") not in (None, owner_str):
-                raise_skill_name_conflict(name)
 
     async def _check_quota(self, owner_id: UUID | None, name: str, settings: Any) -> None:
         """Reject when the user is at their imported-skill cap.

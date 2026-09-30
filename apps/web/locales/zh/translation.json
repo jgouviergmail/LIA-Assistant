@@ -864,6 +864,41 @@
       "download": "下载 {{name}}",
       "open": "打开 {{name}}"
     },
+    "skill_proposal": {
+      "badge_new": "新技能",
+      "badge_update": "更新",
+      "changes": {
+        "title": "此次更新的变更",
+        "added": "新增：",
+        "modified": "修改：",
+        "removed": "删除（内容将丢失）："
+      },
+      "files_title": "文件",
+      "files_summary_one": "{{count}} 个文件 · {{size}}",
+      "files_summary_other": "{{count}} 个文件 · {{size}}",
+      "show_file": "显示 {{path}}",
+      "hide_file": "隐藏 {{path}}",
+      "notice": "技能会引导 LIA 在适用时的行为。安装前请检查其文件。",
+      "expires": "可安装至 {{time}}",
+      "install": "安装",
+      "install_label": "安装技能 {{name}}",
+      "installed": "已安装。",
+      "open_settings": "打开我的技能",
+      "closed": "此提议已不可用。如果你仍需要，请再次向 LIA 提出。",
+      "load_failed": "无法读取此提议。",
+      "retry": "重试",
+      "install_failed": "无法安装此技能，请重试。",
+      "errors": {
+        "skill_proposal_not_found": "此提议已不可用。如果你仍需要，请再次向 LIA 提出。",
+        "skill_proposal_stale": "自此提议以来你的技能已更改。请让 LIA 再次更新它。",
+        "skill_proposal_busy": "此技能正在安装中。",
+        "skill_proposal_disabled": "此实例已关闭安装聊天中编写的技能。",
+        "skill_proposal_name_taken": "已存在同名技能，无法从聊天中替换。",
+        "skill_proposal_quota_reached": "你的技能数量已达上限。请先在设置中删除一个再安装此技能。",
+        "skill_proposal_invalid": "此技能已不再被接受。请让 LIA 重新生成。",
+        "skill_proposal_unavailable": "暂时无法访问此提议，请稍后重试。"
+      }
+    },
     "document_expiry": {
       "expired": "该文档已过期，不再可用",
       "kept": "已保留：不会被自动删除",
@@ -967,7 +1002,8 @@
         "data_none": "无",
         "data_too_large": "数据过大，无法传递",
         "data_count_one": "{{count}} {{kind}}",
-        "data_count_other": "{{count}} {{kind}}"
+        "data_count_other": "{{count}} {{kind}}",
+        "third_party_skill": "此技能由他人编写。只有在信任它时才发送本轮数据。"
       },
       "resolved": {
         "confirmed": "已确认",
@@ -2851,7 +2887,7 @@
     },
     "sandbox_egress": {
       "title": "沙盒网络",
-      "description": "LIA 编写的脚本可以访问哪些网络主机，以及你在它询问时给出的授权。",
+      "description": "LIA 编写的脚本或技能的命令可以访问哪些网络主机，以及你给出的授权。",
       "reachable_title": "无需询问即可访问",
       "reachable_description": "你自己的连接器（密钥经代理传递，绝不进入脚本）以及本实例允许的主机。",
       "reachable_empty": "没有任何主机可以无需询问访问。脚本访问主机之前，LIA 会先问你。",
@@ -2859,8 +2895,8 @@
       "source_operator": "本实例允许",
       "ask_disabled": "在本实例上，其他主机一律拒绝：LIA 不会询问。",
       "grants_title": "你的授权",
-      "grants_description": "你在聊天中回答问题时允许的主机。撤销后，LIA 下次会再次询问。",
-      "grants_empty": "目前还没有授权。当脚本需要访问上方未列出的主机时，LIA 会先问你。",
+      "grants_description": "你在聊天中回答问题时或在下方允许的主机。撤销后，LIA 下次会再次询问。",
+      "grants_empty": "目前还没有授权。当脚本需要访问上方未列出的主机时，LIA 会在可以询问时先问你；否则请在下方添加。",
       "grants_not_shown": "还有 {{count}} 项授权未在此显示。",
       "grants_not_shown_other": "还有 {{count}} 项授权未在此显示。",
       "with_data": "携带本轮对话的数据",
@@ -2871,7 +2907,19 @@
       "revoked": "已撤销 {{host}}，LIA 下次会再次询问。",
       "row_menu": "{{host}} 的操作",
       "capacity_label": "账户容量",
-      "capacity": "{{held}} / {{max}} 项授权"
+      "capacity": "{{held}} / {{max}} 项授权",
+      "add_title": "允许一个主机",
+      "add_description": "Pipeline 模式下的对话轮次或例行任务无法询问你：此时脚本或技能的命令只能访问本页列出的主机。只需输入主机名，例如 npm 用 registry.npmjs.org，pip 用 pypi.org 和 files.pythonhosted.org，git 用 github.com。",
+      "add_label": "主机名",
+      "add_placeholder": "registry.npmjs.org",
+      "add_submit": "允许",
+      "add_scope": "允许时携带本轮对话的数据",
+      "added": "已允许 {{host}}。",
+      "add_errors": {
+        "egress_grant_host_invalid": "请只输入主机名：不要包含 https://、路径、端口或 IP 地址。",
+        "egress_grant_limit_reached": "你的账户已达到本实例允许的授权数量上限：请先撤销一项。",
+        "egress_grant_asking_disabled": "本实例不允许你自行允许主机。"
+      }
     },
     "preferences": {
       "debug": {
@@ -3541,7 +3589,10 @@
         "provenance_warning": "此技能从 LIA 外部导入。其指令在可访问你已连接数据的环境中运行 — 请仅保留来源可信的技能。",
         "enabled_label": "已启用",
         "open_details": "技能详情：{{name}}",
-        "dialogue_badge": "对话"
+        "dialogue_badge": "对话",
+        "origin_library": "技能库",
+        "origin_url": "来自地址",
+        "origin_plugin": "插件"
       },
       "url_import": {
         "button": "URL",
@@ -3554,6 +3605,112 @@
         "error_too_large": "文件超过允许的大小。",
         "error_not_skill": "此地址未提供 SKILL.md 文件或 .zip 包。",
         "error_fetch": "无法访问该地址。"
+      },
+      "library": {
+        "button": "查找技能",
+        "title": "技能库",
+        "description": "在 skills.sh 或 GitHub 地址中搜索，安装前先阅读技能，并从其仓库保持更新。",
+        "check_update": "检查更新",
+        "install_success": "{{name}} 已安装。",
+        "update_success": "{{name}} 已是最新版本。",
+        "tabs": {
+          "search": "搜索",
+          "address": "GitHub 地址",
+          "installed": "已安装"
+        },
+        "search": {
+          "label": "搜索技能库",
+          "placeholder": "PDF、幻灯片、代码审查……",
+          "idle": "至少输入 {{min}} 个字符——技能库会在 skills.sh 上搜索。",
+          "empty": "没有匹配的技能。换个关键词试试，或粘贴一个 GitHub 地址。",
+          "installs_one": "{{count}} 次安装",
+          "installs_other": "{{count}} 次安装",
+          "installed": "已安装",
+          "unsupported": "无法安装",
+          "unsupported_hint": "发布在网站上而非 GitHub——LIA 只从 GitHub 安装。",
+          "read": "阅读",
+          "read_named": "阅读 {{name}}"
+        },
+        "address": {
+          "label": "GitHub 地址",
+          "placeholder": "owner/repo 或 https://github.com/owner/repo/tree/main/skills/name",
+          "hint": "一个仓库，或其中某个技能的文件夹。",
+          "read": "阅读",
+          "choose": "{{repository}} 包含 {{count}} 个技能——请选择一个。",
+          "root": "仓库本身"
+        },
+        "preview": {
+          "back": "返回",
+          "source": "来自 {{location}}，提交 {{sha}}",
+          "third_party": "在 LIA 之外编写：它独立运行，只能使用自己的文件和你附加的文件——从不接触你的邮箱、日历或其他连接器——其回答不会显示图片或网页内容。",
+          "audits_title": "审计",
+          "audits_unavailable": "无法读取审计结果。上述隔离依然有效。",
+          "audits_none": "该技能尚无公开的审计。",
+          "alerts_one": "{{count}} 条警告",
+          "alerts_other": "{{count}} 条警告",
+          "files_title": "文件",
+          "files_summary_one": "{{count}} 个文件 · {{size}}",
+          "files_summary_other": "{{count}} 个文件 · {{size}}",
+          "skipped": "从未读取的链接和子模块：{{list}}",
+          "scripts": "它包含脚本：脚本在 LIA 的隔离沙箱中运行。",
+          "blocked": "有审计将该技能评为{{risk}}——本实例不会安装它。",
+          "conflict_installed": "已安装——请在“已安装”标签页中更新它。",
+          "conflict_name_taken": "名为 {{name}} 的技能已存在——是你的，或是 LIA 自带的。请先删除或重命名你的技能。",
+          "install": "安装"
+        },
+        "risk": {
+          "safe": "安全",
+          "low": "低风险",
+          "medium": "中等风险",
+          "high": "高风险",
+          "critical": "严重风险",
+          "unknown": "未评级"
+        },
+        "installed": {
+          "title": "从技能库安装（{{count}}）",
+          "loading": "正在加载已安装的技能",
+          "check": "重新检查",
+          "empty": "尚未从技能库安装任何技能。请在“搜索”标签页中查找。",
+          "review": "查看更新",
+          "review_named": "查看 {{name}} 的更新",
+          "state": {
+            "current": "已是最新",
+            "available": "有可用更新",
+            "unknown": "未检查"
+          }
+        },
+        "update": {
+          "changes": "此次更新的变更",
+          "none": "没有文件变更——只是提交有所变动。",
+          "added": "新增：",
+          "modified": "修改：",
+          "removed": "删除：",
+          "confirm": "更新"
+        },
+        "errors": {
+          "generic": "技能库暂时无法响应。请稍后再试。",
+          "skill_library_source_invalid": "这不是可读取的 GitHub 仓库——请使用 owner/repo 或 github.com 地址。",
+          "skill_library_origin_unsupported": "该技能发布在 GitHub 之外——LIA 只从 GitHub 安装。",
+          "skill_library_not_found": "该位置没有找到技能——请检查仓库、分支和文件夹。",
+          "skill_library_ambiguous": "有多个文件夹包含同名技能——请通过地址打开仓库并选择一个。",
+          "skill_library_unreachable": "无法连接技能库或 GitHub。请稍后再试。",
+          "skill_library_name_taken": "同名技能已存在——是你的，或是 LIA 自带的。请先删除或重命名你的技能。",
+          "skill_library_already_installed": "该技能已安装——请在“已安装”标签页中更新它。",
+          "skill_library_not_installed": "该技能不是从技能库安装的。",
+          "skill_library_quota_reached": "你拥有的技能数量已达本实例上限——请先删除一个。",
+          "skill_library_invalid_skill": "已读取其文件，但其 SKILL.md 未通过 LIA 的检查。",
+          "skill_library_query_invalid": "请输入 {{min}} 到 {{max}} 个字符。",
+          "skill_library_query_invalid_plain": "搜索文本过短或过长。",
+          "skill_library_rate_limited": "本实例的 GitHub 配额已用完，{{time}} 后恢复。管理员可以用 GitHub 令牌提高配额。",
+          "skill_library_rate_limited_plain": "本实例的 GitHub 配额暂时用完。请稍后再试。",
+          "skill_library_too_large": "该仓库过大，GitHub 无法完整列出——请直接通过地址打开技能所在的文件夹。",
+          "skill_library_too_large_files": "该技能包含超过 {{max}} 个文件——超出本实例的上限。",
+          "skill_library_too_large_kb": "该技能大小超过 {{max}} KB——超出本实例的上限。",
+          "skill_library_audit_blocked": "有审计将该技能评为{{risk}}——本实例不会安装它。",
+          "skill_library_audit_blocked_plain": "有审计在本实例上拒绝了该技能。",
+          "skill_library_renamed": "新版本名为 {{name}}——这是另一个技能。请删除当前技能并安装那个。",
+          "skill_library_renamed_plain": "新版本使用了不同的名称——请删除当前技能后重新安装。"
+        }
       }
     },
     "channels": {
@@ -4028,7 +4185,7 @@
         "scheduled-actions": "定时任务, cron, 计划, 重复, 自动化, 定时器, 本周视图, 时间线, 周网格，每三天，第 2 个周二，间隔，结束规则，高级选项，监看，盯住回复，已完成，回复时告诉我，自行关闭",
         "journals": "日记, 日志, 画像, 反思, 笔记, 来源, 为什么, 出处, 信号, 起源, 更正, 配置, 整理、导出",
         "health-metrics": "健康, 心率, 步数, 睡眠, iPhone, Apple 健康, 运动",
-        "skills": "技能, 能力, 插件, 扩展",
+        "skills": "技能, 能力, 插件, 扩展, 技能库, skills.sh, 查找技能, GitHub, 安装, 更新, 审计, 市场",
         "rag-spaces": "知识空间, 文档, 文件, 上传, 下载, 压缩包, zip, 移动, 批量删除, 索引, 文档检索, drive, 会议, gmail 标签, 邮件来源, 关注标签, 邮件会话, 已索引会话，收藏的回答，文档出错，扫描的 PDF，OCR，Google 文档、子文件夹、文件夹树、同步确认、文件数、将文档附加到消息",
         "user-consumption-export": "CSV, 用量, 消耗, 令牌, 成本, 账单, 统计, 导出",
         "haptics": "触觉 震动 触感 反馈",
@@ -4055,7 +4212,7 @@
         "reminders": "提醒, 提醒我, 警报, 通知, 重复提醒, 重复, 便签，重复，每天，时间段",
         "workboard": "workboard 工单板 工单 看板 列 待办 待处理",
         "generated-assets": "文件 图片 文档 截图 下载 图库 生成 过期 保留 已保留 固定 书签 收藏 保存的回答 bookmarks 已索引 知识空间 搜索 与联系人分享 分享者",
-        "sandbox-egress": "沙盒, python, 脚本, 网络, 互联网, 代理, 主机, 授权, 允许, 撤销, 出口, API, 集成",
+        "sandbox-egress": "沙盒, python, 脚本, 网络, 互联网, 代理, 主机, 授权, 允许, 撤销, 出口, API, 集成, 技能, 命令, npm, git, pip",
         "live-mode": "实时, 语音, 对话, Gemini Live, GPT-Live, OpenAI, ElevenLabs, 代理, 直接会话, 委托, 模型, 思考深度, 静默, 时长, 花费上限, 打断, 按住说话, 麦克风",
         "radio": "电台, 广播, 播客, 新闻, 头条, 分析, 评论, 声音, 音乐, 定时, 来源, 网站, 订阅源, RSS, 核查, 收听, 陪伴",
         "admin-jev": "JEV, TypeSafe, 开关, 延迟, 决策, 会议, 纪要模板, 回退"
@@ -5105,7 +5262,7 @@
         },
         "security": {
           "title": "🔐 多层安全",
-          "description": "纵深防御：通行密钥、带备用码的 TOTP、敏感操作前重新验证，每个会话都可见、可撤销。Google 登录证明的是地址，而不是权限：它既不能激活也不能解封账户。底层有带 PKCE 的 OAuth 2.1、只记录事实、绝不记录你原话的日志、静态加密，以及不含可导出密钥的 GDPR 导出。技能在无网络的一次性容器中运行；LIA 编写的脚本只能通过唯一的代理访问网络。第三方撰写的文本只作为数据到达模型，绝不作为指令。"
+          "description": "纵深防御：通行密钥、带备用码的 TOTP、敏感操作前重新验证，每个会话都可见、可撤销。Google 登录证明的是地址，而不是权限：它既不能激活也不能解封账户。底层有带 PKCE 的 OAuth 2.1、只记录事实、绝不记录你原话的日志、静态加密，以及不含可导出密钥的 GDPR 导出。技能和 LIA 的脚本在一次性容器中运行，只能经唯一的代理访问已允许的主机。第三方撰写的文本只作为数据到达模型，绝不作为指令。"
         },
         "resilience": {
           "title": "🛡️ 性能与 Token 优化",
@@ -5136,8 +5293,8 @@
           "description": "完整的技术栈：Prometheus 指标（token、延迟、错误、成本）、30 个 Grafana 仪表盘、Tempo 追踪、Loki 日志，以及每条告警都指向其运维手册的邮件告警。第 26 个仪表盘是产品驾驶舱：已验证的成果——你明确的 👍，或一整天未被更改的操作——以及每个有用成果的成本，在 PostgreSQL 中计数，由只能看到聚合数据的角色读取。此外，API 的每个进程都会公布自己在内存中持有的内容：容器总量可逐个工作进程解读。"
         },
         "tools": {
-          "title": "🔧 123 个类型化工具",
-          "description": "123 个原生工具，JSON 模式由 Python 类型生成，并可通过 MCP 服务器和技能无限扩展。每个工具都声明自己的清单和公开的边界：校验器能拒绝什么，规划器就能读到什么。目录按领域过滤——所以每个领域也必须带上自己的读取能力，否则一个只有写工具的领域会把规划器往「写」上推。必须精确的东西由工具计算，绝不估算：算术、日期、货币。"
+          "title": "🔧 124 个类型化工具",
+          "description": "124 个原生工具，JSON 模式由 Python 类型生成，并可通过 MCP 服务器和技能无限扩展。每个工具都声明自己的清单和公开的边界：校验器能拒绝什么，规划器就能读到什么。目录按领域过滤——所以每个领域也必须带上自己的读取能力，否则一个只有写工具的领域会把规划器往「写」上推。必须精确的东西由工具计算，绝不估算：算术、日期、货币。"
         },
         "costTransparency": {
           "title": "💰 成本透明度",
@@ -5205,7 +5362,7 @@
         },
         "skills": {
           "title": "Skills（带地图和交互式迷你应用）",
-          "description": "把你自己的专业技能交给 LIA。用内置生成器以自然语言写一个——立刻安装可用——或者从兼容 agentskills.io 的市场导入。技能除了文本，还能返回可交互的 HTML 面板（地图、仪表盘、换算器）或一张图片，主题和语言自动同步；技能库展示的是每个技能真正产出的样子，而不是一个通用图标。让 LIA 改一个技能，它会重读整个包，然后在动笔之前先告诉你哪些会被替换、哪些会消失。"
+          "description": "把你自己的专业技能交给 LIA。用自然语言描述一个——内置生成器写好后以卡片提议给你，点一下即可安装——或在公共技能库 skills.sh 中搜索，安装前可逐个文件查看。技能能返回交互面板或图片，也能在一次性容器中运行自己的命令并把文件交给你。外来技能隔离运行：绝不接触你的连接器，回答中也不显示图片或网页内容。"
         },
         "ragSpaces": {
           "title": "📚 RAG知识空间",
@@ -5334,6 +5491,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v2_2_0": {
+          "title": "v2.2.0 — 技能库上线，技能能动手，外来技能隔离运行",
+          "date": "2026 年 9 月 30 日 · 22:50 CEST",
+          "count": "7",
+          "items": {
+            "i1": "<b>📚 在公共技能库中查找技能</b> — 在「设置 › 技能」中点击「查找技能」，即可搜索 skills.sh 或读取一个 GitHub 地址。安装前你可以先阅读技能：来源、确切版本、每一个文件以及已发布的审计结果。「已安装」标签页会在来源变化时提醒你，并在你应用更新前展示改动。",
+            "i2": "<b>🧰 能执行自身命令的技能</b> — 技能可以在其文件夹的一次性副本中运行 Python、Node 或 shell 脚本，并带上你消息中附加的文件。它写出的内容会作为生成文件返回给你，送达前经过校验，并保存在你的图库中。",
+            "i3": "<b>🌐 网络仅通往允许的主机</b> — 命令默认离线运行。需要安装软件包或拉取代码仓库的命令会声明其主机，并在获得允许后经由专用代理访问。在 ReAct 模式下 LIA 会征求你的同意；你也可以在「设置 › 沙盒网络」中自行允许主机。",
+            "i4": "<b>✅ LIA 编写的技能，由你安装</b> — LIA 在对话中创建或修改技能时，会以卡片形式向你提议：名称、描述、文件，以及替换时的具体改动。在你点击「安装」之前，任何内容都不会进入你的技能。",
+            "i5": "<b>🛡️ 外来技能隔离运行</b> — 来自技能库、网址或插件的技能在隔离环境中运行：绝不接触你的邮件、日历或连接器，回复中也不显示图片或网页内容。此外，技能名称现在只需在你自己的账户内唯一。",
+            "i6": "<b>🤖 两个新模型</b> — Claude Sonnet 5.5 与 GPT-6.1 Sol 加入管理员的模型目录，附带其推理设置和价格。",
+            "i7": "<b>🔒 更安全的导出</b> — Markdown 导出不会再把文本变成恶意链接，日程描述的清理也更加可靠。"
+          }
+        },
         "v2_1_1": {
           "title": "v2.1.1 — 适合你的字号、可读的导出、更准确的天气提醒",
           "date": "2026 年 9 月 30 日 · 03:19 CEST",
@@ -8895,7 +9066,7 @@
       "skills": {
         "title": "技能（Skills）",
         "description": "通过专家指令扩展LIA的能力",
-        "count": "12",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "什么是技能（Skill）？",
@@ -8903,15 +9074,15 @@
           },
           "q2": {
             "question": "如何导入技能？",
-            "answer": "<p>在<strong>设置 &gt; 功能 &gt; 我的技能</strong>中，点击<strong>导入技能</strong>，选择 <code>.md</code> 或 <code>.zip</code> 文件。可在 <strong>skillsmp.com</strong> 或 GitHub 上找到兼容技能。</p>"
+            "answer": "<p>在<strong>设置 &gt; 功能 &gt; 我的技能</strong>中，点击<strong>导入技能</strong>，选择 <code>.md</code> 或 <code>.zip</code> 文件。可在 <strong>skillsmp.com</strong> 或 GitHub 上找到兼容技能；同一页面中的<strong>查找技能</strong>还能直接搜索公共技能库 <strong>skills.sh</strong>。</p>"
           },
           "q3": {
             "question": "如何创建自己的技能？",
-            "answer": "<p><strong>最简单的方式：直接问 LIA！</strong>比如说\"<em>为[你的需求]创建一个技能</em>\"，内置的<strong>技能生成器</strong>会一步步引导你：需求分析、原型选择（共 5 种原型）、生成、自动验证——以及<strong>直接安装</strong>：完成的技能会立即进入<strong>我的技能</strong>，激活且随时可用，LIA 会以其名称向你宣布。</p><p>你也可以手动创建一个 <code>SKILL.md</code> 文件，包含最小的 YAML 头部（名称 + 描述）和 Markdown 指令。高级选项请参阅<strong>内置指南</strong>（我的技能中的 📖 按钮）。</p>"
+            "answer": "<p><strong>最简单的方式：直接问 LIA！</strong>比如说\"<em>为[你的需求]创建一个技能</em>\"，内置的<strong>技能生成器</strong>会一步步引导你：需求分析、原型选择（共 5 种原型）、生成、自动验证——随后在对话中出现一张<strong>提议卡片</strong>：你可以查看名称、描述和文件，点击<strong>安装</strong>后它才会进入<strong>我的技能</strong>，激活且随时可用。未经你点击，什么都不会安装。</p><p>你也可以手动创建一个 <code>SKILL.md</code> 文件，包含最小的 YAML 头部（名称 + 描述）和 Markdown 指令。高级选项请参阅<strong>内置指南</strong>（我的技能中的 📖 按钮）。</p>"
           },
           "q4": {
             "question": "管理员技能和我的技能有什么区别？",
-            "answer": "<p><strong>管理员技能</strong>：随应用提供，对所有用户可用，可单独启用/禁用。</p><p><strong>我的技能</strong>：你导入的个人技能，可管理、下载或删除。</p><p>技能名称是唯一的：重复使用内置技能（或其他用户技能）名称的导入会被明确拒绝——请改用一个变体名称。</p>"
+            "answer": "<p><strong>管理员技能</strong>：随应用提供，对所有用户可用，可单独启用/禁用。</p><p><strong>我的技能</strong>：你导入的个人技能，可管理、下载或删除。</p><p>名称只需在你自己的技能中唯一，而不是在整个实例中：其他人可以保留与你同名的技能。仍会被拒绝的是重复使用内置技能的名称——请改用一个变体名称。</p>"
           },
           "q5": {
             "question": "LIA如何决定使用哪个技能？",
@@ -8923,7 +9094,7 @@
           },
           "q7": {
             "question": "什么是技能生成器？",
-            "answer": "<p><strong>技能生成器</strong>是一个内置的系统技能，让你<strong>用自然语言创建自己的技能</strong>。只需描述你的需求（\"<em>我想要详细的 5 天天气预报</em>\"），助手会分 4 步引导你：</p><ol><li><strong>需求分析</strong>：就任务、工具和期望格式提出澄清问题——对话能跨轮次保留上下文</li><li><strong>原型选择</strong>：Prompt Expert、Advisory、Plan Template、Visualizer 或 Generator</li><li><strong>生成</strong>：创建符合 agentskills.io 标准的 SKILL.md（如需要还包括脚本和参考文件）</li><li><strong>验证与安装</strong>：自动格式验证，然后<strong>直接安装</strong>——LIA 会以名称宣布该技能，它立即在<strong>我的技能</strong>中激活（可像任何导入的技能一样启用、下载或删除）</li></ol>"
+            "answer": "<p><strong>技能生成器</strong>是一个内置的系统技能，让你<strong>用自然语言创建自己的技能</strong>。只需描述你的需求（\"<em>我想要详细的 5 天天气预报</em>\"），助手会分 4 步引导你：</p><ol><li><strong>需求分析</strong>：就任务、工具和期望格式提出澄清问题——对话能跨轮次保留上下文</li><li><strong>原型选择</strong>：Prompt Expert、Advisory、Plan Template、Visualizer 或 Generator</li><li><strong>生成</strong>：创建符合 agentskills.io 标准的 SKILL.md（如需要还包括脚本和参考文件）</li><li><strong>验证与提议</strong>：自动格式验证，然后在对话中出现一张<strong>提议卡片</strong>——你查看技能及其文件，点击<strong>安装</strong>后它在<strong>我的技能</strong>中激活（可像任何导入的技能一样启用、下载或删除）</li></ol>"
           },
           "q8": {
             "question": "技能可以显示地图、图像或交互式迷你应用吗？（v1.16.8）",
@@ -8931,19 +9102,27 @@
           },
           "q9": {
             "question": "技能库展示什么？(v1.25.16)",
-            "answer": "<p>设置 → 技能现在以<strong>卡片</strong>展示你的技能。打开一张卡片可见本地化描述、<strong>预览图</strong>（若技能自带）、声明的<strong>输出通道</strong>（文本、交互框架、图片）及操作。所有从 LIA 外部导入的技能都带有<strong>来源警告</strong>：其指令在可访问你已连接数据的环境中运行 — 请仅保留来源可信的技能。</p>"
+            "answer": "<p>设置 → 技能现在以<strong>卡片</strong>展示你的技能。打开一张卡片可见本地化描述、<strong>预览图</strong>（若技能自带）、声明的<strong>输出通道</strong>（文本、交互框架、图片）及操作。你自己导入的技能带有<strong>来源警告</strong>：其指令在可访问你已连接数据的环境中运行 — 请仅保留来源可信的技能。来自网址、技能库或插件的技能会标明来源，并独立运行。</p>"
           },
           "q10": {
             "question": "可以直接从 URL 安装技能吗？(v1.25.16)",
-            "answer": "<p>可以 — 设置 → 技能中的「从 URL」。粘贴一个提供 SKILL.md 文件或 .zip 包的 <strong>https</strong> 地址。服务器会校验一切：仅 https、禁止私有/内部地址、禁止重定向、大小上限，并走与文件上传<strong>相同的严格导入管线</strong>。失败的尝试按用户限流。</p>"
+            "answer": "<p>可以 — 设置 → 技能中的「从 URL」。粘贴一个提供 SKILL.md 文件或 .zip 包的 <strong>https</strong> 地址。服务器会校验一切：仅 https、禁止私有/内部地址、禁止重定向、大小上限，并走与文件上传<strong>相同的严格导入管线</strong>。失败的尝试按用户限流。</p><p>从地址安装的技能是在 LIA 之外编写的：LIA 会将其独立运行，只使用它自己的文件和你附加的文件——从不接触你的邮箱、日历或其他连接器——其回答不会显示图片或网页内容。</p>"
           },
           "q11": {
             "question": "我可以让 LIA 修改已有的技能吗？(v1.25.28)",
-            "answer": "<p>可以，通过对话即可：「调整我的 X 技能」「给它加一节」「修正措辞」。LIA 会重新阅读完整的技能 — 清单、脚本、参考文档 — 应用你的要求，然后<strong>整体重新生成</strong>，而不是只改动一处：正是这一点保证了描述、脚本与资源之间始终保持一致。</p><p>在写入任何内容之前，LIA 会向你展示<strong>究竟哪些会被替换、哪些会消失</strong>，并等待你的同意。这个确认并非客套：从技术上讲，没有它修改无法完成。<strong>系统不保留版本历史</strong> — 一旦替换，旧版本无法恢复，因此请仔细阅读摘要。而技能库的预览图会被自动保留。</p><p>有三种情况会被拒绝：<strong>系统</strong>技能（由管理员维护）、<strong>其他用户</strong>的技能，以及你自己已<strong>停用</strong>的技能 — 请先在设置 → 技能中重新启用。</p>"
+            "answer": "<p>可以，通过对话即可：「调整我的 X 技能」「给它加一节」「修正措辞」。LIA 会重新阅读完整的技能 — 清单、脚本、参考文档 — 应用你的要求，然后<strong>整体重新生成</strong>，而不是只改动一处：正是这一点保证了描述、脚本与资源之间始终保持一致。</p><p>不会直接写入任何内容：LIA 会在一张卡片上向你提议新版本，<strong>明确列出将被替换、新增和删除的内容</strong>。只有你点击<strong>安装</strong>才会生效；如果你的技能在此期间已被修改，卡片会如实告知，而不会覆盖它。<strong>系统不保留版本历史</strong> — 一旦替换，旧版本无法恢复，因此请仔细阅读摘要。而技能库的预览图会被自动保留。</p><p>有三种情况会被拒绝：<strong>系统</strong>技能（由管理员维护）、<strong>从技能库安装或由插件带来</strong>的技能（它们跟随其来源——请改为更新它们），以及你自己已<strong>停用</strong>的技能 — 请先在设置 → 技能中重新启用。</p>"
           },
           "q12": {
             "question": "我可以安装插件吗？（v1.30.7）",
-            "answer": "<p>可以。LIA 支持开放的 <b>Agent Plugins</b> 标准（agent-plugins.org）：插件是一个便携式软件包，打包了技能和 MCP 服务器，同一个包可以在 ChatGPT、Cursor、GitHub Copilot、VS Code——以及 LIA 中使用。在<b>设置 → 插件</b>中导入 .zip 文件或粘贴 https 链接即可。安装会按组件显示完整报告：已安装、已更新、已跳过（附原因——例如 LIA 有意不运行的服务器类型）或已移除。插件的技能和 MCP 服务器随后与你手动创建的完全一样：自由启用或停用，在 MCP 板块配置服务器认证。要更新插件，导入其新版本即可——保留的组件会更新，消失的组件会移除，你配置的凭据会保留。要移除插件，直接卸载：它带来的一切随之移除（单独删除插件组件会被拒绝，这样插件永远不会被悄悄拆散）。</p>"
+            "answer": "<p>可以。LIA 支持开放的 <b>Agent Plugins</b> 标准（agent-plugins.org）：插件是一个便携式软件包，打包了技能和 MCP 服务器，同一个包可以在 ChatGPT、Cursor、GitHub Copilot、VS Code——以及 LIA 中使用。在<b>设置 → 插件</b>中导入 .zip 文件或粘贴 https 链接即可。安装会按组件显示完整报告：已安装、已更新、已跳过（附原因——例如 LIA 有意不运行的服务器类型）或已移除。你可以自由启用或停用它的技能和 MCP 服务器，并在 MCP 板块配置服务器认证。它的技能在 LIA 之外编写：会独立于你的连接器运行，不会显示图片或网页内容；它的 MCP 服务器与你自己添加的一样工作。要更新插件，导入其新版本即可——保留的组件会更新，消失的组件会移除，你配置的凭据会保留。要移除插件，直接卸载：它带来的一切随之移除（单独删除插件组件会被拒绝，这样插件永远不会被悄悄拆散）。</p>"
+          },
+          "q13": {
+            "question": "我可以在公共技能库中查找技能吗？",
+            "answer": "<p>可以——在设置 → 技能中点击<strong>查找技能</strong>，即可在公共技能库 <strong>skills.sh</strong> 上搜索，或读取你粘贴的任何 GitHub 地址。安装前你可以先阅读技能：它来自哪里、确切版本、每个文件，以及已发布的审计结论。被审计评为风险过高的技能，本实例会拒绝安装。</p><p>技能库中的技能在 LIA 之外编写，因此 LIA 会将其隔离：它只能使用自己的文件和你附加的文件——从不接触你的邮箱、日历或其他连接器——其回答不会显示图片或网页内容，也绝不会改变 LIA 规划你请求的方式。<strong>已安装</strong>标签页会在其来源发生变化时提示你，并在你应用更新前展示更新的内容。你可以像删除其他技能一样删除它。</p>"
+          },
+          "q14": {
+            "question": "技能可以运行程序并把文件交给我吗？",
+            "answer": "<p>可以。许多为其他助手编写的技能会要求<strong>运行一条命令</strong>：一个 Python、shell 或 Node 脚本，或一个 PDF、表格工具。LIA 会在<strong>技能文件夹的副本</strong>中运行它，运行环境是一个一次性容器，无法访问你的邮箱、日历或连接器，也不包含 LIA 自身的任何内容。你附加到消息中的文件会随之传入，它写入 <code>out/</code> 文件夹的每个文件都会作为<strong>生成的文件</strong>返回给你：显示在回答下方，并按通常的期限保存在你的图库中。</p><p>返回的内容在到达你之前都会经过检查。文档或图片只有在内容与类型相符时才保留其类型；技能编写的页面（Markdown、HTML、SVG）会以纯文本形式返回；其他内容一律排除，回答中会说明。每条命令都有时间预算和大小限制。</p><p>命令<strong>默认不联网</strong>。需要安装软件包或获取代码仓库的命令，会声明它要访问的主机（npm、pip、git 等），并通过专用代理外出：仅限 HTTPS，只能访问这些主机，且必须先由管理员或你本人允许——在 ReAct 模式下 LIA 会询问你，你也可以在<strong>设置 › 沙盒网络</strong>中自行允许某个主机。在别处编写的技能永远拿不到你的连接器及其密钥。</p>"
           }
         }
       },
@@ -9869,9 +10048,17 @@
         "title": "出门前先问你",
         "desc": "脚本想访问一个没人允许过的主机？LIA 会停下来问你，有三种回答：带上本轮的数据、不带数据，或者干脆拒绝。之后你请求的其余部分继续进行，你的回答会留到下次。"
       },
+      "skill_proposal": {
+        "title": "技能只提议，从不强加",
+        "desc": "LIA 在对话中编写或修改技能时，会用一张卡片向你展示：名称、描述、每一个文件，以及替换时的具体改动。在你点击「安装」之前，任何内容都不会进入你的技能。"
+      },
       "network_grants": {
         "title": "你的许可，集中在一处",
         "desc": "脚本无需询问即可访问的对象——你的连接器、实例允许的主机——以及你给出的每一项许可，各自带有范围和撤销按钮。这份清单里没有任何一项是背着你记下的。"
+      },
+      "skill_library": {
+        "title": "先阅读，再安装的技能库",
+        "desc": "在公共技能库中搜索技能，打开后逐一阅读它的文件、确切版本和审计结论。安装的正是你读过的内容；「已安装」标签页会在来源变化时提醒你。"
       },
       "live_band": {
         "title": "你说话时的一条横条",
@@ -10074,6 +10261,11 @@
         "refuse": "拒绝",
         "resumed": "按你的回答继续"
       },
+      "skill_proposal": {
+        "name": "温度换算器",
+        "install": "安装",
+        "installed": "已安装"
+      },
       "network_grants": {
         "reachable": "无需询问即可访问",
         "connector": "网页搜索",
@@ -10081,6 +10273,12 @@
         "scope": "不带数据",
         "revoke": "撤销",
         "revoked": "许可已移除"
+      },
+      "skill_library": {
+        "query": "幻灯片",
+        "result": "幻灯片生成器",
+        "audit": "已读审计 · 文件已校验",
+        "installed": "已安装"
       },
       "live_band": {
         "status": "你正在与 LIA 交谈 · 0:12",
@@ -11234,7 +11432,7 @@
       },
       "skills": {
         "title": "带卡片和小应用的 Skill",
-        "description": "给 LIA 量身定制的技能。用自然语言描述一个——内置生成器立即写好并安装——或者从兼容 agentskills.io 的市场导入你自己的。一个 Skill 可以直接在聊天中返回卡片、仪表盘、换算器或交互式小应用，主题和语言保持同步。让 LIA 调整某个 Skill：她会重读整个包，并在写入前告诉你哪些会被替换。"
+        "description": "给 LIA 量身定制的技能。用自然语言描述一个——内置生成器写好后向你提议，点一下即可安装——或在阅读之后从公共技能库 skills.sh 中挑选。一个 Skill 可以直接在聊天中返回卡片、仪表盘或交互式小应用，也可以在一次性容器中运行自己的命令并把文件交给你。外来 Skill 隔离运行，绝不接触你的连接器。"
       },
       "health_metrics": {
         "title": "健康数据",
@@ -11397,7 +11595,7 @@
       },
       "bff": {
         "title": "安全架构",
-        "description": "BFF 架构，HTTP-only Cookie 与 Redis 会话：令牌绝不暴露给前端。通行密钥与 TOTP 双因素，敏感操作前需再次验证。严格的 CSP、覆盖 OWASP Top 10，第三方代码运行于无套接字、无网络的一次性容器中。Google 登录证明的是地址，而不是权限：它既不能激活也不能解封账户。LIA 读取的每个网页都在已校验的地址上获取，重定向逐跳校验：任何网页都无法把它引向内网。"
+        "description": "BFF 架构，HTTP-only Cookie 与 Redis 会话：令牌绝不暴露给前端。通行密钥与 TOTP 双因素，敏感操作前需再次验证。严格的 CSP、覆盖 OWASP Top 10，第三方代码运行于无套接字的一次性容器中，除已允许的主机外不联网。Google 登录证明的是地址，而不是权限：它既不能激活也不能解封账户。LIA 读取的每个网页都在已校验的地址上获取，重定向逐跳校验：任何网页都无法把它引向内网。"
       },
       "encryption": {
         "title": "加密",
@@ -11415,7 +11613,7 @@
     "tech": {
       "title": "技术底层",
       "subtitle": "为性能和可扩展性设计的架构",
-      "intro": "LIA 将语义路由与请求所需的工具和来源连接起来。对于需要执行的任务，Pipeline 先制定并检查计划；ReAct 则通过搜索与调整推进。模式由你选择。整个过程均有观测记录，从 token 到欧元，关键信号异常时发送邮件提醒。\n\n界面背后：贝叶斯计划学习、双向量语义记忆、面向文档的 BM25+语义嵌入混合检索、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。\n\n它所断言的，都是它读到的：每个回答都锚定在真实获取的数据上，而非对早先措辞的记忆；从未获取到的信息会被明确说明，而不是被补全。\n\n被执行的东西与执行它的东西相互隔离：技能代码运行在仅为一次调用而创建的容器中——无套接字、无网络、只读——如果这个沙箱无法建立，就什么都不会运行。",
+      "intro": "LIA 将语义路由与请求所需的工具和来源连接起来。对于需要执行的任务，Pipeline 先制定并检查计划；ReAct 则通过搜索与调整推进。模式由你选择。整个过程均有观测记录，从 token 到欧元，关键信号异常时发送邮件提醒。\n\n界面背后：贝叶斯计划学习、双向量语义记忆、面向文档的 BM25+语义嵌入混合检索、以PostgreSQL做检查点的LangGraph状态机。全部可自托管——小到一台树莓派。\n\n它所断言的，都是它读到的：每个回答都锚定在真实获取的数据上，而非对早先措辞的记忆；从未获取到的信息会被明确说明，而不是被补全。\n\n被执行的东西与执行它的东西相互隔离：技能代码运行在仅为一次调用而创建的容器中——无套接字、除已允许的主机外无网络、只读——如果这个沙箱无法建立，就什么都不会运行。",
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "完成一项请求的两种方式",
@@ -11447,7 +11645,7 @@
       },
       "rich_skills": {
         "title": "带框架和图像的 Skills",
-        "description": "技能是 LIA 可以为你编写、并在沙箱中运行的小程序。它可以用文字、图片，或一个嵌入对话的微型界面来回答——表单、表格、图表——与页面相互隔离，并跟随你的主题与语言。无论是上传的、在聊天中生成的，还是从链接安装的，所有技能都走同一条经过加固的路径：严格的名称校验、体积上限，以及要么装成、要么什么也不留下的安装。技能之后可以同名重新生成，并需你确认。"
+        "description": "技能是 LIA 可以为你编写、并在沙箱中运行的小程序。它可以用文字、图片，或一个嵌入对话的微型界面来回答，与页面相互隔离并跟随你的主题与语言；它还能在其文件夹的一次性副本中运行自己的命令，把生成的文件交给你。无论是上传的、由对话提议的，还是从公共技能库挑选的，所有技能都走同一条经过加固的路径：严格的名称校验、体积上限，以及要么装成、要么什么也不留下的安装。外来技能始终与你的连接器隔离。"
       },
       "hitl": {
         "title": "Human-in-the-Loop",
@@ -11709,7 +11907,7 @@
         "title": "LIA 与你一起成长。",
         "sub": "你的知识、专项研究，还有能随着需要不断扩展的工具。",
         "b1_t": "缺一项能力？描述它。",
-        "b1_d": "她编写技能、安装它，并在聊天中以迷你应用呈现——卡片、按钮、仪表盘。",
+        "b1_d": "她编写技能并向你提议——点一下即可安装——再在聊天中以迷你应用呈现。",
         "b2_t": "让你的文档成为依据。",
         "b2_d": "LIA 找出相关段落，与其他来源相互核对，并能生成比较结果或文档。",
         "b3_t": "把她接入你的世界。",
@@ -11815,7 +12013,7 @@
         "s3_time": "15:00",
         "s3_text": "根据找到的材料，你请她生成架构说明和比较表。文件出现在聊天里，等你审阅、分享。",
         "s4_time": "22:10",
-        "s4_text": "同一个需求反复出现，你便描述一项适合工作的技能。LIA 创建它；之后需要调整时，她会先展示拟议修改，再替换技能包。"
+        "s4_text": "同一个需求反复出现，你便描述一项适合工作的技能。LIA 写好后向你提议，点一下即可安装；之后需要调整时，卡片会先展示改动，再替换技能包。"
       },
       "admin": {
         "s1_time": "08:00",
@@ -12514,7 +12712,7 @@
       "skills-system": {
         "title": "技能：专家指令定制LIA",
         "excerpt": "导入或创建专业技能，让LIA掌握新领域 — 除文本外还包括交互式地图、迷你仪表板和图像。",
-        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>在密封罩下执行</h2><p>技能脚本运行在一个<strong>为该次调用创建、随后立即销毁的容器</strong>中：没有 Docker 套接字，<code>--network none</code>，只读根文件系统外加一小块可写 <code>tmpfs</code>，非特权身份，并丢弃全部 capability。内存、进程数、CPU 时间和写入文件大小均设上限。</p><p>这里的关键是子进程<em>继承</em>了什么。仅仅切换 uid 并不够：生产环境中服务属于 <code>docker</code> 组，而组是会被继承的——套接字仍然可达。容器从构造上消除了这种继承。而如果沙箱无法创建，脚本<strong>就完全不会运行</strong>：不存在退回到保护更弱模式的路径。</p><p>脚本源码以参数形式传入而非挂载，从而让 <code>stdin</code> 保持空闲以承载 JSON 负载——技能的输入/输出契约保持不变。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后<strong>直接安装到你的技能中</strong> — 以名称宣布、立即激活、无需手动上传。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能 — 现在是一个<strong>技能库</strong>，带预览图和声明的输出通道（文本、交互框架、图片）。导入支持文件或经服务器端校验的 <strong>https URL</strong>（同一条强化管线），所有从外部导入的技能都带有来源警告。管理员还可以定义面向所有用户的全局技能。</p><p>交互式小组件经久耐用：它们随对话一起保存，在重新加载后或另一台设备上会重新打开；无法加载的框架会显示可操作的错误状态——说明、重试、在新标签页打开——而不是一个空白矩形。</p><h2>看见一个技能产出什么</h2><p>技能的详情面板现在会展示其成果的预览 —— 月历网格、二维码、天气卡片 —— 而不是一个通用图标。这些缩略图是生成的，而非手工绘制：一个纳入版本管理的脚本为每个技能保存一幅图，采用纯几何绘制、不依赖字体，从而使各台机器上的产出完全一致。若某个技能没有对应的图，或交付的图片已与其生成器的产出不符，守护测试便会失败。</p><h2>修改技能，而不只是创建技能</h2><p>如果无法回头修改，创建技能的价值就只发挥了一半。现在 LIA 可以通过对话调整、丰富或修正你的技能。它会重新阅读完整的技能包 — 清单、脚本、参考文档 — 应用你的要求，然后整体重新生成，而不是只改动一处。这一选择并非实现细节：技能的描述、脚本与资源是共同演进的，只在一个地方打补丁会得到一个自相矛盾的技能包。</p><p>写入之前，LIA 会展示哪些内容将被替换、哪些将消失，并等待明确同意。这个确认并不依赖模型的自觉：它需要一个由技能包内容派生的令牌，而该令牌只能来自第一次拒绝。因此模型无法绕过它，你所批准的正是将要写入的内容。随包的图片则默认得以保留：聊天只能传输文本，因此由服务器从被替换的版本中复制回来。</p><h2>插件：技能与服务器同行</h2><p>技能也可以整箱到达：LIA 支持开放的 <strong>Agent Plugins</strong> 标准（agent-plugins.org）——被 ChatGPT、Cursor、GitHub Copilot 和 VS Code 采用的便携软件包格式，把技能和 MCP 服务器打包在一起。插件一步安装——zip 文件或 https 链接——走与单个技能完全相同的加固管线，安装会报告每个组件：已安装、已更新、已跳过（附原因）、已移除。卸载插件，它带来的一切随之离开。</p>"
+        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>在密封罩下执行</h2><p>技能脚本运行在一个<strong>为该次调用创建、随后立即销毁的容器</strong>中：没有 Docker 套接字，默认无网络（例外情况经由唯一的代理，见下文），只读根文件系统外加一小块可写 <code>tmpfs</code>，非特权身份，并丢弃全部 capability。内存、进程数、CPU 时间和写入文件大小均设上限。</p><p>这里的关键是子进程<em>继承</em>了什么。仅仅切换 uid 并不够：生产环境中服务属于 <code>docker</code> 组，而组是会被继承的——套接字仍然可达。容器从构造上消除了这种继承。而如果沙箱无法创建，脚本<strong>就完全不会运行</strong>：不存在退回到保护更弱模式的路径。</p><p>脚本源码以参数形式传入而非挂载，从而让 <code>stdin</code> 保持空闲以承载 JSON 负载——技能的输入/输出契约保持不变。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。 完成的技能经过验证后，会在回答下方<strong>以卡片形式提议给你</strong>——名称、描述和文件——点击「安装」才会放入你的技能，无需手动上传。模型写下的任何内容，未经这一点击都不会进入其中。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能 — 现在是一个<strong>技能库</strong>，带预览图和声明的输出通道（文本、交互框架、图片）。导入支持文件或经服务器端校验的 <strong>https URL</strong>（同一条强化管线），所有从外部导入的技能都带有来源警告。管理员还可以定义面向所有用户的全局技能。</p><p>交互式小组件经久耐用：它们随对话一起保存，在重新加载后或另一台设备上会重新打开；无法加载的框架会显示可操作的错误状态——说明、重试、在新标签页打开——而不是一个空白矩形。</p><h2>看见一个技能产出什么</h2><p>技能的详情面板现在会展示其成果的预览 —— 月历网格、二维码、天气卡片 —— 而不是一个通用图标。这些缩略图是生成的，而非手工绘制：一个纳入版本管理的脚本为每个技能保存一幅图，采用纯几何绘制、不依赖字体，从而使各台机器上的产出完全一致。若某个技能没有对应的图，或交付的图片已与其生成器的产出不符，守护测试便会失败。</p><h2>修改技能，而不只是创建技能</h2><p>如果无法回头修改，创建技能的价值就只发挥了一半。现在 LIA 可以通过对话调整、丰富或修正你的技能。它会重新阅读完整的技能包 — 清单、脚本、参考文档 — 应用你的要求，然后整体重新生成，而不是只改动一处。这一选择并非实现细节：技能的描述、脚本与资源是共同演进的，只在一个地方打补丁会得到一个自相矛盾的技能包。</p><p>没有你的同意，什么都不会写入：新版本会以卡片形式向你提议，列出将被替换、新增和删除的内容，只有你点击「安装」才会生效。这个确认并不依赖模型的自觉：工具只能提议；如果你的技能在卡片描述之后发生了变化，安装会拒绝而不是覆盖。你所批准的正是将要写入的内容。随包的图片则默认得以保留：聊天只能传输文本，因此由服务器从被替换的版本中复制回来。</p><h2>公共技能库，外来技能隔离运行</h2><p><strong>查找技能</strong>可以搜索公共技能库 <strong>skills.sh</strong>，或读取一个 GitHub 地址。安装之前你可以先阅读技能：来源、确切版本、每一个文件，以及已发布审计的结论——被判定风险过高的技能会被拒绝。分支在预览时就被固定到一个提交，每个文件都与其 git 指纹核对，安装的正是你读过的内容；「已安装」标签页会在来源变化时提醒你，并在你应用更新之前展示改动。</p><p>来自技能库、网址或插件的技能是在别处编写的，LIA 也如此对待它：它在模型读取的目录中带有标记，从不决定计划，其指令只在隔离的 runner 中运行，只能看到它自己的文件和你附加的文件——绝不接触你的邮件、日历或连接器。它的回答不显示远程图片和 HTML，它写下的任何内容都不会对你隐藏。</p><h2>能执行自身命令的技能</h2><p>许多为其他助手编写的技能需要执行命令：Python、Node 或 shell 脚本，或一个 PDF 工具。LIA 会在同一个一次性容器中、在<strong>技能文件夹的副本</strong>里执行它，并带上你消息中附加的文件；它在 <code>out/</code> 下写出的内容会作为生成文件返回给你，文档或图片只有在内容与类型相符时才保留其类型。容器基于一个专用镜像——Python、Node、命令行工具，不含 Docker 客户端，也不含应用代码——在命令声明其主机之前始终离线：声明之后，命令经由唯一的代理，只访问这些主机，并且须先获得允许。外来技能在这里永远拿不到你连接器的密钥。</p><h2>插件：技能与服务器同行</h2><p>技能也可以整箱到达：LIA 支持开放的 <strong>Agent Plugins</strong> 标准（agent-plugins.org）——被 ChatGPT、Cursor、GitHub Copilot 和 VS Code 采用的便携软件包格式，把技能和 MCP 服务器打包在一起。插件一步安装——zip 文件或 https 链接——走与单个技能完全相同的加固管线，安装会报告每个组件：已安装、已更新、已跳过（附原因）、已移除。卸载插件，它带来的一切随之离开。</p>"
       },
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",
@@ -12557,9 +12755,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>只记录事实、绝不记录原话的日志</h2><p>遵循 <strong>OWASP 日志备忘录</strong>，debug 级别以上的一行日志只携带<strong>事实</strong>——数量、长度、标识符、错误代码、URL 的主机名——绝不携带某人写下的文字，或模型关于他们写下的文字：没有搜索内容，没有兴趣，没有文件、标签或空间的名称，也没有浏览过的网页。</p><p>这条规则<strong>按值</strong>核查，而不是按字段名：一项测试会读取代码中的每一个日志调用，拒绝预览或任何由内容派生的值，无论它叫什么名字。错误信息所<strong>引用</strong>的内容——被 PostgreSQL 拒绝的值、校验的输入——会在写入日志之前被移除，数据库错误以其事实描述：代码、约束、表。服务商密钥在每个被记录的地址中都会被遮蔽。有两个限制照实说明：外部服务以未知格式返回的错误仍可能引用某个值；debug 级别（生产环境中关闭）会保留更多内容。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>登记册</strong>页面下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "608个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：608 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 608个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中：只记事实，绝不记人们的原话</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>39个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。39个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p>"
+        "title": "612个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：612 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 612个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中：只记事实，绝不记人们的原话</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>39个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。39个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：155个提示作为代码管理",
@@ -12594,7 +12792,7 @@
       "progressive-steps": {
         "title": "实时执行步骤：观看 LIA 工作过程",
         "excerpt": "LIA 在处理请求时逐步显示每个执行步骤 — 路由、规划、工具调用 — 实时呈现。",
-        "body": "<h2>透明度的实践</h2><p>当你向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，你可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。这个显示本身也是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻呼吸，整体淡入回答的第一批文字，撰写时还有光标闪烁。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖 123 个工具</h2><p>目录中的所有 <strong>123 个工具</strong>在6种语言中都有专用 i18n 键。一项测试会读取代码中声明的每个工具，只要有一个缺少对应文案，构建就会失败。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p><h2>当数据流陷入静默</h2><p>步骤展示的价值，取决于喂养它的数据流是否还活着。当手机挂起标签页时，连接会无声中断 —— 既无结束，也无报错 —— 屏幕便一直停在最后显示的那个步骤上，而回答其实早已在服务器端完成并保存。此前没有任何迹象能把这种状态与一次单纯较慢的回答区分开。现在 LIA 能识别这种静默：超过按服务器心跳节奏校准的预算后，便丢弃这条已死的连接，并自动接续仍在后台运行的那一轮。</p>"
+        "body": "<h2>透明度的实践</h2><p>当你向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，你可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。这个显示本身也是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻呼吸，整体淡入回答的第一批文字，撰写时还有光标闪烁。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖 124 个工具</h2><p>目录中的所有 <strong>124 个工具</strong>在6种语言中都有专用 i18n 键。一项测试会读取代码中声明的每个工具，只要有一个缺少对应文案，构建就会失败。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p><h2>当数据流陷入静默</h2><p>步骤展示的价值，取决于喂养它的数据流是否还活着。当手机挂起标签页时，连接会无声中断 —— 既无结束，也无报错 —— 屏幕便一直停在最后显示的那个步骤上，而回答其实早已在服务器端完成并保存。此前没有任何迹象能把这种状态与一次单纯较慢的回答区分开。现在 LIA 能识别这种静默：超过按服务器心跳节奏校准的预算后，便丢弃这条已死的连接，并自动接续仍在后台运行的那一轮。</p>"
       },
       "account-lifecycle": {
         "title": "账户生命周期：4种状态实现完整 GDPR 合规",
@@ -13378,7 +13576,9 @@
       "email_share": "通过邮件发送",
       "email_share_description": "通过邮件发送生成的文件或回答：从本人的邮箱发出，或经 LIA 的中继发送到本人地址。关闭后相关接口停止服务，不会删除任何内容。",
       "radio": "个人电台",
-      "radio_description": "按需制作的个人电台，使用本人的语言，内容来自实例收集的新闻和本人的一天。关闭后电台接口停止服务，新闻编辑部暂停；设置和已添加的网站会保留。"
+      "radio_description": "按需制作的个人电台，使用本人的语言，内容来自实例收集的新闻和本人的一天。关闭后电台接口停止服务，新闻编辑部暂停；设置和已添加的网站会保留。",
+      "skill_library": "技能库",
+      "skill_library_description": "在技能门户中搜索，从技能的 GitHub 仓库安装并更新它。关闭后技能库不可用；已安装的技能会保留并继续运行。"
     }
   },
   "showroom": {
@@ -14318,7 +14518,9 @@
       "remove_labels_tool": "已从 {{count}} 个项目移除标签",
       "run_python_tool": "已在沙盒中执行计算",
       "python_sandbox_network": "已执行访问 {{target}} 的脚本",
+      "skill_command_network": "已执行访问 {{target}} 的技能命令",
       "run_skill_script": "已执行技能「{{target}}」的脚本",
+      "run_skill_command": "已执行技能「{{target}}」的命令",
       "set_current_item": "已将「{{target}}」设为当前对话对象",
       "toggle_scheduled_action_tool": "已启用或暂停计划操作「{{target}}」",
       "create_ticket_tool": "已在工单板上创建工单「{{target}}」",
@@ -14329,7 +14531,8 @@
       "send_email_to_me_tool": "已给你发送邮件（{{target}}）",
       "proactive_notification": "已发送通知（{{kind}}）",
       "peer_image_share": "与互联用户分享了一张图片",
-      "email_share": "已向 {{count}} 位收件人发送电子邮件"
+      "email_share": "已向 {{count}} 位收件人发送电子邮件",
+      "skill_proposal_install": "已将技能「{{target}}」加入你的资料库"
     },
     "export": {
       "group_label": "导出此记录",

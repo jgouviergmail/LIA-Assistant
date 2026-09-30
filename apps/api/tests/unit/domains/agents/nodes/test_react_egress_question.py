@@ -634,3 +634,50 @@ class TestTheCallsBooks:
         first, second = [m for m in result["messages"] if isinstance(m, ToolMessage)]
         assert (first.status, second.status) == ("error", "success")
         assert set(result["registry"]) == {"contact_p-c-second"}
+
+
+class TestAnyToolMayAsk:
+    """ADR-327 lot 3: a skill's command asks the same question as the script."""
+
+    async def test_the_loop_marks_the_call_as_one_whose_question_it_settles(self) -> None:
+        from src.domains.agents.python_sandbox.egress.tool_path import question_settleable
+
+        seen: list[bool] = []
+
+        async def _probe(purpose: str) -> UnifiedToolOutput:
+            seen.append(question_settleable())
+            return UnifiedToolOutput(success=True, message="ran")
+
+        wrapper = SimpleNamespace(_original_tool=SimpleNamespace(coroutine=_probe))
+        result = await mod.invoke_with_settlement(
+            wrapper, {"purpose": "p"}, timeout=5, state={}, tool_name="probe_tool"
+        )
+
+        assert result.success is True
+        assert seen == [True]
+        assert question_settleable() is False, "the mark outlived its call"
+
+    async def test_a_command_s_question_names_the_command_not_the_script(
+        self, context: Any
+    ) -> None:
+        async def _rerun() -> Any:
+            return UnifiedToolOutput(success=True, message="ran")
+
+        record = AsyncMock(
+            return_value=RecordOutcome(allowed=True, share_turn_data=True, one_shot=False)
+        )
+        with (
+            patch(
+                f"{mod.__name__}.interrupt",
+                return_value={"action": "confirm", "share_turn_data": True},
+            ) as ask,
+            patch(f"{mod.__name__}.record_decision", record),
+            patch(f"{mod.__name__}.react_agent_hitl_interrupts_total") as interrupts,
+        ):
+            await mod.settle_egress_question(
+                _draft_info(tool_name="run_skill_command"), state={}, rerun=_rerun
+            )
+
+        payload = ask.call_args.args[0]
+        assert payload["action_requests"][0]["tool_name"] == "run_skill_command"
+        interrupts.labels.assert_called_with(tool_name="run_skill_command", decision="approve")

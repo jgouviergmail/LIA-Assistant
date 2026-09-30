@@ -14,6 +14,11 @@ vi.mock('@/hooks/useSkills', async importOriginal => {
   return { ...original, useSkills };
 });
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const { useAppConfig } = vi.hoisted(() => ({ useAppConfig: vi.fn() }));
+vi.mock('@/hooks/useAppConfig', async importOriginal => {
+  const original = await importOriginal<typeof import('@/hooks/useAppConfig')>();
+  return { ...original, useAppConfig };
+});
 
 import { SkillsSettings } from '../SkillsSettings';
 import { displayedChannels } from '../SkillDetailModal';
@@ -58,12 +63,13 @@ function hook(over: Partial<SkillsHook> = {}) {
 }
 
 function renderSkills() {
-  return renderWithProviders(
-    <SkillsSettings lng="en" />
-  );
+  return renderWithProviders(<SkillsSettings lng="en" />);
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  useAppConfig.mockReturnValue({ config: null, loading: false, error: null });
+});
 
 describe('SkillsSettings gallery', () => {
   it('opens the detail modal from a card, with provenance warning for user skills', async () => {
@@ -78,6 +84,20 @@ describe('SkillsSettings gallery', () => {
     // Undeclared channels ⇒ the "text" default chip + the undeclared note.
     expect(screen.getByText('settings.skills.gallery.channel_text')).toBeInTheDocument();
     expect(screen.getByText('settings.skills.gallery.channels_undeclared')).toBeInTheDocument();
+  });
+
+  it('a third-party skill is marked and says it runs isolated (ADR-327)', async () => {
+    useSkills.mockReturnValue(hook({ skills: [skill({ provenance: 'library', skill_id: 's1' })] }));
+    const { user } = renderSkills();
+    await user.click(screen.getByRole('button', { name: /settings\.skills\.user_section_title/ }));
+    expect(screen.getByText('settings.skills.gallery.origin_library')).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: /settings\.skills\.gallery\.open_details/ })
+    );
+    expect(screen.getByText('settings.skills.library.preview.third_party')).toBeInTheDocument();
+    expect(
+      screen.queryByText('settings.skills.gallery.provenance_warning')
+    ).not.toBeInTheDocument();
   });
 
   it('admin skills show no provenance warning and their declared channels', async () => {
@@ -148,7 +168,7 @@ describe('ImportFromUrlDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it('shows the provenance warning before importing', () => {
+  it('says, before importing, what a skill from an address may do here (ADR-327)', () => {
     renderWithProviders(
       <ImportFromUrlDialog
         open
@@ -158,7 +178,10 @@ describe('ImportFromUrlDialog', () => {
         importing={false}
       />
     );
-    expect(screen.getByText('settings.skills.gallery.provenance_warning')).toBeInTheDocument();
+    expect(screen.getByText('settings.skills.library.preview.third_party')).toBeInTheDocument();
+    expect(
+      screen.queryByText('settings.skills.gallery.provenance_warning')
+    ).not.toBeInTheDocument();
   });
 });
 

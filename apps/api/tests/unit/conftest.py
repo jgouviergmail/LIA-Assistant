@@ -210,6 +210,7 @@ _MUTED_SEAMS: tuple[tuple[str, str, str], ...] = (
 _CONVERSATION_STORES: tuple[tuple[str, str], ...] = (
     ("src.domains.document_generation.document_store", "_pending_documents"),
     ("src.domains.image_generation.image_store", "_pending_images"),
+    ("src.domains.skills.proposals", "_pending_proposals"),
 )
 
 

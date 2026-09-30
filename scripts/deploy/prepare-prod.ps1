@@ -147,7 +147,10 @@ $apiFiles = @(
     "docker-entrypoint.sh",
     "requirements.txt",
     "requirements.lock.txt",
-    "alembic.ini"
+    "alembic.ini",
+    # The skill sandbox image (ADR-327 lot 2): built on the host beside the API.
+    "Dockerfile.sandbox",
+    "requirements-sandbox.lock.txt"
 )
 
 foreach ($file in $apiFiles) {
@@ -560,6 +563,12 @@ echo "[5/7] Build des images Docker..."
 # (CLI Claude) — les overlays reproduisent EXACTEMENT le comportement
 # d'avant la separation ; un self-host generique ne les charge jamais.
 docker compose -f docker-compose.prod.yml -f docker-compose.skill-sandbox.yml -f docker-compose.devops.yml build
+# L'image du bac a sable des skills (ADR-327 lot 2) : chaque execution de
+# script, de commande ou de Python ephemere part d'elle -- sans client Docker ni
+# code applicatif. Ce n'est pas un service compose (un conteneur ponctuel fait
+# echouer `up --wait`, mesure le 2026-09-30) : elle est construite ici, sous le
+# tag que lit SKILLS_SCRIPT_SANDBOX_IMAGE.
+docker build -t lia-skill-sandbox:local -f apps/api/Dockerfile.sandbox apps/api
 
 # ---- SWAP_MARKER : bascule atomique staging -> vivant ----
 # Un bind mount est resolu vers un INODE a la creation du conteneur. `mv` est un

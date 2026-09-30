@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from scripts.install.manifest import APP_IMAGES
 from scripts.install.model import InstallMode
 from scripts.install.preflight import (
     PreflightError,
@@ -49,7 +50,7 @@ def _manifest_payload(qualification: str) -> dict:
             "reference": f"ghcr.io/example/lia/{entry['service']}@sha256:{_DIGEST}",
             "platforms": platforms,
         }
-        for entry in ({"service": "api"}, {"service": "web"}, *services)
+        for entry in (*({"service": app} for app in APP_IMAGES), *services)
     ]
     return {
         "schema_version": 1,
@@ -61,7 +62,7 @@ def _manifest_payload(qualification: str) -> dict:
         "source_context_archive_sha256": _DIGEST,
         "source_context_tree_sha256": _DIGEST,
         "images": images,
-        "sboms": {"api": _DIGEST, "web": _DIGEST},
+        "sboms": {app: _DIGEST for app in APP_IMAGES},
         "qualification": qualification,
     }
 

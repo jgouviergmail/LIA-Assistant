@@ -210,6 +210,8 @@ class TestRouterResetsTheReactTurn:
             "react_recovery_passes": [{"anchor_id": "t9", "draft": "old", "unresolved": ["A"]}],
             # ADR-275: a cut output of the previous turn would end this one at once.
             "react_output_truncated": True,
+            # ADR-327: a skill the previous turn activated would skip this turn's runner.
+            "react_activated_skills": ["skill-generator"],
         }
         state = _state(HumanMessage(content="cherche jean"))
         state.update(stale)

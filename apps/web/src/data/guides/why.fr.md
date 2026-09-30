@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 6.1
-**Date** : 2026-09-24
-**Application** : LIA v2.1.1
+**Date** : 2026-09-30
+**Application** : LIA v2.2.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -73,7 +73,7 @@ Chaque utilisateur dispose de son propre espace de paramétrage, organisé en de
 - **Centres d'intérêt** : définis tes sujets favoris, configure la fréquence de notifications, les créneaux horaires et les sources (Perplexity, Brave, Wikipedia, réflexion IA)
 - **Notifications proactives** : règle la fréquence, la fenêtre horaire et les sources de contexte (calendrier, météo, tâches, emails, intérêts, mémoires, journaux)
 - **Actions planifiées et rappels** : dis le rythme — tous les trois jours, un mardi sur deux, le 2e mardi du mois, toutes les deux heures entre 9h et 17h, jusqu'à une date ou N fois — pour une automatisation comme pour un rappel, qui peut désormais revenir au lieu de ne sonner qu'une fois. Et lis ta semaine d'un coup d'œil : chaque routine à son heure sur ses jours, chaque cellule colorée par ce qui s'est réellement passé
-- **Skills** : active/désactive des compétences expertes dans une galerie avec aperçus, crée tes propres Skills personnels, ou installes-en une depuis une URL https (validée côté serveur)
+- **Skills** : active/désactive des compétences expertes dans une galerie avec aperçus, crée tes propres Skills personnels, installes-en une depuis une URL https (validée côté serveur), ou choisis-la dans la bibliothèque publique skills.sh après l'avoir lue
 - **Espaces de connaissances** : charge tes documents (PDF, Word, Excel, PowerPoint, EPUB, HTML et 15+ formats), synchronise un dossier Google Drive ou suis un libellé Gmail — indexation automatique et recherche hybride. Les fils que tu étiquettes deviennent des documents interrogeables des semaines plus tard, et retirer le libellé retire le document. Un document que LIA ne peut pas lire — un PDF scanné sans couche texte — le dit sous sa ligne, avec le remède. Un dossier Drive se synchronise avec ses sous-dossiers, et au-delà d'un seuil le nombre exact de fichiers qui vont être indexés s'affiche avant que rien ne démarre
 - **Export de consommation** : télécharge tes données de consommation LLM et API en CSV
 
@@ -508,7 +508,7 @@ Un assistant capable d'agir est un assistant capable de se tromper. Deux règles
 
 D'abord, **rien ne touche à ton serveur sans ton accord** — et la confirmation montre tout ce qui va être envoyé, y compris les consignes que LIA s'est écrites à elle-même. Un résumé qu'on ne peut pas lire entièrement n'est pas une confirmation, c'est une formalité. Le droit est revérifié au moment où l'action démarre, pas seulement au moment où tu l'as demandée.
 
-Ensuite, **ce qui s'exécute s'exécute dans une boîte scellée**. Le code d'une skill tourne dans un conteneur créé pour cette seule exécution et détruit juste après : pas de réseau, pas d'accès à tes fichiers, pas de clés, aucun moyen d'atteindre la machine en dessous. Si cette boîte ne peut pas être construite, le script ne tourne tout simplement pas — aucun repli silencieux vers un mode plus faible. On installe une skill pour ce qu'elle produit, pas pour la confiance qu'il faudrait accorder à son auteur.
+Ensuite, **ce qui s'exécute s'exécute dans une boîte scellée**. Le code d'une skill tourne dans un conteneur créé pour cette seule exécution et détruit juste après : pas de réseau hors des hôtes autorisés, pas d'accès à tes fichiers, pas de clés, aucun moyen d'atteindre la machine en dessous. Si cette boîte ne peut pas être construite, le script ne tourne tout simplement pas — aucun repli silencieux vers un mode plus faible. On installe une skill pour ce qu'elle produit, pas pour la confiance qu'il faudrait accorder à son auteur.
 
 ---
 
@@ -562,7 +562,7 @@ Si un fournisseur change ses tarifs ou dégrade son service, tu bascules instant
 
 ### 10.2. Extensibilité
 
-Chaque utilisateur peut connecter ses propres serveurs MCP, étendant les capacités de LIA bien au-delà des outils intégrés. Le client parle les deux générations du protocole — la nouvelle révision sans état comme l'ancien handshake, choisis automatiquement par serveur — si bien que l'ouverture ne coûte jamais la compatibilité. Les Skills (standard agentskills.io) permettent d'injecter des instructions expertes en langage naturel — avec un générateur de Skills intégré qui les crée en dialogue guidé et les installe directement dans tes skills, prêtes à l'emploi. Un Skill peut également retourner une **frame HTML interactive** (carte, dashboard, calendrier, convertisseur...) ou une **image** (QR code, graphique) directement dans le chat, sandboxée sous CSP stricte, avec thème et langue synchronisés automatiquement.
+Chaque utilisateur peut connecter ses propres serveurs MCP, étendant les capacités de LIA bien au-delà des outils intégrés. Le client parle les deux générations du protocole — la nouvelle révision sans état comme l'ancien handshake, choisis automatiquement par serveur — si bien que l'ouverture ne coûte jamais la compatibilité. Les Skills (standard agentskills.io) permettent d'injecter des instructions expertes en langage naturel — avec un générateur de Skills intégré qui les crée en dialogue guidé et te les propose sur une carte, qu'un clic installe — et une bibliothèque publique, skills.sh, où tu lis une skill fichier par fichier avant de l'installer. Une skill écrite ailleurs travaille à part, sans jamais toucher à tes connecteurs, et une skill peut exécuter ses propres commandes dans un conteneur jetable pour te rendre des fichiers. Un Skill peut également retourner une **frame HTML interactive** (carte, dashboard, calendrier, convertisseur...) ou une **image** (QR code, graphique) directement dans le chat, sandboxée sous CSP stricte, avec thème et langue synchronisés automatiquement.
 
 Cette ouverture a un format de paquet : LIA parle le standard ouvert **Agent Plugins** (agent-plugins.org), le format de plugin portable piloté par AWS, Microsoft, OpenAI, Cursor et Vercel et adopté par ChatGPT, Codex, Cursor, GitHub Copilot, Kiro et VS Code. Un plugin regroupant skills et serveurs MCP s'installe dans LIA en une étape — depuis un zip ou un lien https — avec un rapport complet par composant de ce qui a été installé, ignoré (et pourquoi) ou retiré, et se désinstalle tout aussi proprement, tout ce qu'il avait apporté repartant avec lui. L'interopérabilité est ici une conviction, pas une fonctionnalité : ce que tu construis ou adoptes ailleurs dans l'écosystème t'appartient et te suit.
 

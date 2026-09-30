@@ -102,6 +102,7 @@ OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une c
 | `gpt-6-astra` | 1,05M (922K en entrée) | 128K | **Reasoning** (`low`→`max`, pas de `none`) | Voir le seed de référence |
 | `gpt-6-sol` | 1,05M (922K en entrée) | 128K | **Reasoning** (`none`→`max`) | Voir le seed de référence |
 | `gpt-6-luna` | 1,05M (922K en entrée) | 128K | **Reasoning** (`none`→`max`) | Voir le seed de référence |
+| `gpt-6.1-sol` | 1,05M (922K en entrée) | 128K | **Reasoning** (`low`→`max`, pas de `none` : 400 mesuré) | Voir le seed de référence |
 | `o4-mini` | 200K | 100K | **Reasoning** | $1.10 / $4.40 |
 | `o3` | 200K | 100K | **Reasoning** | $2.00 / $8.00 |
 | `o3-mini` | 200K | 100K | **Reasoning** | $1.10 / $4.40 |
@@ -115,14 +116,14 @@ OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une c
 
 **GPT-6** : passe par l'API Responses (`is_responses_api_eligible`) — en Chat Completions, l'appel de fonctions n'est accepté qu'avec `reasoning_effort=none`. Une règle de facturation d'OpenAI que LIA n'exprime pas, et qui rend la facture réelle PLUS élevée : au-delà de 272K jetons d'entrée, la requête entière est facturée 2× en entrée et en cache, 1,5× en sortie. La fenêtre d'un poste peut être ramenée à 272K (ADR-278) pour rester dans la tarification courte.
 
-**Cache de prompt de GPT-5.6 et GPT-6** (ADR-306) : ces deux générations mettent en cache par point d'arrêt et facturent une écriture 1,25× l'entrée — le `cache_write_multiplier` de tout tarif OpenAI ; les modèles antérieurs ne signalent aucune écriture et n'en facturent pas (mesuré sur douze d'entre eux). Le point d'arrêt qu'OpenAI place par défaut, à la fin du dernier message éligible, couvrait le contexte du tour : chaque appel réécrivait tout son prompt et n'en relisait rien. `providers/openai_payload.py` pose donc un point d'arrêt à la fin du préfixe statique (marqueur `DYNAMIC CONTEXT`) et garde le mode implicite, dont les boucles d'outils ont besoin — mesuré : 2 832 jetons relus à 0,1× au lieu de 2 873 réécrits à 1,25×. Seules les familles déclarées (`gpt-6`, `gpt-5.6`) le reçoivent : les modèles antérieurs refusent ce champ (400).
+**Cache de prompt de GPT-5.6 et GPT-6** (ADR-306) : ces deux générations mettent en cache par point d'arrêt et facturent une écriture 1,25× l'entrée — le `cache_write_multiplier` de tout tarif OpenAI ; les modèles antérieurs ne signalent aucune écriture et n'en facturent pas (mesuré sur douze d'entre eux). Le point d'arrêt qu'OpenAI place par défaut, à la fin du dernier message éligible, couvrait le contexte du tour : chaque appel réécrivait tout son prompt et n'en relisait rien. `providers/openai_payload.py` pose donc un point d'arrêt à la fin du préfixe statique (marqueur `DYNAMIC CONTEXT`) et garde le mode implicite, dont les boucles d'outils ont besoin — mesuré : 2 832 jetons relus à 0,1× au lieu de 2 873 réécrits à 1,25×. Seules les familles déclarées (`gpt-6`, `gpt-6.1`, `gpt-5.6`) le reçoivent : les modèles antérieurs refusent ce champ (400). `gpt-6.1` est une famille à part, mesurée le 2026-09-30 sur `gpt-6.1-sol` (1 454 jetons écrits au point d'arrêt, relus en entier à l'appel suivant) : un nom n'appartient à une famille que s'il la prolonge d'un tiret.
 
 ### Anthropic
 
 Modèles du catalogue (`llm_models`, tarifs dans `llm_model_pricing` : seed de
-référence + migration `c3e7a1f5d9b2` pour les instances déjà en place) :
-`claude-fable-5-1`, `claude-fable-5`, `claude-opus-5-5`, `claude-opus-5`,
-`claude-sonnet-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`,
+référence + migrations `c3e7a1f5d9b2` et `fc0147eeb095` pour les instances déjà en
+place) : `claude-fable-5-1`, `claude-fable-5`, `claude-opus-5-5`, `claude-opus-5`,
+`claude-sonnet-5-5`, `claude-sonnet-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`,
 `claude-sonnet-4-6`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5` — plus
 les deux `claude-3-5-*`, retirés par l'éditeur et encore actifs au catalogue (leur
 retrait passe par le flux d'ADR-244). Fenêtres, plafonds de sortie et prix vivent
@@ -132,7 +133,8 @@ pas.
 **Notes Anthropic** (ADR-306) :
 - **Ce que chaque génération accepte est déclaré UNE fois**, mesuré sur l'API :
   `core/claude_surface.py` — forme de la réflexion (aucune, budget, adaptative,
-  adaptative à la demande avec `display`, active par défaut, toujours active), profondeur
+  adaptative à la demande avec `display`, active par défaut, active sauf `between_tools`,
+  toujours active), profondeur
   appliquée quand aucun niveau n'est choisi, échantillonnage accepté ou refusé,
   `tool_choice` forcé accepté ou refusé, blocs de réflexion liés à leur conversation.
   L'adaptateur (`providers/anthropic_kwargs.py`), les profils de raisonnement, la sortie
@@ -143,7 +145,11 @@ pas.
   réflexion.
 - **Réflexion** : par le niveau de raisonnement du poste (ADR-245), jamais par
   `PROVIDER_CONFIG`. Elle ne se désactive pas sur Fable 5, Fable 5.1 et Opus 5.5 ; elle
-  est active quand aucun niveau n'est choisi sur Opus 5 et Sonnet 5. Ses jetons sont
+  est active quand aucun niveau n'est choisi sur Opus 5, Sonnet 5 et Sonnet 5.5. Sonnet
+  5.5 refuse `disabled` : son niveau `none` est rendu `thinking: {type: "between_tools"}`,
+  qui coupe la seule réflexion en amont (les notes entre deux appels d'outils restent),
+  sans effort ni `block_binding` (deux 400 à côté de cette forme ; lu dans la
+  documentation de l'éditeur, non mesuré faute de crédit). Ses jetons sont
   comptés dans `max_tokens` : le garde de budget refuse un poste dont le plafond ne
   laisse pas de place à la réponse, profondeur implicite comprise.
 - **Cache de prompt** : une politique unique (`providers/anthropic_payload.py`) — le

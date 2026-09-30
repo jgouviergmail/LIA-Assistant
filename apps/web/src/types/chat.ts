@@ -2,6 +2,7 @@
  * Chat types for LIA AI Assistant
  */
 
+import type { SkillProposalCard } from '@/lib/skill-proposals/types';
 import type { PerformedEffect } from '@/types/performed-effects';
 import type { ExecutionTrace } from './execution-trace';
 
@@ -93,6 +94,8 @@ export interface Message {
   generatedImages?: GeneratedImage[];
   // AI-generated documents (only for assistant messages with document generation)
   generatedDocuments?: GeneratedDocument[];
+  // Skills the chat wrote, waiting for the person's click (ADR-327)
+  skillProposals?: SkillProposalCard[];
   // Browser screenshot card (only for assistant messages with browser automation)
   browserScreenshot?: { url: string; alt: string };
   // Voice input metadata (only for user messages)
@@ -216,6 +219,8 @@ export interface DoneMetadata {
   generated_images?: GeneratedImage[];
   // AI-generated documents (ADR-226)
   generated_documents?: GeneratedDocument[];
+  // Skills proposed in the chat (ADR-327)
+  skill_proposals?: SkillProposalCard[];
   // Browser screenshot card
   browser_screenshot?: { url: string; alt: string };
   /** Expressivity (ADR-253): the register the answering model declared

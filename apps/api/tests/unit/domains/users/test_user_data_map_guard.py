@@ -17,13 +17,12 @@ import pytest
 
 from src.domains.users.account_deletion_service import build_purge_statements
 from src.domains.users.models import User
+from src.domains.users.user_column_map import USER_COLUMNS, UserColumnClass
 from src.domains.users.user_data_map import (
     EXTERNAL_TABLES,
     TABLE_RULES,
-    USER_COLUMNS,
     ExportPolicy,
     TableDataClass,
-    UserColumnClass,
 )
 from src.infrastructure.database.registry import import_all_models
 from src.infrastructure.database.session import Base
@@ -134,7 +133,7 @@ class TestUserColumnClassificationCompleteness:
         unclassified = columns - set(USER_COLUMNS)
         assert not unclassified, (
             f"Unclassified users columns {sorted(unclassified)}: decide "
-            "scrubbed/retained in user_data_map.USER_COLUMNS."
+            "scrubbed/retained in user_column_map.USER_COLUMNS."
         )
 
     def test_no_stale_user_column_entries(self) -> None:

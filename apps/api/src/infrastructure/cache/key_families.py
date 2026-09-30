@@ -51,6 +51,11 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "chat:listeners": KeyScope.CONVERSATION,
     "chat:cancel": KeyScope.CONVERSATION,
     "browser:session": KeyScope.CONVERSATION,
+    # A skill written in the chat, waiting for the card's click, and the
+    # account's index of them (ADR-327): a question the conversation asked —
+    # the reset that removes the card forgets it too.
+    "skill_proposal": KeyScope.CONVERSATION,
+    "skill_proposals": KeyScope.CONVERSATION,
     # --- per-user caches: purged by a reset ------------------------------
     "contacts_list": KeyScope.USER_CACHE,
     "contacts_search": KeyScope.USER_CACHE,
@@ -145,11 +150,16 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "radio": KeyScope.USER_RUNTIME,
     "channel_rate": KeyScope.USER_RUNTIME,
     "mcp_oauth_state": KeyScope.USER_RUNTIME,
+    # The one install of a skill proposal in flight (ADR-327): an owner-token
+    # claim — a reset must never free it under the install that holds it.
+    "skill_proposal_claim": KeyScope.USER_RUNTIME,
     # --- global ---------------------------------------------------------------
     "elevenlabs:tts_slots": KeyScope.GLOBAL,
     "llm_cache": KeyScope.GLOBAL,
     "web_search": KeyScope.GLOBAL,
     "web_fetch": KeyScope.GLOBAL,
+    # Public portal answers and repository listings, shared by every account (ADR-327).
+    "skill_library": KeyScope.GLOBAL,
     "push:debounce": KeyScope.GLOBAL,
     "scheduler": KeyScope.GLOBAL,
     "scheduler_lock": KeyScope.GLOBAL,

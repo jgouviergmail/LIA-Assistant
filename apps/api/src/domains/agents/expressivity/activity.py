@@ -160,16 +160,25 @@ def emit_activity(activity: Activity) -> None:
         return
 
 
-def _start(tool_name: str, policy: str | None) -> Activity:
+def _start(tool_name: str, policy: str | None) -> Activity | None:
+    """The activity a call starts, or None where no run can file it.
+
+    A tool called under no effect scope and no capture — the response node's
+    skill runner publishes none — has no run id, and the model refuses an
+    empty one: that was a warning per call (four per turn on dev, 2026-09-30)
+    for a decoration nobody could draw. No run, no activity.
+    """
     scope = current_scope()
+    capture = _CAPTURE.get()
+    run_id = scope.run_id if scope else capture[0] if capture else ""
+    if not run_id:
+        return None
     manifest = resolve_tool_manifest(tool_name)
     intent: Literal["read", "prepare", "act"] = "read"
     if policy == "draft":
         intent = "prepare"
     elif policy in {"confirm", "reversible", "artefact"}:
         intent = "act"
-    capture = _CAPTURE.get()
-    run_id = scope.run_id if scope else capture[0] if capture else ""
     return Activity(
         run_id=run_id,
         invocation_id=uuid4().hex,

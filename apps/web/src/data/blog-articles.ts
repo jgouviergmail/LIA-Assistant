@@ -117,8 +117,8 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'integrations',
     icon: 'Wand2',
     date: '2026-03-04',
-    readTime: 4,
-    tags: ['skills', 'skill-generator', 'customization', 'agentskills'],
+    readTime: 6,
+    tags: ['skills', 'skill-generator', 'skill-library', 'customization', 'agentskills'],
   },
 
   // --- Features ---

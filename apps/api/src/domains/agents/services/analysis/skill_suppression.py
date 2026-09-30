@@ -126,7 +126,7 @@ def _retained(name: str, domains: list[str], intent: str, user_id: str) -> str:
     return name
 
 
-def _is_dialogue_skill(skill_name: str | None) -> bool:
+def _is_dialogue_skill(skill_name: str | None, user_id: str | None) -> bool:
     """Return True when ``skill_name`` declares the ``dialogue: true`` extension.
 
     Dialogue skills (ADR-118, e.g. skill-generator) run a multi-turn process:
@@ -137,6 +137,9 @@ def _is_dialogue_skill(skill_name: str | None) -> bool:
 
     Args:
         skill_name: Skill name detected by the analyzer LLM (may be None).
+        user_id: Whose skill the name resolves to — their own, else the
+            system one (ADR-327: a name is unique per account); None reads
+            system skills only.
 
     Returns:
         True only when the skill exists in the cache and opts into dialogue.
@@ -145,7 +148,7 @@ def _is_dialogue_skill(skill_name: str | None) -> bool:
         return False
     from src.domains.skills.cache import SkillsCache
 
-    skill = SkillsCache.get_by_name(skill_name)
+    skill = SkillsCache.get_by_name_for_user(skill_name, user_id)
     return bool(skill and skill.get("dialogue"))
 
 
@@ -221,7 +224,7 @@ def effective_skill_name(
         return None
 
     if domains and is_mcp_domain(domains[0]):
-        if not (intent == "conversation" and _is_dialogue_skill(name)):
+        if not (intent == "conversation" and _is_dialogue_skill(name, user_id)):
             logger.info(
                 "skill_detection_suppressed_mcp_domain",
                 skill_name=name,

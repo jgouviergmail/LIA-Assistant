@@ -557,10 +557,6 @@ jobs:
           context: ./apps/api
           file: ./apps/api/Dockerfile.prod
           push: false
-          # Loaded under the compose default tag so the step below can START it:
-          # the sandbox promise (ADR-298) is only proven on the image a run uses.
-          load: true
-          tags: lia-api:local
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -570,11 +566,25 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Every library `<Computation>` promises imports inside the built image,
-      # offline (`--network none`, the sandbox's own footing). The unit test
-      # proves it on the lockfile; a slimmed stage or a missing system library
-      # is only visible here.
-      - name: Sandbox libraries import in the built image
+      # ADR-327 lot 2: every sandbox run starts from its OWN image. Loaded
+      # under the tag the compose files read, so the step below can start it.
+      - name: Build skill sandbox image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./apps/api
+          file: ./apps/api/Dockerfile.sandbox
+          push: false
+          load: true
+          tags: lia-skill-sandbox:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The image a sandbox run starts from, started as a run starts it (no
+      # network, uid 65534, read-only): every promised library imports, every
+      # declared command is there, and neither the Docker client nor the
+      # application's code is. The unit tests hold the declaration to the
+      # build inputs; only the image proves a run.
+      - name: Sandbox image holds its promise
         run: task sandbox:libraries:check
 
       - name: Build Web image

@@ -99,6 +99,7 @@ class ReactTurnReset(TypedDict):
     react_productive_iterations: int
     react_call_digests: dict[str, int]
     react_scripts: list[dict[str, Any]]
+    react_activated_skills: list[str]
     react_recovery_passes: list[dict[str, Any]]
     react_output_truncated: bool
 
@@ -131,6 +132,9 @@ def react_turn_reset() -> ReactTurnReset:
         react_productive_iterations=0,
         # ADR-170: the repetition brake forgets what the previous turn called.
         react_call_digests={},
+        # ADR-327: the skills the loop activated this turn — read by the response
+        # node, which must not run the runner for what the loop already ran.
+        react_activated_skills=[],
         # ADR-249: what the sandbox ran this turn, for the admin debug panel.
         # Appended to per turn and read back from the checkpoint — the thread is
         # the conversation, so without this line one turn's panel showed the

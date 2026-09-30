@@ -16,7 +16,8 @@ Two steps, deliberately apart:
 from __future__ import annotations
 
 import secrets as random_secrets
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -33,7 +34,11 @@ from src.core.constants import (
     PYTHON_SANDBOX_EGRESS_TOKEN_ENV_PREFIX,
     PYTHON_SANDBOX_EGRESS_TOKEN_PREFIX,
 )
-from src.domains.agents.effects.in_turn_effects import SANDBOX_NETWORK_CAPABILITY, in_turn_effect
+from src.domains.agents.effects.in_turn_effects import (
+    SANDBOX_NETWORK_CAPABILITY,
+    InTurnEffect,
+    in_turn_effect,
+)
 from src.domains.agents.python_sandbox.egress.connectors import (
     ConnectorGate,
     active_connector_hosts,
@@ -94,7 +99,12 @@ def mint_token() -> str:
 
 
 async def decide_hosts(
-    hosts: tuple[str, ...], *, user_id: UUID, gate: ConnectorGate, grants: Mapping[str, bool]
+    hosts: tuple[str, ...],
+    *,
+    user_id: UUID,
+    gate: ConnectorGate,
+    grants: Mapping[str, bool],
+    with_connectors: bool = True,
 ) -> HostDecision:
     """Classify the declared hosts for this account.
 
@@ -103,13 +113,18 @@ async def decide_hosts(
         user_id: The account.
         gate: The tool's connector service.
         grants: ``{host: share_turn_data}`` — the person's past decisions.
+        with_connectors: Whether the person's connector hosts are permitted
+            with their tokens. False for a skill written elsewhere (ADR-327):
+            it never reaches the person's connectors, so such a host is only
+            reachable as the operator's or the person's grant, and no token
+            travels.
 
     Returns:
         The decision, ``unknown`` naming what nobody permitted.
     """
     return classify_hosts(
         hosts,
-        connectors=await active_connector_hosts(gate, user_id),
+        connectors=await active_connector_hosts(gate, user_id) if with_connectors else {},
         operator_hosts={h.lower() for h in get_settings().python_sandbox_egress_hosts},
         grants=grants,
     )
@@ -172,6 +187,38 @@ def _credential(spec: ConnectorHost, token: str, run_id: str) -> RunCredential:
     )
 
 
+@asynccontextmanager
+async def serving(plan: NetworkRunPlan, *, capability: str) -> AsyncIterator[InTurnEffect]:
+    """Claim the network act, publish the run to the proxy, and hold both open.
+
+    Whatever runs inside reaches exactly the plan's hosts; the effect closes
+    from what the caller sets on it, and the proxy forgets the run on exit.
+
+    Args:
+        plan: The decided run.
+        capability: What the register records it as — a script's run or a
+            skill's command.
+
+    Yields:
+        The claimed effect; the caller sets ``succeeded``.
+
+    Raises:
+        EgressProxyUnavailable: When the proxy could not serve the run — the
+            effect closes as a failure and nothing runs.
+    """
+    arguments = {
+        "hosts": list(plan.run.hosts),
+        "turn_data_shared": plan.share_turn_data,
+        "authorizations": {host: status.value for host, status in plan.statuses.items()},
+    }
+    async with in_turn_effect(
+        tool_name=capability, policy=NETWORK_RUN_POLICY, arguments=arguments
+    ) as effect:
+        publisher = await deployment_publisher()
+        async with publisher.serve(plan.run, plan.secrets):
+            yield effect
+
+
 async def execute_network_run(
     plan: NetworkRunPlan, *, source: str, payload: dict[str, Any], user_id: UUID
 ) -> ScriptResult:
@@ -192,24 +239,15 @@ async def execute_network_run(
             effect closes as a failure.
     """
     settings = get_settings()
-    arguments = {
-        "hosts": list(plan.run.hosts),
-        "turn_data_shared": plan.share_turn_data,
-        "authorizations": {host: status.value for host, status in plan.statuses.items()},
-    }
-    async with in_turn_effect(
-        tool_name=SANDBOX_NETWORK_CAPABILITY, policy=NETWORK_RUN_POLICY, arguments=arguments
-    ) as effect:
-        publisher = await deployment_publisher()
-        async with publisher.serve(plan.run, plan.secrets):
-            result = await SkillScriptExecutor.execute_source(
-                source=source,
-                payload=payload,
-                label="ephemeral",
-                timeout_seconds=settings.python_sandbox_network_timeout_seconds,
-                user_id=str(user_id),
-                egress=plan.spec,
-            )
+    async with serving(plan, capability=SANDBOX_NETWORK_CAPABILITY) as effect:
+        result = await SkillScriptExecutor.execute_source(
+            source=source,
+            payload=payload,
+            label="ephemeral",
+            timeout_seconds=settings.python_sandbox_network_timeout_seconds,
+            user_id=str(user_id),
+            egress=plan.spec,
+        )
         effect.succeeded = bool(result.success)
     return result
 
@@ -221,5 +259,6 @@ __all__ = [
     "execute_network_run",
     "mint_token",
     "plan_network_run",
+    "serving",
     "token_env_name",
 ]

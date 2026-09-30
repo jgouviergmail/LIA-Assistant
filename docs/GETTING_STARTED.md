@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v2.1.1
+**Compatibility**: LIA v2.2.0
 
 ## Table of Contents
 
@@ -1008,9 +1008,20 @@ SKILLS_ENABLED=true
 SKILLS_MAX_PER_USER=20
 SKILLS_SCRIPTS_ENABLED=true
 SKILLS_SCRIPT_TIMEOUT_SECONDS=30
+SKILLS_SCRIPT_SANDBOX_IMAGE=lia-skill-sandbox:local   # ADR-327: every sandbox run starts from Dockerfile.sandbox
+SKILL_COMMAND_NETWORK_ENABLED=true                    # a skill's command may reach the hosts it declares (egress proxy)
+
+SKILL_LIBRARY_ENABLED=true                            # « Find skills »: search skills.sh, install from GitHub at a commit
+SKILL_LIBRARY_AUDIT_BLOCK_LEVEL=high                  # refuse an install at and above this published audit level
+SKILL_LIBRARY_GITHUB_TOKEN=                           # optional, no scope: lifts GitHub's 60 anonymous requests/hour
 ```
 
-See [SUB_AGENTS.md](./technical/SUB_AGENTS.md).
+The sandbox image is built by the dev tasks (`task dev` runs `task sandbox:image:build`), by the host
+deployment script and by the installer's local mode; `task sandbox:libraries:check` runs every command
+it promises. A skill installed from the library, an address or a plugin is **third-party**: it runs in
+the isolated runner and never reaches a connector (ADR-327).
+
+See [SUB_AGENTS.md](./technical/SUB_AGENTS.md) and [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md).
 
 ### ReAct Mode & Browser Control
 

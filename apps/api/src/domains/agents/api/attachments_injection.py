@@ -32,6 +32,7 @@ async def inject_attachments_into_state(
     stores lightweight metadata for response_node late resolution. Extracted
     from the streaming orchestrator (F011/F015 hotspot budget).
     """
+    from src.core.context import SkillTurnFile, record_skill_turn_files
     from src.domains.attachments.llm_content import build_attachment_hint
     from src.domains.attachments.service import AttachmentService
 
@@ -75,6 +76,18 @@ async def inject_attachments_into_state(
         }
         for a in attachments
     ]
+    # A skill command carries them into its sandbox (ADR-327 lot 2).
+    record_skill_turn_files(
+        [
+            SkillTurnFile(
+                attachment_id=str(a.id),
+                filename=a.original_filename,
+                file_path=a.file_path,
+                size=a.file_size,
+            )
+            for a in attachments
+        ]
+    )
 
     logger.info(
         "attachments_injected_into_state",

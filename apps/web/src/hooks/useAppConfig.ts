@@ -70,6 +70,9 @@ export interface AppConfig {
     // Personal radio (ADR-324) — the deployment ceiling of the player, the radio
     // page and its settings; the effective state is `capabilities.radio`.
     radio_enabled?: boolean;
+    // Skill library (ADR-327) — the deployment ceiling of « Find skills »; the
+    // effective state is `capabilities.skill_library` (with `capabilities.skills`).
+    skill_library_enabled?: boolean;
   };
   // Every capability of the registry with its EFFECTIVE state (deployment
   // ceiling AND operator switch), keyed like `capabilities.items.<key>`.

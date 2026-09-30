@@ -523,6 +523,12 @@ graph TB
 | **Credit Card** | MASK | `"4532 1234 5678 9010"` | `"****-****-****-9010"` | PCI-DSS compliance |
 | **User ID (UUID)** | KEEP | `"123e4567-e89b..."` | `"123e4567-e89b..."` | Non-PII, safe |
 
+Le hash d'un e-mail n'est pas salé : quiconque connaît l'adresse le recalcule.
+Il ne sert donc qu'à corréler ce qui n'a pas d'identifiant (une connexion
+refusée pour une adresse inconnue). Un événement de compte se journalise par
+son `user_id` et jamais par son e-mail, effacement compris (ADR-317 ;
+garde `tests/unit/domains/users/test_account_logs_carry_no_email_guard.py`).
+
 ### 3. Pseudonymization (SHA-256)
 
 ```python

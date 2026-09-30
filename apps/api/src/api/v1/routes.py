@@ -238,13 +238,19 @@ if getattr(settings, "radio_enabled", False):
 
     api_router.include_router(radio_router)
 if getattr(settings, "skills_enabled", False):
+    from src.domains.skills.proposal_router import router as skill_proposals_router
     from src.domains.skills.router import router as skills_router
 
     api_router.include_router(skills_router)
-# The hosts a person allowed a sandbox script to reach (ADR-298): the RECORD
-# of the network act. Mounted with the sandbox itself, not with the egress
-# switch — a grant stays visible and revocable while the act is off (ADR-280).
-if getattr(settings, "python_sandbox_tool_enabled", False):
+    # A skill written in the chat, installed from its card (ADR-327).
+    api_router.include_router(skill_proposals_router)
+# The hosts a person allowed a sandbox script or a skill's command to reach
+# (ADR-298, ADR-327 lot 3): the RECORD of the network act. Mounted with either
+# act, not with the egress switch — a grant stays visible and revocable while
+# the act is off (ADR-280).
+if getattr(settings, "python_sandbox_tool_enabled", False) or getattr(
+    settings, "skills_enabled", False
+):
     from src.domains.agents.python_sandbox.egress.router import router as egress_grants_router
 
     api_router.include_router(egress_grants_router)
@@ -254,6 +260,12 @@ if getattr(settings, "plugins_enabled", False) and getattr(settings, "skills_ena
     from src.domains.plugins.router import router as plugins_router
 
     api_router.include_router(plugins_router)
+# The skill library (ADR-327): skills found on a portal, installed from their
+# repository through the skills domain's own import — skills must be on too.
+if getattr(settings, "skill_library_enabled", False) and getattr(settings, "skills_enabled", False):
+    from src.domains.skill_library.router import router as skill_library_router
+
+    api_router.include_router(skill_library_router)
 if getattr(settings, "rag_spaces_enabled", False):
     from src.domains.rag_spaces.router import router as rag_spaces_router
 
@@ -450,6 +462,9 @@ async def get_client_config() -> dict:
             # Personal radio (ADR-324): the deployment ceiling of the player, the
             # radio page and its settings (the effective state is in `capabilities`).
             "radio_enabled": getattr(settings, "radio_enabled", False),
+            # Skill library (ADR-327): the deployment ceiling of « Find skills »
+            # in the skills section (the effective state is in `capabilities`).
+            "skill_library_enabled": getattr(settings, "skill_library_enabled", False),
         },
         # Every capability of the registry with its EFFECTIVE state (ceiling
         # AND operator switch): what a visitor will find on this instance.

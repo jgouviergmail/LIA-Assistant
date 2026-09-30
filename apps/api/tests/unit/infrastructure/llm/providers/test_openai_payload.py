@@ -32,6 +32,9 @@ ACCEPTS_A_BREAKPOINT = (
     "gpt-5.6-sol",
     "gpt-5.6-terra",
     "gpt-5.6-luna",
+    # Measured 2026-09-30 on a 1,454-token static prefix: written at the
+    # breakpoint by the first call, read back whole by the second.
+    "gpt-6.1-sol",
 )
 
 #: Measured the same day: each answers 400 « prompt_cache_breakpoint is not
@@ -174,6 +177,12 @@ class TestOnlyTheGenerationThatAcceptsIt:
         }
 
         assert offered == set(ACCEPTS_A_BREAKPOINT)
+
+    def test_a_point_release_is_a_family_of_its_own(self) -> None:
+        """``gpt-6.1-sol`` does not continue ``gpt-6`` with a dash: it is
+        declared on its own measurement, never inherited by a shared prefix."""
+        assert supports_cache_breakpoints("gpt-6.1-sol")
+        assert not supports_cache_breakpoints("gpt-6.2-sol")
 
     def test_a_dated_snapshot_belongs_to_its_generation(self) -> None:
         assert supports_cache_breakpoints("gpt-6-luna-2026-08-15")

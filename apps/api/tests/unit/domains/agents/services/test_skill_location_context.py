@@ -159,12 +159,16 @@ class TestPromptContract:
     def test_prompt_formats_with_exactly_the_wired_variables(self) -> None:
         """Mirrors the prompt_vars built in response_node's runner branch —
         a variable added on either side without the other breaks here."""
+        from src.domains.skills.sandbox_toolbox import render_toolbox
+
         template = load_prompt("skill_react_agent_prompt")
         formatted = template.format(
             current_datetime="2026-07-21 18:00",
             skills_catalog="<available_skills/>",
             user_language="fr",
             user_location="48.61030,2.47481",
+            sandbox_toolbox=render_toolbox(),
+            command_network="There is no network.",
         )
         assert "UserLocation: 48.61030,2.47481" in formatted
 

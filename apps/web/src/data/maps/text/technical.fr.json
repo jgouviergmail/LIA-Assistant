@@ -212,7 +212,7 @@
     },
     "t.skills": {
       "name": "Compétences et plugins",
-      "role": "Installer, activer et exécuter des compétences portables ; un plugin apporte compétences et serveurs MCP en un geste.",
+      "role": "Installer, activer et exécuter des compétences portables — tirées d'une bibliothèque publique à un commit exact, ou proposées par le chat — et leurs commandes dans une copie jetable de leur dossier ; une compétence tierce tourne dans un runner isolé, un plugin apporte compétences et serveurs MCP en un geste.",
       "stack": ["Agent Skills", "Agent Plugins"]
     },
     "t.sandbox": {

@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 80 cards in
+ * Single source of truth for the "/more" small-attentions page: 83 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (79 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (83 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -48,6 +48,7 @@ import {
   KeyRound,
   LayoutGrid,
   LayoutTemplate,
+  Library,
   LibraryBig,
   LifeBuoy,
   Link2,
@@ -60,6 +61,7 @@ import {
   MessageSquarePlus,
   Metronome,
   MonitorSmartphone,
+  PackageCheck,
   PhoneIncoming,
   NotebookPen,
   Orbit,
@@ -139,6 +141,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'keep_answer',
       'draft_sequence',
       'network_question',
+      'skill_proposal',
       'backstage',
     ],
   },
@@ -180,6 +183,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'relation_debrief',
       'pinned_dock',
       'network_grants',
+      'skill_library',
     ],
   },
   {
@@ -262,6 +266,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   keep_answer: Bookmark,
   draft_sequence: ListOrdered,
   network_question: Globe,
+  skill_proposal: PackageCheck,
   backstage: Drama,
   actionable_errors: AlertTriangle,
   retry_turn: RotateCcw,
@@ -284,6 +289,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   relation_sections: PanelsTopLeft,
   pinned_dock: Pin,
   network_grants: KeyRound,
+  skill_library: Library,
   relation_debrief: NotebookPen,
   briefing_custom: LayoutGrid,
   card_actions: Zap,
@@ -351,6 +357,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   keep_answer: ['kept', 'gone'],
   draft_sequence: ['summary', 'first', 'second', 'report'],
   network_question: ['host', 'question', 'with_data', 'without_data', 'refuse', 'resumed'],
+  skill_proposal: ['name', 'install', 'installed'],
   backstage: [],
   actionable_errors: ['cause', 'action'],
   retry_turn: [],
@@ -373,6 +380,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   relation_sections: ['section'],
   pinned_dock: [],
   network_grants: ['reachable', 'connector', 'grant', 'scope', 'revoke', 'revoked'],
+  skill_library: ['query', 'result', 'audit', 'installed'],
   relation_debrief: ['open', 'next'],
   briefing_custom: [],
   week_grid: [],

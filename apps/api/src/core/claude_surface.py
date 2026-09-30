@@ -9,11 +9,15 @@ requests for the rest):
   refused from Opus 4.7 on (« `temperature` is deprecated for this model »);
 * **forced tool choice** — ``tool_choice`` ``any``/``tool`` is refused by the
   generations that bind their thinking to the conversation, and only by them;
-* **thinking** — six shapes: none (the retired 3.5 models), a token budget (the
-  4.5 generation, where ``adaptive`` and ``effort`` are refused), adaptive and
-  off unless asked (4.6, then 4.7/4.8 with a visibility control), adaptive and
-  ON unless disabled (Opus 5, Sonnet 5), always on (Fable, Opus 5.5 —
-  ``disabled`` is refused).
+* **thinking** — seven shapes: none (the retired 3.5 models), a token budget
+  (the 4.5 generation, where ``adaptive`` and ``effort`` are refused), adaptive
+  and off unless asked (4.6, then 4.7/4.8 with a visibility control), adaptive
+  and ON unless disabled (Opus 5, Sonnet 5), ON unless ``between_tools`` is
+  asked (Sonnet 5.5 — ``disabled`` is refused, and its lowest setting only
+  turns the up-front thinking off), always on (Fable, Opus 5.5 — ``disabled``
+  and ``between_tools`` are refused). The Sonnet 5.5 facts were read on the
+  vendor's migration guide and thinking reference (2026-09-30), not measured:
+  the Anthropic account had no credit left to spend on a probe.
 
 A fourth fact is not a 400 today but becomes one on every account created from
 2026-08-31: a generation that binds a thinking block to the conversation that
@@ -34,7 +38,9 @@ from typing import Literal
 
 #: How a generation reasons (see the module docstring); the reasoning family and
 #: ladder are derived from it in ``reasoning_profiles``.
-ClaudeThinking = Literal["none", "budget", "adaptive", "opt_in", "default_on", "always_on"]
+ClaudeThinking = Literal[
+    "none", "budget", "adaptive", "opt_in", "default_on", "between_tools", "always_on"
+]
 
 
 @dataclass(frozen=True)
@@ -90,6 +96,17 @@ CLAUDE_SURFACES: tuple[ClaudeSurface, ...] = (
         prefixes=("claude-opus-5-5",),
         thinking="always_on",
         implicit_effort="medium",
+        accepts_sampling=False,
+        accepts_forced_tool_choice=False,
+        binds_thinking_to_conversation=True,
+    ),
+    # Before the Opus 5 / Sonnet 5 row, whose ``claude-sonnet-5`` prefix starts
+    # this name: matched there, ``none`` would send ``disabled`` (a 400) and the
+    # structured-output door would force its tool (another 400).
+    ClaudeSurface(
+        prefixes=("claude-sonnet-5-5",),
+        thinking="between_tools",
+        implicit_effort="high",
         accepts_sampling=False,
         accepts_forced_tool_choice=False,
         binds_thinking_to_conversation=True,
@@ -177,7 +194,9 @@ def requests_thinking(thinking: object) -> bool:
     """Whether a ``thinking`` request field switches thinking ON.
 
     The shape is the Claude API's: ``enabled`` (a budget) and ``adaptive`` think,
-    ``disabled`` does not. Reading the key's mere presence instead -- the rule
+    ``disabled`` does not, and neither does ``between_tools`` (Sonnet 5.5's off
+    switch: no up-front thinking, only the notes it writes between tool calls
+    come back as thinking blocks). Reading the key's mere presence instead -- the rule
     before ADR-306 -- stopped being the same question the day ``disabled`` had
     to be spelled out for Opus 5 and Sonnet 5.
 

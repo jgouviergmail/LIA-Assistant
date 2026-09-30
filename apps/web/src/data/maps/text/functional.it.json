@@ -217,9 +217,9 @@
     },
     "f.skills": {
       "name": "Competenze e plugin",
-      "role": "Competenze secondo lo standard Agent Skills e plugin secondo lo standard Agent Plugins, installati con un solo gesto e con un resoconto componente per componente.",
+      "role": "Competenze secondo lo standard Agent Skills — scritte da LIA e installate con un clic, o scelte in una libreria pubblica dopo averle lette — e plugin secondo lo standard Agent Plugins; una competenza venuta da fuori lavora a parte, lontano dai tuoi connettori.",
       "goal": "Dare a LIA abilità portabili.",
-      "src": "27fba8d5dbbc"
+      "src": "f14f45e853e1"
     },
     "f.rag": {
       "name": "Spazi di conoscenza",

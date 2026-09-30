@@ -321,7 +321,9 @@ def test_skills_section_tool_activation_mode():
         "scope": "admin",
     }
     dm: dict = {}
-    with patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data)):
+    with patch(
+        "src.domains.skills.cache.SkillsCache.get_system_by_name", Mock(return_value=skill_data)
+    ):
         _direct_builder(resolver=lambda s: "my_skill").build(dm, {}, "r")
 
     sk = dm["skills"]
@@ -395,7 +397,7 @@ def test_skills_section_planner_activation_mode():
     """A plan whose metadata carries skill_name yields 'planner' activation mode."""
     planning_result = _planning_result_with_metadata({"skill_name": "s"})
     with patch(
-        "src.domains.skills.cache.SkillsCache.get_by_name",
+        "src.domains.skills.cache.SkillsCache.get_system_by_name",
         Mock(return_value={"scripts": ["x"], "references": []}),
     ):
         dm: dict = {}
@@ -407,7 +409,7 @@ def test_skills_section_planner_activation_mode():
 def test_skills_section_bypass_activation_mode_is_deterministic():
     """A skill_bypass plan yields 'bypass' mode flagged deterministic."""
     planning_result = _planning_result_with_metadata({"skill_bypass": True})
-    with patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=None)):
+    with patch("src.domains.skills.cache.SkillsCache.get_system_by_name", Mock(return_value=None)):
         dm: dict = {}
         _direct_builder(resolver=lambda s: "s").build(dm, {"planning_result": planning_result}, "r")
     assert dm["skills"]["activation_mode"] == "bypass"

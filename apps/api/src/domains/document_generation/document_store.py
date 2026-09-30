@@ -10,10 +10,10 @@ present on one path only cannot exist (the GeneratedImage lesson).
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from src.domains.shared.pending_cards import PendingCards
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -45,8 +45,7 @@ class PendingDocument:
 
 
 # Module-level store: conversation_id -> list of PendingDocument
-_pending_documents: dict[str, list[PendingDocument]] = {}
-_lock = threading.Lock()
+_pending_documents: PendingCards[PendingDocument] = PendingCards("generated_documents")
 
 
 def store_pending_document(conversation_id: str, document: PendingDocument) -> None:
@@ -56,8 +55,7 @@ def store_pending_document(conversation_id: str, document: PendingDocument) -> N
         conversation_id: Conversation thread_id (from configurable).
         document: The pending document card payload.
     """
-    with _lock:
-        _pending_documents.setdefault(conversation_id, []).append(document)
+    _pending_documents.add(conversation_id, document)
     # Filename is user content: counts and types at INFO, name at DEBUG.
     logger.info(
         "pending_document_stored",
@@ -77,8 +75,7 @@ def peek_pending_documents(conversation_id: str) -> list[PendingDocument]:
     Returns:
         List of PendingDocument (empty if none pending).
     """
-    with _lock:
-        return list(_pending_documents.get(conversation_id, []))
+    return _pending_documents.peek(conversation_id)
 
 
 def get_and_clear_pending_documents(conversation_id: str) -> list[PendingDocument]:
@@ -90,8 +87,7 @@ def get_and_clear_pending_documents(conversation_id: str) -> list[PendingDocumen
     Returns:
         List of PendingDocument (empty if none pending).
     """
-    with _lock:
-        documents = _pending_documents.pop(conversation_id, [])
+    documents = _pending_documents.take(conversation_id)
     if documents:
         logger.info(
             "pending_documents_retrieved",

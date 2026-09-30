@@ -1,7 +1,7 @@
 {
-  "version": "2.1.1",
+  "version": "2.2.0",
   "releaseDate": "2026-09-30",
-  "releases": 272,
+  "releases": 273,
   "milestones": [
     {
       "version": "1.0.0",
@@ -204,11 +204,11 @@
       "date": "2026-09-29"
     },
     {
-      "version": "2.1.1",
+      "version": "2.2.0",
       "date": "2026-09-30"
     }
   ],
-  "domains": 53,
+  "domains": 54,
   "infra": 26,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
@@ -535,6 +535,7 @@
     "323": "ADR-323-Declared-Language-Complete-Tables-English-For-The-Model.md",
     "324": "ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md",
     "325": "ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md",
-    "326": "ADR-326-Linear-Flatteners-And-Pinned-Fetches.md"
+    "326": "ADR-326-Linear-Flatteners-And-Pinned-Fetches.md",
+    "327": "ADR-327-Skill-Library-And-Third-Party-Skills.md"
   }
 }

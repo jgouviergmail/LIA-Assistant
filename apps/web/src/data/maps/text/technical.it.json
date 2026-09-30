@@ -252,9 +252,9 @@
     },
     "t.skills": {
       "name": "Competenze e plugin",
-      "role": "Installare, attivare ed eseguire competenze portabili; un plugin porta competenze e server MCP con un solo gesto.",
+      "role": "Installare, attivare ed eseguire competenze portabili — prese da una libreria pubblica a un commit esatto, o proposte dalla chat — e i loro comandi in una copia usa e getta della loro cartella; una competenza di terze parti gira in un runner isolato, e un plugin porta competenze e server MCP in un solo gesto.",
       "stack": ["Agent Skills", "Agent Plugins"],
-      "src": "7dcbbe9d1959"
+      "src": "92d4fcb1a5d5"
     },
     "t.sandbox": {
       "name": "Sandbox e proxy di uscita",

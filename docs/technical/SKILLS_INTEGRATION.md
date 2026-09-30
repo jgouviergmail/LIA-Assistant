@@ -247,9 +247,18 @@ see — the runner's `UserLocation` context existed for exactly that request.
 | `domains/skills/activation.py` | L2 structured wrapping |
 | `domains/skills/executor.py` | Script subprocess executor |
 | `domains/skills/tools.py` | LangChain tools (activate_skill, run_skill_script, read_skill_resource) |
+| `domains/skills/command_tool.py` | `run_skill_command`: a skill's own shell command, in a copy of its folder — offline unless it declares `hosts` ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md) lots 2-3) |
+| `domains/skills/command_network.py` | A command's network run through ADR-298's proxy: the decision, the act, the runner's network line (lot 3) |
+| `domains/skills/command_bundle.py` | The tar a command receives (skill + turn files) and the bounded reading of the tar it hands back |
+| `domains/skills/command_sandbox.py` | The `docker run` line, the constant bootstrap, the bounded reader |
+| `domains/skills/command_outputs.py` | What a command wrote under `out/` becomes the person's generated files |
+| `domains/skills/sandbox_toolbox.py` | What the sandbox image holds — commands, libraries, absences — declared once |
 | `domains/skills/catalogue_manifests.py` | Tool manifests |
 | `domains/skills/router.py` | API endpoints (list, import, delete, toggle, reload) |
+| `domains/skills/trust.py` | What a third-party skill may do: `is_third_party`, the isolated runner's scope ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)) |
+| `domains/skill_library/` | The skill library: portal search, GitHub origin, install and update ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)) |
 | `core/config/skills.py` | SkillsSettings |
+| `core/config/skill_library.py` | SkillLibrarySettings |
 
 ## Frontend Files
 
@@ -259,6 +268,8 @@ see — the runner's `UserLocation` context existed for exactly that request.
 | `components/settings/SkillsSettings.tsx` | User skills (Features tab) — list, import, delete, toggle, download |
 | `components/settings/AdminSkillsSection.tsx` | Admin skills (Administration tab) — list, import, reload, translate, edit description, download, delete |
 | `components/settings/SkillGuideModal.tsx` | User guide modal (SKILL.md format, plan_template reference) |
+| `components/settings/skill-library/` | « Find skills »: search, GitHub address, preview, install, installed skills and their updates |
+| `hooks/useSkillLibrary.ts`, `lib/skill-library/` | The library's API calls, its dialog state machine and its refusal sentences |
 
 ## API Endpoints
 
@@ -273,6 +284,22 @@ see — the runner's `UserLocation` context existed for exactly that request.
 | DELETE | `/skills/{name}` | User | Delete user skill |
 | PATCH | `/skills/{name}/toggle` | User | Toggle skill on/off for current user |
 | GET | `/skills/{name}/download` | User | Download skill as .zip (own or admin skills) |
+
+### Skill library endpoints ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md))
+
+Under both the `skills` and the `skill_library` capability switches, rate limited per
+account, holding no request session while they wait on the network.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/skill-library/search?q=` | The portal's answer, with `installed` and `supported` per skill |
+| GET | `/skill-library/preview` | A skill read at the commit its ref points at now (`repository` + `skill_id`, or `address`, with an optional `path`), or the folders to choose from |
+| POST | `/skill-library/install` | Install the folder at the commit the preview read |
+| GET | `/skill-library/installed` | The library skills with `update`: `current`, `available`, `unknown` |
+| GET | `/skill-library/installed/{skill_id}/update` | The next version and the files it changes |
+| POST | `/skill-library/installed/{skill_id}/update` | Install that version |
+
+Removing a library skill is `DELETE /skills/{name}`; its provenance row cascades.
 
 ### Admin Endpoints (Superuser only)
 
@@ -331,6 +358,38 @@ the validator resolved (`pinned_stream`, [ADR-326](../architecture/ADR-326-Linea
 the name travels in `Host` and the SNI, so a DNS answer that changes between
 the check and the connection (rebinding) reaches nothing.
 
+## Third-party skills ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md))
+
+`skills.provenance` records how a skill's content arrived: `system`, `authored` (an upload,
+the chat), `url`, `plugin`, `library`. The last three are **third-party**, decided once per
+request (`third_party_skills_ctx`, bound beside the active set; unbound, every user skill is
+third-party). A third-party skill:
+
+- is marked in both catalogues, with a line saying its description is a label, and its
+  priority is ignored; it never runs a `plan_template` and is never `always_loaded`;
+- runs only in the isolated runner (scripts or not), which binds its own `run_skill_script`
+  and `read_skill_resource` — scoped to that skill by `isolated_skill_ctx` — and nothing else;
+- answers through `markdown_literal.untrusted_markdown`: no image, no raw HTML, no invisible
+  reference definition or tag character;
+- reaches the main loop and the pipeline as external content (`activate_skill_tool` runs the
+  isolated runner on a `request` instead of handing its instructions over);
+- draws no frame and only `data:` images (`output_builder.restrict_third_party_output`);
+- when managed (`plugin`, `library`) is updated from its source, never edited by the chat.
+
+## Skill library ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md))
+
+The portal (skills.sh) indexes, the GitHub repository serves. A preview resolves the ref to a
+commit; install and update send that commit back. The listing is read at the commit (refused
+when truncated), the folder located by name then by manifest name, its size checked against
+the package bounds before any download, every file verified against its blob SHA, links and
+submodules skipped. The files go through `SkillImportService.import_directory` with the
+`library` provenance, and `skill_library_sources` (repository, ref, folder, commit, folder
+tree SHA) is written in the same transaction. A different tree SHA at the ref's head is an
+update. Audits are read under every name the skill may carry and refuse the install at and
+above `SKILL_LIBRARY_AUDIT_BLOCK_LEVEL`. Every request is validated at every hop (ADR-326);
+an optional `SKILL_LIBRARY_GITHUB_TOKEN` reaches `api.github.com` alone. Refusals are stable
+`detail.code`s (`skill_library_*`), counted in `skill_library_operations_total`.
+
 ## Configuration
 
 ```env
@@ -340,6 +399,13 @@ SKILLS_URL_IMPORT_MAX_BYTES=5242880
 SKILLS_URL_IMPORT_TIMEOUT_SECONDS=15
 SKILLS_URL_IMPORT_RATE_MAX_CALLS=10
 SKILLS_URL_IMPORT_RATE_WINDOW_SECONDS=3600
+
+# Skill library (ADR-327) — see .env.example for every bound
+SKILL_LIBRARY_ENABLED=true
+SKILL_LIBRARY_PORTAL_URL=https://skills.sh
+SKILL_LIBRARY_AUDIT_URL=https://add-skill.vercel.sh/audit
+SKILL_LIBRARY_AUDIT_BLOCK_LEVEL=high
+SKILL_LIBRARY_GITHUB_TOKEN=
 
 # Feature flag
 SKILLS_ENABLED=false
@@ -361,6 +427,14 @@ SKILLS_SCRIPTS_ENABLED=false
 SKILLS_SCRIPT_TIMEOUT_SECONDS=30
 SKILLS_SCRIPT_MAX_OUTPUT_KB=50
 SKILLS_SCRIPT_MAX_INPUT_KB=100
+
+# Skill commands (ADR-327 lot 2) — see .env.example for every bound
+SKILL_COMMAND_TIMEOUT_SECONDS=60
+SKILL_COMMAND_MAX_INPUT_MB=50
+SKILL_COMMAND_MAX_OUTPUT_FILES=10
+SKILL_COMMAND_NETWORK_ENABLED=true   # lot 3: `hosts` through the egress proxy (needs PYTHON_SANDBOX_EGRESS_ENABLED)
+SKILL_COMMAND_RATE_LIMIT_CALLS=12    # commands one account may run per window (read at every call)
+SKILL_COMMAND_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
 ## Import Pipeline (ADR-118)
@@ -385,16 +459,42 @@ the single hardened pipeline in `src/domains/skills/import_service.py`
    (`create_skill_for_import`), `SkillsCache.invalidate_and_reload()`
    (cross-worker, ADR-063).
 
-### Chat-driven import (`import_user_skill` tool)
+### Chat-driven proposal (`import_user_skill` tool, ADR-327)
 
-The skill-generator delivers finished skills directly: it calls
+The skill-generator never installs anything: it calls
 `import_user_skill(files={path: content, ...})` (in `skills_tools`, so it is
-available inside the skill ReAct runner), then announces the imported skill
-by name. Gated by `SKILLS_CHAT_IMPORT_ENABLED`, rate-limited 10/min/user
-(raised from 5 when editing made a change cost two calls).
-Failures return structured errors (invalid name, conflict, quota) that the
-LLM uses to fix the files and retry once; after two failures it falls back to
-the legacy code-block delivery protocol.
+available inside the skill ReAct runner), which **proposes** the package. The
+person installs it from the card under the answer — the one way a skill the
+model wrote enters their skills, whatever the model read before writing it.
+
+- `SkillImportService.validate_files` runs every check the import runs (paths,
+  sizes, manifest, package integrity, a system skill's name, a managed skill,
+  the quota) and writes nothing, so a card never offers an install that cannot
+  happen. Failures return structured errors the LLM uses to fix the files and
+  retry once; after two it falls back to the code-block delivery protocol.
+- The proposal (`skills/proposals.py`) keeps the files for
+  `SKILL_PROPOSAL_TTL_SECONDS` in Redis, under the conversation family (a
+  reset forgets it with its card); an account keeps
+  `SKILL_PROPOSALS_MAX_PER_USER` live ones, the oldest making room — one
+  atomic Lua script, proven on a real Redis. A replacement records a
+  fingerprint of the installed text files and what it adds, changes and
+  removes.
+- The card reads `GET /skill-proposals/{id}` (its status after a reload, the
+  files' contents while pending) and installs through
+  `POST /skill-proposals/{id}/install` (`skills/proposal_service.install`):
+  one install in flight per proposal (an owner-token claim), refused as
+  `skill_proposal_stale` when the skill it replaces changed since the card
+  described it, idempotent (a second click answers « installed »). The install
+  is an ACTION of the person's (`shared/action_sink`, capability
+  `skill_proposal_install`), claimed after every refusal. Every refusal is a
+  stable `detail.code` with a sentence in six languages (pinned both ways);
+  `skill_proposals_total{operation,outcome}` counts the three operations
+  (dashboard 19).
+- The tool's policy is `draft` — the card IS the confirmation — so an
+  unattended run (a routine) is refused rather than leaving a card nobody
+  asked for. Gated by `SKILLS_CHAT_IMPORT_ENABLED` (the proposal and the
+  install alike), the tool rate-limited 10/min/user, the card's routes by
+  `SKILL_PROPOSAL_RATE_LIMIT_*`.
 
 Failure atomicity: the previous version of a re-imported skill is parked in
 the staging temp directory during the swap and restored if the DB
@@ -415,7 +515,7 @@ Four mechanisms make that safe:
 | Mechanism | Why |
 |---|---|
 | `read_skill_resource` also serves `SKILL.md` and `translations.json` | Activation strips the frontmatter; without this the assistant cannot see `description`, `category`, `priority`, `plan_template`, `outputs` and would silently drop them. Both files stay out of `all_resources`, so no activation prompt changes. |
-| Two-phase confirmation (`replace_token`) | The first call is **refused**, lists what the replacement adds, replaces and removes, and returns a token. Fail-closed *structurally*: the token is a digest of the exact package, so it cannot be guessed — a boolean flag would have been a convention the model is free to skip. It also binds the approval to the content, so a package altered between summary and confirmation is refused. HITL is unavailable here — a skill with `scripts/` runs in an isolated ReAct sub-agent whose drafts never reach the main graph. |
+| The proposal's card is the confirmation (ADR-327) | The card lists what the replacement adds, changes and removes, and only its click installs. It replaced a two-call token the model echoed back — the person's agreement was the model's word. HITL is unavailable here — a skill with `scripts/` runs in an isolated ReAct sub-agent whose drafts never reach the main graph — and a card works wherever the answer is shown. The install refuses a version the card never described (`skill_proposal_stale`). |
 | Server-side carry-over of untransportable files | Chat accepts text only, so `assets/preview.png` (14/14 system skills ship one) could never be resent. Copied back from the parked previous version. Chat path only; a zip upload stays a strict full replacement. |
 | Blocking package integrity | `outputs: [frame\|image]` with no `scripts/`, or a resource declared under `## Ressources disponibles` and not shipped, is rejected. The generator only ever validated the manifest *text*, never the real package. |
 
@@ -425,9 +525,9 @@ has **disabled** — it is absent from the injected catalogue, but
 `SkillsCache.get_by_name_for_user` does not filter on activity, so naming it
 explicitly would otherwise edit something the user believes is off.
 
-There is **no version history**: a replacement cannot be undone. The
-confirmation summary is the safeguard, which is why it enumerates the files that
-disappear instead of announcing a vague modification.
+There is **no version history**: a replacement cannot be undone. The card is
+the safeguard, which is why it enumerates the files that disappear instead of
+announcing a vague modification.
 
 ### Dialogue skills (`dialogue: true` extension field)
 
@@ -474,23 +574,24 @@ a script cannot read files from its own skill directory, and it cannot import
 a sibling module from `scripts/` — a single self-contained file, stdin in,
 stdout out.
 
-The image is pinned per environment in `docker-compose*.yml`
-(`SKILLS_SCRIPT_SANDBOX_IMAGE`) so the sandbox interpreter and packages match
-the API exactly. The prod image installs dependencies with `pip install
---user`, hence `SKILLS_SCRIPT_SANDBOX_PYTHONPATH`; the dev image installs
-them system-wide and sets it empty.
+The image is the **dedicated sandbox image** ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md) lot 2,
+`apps/api/Dockerfile.sandbox`), named by `SKILLS_SCRIPT_SANDBOX_IMAGE`:
+Python on a base pinned by digest, Node, bash, jq, zip/unzip, poppler and the
+promised libraries, installed system-wide from a hash-verified lock compiled
+under the API's own — and neither the Docker client nor the application's
+code, which the API's image carries. What it holds is declared once
+(`skills/sandbox_toolbox.py`) and proven on the built image by
+`task sandbox:libraries:check`, which starts it as a run starts it (no network,
+uid 65534, read-only). `task sandbox:image:build` builds it; the dev tasks, the
+host deployment script and the installer's local mode build it too, and a
+prebuilt install pulls the release's digest. `SKILLS_SCRIPT_SANDBOX_PYTHONPATH`
+is empty: the libraries need none.
 
-> **The home directory must be traversable.** `useradd -m` creates
-> `/home/appuser` at **0700**, and the sandbox runs as uid 65534: every file
-> under `SKILLS_SCRIPT_SANDBOX_PYTHONPATH` was world-readable and the whole
-> tree was still unreachable. The path sat on `sys.path` and produced
-> `ModuleNotFoundError` for every third-party package — the shipped `qr-code`
-> skill could not `import segno` in container mode. `Dockerfile.prod` now adds
-> `chmod 0755 /home/appuser` (traversal only, no write), and
-> `tests/unit/domains/skills/test_sandbox_pythonpath_reachable.py` reads the
-> Dockerfile to keep it that way. Unit tests could not catch this: they mock
-> the daemon, so the argv looked right and the permissions were never
-> exercised.
+> **History.** Until lot 2 the sandbox ran on the API image, whose `pip install
+> --user` put the libraries under `/home/appuser`, created at **0700**: the
+> path sat on `sys.path` and every third-party import raised
+> `ModuleNotFoundError` in container mode (measured 2026-08-29). A system-wide
+> install in an image of its own closes that class of defect.
 
 `SkillExecutor.execute_source()` runs a **source string** through the same
 `_run_source_in_container()` core, for ADR-249's ephemeral scripts. One
@@ -505,10 +606,55 @@ If the Docker daemon is unreachable the execution is **refused**
 (`Script sandbox unavailable`) — it never falls back to the in-process path,
 since a sandbox that downgrades on demand protects nothing.
 
+### Skill commands — `run_skill_command` ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md) lot 2)
+
+A skill written for another agent says to RUN things: a Python script of its
+`scripts/` folder called with arguments, a Node program, a shell script.
+`run_skill_command` runs one
+such command with bash in a **copy** of the skill's folder, in the same
+throwaway container and with the same isolation flags (`executor.isolation_flags`),
+offline:
+
+| Step | What happens |
+| --- | --- |
+| In | The skill folder (`skill/`) and the files the person attached to this turn (`input/`) travel as ONE tar on stdin — nothing is mounted |
+| Run | A constant bootstrap unpacks it, runs `bash -c "$1"` in `skill/` with `timeout -k`, and packs the result; the command is `$1`, never part of the script |
+| Out | Standard output and error (cut at `SKILL_COMMAND_MAX_TEXT_KB`, the cut stated), the exit status and every regular file under `out/` come back as ONE tar on stdout, read under a ceiling |
+| Files | Kept within `SKILL_COMMAND_MAX_OUTPUT_FILES` / `_MAX_FILE_MB` / `_MAX_OUTPUT_MB`; each becomes an `attachments` row of the person (gallery, lifetime, chat card). Its type is decided by its name AND first bytes: a page a skill wrote (Markdown, HTML, SVG…) comes back as text (`notes.md.txt`); any file left out is named with its reason |
+
+Gated by `SKILLS_SCRIPTS_ENABLED` and refused outside the container sandbox;
+registered with the effect gate (`sandboxed`); `skill_commands_total{outcome}`
+on dashboard 19. A third-party skill's command answers as external content
+outside its isolated runner. The runner's prompt lists what the sandbox holds
+from the same declaration the image is proven against.
+
+**In ReAct the loop is the runner.** When the ReAct loop itself activated a
+skill this turn (`react_activated_skills`, from `activate_skill_tool`'s own
+answer), the response node never runs the skill runner for it — measured on
+dev, a skill written in the chat was otherwise proposed twice. A third-party
+skill's activation runs its isolated runner inside the tool, under the
+sub-agent family's timeout (`compute_step_timeout`), never the generic 30 s.
+
+**On the network (lot 3).** A command that declares `hosts` runs on ADR-298's
+proxy network instead of none — HTTPS only, to exactly the hosts the operator's
+list, the person's grants or, for the person's own skills alone, their
+connectors permit (`skills/command_network.py`, over the Python sandbox's own
+`egress/tool_path.authorize_network`). A third-party skill never reaches a
+connector, and the question's card says when such a skill asks. An unknown
+host is asked in the ReAct loop only, where the answer re-runs the same call;
+the skill runner, a nested loop, a pipeline step or a routine refuses
+it and names *Settings › Sandbox network*, where the person allows a host by
+hand. The image carries npm/npx, git, curl and pip, each pointed at the
+proxy's CA; offline, npm is told so and fails at once. The act is recorded as
+`skill_command_network`; `skill_command_egress_total{outcome}` on dashboard 19;
+`task sandbox:egress:probe` measures the clients through the real proxy.
+
 ### Legacy mode — in-process subprocess
 
 `SKILLS_SCRIPT_SANDBOX=subprocess` keeps the historical path, retained for
-environments with no Docker daemon:
+environments with no Docker daemon. It runs on the API's own interpreter, which
+does not carry the sandbox image's libraries (ADR-327 lot 2): a script importing
+pandas or segno — the system QR skill among them — fails there.
 
 1. **Process isolation**: `subprocess.run()` (no `shell=True`)
 2. **Environment filtering**: Only PATH, HOME, LANG, LC_ALL, TZ
@@ -523,7 +669,9 @@ See [ADR-097](../architecture/ADR-097-Concurrency-GDPR-Sandbox-Wave4-Audit.md) f
 
 ## Override Semantics
 
-Per agentskills.io, the cache resolves a user skill over an admin skill with the same name (`get_by_name_for_user`, last-one-wins) — this remains for pre-existing data. **New imports can no longer create such shadows**: since ADR-118 the import pipeline rejects a user import whose name collides with a system skill or with another user's skill (the DB `skills.name` column is globally unique, so a shadow import used to silently rewrite the other row's display metadata).
+Per agentskills.io, the cache resolves a user skill over an admin skill with the same name (`get_by_name_for_user`) — for its owner only. **A name is unique per account, not per instance** ([ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)): two partial unique indexes hold system names unique among system skills and a person's names unique among their own, and a CHECK pins `is_system ⇔ owner_id IS NULL`. Every lookup names its scope — `SkillsCache.get_system_by_name`, `get_exact(name, owner)`, `get_by_name_for_user`; the repository's `get_system`, `get_owned`, `resolve_for_user` — and deletes go by id: an any-scope lookup by name would hand one person another person's skill.
+
+What the import pipeline still refuses (ADR-118 S2): a user import that shadows a system skill. An admin import is never blocked by a name some person holds — their own skill keeps shadowing the system one for them, and the listing shows the one their name resolves to.
 
 ## Gallery Previews
 

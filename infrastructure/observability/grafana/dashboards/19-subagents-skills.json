@@ -758,6 +758,236 @@
         }
       },
       "description": "Skill names the analyzer filled and the router kept, against those a filter discarded (`mcp_domain`: filled against an MCP primary domain — measured 2026-09-20 on 3 of 4 tic-tac-toe turns, because the prompt forced a domain on a skill that touches none; the prompt now leaves it null. `unknown_skill`, `sentinel_name`: a name that is not a skill). A steady suppressed rate on one reason names a prompt to read."
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "Skill library and imports from an address (ADR-327)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "panels": []
+    },
+    {
+      "id": 41,
+      "title": "Skill library: operations by outcome (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 44
+      },
+      "targets": [
+        {
+          "expr": "sum by (operation, outcome) (increase(skill_library_operations_total[1h]))",
+          "legendFormat": "{{operation}} — {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Searches, previews, installs and updates through the skill library, by the outcome the person was answered: `ok`, or the stable refusal code. A run of `skill_library_rate_limited` means GitHub's anonymous allowance (60 requests per hour for the whole instance) is spent: set SKILL_LIBRARY_GITHUB_TOKEN. A run of `skill_library_audit_blocked` is the audit level doing its job."
+    },
+    {
+      "id": 42,
+      "title": "Skill imports from an https address (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 44
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(skill_url_imports_total[1h]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Skills imported from an https URL, by outcome: `blocked` (an SSRF refusal or a redirect), `too_large`, `fetch_failed`, `invalid_content`, `pipeline_rejected` (fetched, then refused by the import checks), `ok`."
+    },
+    {
+      "id": 43,
+      "title": "Skill commands by outcome (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 52
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(skill_commands_total[1h]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Shell commands a skill ran in the throwaway container (ADR-327 lot 2): `succeeded`, `failed` (a non-zero exit, the model reads stderr), `timed_out` (SKILL_COMMAND_TIMEOUT_SECONDS), `refused` (the skill and the attached files exceed SKILL_COMMAND_MAX_INPUT_MB) or `unavailable`."
+    },
+    {
+      "id": 44,
+      "title": "Skill command sandbox unavailable (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 52
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(skill_commands_total{outcome=\"unavailable\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Commands the sandbox could not run at all — the daemon refused the container, the image is missing (SKILLS_SCRIPT_SANDBOX_IMAGE, `task sandbox:image:build`) or the bundle could not be unpacked. Expected 0; the log `skill_command_sandbox_unavailable` carries the exit status."
+    },
+    {
+      "id": 45,
+      "title": "Skill proposals from the chat by operation and outcome (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
+      "targets": [
+        {
+          "expr": "sum by (operation, outcome) (increase(skill_proposals_total[1h]))",
+          "legendFormat": "{{operation}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "ADR-327: a skill written in the chat is PROPOSED (the tool) and installed from its card (the person's click). operation: propose, read, install; outcome: ok, refused (a package the import checks refused), unavailable, or the refusal code the card was answered with."
+    },
+    {
+      "id": 46,
+      "title": "Skill commands on the network by outcome (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 68
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(skill_command_egress_total[1h]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "ADR-327 lot 3: a skill's command that declared hosts. allowed: it ran through the egress proxy; asked: the person was asked about an unknown host (ReAct only); refused: a host nobody permitted where nobody could be asked, an invalid host, or the network switched off; proxy_unavailable: the proxy could not serve the run and nothing ran."
     }
   ]
 }

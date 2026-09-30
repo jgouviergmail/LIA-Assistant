@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,13 +13,14 @@ import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
+from httpx import Response
 
 from src.core.constants import PYTHON_SANDBOX_GRANTS_PAGE_MAX_LIMIT
 from src.core.dependencies import get_db
 from src.core.exceptions import BaseAPIException
 from src.core.session_dependencies import get_current_active_session
 from src.domains.agents.python_sandbox.egress.hosts import ConnectorHost
-from src.domains.agents.python_sandbox.egress.router import router
+from src.domains.agents.python_sandbox.egress.router import REFUSAL_CODES, router
 
 pytestmark = pytest.mark.unit
 
@@ -116,6 +119,92 @@ class TestReachable:
             {"host": "api.search.brave.com", "status": "connector", "connector": "brave_search"},
             {"host": "api.example.org", "status": "operator", "connector": None},
         ]
+
+
+class TestAddingAHost:
+    """ADR-327 lot 3: where no question can be asked (a pipeline turn, a
+    routine), the person allows a host from the settings."""
+
+    def _post(
+        self, client: TestClient, body: dict[str, object], row: object
+    ) -> tuple[Response, AsyncMock]:
+        grant = AsyncMock(return_value=row)
+        with (
+            patch(f"{MODULE}.EgressGrantService") as service_cls,
+            patch(
+                f"{MODULE}.get_settings",
+                return_value=SimpleNamespace(python_sandbox_egress_ask_enabled=True),
+            ),
+        ):
+            service_cls.return_value.grant = grant
+            response = client.post("/sandbox/egress-grants", json=body)
+        return response, grant
+
+    def test_the_host_is_stored_as_the_proxy_matches_it(self, client: TestClient) -> None:
+        response, grant = self._post(
+            client,
+            {"host": "  Registry.NPMJS.org. ", "share_turn_data": False},
+            _grant(host="registry.npmjs.org", share_turn_data=False),
+        )
+        assert response.status_code == 201
+        assert response.json()["host"] == "registry.npmjs.org"
+        grant.assert_awaited_once_with(USER_ID, "registry.npmjs.org", share_turn_data=False)
+
+    def test_the_turns_data_stays_out_unless_asked(self, client: TestClient) -> None:
+        response, grant = self._post(client, {"host": "pypi.org"}, _grant(host="pypi.org"))
+        assert response.status_code == 201
+        grant.assert_awaited_once_with(USER_ID, "pypi.org", share_turn_data=False)
+
+    @pytest.mark.parametrize(
+        "host",
+        ["https://pypi.org", "pypi.org/simple", "pypi.org:443", "10.0.0.1", "localhost", ""],
+    )
+    def test_what_the_proxy_could_not_match_is_refused_by_name(
+        self, client: TestClient, host: str
+    ) -> None:
+        response, grant = self._post(client, {"host": host}, _grant())
+        assert response.status_code == 422
+        assert response.json()["detail"]["code"] == "egress_grant_host_invalid"
+        grant.assert_not_awaited()
+
+    def test_an_instance_that_never_asks_refuses_by_name(self, client: TestClient) -> None:
+        """The operator's `ask` switch is the policy: off, nobody allows a host by hand."""
+        grant = AsyncMock(return_value=_grant())
+        with (
+            patch(f"{MODULE}.EgressGrantService") as service_cls,
+            patch(
+                f"{MODULE}.get_settings",
+                return_value=SimpleNamespace(python_sandbox_egress_ask_enabled=False),
+            ),
+        ):
+            service_cls.return_value.grant = grant
+            response = client.post("/sandbox/egress-grants", json={"host": "pypi.org"})
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "egress_grant_asking_disabled"
+        grant.assert_not_awaited()
+
+    def test_a_new_host_past_the_cap_is_refused_by_name(self, client: TestClient) -> None:
+        response, _ = self._post(client, {"host": "pypi.org"}, None)
+        assert response.status_code == 409
+        assert response.json()["detail"]["code"] == "egress_grant_limit_reached"
+
+
+class TestRefusalsAreTranslated:
+    """A refusal the settings cannot name reaches the reader as a bare error in
+    six languages at once: every code has its sentence, and the web reads it."""
+
+    _WEB = Path(__file__).resolve().parents[7] / "web"
+
+    @pytest.mark.parametrize("locale", ["en", "fr", "de", "es", "it", "zh"])
+    def test_every_code_has_its_sentence(self, locale: str) -> None:
+        tree = json.loads((self._WEB / "locales" / locale / "translation.json").read_text("utf-8"))
+        errors = tree["settings"]["sandbox_egress"]["add_errors"]
+        assert sorted(errors) == sorted(REFUSAL_CODES)
+        assert all(str(errors[code]).strip() for code in REFUSAL_CODES)
+
+    def test_the_web_reads_exactly_the_codes_the_api_sends(self) -> None:
+        module = (self._WEB / "src" / "hooks" / "useSandboxEgress.ts").read_text("utf-8")
+        assert [code for code in REFUSAL_CODES if f"'{code}'" not in module] == []
 
 
 class TestChangingAndRevoking:

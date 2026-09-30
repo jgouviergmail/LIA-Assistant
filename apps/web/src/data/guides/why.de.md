@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.1
-**Datum**: 2026-09-24
-**Anwendung**: LIA v2.1.1
+**Datum**: 2026-09-30
+**Anwendung**: LIA v2.2.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -73,7 +73,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Interessengebiete**: Definiere deine Lieblingsthemen, konfiguriere die Benachrichtigungshäufigkeit, Zeitfenster und Quellen (Perplexity, Brave, Wikipedia, KI-Reflexion)
 - **Proaktive Benachrichtigungen**: Stelle Häufigkeit, Zeitfenster und Kontextquellen ein (Kalender, Wetter, Aufgaben, E-Mails, Interessen, Erinnerungen, Journale)
 - **Geplante Aktionen und Erinnerungen**: Nenne den Rhythmus — alle drei Tage, jeden zweiten Dienstag, am 2. Dienstag des Monats, alle zwei Stunden zwischen 9 und 17 Uhr, bis zu einem Datum oder N-mal — für eine Automatisierung ebenso wie für eine Erinnerung, die nun wiederkehren kann, statt nur einmal zu klingeln. Und lies deine Woche auf einen Blick: jede Routine zu ihrer Uhrzeit an ihren Tagen, jede Zelle nach dem gefärbt, was wirklich geschah
-- **Skills**: Aktiviere/deaktiviere Expertenfähigkeiten in einer Galerie mit Vorschauen, erstelle deine eigenen persönlichen Skills oder installiere eine von einer https-URL (serverseitig validiert)
+- **Skills**: Aktiviere/deaktiviere Expertenfähigkeiten in einer Galerie mit Vorschauen, erstelle deine eigenen persönlichen Skills installiere eine von einer https-URL (serverseitig validiert) oder wähle eine aus der öffentlichen Bibliothek skills.sh, nachdem du sie gelesen hast
 - **Wissensbereiche**: Lade deine Dokumente hoch (PDF, Word, Excel, PowerPoint, EPUB, HTML und 15+ Formate), synchronisiere einen Google-Drive-Ordner oder folge einem Gmail-Label — automatische Indexierung und hybride Suche. Die Konversationen, die du markierst, werden zu Dokumenten, die du Wochen später befragen kannst, und das Entfernen des Labels entfernt das Dokument. Ein Dokument, das LIA nicht lesen kann — eine gescannte PDF ohne Textebene — sagt es unter seiner Zeile, samt Abhilfe. Ein Drive-Ordner wird samt Unterordnern synchronisiert, und ab einer Schwelle wird die genaue Zahl der Dateien, die indexiert werden, angezeigt, bevor etwas startet
 - **Verbrauchsexport**: Lade deine LLM- und API-Verbrauchsdaten als CSV herunter
 
@@ -508,7 +508,7 @@ Ein Assistent, der handeln kann, ist ein Assistent, der sich *irren* kann. Zwei 
 
 Erstens: **Nichts berührt deinen Server ohne dein Ja** — und die Bestätigung zeigt alles, was gesendet wird, einschließlich der Anweisungen, die LIA sich selbst geschrieben hat. Eine Zusammenfassung, die man nicht vollständig lesen kann, ist keine Bestätigung, sondern eine Formalität. Die Berechtigung wird erneut geprüft, wenn die Aktion startet — nicht nur, als du sie angefragt hast.
 
-Zweitens: **Was läuft, läuft in einer versiegelten Box**. Der Code einer Skill läuft in einem Container, der für genau diesen Lauf entsteht und danach verschwindet: kein Netzwerk, kein Zugriff auf deine Dateien, keine Schlüssel, kein Weg zur darunterliegenden Maschine. Lässt sich diese Box nicht bauen, läuft das Skript schlicht nicht — kein stiller Rückfall in einen schwächeren Modus. Man installiert eine Skill für das, was sie liefert, nicht für das Vertrauen, das man ihrem Autor entgegenbringen müsste.
+Zweitens: **Was läuft, läuft in einer versiegelten Box**. Der Code einer Skill läuft in einem Container, der für genau diesen Lauf entsteht und danach verschwindet: kein Netzwerk außer zu freigegebenen Hosts, kein Zugriff auf deine Dateien, keine Schlüssel, kein Weg zur darunterliegenden Maschine. Lässt sich diese Box nicht bauen, läuft das Skript schlicht nicht — kein stiller Rückfall in einen schwächeren Modus. Man installiert eine Skill für das, was sie liefert, nicht für das Vertrauen, das man ihrem Autor entgegenbringen müsste.
 
 ---
 
@@ -562,7 +562,7 @@ Wenn ein Anbieter seine Preise ändert oder seinen Service verschlechtert, wechs
 
 ### 10.2. Erweiterbarkeit
 
-Jeder Benutzer kann eigene MCP-Server anbinden und die Fähigkeiten von LIA weit über die integrierten Tools hinaus erweitern. Der Client spricht beide Generationen des Protokolls — die neue zustandslose Revision wie den bisherigen Handshake, automatisch pro Server gewählt —, sodass Offenheit nie Kompatibilität kostet. Skills (Standard agentskills.io) ermöglichen die Injektion von Expertenanweisungen in natürlicher Sprache — mit einem integrierten Skill-Generator, der sie im geführten Dialog erstellt und direkt in deine Skills installiert, sofort einsatzbereit. Kann ein Skill auch einen **interaktiven HTML-Frame** (Karte, Dashboard, Kalender, Umrechner...) oder ein **Bild** (QR-Code, Diagramm) direkt im Chat zurückgeben — in einer strengen CSP-Sandbox, mit automatisch synchronisiertem Theme und Sprache.
+Jeder Benutzer kann eigene MCP-Server anbinden und die Fähigkeiten von LIA weit über die integrierten Tools hinaus erweitern. Der Client spricht beide Generationen des Protokolls — die neue zustandslose Revision wie den bisherigen Handshake, automatisch pro Server gewählt —, sodass Offenheit nie Kompatibilität kostet. Skills (Standard agentskills.io) ermöglichen die Injektion von Expertenanweisungen in natürlicher Sprache — mit einem integrierten Skill-Generator, der sie im geführten Dialog erstellt und dir auf einer Karte vorschlägt, die ein Klick installiert — und einer öffentlichen Bibliothek, skills.sh, in der du einen Skill Datei für Datei liest, bevor du ihn installierst. Ein anderswo geschriebener Skill arbeitet abgeschirmt und berührt nie deine Konnektoren, und ein Skill kann eigene Befehle in einem Wegwerf-Container ausführen, um dir Dateien zu liefern. Kann ein Skill auch einen **interaktiven HTML-Frame** (Karte, Dashboard, Kalender, Umrechner...) oder ein **Bild** (QR-Code, Diagramm) direkt im Chat zurückgeben — in einer strengen CSP-Sandbox, mit automatisch synchronisiertem Theme und Sprache.
 
 Hat diese Offenheit ein Paketformat: LIA spricht den offenen Standard **Agent Plugins** (agent-plugins.org), das portable Plugin-Format, gesteuert von AWS, Microsoft, OpenAI, Cursor und Vercel und übernommen von ChatGPT, Codex, Cursor, GitHub Copilot, Kiro und VS Code. Ein Plugin, das Skills und MCP-Server bündelt, installiert sich in einem Schritt in LIA — aus einer Zip-Datei oder über einen https-Link — mit einem vollständigen Bericht pro Komponente über Installiertes, Übersprungenes (und warum) oder Entferntes, und deinstalliert sich ebenso sauber: Alles, was es mitbrachte, geht mit ihm. Interoperabilität ist hier eine Überzeugung, kein Feature: Was du irgendwo im Ökosystem baust oder übernimmst, gehört dir und zieht mit.
 

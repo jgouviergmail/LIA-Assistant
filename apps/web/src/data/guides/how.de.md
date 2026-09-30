@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 5.1
-**Datum**: 2026-09-24
-**Application**: LIA v2.1.1
+**Datum**: 2026-09-30
+**Application**: LIA v2.2.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 608 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 325 ADRs, über 47.000 automatisierte Tests in Backend und Frontend, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 612 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 326 ADRs, über 48.000 automatisierte Tests in Backend und Frontend, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -89,11 +89,11 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | Über 47.000 automatisierte Tests mit pytest und Vitest (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | Über 48.000 automatisierte Tests mit pytest und Vitest (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 1.082, davon 48 über conftest geteilt |
 | Dokumentationsdokumente | 716 |
-| ADRs (Architecture Decision Records) | 325 |
-| Prometheus-Metriken | 608 Definitionen |
+| ADRs (Architecture Decision Records) | 326 |
+| Prometheus-Metriken | 612 Definitionen |
 | Grafana-Dashboards | 30 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -1059,7 +1059,7 @@ Autonomer ReAct-Agent (Playwright Chromium Headless). Redis-gesicherter Session 
 
 Drei Flächen führen etwas im Auftrag der Nutzerin aus, und jede wird konstruktiv als feindlich behandelt.
 
-**Skill-Skripte laufen in einem Wegwerf-Container.** Kein Docker-Socket, kein Netzwerk (ein Skript, das die Assistentin für eine Berechnung schreibt, ist die einzige Ausnahme, und es verlässt den Container nur durch eine einzige Tür — den Ausgangs-Proxy aus §34), ein schreibgeschütztes Root-Dateisystem mit kleinem beschreibbarem tmpfs, eine unprivilegierte uid, alle Capabilities entzogen sowie Obergrenzen für Speicher, Prozesse, CPU und Dateigröße. Entscheidend ist, was ein Kindprozess *erbt*: In der Produktion gehört die API zur `docker`-Gruppe, und eine Gruppe wird vererbt — ein bloßer uid-Wechsel ließe den Socket erreichbar. Der QUELLTEXT des Skripts wird als Argument übergeben statt gemountet, denn die API ist selbst ein Container und ein Bind würde gegen den Host aufgelöst; das hält zugleich stdin für die JSON-Nutzlast frei, auf der der Vertrag beruht. Ist kein Daemon erreichbar, wird die Ausführung verweigert statt herabgestuft — eine Sandbox, die sich selbst abschaltet, schützt nichts.
+**Skill-Skripte laufen in einem Wegwerf-Container.** Kein Docker-Socket, kein Netzwerk (ein Skript, das die Assistentin für eine Berechnung schreibt, und der Befehl eines Skills, der seine Hosts deklariert, sind die Ausnahmen, und sie verlassen den Container nur durch eine einzige Tür — den Ausgangs-Proxy aus §34), ein schreibgeschütztes Root-Dateisystem mit kleinem beschreibbarem tmpfs, eine unprivilegierte uid, alle Capabilities entzogen sowie Obergrenzen für Speicher, Prozesse, CPU und Dateigröße. Entscheidend ist, was ein Kindprozess *erbt*: In der Produktion gehört die API zur `docker`-Gruppe, und eine Gruppe wird vererbt — ein bloßer uid-Wechsel ließe den Socket erreichbar. Der QUELLTEXT des Skripts wird als Argument übergeben statt gemountet, denn die API ist selbst ein Container und ein Bind würde gegen den Host aufgelöst; das hält zugleich stdin für die JSON-Nutzlast frei, auf der der Vertrag beruht. Ist kein Daemon erreichbar, wird die Ausführung verweigert statt herabgestuft — eine Sandbox, die sich selbst abschaltet, schützt nichts.
 
 **Infrastrukturaufgaben werden bestätigt, nicht unterstellt.** Eine Aufgabe auf einem entfernten Server wird vorbereitet, nicht gestartet: Die Bestätigung zeigt den Zielserver, den vollständigen Aufgabentext und die Anweisungen, die das Modell selbst in den entfernten Prompt geschrieben hat — genau das Feld, das eine Injection nutzen würde, darf nicht verborgen bleiben. Das Privileg wird bei der Ausführung erneut geprüft, denn Rechte, die beim Formulieren galten, gelten bei der Freigabe womöglich nicht mehr.
 
@@ -1095,7 +1095,7 @@ Eine erzeugte Datei kann ohne Frist bleiben, wenn sie innerhalb der veröffentli
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 608 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 612 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 30 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -1103,7 +1103,7 @@ Eine erzeugte Datei kann ohne Frist bleiben, wenn sie innerhalb der veröffentli
 | Alertmanager | Kern aus 29 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 608 definiert; die Metriken, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Ohne diesen Wächter kann eine offen ausfallende Heartbeat-Quelle tagelang einen Teil der Gesundheitssignale verwerfen, ohne dass eine Metrik es bemerkt (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 612 definiert; die Metriken, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Ohne diesen Wächter kann eine offen ausfallende Heartbeat-Quelle tagelang einen Teil der Gesundheitssignale verwerfen, ohne dass eine Metrik es bemerkt (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1366,11 +1366,13 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 Eine Bibliothek eingebauter Skills demonstriert den Vertrag: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — jeder veranschaulicht eine unterschiedliche Kombination der drei Kanäle.
 
-**Skill-Lebenszyklus**: Jeder Skill durchläuft eine einzige gehärtete Import-Pipeline (`SkillImportService`) — strikte agentskills.io-Namensvalidierung vor jedem Dateisystemzugriff (Path-Traversal-Schutz), Zip-Expansionslimits, Staging + Swap mit automatischer Wiederherstellung der vorherigen Version bei Fehlern und Ablehnung scope-übergreifender Namenskonflikte (DB + Cache als doppelte Autorität). Der integrierte Skill-Generator nutzt dieselbe Pipeline über das Tool `import_user_skill`: Ein im Chat erstellter Skill wird in derselben Runde validiert, installiert und beim Namen genannt — ohne manuellen Upload. Skills, deren Workflow sich über mehrere Runden erstreckt, deklarieren `dialogue: true` im Frontmatter, was der Chat-Override des QueryAnalyzers respektiert (ihre Erkennung überlebt konversationelle Folgeantworten), während der Skill-ReAct-Runner den gefensterten Gesprächsverlauf erhält, um den Dialog fortzusetzen statt ihn neu zu starten.
+**Skill-Lebenszyklus**: Jeder Skill durchläuft eine einzige gehärtete Import-Pipeline (`SkillImportService`) — strikte agentskills.io-Namensvalidierung vor jedem Dateisystemzugriff (Path-Traversal-Schutz), Zip-Expansionslimits, Staging + Swap mit automatischer Wiederherstellung der vorherigen Version bei Fehlern und Namen, die pro Konto eindeutig sind: Jede Suche nennt ihren Geltungsbereich, und ein persönlicher Skill verdeckt einen gleichnamigen System-Skill nur für die Person, der er gehört. Der integrierte Skill-Generator nutzt dieselbe Pipeline über das Tool `import_user_skill`: Ein im Chat erstellter Skill wird validiert und unter der Antwort als Karte vorgeschlagen, die die Person liest und mit einem Klick installiert — ohne manuellen Upload, und nichts, was das Modell schreibt, gelangt ohne diesen Klick in ihre Skills. Skills, deren Workflow sich über mehrere Runden erstreckt, deklarieren `dialogue: true` im Frontmatter, was der Chat-Override des QueryAnalyzers respektiert (ihre Erkennung überlebt konversationelle Folgeantworten), während der Skill-ReAct-Runner den gefensterten Gesprächsverlauf erhält, um den Dialog fortzusetzen statt ihn neu zu starten.
 
 Die Skills-Oberfläche ist eine **Galerie**: Karten öffnen ein Detailblatt mit lokalisierter Beschreibung, den deklarierten **Ausgabekanälen** (der Loader liest das `outputs:`-Frontmatter-Feld, das der Generator validiert — Parität CI-gepinnt), einem mitgelieferten `assets/preview.png` über einen dedizierten Endpoint (Traversal-Guard per Namensmuster, Größenlimit, undifferenziertes 404 für admin-deaktivierte Skills) und einem Herkunftshinweis auf jeder Nicht-System-Skill. Die Installation akzeptiert neben dem Datei-Upload eine zweite Quelle: eine https-URL, gehärtet wie in §19.3 beschrieben, die exakt dieselbe Import-Pipeline speist (`skill_url_imports_total{outcome}` zählt jeden Pfad).
 
-**Eine Fähigkeit ändern.** Das erneute Importieren der eigenen Fähigkeit ist ein atomares Upsert (ADR-118), und das Bearbeiten aus dem Chat beruht auf drei Bedingungen: Das Manifest bleibt lesbar, obwohl die Aktivierung das Frontmatter entfernt, sodass eine Anpassung die Felder bewahrt, die sie nicht berührt; ein Ersetzen behält das Vorschaubild, das der Chat nicht transportieren kann; und bei einem Namenskonflikt verlangt der Prompt des Generators, die vorhandene Fähigkeit zu aktualisieren, statt eine umbenannte Kopie anzulegen. Eine Änderung ist daher eine **vollständige Neuerzeugung** unter demselben Namen, der das Lesen des aktuellen Pakets vorausgeht. Die Bestätigung lebt **im Werkzeug**, nicht im HITL: Eine Fähigkeit mit einem `scripts/`-Verzeichnis läuft in einem ReAct-Unteragenten auf isoliertem Thread, dessen Entwürfe den Hauptgraphen nie erreichen. Sie stützt sich auf ein aus dem Inhalt abgeleitetes Token — ein einfaches Flag wäre eine Konvention, die das Modell überspringen kann, während ein Digest nur empfangen worden sein kann und die Zustimmung an genau das Paket bindet, das geschrieben wird (ADR-165).
+**Eine Fähigkeit ändern.** Das erneute Importieren der eigenen Fähigkeit ist ein atomares Upsert (ADR-118), und das Bearbeiten aus dem Chat beruht auf drei Bedingungen: Das Manifest bleibt lesbar, obwohl die Aktivierung das Frontmatter entfernt, sodass eine Anpassung die Felder bewahrt, die sie nicht berührt; ein Ersetzen behält das Vorschaubild, das der Chat nicht transportieren kann; und bei einem Namenskonflikt verlangt der Prompt des Generators, die vorhandene Fähigkeit zu aktualisieren, statt eine umbenannte Kopie anzulegen. Eine Änderung ist daher eine **vollständige Neuerzeugung** unter demselben Namen, der das Lesen des aktuellen Pakets vorausgeht. Das Werkzeug **schlägt vor**, nur die Person installiert: Der Vorschlag durchläuft alle Prüfungen des Imports, ohne etwas zu schreiben, wird in Redis unter einer Obergrenze pro Konto gehalten, seine Karte zeigt, was ein Ersatz hinzufügt, ändert und entfernt, und die Installation — per Token beansprucht, idempotent — lehnt ab, wenn sich der ersetzte Skill geändert hat, seit die Karte ihn beschrieben hat (ADR-327).
+
+**Anderswo geschriebene Skills.** Ein Skill trägt seine Herkunft — System, von der Person geschrieben, von einer Adresse geholt, von einem Plugin mitgebracht oder aus der Bibliothek installiert — und die letzten drei sind **Drittanbieter-Skills**, einmal pro Anfrage von einem einzigen Modul entschieden (`skills/trust.py`); im Zweifel gilt ein Skill als fremd. Ein fremder Skill ist in den Katalogen markiert, seine Priorität wird ignoriert, er führt nie einen Plan aus, und seine Anweisungen laufen nur im isolierten Runner, der ausschließlich seine eigenen Skripte und Ressourcen bindet — keinen Konnektor. Seine Antwort wird ohne entfernte Bilder und ohne HTML dargestellt, und nichts, was er schreibt, bleibt der Person verborgen. Die **Bibliothek** durchsucht skills.sh, liest das GitHub-Repository, das das Portal nennt, und friert den Branch schon bei der Vorschau auf einen Commit ein: Installiert wird, was gelesen wurde, jede Datei gegen ihren Git-Blob-SHA geprüft, die veröffentlichten Audits unter jedem möglichen Namen gelesen, und ein Update ist ein Ordner, dessen Git-Baum sich bewegt hat. Schließlich kann ein Skill **eigene Befehle ausführen** (`run_skill_command`), in einer Kopie seines Ordners im Wegwerf-Container: Ordner und Dateien der Runde gehen als ein Archiv über die Standardeingabe hinein, was er unter `out/` schreibt, kommt ebenso zurück, und eine Datei behält ihren Typ nur, wenn Name und erste Bytes übereinstimmen. Jeder solche Lauf startet aus einem eigenen Image — Python, Node, die Kommandozeilenwerkzeuge und die zugesagten Bibliotheken, ohne Docker-Client und ohne Anwendungscode —, dessen jeder Befehl von einem Test ausgeführt wird, bevor er dem Modell zugesagt wird; das Netzwerk eines Befehls geht durch die Tür aus §34.
 
 ### 23.8. Konversations-Verlauf, Suche und reiches Chat-Rendering
 
@@ -1512,7 +1514,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-325 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+326 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1729,6 +1731,8 @@ Frag ein Sprachmodell, wie lange eine Reihe von Zwischenstopps insgesamt dauert,
 
 **Ein unbekannter Host wird erfragt, mit drei Antworten, innerhalb der Schleife.** Die Karte nennt die Hosts und den vom Modell erklärten Zweck mit einer Zahl der Daten des Durchgangs — nie die Daten —, und die Person erlaubt mit den Daten, ohne sie (stdin trägt dann nichts) oder lehnt ab; die Antwort wird als Erlaubnis unter einer veröffentlichten Obergrenze gemerkt. Wo die Frage entschieden wird, zählt so viel wie das, was sie fragt: der Knoten löst die Unterbrechung selbst aus, wie die Bestätigung eines verändernden Werkzeugs, und ruft bei der Wiederaufnahme denselben Aufruf unter der Antwort erneut auf, sodass der Rest der Anfrage weitergeht. Die Karte dem Entwurfs-Dispatch zu übergeben, hätte sie als Aktion ausgeführt und aus ihrem Ergebnis geantwortet, jeden späteren Schritt fallen lassend — eine Erlaubnis ist keine Aktion.
 
+**Der Befehl eines Skills nimmt dieselbe Tür.** Ein Befehl, den ein Skill ausführt, deklariert seine Hosts auf dieselbe Weise und trifft auf dieselben vier Status, mit zwei Unterschieden, die aus seiner Herkunft und seinem Ausführungsort folgen. Ein anderswo geschriebener Skill erhält nie das Token eines Connectors: Seine Befehle erreichen nur, was der Betreiber oder die Person freigegeben hat. Und die Karte wird nur dort gezeigt, wo ihre Antwort den Aufruf fortsetzen kann — in der ReAct-Schleife; überall sonst, in einem Durchgang im Pipeline-Modus oder einer Routine, könnte niemand antworten, also wird der Host abgelehnt, mit dem Namen der Einstellung, in der die Person ihn von Hand freigibt. npm, git und curl liegen im Image, jedes auf die Zertifizierungsstelle des Proxys ausgerichtet.
+
 **Der Prompt wird gemessen, bevor man ihm vertraut.** Sagt man einem Modell, `LIA_KEY_X` in den Header zu setzen, schickt es den Namen der Variablen als Wert; die Zeile buchstabiert daher das Lesen. Die Bibliotheken, die der Prompt verspricht, leben in einer einzigen direkt gepinnten Tabelle und werden bei jedem CI-Lauf im gebauten Image importiert, und die vier Rollen — rechnen, diagnostizieren, eine Lücke füllen, umwandeln — werden mit den Grenzen genannt, die der Code durchsetzt, aus den Einstellungen gelesen statt in Prosa geschrieben.
 
 ## 35. Eine Farbe messen, bevor man sie ausliefert: die Palette der Einstellungen
@@ -1857,8 +1861,8 @@ Dieselben zwei Modi gelten für das Telefon (ADR-301): Das Gespräch auf der ein
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 325 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die über 47.000 automatisierten Tests, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 326 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die über 48.000 automatisierten Tests, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (700+ Dokumente), der 325 ADRs und des Changelogs (v1.0 bis v2.1.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (700+ Dokumente), der 326 ADRs und des Changelogs (v1.0 bis v2.2.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

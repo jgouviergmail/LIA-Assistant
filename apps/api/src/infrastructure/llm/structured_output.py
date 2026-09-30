@@ -463,7 +463,7 @@ def _anthropic_refuses_forced_tool(llm: BaseChatModel) -> bool:
     that a 400 (ADR-306): thinking switched on at construction (« Thinking may
     not be enabled when tool_choice forces tool use » on the 4.x generations),
     and a generation that refuses a forced tool outright, whatever its thinking
-    (Fable 5.1, Opus 5.5; an undeclared generation is treated the same way,
+    (Fable 5.1, Opus 5.5, Sonnet 5.5; an undeclared generation is treated the same way,
     since the auto-tool door works on every one of them).
     """
     if requests_thinking(getattr(llm, "thinking", None)):

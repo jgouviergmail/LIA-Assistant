@@ -76,6 +76,12 @@ jobs:
           - app: web
             context: .
             dockerfile: ./apps/web/Dockerfile.prod
+          # ADR-327 lot 2: the image every sandbox run starts from (no Docker
+          # client, no application code). Not a Compose service: the installer
+          # pulls it by the manifest's digest when the skill sandbox is chosen.
+          - app: sandbox
+            context: ./apps/api
+            dockerfile: ./apps/api/Dockerfile.sandbox
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -227,6 +233,7 @@ jobs:
           pip install cyclonedx-bom
           # SBOM from the lockfile: exact versions actually shipped, transitives included
           python -m cyclonedx_py requirements requirements.lock.txt --of json -o ../../sbom-api.cdx.json
+          python -m cyclonedx_py requirements requirements-sandbox.lock.txt --of json -o ../../sbom-sandbox.cdx.json
 
       - name: Set up pnpm
         # No explicit version: the action reads `packageManager` from
@@ -259,11 +266,13 @@ jobs:
             --built-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --app-digests api=candidate-digests-api.json \
             --app-digests web=candidate-digests-web.json \
+            --app-digests sandbox=candidate-digests-sandbox.json \
             --dependency-digests dependency-digests.json \
             --sbom api=sbom-api.cdx.json \
             --sbom web=sbom-web.cdx.json \
+            --sbom sandbox=sbom-sandbox.cdx.json \
             --out-dir dist/
-          cp sbom-api.cdx.json sbom-web.cdx.json dist/
+          cp sbom-api.cdx.json sbom-web.cdx.json sbom-sandbox.cdx.json dist/
 
       - name: Upload candidate release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -458,6 +467,7 @@ jobs:
           echo "version=$(jq -r '.release_version' dist/lia-self-host-manifest.json)" >> "$GITHUB_OUTPUT"
           echo "api_ref=$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="api"{print $2}')" >> "$GITHUB_OUTPUT"
           echo "web_ref=$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="web"{print $2}')" >> "$GITHUB_OUTPUT"
+          echo "sandbox_ref=$(python -m scripts.release.self_host_manifest --print-images dist/lia-self-host-manifest.json | awk '$1=="sandbox"{print $2}')" >> "$GITHUB_OUTPUT"
       - name: Create Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
@@ -469,12 +479,14 @@ jobs:
             dist/lia-self-host-bundle.tar.gz.sha256
             dist/sbom-api.cdx.json
             dist/sbom-web.cdx.json
+            dist/sbom-sandbox.cdx.json
           body: |
             ## Docker Images (immutable digests — the qualified artifacts)
 
             ```bash
             docker pull ${{ steps.identity.outputs.api_ref }}
             docker pull ${{ steps.identity.outputs.web_ref }}
+            docker pull ${{ steps.identity.outputs.sandbox_ref }}
             ```
 
             Semver tags point at these exact digests; the digest form above is

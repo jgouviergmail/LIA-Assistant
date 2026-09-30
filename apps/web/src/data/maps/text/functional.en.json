@@ -217,9 +217,9 @@
     },
     "f.skills": {
       "name": "Skills and plugins",
-      "role": "Skills following the Agent Skills standard and plugins following the Agent Plugins standard, installed in one go with a component-by-component report.",
+      "role": "Skills in the Agent Skills standard — written by LIA and installed in one click, or picked from a public library after reading them — and plugins in the Agent Plugins standard; a skill from elsewhere works apart, away from your connectors.",
       "goal": "Give LIA portable know-how.",
-      "src": "27fba8d5dbbc"
+      "src": "f14f45e853e1"
     },
     "f.rag": {
       "name": "Knowledge spaces",

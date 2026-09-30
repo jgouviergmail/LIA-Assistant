@@ -63,6 +63,7 @@ __all__ = [
     "markdown_data_literal",
     "markdown_literal",
     "read_as_markdown",
+    "untrusted_markdown",
 ]
 
 #: What opens markup a third party must not draw: links and images (``[``,
@@ -239,6 +240,14 @@ def _read_prose(text: str) -> str:
     return "".join(out)
 
 
+def _fence_closing(match: re.Match[str], text: str) -> re.Match[str] | None:
+    """The line closing the fenced block ``match`` opens, or None (it runs to the end)."""
+    fence = match.group(2)
+    return re.compile(
+        rf"^[ \t]{{0,3}}{re.escape(fence[0])}{{{len(fence)},}}[ \t]*$", re.MULTILINE
+    ).search(text, match.end())
+
+
 def _read_code(match: re.Match[str], text: str) -> tuple[str, int]:
     """A code block or span: its delimiters as typed, its content shielded whole.
 
@@ -250,16 +259,70 @@ def _read_code(match: re.Match[str], text: str) -> tuple[str, int]:
         The shielded code, and where the text resumes after it.
     """
     if match.group(1) is not None:
-        opening, fence = match.group(1), match.group(2)
-        closing = re.compile(
-            rf"^[ \t]{{0,3}}{re.escape(fence[0])}{{{len(fence)},}}[ \t]*$", re.MULTILINE
-        ).search(text, match.end())
+        opening = match.group(1)
+        closing = _fence_closing(match, text)
         body_end = closing.start() if closing else len(text)
         resume = closing.end() if closing else len(text)
         closing_line = closing.group(0) if closing else ""
         return opening + _shield_punctuation(text[match.end() : body_end]) + closing_line, resume
     ticks = match.group(3)
     return ticks + _shield_punctuation(match.group(4)) + ticks, match.end()
+
+
+#: What a skill written elsewhere must not draw (ADR-327): an image, which the
+#: browser fetches on its own — an address can carry the turn's data out —, raw
+#: HTML, which draws what LIA's own cards draw and loads what it names, and a
+#: link reference definition, which draws NOTHING: ``[//]: # (…)`` is the
+#: Markdown comment, text the person never sees and every later turn reads as
+#: LIA's own answer. A definition's label is bounded (999 characters, the
+#: CommonMark limit), so the lookahead stays linear.
+_UNTRUSTED_ACTIVE = re.compile(r"<|!(?=\[)|^( {0,3})\[(?=[^\]\n]{0,999}\]:)", re.MULTILINE)
+
+#: Unicode TAG characters (U+E0000-U+E007F): invisible on screen, read as
+#: ASCII by some models — the one way to hide words in plain text.
+_INVISIBLE_TAGS: dict[int, None] = dict.fromkeys(range(0xE0000, 0xE0080))
+
+
+def _neutralise(match: re.Match[str]) -> str:
+    """One active mark of untrusted Markdown, as a numeric reference."""
+    indent = match.group(1)
+    if indent is not None:
+        return f"{indent}&#91;"
+    return _reference(match)
+
+
+def untrusted_markdown(text: str) -> str:
+    """Markdown a third-party skill produced, drawn without fetching or hiding anything.
+
+    Outside code, every ``<``, the ``!`` that opens an image and the ``[`` that
+    opens a reference definition become numeric references: no tag, no
+    autolink markup, no image and no invisible definition survives, while the
+    rest of the Markdown — headings, lists, tables, emphasis, a link the reader
+    must click — keeps its shape. Invisible tag characters are removed
+    everywhere. Code spans and fenced blocks stay as typed: the chat draws them
+    as code. Linear by construction: one pass of :data:`_CODE`, whose spans are
+    bounded (ADR-326).
+
+    Args:
+        text: The answer of a third-party skill.
+
+    Returns:
+        The same text, with nothing in it the browser would fetch.
+    """
+    text = text.translate(_INVISIBLE_TAGS)
+    out: list[str] = []
+    position = 0
+    while (code := _CODE.search(text, position)) is not None:
+        out.append(_UNTRUSTED_ACTIVE.sub(_neutralise, text[position : code.start()]))
+        if code.group(1) is not None:
+            closing = _fence_closing(code, text)
+            end = closing.end() if closing else len(text)
+        else:
+            end = code.end()
+        out.append(text[code.start() : end])
+        position = end
+    out.append(_UNTRUSTED_ACTIVE.sub(_neutralise, text[position:]))
+    return "".join(out)
 
 
 def _shield(text: str) -> str:

@@ -8,7 +8,11 @@ changed without regenerating the lockfiles via ``task deps:lock``:
    tightened pin without regeneration fails here);
 3. every pin of ``requirements.lock.txt`` must appear with the same version in
    ``requirements-dev.lock.txt`` (layering invariant: the dev lock is compiled
-   with ``-c requirements.lock.txt``, so a stale dev lock fails here).
+   with ``-c requirements.lock.txt``, so a stale dev lock fails here);
+4. every pin of ``requirements-sandbox.lock.txt`` (the skill sandbox image,
+   ADR-327) carries the dev lock's version: it is compiled with
+   ``-c requirements-dev.lock.txt``, and the dev manifest includes the
+   sandbox's, so the image runs exactly what the unit suite imported.
 
 The check is fully offline and deterministic: it never queries an index, so
 new upstream releases can never make it flaky. Requires only ``packaging``.
@@ -105,31 +109,60 @@ def check_layering(runtime_lock: Path, dev_lock: Path, errors: list[str]) -> Non
             )
 
 
+def check_constrained(constrained_lock: Path, runtime_lock: Path, errors: list[str]) -> None:
+    """Ensure a lock compiled under the runtime lock never diverges from it."""
+    runtime_pins = parse_lock(runtime_lock)
+    for name, versions in sorted(parse_lock(constrained_lock).items()):
+        allowed = runtime_pins.get(name)
+        if allowed is not None and not versions <= allowed:
+            errors.append(
+                f"{constrained_lock.name}: {name}=={', '.join(sorted(versions))} "
+                f"diverges from {runtime_lock.name} ({', '.join(sorted(allowed))}) "
+                f"— run 'task deps:lock'"
+            )
+
+
 def main() -> int:
     """Run all lockfile consistency checks and report GitHub-style errors."""
     runtime_manifest = API_DIR / "requirements.txt"
     dev_manifest = API_DIR / "requirements-dev.txt"
+    sandbox_manifest = API_DIR / "requirements-sandbox.txt"
     runtime_lock = API_DIR / "requirements.lock.txt"
     dev_lock = API_DIR / "requirements-dev.lock.txt"
+    sandbox_lock = API_DIR / "requirements-sandbox.lock.txt"
 
-    for path in (runtime_manifest, dev_manifest, runtime_lock, dev_lock):
+    for path in (
+        runtime_manifest,
+        dev_manifest,
+        sandbox_manifest,
+        runtime_lock,
+        dev_lock,
+        sandbox_lock,
+    ):
         if not path.exists():
             print(f"::error::{path} not found")
             return 1
 
     errors: list[str] = []
     check_manifest_against_lock([runtime_manifest], runtime_lock, errors)
-    # requirements-dev.txt starts with `-r requirements.txt`, so the dev lock
-    # must satisfy both manifests.
-    check_manifest_against_lock([runtime_manifest, dev_manifest], dev_lock, errors)
+    # requirements-dev.txt includes requirements.txt and requirements-sandbox.txt,
+    # so the dev lock must satisfy all three manifests.
+    check_manifest_against_lock(
+        [runtime_manifest, dev_manifest, sandbox_manifest], dev_lock, errors
+    )
     check_layering(runtime_lock, dev_lock, errors)
+    check_manifest_against_lock([sandbox_manifest], sandbox_lock, errors)
+    check_constrained(sandbox_lock, dev_lock, errors)
 
     if errors:
         for error in errors:
             print(f"::error::{error}")
         return 1
 
-    print(f"Lockfiles are in sync with their manifests " f"({runtime_lock.name}, {dev_lock.name})")
+    print(
+        "Lockfiles are in sync with their manifests "
+        f"({runtime_lock.name}, {dev_lock.name}, {sandbox_lock.name})"
+    )
     return 0
 
 

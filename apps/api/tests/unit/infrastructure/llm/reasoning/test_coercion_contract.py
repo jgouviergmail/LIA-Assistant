@@ -111,10 +111,13 @@ def test_gpt6_sol_and_luna_can_be_switched_off_and_reach_max(model: str) -> None
     assert coerce("none", profile) == ("none", False)
 
 
-def test_gpt6_astra_never_gets_a_disabling_level() -> None:
-    """GPT-6 Astra accepts « low, medium, high, xhigh, and max » only: an
-    explicit ``none`` reaching the API is a refused request."""
-    profile = resolve_reasoning_profile("openai", "gpt-6-astra")
+@pytest.mark.parametrize("model", ["gpt-6-astra", "gpt-6.1-sol"])
+def test_gpt6_astra_and_gpt61_sol_never_get_a_disabling_level(model: str) -> None:
+    """GPT-6 Astra and GPT-6.1 Sol accept « low, medium, high, xhigh, and max »
+    only: an explicit ``none`` reaching the API is a refused request (measured
+    on GPT-6.1 Sol, 2026-09-30, where the ``gpt-6`` prefix would have handed it
+    Sol's ``none``)."""
+    profile = resolve_reasoning_profile("openai", model)
     assert profile.family == "openai"
     assert profile.can_disable is False
     assert "none" not in profile.levels

@@ -269,3 +269,42 @@ class TestReactSubAgentMetrics:
             await runner.run(task="t", tools=[], prompt_vars={})
 
         assert self._sample("subagent_active_count") == pytest.approx(active_before)
+
+
+@pytest.mark.unit
+class TestANestedLoopNeverSettlesAQuestion:
+    """ADR-327 lot 3: only the ReAct loop's own call can settle an egress
+    question. A loop nested under that call — any tool that runs its own
+    ReActSubAgentRunner — must see the question as unsettleable, or a
+    sandbox tool bound there would raise a card nobody could answer."""
+
+    @patch("src.domains.agents.tools.react_runner.create_react_agent")
+    @patch("src.domains.agents.tools.react_runner.load_prompt")
+    @patch("src.domains.agents.tools.react_runner.get_llm")
+    async def test_the_nested_run_is_outside_the_settlement(
+        self,
+        mock_get_llm: MagicMock,
+        mock_load_prompt: MagicMock,
+        mock_create_react: MagicMock,
+    ) -> None:
+        from src.domains.agents.python_sandbox.egress.settlement import (
+            question_settleable,
+            settling_questions,
+        )
+
+        seen: list[bool] = []
+
+        async def ainvoke(*_args: object, **_kwargs: object) -> dict[str, list[object]]:
+            seen.append(question_settleable())
+            return {"messages": []}
+
+        mock_load_prompt.return_value.format.return_value = "prompt"
+        mock_create_react.return_value = MagicMock(ainvoke=ainvoke)
+
+        with settling_questions():
+            await ReactSubAgentRunner("test_agent", "test_prompt").run(
+                task="t", tools=[], prompt_vars={}
+            )
+            assert question_settleable() is True
+
+        assert seen == [False]

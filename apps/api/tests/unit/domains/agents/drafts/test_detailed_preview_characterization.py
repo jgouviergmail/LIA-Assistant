@@ -762,6 +762,19 @@ CASES: tuple[PreviewCase, ...] = (
         },
         language="en",
     ),
+    # ADR-327 lot 3: a skill written elsewhere asks — the card says so, right
+    # above what the run would carry.
+    PreviewCase(
+        "sandbox_egress_third_party_skill_fr",
+        DraftType.SANDBOX_EGRESS,
+        {
+            "hosts": ["status.example.org"],
+            "hosts_unknown": ["status.example.org"],
+            "purpose": "pdf: npm install docx",
+            "third_party_skill": True,
+            "data_summary": {"counts": {"file": 1}, "available": True, "language": "fr"},
+        },
+    ),
     PreviewCase(
         "sandbox_egress_too_large_en",
         DraftType.SANDBOX_EGRESS,
@@ -967,6 +980,7 @@ EXPECTED: dict[str, str] = {
     "sandbox_egress_full_fr": "- **Hôtes à autoriser**\xa0: status.example.org\n- **Déjà permis**\xa0: api.search.brave.com\n- **Motif**\xa0: vérifier si le service répond\n- **Données du tour**\xa0: 2 Contacts, 4 E-mails",
     "sandbox_egress_no_data_en": "- **Hosts to allow**: status.example.org\n- **Purpose**: check the service\n- **Turn data**: none",
     "sandbox_egress_too_large_en": "- **Hosts to allow**: status.example.org\n- **Turn data**: too large to travel",
+    "sandbox_egress_third_party_skill_fr": "- **Hôtes à autoriser**\xa0: status.example.org\n- **Motif**\xa0: pdf: npm install docx\n- Cette skill a été écrite ailleurs. N'envoie les données du tour que si tu lui fais confiance.\n- **Données du tour**\xa0: 1 Fichiers",
     "peer_message_full_fr": "- **Destinataire**\xa0: Marie Dupont\n\n**Message**\n\nDemande-lui comment il va",
     "peer_message_minimal_en": "- **Recipient**: Marie Dupont",
     "vacation_enable_full_fr": "- **Objet**\xa0: Absent jusqu'au 30/08\n- **Début**\xa0: 2026-08-24\n- **Fin**\xa0: 2026-08-30\n\n**Message**\n\nJe suis en congés, je répondrai à mon retour.",

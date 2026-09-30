@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.domains.agents.python_sandbox.egress.hosts import HostStatus
+from src.domains.agents.python_sandbox.egress.hosts import MAX_HOST_LENGTH, HostStatus
 
 
 class EgressGrantResponse(BaseModel):
@@ -44,6 +44,22 @@ class EgressGrantListResponse(BaseModel):
     )
 
 
+class EgressGrantCreate(BaseModel):
+    """A host the person allows from the settings (ADR-327 lot 3)."""
+
+    host: str = Field(
+        max_length=MAX_HOST_LENGTH * 2,
+        description=(
+            "The bare hostname, as a run declares it — normalised and checked by the "
+            "rule the tool applies; a URL, a port or an IP address is refused."
+        ),
+    )
+    share_turn_data: bool = Field(
+        default=False,
+        description="Whether the turn's collected data may reach a run that declares it.",
+    )
+
+
 class EgressGrantScopeUpdate(BaseModel):
     """The one thing a person changes on a grant from the settings page."""
 
@@ -70,6 +86,7 @@ class ReachableHostsResponse(BaseModel):
 
 
 __all__ = [
+    "EgressGrantCreate",
     "EgressGrantListResponse",
     "EgressGrantResponse",
     "EgressGrantScopeUpdate",

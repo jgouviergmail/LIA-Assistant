@@ -669,11 +669,12 @@ class AgentService(
 
             # Import MCP tools setup before try block to ensure cleanup is always accessible
             from src.core.context import (
-                active_skills_ctx,
                 admin_mcp_disabled_ctx,
+                bind_skill_context,
                 build_request_tool_manifests,
                 capability_directive_ctx,
                 request_tool_manifests_ctx,
+                reset_skill_context,
             )
             from src.infrastructure.mcp.user_context import (
                 cleanup_user_mcp_tools,
@@ -690,8 +691,11 @@ class AgentService(
                 from src.domains.skills.preference_service import SkillPreferenceService
 
                 _skill_svc = SkillPreferenceService(db)
-                _active_skills = await _skill_svc.get_active_skills_for_user(user_obj.id)
-                _active_skills_token = active_skills_ctx.set(_active_skills)
+                # The active AND third-party names (ADR-327), bound together.
+                _skill_state = await _skill_svc.get_request_skill_state(user_obj.id)
+                _active_skills_token = bind_skill_context(
+                    set(_skill_state.active), _skill_state.third_party
+                )
 
             _user_mcp_token = None  # Initialized before try for safe cleanup in except
             _manifests_token = None  # Initialized before try for safe cleanup in except
@@ -1134,23 +1138,14 @@ class AgentService(
                                     str(_jid) for _jid in _injected_journal_ids
                                 ][:RESPONSE_FEEDBACK_JOURNAL_IDS_MAX]
 
-                            # Persist image cards in message metadata so they
-                            # survive a page reload — whoever queued them (the
-                            # image tool, the generated-files lookup, ADR-318).
-                            from src.domains.image_generation.delivery import (
-                                attach_archived_images,
+                            # The answer's cards (images, documents, skill
+                            # proposals) survive a page reload — whoever queued
+                            # them; ONE door so this hotspot never grows.
+                            from src.domains.agents.api.card_delivery import (
+                                attach_archived_cards,
                             )
 
-                            attach_archived_images(assistant_metadata, str(conversation_id))
-
-                            # Generated document cards (ADR-226):
-                            # peek and serialization live in the helper so this
-                            # hotspot gains no branch and no drift surface.
-                            from src.domains.document_generation.delivery import (
-                                attach_archived_documents,
-                            )
-
-                            attach_archived_documents(assistant_metadata, str(conversation_id))
+                            attach_archived_cards(assistant_metadata, str(conversation_id))
 
                             # Persist last browser screenshot as Attachment for card display
                             if getattr(settings, "browser_progressive_screenshots", False):
@@ -1568,18 +1563,11 @@ class AgentService(
                                 tts_snapshot_for_done["tts_cost_eur"]
                             )
 
-                    # === IMAGE CARDS: in the done metadata, drawn as dedicated
-                    # cards (not inside markdown, avoiding proxy/hydration issues) ===
-                    from src.domains.image_generation.delivery import attach_done_images
+                    # === THE ANSWER'S CARDS: images, documents, skill proposals,
+                    # drawn as dedicated cards (never inside markdown) ===
+                    from src.domains.agents.api.card_delivery import attach_done_cards
 
-                    attach_done_images(done_metadata, str(conversation_id))
-
-                    # === DOCUMENT GENERATION: card metadata in the done chunk (ADR-226) ===
-                    from src.domains.document_generation.delivery import (
-                        attach_done_documents,
-                    )
-
-                    attach_done_documents(done_metadata, str(conversation_id))
+                    attach_done_cards(done_metadata, str(conversation_id))
 
                     # Browser screenshot card: reuse URL computed at archive time
                     if browser_screenshot_card_url:
@@ -1622,9 +1610,9 @@ class AgentService(
                 # Cleanup admin MCP disabled ContextVar (evolution F2.5)
                 if _admin_mcp_token is not None:
                     admin_mcp_disabled_ctx.reset(_admin_mcp_token)
-                # Cleanup disabled skills ContextVar
+                # Cleanup the skill context (active + third-party names)
                 if _active_skills_token is not None:
-                    active_skills_ctx.reset(_active_skills_token)
+                    reset_skill_context(_active_skills_token)
                 # Cleanup per-request tool manifests ContextVar
                 if _manifests_token is not None:
                     request_tool_manifests_ctx.reset(_manifests_token)
@@ -1651,9 +1639,9 @@ class AgentService(
                 # Cleanup admin MCP disabled ContextVar on error (evolution F2.5)
                 if _admin_mcp_token is not None:
                     admin_mcp_disabled_ctx.reset(_admin_mcp_token)
-                # Cleanup disabled skills ContextVar on error
+                # Cleanup the skill context on error
                 if _active_skills_token is not None:
-                    active_skills_ctx.reset(_active_skills_token)
+                    reset_skill_context(_active_skills_token)
                 # Cleanup per-request tool manifests ContextVar on error
                 if _manifests_token is not None:
                     request_tool_manifests_ctx.reset(_manifests_token)

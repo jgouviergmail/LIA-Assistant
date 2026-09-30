@@ -42,7 +42,7 @@ import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 from pydantic import BaseModel
 
@@ -167,6 +167,128 @@ class ScriptResult(BaseModel):
     execution_time_ms: int = 0
 
 
+def isolation_flags(
+    *,
+    container_name: str,
+    network: str,
+    tmpfs: str,
+    memory_mb: int,
+    processes: int,
+    cpu_seconds: int,
+    file_size_mb: int,
+    cpus: float | None = None,
+) -> list[str]:
+    """The SEC-001 isolation every sandbox run starts from — scripts and commands alike.
+
+    One declaration, so a future edit cannot harden one kind of run and forget
+    the other.
+
+    Args:
+        container_name: Unique name, so a run past its budget can be force-removed.
+        network: ``none``, or the egress network of a published run (ADR-298).
+        tmpfs: The ``--tmpfs`` specification of the only writable place.
+        memory_mb: Memory ceiling (a tmpfs's pages count against it).
+        processes: Process and thread ceiling.
+        cpu_seconds: CPU-time ceiling of each process.
+        file_size_mb: Largest file a process may write.
+        cpus: Cores the run may use, or None for no ceiling beyond the host's.
+
+    Returns:
+        The ``docker run`` options, before the environment and the image.
+    """
+    cores = [f"--cpus={cpus}"] if cpus is not None else []
+    return [
+        "--rm",
+        "--interactive",
+        # Killing the `docker run` client does NOT stop the container
+        # (measured): without a name to target, a run that ignores its
+        # budget — `time.sleep(1e9)` burns no CPU, so the CPU rlimit never
+        # fires — would linger forever holding memory and pids.
+        f"--name={container_name}",
+        "--network",
+        network,
+        "--read-only",
+        f"--user={SKILLS_SCRIPT_SANDBOX_UID}:{SKILLS_SCRIPT_SANDBOX_UID}",
+        f"--tmpfs={tmpfs}",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges:true",
+        f"--memory={memory_mb}m",
+        f"--pids-limit={processes}",
+        # Belt and braces with the outer timeout: a process that ignores
+        # SIGTERM still dies when the CPU budget runs out.
+        f"--ulimit=cpu={cpu_seconds}",
+        f"--ulimit=fsize={file_size_mb * 1024 * 1024}",
+        *cores,
+    ]
+
+
+def egress_args(egress: EgressSpec) -> list[str]:
+    """The CA mount, the proxy and the tokens of a network run (ADR-298, ADR-327).
+
+    One declaration for the scripts and the skills' commands. Only
+    ``HTTPS_PROXY`` is set: there is no ``HTTP_PROXY`` because plain HTTP is
+    not offered, and no ``NO_PROXY`` because there is nothing to reach
+    directly; ``NODE_USE_ENV_PROXY`` makes Node's own clients read it. Every client that trusts its own store is pointed at the proxy's
+    CA: urllib/httpx (``SSL_CERT_FILE``), requests, curl, Node and npm
+    (``NODE_EXTRA_CA_CERTS``), git (``GIT_SSL_CAINFO``) and pip (``PIP_CERT``).
+    Measured 2026-09-30 in the sandbox image: git refuses the proxy's
+    certificate without its variable (its TLS library ignores
+    ``SSL_CERT_FILE``); Debian's Node and pip already follow ``SSL_CERT_FILE``,
+    and their own variables keep them trusting the proxy on a build that does
+    not.
+
+    Args:
+        egress: The published run's network, proxy, CA and tokens.
+
+    Returns:
+        The ``docker run`` options.
+    """
+    args = [
+        "-v",
+        f"{egress.ca_volume}:{egress.ca_dir}:ro",
+        "--env",
+        f"HTTPS_PROXY={egress.proxy_url}",
+        # Node's own fetch and http clients read HTTPS_PROXY only when told to;
+        # measured on Node 24: a fetch found no route without it.
+        "--env",
+        "NODE_USE_ENV_PROXY=1",
+    ]
+    for variable in _CA_VARIABLES:
+        args += ["--env", f"{variable}={egress.ca_file}"]
+    for name, token in egress.tokens.items():
+        args += ["--env", f"{name}={token}"]
+    return args
+
+
+#: Every variable a client in the sandbox reads its trusted CA from.
+_CA_VARIABLES: Final = (
+    "SSL_CERT_FILE",
+    "REQUESTS_CA_BUNDLE",
+    "CURL_CA_BUNDLE",
+    "NODE_EXTRA_CA_CERTS",
+    "GIT_SSL_CAINFO",
+    "PIP_CERT",
+)
+
+
+def force_remove(container_name: str) -> None:
+    """Remove a sandbox container that outlived its budget — best effort, never raises.
+
+    Killing the `docker run` CLIENT does not stop the container (measured), so
+    every path that gives up on a run removes it by name.
+
+    Args:
+        container_name: The name the run was started with.
+    """
+    # Best effort: a failure here must never mask the timeout that called it.
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
+        subprocess.run(
+            ["docker", "rm", "--force", container_name],
+            capture_output=True,
+            timeout=SKILLS_SCRIPT_SANDBOX_CLEANUP_TIMEOUT_SECONDS,
+        )
+
+
 class SkillScriptExecutor:
     """Execute skill scripts in sandboxed subprocess."""
 
@@ -224,31 +346,20 @@ class SkillScriptExecutor:
             The argv list for `docker run`.
         """
         limits = [
-            "--rm",
-            "--interactive",
-            # Killing the `docker run` client does NOT stop the container
-            # (measured): without a name to target, a script that ignores its
-            # budget — `time.sleep(1e9)` burns no CPU, so the CPU rlimit never
-            # fires — would linger forever holding memory and pids.
-            f"--name={container_name}",
-            # No network at all, unless the run was published to the egress
-            # proxy: then the sandbox joins an INTERNAL network whose only
-            # routed member is that proxy — a raw socket still has nowhere
-            # to go (measured 2026-09-18: `Network is unreachable`), and
-            # HTTPS goes through the proxy or not at all.
-            "--network",
-            egress.network if egress is not None else "none",
-            "--read-only",
-            f"--user={SKILLS_SCRIPT_SANDBOX_UID}:{SKILLS_SCRIPT_SANDBOX_UID}",
-            f"--tmpfs=/tmp:size={settings.skills_script_sandbox_tmpfs_mb}m,mode=1777",
-            "--cap-drop=ALL",
-            "--security-opt=no-new-privileges:true",
-            f"--memory={settings.skills_script_max_memory_mb}m",
-            f"--pids-limit={settings.skills_script_max_processes}",
-            # Belt and braces with the outer timeout: a script that ignores
-            # SIGTERM still dies when the CPU budget runs out.
-            f"--ulimit=cpu={min(settings.skills_script_max_cpu_seconds, timeout)}",
-            f"--ulimit=fsize={settings.skills_script_max_file_size_mb * 1024 * 1024}",
+            *isolation_flags(
+                container_name=container_name,
+                # No network at all, unless the run was published to the
+                # egress proxy: then the sandbox joins an INTERNAL network
+                # whose only routed member is that proxy — a raw socket still
+                # has nowhere to go (measured 2026-09-18: `Network is
+                # unreachable`), and HTTPS goes through the proxy or not at all.
+                network=egress.network if egress is not None else "none",
+                tmpfs=f"/tmp:size={settings.skills_script_sandbox_tmpfs_mb}m,mode=1777",
+                memory_mb=settings.skills_script_max_memory_mb,
+                processes=settings.skills_script_max_processes,
+                cpu_seconds=min(settings.skills_script_max_cpu_seconds, timeout),
+                file_size_mb=settings.skills_script_max_file_size_mb,
+            ),
             "--env",
             f"SKILL_NAME={skill_name}",
             # HOME must point at the tmpfs: the root filesystem is read-only, so
@@ -259,7 +370,7 @@ class SkillScriptExecutor:
         if settings.skills_script_sandbox_pythonpath:
             limits += ["--env", f"PYTHONPATH={settings.skills_script_sandbox_pythonpath}"]
         if egress is not None:
-            limits += SkillScriptExecutor._egress_args(egress)
+            limits += egress_args(egress)
 
         return [
             "docker",
@@ -271,31 +382,6 @@ class SkillScriptExecutor:
             "-c",
             source,
         ]
-
-    @staticmethod
-    def _egress_args(egress: EgressSpec) -> list[str]:
-        """The CA mount, the proxy and the tokens of a network run (ADR-298).
-
-        Only ``HTTPS_PROXY`` is set: there is no ``HTTP_PROXY`` because plain
-        HTTP is not offered, and no ``NO_PROXY`` because there is nothing to
-        reach directly. The three CA variables cover urllib/httpx
-        (``SSL_CERT_FILE``), requests and curl.
-        """
-        args = [
-            "-v",
-            f"{egress.ca_volume}:{egress.ca_dir}:ro",
-            "--env",
-            f"HTTPS_PROXY={egress.proxy_url}",
-            "--env",
-            f"SSL_CERT_FILE={egress.ca_file}",
-            "--env",
-            f"REQUESTS_CA_BUNDLE={egress.ca_file}",
-            "--env",
-            f"CURL_CA_BUNDLE={egress.ca_file}",
-        ]
-        for name, token in egress.tokens.items():
-            args += ["--env", f"{name}={token}"]
-        return args
 
     @staticmethod
     def _run_sandbox_sync(
@@ -335,14 +421,9 @@ class SkillScriptExecutor:
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired:
-            # Best-effort: a script sleeping forever burns no CPU, so neither
-            # the CPU rlimit nor `--rm` would ever reclaim it.
-            with contextlib.suppress(OSError, subprocess.SubprocessError):
-                subprocess.run(
-                    ["docker", "rm", "--force", container_name],
-                    capture_output=True,
-                    timeout=SKILLS_SCRIPT_SANDBOX_CLEANUP_TIMEOUT_SECONDS,
-                )
+            # A script sleeping forever burns no CPU, so neither the CPU
+            # rlimit nor `--rm` would ever reclaim it.
+            force_remove(container_name)
             raise
 
     @classmethod
@@ -635,11 +716,7 @@ class SkillScriptExecutor:
         max_input = settings.skills_script_max_input_kb * 1024
 
         # Resolve script path (user-scoped for override semantics)
-        skill = (
-            SkillsCache.get_by_name_for_user(skill_name, user_id)
-            if user_id
-            else SkillsCache.get_by_name(skill_name)
-        )
+        skill = SkillsCache.get_by_name_for_user(skill_name, user_id)
         if not skill:
             return ScriptResult(success=False, output="", error=f"Skill '{skill_name}' not found")
 

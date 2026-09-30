@@ -269,6 +269,11 @@ class TestEgressCommand:
         assert env["SSL_CERT_FILE"] == "/etc/lia-egress/ca/ca.crt"
         assert env["REQUESTS_CA_BUNDLE"] == "/etc/lia-egress/ca/ca.crt"
         assert env["CURL_CA_BUNDLE"] == "/etc/lia-egress/ca/ca.crt"
+        # node/npm, git and pip read none of the three above (measured
+        # 2026-09-30: « self-signed certificate in certificate chain »).
+        assert env["NODE_EXTRA_CA_CERTS"] == "/etc/lia-egress/ca/ca.crt"
+        assert env["GIT_SSL_CAINFO"] == "/etc/lia-egress/ca/ca.crt"
+        assert env["PIP_CERT"] == "/etc/lia-egress/ca/ca.crt"
         assert env["LIA_KEY_BRAVE_SEARCH"] == "sbx_run_abc"
 
     def test_no_plain_http_and_no_bypass(self) -> None:

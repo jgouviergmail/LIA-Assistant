@@ -167,6 +167,17 @@ describe('chatReducer — STREAM_DONE', () => {
         expires_at: null,
       },
     ],
+    skill_proposals: [
+      {
+        id: 'p'.repeat(32),
+        name: 'ma-skill',
+        description: 'Useful.',
+        replaces: false,
+        files: [{ path: 'SKILL.md', size: 12 }],
+        changes: null,
+        expires_at: '2026-10-01T10:00:00+00:00',
+      },
+    ],
     browser_screenshot: { url: 'https://shot/1.jpg', alt: 'shot' },
     expressivity: { register: 'warm', intensity: 0.6, accent: 'nod' },
     psyche_state: {
@@ -211,6 +222,7 @@ describe('chatReducer — STREAM_DONE', () => {
         },
       ],
       browserScreenshot: { url: 'https://shot/1.jpg', alt: 'shot' },
+      skillProposals: fullMetadata.skill_proposals,
     });
     expect(next.messages[0].metadata?.psyche_state).toEqual(fullMetadata.psyche_state);
     // ADR-253: the answer's register lands on the live bubble (read by the live

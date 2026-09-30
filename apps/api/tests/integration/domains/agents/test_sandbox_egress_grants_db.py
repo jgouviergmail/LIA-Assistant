@@ -20,6 +20,7 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.agents.python_sandbox.egress.grants import EgressGrantService
 from src.domains.agents.python_sandbox.egress.grants_repository import EgressGrantRepository
 from src.domains.agents.python_sandbox.egress.models import SandboxEgressGrant
 from src.domains.users.models import User
@@ -59,6 +60,37 @@ class TestOneGrantPerHost:
         await repo.upsert(b.id, "api.example.org", share_turn_data=False)
         assert await repo.scopes_for_user(a.id) == {"api.example.org": True}
         assert await repo.scopes_for_user(b.id) == {"api.example.org": False}
+
+
+class TestAllowingFromTheSettings:
+    """ADR-327 lot 3: the settings route writes under the card's cap, on the real rows."""
+
+    async def test_a_new_host_is_refused_at_the_cap_and_a_known_one_takes_its_scope(
+        self, async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from types import SimpleNamespace
+
+        monkeypatch.setattr(
+            "src.domains.agents.python_sandbox.egress.grants.get_settings",
+            lambda: SimpleNamespace(python_sandbox_max_grants_per_user=2),
+        )
+        user = await _user(async_session)
+        service = EgressGrantService(repository=EgressGrantRepository(async_session))
+        first = await service.grant(user.id, "registry.npmjs.org", share_turn_data=False)
+        second = await service.grant(user.id, "pypi.org", share_turn_data=False)
+        assert first is not None and second is not None
+        # The cap bounds NEW rows: a third host is refused and nothing is written…
+        assert await service.grant(user.id, "github.com", share_turn_data=True) is None
+        repo = EgressGrantRepository(async_session)
+        assert await repo.count_for_user(user.id) == 2
+        # …while a known host takes its new scope, the row kept.
+        again = await service.grant(user.id, "registry.npmjs.org", share_turn_data=True)
+        assert isinstance(first, SandboxEgressGrant) and isinstance(again, SandboxEgressGrant)
+        assert again.id == first.id
+        assert await repo.scopes_for_user(user.id) == {
+            "registry.npmjs.org": True,
+            "pypi.org": False,
+        }
 
 
 class TestTheAccountOwnsThem:

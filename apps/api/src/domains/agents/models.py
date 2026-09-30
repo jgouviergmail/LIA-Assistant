@@ -480,6 +480,11 @@ class MessagesState(TypedDict):
     react_max_iterations_effective: int | None
     react_productive_iterations: int  # ADR-248: iterations that brought results back
     react_scripts: list[dict[str, Any]]  # ADR-249: ephemeral scripts, admin debug only
+    # ADR-327: the skills the loop ACTIVATED this turn (the tool's own answer
+    # names them). The response node reads it so it never runs the skill
+    # runner for a skill the loop already ran — in ReAct the loop is the
+    # runner. Reset per turn with the other accumulators.
+    react_activated_skills: list[str]
     react_script_runs: int  # ADR-249: script runs consumed this turn (budget)
     pending_tool_calls: list[dict[str, Any]]  # Tool calls awaiting HITL approval/execution
 

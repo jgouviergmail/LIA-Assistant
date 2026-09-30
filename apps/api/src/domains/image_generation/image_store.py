@@ -9,10 +9,10 @@ Phase: evolution — AI Image Generation
 Created: 2026-03-25
 """
 
-import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from src.domains.shared.pending_cards import PendingCards
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -48,8 +48,7 @@ class PendingImage:
 
 
 # Module-level store: conversation_id → list of PendingImage
-_pending_images: dict[str, list[PendingImage]] = {}
-_lock = threading.Lock()
+_pending_images: PendingCards[PendingImage] = PendingCards(GENERATED_IMAGES_METADATA_KEY)
 
 
 def sanitize_alt_text(text: str) -> str:
@@ -94,8 +93,7 @@ def store_pending_image(
     sanitized_alt = sanitize_alt_text(alt_text)
     image = PendingImage(url=url, alt_text=sanitized_alt, expires_at=expires_at, kept=kept)
 
-    with _lock:
-        _pending_images.setdefault(conversation_id, []).append(image)
+    _pending_images.add(conversation_id, image)
 
     logger.info(
         "pending_image_stored",
@@ -117,8 +115,7 @@ def peek_pending_images(conversation_id: str) -> list[PendingImage]:
     Returns:
         List of PendingImage (empty if none pending).
     """
-    with _lock:
-        return list(_pending_images.get(conversation_id, []))
+    return _pending_images.peek(conversation_id)
 
 
 def get_and_clear_pending_images(conversation_id: str) -> list[PendingImage]:
@@ -133,8 +130,7 @@ def get_and_clear_pending_images(conversation_id: str) -> list[PendingImage]:
     Returns:
         List of PendingImage (empty if none pending).
     """
-    with _lock:
-        images = _pending_images.pop(conversation_id, [])
+    images = _pending_images.take(conversation_id)
 
     if images:
         logger.info(

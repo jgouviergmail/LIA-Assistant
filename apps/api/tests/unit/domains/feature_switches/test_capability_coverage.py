@@ -90,6 +90,10 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         # listener, and a newsroom reading public sites for the instance, so
         # an operator must be able to close both without a deployment.
         "radio",
+        # ADR-327 — the skill library: code written by strangers, fetched from
+        # their repositories, so an operator must be able to close the door
+        # while the skills already installed stay.
+        "skill_library",
     }
 )
 

@@ -2422,14 +2422,14 @@
       "date": "2026-09-30",
       "theme": "security",
       "functional": ["f.chat", "f.mail", "f.web", "f.voice", "f.radio", "f.security"],
-      "technical": [
-        "t.response",
-        "t.toolsys",
-        "t.live",
-        "t.connclients",
-        "t.cicd",
-        "t.web"
-      ]
+      "technical": ["t.response", "t.toolsys", "t.live", "t.connclients", "t.cicd", "t.web"]
+    },
+    {
+      "adr": 327,
+      "date": "2026-09-30",
+      "theme": "trust",
+      "functional": ["f.skills", "f.sandbox", "f.chat", "f.security", "f.admin"],
+      "technical": ["t.skills", "t.sandbox", "t.response", "t.toolsys", "t.metrics", "t.web"]
     }
   ]
 }

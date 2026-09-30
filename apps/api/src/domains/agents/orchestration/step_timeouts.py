@@ -39,8 +39,20 @@ from src.core.constants import MCP_ITERATIVE_TASK_SUFFIX, MCP_TOOL_NAME_PREFIX
 _BROWSER_TOOL_NAME = "browser_task_tool"
 _DEVOPS_TOOL_NAME = "claude_server_task_tool"
 _SUB_AGENT_TOOL_NAME = "delegate_to_sub_agent_tool"
+#: A third-party skill's activation RUNS it, in the isolated skill runner
+#: (ADR-327): a nested loop like a delegation, killed at the generic 30 s
+#: three times in one dev session (2026-09-30) — the sub-agent family's bounds.
+_SKILL_ACTIVATION_TOOL_NAME = "activate_skill_tool"
+_NESTED_LOOP_TOOL_NAMES: frozenset[str] = frozenset(
+    {_SUB_AGENT_TOOL_NAME, _SKILL_ACTIVATION_TOOL_NAME}
+)
 _IMAGE_TOOL_NAMES: frozenset[str] = frozenset({"generate_image", "edit_image"})
 _DOCUMENT_TOOL_NAMES: frozenset[str] = frozenset({"generate_document"})
+#: A skill's script and command (ADR-327 lot 2): the sandbox bounds them itself,
+#: so the step waits exactly that bound — floor AND ceiling, never the generic
+#: 30 s that cut a command the sandbox still allowed.
+_SKILL_SCRIPT_TOOL_NAME = "run_skill_script"
+_SKILL_COMMAND_TOOL_NAME = "run_skill_command"
 # Web research backed by an external LLM (Perplexity synthesis / unified
 # multi-source search): prod 2026-08-14→20 measured these killed at the
 # generic 30 s while the synthesis legitimately runs longer.
@@ -51,7 +63,8 @@ _HIGH_LATENCY_TOOL_NAMES: frozenset[str] = (
     _IMAGE_TOOL_NAMES
     | _DOCUMENT_TOOL_NAMES
     | _WEB_RESEARCH_TOOL_NAMES
-    | frozenset({_SUB_AGENT_TOOL_NAME, _DEVOPS_TOOL_NAME, _BROWSER_TOOL_NAME})
+    | _NESTED_LOOP_TOOL_NAMES
+    | frozenset({_DEVOPS_TOOL_NAME, _BROWSER_TOOL_NAME})
 )
 
 
@@ -63,9 +76,11 @@ def compute_step_timeout(
 
     Implements the per-tool-family policy:
 
-    - ``delegate_to_sub_agent_tool``: floor / ceiling tunable via Settings
-      (`subagent_tool_timeout_seconds` / `subagent_tool_max_timeout_seconds`),
-      so operators can adjust without touching application-wide constants.
+    - ``delegate_to_sub_agent_tool`` and ``activate_skill_tool`` (which runs a
+      third-party skill in its isolated runner, ADR-327): floor / ceiling
+      tunable via Settings (`subagent_tool_timeout_seconds` /
+      `subagent_tool_max_timeout_seconds`), so operators can adjust without
+      touching application-wide constants.
     - ``browser_task_tool``: dedicated higher floor / ceiling
       (`BROWSER_TOOL_TIMEOUT_SECONDS` / `MAX_BROWSER_TOOL_TIMEOUT_SECONDS`)
       because the nested ReAct loop legitimately takes minutes.
@@ -95,6 +110,10 @@ def compute_step_timeout(
       strictest voice in the chain and cut a call the layer below still
       accepted. An explicit `step_requested_timeout` remains an intention and
       is still honoured, exactly as it is for every non-high-latency family.
+    - A skill's script or command (``run_skill_script``,
+      ``run_skill_command``, ADR-327 lot 2): the sandbox's own wall budget as
+      BOTH floor and ceiling — the container bounds the run, and the generic
+      30 s would cut a command the sandbox still allows.
     - Everything else: `DEFAULT_TOOL_TIMEOUT_SECONDS` (30 s) floor,
       `MAX_TOOL_TIMEOUT_SECONDS` (120 s) ceiling.
 
@@ -114,6 +133,10 @@ def compute_step_timeout(
         Effective timeout in seconds. Always positive.
     """
     cfg = get_settings()
+    if step_tool_name == _SKILL_COMMAND_TOOL_NAME:
+        return float(cfg.skill_command_wall_seconds)
+    if step_tool_name == _SKILL_SCRIPT_TOOL_NAME:
+        return float(cfg.skills_script_wall_seconds)
     # MCP iterative (ReAct) task steps (`{server}_task`, ADR-062): dedicated
     # high-latency family (audit D1). The generic 120 s ceiling used to clamp
     # the planner's request and killed legitimate multi-iteration work — one
@@ -144,7 +167,7 @@ def compute_step_timeout(
 
     # Floor (effective default if planner left it unset, AND minimum for
     # high-latency tools — see docstring).
-    if step_tool_name == _SUB_AGENT_TOOL_NAME:
+    if step_tool_name in _NESTED_LOOP_TOOL_NAMES:
         effective_default: float = cfg.subagent_tool_timeout_seconds
     elif step_tool_name in _IMAGE_TOOL_NAMES:
         effective_default = cfg.image_generation_tool_timeout_seconds
@@ -166,7 +189,7 @@ def compute_step_timeout(
     # Ceiling.
     if step_tool_name == _BROWSER_TOOL_NAME:
         max_timeout: float = cfg.max_browser_tool_timeout_seconds
-    elif step_tool_name == _SUB_AGENT_TOOL_NAME:
+    elif step_tool_name in _NESTED_LOOP_TOOL_NAMES:
         max_timeout = cfg.subagent_tool_max_timeout_seconds
     elif step_tool_name in _IMAGE_TOOL_NAMES:
         # Dedicated ceiling: the generic 120 s sat BELOW the 138.3 s measured

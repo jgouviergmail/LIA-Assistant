@@ -252,9 +252,9 @@
     },
     "t.skills": {
       "name": "Habilidades y plugins",
-      "role": "Instalar, activar y ejecutar habilidades portables; un plugin aporta habilidades y servidores MCP de un solo gesto.",
+      "role": "Instalar, activar y ejecutar competencias portátiles — tomadas de una biblioteca pública en un commit exacto, o propuestas por el chat — y sus comandos en una copia desechable de su carpeta; una competencia de terceros corre en un runner aislado, y un plugin aporta competencias y servidores MCP en un solo gesto.",
       "stack": ["Agent Skills", "Agent Plugins"],
-      "src": "7dcbbe9d1959"
+      "src": "92d4fcb1a5d5"
     },
     "t.sandbox": {
       "name": "Entorno aislado y proxy de salida",

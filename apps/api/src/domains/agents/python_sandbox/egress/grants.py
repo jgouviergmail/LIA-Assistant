@@ -2,9 +2,12 @@
 
 A grant is a decision the person took on a HITL card — « this host, with or
 without the turn's data » — remembered per account so the next run needs no
-question. The cap (``PYTHON_SANDBOX_MAX_GRANTS_PER_USER``) bounds NEW rows
-only: at the cap an approval still holds for the run it answers (``one_shot``)
-and the card says so; changing one's mind on a host already granted is free.
+question; or the same decision taken from the settings, where no question can
+be asked (a pipeline turn, a routine — ADR-327 lot 3). The cap
+(``PYTHON_SANDBOX_MAX_GRANTS_PER_USER``) bounds NEW rows only: at the cap an
+approval still holds for the run it answers (``one_shot``) and the card says
+so, the settings refuse the new host; changing one's mind on a host already
+granted is free.
 """
 
 from __future__ import annotations
@@ -115,21 +118,47 @@ class EgressGrantService:
         if decision is Decision.REFUSED:
             return RecordOutcome(allowed=False, share_turn_data=False, one_shot=False)
         share = decision is Decision.WITH_DATA
-        cap = get_settings().python_sandbox_max_grants_per_user
-        known = await self._repository.scopes_for_user(user_id)
         names = list(hosts)
-        new_names = [h for h in names if h not in known]
-        room = cap - await self._repository.count_for_user(user_id)
-        if new_names and len(new_names) > room:
+        if not await self._has_room(user_id, names):
             # Nothing is written: a partial memory would make the same question
             # come back for half the hosts, which reads as a bug.
-            logger.info(
-                "sandbox_egress_grant_one_shot", user_id=str(user_id), cap=cap, asked=len(new_names)
-            )
             return RecordOutcome(allowed=True, share_turn_data=share, one_shot=True)
         for host in names:
             await self._repository.upsert(user_id, host, share_turn_data=share)
         return RecordOutcome(allowed=True, share_turn_data=share, one_shot=False)
+
+    async def grant(self, user_id: UUID, host: str, *, share_turn_data: bool) -> object | None:
+        """Allow one host from the settings, under the card's cap.
+
+        Args:
+            user_id: The account.
+            host: The exact hostname, already normalised.
+            share_turn_data: The scope the person chose.
+
+        Returns:
+            The row, created or updated — or None when the host is new and the
+            account holds as many grants as the instance allows.
+        """
+        if not await self._has_room(user_id, [host]):
+            return None
+        return await self._repository.upsert(user_id, host, share_turn_data=share_turn_data)
+
+    async def _has_room(self, user_id: UUID, hosts: list[str]) -> bool:
+        """Whether the hosts not granted yet all fit under the cap — the ONE
+        reading of it, for the card and the settings alike."""
+        cap = get_settings().python_sandbox_max_grants_per_user
+        known = await self._repository.scopes_for_user(user_id)
+        new_names = [h for h in hosts if h not in known]
+        room = cap - await self._repository.count_for_user(user_id)
+        if new_names and len(new_names) > room:
+            logger.info(
+                "sandbox_egress_grant_cap_reached",
+                user_id=str(user_id),
+                cap=cap,
+                asked=len(new_names),
+            )
+            return False
+        return True
 
     async def mark_used(self, user_id: UUID, hosts: Iterable[str], *, when: datetime) -> None:
         """Stamp the grants a run relied on."""

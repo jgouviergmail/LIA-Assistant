@@ -302,10 +302,15 @@ docker compose -f docker-compose.prod.yml -f docker-compose.install.yml \
   --profile observability ps
 ```
 
-**Script sandbox** (`skill_sandbox = yes`) lets skills execute Python in a
-throwaway container, and lets the assistant run the short script it writes when
-a step needs a computation. This **mounts the Docker socket into the API
-container** — a deliberate privilege. Leave it off unless you need it.
+**Script sandbox** (`skill_sandbox = yes`) lets skills execute their scripts
+and commands in a throwaway container, and lets the assistant run the short
+script it writes when a step needs a computation. This **mounts the Docker
+socket into the API container** — a deliberate privilege. Leave it off unless
+you need it. Every run starts from the release's **sandbox image** (Python,
+Node, the command-line tools skills call; no Docker client, no application
+code — [ADR-327](../architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)):
+a prebuilt install pulls it by the manifest's digest, a local build builds it
+(`lia-skill-sandbox:local`).
 
 > If you enable the sandbox, set your host's Docker group id in `.env`,
 > otherwise the API cannot use the socket:
@@ -335,9 +340,12 @@ the admin panel's capability map — the switch is read at every run, no restart
 The proxy's image is pinned by digest in the overlay (amd64 and arm64), it runs
 as `LIA_RUNTIME_UID` (1000 by default) and mints its own certificate authority
 at start; the API waits for it to be healthy. Set `PYTHON_SANDBOX_EGRESS_HOSTS`
-to a JSON list of hosts every account may reach without being asked, and keep
+to a JSON list of hosts every account may reach without being asked — the
+templates list the package registries and git's host (`registry.npmjs.org`,
+`pypi.org`, `files.pythonhosted.org`, `github.com`), which accept no anonymous
+upload, so a skill's `npm install` or `git clone` needs no question — and keep
 `PYTHON_SANDBOX_EGRESS_ASK_ENABLED=true` so an unknown host is asked of the
-person rather than refused. The alert `SandboxEgressProxyDown` watches the
+person rather than refused (off, nobody allows a host by hand either). The alert `SandboxEgressProxyDown` watches the
 proxy's health once the capability is on.
 
 ### 4.7 Unattended installs

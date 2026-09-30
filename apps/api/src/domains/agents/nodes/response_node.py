@@ -17,6 +17,7 @@ Flow:
 
 import asyncio
 import time
+from collections.abc import Mapping
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -78,9 +79,7 @@ from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
     runtime_deps,
     runtime_display_mode,
-    runtime_language,
     runtime_psyche_enabled,
-    runtime_timezone,
     runtime_user_id_str,
     runtime_voice_enabled,
 )
@@ -113,10 +112,7 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.post_response_extractions import (
     _schedule_post_response_extractions,
 )
-from src.domains.agents.nodes.response_skill_runner import (
-    settle_skill_runner,
-    skill_runner_task,
-)
+from src.domains.agents.nodes.response_skill_runner import run_and_settle
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
 from src.domains.agents.prompts import (
     escape_braces,
@@ -1023,20 +1019,27 @@ class _SkillActivationResult(NamedTuple):
 
 
 def _get_skill_data(skill_name: str, skill_user_id: str | None) -> dict | None:
-    """Get skill data from cache (user-scoped first, then global)."""
+    """The skill the person reaches by that name: their own, else the system one.
+
+    Never another person's (ADR-327): without a person, system skills only.
+    """
     from src.domains.skills.cache import SkillsCache
 
-    return SkillsCache.get_by_name_for_user(skill_name, skill_user_id) or SkillsCache.get_by_name(
-        skill_name
-    )
+    return SkillsCache.get_by_name_for_user(skill_name, skill_user_id)
 
 
 def _skill_needs_runner(skill_name: str, skill_user_id: str | None) -> bool:
-    """Return True if the skill has scripts (needs LLM to orchestrate)."""
+    """Whether the skill ships something to RUN (needs the runner to orchestrate).
+
+    A Python script (``run_skill_script``) or any other file under ``scripts/``
+    — a shell or Node script run by ``run_skill_command`` (ADR-327 lot 2).
+    """
     skill_data = _get_skill_data(skill_name, skill_user_id)
     if not skill_data:
         return False
-    return bool(skill_data.get("scripts"))
+    return bool(skill_data.get("scripts")) or any(
+        str(path).startswith("scripts/") for path in skill_data.get("all_resources") or ()
+    )
 
 
 def _skill_has_resources_only(skill_name: str, skill_user_id: str | None) -> bool:
@@ -1095,6 +1098,26 @@ def _load_all_skill_resources(skill_name: str, skill_user_id: str | None) -> str
                 expected_path=str(ref_path),
             )
     return "\n\n".join(parts)
+
+
+def _loop_already_activated(state: Mapping[str, Any], skill_name: str) -> bool:
+    """Whether THIS TURN's ReAct loop already activated the skill (ADR-327).
+
+    In ReAct the loop is the runner: it activates the skill, runs its scripts
+    and commands and proposes what it wrote. Measured on dev 2026-09-30, the
+    response node then found the same skill detected, saw that it ships
+    scripts and ran the runner AGAIN — 27 s of model calls and a second
+    proposal of the same name. The loop records what it activated
+    (``react_activated_skills``, reset per turn); a skill in it is done.
+
+    Args:
+        state: The graph state.
+        skill_name: The skill the response node is about to activate.
+
+    Returns:
+        True when the loop already activated it this turn.
+    """
+    return skill_name in (state.get("react_activated_skills") or ())
 
 
 def _plan_already_produced_skill_app(state: MessagesState, skill_name: str) -> bool:
@@ -1341,6 +1364,7 @@ async def _activate_response_skills(
         from src.core.context import active_skills_ctx
         from src.domains.skills.activation import activate_skill
         from src.domains.skills.cache import SkillsCache
+        from src.domains.skills.trust import is_third_party, is_third_party_name
 
         skill_sections: list[str] = []
         activated_names: set[str] = set()
@@ -1371,9 +1395,14 @@ async def _activate_response_skills(
                 else:
                     _target_skill_name = plan_skill_name
 
-        # 2. Always-loaded skills — passive L2 injection (additive, always)
+        # 2. Always-loaded skills — passive L2 injection (additive, always).
+        # Never a third-party skill's (ADR-327): its words stay out of the prompt.
         for s in SkillsCache.get_always_loaded(skill_user_id):
-            if s["name"] not in activated_names and (active is None or s["name"] in active):
+            if (
+                s["name"] not in activated_names
+                and (active is None or s["name"] in active)
+                and not is_third_party(s)
+            ):
                 skill_content = activate_skill(s["name"], user_id=skill_user_id)
                 if skill_content:
                     skill_sections.append(skill_content)
@@ -1390,12 +1419,14 @@ async def _activate_response_skills(
                 _target_skill_name = _detected
 
         # 4. Activate the target skill (unified for planner + response routes)
-        #    - Scripts present → runner (LLM orchestrates resources + scripts)
+        #    - Third-party (ADR-327) or scripts present → runner
         #    - Resources only (no scripts) → load in Python, inject with L2
         #    - Neither → passive L2 injection only
+        _third_party = bool(_target_skill_name) and is_third_party_name(
+            str(_target_skill_name), skill_user_id
+        )
         if _target_skill_name and _target_skill_name not in activated_names:
-            if _skill_needs_runner(_target_skill_name, skill_user_id):
-                # Has scripts → ReactSubAgentRunner
+            if _third_party or _skill_needs_runner(_target_skill_name, skill_user_id):
                 _activated_skill_name = _target_skill_name
             else:
                 # L2 passive injection
@@ -1418,158 +1449,57 @@ async def _activate_response_skills(
                     activated_names.add(_target_skill_name)
                     _activated_skill_name = _target_skill_name
 
-        # --- Run ReAct agent only when target skill needs it ---
-        # Skip the runner when the deterministic plan has already produced
-        # a SKILL_APP widget for this skill (B1 hybrid optimisation — avoids
-        # a redundant LLM reformulation around an already-final frame).
-        _needs_runner = bool(
+        # --- Run the runner only when the target skill needs it ---
+        # Skip it when the deterministic plan has already produced a SKILL_APP
+        # widget for this skill (B1 hybrid optimisation — avoids a redundant
+        # LLM reformulation around an already-final frame).
+        _wants_runner = bool(
             _activated_skill_name
-            and _skill_needs_runner(_activated_skill_name, skill_user_id)
-            and not _plan_already_produced_skill_app(state, _activated_skill_name)
+            and (_third_party or _skill_needs_runner(_activated_skill_name, skill_user_id))
         )
-        if (
-            _activated_skill_name
-            and not _needs_runner
-            and _skill_needs_runner(_activated_skill_name, skill_user_id)
-        ):
+        _loop_ran_it = bool(_activated_skill_name) and _loop_already_activated(
+            state, str(_activated_skill_name)
+        )
+        _needs_runner = (
+            _wants_runner
+            and not _loop_ran_it
+            and not _plan_already_produced_skill_app(state, str(_activated_skill_name))
+        )
+        if _wants_runner and not _needs_runner:
             logger.info(
-                "skill_runner_skipped_plan_already_produced",
+                (
+                    "skill_runner_skipped_loop_already_activated"
+                    if _loop_ran_it
+                    else "skill_runner_skipped_plan_already_produced"
+                ),
                 run_id=run_id,
                 skill_name=_activated_skill_name,
-                msg="Plan deterministic produced SKILL_APP — skipping runner",
             )
-        if _needs_runner:
-            from src.core.constants import SKILLS_REACT_RECURSION_LIMIT
-            from src.domains.agents.tools.react_runner import ReactSubAgentRunner
-            from src.domains.agents.tools.react_tool_wrapper import (
-                ReactToolWrapper,
+        if _needs_runner and _activated_skill_name:
+            _skill_data = _get_skill_data(_activated_skill_name, skill_user_id) or {}
+            _answer, _react, _registry = await run_and_settle(
+                _activated_skill_name,
+                state=state,
+                config=config,
+                run_id=run_id,
+                user_id=skill_user_id,
+                request=last_user_message,
+                history=conversation_history if _skill_data.get("dialogue") else "",
+                third_party=_third_party,
+                skill_sections=skill_sections,
             )
-            from src.domains.skills.tools import skills_runner_tools
-            from src.infrastructure.observability.metrics_registry import (
-                skill_runner_outcomes_total,
-            )
-
-            # The activation is Python's, not the model's: the runner used to
-            # spend its first round trip calling activate_skill_tool, and a
-            # runner that never got past it answered in prose (production
-            # 2026-09-20). The instructions travel in the task.
-            _instructions = activate_skill(_activated_skill_name, user_id=skill_user_id) or ""
-            try:
-                runner = ReactSubAgentRunner(
-                    llm_type="mcp_react_agent",
-                    prompt_name="skill_react_agent_prompt",
-                )
-
-                _user_lang = runtime_language()
-                # ADR-137 follow-up: the sub-agent cannot resolve a position on
-                # its own (empty bypass plan, no location tool) — feed it the
-                # canonical resolution so it never invents one ("ma position").
-                from src.domains.agents.services.skill_location_context import (
-                    resolve_user_location_for_prompt,
-                )
-
-                _user_location = await resolve_user_location_for_prompt(
-                    config, last_user_message, _user_lang
-                )
-
-                # Build task: direct activation with optional collected data
-                # (from plan_executor / SkillBypassStrategy if they ran)
-                _agent_data = ""
-                _raw_agent_results = state.get(STATE_KEY_AGENT_RESULTS, {})
-                if _raw_agent_results:
-                    _data_summary = format_agent_results_for_prompt(
-                        _raw_agent_results,
-                        current_turn_id=state.get("current_turn_id"),
-                        user_timezone=runtime_timezone(),
-                    )
-                    if _data_summary:
-                        _agent_data = (
-                            f"\n\n<collected_data>\n{_data_summary}\n"
-                            f"</collected_data>\n"
-                            f"Use this data to generate your response."
-                        )
-                _skill_data = _get_skill_data(_activated_skill_name, skill_user_id) or {}
-                _task = skill_runner_task(
-                    _activated_skill_name,
-                    _instructions,
-                    last_user_message,
-                    history=conversation_history if _skill_data.get("dialogue") else "",
-                    agent_data=_agent_data,
-                )
-                _catalog_for_prompt = (
-                    f"<available_skills><skill><name>"
-                    f"{_activated_skill_name}"
-                    f"</name></skill></available_skills>"
-                )
-
-                # Lightweight ToolRuntime-like object for config propagation
-                from types import SimpleNamespace
-
-                from src.domains.agents.registry.agent_registry import (
-                    get_global_registry,
-                )
-
-                # ``configurable`` carries thread plumbing ONLY: the runner derives
-                # the sub-run's identity, timezone and language from the typed
-                # context it reads itself (ADR-231), so re-listing them here would
-                # be a second, silently divergent authority.
-                _parent_thread_id = config.get("configurable", {}).get("thread_id", "")
-                _skill_parent = SimpleNamespace(
-                    config={
-                        "configurable": {"thread_id": _parent_thread_id},
-                        "callbacks": config.get("callbacks"),
-                        "metadata": config.get("metadata", {}),
-                    },
-                    store=get_global_registry().get_store(),
-                )
-
-                # Wrap skills_tools so ReactSubAgentRunner can collect
-                # registry_updates (frames/images) via _accumulated_registry.
-                # Without wrapping, rich skill outputs never reach the frontend.
-                _wrapped_skills_tools = [
-                    ReactToolWrapper(original_tool=t) for t in skills_runner_tools
-                ]
-
-                _runner_result = await runner.run(
-                    task=_task,
-                    tools=_wrapped_skills_tools,
-                    prompt_vars={
-                        "skills_catalog": _catalog_for_prompt,
-                        "user_language": get_language_name(_user_lang),
-                        "user_location": _user_location,
-                    },
-                    parent_runtime=_skill_parent,
-                    thread_prefix="skill_react",
-                    recursion_limit=SKILLS_REACT_RECURSION_LIMIT,
-                    display_name="Skill Activation",
-                )
-
-                _answer, _react, _registry = settle_skill_runner(
-                    _runner_result, run_id, _activated_skill_name, _instructions, skill_sections
-                )
-                if _answer is not None:
-                    skill_react_response, react_result = _answer, _react
-                if _registry:
-                    # Propagate registry items accumulated by the wrappers:
-                    # current_turn_registry (local) feeds the rendering and
-                    # SSE below; the cross-turn persistence goes through the
-                    # returned state_update ("registry" has the merge_registry
-                    # reducer — returning only the NEW items is equivalent to
-                    # the historical in-place update, but persisted by
-                    # contract instead of by shared-reference side effect).
-                    current_turn_registry = {**(current_turn_registry or {}), **_registry}
-                    skill_registry_updates = _registry
-            except Exception as exc:
-                logger.warning(
-                    "skill_react_agent_error",
-                    run_id=run_id,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                )
-                skill_runner_outcomes_total.labels(outcome="error").inc()
-                # Graceful degradation: fall back to passive L2 injection
-                if _instructions:
-                    skill_sections.append(_instructions)
+            if _answer is not None:
+                skill_react_response, react_result = _answer, _react
+            if _registry:
+                # Propagate registry items accumulated by the wrappers:
+                # current_turn_registry (local) feeds the rendering and
+                # SSE below; the cross-turn persistence goes through the
+                # returned state_update ("registry" has the merge_registry
+                # reducer — returning only the NEW items is equivalent to
+                # the historical in-place update, but persisted by
+                # contract instead of by shared-reference side effect).
+                current_turn_registry = {**(current_turn_registry or {}), **_registry}
+                skill_registry_updates = _registry
 
         if skill_sections:
             skills_context = "\n\n".join(skill_sections)

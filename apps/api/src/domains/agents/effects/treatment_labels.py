@@ -94,6 +94,7 @@ _TOOL_DOMAIN_OVERRIDES: Final[dict[str, str]] = {
     "import_user_skill": "skill",
     "read_skill_resource": "skill",
     "run_skill_script": "skill",
+    "run_skill_command": "skill",
     "run_python_tool": "python_sandbox",
     "search_user_documents_tool": "document",
     "get_open_loops_tool": "peer",

@@ -17,7 +17,7 @@ import json
 from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -152,12 +152,18 @@ class TestListRecurrenceCandidates:
 
     async def test_malformed_entries_are_tolerated(self, caplog: pytest.LogCaptureFixture) -> None:
         # `list_recurrence_candidates` swallows EVERY exception into `[], 0`
-        # and names the cause at DEBUG only. This test failed once in six full
-        # xdist runs (2026-09-01) and once in CI (2026-09-18), each time as a
-        # mute `[] != ["good"]`; the swallowed cause was never seen. Capture it
-        # so the next occurrence says what raised instead of what was missing.
+        # and names the cause at DEBUG only, so the capture below says what
+        # raised if anything ever does. This test failed once in six full
+        # xdist runs (2026-09-01), once in CI (2026-09-18) and once on
+        # 2026-09-30, each time as a mute `[] != ["good"]` with NOTHING
+        # swallowed — and the cause was the test's own oracle: the double
+        # served the malformed body to any key CONTAINING `bad`, and `bad` is
+        # valid hex, so one uuid4 in 175 (0.57 % measured) carried it in the
+        # USER ID and poisoned the good key too. The double now reads the
+        # signature, and the user id carries `bad` on purpose so the trap
+        # cannot come back.
         caplog.set_level("DEBUG", logger="src.domains.habits.candidates")
-        user_id = uuid4()
+        user_id = UUID("0bad0000-0000-4000-8000-00000000bad0")
         stg = _settings()
         redis = MagicMock()
 
@@ -170,7 +176,7 @@ class TestListRecurrenceCandidates:
         redis.get = AsyncMock(
             side_effect=lambda key: (
                 "{not json"
-                if b"bad" in (key if isinstance(key, bytes) else key.encode())
+                if recurrence_store.signature_from_key(key, str(user_id)) == "bad"
                 else json.dumps(_entry({TODAY.isoformat(): [9.0]}))
             )
         )

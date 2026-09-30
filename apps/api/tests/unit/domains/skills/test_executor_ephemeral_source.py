@@ -101,7 +101,7 @@ class TestTheSourceTravelsWithoutAFile:
         with (
             patch("src.core.config.get_settings", return_value=_settings()),
             patch.object(SkillScriptExecutor, "_run_sandbox_sync", return_value=_completed()),
-            patch("src.domains.skills.cache.SkillsCache.get_by_name") as by_name,
+            patch("src.domains.skills.cache.SkillsCache.get_system_by_name") as by_name,
             patch("src.domains.skills.cache.SkillsCache.get_by_name_for_user") as by_user,
         ):
             await SkillScriptExecutor.execute_source(source="pass", payload={}, label="ephemeral")

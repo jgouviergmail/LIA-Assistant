@@ -10,7 +10,7 @@ and complies with CLAUDE.md §18 (never raise raw HTTPException in routers).
 
 from __future__ import annotations
 
-from typing import NoReturn
+from typing import Final, Literal, NoReturn
 
 from fastapi import status
 
@@ -20,6 +20,29 @@ from src.core.exceptions import (
     ResourceNotFoundError,
     ValidationError,
 )
+
+#: What an import refusal means to a caller that names its own refusals — the
+#: library and a skill proposal (ADR-327).
+ImportRefusalKind = Literal["name_taken", "quota_reached", "invalid"]
+
+#: Read from the STATUS the raisers below set, never from their wording.
+_IMPORT_REFUSAL_KINDS: Final[dict[int, ImportRefusalKind]] = {
+    status.HTTP_409_CONFLICT: "name_taken",
+    status.HTTP_429_TOO_MANY_REQUESTS: "quota_reached",
+}
+
+
+def import_refusal_kind(exc: BaseAPIException) -> ImportRefusalKind:
+    """What the import pipeline refused, for a caller that names it in its own words.
+
+    Args:
+        exc: The refusal the pipeline raised.
+
+    Returns:
+        ``name_taken`` (a system skill or a managed one holds the name),
+        ``quota_reached``, or ``invalid`` for everything else.
+    """
+    return _IMPORT_REFUSAL_KINDS.get(exc.status_code, "invalid")
 
 
 def raise_skill_not_found(skill_name: str, *, scope: str | None = None) -> NoReturn:
@@ -68,22 +91,6 @@ def raise_admin_skill_delete_forbidden() -> NoReturn:
         detail="Cannot delete admin skills",
         action="delete",
         resource_type="admin_skill",
-    )
-
-
-def raise_admin_skill_only(endpoint: str) -> NoReturn:
-    """Raise 403 when an admin-only operation is attempted on a non-admin skill.
-
-    Args:
-        endpoint: Human-readable endpoint name (for logging).
-
-    Raises:
-        AuthorizationError: 403 Forbidden.
-    """
-    raise AuthorizationError(
-        detail=f"Only admin (system) skills can be {endpoint}",
-        action=endpoint,
-        resource_type="user_skill",
     )
 
 

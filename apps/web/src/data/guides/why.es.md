@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión**: 6.1
-**Fecha**: 2026-09-24
-**Aplicación**: LIA v2.1.1
+**Fecha**: 2026-09-30
+**Aplicación**: LIA v2.2.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -73,7 +73,7 @@ Cada usuario dispone de su propio espacio de configuración, organizado en dos p
 - **Centros de interés**: define tus temas favoritos, configura la frecuencia de notificaciones, los horarios y las fuentes (Perplexity, Brave, Wikipedia, reflexión IA)
 - **Notificaciones proactivas**: ajusta la frecuencia, la ventana horaria y las fuentes de contexto (calendario, tiempo, tareas, correos, intereses, memorias, diarios)
 - **Acciones programadas y recordatorios**: di el ritmo — cada tres días, un martes de cada dos, el 2.º martes del mes, cada dos horas entre las 9 y las 17, hasta una fecha o N veces — tanto para una automatización como para un recordatorio, que ahora puede volver en vez de sonar una sola vez. Y lee tu semana de un vistazo: cada rutina a su hora en sus días, cada celda coloreada por lo que pasó de verdad
-- **Skills**: activa o desactiva competencias expertas en una galería con vistas previas, crea tus propios Skills personales, o instala una desde una URL https (validada en el servidor)
+- **Skills**: activa o desactiva competencias expertas en una galería con vistas previas, crea tus propios Skills personales, instala una desde una URL https (validada en el servidor) o elígela en la biblioteca pública skills.sh después de leerla
 - **Espacios de conocimiento**: carga tus documentos (PDF, Word, Excel, PowerPoint, EPUB, HTML y más de 15 formatos), sincroniza una carpeta de Google Drive o sigue una etiqueta de Gmail — indexación automática y búsqueda híbrida. Las conversaciones que etiquetas se convierten en documentos consultables semanas después, y quitar la etiqueta elimina el documento. Un documento que LIA no puede leer — un PDF escaneado sin capa de texto — lo dice bajo su fila, con el remedio. Una carpeta de Drive se sincroniza con sus subcarpetas, y pasado un umbral el número exacto de archivos que se van a indexar se muestra antes de que nada empiece
 - **Exportación de consumo**: descarga tus datos de consumo LLM y API en CSV
 
@@ -508,7 +508,7 @@ Un asistente capaz de actuar es un asistente capaz de *equivocarse*. Dos reglas 
 
 Primero, **nada toca tu servidor sin tu sí** — y la confirmación muestra todo lo que se va a enviar, incluidas las instrucciones que LIA se escribió a sí misma. Un resumen que no puedes leer entero no es una confirmación, es un trámite. El permiso se vuelve a comprobar en el momento en que arranca la acción, no solo cuando la pediste.
 
-Segundo, **lo que se ejecuta, se ejecuta en una caja sellada**. El código de una skill corre en un contenedor creado para esa única ejecución y destruido justo después: sin red, sin acceso a tus archivos, sin claves, sin forma de alcanzar la máquina que hay debajo. Si esa caja no puede construirse, el script sencillamente no corre — ningún repliegue silencioso a un modo más débil. Se instala una skill por lo que produce, no por la confianza que habría que dar a su autor.
+Segundo, **lo que se ejecuta, se ejecuta en una caja sellada**. El código de una skill corre en un contenedor creado para esa única ejecución y destruido justo después: sin red salvo los hosts autorizados, sin acceso a tus archivos, sin claves, sin forma de alcanzar la máquina que hay debajo. Si esa caja no puede construirse, el script sencillamente no corre — ningún repliegue silencioso a un modo más débil. Se instala una skill por lo que produce, no por la confianza que habría que dar a su autor.
 
 ---
 
@@ -562,7 +562,7 @@ Si un proveedor cambia sus tarifas o degrada su servicio, cambias al instante. S
 
 ### 10.2. Extensibilidad
 
-Cada usuario puede conectar sus propios servidores MCP, ampliando las capacidades de LIA mucho más allá de las herramientas integradas. El cliente habla las dos generaciones del protocolo — la nueva revisión sin estado y el handshake clásico, elegidos automáticamente por servidor —, de modo que la apertura nunca cuesta compatibilidad. Los Skills (estándar agentskills.io) permiten inyectar instrucciones expertas en lenguaje natural — con un generador de Skills integrado que los crea mediante un diálogo guiado y los instala directamente en tus skills, listos para usar. Un Skill también puede devolver un **frame HTML interactivo** (mapa, panel, calendario, conversor...) o una **imagen** (QR code, gráfico) directamente en el chat, aislado bajo una CSP estricta, con tema e idioma sincronizados automáticamente.
+Cada usuario puede conectar sus propios servidores MCP, ampliando las capacidades de LIA mucho más allá de las herramientas integradas. El cliente habla las dos generaciones del protocolo — la nueva revisión sin estado y el handshake clásico, elegidos automáticamente por servidor —, de modo que la apertura nunca cuesta compatibilidad. Los Skills (estándar agentskills.io) permiten inyectar instrucciones expertas en lenguaje natural — con un generador de Skills integrado que los crea mediante un diálogo guiado y te los propone en una tarjeta que un clic instala — y una biblioteca pública, skills.sh, donde lees una skill archivo por archivo antes de instalarla. Una skill escrita fuera trabaja aparte y nunca toca tus conectores, y una skill puede ejecutar sus propios comandos en un contenedor desechable para entregarte archivos. Un Skill también puede devolver un **frame HTML interactivo** (mapa, panel, calendario, conversor...) o una **imagen** (QR code, gráfico) directamente en el chat, aislado bajo una CSP estricta, con tema e idioma sincronizados automáticamente.
 
 Esta apertura tiene un formato de paquete: LIA habla el estándar abierto **Agent Plugins** (agent-plugins.org), el formato de plugin portátil dirigido por AWS, Microsoft, OpenAI, Cursor y Vercel y adoptado por ChatGPT, Codex, Cursor, GitHub Copilot, Kiro y VS Code. Un plugin que agrupa skills y servidores MCP se instala en LIA en un paso — desde un zip o un enlace https — con un informe completo por componente de lo instalado, lo omitido (y por qué) o lo eliminado, y se desinstala con la misma limpieza: todo lo que aportó se va con él. La interoperabilidad aquí es una convicción, no una función: lo que construyes o adoptas en cualquier lugar del ecosistema es tuyo y te acompaña.
 

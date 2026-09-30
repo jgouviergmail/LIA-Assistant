@@ -89,6 +89,11 @@ INSERT INTO llm_models (
     ('openai', 'gpt-6-astra', 922000, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, NULL, true),
     ('openai', 'gpt-6-luna', 922000, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, NULL, true),
     ('openai', 'gpt-6-sol', 922000, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, NULL, true),
+    -- GPT-6.1 Sol, from developers.openai.com/api/docs/models/gpt-6.1-sol
+    -- (2026-09-30): the same 1 050 000 / 128 000 limits and features as Sol,
+    -- but « the none and minimal reasoning efforts are not supported » (a 400
+    -- on `none`, measured), and Chat Completions takes no tool call at all.
+    ('openai', 'gpt-6.1-sol', 922000, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, NULL, true),
     ('openai', 'gpt-5-chat-latest', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
     ('openai', 'gpt-5-codex', 8192, 4096, true, true, false, true, false, true, false, false, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'openai_gpt5_codex', true),
     ('openai', 'gpt-5-mini', 1047576, 16384, true, true, true, true, true, true, false, false, false, false, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, 'openai_gpt5', true),
@@ -141,6 +146,10 @@ INSERT INTO llm_models (
     ('anthropic', 'claude-opus-5-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_always_on', true),
     ('anthropic', 'claude-opus-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_5', true),
     ('anthropic', 'claude-sonnet-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_5', true),
+    -- Sonnet 5.5, read 2026-09-30 on the Models API (1M in / 128K out, effort
+    -- low..max) and the vendor's migration guide: `disabled` is refused, and
+    -- `none` is rendered as `between_tools`, its lowest setting.
+    ('anthropic', 'claude-sonnet-5-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_between_tools', true),
     ('anthropic', 'claude-opus-4-8', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_4_7', true),
     ('anthropic', 'claude-opus-4-7', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_4_7', true),
     ('anthropic', 'claude-sonnet-4-5', 200000, 64000, true, true, false, true, true, true, true, false, false, false, 'chat', NULL, 'anthropic_4_5', true),
@@ -319,6 +328,8 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('claude-opus-4-8', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('claude-opus-4-7', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('claude-sonnet-5', 2.000000, 0.200000, 10.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    -- Sonnet 5.5, read 2026-09-30 on the same page: Sonnet 5's prices.
+    ('claude-sonnet-5-5', 2.000000, 0.200000, 10.000000, 'per_1m_tokens', '2026-09-30T00:00:00+00:00', true),
     ('claude-sonnet-4-5', 3.000000, 0.300000, 15.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('computer-use-preview', 3.000000, NULL, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('deepseek-chat', 0.280000, 0.028000, 0.420000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
@@ -435,6 +446,9 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('gpt-6-astra', 10.000000, 1.000000, 50.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gpt-6-luna', 0.100000, 0.010000, 0.500000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gpt-6-sol', 2.000000, 0.200000, 10.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    -- GPT-6.1 Sol, read 2026-09-30 on the model page and the pricing page: Sol's
+    -- input and output, a cached input at 5% (not 10%), the same 272K rule.
+    ('gpt-6.1-sol', 2.000000, 0.100000, 10.000000, 'per_1m_tokens', '2026-09-30T00:00:00+00:00', true),
     ('gpt-5-chat-latest', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gpt-5-codex', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gpt-5-mini', 0.250000, 0.025000, 2.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),

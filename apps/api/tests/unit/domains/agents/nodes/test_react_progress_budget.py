@@ -85,22 +85,22 @@ class TestProductivityIsCounted:
     """Only a tool that actually returned something counts."""
 
     def test_a_successful_call_is_productive(self) -> None:
-        from src.domains.agents.nodes.react_nodes import _is_productive_result
+        from src.domains.agents.nodes.react_result_reading import is_productive_result
 
-        assert _is_productive_result({"success": True, "data": [1, 2]}) is True
-        assert _is_productive_result("plain string result") is True
+        assert is_productive_result({"success": True, "data": [1, 2]}) is True
+        assert is_productive_result("plain string result") is True
 
     def test_a_declared_failure_is_not_productive(self) -> None:
-        from src.domains.agents.nodes.react_nodes import _is_productive_result
+        from src.domains.agents.nodes.react_result_reading import is_productive_result
 
-        assert _is_productive_result({"success": False, "error": {"code": "TIMEOUT"}}) is False
+        assert is_productive_result({"success": False, "error": {"code": "TIMEOUT"}}) is False
 
     def test_an_empty_result_is_not_productive(self) -> None:
         """Nothing came back, so nothing was learned — do not buy more of it."""
-        from src.domains.agents.nodes.react_nodes import _is_productive_result
+        from src.domains.agents.nodes.react_result_reading import is_productive_result
 
-        assert _is_productive_result(None) is False
-        assert _is_productive_result("") is False
+        assert is_productive_result(None) is False
+        assert is_productive_result("") is False
 
     def test_the_execute_node_carries_the_counter(self) -> None:
         import inspect

@@ -16,7 +16,7 @@
 import { create } from 'zustand';
 
 /** The resources a reader may follow — one entry per resource that has a writer elsewhere. */
-export type RevisedResource = 'live_connectors' | 'radio_voices';
+export type RevisedResource = 'live_connectors' | 'radio_voices' | 'skills';
 
 /**
  * The Configuration LLM slots whose save changes what a reader elsewhere shows: the
@@ -31,6 +31,8 @@ export const SLOT_REVISIONS: Readonly<Partial<Record<string, RevisedResource>>> 
 export const INITIAL_REVISIONS: Readonly<Record<RevisedResource, number>> = {
   live_connectors: 0,
   radio_voices: 0,
+  // A skill installed from the chat's card (ADR-327) — the chat's own shortcuts read it again.
+  skills: 0,
 };
 
 interface RevisionStore {

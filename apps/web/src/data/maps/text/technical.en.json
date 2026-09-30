@@ -248,9 +248,9 @@
     },
     "t.skills": {
       "name": "Skills and plugins",
-      "role": "Install, enable and run portable skills; a plugin brings skills and MCP servers in one go.",
+      "role": "Install, enable and run portable skills — taken from a public library at an exact commit, or proposed by the chat — and their commands in a throwaway copy of their folder; a third-party skill runs in an isolated runner, and a plugin brings skills and MCP servers in one gesture.",
       "stack": ["Agent Skills", "Agent Plugins"],
-      "src": "7dcbbe9d1959"
+      "src": "92d4fcb1a5d5"
     },
     "t.sandbox": {
       "name": "Sandbox and egress proxy",

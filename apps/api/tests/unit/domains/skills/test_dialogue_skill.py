@@ -52,26 +52,33 @@ class TestLoaderDialogueField:
 class TestIsDialogueSkill:
     def _cache(self, skill: dict | None):
         m = MagicMock()
-        m.get_by_name.return_value = skill
+        m.get_by_name_for_user.return_value = skill
         return m
 
     def test_true_for_dialogue_skill(self) -> None:
         cache = self._cache({"name": "gen", "dialogue": True})
         with patch("src.domains.skills.cache.SkillsCache", cache):
-            assert _is_dialogue_skill("gen") is True
+            assert _is_dialogue_skill("gen", "u1") is True
 
     def test_false_for_oneshot_skill(self) -> None:
         cache = self._cache({"name": "qr-code", "dialogue": False})
         with patch("src.domains.skills.cache.SkillsCache", cache):
-            assert _is_dialogue_skill("qr-code") is False
+            assert _is_dialogue_skill("qr-code", "u1") is False
 
     def test_false_for_unknown_skill(self) -> None:
         cache = self._cache(None)
         with patch("src.domains.skills.cache.SkillsCache", cache):
-            assert _is_dialogue_skill("ghost") is False
+            assert _is_dialogue_skill("ghost", "u1") is False
+
+    def test_resolves_the_asking_person_s_skill(self) -> None:
+        """ADR-327: the flag is read on the skill THIS person reaches by that name."""
+        cache = self._cache({"name": "gen", "dialogue": True})
+        with patch("src.domains.skills.cache.SkillsCache", cache):
+            _is_dialogue_skill("gen", "u1")
+        cache.get_by_name_for_user.assert_called_once_with("gen", "u1")
 
     def test_false_for_none(self) -> None:
-        assert _is_dialogue_skill(None) is False
+        assert _is_dialogue_skill(None, "u1") is False
 
 
 def _find_skill_generator_md() -> Path | None:

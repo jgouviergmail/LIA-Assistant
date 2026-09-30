@@ -70,6 +70,7 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
     // payload and the message together.
     generatedImages: metadata.generated_images,
     generatedDocuments: metadata.generated_documents,
+    skillProposals: metadata.skill_proposals,
     browserScreenshot: metadata.browser_screenshot as { url: string; alt: string } | undefined,
     // Store psyche state snapshot for avatar display.
     // ADR-117 Lot 3: a cancelled run's synthesized done flags the partial

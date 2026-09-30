@@ -36,7 +36,10 @@ from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects.scope import approved_scope, current_scope, effect_scope
 from src.domains.agents.nodes.react_drafts import extract_draft_info
 from src.domains.agents.python_sandbox.egress.grants import Decision, record_decision
-from src.domains.agents.python_sandbox.egress.tool_path import approved_for_call
+from src.domains.agents.python_sandbox.egress.tool_path import (
+    approved_for_call,
+    settling_questions,
+)
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -171,13 +174,13 @@ async def settle_egress_question(
     # re-execution (index-based, like the mutation interrupt beside it).
     answer = read_answer(interrupt(payload))
     hosts = [str(h) for h in draft_info["draft_content"].get("hosts_unknown") or []]
+    # The tool that asked: the script, or a skill's command (ADR-327 lot 3).
+    tool_name = str(draft_info.get("tool_name") or PYTHON_SANDBOX_TOOL_NAME)
     context = runtime_context_if_running()
     user_id = getattr(context, "user_id", None)
     if not answer.allowed:
         python_sandbox_egress_grants_total.labels(decision=DECISION_REFUSED).inc()
-        react_agent_hitl_interrupts_total.labels(
-            tool_name=PYTHON_SANDBOX_TOOL_NAME, decision="reject"
-        ).inc()
+        react_agent_hitl_interrupts_total.labels(tool_name=tool_name, decision="reject").inc()
         logger.info("sandbox_egress_question_refused", hosts=len(hosts))
         return _refusal(hosts, by_person=True)
     if user_id is None:
@@ -191,9 +194,7 @@ async def settle_egress_question(
     python_sandbox_egress_grants_total.labels(
         decision=DECISION_ONE_SHOT if outcome.one_shot else decision.value
     ).inc()
-    react_agent_hitl_interrupts_total.labels(
-        tool_name=PYTHON_SANDBOX_TOOL_NAME, decision="approve"
-    ).inc()
+    react_agent_hitl_interrupts_total.labels(tool_name=tool_name, decision="approve").inc()
     logger.info(
         "sandbox_egress_question_answered",
         hosts=len(hosts),
@@ -233,7 +234,12 @@ async def invoke_with_settlement(
     """
 
     async def _call() -> Any:
-        return await asyncio.wait_for(wrapper._original_tool.coroutine(**injected_args), timeout)
+        # The one place an egress question is settled: the tool may ASK here,
+        # and refuses an unknown host anywhere else (``tool_path``).
+        with settling_questions():
+            return await asyncio.wait_for(
+                wrapper._original_tool.coroutine(**injected_args), timeout
+            )
 
     raw_result = await _call()
     draft_info = extract_draft_info(raw_result, tool_name)

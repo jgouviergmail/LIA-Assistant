@@ -74,6 +74,7 @@ from .rag_spaces import RAGSpacesSettings
 from .relations import RelationsSettings
 from .scheduler import SchedulerSettings
 from .security import SecuritySettings
+from .skill_library import SkillLibrarySettings
 from .skills import SkillsSettings
 from .telephony import TelephonySettings
 from .usage_limits import UsageLimitsSettings
@@ -148,6 +149,7 @@ class Settings(
     BookmarksSettings,
     EmailShareSettings,
     RadioSettings,
+    SkillLibrarySettings,
     CalculationSettings,
     MFASettings,
     AccountExportSettings,
@@ -192,6 +194,7 @@ class Settings(
         24c. BookmarksSettings (message bookmarks, ADR-282)
         24d. EmailShareSettings (a file or an answer sent by e-mail, ADR-321)
         24e. RadioSettings (the personal radio: newsroom and antennas, ADR-324)
+        24f. SkillLibrarySettings (skills installed from a portal, ADR-327)
         25. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
@@ -498,6 +501,7 @@ __all__ = [
     "BookmarksSettings",
     "EmailShareSettings",
     "RadioSettings",
+    "SkillLibrarySettings",
     "PushRelaySettings",
     "PushSettings",
 ]

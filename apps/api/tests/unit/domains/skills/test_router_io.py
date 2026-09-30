@@ -32,7 +32,7 @@ async def test_download_admin_skill_zips_off_event_loop(tmp_path) -> None:
         return real_zip(arg)
 
     with (
-        patch("src.domains.skills.cache.SkillsCache.get_by_name", return_value=skill),
+        patch("src.domains.skills.cache.SkillsCache.get_system_by_name", return_value=skill),
         patch.object(skills_router, "_create_skill_zip", spy_zip),
     ):
         response = await skills_router.download_admin_skill(

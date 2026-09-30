@@ -23,7 +23,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
-from scripts.install.compose import up_suffix
+from scripts.install.compose import (
+    SKILL_SANDBOX_BUILD,
+    SKILL_SANDBOX_LOCAL_IMAGE,
+    up_suffix,
+)
 from scripts.install.model import (
     Clock,
     ComposeInvocation,
@@ -180,12 +184,49 @@ def materialize_source_context(root: Path) -> str | None:
     return digest.hexdigest()
 
 
-def acquire(invocation: ComposeInvocation, runner: Runner) -> None:
-    """Obtain the app images: local builds, prebuilt pulls (never builds)."""
+def acquire(
+    invocation: ComposeInvocation,
+    runner: Runner,
+    *,
+    sandbox_image: str | None = None,
+    sandbox_build_root: Path | None = None,
+) -> None:
+    """Obtain the app images: local builds, prebuilt pulls (never builds).
+
+    The skill sandbox image (ADR-327 lot 2) is no Compose service — a one-shot
+    container fails ``up --wait`` — so it is obtained beside them: pulled by
+    its locked digest in prebuilt mode, built under the tag the base file
+    reads in local mode. Neither happens when the sandbox is not selected.
+
+    Args:
+        invocation: The Compose layers of this install.
+        runner: How a command runs.
+        sandbox_image: Prebuilt mode: the release's sandbox reference.
+        sandbox_build_root: Local mode: the install root to build it from.
+    """
     verb = "pull" if invocation.mode is InstallMode.PREBUILT else "build"
     _run_or_fail(
         runner, invocation.prefix() + [verb, "api", "web"], "acquire_failed"
     )
+    if invocation.mode is InstallMode.PREBUILT:
+        if sandbox_image is not None:
+            _run_or_fail(runner, ["docker", "pull", sandbox_image], "acquire_failed")
+        return
+    if sandbox_build_root is not None:
+        context, dockerfile = SKILL_SANDBOX_BUILD
+        _run_or_fail(
+            runner,
+            [
+                "docker",
+                "build",
+                "-t",
+                SKILL_SANDBOX_LOCAL_IMAGE,
+                "-f",
+                str(sandbox_build_root / dockerfile),
+                str(sandbox_build_root / context),
+            ],
+            "acquire_failed",
+        )
 
 
 def validate_settings(invocation: ComposeInvocation, runner: Runner) -> None:

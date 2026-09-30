@@ -30,13 +30,8 @@ from src.core.i18n_account_export import render_export_heading, render_export_sp
 from src.core.i18n_drafts import label_separator
 from src.core.security.utils import decrypt_data
 from src.domains.users.models import User
-from src.domains.users.user_data_map import (
-    TABLE_RULES,
-    USER_COLUMNS,
-    ExportPolicy,
-    TableDataClass,
-    UserColumnClass,
-)
+from src.domains.users.user_column_map import USER_COLUMNS, UserColumnClass
+from src.domains.users.user_data_map import TABLE_RULES, ExportPolicy, TableDataClass
 from src.infrastructure.database.session import Base, get_db_context
 
 logger = structlog.get_logger(__name__)
@@ -92,6 +87,7 @@ _VIA_PARENT: dict[str, tuple[str, str, str]] = {
     "workboard_ticket_events": ("workboard_tickets", "ticket_id", "owner_user_id"),
     "rag_drive_sources": ("rag_spaces", "space_id", "user_id"),
     "rag_documents": ("rag_spaces", "space_id", "user_id"),
+    "skill_library_sources": ("skills", "skill_id", "owner_id"),
 }
 
 # Columns of a two-sided row that belong to ONE participant only. The archive

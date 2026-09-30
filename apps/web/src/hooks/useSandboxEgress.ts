@@ -1,19 +1,22 @@
 'use client';
 
 /**
- * useSandboxEgress — what a script may reach without asking, and the
- * permissions the person gave when asked (ADR-298).
+ * useSandboxEgress — what a script or a skill's command may reach without
+ * asking, and the permissions the person gave (ADR-298, ADR-327 lot 3).
  *
  * Two reads, one page each: `/sandbox/egress-grants/reachable` (connector and
  * operator hosts) and `/sandbox/egress-grants` (the grants, newest first, with
  * the EXACT total and the cap the instance enforces). Edits are optimistic
  * with a rollback, the OpenLoops doctrine: the person sees their change at
- * once and the server's row wins on the next fetch.
+ * once and the server's row wins on the next fetch. A host allowed by hand is
+ * NOT optimistic: the server normalises it and may refuse it, so the grants
+ * are read again once it answers.
  */
 
 import { useCallback, useState } from 'react';
 
 import { ApiError } from '@/lib/api-client';
+import { getApiErrorFields } from '@/lib/api-error';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type {
@@ -33,6 +36,23 @@ export const GRANTS_PAGE_SIZE = 50;
 
 export const GRANTS_PATH = `/sandbox/egress-grants?limit=${GRANTS_PAGE_SIZE}&offset=0`;
 export const REACHABLE_PATH = '/sandbox/egress-grants/reachable';
+
+/**
+ * The refusals the API names when a host is allowed by hand (`detail.code`),
+ * each with its sentence under `settings.sandbox_egress.add_errors` — a
+ * backend guard holds the pair (`test_router.py`).
+ */
+export const GRANT_REFUSAL_CODES: ReadonlySet<string> = new Set([
+  'egress_grant_host_invalid',
+  'egress_grant_limit_reached',
+  'egress_grant_asking_disabled',
+]);
+
+/**
+ * What allowing a host answered: the host as the server stored it, or the
+ * refusal's code when the API named one.
+ */
+export type AddGrantResult = { ok: true; host: string } | { ok: false; code: string | null };
 
 /** The grants as the person sees them: this session's revokes and scope edits applied. */
 export function applyOverrides(
@@ -81,6 +101,8 @@ export interface UseSandboxEgressReturn {
   refetch: () => void;
   setScope: (id: string, shareTurnData: boolean) => Promise<boolean>;
   revoke: (id: string) => Promise<boolean>;
+  /** Allow a host from the settings — where no question can be asked. */
+  add: (host: string, shareTurnData: boolean) => Promise<AddGrantResult>;
 }
 
 export function useSandboxEgress(enabled = true): UseSandboxEgressReturn {
@@ -107,6 +129,13 @@ export function useSandboxEgress(enabled = true): UseSandboxEgressReturn {
   });
   const { mutate: deleteGrant } = useApiMutation<undefined, undefined>({
     method: 'DELETE',
+    componentName: 'useSandboxEgress',
+  });
+  const { mutate: postGrant } = useApiMutation<
+    { host: string; share_turn_data: boolean },
+    EgressGrant
+  >({
+    method: 'POST',
     componentName: 'useSandboxEgress',
   });
 
@@ -149,6 +178,39 @@ export function useSandboxEgress(enabled = true): UseSandboxEgressReturn {
   // The two `refetch`s are stable (useApiQuery); the query objects are not.
   const { refetch: refetchReachable } = reachableQuery;
   const { refetch: refetchGrants } = grantsQuery;
+
+  const add = useCallback(
+    async (host: string, shareTurnData: boolean): Promise<AddGrantResult> => {
+      let stored: EgressGrant | undefined;
+      try {
+        stored = await postGrant('/sandbox/egress-grants', {
+          host,
+          share_turn_data: shareTurnData,
+        });
+      } catch (error) {
+        const code = getApiErrorFields(error)?.code;
+        return {
+          ok: false,
+          code: typeof code === 'string' && GRANT_REFUSAL_CODES.has(code) ? code : null,
+        };
+      }
+      // The stored row wins over a scope toggled earlier in this session: a
+      // host allowed again takes the scope the server just wrote.
+      const storedId = stored?.id;
+      if (storedId) {
+        setScopes(prev => {
+          if (!(storedId in prev)) return prev;
+          const next = { ...prev };
+          delete next[storedId];
+          return next;
+        });
+      }
+      void refetchGrants();
+      // The server normalises the name: say what it stored, as the list will.
+      return { ok: true, host: stored?.host ?? host };
+    },
+    [postGrant, refetchGrants]
+  );
   const refetch = useCallback(() => {
     setRevokedIds(new Set());
     setScopes({});
@@ -171,5 +233,6 @@ export function useSandboxEgress(enabled = true): UseSandboxEgressReturn {
     refetch,
     setScope,
     revoke,
+    add,
   };
 }

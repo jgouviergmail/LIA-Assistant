@@ -589,3 +589,35 @@ class TestFilterStepsByScopes:
         assert result[1]["depends_on"] == ["s1"]
         # Original step dict must NOT be mutated (cache safety)
         assert steps[2]["depends_on"] == ["s1", "s2"]
+
+
+class TestAThirdPartyTemplateNeverBecomesAPlan:
+    """ADR-327: a template written elsewhere would run LIA's tools on its say-so."""
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(("third_party", "planned"), [(False, True), (True, False)])
+    async def test_only_a_skill_written_here_is_planned_from_its_template(
+        self, third_party: bool, planned: bool
+    ) -> None:
+        from src.core.context import third_party_skills_ctx
+
+        mine = _make_skill("briefing-quotidien", ["task"], scope="user", owner_id=str(_ALICE))
+        token = third_party_skills_ctx.set(
+            frozenset({"briefing-quotidien"}) if third_party else frozenset()
+        )
+        try:
+            with (
+                installed_runtime_context(user_id=_ALICE),
+                patch(
+                    "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
+                    side_effect=_make_cache_lookup([mine]),
+                ),
+            ):
+                result = await SkillBypassStrategy().plan(
+                    intelligence=_make_intelligence(detected_skill_name="briefing-quotidien"),
+                    config=_make_config(["tasks.read"]),
+                )
+        finally:
+            third_party_skills_ctx.reset(token)
+
+        assert result.success is planned

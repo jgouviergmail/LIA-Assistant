@@ -1,30 +1,36 @@
 'use client';
 
 /**
- * SandboxEgressSettings — what a sandbox script may reach on the network, and
- * the permissions the person gave when asked (ADR-298).
+ * SandboxEgressSettings — what a sandbox script or a skill's command may reach
+ * on the network, and the permissions the person gave (ADR-298, ADR-327 lot 3).
  *
  * Two lists. « Reachable without asking »: the hosts of the person's own
  * API-key connectors (a credential travels, swapped by the proxy) and the
  * operator's allowlist — read-only, they come from elsewhere. « Your
- * permissions »: every host the person allowed from a chat question, with the
- * one thing they edit here (with or without the turn's data) and a revoke —
- * the next script that declares the host asks again. The cap is drawn as a
- * gauge because it is enforced: past it an approval holds for its run only.
+ * permissions »: every host the person allowed — from a chat question, or
+ * here, since a turn in Pipeline mode or a routine cannot ask — with the one
+ * thing they edit (with or without the turn's data) and a revoke; the next
+ * run that declares the host asks again. The cap is drawn as a gauge because
+ * it is enforced: past it an approval holds for its run only, and a host
+ * typed here is refused. The form exists only where the instance ASKS: the
+ * operator's switch closes both doors, the card and the form.
  *
  * Renders nothing when the instance flag is off or the surface is unavailable
  * (the OpenLoops precedent); gated in `settings-search.ts` on the same flag.
  */
 
-import { Globe, KeyRound, ShieldCheck, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Globe, KeyRound, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { useId, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RowActions } from '@/components/ui/row-actions';
 import { Switch } from '@/components/ui/switch';
 import { useAppConfig } from '@/hooks/useAppConfig';
-import { useSandboxEgress } from '@/hooks/useSandboxEgress';
+import { useSandboxEgress, type AddGrantResult } from '@/hooks/useSandboxEgress';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
 import { useTranslation } from '@/i18n/client';
 import { formatInstant } from '@/lib/format-instant';
@@ -68,14 +74,20 @@ export function SandboxEgressSettings({ lng }: BaseSettingsProps) {
       ) : (
         <div className="space-y-6">
           <ReachableList hosts={egress.reachable} askEnabled={egress.askEnabled} lng={lng} />
-          <GrantList
-            grants={egress.grants}
-            total={egress.total}
-            maxPerUser={egress.maxPerUser}
-            lng={lng}
-            setScope={egress.setScope}
-            revoke={egress.revoke}
-          />
+          {/* An instance that never asks can hold no NEW permission: the block is
+              drawn only for what was granted before it stopped asking (ADR-280:
+              a switch removes the capability, never the record). */}
+          {(egress.askEnabled !== false || egress.grants.length > 0) && (
+            <GrantList
+              grants={egress.grants}
+              total={egress.total}
+              maxPerUser={egress.maxPerUser}
+              lng={lng}
+              setScope={egress.setScope}
+              revoke={egress.revoke}
+            />
+          )}
+          {egress.askEnabled === true && <AddHostForm lng={lng} add={egress.add} />}
         </div>
       )}
     </SettingsSection>
@@ -274,6 +286,104 @@ function GrantRow({
         />
       </div>
     </li>
+  );
+}
+
+/**
+ * Allow a host by hand: where no question can be asked (a turn in Pipeline
+ * mode, a routine), a run reaches only what is listed here. The server
+ * normalises the name and names a refusal, drawn beside the field.
+ */
+function AddHostForm({
+  lng,
+  add,
+}: {
+  lng: Language;
+  add: (host: string, shareTurnData: boolean) => Promise<AddGrantResult>;
+}) {
+  const { t } = useTranslation(lng);
+  const [host, setHost] = useState('');
+  const [share, setShare] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fieldId = useId();
+  const hintId = `${fieldId}-hint`;
+  const errorId = `${fieldId}-error`;
+  const scopeId = `${fieldId}-scope`;
+  const typed = host.trim();
+  const blocked = busy || typed === '';
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (blocked) return;
+    setBusy(true);
+    let outcome: AddGrantResult;
+    try {
+      outcome = await add(typed, share);
+    } finally {
+      setBusy(false);
+    }
+    if (outcome.ok) {
+      haptic('confirm');
+      toast.success(t('settings.sandbox_egress.added', { host: outcome.host }));
+      setHost('');
+      setShare(false);
+      setError(null);
+      return;
+    }
+    setError(
+      outcome.code ? t(`settings.sandbox_egress.add_errors.${outcome.code}`) : t('common.error')
+    );
+  };
+
+  return (
+    <form onSubmit={event => void handleSubmit(event)} noValidate>
+      <h4 className="flex items-center gap-2 text-sm font-semibold">
+        <Plus className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+        {t('settings.sandbox_egress.add_title')}
+      </h4>
+      <p id={hintId} className="mt-1 text-xs text-muted-foreground">
+        {t('settings.sandbox_egress.add_description')}
+      </p>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          id={fieldId}
+          type="text"
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          className="min-w-0 flex-1 font-mono"
+          value={host}
+          placeholder={t('settings.sandbox_egress.add_placeholder')}
+          aria-label={t('settings.sandbox_egress.add_label')}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${hintId} ${errorId}` : hintId}
+          onChange={event => {
+            setHost(event.target.value);
+            setError(null);
+          }}
+        />
+        <Button type="submit" size="sm" aria-disabled={blocked || undefined}>
+          {busy ? (
+            <LoadingSpinner className="mr-2 h-4 w-4" />
+          ) : (
+            <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+          )}
+          {t('settings.sandbox_egress.add_submit')}
+        </Button>
+      </div>
+      <label htmlFor={scopeId} className="mt-2 flex items-center gap-2 text-xs">
+        <Switch id={scopeId} checked={share} onCheckedChange={setShare} />
+        <span>{t('settings.sandbox_egress.add_scope')}</span>
+      </label>
+      {error && (
+        <p id={errorId} role="alert" className="mt-2 text-xs text-destructive">
+          {error}
+        </p>
+      )}
+    </form>
   );
 }
 

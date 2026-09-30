@@ -86,6 +86,9 @@ tasks:
     cmds:
       - "{{.UV}} pip compile requirements.txt {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt"
       - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt"
+      # The skill sandbox image (ADR-327 lot 2): constrained by the dev lock, which
+      # includes its manifest, so the image runs the versions the tests imported.
+      - "{{.UV}} pip compile requirements-sandbox.txt -c requirements-dev.lock.txt {{.UV_COMPILE_FLAGS}} -o requirements-sandbox.lock.txt"
 
   deps:upgrade:
     desc: "Upgrade specific packages in the lockfiles: task deps:upgrade -- <pkg> [<pkg>...]"
@@ -99,6 +102,7 @@ tasks:
         for pkg in {{.CLI_ARGS}}; do UPGRADE_FLAGS="$UPGRADE_FLAGS --upgrade-package $pkg"; done
         {{.UV}} pip compile requirements.txt $UPGRADE_FLAGS {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt
         {{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt $UPGRADE_FLAGS {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt
+        {{.UV}} pip compile requirements-sandbox.txt -c requirements-dev.lock.txt $UPGRADE_FLAGS {{.UV_COMPILE_FLAGS}} -o requirements-sandbox.lock.txt
 
   deps:upgrade:all:
     desc: Upgrade ALL packages in the lockfiles to the latest versions allowed by the manifests
@@ -106,6 +110,7 @@ tasks:
     cmds:
       - "{{.UV}} pip compile requirements.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt"
       - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt"
+      - "{{.UV}} pip compile requirements-sandbox.txt -c requirements-dev.lock.txt {{.UV_COMPILE_FLAGS}} -o requirements-sandbox.lock.txt"
 
   # ---------------------------------------------------------------------------
   # Public model-capability catalogue (ADR-244)
@@ -160,16 +165,19 @@ tasks:
   dev:
     desc: Start development environment (Docker Compose)
     cmds:
+      - task: sandbox:image:build
       - docker compose -f docker-compose.dev.yml up --build
 
   dev:detach:
     desc: Start development environment in background
     cmds:
+      - task: sandbox:image:build
       - docker compose -f docker-compose.dev.yml up -d --build
 
   dev:langfuse:
     desc: Start dev environment WITH the Langfuse observability stack (opt-in profile)
     cmds:
+      - task: sandbox:image:build
       - docker compose -f docker-compose.dev.yml --profile langfuse up -d --build
 
   dev:api:
@@ -209,6 +217,7 @@ tasks:
     # refuses a model this catalogue cannot price.
     cmds:
       - task: stop:all
+      - task: sandbox:image:build
       - docker compose -f docker-compose.dev.yml up -d --build --wait
       - task: demo:up:dev
       - task: demo:provision
@@ -419,17 +428,32 @@ tasks:
     cmds:
       - docker exec -w /app lia-api-dev python -m scripts.sandbox_egress.probe
 
-  sandbox:libraries:check:
-    desc: "Import every library the sandbox promises inside the image it runs on (ADR-298): task sandbox:libraries:check [IMAGE=lia-api:local]"
-    # The unit test proves the promise on the lockfile; only the IMAGE proves it
-    # for a run (a system library, a slimmed stage). CI runs it on the image the
-    # docker-build job just built under the compose default tag; a deployment
-    # runs it on the image it pins. The entrypoint is bypassed: it runs the
-    # migrations, and there is no database — nor any network — here.
+  sandbox:image:build:
+    desc: "Build the skill sandbox image (ADR-327 lot 2): task sandbox:image:build [IMAGE=lia-skill-sandbox:local]"
+    # Every sandbox run starts from it (scripts, commands, ephemeral Python):
+    # no Docker client, no application code. The layer cache makes an unchanged
+    # rebuild a matter of seconds, so the dev tasks run it every time.
     vars:
-      IMAGE: '{{.IMAGE | default "lia-api:local"}}'
+      IMAGE: '{{.IMAGE | default "lia-skill-sandbox:local"}}'
     cmds:
-      - docker run --rm --network none --entrypoint python -w /app {{.IMAGE}} -m scripts.sandbox_egress.libraries_check
+      - docker build -t {{.IMAGE}} -f apps/api/Dockerfile.sandbox apps/api
+
+  sandbox:libraries:check:
+    desc: "Prove the sandbox image holds what it promises and nothing it must not (ADR-298, ADR-327): task sandbox:libraries:check [IMAGE=lia-skill-sandbox:local]"
+    # The unit tests hold the declaration to the build inputs; only the IMAGE
+    # proves a run: every promised library imports, every declared command is
+    # there, and neither the Docker client nor the application's code is. The
+    # image holds no code, so the probe travels in from the host, and the image
+    # starts on the sandbox's own footing (no network, uid 65534, read-only).
+    # CI runs it on the image its docker-build job just built.
+    dir: "{{.API_DIR}}"
+    vars:
+      IMAGE: '{{.IMAGE | default "lia-skill-sandbox:local"}}'
+    cmds:
+      - cmd: .venv/Scripts/python -m scripts.sandbox_egress.libraries_check {{.IMAGE}}
+        platforms: [windows]
+      - cmd: python3 -m scripts.sandbox_egress.libraries_check {{.IMAGE}}
+        platforms: [linux, darwin]
 
   react:selection:measure:
     desc: Replay real ReAct turns against the tool-selection policy (NETWORK, on demand — ADR-293)

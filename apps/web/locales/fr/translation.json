@@ -872,6 +872,41 @@
       "download": "Télécharger {{name}}",
       "open": "Ouvrir {{name}}"
     },
+    "skill_proposal": {
+      "badge_new": "Nouvelle skill",
+      "badge_update": "Mise à jour",
+      "changes": {
+        "title": "Ce que change la mise à jour",
+        "added": "Ajouté :",
+        "modified": "Modifié :",
+        "removed": "Supprimé (contenu perdu) :"
+      },
+      "files_title": "Fichiers",
+      "files_summary_one": "{{count}} fichier · {{size}}",
+      "files_summary_other": "{{count}} fichiers · {{size}}",
+      "show_file": "Afficher {{path}}",
+      "hide_file": "Masquer {{path}}",
+      "notice": "Une skill guide ce que fait LIA quand elle s’applique. Vérifie ses fichiers avant de l’installer.",
+      "expires": "Installable jusqu’au {{time}}",
+      "install": "Installer",
+      "install_label": "Installer la skill {{name}}",
+      "installed": "Installée.",
+      "open_settings": "Ouvrir mes skills",
+      "closed": "Cette proposition n’est plus disponible. Redemande-la à LIA si tu la veux toujours.",
+      "load_failed": "La proposition n’a pas pu être lue.",
+      "retry": "Réessayer",
+      "install_failed": "La skill n’a pas pu être installée. Réessaie.",
+      "errors": {
+        "skill_proposal_not_found": "Cette proposition n’est plus disponible. Redemande-la à LIA si tu la veux toujours.",
+        "skill_proposal_stale": "Ta skill a changé depuis cette proposition. Demande à LIA de la mettre à jour à nouveau.",
+        "skill_proposal_busy": "Cette skill est déjà en cours d’installation.",
+        "skill_proposal_disabled": "L’installation des skills écrites dans le chat est désactivée sur cette instance.",
+        "skill_proposal_name_taken": "Une skill porte déjà ce nom et ne peut pas être remplacée depuis le chat.",
+        "skill_proposal_quota_reached": "Tu as atteint le nombre maximal de skills. Supprimes-en une dans les Réglages pour installer celle-ci.",
+        "skill_proposal_invalid": "Cette skill n’est plus acceptée. Demande à LIA de la générer à nouveau.",
+        "skill_proposal_unavailable": "La proposition est injoignable pour le moment. Réessaie dans un instant."
+      }
+    },
     "document_expiry": {
       "expired": "Ce document a expiré et n'est plus disponible",
       "kept": "Conservé : jamais supprimé automatiquement",
@@ -993,7 +1028,8 @@
         "data_none": "aucune",
         "data_too_large": "trop volumineuses pour suivre",
         "data_count_one": "{{count}} {{kind}}",
-        "data_count_other": "{{count}} {{kind}}"
+        "data_count_other": "{{count}} {{kind}}",
+        "third_party_skill": "Cette skill a été écrite ailleurs. N'envoie les données du tour que si tu lui fais confiance."
       },
       "resolved": {
         "confirmed": "Confirmé",
@@ -1488,7 +1524,7 @@
     },
     "sandbox_egress": {
       "title": "Réseau du bac à sable",
-      "description": "Ce qu'un script écrit par LIA peut atteindre sur le réseau, et les autorisations que tu as données quand elle a demandé.",
+      "description": "Ce qu'un script écrit par LIA, ou la commande d'une skill, peut atteindre sur le réseau, et les autorisations que tu as données.",
       "reachable_title": "Joignable sans demander",
       "reachable_description": "Tes propres connecteurs (leur clé passe par le proxy, jamais dans le script) et les hôtes que cette instance autorise.",
       "reachable_empty": "Aucun hôte n'est joignable sans demander. LIA te demandera avant qu'un script n'en atteigne un.",
@@ -1496,8 +1532,8 @@
       "source_operator": "Autorisé par cette instance",
       "ask_disabled": "Sur cette instance, tout autre hôte est refusé : LIA ne demande jamais.",
       "grants_title": "Tes autorisations",
-      "grants_description": "Les hôtes que tu as autorisés depuis une question du chat. En révoquer un, c'est que LIA redemande la prochaine fois.",
-      "grants_empty": "Aucune autorisation pour l'instant. Quand un script a besoin d'un hôte absent de la liste ci-dessus, LIA te demande d'abord.",
+      "grants_description": "Les hôtes que tu as autorisés, depuis une question du chat ou ci-dessous. En révoquer un, c'est que LIA redemande la prochaine fois.",
+      "grants_empty": "Aucune autorisation pour l'instant. Quand un script a besoin d'un hôte absent de la liste ci-dessus, LIA te demande d'abord quand elle le peut ; sinon, ajoute-le ci-dessous.",
       "grants_not_shown": "{{count}} autre autorisation n'est pas affichée ici.",
       "grants_not_shown_other": "{{count}} autres autorisations ne sont pas affichées ici.",
       "with_data": "Avec les données du tour de conversation",
@@ -1508,7 +1544,19 @@
       "revoked": "{{host}} révoqué — LIA redemandera la prochaine fois.",
       "row_menu": "Actions pour {{host}}",
       "capacity_label": "Capacité du compte",
-      "capacity": "{{held}} / {{max}} autorisations"
+      "capacity": "{{held}} / {{max}} autorisations",
+      "add_title": "Autoriser un hôte",
+      "add_description": "Un tour en mode Pipeline ou une routine ne peut pas te demander : un script ou la commande d'une skill n'atteint alors que les hôtes listés sur cette page. Tape le nom seul, par exemple registry.npmjs.org pour npm, pypi.org et files.pythonhosted.org pour pip, github.com pour git.",
+      "add_label": "Nom d'hôte",
+      "add_placeholder": "registry.npmjs.org",
+      "add_submit": "Autoriser",
+      "add_scope": "L'autoriser avec les données du tour de conversation",
+      "added": "{{host}} autorisé.",
+      "add_errors": {
+        "egress_grant_host_invalid": "Tape un nom d'hôte seul : sans https://, sans chemin, sans port ni adresse IP.",
+        "egress_grant_limit_reached": "Ton compte a déjà autant d'autorisations que cette instance le permet : révoques-en une d'abord.",
+        "egress_grant_asking_disabled": "Cette instance ne te laisse pas autoriser d'hôtes toi-même."
+      }
     },
     "preferences": {
       "debug": {
@@ -3567,7 +3615,10 @@
         "provenance_warning": "Cette skill a été importée depuis l'extérieur de LIA. Ses instructions s'exécutent avec accès à tes données connectées — ne conserve que des skills dont tu connais la source.",
         "enabled_label": "Activée",
         "open_details": "Détails de la skill : {{name}}",
-        "dialogue_badge": "dialogue"
+        "dialogue_badge": "dialogue",
+        "origin_library": "Bibliothèque",
+        "origin_url": "Depuis une adresse",
+        "origin_plugin": "Plugin"
       },
       "url_import": {
         "button": "URL",
@@ -3580,6 +3631,112 @@
         "error_too_large": "Le fichier dépasse la taille autorisée.",
         "error_not_skill": "Cette adresse ne fournit pas un fichier SKILL.md ni un paquet .zip.",
         "error_fetch": "L'adresse n'a pas pu être contactée."
+      },
+      "library": {
+        "button": "Trouver des skills",
+        "title": "Bibliothèque de skills",
+        "description": "Cherche sur skills.sh ou à une adresse GitHub, lis une skill avant de l’installer et garde-la à jour depuis son dépôt.",
+        "check_update": "Chercher une mise à jour",
+        "install_success": "{{name}} est installée.",
+        "update_success": "{{name}} est à jour.",
+        "tabs": {
+          "search": "Recherche",
+          "address": "Adresse GitHub",
+          "installed": "Installées"
+        },
+        "search": {
+          "label": "Chercher dans la bibliothèque de skills",
+          "placeholder": "PDF, diapositives, revue de code…",
+          "idle": "Tape au moins {{min}} caractères — la bibliothèque cherche sur skills.sh.",
+          "empty": "Aucune skill ne correspond. Essaie d’autres mots, ou colle une adresse GitHub.",
+          "installs_one": "{{count}} installation",
+          "installs_other": "{{count}} installations",
+          "installed": "Installée",
+          "unsupported": "Non installable",
+          "unsupported_hint": "Publiée sur un site plutôt que sur GitHub — LIA n’installe que depuis GitHub.",
+          "read": "Lire",
+          "read_named": "Lire {{name}}"
+        },
+        "address": {
+          "label": "Adresse GitHub",
+          "placeholder": "propriétaire/dépôt ou https://github.com/propriétaire/dépôt/tree/main/skills/nom",
+          "hint": "Un dépôt, ou le dossier d’une skill qu’il contient.",
+          "read": "Lire",
+          "choose": "{{repository}} contient {{count}} skills — choisis-en une.",
+          "root": "Le dépôt lui-même"
+        },
+        "preview": {
+          "back": "Retour",
+          "source": "Depuis {{location}}, commit {{sha}}",
+          "third_party": "Écrite hors de LIA : elle s’exécute à part, avec ses propres fichiers et ceux que tu joins — jamais ta messagerie, ton agenda ni tes autres connecteurs — et ses réponses n’affichent ni image ni contenu web.",
+          "audits_title": "Audits",
+          "audits_unavailable": "Les audits n’ont pas pu être lus. L’isolement ci-dessus s’applique toujours.",
+          "audits_none": "Aucun audit publié pour cette skill pour l’instant.",
+          "alerts_one": "{{count}} alerte",
+          "alerts_other": "{{count}} alertes",
+          "files_title": "Fichiers",
+          "files_summary_one": "{{count}} fichier · {{size}}",
+          "files_summary_other": "{{count}} fichiers · {{size}}",
+          "skipped": "Liens et sous-modules jamais lus : {{list}}",
+          "scripts": "Elle contient des scripts : ils s’exécutent dans le bac à sable isolé de LIA.",
+          "blocked": "Un audit classe cette skill en {{risk}} — cette instance ne l’installe pas.",
+          "conflict_installed": "Déjà installée — mets-la à jour depuis l’onglet Installées.",
+          "conflict_name_taken": "Une skill nommée {{name}} existe déjà — la tienne, ou une skill de LIA. Supprime ou renomme la tienne d’abord.",
+          "install": "Installer"
+        },
+        "risk": {
+          "safe": "sans risque",
+          "low": "risque faible",
+          "medium": "risque moyen",
+          "high": "risque élevé",
+          "critical": "risque critique",
+          "unknown": "non évaluée"
+        },
+        "installed": {
+          "title": "Installées depuis la bibliothèque ({{count}})",
+          "loading": "Chargement des skills installées",
+          "check": "Vérifier à nouveau",
+          "empty": "Rien d’installé depuis la bibliothèque pour l’instant. Cherche une skill dans l’onglet Recherche.",
+          "review": "Voir la mise à jour",
+          "review_named": "Voir la mise à jour de {{name}}",
+          "state": {
+            "current": "À jour",
+            "available": "Mise à jour disponible",
+            "unknown": "Non vérifiée"
+          }
+        },
+        "update": {
+          "changes": "Ce que change la mise à jour",
+          "none": "Aucun fichier modifié — seul le commit a bougé.",
+          "added": "Ajoutés :",
+          "modified": "Modifiés :",
+          "removed": "Supprimés :",
+          "confirm": "Mettre à jour"
+        },
+        "errors": {
+          "generic": "La bibliothèque n’a pas pu répondre. Réessaie dans un instant.",
+          "skill_library_source_invalid": "Ce n’est pas un dépôt GitHub lisible — utilise propriétaire/dépôt ou une adresse github.com.",
+          "skill_library_origin_unsupported": "Cette skill est publiée hors de GitHub — LIA n’installe que depuis GitHub.",
+          "skill_library_not_found": "Aucune skill trouvée à cet endroit — vérifie le dépôt, la branche et le dossier.",
+          "skill_library_ambiguous": "Plusieurs dossiers contiennent une skill de ce nom — ouvre le dépôt par son adresse et choisis-en une.",
+          "skill_library_unreachable": "La bibliothèque ou GitHub est injoignable. Réessaie dans un instant.",
+          "skill_library_name_taken": "Une skill de ce nom existe déjà — la tienne, ou une skill de LIA. Supprime ou renomme la tienne d’abord.",
+          "skill_library_already_installed": "Cette skill est déjà installée — mets-la à jour depuis l’onglet Installées.",
+          "skill_library_not_installed": "Cette skill n’a pas été installée depuis la bibliothèque.",
+          "skill_library_quota_reached": "Tu as autant de skills que cette instance le permet — supprimes-en une d’abord.",
+          "skill_library_invalid_skill": "Ses fichiers ont été lus, mais son SKILL.md a été refusé par les contrôles de LIA.",
+          "skill_library_query_invalid": "Tape entre {{min}} et {{max}} caractères.",
+          "skill_library_query_invalid_plain": "Ce texte de recherche est trop court ou trop long.",
+          "skill_library_rate_limited": "Le quota GitHub de cette instance est épuisé jusqu’à {{time}}. Un administrateur peut le relever avec un jeton GitHub.",
+          "skill_library_rate_limited_plain": "Le quota GitHub de cette instance est épuisé pour le moment. Réessaie plus tard.",
+          "skill_library_too_large": "Ce dépôt est trop grand pour que GitHub le liste en entier — ouvre directement le dossier de la skill par son adresse.",
+          "skill_library_too_large_files": "Cette skill contient plus de {{max}} fichiers — plus que ce qu’accepte cette instance.",
+          "skill_library_too_large_kb": "Cette skill pèse plus de {{max}} Ko — plus que ce qu’accepte cette instance.",
+          "skill_library_audit_blocked": "Un audit classe cette skill en {{risk}} — cette instance ne l’installe pas.",
+          "skill_library_audit_blocked_plain": "Un audit refuse cette skill sur cette instance.",
+          "skill_library_renamed": "La nouvelle version s’appelle {{name}} — c’est une autre skill. Supprime celle-ci et installe l’autre.",
+          "skill_library_renamed_plain": "La nouvelle version porte un autre nom — supprime celle-ci et installe-la à nouveau."
+        }
       }
     },
     "channels": {
@@ -4055,7 +4212,7 @@
         "scheduled-actions": "cron, planification, récurrent, automatisation, minuterie, programmé, vue de la semaine, chronologie, grille hebdomadaire, tous les trois jours, 2e mardi, intervalle, fin de série, options avancées, veille, surveiller, surveiller une réponse, terminée, préviens-moi quand, se ferme d’elle-même",
         "journals": "journal intime, carnet, portrait, réflexions, notes, provenance, pourquoi, source, signal, origine, corriger, configuration, consolidation, exporter",
         "health-metrics": "fréquence cardiaque, pas, sommeil, iPhone, Apple Santé, forme, activité",
-        "skills": "compétences, capacités, aptitudes, plugins, extensions",
+        "skills": "compétences, capacités, aptitudes, plugins, extensions, bibliothèque, skills.sh, trouver des skills, GitHub, installer, mise à jour, audit, place de marché",
         "rag-spaces": "espaces de connaissances, documents, fichiers, téléverser, télécharger, archive, zip, déplacer, supprimer plusieurs, indexation, recherche documentaire, drive, réunions, libellé gmail, source e-mail, suivre un libellé, fils de discussion, conversations indexées, réponses conservées, document en erreur, pdf scanné, ocr, google docs, sous-dossiers, arborescence, confirmation de synchronisation, nombre de fichiers, joindre un document à un message",
         "user-consumption-export": "CSV, consommation, tokens, coût, facturation, statistiques, export",
         "haptics": "haptique vibration tactile retour sensoriel",
@@ -4082,7 +4239,7 @@
         "reminders": "rappel, rappelle-moi, alerte, notification, rappel récurrent, répéter, pense-bête, récurrence, tous les jours, plage horaire",
         "workboard": "workboard tableau tickets ticket kanban colonnes à faire backlog",
         "generated-assets": "fichiers images documents captures téléchargements galerie générés expiration conserver conservés épingle bookmarks bookmark favoris réponses conservées réponses enregistrées marque-pages indexé espace de connaissances recherche partager avec une connexion partagée par",
-        "sandbox-egress": "bac à sable, python, script, réseau, internet, proxy, hôtes, autorisations, autoriser, révoquer, sortie, API, intégration",
+        "sandbox-egress": "bac à sable, python, script, réseau, internet, proxy, hôtes, autorisations, autoriser, révoquer, sortie, API, intégration, skill, commande, npm, git, pip",
         "live-mode": "live, temps réel, vocal, voix, parole, Gemini Live, GPT-Live, OpenAI, ElevenLabs, agent, session directe, délégation, modèle, niveau de réflexion, silence, durée, plafond de dépense, interruptions, appuyer pour parler, conversation, micro",
         "radio": "radio, station, podcast, actualités, journal, titres, analyse, chronique, voix, musique, minuteur, sources, sites, flux, RSS, vérification, écoute, en compagnie",
         "admin-jev": "JEV, TypeSafe, bascules, switch, latence, décision, réunion, compte rendu, repli"
@@ -5131,7 +5288,7 @@
         },
         "security": {
           "title": "🔐 Sécurité Multi-Niveaux",
-          "description": "Défense en profondeur : clés d'accès, TOTP avec codes de secours, ré-authentification pour les actions sensibles, chaque session visible et révocable. Une connexion Google prouve une adresse, jamais un droit : elle ne peut ni activer ni débloquer un compte. Dessous, OAuth 2.1 avec PKCE, des journaux qui gardent des faits, jamais tes mots, chiffrement au repos, un export RGPD sans secret exportable. Un skill tourne dans un conteneur jetable, sans réseau ; un script de LIA n'atteint le web que par un seul proxy. Et un texte écrit par un tiers arrive au modèle comme donnée, jamais comme instruction."
+          "description": "Défense en profondeur : clés d'accès, TOTP avec codes de secours, ré-authentification pour les actions sensibles, chaque session visible et révocable. Une connexion Google prouve une adresse, jamais un droit : elle ne peut ni activer ni débloquer un compte. Dessous, OAuth 2.1 avec PKCE, des journaux qui gardent des faits, jamais tes mots, chiffrement au repos, un export RGPD sans secret exportable. Skills et scripts de LIA tournent en conteneur jetable et n'atteignent que les hôtes permis, par un seul proxy. Et un texte écrit par un tiers arrive au modèle comme donnée, jamais comme instruction."
         },
         "resilience": {
           "title": "🛡️ Performance & Optimisation Tokens",
@@ -5162,8 +5319,8 @@
           "description": "La pile complète : métriques Prometheus (tokens, latence, erreurs, coûts), 30 tableaux de bord Grafana, traçage Tempo, journaux Loki, alertes par e-mail pointant leur runbook. Le 26e tableau est un cockpit produit : résultats validés — ton 👍, ou une action laissée telle quelle une journée — et coût par résultat utile, comptés dans PostgreSQL, lus par un rôle qui ne voit que des agrégats. Et chaque processus de l’API publie ce qu’il tient en mémoire : un total de conteneur se lit worker par worker."
         },
         "tools": {
-          "title": "🔧 123 Outils Typés",
-          "description": "123 outils natifs, avec des schémas JSON générés depuis les types Python, extensibles sans limite par les serveurs MCP et les skills. Chacun déclare son manifeste et ses bornes publiées : ce qu’un validateur peut refuser, le planificateur peut le lire. Le catalogue est filtré par domaine — c’est pourquoi chaque domaine porte aussi ses capacités de lecture, sans quoi un domaine n’ayant que des outils d’écriture pousserait le planificateur à écrire. Ce qui doit être exact est calculé par un outil, jamais estimé : calculs, dates, devises."
+          "title": "🔧 124 Outils Typés",
+          "description": "124 outils natifs, avec des schémas JSON générés depuis les types Python, extensibles sans limite par les serveurs MCP et les skills. Chacun déclare son manifeste et ses bornes publiées : ce qu’un validateur peut refuser, le planificateur peut le lire. Le catalogue est filtré par domaine — c’est pourquoi chaque domaine porte aussi ses capacités de lecture, sans quoi un domaine n’ayant que des outils d’écriture pousserait le planificateur à écrire. Ce qui doit être exact est calculé par un outil, jamais estimé : calculs, dates, devises."
         },
         "costTransparency": {
           "title": "💰 Transparence des Coûts",
@@ -5231,7 +5388,7 @@
         },
         "skills": {
           "title": "Skills (avec cartes & mini-apps interactives)",
-          "description": "Donne à LIA tes propres compétences d’expert. Écris-en une en langage naturel avec le générateur intégré — installée aussitôt — ou importe depuis les places de marché compatibles agentskills.io. Un skill peut renvoyer un cadre HTML interactif (carte, tableau de bord, convertisseur) ou une image en plus de son texte, thème et langue synchronisés automatiquement, et la galerie montre ce que chacun produit réellement plutôt qu’une icône générique. Demande à LIA d’ajuster un skill : elle relit tout le paquet, puis te montre ce qui sera remplacé et ce qui disparaîtra avant d’écrire quoi que ce soit."
+          "description": "Donne à LIA tes propres compétences d’expert. Décris-en une en langage naturel — le générateur l’écrit et te la propose sur une carte, un clic l’installe — ou cherche dans la bibliothèque publique skills.sh, lue fichier par fichier avant l’installation. Un skill peut renvoyer un cadre interactif ou une image, ou exécuter ses propres commandes dans un conteneur jetable et te rendre des fichiers. Un skill écrit ailleurs travaille à part : jamais tes connecteurs, ni image ni contenu web dans ses réponses."
         },
         "ragSpaces": {
           "title": "📚 Espaces de connaissances RAG",
@@ -5360,6 +5517,20 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v2_2_0": {
+          "title": "v2.2.0 — Une bibliothèque de skills, des skills qui agissent, tenues à part",
+          "date": "30 septembre 2026 · 22 h 50 CEST",
+          "count": "7",
+          "items": {
+            "i1": "<b>📚 Trouve des skills dans une bibliothèque publique</b> — « Trouver des skills » dans Paramètres › Skills cherche sur skills.sh ou lit une adresse GitHub. Tu lis la skill avant de l'installer : sa source, sa version exacte, chacun de ses fichiers et les audits publiés. L'onglet Installées te signale quand sa source a bougé et te montre la mise à jour avant que tu l'appliques.",
+            "i2": "<b>🧰 Des skills qui exécutent leurs commandes</b> — Une skill peut lancer un script Python, Node ou shell dans une copie jetable de son dossier, avec les fichiers joints à ton message. Ce qu'elle écrit te revient en fichiers générés, vérifiés avant de t'atteindre et rangés dans ta galerie.",
+            "i3": "<b>🌐 Le réseau, seulement vers les hôtes permis</b> — Une commande est hors ligne par défaut. Celle qui doit installer un paquet ou récupérer un dépôt nomme ses hôtes et passe par un proxy dédié, une fois qu'ils sont autorisés. En mode ReAct, LIA te pose la question ; tu peux aussi autoriser un hôte dans Paramètres › Réseau du bac à sable.",
+            "i4": "<b>✅ Une skill écrite par LIA, installée par toi</b> — Quand LIA crée ou modifie une skill dans la conversation, elle te la propose sur une carte : nom, description, fichiers et, pour un remplacement, ce qui change. Rien n'entre dans tes skills avant ton clic sur Installer.",
+            "i5": "<b>🛡️ Les skills venues d'ailleurs restent à part</b> — Une skill de la bibliothèque, d'une adresse ou d'un plugin s'exécute isolée : jamais ta messagerie, ton agenda ni tes connecteurs, ni images ni contenu web dans ses réponses. Et le nom d'une skill est désormais unique pour ton compte seulement.",
+            "i6": "<b>🤖 Deux nouveaux modèles</b> — Claude Sonnet 5.5 et GPT-6.1 Sol rejoignent le catalogue de l'administrateur, avec leurs réglages de réflexion et leurs tarifs.",
+            "i7": "<b>🔒 Des exports mieux protégés</b> — Un export Markdown ne peut plus transformer un texte en lien piégé, et la description d'un événement est nettoyée plus sûrement."
+          }
+        },
         "v2_1_1": {
           "title": "v2.1.1 — Un texte à ta taille, des exports lisibles, des alertes météo justes",
           "date": "30 septembre 2026 · 03 h 19 CEST",
@@ -8921,7 +9092,7 @@
       "skills": {
         "title": "Compétences (skills)",
         "description": "Étendre les capacités de LIA avec des instructions expertes",
-        "count": "12",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "Qu'est-ce qu'une skill ?",
@@ -8929,15 +9100,15 @@
           },
           "q2": {
             "question": "Comment importer une skill ?",
-            "answer": "<p>Dans <strong>Réglages &gt; Fonctionnalités &gt; Mes skills</strong>, clique sur <strong>Importer</strong> et sélectionne :</p><ul><li>Un fichier <code>.md</code> (SKILL.md unique)</li><li>Un fichier <code>.zip</code> (dossier complet avec scripts/, references/, assets/)</li></ul><p>Les skills compatibles sont disponibles sur des marketplaces comme <strong>skillsmp.com</strong> ou sur GitHub.</p>"
+            "answer": "<p>Dans <strong>Réglages &gt; Fonctionnalités &gt; Mes skills</strong>, clique sur <strong>Importer</strong> et sélectionne :</p><ul><li>Un fichier <code>.md</code> (SKILL.md unique)</li><li>Un fichier <code>.zip</code> (dossier complet avec scripts/, references/, assets/)</li></ul><p>Les skills compatibles sont disponibles sur des marketplaces comme <strong>skillsmp.com</strong> ou sur GitHub — et <strong>Trouver des skills</strong>, dans la même section, cherche directement dans la bibliothèque publique <strong>skills.sh</strong>.</p>"
           },
           "q3": {
             "question": "Comment créer ma propre skill ?",
-            "answer": "<p><strong>Le plus simple : demande à LIA !</strong> Dis par exemple « <em>crée une skill pour [ton besoin]</em> » et le <strong>Générateur de skills</strong> intégré te guide pas à pas : analyse du besoin, choix de l'archétype (parmi les 5 archétypes), génération, validation automatique — et <strong>installation directe</strong> : la skill terminée arrive immédiatement dans <strong>Mes skills</strong>, active et prête à l'emploi, et LIA l'annonce par son nom.</p><p>Tu peux aussi créer manuellement un fichier <code>SKILL.md</code> avec un en-tête YAML minimal (nom + description) suivi d'instructions Markdown. Consulte le <strong>guide intégré</strong> (bouton 📖 dans Mes skills) pour les options avancées.</p>"
+            "answer": "<p><strong>Le plus simple : demande à LIA !</strong> Dis par exemple « <em>crée une skill pour [ton besoin]</em> » et le <strong>Générateur de skills</strong> intégré te guide pas à pas : analyse du besoin, choix de l'archétype (parmi les 5 archétypes), génération, validation automatique — puis une <strong>carte de proposition</strong> dans le chat : tu lis son nom, sa description et ses fichiers, et un clic sur <strong>Installer</strong> la place dans <strong>Mes skills</strong>, active et prête à l'emploi. Rien n'est installé sans ton clic.</p><p>Tu peux aussi créer manuellement un fichier <code>SKILL.md</code> avec un en-tête YAML minimal (nom + description) suivi d'instructions Markdown. Consulte le <strong>guide intégré</strong> (bouton 📖 dans Mes skills) pour les options avancées.</p>"
           },
           "q4": {
             "question": "Quelle est la différence entre les skills admin et mes skills ?",
-            "answer": "<p><strong>Skills admin (intégrées)</strong> : livrées avec l'application, disponibles pour tous les utilisateurs. Tu peux les activer/désactiver individuellement.</p><p><strong>Mes skills (importées)</strong> : skills personnelles que tu importes. Tu peux les activer/désactiver, les télécharger ou les supprimer.</p><p>Les noms de skills sont uniques : un import qui réutilise le nom d'une skill intégrée (ou d'une skill d'un autre utilisateur) est refusé proprement — choisis plutôt un nom voisin.</p>"
+            "answer": "<p><strong>Skills admin (intégrées)</strong> : livrées avec l'application, disponibles pour tous les utilisateurs. Tu peux les activer/désactiver individuellement.</p><p><strong>Mes skills (importées)</strong> : skills personnelles que tu importes. Tu peux les activer/désactiver, les télécharger ou les supprimer.</p><p>Un nom est unique parmi tes propres skills, pas pour toute l'instance : une autre personne peut garder une skill du même nom que la tienne. Ce qui reste refusé, c'est de reprendre le nom d'une skill intégrée — choisis plutôt un nom voisin.</p>"
           },
           "q5": {
             "question": "Comment LIA choisit-elle quelle skill utiliser ?",
@@ -8949,7 +9120,7 @@
           },
           "q7": {
             "question": "Qu'est-ce que le Skill Generator ?",
-            "answer": "<p>Le <strong>Générateur de skills</strong> est une skill système intégrée qui te permet de <strong>créer tes propres skills en langage naturel</strong>. Décris simplement ton besoin (« <em>je veux une météo détaillée sur 5 jours</em> ») et l'assistant te guide en 4 étapes :</p><ol><li><strong>Analyse du besoin</strong> : questions de clarification sur la tâche, les outils et le format souhaité — le dialogue conserve son contexte d'un tour à l'autre</li><li><strong>Choix de l'archétype</strong> : Prompt Expert, Advisory, Plan Template, Visualizer ou Generator</li><li><strong>Génération</strong> : crée le SKILL.md (plus scripts et références si nécessaire) conforme au standard agentskills.io</li><li><strong>Validation &amp; installation</strong> : vérification automatique du format, puis <strong>installation directe</strong> — LIA annonce la skill par son nom et elle est immédiatement active dans <strong>Mes skills</strong> (active, télécharge ou supprime-la comme toute skill importée)</li></ol>"
+            "answer": "<p>Le <strong>Générateur de skills</strong> est une skill système intégrée qui te permet de <strong>créer tes propres skills en langage naturel</strong>. Décris simplement ton besoin (« <em>je veux une météo détaillée sur 5 jours</em> ») et l'assistant te guide en 4 étapes :</p><ol><li><strong>Analyse du besoin</strong> : questions de clarification sur la tâche, les outils et le format souhaité — le dialogue conserve son contexte d'un tour à l'autre</li><li><strong>Choix de l'archétype</strong> : Prompt Expert, Advisory, Plan Template, Visualizer ou Generator</li><li><strong>Génération</strong> : crée le SKILL.md (plus scripts et références si nécessaire) conforme au standard agentskills.io</li><li><strong>Validation &amp; proposition</strong> : vérification automatique du format, puis une <strong>carte de proposition</strong> dans le chat — tu relis la skill et ses fichiers, et un clic sur <strong>Installer</strong> la rend active dans <strong>Mes skills</strong> (active, télécharge ou supprime-la comme toute skill importée)</li></ol>"
           },
           "q8": {
             "question": "Les skills peuvent-elles afficher des cartes, des images ou des mini-applications interactives ? (v1.16.8)",
@@ -8957,19 +9128,27 @@
           },
           "q9": {
             "question": "Que montre la galerie de skills ? (v1.25.16)",
-            "answer": "<p>Réglages → Skills affiche désormais tes skills en <strong>cartes</strong>. En ouvrir une montre sa description localisée, une <strong>image d'aperçu</strong> quand la skill en embarque une, ses <strong>canaux de sortie</strong> déclarés (texte, cadre interactif, image) et les actions (activer/désactiver, télécharger, supprimer). Toute skill importée depuis l'extérieur de LIA porte un <strong>avertissement de provenance</strong> : ses instructions s'exécutent avec accès à tes données connectées, ne conserve que des skills dont tu connais la source.</p>"
+            "answer": "<p>Réglages → Skills affiche désormais tes skills en <strong>cartes</strong>. En ouvrir une montre sa description localisée, une <strong>image d'aperçu</strong> quand la skill en embarque une, ses <strong>canaux de sortie</strong> déclarés (texte, cadre interactif, image) et les actions (activer/désactiver, télécharger, supprimer). Une skill que tu importes toi-même porte un <strong>avertissement de provenance</strong> : ses instructions s'exécutent avec accès à tes données connectées, ne conserve que des skills dont tu connais la source. Une skill venue d'une adresse, de la bibliothèque ou d'un plugin affiche son origine et s'exécute à part.</p>"
           },
           "q10": {
             "question": "Puis-je installer une skill directement depuis une URL ? (v1.25.16)",
-            "answer": "<p>Oui — « Depuis une URL » dans Réglages → Skills. Colle une adresse <strong>https</strong> servant un fichier SKILL.md ou un paquet .zip. Le serveur valide tout : https uniquement, pas d'adresses privées/internes, pas de redirections, taille plafonnée, et le <strong>même pipeline d'import strict</strong> qu'un envoi de fichier (conflits de nom, quota, validation du contenu). Les tentatives échouées sont limitées par utilisateur.</p>"
+            "answer": "<p>Oui — « Depuis une URL » dans Réglages → Skills. Colle une adresse <strong>https</strong> servant un fichier SKILL.md ou un paquet .zip. Le serveur valide tout : https uniquement, pas d'adresses privées/internes, pas de redirections, taille plafonnée, et le <strong>même pipeline d'import strict</strong> qu'un envoi de fichier (conflits de nom, quota, validation du contenu). Les tentatives échouées sont limitées par utilisateur.</p><p>Une skill installée depuis une adresse a été écrite ailleurs : LIA l'exécute à part, avec ses propres fichiers et ceux que tu joins — jamais ta messagerie, ton agenda ni tes autres connecteurs — et ses réponses n'affichent ni image ni contenu web.</p>"
           },
           "q11": {
             "question": "Puis-je faire modifier une skill existante ? (v1.25.28)",
-            "answer": "<p>Oui, en conversation : « ajuste ma skill X », « ajoute-lui une section », « corrige la formulation ». LIA relit la compétence complète — son manifeste, ses scripts, ses documents de référence — applique ta demande, puis <strong>régénère l'ensemble</strong> plutôt que d'y faire une retouche ponctuelle : c'est ce qui garantit que la description, les scripts et les ressources restent cohérents entre eux.</p><p>Avant d'écrire quoi que ce soit, LIA te présente <strong>exactement ce qui sera remplacé et ce qui disparaîtra</strong>, et attend ton accord. Cette confirmation n'est pas une politesse : techniquement, la modification ne peut pas aboutir sans elle. <strong>Il n'existe pas d'historique de versions</strong> — une fois remplacée, l'ancienne version n'est pas récupérable, alors relis le récapitulatif. La vignette de la galerie, elle, est conservée automatiquement.</p><p>Trois cas sont refusés : les skills <strong>système</strong> (maintenues par l'administrateur), celles d'un <strong>autre utilisateur</strong>, et les tiennes qui sont <strong>désactivées</strong> — réactive-la d’abord dans Réglages → Skills.</p>"
+            "answer": "<p>Oui, en conversation : « ajuste ma skill X », « ajoute-lui une section », « corrige la formulation ». LIA relit la compétence complète — son manifeste, ses scripts, ses documents de référence — applique ta demande, puis <strong>régénère l'ensemble</strong> plutôt que d'y faire une retouche ponctuelle : c'est ce qui garantit que la description, les scripts et les ressources restent cohérents entre eux.</p><p>Rien n'est écrit directement : LIA te propose la nouvelle version sur une carte, qui montre <strong>exactement ce qui sera remplacé, ajouté et retiré</strong>. Seul ton clic sur <strong>Installer</strong> l'applique, et si ta skill a changé entre-temps, la carte le dit au lieu de l'écraser. <strong>Il n'existe pas d'historique de versions</strong> — une fois remplacée, l'ancienne version n'est pas récupérable, alors relis le récapitulatif. La vignette de la galerie, elle, est conservée automatiquement.</p><p>Trois cas sont refusés : les skills <strong>système</strong> (maintenues par l'administrateur), les skills <strong>installées depuis la bibliothèque ou apportées par un plugin</strong> (elles suivent leur source — mets-les plutôt à jour) et les tiennes qui sont <strong>désactivées</strong> — réactive-la d’abord dans Réglages → Skills.</p>"
           },
           "q12": {
             "question": "Puis-je installer des plugins ? (v1.30.7)",
-            "answer": "<p>Oui. LIA parle le standard ouvert <b>Agent Plugins</b> (agent-plugins.org) : un plugin est un paquet portable regroupant skills et serveurs MCP, et le même paquet fonctionne dans ChatGPT, Cursor, GitHub Copilot, VS Code — et LIA. Dans <b>Réglages → Plugins</b>, importe un fichier .zip ou colle un lien https. L'installation affiche un rapport complet par composant : installé, mis à jour, ignoré (avec la raison — par exemple un type de serveur que LIA ne lance volontairement pas) ou retiré. Les skills et serveurs MCP du plugin se comportent ensuite exactement comme ceux que tu crées à la main : active-les ou désactive-les librement, configure l'authentification des serveurs dans la section MCP. Pour mettre à jour un plugin, importe sa nouvelle version — les composants conservés sont mis à jour, les disparus retirés, et tes identifiants configurés survivent. Pour le retirer, désinstalle le plugin : tout ce qu'il avait apporté part avec lui (supprimer individuellement un composant de plugin est refusé, pour qu'un plugin ne finisse jamais amputé en silence).</p>"
+            "answer": "<p>Oui. LIA parle le standard ouvert <b>Agent Plugins</b> (agent-plugins.org) : un plugin est un paquet portable regroupant skills et serveurs MCP, et le même paquet fonctionne dans ChatGPT, Cursor, GitHub Copilot, VS Code — et LIA. Dans <b>Réglages → Plugins</b>, importe un fichier .zip ou colle un lien https. L'installation affiche un rapport complet par composant : installé, mis à jour, ignoré (avec la raison — par exemple un type de serveur que LIA ne lance volontairement pas) ou retiré. Active ou désactive librement ses skills et serveurs MCP, et configure l'authentification des serveurs dans la section MCP. Ses skills ont été écrites ailleurs : elles s'exécutent à part de tes connecteurs et n'affichent ni image ni contenu web ; ses serveurs MCP fonctionnent comme ceux que tu ajoutes toi-même. Pour mettre à jour un plugin, importe sa nouvelle version — les composants conservés sont mis à jour, les disparus retirés, et tes identifiants configurés survivent. Pour le retirer, désinstalle le plugin : tout ce qu'il avait apporté part avec lui (supprimer individuellement un composant de plugin est refusé, pour qu'un plugin ne finisse jamais amputé en silence).</p>"
+          },
+          "q13": {
+            "question": "Puis-je trouver des skills dans une bibliothèque publique ?",
+            "answer": "<p>Oui — <strong>Trouver des skills</strong> dans Réglages → Skills cherche sur <strong>skills.sh</strong>, la bibliothèque publique de skills, ou lit toute adresse GitHub que tu colles. Tu lis une skill avant de l'installer : d'où elle vient, la version exacte, chacun de ses fichiers et ce que disent les audits publiés. Une skill jugée trop risquée par un audit est refusée sur cette instance.</p><p>Une skill de la bibliothèque est écrite ailleurs, alors LIA la tient à part : elle s'exécute avec ses propres fichiers et ceux que tu joins — jamais ta messagerie, ton agenda ni tes autres connecteurs —, ses réponses n'affichent ni image ni contenu web, et elle ne change jamais la façon dont LIA planifie tes demandes. L'onglet <strong>Installées</strong> te dit quand sa source a bougé et montre ce que change une mise à jour avant que tu l'appliques. Supprime-la comme n'importe laquelle de tes skills.</p>"
+          },
+          "q14": {
+            "question": "Une skill peut-elle exécuter des programmes et me rendre des fichiers ?",
+            "answer": "<p>Oui. Beaucoup de skills écrites pour d'autres assistants demandent d'<strong>exécuter une commande</strong> : un script Python, shell ou Node, un outil PDF ou tableur. LIA l'exécute dans une <strong>copie du dossier de la skill</strong>, dans un conteneur jetable, sans accès à ta messagerie, ton agenda ni tes connecteurs, et sans rien de LIA elle-même. Les fichiers joints à ton message l'accompagnent, et chaque fichier qu'elle écrit dans son dossier <code>out/</code> te revient comme <strong>fichier généré</strong> : affiché sous la réponse et conservé dans ta galerie pour la durée habituelle.</p><p>Ce qui revient est vérifié avant de t'atteindre. Un document ou une image ne garde son type que si son contenu y correspond ; une page écrite par la skill (Markdown, HTML, SVG) revient en texte brut ; tout le reste est écarté, et la réponse le dit. Une commande a un budget de temps et des limites de taille.</p><p>Une commande s'exécute <strong>hors ligne par défaut</strong>. Celle qui doit installer un paquet ou récupérer un dépôt nomme les hôtes qu'elle atteint (npm, pip, git…) et sort par un proxy dédié : HTTPS uniquement, vers ces hôtes et nulle part ailleurs, et seulement une fois que ton administrateur ou toi les avez autorisés — LIA te le demande en mode ReAct, et tu peux autoriser un hôte toi-même dans <strong>Paramètres › Réseau du bac à sable</strong>. Une skill écrite ailleurs ne reçoit jamais tes connecteurs ni leurs clés.</p>"
           }
         }
       },
@@ -9895,9 +10074,17 @@
         "title": "Demandé avant de sortir",
         "desc": "Un script veut un hôte que personne n’a autorisé ? LIA s’arrête et demande, avec trois réponses : avec les données de ce tour, sans, ou pas du tout. Puis le reste de ta demande continue, et ta réponse est gardée pour la prochaine fois."
       },
+      "skill_proposal": {
+        "title": "Une skill proposée, jamais imposée",
+        "desc": "Quand LIA écrit ou modifie une skill pendant la conversation, elle te la présente sur une carte : son nom, sa description, chacun de ses fichiers et, pour un remplacement, ce qui change. Rien n’entre dans tes skills avant ton clic sur Installer."
+      },
       "network_grants": {
         "title": "Tes permissions, au même endroit",
         "desc": "Ce qu’un script peut atteindre sans demander — tes connecteurs, les hôtes que ton instance autorise — et chaque permission que tu as donnée, avec sa portée et un bouton pour la révoquer. Rien dans cette liste n’a été retenu dans ton dos."
+      },
+      "skill_library": {
+        "title": "Une bibliothèque qu’on lit avant d’installer",
+        "desc": "Cherche une skill dans une bibliothèque publique, ouvre-la et lis chacun de ses fichiers, sa version exacte et ce que disent les audits. Ce qui s’installe est exactement ce que tu as lu, et l’onglet des skills installées te prévient quand leur source a bougé."
       },
       "live_band": {
         "title": "Un bandeau pendant que tu parles",
@@ -10100,6 +10287,11 @@
         "refuse": "Refuser",
         "resumed": "La suite reprend avec ta réponse"
       },
+      "skill_proposal": {
+        "name": "Convertisseur de températures",
+        "install": "Installer",
+        "installed": "Installée"
+      },
       "network_grants": {
         "reachable": "Joignable sans demander",
         "connector": "Recherche web",
@@ -10107,6 +10299,12 @@
         "scope": "Sans les données",
         "revoke": "Révoquer",
         "revoked": "Permission retirée"
+      },
+      "skill_library": {
+        "query": "présentation",
+        "result": "Générateur de diapositives",
+        "audit": "Audits lus · fichiers vérifiés",
+        "installed": "Installée"
       },
       "live_band": {
         "status": "Tu parles avec LIA · 0:12",
@@ -11252,7 +11450,7 @@
       },
       "skills": {
         "title": "Skills avec cartes et mini-apps",
-        "description": "Donne à LIA des compétences sur mesure. Décris-en une en langage naturel — le générateur intégré l’écrit et l’installe aussitôt — ou importe les tiennes depuis les places de marché compatibles agentskills.io. Un skill peut renvoyer une carte, un tableau de bord, un convertisseur ou une mini-application interactive directement dans le chat, thème et langue synchronisés. Demande à LIA d’ajuster un skill : elle relit tout le paquet et te montre ce qui sera remplacé avant d’écrire."
+        "description": "Donne à LIA des compétences sur mesure. Décris-en une en langage naturel — le générateur intégré l’écrit et te la propose, un clic l’installe — ou choisis-la dans la bibliothèque publique skills.sh après l’avoir lue. Un skill peut renvoyer une carte, un tableau de bord ou une mini-application dans le chat, ou exécuter ses propres commandes en conteneur jetable et te rendre des fichiers. Un skill venu d’ailleurs travaille à part, sans jamais toucher à tes connecteurs."
       },
       "health_metrics": {
         "title": "Données santé",
@@ -11415,7 +11613,7 @@
       },
       "bff": {
         "title": "Architecture sécurisée",
-        "description": "Un patron BFF avec cookies HTTP-only et sessions Redis : les jetons ne sont jamais exposés au frontend. Clés d'accès et second facteur TOTP, avec ré-authentification avant toute action sensible. CSP stricte, couverture OWASP Top 10, et code tiers exécuté dans un conteneur jetable sans socket ni réseau. Une connexion Google prouve une adresse, jamais un droit : elle ne peut ni activer ni débloquer un compte. Chaque page que LIA lit est récupérée à l'adresse vérifiée, redirection après redirection : aucune ne peut la mener vers un réseau interne."
+        "description": "Un patron BFF avec cookies HTTP-only et sessions Redis : les jetons ne sont jamais exposés au frontend. Clés d'accès et second facteur TOTP, avec ré-authentification avant toute action sensible. CSP stricte, couverture OWASP Top 10, et code tiers exécuté dans un conteneur jetable sans socket, hors ligne sauf hôtes autorisés. Une connexion Google prouve une adresse, jamais un droit : elle ne peut ni activer ni débloquer un compte. Chaque page que LIA lit est récupérée à l'adresse vérifiée, redirection après redirection : aucune ne peut la mener vers un réseau interne."
       },
       "encryption": {
         "title": "Chiffrement",
@@ -11433,7 +11631,7 @@
     "tech": {
       "title": "Sous le capot",
       "subtitle": "Une architecture pensée pour la performance et l'évolutivité",
-      "intro": "LIA relie le routage sémantique, les outils et les sources utiles à ta demande. Pour les tâches à exécuter, le mode Pipeline prépare et vérifie un plan ; le mode ReAct avance par recherches et ajustements. Tu choisis le mode. Le parcours est instrumenté de bout en bout, du token à l’euro, avec des alertes e-mail sur les signaux vitaux.\n\nDerrière l'interface : apprentissage bayésien des plans, mémoire à double vecteur sémantique, recherche hybride BM25 + embeddings sur tes documents, une state machine LangGraph checkpointée en PostgreSQL. Le tout auto-hébergeable — jusque sur un Raspberry Pi.\n\nCe qu’elle affirme, elle l’a lu : chaque réponse est ancrée sur les données réellement récupérées — jamais sur le souvenir d’une formulation — et une information qui n’a jamais été obtenue est annoncée comme telle plutôt que comblée.\n\nCe qui s'exécute est isolé de ce qui l'exécute : le code d'une skill tourne dans un conteneur créé pour un seul appel — sans socket, sans réseau, en lecture seule — et si ce bac à sable ne peut pas être construit, rien ne tourne du tout.",
+      "intro": "LIA relie le routage sémantique, les outils et les sources utiles à ta demande. Pour les tâches à exécuter, le mode Pipeline prépare et vérifie un plan ; le mode ReAct avance par recherches et ajustements. Tu choisis le mode. Le parcours est instrumenté de bout en bout, du token à l’euro, avec des alertes e-mail sur les signaux vitaux.\n\nDerrière l'interface : apprentissage bayésien des plans, mémoire à double vecteur sémantique, recherche hybride BM25 + embeddings sur tes documents, une state machine LangGraph checkpointée en PostgreSQL. Le tout auto-hébergeable — jusque sur un Raspberry Pi.\n\nCe qu’elle affirme, elle l’a lu : chaque réponse est ancrée sur les données réellement récupérées — jamais sur le souvenir d’une formulation — et une information qui n’a jamais été obtenue est annoncée comme telle plutôt que comblée.\n\nCe qui s'exécute est isolé de ce qui l'exécute : le code d'une skill tourne dans un conteneur créé pour un seul appel — sans socket, sans réseau hors des hôtes autorisés, en lecture seule — et si ce bac à sable ne peut pas être construit, rien ne tourne du tout.",
       "deep_dive_link": "Plongée technique complète",
       "langgraph": {
         "title": "Deux façons de mener une demande",
@@ -11465,7 +11663,7 @@
       },
       "rich_skills": {
         "title": "Skills avec frames & images",
-        "description": "Une skill est un petit programme que LIA peut écrire pour toi, puis exécuter en bac à sable. Elle répond par du texte, une image, ou une interface miniature intégrée à la conversation — un formulaire, un tableau, un graphique — isolée de la page et alignée sur ton thème et ta langue. Les skills arrivent toutes par le même chemin, qu'elles soient déposées, générées dans le chat ou installées depuis un lien : validation stricte du nom, plafonds de taille, et une installation qui aboutit ou ne laisse rien. Une skill se régénère ensuite sous le même nom, avec ta confirmation."
+        "description": "Une skill est un petit programme que LIA peut écrire pour toi, puis exécuter en bac à sable. Elle répond par du texte, une image ou une interface miniature intégrée à la conversation, isolée de la page et alignée sur ton thème et ta langue, et peut lancer ses propres commandes dans une copie jetable de son dossier pour te rendre des fichiers. Déposée, proposée par le chat ou choisie dans une bibliothèque publique, toute skill suit le même chemin : validation stricte, plafonds de taille, installation qui aboutit ou ne laisse rien. Une skill écrite ailleurs reste à l'écart de tes connecteurs."
       },
       "hitl": {
         "title": "Human-in-the-Loop",
@@ -11727,7 +11925,7 @@
         "title": "LIA grandit avec toi.",
         "sub": "Tes connaissances, des recherches spécialisées et des outils que tu peux étendre au fil de tes besoins.",
         "b1_t": "Une compétence qui manque ? Décris-la.",
-        "b1_d": "Elle crée la skill, l’installe, et l’affiche en mini-app dans le chat — cartes, boutons, dashboards.",
+        "b1_d": "Elle écrit la skill, te la propose — un clic l’installe — et l’affiche en mini-app dans le chat.",
         "b2_t": "Tes documents deviennent un point d’appui.",
         "b2_d": "LIA retrouve les passages utiles, les confronte aux autres sources et peut produire un comparatif ou un document.",
         "b3_t": "Branche-la sur ton monde.",
@@ -11833,7 +12031,7 @@
         "s3_time": "15:00",
         "s3_text": "À partir des éléments trouvés, tu demandes une note d’architecture et un tableau comparatif. Les fichiers apparaissent dans le chat, prêts à relire et à partager.",
         "s4_time": "22:10",
-        "s4_text": "Un besoin revient : tu décris une skill adaptée à ton travail. LIA la crée ; pour la retoucher, elle montre les changements proposés avant de remplacer le paquet."
+        "s4_text": "Un besoin revient : tu décris une skill adaptée à ton travail. LIA l’écrit et te la propose, un clic l’installe ; pour une retouche, la carte montre ce qui change avant de remplacer le paquet."
       },
       "admin": {
         "s1_time": "08:00",
@@ -12532,7 +12730,7 @@
       "skills-system": {
         "title": "Skills : des instructions expertes pour personnaliser LIA",
         "excerpt": "Importe ou crée des skills spécialisés pour que LIA maîtrise de nouveaux domaines — avec cartes interactives, mini-dashboards et images en plus du texte.",
-        "body": "<h2>Qu'est-ce qu'un skill ?</h2><p>Un <strong>skill</strong> est un ensemble d'instructions structurées qui permet à LIA de maîtriser un domaine spécifique. Contrairement aux outils qui exécutent des actions, les skills enrichissent le <strong>raisonnement et le comportement</strong> de l'assistant. L'architecture repose sur un principe clé : le <strong>disque est la source de vérité</strong> pour le contenu des skills, tandis que la base de données gère uniquement les métadonnées (activation, propriétaire, statistiques).</p><h2>Cinq archétypes de skills</h2><ul><li><strong>Prompt Expert</strong> — Instructions détaillées pour un domaine (ex : rédaction professionnelle, analyse financière)</li><li><strong>Advisory</strong> — Conseils et bonnes pratiques (ex : guide de style, checklist qualité)</li><li><strong>Plan Template</strong> — Modèles de plans d'exécution pour des scénarios récurrents</li><li><strong>Visualizer</strong> (v1.16.8) — Script Python qui produit une iframe interactive (carte, dashboard, calendrier)</li><li><strong>Generator</strong> (v1.16.8) — Script Python qui produit une image (QR code, graphique)</li></ul><h2>Exécution sous cloche</h2><p>Un script de skill s'exécute dans un <strong>conteneur créé pour cet appel et détruit juste après</strong> : pas de socket Docker, <code>--network none</code>, système de fichiers racine en lecture seule avec un petit <code>tmpfs</code> inscriptible, identité non privilégiée et toutes les capacités larguées. Mémoire, nombre de processus, temps CPU et taille des fichiers écrits sont plafonnés.</p><p>Ce qui compte ici, c'est ce qu'un processus fils <em>hérite</em>. Un simple changement d'uid ne suffit pas : en production le service appartient au groupe <code>docker</code>, et un groupe s'hérite — la socket resterait accessible. Le conteneur supprime cet héritage par construction. Et si le bac à sable ne peut pas être créé, le script <strong>ne tourne pas du tout</strong> : il n'existe aucun repli vers un mode moins protégé.</p><p>Le code source du script est passé en argument plutôt que monté, ce qui laisse <code>stdin</code> libre pour la charge JSON — le contrat d'entrée/sortie des skills reste identique.</p><h2>Résultat structuré</h2><p>Chaque exécution de skill retourne un objet <strong>ScriptResult</strong> standardisé contenant : <code>success</code> (booléen), <code>output</code> (stdout), <code>error</code> (stderr), <code>exit_code</code> et <code>execution_time_ms</code>. Ce format permet au système de traiter uniformément les succès et les erreurs.</p><h2>Sorties enrichies (v1.16.8)</h2><p>Depuis la v1.16.8, un script Python peut retourner — en plus du texte — une <strong>frame HTML interactive</strong> (carte Google Maps, dashboard météo, minuteur pomodoro...) et/ou une <strong>image</strong> (QR code, graphique). Le contrat est simple : le script écrit un JSON sur stdout (<code>SkillScriptOutput</code>) avec les champs <code>text</code> (obligatoire), <code>frame</code> et <code>image</code>, indépendants et combinables. Les frames tournent dans une iframe <em>sandbox</em> stricte (<code>allow-scripts allow-popups</code> ; <code>allow-same-origin</code> est réservé aux embeds des skills système de confiance comme la carte interactive, qui en ont besoin pour charger leurs propres données), avec une <strong>Content Security Policy</strong> injectée automatiquement pour les skills utilisateur — les skills système sont exemptés (admin de confiance). Thème et langue sont synchronisés en temps réel via <code>postMessage</code> : basculer en mode sombre se propage immédiatement dans chaque frame sans rechargement. Sept nouveaux skills intégrés démontrent le mécanisme : <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><h2>SkillBypassStrategy : contourner le planificateur</h2><p>Quand un skill déterministe correspond exactement à la demande, la <strong>SkillBypassStrategy</strong> court-circuite le planificateur LLM. Le skill est exécuté directement sans passer par la chaîne planner → validator → orchestrator, ce qui réduit la latence et la consommation de tokens.</p><h2>Garde planificateur pour skills</h2><p>Le planificateur dispose d'une détection précoce qui demande des clarifications lorsque des paramètres obligatoires sont manquants. Cependant, les skills déterministes multi-domaines (ex : briefing quotidien = événements + tâches + météo + emails) peuvent déclencher des <strong>faux positifs de clarification</strong>. La garde skill détecte quand un skill déterministe a un fort chevauchement de domaines avec la requête et laisse le pipeline planificateur complet décider au lieu de court-circuiter vers la clarification.</p><h2>Le Skill Generator</h2><p>LIA inclut un <strong>générateur de skills</strong> intégré. Décris le domaine d'expertise souhaité en langage naturel, et LIA génère automatiquement un skill structuré au format SKILL.md compatible avec le standard agentskills.io — y compris les nouveaux archétypes Visualizer et Generator avec les conventions runtime (thème, langue, auto-resize). La skill terminée est validée et <strong>installée directement dans tes skills</strong> — annoncée par son nom, active immédiatement, sans upload manuel.</p><h2>Gestion par l'utilisateur</h2><p>Chaque utilisateur peut activer, désactiver, importer ou supprimer ses skills dans l'interface Réglages — désormais une <strong>galerie</strong> avec images d'aperçu et canaux de sortie déclarés (texte, cadre interactif, image). L'import accepte un fichier ou une <strong>URL https</strong> validée côté serveur (même pipeline durci), et toute skill importée de l'extérieur porte un avertissement de provenance. Les administrateurs peuvent également définir des skills globaux disponibles pour tous les utilisateurs.</p><p>Les widgets interactifs sont faits pour durer : ils sont conservés avec la conversation et se rouvrent après un rechargement ou sur un autre appareil, et une frame qui ne charge pas affiche un état d'erreur actionnable — explication, réessayer, ouvrir dans un nouvel onglet — plutôt qu'un rectangle vide.</p><h2>Voir ce qu'une compétence produit</h2><p>La fiche d'une compétence montre désormais un aperçu de son résultat — une grille de mois, un code QR, des cartes météo — plutôt qu'une icône générique. Ces vignettes sont générées, pas dessinées à la main : un script versionné tient un dessin par compétence, en géométrie pure et sans dépendance de police, ce qui rend la sortie identique d'une machine à l'autre. Une garde échoue si une compétence n'a pas de dessin, ou si l'image livrée ne correspond plus à ce que son générateur produit.</p><h2>Modifier une compétence, pas seulement en créer une</h2><p>Créer une compétence ne servait qu'à moitié tant qu'on ne pouvait pas la reprendre. LIA sait désormais ajuster, enrichir ou corriger l'une des tiennes, en conversation. Elle relit le paquet complet — manifeste, scripts, documents de référence — applique ta demande, puis régénère l'ensemble plutôt que d'y faire une retouche ponctuelle. Ce choix n'est pas un détail d'implémentation : la description, les scripts et les ressources d'une compétence évoluent ensemble, et un correctif appliqué à un seul endroit produit un paquet qui se contredit.</p><p>Avant d'écrire, LIA présente ce qui sera remplacé et ce qui disparaîtra, et attend un accord explicite. Cette confirmation ne repose pas sur la bonne volonté du modèle : elle exige un jeton dérivé du contenu du paquet, que seul un premier refus peut fournir. Le modèle ne peut donc pas la contourner, et ce que tu approuves est exactement ce qui sera écrit. Les images embarquées, elles, survivent d'office : le chat ne transporte que du texte, alors le serveur les recopie depuis la version remplacée.</p><h2>Plugins : des skills qui voyagent avec leurs serveurs</h2><p>Les skills arrivent aussi par boîte entière : LIA parle le standard ouvert <strong>Agent Plugins</strong> (agent-plugins.org), le format de paquet portable adopté par ChatGPT, Cursor, GitHub Copilot et VS Code, qui regroupe skills et serveurs MCP. Un plugin s’installe en une étape — zip ou lien https — via exactement le même pipeline durci qu’un skill individuel, et l’installation rapporte chaque composant : installé, mis à jour, ignoré avec sa raison, retiré. Désinstalle le plugin : tout ce qu’il avait apporté repart avec lui.</p>"
+        "body": "<h2>Qu'est-ce qu'un skill ?</h2><p>Un <strong>skill</strong> est un ensemble d'instructions structurées qui permet à LIA de maîtriser un domaine spécifique. Contrairement aux outils qui exécutent des actions, les skills enrichissent le <strong>raisonnement et le comportement</strong> de l'assistant. L'architecture repose sur un principe clé : le <strong>disque est la source de vérité</strong> pour le contenu des skills, tandis que la base de données gère uniquement les métadonnées (activation, propriétaire, statistiques).</p><h2>Cinq archétypes de skills</h2><ul><li><strong>Prompt Expert</strong> — Instructions détaillées pour un domaine (ex : rédaction professionnelle, analyse financière)</li><li><strong>Advisory</strong> — Conseils et bonnes pratiques (ex : guide de style, checklist qualité)</li><li><strong>Plan Template</strong> — Modèles de plans d'exécution pour des scénarios récurrents</li><li><strong>Visualizer</strong> (v1.16.8) — Script Python qui produit une iframe interactive (carte, dashboard, calendrier)</li><li><strong>Generator</strong> (v1.16.8) — Script Python qui produit une image (QR code, graphique)</li></ul><h2>Exécution sous cloche</h2><p>Un script de skill s'exécute dans un <strong>conteneur créé pour cet appel et détruit juste après</strong> : pas de socket Docker, aucun réseau par défaut (l'exception passe par un proxy unique, plus bas), système de fichiers racine en lecture seule avec un petit <code>tmpfs</code> inscriptible, identité non privilégiée et toutes les capacités larguées. Mémoire, nombre de processus, temps CPU et taille des fichiers écrits sont plafonnés.</p><p>Ce qui compte ici, c'est ce qu'un processus fils <em>hérite</em>. Un simple changement d'uid ne suffit pas : en production le service appartient au groupe <code>docker</code>, et un groupe s'hérite — la socket resterait accessible. Le conteneur supprime cet héritage par construction. Et si le bac à sable ne peut pas être créé, le script <strong>ne tourne pas du tout</strong> : il n'existe aucun repli vers un mode moins protégé.</p><p>Le code source du script est passé en argument plutôt que monté, ce qui laisse <code>stdin</code> libre pour la charge JSON — le contrat d'entrée/sortie des skills reste identique.</p><h2>Résultat structuré</h2><p>Chaque exécution de skill retourne un objet <strong>ScriptResult</strong> standardisé contenant : <code>success</code> (booléen), <code>output</code> (stdout), <code>error</code> (stderr), <code>exit_code</code> et <code>execution_time_ms</code>. Ce format permet au système de traiter uniformément les succès et les erreurs.</p><h2>Sorties enrichies (v1.16.8)</h2><p>Depuis la v1.16.8, un script Python peut retourner — en plus du texte — une <strong>frame HTML interactive</strong> (carte Google Maps, dashboard météo, minuteur pomodoro...) et/ou une <strong>image</strong> (QR code, graphique). Le contrat est simple : le script écrit un JSON sur stdout (<code>SkillScriptOutput</code>) avec les champs <code>text</code> (obligatoire), <code>frame</code> et <code>image</code>, indépendants et combinables. Les frames tournent dans une iframe <em>sandbox</em> stricte (<code>allow-scripts allow-popups</code> ; <code>allow-same-origin</code> est réservé aux embeds des skills système de confiance comme la carte interactive, qui en ont besoin pour charger leurs propres données), avec une <strong>Content Security Policy</strong> injectée automatiquement pour les skills utilisateur — les skills système sont exemptés (admin de confiance). Thème et langue sont synchronisés en temps réel via <code>postMessage</code> : basculer en mode sombre se propage immédiatement dans chaque frame sans rechargement. Sept nouveaux skills intégrés démontrent le mécanisme : <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><h2>SkillBypassStrategy : contourner le planificateur</h2><p>Quand un skill déterministe correspond exactement à la demande, la <strong>SkillBypassStrategy</strong> court-circuite le planificateur LLM. Le skill est exécuté directement sans passer par la chaîne planner → validator → orchestrator, ce qui réduit la latence et la consommation de tokens.</p><h2>Garde planificateur pour skills</h2><p>Le planificateur dispose d'une détection précoce qui demande des clarifications lorsque des paramètres obligatoires sont manquants. Cependant, les skills déterministes multi-domaines (ex : briefing quotidien = événements + tâches + météo + emails) peuvent déclencher des <strong>faux positifs de clarification</strong>. La garde skill détecte quand un skill déterministe a un fort chevauchement de domaines avec la requête et laisse le pipeline planificateur complet décider au lieu de court-circuiter vers la clarification.</p><h2>Le Skill Generator</h2><p>LIA inclut un <strong>générateur de skills</strong> intégré. Décris le domaine d'expertise souhaité en langage naturel, et LIA génère automatiquement un skill structuré au format SKILL.md compatible avec le standard agentskills.io — y compris les nouveaux archétypes Visualizer et Generator avec les conventions runtime (thème, langue, auto-resize). La skill terminée est validée puis <strong>proposée sur une carte</strong> sous la réponse — son nom, sa description, ses fichiers — et un clic sur Installer la place dans tes skills, sans upload manuel. Rien de ce que le modèle écrit n'y entre sans ce clic.</p><h2>Gestion par l'utilisateur</h2><p>Chaque utilisateur peut activer, désactiver, importer ou supprimer ses skills dans l'interface Réglages — désormais une <strong>galerie</strong> avec images d'aperçu et canaux de sortie déclarés (texte, cadre interactif, image). L'import accepte un fichier ou une <strong>URL https</strong> validée côté serveur (même pipeline durci), et toute skill importée de l'extérieur porte un avertissement de provenance. Les administrateurs peuvent également définir des skills globaux disponibles pour tous les utilisateurs.</p><p>Les widgets interactifs sont faits pour durer : ils sont conservés avec la conversation et se rouvrent après un rechargement ou sur un autre appareil, et une frame qui ne charge pas affiche un état d'erreur actionnable — explication, réessayer, ouvrir dans un nouvel onglet — plutôt qu'un rectangle vide.</p><h2>Voir ce qu'une compétence produit</h2><p>La fiche d'une compétence montre désormais un aperçu de son résultat — une grille de mois, un code QR, des cartes météo — plutôt qu'une icône générique. Ces vignettes sont générées, pas dessinées à la main : un script versionné tient un dessin par compétence, en géométrie pure et sans dépendance de police, ce qui rend la sortie identique d'une machine à l'autre. Une garde échoue si une compétence n'a pas de dessin, ou si l'image livrée ne correspond plus à ce que son générateur produit.</p><h2>Modifier une compétence, pas seulement en créer une</h2><p>Créer une compétence ne servait qu'à moitié tant qu'on ne pouvait pas la reprendre. LIA sait désormais ajuster, enrichir ou corriger l'une des tiennes, en conversation. Elle relit le paquet complet — manifeste, scripts, documents de référence — applique ta demande, puis régénère l'ensemble plutôt que d'y faire une retouche ponctuelle. Ce choix n'est pas un détail d'implémentation : la description, les scripts et les ressources d'une compétence évoluent ensemble, et un correctif appliqué à un seul endroit produit un paquet qui se contredit.</p><p>Rien n'est écrit sans toi : la nouvelle version t'est proposée sur une carte qui montre ce qui sera remplacé, ajouté et retiré, et seul ton clic sur Installer l'applique. Cette confirmation ne repose pas sur la bonne volonté du modèle : l'outil ne sait que proposer, et si ta skill a changé depuis que la carte l'a décrite, l'installation refuse plutôt que d'écraser. Ce que tu approuves est exactement ce qui sera écrit. Les images embarquées, elles, survivent d'office : le chat ne transporte que du texte, alors le serveur les recopie depuis la version remplacée.</p><h2>Une bibliothèque publique, des skills tenues à part</h2><p><strong>Trouver des skills</strong> cherche dans la bibliothèque publique <strong>skills.sh</strong> ou lit une adresse GitHub. Tu lis une skill avant de l'installer : sa source, sa version exacte, chacun de ses fichiers et ce que disent les audits publiés — une skill jugée trop risquée est refusée. La branche est figée en un commit dès l'aperçu, chaque fichier est vérifié contre son empreinte git, et ce qui s'installe est exactement ce que tu as lu ; l'onglet des skills installées signale quand leur source a bougé et montre la mise à jour avant que tu l'appliques.</p><p>Une skill venue de la bibliothèque, d'une adresse ou d'un plugin a été écrite ailleurs, et LIA la traite comme telle : elle est marquée dans le catalogue que lit le modèle, ne décide jamais d'un plan, et ses instructions ne s'exécutent que dans un runner isolé qui ne voit que ses propres fichiers et ceux que tu joins — jamais ta messagerie, ton agenda ni tes connecteurs. Sa réponse est affichée sans image distante ni HTML, et rien de ce qu'elle écrit ne peut t'être caché.</p><h2>Des skills qui exécutent leurs commandes</h2><p>Beaucoup de skills écrites pour d'autres assistants demandent d'exécuter une commande : un script Python, Node ou shell, un outil PDF. LIA l'exécute dans une <strong>copie du dossier de la skill</strong>, dans le même conteneur jetable, avec les fichiers joints à ton message ; ce qu'elle écrit dans <code>out/</code> te revient en fichiers générés, un document ou une image ne gardant son type que si son contenu y correspond. Le conteneur part d'une image dédiée — Python, Node, les outils en ligne de commande, sans client Docker ni code de l'application — et reste hors ligne tant qu'une commande ne nomme pas ses hôtes : elle passe alors par un proxy unique, vers ces hôtes seulement et une fois qu'ils sont autorisés. Une skill écrite ailleurs n'y reçoit jamais les clés de tes connecteurs.</p><h2>Plugins : des skills qui voyagent avec leurs serveurs</h2><p>Les skills arrivent aussi par boîte entière : LIA parle le standard ouvert <strong>Agent Plugins</strong> (agent-plugins.org), le format de paquet portable adopté par ChatGPT, Cursor, GitHub Copilot et VS Code, qui regroupe skills et serveurs MCP. Un plugin s’installe en une étape — zip ou lien https — via exactement le même pipeline durci qu’un skill individuel, et l’installation rapporte chaque composant : installé, mis à jour, ignoré avec sa raison, retiré. Désinstalle le plugin : tout ce qu’il avait apporté repart avec lui.</p>"
       },
       "voice-mode": {
         "title": "Mode vocal : parle à LIA comme à un assistant personnel",
@@ -12575,9 +12773,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA est conçu dès l'origine avec la protection des données comme principe fondateur, pas comme un ajout après coup.</p><h2>Chiffrement symétrique Fernet</h2><p>Toutes les données sensibles sont chiffrées avec <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via la fonction <code>encrypt_data()</code>. Cela couvre les tokens OAuth, les credentials des connecteurs, les PII et les credentials des serveurs MCP. Les credentials OAuth sont chiffrés avant écriture en base et déchiffrés à la volée lors de la récupération. Les clés de chiffrement sont gérées séparément des données.</p><h2>Minimisation de la collecte</h2><p>LIA ne collecte que les données strictement nécessaires à son fonctionnement :</p><ul><li>Informations de profil (nom, email, préférences)</li><li>Historique des conversations (chiffré)</li><li>Tokens de connexion aux services (chiffrés)</li><li>Métriques d'usage anonymisées</li></ul><h2>Suppression et cascading</h2><p>La suppression d'un compte utilisateur déclenche un <strong>cascading delete</strong> complet : connecteurs, conversations, paramètres, sessions, mémoires et toutes les données associées sont supprimées irréversiblement. Aucune donnée orpheline ne persiste en base.</p><h2>Sessions et cookies sécurisés</h2><p>Les cookies de session sont configurés avec les attributs <code>HttpOnly</code>, <code>Secure</code> (en production) et <code>SameSite=lax</code>. La durée de session est de 7 jours par défaut, extensible à 30 jours avec l'option \"Se souvenir de moi\". Les tokens à usage unique sont invalidés après première utilisation via un blacklist Redis.</p><h2>Protection des contenus externes</h2><p>Les contenus récupérés depuis des sources externes (emails, pages web, documents) sont tagués comme <code>UNTRUSTED</code> avec un wrapping configurable avant injection dans les prompts. L'outil web_fetch est rate limité à 10 appels par fenêtre de 60 secondes par utilisateur pour prévenir les abus.</p><h2>Des journaux qui gardent des faits, jamais des mots</h2><p>Dans la ligne de l'<strong>OWASP Logging Cheat Sheet</strong>, une ligne de journal au-dessus du niveau debug porte des <strong>faits</strong> — nombres, longueurs, identifiants, codes d'erreur, l'hôte d'une URL — et jamais le texte qu'une personne a écrit, ou qu'un modèle a écrit à son sujet : ni recherche, ni centre d'intérêt, ni nom de fichier, de libellé ou d'espace, ni page consultée.</p><p>La règle est vérifiée <strong>par la valeur</strong>, pas par le nom du champ : un test lit chaque appel de journal du code et refuse un aperçu ou une valeur dérivée d'un contenu, quel que soit son nom. Ce qu'un message d'erreur <strong>cite</strong> — une valeur refusée par PostgreSQL, l'entrée d'une validation — est retiré avant l'écriture de la ligne, et une erreur de base est décrite par ses faits : code, contrainte, table. Les clés des fournisseurs sont masquées dans toute adresse journalisée. Deux limites sont dites telles quelles : l'erreur d'un service externe dans un format inconnu peut encore citer une donnée, et le niveau debug — coupé en production — garde davantage.</p><h2>Portabilité des données (v1.9.1)</h2><p>LIA permet à chaque utilisateur d'<strong>exporter ses propres données de consommation</strong> au format CSV depuis Réglages > Fonctionnalités. Trois types d'export : consommation LLM (tokens et coûts par appel), consommation API Google, et résumé agrégé. Sécurité : le <code>user_id</code> est forcé côté serveur — aucun paramètre n'est exposé, empêchant tout accès aux données d'autres utilisateurs (protection IDOR).</p><h2>Des sauvegardes dont la restauration est prouvée</h2><p>Protéger les données, c'est aussi garantir qu'elles survivent aux incidents. La base de production est sauvegardée automatiquement chaque nuit, avec 7 jours, 4 semaines et 6 mois d'historique conservés, dans un répertoire dédié aux permissions restrictives. Et parce qu'une sauvegarde ne compte qu'une fois la restauration prouvée, la procédure est réellement testée : le dernier dump est restauré dans un conteneur jetable puis comparé à la base vivante (révision de schéma, comptages) — un exercice livré avec la stack.</p><h2>Un dossier complet, pas un échantillon</h2><p>Trois registres tenus automatiquement disent ce que LIA a <strong>fait</strong> pour toi, ce qu'elle a <strong>consulté</strong> pour te répondre et ce qu'elle a entrepris <strong>de sa propre initiative</strong>. Ils ne portent aucun contenu : une consultation retient la capacité — « ton agenda » — et jamais ce qui a été cherché, parce que l'écrire reviendrait à recopier la donnée même que le registre existe pour rendre redevable.</p><p>Le dossier que tu télécharges depuis la page <strong>Registres</strong> est <strong>complet</strong>. Il portait auparavant un plafond de lignes : une protection réelle, puisque le document entier était assemblé en mémoire sur un Raspberry Pi, mais appliquée à la mauvaise variable. Ce qui était rare, c'était la mémoire ; ce qui était borné, c'était la vérité. Un curseur côté serveur borne désormais le tampon : quel que soit le volume, le fichier porte tout ce que tes filtres désignent, le compte exact est annoncé en tête avec l'instant de génération, et le téléchargement est compressé à la volée quand ton navigateur l'accepte.</p>"
       },
       "observability": {
-        "title": "608 métriques Prometheus, 30 dashboards Grafana et tracing Langfuse",
-        "excerpt": "LIA offre une observabilité de niveau entreprise avec 608 métriques, des dashboards Grafana dédiés, du tracing LLM via Langfuse et des alertes e-mail avec runbooks.",
-        "body": "<h2>Les trois piliers de l'observabilité</h2><p>LIA implémente les trois piliers de l'observabilité moderne :</p><ul><li><strong>Métriques</strong> — 608 métriques Prometheus couvrant HTTP, agents, tokens, coûts, OAuth et performance</li><li><strong>Logs</strong> — Journalisation structurée JSON via structlog, centralisée dans Loki : des faits, jamais les mots des personnes</li><li><strong>Traces</strong> — Tracing distribué via OpenTelemetry (Tempo) et tracing LLM via Langfuse</li></ul><h2>39 fichiers de métriques spécialisés</h2><p>Chaque domaine possède son propre fichier de métriques déclaratif. Les 39 modules couvrent : HTTP, agents (SSE/router/LLM/HITL/planner), base de données, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, erreurs, sous-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métriques santé, journaux, téléphonie et limites d'usage. Chaque fichier définit des Counter, Histogram et Gauge Prometheus adaptés au domaine.</p><h2>Définition des métriques Prometheus</h2><p>Chaque domaine définit ses métriques de manière déclarative :</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30 dashboards Grafana</h2><p>LIA fournit 30 tableaux de bord Grafana numérotés de 01 à 30 : app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard et live. Chaque dashboard offre des vues filtrables par utilisateur, par période et par environnement. Le 26e est un cockpit produit : résultats validés (👍 explicite ou action restée non corrigée), funnel d'activation, rétention et coût par résultat utile — le comptage exact vit dans PostgreSQL et Grafana le lit via un rôle en lecture seule restreint aux vues agrégées.</p><h2>KPIs cibles extraits du code</h2><p>LIA surveille des indicateurs précis définis dans le code source : TTFT (Time To First Token) du streaming, latence du routeur entre 0.1 et 2 secondes, durée d'exécution des outils agents entre 0.1 et 10 secondes, confiance routeur p50 &gt; 0.8, coût LLM par requête &lt; 0.05€, taux d'erreur HTTP 5xx &lt; 1%.</p><h2>Alertes e-mail avec runbooks</h2><p>La supervision ne s'arrête pas aux tableaux de bord : un noyau de 29 alertes vitales — parmi elles API, PostgreSQL ou Redis indisponibles, disque, mémoire des conteneurs, taux d'erreurs 5xx, latence de streaming, échec de la sauvegarde quotidienne, URL publique injoignable, certificat TLS proche de l'expiration, limitation de débit hors service — est évalué en continu par Prometheus et notifié par e-mail via Alertmanager. Chaque alerte référence son runbook (procédure de résolution pas à pas), les seuils sont paramétrés par environnement dans des fichiers .env, et des tests unitaires promtool garantissent que les seuils affichés dans les notifications correspondent exactement aux expressions de déclenchement. Une sonde blackbox teste même la chaîne complète de bout en bout, du edge Cloudflare au frontend, exactement comme un utilisateur.</p><h2>Langfuse : tracing LLM dédié</h2><p>L'intégration Langfuse trace chaque appel LLM — tokens consommés (entrée/sortie/cache), temps de réponse, modèle utilisé, coût estimé et contexte de la requête —, et sept métriques Prometheus qui lui sont propres suivent les versions de prompts, les scores d'évaluation, les variantes A/B, la profondeur des traces et les passages de relais entre agents. Cela permet d'identifier les prompts inefficaces, de comparer les modèles LLM entre eux et d'optimiser la consommation de tokens sur la durée.</p><h2>DevOps Claude CLI : diagnostic en langage naturel (v1.13.0)</h2><p>Dernière évolution de la stack observabilité : les administrateurs peuvent désormais diagnostiquer les serveurs directement depuis la conversation LIA. En demandant simplement « Regarde les logs pour voir si tout fonctionne », Claude Code CLI — installé dans le container API Docker — inspecte de manière autonome les logs, vérifie la santé des containers, analyse l'utilisation des ressources et rapporte ses conclusions. Sessions persistantes pour les investigations multi-tours, permissions configurables par environnement (prod en lecture seule, dev en accès complet), et streaming temps réel des étapes d'investigation via SSE.</p><h2>Et depuis la v1.34 : l'assistante lit sa propre télémétrie</h2><p>Tout ce qui précède existait pour les humains ; l'assistante elle-même n'en lisait rien. L'ADR-247 a fermé cette boucle : un auto-contrôle périodique transforme les signaux dorés et des sondes directes en instantanés de santé aux valeurs exactes ; alertes et verdicts critiques convergent vers un incident unique par panne, diagnostiqué par un LLM plafonné par budget et ancré sur les runbooks d'exploitation ; les administrateurs disposent d'un panneau Santé de la plateforme, de notifications proactives et d'outils de chat en lecture seule. Et une panne connue façonne désormais les réponses — les capacités dégradées sont contournées dès la planification, et les étapes en échec expliquées depuis des codes d'erreur typés, jamais des logs bruts. Depuis, le diagnostic n'est plus écrit à partir d'un nombre seul : une recette déclarée par type d'incident dit quelles ventilations et quels événements de journal lire, le dossier est collecté au moment du diagnostic, données personnelles retirées, une source injoignable est déclarée indisponible plutôt que lue comme du silence, et ce que le modèle a lu est montré sous son verdict.</p><h2>Compter les issues, pas les tentatives</h2><p>Un compteur a dû être repensé en v1.38.3. Compter les appels qui atteignent un fournisseur, c'est la vérité sur le fournisseur — et le mauvais dénominateur dès lors qu'on réessaie ces appels, puisqu'un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. Un second compteur enregistre désormais une ligne par opération logique, réessais repliés, et répond à la seule question sur laquelle un exploitant agit : l'appelant a-t-il eu son résultat ? Un troisième dit ce que le lisseur de débit a fait de chaque tentative, parce que « le budget est trop petit » et « Redis est tombé » sont indiscernables dans un booléen et appellent des actions opposées.</p><p>La leçon la plus récente porte sur le choix de ce que l'on mesure. La boucle autonome comptait ses itérations et sa durée — et rien pour ce qui grossit réellement : le prompt délivré au modèle à chaque étape. Mesuré sur le code de production, cela fait 2,3 k tokens à la première itération et 112 k à la quatre-vingt-dixième, parce que chaque résultat d'outil reste dans la conversation que le modèle relit. Deux histogrammes enregistrent désormais la taille délivrée et sa part de la fenêtre de contexte du modèle, alimentés par le compteur mémoïsé que le réducteur d'état maintient déjà, si bien que la mesure ne coûte rien sur le chemin chaud. Aucune politique de compression n'est partie avec eux, délibérément : un système qui agit sur une grandeur qu'il n'a jamais observée optimise une supposition.</p><p>Le même principe a rattrapé le taux de succès des outils. Un outil échoue en <em>renvoyant</em> un échec, jamais en levant une exception, et le compteur ne regardait que les exceptions : le taux valait 1,0 par construction, et les deux alertes qui le lisent ne pouvaient pas se déclencher. Un seul prédicat décide désormais ce qu'est un succès, pour le registre, les métriques et la boucle ReAct — le taux affiché baisse, parce qu'il dit enfin la vérité.</p>"
+        "title": "612 métriques Prometheus, 30 dashboards Grafana et tracing Langfuse",
+        "excerpt": "LIA offre une observabilité de niveau entreprise avec 612 métriques, des dashboards Grafana dédiés, du tracing LLM via Langfuse et des alertes e-mail avec runbooks.",
+        "body": "<h2>Les trois piliers de l'observabilité</h2><p>LIA implémente les trois piliers de l'observabilité moderne :</p><ul><li><strong>Métriques</strong> — 612 métriques Prometheus couvrant HTTP, agents, tokens, coûts, OAuth et performance</li><li><strong>Logs</strong> — Journalisation structurée JSON via structlog, centralisée dans Loki : des faits, jamais les mots des personnes</li><li><strong>Traces</strong> — Tracing distribué via OpenTelemetry (Tempo) et tracing LLM via Langfuse</li></ul><h2>39 fichiers de métriques spécialisés</h2><p>Chaque domaine possède son propre fichier de métriques déclaratif. Les 39 modules couvrent : HTTP, agents (SSE/router/LLM/HITL/planner), base de données, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, erreurs, sous-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, métriques santé, journaux, téléphonie et limites d'usage. Chaque fichier définit des Counter, Histogram et Gauge Prometheus adaptés au domaine.</p><h2>Définition des métriques Prometheus</h2><p>Chaque domaine définit ses métriques de manière déclarative :</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30 dashboards Grafana</h2><p>LIA fournit 30 tableaux de bord Grafana numérotés de 01 à 30 : app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard et live. Chaque dashboard offre des vues filtrables par utilisateur, par période et par environnement. Le 26e est un cockpit produit : résultats validés (👍 explicite ou action restée non corrigée), funnel d'activation, rétention et coût par résultat utile — le comptage exact vit dans PostgreSQL et Grafana le lit via un rôle en lecture seule restreint aux vues agrégées.</p><h2>KPIs cibles extraits du code</h2><p>LIA surveille des indicateurs précis définis dans le code source : TTFT (Time To First Token) du streaming, latence du routeur entre 0.1 et 2 secondes, durée d'exécution des outils agents entre 0.1 et 10 secondes, confiance routeur p50 &gt; 0.8, coût LLM par requête &lt; 0.05€, taux d'erreur HTTP 5xx &lt; 1%.</p><h2>Alertes e-mail avec runbooks</h2><p>La supervision ne s'arrête pas aux tableaux de bord : un noyau de 29 alertes vitales — parmi elles API, PostgreSQL ou Redis indisponibles, disque, mémoire des conteneurs, taux d'erreurs 5xx, latence de streaming, échec de la sauvegarde quotidienne, URL publique injoignable, certificat TLS proche de l'expiration, limitation de débit hors service — est évalué en continu par Prometheus et notifié par e-mail via Alertmanager. Chaque alerte référence son runbook (procédure de résolution pas à pas), les seuils sont paramétrés par environnement dans des fichiers .env, et des tests unitaires promtool garantissent que les seuils affichés dans les notifications correspondent exactement aux expressions de déclenchement. Une sonde blackbox teste même la chaîne complète de bout en bout, du edge Cloudflare au frontend, exactement comme un utilisateur.</p><h2>Langfuse : tracing LLM dédié</h2><p>L'intégration Langfuse trace chaque appel LLM — tokens consommés (entrée/sortie/cache), temps de réponse, modèle utilisé, coût estimé et contexte de la requête —, et sept métriques Prometheus qui lui sont propres suivent les versions de prompts, les scores d'évaluation, les variantes A/B, la profondeur des traces et les passages de relais entre agents. Cela permet d'identifier les prompts inefficaces, de comparer les modèles LLM entre eux et d'optimiser la consommation de tokens sur la durée.</p><h2>DevOps Claude CLI : diagnostic en langage naturel (v1.13.0)</h2><p>Dernière évolution de la stack observabilité : les administrateurs peuvent désormais diagnostiquer les serveurs directement depuis la conversation LIA. En demandant simplement « Regarde les logs pour voir si tout fonctionne », Claude Code CLI — installé dans le container API Docker — inspecte de manière autonome les logs, vérifie la santé des containers, analyse l'utilisation des ressources et rapporte ses conclusions. Sessions persistantes pour les investigations multi-tours, permissions configurables par environnement (prod en lecture seule, dev en accès complet), et streaming temps réel des étapes d'investigation via SSE.</p><h2>Et depuis la v1.34 : l'assistante lit sa propre télémétrie</h2><p>Tout ce qui précède existait pour les humains ; l'assistante elle-même n'en lisait rien. L'ADR-247 a fermé cette boucle : un auto-contrôle périodique transforme les signaux dorés et des sondes directes en instantanés de santé aux valeurs exactes ; alertes et verdicts critiques convergent vers un incident unique par panne, diagnostiqué par un LLM plafonné par budget et ancré sur les runbooks d'exploitation ; les administrateurs disposent d'un panneau Santé de la plateforme, de notifications proactives et d'outils de chat en lecture seule. Et une panne connue façonne désormais les réponses — les capacités dégradées sont contournées dès la planification, et les étapes en échec expliquées depuis des codes d'erreur typés, jamais des logs bruts. Depuis, le diagnostic n'est plus écrit à partir d'un nombre seul : une recette déclarée par type d'incident dit quelles ventilations et quels événements de journal lire, le dossier est collecté au moment du diagnostic, données personnelles retirées, une source injoignable est déclarée indisponible plutôt que lue comme du silence, et ce que le modèle a lu est montré sous son verdict.</p><h2>Compter les issues, pas les tentatives</h2><p>Un compteur a dû être repensé en v1.38.3. Compter les appels qui atteignent un fournisseur, c'est la vérité sur le fournisseur — et le mauvais dénominateur dès lors qu'on réessaie ces appels, puisqu'un échec rattrapé gonfle le taux d'erreur alors que rien n'a été perdu. Un second compteur enregistre désormais une ligne par opération logique, réessais repliés, et répond à la seule question sur laquelle un exploitant agit : l'appelant a-t-il eu son résultat ? Un troisième dit ce que le lisseur de débit a fait de chaque tentative, parce que « le budget est trop petit » et « Redis est tombé » sont indiscernables dans un booléen et appellent des actions opposées.</p><p>La leçon la plus récente porte sur le choix de ce que l'on mesure. La boucle autonome comptait ses itérations et sa durée — et rien pour ce qui grossit réellement : le prompt délivré au modèle à chaque étape. Mesuré sur le code de production, cela fait 2,3 k tokens à la première itération et 112 k à la quatre-vingt-dixième, parce que chaque résultat d'outil reste dans la conversation que le modèle relit. Deux histogrammes enregistrent désormais la taille délivrée et sa part de la fenêtre de contexte du modèle, alimentés par le compteur mémoïsé que le réducteur d'état maintient déjà, si bien que la mesure ne coûte rien sur le chemin chaud. Aucune politique de compression n'est partie avec eux, délibérément : un système qui agit sur une grandeur qu'il n'a jamais observée optimise une supposition.</p><p>Le même principe a rattrapé le taux de succès des outils. Un outil échoue en <em>renvoyant</em> un échec, jamais en levant une exception, et le compteur ne regardait que les exceptions : le taux valait 1,0 par construction, et les deux alertes qui le lisent ne pouvaient pas se déclencher. Un seul prédicat décide désormais ce qu'est un succès, pour le registre, les métriques et la boucle ReAct — le taux affiché baisse, parce qu'il dit enfin la vérité.</p>"
       },
       "prompt-engineering": {
         "title": "Système de prompts versionnés : 155 prompts gérés comme du code",
@@ -12612,7 +12810,7 @@
       "progressive-steps": {
         "title": "Étapes d'exécution en temps réel : suis LIA qui travaille",
         "excerpt": "LIA affiche progressivement chaque étape d'exécution — routage, planification, appels d'outils — en temps réel pendant qu'il traite ta demande.",
-        "body": "<h2>La transparence en action</h2><p>Quand tu envoies une requête complexe à LIA, plusieurs secondes peuvent s'écouler avant que la réponse n'arrive. Que fait l'assistant pendant ce temps ? Avec l'affichage progressif des étapes, tu le sais <strong>en temps réel</strong> : chaque nœud traversé, chaque outil appelé apparaît au fur et à mesure. Et cet affichage est vivant : les étapes passées s'estompent, l'étape en cours respire, l'ensemble fond dans les premiers mots de la réponse, et un curseur clignote pendant la rédaction.</p><h2>Comment ça fonctionne</h2><p>Le backend utilise le mode <code>updates</code> de LangGraph pour détecter la complétion de chaque nœud du graphe. À chaque étape, un événement SSE <code>execution_step</code> est envoyé au frontend avec :</p><ul><li>La <strong>clé i18n</strong> de l'outil ou du nœud (traduite dans la langue de l'utilisateur)</li><li>Un <strong>extrait du raisonnement</strong> (tronqué à 120 caractères) en mode ReAct</li><li>Des <strong>métadonnées de fallback</strong> pour les outils non répertoriés dans le catalogue</li></ul><h2>Affichage frontend</h2><p>Les étapes s'accumulent visuellement dans l'interface, ligne par ligne, plafonnées à <strong>10 étapes</strong> visibles simultanément. Un mécanisme de <strong>déduplication par clé i18n</strong> empêche les étapes identiques de se répéter (via un Set de références). Au premier token de réponse, les étapes se replient en une ligne « ⚙ N étapes · X s » sous la réponse — conservée avec le message : les coulisses sont encore là après un rechargement, sur tous tes appareils.</p><h2>Pipeline et ReAct</h2><p>En mode <strong>Pipeline</strong>, les étapes proviennent de l'ExecutionPlan : planificateur, validateur sémantique, porte d'approbation, orchestrateur de tâches. En mode <strong>ReAct</strong>, chaque appel d'outil génère une étape avec un extrait du raisonnement du LLM.</p><h2>123 outils couverts</h2><p>Les <strong>123 outils</strong> du catalogue disposent chacun d'une clé i18n dédiée dans les 6 langues. Les textes ont été traduits pour offrir des messages naturels dans chaque langue (« Recherche de contacts... », « Lecture des emails... ») plutôt que des identifiants techniques. Un test lit chaque outil déclaré dans le code et fait échouer la construction si l'un d'eux n'a pas son libellé.</p><h2>Plus de messages aléatoires</h2><p>L'ancien système affichait des phrases d'attente amusantes mais aléatoires (« LIA réfléchit... », « Analyse en cours... »). Ce système a été entièrement remplacé par des étapes <strong>réelles et contextuelles</strong>, reflétant exactement ce que l'assistant fait à chaque instant.</p><h2>Quand le flux se tait</h2><p>Un affichage d'étapes ne vaut que si le flux qui l'alimente est vivant. Quand un téléphone met l'onglet en veille, la connexion meurt sans rien annoncer — ni fin, ni erreur — et l'écran reste sur la dernière étape affichée, indéfiniment, alors que la réponse est terminée et enregistrée côté serveur. Rien ne distinguait cet état d'une réponse simplement longue. LIA reconnaît désormais ce silence : passé un budget calibré sur le rythme des battements de cœur du serveur, la connexion morte est abandonnée et le tour resté vivant en arrière-plan est repris automatiquement.</p>"
+        "body": "<h2>La transparence en action</h2><p>Quand tu envoies une requête complexe à LIA, plusieurs secondes peuvent s'écouler avant que la réponse n'arrive. Que fait l'assistant pendant ce temps ? Avec l'affichage progressif des étapes, tu le sais <strong>en temps réel</strong> : chaque nœud traversé, chaque outil appelé apparaît au fur et à mesure. Et cet affichage est vivant : les étapes passées s'estompent, l'étape en cours respire, l'ensemble fond dans les premiers mots de la réponse, et un curseur clignote pendant la rédaction.</p><h2>Comment ça fonctionne</h2><p>Le backend utilise le mode <code>updates</code> de LangGraph pour détecter la complétion de chaque nœud du graphe. À chaque étape, un événement SSE <code>execution_step</code> est envoyé au frontend avec :</p><ul><li>La <strong>clé i18n</strong> de l'outil ou du nœud (traduite dans la langue de l'utilisateur)</li><li>Un <strong>extrait du raisonnement</strong> (tronqué à 120 caractères) en mode ReAct</li><li>Des <strong>métadonnées de fallback</strong> pour les outils non répertoriés dans le catalogue</li></ul><h2>Affichage frontend</h2><p>Les étapes s'accumulent visuellement dans l'interface, ligne par ligne, plafonnées à <strong>10 étapes</strong> visibles simultanément. Un mécanisme de <strong>déduplication par clé i18n</strong> empêche les étapes identiques de se répéter (via un Set de références). Au premier token de réponse, les étapes se replient en une ligne « ⚙ N étapes · X s » sous la réponse — conservée avec le message : les coulisses sont encore là après un rechargement, sur tous tes appareils.</p><h2>Pipeline et ReAct</h2><p>En mode <strong>Pipeline</strong>, les étapes proviennent de l'ExecutionPlan : planificateur, validateur sémantique, porte d'approbation, orchestrateur de tâches. En mode <strong>ReAct</strong>, chaque appel d'outil génère une étape avec un extrait du raisonnement du LLM.</p><h2>124 outils couverts</h2><p>Les <strong>124 outils</strong> du catalogue disposent chacun d'une clé i18n dédiée dans les 6 langues. Les textes ont été traduits pour offrir des messages naturels dans chaque langue (« Recherche de contacts... », « Lecture des emails... ») plutôt que des identifiants techniques. Un test lit chaque outil déclaré dans le code et fait échouer la construction si l'un d'eux n'a pas son libellé.</p><h2>Plus de messages aléatoires</h2><p>L'ancien système affichait des phrases d'attente amusantes mais aléatoires (« LIA réfléchit... », « Analyse en cours... »). Ce système a été entièrement remplacé par des étapes <strong>réelles et contextuelles</strong>, reflétant exactement ce que l'assistant fait à chaque instant.</p><h2>Quand le flux se tait</h2><p>Un affichage d'étapes ne vaut que si le flux qui l'alimente est vivant. Quand un téléphone met l'onglet en veille, la connexion meurt sans rien annoncer — ni fin, ni erreur — et l'écran reste sur la dernière étape affichée, indéfiniment, alors que la réponse est terminée et enregistrée côté serveur. Rien ne distinguait cet état d'une réponse simplement longue. LIA reconnaît désormais ce silence : passé un budget calibré sur le rythme des battements de cœur du serveur, la connexion morte est abandonnée et le tour resté vivant en arrière-plan est repris automatiquement.</p>"
       },
       "account-lifecycle": {
         "title": "Cycle de vie des comptes : 4 états pour une conformité RGPD complète",
@@ -13396,7 +13594,9 @@
       "email_share": "Envoi par e-mail",
       "email_share_description": "Envoyer un fichier généré ou une réponse par e-mail, depuis la boîte de la personne ou le relais de LIA vers sa propre adresse. Le couper ferme les routes ; rien n'est supprimé.",
       "radio": "Radio personnelle",
-      "radio_description": "Une radio personnelle produite à la demande dans la langue de la personne, à partir des actualités que l'instance collecte et de sa journée. La couper ferme les routes de la radio et met la rédaction en pause ; les réglages et les sites ajoutés sont conservés."
+      "radio_description": "Une radio personnelle produite à la demande dans la langue de la personne, à partir des actualités que l'instance collecte et de sa journée. La couper ferme les routes de la radio et met la rédaction en pause ; les réglages et les sites ajoutés sont conservés.",
+      "skill_library": "Bibliothèque de skills",
+      "skill_library_description": "Chercher sur un portail de skills et installer une skill depuis son dépôt GitHub, puis la mettre à jour. Désactivée, la bibliothèque se ferme ; les skills déjà installées restent et fonctionnent."
     }
   },
   "showroom": {
@@ -14331,12 +14531,14 @@
       "generate_document": "Document « {{target}} » généré",
       "generate_image": "Image générée : {{target}}",
       "generic": "Action « {{tool}} » exécutée",
-      "import_user_skill": "Compétence « {{target}} » ajoutée à ta bibliothèque",
+      "import_user_skill": "Compétence « {{target}} » ajoutée à ta bibliothèque",
       "mcp": "Outil externe « {{tool}} » utilisé",
       "remove_labels_tool": "Libellés retirés de {{count}} élément(s)",
       "run_python_tool": "Calcul exécuté dans le bac à sable",
       "python_sandbox_network": "Script exécuté avec accès à {{target}}",
+      "skill_command_network": "Commande de skill exécutée avec accès à {{target}}",
       "run_skill_script": "Script de la compétence « {{target}} » exécuté",
+      "run_skill_command": "Commande de la compétence « {{target}} » exécutée",
       "set_current_item": "Élément « {{target}} » choisi comme référence de la conversation",
       "toggle_scheduled_action_tool": "Action planifiée « {{target}} » activée ou suspendue",
       "create_ticket_tool": "Ticket « {{target}} » créé sur le tableau",
@@ -14347,7 +14549,8 @@
       "send_email_to_me_tool": "T'a envoyé un e-mail ({{target}})",
       "proactive_notification": "Notification envoyée ({{kind}})",
       "peer_image_share": "Image partagée avec une connexion",
-      "email_share": "E-mail envoyé à {{count}} destinataire(s)"
+      "email_share": "E-mail envoyé à {{count}} destinataire(s)",
+      "skill_proposal_install": "Compétence « {{target}} » ajoutée à ta bibliothèque"
     },
     "export": {
       "group_label": "Exporter ce registre",

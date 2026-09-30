@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 325 ADR files (ADR-326 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 326 ADR files (ADR-327 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -53,7 +53,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (325 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (326 ADR files) |
 
 ### Pour les Product Managers
 
@@ -153,7 +153,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md) | Flux de notifications de bout en bout (SSE, FCM, Telegram) ; le signal de synchronisation de la discussion après chaque validation et la fusion côté client (ADR-320) | ✅ |
 | [NANOBOT_INTEGRATION_ROADMAP.md](./technical/NANOBOT_INTEGRATION_ROADMAP.md) | Roadmap d'intégration (document de planification — chemins prévisionnels) | 📦 |
 | [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (61 types, 9 providers) | ✅ |
-| [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions, hardened import pipeline + chat-driven install + dialogue skills (ADR-118) | ✅ |
+| [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions, hardened import pipeline + chat-driven install + dialogue skills (ADR-118), third-party skills and the skill library (ADR-327) | ✅ |
 | [PLUGINS_INTEGRATION.md](./technical/PLUGINS_INTEGRATION.md) | Agent Plugins client (agent-plugins.org v1.0.0 standard, ADR-225) — portable packages bundling skills + streamable-http MCP servers, per-component import report, provenance invariant, group uninstall | ✅ |
 
 ### Cost Tracking & Billing
@@ -338,7 +338,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |-----|-------|------|
 | ADR-219 | **Une position mémorisée ne vaut que si tout le monde la lit — et si son âge voyage avec elle** : la dernière position navigateur (ADR-073, opt-in chiffré) était cloisonnée aux jobs proactifs — en déplacement, chat et actions planifiées répondaient depuis le domicile. Cascade généralisée dans `resolve_location` (navigateur > last_known fraîche > domicile ; « où suis-je » reçoit la position datée AVEC son âge, jamais le domicile), cycle de vie PWA (`visibilitychange` → refresh silencieux si permission accordée, bannière de réactivation proactive sinon — la feuille native exige un geste), push global hors page réglages, réglage déplacé sur le connecteur Google Places | 2026-08 |
 | ADR-166 | **Demander est une tâche, pas un goût** : la règle n°1 du prompt d'intérêts déclarait qu'une demande d'information *est* un centre d'intérêt — **7 des 10 intérêts de juillet bloqués par l'utilisateur**. Une création exige désormais un **fondement nommé** parmi quatre et la citation des mots qui le portent ; la déduplication voit **tous les statuts** (un intérêt bloqué était recréé 25 min plus tard à 0,9821 de similarité) ; un **plafond de suppressions** écarte les lots qui en proposent dix-neuf | 2026-07 |
-| ADR-165 | Modifier une skill, c'est la **régénérer entièrement** : le moteur d'écriture existait déjà (upsert d'ADR-118) mais le manifeste était illisible, un remplacement perdait la vignette que le chat ne peut pas transporter, et le prompt ordonnait de renommer. Confirmation **en deux temps dans l'outil** — le HITL est inopérant dans le sous-agent isolé où tourne le générateur | 2026-07 |
+| ADR-165 | Modifier une skill, c'est la **régénérer entièrement** : le moteur d'écriture existait déjà (upsert d'ADR-118) mais le manifeste était illisible, un remplacement perdait la vignette que le chat ne peut pas transporter, et le prompt ordonnait de renommer. Confirmation **en deux temps dans l'outil** — le HITL est inopérant dans le sous-agent isolé où tourne le générateur ; remplacée le 2026-09-30 par la carte de proposition qu'installe le clic de la personne (ADR-327) | 2026-07 |
 | ADR-164 | Quels tours alimentent mémoire, intérêts et journaux : rien ne mesurait ces décisions, et quatre défauts ont vécu dans l'angle mort — les canaux n'alimentaient **jamais** les journaux, un flux HITL n'extrayait **rien**, un message fabriqué devenait la cible, et un contact nommé Fine ou Bien perdait ses souvenirs | 2026-07 |
 | ADR-163 | Un seul worker calcule les embeddings d'outils — sur un volume neuf les quatre workers ont embarqué les mêmes 713 textes en même temps, le fournisseur a répondu un 429 de capacité et **deux workers sont morts** au démarrage : revendication exclusive par `O_CREAT \| O_EXCL`, péremption découplée du délai d'attente, délai dérivé du budget de santé du conteneur | 2026-07 |
 | ADR-162 | Un seul écrivain pour l'indexation de la connaissance système, et un cache qui survit au déploiement — quatre workers réembarquaient 3 928 contenus par démarrage (108 `cache_miss` pour **zéro** `cache_hit` sur 27 boots), le 429 tombait à +18 s sur 11 boots sur 11, et l'entrelacement laissait **807 chunks pour 269 contenus distincts** : `FOR UPDATE SKIP LOCKED`, embeddings avant destruction, corpus compté et non seulement haché | 2026-07 |
@@ -357,7 +357,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | ADR-121 | Semantic Annotation Back-fill — rétro-annotation `semantic_type` de 15 manifests (~120 annotations, params 14→53 %, outputs 22→40 %, 72/100 types consommés), chaînages vitrine épinglés par tests (participants→mail, expéditeur→invités, destination→météo), promotion `emails[].from`, entité `EmailMessage` comme évidence d'expansion, fixture de tests linking réparée (registre vide) | 2026-07 |
 | ADR-120 | Semantic Evidence Expansion & Param Guard — déclencheur d'expansion sémantique rendu déterministe (évidence memory resolver ∪ analyzer), expansion evidence-driven ontology-based sous flag (entité référencée → domaines fournisseurs, cap + métrique), garde runtime manifest-driven (nom de personne sur paramètre adresse/e-mail bloqué avant l'appel API, pipeline + react), `get_route` refuse les destinations non résolues (fin du géocodage arbitraire mis en cache) | 2026-07 |
 | ADR-119 | Alerting Reactivation — réactivation de la chaîne d'alerte (éteinte 2026-01 sans ADR) : noyau de 14 alertes vitales évaluées par Prometheus → Alertmanager e-mail en prod, blackbox-exporter (backup + URL publique), seuils `ALERT_CORE_*` en .env, seuils legacy corrompus documentés, répertoire prometheus/ assaini | 2026-07 |
-| ADR-118 | Chat-Driven Skill Import — le skill-generator installe directement les skills générées (outil `import_user_skill`), pipeline d'import unique durci (S1 path traversal corrigé, conflits 409, gardes zip, install atomique avec rollback), dialogues multi-tours (`dialogue: true` + historique au runner) | 2026-07 |
+| ADR-118 | Chat-Driven Skill Import — le skill-generator fait entrer les skills générées par l'outil `import_user_skill` — qui, depuis ADR-327, les propose sur une carte que la personne installe d'un clic, pipeline d'import unique durci (S1 path traversal corrigé, conflits 409, gardes zip, install atomique avec rollback), dialogues multi-tours (`dialogue: true` + historique au runner) | 2026-07 |
 | ADR-117 | Background Chat Runs — génération détachée de la connexion HTTP (producteur + Redis Streams), reprise live, bouton stop cross-worker, archive-first, facturation honnête sur interruption | 2026-07 |
 | ADR-116 | Frontend Test Foundation — gate de couverture ratchet vitest (100 % verrouillé sur reducers/sse-handlers/stores), symétrie du contrat SSE exécutable, purge des types morts | 2026-07 |
 | ADR-115 | Liveness/Readiness Probe Split — /health toujours 200 (liveness Docker), nouveau /ready 503 si PostgreSQL ou Redis down | 2026-07 |

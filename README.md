@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.1.1</strong> — <strong>Text at your size, readable exports, safer reading.</strong> Choose the interface text size without moving a panel; a downloaded or e-mailed answer keeps its structure in Markdown; e-mail cards show the message and its attachments again; a weather routine fires only on a likely change in the next four hours, read from Google Weather; and every page LIA reads is fetched on the address that was checked, one validated redirect at a time — 30 September 2026.
+  <strong>Version 2.2.0</strong> — <strong>A skill library, and skills from elsewhere kept apart.</strong> Search the public skills.sh library and read a skill file by file before installing it at an exact commit; a skill can run its own Python, Node or shell commands in a throwaway copy of its folder and hand you files, reaching the network only through permitted hosts; a skill written elsewhere never touches your connectors, and one LIA writes in the chat enters your skills only when you click Install. Claude Sonnet 5.5 and GPT-6.1 Sol join the catalogue — 30 September 2026.
 </p>
 
 ---
@@ -112,8 +112,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **53** functional domains | **785,000+** source lines (excl. tests) | **47,000+** automated tests | **325** ADRs                                                            |
-| **272** versions shipped  | **6 languages**, parity enforced in CI  | **608** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **54** functional domains | **785,000+** source lines (excl. tests) | **48,000+** automated tests | **326** ADRs                                                            |
+| **273** versions shipped  | **6 languages**, parity enforced in CI  | **612** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 Source-line figure: 785,055 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-09-29). The published technical audit does not score security.
 
@@ -300,7 +300,9 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Skills and plugins
 
-- Agentskills.io skills with progressive disclosure, sandboxed scripts and rich outputs (maps, dashboards, calendars, QR codes…), generated from a conversation and installed straight into _My Skills_ ([SKILLS_INTEGRATION](docs/technical/SKILLS_INTEGRATION.md)).
+- Agentskills.io skills with progressive disclosure, sandboxed scripts and rich outputs (maps, dashboards, calendars, QR codes…), written from a conversation and proposed on a card the person installs in one click ([SKILLS_INTEGRATION](docs/technical/SKILLS_INTEGRATION.md)).
+- A public skill library: search skills.sh, read a skill's every file, source, exact version and published audits before installing it at the commit that was read, and update it when its folder moves; a skill from the library, an address or a plugin is third-party — run in an isolated runner, never near a connector, its answer drawn without images or HTML ([ADR-327](docs/architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md)).
+- Skills that run their own commands — Python, Node, shell — in a throwaway copy of their folder, from a dedicated sandbox image with no Docker client and no application code; what they write comes back as generated files, and a command reaches only the hosts it declares, through the egress proxy.
 - Agent Plugins v1 packages — skills plus streamable-http MCP servers — installed in one step with an exhaustive per-component report ([ADR-225](docs/architecture/ADR-225-Standard-Agent-Plugins-v1.md)).
 
 ### Act, under your control
@@ -513,7 +515,7 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### Observability
 
-- **Prometheus**: 608 custom metrics (agents, LLM, infrastructure). A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
+- **Prometheus**: 612 custom metrics (agents, LLM, infrastructure). A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
 - **Grafana**: 31 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing · **Langfuse**: LLM tracing with prompt versions.
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
 - **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
@@ -821,7 +823,7 @@ ESLint + TypeScript check       ────────────────
 | OAuth / PKCE                                                                           | PKCE S256, single-use state and issuer/identity checks; grouped Google/Microsoft consent shares grants only within the verified provider account ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)); linking a federated identity never changes an account's status ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md)) |
 | [MCP](https://modelcontextprotocol.io/) / plugins                                      | Model Context Protocol servers and apps, agentskills.io skills and Agent Plugins v1 packages use documented open interfaces, with separately reviewed trust and sandbox boundaries ([MCP](docs/technical/MCP_INTEGRATION.md), [plugins](docs/technical/PLUGINS_INTEGRATION.md))                                                                                                               |
 | Supply chain                                                                           | Hash-verified universal lockfiles, pip-audit on the full transitive tree, SBOM per release                                                                                                                                                                                                                                                                                                    |
-| Untrusted code                                                                         | Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)) |
+| Untrusted code                                                                         | Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)) |
 
 These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public 8.3/10 audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.
 
@@ -867,7 +869,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-325 ADR files (ADR-001 through ADR-326 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+326 ADR files (ADR-001 through ADR-327 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

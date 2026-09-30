@@ -1,12 +1,14 @@
-"""Tests for the ``import_user_skill`` chat tool.
+"""Tests for the ``import_user_skill`` chat tool (ADR-327: it PROPOSES).
 
-Covers the tool-level contract that wraps :class:`SkillImportService`:
+Covers the tool-level contract that wraps the proposal service:
 - ``files`` coercion (dict, JSON string, invalid)
 - feature-flag gating
-- success path (delegates to the service, returns a confirmation)
-- rejection path (service raises → structured failure the LLM can act on)
+- a validated package is proposed under the conversation's answer — never
+  installed — and the model is told that nothing is installed yet
+- a package the import checks refuse comes back with their reason
+- a cache that fails offers nothing, and says so
 
-The service itself is unit-tested in ``test_import_service.py``; here it is
+The proposal service is unit-tested in ``test_proposal_service.py``; here it is
 mocked so the tool wiring is what's under test.
 """
 
@@ -19,6 +21,7 @@ import pytest
 from langchain.tools import ToolRuntime
 
 from src.core.exceptions import ValidationError
+from src.domains.skills.proposals import SkillProposal
 from src.domains.skills.tools import _coerce_files, import_user_skill
 from tests.helpers.runtime_context import make_tool_runtime
 
@@ -77,13 +80,28 @@ priority: 50
 """
 
 
-def _runtime() -> ToolRuntime:
+def _runtime(conversation_id: str = "thread-123") -> ToolRuntime:
     """A runtime carrying the identity on its typed context (ADR-231)."""
     return make_tool_runtime(
         user_id=_USER if isinstance(_USER, UUID) else UUID(str(_USER)),
         thread_id="thread-123",
-        conversation_id="thread-123",
+        conversation_id=conversation_id,
         store=MagicMock(),
+    )
+
+
+def _proposal() -> SkillProposal:
+    return SkillProposal(
+        id="c" * 32,
+        owner_id=str(_USER),
+        name="chat-skill",
+        description="Generates something useful.",
+        files={"SKILL.md": _VALID_SKILL_MD},
+        sizes={"SKILL.md": len(_VALID_SKILL_MD)},
+        created_at="2026-09-30T10:00:00+00:00",
+        expires_at="2026-10-01T10:00:00+00:00",
+        replaces=None,
+        changes=None,
     )
 
 
@@ -97,63 +115,33 @@ class TestImportUserSkillTool:
         assert result.error_code == "FEATURE_DISABLED"
 
     @pytest.mark.asyncio
-    async def test_success_delegates_to_service(self) -> None:
+    async def test_a_valid_package_is_proposed_never_installed(self) -> None:
         settings = MagicMock(skills_chat_import_enabled=True)
-        svc = MagicMock()
-        svc.import_files = AsyncMock(
-            return_value={"name": "chat-skill", "scripts": [], "all_resources": ["references/n.md"]}
-        )
-
-        class _DummyCtx:
-            async def __aenter__(self) -> MagicMock:
-                return MagicMock()
-
-            async def __aexit__(self, *a: object) -> None:
-                return None
-
+        propose = AsyncMock(return_value=(_proposal(), 0))
         with (
             patch("src.core.config.get_settings", return_value=settings),
-            patch(
-                "src.domains.skills.import_service.SkillImportService",
-                return_value=svc,
-            ),
-            patch(
-                "src.infrastructure.database.session.get_db_context",
-                return_value=_DummyCtx(),
-            ),
+            patch("src.domains.skills.proposal_service.propose", propose),
         ):
             result = await import_user_skill.coroutine(
                 files={"SKILL.md": _VALID_SKILL_MD}, runtime=_runtime()
             )
 
         assert result.success is True
-        assert result.metadata["skill_name"] == "chat-skill"
-        assert result.metadata["resource_count"] == 1
-        svc.import_files.assert_awaited_once()
+        assert result.metadata["proposal_id"] == "c" * 32
+        assert result.metadata["replaces"] is False
+        assert "NOTHING is installed" in result.message
+        assert "never say the skill is installed" in result.message
+        propose.assert_awaited_once_with(
+            {"SKILL.md": _VALID_SKILL_MD}, owner_id=_USER, conversation_id="thread-123"
+        )
 
     @pytest.mark.asyncio
-    async def test_service_rejection_becomes_structured_failure(self) -> None:
+    async def test_a_package_the_checks_refuse_comes_back_with_the_reason(self) -> None:
         settings = MagicMock(skills_chat_import_enabled=True)
-        svc = MagicMock()
-        svc.import_files = AsyncMock(side_effect=ValidationError(detail="bad name"))
-
-        class _DummyCtx:
-            async def __aenter__(self) -> MagicMock:
-                return MagicMock()
-
-            async def __aexit__(self, *a: object) -> None:
-                return None
-
+        propose = AsyncMock(side_effect=ValidationError(detail="bad name"))
         with (
             patch("src.core.config.get_settings", return_value=settings),
-            patch(
-                "src.domains.skills.import_service.SkillImportService",
-                return_value=svc,
-            ),
-            patch(
-                "src.infrastructure.database.session.get_db_context",
-                return_value=_DummyCtx(),
-            ),
+            patch("src.domains.skills.proposal_service.propose", propose),
         ):
             result = await import_user_skill.coroutine(
                 files={"SKILL.md": _VALID_SKILL_MD}, runtime=_runtime()
@@ -162,3 +150,59 @@ class TestImportUserSkillTool:
         assert result.success is False
         assert result.error_code == "IMPORT_REJECTED"
         assert "bad name" in result.message
+
+    @pytest.mark.asyncio
+    async def test_a_failing_cache_offers_nothing(self) -> None:
+        settings = MagicMock(skills_chat_import_enabled=True)
+        propose = AsyncMock(side_effect=ConnectionError("down"))
+        with (
+            patch("src.core.config.get_settings", return_value=settings),
+            patch("src.domains.skills.proposal_service.propose", propose),
+        ):
+            result = await import_user_skill.coroutine(
+                files={"SKILL.md": _VALID_SKILL_MD}, runtime=_runtime()
+            )
+
+        assert result.success is False
+        assert result.error_code == "DEPENDENCY_ERROR"
+        assert "nothing was proposed" in result.message
+
+    @pytest.mark.asyncio
+    async def test_where_no_card_reaches_the_person_nothing_is_proposed(self) -> None:
+        """A ticket run's rows stay out of the chat, a channel renders plain text:
+        a card queued there would never be seen, and the model would announce it."""
+        from src.domains.agents.api.run_origin import plain_surface_ctx
+
+        settings = MagicMock(skills_chat_import_enabled=True)
+        propose = AsyncMock()
+        token = plain_surface_ctx.set(True)
+        try:
+            with (
+                patch("src.core.config.get_settings", return_value=settings),
+                patch("src.domains.skills.proposal_service.propose", propose),
+            ):
+                result = await import_user_skill.coroutine(
+                    files={"SKILL.md": _VALID_SKILL_MD}, runtime=_runtime()
+                )
+        finally:
+            plain_surface_ctx.reset(token)
+
+        assert result.success is False
+        assert result.error_code == "CONFIGURATION_ERROR"
+        assert "chat" in result.message
+        propose.assert_not_awaited()
+
+    async def test_without_a_conversation_nothing_is_proposed(self) -> None:
+        """A card needs an answer to sit under."""
+        settings = MagicMock(skills_chat_import_enabled=True)
+        propose = AsyncMock()
+        with (
+            patch("src.core.config.get_settings", return_value=settings),
+            patch("src.domains.skills.proposal_service.propose", propose),
+        ):
+            result = await import_user_skill.coroutine(
+                files={"SKILL.md": _VALID_SKILL_MD}, runtime=_runtime(conversation_id="")
+            )
+
+        assert result.success is False
+        propose.assert_not_awaited()

@@ -180,7 +180,7 @@
     },
     "f.skills": {
       "name": "Compétences et plugins",
-      "role": "Des compétences au standard Agent Skills et des plugins au standard Agent Plugins, installés en un geste avec un rapport composant par composant.",
+      "role": "Des compétences au standard Agent Skills — écrites par LIA et installées d'un clic, ou choisies dans une bibliothèque publique après lecture — et des plugins au standard Agent Plugins ; une compétence venue d'ailleurs travaille à part, loin de tes connecteurs.",
       "goal": "Donner à LIA des savoir-faire portables."
     },
     "f.rag": {

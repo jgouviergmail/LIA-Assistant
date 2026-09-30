@@ -417,9 +417,6 @@ async def test_char_skill_react_fast_path_uses_runner_answer():
                 Mock(return_value=skill_data),
             )
         )
-        stack.enter_context(
-            patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data))
-        )
         stack.enter_context(patch("src.domains.skills.tools.skills_runner_tools", []))
         stack.enter_context(
             patch(

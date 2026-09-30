@@ -18,6 +18,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.install.manifest import (  # noqa: E402
+    APP_IMAGES,
     ManifestError,
     SelfHostManifest,
     hash_file,
@@ -149,7 +150,7 @@ def _main(argv: list[str] | None = None) -> int:
     if args.print_images:
         manifest = load_manifest(args.print_images)
         for image in manifest.images:
-            if image.service in ("api", "web"):
+            if image.service in APP_IMAGES:
                 print(f"{image.service} {image.reference}")
         return 0
     if not (args.candidate and args.evidence and args.output):

@@ -61,7 +61,7 @@ def loaded_cache(tmp_path: Path) -> Iterator[None]:
 
 
 def _entry(name: str) -> dict[str, Any]:
-    entry = SkillsCache.get_by_name(name)
+    entry = SkillsCache.get_system_by_name(name) or SkillsCache.get_exact(name, _USER_ID)
     assert entry is not None, f"loader did not produce entry for {name!r}"
     return entry
 

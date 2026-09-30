@@ -38,6 +38,8 @@ EXPECTED: dict[str, tuple[str, tuple[str, ...], bool, str | None]] = {
     "claude-fable-5": ("anthropic_adaptive_display", _FULL, False, "high"),
     "claude-fable-5-1": ("anthropic_adaptive_display", _FULL, False, "high"),
     "claude-opus-5-5": ("anthropic_adaptive_display", _FULL, False, "medium"),
+    # Its off switch is ``between_tools``, not ``disabled``: a family of its own.
+    "claude-sonnet-5-5": ("anthropic_between_tools", ("none", *_FULL), True, "high"),
 }
 
 

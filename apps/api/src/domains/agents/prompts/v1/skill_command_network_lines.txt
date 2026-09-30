@@ -1,0 +1,22 @@
+# The network line of the skill runner's commands (ADR-327 lot 3), one
+# `key|template` per line; blank lines and #-comments are ignored (ADR-284:
+# prose never lives in a .py). str.format templates, rendered by
+# skills/command_network.runner_network_line from what the run can reach.
+
+# No network this turn: the skills' switch is off, or the sandbox's egress.
+offline|There is no network: never install anything (pip, npm, apt). Use what <Sandbox> lists.
+
+# The network is on. The runner can never ask the person, so an unknown host is
+# refused — the rule the command's egress path enforces here. `{unknown}` is
+# one of the two lines below: what becomes of a host nobody permitted.
+online|A command reaches the network only through the hosts it declares in `hosts` (bare lowercase names, at most {max_hosts}): HTTPS through a proxy, no other port, no raw socket. npm needs registry.npmjs.org, pip needs pypi.org and files.pythonhosted.org, git needs github.com. Reachable without asking: {hosts}, and any host the person allowed before. {unknown} Every call is a fresh container: install and use a package in the SAME command.
+unknown_settings|Any other host is refused here: name it to the user, who can allow it in Settings, and never retry without it.
+unknown_refused|Any other host is refused on this instance: never retry with it, and say so if the task needs it.
+
+# One reachable host. `env` is the token variable the command reads — spelled as
+# the READ (a model once sent the variable's NAME as the value, ADR-298).
+host_plain|`{host}`
+host_with_key|`{host}` (put "${env}" in {carrier})
+no_hosts|none pre-permitted
+carrier_header|the header `{name}: {prefix}<value>`
+carrier_query|the query parameter `{name}=<value>`

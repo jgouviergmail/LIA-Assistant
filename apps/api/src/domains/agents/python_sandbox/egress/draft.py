@@ -63,14 +63,20 @@ def ask_for_hosts(
     purpose: str,
     items: Mapping[str, Any],
     language: str,
+    tool_name: str = PYTHON_SANDBOX_TOOL_NAME,
+    third_party_skill: bool = False,
 ) -> UnifiedToolOutput:
     """Hand the call back as the egress question.
 
     Args:
         decision: The classification, with its unknown hosts.
         purpose: What the model said it computes.
-        items: The turn's registry items — counted, never carried.
+        items: What the run would carry of the turn — counted, never carried.
         language: The person's language.
+        tool_name: The tool asking — the script's, or a skill's command (ADR-327).
+        third_party_skill: Whether a skill written elsewhere asks: the card
+            then says so, since allowing WITH the turn's data hands that
+            skill's command the files the person attached.
 
     Returns:
         The draft output every draft path already understands.
@@ -89,10 +95,12 @@ def ask_for_hosts(
         "purpose": purpose,
         "data_summary": summary,
     }
+    if third_party_skill:
+        content["third_party_skill"] = True
     return DraftService().create_draft(
         draft_type=DraftType.SANDBOX_EGRESS,
         content=content,
-        source_tool=PYTHON_SANDBOX_TOOL_NAME,
+        source_tool=tool_name,
         user_language=language,
     )
 

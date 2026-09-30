@@ -113,6 +113,24 @@ def _render_anthropic_adaptive_display(
     return {"thinking": {"type": "adaptive", "display": display}, "effort": level}
 
 
+def _render_anthropic_between_tools(
+    level: str, intent: ReasoningIntent, max_output: int, budget_range: BudgetRange
+) -> dict[str, Any]:
+    """Claude Sonnet 5.5: the adaptive-display shape, with its own off switch.
+
+    ``disabled`` is a 400 on this model; its lowest setting is
+    ``between_tools``, which turns the up-front thinking off and keeps only the
+    notes written between tool calls. The field takes nothing else -- a
+    ``display``, a budget or a ``block_binding`` beside it is a 400 -- and no
+    effort is sent: the API default (``high``) is the highest effort it
+    accepts, ``xhigh`` and ``max`` being 400s with it. Every other level is the
+    adaptive-display rendering, unchanged.
+    """
+    if level == "none":
+        return {"thinking": {"type": "between_tools"}}
+    return _render_anthropic_adaptive_display(level, intent, max_output, budget_range)
+
+
 def _render_anthropic_budget(
     level: str, intent: ReasoningIntent, max_output: int, _budget_range: BudgetRange
 ) -> dict[str, Any]:
@@ -233,6 +251,7 @@ _RENDERERS: dict[str, Callable[[str, ReasoningIntent, int, BudgetRange], dict[st
     "openai": _render_openai,
     "anthropic_adaptive": _render_anthropic_adaptive,
     "anthropic_adaptive_display": _render_anthropic_adaptive_display,
+    "anthropic_between_tools": _render_anthropic_between_tools,
     "anthropic_budget": _render_anthropic_budget,
     "gemini_level": _render_gemini_level,
     "gemini_budget": _render_gemini_budget,

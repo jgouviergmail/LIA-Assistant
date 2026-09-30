@@ -335,7 +335,8 @@ export type SkillTrait =
   | 'has_scripts'
   | 'dialogue'
   | 'has_plan_template'
-  | 'channel';
+  | 'channel'
+  | 'third_party';
 
 /**
  * Skill trait badges, toned by TYPE — the same label was drifting between the
@@ -351,7 +352,54 @@ const SKILL_TRAIT: Record<SkillTrait, BadgeTone> = {
   dialogue: 'secondary',
   has_plan_template: 'secondary',
   channel: 'secondary',
+  // Written outside LIA (ADR-327): a fact the reader must notice — it runs
+  // isolated and draws no image, which explains a skill behaving differently.
+  third_party: 'warning',
 };
+
+/** An audit verdict of the skill library (ADR-327), least to most severe. */
+const AUDIT_RISK: Record<string, BadgeTone> = {
+  safe: 'success',
+  low: 'info',
+  medium: 'warning',
+  high: 'alert',
+  critical: 'destructive',
+  // No verdict is an indeterminate state, never a dormant one.
+  unknown: 'outline',
+};
+
+/**
+ * Tone for an audit-risk badge of the skill library.
+ *
+ * Args:
+ *   risk: The risk word the API published.
+ *
+ * Returns:
+ *   The badge variant; an unknown word reads as « no verdict ».
+ */
+export function auditRiskTone(risk: string): BadgeTone {
+  return AUDIT_RISK[risk] ?? 'outline';
+}
+
+/** Where an installed library skill stands against its source (ADR-327). */
+const LIBRARY_UPDATE: Record<string, BadgeTone> = {
+  current: 'success',
+  available: 'info',
+  unknown: 'outline',
+};
+
+/**
+ * Tone for a library skill's update badge.
+ *
+ * Args:
+ *   state: `current` | `available` | `unknown` as the API reports it.
+ *
+ * Returns:
+ *   The badge variant.
+ */
+export function libraryUpdateTone(state: string): BadgeTone {
+  return LIBRARY_UPDATE[state] ?? 'outline';
+}
 
 /** Who filled a catalogue row's capabilities (ADR-244). */
 export type CapabilityProvenance = 'declared' | 'imported' | 'verified';

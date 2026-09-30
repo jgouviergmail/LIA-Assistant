@@ -247,7 +247,8 @@ into later turns of the account — seven routines out of seven the next morning
 The iteration ceiling is not a flat constant. `react_iteration_budget()` starts from the
 domain span the router detected (ADR-238's adaptive budget, shared with the pipeline), and
 `REACT_PROGRESS_EXTENSION_ENABLED` (default `true`) lets the loop buy extra iterations —
-but **only against productive ones**. `_is_productive_result()` is the predicate: a tool
+but **only against productive ones**. `is_productive_result()`
+(`nodes/react_result_reading.py`) is the predicate: a tool
 result that carries data extends the budget, a refusal, an empty result or an error does
 not. The extension is capped by `REACT_PROGRESS_EXTENSION_MAX_ITERATIONS`.
 
@@ -511,7 +512,12 @@ person's own active API-key connectors, derived from the client classes), `opera
   on with its plan — a dispatched draft would have answered from the run's result and dropped
   every later step (measured 2026-09-18). A question costs none of the turn's runs. The answer
   becomes a grant (`sandbox_egress_grants`); past `PYTHON_SANDBOX_MAX_GRANTS_PER_USER` it holds
-  for its run alone. The person reviews and revokes grants from *Settings › Sandbox network*.
+  for its run alone. The person reviews and revokes grants from *Settings › Sandbox network*,
+  and allows a host there by hand (ADR-327 lot 3). The question is settled for ANY sandbox
+  tool that declares hosts — `run_python_tool` and a skill's `run_skill_command` alike, the
+  card's purpose then being the skill and its command — and ONLY here: outside the loop (the skill runner in the response
+  node, a pipeline step, a routine) nothing could answer the card, so
+  `tool_path.question_settleable()` is false and the tool refuses, naming that setting.
 - **The prompt offers what the account may reach** (`react_prompt.network_available`): the
   network section of `<Computation>` is rendered only when the egress capability is on, and
   lists the reachable hosts with their token variable and carrier. Measured 2026-09-18: told
@@ -551,7 +557,7 @@ PYTHON_SANDBOX_RATE_LIMIT_WINDOW=300  # Window, seconds
 # Network runs (ADR-298) — need the `egress` service of the compose file
 PYTHON_SANDBOX_EGRESS_ENABLED=false   # Deployment ceiling; the capability switch is read at the act
 PYTHON_SANDBOX_EGRESS_ASK_ENABLED=true  # Ask the person about an unknown host (false = refuse it)
-PYTHON_SANDBOX_EGRESS_HOSTS=[]        # Operator allowlist, JSON list of exact lowercase hostnames
+PYTHON_SANDBOX_EGRESS_HOSTS=["registry.npmjs.org","pypi.org","files.pythonhosted.org","github.com"]  # Operator allowlist, JSON list of exact lowercase hostnames (the templates list the registries, which accept no anonymous upload)
 PYTHON_SANDBOX_MAX_HOSTS_PER_RUN=5    # Published on the manifest (ADR-184)
 PYTHON_SANDBOX_MAX_GRANTS_PER_USER=50 # Past it an approval holds for its run alone
 PYTHON_SANDBOX_NETWORK_TIMEOUT_SECONDS=60  # A network run's whole budget

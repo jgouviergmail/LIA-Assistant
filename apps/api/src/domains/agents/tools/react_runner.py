@@ -37,6 +37,7 @@ from src.domains.agents.context.runtime_context import (
     runtime_user_id_str,
 )
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.python_sandbox.egress.settlement import outside_settlement
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.metrics_subagent import (
@@ -313,11 +314,14 @@ class ReactSubAgentRunner:
             )
 
             try:
-                result = await react_agent.ainvoke(
-                    {"messages": [HumanMessage(content=task)]},
-                    config=nested_config,
-                    context=nested_context,
-                )
+                # A nested loop settles no egress question: only the ReAct
+                # loop's own call can resume on the answer (ADR-327 lot 3).
+                with outside_settlement():
+                    result = await react_agent.ainvoke(
+                        {"messages": [HumanMessage(content=task)]},
+                        config=nested_config,
+                        context=nested_context,
+                    )
             except Exception as exc:
                 elapsed_ms = int((time.perf_counter() - start) * 1000)
                 logger.warning(

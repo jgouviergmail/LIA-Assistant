@@ -4,12 +4,14 @@ The ``<Computation>`` block and the tool's manifest both name what a script
 can rely on beyond the standard library. That list is a PROMISE the model
 acts on, so it lives in one table whose two properties are guarded:
 
-- every distribution is a DIRECT entry of ``requirements.txt`` (ADR-112) —
-  the sandbox runs on the API image, and a name that only rides a transitive
-  dependency dies on somebody else's upgrade;
+- every distribution is a DIRECT entry of ``requirements-sandbox.txt``, the
+  manifest of the dedicated sandbox image (ADR-112, ADR-327) — a name that
+  only rides a transitive dependency dies on somebody else's upgrade;
 - every import name imports, on the lockfile CI installs
   (``tests/unit/domains/agents/python_sandbox/test_libraries.py``) and in the
   built image (``task sandbox:libraries:check``).
+
+The skill sandbox adds its own libraries on top (``skills/sandbox_toolbox.py``).
 
 Names are IMPORT names: the model writes ``import bs4``, never
 ``import beautifulsoup4``. Deliberately absent: what a run cannot use (no

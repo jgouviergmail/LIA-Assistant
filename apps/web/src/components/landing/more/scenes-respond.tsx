@@ -10,6 +10,7 @@
 'use client';
 
 import {
+  Blocks,
   Trash2,
   HelpCircle,
   ChevronDown,
@@ -573,6 +574,60 @@ function NetworkQuestionScene({ active, labels }: SceneProps) {
   );
 }
 
+type SkillProposalPhase = 'card' | 'hover' | 'installed';
+const SKILL_PROPOSAL_STEPS: readonly TimelineStep<SkillProposalPhase>[] = [
+  { at: 0, state: 'card' },
+  { at: 1600, state: 'hover' },
+  { at: 2400, state: 'installed' },
+];
+
+/** File names shown on the proposal card: code, not copy — never translated. */
+const SKILL_PROPOSAL_FILES = ['SKILL.md', 'scripts/convert.py'] as const;
+
+/**
+ * A skill written in the chat is PROPOSED (ADR-327): a card naming the skill
+ * and its files, the Install button the person presses, then the result. The
+ * resting frame keeps the whole card with its result — the attention is that
+ * nothing entered the person's skills before the click.
+ */
+function SkillProposalScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SKILL_PROPOSAL_STEPS, { active });
+  const installed = phase === 'installed';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center')}>
+      <div className="w-4/5 self-start overflow-hidden rounded-lg border border-border bg-background text-px-10">
+        <div className="flex items-center gap-1.5 border-b border-border bg-muted/60 px-2 py-1">
+          <Blocks className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+          <span className="truncate font-medium text-foreground/80">{labels.name}</span>
+        </div>
+        <div className="space-y-1 px-2 py-1.5">
+          {SKILL_PROPOSAL_FILES.map(file => (
+            <div key={file} className="flex items-center gap-1.5 text-muted-foreground">
+              <FileText className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span className="truncate font-mono text-px-9">{file}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end px-2 pb-1.5">
+          {installed ? (
+            <span className="flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-px-9 font-medium text-primary">
+              <Check className="h-2.5 w-2.5" aria-hidden="true" />
+              {labels.installed}
+            </span>
+          ) : (
+            <MiniChip pressed={phase === 'hover'}>{labels.install}</MiniChip>
+          )}
+        </div>
+      </div>
+      <Cursor
+        className={cn(
+          phase === 'hover' ? 'left-[68%] top-[72%] opacity-100' : 'left-[60%] top-[90%] opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
 type BackstagePhase = 'closed' | 'open' | 's1' | 's2' | 's3';
 const BACKSTAGE_STEPS: readonly TimelineStep<BackstagePhase>[] = [
   { at: 0, state: 'closed' },
@@ -1053,6 +1108,7 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   keep_answer: KeepAnswerScene,
   draft_sequence: DraftSequenceScene,
   network_question: NetworkQuestionScene,
+  skill_proposal: SkillProposalScene,
   backstage: BackstageScene,
   peer_actions: PeerActionsScene,
 };

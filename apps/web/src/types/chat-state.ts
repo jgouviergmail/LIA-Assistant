@@ -22,6 +22,7 @@ import {
   GeneratedDocument,
 } from './chat';
 import { HitlCardState, NormalizedHitlPayload, initialHitlCardState } from './hitl';
+import type { SkillProposalCard } from '@/lib/skill-proposals/types';
 import type { ExecutionTrace } from './execution-trace';
 
 // ============================================================================
@@ -261,6 +262,7 @@ export type ChatAction =
           // the same fields). This copy silently lagged behind `expires_at`.
           generated_images?: GeneratedImage[];
           generated_documents?: GeneratedDocument[];
+          skill_proposals?: SkillProposalCard[];
           browser_screenshot?: { url: string; alt: string };
           /** Expressivity (ADR-253): the register the answering model declared
            * for THIS answer, for the avatar to overplay. Live-only — it is not

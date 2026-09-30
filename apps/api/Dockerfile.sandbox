@@ -1,0 +1,64 @@
+# The skill sandbox image (ADR-327 lot 2, SEC-001).
+#
+# Every sandbox run starts here: a skill's script, a skill's command, the
+# agent's ephemeral Python (ADR-249). It runs as uid 65534 on a read-only root,
+# with no network (or through the egress proxy, ADR-298), and it holds what
+# those runs are PROMISED (src/domains/skills/sandbox_toolbox.py) and nothing
+# else: no Docker client, no application code, no credential. The image used
+# to be the API's own, which carries both a Docker client and the code;
+# `task sandbox:libraries:check` now proves the promise and the absences.
+#
+# Build inputs are explicit and immutable: the two bases are pinned by their
+# multi-arch index digest (Dependabot moves them), the libraries by a
+# hash-verified lock compiled under the API's own (`task deps:lock`), and the
+# commands come from the Python base's Debian release.
+
+# Node, from the official image rather than Debian's package (ADR-327 lot 3):
+# Debian trixie ships Node 20, past its upstream end of life, whose `fetch`
+# ignores HTTPS_PROXY; the official image brings a supported major with its
+# own npm and npx, so Debian's `npm` (140 MB of node-* packages) is not needed.
+FROM node:24.21.0-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS node
+
+FROM python:3.14-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_ROOT_USER_ACTION=ignore
+
+# The commands a skill may call (SANDBOX_COMMANDS). bash, tar and coreutils
+# (timeout, truncate) come with the base and run the command bootstrap; pip
+# comes with the base too. git and curl reach nothing on an offline run — a
+# networked one goes through the egress proxy (ADR-327 lot 3). Measured on the
+# base: git adds 104 MB (perl), curl 2 MB.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        git \
+        curl \
+        jq \
+        zip \
+        unzip \
+        poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node and npm from the pinned stage: the binary links against libstdc++ and
+# libgcc alone, both in the base. npm and npx are re-created as the symlinks
+# the official image ships — COPY dereferences a symlink and would leave two
+# files whose `require('../lib/cli.js')` resolves nowhere (measured 2026-09-30).
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+# The libraries (SANDBOX_LIBRARIES), installed system-wide so uid 65534 reads
+# them without any PYTHONPATH: exact pins, every hash verified.
+COPY requirements-sandbox.lock.txt /tmp/requirements-sandbox.lock.txt
+RUN pip install --no-cache-dir --require-hashes -r /tmp/requirements-sandbox.lock.txt \
+    && rm /tmp/requirements-sandbox.lock.txt
+
+# The sandbox passes its own --user and HOME; declared here too, so a container
+# started by hand from this image is never root either.
+USER 65534:65534
+ENV HOME=/tmp
+WORKDIR /tmp

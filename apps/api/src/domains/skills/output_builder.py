@@ -240,6 +240,34 @@ def _inject_autoresize_script(html: str) -> str:
     return html + _AUTORESIZE_SCRIPT
 
 
+#: The only image address a third-party skill may hand the chat: bytes it
+#: carries itself, which the browser draws without asking any host.
+_INLINE_IMAGE_PREFIX = "data:image/"
+
+
+def restrict_third_party_output(output: SkillScriptOutput) -> SkillScriptOutput:
+    """What a third-party skill's script may show: its text, an inline image.
+
+    No frame (ADR-327): a sandboxed frame runs scripts and may navigate itself
+    to an address carrying whatever it was given — no content policy forbids
+    it. No remote image either: fetching it is a request the skill chose,
+    sent the instant the answer appears.
+
+    Args:
+        output: The parsed script output.
+
+    Returns:
+        The same output without frame, and without an image that is not
+        ``data:image/``.
+    """
+    image = output.image
+    if image is not None and not image.url.startswith(_INLINE_IMAGE_PREFIX):
+        image = None
+    if output.frame is None and image is output.image:
+        return output
+    return output.model_copy(update={"frame": None, "image": image})
+
+
 def build_skill_app_output(
     output: SkillScriptOutput,
     skill_name: str,

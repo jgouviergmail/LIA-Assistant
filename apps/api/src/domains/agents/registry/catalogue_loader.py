@@ -339,12 +339,14 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         activate_skill_catalogue_manifest,
         import_user_skill_catalogue_manifest,
         read_skill_resource_catalogue_manifest,
+        run_skill_command_catalogue_manifest,
         run_skill_script_catalogue_manifest,
     )
 
     registry.register_tool_manifest(activate_skill_catalogue_manifest)
     registry.register_tool_manifest(read_skill_resource_catalogue_manifest)
     registry.register_tool_manifest(run_skill_script_catalogue_manifest)
+    registry.register_tool_manifest(run_skill_command_catalogue_manifest)
     registry.register_tool_manifest(import_user_skill_catalogue_manifest)
 
     # Register Sub-Agent delegation tool (F6 — transversal, always in catalogue)

@@ -7,9 +7,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
+/** The grants' own scope switches — the add form carries one more. */
+const rowSwitches = () =>
+  screen.getAllByRole('switch').filter(control => control.id.startsWith('egress-scope-'));
+
 import type { EgressGrant, ReachableHost } from '@/types/sandbox-egress';
 
 const setScope = vi.fn(async () => true);
+const add = vi.fn(
+  async (): Promise<{ ok: true; host: string } | { ok: false; code: string | null }> => ({
+    ok: true,
+    host: 'registry.npmjs.org',
+  })
+);
 const revoke = vi.fn(async () => true);
 const refetch = vi.fn();
 const state = {
@@ -41,6 +51,7 @@ vi.mock('@/hooks/useSandboxEgress', () => ({
     refetch,
     setScope,
     revoke,
+    add,
   }),
 }));
 
@@ -125,7 +136,7 @@ describe('SandboxEgressSettings — reachable without asking', () => {
 describe('SandboxEgressSettings — permissions', () => {
   it('draws each grant with its scope switch reflecting the stored decision', () => {
     renderSection();
-    const switches = screen.getAllByRole('switch');
+    const switches = rowSwitches();
     expect(switches).toHaveLength(2);
     expect(switches[0]).toHaveAttribute('aria-checked', 'true');
     expect(switches[1]).toHaveAttribute('aria-checked', 'false');
@@ -133,7 +144,7 @@ describe('SandboxEgressSettings — permissions', () => {
 
   it('changes the scope through the hook', async () => {
     renderSection();
-    fireEvent.click(screen.getAllByRole('switch')[0]);
+    fireEvent.click(rowSwitches()[0]);
     await waitFor(() => expect(setScope).toHaveBeenCalledWith('g-1', false));
   });
 
@@ -153,6 +164,24 @@ describe('SandboxEgressSettings — permissions', () => {
     expect(screen.getByText('settings.sandbox_egress.grants_empty')).toBeInTheDocument();
   });
 
+  it('draws no permissions block where the instance never asks and none is held', () => {
+    state.askEnabled = false;
+    state.grants = [];
+    state.total = 0;
+    renderSection();
+    expect(screen.queryByText('settings.sandbox_egress.grants_title')).not.toBeInTheDocument();
+    expect(screen.queryByText('settings.sandbox_egress.grants_empty')).not.toBeInTheDocument();
+  });
+
+  it('keeps the permissions held before the instance stopped asking, revocable', () => {
+    state.askEnabled = false;
+    renderSection();
+    expect(screen.getByText('settings.sandbox_egress.grants_title')).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('button', { name: 'settings.sandbox_egress.row_menu' })
+    ).toHaveLength(2);
+  });
+
   it('states the cut when the exact total exceeds the page', () => {
     state.total = 5;
     renderSection();
@@ -164,5 +193,78 @@ describe('SandboxEgressSettings — permissions', () => {
     const gauge = screen.getByRole('progressbar');
     expect(gauge).toHaveAttribute('aria-valuenow', '2');
     expect(gauge).toHaveAttribute('aria-valuemax', '50');
+  });
+});
+
+describe('SandboxEgressSettings — allowing a host (ADR-327 lot 3)', () => {
+  const field = () => screen.getByRole('textbox', { name: 'settings.sandbox_egress.add_label' });
+  const submit = () => screen.getByRole('button', { name: 'settings.sandbox_egress.add_submit' });
+  const scope = () => screen.getByRole('switch', { name: 'settings.sandbox_egress.add_scope' });
+
+  it('offers no form where the instance never asks', () => {
+    state.askEnabled = false;
+    renderSection();
+    expect(
+      screen.queryByRole('textbox', { name: 'settings.sandbox_egress.add_label' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers no form while the instance has not said whether it asks', () => {
+    state.askEnabled = null;
+    renderSection();
+    expect(
+      screen.queryByRole('textbox', { name: 'settings.sandbox_egress.add_label' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers a field typed for a hostname, with no autocorrection', () => {
+    renderSection();
+    expect(field()).toHaveAttribute('autocapitalize', 'none');
+    expect(field()).toHaveAttribute('spellcheck', 'false');
+    expect(field()).toHaveAttribute('inputmode', 'url');
+  });
+
+  it("keeps the turn's data out unless the person switches it on", async () => {
+    renderSection();
+    fireEvent.change(field(), { target: { value: ' registry.npmjs.org ' } });
+    fireEvent.click(submit());
+    await waitFor(() => expect(add).toHaveBeenCalledWith('registry.npmjs.org', false));
+  });
+
+  it('sends the scope the person chose and clears the field once allowed', async () => {
+    renderSection();
+    fireEvent.change(field(), { target: { value: 'pypi.org' } });
+    fireEvent.click(scope());
+    fireEvent.click(submit());
+    await waitFor(() => expect(add).toHaveBeenCalledWith('pypi.org', true));
+    await waitFor(() => expect(field()).toHaveValue(''));
+  });
+
+  it('sends nothing for an empty field', () => {
+    renderSection();
+    expect(submit()).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(submit());
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it('names the refusal beside the field and keeps what was typed', async () => {
+    add.mockResolvedValueOnce({ ok: false, code: 'egress_grant_host_invalid' });
+    renderSection();
+    fireEvent.change(field(), { target: { value: 'https://pypi.org' } });
+    fireEvent.click(submit());
+    const message = await screen.findByText(
+      'settings.sandbox_egress.add_errors.egress_grant_host_invalid'
+    );
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(field().getAttribute('aria-describedby')).toContain(message.id);
+    expect(field()).toHaveValue('https://pypi.org');
+  });
+
+  it('falls back to the generic sentence for a refusal it cannot name', async () => {
+    add.mockResolvedValueOnce({ ok: false, code: null });
+    renderSection();
+    fireEvent.change(field(), { target: { value: 'pypi.org' } });
+    fireEvent.click(submit());
+    expect(await screen.findByText('common.error')).toBeInTheDocument();
   });
 });

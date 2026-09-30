@@ -10,7 +10,7 @@ In **Settings > Plugins**, import a **.zip file** or paste an **https link** to 
 Every install ends with a **per-component report**: each skill and each MCP server is listed as **installed**, **updated**, **skipped** (with a translated reason) or **removed**. Nothing is ever silently dropped. Typical skip reasons: a server type LIA deliberately does not run (`stdio` — never launched on a multi-user server), the legacy `sse` transport, a non-HTTPS endpoint (security policy), or a name already used by one of your existing skills or servers.
 
 ## How do plugin components behave after install?
-Exactly like their manually-created counterparts: activate or deactivate each skill freely, configure server authentication (API key, bearer, OAuth) in the MCP section, per-server HITL settings apply. Plugin-owned MCP servers show a **"Via plugin"** badge. Plugins never carry secrets — the standard forbids credentials inside packages; you configure authentication after install and it survives plugin updates.
+Like their manually-created counterparts, with one difference: a plugin's skills were written elsewhere, so they run apart (see the security boundaries below). Activate or deactivate each skill freely, configure server authentication (API key, bearer, OAuth) in the MCP section, per-server HITL settings apply. Plugin-owned MCP servers show a **"Via plugin"** badge. Plugins never carry secrets — the standard forbids credentials inside packages; you configure authentication after install and it survives plugin updates.
 
 ## How do I update a plugin?
 Import the new version of the package (same plugin name): kept components are **updated in place** (configured credentials preserved), components the new version dropped are **removed**, and the report says which is which.
@@ -22,4 +22,5 @@ In **Settings > Plugins**, uninstall it: every skill and MCP server it brought i
 - **No stdio servers**: LIA never launches plugin subprocesses (multi-user server) — such entries are skipped and said.
 - **HTTPS-only endpoints**: remote MCP servers must use https; loopback http entries (valid per the standard) are refused by policy, with an explicit reason.
 - **No secrets in packages**: headers and environment values in a plugin are treated as visible package data, per the standard.
+- **Plugin skills are third-party**: their instructions run only in an isolated runner with their own files and the ones you attach — never your mailbox, calendar or other connectors — their answers show no interactive frame, remote image or web content, and their commands reach the network only through the sandbox proxy, to permitted hosts.
 - **Provenance invariant**: name collisions only resolve within the same provenance — a plugin can never capture one of your manually-created skills, and another plugin can never capture a skill installed by the first.

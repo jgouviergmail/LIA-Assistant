@@ -71,6 +71,23 @@ class TestAskingTheQuestion:
         assert set(content) == {"hosts", "hosts_unknown", "hosts_label", "purpose", "data_summary"}
         assert "Vol" not in json.dumps(content) and "Paul" not in json.dumps(content)
 
+    def test_a_skill_written_elsewhere_is_named_as_such(self) -> None:
+        """ADR-327 lot 3: allowing a host WITH the turn's data hands the
+        attached files to a command a third party wrote — the card says so."""
+        with patch(
+            f"{MODULE}.get_settings",
+            return_value=SimpleNamespace(skills_script_max_input_kb=64),
+        ):
+            output = ask_for_hosts(
+                decision=_decision(),
+                purpose="pdf: npm install",
+                items=ITEMS,
+                language="fr",
+                third_party_skill=True,
+            )
+        content = output.registry_updates[output.tool_metadata["draft_id"]].payload["content"]
+        assert content["third_party_skill"] is True
+
     def test_data_too_large_is_said_on_the_card(self) -> None:
         with patch(
             f"{MODULE}.get_settings",

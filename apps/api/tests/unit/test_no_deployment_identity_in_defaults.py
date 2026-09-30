@@ -59,6 +59,7 @@ _ALLOWED = re.compile(
     r"|(?:[a-z0-9-]+\.)*icloud\.com"
     r"|(?:[a-z0-9-]+\.)*mail\.me\.com"  # Apple iCloud IMAP/SMTP hosts
     r"|(?:[a-z0-9-]+\.)*github\.com"
+    r"|raw\.githubusercontent\.com"  # GitHub's raw file host (the skill library, ADR-327)
     r"|(?:[a-z0-9-]+\.)*wikipedia\.org"
     r"|(?:[a-z0-9-]+\.)*wikimedia\.org"
     r"|(?:[a-z0-9-]+\.)*openstreetmap\.org"

@@ -50,6 +50,7 @@ from src.domains.plugins.schemas import (
     PluginManifest,
 )
 from src.domains.plugins.staging import stage_plugin_zip
+from src.domains.skills.models import SkillProvenance
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -133,7 +134,7 @@ class PluginImportService:
         existing = await self.plugin_repo.get_by_name_for_user(owner_id, manifest.name)
         updated = existing is not None
         await self._check_plugin_quota(existing, owner_id, settings)
-        prev_skill_names, prev_servers = await self._previous_components(
+        prev_skills, prev_servers = await self._previous_components(
             existing, skill_repo, mcp_service
         )
         prev_server_names = {s.name for s in prev_servers}
@@ -170,7 +171,7 @@ class PluginImportService:
                 skill_importer,
                 owner_id=owner_id,
                 plugin_id=plugin_row.id,
-                prev_skill_names=prev_skill_names,
+                prev_skill_names=set(prev_skills),
             )
         )
         components.extend(
@@ -187,7 +188,7 @@ class PluginImportService:
             pref_service,
             mcp_service,
             owner_id=owner_id,
-            prev_skill_names=prev_skill_names,
+            prev_skills=prev_skills,
             incoming_skill_names=set(incoming_skill_names),
             prev_servers=prev_servers,
             incoming_server_names=incoming_server_names,
@@ -231,11 +232,15 @@ class PluginImportService:
 
     async def _previous_components(
         self, existing: UserPlugin | None, skill_repo: Any, mcp_service: Any
-    ) -> tuple[set[str], list[Any]]:
-        """Components of the existing installation (empty on a fresh install)."""
+    ) -> tuple[dict[str, UUID], list[Any]]:
+        """Components of the existing installation (empty on a fresh install).
+
+        Skills come back as name → row id: a removal deletes the ROW, never a
+        name, which since ADR-327 other accounts may hold too.
+        """
         if existing is None:
-            return set(), []
-        prev_skills = {s.name for s in await skill_repo.get_by_plugin_id(existing.id)}
+            return {}, []
+        prev_skills = {s.name: s.id for s in await skill_repo.get_by_plugin_id(existing.id)}
         prev_servers = await mcp_service.repository.get_by_plugin_id(existing.id)
         return prev_skills, prev_servers
 
@@ -409,7 +414,10 @@ class PluginImportService:
         for skill_dir in skill_dirs:
             try:
                 result = await skill_importer.import_directory(
-                    skill_dir, owner_id=owner_id, plugin_id=plugin_id
+                    skill_dir,
+                    owner_id=owner_id,
+                    provenance=SkillProvenance.PLUGIN,
+                    plugin_id=plugin_id,
                 )
                 installed_name = str(result["name"])
                 reports.append(
@@ -562,7 +570,7 @@ class PluginImportService:
         mcp_service: Any,
         *,
         owner_id: UUID,
-        prev_skill_names: set[str],
+        prev_skills: dict[str, UUID],
         incoming_skill_names: set[str],
         prev_servers: list[Any],
         incoming_server_names: set[str],
@@ -576,8 +584,8 @@ class PluginImportService:
         skipped, not removed.
         """
         reports: list[PluginComponentReport] = []
-        for name in sorted(prev_skill_names - incoming_skill_names):
-            await pref_service.delete_skill(name)
+        for name in sorted(set(prev_skills) - incoming_skill_names):
+            await pref_service.delete_skill(prev_skills[name])
             skill_dir = Path(settings.skills_users_path) / str(owner_id) / name
             await asyncio.to_thread(shutil.rmtree, skill_dir, True)
             reports.append(
@@ -645,7 +653,7 @@ class PluginImportService:
         mcp_service = user_mcp_service.UserMCPServerService(self.db)
 
         for skill in await skill_repo.get_by_plugin_id(plugin.id):
-            await pref_service.delete_skill(skill.name)
+            await pref_service.delete_skill(skill.id)
             skill_dir = Path(settings.skills_users_path) / str(owner_id) / skill.name
             await asyncio.to_thread(shutil.rmtree, skill_dir, True)
 

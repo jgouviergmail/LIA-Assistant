@@ -10,7 +10,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import type { Skill } from '@/hooks/useSkills';
+import { isThirdPartySkill, type Skill } from '@/hooks/useSkills';
 import type { SkillsTranslator } from '@/components/settings/SkillDetailModal';
 import { skillTraitTone } from '@/lib/status-tone';
 
@@ -39,6 +39,11 @@ function CardBadges({ skill, t }: { skill: Skill; t: SkillsTranslator }) {
       {skill.dialogue && (
         <Badge variant={skillTraitTone('dialogue')} className="shrink-0 text-xs">
           {t('settings.skills.gallery.dialogue_badge')}
+        </Badge>
+      )}
+      {isThirdPartySkill(skill) && (
+        <Badge variant={skillTraitTone('third_party')} className="shrink-0 text-xs">
+          {t(`settings.skills.gallery.origin_${skill.provenance}`)}
         </Badge>
       )}
     </>

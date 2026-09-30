@@ -8,10 +8,9 @@ Pattern: web_fetch_tools.py (validate_runtime_config → UnifiedToolOutput).
 """
 
 import asyncio
-import hashlib
 import json
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
@@ -19,15 +18,28 @@ from langchain_core.tools import InjectedToolArg, tool
 from src.core.constants import DEFAULT_TIMEZONE
 from src.core.i18n import resolve_language
 from src.domains.agents.constants import AGENT_QUERY
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_runtime_context
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.agents.utils.rate_limiting import rate_limit
+from src.domains.skills.command_tool import run_skill_command
+from src.domains.skills.tool_scope import as_external, scope_refusal
+from src.domains.skills.trust import (
+    ACTIVATION_REQUEST_DESCRIPTION,
+    is_third_party,
+    reads_as_external,
+)
 from src.infrastructure.observability.decorators import track_tool_metrics
+from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
     agent_tool_invocations,
 )
+
+if TYPE_CHECKING:
+    from src.domains.skills.executor import ScriptResult
+
+logger = get_logger(__name__)
 
 
 def _coerce_parameters(
@@ -91,10 +103,9 @@ def _coerce_parameters(
 # Rate limit constants (per-user, per minute)
 _RATE_LIMIT_SCRIPT = 5  # subprocess execution — conservative
 _RATE_LIMIT_RESOURCE = 20  # file reads — more permissive
-# Skill import — disk write + DB + cache reload. Raised from 5 when replacement
-# confirmation became two-phase: an edit now costs two calls (the refused one
-# that describes the impact, then the confirmed one), so the old budget allowed
-# only 2.5 edits per minute and a single retry could exhaust it.
+# Skill proposal — a validation (staged on disk, read against the DB) and a
+# Redis write; the install is the card's own route, rate limited apart. Ten a
+# minute leaves room for a model correcting a refused package.
 _RATE_LIMIT_IMPORT = 10
 _RATE_LIMIT_WINDOW = 60
 
@@ -154,6 +165,7 @@ def _coerce_files(
     return coerced, None
 
 
+#: The ``type`` a third-party skill's words carry once wrapped (ADR-327).
 @tool
 @track_tool_metrics(
     tool_name="activate_skill",
@@ -161,22 +173,28 @@ def _coerce_files(
     duration_metric=agent_tool_duration_seconds,
     counter_metric=agent_tool_invocations,
 )
+@rate_limit(max_calls=_RATE_LIMIT_IMPORT, window_seconds=_RATE_LIMIT_WINDOW, scope="user")
 async def activate_skill_tool(
     name: Annotated[str, "Name of the skill to activate (from available_skills catalogue)"],
+    request: Annotated[str, ACTIVATION_REQUEST_DESCRIPTION] = "",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any] | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Load a skill's full instructions and bundled resources listing.
 
     Per agentskills.io standard: dedicated tool activation pattern.
     Call this when a task matches a skill's description from the catalogue.
-    Returns the skill's instructions wrapped in structured tags.
+    Returns the skill's instructions wrapped in structured tags — except for a
+    skill marked third-party, which runs on its own and returns its answer.
     """
     config = validate_runtime_config(runtime, "activate_skill")
     if isinstance(config, UnifiedToolOutput):
         return config
 
     from src.domains.skills.activation import activate_skill
+    from src.domains.skills.cache import SkillsCache
 
+    if reads_as_external(SkillsCache.get_by_name_for_user(name, str(config.user_id))):
+        return await _run_third_party_skill(name, request, runtime, str(config.user_id))
     content = activate_skill(name, user_id=str(config.user_id))
     if not content:
         return UnifiedToolOutput.failure(
@@ -187,6 +205,70 @@ async def activate_skill_tool(
     return UnifiedToolOutput.action_success(
         message=content,
         metadata={"skill_name": name, "activation": "dedicated_tool"},
+    )
+
+
+async def _run_third_party_skill(
+    name: str,
+    request: str,
+    runtime: ToolRuntime[LiaRuntimeContext, Any] | None,
+    user_id: str,
+) -> UnifiedToolOutput:
+    """A third-party skill activated from the main loop (ADR-327).
+
+    Its instructions never reach the caller: they run in the isolated skill
+    runner, and what the runner answers comes back as external content, with
+    the registry items its scripts produced (an inline image at most).
+
+    Args:
+        name: The skill.
+        request: What the skill should do for the person.
+        runtime: The caller's tool runtime (its config is the runner's parent).
+        user_id: The person.
+
+    Returns:
+        The runner's answer, or a failure the model can act on.
+    """
+    from langchain_core.runnables import RunnableConfig
+
+    from src.core.context import active_skills_ctx
+    from src.core.run_config import run_id_of
+    from src.domains.agents.nodes.response_skill_runner import (
+        run_skill_runner,
+        settle_third_party_runner,
+        skill_runner_task,
+    )
+    from src.domains.skills.activation import activate_skill
+
+    active = active_skills_ctx.get()
+    if active is not None and name not in active:
+        return UnifiedToolOutput.failure(
+            message=f"Skill '{name}' not found", error_code="NOT_FOUND"
+        )
+    if not request.strip():
+        return UnifiedToolOutput.failure(
+            message=(
+                f"Skill '{name}' is third-party: it runs on its own. "
+                "Call again with `request`, what it should do for the person."
+            ),
+            error_code="MISSING_REQUIRED_PARAM",
+        )
+    config: RunnableConfig = runtime.config if runtime is not None else RunnableConfig()
+    task = skill_runner_task(
+        name, activate_skill(name, user_id=user_id) or "", request, history="", agent_data=""
+    )
+    result = await run_skill_runner(
+        name, task, config=config, location_query=request, third_party=True
+    )
+    answer, _, registry = settle_third_party_runner(result, run_id_of(config), name)
+    if answer is None:
+        return UnifiedToolOutput.failure(
+            message=f"Skill '{name}' returned no answer", error_code="EMPTY_RESULT"
+        )
+    return UnifiedToolOutput.data_success(
+        message=as_external(name, answer),
+        registry_updates=registry or {},
+        metadata={"skill_name": name, "activation": "isolated_runner"},
     )
 
 
@@ -214,6 +296,8 @@ async def run_skill_script(
     coerced_parameters, coercion_error = _coerce_parameters(parameters)
     if coercion_error is not None:
         return coercion_error
+    if (refusal := scope_refusal(skill_name)) is not None:
+        return refusal
 
     config = validate_runtime_config(runtime, "run_skill_script")
     if isinstance(config, UnifiedToolOutput):
@@ -255,49 +339,92 @@ async def run_skill_script(
         user_id=str(config.user_id),
     )
 
+    from src.domains.skills.cache import SkillsCache
+
+    skill_info = SkillsCache.get_by_name_for_user(skill_name, str(config.user_id))
     if result.success:
-        # Parse stdout for rich output contract (text/frame/image).
-        # Falls back to plain text wrapping if stdout is not valid JSON —
-        # preserves backward compatibility with scripts emitting raw text.
-        from src.domains.skills.cache import SkillsCache
-        from src.domains.skills.output_builder import build_skill_app_output
-        from src.domains.skills.script_output import parse_skill_stdout
+        return _script_success_output(skill_name, script, result, skill_info)
+    return _script_failure_output(skill_name, script, result, reads_as_external(skill_info))
 
-        parsed = parse_skill_stdout(result.output)
 
-        # Rich output: emit SKILL_APP registry item for frontend widget.
-        if parsed.frame is not None or parsed.image is not None:
-            skill_info = SkillsCache.get_by_name_for_user(
-                skill_name, str(config.user_id)
-            ) or SkillsCache.get_by_name(skill_name)
-            # Strict default: an unresolvable skill gets NO frame privileges.
-            # `is_system_skill` grants `credentialless` + `allow-same-origin`
-            # on the client iframe, so the permissive fallback would hand a
-            # user-imported skill system-level frame privileges (ADR-137).
-            is_system = SkillsCache.entry_is_system(skill_info) if skill_info else False
-            return build_skill_app_output(
-                output=parsed,
-                skill_name=skill_name,
-                is_system_skill=is_system,
-                execution_time_ms=result.execution_time_ms,
-            )
+def _script_success_output(
+    skill_name: str, script: str, result: ScriptResult, skill_info: dict[str, Any] | None
+) -> UnifiedToolOutput:
+    """What a script that ran well hands back: its text, and its frame or image.
 
-        # Text-only output: preserve legacy behaviour (action_success, no registry).
-        return UnifiedToolOutput.action_success(
-            message=parsed.text,
-            structured_data={"skill_output": parsed.text},
-            metadata={
-                "skill_name": skill_name,
-                "script": script,
-                "execution_time_ms": result.execution_time_ms,
-            },
+    Stdout follows the rich output contract (text/frame/image) and falls back to
+    plain text when it is not that JSON. A skill written elsewhere — or one that
+    no longer resolves — draws no frame and no remote image (ADR-327), and
+    outside its isolated runner its words arrive as external content.
+
+    Args:
+        skill_name: The skill.
+        script: The script run.
+        result: The executor's result.
+        skill_info: The resolved cache entry, or None.
+
+    Returns:
+        A ``SKILL_APP`` output for a frame or an image, a text output otherwise.
+    """
+    from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.output_builder import (
+        build_skill_app_output,
+        restrict_third_party_output,
+    )
+    from src.domains.skills.script_output import parse_skill_stdout
+
+    parsed = parse_skill_stdout(result.output)
+    if skill_info is None or is_third_party(skill_info):
+        parsed = restrict_third_party_output(parsed)
+    if reads_as_external(skill_info):
+        parsed = parsed.model_copy(update={"text": as_external(skill_name, parsed.text)})
+
+    if parsed.frame is not None or parsed.image is not None:
+        # Strict default: an unresolvable skill gets NO frame privileges.
+        # `is_system_skill` grants `credentialless` + `allow-same-origin`
+        # on the client iframe, so the permissive fallback would hand a
+        # user-imported skill system-level frame privileges (ADR-137).
+        is_system = SkillsCache.entry_is_system(skill_info) if skill_info else False
+        return build_skill_app_output(
+            output=parsed,
+            skill_name=skill_name,
+            is_system_skill=is_system,
+            execution_time_ms=result.execution_time_ms,
         )
-    # Return both stdout and stderr so the LLM can read validation results
-    # even when the script exits non-zero (e.g., validation errors in stdout,
-    # Python traceback in stderr).
+
+    # Text-only output: preserve legacy behaviour (action_success, no registry).
+    return UnifiedToolOutput.action_success(
+        message=parsed.text,
+        structured_data={"skill_output": parsed.text},
+        metadata={
+            "skill_name": skill_name,
+            "script": script,
+            "execution_time_ms": result.execution_time_ms,
+        },
+    )
+
+
+def _script_failure_output(
+    skill_name: str, script: str, result: ScriptResult, external: bool
+) -> UnifiedToolOutput:
+    """A script that failed: both its stdout and stderr, so the model can read why.
+
+    Validation results often sit in stdout while the traceback sits in stderr.
+
+    Args:
+        skill_name: The skill.
+        script: The script run.
+        result: The executor's result.
+        external: Whether its words reach the caller as external content (ADR-327).
+
+    Returns:
+        A ``SCRIPT_ERROR`` failure.
+    """
     combined = result.output or ""
     if result.error:
         combined = f"{combined}\n[stderr] {result.error}" if combined else result.error
+    if combined and external:
+        combined = as_external(skill_name, combined)
     return UnifiedToolOutput.failure(
         message=combined or "Script execution failed",
         error_code="SCRIPT_ERROR",
@@ -366,6 +493,8 @@ async def read_skill_resource(
     blind. They stay out of ``all_resources`` on purpose, to keep every
     activation prompt unchanged.
     """
+    if (refusal := scope_refusal(skill_name)) is not None:
+        return refusal
     config = validate_runtime_config(runtime, "read_skill_resource")
     if isinstance(config, UnifiedToolOutput):
         return config
@@ -422,7 +551,7 @@ async def read_skill_resource(
         )
 
     return UnifiedToolOutput.action_success(
-        message=content,
+        message=as_external(skill_name, content) if reads_as_external(skill) else content,
         metadata={
             "skill_name": skill_name,
             "resource_path": path,
@@ -439,10 +568,15 @@ async def _resolve_edit_target(
     Three refusals, all deliberate product decisions:
 
     - a **system** skill is never editable, and no fork is offered;
-    - another user's skill is refused without disclosing that it exists;
+    - a **managed** skill — installed from a skill library or a plugin — is kept
+      in step with its source, which the next update would overwrite: it is
+      updated from the settings, never rewritten here (ADR-327);
     - a skill the user has switched off must be re-enabled first — it is absent
       from the injected catalogue, so editing it would silently modify something
       the user believes is inactive.
+
+    Another person's skill of the same name is never reached (ADR-327: a name is
+    unique per account), so for this person the name is simply free.
 
     Args:
         name: Frontmatter name of the incoming package.
@@ -456,14 +590,13 @@ async def _resolve_edit_target(
     from uuid import UUID
 
     from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.models import MANAGED_PROVENANCES, SkillProvenance
     from src.domains.skills.preference_service import SkillPreferenceService
+    from src.domains.skills.repository import SkillRepository
     from src.infrastructure.database.session import get_db_context
 
-    # The caller's own skill wins, exactly like the resolution the assistant
-    # sees. get_by_name alone returns the first match in ANY scope, so a name
-    # held by both a system skill and this user would have been reported as
-    # read-only — refusing to edit something the user owns.
-    existing = SkillsCache.get_by_name_for_user(name, user_id) or SkillsCache.get_by_name(name)
+    # The caller's own skill wins, exactly like the resolution the assistant sees.
+    existing = SkillsCache.get_by_name_for_user(name, user_id)
     if existing is None:
         return None, None
 
@@ -476,17 +609,19 @@ async def _resolve_edit_target(
             error_code="SYSTEM_SKILL_READ_ONLY",
         )
 
-    if existing.get("owner_id") != user_id:
-        # Undifferentiated with a free name would be wrong (the import WILL fail
-        # downstream); undifferentiated with "not found" is what protects the
-        # other user's privacy — the name is simply unavailable.
-        return None, UnifiedToolOutput.failure(
-            message=f"The name '{name}' is not available. Choose a different one.",
-            error_code="NAME_UNAVAILABLE",
-        )
-
     async with get_db_context() as db:
+        owned = await SkillRepository(db).get_owned(UUID(user_id), name)
         active = await SkillPreferenceService(db).get_active_skills_for_user(UUID(user_id))
+    if owned is not None and owned.provenance in MANAGED_PROVENANCES:
+        source = "a skill library" if owned.provenance == SkillProvenance.LIBRARY else "a plugin"
+        return None, UnifiedToolOutput.failure(
+            message=(
+                f"'{name}' was installed from {source} and is kept in step with it: it "
+                "cannot be modified here. It is updated from Settings > LIA Skills; to "
+                "change it by hand, create a skill under another name."
+            ),
+            error_code="SKILL_MANAGED",
+        )
     if name not in active:
         return None, UnifiedToolOutput.failure(
             message=(
@@ -499,109 +634,39 @@ async def _resolve_edit_target(
     return existing, None
 
 
-def replacement_token(name: str, files: dict[str, str]) -> str:
-    """Derive the confirmation token binding an approval to one exact package.
-
-    A boolean flag would not be a safeguard: the model can set it on the very
-    first call, so "two calls" would be a convention it is free to skip. The
-    token cannot be guessed — it is a digest the model can only obtain by first
-    receiving the refusal — which is what makes the confirmation *structural*.
-
-    It also closes a subtler hole: because the digest covers the file contents,
-    a package altered between the summary and the confirmation no longer
-    matches. The user therefore approves exactly what gets written.
-
-    Args:
-        name: Frontmatter name of the incoming package.
-        files: Incoming file map (relative path → content).
-
-    Returns:
-        Short hexadecimal token.
-    """
-    digest = hashlib.sha256(name.encode("utf-8"))
-    for path in sorted(files):
-        digest.update(path.encode("utf-8"))
-        digest.update(hashlib.sha256(files[path].encode("utf-8")).digest())
-    return digest.hexdigest()[:12]
-
-
-def _describe_replacement(existing: dict[str, Any], files: dict[str, str]) -> UnifiedToolOutput:
-    """Refuse an unconfirmed replacement, describing exactly what it would drop.
-
-    Mirrors the unconditional draft confirmation the DevOps tool uses — the HITL
-    machinery itself is unavailable here, because skills with scripts run inside
-    an isolated ReAct sub-agent whose drafts never reach the main graph.
-
-    Args:
-        existing: Cached dict of the skill being replaced.
-        files: Incoming file map (relative path → content).
-
-    Returns:
-        A structured failure carrying the impact summary and the token that the
-        confirming call must echo back.
-    """
-    from src.core.constants import SKILLS_IMPORT_TEXT_EXTENSIONS
-
-    current = {"SKILL.md", *(existing.get("all_resources") or [])}
-    incoming = set(files)
-    # Binary assets are carried over by the server, so they are never "lost".
-    dropped = sorted(
-        path
-        for path in current - incoming
-        if Path(path).suffix.lower() in SKILLS_IMPORT_TEXT_EXTENSIONS
-    )
-    added = sorted(incoming - current)
-
-    lines = [f"Replacing the existing skill '{existing['name']}' — confirm with the user first."]
-    lines.append(f"Replaced: {', '.join(sorted(current & incoming)) or 'nothing'}")
-    if added:
-        lines.append(f"Added: {', '.join(added)}")
-    if dropped:
-        lines.append(f"REMOVED (content lost): {', '.join(dropped)}")
-    lines.append(
-        "There is no version history: the previous content cannot be restored. "
-        "Present this to the user in their language and get their agreement, then "
-        "call again with the SAME files and "
-        f'replace_token="{replacement_token(str(existing["name"]), files)}". '
-        "The token is bound to these exact file contents: change anything and it "
-        "no longer applies."
-    )
-    return UnifiedToolOutput.failure(
-        message="\n".join(lines),
-        error_code="CONFIRMATION_REQUIRED",
-    )
-
-
-async def _precheck_import(
-    files: dict[str, str], user_id: str, *, replace_token: str
-) -> UnifiedToolOutput | None:
-    """Run every refusal that precedes an import, in one place.
-
-    Kept out of the tool body on purpose: the tool sits at CC 8 without it and
-    would land one branch short of the complexity threshold with it inlined —
-    crossing that line trips the shrink-only ratchet for the whole backend.
+async def _precheck_import(files: dict[str, str], user_id: str) -> UnifiedToolOutput | None:
+    """Run every refusal a chat package meets before it is validated, in one place.
 
     Args:
         files: Coerced file map of the incoming package.
         user_id: Caller's user id.
-        replace_token: Token echoed from a previous refusal, proving the user
-            approved this exact package.
 
     Returns:
-        A failure to return verbatim, or None when the import may proceed.
+        A failure to return verbatim, or None when the package may be proposed.
     """
     from src.domains.skills.import_service import parse_incoming_skill_name
 
     incoming_name, name_error = parse_incoming_skill_name(files)
     if name_error is not None:
         return UnifiedToolOutput.failure(message=name_error, error_code="IMPORT_REJECTED")
+    _existing, refusal = await _resolve_edit_target(incoming_name, user_id)
+    return refusal
 
-    existing, refusal = await _resolve_edit_target(incoming_name, user_id)
-    if refusal is not None:
-        return refusal
-    if existing is not None and replace_token != replacement_token(incoming_name, files):
-        return _describe_replacement(existing, files)
-    return None
+
+def _proposal_message(name: str, *, replaces: bool) -> str:
+    """What the model is told once a package is proposed (technical English, ADR-256)."""
+    target = (
+        f"It replaces the user's existing skill '{name}'; the card lists what the "
+        "replacement adds, changes and removes."
+        if replaces
+        else "It is a new skill."
+    )
+    return (
+        f"Skill '{name}' is ready to install. {target} A card under your answer shows "
+        "it to the user with an Install button: NOTHING is installed until they click "
+        "it. Say so in one sentence, and never say the skill is installed, active, "
+        "created or updated."
+    )
 
 
 @tool
@@ -622,35 +687,26 @@ async def import_user_skill(
             "Either a JSON object (preferred) or a JSON string."
         ),
     ],
-    replace_token: Annotated[
-        str,
-        (
-            "Only when replacing an existing skill: the token returned by the "
-            "previous CONFIRMATION_REQUIRED refusal, after the user agreed. It "
-            "cannot be guessed and is bound to these exact file contents. Leave "
-            "empty when creating a new skill."
-        ),
-    ] = "",
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any] | None, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
-    """Import or update a skill in the user's own skills.
+    """Propose a skill for the user's own skills: they install it from a card.
 
-    Creating: pass the full file map under a free name — imports immediately.
+    Nothing is installed by this call. The package is validated exactly as an
+    install would validate it, then shown to the user as a card under your
+    answer with an Install button; only their click installs it (ADR-327).
+
+    Creating: pass the full file map under a free name.
 
     Updating: pass the SAME name with the complete regenerated package. The
     whole package is replaced, so send every file the skill needs, not just the
     ones that changed (read the current ones first with ``read_skill_resource``,
-    including ``SKILL.md``). The first call is REFUSED and returns exactly what
-    the replacement would drop, plus a token: show the summary to the user, then
-    call again with the SAME files and that ``replace_token``. The token cannot be
-    guessed and is bound to the exact file contents, so the user approves exactly
-    what gets written. There is no version history — a replacement cannot
-    be undone. Bundled binary assets (the gallery thumbnail) are preserved
-    automatically.
+    including ``SKILL.md``). The card states what the replacement adds, changes
+    and removes; there is no version history. Bundled binary assets (the
+    gallery thumbnail) are preserved automatically.
 
-    System skills, other users' skills, and skills the user has disabled are
-    refused. On any validation error, the failure describes the problem so the
-    caller can fix the files and retry.
+    System skills, skills installed from a library or a plugin, and skills the
+    user has disabled are refused. On any validation error, the failure
+    describes the problem so the caller can fix the files and retry.
     """
     coerced_files, coercion_error = _coerce_files(files)
     if coercion_error is not None:
@@ -671,45 +727,76 @@ async def import_user_skill(
     from uuid import UUID
 
     from src.core.exceptions import BaseAPIException
-    from src.domains.skills.import_service import SkillImportService
-    from src.infrastructure.database.session import get_db_context
+    from src.domains.skills.proposal_service import propose
+    from src.infrastructure.observability.metrics_registry import skill_proposals_total
 
-    refusal = await _precheck_import(
-        coerced_files or {}, str(config.user_id), replace_token=replace_token
-    )
+    files_map = coerced_files or {}
+    refusal = await _precheck_import(files_map, str(config.user_id))
     if refusal is not None:
+        skill_proposals_total.labels(operation="propose", outcome="refused").inc()
         return refusal
 
+    from src.domains.agents.api.run_origin import chat_cards_reach_the_person
+
+    context = tool_runtime_context(runtime)
+    conversation_id = context.conversation_id if context is not None else ""
+    if not conversation_id or not chat_cards_reach_the_person():
+        # A card needs an answer to sit under, drawn where the person reads
+        # it: a ticket run or a channel shows none, so nobody could install it.
+        return UnifiedToolOutput.failure(
+            message=(
+                "This run shows the user no card, so nothing was proposed. Tell the user "
+                "to ask for this skill in the chat, where a card lets them install it."
+            ),
+            error_code="CONFIGURATION_ERROR",
+        )
     try:
-        async with get_db_context() as db:
-            skill = await SkillImportService(db).import_files(
-                coerced_files or {}, owner_id=UUID(str(config.user_id))
-            )
+        proposal, _evicted = await propose(
+            files_map, owner_id=UUID(str(config.user_id)), conversation_id=conversation_id
+        )
     except BaseAPIException as exc:
         # Surface the validation detail so the LLM can correct and retry.
+        skill_proposals_total.labels(operation="propose", outcome="refused").inc()
         return UnifiedToolOutput.failure(
             message=str(getattr(exc, "detail", exc)),
             error_code="IMPORT_REJECTED",
         )
+    except Exception as exc:  # noqa: BLE001 — the cache failed: nothing was offered
+        logger.warning("skill_proposal_not_kept", error_type=type(exc).__name__)
+        skill_proposals_total.labels(operation="propose", outcome="unavailable").inc()
+        return UnifiedToolOutput.failure(
+            message="The skill could not be prepared for the user; nothing was proposed.",
+            error_code="DEPENDENCY_ERROR",
+        )
 
+    skill_proposals_total.labels(operation="propose", outcome="ok").inc()
     return UnifiedToolOutput.action_success(
-        message=(
-            f"Skill '{skill['name']}' imported and active. "
-            "It is available in Settings › LIA Skills › My Skills."
-        ),
+        message=_proposal_message(proposal.name, replaces=proposal.replaces is not None),
         metadata={
-            "skill_name": skill["name"],
-            "has_scripts": bool(skill.get("scripts")),
-            "resource_count": len(skill.get("all_resources") or []),
+            "skill_name": proposal.name,
+            "proposal_id": proposal.id,
+            "replaces": proposal.replaces is not None,
+            "file_count": len(proposal.sizes),
         },
     )
 
 
 # Module-level list for tool_registry auto-discovery
-skills_tools = [activate_skill_tool, run_skill_script, read_skill_resource, import_user_skill]
+skills_tools = [
+    activate_skill_tool,
+    run_skill_script,
+    run_skill_command,
+    read_skill_resource,
+    import_user_skill,
+]
 
 #: What the response node's skill runner binds once it has activated the skill
 #: itself: the activation is done in Python and its instructions travel in the
 #: task, so a runner asked to activate first spent one round trip on it — and
 #: sometimes never got to the script.
-skills_runner_tools = [run_skill_script, read_skill_resource, import_user_skill]
+skills_runner_tools = [run_skill_script, run_skill_command, read_skill_resource, import_user_skill]
+
+#: What the ISOLATED runner of a third-party skill binds (ADR-327): its own
+#: skill's scripts, commands and resources, which refuse any other skill while
+#: it runs. No import tool — a skill written elsewhere never writes a skill.
+skills_isolated_tools = [run_skill_script, run_skill_command, read_skill_resource]

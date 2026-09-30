@@ -26,6 +26,7 @@ _DISPLAY_MODELS = (
     "claude-fable-5",
     "claude-fable-5-1",
     "claude-opus-5-5",
+    "claude-sonnet-5-5",
 )
 
 
@@ -55,6 +56,24 @@ def test_hiding_the_reasoning_is_the_omitted_display(model: str) -> None:
 def test_an_explicit_off_is_spelled_out(model: str) -> None:
     """On Opus 5 and Sonnet 5 an absent ``thinking`` THINKS; ``disabled`` is the only off."""
     assert _render(model, ReasoningIntent(level="none")) == {"thinking": {"type": "disabled"}}
+
+
+def test_sonnet_5_5_turns_the_up_front_thinking_off_with_its_lowest_setting() -> None:
+    """``disabled`` is a 400 on Sonnet 5.5 (vendor migration guide, 2026-09-30).
+    ``between_tools`` takes no other field -- a ``display`` or a budget beside it
+    is a 400 -- and no effort: ``xhigh`` and ``max`` are 400s with it, and the
+    API default (``high``) is accepted."""
+    for intent in (
+        ReasoningIntent(level="none"),
+        ReasoningIntent(level="none", exclude_from_output=True),
+        ReasoningIntent(level="none", budget_tokens=8192),
+    ):
+        assert _render("claude-sonnet-5-5", intent) == {"thinking": {"type": "between_tools"}}
+
+
+def test_the_between_tools_family_honours_the_visibility_switch() -> None:
+    """Every depth above ``none`` is the adaptive-display shape, ``display`` included."""
+    assert honours_exclude_from_output("anthropic_between_tools") is True
 
 
 @pytest.mark.parametrize("model", ("claude-fable-5", "claude-fable-5-1", "claude-opus-5-5"))

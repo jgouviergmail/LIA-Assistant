@@ -18,6 +18,10 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+#: The ``thinking`` types the ``block_binding`` control may ride (preserved
+#: thinking reference, 2026-09-30); ``between_tools`` refuses it with a 400.
+_BINDING_THINKING_TYPES = frozenset({"adaptive", "enabled"})
+
 
 def prepare_anthropic_kwargs(
     model: str, temperature: float | None, kwargs: dict[str, Any]
@@ -79,8 +83,15 @@ def _degrade_thinking_binding(kwargs: dict[str, Any], reasoning: dict[str, Any])
     a 400 (measured on Opus 5.5, ADR-306). The payload policy already strips the
     prior turns' blocks; this is the net for what it cannot see, a history the
     state reducer trimmed in the middle of a tool loop. The control rides the
-    ``thinking`` field -- always adaptive on these generations, so sending it
-    when no depth was asked changes nothing else -- and requires its beta header.
+    ``thinking`` field -- adaptive when no depth was asked, so sending it then
+    changes nothing else -- and requires its beta header.
+
+    The API accepts the control beside ``adaptive`` and ``enabled`` only.
+    Sonnet 5.5's off switch, ``between_tools``, refuses it with a 400, so a
+    request that turns the up-front thinking off goes without the net: the
+    payload policy's stripping of the prior turns' blocks is then its only
+    protection (the vendor's own advice for that shape: keep the history
+    append-only).
 
     Args:
         kwargs: The constructor kwargs; their ``betas`` gain the header, after
@@ -89,6 +100,8 @@ def _degrade_thinking_binding(kwargs: dict[str, Any], reasoning: dict[str, Any])
             control (an operator's ``thinking`` is kept when none was rendered).
     """
     thinking = dict(reasoning.get("thinking") or kwargs.get("thinking") or {"type": "adaptive"})
+    if thinking.get("type") not in _BINDING_THINKING_TYPES:
+        return
     thinking["block_binding"] = {"prefix_mismatch_behavior": ANTHROPIC_PREFIX_MISMATCH_BEHAVIOR}
     reasoning["thinking"] = thinking
     betas = [beta for beta in kwargs.get("betas") or [] if beta != ANTHROPIC_THINKING_BINDING_BETA]

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.install.compose import build_invocation
+from scripts.install.compose import SKILL_SANDBOX_LOCAL_IMAGE, build_invocation
 from scripts.install.deploy import (
     CommandResult,
     StepFailed,
@@ -85,6 +85,36 @@ def test_prebuilt_acquire_pulls_and_never_builds() -> None:
     argv = runner.calls[0]["argv"]
     assert argv[-3:] == ["pull", "api", "web"]
     assert "build" not in argv
+    assert len(runner.calls) == 1
+
+
+def test_prebuilt_acquire_pulls_the_sandbox_by_its_locked_digest() -> None:
+    runner = _Runner()
+    reference = "ghcr.io/o/r/sandbox@sha256:" + "a" * 64
+    acquire(_invocation(InstallMode.PREBUILT), runner, sandbox_image=reference)
+    assert runner.calls[1]["argv"] == ["docker", "pull", reference]
+    assert not any("build" in call["argv"] for call in runner.calls)
+
+
+def test_local_acquire_builds_the_sandbox_under_the_base_files_tag() -> None:
+    runner = _Runner()
+    root = Path("/srv/lia")
+    acquire(_invocation(InstallMode.LOCAL), runner, sandbox_build_root=root)
+    assert runner.calls[1]["argv"] == [
+        "docker",
+        "build",
+        "-t",
+        SKILL_SANDBOX_LOCAL_IMAGE,
+        "-f",
+        str(root / "apps/api/Dockerfile.sandbox"),
+        str(root / "apps/api"),
+    ]
+
+
+def test_no_sandbox_selected_obtains_no_sandbox_image() -> None:
+    runner = _Runner()
+    acquire(_invocation(InstallMode.LOCAL), runner)
+    assert len(runner.calls) == 1
 
 
 def test_settings_validation_uses_the_exact_run_suffix() -> None:

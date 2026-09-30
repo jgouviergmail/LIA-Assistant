@@ -59,16 +59,20 @@ def test_app_images_are_parameterized_with_local_defaults() -> None:
     assert services["api"]["image"] == "${LIA_API_IMAGE:-lia-api:local}"
     assert services["web"]["image"] == "${LIA_WEB_IMAGE:-lia-web:local}"
     env = services["api"]["environment"]
-    assert "SKILLS_SCRIPT_SANDBOX_IMAGE=${LIA_API_IMAGE:-lia-api:local}" in env
+    # The sandbox runs on its OWN image (ADR-327 lot 2), never the API's.
+    assert "SKILLS_SCRIPT_SANDBOX_IMAGE=${LIA_SKILL_SANDBOX_IMAGE:-lia-skill-sandbox:local}" in env
     assert "SKILLS_SCRIPTS_ENABLED=${SKILLS_SCRIPTS_ENABLED:-false}" in env
 
 
-def test_dev_sandbox_runs_on_the_dev_api_image() -> None:
-    """The dev sandbox image is the dev API service's own tag, never inferred."""
+def test_dev_sandbox_runs_on_the_sandbox_image_the_dev_tasks_build() -> None:
+    """The dev sandbox is the image `task sandbox:image:build` tags, never the API's."""
     api = _load("docker-compose.dev.yml")["services"]["api"]
-    image = api["image"]
-    assert image == "lia-api-dev:latest"
-    assert f"SKILLS_SCRIPT_SANDBOX_IMAGE={image}" in api["environment"]
+    assert "SKILLS_SCRIPT_SANDBOX_IMAGE=lia-skill-sandbox:local" in api["environment"]
+    taskfile = yaml.safe_load((ROOT / "Taskfile.yml").read_text(encoding="utf-8"))
+    tasks = taskfile["tasks"]
+    assert "lia-skill-sandbox:local" in tasks["sandbox:image:build"]["vars"]["IMAGE"]
+    for name in ("dev", "dev:detach", "dev:all"):
+        assert {"task": "sandbox:image:build"} in tasks[name]["cmds"], name
 
 
 def test_profile_split_is_exact() -> None:

@@ -4,12 +4,13 @@ Each assertion is a measured 400 avoided (ADR-306, Claude API, 2026-09-23):
 
 * a non-default ``temperature`` is refused from Opus 4.7 on — so a slot's
   temperature must never reach those generations, thinking on or off;
-* a thinking block is bound to the conversation that produced it on Fable 5.1
-  and Opus 5.5, and an account created from 2026-08-31 gets a 400 once the
-  history before the block changed — LIA rebuilds the system prompt every turn,
-  so those two generations are sent the vendor's own degrade-instead-of-fail
-  control, with the beta header it requires (the control without the header
-  is itself a 400).
+* a thinking block is bound to the conversation that produced it on Fable 5.1,
+  Opus 5.5 and Sonnet 5.5, and an account created from 2026-08-31 gets a 400
+  once the history before the block changed — LIA rebuilds the system prompt
+  every turn, so those generations are sent the vendor's own
+  degrade-instead-of-fail control, with the beta header it requires (the
+  control without the header is itself a 400) — except beside Sonnet 5.5's
+  ``between_tools``, which refuses it (vendor reference, not measured).
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ _NO_SAMPLING = (
     "claude-fable-5",
     "claude-fable-5-1",
     "claude-opus-5-5",
+    "claude-sonnet-5-5",
 )
 _DROP = {"prefix_mismatch_behavior": "drop_block"}
 
@@ -89,7 +91,7 @@ def test_thinking_set_through_provider_config_also_omits_the_temperature() -> No
     assert kwargs["thinking"] == {"type": "enabled", "budget_tokens": 5000}
 
 
-@pytest.mark.parametrize("model", ("claude-fable-5-1", "claude-opus-5-5"))
+@pytest.mark.parametrize("model", ("claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5"))
 def test_a_binding_generation_asks_the_api_to_drop_rather_than_refuse(model: str) -> None:
     unasked = _init_kwargs(model)
     assert unasked["thinking"] == {"type": "adaptive", "block_binding": _DROP}
@@ -103,6 +105,27 @@ def test_a_binding_generation_asks_the_api_to_drop_rather_than_refuse(model: str
     }
     assert asked["output_config"] == {"effort": "high"}
     assert asked["betas"] == [ANTHROPIC_THINKING_BINDING_BETA]
+
+
+def test_sonnet_5_5_turned_off_goes_without_the_binding_control() -> None:
+    """``between_tools`` takes no other field: ``block_binding`` beside it is a
+    400 (preserved-thinking reference, 2026-09-30), and so is the beta header's
+    only purpose here. Nothing but the off switch is sent."""
+    kwargs = _init_kwargs("claude-sonnet-5-5", reasoning_effort=ReasoningIntent(level="none"))
+    assert kwargs["thinking"] == {"type": "between_tools"}
+    assert "betas" not in kwargs
+    assert "output_config" not in kwargs
+    assert kwargs["temperature"] is None
+
+
+def test_the_binding_control_follows_the_thinking_an_operator_set() -> None:
+    """The escape hatch may spell ``between_tools`` itself: no control rides it."""
+    kwargs = _init_kwargs(
+        "claude-sonnet-5-5",
+        provider_config=json.dumps({"thinking": {"type": "between_tools"}}),
+    )
+    assert kwargs["thinking"] == {"type": "between_tools"}
+    assert "betas" not in kwargs
 
 
 @pytest.mark.parametrize(

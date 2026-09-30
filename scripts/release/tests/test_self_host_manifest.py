@@ -29,6 +29,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.install.manifest import (  # noqa: E402
+    APP_IMAGES,
     ImageArtifact,
     ManifestError,
     PlatformArtifact,
@@ -69,7 +70,7 @@ def _catalogue_services() -> list[str]:
 
 
 def _manifest(qualification: str = "passed") -> SelfHostManifest:
-    images = tuple(_image(s) for s in ["api", "web", *_catalogue_services()])
+    images = tuple(_image(s) for s in [*APP_IMAGES, *_catalogue_services()])
     return SelfHostManifest(
         schema_version=1,
         release_version="1.29.0",
@@ -80,7 +81,7 @@ def _manifest(qualification: str = "passed") -> SelfHostManifest:
         source_context_archive_sha256="f" * 64,
         source_context_tree_sha256="0" * 64,
         images=images,
-        sboms={"api": "1" * 64, "web": "2" * 64},
+        sboms={app: str(index) * 64 for index, app in enumerate(APP_IMAGES, start=1)},
         qualification=qualification,  # type: ignore[arg-type]
     )
 

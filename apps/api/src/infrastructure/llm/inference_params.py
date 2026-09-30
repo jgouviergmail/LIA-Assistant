@@ -236,7 +236,9 @@ def _claude_reasoning(kept: dict[str, Any]) -> tuple[object, int | None]:
 
     ``ChatAnthropic`` publishes ``output_config`` and never its ``effort`` field,
     which is why the adapter carries the depth there (ADR-306); ``disabled`` is
-    the off switch, spelled out since Opus 5 thinks unasked.
+    the off switch, spelled out since Opus 5 thinks unasked, and
+    ``between_tools`` is Sonnet 5.5's (it refuses ``disabled``) -- both are the
+    ladder's ``none``.
 
     Args:
         kept: The allowlisted parameters.
@@ -249,7 +251,7 @@ def _claude_reasoning(kept: dict[str, Any]) -> tuple[object, int | None]:
     thinking = kept.get("thinking")
     if isinstance(thinking, dict):
         budget = _integer(thinking.get("budget_tokens"))
-        if thinking.get("type") == "disabled":
+        if thinking.get("type") in ("disabled", "between_tools"):
             level = "none"
     output_config = kept.get("output_config")
     if level is None and isinstance(output_config, dict):

@@ -23,17 +23,19 @@ pytestmark = [pytest.mark.unit]
 _SLEEP_SECONDS = 0.05
 
 
-def _register_tool(name: str, *, delay: float = _SLEEP_SECONDS, fail: bool = False) -> None:
+def _register_tool(
+    name: str, *, delay: float = _SLEEP_SECONDS, fail: bool = False, result: Any = None
+) -> None:
     from src.domains.agents.tools.tool_registry import get_tool, register_external_tool
 
     if get_tool(name) is not None:
         return
 
-    async def _fn() -> dict[str, Any]:
+    async def _fn() -> Any:
         await asyncio.sleep(delay)
         if fail:
             raise RuntimeError("boom")
-        return {"success": True, "data": "ok"}
+        return result if result is not None else {"success": True, "data": "ok"}
 
     register_external_tool(StructuredTool.from_function(coroutine=_fn, name=name, description="d"))
 
@@ -63,6 +65,34 @@ def _no_store(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "src.domains.agents.context.store.get_tool_context_store", _store, raising=True
     )
+
+
+class TestAnActivationIsRecordedForTheTurn:
+    """ADR-327: what the loop activated reaches the response node through the state."""
+
+    async def test_an_activation_joins_the_turns_record(self) -> None:
+        from src.domains.agents.tools.output import UnifiedToolOutput
+
+        _register_tool(
+            "fake_activation_tool",
+            result=UnifiedToolOutput.action_success(
+                message="on", metadata={"skill_name": "pdf", "activation": "dedicated_tool"}
+            ),
+        )
+        state = _state(
+            ["fake_activation_tool"],
+            [_call("fake_activation_tool", "c1")],
+            react_activated_skills=["earlier"],
+        )
+        update = await react_nodes.react_execute_tools_node(state, {})
+        assert update["react_activated_skills"] == ["earlier", "pdf"]
+
+    async def test_a_plain_call_records_nothing(self) -> None:
+        _register_tool("slow_tool")
+        update = await react_nodes.react_execute_tools_node(
+            _state(["slow_tool"], [_call("slow_tool", "c1")]), {}
+        )
+        assert "react_activated_skills" not in update
 
 
 class TestToolTimeIsCharged:

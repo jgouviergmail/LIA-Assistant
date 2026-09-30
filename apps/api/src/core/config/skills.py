@@ -19,6 +19,24 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    SKILL_COMMAND_COLLECT_GRACE_SECONDS,
+    SKILL_COMMAND_CPUS_DEFAULT,
+    SKILL_COMMAND_KILL_AFTER_SECONDS,
+    SKILL_COMMAND_MAX_FILE_MB_DEFAULT,
+    SKILL_COMMAND_MAX_INPUT_MB_DEFAULT,
+    SKILL_COMMAND_MAX_MEMORY_MB_DEFAULT,
+    SKILL_COMMAND_MAX_OUTPUT_FILES_DEFAULT,
+    SKILL_COMMAND_MAX_OUTPUT_MB_DEFAULT,
+    SKILL_COMMAND_MAX_TEXT_KB_DEFAULT,
+    SKILL_COMMAND_NETWORK_ENABLED_DEFAULT,
+    SKILL_COMMAND_RATE_LIMIT_CALLS_DEFAULT,
+    SKILL_COMMAND_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    SKILL_COMMAND_TIMEOUT_SECONDS_DEFAULT,
+    SKILL_COMMAND_TMPFS_MB_DEFAULT,
+    SKILL_PROPOSAL_RATE_LIMIT_CALLS_DEFAULT,
+    SKILL_PROPOSAL_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    SKILL_PROPOSAL_TTL_SECONDS_DEFAULT,
+    SKILL_PROPOSALS_MAX_PER_USER_DEFAULT,
     SKILL_SCRIPT_ONLY_CUMULATES_NATIVE_PLAN_DEFAULT,
     SKILLS_MAX_PER_USER_DEFAULT,
     SKILLS_SCRIPT_DROP_PRIVILEGES,
@@ -31,6 +49,7 @@ from src.core.constants import (
     SKILLS_SCRIPT_SANDBOX_DEFAULT,
     SKILLS_SCRIPT_SANDBOX_IMAGE_DEFAULT,
     SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT,
+    SKILLS_SCRIPT_SANDBOX_STARTUP_GRACE_SECONDS,
     SKILLS_SCRIPT_SANDBOX_TMPFS_MB,
     SKILLS_SCRIPT_TIMEOUT_SECONDS,
     SKILLS_SCRIPT_UNPRIVILEGED_GID,
@@ -122,10 +141,34 @@ class SkillsSettings(BaseSettings):
     skills_chat_import_enabled: bool = Field(
         default=True,
         description=(
-            "Enable direct skill import from chat via the import_user_skill tool "
-            "(skill-generator flow). When false, generated skills must be "
-            "imported manually through Settings."
+            "Let the chat propose a skill it wrote (import_user_skill, the "
+            "skill-generator flow): the person installs it from the card under "
+            "the answer. When false, generated skills are imported through Settings."
         ),
+    )
+    skill_proposal_ttl_seconds: int = Field(
+        default=SKILL_PROPOSAL_TTL_SECONDS_DEFAULT,
+        ge=600,
+        le=604800,
+        description="How long a skill proposed in the chat may be installed from its card (s).",
+    )
+    skill_proposals_max_per_user: int = Field(
+        default=SKILL_PROPOSALS_MAX_PER_USER_DEFAULT,
+        ge=1,
+        le=50,
+        description="Live skill proposals one account keeps; the oldest makes room.",
+    )
+    skill_proposal_rate_limit_calls: int = Field(
+        default=SKILL_PROPOSAL_RATE_LIMIT_CALLS_DEFAULT,
+        ge=1,
+        le=1000,
+        description="Reads and installs of skill proposals per account and window.",
+    )
+    skill_proposal_rate_limit_window_seconds: int = Field(
+        default=SKILL_PROPOSAL_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+        ge=1,
+        le=3600,
+        description="The window of the skill proposal rate limit (s).",
     )
 
     # ========================================================================
@@ -267,8 +310,9 @@ class SkillsSettings(BaseSettings):
             "no Docker socket, no network, read-only root and an unprivileged uid "
             "— the only option that stops a script inheriting the API's docker "
             "group. 'subprocess': historical in-process path, protective ONLY when "
-            "the API itself runs as root. Selecting 'container' without a reachable "
-            "Docker daemon fails the execution; it never downgrades silently."
+            "the API itself runs as root, and without the sandbox image's libraries. "
+            "Selecting 'container' without a reachable Docker daemon fails the "
+            "execution; it never downgrades silently."
         ),
     )
 
@@ -276,9 +320,10 @@ class SkillsSettings(BaseSettings):
         default=SKILLS_SCRIPT_SANDBOX_IMAGE_DEFAULT,
         min_length=1,
         description=(
-            "Image for the sandbox container. Defaults to the API's own image so "
-            "the interpreter and installed packages match exactly — a different "
-            "image drifts and breaks skills importing a backend dependency."
+            "Image for the sandbox container: the dedicated sandbox image "
+            "(apps/api/Dockerfile.sandbox, ADR-327) — Python, Node, the promised "
+            "libraries and commands, and neither the Docker client nor the "
+            "application's code. `task sandbox:libraries:check` proves an image."
         ),
     )
 
@@ -297,4 +342,111 @@ class SkillsSettings(BaseSettings):
         ge=1,
         le=512,
         description="Size of the writable /tmp tmpfs inside the sandbox (MB).",
+    )
+
+    # ========================================================================
+    # Skill commands (ADR-327 lot 2) — gated by skills_scripts_enabled, since
+    # they run in the same container sandbox, and refused outside it.
+    # ========================================================================
+
+    skill_command_timeout_seconds: int = Field(
+        default=SKILL_COMMAND_TIMEOUT_SECONDS_DEFAULT,
+        ge=1,
+        le=600,
+        description="Wall-clock budget of one skill command (seconds).",
+    )
+    skill_command_max_memory_mb: int = Field(
+        default=SKILL_COMMAND_MAX_MEMORY_MB_DEFAULT,
+        ge=128,
+        le=16384,
+        description=(
+            "Memory ceiling of a command's container (MB). Its tmpfs pages count "
+            "against it: keep it well above skill_command_tmpfs_mb."
+        ),
+    )
+    skill_command_cpus: float = Field(
+        default=SKILL_COMMAND_CPUS_DEFAULT,
+        ge=0.1,
+        le=64,
+        description=(
+            "Cores one command may use (docker --cpus); its CPU-time ulimit is these "
+            "cores over the budget, so a threaded program is not killed early."
+        ),
+    )
+    skill_command_tmpfs_mb: int = Field(
+        default=SKILL_COMMAND_TMPFS_MB_DEFAULT,
+        ge=16,
+        le=8192,
+        description="Writable tmpfs of a command's container: the copy, inputs and outputs (MB).",
+    )
+    skill_command_max_input_mb: int = Field(
+        default=SKILL_COMMAND_MAX_INPUT_MB_DEFAULT,
+        ge=1,
+        le=4096,
+        description="What one command carries in — the skill folder and the turn's files (MB).",
+    )
+    skill_command_max_file_mb: int = Field(
+        default=SKILL_COMMAND_MAX_FILE_MB_DEFAULT,
+        ge=1,
+        le=4096,
+        description="Largest single file in or out of a command (MB) — also its fsize ulimit.",
+    )
+    skill_command_max_output_files: int = Field(
+        default=SKILL_COMMAND_MAX_OUTPUT_FILES_DEFAULT,
+        ge=1,
+        le=100,
+        description="Files a command may hand back from out/.",
+    )
+    skill_command_max_output_mb: int = Field(
+        default=SKILL_COMMAND_MAX_OUTPUT_MB_DEFAULT,
+        ge=1,
+        le=4096,
+        description="All the files a command hands back, together (MB).",
+    )
+
+    @property
+    def skills_script_wall_seconds(self) -> int:
+        """How long one script may hold its caller: its budget and the container's start."""
+        return self.skills_script_timeout_seconds + SKILLS_SCRIPT_SANDBOX_STARTUP_GRACE_SECONDS
+
+    @property
+    def skill_command_wall_seconds(self) -> int:
+        """How long one command may hold its caller (ADR-327 lot 2).
+
+        Its budget, the ``timeout -k`` grace, the container's start and the
+        packing of what it wrote — the ONE figure the runner waits for and a
+        plan step is given, so no layer above cuts a run the sandbox still allows.
+        """
+        return (
+            self.skill_command_timeout_seconds
+            + SKILL_COMMAND_KILL_AFTER_SECONDS
+            + SKILLS_SCRIPT_SANDBOX_STARTUP_GRACE_SECONDS
+            + SKILL_COMMAND_COLLECT_GRACE_SECONDS
+        )
+
+    skill_command_rate_limit_calls: int = Field(
+        default=SKILL_COMMAND_RATE_LIMIT_CALLS_DEFAULT,
+        ge=1,
+        le=600,
+        description="Skill commands one account may run per window (ADR-327).",
+    )
+    skill_command_rate_limit_window_seconds: int = Field(
+        default=SKILL_COMMAND_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+        ge=1,
+        le=3600,
+        description="Window of the skill command rate limit (seconds).",
+    )
+    skill_command_network_enabled: bool = Field(
+        default=SKILL_COMMAND_NETWORK_ENABLED_DEFAULT,
+        description=(
+            "Let a skill's command reach the hosts it declares through the egress proxy "
+            "(ADR-327 lot 3). Effective only where the sandbox's egress capability is on; "
+            "off, every command runs offline."
+        ),
+    )
+    skill_command_max_text_kb: int = Field(
+        default=SKILL_COMMAND_MAX_TEXT_KB_DEFAULT,
+        ge=1,
+        le=1024,
+        description="Standard output and standard error kept from a command, each (KB).",
     )

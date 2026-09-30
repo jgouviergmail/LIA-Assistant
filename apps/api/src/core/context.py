@@ -21,7 +21,7 @@ Author: Claude Code (Opus 4.5)
 Date: 2026-02-04
 """
 
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -168,6 +168,95 @@ admin_mcp_disabled_ctx: ContextVar[set[str] | None] = ContextVar(
 # Set per-request in AgentService._stream_with_new_services() via SkillPreferenceService.
 # Read by build_skills_catalog(), response_node, and skill_bypass to filter by inclusion.
 active_skills_ctx: ContextVar[set[str] | None] = ContextVar("active_skills_ctx", default=None)
+
+# The person's THIRD-PARTY skill names (url, plugin, library — ADR-327), bound
+# beside the active set by ``bind_skill_context``. None means « not loaded »,
+# which every reader treats as « every user skill is third-party » (fail closed).
+third_party_skills_ctx: ContextVar[frozenset[str] | None] = ContextVar(
+    "third_party_skills_ctx", default=None
+)
+
+
+@dataclass(frozen=True, slots=True)
+class SkillTurnFile:
+    """A file the person attached to THIS turn, as a skill command receives it (ADR-327).
+
+    Attributes:
+        attachment_id: The attachment's id (logs).
+        filename: The name the person gave it.
+        file_path: Where it is stored, relative to the attachments root.
+        size: Its size in bytes.
+    """
+
+    attachment_id: str
+    filename: str
+    file_path: str
+    size: int
+
+
+# The files of the current turn (ADR-327 lot 2): a skill command carries them
+# into its sandbox. A LIST bound fresh by ``bind_skill_context`` for each
+# request, filled by the attachment injection once it has read them — never a
+# value that outlives the request, since a scheduler may run several people's
+# turns one after another in the same task.
+skill_turn_files_ctx: ContextVar[list[SkillTurnFile] | None] = ContextVar(
+    "skill_turn_files_ctx", default=None
+)
+
+
+@dataclass(frozen=True)
+class SkillContextTokens:
+    """The resets of one request's skill context (see ``bind_skill_context``)."""
+
+    active: Token[set[str] | None]
+    third_party: Token[frozenset[str] | None]
+    turn_files: Token[list[SkillTurnFile] | None]
+
+
+def bind_skill_context(active: set[str], third_party: frozenset[str]) -> SkillContextTokens:
+    """Bind a request's active and third-party skill names, and its empty file list.
+
+    One handle for all three, so the request that binds them resets them together.
+
+    Args:
+        active: Names whose resolved skill is active.
+        third_party: Names whose resolved skill was written elsewhere.
+
+    Returns:
+        The handle ``reset_skill_context`` takes.
+    """
+    return SkillContextTokens(
+        active=active_skills_ctx.set(active),
+        third_party=third_party_skills_ctx.set(third_party),
+        turn_files=skill_turn_files_ctx.set([]),
+    )
+
+
+def reset_skill_context(tokens: SkillContextTokens) -> None:
+    """Undo ``bind_skill_context``, in reverse order."""
+    skill_turn_files_ctx.reset(tokens.turn_files)
+    third_party_skills_ctx.reset(tokens.third_party)
+    active_skills_ctx.reset(tokens.active)
+
+
+def record_skill_turn_files(files: list[SkillTurnFile]) -> None:
+    """Record the turn's files for its skill commands; nothing outside a bound request."""
+    bound = skill_turn_files_ctx.get()
+    if bound is not None:
+        bound.extend(files)
+
+
+def skill_turn_files() -> tuple[SkillTurnFile, ...]:
+    """The current turn's files, as recorded — empty outside a request."""
+    return tuple(skill_turn_files_ctx.get() or ())
+
+
+# The one skill the isolated runner of a third-party skill runs (ADR-327). Set
+# by ``skills.trust.isolated_to`` around that runner only: while it is set, the
+# skill tools serve that skill and refuse every other. None: no runner is
+# isolated, and a third-party skill's content reaches the caller as external.
+isolated_skill_ctx: ContextVar[str | None] = ContextVar("isolated_skill_ctx", default=None)
+
 
 # Capability the user invoked directly on this request, e.g. the 360° button on
 # a relationship card: {"capability": ..., "subject": ...} (ADR-191).

@@ -15,6 +15,7 @@ import pytest
 from fastapi import HTTPException
 
 from src.core.config import settings
+from src.domains.skills.models import SkillProvenance
 from src.domains.skills.router import (
     SkillUrlImportRequest,
     _url_import_rate_limit,
@@ -56,8 +57,13 @@ class TestImportFromUrlEndpoint:
                 user=user,
                 db=MagicMock(),
             )
+        # A skill LIA fetched from an address is third-party (ADR-327).
         svc.import_upload.assert_awaited_once_with(
-            SKILL_BYTES, "SKILL.md", owner_id=user.id, is_system=False
+            SKILL_BYTES,
+            "SKILL.md",
+            owner_id=user.id,
+            is_system=False,
+            provenance=SkillProvenance.URL,
         )
         assert result["name"] == "net-skill"
         assert result["scope"] == "user"

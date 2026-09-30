@@ -230,10 +230,12 @@ class TestReasoningSpeaksADR245sVocabulary:
 
         assert captured.reasoning_level == "xhigh"
 
-    def test_an_anthropic_off_switch_reads_as_the_ladders_none(self) -> None:
-        """``disabled`` is how Opus 5 and Sonnet 5 are told not to think."""
+    @pytest.mark.parametrize("off_switch", ["disabled", "between_tools"])
+    def test_an_anthropic_off_switch_reads_as_the_ladders_none(self, off_switch: str) -> None:
+        """``disabled`` is how Opus 5 and Sonnet 5 are told not to think;
+        ``between_tools`` is Sonnet 5.5's, which refuses ``disabled``."""
         captured = capture_inference_params(
-            {"_type": "anthropic-chat", "thinking": {"type": "disabled"}}
+            {"_type": "anthropic-chat", "thinking": {"type": off_switch}}
         )
 
         assert captured.reasoning_level == "none"

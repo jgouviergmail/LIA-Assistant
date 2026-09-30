@@ -24,6 +24,14 @@ SHA256_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 BARE_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 SOURCE_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
+#: The images a release builds from this repository, each pinned by digest
+#: and carrying an SBOM: the API, the web app, and the skill sandbox every
+#: sandbox run starts from (ADR-327 lot 2) -- which is no Compose service.
+APP_IMAGES: tuple[str, ...] = ("api", "web", "sandbox")
+
+#: The app image a sandbox run (a skill's script or command) starts from.
+SANDBOX_IMAGE_SERVICE = "sandbox"
+
 REQUIRED_PLATFORMS: tuple[str, ...] = ("linux/amd64", "linux/arm64")
 
 
@@ -112,7 +120,7 @@ def _catalogue_services() -> tuple[str, ...]:
         entries = json.loads(catalogue.read_text(encoding="utf-8"))
     except OSError as exc:
         raise ManifestError(f"dependency catalogue unreadable: {exc}") from exc
-    return ("api", "web", *(entry["service"] for entry in entries))
+    return (*APP_IMAGES, *(entry["service"] for entry in entries))
 
 
 def validate_manifest(manifest: SelfHostManifest) -> tuple[str, ...]:
@@ -157,7 +165,7 @@ def validate_manifest(manifest: SelfHostManifest) -> tuple[str, ...]:
     for required_service in _catalogue_services():
         if required_service not in seen:
             errors.append(f"missing image entry for service {required_service}")
-    for app in ("api", "web"):
+    for app in APP_IMAGES:
         if app not in manifest.sboms:
             errors.append(f"missing SBOM hash for {app}")
         elif not BARE_SHA256_PATTERN.fullmatch(manifest.sboms[app]):

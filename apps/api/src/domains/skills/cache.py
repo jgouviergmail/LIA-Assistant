@@ -101,10 +101,11 @@ class SkillsCache:
         )
 
     @classmethod
-    def get_for_user(cls, user_id: str) -> list[dict[str, Any]]:
+    def get_for_user(cls, user_id: str | None) -> list[dict[str, Any]]:
         """Admin skills + user's own skills, with override semantics.
 
         Per agentskills.io: user skills override admin skills with same name.
+        Without a person (None or empty), system skills only.
         """
         by_name: dict[str, dict[str, Any]] = {}
         for s in cls._skills.values():
@@ -115,38 +116,57 @@ class SkillsCache:
         return list(by_name.values())
 
     @classmethod
-    def get_by_name(cls, name: str) -> dict[str, Any] | None:
-        """Find a skill by name (first match, any scope)."""
-        for skill in cls._skills.values():
-            if skill["name"] == name:
-                return skill
-        return None
+    def get_exact(cls, name: str, owner_id: str | None) -> dict[str, Any] | None:
+        """The skill of that name in ONE scope: the owner's, or the system's for None.
+
+        A name is unique per account (ADR-327), so a lookup must say whose skill
+        it wants. The historical any-scope ``get_by_name`` returned the first
+        match whoever owned it — with per-account names, one person's skill
+        handed to another.
+
+        Args:
+            name: Skill name.
+            owner_id: The owner's id, or None for the system skill.
+
+        Returns:
+            The cache entry, or None.
+        """
+        from src.domains.skills.loader import cache_identity
+
+        return cls._skills.get(cache_identity(name, owner_id))
 
     @classmethod
-    def get_by_name_for_user(cls, name: str, user_id: str) -> dict[str, Any] | None:
+    def get_system_by_name(cls, name: str) -> dict[str, Any] | None:
+        """The SYSTEM skill of that name, never a person's.
+
+        Args:
+            name: Skill name.
+
+        Returns:
+            The admin-scope cache entry, or None.
+        """
+        return cls.get_exact(name, None)
+
+    @classmethod
+    def get_by_name_for_user(cls, name: str, user_id: str | None) -> dict[str, Any] | None:
         """Find a skill by name with user override semantics.
 
         If both admin and user skill exist with the same name,
-        the user's version wins (per agentskills.io standard).
+        the user's version wins (per agentskills.io standard). Another
+        person's skill of that name is never reached (ADR-327), and without a
+        person (None or empty) only the system skill is.
         """
-        admin_match: dict[str, Any] | None = None
-        for skill in cls._skills.values():
-            if skill["name"] != name:
-                continue
-            if skill["scope"] == "user" and skill.get("owner_id") == user_id:
-                return skill  # User skill takes priority
-            if skill["scope"] == "admin":
-                admin_match = skill
-        return admin_match
+        own = cls.get_exact(name, user_id) if user_id else None
+        return own or cls.get_system_by_name(name)
 
     @classmethod
     def get_always_loaded(cls, user_id: str | None = None) -> list[dict[str, Any]]:
-        """Return skills marked as always_loaded for injection."""
-        return [
-            s
-            for s in cls._skills.values()
-            if s.get("always_loaded") and (s["scope"] == "admin" or s.get("owner_id") == user_id)
-        ]
+        """Return skills marked as always_loaded for injection.
+
+        Read on the skills the person's names RESOLVE to (ADR-327): a system
+        skill their own skill shadows is never injected beside it.
+        """
+        return [s for s in cls.get_for_user(user_id) if s.get("always_loaded")]
 
     @classmethod
     async def invalidate_and_reload(cls) -> None:

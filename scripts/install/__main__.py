@@ -54,7 +54,12 @@ from scripts.install.host_paths import (
     required_host_paths,
 )
 from scripts.install.log import InstallLog
-from scripts.install.manifest import hash_file, load_manifest, render_image_lock
+from scripts.install.manifest import (
+    SANDBOX_IMAGE_SERVICE,
+    hash_file,
+    load_manifest,
+    render_image_lock,
+)
 from scripts.install.model import (
     Clock,
     Exposure,
@@ -148,25 +153,28 @@ def _prebuilt_pins(public: PublicAnswers) -> tuple[str | None, str | None]:
     """Manifest-derived pins for prebuilt mode: image lock + sandbox image.
 
     Returns:
-        ``(image_lock_yaml, sandbox_api_image)`` — both ``None`` outside
+        ``(image_lock_yaml, sandbox_image)`` — both ``None`` outside
         prebuilt mode. The lock is the ``docker-compose.images.yml`` content
         `build_invocation` already references (``render_image_lock`` had
         ZERO call sites until the v1.30.1 qualification: every prebuilt
         install died on the missing Compose layer). The sandbox image is
-        the manifest's API reference — the base file's ``lia-api:local``
-        fallback is a tag a prebuilt host never has.
+        the manifest's own sandbox reference (ADR-327 lot 2) — the base
+        file's ``lia-skill-sandbox:local`` fallback is a tag a prebuilt host
+        never builds.
     """
     if public.mode is not InstallMode.PREBUILT or public.manifest_path is None:
         return None, None
     manifest = load_manifest(public.manifest_path, required_qualification="passed")
     lock = render_image_lock(manifest, locked_services(public))
-    sandbox_api_image: str | None = None
+    sandbox_image: str | None = None
     if public.skill_sandbox:
-        # `render_image_lock` above already guarantees an `api` entry.
-        sandbox_api_image = next(
-            image.reference for image in manifest.images if image.service == "api"
+        # `load_manifest` validated it: every app image has an entry.
+        sandbox_image = next(
+            image.reference
+            for image in manifest.images
+            if image.service == SANDBOX_IMAGE_SERVICE
         )
-    return lock, sandbox_api_image
+    return lock, sandbox_image
 
 
 def _generate_artifacts(
@@ -175,7 +183,7 @@ def _generate_artifacts(
     *,
     seed_intent: bool,
     generated: Mapping[str, str],
-    sandbox_api_image: str | None,
+    sandbox_image: str | None,
     image_lock: str | None,
 ) -> str:
     """Render .env / override / image lock / Caddyfile, prepare host paths."""
@@ -198,7 +206,7 @@ def _generate_artifacts(
             public,
             seed_intent=seed_intent,
             seed_bundle_sha256=seed_digest,
-            sandbox_api_image=sandbox_api_image,
+            sandbox_image=sandbox_image,
         ),
     )
     if image_lock is not None:
@@ -219,7 +227,7 @@ def _disarm_seeds(
     deps: Deps,
     public: PublicAnswers,
     seed_digest: str,
-    sandbox_api_image: str | None,
+    sandbox_image: str | None,
 ) -> None:
     """Atomically rewrite the override with APPLY_SEEDS=false.
 
@@ -232,7 +240,7 @@ def _disarm_seeds(
             public,
             seed_intent=False,
             seed_bundle_sha256=seed_digest,
-            sandbox_api_image=sandbox_api_image,
+            sandbox_image=sandbox_image,
         ),
     )
 
@@ -279,7 +287,7 @@ def _deploy_sequence(
     secrets: SecretAnswers,
     state: InstallState,
     seed_digest: str,
-    sandbox_api_image: str | None,
+    sandbox_image: str | None,
 ) -> InstallState:
     invocation = build_invocation(public, root=deps.root)
     # An install whose bootstrap never completed is still a FIRST install
@@ -311,13 +319,18 @@ def _deploy_sequence(
                 # diagnose — the log states WHY nothing was extracted.
                 log.write("source_context_absent", reason="no_embedded_archive")
         log.write("step_started", step="acquire")
-        deploy.acquire(invocation, deps.runner)
+        deploy.acquire(
+            invocation,
+            deps.runner,
+            sandbox_image=sandbox_image,
+            sandbox_build_root=deps.root if public.skill_sandbox else None,
+        )
         log.write("step_started", step="validate_settings")
         deploy.validate_settings(invocation, deps.runner)
         log.write("step_started", step="start", seeds="armed")
         deploy.start(invocation, deps.runner, seed_intent=True)
         deploy.wait_ready(READY_URL, deps.opener, deps.clock)
-        _disarm_seeds(deps, public, seed_digest, sandbox_api_image)
+        _disarm_seeds(deps, public, seed_digest, sandbox_image)
         log.write("seeds_disarmed")
         log.write("step_started", step="bootstrap")
         deploy.run_bootstrap(invocation, public, secrets, deps.runner)
@@ -469,7 +482,7 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
             public,
             seed_intent=True,
             generated=generated,
-            sandbox_api_image=sandbox_image,
+            sandbox_image=sandbox_image,
             image_lock=image_lock,
         )
         state = _fresh_state(public, seed_digest, deps.root)

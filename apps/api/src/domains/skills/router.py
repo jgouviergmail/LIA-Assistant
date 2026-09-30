@@ -31,7 +31,6 @@ from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.skills.exceptions import (
     raise_admin_skill_delete_forbidden,
-    raise_admin_skill_only,
     raise_skill_invalid_format,
     raise_skill_locked_by_plugin,
     raise_skill_not_found,
@@ -39,6 +38,7 @@ from src.domains.skills.exceptions import (
     raise_skill_translation_invalid,
     raise_skill_write_failed,
 )
+from src.domains.skills.models import SkillProvenance
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -130,7 +130,7 @@ def _merge_with_cache(
     """Merge DB skill data with SkillsCache technical metadata for API response."""
     from src.domains.skills.cache import SkillsCache
 
-    cached = SkillsCache.get_by_name(db_data["name"])
+    cached = SkillsCache.get_exact(db_data["name"], db_data.get("owner_id"))
     return {
         "name": db_data["name"],
         "description": db_data["description"],
@@ -150,6 +150,10 @@ def _merge_with_cache(
         # UXR Lot 10 (B12): declared output channels (None ⇒ "text" default
         # in the gallery UI).
         "outputs": cached.get("outputs") if cached else None,
+        # ADR-327: how the content arrived (a third-party skill is marked in the
+        # gallery, and a library skill is updated from its source, never edited).
+        "skill_id": db_data.get("skill_id"),
+        "provenance": db_data.get("provenance"),
     }
 
 
@@ -269,8 +273,8 @@ async def download_admin_skill(
     """Download a system (admin) skill directory as a zip archive."""
     from src.domains.skills.cache import SkillsCache
 
-    skill = SkillsCache.get_by_name(skill_name)
-    if not skill or skill.get("scope") != "admin":
+    skill = SkillsCache.get_system_by_name(skill_name)
+    if not skill:
         raise_skill_not_found(skill_name, scope="admin")
 
     # Offload directory read + zip compression off the event loop (CA-4).
@@ -295,9 +299,10 @@ async def delete_admin_skill(
     """Delete a system skill from disk + DB and reload the cache."""
     from src.domains.skills.cache import SkillsCache
     from src.domains.skills.preference_service import SkillPreferenceService
+    from src.domains.skills.repository import SkillRepository
 
-    skill = SkillsCache.get_by_name(skill_name)
-    if not skill or skill.get("scope") != "admin":
+    skill = SkillsCache.get_system_by_name(skill_name)
+    if not skill:
         raise_skill_not_found(skill_name, scope="admin")
 
     # Delete from disk
@@ -305,9 +310,10 @@ async def delete_admin_skill(
     if skill_dir.exists():
         shutil.rmtree(skill_dir, ignore_errors=True)
 
-    # Delete from DB (CASCADE deletes user_skill_states)
-    svc = SkillPreferenceService(db)
-    await svc.delete_skill(skill_name)
+    # Delete from DB (CASCADE deletes user_skill_states) — the SYSTEM row only.
+    row = await SkillRepository(db).get_system(skill_name)
+    if row is not None:
+        await SkillPreferenceService(db).delete_skill(row.id)
     await db.commit()
     await SkillsCache.invalidate_and_reload()
 
@@ -333,8 +339,8 @@ async def update_admin_skill_description(
     from src.domains.skills.preference_service import SkillPreferenceService
     from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
-    skill = SkillsCache.get_by_name(skill_name)
-    if not skill or skill.get("scope") != "admin":
+    skill = SkillsCache.get_system_by_name(skill_name)
+    if not skill:
         raise_skill_not_found(skill_name, scope="admin")
 
     invoke_config = enrich_config_with_node_metadata(None, "skill_description_translation")
@@ -446,7 +452,7 @@ async def skill_preview(
     if not skill:
         raise_skill_not_found(skill_name)
 
-    db_skill = await SkillRepository(db).get_by_name(skill_name)
+    db_skill = await SkillRepository(db).resolve_for_user(user.id, skill_name)
     if db_skill is not None and db_skill.is_system and not db_skill.admin_enabled:
         raise_skill_not_found(skill_name)
 
@@ -532,7 +538,13 @@ async def import_skill_from_url(
 
     svc = SkillImportService(db)
     try:
-        skill = await svc.import_upload(content, filename, owner_id=user.id, is_system=False)
+        skill = await svc.import_upload(
+            content,
+            filename,
+            owner_id=user.id,
+            is_system=False,
+            provenance=SkillProvenance.URL,
+        )
     except HTTPException:
         skill_url_imports_total.labels(outcome="pipeline_rejected").inc()
         raise
@@ -605,7 +617,7 @@ async def delete_skill(
     # plugin is the same anti-pattern as a false success).
     from src.domains.skills.repository import SkillRepository
 
-    row = await SkillRepository(db).get_by_name(skill_name)
+    row = await SkillRepository(db).get_owned(user.id, skill_name)
     if row is not None and row.plugin_id is not None:
         raise_skill_locked_by_plugin(skill_name)
 
@@ -614,9 +626,9 @@ async def delete_skill(
     if skill_dir.exists():
         shutil.rmtree(skill_dir, ignore_errors=True)
 
-    # Delete from DB
-    svc = SkillPreferenceService(db)
-    await svc.delete_skill(skill_name)
+    # Delete from DB — this person's row only (ADR-327: a name is per account).
+    if row is not None:
+        await SkillPreferenceService(db).delete_skill(row.id)
     await db.commit()
 
     await SkillsCache.invalidate_and_reload()
@@ -667,8 +679,8 @@ async def admin_system_toggle_skill(
     from src.domains.skills.repository import SkillRepository
 
     skill_repo = SkillRepository(db)
-    db_skill = await skill_repo.get_by_name(skill_name)
-    if not db_skill or not db_skill.is_system:
+    db_skill = await skill_repo.get_system(skill_name)
+    if not db_skill:
         raise_skill_not_found(skill_name, scope="admin")
 
     new_state = not db_skill.admin_enabled
@@ -703,11 +715,9 @@ async def translate_skill_description(
     from src.domains.skills.preference_service import SkillPreferenceService
     from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
-    skill = SkillsCache.get_by_name(skill_name)
+    skill = SkillsCache.get_system_by_name(skill_name)
     if not skill:
-        raise_skill_not_found(skill_name)
-    if skill.get("scope") != "admin":
-        raise_admin_skill_only("translated")
+        raise_skill_not_found(skill_name, scope="admin")
 
     invoke_config = enrich_config_with_node_metadata(None, "skill_description_translation")
     try:

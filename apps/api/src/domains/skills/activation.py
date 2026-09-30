@@ -28,11 +28,7 @@ def activate_skill(skill_name: str, user_id: str | None = None) -> str | None:
     """
     from src.domains.skills.cache import SkillsCache
 
-    skill = (
-        SkillsCache.get_by_name_for_user(skill_name, user_id)
-        if user_id
-        else SkillsCache.get_by_name(skill_name)
-    )
+    skill = SkillsCache.get_by_name_for_user(skill_name, user_id)
     if not skill:
         return None
 

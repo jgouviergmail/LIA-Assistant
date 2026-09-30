@@ -67,6 +67,36 @@ async def test_decoration_failure_cannot_prevent_or_repeat_an_operation() -> Non
     assert len(events) == 2  # The ownership context was released even on emitter failure.
 
 
+async def test_without_a_run_to_file_it_under_nothing_is_emitted_and_nothing_warned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The response node's skill runner publishes no effect scope: every tool it
+    called warned `companion_activity_unavailable` (an empty run id refused by
+    the model — four times per turn on dev, 2026-09-30). No run, no activity."""
+    from src.domains.agents.expressivity import activity as module
+
+    calls = 0
+
+    async def run() -> dict[str, bool]:
+        nonlocal calls
+        calls += 1
+        return {"success": True}
+
+    events: list[Activity] = []
+    monkeypatch.setattr(module, "_observable", lambda: True)
+    token = module._CAPTURE.set(None)
+    try:
+        with (
+            patch("src.domains.agents.expressivity.activity.emit_activity", events.append),
+            patch("src.domains.agents.expressivity.activity.logger.warning") as warned,
+        ):
+            assert await observe_activity("reader", "read", run) == {"success": True}
+    finally:
+        module._CAPTURE.reset(token)
+    assert calls == 1 and events == []
+    warned.assert_not_called()
+
+
 async def test_unavailable_graph_context_cannot_prevent_or_repeat_the_operation() -> None:
     calls = 0
     result = {"success": True}

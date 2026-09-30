@@ -3,6 +3,20 @@ import { useCallback } from 'react';
 import { apiEndpointUrl } from '@/lib/api-client';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
+import { useResourceRevision } from '@/stores/revisionStore';
+
+/** How a skill's content arrived (ADR-327). */
+export type SkillProvenance = 'system' | 'authored' | 'url' | 'plugin' | 'library';
+
+const THIRD_PARTY: ReadonlySet<string> = new Set<SkillProvenance>(['url', 'plugin', 'library']);
+
+/**
+ * Whether a skill was written outside LIA (an address, a plugin, a library):
+ * it runs isolated, draws no image or web content, and says so in the gallery.
+ */
+export function isThirdPartySkill(skill: Pick<Skill, 'provenance'>): boolean {
+  return THIRD_PARTY.has(skill.provenance ?? '');
+}
 
 /**
  * Skill from the API (L1 safe subset — no instructions).
@@ -30,6 +44,10 @@ export interface Skill {
    * skill" tooltip.
    */
   outputs?: string[] | null;
+  /** The skill's id (ADR-327) — what the library's update routes name. */
+  skill_id?: string | null;
+  /** How its content arrived (ADR-327); absent from an older API. */
+  provenance?: SkillProvenance | null;
 }
 
 /**
@@ -65,7 +83,6 @@ interface AdminSystemToggleResponse {
 
 const ENDPOINT = '/skills';
 
-
 /**
  * URL of a skill's gallery preview image (UXR Lot 10, B12) — the backend
  * serves only `assets/preview.png`, 404 when the skill bundles none.
@@ -81,6 +98,7 @@ export function skillPreviewUrl(skillName: string): string {
  *   with admin_enabled flag). Used by AdminSkillsSection only.
  */
 export function useSkills(adminView = false) {
+  const revision = useResourceRevision('skills');
   const listEndpoint = adminView ? `${ENDPOINT}/admin/list` : ENDPOINT;
   const {
     data: listData,
@@ -91,6 +109,8 @@ export function useSkills(adminView = false) {
   } = useApiQuery<SkillListResponse>(listEndpoint, {
     componentName: 'Skills',
     initialData: { skills: [], total: 0 },
+    // A skill installed from the chat's card (ADR-327) is read again here.
+    deps: [revision],
   });
 
   const skills = listData?.skills ?? [];
@@ -332,9 +352,7 @@ export function useSkills(adminView = false) {
   /** Download any accessible skill as a zip archive (browser download). */
   const downloadSkill = useCallback(async (skillName: string, isAdmin = false) => {
     const endpoint = apiEndpointUrl(
-      isAdmin
-        ? `${ENDPOINT}/admin/${skillName}/download`
-        : `${ENDPOINT}/${skillName}/download`
+      isAdmin ? `${ENDPOINT}/admin/${skillName}/download` : `${ENDPOINT}/${skillName}/download`
     );
 
     const response = await fetch(endpoint, { credentials: 'include' });

@@ -35,6 +35,7 @@ import { MeetingMinutesCard } from '@/components/meetings/MeetingMinutesCard';
 import { isMeetingNotificationMetadata } from '@/types/meetings';
 import { CallDebrief } from '@/components/telephony/CallDebrief';
 import { LiveSessionSummaryCard } from '@/components/live/LiveSessionSummaryCard';
+import { SkillProposalCards } from '@/components/chat/SkillProposalCards';
 import { isLiveRow, isLiveSummary } from '@/lib/live/live-message';
 import { isPhoneCallDebrief } from '@/types/telephony';
 import {
@@ -1194,6 +1195,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             {/* AI-generated document cards (ADR-226) — same slot, below images;
                 the component renders null without documents (hotspot CC rule) */}
             <GeneratedDocumentCards documents={message.generatedDocuments} />
+            {/* ADR-327: a skill the chat wrote, installed only from its card —
+                renders nothing without proposals (hotspot CC rule). */}
+            <SkillProposalCards proposals={message.skillProposals} />
             {/* T01: structured debrief under a post-call report (renders
                 nothing for every other message — the block owns its checks). */}
             <PhoneCallDebriefBlock metadata={message.metadata} />

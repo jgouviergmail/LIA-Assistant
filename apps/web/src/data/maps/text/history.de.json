@@ -1727,6 +1727,11 @@
       "title": "Kein feindlicher Text friert LIA ein, keine Weiterleitung lenkt sie um",
       "summary": "Die Funktionen, die einen Text für eine Stimme, eine Benachrichtigung oder eine Karte glätten, lasen manche Texte in exponentieller Zeit: 51 im Chat getippte Zeichen kosteten 4,5 s, eine präparierte E-Mail von 32 KB fror LIA 3 s lang ein. Jedes Muster ist linear neu geschrieben, und zwei Tests halten das, auf dem Server wie im Browser. Das Lesen einer Webseite prüft nun jede Weiterleitung, bevor es ihr folgt, und verbindet sich mit der geprüften Adresse, nie mit einer späteren Auflösung des Namens.",
       "src": "b378d83b1215"
+    },
+    "327": {
+      "title": "Ein Skill von anderswo wird als Daten gelesen, und die Bibliothek installiert, was gelesen wurde",
+      "summary": "Skills lassen sich auf skills.sh oder unter einer GitHub-Adresse suchen, vor der Installation einzeln lesen und aktuell halten; installiert wird genau der gelesene Commit, jede Datei geprüft. Ein anderswo geschriebener Skill läuft getrennt, nur mit seinen eigenen Dateien: nie mit den Konnektoren der Person, keine Bilder oder Webinhalte in seinen Antworten. Ein Skill kann eigene Befehle in einer Wegwerfkopie seines Ordners ausführen, Netzwerk nur zu erlaubten Hosts, und einer, den der Chat schreibt, kommt erst auf den Klick der Person hinzu.",
+      "src": "26f9206a5fb1"
     }
   }
 }

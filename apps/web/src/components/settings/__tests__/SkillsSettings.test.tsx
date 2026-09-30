@@ -17,6 +17,11 @@ const { toast } = vi.hoisted(() => ({
 vi.mock('sonner', () => ({ toast }));
 const { usePlugins } = vi.hoisted(() => ({ usePlugins: vi.fn() }));
 vi.mock('@/hooks/usePlugins', () => ({ usePlugins }));
+const { useAppConfig } = vi.hoisted(() => ({ useAppConfig: vi.fn() }));
+vi.mock('@/hooks/useAppConfig', async importOriginal => {
+  const original = await importOriginal<typeof import('@/hooks/useAppConfig')>();
+  return { ...original, useAppConfig };
+});
 
 import { SkillsSettings } from '../SkillsSettings';
 import type { useSkills as useSkillsFn, Skill } from '@/hooks/useSkills';
@@ -26,9 +31,7 @@ type SkillsHook = ReturnType<typeof useSkillsFn>;
 // SkillsSettings renders inside an open SettingsSection card (value
 // "skills"), so its body is visible on mount.
 function renderSkills() {
-  return renderWithProviders(
-    <SkillsSettings lng="en" />
-  );
+  return renderWithProviders(<SkillsSettings lng="en" />);
 }
 
 function hook(over: Partial<SkillsHook> = {}) {
@@ -51,6 +54,7 @@ function hook(over: Partial<SkillsHook> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useAppConfig.mockReturnValue({ config: null, loading: false, error: null });
   usePlugins.mockReturnValue({ plugins: [], total: 0, loading: false });
 });
 
@@ -118,5 +122,40 @@ describe('SkillsSettings — plugin-owned skill lock (ADR-225 arbitrage F)', () 
 
     expect(toast.info).not.toHaveBeenCalled();
     expect(screen.getByText('settings.skills.delete_confirm_title')).toBeInTheDocument();
+  });
+});
+
+describe('SkillsSettings — the skill library (ADR-327)', () => {
+  const both = {
+    capabilities: {
+      skills: { enabled: true, family: 'reach' },
+      skill_library: { enabled: true, family: 'reach' },
+    },
+  };
+
+  it('offers « Find skills » when both switches are on, and opens the library', async () => {
+    useSkills.mockReturnValue(hook());
+    useAppConfig.mockReturnValue({ config: both, loading: false, error: null });
+    const { user } = renderSkills();
+
+    await user.click(screen.getByRole('button', { name: 'settings.skills.library.button' }));
+
+    expect(await screen.findByText('settings.skills.library.title')).toBeInTheDocument();
+  });
+
+  it('offers nothing when the library is switched off', () => {
+    useSkills.mockReturnValue(hook());
+    useAppConfig.mockReturnValue({
+      config: {
+        capabilities: { ...both.capabilities, skill_library: { enabled: false, family: 'reach' } },
+      },
+      loading: false,
+      error: null,
+    });
+    renderSkills();
+
+    expect(
+      screen.queryByRole('button', { name: 'settings.skills.library.button' })
+    ).not.toBeInTheDocument();
   });
 });

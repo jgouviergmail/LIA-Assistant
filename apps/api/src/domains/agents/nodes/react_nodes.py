@@ -32,7 +32,6 @@ from langgraph.types import interrupt
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import resolve_language
-from src.core.tool_outcome import explicit_success
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     get_query_intelligence_from_state,
@@ -53,6 +52,14 @@ from src.domains.agents.nodes.react_prompt import (
     sandbox_available,
 )
 from src.domains.agents.nodes.react_recovery import recovery_report, with_recovery_directives
+from src.domains.agents.nodes.react_result_reading import (
+    activated_skill_of,
+    is_productive_result,
+    tool_message_status,
+)
+from src.domains.agents.nodes.react_result_reading import (
+    call_artifact as call_artifact_of,
+)
 from src.domains.agents.nodes.react_turn_layout import (
     compose_turn_messages,
     frequent_exchanges,
@@ -78,7 +85,7 @@ from src.domains.agents.utils.loop_guard import (
     register_call,
     repeated_call_message,
 )
-from src.domains.agents.utils.message_filters import TOOL_CALL_NOT_RUN, tool_call_not_run
+from src.domains.agents.utils.message_filters import tool_call_not_run
 from src.domains.agents.utils.react_budget import (
     TIMEOUT_ATTRIBUTION_MARGIN,
     abandoned_call_message,
@@ -156,73 +163,6 @@ def _rebuild_wrapped_tools(
             )
         )
     return wrappers
-
-
-def _is_productive_result(raw_result: Any) -> bool:
-    """Did this tool call actually bring something back?
-
-    Productivity is what buys more iterations (ADR-248), so it must mean
-    "the context learned something", never "a call was attempted". A declared
-    failure and an empty result both teach the loop nothing it can build on.
-
-    Args:
-        raw_result: The tool's return value, before string conversion.
-
-    Returns:
-        True when the call produced usable content.
-    """
-    if raw_result is None:
-        return False
-    if not explicit_success(raw_result):
-        # ``UnifiedToolOutput.failure(...)`` is a Pydantic model, so the old
-        # dict-only branch never saw it and ``bool(model)`` was always True: a
-        # loop failing every call bought itself iterations up to the ceiling,
-        # which this function's own contract forbids (ADR-303).
-        return False
-    # Whatever survived the failure check is productive iff it carries
-    # something: an EMPTY container teaches the loop nothing either, which the
-    # contract above states and the dict branch used to contradict — ``{}``
-    # counted as production and extended the budget on nothing.
-    return bool(raw_result)
-
-
-def _tool_message_status(raw_result: Any) -> str:
-    """``"error"`` when the tool DECLARED a failure, else ``"success"``.
-
-    The ReAct body carries the tool's PROSE (``compose_tool_message``), so the
-    only honest way to tell a failure from an answer is a marker the message
-    carries itself. ``ToolMessage.status`` is that marker — already used by the
-    finalize node for abandoned calls (ADR-248) — and it is what the honesty
-    directive reads. Before it, no ReAct failure ever reached that directive,
-    and the model, left without a word about what broke, invented one. A call
-    that never ran (:func:`_call_artifact`) failed nothing.
-
-    Args:
-        raw_result: The tool's return value, before string conversion.
-
-    Returns:
-        ``"error"`` or ``"success"``.
-    """
-    ran = _call_artifact(raw_result) is None
-    return "success" if explicit_success(raw_result) or not ran else "error"
-
-
-def _call_artifact(raw_result: Any) -> str | None:
-    """``TOOL_CALL_NOT_RUN`` when the answer says the call never ran, else None.
-
-    The person refusing what the call asked for (the egress question) is a
-    decision, never a failure: the answer carries the marker in its metadata,
-    and the ToolMessage carries it on to every reader of outcomes.
-
-    Args:
-        raw_result: The tool's return value, before string conversion.
-
-    Returns:
-        The artifact the ToolMessage carries.
-    """
-    metadata = getattr(raw_result, "metadata", None)
-    not_run = isinstance(metadata, dict) and metadata.get(TOOL_CALL_NOT_RUN) is True
-    return TOOL_CALL_NOT_RUN if not_run else None
 
 
 def _record_react_metrics(iteration: int, duration_s: float, status: str) -> None:
@@ -610,6 +550,7 @@ async def react_execute_tools_node(
     new_messages: list[ToolMessage] = []
     collected_registry: dict[str, Any] = {}
     productive_calls = 0
+    activated_skills: list[str] = []
     # ADR-256: the delegated half of the turn. Accumulated here and
     # returned to state, because the ContextVars do not survive the node.
     tool_seconds_spent = 0.0
@@ -829,7 +770,7 @@ async def react_execute_tools_node(
             # after its answer left its items in the wrapper.
             wrapper._accumulated_registry.clear()
             content = wrapper._process_result(raw_result, budget_tokens=result_budget)
-            tool_status = _tool_message_status(raw_result)
+            tool_status = tool_message_status(raw_result)
             # Draft detection: a mutation tool (create/update/delete) returns
             # requires_confirmation=True — it prepared a DRAFT, not the real
             # action. Collect it for the HITL handoff (see return below).
@@ -839,11 +780,13 @@ async def react_execute_tools_node(
             # no registry item and never carries the « never run » mark. One
             # that declared its failure by returning buys no iteration either,
             # and hands on the items it returned, as the pipeline does.
-            productive_calls += _is_productive_result(raw_result)
+            productive_calls += is_productive_result(raw_result)
+            if (activated := activated_skill_of(raw_result)) is not None:
+                activated_skills.append(activated)
             if draft_info is not None:
                 pending_drafts.append(draft_info)
             collected_registry.update(wrapper._accumulated_registry)
-            call_artifact = _call_artifact(raw_result)
+            call_artifact = call_artifact_of(raw_result)
         except GraphInterrupt:
             # A question raised from INSIDE the call (the egress question,
             # ADR-298) is a bubble-up, never a tool error: the net below
@@ -921,6 +864,13 @@ async def react_execute_tools_node(
     scripts = drain_turn_scripts()
     if scripts:
         result["react_scripts"] = list(state.get("react_scripts") or []) + scripts
+    if activated_skills:
+        # ADR-327: the response node must not run the runner for a skill the
+        # loop already ran — appended per turn, reset by the router.
+        result["react_activated_skills"] = [
+            *(state.get("react_activated_skills") or []),
+            *activated_skills,
+        ]
     result["react_script_runs"] = runs_spent()
     if productive_calls:
         # ADR-248: one PRODUCTIVE iteration, whatever the number of calls in it.

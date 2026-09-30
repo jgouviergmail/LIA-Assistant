@@ -19,6 +19,7 @@ import pytest
 import yaml
 
 from scripts.install.compose import (
+    SKILL_SANDBOX_LOCAL_IMAGE,
     build_invocation,
     render_caddyfile,
     render_install_override,
@@ -126,15 +127,27 @@ def test_caddy_exposure_owns_the_caddy_service_and_volumes() -> None:
     assert set(parsed["volumes"]) == {"caddy_data", "caddy_config"}
 
 
-def test_sandbox_prebuilt_pins_the_sandbox_image_to_the_api_digest() -> None:
-    api_reference = f"ghcr.io/o/r/api@sha256:{DIGEST}"
+def test_sandbox_prebuilt_pins_the_releases_sandbox_image() -> None:
+    """The sandbox runs on its OWN image, pinned by digest (ADR-327 lot 2)."""
+    sandbox_reference = f"ghcr.io/o/r/sandbox@sha256:{DIGEST}"
     env = _api_env(
         _render(
             _public(skill_sandbox=True, mode=InstallMode.PREBUILT),
-            sandbox_api_image=api_reference,
+            sandbox_image=sandbox_reference,
         )
     )
-    assert env["SKILLS_SCRIPT_SANDBOX_IMAGE"] == api_reference
+    assert env["SKILLS_SCRIPT_SANDBOX_IMAGE"] == sandbox_reference
+
+
+def test_the_local_sandbox_tag_is_the_base_files_fallback() -> None:
+    """A local build tags the image the base file falls back to — one name."""
+    base = (Path(__file__).resolve().parents[3] / "docker-compose.prod.yml").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        "SKILLS_SCRIPT_SANDBOX_IMAGE=${LIA_SKILL_SANDBOX_IMAGE:-"
+        f"{SKILL_SANDBOX_LOCAL_IMAGE}}}" in base
+    )
 
 
 def test_layer_selection_follows_the_choices() -> None:

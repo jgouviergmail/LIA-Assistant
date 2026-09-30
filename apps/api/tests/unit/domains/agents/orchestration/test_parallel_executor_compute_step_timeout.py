@@ -70,6 +70,25 @@ class TestComputeStepTimeoutSubAgent:
 
 
 @pytest.mark.unit
+class TestComputeStepTimeoutSkillActivation:
+    """`activate_skill_tool` hosts the ISOLATED runner of a third-party skill
+    (ADR-327): a whole nested loop, killed at the generic 30 s three times in
+    one dev session (2026-09-30) — the sub-agent family's floor and ceiling."""
+
+    def test_defaults_to_the_sub_agent_floor(self):
+        expected = get_settings().subagent_tool_timeout_seconds
+        assert compute_step_timeout("activate_skill_tool", None) == expected
+
+    def test_a_short_request_is_raised_to_the_floor(self):
+        floor = get_settings().subagent_tool_timeout_seconds
+        assert compute_step_timeout("activate_skill_tool", 5.0) == floor
+
+    def test_a_long_request_is_capped_at_the_sub_agent_ceiling(self):
+        ceiling = get_settings().subagent_tool_max_timeout_seconds
+        assert compute_step_timeout("activate_skill_tool", 99_999.0) == ceiling
+
+
+@pytest.mark.unit
 class TestComputeStepTimeoutBrowser:
     """`browser_task_tool` uses the highest dedicated floor/ceiling."""
 
@@ -277,3 +296,19 @@ class TestComputeStepTimeoutIsolation:
         """A 5s planner request on a regular tool stays at 5s, NOT bumped to 180s."""
         result = compute_step_timeout("brave_search_tool", 5.0)
         assert result == 5.0
+
+
+@pytest.mark.unit
+class TestComputeStepTimeoutSkillRuns:
+    """A skill's script or command is bounded by the sandbox, never cut before it (ADR-327)."""
+
+    def test_a_command_step_waits_exactly_the_sandbox_s_whole_budget(self):
+        wall = get_settings().skill_command_wall_seconds
+        assert compute_step_timeout("run_skill_command", None) == wall
+        assert compute_step_timeout("run_skill_command", 5.0) == wall
+        assert compute_step_timeout("run_skill_command", 10_000.0) == wall
+
+    def test_a_script_step_waits_the_script_s_budget_and_its_startup(self):
+        wall = get_settings().skills_script_wall_seconds
+        assert compute_step_timeout("run_skill_script", None) == wall
+        assert compute_step_timeout("run_skill_script", 1.0) == wall

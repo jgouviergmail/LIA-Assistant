@@ -1532,10 +1532,7 @@ class SmartPlannerService:
         from src.domains.skills.cache import SkillsCache
 
         user_id = runtime_user_id_str() or ""
-        known = SkillsCache.get_by_name_for_user(
-            llm_skill_name, str(user_id)
-        ) or SkillsCache.get_by_name(llm_skill_name)
-        if known:
+        if SkillsCache.get_by_name_for_user(llm_skill_name, str(user_id)):
             return llm_skill_name
 
         logger.warning(

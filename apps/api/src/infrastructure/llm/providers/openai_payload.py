@@ -36,10 +36,13 @@ from typing import Any
 from src.core.constants import DYNAMIC_CONTEXT_MARKER
 
 #: The model families that accept ``prompt_cache_breakpoint`` (measured
-#: 2026-09-23 on gpt-6-astra/sol/luna and gpt-5.6-sol/terra/luna). A name
-#: belongs to a family when it is the family or continues it with a dash (a
-#: variant or a dated snapshot), never merely because it starts the same way.
-_BREAKPOINT_FAMILIES: tuple[str, ...] = ("gpt-6", "gpt-5.6")
+#: 2026-09-23 on gpt-6-astra/sol/luna and gpt-5.6-sol/terra/luna, 2026-09-30 on
+#: gpt-6.1-sol: 1,454 tokens written at the breakpoint, the same 1,454 read back
+#: by the next call). A name belongs to a family when it is the family or
+#: continues it with a dash (a variant or a dated snapshot), never merely
+#: because it starts the same way -- which is why ``gpt-6.1`` is a family of
+#: its own and not a member of ``gpt-6``.
+_BREAKPOINT_FAMILIES: tuple[str, ...] = ("gpt-6", "gpt-6.1", "gpt-5.6")
 
 #: A breakpoint in the default TTL (30 minutes, the only value OpenAI offers).
 _BREAKPOINT: dict[str, str] = {"mode": "explicit"}

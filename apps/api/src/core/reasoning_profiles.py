@@ -36,6 +36,7 @@ FAMILIES: frozenset[str] = frozenset(
         "openai",
         "anthropic_adaptive",
         "anthropic_adaptive_display",
+        "anthropic_between_tools",
         "anthropic_budget",
         "gemini_level",
         "gemini_budget",
@@ -148,7 +149,8 @@ def _claude_profile(surface: ClaudeSurface) -> ReasoningProfile:
     ``thinking`` means « think » on Opus 5 and Sonnet 5. What differs is the
     ladder: an always-on generation has no ``none`` (``disabled`` is a 400
     there), so an explicit off is coerced up to the cheapest depth instead of
-    being sent and refused.
+    being sent and refused. Sonnet 5.5 keeps the whole ladder under a family
+    of its own, because its ``none`` is spelled ``between_tools``.
 
     Args:
         surface: One declared row of :data:`CLAUDE_SURFACES`.
@@ -174,6 +176,16 @@ def _claude_profile(surface: ClaudeSurface) -> ReasoningProfile:
                 None,
                 can_disable,
                 surface.thinking != "opt_in",
+                implicit_level=surface.implicit_effort,
+            )
+        case "between_tools":
+            return ReasoningProfile(
+                "anthropic_between_tools",
+                ("none", *_CLAUDE_EFFORTS),
+                False,
+                None,
+                True,
+                True,
                 implicit_level=surface.implicit_effort,
             )
 
@@ -251,10 +263,13 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
     # GPT-6 (model pages, 2026-09-23). Astra accepts « low, medium, high,
     # xhigh, and max » and nothing else: it has no off switch, so an explicit
     # ``none`` is coerced upward instead of being sent and refused. Sol and
-    # Luna add ``none`` to the same ladder. The narrower name comes first.
+    # Luna add ``none`` to the same ladder. The narrower name comes first:
+    # GPT-6.1 Sol drops ``none`` again (« The none and minimal reasoning
+    # efforts are not supported », measured 2026-09-30: a 400 on ``none``), and
+    # its ``gpt-6`` prefix would otherwise hand it the Sol ladder.
     (
         "openai",
-        ("gpt-6-astra",),
+        ("gpt-6-astra", "gpt-6.1-sol"),
         ReasoningProfile(
             "openai", ("low", "medium", "high", "xhigh", "max"), False, None, False, True
         ),

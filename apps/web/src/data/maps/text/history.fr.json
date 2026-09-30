@@ -1382,6 +1382,10 @@
     "326": {
       "title": "Aucun texte hostile ne gèle LIA, aucune redirection ne la détourne",
       "summary": "Les fonctions qui aplatissent un texte pour une voix, une notification ou une carte lisaient certains textes en temps exponentiel : 51 caractères tapés dans le chat coûtaient 4,5 s, un e-mail piégé de 32 Ko gelait LIA 3 s. Chaque motif est réécrit linéaire et deux tests le tiennent, côté serveur comme côté navigateur. La lecture d'une page web contrôle désormais chaque redirection avant de la suivre et se connecte à l'adresse vérifiée, jamais à une résolution ultérieure du nom."
+    },
+    "327": {
+      "title": "Une skill venue d'ailleurs est lue comme une donnée, et la bibliothèque installe ce qu'on a lu",
+      "summary": "On peut chercher des skills sur skills.sh ou à une adresse GitHub, lire chacune avant de l'installer et la garder à jour ; l'installation reprend exactement le commit lu, chaque fichier vérifié. Une skill écrite ailleurs tourne à part, avec ses seuls fichiers : jamais les connecteurs de la personne, ni image ni contenu web dans ses réponses. Une skill peut exécuter ses propres commandes dans une copie jetable de son dossier, le réseau seulement vers les hôtes permis, et celle que le chat écrit n'entre qu'au clic de la personne."
     }
   }
 }

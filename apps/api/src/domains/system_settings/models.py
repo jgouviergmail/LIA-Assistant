@@ -95,6 +95,8 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_EMAIL_SHARE_ENABLED = "capability_email_share_enabled"
     # ADR-324 — the personal radio and its newsroom.
     CAPABILITY_RADIO_ENABLED = "capability_radio_enabled"
+    # ADR-327 — skills found on a portal and installed from their repository.
+    CAPABILITY_SKILL_LIBRARY_ENABLED = "capability_skill_library_enabled"
 
     # Whether the landing advertises the public demonstrator. Off by default:
     # a fresh instance never advertises a demonstrator it does not run. Read

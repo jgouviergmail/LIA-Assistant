@@ -27,7 +27,7 @@ from src.domains.agents.display import plain_text
 from src.domains.agents.display.components import base as display_base
 from src.domains.agents.display.components.html_flatten import format_email_body, html_to_text
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
-from src.domains.shared.markdown_literal import read_as_markdown
+from src.domains.shared.markdown_literal import read_as_markdown, untrusted_markdown
 from src.domains.voice_sessions.projection import flatten_for_voice
 
 pytestmark = pytest.mark.unit
@@ -60,6 +60,7 @@ FLATTENERS: dict[str, Flattener] = {
     "markdown_links_to_plain": plain_text.markdown_links_to_plain,
     "markdown_to_plain_text": plain_text.markdown_to_plain_text,
     "read_as_markdown": lambda s: read_as_markdown(s),
+    "untrusted_markdown": untrusted_markdown,
     "flatten_for_voice": lambda s: flatten_for_voice(s, strip_html=plain_text.strip_html_if_markup),
     "clean_reply_body": lambda s: clean_reply_body(s, subject="x"),
 }
@@ -100,6 +101,9 @@ WITNESSES: dict[str, Callable[[int], str]] = {
     # neither `\b` inside a lookahead nor a `(?=…)` guard.
     "a link opener then '<a >a' repeated": lambda n: "<a >" + "<a >a" * (n // 5),
     "tab-pipe pairs": lambda n: "\t|" * (n // 2),
+    # A line opening a reference definition whose label never closes: the
+    # untrusted-Markdown lookahead reads at most one label per line (ADR-327).
+    "unclosed definition labels": lambda n: ("[" + "a" * 200 + "\n") * (n // 202),
 }
 
 

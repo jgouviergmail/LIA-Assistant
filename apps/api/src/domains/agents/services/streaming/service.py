@@ -2395,6 +2395,7 @@ class StreamingService:
             cached_filtered_catalogue=self._cached_filtered_catalogue,
             cached_tool_scores=self._cached_tool_scores,
             skill_name_resolver=self.resolve_activated_skill_name,
+            user_id=str(self.user_id) if self.user_id else None,
         ).build(
             debug_metrics,
             state,

@@ -217,9 +217,9 @@
     },
     "f.skills": {
       "name": "Skills und Plugins",
-      "role": "Skills nach dem Standard Agent Skills und Plugins nach dem Standard Agent Plugins, mit einem Handgriff installiert, mit einem Bericht Komponente für Komponente.",
+      "role": "Fähigkeiten im Standard Agent Skills — von LIA geschrieben und mit einem Klick installiert oder nach dem Lesen aus einer öffentlichen Bibliothek gewählt — und Plugins im Standard Agent Plugins; eine Fähigkeit von anderswo arbeitet abgeschirmt, fern von deinen Konnektoren.",
       "goal": "LIA übertragbares Know-how geben.",
-      "src": "27fba8d5dbbc"
+      "src": "f14f45e853e1"
     },
     "f.rag": {
       "name": "Wissensräume",

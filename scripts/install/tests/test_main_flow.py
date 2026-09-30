@@ -222,8 +222,9 @@ def test_full_prebuilt_install_pins_images_and_sandbox(tmp_path: Path) -> None:
     qualification, take two: ``build_invocation`` referenced
     ``docker-compose.images.yml`` that nothing wrote (``render_image_lock``
     had ZERO call sites), so every prebuilt install died on a missing
-    Compose file — and the sandbox image stayed on the base file's
-    ``lia-api:local`` fallback, a tag a prebuilt host never has.
+    Compose file — and the sandbox image stayed on the base file's local
+    fallback, a tag a prebuilt host never has. Since ADR-327 lot 2 the
+    sandbox runs on the release's OWN sandbox image, pulled by its digest.
     """
     from scripts.install.tests.test_preflight import _manifest_payload
 
@@ -255,7 +256,10 @@ def test_full_prebuilt_install_pins_images_and_sandbox(tmp_path: Path) -> None:
         for line in joined
     ), joined
     override = (root / "docker-compose.install.yml").read_text(encoding="utf-8")
-    assert "SKILLS_SCRIPT_SANDBOX_IMAGE=ghcr.io/example/lia/api@sha256:" in override
+    assert "SKILLS_SCRIPT_SANDBOX_IMAGE=ghcr.io/example/lia/sandbox@sha256:" in override
+    assert any(
+        line.startswith("docker pull ghcr.io/example/lia/sandbox@sha256:") for line in joined
+    ), joined
 
 
 def test_unmanaged_env_aborts_as_takeover(tmp_path: Path) -> None:

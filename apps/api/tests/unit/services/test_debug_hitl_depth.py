@@ -169,6 +169,7 @@ class TestItStillSaysWhatItSaidBefore:
         assert service._cached_draft_action_result == decision
         service.tracker = None
         service.hitl_interrupt_info = None
+        service.user_id = None
         builder = MagicMock()
         with patch(
             "src.domains.agents.services.streaming.debug_metrics_builder.DebugMetricsBuilder",

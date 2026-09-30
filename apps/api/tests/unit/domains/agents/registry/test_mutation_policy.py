@@ -309,6 +309,9 @@ OWNER_PINNED_POLICIES: dict[str, str] = {
     "send_email_tool": "draft",
     "delete_event_tool": "draft",
     "claude_server_task_tool": "draft",
+    # ADR-327 (owner arbitration 2026-09-30): the chat proposes a skill, the
+    # card's click installs it — the card IS the confirmation.
+    "import_user_skill": "draft",
     # The single pre-execution card.
     "delegate_to_sub_agent_tool": "read",
     # Genuine readers sitting on the inference fallback.

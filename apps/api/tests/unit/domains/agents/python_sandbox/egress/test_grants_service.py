@@ -107,6 +107,36 @@ class TestRecordingADecision:
         assert repo.upserts == [] and outcome.allowed is False
 
 
+class TestGrantingFromTheSettings:
+    """A host the person allows by hand (ADR-327 lot 3) obeys the card's cap:
+    it bounds NEW rows, and a known host takes its new scope whatever the count."""
+
+    async def _grant(
+        self, repo: FakeRepository, host: str, *, share: bool, cap: int = 3
+    ) -> object | None:
+        with patch(
+            "src.domains.agents.python_sandbox.egress.grants.get_settings",
+            return_value=SimpleNamespace(python_sandbox_max_grants_per_user=cap),
+        ):
+            return await _service(repo, cap=cap).grant(USER, host, share_turn_data=share)
+
+    async def test_a_new_host_under_the_cap_is_stored_with_its_scope(self) -> None:
+        repo = FakeRepository(count=2)
+        row = await self._grant(repo, "registry.npmjs.org", share=False)
+        assert row is not None
+        assert repo.upserts == [("registry.npmjs.org", False)]
+
+    async def test_a_new_host_at_the_cap_is_refused_and_nothing_is_written(self) -> None:
+        repo = FakeRepository(count=3, scopes={"a.example.org": True})
+        assert await self._grant(repo, "registry.npmjs.org", share=False) is None
+        assert repo.upserts == []
+
+    async def test_a_known_host_takes_its_new_scope_even_at_the_cap(self) -> None:
+        repo = FakeRepository(count=3, scopes={"registry.npmjs.org": False})
+        assert await self._grant(repo, "registry.npmjs.org", share=True) is not None
+        assert repo.upserts == [("registry.npmjs.org", True)]
+
+
 class TestWhatTheToolReads:
     async def test_scopes_are_the_hosts_and_their_data_flag(self) -> None:
         repo = FakeRepository(scopes={"a.example.org": True, "b.example.org": False})

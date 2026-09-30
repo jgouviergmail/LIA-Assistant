@@ -16,7 +16,12 @@ REAL executor (no flag is duplicated here):
    address is refused;
 3. a per-run token is swapped for the real key on the declared host — in a
    header AND in a query string — and the sandbox never saw the key;
-4. once the run is withdrawn, the same token is refused.
+4. once the run is withdrawn, the same token is refused;
+5. a skill's command (ADR-327 lot 3) reaches its declared hosts with npm,
+   npx, git, pip and curl — each pointed at the proxy's CA — an undeclared
+   host is refused, git refuses the proxy without ``GIT_SSL_CAINFO``, Node's
+   own ``fetch`` goes through the proxy under ``NODE_USE_ENV_PROXY`` and finds
+   no route without it, and the time of a per-run ``npm install`` is measured.
 
 The echo upstream is httpbin.org, which answers with the headers and query it
 received: the proof is what the UPSTREAM saw, not what the sandbox sent.
@@ -27,8 +32,11 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import tempfile
 import textwrap
 import uuid
+from collections.abc import Callable
+from pathlib import Path
 
 from src.core.config import get_settings
 from src.core.constants import (
@@ -38,9 +46,12 @@ from src.core.constants import (
     PYTHON_SANDBOX_EGRESS_CONFIG_DIR,
     PYTHON_SANDBOX_EGRESS_NETWORK,
 )
+from src.domains.agents.python_sandbox.egress.publisher import EgressPublisher
 from src.domains.agents.python_sandbox.egress.registry import LiveRun, RunCredential
 from src.domains.agents.python_sandbox.egress.ruleset import SECRETS_DIRNAME
 from src.domains.agents.python_sandbox.egress.service import deployment_publisher
+from src.domains.skills.command_bundle import pack_bundle
+from src.domains.skills.command_sandbox import run_command
 from src.domains.skills.executor import EgressSpec, SkillScriptExecutor
 
 ECHO_HOST = "httpbin.org"
@@ -82,6 +93,35 @@ RETRY_SCRIPT = textwrap.dedent("""
     except Exception as e:
         print(json.dumps({"status": "refused", "error": type(e).__name__}))
     """)
+
+
+#: What a skill's command declares: the package registries and git's host.
+COMMAND_HOSTS = ("registry.npmjs.org", "github.com", "pypi.org", "files.pythonhosted.org")
+
+#: The command's own script, carried in the skill folder: one tab-separated
+#: line per probe — label, ok/refused, milliseconds, the output's tail.
+COMMAND_SCRIPT = """set -u
+probe() {
+  local label=$1; shift
+  local start out status
+  start=$(date +%s%N)
+  if out=$("$@" 2>&1); then status=ok; else status=refused; fi
+  printf '%s\\t%s\\t%s\\t%s\\n' "$label" "$status" "$(( ($(date +%s%N) - start) / 1000000 ))" \\
+    "$(printf '%s' "$out" | tail -c 160 | tr '\\n\\t' '  ')"
+}
+probe npm_view npm view is-number@7.0.0 version
+probe npm_install npm install --no-audit --no-fund --no-save docx@9
+probe node_require node -e "require('docx'); console.log('loaded')"
+probe npx npx --yes semver@7.6.3 1.2.3
+probe git_clone git clone --quiet --depth 1 https://github.com/octocat/Hello-World hw
+probe pip_download pip download --quiet --no-deps --dest pipdl six==1.16.0
+probe curl_declared curl -sS --fail -o /dev/null -w '%{http_code}' https://registry.npmjs.org/is-number
+probe curl_undeclared curl -sS --fail -o /dev/null https://www.wikipedia.org
+probe node_fetch node -e "fetch('https://registry.npmjs.org/is-number').then(r => console.log(r.status))"
+probe node_fetch_without_env_proxy env -u NODE_USE_ENV_PROXY node -e "fetch('https://registry.npmjs.org/is-number').then(r => console.log(r.status))"
+probe node_version node --version
+probe git_without_ca env -u GIT_SSL_CAINFO git ls-remote https://github.com/octocat/Hello-World HEAD
+"""
 
 
 def _spec(tokens: dict[str, str]) -> EgressSpec:
@@ -200,9 +240,64 @@ async def main() -> int:
         str(out),
     )
 
+    print("== 5. a skill's command")
+    await _command_section(publisher, check)
+
     failed = [label for label, ok, _ in verdicts if not ok]
     print(f"\n{len(verdicts) - len(failed)}/{len(verdicts)} checks passed")
     return 1 if failed else 0
+
+
+async def _command_section(
+    publisher: EgressPublisher, check: Callable[[str, bool, str], None]
+) -> None:
+    """Run one command on the published hosts, through the real sandbox path."""
+    settings = get_settings()
+    run = LiveRun(
+        run_id="probe-cmd-" + uuid.uuid4().hex[:12],
+        user_id="probe",
+        hosts=COMMAND_HOSTS,
+        credentials=(),
+    )
+    with tempfile.TemporaryDirectory() as folder:
+        Path(folder, "probe.sh").write_text(COMMAND_SCRIPT, encoding="utf-8")
+        bundle = pack_bundle(Path(folder), [], max_bytes=1024 * 1024)
+    async with publisher.serve(run, {}):
+        output = await run_command(
+            skill_name="egress-probe",
+            command="bash probe.sh",
+            bundle=bundle,
+            settings=settings,
+            user_id="probe",
+            egress=_spec({}),
+        )
+    rows = {
+        cells[0]: cells[1:]
+        for line in output.stdout.splitlines()
+        if len(cells := line.split("\t")) == 4
+    }
+    expected = {
+        "npm_view": "ok",
+        "npm_install": "ok",
+        "node_require": "ok",
+        "npx": "ok",
+        "git_clone": "ok",
+        "pip_download": "ok",
+        "curl_declared": "ok",
+        "curl_undeclared": "refused",
+        # Node's own fetch follows HTTPS_PROXY only under NODE_USE_ENV_PROXY,
+        # which the egress arguments set: without it, no route (measured on Node 24).
+        "node_fetch": "ok",
+        "node_fetch_without_env_proxy": "refused",
+        "node_version": "ok",
+        # Why git is pointed at the proxy's CA: its TLS library ignores
+        # SSL_CERT_FILE, so without GIT_SSL_CAINFO it refuses the proxy's
+        # certificate on a host it was allowed to reach.
+        "git_without_ca": "refused",
+    }
+    for label, wanted in expected.items():
+        status, millis, tail = rows.get(label, ("missing", "-", output.stderr[-160:]))
+        check(f"command: {label} {wanted}", status == wanted, f"{millis} ms  {tail}")
 
 
 if __name__ == "__main__":

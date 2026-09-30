@@ -117,6 +117,21 @@ def current_origin() -> RunOrigin | None:
     return out_of_turn_origin_ctx.get()
 
 
+def chat_cards_reach_the_person() -> bool:
+    """Whether a card queued under this run's answer will be drawn for the person.
+
+    False inside a run whose archived rows stay out of the chat (a ticket
+    run) and on a channel that renders plain text: a card queued there is
+    never seen, so a tool that can only act through its card must refuse
+    rather than announce one (ADR-327).
+
+    Returns:
+        True inside an ordinary chat turn and a VISIBLE out-of-turn run.
+    """
+    origin = out_of_turn_origin_ctx.get()
+    return not ((origin is not None and origin.hidden) or plain_surface_ctx.get())
+
+
 def current_origin_carries_drafts() -> bool:
     """Whether the run driving this turn can carry a draft to the person.
 

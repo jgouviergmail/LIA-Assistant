@@ -1,0 +1,39 @@
+# The skill sandbox image's Python libraries (ADR-327 lot 2) - an INTENT
+# manifest (ADR-112), compiled into requirements-sandbox.lock.txt by
+# `task deps:lock` WITH `-c requirements-dev.lock.txt`: the image runs exactly
+# the versions the unit suite imported (the dev lock includes this manifest).
+#
+# Every entry is DIRECT and declared in src/domains/skills/sandbox_toolbox.py
+# (guarded both ways): a library the model is promised lives here, never on a
+# transitive dependency that dies on somebody else's upgrade.
+
+# HTTP and parsing
+requests
+httpx
+aiohttp
+beautifulsoup4
+lxml
+xmltodict
+feedparser
+# Data and tables
+numpy
+pandas
+openpyxl
+tabulate
+# Dates and calendars
+python-dateutil
+pytz
+icalendar
+# Documents
+PyMuPDF
+python-docx
+markdownify
+segno  # the system qr-code skill
+Pillow  # skills that write images
+python-pptx  # skills that write slides
+# Text and formats
+pyyaml
+chardet
+unidecode
+pycountry
+phonenumbers

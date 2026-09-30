@@ -38,7 +38,7 @@ Multiple security levels protect your data:
 • No personal data in operational logs — home address, GPS coordinates, contact names/emails, email recipients/subjects and memory content are kept out of the technical logs (only counters and technical identifiers remain), with an automatic safety net enforcing it (GDPR data-minimization)
 
 **📦 Isolated execution:**
-• A skill's Python code runs in a throwaway container destroyed right after — no network, no access to your files, no credentials
+• A skill's Python code runs in a throwaway container destroyed right after — no network beyond the hosts that were allowed, no access to your files, no credentials
 • If that isolation cannot be set up, the script does not run at all rather than running less protected
 • Any administration task on the server is submitted for your approval first, showing in full what will be sent
 

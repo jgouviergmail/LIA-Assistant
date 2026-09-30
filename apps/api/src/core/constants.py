@@ -5024,25 +5024,28 @@ SKILLS_SCRIPT_DROP_PRIVILEGES = True
 # "subprocess": the historical path. Kept for environments with no Docker access
 #   (running the API bare on a workstation), and ONLY protective when the API
 #   itself runs as root, where the uid/gid drop in `_build_rlimit_preexec` arms.
+#   It runs on the API's own interpreter, which does not carry the sandbox's
+#   libraries (ADR-327 lot 2): a script importing pandas or segno fails there.
 #
 # There is deliberately no automatic downgrade: if "container" is selected and
 # Docker is unreachable, execution FAILS rather than silently falling back to the
 # weaker path — a fallback is how a sandbox stops being one.
 SKILLS_SCRIPT_SANDBOX_DEFAULT = "container"
 
-# Image used for the throwaway container. The API's OWN image by default: same
-# interpreter, same installed packages, so a script behaves identically inside
-# and outside the sandbox. A separate image would drift and break skills that
-# import a backend dependency (`segno` for the QR skill, `yaml` for the skill
-# generator).
-SKILLS_SCRIPT_SANDBOX_IMAGE_DEFAULT = "lia-api:local"
+# Image used for the throwaway container: the DEDICATED sandbox image
+# (apps/api/Dockerfile.sandbox, ADR-327 lot 2). It used to be the API's own,
+# which carries the Docker client and the application's code; the dedicated one
+# holds what a run is promised (skills/sandbox_toolbox.py — the system skills'
+# `segno` and `yaml` included) and nothing else, which `task
+# sandbox:libraries:check` proves on the built image.
+SKILLS_SCRIPT_SANDBOX_IMAGE_DEFAULT = "lia-skill-sandbox:local"
 
-# Import path handed to the sandbox. The production image installs dependencies
-# with `pip install --user` into appuser's home, so a container running as uid
-# 65534 resolves a DIFFERENT home and finds none of them: `segno` and `yaml`
-# would go missing and their skills would fail with a misleading "not installed".
-# Measured on the real image — do not remove without re-checking those two.
-SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT = "/home/appuser/.local/lib/python3.14/site-packages"
+# Import path handed to the sandbox. Empty: the dedicated image installs its
+# libraries system-wide, readable by uid 65534. (The API image installs them
+# with `pip install --user` under a 0700 home, which is why a run on it once saw
+# the standard library only — measured 2026-08-29.) Set it only for a custom
+# image that needs one.
+SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT = ""
 
 # Unprivileged uid/gid the sandboxed process runs as (nobody:nogroup). It owns
 # nothing in the image, so even a mount added later by mistake stays unwritable.
@@ -5084,6 +5087,83 @@ SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE = 125
 SKILLS_SCRIPT_UNPRIVILEGED_UID = 65534  # nobody
 SKILLS_SCRIPT_UNPRIVILEGED_GID = 65534  # nogroup
 
+# ============================================================================
+# SKILL COMMANDS (ADR-327 lot 2) — a skill runs its own commands, offline
+# ============================================================================
+# A skill written for another agent tells it to RUN things: `python
+# scripts/fill.py form.pdf`, `node build.js`, `bash scripts/convert.sh`. The
+# command runs with bash in a COPY of the skill folder, inside the SEC-001
+# throwaway container (no network, read-only root, uid 65534, capabilities
+# dropped), with the turn's files beside it; what it writes under `out/` comes
+# back as the person's generated files. Nothing is mounted: the folder travels
+# IN as a tar on stdin and the result comes back as a tar on stdout.
+SKILL_COMMAND_TIMEOUT_SECONDS_DEFAULT = 60
+# The tmpfs holds the copy, the inputs and the outputs, and its pages count
+# against the memory ceiling: the two are sized together.
+SKILL_COMMAND_MAX_MEMORY_MB_DEFAULT = 1024
+SKILL_COMMAND_TMPFS_MB_DEFAULT = 256
+# What one run carries in: the skill folder and the turn's files together.
+SKILL_COMMAND_MAX_INPUT_MB_DEFAULT = 50
+# The largest single file in or out — also the sandbox's `fsize` ulimit, so an
+# input file the run could not even unpack is never sent.
+SKILL_COMMAND_MAX_FILE_MB_DEFAULT = 25
+SKILL_COMMAND_MAX_OUTPUT_FILES_DEFAULT = 10
+# Held in the API worker's memory while the run is read: kept modest.
+SKILL_COMMAND_MAX_OUTPUT_MB_DEFAULT = 25
+# Cores a command may use. It bounds what one person's run takes from
+# everyone else's, and sizes the per-process CPU-time ulimit, which a
+# threaded program (numpy, Node) would otherwise hit long before its
+# wall-clock budget.
+SKILL_COMMAND_CPUS_DEFAULT = 2.0
+# Standard output and standard error, each, as the model reads them.
+SKILL_COMMAND_MAX_TEXT_KB_DEFAULT = 32
+# The command text itself: published in the tool's schema because it is
+# enforced (ADR-184). It travels as one argument, far below ARG_MAX. A skill
+# that writes a file (a page, a script) has no other way in than the command
+# itself (a heredoc): at 4 000 a library skill was refused four times in one
+# turn on dev (2026-09-30), each retry a paid model call.
+SKILL_COMMAND_MAX_CHARS = 16000
+# `timeout -k`: a command ignoring SIGTERM is killed this long after it.
+SKILL_COMMAND_KILL_AFTER_SECONDS = 5
+# After the command's budget and the kill: packing what it wrote.
+SKILL_COMMAND_COLLECT_GRACE_SECONDS = 15
+# Where the container unpacks the bundle (a tmpfs path).
+SKILL_COMMAND_WORK_ROOT = "/tmp/lia"
+# Exit status of the bootstrap when the bundle could not be unpacked — an
+# infrastructure failure, never the command's.
+SKILL_COMMAND_BOOTSTRAP_ERROR_CODE = 97
+# Commands are heavier than a script call and are never needed in bursts.
+# Settings defaults (SKILL_COMMAND_RATE_LIMIT_*): a run is already bounded by its
+# budget and the loop's iterations; 5 per minute refused a legitimate multi-step
+# skill mid-way (measured 2026-09-30).
+SKILL_COMMAND_RATE_LIMIT_CALLS_DEFAULT = 12
+SKILL_COMMAND_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+# ADR-327 lot 3: a command that declares hosts reaches them through the egress
+# proxy (ADR-298), under the same permissions as a script. The proxy and its
+# capability are the Python sandbox's; this is the skills' own switch on top.
+SKILL_COMMAND_NETWORK_ENABLED_DEFAULT = True
+
+# ============================================================================
+# SKILL PROPOSALS (ADR-327) — a skill written in the chat waits for a click
+# ============================================================================
+# The chat's import tool validates a package and PROPOSES it: the card under
+# the answer installs it, the model never does. A proposal lives in Redis for
+# the day, as a question the conversation asked (a reset forgets it).
+SKILL_PROPOSAL_TTL_SECONDS_DEFAULT = 86400
+# Live proposals one account keeps; the oldest makes room for a new one.
+SKILL_PROPOSALS_MAX_PER_USER_DEFAULT = 5
+# The card's reads and installs, per account.
+SKILL_PROPOSAL_RATE_LIMIT_CALLS_DEFAULT = 30
+SKILL_PROPOSAL_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+# `skill_proposal:{owner}:{id}` — one proposal (conversation family, ADR-260).
+SKILL_PROPOSAL_KEY_PREFIX = "skill_proposal"
+# `skill_proposals:{owner}` — the account's live proposals, scored by expiry.
+SKILL_PROPOSAL_INDEX_KEY_PREFIX = "skill_proposals"
+# `skill_proposal_claim:{owner}:{id}` — the one install in flight (owner token).
+SKILL_PROPOSAL_CLAIM_KEY_PREFIX = "skill_proposal_claim"
+# How long an install may hold its claim: a disk swap and one commit.
+SKILL_PROPOSAL_CLAIM_TTL_SECONDS = 120
+
 # Rich outputs — Skills can emit frame (HTML iframe) or image artifacts via stdout JSON
 # Max size of inline HTML content in frame.html (bytes). Applies to skill user+system.
 SKILLS_FRAME_MAX_HTML_BYTES = 200 * 1024
@@ -5107,6 +5187,47 @@ SKILLS_ZIP_MAX_FILES = 64
 # Chat-driven import (import_user_skill tool) only accepts text files —
 # binary assets cannot transit as tool-call string arguments anyway.
 SKILLS_IMPORT_TEXT_EXTENSIONS = frozenset({".md", ".py", ".txt", ".json", ".yaml", ".yml", ".csv"})
+
+# ============================================================================
+# SKILL LIBRARY (ADR-327) — skills found on a portal, fetched from their origin
+# ============================================================================
+# The portal indexes skills; their files live at an ORIGIN (a GitHub
+# repository). LIA searches the portal, reads the portal's audits, and fetches
+# the files from the origin at an exact commit — never from the portal.
+
+#: The skills.sh portal: anonymous search and the audit service the CLI reads.
+SKILL_LIBRARY_PORTAL_URL_DEFAULT = "https://skills.sh"
+SKILL_LIBRARY_AUDIT_URL_DEFAULT = "https://add-skill.vercel.sh/audit"
+#: GitHub's REST API and raw file host (public repositories).
+SKILL_LIBRARY_GITHUB_API_URL: Final = "https://api.github.com"
+SKILL_LIBRARY_GITHUB_RAW_URL: Final = "https://raw.githubusercontent.com"
+#: The audit risk at and above which an install is refused (``none`` = never).
+SKILL_LIBRARY_AUDIT_BLOCK_LEVEL_DEFAULT = "high"
+#: Results one search asks the portal for (it honours up to ~130).
+SKILL_LIBRARY_SEARCH_LIMIT_DEFAULT = 20
+#: Shortest and longest search text: one letter matches half the index.
+SKILL_LIBRARY_QUERY_MIN_CHARS: Final = 2
+SKILL_LIBRARY_QUERY_MAX_CHARS: Final = 100
+#: Total deadline of ONE outgoing request, redirects included (seconds).
+SKILL_LIBRARY_TIMEOUT_SECONDS_DEFAULT = 15
+#: Redirects followed, each hop validated before it is contacted (ADR-326).
+SKILL_LIBRARY_MAX_REDIRECTS: Final = 3
+#: Largest answer read from the portal or GitHub: a recursive tree listing is
+#: truncated by GitHub past ~7 MB, so 8 MiB reads any listing it serves whole.
+SKILL_LIBRARY_RESPONSE_MAX_BYTES: Final = 8 * 1024 * 1024
+#: How long a branch head and a search answer are reused (seconds). A tree read
+#: at a commit never changes and is kept for the day.
+SKILL_LIBRARY_CACHE_TTL_SECONDS_DEFAULT = 300
+SKILL_LIBRARY_TREE_CACHE_TTL_SECONDS: Final = 86_400
+SKILL_LIBRARY_CACHE_PREFIX = "skill_library"
+#: Folders holding a SKILL.md whose manifest is read to find a skill the
+#: portal names by its frontmatter name rather than by its folder.
+SKILL_LIBRARY_MAX_CANDIDATES: Final = 25
+#: Repositories checked at once when the installed skills are listed.
+SKILL_LIBRARY_CHECK_CONCURRENCY: Final = 4
+#: Per-account calls to the routes that reach the network.
+SKILL_LIBRARY_RATE_LIMIT_CALLS_DEFAULT = 30
+SKILL_LIBRARY_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
 
 # ============================================================================
 # AGENT PLUGINS (agent-plugins.org standard, ADR-225)

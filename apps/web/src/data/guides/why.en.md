@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.1
-**Date**: 2026-09-24
-**Application**: LIA v2.1.1
+**Date**: 2026-09-30
+**Application**: LIA v2.2.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -73,7 +73,7 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Interests**: define your favorite topics, configure notification frequency, time slots and sources (Perplexity, Brave, Wikipedia, AI reflection)
 - **Proactive notifications**: set frequency, time window and context sources (calendar, weather, tasks, emails, interests, memories, journals)
 - **Scheduled actions and reminders**: say the rhythm — every three days, every other Tuesday, the 2nd Tuesday of the month, every two hours between 9 and 5, until a date or N times — for an automation as much as for a reminder, which can now come back instead of ringing once. And read your week at a glance: every routine at its hour on its days, every cell coloured by what really happened
-- **Skills**: enable/disable expert competencies in a gallery with previews, create your own personal Skills, or install one from an https URL (server-validated)
+- **Skills**: enable/disable expert competencies in a gallery with previews, create your own personal Skills, install one from an https URL (server-validated), or pick one from the public skills.sh library after reading it
 - **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats), sync a Google Drive folder or follow a Gmail label — automatic indexing and hybrid search. The conversations you label become documents you can question weeks later, and removing the label removes the document. A document LIA cannot read — a scanned PDF with no text layer — says so under its row, with the remedy. A Drive folder is synced with its sub-folders, and past a threshold the exact number of files about to be indexed is shown before anything starts
 - **Consumption export**: download your LLM and API consumption data in CSV
 
@@ -508,7 +508,7 @@ An assistant that can act is an assistant that can act *wrongly*. Two rules make
 
 First, **nothing touches your server without you saying yes** — and the confirmation shows everything that will be sent, including the instructions LIA wrote for itself. A summary you cannot fully read is not a confirmation, it is a formality. The permission is checked again the moment the action starts, not only when you asked for it.
 
-Second, **what does run, runs in a sealed box**. A skill's code executes in a container created for that single run and destroyed straight after: no network, no access to your files, no keys, no way to reach the machine underneath. If that box cannot be built, the script simply does not run — no silent fallback to a weaker mode. You install a skill for what it produces, not for the trust you must extend to its author.
+Second, **what does run, runs in a sealed box**. A skill's code executes in a container created for that single run and destroyed straight after: no network beyond the hosts that were allowed, no access to your files, no keys, no way to reach the machine underneath. If that box cannot be built, the script simply does not run — no silent fallback to a weaker mode. You install a skill for what it produces, not for the trust you must extend to its author.
 
 ---
 
@@ -562,7 +562,7 @@ If a provider changes its pricing or degrades its service, you switch instantly.
 
 ### 10.2. Extensibility
 
-Each user can connect their own MCP servers, extending LIA's capabilities far beyond built-in tools. The client speaks both generations of the protocol — the new stateless revision and the legacy handshake, chosen automatically per server — so openness never costs compatibility. Skills (agentskills.io standard) allow injecting expert instructions in natural language — with a built-in Skill generator that creates them through a guided dialogue and installs them directly into your skills, ready to use. A Skill can also return an **interactive HTML frame** (map, dashboard, calendar, converter...) or an **image** (QR code, chart) right inside the chat, sandboxed under a strict CSP, with theme and locale automatically kept in sync.
+Each user can connect their own MCP servers, extending LIA's capabilities far beyond built-in tools. The client speaks both generations of the protocol — the new stateless revision and the legacy handshake, chosen automatically per server — so openness never costs compatibility. Skills (agentskills.io standard) allow injecting expert instructions in natural language — with a built-in Skill generator that creates them through a guided dialogue and proposes them on a card one click installs — and a public library, skills.sh, where you read a skill file by file before installing it. A skill written elsewhere works apart and never touches your connectors, and a skill can run its own commands in a throwaway container to hand you files. A Skill can also return an **interactive HTML frame** (map, dashboard, calendar, converter...) or an **image** (QR code, chart) right inside the chat, sandboxed under a strict CSP, with theme and locale automatically kept in sync.
 
 This openness has a package format: LIA speaks the **Agent Plugins** open standard (agent-plugins.org), the portable plugin format steered by AWS, Microsoft, OpenAI, Cursor and Vercel and adopted by ChatGPT, Codex, Cursor, GitHub Copilot, Kiro and VS Code. A plugin bundling skills and MCP servers installs into LIA in one step — from a zip or an https link — with a full per-component report of what was installed, skipped (and why) or removed, and uninstalls just as cleanly, everything it brought leaving with it. Interoperability is a conviction here, not a feature: what you build or adopt anywhere in the ecosystem is yours to bring.
 

@@ -49,6 +49,7 @@ from langgraph.errors import GraphInterrupt
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.api.service import AgentService
 from src.domains.chat.schemas import TokenSummaryDTO
+from src.domains.skills.repository import RequestSkillState
 from src.domains.voice.schemas import VoiceAudioChunk
 
 # ---------------------------------------------------------------------------
@@ -428,8 +429,8 @@ class Harness:
         class FakeSkillPreferenceService:
             def __init__(self, db) -> None: ...
 
-            async def get_active_skills_for_user(self, user_id) -> set[str]:
-                return set()
+            async def get_request_skill_state(self, user_id) -> RequestSkillState:
+                return RequestSkillState(active=frozenset(), third_party=frozenset())
 
         @asynccontextmanager
         async def fake_db_context():

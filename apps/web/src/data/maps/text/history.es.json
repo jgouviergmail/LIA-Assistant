@@ -1727,6 +1727,11 @@
       "title": "Ningún texto hostil congela a LIA, ninguna redirección la desvía",
       "summary": "Las funciones que aplanan un texto para una voz, una notificación o una tarjeta leían algunos textos en tiempo exponencial: 51 caracteres escritos en el chat costaban 4,5 s, un correo trampa de 32 KB congelaba a LIA 3 s. Cada patrón se reescribe lineal y dos pruebas lo sostienen, en el servidor y en el navegador. La lectura de una página web comprueba ahora cada redirección antes de seguirla y se conecta a la dirección verificada, nunca a una resolución posterior del nombre.",
       "src": "b378d83b1215"
+    },
+    "327": {
+      "title": "Una skill de fuera se lee como un dato, y la biblioteca instala lo que se leyó",
+      "summary": "Se pueden buscar skills en skills.sh o en una dirección de GitHub, leer cada una antes de instalarla y mantenerla al día; la instalación toma exactamente el commit leído, cada archivo verificado. Una skill escrita fuera de LIA se ejecuta aparte, solo con sus propios archivos: nunca los conectores de la persona, ni imágenes ni contenido web en sus respuestas. Una skill puede ejecutar sus propios comandos en una copia desechable de su carpeta, con red solo hacia los hosts permitidos, y la que escribe el chat solo entra con el clic de la persona.",
+      "src": "26f9206a5fb1"
     }
   }
 }

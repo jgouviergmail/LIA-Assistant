@@ -16,7 +16,11 @@ const queries = vi.hoisted(() => ({
 }));
 const mutation = vi.hoisted(() => ({
   calls: [] as Array<{ method: string; endpoint: string; body: unknown }>,
+  /** What a successful call answers (the stored row for a POST). */
+  answer: undefined as unknown,
   fail: false,
+  /** What a failing call throws — a transient 500 unless a test names a refusal. */
+  error: null as Error | null,
 }));
 
 vi.mock('@/hooks/useApiQuery', () => ({
@@ -30,8 +34,8 @@ vi.mock('@/hooks/useApiMutation', () => ({
   useApiMutation: ({ method }: { method: string }) => ({
     mutate: async (endpoint: string, body?: unknown) => {
       mutation.calls.push({ method, endpoint, body });
-      if (mutation.fail) throw new ApiError('refused', 500);
-      return undefined;
+      if (mutation.fail) throw mutation.error ?? new ApiError('refused', 500);
+      return mutation.answer;
     },
     loading: false,
     error: null,
@@ -85,6 +89,8 @@ beforeEach(() => {
   queries.paths = [];
   mutation.calls = [];
   mutation.fail = false;
+  mutation.error = null;
+  mutation.answer = undefined;
 });
 
 describe('useSandboxEgress', () => {
@@ -175,6 +181,81 @@ describe('useSandboxEgress', () => {
     act(() => result.current.refetch());
     expect(queries.refetch).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(result.current.grants).toHaveLength(2));
+  });
+});
+
+describe('useSandboxEgress — allowing a host from the settings (ADR-327 lot 3)', () => {
+  it('posts the host and its scope, then reads the grants again', async () => {
+    seed();
+    mutation.answer = {
+      id: 'g-9',
+      host: 'registry.npmjs.org',
+      share_turn_data: false,
+      created_at: '2026-09-30T08:00:00Z',
+      last_used_at: null,
+    };
+    const { result } = renderHook(() => useSandboxEgress());
+    let outcome: Awaited<ReturnType<typeof result.current.add>> | null = null;
+    await act(async () => {
+      outcome = await result.current.add('Registry.NPMJS.org.', false);
+    });
+    // The server's spelling — the one the list shows — never what was typed.
+    expect(outcome).toEqual({ ok: true, host: 'registry.npmjs.org' });
+    expect(mutation.calls).toEqual([
+      {
+        method: 'POST',
+        endpoint: '/sandbox/egress-grants',
+        body: { host: 'Registry.NPMJS.org.', share_turn_data: false },
+      },
+    ]);
+    expect(queries.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the scope the server stored, not an earlier toggle of this session', async () => {
+    seed();
+    const { result } = renderHook(() => useSandboxEgress());
+    await act(async () => {
+      await result.current.setScope('g-1', false);
+    });
+    expect(result.current.grants.find(g => g.id === 'g-1')?.share_turn_data).toBe(false);
+    // Allowing the same host again WITH the data: the server's row wins.
+    mutation.answer = {
+      id: 'g-1',
+      host: 'a.example',
+      share_turn_data: true,
+      created_at: '2026-09-18T08:00:00Z',
+      last_used_at: null,
+    };
+    await act(async () => {
+      await result.current.add('a.example', true);
+    });
+    expect(result.current.grants.find(g => g.id === 'g-1')?.share_turn_data).toBe(true);
+  });
+
+  it('hands back the code of a refusal the settings can name', async () => {
+    seed();
+    mutation.fail = true;
+    mutation.error = new ApiError('refused', 409, {
+      detail: { code: 'egress_grant_limit_reached' },
+    });
+    const { result } = renderHook(() => useSandboxEgress());
+    let outcome: Awaited<ReturnType<typeof result.current.add>> | null = null;
+    await act(async () => {
+      outcome = await result.current.add('pypi.org', true);
+    });
+    expect(outcome).toEqual({ ok: false, code: 'egress_grant_limit_reached' });
+    expect(queries.refetch).not.toHaveBeenCalled();
+  });
+
+  it('hands back no code for a failure it cannot name', async () => {
+    seed();
+    mutation.fail = true;
+    const { result } = renderHook(() => useSandboxEgress());
+    let outcome: Awaited<ReturnType<typeof result.current.add>> | null = null;
+    await act(async () => {
+      outcome = await result.current.add('pypi.org', true);
+    });
+    expect(outcome).toEqual({ ok: false, code: null });
   });
 });
 

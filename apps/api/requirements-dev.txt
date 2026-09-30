@@ -1,4 +1,7 @@
 -r requirements.txt
+# The sandbox image's libraries (ADR-327 lot 2): the API image does not carry
+# them, and the unit suite imports every library the sandbox promises.
+-r requirements-sandbox.txt
 
 # Linting & Formatting
 black==26.5.1

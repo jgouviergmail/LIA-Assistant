@@ -13,6 +13,8 @@
 import {
   ArrowDown,
   Bell,
+  Blocks,
+  Check,
   ChevronDown,
   Fingerprint,
   FolderTree,
@@ -29,6 +31,7 @@ import {
   RefreshCw,
   RotateCw,
   Search,
+  ShieldCheck,
   Star,
 } from 'lucide-react';
 
@@ -839,6 +842,68 @@ function NetworkGrantsScene({ active, labels }: SceneProps) {
   );
 }
 
+type SkillLibraryPhase = 'search' | 'results' | 'read' | 'installed';
+const SKILL_LIBRARY_STEPS: readonly TimelineStep<SkillLibraryPhase>[] = [
+  { at: 0, state: 'search' },
+  { at: 900, state: 'results' },
+  { at: 1900, state: 'read' },
+  { at: 3000, state: 'installed' },
+];
+const SKILL_LIBRARY_ORDER: readonly SkillLibraryPhase[] = [
+  'search',
+  'results',
+  'read',
+  'installed',
+];
+
+/**
+ * « Find skills » (ADR-327): a search in a public library, the result opened
+ * and read — audits and files checked — then installed. The resting frame
+ * keeps every line: what installs is what was read.
+ */
+function SkillLibraryScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SKILL_LIBRARY_STEPS, { active });
+  const reached = (step: SkillLibraryPhase) =>
+    SKILL_LIBRARY_ORDER.indexOf(phase) >= SKILL_LIBRARY_ORDER.indexOf(step);
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-1.5 text-px-10">
+        <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
+          <Search className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="truncate text-foreground/80">{labels.query}</span>
+        </div>
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-md border px-2 py-1.5 transition-all duration-300 motion-reduce:transition-none',
+            reached('results') ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0',
+            reached('read') ? 'border-primary/60 bg-background' : 'border-border bg-background'
+          )}
+        >
+          <Blocks className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate font-medium text-foreground/80">
+            {labels.result}
+          </span>
+          {reached('installed') ? (
+            <span className="flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-px-9 font-medium text-primary">
+              <Check className="h-2.5 w-2.5" aria-hidden="true" />
+              {labels.installed}
+            </span>
+          ) : null}
+        </div>
+        <div
+          className={cn(
+            'flex items-center gap-1.5 px-1 text-px-9 text-muted-foreground transition-opacity duration-300 motion-reduce:transition-none',
+            reached('read') ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          <ShieldCheck className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+          <span className="truncate">{labels.audit}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
@@ -854,4 +919,5 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   relation_debrief: RelationDebriefScene,
   pinned_dock: PinnedDockScene,
   network_grants: NetworkGrantsScene,
+  skill_library: SkillLibraryScene,
 };

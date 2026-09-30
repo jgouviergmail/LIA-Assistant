@@ -1,20 +1,25 @@
 """Catalogue manifests for Skills tools (agentskills.io standard).
 
-The four tools are ONE affordance — a skill is activated, its script run, its
-resources read, a library imported — so every manifest declares the same
-``binding_unit`` and the ReAct selector binds them whole or not at all.
+The five tools are ONE affordance — a skill is activated, its script or its
+commands run, its resources read, a library imported — so every manifest
+declares the same ``binding_unit`` and the ReAct selector binds them whole or
+not at all.
 """
 
+from src.core.config import settings
+from src.core.constants import SKILL_COMMAND_MAX_CHARS
 from src.domains.agents.registry.catalogue import (
     REASON_INTERNAL_CONTEXT,
-    REASON_OWN_LIBRARY,
     REASON_SANDBOXED_CONTAINER,
     CostProfile,
     OutputFieldSchema,
+    ParameterConstraint,
     ParameterSchema,
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.skills.command_bundle import COMMAND_DESCRIPTION, HOSTS_DESCRIPTION
+from src.domains.skills.trust import ACTIVATION_REQUEST_DESCRIPTION
 
 #: The binding unit every skills tool declares (read by the ReAct selector).
 SKILLS_BINDING_UNIT = "skills"
@@ -35,7 +40,8 @@ activate_skill_catalogue_manifest = ToolManifest(
     description=(
         "**Tool: activate_skill_tool** - Load a skill's full instructions.\n"
         "**Use for**: Loading specialized instructions from available_skills catalogue.\n"
-        "**Output**: Skill instructions wrapped in structured tags."
+        "**Output**: Skill instructions wrapped in structured tags. A skill marked "
+        "third-party runs on its own instead and returns its answer as external content."
     ),
     semantic_keywords=[
         "skill",
@@ -50,6 +56,12 @@ activate_skill_catalogue_manifest = ToolManifest(
             type="string",
             required=True,
             description="Name of the skill to activate (from available_skills catalogue)",
+        ),
+        ParameterSchema(
+            name="request",
+            type="string",
+            required=False,
+            description=ACTIVATION_REQUEST_DESCRIPTION,
         ),
     ],
     outputs=[
@@ -139,16 +151,18 @@ read_skill_resource_catalogue_manifest = ToolManifest(
 
 import_user_skill_catalogue_manifest = ToolManifest(
     name="import_user_skill",
-    mutation_policy="reversible",
-    mutation_policy_reason=REASON_OWN_LIBRARY,
+    # The card under the answer IS the confirmation (ADR-327): the tool only
+    # proposes, the person's click installs. Owner arbitration 2026-09-30.
+    mutation_policy="draft",
     agent="query_agent",
     binding_unit=SKILLS_BINDING_UNIT,
     description=(
-        "**Tool: import_user_skill** - Import a generated skill into the user's "
-        "imported skills.\n"
-        "**Use for**: Delivering a finished skill produced by the skill-generator "
-        "so it becomes immediately usable (no manual upload).\n"
-        "**Output**: Confirmation with the imported skill name."
+        "**Tool: import_user_skill** - Propose a finished skill to the user: it is "
+        "validated and shown as a card with an Install button under your answer.\n"
+        "**Use for**: Delivering a skill produced by the skill-generator (a new one, "
+        "or the complete regenerated package of one of the user's own skills).\n"
+        "**Output**: The proposed skill's name. NOTHING is installed until the user "
+        "clicks Install on the card."
     ),
     semantic_keywords=[
         "skill",
@@ -173,7 +187,7 @@ import_user_skill_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="message",
             type="string",
-            description="Confirmation message with the imported skill name",
+            description="What was proposed, and that the user installs it from the card",
         ),
     ],
     cost=CostProfile(
@@ -187,10 +201,10 @@ import_user_skill_catalogue_manifest = ToolManifest(
         hitl_required=False,
         data_classification="INTERNAL",
     ),
-    # Declared explicitly: this WRITES — it validates then registers a skill in
-    # the user's imported skills. Without a declaration the category is inferred
-    # from the name, which defaults unknown shapes to "readonly" and would make
-    # it eligible for proactive execution while hiding it from the
+    # Declared explicitly: this leads to a WRITE — the card installs a skill in
+    # the user's own skills. Without a declaration the category is inferred from
+    # the name, which defaults unknown shapes to "readonly" and would make it
+    # eligible for proactive execution while hiding it from the
     # invalid-mutation-plan safety net.
     tool_category="create",
     version="1.0.0",
@@ -303,4 +317,90 @@ run_skill_script_catalogue_manifest = ToolManifest(
     # a tool the initiative node may run without the user asking.
     tool_category="update",
     version="1.1.0",
+)
+
+
+# ============================================================================
+# RUN SKILL COMMAND TOOL: a skill's own shell commands — offline, or on the hosts it declares (ADR-327 lots 2-3)
+# ============================================================================
+
+run_skill_command_catalogue_manifest = ToolManifest(
+    name="run_skill_command",
+    mutation_policy="sandboxed",
+    mutation_policy_reason=REASON_SANDBOXED_CONTAINER,
+    agent="query_agent",
+    binding_unit=SKILLS_BINDING_UNIT,
+    description=(
+        "**Tool: run_skill_command** - Run a shell command that a skill's instructions "
+        "give (`python scripts/...`, `node ...`, `bash ...`), with bash in a copy of the "
+        "skill's folder — offline, unless it declares the hosts it reaches.\n"
+        "**Use for**: skills whose instructions say to run a command or a non-Python script.\n"
+        "**Files**: the user's files attached to this turn are in ../input/; every file "
+        "written under out/ is handed to the user as a card under the answer.\n"
+        "**Output**: the exit code, standard output and standard error, and the files "
+        "handed back."
+    ),
+    semantic_keywords=["skill", "command", "shell", "bash", "node", "convert", "run"],
+    parameters=[
+        ParameterSchema(
+            name="skill_name",
+            type="string",
+            required=True,
+            description="Name of the skill whose folder the command runs in",
+        ),
+        ParameterSchema(
+            name="command",
+            type="string",
+            required=True,
+            description=COMMAND_DESCRIPTION,
+            constraints=[
+                ParameterConstraint(kind="min_length", value=1),
+                ParameterConstraint(kind="max_length", value=SKILL_COMMAND_MAX_CHARS),
+            ],
+        ),
+        ParameterSchema(
+            name="hosts",
+            type="array",
+            required=False,
+            description=HOSTS_DESCRIPTION,
+            # ADR-184: the bound the tool enforces is the bound the model reads.
+            constraints=[
+                ParameterConstraint(
+                    kind="max_length", value=settings.python_sandbox_max_hosts_per_run
+                )
+            ],
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(
+            path="message",
+            type="string",
+            description="Exit code, standard output and error, and the files handed back",
+        ),
+        OutputFieldSchema(
+            path="exit_code",
+            type="integer",
+            description="The command's exit status (null when unreadable)",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="files",
+            type="array",
+            description="Names of the files handed to the user",
+        ),
+    ],
+    cost=CostProfile(
+        est_tokens_in=80,
+        est_tokens_out=600,
+        est_cost_usd=0.0,
+        est_latency_ms=10000,
+    ),
+    permissions=PermissionProfile(
+        required_scopes=[],
+        hitl_required=False,
+        data_classification="INTERNAL",
+    ),
+    # It EXECUTES code a skill ships: declared, never inferred from the name.
+    tool_category="update",
+    version="1.0.0",
 )

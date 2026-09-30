@@ -8,9 +8,10 @@ Identification signal: ``QueryIntelligence.detected_skill_name`` — produced by
 the QueryAnalyzer via semantic alignment between the user's request and each
 skill's description (not by domain overlap or keyword matching).
 
-Scope: only skills with ``plan_template.deterministic = true`` are eligible here.
-Non-deterministic skills are left to the LLM planner which shapes plan steps
-based on the skill's instructions (model-driven activation).
+Scope: only skills with ``plan_template.deterministic = true`` are eligible here,
+and never a third-party one (ADR-327). Non-deterministic skills are left to the
+LLM planner which shapes plan steps based on the skill's instructions
+(model-driven activation).
 
 Per-user isolation: all cache lookups are user-scoped via
 ``SkillsCache.get_by_name_for_user(name, user_id)`` so that a user's own skill
@@ -41,6 +42,25 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 __all__ = ["SkillBypassStrategy"]
+
+
+def _deterministic_template(skill: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """A skill's plan template, and whether it may become a plan as is.
+
+    A third-party skill's template never does (ADR-327): its steps would run
+    LIA's tools on a stranger's say-so. With scripts, such a skill takes the
+    script-only path and runs in its isolated runner.
+
+    Args:
+        skill: The resolved cache entry.
+
+    Returns:
+        ``(template, deterministic)``.
+    """
+    from src.domains.skills.trust import is_third_party
+
+    template: dict[str, Any] = skill.get("plan_template") or {}
+    return template, bool(template.get("deterministic")) and not is_third_party(skill)
 
 
 class SkillBypassStrategy:
@@ -133,8 +153,7 @@ class SkillBypassStrategy:
                 plan=None, success=False, error=f"Skill '{skill_name}' not found for user"
             )
 
-        template = skill.get("plan_template") or {}
-        is_deterministic = bool(template.get("deterministic"))
+        template, is_deterministic = _deterministic_template(skill)
         has_scripts = bool(skill.get("scripts"))
 
         # Script-only skills (no deterministic plan_template) must still bypass

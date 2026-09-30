@@ -74,6 +74,7 @@ _ROUTER_MODULES: dict[PlatformCapability, str] = {
     # ADR-321 — sending by e-mail: the router IS the ability, and it keeps no
     # record (the file stays in the gallery, the answer in the chat).
     PlatformCapability.EMAIL_SHARE: "src.domains.email_share.router",
+    PlatformCapability.SKILL_LIBRARY: "src.domains.skill_library.router",
     # ADR-324 — the radio's routes ARE the listening and its settings.
     PlatformCapability.RADIO: "src.domains.radio.router",
 }

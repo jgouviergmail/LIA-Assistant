@@ -106,6 +106,9 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     "brave_agent_prompt": frozenset({"brave_web_max_count", "brave_news_max_count"}),
     # Expert identity must be established up front; stable per delegated task type.
     "subagent_react_prompt": frozenset({"expertise"}),
+    # What the sandbox image holds (ADR-327 lot 2): rendered from a constant
+    # declaration, identical for every request of a deployment.
+    "skill_react_agent_prompt": frozenset({"sandbox_toolbox"}),
     # Server identity; low cardinality, stable per MCP server.
     "mcp_react_agent_prompt": frozenset({"server_name"}),
     # Registry-derived domain list; stable per user (varies with MCP servers).

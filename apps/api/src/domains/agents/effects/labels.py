@@ -144,6 +144,8 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "comment_ticket_tool": _target("ticket"),
     "browser_task_tool": _target("task", "instruction", "url"),
     "activate_skill_tool": _target("skill_name", "name", "skill_id"),
+    # Rows recorded while the chat tool installed by itself; since ADR-327 it only
+    # proposes, and the card's click is recorded as `skill_proposal_install`.
     "import_user_skill": _target("skill_name", "name", "source"),
     "set_current_item": _target("reference", "item_id", "domain"),
     "generate_image": _target("prompt", "description"),
@@ -153,6 +155,10 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     # ADR-298: a NETWORK sandbox run is a distinct act — it reached hosts.
     "python_sandbox_network": _target("hosts"),
     "run_skill_script": _target("skill_name", "script", "name"),
+    # ADR-327 lot 2: a skill's own shell command, in the throwaway container.
+    "run_skill_command": _target("skill_name", "name"),
+    # ADR-327 lot 3: a skill's command that reached hosts — a network act of its own.
+    "skill_command_network": _target("hosts"),
     # --- confirmed drafts ---------------------------------------------------
     "draft:email": _draft("to", "recipient", key="recipient"),
     "draft:email_reply": _draft("to", "recipient", key="recipient"),

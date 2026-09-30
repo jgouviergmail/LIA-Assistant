@@ -22,6 +22,7 @@ import pytest
 
 from src.core.exceptions import BaseAPIException, ValidationError
 from src.domains.skills.import_service import SkillImportService
+from src.domains.skills.models import SkillProvenance
 
 pytestmark = pytest.mark.unit
 
@@ -36,6 +37,7 @@ def _skill_md(name: str) -> str:
 def _empty_cache() -> MagicMock:
     cache = MagicMock()
     cache.get_all.return_value = []
+    cache.get_system_by_name.return_value = None
     cache.invalidate_and_reload = AsyncMock()
     return cache
 
@@ -46,7 +48,8 @@ class TestProvenanceCollisionInvariant:
     def _svc(self, db_row: object) -> SkillImportService:
         svc = SkillImportService(db=MagicMock())
         svc.skill_repo = MagicMock()
-        svc.skill_repo.get_by_name = AsyncMock(return_value=db_row)
+        svc.skill_repo.get_system = AsyncMock(return_value=None)
+        svc.skill_repo.get_owned = AsyncMock(return_value=db_row)
         return svc
 
     @pytest.mark.asyncio
@@ -96,7 +99,8 @@ class TestImportDirectory:
         db.commit = AsyncMock()
         svc = SkillImportService(db=db)
         svc.skill_repo = MagicMock()
-        svc.skill_repo.get_by_name = AsyncMock(return_value=None)
+        svc.skill_repo.get_system = AsyncMock(return_value=None)
+        svc.skill_repo.get_owned = AsyncMock(return_value=None)
         svc.skill_repo.get_user_skills = AsyncMock(return_value=[])
         settings = MagicMock(
             skills_users_path=str(tmp_path / "live"),
@@ -124,7 +128,9 @@ class TestImportDirectory:
                 return_value=pref,
             ),
         ):
-            result = await svc.import_directory(source, owner_id=_OWNER, plugin_id=_PLUGIN)
+            result = await svc.import_directory(
+                source, owner_id=_OWNER, provenance=SkillProvenance.PLUGIN, plugin_id=_PLUGIN
+            )
 
         assert result["name"] == "alpha"
         live = tmp_path / "live" / str(_OWNER) / "alpha"
@@ -132,6 +138,9 @@ class TestImportDirectory:
         assert (live / "references" / "notes.md").is_file()
         pref.create_skill_for_import.assert_awaited_once()
         assert pref.create_skill_for_import.await_args.kwargs["plugin_id"] == _PLUGIN
+        assert (
+            pref.create_skill_for_import.await_args.kwargs["provenance"] == SkillProvenance.PLUGIN
+        )
         db.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -142,7 +151,9 @@ class TestImportDirectory:
 
         with patch("src.core.config.get_settings", return_value=settings):
             with pytest.raises(ValidationError):
-                await svc.import_directory(source, owner_id=_OWNER, plugin_id=_PLUGIN)
+                await svc.import_directory(
+                    source, owner_id=_OWNER, provenance=SkillProvenance.PLUGIN, plugin_id=_PLUGIN
+                )
 
     @pytest.mark.asyncio
     async def test_invalid_frontmatter_name_rejected(self, tmp_path: Path) -> None:
@@ -155,7 +166,9 @@ class TestImportDirectory:
 
         with patch("src.core.config.get_settings", return_value=settings):
             with pytest.raises(ValidationError):
-                await svc.import_directory(source, owner_id=_OWNER, plugin_id=_PLUGIN)
+                await svc.import_directory(
+                    source, owner_id=_OWNER, provenance=SkillProvenance.PLUGIN, plugin_id=_PLUGIN
+                )
 
 
 class TestCreateSkillForImportProvenance:
@@ -168,7 +181,8 @@ class TestCreateSkillForImportProvenance:
         pref.db = MagicMock()
         pref.db.flush = AsyncMock()
         pref.skill_repo = MagicMock()
-        pref.skill_repo.get_by_name = AsyncMock(return_value=existing)
+        pref.skill_repo.get_system = AsyncMock(return_value=None)
+        pref.skill_repo.get_owned = AsyncMock(return_value=existing)
         pref.state_repo = MagicMock()
         pref.state_repo.ensure_state = AsyncMock()
         return pref

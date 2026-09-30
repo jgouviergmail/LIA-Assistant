@@ -1,6 +1,6 @@
 # ADR-306 — The Claude request surface is declared once; the prompt cache is shaped, and billed, the way the vendor measures it
 
-**Status**: accepted — 2026-09-23 (the OpenAI half, section 7, the same day)
+**Status**: accepted — 2026-09-23 (the OpenAI half, section 7, the same day); amended 2026-09-30 (Sonnet 5.5, GPT-6.1 Sol)
 **Amends**: ADR-087 (the thin `ChatOpenAICached`), ADR-244 (model capability catalogue), ADR-245 (one reasoning intent, one seam), ADR-263 lot 7 (Article-12 inference parameters), ADR-272 (every euro the platform pays is counted), ADR-284 (the `DYNAMIC CONTEXT` convention of the versioned prompts)
 
 ## Context
@@ -269,3 +269,37 @@ before the key change and 2,831 after it (the key identical on both calls).
 - **A version rule (« 5.6 and later ») for the breakpoint.** It is OpenAI's own
   wording, but a model it misjudges refuses every call; a declared family costs one
   line once the next generation is measured.
+
+## Amendment 2026-09-30 — Claude Sonnet 5.5 and GPT-6.1 Sol
+
+Two models joined the catalogue (seed and migration `fc0147eeb095`, guard
+`test_sonnet_5_5_and_gpt_6_1_sol_migration_guard.py`). Both names START with an older
+model's name, and every rule table of this ADR matches by prefix: each would have
+inherited its predecessor's rules in silence.
+
+- **Claude Sonnet 5.5 is a seventh thinking shape** (`between_tools` in
+  `core/claude_surface.py`, family `anthropic_between_tools`). Read on the vendor's
+  migration guide and thinking reference, **not measured** — the Anthropic account had
+  no credit left, and the owner forbids any other Anthropic call than the free model
+  listing: `disabled` is a 400; the lowest setting is `thinking: {type:
+  "between_tools"}`, which turns off the up-front thinking only (the notes written
+  between tool calls still come back as thinking blocks); it takes no other field
+  (`display`, a budget or `block_binding` beside it is a 400) and no effort above
+  `high`. The ladder's `none` renders exactly that — no effort, the API default
+  `high` being accepted — and `_degrade_thinking_binding` attaches the binding control
+  to `adaptive` and `enabled` only (the vendor's rule), so a turned-off Sonnet 5.5 call
+  goes without the drop-instead-of-refuse net: the prior turns' blocks are stripped
+  anyway, and a head trim of the reducer inside one tool loop on an account created
+  from 2026-08-31 is the stated residual risk. Everything else is Opus 5.5's surface:
+  sampling and forced `tool_choice` refused, thinking bound to the conversation,
+  implicit depth `high`. The row sits BEFORE the Opus 5 / Sonnet 5 row, whose
+  `claude-sonnet-5` prefix would have sent `disabled` and forced the structured-output
+  tool — two 400s. The Article-12 reader reads `between_tools` as the ladder's `none`.
+- **GPT-6.1 Sol has no off switch**: « the none and minimal reasoning efforts are not
+  supported » (model page), measured the same day — `none` is a 400 `unsupported_value`
+  — so it joins Astra's rule, before the `gpt-6` prefix that would hand it Sol's
+  `none`. It is a **cache family of its own** (`gpt-6.1` in `_BREAKPOINT_FAMILIES`),
+  measured before it was declared (about 0.004 USD, budget approved): 1,454 tokens
+  written at the explicit breakpoint, the same 1,454 read back by the next call. The
+  family rule (the family itself, or the family and a dash) kept it out of `gpt-6`,
+  as designed. Its cached input is 5 % of the input price (0.10 USD), not 10 %.

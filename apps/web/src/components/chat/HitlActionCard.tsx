@@ -22,6 +22,7 @@ import {
   Clock,
   ListChecks,
   Mail,
+  ShieldAlert,
   Wrench,
   X,
 } from 'lucide-react';
@@ -145,11 +146,32 @@ function EgressPreview({ content }: { content: Record<string, unknown> }) {
   );
 }
 
+/** A skill written elsewhere asks (ADR-327): said above the answers, since
+ * allowing WITH the turn's data hands that skill's command the files the
+ * person attached. */
+function ThirdPartySkillNote() {
+  const { t } = useTranslation();
+  return (
+    <div
+      role="note"
+      className="mt-2 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs"
+    >
+      <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+      <p>{t('chat.hitl.egress.third_party_skill')}</p>
+    </div>
+  );
+}
+
 function DraftPreview({ payload }: { payload: NormalizedHitlPayload }) {
   const { t } = useTranslation();
   const content = payload.draftContent ?? {};
   if (payload.draftType === 'sandbox_egress') {
-    return <EgressPreview content={content} />;
+    return (
+      <>
+        <EgressPreview content={content} />
+        {content.third_party_skill === true && <ThirdPartySkillNote />}
+      </>
+    );
   }
   const to = typeof content.to === 'string' ? content.to : null;
   const subject = typeof content.subject === 'string' ? content.subject : null;

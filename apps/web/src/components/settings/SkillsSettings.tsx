@@ -4,13 +4,14 @@
  * SkillsSettings — thin section shell for the skills gallery (UXR Lot 10).
  *
  * Owns the data hook, the collapse state of the two scope sections, the
- * selected-skill modal, the URL-import dialog and the delete confirmation;
- * rendering lives in SkillGallery / SkillDetailModal / ImportFromUrlDialog
- * (CC budgets — keep this file orchestration-only).
+ * selected-skill modal, the URL-import dialog, the skill library (ADR-327) and
+ * the delete confirmation; rendering lives in SkillGallery / SkillDetailModal /
+ * ImportFromUrlDialog / SkillLibraryDialog (CC budgets — keep this file
+ * orchestration-only).
  */
 
 import { useMemo, useRef, useState } from 'react';
-import { Blocks, BookOpen, ChevronDown, Link2, ShieldCheck, Upload } from 'lucide-react';
+import { Blocks, BookOpen, ChevronDown, Library, Link2, ShieldCheck, Upload } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,11 @@ import { SkillGuideModal } from '@/components/settings/SkillGuideModal';
 import { SkillGallery } from '@/components/settings/SkillGallery';
 import { SkillDetailModal } from '@/components/settings/SkillDetailModal';
 import { ImportFromUrlDialog } from '@/components/settings/ImportFromUrlDialog';
+import { SkillLibraryDialog } from '@/components/settings/skill-library/SkillLibraryDialog';
+import { useAppConfig } from '@/hooks/useAppConfig';
 import { useSkills, type Skill } from '@/hooks/useSkills';
+import { skillLibraryAvailable } from '@/lib/skill-library/availability';
+import type { LibraryTab } from '@/lib/skill-library/dialog-state';
 import { usePlugins } from '@/hooks/usePlugins';
 import { toast } from 'sonner';
 import type { Language } from '@/i18n/settings';
@@ -214,9 +219,12 @@ function UserScopeSection(props: {
   onImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onShowGuide: () => void;
   onShowUrlImport: () => void;
+  /** Opens the skill library — absent when this instance does not offer it. */
+  onShowLibrary?: () => void;
 }) {
   const { skills, lng, t, open, onToggleOpen, onOpenSkill, onToggle, toggling } = props;
   const { importing, fileInputRef, onImportFile, onShowGuide, onShowUrlImport } = props;
+  const { onShowLibrary } = props;
   return (
     <div>
       {/* No bottom margin here: it stacked UNDER the button row on top of the
@@ -267,6 +275,12 @@ function UserScopeSection(props: {
             onChange={onImportFile}
             aria-label={t('settings.skills.import_button')}
           />
+          {onShowLibrary && (
+            <Button size="sm" onClick={onShowLibrary} className="gap-1.5">
+              <Library className="h-3.5 w-3.5" aria-hidden />
+              {t('settings.skills.library.button')}
+            </Button>
+          )}
           <Button size="sm" onClick={onShowUrlImport}>
             <Link2 className="h-3.5 w-3.5" />
             {t('settings.skills.url_import.button')}
@@ -319,6 +333,10 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [showUrlImport, setShowUrlImport] = useState(false);
+  // The skill library (ADR-327): open on a tab, or closed.
+  const { config } = useAppConfig();
+  const libraryOffered = skillLibraryAvailable(config);
+  const [libraryTab, setLibraryTab] = useState<LibraryTab | null>(null);
   const [selected, setSelected] = useState<Skill | null>(null);
   // Collapse state per scope section — compact panel at first glance.
   const [adminOpen, setAdminOpen] = useState(false);
@@ -397,6 +415,7 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
             onImportFile={handleImport}
             onShowGuide={() => setShowGuide(true)}
             onShowUrlImport={() => setShowUrlImport(true)}
+            onShowLibrary={libraryOffered ? () => setLibraryTab('search') : undefined}
           />
         </div>
       )}
@@ -409,6 +428,14 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
         onImport={importFromUrl}
         importing={importingFromUrl}
       />
+      {libraryTab !== null && (
+        <SkillLibraryDialog
+          lng={lng}
+          initialTab={libraryTab}
+          onOpenChange={open => !open && setLibraryTab(null)}
+          onChanged={() => void refetch()}
+        />
+      )}
 
       <SkillDetailModal
         skill={selectedLive}
@@ -428,6 +455,14 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
         }}
         downloading={downloadingName === selectedLive?.name}
         toggling={toggling}
+        onOpenLibrary={
+          libraryOffered
+            ? () => {
+                setSelected(null);
+                setLibraryTab('installed');
+              }
+            : undefined
+        }
       />
 
       <AlertDialog

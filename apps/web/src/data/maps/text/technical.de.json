@@ -252,9 +252,9 @@
     },
     "t.skills": {
       "name": "Skills und Plugins",
-      "role": "Portable Skills installieren, aktivieren und ausführen; ein Plugin bringt Skills und MCP-Server mit einem Handgriff.",
+      "role": "Portable Fähigkeiten installieren, aktivieren und ausführen — aus einer öffentlichen Bibliothek zu einem genauen Commit oder vom Chat vorgeschlagen — samt ihren Befehlen in einer Wegwerfkopie ihres Ordners; eine fremde Fähigkeit läuft in einem isolierten Runner, ein Plugin bringt Fähigkeiten und MCP-Server in einem Schritt.",
       "stack": ["Agent Skills", "Agent Plugins"],
-      "src": "7dcbbe9d1959"
+      "src": "92d4fcb1a5d5"
     },
     "t.sandbox": {
       "name": "Sandbox und Ausgangs-Proxy",

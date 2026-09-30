@@ -10,30 +10,30 @@ tested and documented in ADR-118 — but three locks made it unreachable:
 - the generator's own instructions told it to rename on conflict, steering it
   into creating duplicates.
 
-Confirmation is enforced IN the tool, in two calls, because the HITL machinery
-is unavailable where the generator runs: a skill shipping ``scripts/`` executes
-inside an isolated ReAct sub-agent whose drafts never reach the main graph.
+The confirmation is the proposal's card (ADR-327): the tool validates and
+PROPOSES, and only the person's click installs — the HITL machinery is
+unavailable where the generator runs (an isolated sub-agent whose drafts never
+reach the main graph), so a two-call token the model echoed back used to stand
+in for the person's agreement.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
 
+from src.core.context import bind_skill_context, reset_skill_context
 from src.domains.skills.import_service import (
     _carry_over_untransportable,
     _declared_resources,
     _validate_package_integrity,
     parse_incoming_skill_name,
 )
-from src.domains.skills.tools import (
-    _describe_replacement,
-    _resolve_edit_target,
-    replacement_token,
-)
+from src.domains.skills.tools import _resolve_edit_target
 from tests.helpers.runtime_context import make_tool_runtime
 
 _USER = uuid4()
@@ -74,17 +74,19 @@ class TestIncomingNameParsing:
 
 @pytest.mark.unit
 class TestEditTargetGuards:
-    """The three refusals, exactly as arbitrated."""
+    """The refusals, exactly as arbitrated."""
 
     async def test_free_name_is_a_creation(self):
-        with patch("src.domains.skills.cache.SkillsCache.get_by_name", return_value=None):
+        with patch("src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=None):
             existing, refusal = await _resolve_edit_target("brand-new", str(_USER))
         assert existing is None
         assert refusal is None
 
     async def test_system_skill_is_refused_without_offering_a_fork(self):
         system_skill = {"name": "pomodoro-timer", "scope": "admin", "owner_id": None}
-        with patch("src.domains.skills.cache.SkillsCache.get_by_name", return_value=system_skill):
+        with patch(
+            "src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=system_skill
+        ):
             existing, refusal = await _resolve_edit_target("pomodoro-timer", str(_USER))
 
         assert existing is None
@@ -92,17 +94,25 @@ class TestEditTargetGuards:
         assert refusal.error_code == "SYSTEM_SKILL_READ_ONLY"
         assert "fork" not in refusal.message.lower()
 
-    async def test_another_users_skill_does_not_leak_its_existence(self):
-        other = {"name": "leur-skill", "scope": "user", "owner_id": str(uuid4())}
-        with patch("src.domains.skills.cache.SkillsCache.get_by_name", return_value=other):
+    async def test_another_users_skill_of_that_name_leaves_it_free(self, tmp_path):
+        """ADR-327: a name is unique per account — someone else's is never reached."""
+        from src.domains.skills.cache import SkillsCache
+
+        other_dir = tmp_path / "users" / str(uuid4()) / "leur-skill"
+        other_dir.mkdir(parents=True)
+        (other_dir / "SKILL.md").write_text(
+            "---\nname: leur-skill\ndescription: Someone else's.\n---\nBody.\n",
+            encoding="utf-8",
+        )
+        saved = SkillsCache._skills, SkillsCache._loaded
+        try:
+            SkillsCache.load_from_disk(str(tmp_path / "system"), str(tmp_path / "users"))
             existing, refusal = await _resolve_edit_target("leur-skill", str(_USER))
+        finally:
+            SkillsCache._skills, SkillsCache._loaded = saved
 
         assert existing is None
-        assert refusal is not None
-        assert refusal.error_code == "NAME_UNAVAILABLE"
-        # Must not reveal that someone else owns it.
-        assert "another user" not in refusal.message.lower()
-        assert "owner" not in refusal.message.lower()
+        assert refusal is None
 
     async def test_disabled_skill_must_be_reenabled_first(self):
         mine = {"name": "ma-skill", "scope": "user", "owner_id": str(_USER)}
@@ -118,11 +128,15 @@ class TestEditTargetGuards:
         service.get_active_skills_for_user = AsyncMock(return_value=set())
 
         with (
-            patch("src.domains.skills.cache.SkillsCache.get_by_name", return_value=mine),
+            patch("src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=mine),
             patch("src.infrastructure.database.session.get_db_context", return_value=_Ctx()),
             patch(
                 "src.domains.skills.preference_service.SkillPreferenceService",
                 return_value=service,
+            ),
+            patch(
+                "src.domains.skills.repository.SkillRepository.get_owned",
+                AsyncMock(return_value=None),
             ),
         ):
             existing, refusal = await _resolve_edit_target("ma-skill", str(_USER))
@@ -145,11 +159,15 @@ class TestEditTargetGuards:
         service.get_active_skills_for_user = AsyncMock(return_value={"ma-skill"})
 
         with (
-            patch("src.domains.skills.cache.SkillsCache.get_by_name", return_value=mine),
+            patch("src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=mine),
             patch("src.infrastructure.database.session.get_db_context", return_value=_Ctx()),
             patch(
                 "src.domains.skills.preference_service.SkillPreferenceService",
                 return_value=service,
+            ),
+            patch(
+                "src.domains.skills.repository.SkillRepository.get_owned",
+                AsyncMock(return_value=None),
             ),
         ):
             existing, refusal = await _resolve_edit_target("ma-skill", str(_USER))
@@ -160,50 +178,52 @@ class TestEditTargetGuards:
 
 
 @pytest.mark.unit
-class TestReplacementConfirmation:
-    """Fail-closed: the model cannot overwrite in a single call."""
+class TestAManagedSkillIsUpdatedNotEdited:
+    """ADR-327: a library or plugin skill follows its source; the chat never rewrites it."""
 
-    def test_impact_lists_files_that_would_be_lost(self):
-        existing = {
-            "name": "ma-skill",
-            "all_resources": ["references/rules.md", "scripts/render.py", "assets/preview.png"],
-        }
-        result = _describe_replacement(existing, {"SKILL.md": "new"})
+    async def _resolve(self, provenance: str) -> tuple[Any, Any]:
+        mine = {"name": "ma-skill", "scope": "user", "owner_id": str(_USER)}
 
-        assert result.success is False
-        assert result.error_code == "CONFIRMATION_REQUIRED"
-        assert "references/rules.md" in result.message
-        assert "scripts/render.py" in result.message
+        class _Ctx:
+            async def __aenter__(self) -> MagicMock:
+                return MagicMock()
 
-    def test_binary_assets_are_not_reported_as_lost(self):
-        """The server carries them over — claiming otherwise would be a lie."""
-        existing = {"name": "ma-skill", "all_resources": ["assets/preview.png"]}
-        result = _describe_replacement(existing, {"SKILL.md": "new"})
+            async def __aexit__(self, *a: object) -> None:
+                return None
 
-        removed_section = [
-            line for line in result.message.splitlines() if line.startswith("REMOVED")
-        ]
-        assert not removed_section
+        service = MagicMock()
+        service.get_active_skills_for_user = AsyncMock(return_value={"ma-skill"})
+        with (
+            patch("src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=mine),
+            patch("src.infrastructure.database.session.get_db_context", return_value=_Ctx()),
+            patch(
+                "src.domains.skills.preference_service.SkillPreferenceService",
+                return_value=service,
+            ),
+            patch(
+                "src.domains.skills.repository.SkillRepository.get_owned",
+                AsyncMock(return_value=MagicMock(provenance=provenance)),
+            ),
+        ):
+            return await _resolve_edit_target("ma-skill", str(_USER))
 
-    def test_added_files_are_announced(self):
-        existing = {"name": "ma-skill", "all_resources": []}
-        result = _describe_replacement(
-            existing, {"SKILL.md": "new", "references/guide.md": "content"}
-        )
-        assert "references/guide.md" in result.message
+    @pytest.mark.parametrize("provenance", ["library", "plugin"])
+    async def test_a_managed_skill_is_refused(self, provenance: str) -> None:
+        existing, refusal = await self._resolve(provenance)
+        assert existing is None
+        assert refusal is not None and refusal.error_code == "SKILL_MANAGED"
 
-    def test_irreversibility_is_stated(self):
-        """The confirmation IS the safeguard — no version history exists."""
-        existing = {"name": "ma-skill", "all_resources": []}
-        result = _describe_replacement(existing, {"SKILL.md": "new"})
-        assert "cannot be restored" in result.message
+    @pytest.mark.parametrize("provenance", ["authored", "url"])
+    async def test_one_the_person_holds_stays_editable(self, provenance: str) -> None:
+        existing, refusal = await self._resolve(provenance)
+        assert refusal is None and existing is not None
 
 
 @pytest.mark.unit
 class TestPrecheckOrchestration:
-    """The single gate every import passes through before touching disk."""
+    """What a chat package meets before it is validated and proposed."""
 
-    async def _precheck(self, files, *, existing=None, active=True, token=""):
+    async def _precheck(self, files, *, existing=None, active=True):
         from src.domains.skills.tools import _precheck_import
 
         class _Ctx:
@@ -218,14 +238,20 @@ class TestPrecheckOrchestration:
             return_value={"ma-skill"} if active else set()
         )
         with (
-            patch("src.domains.skills.cache.SkillsCache.get_by_name", return_value=existing),
+            patch(
+                "src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=existing
+            ),
             patch("src.infrastructure.database.session.get_db_context", return_value=_Ctx()),
             patch(
                 "src.domains.skills.preference_service.SkillPreferenceService",
                 return_value=service,
             ),
+            patch(
+                "src.domains.skills.repository.SkillRepository.get_owned",
+                AsyncMock(return_value=None),
+            ),
         ):
-            return await _precheck_import(files, str(_USER), replace_token=token)
+            return await _precheck_import(files, str(_USER))
 
     async def test_creation_passes_straight_through(self):
         assert await self._precheck({"SKILL.md": _VALID_SKILL_MD}) is None
@@ -235,55 +261,20 @@ class TestPrecheckOrchestration:
         assert result is not None
         assert result.error_code == "IMPORT_REJECTED"
 
-    async def test_replacement_without_confirmation_is_refused(self):
+    async def test_a_replacement_of_an_own_active_skill_is_proposed(self):
+        """No token any more: the card states the replacement and the click confirms it."""
         mine = {"name": "ma-skill", "scope": "user", "owner_id": str(_USER), "all_resources": []}
-        result = await self._precheck({"SKILL.md": _VALID_SKILL_MD}, existing=mine)
-        assert result is not None
-        assert result.error_code == "CONFIRMATION_REQUIRED"
+        assert await self._precheck({"SKILL.md": _VALID_SKILL_MD}, existing=mine) is None
 
-    async def test_replacement_with_the_right_token_proceeds(self):
-        mine = {"name": "ma-skill", "scope": "user", "owner_id": str(_USER), "all_resources": []}
-        files = {"SKILL.md": _VALID_SKILL_MD}
-        token = replacement_token("ma-skill", files)
-        assert await self._precheck(files, existing=mine, token=token) is None
-
-    async def test_a_guessed_token_is_refused(self):
-        """The flag-style bypass: asserting confirmation without having been refused."""
-        mine = {"name": "ma-skill", "scope": "user", "owner_id": str(_USER), "all_resources": []}
-        result = await self._precheck({"SKILL.md": _VALID_SKILL_MD}, existing=mine, token="true")
-        assert result is not None
-        assert result.error_code == "CONFIRMATION_REQUIRED"
-
-    async def test_a_token_from_a_different_package_is_refused(self):
-        """The user approved one package; another one must not ride on it."""
-        mine = {"name": "ma-skill", "scope": "user", "owner_id": str(_USER), "all_resources": []}
-        approved = {"SKILL.md": _VALID_SKILL_MD}
-        tampered = {"SKILL.md": _VALID_SKILL_MD + "\n## Extra\nsomething else\n"}
-        result = await self._precheck(
-            tampered, existing=mine, token=replacement_token("ma-skill", approved)
-        )
-        assert result is not None
-        assert result.error_code == "CONFIRMATION_REQUIRED"
-
-    async def test_confirmation_cannot_bypass_the_system_guard(self):
-        """The token is not a master key."""
+    async def test_a_system_skill_is_never_proposed_over(self):
         system = {"name": "ma-skill", "scope": "admin", "owner_id": None}
-        result = await self._precheck(
-            {"SKILL.md": _VALID_SKILL_MD},
-            existing=system,
-            token=replacement_token("ma-skill", {"SKILL.md": _VALID_SKILL_MD}),
-        )
+        result = await self._precheck({"SKILL.md": _VALID_SKILL_MD}, existing=system)
         assert result is not None
         assert result.error_code == "SYSTEM_SKILL_READ_ONLY"
 
-    async def test_confirmation_cannot_bypass_the_disabled_guard(self):
+    async def test_a_disabled_skill_must_be_reenabled_first(self):
         mine = {"name": "ma-skill", "scope": "user", "owner_id": str(_USER), "all_resources": []}
-        result = await self._precheck(
-            {"SKILL.md": _VALID_SKILL_MD},
-            existing=mine,
-            active=False,
-            token=replacement_token("ma-skill", {"SKILL.md": _VALID_SKILL_MD}),
-        )
+        result = await self._precheck({"SKILL.md": _VALID_SKILL_MD}, existing=mine, active=False)
         assert result is not None
         assert result.error_code == "SKILL_DISABLED"
 
@@ -366,12 +357,17 @@ class TestManifestIsReadable:
             store=MagicMock(),
         )
 
-        with patch(
-            "src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=cached
-        ):
-            return await read_skill_resource.coroutine(
-                skill_name="ma-skill", path=path, runtime=runtime
-            )
+        # The person's own skill, bound as the request binds it (ADR-327).
+        tokens = bind_skill_context({"ma-skill"}, frozenset())
+        try:
+            with patch(
+                "src.domains.skills.cache.SkillsCache.get_by_name_for_user", return_value=cached
+            ):
+                return await read_skill_resource.coroutine(
+                    skill_name="ma-skill", path=path, runtime=runtime
+                )
+        finally:
+            reset_skill_context(tokens)
 
     async def test_skill_md_is_served(self, tmp_path: Path):
         """Activation strips the frontmatter — this is the only way to see it."""

@@ -168,10 +168,9 @@ async def test_activate_skills_always_loaded_passive_injection():
         patch(f"{_RESP}.settings.skills_enabled", True),
         patch(
             "src.domains.skills.cache.SkillsCache.get_always_loaded",
-            Mock(return_value=[{"name": "always"}]),
+            Mock(return_value=[{"name": "always", "scope": "admin"}]),
         ),
         patch("src.domains.skills.cache.SkillsCache.get_by_name_for_user", Mock(return_value=None)),
-        patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=None)),
         patch("src.domains.skills.activation.activate_skill", Mock(return_value="ALWAYS_CTX")),
     ):
         res = await _activate_response_skills(
@@ -193,6 +192,7 @@ async def test_activate_skills_script_skill_runs_react_runner():
     state = {"query_intelligence": {"detected_skill_name": "my_skill"}}
     skill_data = {
         "scripts": ["run.py"],
+        "scope": "admin",
         "references": [],
         "source_path": "/skills/my_skill/SKILL.md",
     }
@@ -210,7 +210,6 @@ async def test_activate_skills_script_skill_runs_react_runner():
             "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
             Mock(return_value=skill_data),
         ),
-        patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data)),
         patch("src.domains.skills.tools.skills_runner_tools", []),
         patch(
             "src.domains.skills.activation.activate_skill", Mock(return_value="<skill_content/>")
@@ -258,6 +257,7 @@ async def test_activate_skills_detected_skill_survives_a_native_execution_plan()
     }
     skill_data = {
         "scripts": ["run.py"],
+        "scope": "admin",
         "references": [],
         "source_path": "/skills/my_skill/SKILL.md",
     }
@@ -275,7 +275,6 @@ async def test_activate_skills_detected_skill_survives_a_native_execution_plan()
             "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
             Mock(return_value=skill_data),
         ),
-        patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data)),
         patch("src.domains.skills.tools.skills_runner_tools", []),
         patch(
             "src.domains.skills.activation.activate_skill", Mock(return_value="<skill_content/>")
@@ -305,6 +304,7 @@ async def test_activate_skills_runner_error_falls_back_to_passive_l2():
     state = {"query_intelligence": {"detected_skill_name": "my_skill"}}
     skill_data = {
         "scripts": ["run.py"],
+        "scope": "admin",
         "references": [],
         "source_path": "/skills/my_skill/SKILL.md",
     }
@@ -316,7 +316,6 @@ async def test_activate_skills_runner_error_falls_back_to_passive_l2():
             "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
             Mock(return_value=skill_data),
         ),
-        patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data)),
         patch("src.domains.skills.tools.skills_runner_tools", []),
         patch(
             "src.domains.skills.activation.activate_skill", Mock(return_value="<skill_content/>")

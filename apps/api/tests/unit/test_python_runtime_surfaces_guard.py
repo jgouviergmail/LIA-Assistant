@@ -1,11 +1,12 @@
 """Every Python-version surface tracks the requires-python floor (single-version contract).
 
 The 3.12→3.14 migration audit (2026-07-29, re-verified 2026-08-20) found the interpreter
-version encoded in six independent surfaces: pyproject, both API Dockerfiles, the uv
-compile flags, the skills sandbox PYTHONPATH (constant + .env examples), and the CI
-workflows. A future bump that misses one ships a mixed-version system — the sandbox then
-mounts a dead site-packages path (the v1.25.25 `.env` failure class). All checks key off
-the pyproject floor so there is exactly one source of truth (ADR-241).
+version encoded in independent surfaces: pyproject, the API Dockerfiles, the uv compile
+flags, the skills sandbox, and the CI workflows. A future bump that misses one ships a
+mixed-version system. The sandbox used to encode it in a PYTHONPATH into the API image's
+site-packages (the v1.25.25 `.env` failure class); since ADR-327 lot 2 it runs on its own
+image, whose base is one more Dockerfile below. All checks key off the pyproject floor so
+there is exactly one source of truth (ADR-241).
 
 Exception: the ADR-215 self-host installer wizard runs on bare operator hosts and keeps
 its own Python 3.10 floor (ci.yml job "Installer Python 3.10 floor") — it is exempted
@@ -48,9 +49,9 @@ def test_interpreter_matches_contract() -> None:
 
 
 def test_dockerfiles_track_the_floor() -> None:
-    """Every python base image in both API Dockerfiles carries the contract version."""
+    """Every python base image of the API and sandbox Dockerfiles carries the contract version."""
     floor = _floor()
-    for name in ("Dockerfile.dev", "Dockerfile.prod"):
+    for name in ("Dockerfile.dev", "Dockerfile.prod", "Dockerfile.sandbox"):
         text = (API_DIR / name).read_text(encoding="utf-8")
         tags = re.findall(r"^FROM python:(\d+\.\d+)-", text, re.MULTILINE)
         assert tags, f"{name}: no python base image found"
@@ -65,19 +66,20 @@ def test_uv_compile_flags_track_the_floor() -> None:
     assert match.group(1) == _floor()
 
 
-def test_sandbox_pythonpath_tracks_the_floor() -> None:
-    """The skills-sandbox site-packages path embeds the contract interpreter version."""
+def test_the_sandbox_carries_no_version_bound_path() -> None:
+    """The sandbox image installs system-wide: no site-packages path to drift (ADR-327)."""
     from src.core.constants import SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT
 
-    floor = _floor()
-    assert f"/python{floor}/" in SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT
+    assert SKILLS_SCRIPT_SANDBOX_PYTHONPATH_DEFAULT == ""
     for env_example in (REPO_ROOT / ".env.example", REPO_ROOT / ".env.prod.example"):
         line = next(
             ln
             for ln in env_example.read_text(encoding="utf-8").splitlines()
             if ln.startswith("SKILLS_SCRIPT_SANDBOX_PYTHONPATH=")
         )
-        assert f"/python{floor}/" in line, f"{env_example.name}: sandbox path drifted"
+        assert (
+            line.split("#", 1)[0].strip() == "SKILLS_SCRIPT_SANDBOX_PYTHONPATH="
+        ), env_example.name
 
 
 def test_all_workflow_python_versions_match_contract() -> None:

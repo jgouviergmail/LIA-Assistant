@@ -46,7 +46,7 @@ def _db_skill(*, is_system: bool = False, admin_enabled: bool = True) -> MagicMo
 
 def _repo_patch(row: MagicMock | None):
     repo = MagicMock()
-    repo.get_by_name = AsyncMock(return_value=row)
+    repo.resolve_for_user = AsyncMock(return_value=row)
     return patch("src.domains.skills.repository.SkillRepository", return_value=repo)
 
 
