@@ -27,6 +27,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.config import settings
 from src.domains.briefing.exceptions import ConnectorAccessError, ConnectorNotConfiguredError
 from src.domains.briefing.schemas import (
     AgendaData,
@@ -200,28 +201,99 @@ class TestTasks:
 
 class TestWeather:
     @staticmethod
-    def _alert(kind: ForecastAlertKind, starts_at: datetime, shown: str) -> ForecastAlert:
-        return ForecastAlert(kind=kind, time=shown, starts_at=starts_at)
+    def _alert(
+        kind: ForecastAlertKind, starts_at: datetime, shown: str, percent: int | None = 80
+    ) -> ForecastAlert:
+        return ForecastAlert(
+            kind=kind, time=shown, starts_at=starts_at, precipitation_percent=percent
+        )
 
-    async def test_only_the_configured_kinds_are_facts(self) -> None:
-        rain = self._alert(ForecastAlertKind.RAIN, NOW + timedelta(hours=6), "20:00")
+    async def test_the_rule_read_is_the_published_one(self) -> None:
+        # Horizon, strict threshold and kinds come from the settings and the
+        # routine — never a figure typed in the evaluator (ADR-184).
+        fetch = AsyncMock(return_value=None)
+        await _evaluate(
+            {"type": "weather_change", "kinds": ["snow", "rain"]}, fetch_forecast_alert=fetch
+        )
+
+        kwargs = fetch.await_args.kwargs
+        rule = kwargs["rule"]
+        assert rule.horizon == timedelta(hours=settings.scheduled_actions_weather_horizon_hours)
+        assert (
+            rule.min_precipitation_percent
+            == settings.scheduled_actions_weather_min_precipitation_percent
+        )
+        assert rule.kinds == {ForecastAlertKind.SNOW, ForecastAlertKind.RAIN}
+        assert kwargs["now"] == NOW
+
+    async def test_no_kinds_stored_watches_every_kind(self) -> None:
+        fetch = AsyncMock(return_value=None)
+        await _evaluate({"type": "weather_change"}, fetch_forecast_alert=fetch)
+
+        assert fetch.await_args.kwargs["rule"].kinds == frozenset(ForecastAlertKind)
+
+    async def test_a_selection_of_a_shape_no_writer_produces_watches_every_kind(self) -> None:
+        # Read forgivingly: « "rain" » must not become the letters r, a, i, n.
+        fetch = AsyncMock(return_value=None)
+        await _evaluate({"type": "weather_change", "kinds": "rain"}, fetch_forecast_alert=fetch)
+
+        assert fetch.await_args.kwargs["rule"].kinds == frozenset(ForecastAlertKind)
+
+    async def test_only_unknown_kinds_stored_is_never_met(self) -> None:
+        # A config written by another release: nothing it names can be watched,
+        # and an empty selection is not « every kind ».
+        rain = self._alert(ForecastAlertKind.RAIN, NOW + timedelta(hours=1), "13:00")
         fetch = AsyncMock(return_value=rain)
-        met, _ = await _evaluate(
-            {"type": "weather_change", "kinds": ["rain"]}, fetch_forecast_alert=fetch
-        )
-        filtered, _ = await _evaluate(
-            {"type": "weather_change", "kinds": ["snow"]}, fetch_forecast_alert=fetch
+        verdict, _ = await _evaluate(
+            {"type": "weather_change", "kinds": ["hail"]}, fetch_forecast_alert=fetch
         )
 
-        assert met.note_for(met.keys) == "Weather alert: rain expected around 20:00"
-        assert filtered.met is False
+        assert fetch.await_args.kwargs["rule"].kinds == frozenset()
+        assert verdict.met is False
+        assert verdict.error is None
+
+    async def test_the_note_states_the_day_the_hour_the_chance_and_the_source(self) -> None:
+        # « rain expected around 20:00 » alone let the run check TODAY at 20:00
+        # and answer that nothing was changing.
+        rain = self._alert(ForecastAlertKind.RAIN, NOW + timedelta(hours=2), "14:00")
+        met, _ = await _evaluate(
+            {"type": "weather_change", "kinds": ["rain"]},
+            fetch_forecast_alert=AsyncMock(return_value=rain),
+        )
+
+        assert met.note_for(met.keys) == (
+            "Weather alert: rain expected around 14:00 on 2026-09-25 (Europe/Paris), "
+            "80% chance of precipitation (source: Google Weather)"
+        )
+
+    async def test_a_change_with_no_stated_chance_says_none(self) -> None:
+        rain = self._alert(ForecastAlertKind.RAIN, NOW + timedelta(hours=2), "14:00", None)
+        met, _ = await _evaluate(
+            {"type": "weather_change"}, fetch_forecast_alert=AsyncMock(return_value=rain)
+        )
+
+        assert met.note_for(met.keys) == (
+            "Weather alert: rain expected around 14:00 on 2026-09-25 (Europe/Paris) "
+            "(source: Google Weather)"
+        )
+
+    async def test_the_day_is_the_persons_local_day(self) -> None:
+        # 23:30 UTC is already the next day in Paris.
+        late = self._alert(
+            ForecastAlertKind.SNOW, datetime(2026, 9, 25, 23, 30, tzinfo=UTC), "01:30"
+        )
+        met, _ = await _evaluate(
+            {"type": "weather_change"}, fetch_forecast_alert=AsyncMock(return_value=late)
+        )
+
+        assert "on 2026-09-26 (Europe/Paris)" in (met.note_for(met.keys) or "")
 
     async def test_a_forecast_moving_within_the_day_is_the_same_fact(self) -> None:
         at_three = self._alert(
             ForecastAlertKind.RAIN, datetime(2026, 9, 25, 13, 0, tzinfo=UTC), "15:00"
         )
         at_six = self._alert(
-            ForecastAlertKind.RAIN, datetime(2026, 9, 25, 16, 0, tzinfo=UTC), "18:00"
+            ForecastAlertKind.RAIN, datetime(2026, 9, 25, 16, 0, tzinfo=UTC), "18:00", 60
         )
         one, _ = await _evaluate(
             {"type": "weather_change"}, fetch_forecast_alert=AsyncMock(return_value=at_three)

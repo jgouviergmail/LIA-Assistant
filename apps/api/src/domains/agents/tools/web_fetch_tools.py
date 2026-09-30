@@ -12,22 +12,26 @@ Design Decision:
 
 Security (CRITICAL — multi-tenant):
     - SSRF prevention via url_validator.py (private IP/hostname blacklists)
-    - DNS resolution before fetch (prevents DNS rebinding)
-    - Post-redirect SSRF check (re-validates response.url)
+    - Every hop validated BEFORE it is contacted, and requested on the address
+      the check saw (ADR-326): redirects are walked here, one validated
+      ``pinned_stream`` per hop, never by the client. The former shape (the
+      client following redirects, then a check on where it ended up) was
+      measured to GET a cloud metadata address and a private host on a
+      redirect before refusing, and to hand an internal page back when the
+      name resolved differently at connect time (DNS rebinding).
     - Content size limit (500KB): headers (Content-Type/Content-Length) are
       checked before download, but the body is then read IN FULL into memory
       and size-checked after the fact — there is no incremental streaming cap
     - Request timeout (15s)
     - Rate limiting (10 fetches/min per user)
-    - HTTPS enforcement (HTTP → HTTPS upgrade)
+    - HTTPS enforcement (HTTP → HTTPS upgrade, on every hop)
     - Markdown sanitization (strip javascript:/data: URIs)
 
 Architecture:
     fetch_web_page_tool (@tool)
-        ├── validate_url()              → SSRF prevention (async DNS)
+        ├── validate_url()              → SSRF prevention (async DNS), every hop
         ├── web_risk_gate()             → Google Web Risk screening (lot D, fail-open)
-        ├── httpx.AsyncClient.stream()  → HTTP fetch (header checks pre-download; body read in full)
-        ├── validate_resolved_url()     → Post-redirect SSRF check
+        ├── pinned_stream()             → HTTP fetch on the validated address (header checks pre-download; body read in full)
         ├── readability.Document()      → Content extraction (article mode)
         ├── markdownify.markdownify()   → HTML → Markdown
         ├── _sanitize_markdown()        → Strip dangerous URIs
@@ -39,7 +43,7 @@ import re
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Annotated, Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 import markdownify
@@ -82,7 +86,11 @@ from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.agents.tools.url_screening import web_risk_gate
 from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.agents.utils.rate_limiting import rate_limit
-from src.domains.agents.web_fetch.url_validator import validate_resolved_url, validate_url
+from src.domains.agents.web_fetch.url_validator import (
+    UrlValidationResult,
+    pinned_stream,
+    validate_url,
+)
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.cache.web_search_cache import WebSearchCache
 from src.infrastructure.observability.decorators import track_tool_metrics
@@ -268,6 +276,93 @@ def _truncate_content(content: str, max_length: int) -> tuple[str, bool]:
     return truncated, True
 
 
+class _NotHtml(Exception):
+    """The final hop is not an HTML page."""
+
+    def __init__(self, content_type: str) -> None:
+        super().__init__(content_type)
+        self.content_type = content_type
+
+
+class _TooLarge(Exception):
+    """The final hop's body is past the size ceiling."""
+
+    def __init__(self, size: int) -> None:
+        super().__init__(size)
+        self.size = size
+
+
+class _TooManyRedirects(Exception):
+    """The chain ran past ``WEB_FETCH_MAX_REDIRECTS`` hops."""
+
+
+async def _read_html_following_redirects(
+    client: httpx.AsyncClient,
+    verdict: UrlValidationResult,
+    *,
+    user_id: str,
+) -> tuple[str | None, str]:
+    """GET the page, validating every hop before it is contacted (ADR-326).
+
+    Args:
+        client: The tool's client (``follow_redirects=False``).
+        verdict: The validated starting URL.
+        user_id: The account, for the blocked-redirect log line.
+
+    Returns:
+        ``(html, final_url)`` — ``html`` is None when a hop was refused by the
+        validator; ``final_url`` is the validated URL the body came from, which
+        is what the content is attributed to.
+
+    Raises:
+        _NotHtml, _TooLarge, _TooManyRedirects: the refusals the caller names.
+        httpx.HTTPStatusError, httpx.HTTPError: as the client raises them.
+    """
+    current = verdict
+    for _hop in range(WEB_FETCH_MAX_REDIRECTS + 1):
+        async with pinned_stream(
+            client, "GET", current, timeout=settings.web_fetch_timeout_seconds
+        ) as response:
+            if response.has_redirect_location:
+                target = urljoin(current.url, response.headers["location"])
+                next_verdict = await validate_url(target)
+                if not next_verdict.valid:
+                    logger.warning(
+                        "ssrf_redirect_blocked",
+                        original_host=url_host(verdict.url),
+                        redirect_host=url_host(target),
+                        user_id=user_id[:8],
+                    )
+                    return None, current.url
+                current = next_verdict
+                continue
+
+            response.raise_for_status()
+
+            # Check Content-Type before downloading the body (case-insensitive per HTTP spec)
+            content_type = response.headers.get("content-type", "").lower()
+            if not any(ct in content_type for ct in ("text/html", "application/xhtml")):
+                raise _NotHtml(content_type)
+
+            # Check Content-Length if available
+            content_length_header = response.headers.get("content-length")
+            if content_length_header:
+                # Invalid Content-Length header, proceed with download
+                with suppress(ValueError):
+                    declared_length = int(content_length_header)
+                    if declared_length > WEB_FETCH_MAX_CONTENT_LENGTH:
+                        raise _TooLarge(declared_length)
+
+            # Read the WHOLE body into memory (headers were validated
+            # pre-download; actual size is enforced after the read)
+            await response.aread()
+            body_bytes = response.content
+            if len(body_bytes) > WEB_FETCH_MAX_CONTENT_LENGTH:
+                raise _TooLarge(len(body_bytes))
+            return response.text, current.url
+    raise _TooManyRedirects
+
+
 # ============================================================================
 # TOOL IMPLEMENTATION
 # ============================================================================
@@ -385,73 +480,41 @@ async def fetch_web_page_tool(
         return blocked_output
 
     # 6. Fetch page: stream() lets us check headers BEFORE downloading the
-    # body, but the body itself is then read in full (no incremental cap)
+    # body, but the body itself is then read in full (no incremental cap).
+    # Redirects are walked HERE (ADR-326): each hop is validated before it is
+    # contacted and requested on the address the check saw; the client itself
+    # follows nothing.
     try:
         async with httpx.AsyncClient(
             timeout=settings.web_fetch_timeout_seconds,
-            follow_redirects=True,
-            max_redirects=WEB_FETCH_MAX_REDIRECTS,
+            follow_redirects=False,
             headers={"User-Agent": WEB_FETCH_USER_AGENT},
         ) as client:
-            async with client.stream("GET", safe_url) as response:
-                response.raise_for_status()
-
-                # 6a. Post-redirect SSRF check
-                final_url = str(response.url)
-                if final_url != safe_url:
-                    is_safe = await validate_resolved_url(final_url)
-                    if not is_safe:
-                        logger.warning(
-                            "ssrf_redirect_blocked",
-                            original_host=url_host(safe_url),
-                            redirect_host=url_host(final_url),
-                            user_id=user_id_str[:8],
-                        )
-                        return UnifiedToolOutput.failure(
-                            message="URL redirected to a blocked destination",
-                            error_code="INVALID_INPUT",
-                        )
-
-                # 6b. Check Content-Type before downloading body (case-insensitive per HTTP spec)
-                content_type = response.headers.get("content-type", "").lower()
-                if not any(ct in content_type for ct in ("text/html", "application/xhtml")):
-                    return UnifiedToolOutput.failure(
-                        message=f"Not an HTML page (content-type: {content_type})",
-                        error_code="INVALID_RESPONSE_FORMAT",
-                    )
-
-                # 6c. Check Content-Length if available
-                content_length_header = response.headers.get("content-length")
-                if content_length_header:
-                    # Invalid Content-Length header, proceed with download
-                    with suppress(ValueError):
-                        declared_length = int(content_length_header)
-                        if declared_length > WEB_FETCH_MAX_CONTENT_LENGTH:
-                            return UnifiedToolOutput.failure(
-                                message=(
-                                    f"Page too large ({declared_length:,} bytes, "
-                                    f"max {WEB_FETCH_MAX_CONTENT_LENGTH:,})"
-                                ),
-                                error_code="CONSTRAINT_VIOLATION",
-                            )
-
-                # 6d. Read the WHOLE body into memory (headers were validated
-                # pre-download; actual size is enforced after the read)
-                await response.aread()
-                body_bytes = response.content
-
-                # Check actual body size
-                if len(body_bytes) > WEB_FETCH_MAX_CONTENT_LENGTH:
-                    return UnifiedToolOutput.failure(
-                        message=(
-                            f"Page too large ({len(body_bytes):,} bytes, "
-                            f"max {WEB_FETCH_MAX_CONTENT_LENGTH:,})"
-                        ),
-                        error_code="CONSTRAINT_VIOLATION",
-                    )
-
-                html = response.text
-
+            html, safe_url = await _read_html_following_redirects(
+                client, validation, user_id=user_id_str
+            )
+            if html is None:
+                return UnifiedToolOutput.failure(
+                    message="URL redirected to a blocked destination",
+                    error_code="INVALID_INPUT",
+                )
+    except _NotHtml as refusal:
+        return UnifiedToolOutput.failure(
+            message=f"Not an HTML page (content-type: {refusal.content_type})",
+            error_code="INVALID_RESPONSE_FORMAT",
+        )
+    except _TooLarge as refusal:
+        return UnifiedToolOutput.failure(
+            message=(
+                f"Page too large ({refusal.size:,} bytes, max {WEB_FETCH_MAX_CONTENT_LENGTH:,})"
+            ),
+            error_code="CONSTRAINT_VIOLATION",
+        )
+    except _TooManyRedirects:
+        return UnifiedToolOutput.failure(
+            message=f"Too many redirects (more than {WEB_FETCH_MAX_REDIRECTS})",
+            error_code="INVALID_INPUT",
+        )
     except httpx.TimeoutException:
         return UnifiedToolOutput.failure(
             message=f"Request timed out after {settings.web_fetch_timeout_seconds}s",

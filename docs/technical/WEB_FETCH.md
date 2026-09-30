@@ -28,7 +28,7 @@ Le **Web Fetch Tool** est le premier outil de la roadmap evolution (F1 - priorit
 
 - **Standalone** : aucune authentification OAuth ni cle API requise
 - **Extraction intelligente** : mode `article` (readability) avec fallback automatique vers `full`
-- **Prevention SSRF** : validation multi-couche (DNS pre-resolution, IP blacklists, post-redirect check)
+- **Prevention SSRF** : validation multi-couche (DNS pre-resolution, IP blacklists), connexion epinglee sur l'adresse validee et redirections suivies saut par saut, chaque saut revalide avant tout contact (ADR-326)
 - **Rate limiting** : 10 requetes/minute par utilisateur
 - **Sanitisation** : suppression des URIs dangereuses (javascript:, data:, vbscript:)
 - **Upgrade HTTPS** : les URLs HTTP sont automatiquement converties en HTTPS
@@ -57,14 +57,11 @@ URL utilisateur
     |
     v
 +-------------------+
-| httpx.stream()    |  Fetch HTTP streaming (timeout 15s, max 500KB)
+| pinned_stream()   |  Fetch HTTP streaming sur l'IP validee (timeout 15s,
+|                   |  max 500KB), nom dans Host + SNI, follow_redirects=False
 +-------------------+
-    |
+    |  3xx ? --> validate_url(Location) --> saut suivant (max 5)
     v
-+-------------------+
-| validate_resolved |  Re-validation SSRF post-redirection
-| _url()            |
-+-------------------+
     |
     v
 +-------------------+
@@ -152,9 +149,11 @@ Les adresses IPv4-mapped IPv6 (ex: `::ffff:127.0.0.1`) sont normalisees vers leu
 
 Le hostname est resolu via `socket.getaddrinfo()` (execute dans `asyncio.to_thread()` pour ne pas bloquer la boucle) **avant** le fetch HTTP. Chaque IP resolue est verifiee contre les plages bloquees.
 
-### Validation post-redirection
+### Connexion epinglee et redirections (ADR-326)
 
-Apres que httpx suive les redirections, l'URL finale (`response.url`) est re-validee via `validate_resolved_url()`. Cela empeche les attaques ou une URL publique redirige vers une ressource interne.
+`validate_url()` renvoie les adresses qu'il a validees (`UrlValidationResult.resolved_ips`). La requete part par `pinned_stream()` (`url_validator.py`) : l'IP validee est ecrite dans l'URL, le nom reste dans l'en-tete `Host` et dans le SNI (`sni_hostname`, forme punycode pour un nom IDNA). Aucune seconde resolution DNS n'a lieu a la connexion, si bien qu'un nom qui repondrait une adresse publique a la verification puis une adresse interne a la connexion (*DNS rebinding*) ne mene nulle part.
+
+Le client ne suit jamais les redirections de lui-meme (`follow_redirects=False`). `_read_html_following_redirects()` (`web_fetch_tools.py`) lit la `Location`, la valide par `validate_url()` **avant** tout contact, puis ouvre le saut suivant de la meme facon, au plus `WEB_FETCH_MAX_REDIRECTS` fois ; un saut refuse arrete la lecture (`ssrf_redirect_blocked`) et le contenu est attribue a la derniere URL validee. L'ancienne re-validation de l'URL finale (`validate_resolved_url()`) est supprimee : elle refusait apres coup une chaine qui avait deja contacte les sauts intermediaires. Le collecteur de la radio et l'import de skills par URL passent par la meme porte.
 
 ### Blacklist de hostnames
 
@@ -407,7 +406,7 @@ Ces dependances sont declarees dans `apps/api/requirements.txt` et `apps/api/pyp
 
 | Fichier | Couverture |
 |---------|------------|
-| `apps/api/tests/unit/domains/agents/tools/test_web_fetch_tools.py` | Helpers, outil complet (mock httpx), post-redirect SSRF |
+| `apps/api/tests/unit/domains/agents/tools/test_web_fetch_tools.py` | Helpers, outil complet (mock httpx), redirections validees saut par saut, connexion epinglee |
 | `apps/api/tests/unit/domains/agents/web_fetch/test_url_validator.py` | Validation URL, plages IP, IPv4-mapped IPv6, DNS, hostnames |
 
 ### Cas testes (url_validator)
@@ -422,7 +421,7 @@ Ces dependances sont declarees dans `apps/api/requirements.txt` et `apps/api/pyp
 - Rejet schemes invalides (ftp, file, javascript, data)
 - Cas limites (URL vide, malformee, sans hostname)
 - Resolution DNS mockee (IP publique, privee, echec)
-- `validate_resolved_url()` post-redirection
+- `resolved_ips` et `pinned_request_parts()` / `pinned_stream()` (IP dans l'URL, nom dans `Host` et SNI, punycode)
 
 ### Cas testes (web_fetch_tools)
 
@@ -431,7 +430,7 @@ Ces dependances sont declarees dans `apps/api/requirements.txt` et `apps/api/pyp
 - Sanitisation URIs dangereuses (javascript, data, vbscript, file, about)
 - Content-Type case-insensitive
 - Invocation complete avec mock httpx (succes, timeout, 404, non-HTML, trop volumineux)
-- Verification SSRF post-redirection
+- Redirection interne refusee avant tout contact, chaine trop longue, rebinding DNS
 - Validation format `UnifiedToolOutput` et `RegistryItem`
 
 ### Execution

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.field_names import FIELD_DISPLAY_ONLY
 from src.domains.agents.emails.detail_levels import (
     EmailDetail,
     apply_detail_level,
@@ -129,6 +130,28 @@ class TestApplyDetailLevel:
         apply_detail_level(emails, detail=EmailDetail.METADATA, part=1, part_tokens=1_000)
         assert all("body" not in e for e in emails)
         assert [e["snippet"] for e in emails] == ["a…", "b…"]
+
+    @pytest.mark.parametrize("detail", [EmailDetail.METADATA, EmailDetail.SUMMARY])
+    def test_a_withheld_body_is_kept_whole_for_the_card(self, detail: EmailDetail) -> None:
+        """The level decides what the MODEL reads; the card still shows the
+        message — its whole clean body, never a part of it."""
+        emails = self._emails()
+        whole = emails[0]["body"]
+        for email in emails:
+            email["digest_status"] = "cached"
+        apply_detail_level(emails, detail=detail, part=1, part_tokens=10)
+        assert emails[0][FIELD_DISPLAY_ONLY] == {"body": whole}
+        assert emails[1][FIELD_DISPLAY_ONLY] == {"body": "Short."}
+
+    def test_a_served_body_needs_no_second_copy(self) -> None:
+        emails = self._emails()
+        apply_detail_level(emails, detail=EmailDetail.FULL, part=1, part_tokens=1_000)
+        assert all(FIELD_DISPLAY_ONLY not in e for e in emails)
+
+    def test_a_message_without_a_body_gets_no_display_body(self) -> None:
+        emails = [{"id": "m3", "snippet": "…", "body": ""}, {"id": "m4", "snippet": "…"}]
+        apply_detail_level(emails, detail=EmailDetail.METADATA, part=1, part_tokens=1_000)
+        assert all(FIELD_DISPLAY_ONLY not in e for e in emails)
 
     def test_full_serves_one_part_and_says_how_many_there_are(self) -> None:
         emails = self._emails()

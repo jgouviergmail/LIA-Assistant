@@ -90,7 +90,7 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
           <div className="p-3 bg-muted/30 rounded border border-warning/30">
             {/* Error name */}
             <div className="mb-2">
-              <span className="text-[10px] font-semibold text-warning uppercase">
+              <span className="text-px-10 font-semibold text-warning uppercase">
                 Error Type
               </span>
               <div className="text-xs font-mono text-foreground">{error.name || 'Error'}</div>
@@ -98,7 +98,7 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
 
             {/* Error message */}
             <div className="mb-2">
-              <span className="text-[10px] font-semibold text-warning uppercase">Message</span>
+              <span className="text-px-10 font-semibold text-warning uppercase">Message</span>
               <div className="text-xs text-foreground break-words">
                 {error.message || 'No message'}
               </div>
@@ -107,10 +107,10 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
             {/* Stack trace */}
             {error.stack && (
               <div>
-                <span className="text-[10px] font-semibold text-warning uppercase">
+                <span className="text-px-10 font-semibold text-warning uppercase">
                   Stack Trace
                 </span>
-                <pre className="mt-1 p-2 bg-muted/30 rounded text-[10px] text-muted-foreground overflow-auto max-h-40 leading-tight">
+                <pre className="mt-1 p-2 bg-muted/30 rounded text-px-10 text-muted-foreground overflow-auto max-h-40 leading-tight">
                   {error.stack}
                 </pre>
               </div>
@@ -121,7 +121,7 @@ export function FallbackUI({ error, onRetry }: FallbackUIProps) {
 
       {/* Instructions for the user */}
       <div className="mt-3 pt-3 border-t border-warning/30">
-        <p className="text-[10px] text-muted-foreground leading-relaxed">
+        <p className="text-px-10 text-muted-foreground leading-relaxed">
           <strong>What to do:</strong> You can continue using the application normally. Debug
           metrics will resume on the next conversation turn. If this error persists, please report
           it to the development team with the technical details above.
@@ -139,7 +139,7 @@ export function FallbackUICompact({ error }: { error: Error | null }) {
     <div className="p-3 bg-warning/10 border border-warning/30 rounded text-center">
       <AlertCircle className="h-4 w-4 text-warning mx-auto mb-2" />
       <p className="text-xs text-warning font-medium mb-1">Debug Panel Unavailable</p>
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-px-10 text-muted-foreground">
         {error?.message || 'An error occurred while loading debug metrics'}
       </p>
     </div>

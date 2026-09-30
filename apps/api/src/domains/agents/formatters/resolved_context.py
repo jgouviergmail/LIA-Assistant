@@ -17,6 +17,7 @@ from typing import Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import resolve_language
+from src.domains.agents.data_registry.card_payload import restore_display_fields
 from src.domains.agents.display.config import config_for_viewport
 from src.domains.agents.display.html_renderer import get_html_renderer
 from src.domains.agents.formatters.text_summary import generate_text_summary_for_items
@@ -154,4 +155,6 @@ def generate_html_for_resolved_context(
     config.timezone = user_timezone
 
     html_renderer = get_html_renderer()
-    return html_renderer.render(domain, {"items": items}, config)
+    # The card draws what the level withheld from the model (ADR-287 amendment).
+    cards = [restore_display_fields(item) if isinstance(item, dict) else item for item in items]
+    return html_renderer.render(domain, {"items": cards}, config)

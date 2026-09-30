@@ -45,7 +45,7 @@ function DraftSurvivesScene({ active, labels }: SceneProps) {
         )}
       >
         <MiniComposer trailing={<ArrowUp className="h-3 w-3 text-primary" />}>
-          <span className="block truncate text-[10px] text-foreground/80">{labels.typing}</span>
+          <span className="block truncate text-px-10 text-foreground/80">{labels.typing}</span>
         </MiniComposer>
       </div>
       <RotateCw
@@ -197,7 +197,7 @@ function KnowledgePickScene({ active, labels }: SceneProps) {
     <div className={cn(STAGE, 'justify-end gap-2 pb-3')}>
       <div
         className={cn(
-          'w-full max-w-[220px] rounded-md border border-border bg-background p-1 text-[10px] shadow-sm transition-all duration-300 motion-reduce:transition-none',
+          'w-full max-w-[220px] rounded-md border border-border bg-background p-1 text-px-10 shadow-sm transition-all duration-300 motion-reduce:transition-none',
           open ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-1 opacity-0'
         )}
       >
@@ -212,7 +212,7 @@ function KnowledgePickScene({ active, labels }: SceneProps) {
       </div>
       <div
         className={cn(
-          'w-full max-w-[220px] divide-y divide-border rounded-md border border-border bg-background text-[10px] shadow-sm transition-all duration-300 motion-reduce:transition-none',
+          'w-full max-w-[220px] divide-y divide-border rounded-md border border-border bg-background text-px-10 shadow-sm transition-all duration-300 motion-reduce:transition-none',
           listing ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-1 opacity-0'
         )}
       >
@@ -229,7 +229,7 @@ function KnowledgePickScene({ active, labels }: SceneProps) {
             <FileText className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
             <SkeletonLine w={i === 0 ? 'w-16' : 'w-12'} />
             {i === 0 && (
-              <span className="ml-auto rounded-full border border-border px-1 text-[8px] text-muted-foreground">
+              <span className="ml-auto rounded-full border border-border px-1 text-px-8 text-muted-foreground">
                 {labels.paused}
               </span>
             )}

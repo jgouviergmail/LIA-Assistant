@@ -1,9 +1,29 @@
 name: "CodeQL Configuration"
 
-# Only analyze production source code
+# What ships, or runs on the operator's behalf, is analysed (ADR-326):
+#   - the two applications' sources;
+#   - `apps/api/scripts` — `COPY . .` puts them in the production image;
+#   - `infrastructure/` — entrypoints, the sandbox egress, the DevOps CLI;
+#   - `scripts/deploy`, `scripts/install`, `scripts/release` — what runs on
+#     the operator's hosts (the probes and analyses under `scripts/` do not);
+#   - the mobile shell's own scripts and config;
+#   - the workflows, for the `actions` language (a workflow injection is a
+#     supply-chain hole no other language sees).
+# A local scan of HEAD with no restriction at all (2026-09-30, CodeQL 2.27.1)
+# found 894 results outside the former two paths: 795 in `alembic` (the
+# `revision`/`down_revision` convention, still excluded below), the rest in
+# scripts — and no product vulnerability. The perimeter is widened so that
+# stays measured rather than assumed.
 paths:
   - 'apps/api/src/**'
+  - 'apps/api/scripts/**'
   - 'apps/web/src/**'
+  - 'apps/mobile/**'
+  - 'infrastructure/**'
+  - 'scripts/deploy/**'
+  - 'scripts/install/**'
+  - 'scripts/release/**'
+  - '.github/workflows/**'
 
 # Exclude non-production code that generates false positives
 paths-ignore:
@@ -26,13 +46,10 @@ paths-ignore:
   # branch_labels, depends_on) read by introspection, not direct reference
   - '**/migrations/**'
   - '**/alembic/**'
-  # Utility scripts — not production code, lower security bar
-  - 'scripts/**'
-  - 'apps/api/scripts/**'
-  # Infrastructure tooling — Prometheus renderers, dashboard analyzers
-  - 'infrastructure/**'
   # Documentation templates
   - 'docs/**'
+  # A throwaway tree a probe leaves behind (never shipped, never run by us)
+  - 'tmp/**'
 
 # Keep default queries enabled
 disable-default-queries: false
@@ -69,21 +86,14 @@ query-filters:
   # positives in functions that delegate error-raising to shared helpers
   - exclude:
       id: py/mixed-returns
-  # Bad tag filter: regex-based HTML stripping in display components converts Google
-  # Places API HTML to plain text for chat rendering — not security sanitization.
-  # Content is never re-rendered as HTML, so bypass risk is not exploitable
-  - exclude:
-      id: py/bad-tag-filter
-  # Disabling certificate validation: dev-only (NODE_ENV !== 'production') for
-  # self-signed TLS between Docker containers. Production always validates certs
-  - exclude:
-      id: js/disabling-certificate-validation
-  # Partial SSRF: proxy endpoints forward validated user input to hardcoded Google
-  # API hosts (maps.googleapis.com, places.googleapis.com). All user-supplied
-  # parameters are regex-validated (coordinates, photo resource names) and the
-  # target host is never user-controlled. No risk of internal network access
-  - exclude:
-      id: py/partial-ssrf
+  # No SECURITY rule is excluded here any more (ADR-326). `py/bad-tag-filter`,
+  # `js/disabling-certificate-validation` and `py/partial-ssrf` used to be, each
+  # for a case that was sound — a display heuristic, a dev-only TLS switch, the
+  # Google proxies with their hardcoded hosts — but a global exclusion hides the
+  # NEXT occurrence anywhere in the tree. Measured on a local scan of HEAD: the
+  # three rules hide exactly the three known sites and nothing else. Each is
+  # dismissed on GitHub with its written reason instead, where a new finding of
+  # the same rule surfaces as an alert of its own.
 
 # Query suites
 queries:

@@ -404,6 +404,30 @@ class Settings(
             )
         return self
 
+    @model_validator(mode="after")
+    def _refuse_debug_in_production(self) -> Settings:
+        """Refuse to boot a production instance in debug mode (ADR-326).
+
+        ``DEBUG`` switches FastAPI's debug mode on and makes the error handler
+        answer an unhandled exception with ``str(exc)`` instead of a neutral
+        sentence — the text of a database error, a provider's refusal, a path.
+        A development ``.env`` copied to a host is the whole distance between
+        the two; measured on the live host the flag is off, and this keeps it
+        so by construction rather than by care.
+
+        Returns:
+            The validated settings instance.
+
+        Raises:
+            ValueError: ``DEBUG`` is on while ``ENVIRONMENT`` is production.
+        """
+        if self.debug and self.is_production:
+            raise ValueError(
+                "DEBUG=true is refused when ENVIRONMENT is production: an unhandled "
+                "exception would answer with its own text. Set DEBUG=false."
+            )
+        return self
+
     # ========================================================================
     # Properties (from original config.py)
     # ========================================================================

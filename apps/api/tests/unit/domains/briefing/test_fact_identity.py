@@ -27,7 +27,8 @@ import pytest
 from src.domains.briefing.exceptions import ConnectorAccessError, ConnectorNotConfiguredError
 from src.domains.briefing.fetchers import _task_to_item, fetch_agenda, fetch_forecast_alert
 from src.domains.briefing.formatters import (
-    _detect_forecast_alert,
+    ForecastAlertRule,
+    detect_forecast_alert,
     event_instant,
     format_agenda_event,
     format_email_item,
@@ -92,10 +93,12 @@ class TestTheItemsSayWhatTheyAre:
 
     def test_a_forecast_alert_carries_its_slot_instant(self) -> None:
         slot = datetime(2026, 9, 25, 16, 0, tzinfo=UTC)
-        alert = _detect_forecast_alert(
+        alert = detect_forecast_alert(
             current={"weather": [{"main": "Clear"}]},
             forecast={"list": [{"dt": int(slot.timestamp()), "weather": [{"main": "Rain"}]}]},
             user_tz=PARIS,
+            now=slot - timedelta(hours=1),
+            rule=ForecastAlertRule(horizon=timedelta(hours=4)),
         )
 
         assert alert is not None
@@ -125,7 +128,11 @@ class TestOneReadingOfAnEventTime:
 
 
 def _weather_env(*, client: Any, location: Any = None, no_location: bool = False) -> Any:
-    """Patch the session-bound half of the weather read."""
+    """Patch the session-bound half of the weather read.
+
+    The person's own provider is wired to a client that must never be asked:
+    a routine's forecast is the instance's, whatever the person chose.
+    """
 
     @asynccontextmanager
     async def _ctx() -> Any:
@@ -138,18 +145,40 @@ def _weather_env(*, client: Any, location: Any = None, no_location: bool = False
     )
     return (
         patch(f"{_FETCHERS}.get_db_context", _ctx),
-        patch(f"{_FETCHERS}.resolve_weather_client", AsyncMock(return_value=client)),
+        patch(f"{_FETCHERS}.open_platform_weather_client", AsyncMock(return_value=client)),
         patch(f"{_FETCHERS}.UserLocationService", MagicMock(return_value=locator)),
         patch(f"{_FETCHERS}.environment_enrichment_active", AsyncMock(return_value=True)),
+        patch(f"{_FETCHERS}.resolve_weather_client", AsyncMock(side_effect=AssertionError)),
     )
 
 
-def _weather_client() -> MagicMock:
+def _weather_client(*hours: dict[str, Any]) -> MagicMock:
     client = MagicMock()
     client.get_current_weather = AsyncMock(return_value={"weather": [{"main": "Clear"}]})
-    client.get_forecast = AsyncMock(return_value={"list": []})
+    client.get_hourly_forecast = AsyncMock(return_value={"list": list(hours)})
+    client.get_forecast = AsyncMock(side_effect=AssertionError("sampled every 3 hours"))
     client.close = AsyncMock()
     return client
+
+
+ROUTINE_NOW = datetime(2026, 9, 25, 12, 0, tzinfo=UTC)
+FOUR_HOURS_LIKELY = ForecastAlertRule(horizon=timedelta(hours=4), min_precipitation_percent=50)
+
+
+async def _read(client: MagicMock, **env_kwargs: Any) -> Any:
+    env = _weather_env(client=client, **env_kwargs)
+    with env[0], env[1], env[2], env[3], env[4]:
+        return await fetch_forecast_alert(
+            user=SimpleNamespace(id=uuid4()),
+            user_tz=PARIS,
+            language="fr",
+            now=ROUTINE_NOW,
+            rule=FOUR_HOURS_LIKELY,
+        )
+
+
+def _hour(at: datetime, main: str, pop: float) -> dict[str, Any]:
+    return {"dt": int(at.timestamp()), "weather": [{"main": main}], "pop": pop}
 
 
 class TestTheWeatherRoutinesOwnRead:
@@ -157,50 +186,81 @@ class TestTheWeatherRoutinesOwnRead:
         client = _weather_client()
         city = AsyncMock()
         extras = AsyncMock()
-        env = _weather_env(client=client, location=SimpleNamespace(lat=48.85, lon=2.35))
+        with (
+            patch(f"{_FETCHERS}.resolve_city_name", city),
+            patch(f"{_FETCHERS}.fetch_environment_extras", extras),
+        ):
+            alert = await _read(client, location=SimpleNamespace(lat=48.85, lon=2.35))
+
+        assert alert is None
+        client.get_current_weather.assert_awaited_once()
+        client.get_hourly_forecast.assert_awaited_once()
+        city.assert_not_awaited()
+        extras.assert_not_awaited()
+        client.close.assert_awaited_once()
+
+    async def test_it_reads_every_hour_of_the_horizon_and_the_hour_under_way(self) -> None:
+        # One page (24 hours max) — never the card's five days of 3-hour samples.
+        client = _weather_client()
+        await _read(client, location=SimpleNamespace(lat=48.85, lon=2.35))
+
+        kwargs = client.get_hourly_forecast.await_args.kwargs
+        assert kwargs["hours"] == 5
+        assert (kwargs["lat"], kwargs["lon"]) == (48.85, 2.35)
+
+    async def test_a_likely_change_within_the_horizon_is_the_alert(self) -> None:
+        client = _weather_client(
+            _hour(ROUTINE_NOW + timedelta(hours=1), "Rain", 0.5),
+            _hour(ROUTINE_NOW + timedelta(hours=3), "Rain", 0.7),
+        )
+        alert = await _read(client, location=SimpleNamespace(lat=1.0, lon=2.0))
+
+        assert alert is not None
+        assert alert.starts_at == ROUTINE_NOW + timedelta(hours=3)
+        assert alert.precipitation_percent == 70
+
+    async def test_no_platform_weather_is_not_configured_and_never_the_persons_provider(
+        self,
+    ) -> None:
+        # Switched off by the administrator, or no platform key.
+        env = _weather_env(client=None, location=SimpleNamespace(lat=1.0, lon=2.0))
         with (
             env[0],
             env[1],
             env[2],
             env[3],
-            patch(f"{_FETCHERS}.resolve_city_name", city),
-            patch(f"{_FETCHERS}.fetch_environment_extras", extras),
+            env[4],
+            pytest.raises(ConnectorNotConfiguredError) as err,
         ):
-            alert = await fetch_forecast_alert(
-                user=SimpleNamespace(id=uuid4()), user_tz=PARIS, language="fr"
+            await fetch_forecast_alert(
+                user=SimpleNamespace(id=uuid4()),
+                user_tz=PARIS,
+                language="fr",
+                now=ROUTINE_NOW,
+                rule=FOUR_HOURS_LIKELY,
             )
 
-        assert alert is None
-        client.get_current_weather.assert_awaited_once()
-        client.get_forecast.assert_awaited_once()
-        city.assert_not_awaited()
-        extras.assert_not_awaited()
-        client.close.assert_awaited_once()
+        assert err.value.source == "google_weather"
 
     async def test_a_refusing_provider_is_a_classified_access_error_and_the_client_closes(
         self,
     ) -> None:
         client = _weather_client()
-        client.get_forecast = AsyncMock(side_effect=httpx.ConnectError("down"))
-        env = _weather_env(client=client, location=SimpleNamespace(lat=1.0, lon=2.0))
-        with env[0], env[1], env[2], env[3], pytest.raises(ConnectorAccessError):
-            await fetch_forecast_alert(
-                user=SimpleNamespace(id=uuid4()), user_tz=PARIS, language="fr"
-            )
+        client.get_hourly_forecast = AsyncMock(side_effect=httpx.ConnectError("down"))
+        with pytest.raises(ConnectorAccessError) as err:
+            await _read(client, location=SimpleNamespace(lat=1.0, lon=2.0))
 
+        assert err.value.source == "google_weather"
         client.close.assert_awaited_once()
 
     async def test_no_location_is_not_configured_and_no_client_is_left_open(self) -> None:
         # The card's path used to leak the client here.
         client = _weather_client()
-        env = _weather_env(client=client, no_location=True)
-        with env[0], env[1], env[2], env[3], pytest.raises(ConnectorNotConfiguredError):
-            await fetch_forecast_alert(
-                user=SimpleNamespace(id=uuid4()), user_tz=PARIS, language="fr"
-            )
+        with pytest.raises(ConnectorNotConfiguredError):
+            await _read(client, no_location=True)
 
         client.close.assert_awaited_once()
-        client.get_forecast.assert_not_awaited()
+        client.get_hourly_forecast.assert_not_awaited()
 
 
 class TestTheAgendaWindow:

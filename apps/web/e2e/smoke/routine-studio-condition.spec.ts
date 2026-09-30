@@ -23,6 +23,12 @@ const LISTING = {
     weather_change: 60,
   },
   condition_max_fires_per_day: 12,
+  // Deliberately NOT the defaults: the sentence must read what is published.
+  weather_condition_rule: {
+    horizon_hours: 3,
+    min_precipitation_percent: 65,
+    source: 'google_weather',
+  },
 };
 
 /** What the API answers to the create: the routine as it now stands. */
@@ -136,5 +142,33 @@ test.describe('routine studio (N-07, ADR-322)', () => {
     await expect(
       page.locator('[data-routine-card]').filter({ hasText: 'Veille facture' })
     ).toContainText('Pas encore vérifiée');
+  });
+
+  test('a weather routine states when it fires, as the server publishes it', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    await mockApi(ROUTES);
+    await page.goto('/fr/dashboard/settings?section=scheduled-actions');
+    await page.getByRole('button', { name: 'Ajouter' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible({ timeout: 30_000 });
+
+    await dialog.getByRole('combobox', { name: 'Déclencheur' }).click();
+    await page.getByRole('option', { name: 'Quand une condition est remplie' }).click();
+    await dialog.getByRole('combobox', { name: 'Condition' }).click();
+    await page.getByRole('option', { name: 'Changement de météo' }).click();
+
+    // Every kind, the published horizon and STRICT floor, the one source.
+    await expect(
+      dialog.getByText(
+        'Se déclenche quand Google Weather prévoit de la pluie, de la bruine, de la neige ' +
+          "ou un orage dans les 3 prochaines heures (l'heure en cours comprise), avec une " +
+          'probabilité de précipitations supérieure à 65 %.'
+      )
+    ).toBeVisible();
+    await expect(dialog.getByText(/Vérifiée environ toutes les 60 min/)).toBeVisible();
   });
 });

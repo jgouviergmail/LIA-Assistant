@@ -74,6 +74,7 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
       request: t('settings.bookmarks.export_request'),
       answer: t('settings.bookmarks.export_answer'),
       kept: t('settings.bookmarks.export_kept', { when: answeredOn }),
+      labelSeparator: t('common.label_separator'),
     });
 
   const download = () => {

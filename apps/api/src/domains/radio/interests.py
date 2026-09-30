@@ -8,10 +8,13 @@ article page. This module is the pure part:
 - a search result becomes a story exactly as a feed item would have: a canonical web
   URL, a bounded plain-text title and summary, the story's fingerprint across outlets,
   a date never later than when it was found (:func:`interest_story`);
-- the strongest topics are searched, each at most once while its last search is fresh,
-  and every search is one consultation of the listener's own key — ``failed`` when it
-  failed, and then not marked, so the next session tries again
-  (:func:`refresh_interest_stories`).
+- the topics the start read are searched, each at most once while its last search is
+  fresh, and every search is one consultation of the listener's own key — ``failed``
+  when it failed, and then not marked, so the next session tries again
+  (:func:`refresh_interest_stories`);
+- the desk reads those stories under a bound of their own, the most the searches can
+  file within its horizon, so no story the listener's key paid for is ever cut
+  (:func:`interest_stories_max`).
 
 What searches, what remembers a search and what files a story are ports: the listener's
 own connectors, Redis and the repository.
@@ -128,6 +131,29 @@ class SearchMarks(Protocol):
         ...
 
 
+def interest_stories_max(
+    *, topics: int, stories_per_search: int, fresh_s: int, horizon_s: int
+) -> int:
+    """The most stories the searches can have filed within a desk's horizon.
+
+    Each topic is searched at most once per freshness window, and a story is never dated
+    after it was found, so within any horizon a topic is searched at most
+    ``horizon_s // fresh_s + 1`` times, each search filing at most ``stories_per_search``
+    new stories. Read under this bound, every story a search filed reaches the desk while
+    the interests stay the same.
+
+    Args:
+        topics: The most topics a start reads.
+        stories_per_search: The most stories one search keeps.
+        fresh_s: How long a topic's search stays fresh (seconds, positive).
+        horizon_s: The oldest story the desk reads (seconds).
+
+    Returns:
+        The bound; 0 when no topic is read.
+    """
+    return topics * stories_per_search * (horizon_s // fresh_s + 1)
+
+
 async def refresh_interest_stories(
     topics: Sequence[str],
     *,
@@ -137,20 +163,20 @@ async def refresh_interest_stories(
     record: ConsultationRecorder,
     language: str,
     now: datetime,
-    topics_max: int,
     max_age_s: int,
 ) -> int:
-    """Search the strongest interests not searched lately, and file what they found.
+    """Search the interests the start read that were not searched lately, and file what
+    they found.
 
     Args:
-        topics: The listener's interests, strongest first.
+        topics: The listener's interests the start read, strongest first — already
+            bounded there (``RADIO_INTEREST_TOPICS_MAX``), the count the writer is told.
         search: The listener's own search.
         marks: Which topics were searched lately.
         file: Files stories, returns how many were new.
         record: Files each search as a consultation of the listener's key.
         language: The listener's language (the search's).
         now: The instant (aware).
-        topics_max: The most topics searched.
         max_age_s: The oldest story a news programme may air: an older one is
             never filed (the purge would take it before any programme could).
 
@@ -159,7 +185,7 @@ async def refresh_interest_stories(
     """
     filed = 0
     oldest = now - timedelta(seconds=max_age_s)
-    for topic in [topic.strip() for topic in topics if topic.strip()][:topics_max]:
+    for topic in [topic.strip() for topic in topics if topic.strip()]:
         if await marks.fresh(topic):
             continue
         started = perf_counter()
@@ -190,6 +216,7 @@ __all__ = [
     "InterestSearch",
     "InterestStory",
     "SearchMarks",
+    "interest_stories_max",
     "interest_story",
     "refresh_interest_stories",
 ]

@@ -1,5 +1,14 @@
 import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge, validators } from 'tailwind-merge';
+
+/**
+ * tailwind-merge taught the app's own `text-px-*` utility (globals.css): a px
+ * font size that follows the reader's text scale. Unknown, `text-px-10` reads
+ * as a text COLOUR, and `cn('text-px-10', 'text-cyan-800')` dropped the colour.
+ */
+const twMerge = extendTailwindMerge({
+  extend: { classGroups: { 'font-size': [{ 'text-px': [validators.isInteger] }] } },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

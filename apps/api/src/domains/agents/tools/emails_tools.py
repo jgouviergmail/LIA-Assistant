@@ -397,8 +397,9 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
     2. ID mode: message_id/message_ids provided → fetch specific emails
     3. No params: latest emails
 
-    Detail levels (``detail``):
-    - ``metadata``: the listing as the client returned it, no body fetched
+    Detail levels (``detail``) shape what the MODEL reads; every level reads
+    the messages whole, so the card always draws the body and the attachments:
+    - ``metadata``: no body for the model (kept for the card, ``meta.display``)
     - ``full`` (default): bodies fetched, each served one PART at a time
       (``part``, paginated by paragraph under ``emails_body_part_tokens``)
     - ``summary``: a digest per message, computed once and cached
@@ -520,11 +521,14 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         page_token: str | None = None,
     ) -> dict[str, Any]:
         """
-        Search emails by query; fetch the bodies only when the level needs them.
+        Search emails by query and read each hit whole, whatever the level.
 
-        Before ADR-287 every search re-downloaded every hit in ``full`` — the
-        Gmail listing already carries the metadata (2N+1 requests for N hits),
-        and a ``metadata`` level reads the listing as it is.
+        The level shapes what the MODEL reads (``_shape_for_detail``), never
+        what the card draws: a ``metadata`` listing used to read headers only,
+        so its cards showed no body and no attachment. A client whose hits are
+        already whole (``SEARCH_HITS_ARE_WHOLE``: Gmail, IMAP) is not asked for
+        them again — N+1 requests for N hits — and one that lists a preview
+        (Graph) is asked once per hit.
         """
         query = self._normalize_query(query)
 
@@ -544,18 +548,9 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             )
             max_results = security_cap
 
-        # Execute search — an IMAP listing can skip the bodies at the wire
-        search_kwargs: dict[str, Any] = {
-            "query": query,
-            "max_results": max_results,
-            "use_cache": use_cache,
-            "page_token": page_token,
-        }
-        if detail is EmailDetail.METADATA:
-            # Every client accepts it (EmailClientProtocol); IMAP is the one that
-            # would otherwise fetch whole messages for a listing.
-            search_kwargs["headers_only"] = True
-        search_result = await client.search_emails(**search_kwargs)
+        search_result = await client.search_emails(
+            query=query, max_results=max_results, use_cache=use_cache, page_token=page_token
+        )
 
         messages_metadata = search_result.get("messages", [])
         # ADR-185: the provider's ESTIMATE, published as one — never the page size.
@@ -580,13 +575,12 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 **paging,
             }
 
-        if detail is EmailDetail.METADATA:
-            # The listing already carries the metadata: nothing to fetch.
-            emails_with_details = [dict(msg) for msg in messages_metadata if msg.get("id")]
+        hits = [dict(msg) for msg in messages_metadata if msg.get("id")]
+        if client.SEARCH_HITS_ARE_WHOLE:
+            emails_with_details = await self._finish_messages(client, hits)
         else:
-            message_ids = [msg.get("id") for msg in messages_metadata if msg.get("id")]
             emails_with_details = await self._fetch_full_details(
-                client, user_id, message_ids, use_cache
+                client, user_id, [hit["id"] for hit in hits], use_cache
             )
 
         logger.info(
@@ -682,32 +676,36 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Get labels mapping once for all emails
-        labels_mapping = await client.list_labels(use_cache=True)
-
-        # Process results
-        emails_list = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                logger.warning(
-                    "get_emails_fetch_error",
-                    message_id=message_ids[i],
-                    error=str(result),
-                )
+        fetched: list[dict[str, Any]] = []
+        for message_id, result in zip(message_ids, results, strict=True):
+            if isinstance(result, BaseException):
+                logger.warning("get_emails_fetch_error", message_id=message_id, error=str(result))
                 continue
+            fetched.append(result)
+        return await self._finish_messages(client, fetched)
 
-            # Resolve label IDs
-            if "labelIds" in result:
-                result["labelIds"] = [
-                    labels_mapping.get(label_id, label_id)
-                    for label_id in result.get("labelIds", [])
+    async def _finish_messages(
+        self, client: GoogleGmailClient, messages: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Name the labels and flatten body + attachments of whole messages.
+
+        Args:
+            client: The mailbox client (its label listing is read once).
+            messages: Whole messages, as the client returned them.
+
+        Returns:
+            The same messages, enriched in place.
+        """
+        if not messages:
+            return messages
+        labels_mapping = await client.list_labels(use_cache=True)
+        for message in messages:
+            if "labelIds" in message:
+                message["labelIds"] = [
+                    labels_mapping.get(label_id, label_id) for label_id in message["labelIds"]
                 ]
-
-            # Enrich with body and attachments
-            self._enrich_email(result, message_ids[i])
-            emails_list.append(result)
-
-        return emails_list
+            self._enrich_email(message, message.get("id", ""))
+        return messages
 
     def _enrich_email(self, result: dict[str, Any], message_id: str) -> None:
         """Enrich email with flattened body + attachments.

@@ -177,6 +177,8 @@ Toutes les constantes sont definies dans `apps/api/src/core/constants.py` :
 | `SCHEDULED_ACTIONS_BATCH_SIZE` | `50` | Nombre max d'actions traitees par cycle |
 | `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` | `…_DEFAULT` | Cadence de verification d'une routine sur condition (courrier, taches, agenda, documents) — ADR-322 |
 | `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` | `…_DEFAULT` | Cadence d'une routine meteo — ADR-322 |
+| `SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS` | `…_DEFAULT` | Horizon d'une routine meteo (heures, l'heure en cours comprise) — ADR-322 amendement 2026-09-29 |
+| `SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT` | `…_DEFAULT` | Seuil STRICT de probabilite de precipitations d'une routine meteo — ADR-322 amendement 2026-09-29 |
 | `SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY` | `…_DEFAULT` | Executions au plus par routine sur condition et par jour local — ADR-322 |
 
 ### Enregistrement du job scheduler

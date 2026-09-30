@@ -152,7 +152,7 @@ export function LastRunBlock({ ticket, locale }: { ticket: TicketRow; locale: st
         <div className="mt-2 space-y-0.5">
           <p className="text-xs text-destructive">{failure.label}</p>
           {failure.detail && (
-            <p className="break-words font-mono text-[11px] text-muted-foreground">
+            <p className="break-words font-mono text-px-11 text-muted-foreground">
               {failure.detail}
             </p>
           )}

@@ -192,8 +192,9 @@ class RadioSettings(BaseSettings):
         ge=0,
         le=8,
         description=(
-            "The listener's strongest interests searched for stories when a session "
-            "starts, with their own search key (0 = none)."
+            "The listener's strongest interests a session reads when it starts: the ones "
+            "the writer is told and those searched for stories with their own search key "
+            "(0 = none)."
         ),
     )
     radio_interest_stories_max: int = Field(

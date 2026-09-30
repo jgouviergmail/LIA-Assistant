@@ -44,7 +44,7 @@ export function PerformedEffects({ effects }: PerformedEffectsProps) {
       className="w-full mt-1 rounded-md border border-border/40 bg-muted/20 px-3 py-2"
       aria-label={t('chat.effects.title')}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="text-px-10 font-semibold uppercase tracking-wide text-muted-foreground">
         {t('chat.effects.title')}
       </p>
       <ul className="mt-1 space-y-0.5">
@@ -66,7 +66,7 @@ export function PerformedEffects({ effects }: PerformedEffectsProps) {
               <span className="min-w-0 break-words">
                 {label}
                 {failed && (
-                  <span className="ml-1 text-[10px] uppercase tracking-wide">
+                  <span className="ml-1 text-px-10 uppercase tracking-wide">
                     {t('chat.effects.failed')}
                   </span>
                 )}

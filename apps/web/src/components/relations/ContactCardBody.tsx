@@ -99,7 +99,7 @@ function ContactValueRow({
         <span className="min-w-0 break-words">{value}</span>
       )}
       {label && (
-        <span className="rounded-full bg-muted px-2 py-px text-[10px] font-medium uppercase text-muted-foreground">
+        <span className="rounded-full bg-muted px-2 py-px text-px-10 font-medium uppercase text-muted-foreground">
           {label}
         </span>
       )}

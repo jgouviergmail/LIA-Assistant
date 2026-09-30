@@ -52,9 +52,15 @@ def _is_allowed_image_url(candidate: str) -> bool:
         candidate: Absolute URL about to be requested.
 
     Returns:
-        True when the URL is HTTPS and its host is in the allowlist.
+        True when the URL is HTTPS and its host is in the allowlist. A URL the
+        parser refuses (a bracketed host that is no address, a full-width
+        « @ » — ``urlsplit`` raises on both) is not allowed either: a refusal
+        answered here was a 500 on a hostile ``Location`` (measured, ADR-326).
     """
-    parsed = urlparse(candidate)
+    try:
+        parsed = urlparse(candidate)
+    except ValueError:
+        return False
     return parsed.scheme == "https" and parsed.hostname in ALLOWED_IMAGE_DOMAINS
 
 
@@ -241,3 +247,16 @@ async def proxy_profile_image(
             error=str(e),
         )
         raise_external_service_connection_error("google_profile_image")
+    except (httpx.InvalidURL, ValueError, UnicodeError) as e:
+        # What ``urlparse`` accepted and httpx refuses (a control character in
+        # the URL — ``InvalidURL`` is NOT a ``RequestError``), or what a
+        # redirect's ``Location`` makes ``urljoin`` refuse: the caller's input
+        # or the upstream's answer, never a fault of this server. Measured
+        # before ADR-326: 420 of 3 794 hostile URLs answered 500.
+        logger.warning(
+            "profile_image_proxy_invalid_url",
+            user_id=str(user_id),
+            url_host=url_host(url),
+            error_type=type(e).__name__,
+        )
+        raise_invalid_input("Invalid URL", error_type=type(e).__name__)

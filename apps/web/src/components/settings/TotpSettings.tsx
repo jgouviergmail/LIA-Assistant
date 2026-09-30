@@ -137,7 +137,7 @@ export function TotpSettings() {
             {active && (
               // `success`, not grey: grey badges are reserved for INACTIVE
               // states (owner rule 2026-08-05), and this one says "enabled".
-              <Badge variant="success" className="gap-1 text-[10px]">
+              <Badge variant="success" className="gap-1 text-px-10">
                 <ShieldCheck className="h-3 w-3" aria-hidden="true" />
                 {t('settings.security.totp.status_active')}
               </Badge>

@@ -133,6 +133,26 @@ class TestSignatureParity:
     @pytest.mark.parametrize(
         ("category", "connector_type", "protocol"), CATEGORY_CASES, ids=CASE_IDS
     )
+    def test_client_sets_every_declared_class_attribute(
+        self, category: str, connector_type: ConnectorType, protocol: type
+    ) -> None:
+        """A ``ClassVar`` a Protocol declares is a fact every provider states
+        (``SEARCH_HITS_ARE_WHOLE`` decides whether a tool re-reads each hit)."""
+        client_class = ClientRegistry.get_client_class(connector_type)
+        assert client_class is not None
+
+        declared = {
+            name
+            for klass in protocol.__mro__
+            for name in inspect.get_annotations(klass)
+            if not name.startswith("_")
+        }
+        missing = sorted(name for name in declared if not hasattr(client_class, name))
+        assert not missing, f"{client_class.__name__} ({category}) does not set {missing}"
+
+    @pytest.mark.parametrize(
+        ("category", "connector_type", "protocol"), CATEGORY_CASES, ids=CASE_IDS
+    )
     def test_parameter_names_and_order_match_the_protocol(
         self, category: str, connector_type: ConnectorType, protocol: type
     ) -> None:

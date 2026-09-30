@@ -68,7 +68,7 @@ export function HabitExplanation({ lng, habitId }: { lng: Language; habitId: str
         <div className="space-y-2">
           {data.observed_days.length > 0 && (
             <div className="space-y-1">
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-px-11 text-muted-foreground">
                 {t('settings.habits.explanation.observed_label')}
               </p>
               <p className="text-xs tabular-nums text-foreground/90">
@@ -82,7 +82,7 @@ export function HabitExplanation({ lng, habitId }: { lng: Language; habitId: str
           )}
           {/* The exact thresholds the detector applied (ADR-184): checkable,
               never merely asserted. */}
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-px-11 text-muted-foreground">
             {t('settings.habits.explanation.thresholds_label')}{' '}
             <span className="tabular-nums">
               {Object.entries(data.thresholds)

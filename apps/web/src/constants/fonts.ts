@@ -57,6 +57,64 @@ export const DEFAULT_FONT_FAMILY: FontFamilyName = 'system';
 export const FONT_STORAGE_KEY = 'font-family';
 
 // ============================================================================
+// FONT SIZE
+// ============================================================================
+
+/*
+ * The interface text size is a TEXT scale factor, never a zoom: every font size
+ * of the stylesheet is written `size × var(--lia-text-scale)` (the Tailwind
+ * `text-*` scale, the `text-px-*` utility, the `--lia-text-*` card tokens, the
+ * body's inherited size and every `font-size` of the CSS files), while the root
+ * `rem` stays the browser's own — so panels, spacing and icons keep their size
+ * whatever the reader picks. Scaling the root size was measured shrinking the
+ * chat, the debug panel and the settings with the text (owner, 2026-09-29).
+ * Measured by e2e/smoke/font-size-extremes.spec.ts at both bounds: the panels
+ * keep their boxes, and the two densest rows hold from 320 to 1440 px.
+ *
+ * Mirrored by the server (`USER_FONT_SIZE_*_PX` in apps/api/src/core/constants.py)
+ * and pinned by apps/api/tests/unit/domains/users/test_font_size_preference.py,
+ * which reads the three literals below — keep them plain integer literals.
+ */
+export const FONT_SIZE_MIN_PX = 14;
+export const FONT_SIZE_MAX_PX = 20;
+export const DEFAULT_FONT_SIZE_PX = 16;
+
+/** Every size the settings offer, one whole pixel apart. */
+export const FONT_SIZE_STEPS: readonly number[] = Array.from(
+  { length: FONT_SIZE_MAX_PX - FONT_SIZE_MIN_PX + 1 },
+  (_, i) => FONT_SIZE_MIN_PX + i
+);
+
+/** LocalStorage key for the font size preference. */
+export const FONT_SIZE_STORAGE_KEY = 'font-size';
+
+/** CSS custom property every font size of the stylesheet is multiplied by. */
+export const FONT_SIZE_CSS_VAR = '--lia-text-scale';
+
+/** True for a whole pixel size inside the offered range. */
+export function isValidFontSize(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= FONT_SIZE_MIN_PX &&
+    value <= FONT_SIZE_MAX_PX
+  );
+}
+
+/**
+ * Read a size from storage; anything but an offered step, spelled exactly as
+ * the pre-paint script looks it up, reads as absent.
+ */
+export function parseStoredFontSize(raw: string | null): number | null {
+  return FONT_SIZE_STEPS.find(step => String(step) === raw) ?? null;
+}
+
+/** The factor a size multiplies every text size by (16 px = 1). */
+export function fontSizeScale(px: number): number {
+  return px / DEFAULT_FONT_SIZE_PX;
+}
+
+// ============================================================================
 // FONT CATEGORIES
 // ============================================================================
 

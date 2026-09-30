@@ -55,7 +55,7 @@ function SettingsSearchScene({ active, labels }: SceneProps) {
     <div className={cn(STAGE, 'justify-center gap-2')}>
       <div className="flex w-full max-w-[200px] items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
         <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span className="text-[10px] text-foreground/80">
+        <span className="text-px-10 text-foreground/80">
           {phase === 'typing' ? '' : labels.query}
           <span
             className={cn(
@@ -126,7 +126,7 @@ function SettingsShellScene({ active, labels }: SceneProps) {
         >
           <span className="flex items-center gap-1.5">
             <PanelLeft className="h-3 w-3 shrink-0 text-primary" />
-            <span className="truncate text-[9px] font-medium text-foreground/80">
+            <span className="truncate text-px-9 font-medium text-foreground/80">
               {labels.section}
             </span>
           </span>
@@ -220,7 +220,7 @@ function HistorySearchScene({ active, labels }: SceneProps) {
     <div className={cn(STAGE, 'justify-center gap-2')}>
       <div className="flex w-full max-w-[200px] items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
         <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span className="text-[10px] text-foreground/80">{labels.query}</span>
+        <span className="text-px-10 text-foreground/80">{labels.query}</span>
       </div>
       <div
         className={cn(
@@ -239,7 +239,7 @@ function HistorySearchScene({ active, labels }: SceneProps) {
         >
           <span
             className={cn(
-              'rounded-sm px-1 text-[10px] transition-colors duration-300',
+              'rounded-sm px-1 text-px-10 transition-colors duration-300',
               phase === 'match' ? 'bg-primary/15 text-primary' : 'text-foreground/80'
             )}
           >
@@ -331,7 +331,7 @@ function RelationStarScene({ active }: SceneProps) {
             : 'translate-y-0 border-border'
         )}
       >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-[9px] font-bold text-primary">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-px-9 font-bold text-primary">
           GD
         </span>
         <span className="flex-1 space-y-1">
@@ -383,7 +383,7 @@ function RelationSectionsScene({ active, labels }: SceneProps) {
               )}
             />
             {row === 1 ? (
-              <span className="text-[9px] font-medium text-foreground/80">{labels.section}</span>
+              <span className="text-px-9 font-medium text-foreground/80">{labels.section}</span>
             ) : (
               <SkeletonLine w="w-1/2" className="h-1.5" />
             )}
@@ -480,7 +480,7 @@ function TemplateLibraryScene({ active, labels }: SceneProps) {
     <div className={cn(STAGE, 'justify-center gap-1.5 px-6')}>
       <div className="flex w-full max-w-[210px] items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
         <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span className="text-[10px] text-primary">{labels.mine}</span>
+        <span className="text-px-10 text-primary">{labels.mine}</span>
       </div>
       <div className="w-full max-w-[210px]">
         <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
@@ -490,9 +490,9 @@ function TemplateLibraryScene({ active, labels }: SceneProps) {
               opened && 'rotate-180'
             )}
           />
-          <span className="text-[10px] text-primary">{labels.builtin}</span>
+          <span className="text-px-10 text-primary">{labels.builtin}</span>
           {phase === 'added' && (
-            <span className="ml-auto rounded-full bg-primary/10 px-1.5 text-[9px] text-primary">
+            <span className="ml-auto rounded-full bg-primary/10 px-1.5 text-px-9 text-primary">
               {labels.pick}
             </span>
           )}
@@ -543,7 +543,7 @@ function MailLabelSourceScene({ active, labels }: SceneProps) {
         <SkeletonLine w="w-1/2" />
         <span
           className={cn(
-            'ml-auto rounded-full px-1.5 text-[9px] transition-opacity duration-300 motion-reduce:transition-none',
+            'ml-auto rounded-full px-1.5 text-px-9 transition-opacity duration-300 motion-reduce:transition-none',
             labelled ? 'bg-primary/10 text-primary opacity-100' : 'opacity-0'
           )}
         >
@@ -561,9 +561,9 @@ function MailLabelSourceScene({ active, labels }: SceneProps) {
 
       <div className="w-full max-w-[210px] rounded-md border border-border bg-background px-2 py-1.5">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-primary">{labels.space}</span>
+          <span className="text-px-10 text-primary">{labels.space}</span>
           {phase === 'indexed' && (
-            <span className="ml-auto rounded-full bg-primary/10 px-1.5 text-[9px] text-primary">
+            <span className="ml-auto rounded-full bg-primary/10 px-1.5 text-px-9 text-primary">
               {labels.indexed}
             </span>
           )}
@@ -632,11 +632,11 @@ function RelationDebriefScene({ active, labels }: SceneProps) {
                 )}
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] text-primary">{labels.open}</span>
+                  <span className="text-px-9 text-primary">{labels.open}</span>
                   <SkeletonLine w="w-1/2" />
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] text-primary">{labels.next}</span>
+                  <span className="text-px-9 text-primary">{labels.next}</span>
                   <SkeletonLine w="w-2/5" />
                 </div>
               </div>
@@ -731,7 +731,7 @@ function SyncCountScene({ active, labels }: SceneProps) {
         <SkeletonLine w="w-1/3" />
         <span
           className={cn(
-            'ml-auto inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] transition-colors motion-reduce:transition-none',
+            'ml-auto inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-px-9 transition-colors motion-reduce:transition-none',
             phase === 'idle'
               ? 'border-border text-foreground'
               : 'border-primary/40 bg-primary/10 text-primary'
@@ -746,7 +746,7 @@ function SyncCountScene({ active, labels }: SceneProps) {
       </div>
       <div
         className={cn(
-          'w-full max-w-[220px] rounded-md border border-border bg-background p-2 text-[10px] shadow-sm transition-all duration-300 motion-reduce:transition-none',
+          'w-full max-w-[220px] rounded-md border border-border bg-background p-2 text-px-10 shadow-sm transition-all duration-300 motion-reduce:transition-none',
           phase === 'asked'
             ? 'translate-y-0 opacity-100'
             : 'pointer-events-none translate-y-1 opacity-0'
@@ -792,8 +792,8 @@ function NetworkGrantsScene({ active, labels }: SceneProps) {
   const revoked = phase === 'revoked';
   return (
     <div className={cn(STAGE, 'justify-center')}>
-      <div className="w-full max-w-[210px] space-y-1.5 text-[10px]">
-        <div className="px-1 text-[9px] uppercase tracking-wide text-muted-foreground">
+      <div className="w-full max-w-[210px] space-y-1.5 text-px-10">
+        <div className="px-1 text-px-9 uppercase tracking-wide text-muted-foreground">
           {labels.reachable}
         </div>
         <MiniSettingRow icon={Globe} label={labels.connector} iconClassName="text-primary" />
@@ -814,8 +814,8 @@ function NetworkGrantsScene({ active, labels }: SceneProps) {
               <span className="min-w-0 flex-1 truncate font-mono text-foreground/80">
                 {labels.grant}
               </span>
-              <span className="truncate text-[9px] text-muted-foreground">{labels.scope}</span>
-              <span className="rounded-full border border-border px-1.5 py-0.5 text-[9px] text-destructive">
+              <span className="truncate text-px-9 text-muted-foreground">{labels.scope}</span>
+              <span className="rounded-full border border-border px-1.5 py-0.5 text-px-9 text-destructive">
                 {labels.revoke}
               </span>
             </div>
@@ -823,7 +823,7 @@ function NetworkGrantsScene({ active, labels }: SceneProps) {
         </div>
         <div
           className={cn(
-            'px-1 text-[9px] text-muted-foreground transition-opacity duration-300',
+            'px-1 text-px-9 text-muted-foreground transition-opacity duration-300',
             revoked ? 'opacity-100' : 'opacity-0'
           )}
         >

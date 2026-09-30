@@ -68,6 +68,11 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Re-measured 2026-09-30 after the Markdown export of HTML answers
+        // (ADR-177 amendment 2026-09-30): statements 83.38 / branches 78.21 /
+        // functions 80.97 / lines 84.29. `statements` rises 80 -> 81,
+        // `branches` 75 -> 76 and `lines` 81 -> 82 (floor(measured - 2));
+        // `functions` does not cross a step.
         // Re-measured 2026-09-29 after JEV lots 1-8: statements 82.78,
         // branches 77.84, functions 80.50, lines 83.65. Floors 80/75/78/81
         // retain >=2 points; no axis crosses another whole-point step.
@@ -391,10 +396,10 @@ export default defineConfig({
         // (floor(measured - 2)); `branches` and `lines` do not cross a step.
         // Re-measured 2026-09-28 with the JEV administration and cost paths:
         // 82.75 / 77.76 / 80.44 / 83.62. Functions advances with >=2 pt margin.
-        statements: 80,
-        branches: 75,
+        statements: 81,
+        branches: 76,
         functions: 78,
-        lines: 81,
+        lines: 82,
         // Hot JEV switches: confirmed writes, failures, refresh and OFF recovery.
         // Measured 93.94 / 85.19 / 100 / 93.94; preserve a margin per axis.
         'src/components/settings/AdminJevSection.tsx': {
@@ -573,6 +578,17 @@ export default defineConfig({
           branches: 89,
           functions: 98,
           lines: 98,
+        },
+        // The `.md` an answer leaves the chat as (Download, Send by e-mail, a
+        // kept answer's export — ADR-177 amendment 2026-09-30): a regression
+        // here ships an unreadable file nobody sees until it is sent.
+        // Measured html-markdown 96.07 / 87 / 94.8 / 97.73, message-markdown
+        // 100 / 100 / 100 / 100; floors keep two points of margin.
+        'src/lib/{html-markdown,message-markdown}.ts': {
+          statements: 94,
+          branches: 85,
+          functions: 92,
+          lines: 95,
         },
         'src/lib/auth.tsx': {
           statements: 98,

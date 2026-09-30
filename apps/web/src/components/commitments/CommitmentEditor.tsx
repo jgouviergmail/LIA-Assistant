@@ -82,7 +82,7 @@ export function CommitmentEditor({
           jsx-a11y/control-has-associated-label unconvinced, and nesting is the
           form that needs no id to stay associated. */}
       <label className="flex flex-col gap-1">
-        <span className="text-[11px] font-medium text-muted-foreground">
+        <span className="text-px-11 font-medium text-muted-foreground">
           {t('settings.open_loops.edit_subject_label')}
         </span>
         <input
@@ -100,7 +100,7 @@ export function CommitmentEditor({
       </label>
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-medium text-muted-foreground">
+          <span className="text-px-11 font-medium text-muted-foreground">
             {t('settings.open_loops.edit_due_label')}
           </span>
           <input

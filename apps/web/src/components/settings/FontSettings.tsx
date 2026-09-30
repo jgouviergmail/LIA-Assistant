@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 import { useFontFamily, type FontFamilyName } from '@/lib/font-context';
-import { FONT_DEFINITIONS, isValidFontFamily } from '@/constants/fonts';
+import { FONT_DEFINITIONS } from '@/constants/fonts';
 import { Check, Type } from 'lucide-react';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
@@ -17,9 +17,17 @@ interface FontSettingsProps {
   lng: Language;
 }
 
+const hydrationSubscribe = () => () => {};
+
 export function FontSettings({ lng }: FontSettingsProps) {
   const { fontFamily, setFontFamily } = useFontFamily();
-  const [mounted, setMounted] = useState(false);
+  // The provider reads the stored font client-side only: the choices render
+  // after hydration, never in the server's markup with the default selected.
+  const mounted = useSyncExternalStore(
+    hydrationSubscribe,
+    () => true,
+    () => false
+  );
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
 
@@ -31,23 +39,6 @@ export function FontSettings({ lng }: FontSettingsProps) {
       await refreshUser?.();
     },
   });
-
-  // Sync font from user on mount
-  useEffect(() => {
-    if (
-      user?.font_family &&
-      isValidFontFamily(user.font_family) &&
-      user.font_family !== fontFamily
-    ) {
-      setFontFamily(user.font_family);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.font_family]);
-
-  // Avoid flash on load
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleFontChange = async (fontName: FontFamilyName) => {
     // Update local state immediately for responsive UI
@@ -74,6 +65,7 @@ export function FontSettings({ lng }: FontSettingsProps) {
                   key={fontOption.name}
                   type="button"
                   onClick={() => handleFontChange(fontOption.name)}
+                  aria-pressed={isSelected}
                   className={`
                     relative flex items-start gap-3 rounded-lg border-2 p-4 text-left transition-all
                     hover:bg-accent hover:shadow-sm

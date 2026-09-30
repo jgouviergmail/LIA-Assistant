@@ -1722,6 +1722,11 @@
       "title": "JEV decides, each use keeps its own switch",
       "summary": "JEV helps LIA choose, route or assess within a defined scope. Each use has a hot switch; when uncertain, the existing process takes over. Previews retain every result, observers never block extraction, and an exclusion never grants approval. Administrators can inspect the context, answer and outcome; every paid call is accounted for. Time savings must be checked across the complete journey before activation.",
       "src": "7ebe153c5910"
+    },
+    "326": {
+      "title": "No hostile text freezes LIA, no redirect steers her",
+      "summary": "The functions that flatten a text for a voice, a notification or a card read some texts in exponential time: 51 characters typed in the chat cost 4.5 s, a 32 KB booby-trapped e-mail froze LIA for 3 s. Every pattern is rewritten linear and two tests hold it, on the server and in the browser alike. Reading a web page now checks every redirect before following it and connects to the verified address, never to a later resolution of the name.",
+      "src": "b378d83b1215"
     }
   }
 }

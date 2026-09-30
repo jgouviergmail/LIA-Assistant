@@ -73,6 +73,8 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
     connector_type = ConnectorType.MICROSOFT_OUTLOOK
     # A file rides INSIDE the send request (an upload session is not built).
     OUTGOING_FILE_MAX_BYTES = OUTLOOK_INLINE_ATTACHMENT_MAX_BYTES
+    # The Graph listing selects bodyPreview, never body nor attachments.
+    SEARCH_HITS_ARE_WHOLE = False
 
     def __init__(
         self,

@@ -20,6 +20,7 @@ expected to exaggerate it rather than reproduce it.
 
 from __future__ import annotations
 
+import math
 from typing import Final
 
 # =============================================================================
@@ -115,6 +116,6 @@ def normalize_intensity(raw: str | float | None) -> float | None:
         value = float(raw)
     except TypeError, ValueError:
         return None
-    if value != value:  # NaN: float("nan") != itself
+    if math.isnan(value):
         return None
     return max(TONE_INTENSITY_MIN, min(TONE_INTENSITY_MAX, value))

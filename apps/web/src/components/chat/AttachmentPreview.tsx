@@ -42,7 +42,7 @@ export default function AttachmentPreview({ attachments, onRemove }: AttachmentP
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-1">
               <FileText className="h-8 w-8 text-muted-foreground" />
-              <span className="text-[9px] text-muted-foreground truncate w-full text-center mt-0.5">
+              <span className="text-px-9 text-muted-foreground truncate w-full text-center mt-0.5">
                 {att.filename}
               </span>
             </div>
@@ -53,7 +53,7 @@ export default function AttachmentPreview({ attachments, onRemove }: AttachmentP
             <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
               <div className="relative">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-medium">
+                <span className="absolute inset-0 flex items-center justify-center text-px-9 font-medium">
                   {att.progress}%
                 </span>
               </div>
@@ -63,7 +63,7 @@ export default function AttachmentPreview({ attachments, onRemove }: AttachmentP
           {/* Error overlay */}
           {att.status === 'error' && (
             <div className="absolute inset-0 bg-destructive/20 flex items-center justify-center">
-              <span className="text-[10px] text-destructive font-medium">!</span>
+              <span className="text-px-10 text-destructive font-medium">!</span>
             </div>
           )}
 
@@ -84,7 +84,7 @@ export default function AttachmentPreview({ attachments, onRemove }: AttachmentP
 
           {/* File size badge */}
           <div className="absolute bottom-0.5 left-0.5 bg-background/80 rounded px-1">
-            <span className="text-[8px] text-muted-foreground">{formatFileSize(att.size)}</span>
+            <span className="text-px-8 text-muted-foreground">{formatFileSize(att.size)}</span>
           </div>
         </div>
       ))}

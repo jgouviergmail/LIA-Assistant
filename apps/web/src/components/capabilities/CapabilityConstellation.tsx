@@ -144,7 +144,7 @@ function Star({
         <span className="flex flex-col items-center gap-0.5" aria-hidden="true">
           <span
             className={cn(
-              'max-w-28 truncate text-center text-[11px] leading-tight tracking-wide transition-colors',
+              'max-w-28 truncate text-center text-px-11 leading-tight tracking-wide transition-colors',
               node.active
                 ? 'font-medium text-[var(--capability-ink)]'
                 : 'text-[var(--capability-ink-dim)] group-hover:text-[var(--capability-ink)]'
@@ -156,7 +156,7 @@ function Star({
               approach rather than crowding thirteen stars at rest. */}
           <span
             className={cn(
-              'text-[9px] uppercase tracking-[0.14em] tabular-nums text-[var(--capability-ink-dim)]',
+              'text-px-9 uppercase tracking-[0.14em] tabular-nums text-[var(--capability-ink-dim)]',
               'opacity-0 transition-opacity duration-300',
               'group-hover:opacity-100 group-focus-visible:opacity-100'
             )}
@@ -193,7 +193,7 @@ export function CapabilityConstellation({
   return (
     <section aria-labelledby="constellation-heading" className="space-y-5">
       <header className="space-y-1">
-        <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
+        <p className="text-px-10 font-medium uppercase tracking-[0.2em] text-primary">
           {t('capabilities.map_eyebrow')}
         </p>
         <h2 id="constellation-heading" className="text-lg font-semibold tracking-tight">
@@ -244,7 +244,7 @@ export function CapabilityConstellation({
       {/* A chart nobody can read is an ornament. Three lines: what a filled
           star means, what an outlined one means, and what size encodes — the
           three conventions the drawing actually uses, and no more. */}
-      <ul className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground">
+      <ul className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-5 gap-y-2 text-px-11 text-muted-foreground">
         <li className="flex items-center gap-2">
           <span
             className="h-2 w-2 rounded-full bg-[var(--capability-star)]"

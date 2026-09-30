@@ -452,7 +452,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                            <p className="text-px-11 text-muted-foreground mt-0.5">
                               {t('healthMetrics.tokens.createdOn', 'Créé le')}{' '}
                               {new Date(token.created_at).toLocaleString(lng)}
                               {token.last_used_at && (

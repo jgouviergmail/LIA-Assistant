@@ -83,6 +83,8 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
     connector_type = ConnectorType.GOOGLE_GMAIL
     api_base_url = GOOGLE_GMAIL_API_BASE_URL
     OUTGOING_FILE_MAX_BYTES = max_file_bytes(GMAIL_SEND_MESSAGE_MAX_BYTES)
+    # Each hit is read at format=full unless headers_only (search_emails).
+    SEARCH_HITS_ARE_WHOLE = True
 
     def __init__(
         self,
@@ -407,8 +409,9 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
             use_cache: Use Redis cache (default True).
             page_token: The ``next_page_token`` of a previous page, to continue
                 the same search (ADR-287).
-            headers_only: Accepted for provider parity; the Gmail listing is
-                metadata-only by construction (``format=metadata`` per hit).
+            headers_only: Read each hit at ``format=metadata`` (headers, no
+                body, no MIME parts) instead of ``format=full``. Either way one
+                request per hit: the list endpoint returns ids only.
 
         Returns:
             Dict with:
@@ -425,12 +428,14 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
             ...     max_results=20
             ... )
         """
-        # Generate cache key — the page is part of the identity, or page 2
-        # would be served from page 1's entry.
+        # Generate cache key — the page and the hit format are part of the
+        # identity: page 2 must not be served from page 1's entry, nor a
+        # headers-only page to a caller expecting bodies.
         page_part = f":{page_token}" if page_token else ""
+        hit_format = GMAIL_FORMAT_METADATA if headers_only else GMAIL_FORMAT_FULL
         cache_key = (
             f"{REDIS_KEY_GMAIL_SEARCH_PREFIX}{self.user_id}:"
-            f"{hashlib.md5(query.encode()).hexdigest()}:{max_results}{page_part}"
+            f"{hashlib.md5(query.encode()).hexdigest()}:{max_results}:{hit_format}{page_part}"
         )
 
         # Try cache first
@@ -467,17 +472,17 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
         # Get list of message IDs
         message_ids = [msg["id"] for msg in response.get("messages", [])]
 
-        # Fetch message metadata concurrently (audit wave 3, N-194.8): the
-        # list endpoint returns IDs only, so each result costs one more
-        # round-trip. Concurrency is bounded by a semaphore and every fetch
-        # still passes through the Redis rate limiter in _make_request.
+        # Fetch each hit concurrently (audit wave 3, N-194.8): the list
+        # endpoint returns IDs only, so each result costs one more round-trip.
+        # Concurrency is bounded by a semaphore and every fetch still passes
+        # through the Redis rate limiter in _make_request.
         # Order of results follows message_ids; failed fetches are skipped.
         semaphore = asyncio.Semaphore(settings.emails_search_fetch_concurrency)
 
-        async def _fetch_metadata(msg_id: str) -> dict[str, Any] | None:
+        async def _fetch_hit(msg_id: str) -> dict[str, Any] | None:
             async with semaphore:
                 try:
-                    return await self.get_message(msg_id, format=GMAIL_FORMAT_METADATA)
+                    return await self.get_message(msg_id, format=hit_format, use_cache=use_cache)
                 except Exception as e:
                     logger.warning(
                         "gmail_search_message_fetch_failed", message_id=msg_id, error=str(e)
@@ -485,7 +490,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
                     return None
 
         fetched = await asyncio.gather(
-            *(_fetch_metadata(msg_id) for msg_id in message_ids[:effective_max_results])
+            *(_fetch_hit(msg_id) for msg_id in message_ids[:effective_max_results])
         )
         messages = [msg for msg in fetched if msg is not None]
 

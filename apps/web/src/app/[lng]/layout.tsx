@@ -19,6 +19,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { ThemeInitScript } from '@/components/theme-init-script';
 import { ColorThemeProvider } from '@/lib/theme-context';
 import { FontProvider } from '@/lib/font-context';
+import { FontPreferencesSync } from '@/components/settings/FontPreferencesSync';
 import { TranslationsProvider } from '@/components/TranslationsProvider';
 import { fontVariables } from '@/lib/fonts';
 import { Toaster } from '@/components/ui/toaster';
@@ -141,6 +142,7 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
                         <ServiceWorkerRegistration />
                         <TelemetryBootstrap />
                         <PresencePing />
+                        <FontPreferencesSync />
                         {children}
                         <Toaster />
                       </TooltipProvider>

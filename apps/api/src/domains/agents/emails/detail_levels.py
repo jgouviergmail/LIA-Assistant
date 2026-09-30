@@ -17,6 +17,10 @@ Before: every search downloaded every body and cut it at 1 500 characters —
 a bound published nowhere, which is how a professional assistant came to treat
 e-mails superficially. The budget here is in TOKENS (the currency the model
 pays in) and a cut is always stated (ADR-184).
+
+A level decides what the MODEL reads, never what the card draws: a body it
+withholds is kept whole under ``FIELD_DISPLAY_ONLY``, which the registry moves
+out of every payload the model can read (``RegistryItemMeta.display``).
 """
 
 from __future__ import annotations
@@ -26,7 +30,12 @@ from typing import Any
 
 import structlog
 
-from src.core.field_names import FIELD_BODY, FIELD_BODY_PART, FIELD_BODY_PARTS
+from src.core.field_names import (
+    FIELD_BODY,
+    FIELD_BODY_PART,
+    FIELD_BODY_PARTS,
+    FIELD_DISPLAY_ONLY,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -136,6 +145,23 @@ def paginate_body(body: str, *, part: int, part_tokens: int) -> tuple[str, int]:
     return text, total
 
 
+def _withholds_body(email: dict[str, Any], detail: EmailDetail) -> bool:
+    """Whether the level keeps this message's body from the model."""
+    if detail is EmailDetail.METADATA:
+        return True
+    return (
+        detail is EmailDetail.SUMMARY
+        and email.get("digest_status") in DIGEST_STATUSES_WITH_A_DIGEST
+    )
+
+
+def _keep_for_display(email: dict[str, Any]) -> None:
+    """Move the body out of the model's reach, whole, for the card."""
+    body = email.pop(FIELD_BODY, None)
+    if isinstance(body, str) and body:
+        email[FIELD_DISPLAY_ONLY] = {**email.get(FIELD_DISPLAY_ONLY, {}), FIELD_BODY: body}
+
+
 def apply_detail_level(
     emails: list[dict[str, Any]], *, detail: EmailDetail, part: int, part_tokens: int
 ) -> None:
@@ -151,14 +177,8 @@ def apply_detail_level(
         part_tokens: Tokens one body part may hold.
     """
     for email in emails:
-        if detail is EmailDetail.METADATA:
-            email.pop(FIELD_BODY, None)
-            continue
-        if (
-            detail is EmailDetail.SUMMARY
-            and email.get("digest_status") in DIGEST_STATUSES_WITH_A_DIGEST
-        ):
-            email.pop(FIELD_BODY, None)
+        if _withholds_body(email, detail):
+            _keep_for_display(email)
             continue
         body = email.get(FIELD_BODY)
         if not isinstance(body, str):

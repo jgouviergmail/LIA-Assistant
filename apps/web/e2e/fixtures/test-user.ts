@@ -28,6 +28,8 @@ export interface TestUser {
   timezone: string;
   /** Settings section tokens pinned to the floating dock (ADR-277). */
   settings_shortcuts: string[];
+  /** Interface text size in px; the account's copy is applied on every page. */
+  font_size: number;
 }
 
 export function makeTestUser(overrides: Partial<TestUser> = {}): TestUser {
@@ -46,6 +48,7 @@ export function makeTestUser(overrides: Partial<TestUser> = {}): TestUser {
     voice_stt_mode: 'remote',
     tokens_display_enabled: true,
     settings_shortcuts: [],
+    font_size: 16,
     debug_panel_enabled: false,
     response_display_mode: 'default',
     onboarding_completed: true,

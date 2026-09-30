@@ -6,6 +6,7 @@ Input/output models for the scheduled actions CRUD API.
 
 from datetime import date as calendar_date
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -21,6 +22,7 @@ from src.core.constants import (
 from src.core.i18n import resolve_language
 from src.core.recurrence import RecurrenceSpec, occurrences, week_slots
 from src.core.time_utils import now_utc
+from src.domains.connectors.models import ConnectorType
 from src.domains.scheduled_actions.condition_ledger import ConditionCheckError, ConditionLedger
 from src.domains.scheduled_actions.models import (
     CONDITION_TYPE_CALENDAR_EVENT,
@@ -490,6 +492,30 @@ class ScheduledActionResponse(BaseModel):
             ]
 
 
+class WeatherConditionRule(BaseModel):
+    """When a weather routine fires, exactly as the executor applies it (ADR-184)."""
+
+    horizon_hours: int = Field(
+        description="A change is announced when it is due within this many hours."
+    )
+    min_precipitation_percent: int = Field(
+        description="A forecast hour counts only when its precipitation probability is "
+        "STRICTLY above this percentage."
+    )
+    source: Literal["google_weather"] = Field(
+        default=ConnectorType.GOOGLE_WEATHER.value,
+        description="The one forecast source read, whatever weather provider the person chose.",
+    )
+
+
+def published_weather_rule() -> WeatherConditionRule:
+    """The weather rule as the settings define it — the executor's own reading."""
+    return WeatherConditionRule(
+        horizon_hours=settings.scheduled_actions_weather_horizon_hours,
+        min_precipitation_percent=settings.scheduled_actions_weather_min_precipitation_percent,
+    )
+
+
 class ScheduledActionListResponse(BaseModel):
     """Schema for listing scheduled actions.
 
@@ -507,6 +533,10 @@ class ScheduledActionListResponse(BaseModel):
     condition_max_fires_per_day: int = Field(
         default_factory=lambda: settings.scheduled_actions_condition_max_fires_per_day,
         description="Most runs one condition routine may start in one local day.",
+    )
+    weather_condition_rule: WeatherConditionRule = Field(
+        default_factory=published_weather_rule,
+        description="When a weather-change routine fires: horizon, probability floor, source.",
     )
 
 

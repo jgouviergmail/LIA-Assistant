@@ -61,7 +61,7 @@ function ExtractedInterestRow({
 
       {/* Decision reason */}
       {decision?.reason && (
-        <div className="pl-4 text-[10px] text-muted-foreground">
+        <div className="pl-4 text-px-10 text-muted-foreground">
           {decision.matched_interest ? (
             <>
               <span className="text-primary">{decision.matched_interest}</span>

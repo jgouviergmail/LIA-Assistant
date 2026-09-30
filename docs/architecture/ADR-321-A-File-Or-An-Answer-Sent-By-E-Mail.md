@@ -64,7 +64,8 @@ the change:
    What may be sent: one of the person's OWN GENERATED files not past its
    deadline (a kept file has none — ADR-319), or an answer as Markdown built
    by the client exactly as « Download » writes it (the chat's
-   `messageToPlainText`, the bookmarks' `bookmarkToMarkdown`, the same dated
+   `messageToMarkdown` — an HTML answer written as Markdown since ADR-177's
+   2026-09-30 amendment —, the bookmarks' `bookmarkToMarkdown`, the same dated
    names). No model is called and nothing is written in the person's place.
 
 5. **No transaction across the send** (ADR-304): the route resolves the road on

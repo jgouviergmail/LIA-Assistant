@@ -53,7 +53,7 @@ export function BlogCard({
           <div className="flex items-center justify-between">
             <span
               className={cn(
-                'text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full',
+                'text-px-10 font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full',
                 badgeClass
               )}
             >
@@ -71,7 +71,7 @@ export function BlogCard({
             {article.tags.slice(0, 3).map(tag => (
               <span
                 key={tag}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
+                className="text-px-10 px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
               >
                 {tag}
               </span>

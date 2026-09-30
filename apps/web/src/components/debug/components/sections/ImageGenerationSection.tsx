@@ -78,7 +78,7 @@ export const ImageGenerationSection = React.memo(function ImageGenerationSection
                   </DebugChip>
                 )}
               </div>
-              <div className="space-y-0.5 text-[10px] text-muted-foreground">
+              <div className="space-y-0.5 text-px-10 text-muted-foreground">
                 {call.duration_ms > 0 && (
                   <div className="flex justify-between">
                     <span>Duration:</span>

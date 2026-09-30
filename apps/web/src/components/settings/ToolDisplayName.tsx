@@ -22,7 +22,7 @@ export function ToolDisplayName({ title, name }: { title?: string | null; name: 
     <>
       <span className="font-medium">{displayTitle ?? name}</span>
       {displayTitle && (
-        <span className="ml-2 font-mono text-[11px] font-normal text-muted-foreground">{name}</span>
+        <span className="ml-2 font-mono text-px-11 font-normal text-muted-foreground">{name}</span>
       )}
     </>
   );

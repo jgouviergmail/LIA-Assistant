@@ -55,6 +55,8 @@ import re
 from collections.abc import Callable
 from html.entities import html5
 
+from src.core.constants import MARKDOWN_CODE_SPAN_TICKS_MAX, MARKDOWN_SPAN_MAX_CHARS
+
 __all__ = [
     "RESERVED_MARKERS",
     "literal_quote",
@@ -136,9 +138,18 @@ def markdown_data_literal(text: str) -> str:
 #: A fenced block's opening line (group 1, its fence group 2 — the block runs
 #: to a closing fence at least as long, or to the end) or a code span (its
 #: backticks group 3, its content group 4; it never crosses a blank line).
+#:
+#: Linear by construction (ADR-326). The fence is taken whole and never handed
+#: back (``(?=(…))\2``, the same atomic form the browser's twin can write, since
+#: JavaScript has no possessive quantifier): a line of n backticks with no
+#: newline used to try every shorter fence and rescan the line each time. A
+#: code span opens with at most ``MARKDOWN_CODE_SPAN_TICKS_MAX`` backticks and
+#: holds at most ``MARKDOWN_SPAN_MAX_CHARS``: a run of n backticks was compared
+#: n times over as a closing run of every length (measured 3.6 s on 120 KB).
 _CODE = re.compile(
-    r"^([ \t]{0,3}(`{3,}|~{3,})[^\n]*\n)"
-    r"|(?<!`)(`+)(?!`)((?:(?!\n[ \t]*\n)[\s\S])*?)(?<!`)\3(?!`)",
+    r"^([ \t]{0,3}(?=(`{3,}|~{3,}))\2[^\n]*\n)"
+    rf"|(?<!`)(`{{1,{MARKDOWN_CODE_SPAN_TICKS_MAX}}})(?!`)"
+    rf"((?:(?!\n[ \t]*\n)[\s\S]){{0,{MARKDOWN_SPAN_MAX_CHARS}}}?)(?<!`)\3(?!`)",
     re.MULTILINE,
 )
 #: A character reference as CommonMark reads it (the ``;`` is required).

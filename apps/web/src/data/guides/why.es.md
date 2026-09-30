@@ -4,7 +4,7 @@
 
 **Versión**: 6.1
 **Fecha**: 2026-09-24
-**Aplicación**: LIA v2.1.0
+**Aplicación**: LIA v2.1.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,7 +60,7 @@ Cada usuario dispone de su propio espacio de configuración, organizado en dos p
 - **Canales**: conecta Telegram para chatear y recibir notificaciones en el móvil
 - **Generación de imágenes**: activa y configura la creación de imágenes por IA
 - **Servidores MCP personales**: conecta tus propios servidores MCP para ampliar las capacidades de LIA
-- **Apariencia**: idioma, zona horaria, tema (5 paletas, modo claro, oscuro o negro absoluto), fuente (9 opciones), formato de visualización de respuestas (tarjetas HTML, HTML, Markdown)
+- **Apariencia**: idioma, zona horaria, tema (5 paletas, modo claro, oscuro o negro absoluto), fuente (9 opciones), tamaño del texto (de 14 a 20 px, sin mover ningún panel), formato de visualización de respuestas (tarjetas HTML, HTML, Markdown)
 - **Mi dashboard**: oculta o reordena las 9 tarjetas del briefing — una tarjeta oculta ya ni siquiera se consulta
 - **Preferencias de uso**: elige tu ritmo de intercambios — frecuentes, y LIA tiene todas sus herramientas a mano para que cada turno del modo ReAct relea el anterior desde la caché del proveedor; puntuales, y elige las herramientas que necesita cada pregunta, con un coste estable
 - **Debug**: accede al panel de depuración para inspeccionar cada intercambio (si el administrador lo ha activado)
@@ -367,6 +367,8 @@ El mismo principio vale en todas partes: un contador lleva el color de los demá
 
 Y el color nunca lleva solo el significado: cada etiqueta conserva su palabra. Una interfaz que solo funciona en color no funciona para todo el mundo.
 
+Y el tamaño del texto es tuyo: de 14 a 20 px, solo crece el texto — paneles, márgenes e iconos se quedan donde los encontraste, para que un texto más legible nunca cueste una página menos legible.
+
 ### 6.7. Incluso lo que LIA aprende de ti es inspeccionable
 
 La misma transparencia cubre el aprendizaje de hábitos: lo que LIA cree saber de tu ritmo y tus peticiones recurrentes vive en un panel dedicado — mapa de calor de tus 24 horas, porcentaje de días activos, barra de progreso hacia las primeras detecciones, y para cada hábito los días reales en que fue observado más los umbrales exactos aplicados por el detector. Cuando no hay un hábito estable, el panel lo dice en lugar de inventarlo. Pausa, bloqueo definitivo, borrado total, recálculo retroactivo inmediato — y toda la función está apagada hasta que la actives. Lo que fijas ahí vale en todas partes: un hábito en pausa lo está para las notificaciones, su horario y el contexto de la asistente por igual; una rutina que se te pasa se te ofrece por su nombre; y un hábito aprendido vive — promovido, refrescado o degradado según cambian tus días, nunca en la duda.
@@ -546,7 +548,7 @@ Estándares abiertos en lugar de un protocolo propio: lo que LIA habla, otra her
 
 ### 9.3. Lo que hace verificables esas garantías
 
-Una garantía que no se puede comprobar no lo es. La auditoría técnica del proyecto es pública — rejilla de puntuación, método, fortalezas y debilidades asumidas, y el protocolo para repetirla. Cada decisión de arquitectura está escrita e indexada. Cada protección está respaldada por una prueba que falla si la protección desaparece. Y la copia de seguridad nocturna de la base viene con un procedimiento de restauración realmente ejecutado, no solo redactado.
+Una garantía que no se puede comprobar no lo es. La auditoría técnica del proyecto es pública — rejilla de puntuación, método, fortalezas y debilidades asumidas, y el protocolo para repetirla. Cada decisión de arquitectura está escrita e indexada. Cada protección está respaldada por una prueba que falla si la protección desaparece. Y la copia de seguridad nocturna de la base viene con un procedimiento de restauración realmente ejecutado, no solo redactado. Cuando el análisis de código señala una debilidad, la respuesta apunta a toda su clase y no solo a la alerta: la corrección llega con una guarda que falla si la misma clase reaparece en otro lugar, y el análisis cubre también los scripts desplegados, la infraestructura y los flujos de trabajo.
 
 ## 10. Apertura radical
 

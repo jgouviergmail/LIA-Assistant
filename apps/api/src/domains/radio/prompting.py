@@ -57,8 +57,6 @@ WRITER_PROMPT: Final[str] = "radio_writer_prompt"
 ANALYST_PROMPT: Final[str] = "radio_analyst_prompt"
 VERIFIER_PROMPT: Final[str] = "radio_verifier_prompt"
 
-#: How many interests the writer is told at most (the strongest first).
-INTERESTS_SHOWN_MAX: Final[int] = 8
 #: How many of the listener's stated tastes the writer is told at most (the newest first).
 STATED_TASTES_SHOWN_MAX: Final[int] = 6
 #: The longest stated taste the writer reads (a remembered taste is a sentence, not a page).
@@ -118,7 +116,8 @@ class ListenerTaste:
     """What the writer knows of the listener's taste — to choose and pitch, never to state.
 
     Attributes:
-        interests: What they care about, strongest first.
+        interests: What they care about, strongest first — as many as the start read
+            (``RADIO_INTEREST_TOPICS_MAX``), the ones the search looks up.
         stated: What they said they like or dislike (their remembered
             preferences), newest first.
     """
@@ -179,7 +178,7 @@ def _listener(taste: ListenerTaste, fmt: RadioFormat) -> str:
     stated = [clamp_item(text, STATED_TASTE_MAX_CHARS) for text in taste.stated if text.strip()]
     lines = []
     if interests:
-        lines.append(f"- cares about: {', '.join(interests[:INTERESTS_SHOWN_MAX])}")
+        lines.append(f"- cares about: {', '.join(interests)}")
     if stated:
         lines.append(f"- has said: {'; '.join(stated[:STATED_TASTES_SHOWN_MAX])}")
     return "\n".join(lines) or "- nothing known"
@@ -326,7 +325,6 @@ def render_verifier_prompt(
 
 __all__ = [
     "ANALYST_PROMPT",
-    "INTERESTS_SHOWN_MAX",
     "HEADLINE_SHOWN_MAX_CHARS",
     "ON_AIR_SHOWN_MAX",
     "STATED_TASTES_SHOWN_MAX",

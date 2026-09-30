@@ -5,7 +5,8 @@ first and how a column is angled, and no line may state it
 (:class:`~src.domains.radio.prompting.ListenerTaste`).
 
 - Interests: the active ones, strongest first over the whole set — the order the
-  portrait reads them in.
+  portrait reads them in — as many as the start asks (``RADIO_INTEREST_TOPICS_MAX``):
+  ONE count, the interests the writer is told and the search looks up.
 - Stated tastes: the live memories of the ``preference`` category (likes,
   dislikes, tastes), newest first — a taste changes, and the latest word stands.
 
@@ -30,11 +31,7 @@ import structlog
 from src.domains.interests.repository import InterestRepository
 from src.domains.memories.models import MemoryCategory
 from src.domains.memories.repository import MemoryRepository
-from src.domains.radio.prompting import (
-    INTERESTS_SHOWN_MAX,
-    STATED_TASTES_SHOWN_MAX,
-    ListenerTaste,
-)
+from src.domains.radio.prompting import STATED_TASTES_SHOWN_MAX, ListenerTaste
 from src.domains.radio.readers import ConsultationRecorder
 from src.infrastructure.database.session import get_db_context
 
@@ -45,11 +42,9 @@ INTERESTS_SECTION: Final[str] = "interests"
 MEMORIES_SECTION: Final[str] = "memories"
 
 
-async def _interests(user_id: UUID) -> tuple[str, ...]:
+async def _interests(user_id: UUID, limit: int) -> tuple[str, ...]:
     async with get_db_context() as db:
-        rows = await InterestRepository(db).list_active_by_signals(
-            user_id, limit=INTERESTS_SHOWN_MAX
-        )
+        rows = await InterestRepository(db).list_active_by_signals(user_id, limit=limit)
         return tuple(row.topic for row in rows if row.topic and row.topic.strip())
 
 
@@ -86,7 +81,7 @@ async def _part(
 async def read_taste(
     user_id: UUID,
     *,
-    interests_allowed: bool,
+    interests_max: int,
     stated_allowed: bool,
     record: ConsultationRecorder,
 ) -> ListenerTaste:
@@ -94,7 +89,8 @@ async def read_taste(
 
     Args:
         user_id: The listener.
-        interests_allowed: Whether their interests may be read.
+        interests_max: How many of their interests to read, strongest first (0: none —
+            not allowed, or the operator's zero).
         stated_allowed: Whether their remembered preferences may be read.
         record: Records what was opened.
 
@@ -107,8 +103,10 @@ async def read_taste(
     try:
         return ListenerTaste(
             interests=(
-                await _part(INTERESTS_SECTION, lambda: _interests(user_id), opened, failed)
-                if interests_allowed
+                await _part(
+                    INTERESTS_SECTION, lambda: _interests(user_id, interests_max), opened, failed
+                )
+                if interests_max > 0
                 else ()
             ),
             stated=(

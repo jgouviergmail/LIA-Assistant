@@ -54,7 +54,7 @@ export interface InterestExplanationProps {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-wrap items-baseline gap-1.5">
-      <dt className="text-[11px] text-muted-foreground">{label}</dt>
+      <dt className="text-px-11 text-muted-foreground">{label}</dt>
       <dd className="text-xs tabular-nums text-foreground/90">{value}</dd>
     </div>
   );
@@ -143,7 +143,7 @@ export function InterestExplanation({ interestId, locale }: InterestExplanationP
 
           {/* The coefficients, so the number above is checkable rather than
               merely asserted. An enforced constant nobody can see is a trap. */}
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-px-11 text-muted-foreground">
             {t('interests.explanation.formula', {
               alpha: data.prior_alpha,
               beta: data.prior_beta,

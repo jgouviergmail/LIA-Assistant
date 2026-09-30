@@ -109,7 +109,7 @@ export const JournalExtractionSection = React.memo(function JournalExtractionSec
                   <div className="mt-0.5 flex items-center gap-2 text-muted-foreground">
                     <span>{entry.theme.replace('_', ' ')}</span>
                     {entry.entry_id && (
-                      <span className="font-mono text-[10px]">{entry.entry_id.slice(0, 8)}</span>
+                      <span className="font-mono text-px-10">{entry.entry_id.slice(0, 8)}</span>
                     )}
                   </div>
                 )}

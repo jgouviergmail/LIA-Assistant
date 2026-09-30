@@ -17,7 +17,8 @@ request-scoped session injected by FastAPI Depends.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
+import math
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -32,6 +33,7 @@ from src.core.constants import (
     HEALTH_METRICS_USER_TOGGLE_ATTR,
 )
 from src.core.exceptions import ConnectorAPIError, MaxRetriesExceededError
+from src.core.time_utils import now_utc
 from src.domains.agents.tools.weather_environment_enrichment import (
     environment_enrichment_active,
     fetch_environment_extras,
@@ -47,7 +49,9 @@ from src.domains.briefing.exceptions import (
     ConnectorNotConfiguredError,
 )
 from src.domains.briefing.formatters import (
+    ForecastAlertRule,
     daily_average_from_breakdown,
+    detect_forecast_alert,
     extract_today_value_from_summary,
     format_agenda_event,
     format_email_item,
@@ -76,7 +80,10 @@ from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.connectors.session_scope import DetachedConnectorService
-from src.domains.connectors.weather_provider import resolve_weather_client
+from src.domains.connectors.weather_provider import (
+    open_platform_weather_client,
+    resolve_weather_client,
+)
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.heartbeat.geocoding import resolve_city_name
 from src.domains.reminders.service import ReminderService
@@ -129,7 +136,9 @@ async def fetch_weather(
             so everything below is provider-agnostic (lot E, 2026-08).
         ConnectorAccessError: on HTTP/network failure (token expired, rate-limit, etc.).
     """
-    client, location, environment_active = await _open_weather(user, with_environment=True)
+    client, location, environment_active = await _open_weather(
+        user, open_client=resolve_weather_client, source=_CARD_WEATHER_SOURCE, with_environment=True
+    )
 
     # Fail-quiet: None and the card renders exactly as before.
     environment = (
@@ -160,7 +169,9 @@ async def fetch_weather(
         # MaxRetriesExceededError: retry-exhaustion from the migrated OWM client
         # (BaseAPIKeyClient); classify from the underlying cause when available.
         cause = getattr(exc, "last_error", None) or exc
-        raise ConnectorAccessError("openweathermap", _classify_http_error(cause), str(exc)) from exc
+        raise ConnectorAccessError(
+            _CARD_WEATHER_SOURCE, _classify_http_error(cause), str(exc)
+        ) from exc
     finally:
         await client.close()
 
@@ -171,11 +182,23 @@ async def fetch_weather(
         city=city if isinstance(city, str) else None,
         user_tz=user_tz,
         daily_forecast_days=settings.briefing_weather_daily_forecast_days,
+        now=now_utc(),
         environment=environment,
     )
 
 
-async def _open_weather(user: User, *, with_environment: bool) -> tuple[Any, Any, bool]:
+#: The source name the card's refusals carry — whichever provider serves it.
+_CARD_WEATHER_SOURCE = "openweathermap"
+#: The one source a weather routine reads (ADR-322 amendment 2026-09-29).
+_ROUTINE_WEATHER_SOURCE = ConnectorType.GOOGLE_WEATHER.value
+
+#: How a reader obtains its weather client: the person's provider, or the platform's.
+WeatherClientOpener = Callable[[UUID, ConnectorService], Awaitable[Any | None]]
+
+
+async def _open_weather(
+    user: User, *, open_client: WeatherClientOpener, source: str, with_environment: bool
+) -> tuple[Any, Any, bool]:
     """The weather client, the effective location, and whether AQ/pollen runs.
 
     Read in ONE session, closed before any provider is called (ADR-304). The
@@ -184,6 +207,8 @@ async def _open_weather(user: User, *, with_environment: bool) -> tuple[Any, Any
 
     Args:
         user: Whose weather.
+        open_client: Which client serves this reader.
+        source: The source name a refusal carries.
         with_environment: Whether to read the air-quality/pollen switch at all.
 
     Returns:
@@ -194,9 +219,9 @@ async def _open_weather(user: User, *, with_environment: bool) -> tuple[Any, Any
     """
     async with get_db_context() as db:
         connector_service = ConnectorService(db)
-        client = await resolve_weather_client(user.id, connector_service)
+        client = await open_client(user.id, connector_service)
         if client is None:
-            raise ConnectorNotConfiguredError("openweathermap")
+            raise ConnectorNotConfiguredError(source)
         try:
             try:
                 location = await UserLocationService(db).get_effective_location_for_proactive(user)
@@ -214,48 +239,58 @@ async def _open_weather(user: User, *, with_environment: bool) -> tuple[Any, Any
 
 
 async def fetch_forecast_alert(
-    *, user: User, user_tz: ZoneInfo, language: str
+    *, user: User, user_tz: ZoneInfo, language: str, now: datetime, rule: ForecastAlertRule
 ) -> ForecastAlert | None:
-    """The next notable weather change, and nothing else — what a weather routine checks.
+    """The first change the rule accepts, from Google Weather — what a weather routine checks.
 
-    Two provider calls where the card makes up to five: no city name and no air
-    quality or pollen, which a condition never reads and which the Google
-    provider bills on every check (ADR-322).
+    ALWAYS the instance's Google Weather, whatever provider the person chose:
+    what fires a routine is the source the platform guarantees (ADR-322
+    amendment 2026-09-29). Two billed calls: the current conditions and ONE
+    page of the hourly forecast — every hour of the horizon plus the hour under
+    way, never the card's five days of 3-hour samples, between which a change
+    due within the hour falls. No city name, no air quality, no pollen.
 
     Args:
         user: Whose weather.
         user_tz: Their zone, for the alert's local time.
         language: Their language, for the provider's labels.
+        now: The check's instant.
+        rule: What counts as a change, and how far ahead.
 
     Returns:
-        The alert, or ``None`` when no change is coming.
+        The alert, or ``None`` when no accepted change is coming.
 
     Raises:
-        ConnectorNotConfiguredError: No weather provider, or no usable location.
+        ConnectorNotConfiguredError: The instance withholds Google Weather, or
+            no usable location.
         ConnectorAccessError: On HTTP/network failure.
     """
-    from src.domains.briefing.formatters import _detect_forecast_alert
-
-    client, location, _ = await _open_weather(user, with_environment=False)
+    client, location, _ = await _open_weather(
+        user,
+        open_client=open_platform_weather_client,
+        source=_ROUTINE_WEATHER_SOURCE,
+        with_environment=False,
+    )
+    hours = math.ceil(rule.horizon.total_seconds() / 3600) + 1
     try:
         current, forecast = await asyncio.gather(
             client.get_current_weather(
                 lat=location.lat, lon=location.lon, units="metric", lang=language
             ),
-            client.get_forecast(
-                lat=location.lat,
-                lon=location.lon,
-                units="metric",
-                lang=language,
-                cnt=BRIEFING_WEATHER_FORECAST_CNT,
+            client.get_hourly_forecast(
+                lat=location.lat, lon=location.lon, lang=language, hours=hours
             ),
         )
     except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ConnectorAPIError) as exc:
         cause = getattr(exc, "last_error", None) or exc
-        raise ConnectorAccessError("openweathermap", _classify_http_error(cause), str(exc)) from exc
+        raise ConnectorAccessError(
+            _ROUTINE_WEATHER_SOURCE, _classify_http_error(cause), str(exc)
+        ) from exc
     finally:
         await client.close()
-    return _detect_forecast_alert(current=current, forecast=forecast, user_tz=user_tz)
+    return detect_forecast_alert(
+        current=current, forecast=forecast, user_tz=user_tz, now=now, rule=rule
+    )
 
 
 # =============================================================================

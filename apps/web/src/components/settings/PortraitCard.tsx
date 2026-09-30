@@ -60,7 +60,7 @@ export function PortraitCard({
             <div className="text-sm font-medium">
               {t('journals.portraitTitle', 'How LIA sees you')}
             </div>
-            <div className="text-[11px] text-muted-foreground">{compiledLine}</div>
+            <div className="text-px-11 text-muted-foreground">{compiledLine}</div>
           </div>
         </div>
         <div className="flex gap-1 shrink-0">
@@ -91,7 +91,7 @@ export function PortraitCard({
 
       {portrait.sources && <PortraitProvenance provenance={portrait.sources} lng={lng} />}
 
-      <p className="text-[10px] text-muted-foreground italic">
+      <p className="text-px-10 text-muted-foreground italic">
         {t(
           'journals.portraitTip',
           'The portrait is a living synthesis. To correct it: signal a problem, edit the L3 entries, or trigger a consolidation.'

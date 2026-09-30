@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.agents.effects.origin import RegisterOrigin
-from src.domains.agents.effects.treatments_router import list_treatment_journal
+from src.domains.agents.effects.treatments_router import TreatmentPage, list_treatment_journal
 from src.domains.radio.adapters import NewsDesk, NotificationFlashes
 from src.domains.users.models import User
 
@@ -41,12 +41,13 @@ async def test_radio_reads_reach_the_account_journal_even_when_sources_are_empty
         user_id=owner.id,
         run_id="radio_register_proof",
         disabled_feeds=frozenset(),
+        interests_limit=10,  # both bounded reads run, one consultation
         clock=lambda: now,
     )
     assert await news.candidates(heard_keys=frozenset(), heard_stories=frozenset()) == []
     assert await NotificationFlashes(owner.id, "radio_register_proof").since(now) == []
 
-    async def journal(user: User):
+    async def journal(user: User) -> TreatmentPage:
         return await list_treatment_journal(
             limit=20,
             offset=0,

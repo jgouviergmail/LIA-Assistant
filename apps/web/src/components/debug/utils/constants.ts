@@ -87,11 +87,11 @@ export const FALLBACK_STRATEGY_LABELS: Record<string, string> = {
  */
 export const DEBUG_TEXT_SIZES = {
   /** 9px - Very small (wave step IDs, compact badges) */
-  tiny: 'text-[9px]',
+  tiny: 'text-px-9',
   /** 10px - Small (labels, metadata, indicators) */
-  small: 'text-[10px]',
+  small: 'text-px-10',
   /** 11px - Mono (monospace values, scores, identifiers) */
-  mono: 'text-[11px]',
+  mono: 'text-px-11',
 } as const;
 
 /**

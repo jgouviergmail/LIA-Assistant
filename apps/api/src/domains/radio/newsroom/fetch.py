@@ -11,12 +11,10 @@ byte ceiling, which is also what stops a decompression bomb (the ceiling counts
 DECODED bytes); a conditional request (ETag / Last-Modified) makes an unchanged
 feed cost one 304.
 
-Residual risk, documented and accepted as for the skills' URL import: DNS
-rebinding between the validator's resolution and the connection's own (no IP
-pinning). What bounds it: every request is ``https``, so the certificate must
-match the host a rebinding would redirect; the body is bounded; and nothing
-fetched is ever returned raw — it is parsed as a feed or reduced to an
-article's text.
+DNS rebinding is closed: every request connects to the address its verdict
+resolved (``pinned_stream``, ADR-326), the name travelling in ``Host`` and the
+SNI. Nothing fetched is ever returned raw — it is parsed as a feed or reduced
+to an article's text.
 
 The crawler says who it is: a newsroom that identifies itself can be opted out
 of with one robots.txt line, the courtesy tokenFM extends and the owner asked
@@ -32,7 +30,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from src.domains.agents.web_fetch.url_validator import validate_url
+from src.domains.agents.web_fetch.url_validator import pinned_stream, validate_url
 from src.domains.radio.constants import ETAG_MAX_CHARS, LAST_MODIFIED_MAX_CHARS
 from src.infrastructure.utils.bounded_read import BodyTooLargeError, read_bounded
 
@@ -139,9 +137,10 @@ async def fetch_public(
             return FetchResult(FetchOutcome.BLOCKED, current)
         current = verdict.url
         try:
-            async with client.stream(
-                "GET", current, headers=headers, follow_redirects=False
-            ) as response:
+            # On the address the verdict validated, the name in Host and the
+            # SNI (ADR-326): a name that answers differently at connect time
+            # cannot steer the request elsewhere.
+            async with pinned_stream(client, "GET", verdict, headers=headers) as response:
                 # 304 before the success test: not a 2xx, yet the answer hoped for.
                 if response.status_code == 304:
                     return FetchResult(

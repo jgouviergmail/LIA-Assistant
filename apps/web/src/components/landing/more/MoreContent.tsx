@@ -68,7 +68,7 @@ export function MoreContent({ lng }: { lng: string }) {
         >
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <FadeInOnScroll className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
+              <p className="text-px-11 font-bold uppercase tracking-[0.22em] text-primary">
                 {section.num}
               </p>
               <h2

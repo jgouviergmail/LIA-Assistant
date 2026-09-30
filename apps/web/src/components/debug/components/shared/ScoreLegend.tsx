@@ -26,7 +26,7 @@ export const ScoreLegend = React.memo(function ScoreLegend({ space, className }:
   ];
 
   return (
-    <div className={cn('flex items-center gap-3 pt-1 text-[9px] text-muted-foreground', className)}>
+    <div className={cn('flex items-center gap-3 pt-1 text-px-9 text-muted-foreground', className)}>
       {entries.map(({ tier, label }) => (
         <span key={tier} className="flex items-center gap-1">
           <span className={cn('h-2 w-2 rounded-full', TONE_BAR[tierTone(tier)])} />

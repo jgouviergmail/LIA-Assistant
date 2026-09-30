@@ -163,6 +163,51 @@ Aucun jeton de plus : la directive n'a pas bougé. Vérifié dans l'application 
 aucune colonne sous 94 px en tableau ; spec e2e `chat-html-mode-rendering.spec.ts` étendue
 (bureau, téléphone, aller-retour).
 
+## Amendement 2026-09-30 — une réponse qui quitte le chat en fichier est écrite en Markdown
+
+Constat propriétaire : en mode `html` (avec ou sans cartes), le `.md` de « Télécharger »
+et d'« Envoyer par e-mail » (ADR-321) était illisible. **Cause** : le point 5 faisait
+passer l'export `.md` par `html-plain-text.ts`, un aplatisseur en TEXTE — conçu pour le
+presse-papiers, le partage natif et la voix — qui n'émet aucun Markdown : titres, gras,
+liens, blocs de code et en-têtes de tableau perdus (`•` et `|` bruts), et, sur les
+cartes, les noms de ligature des icônes (« calendar_month ») et les libellés des boutons
+(« Rép. », « Itinéraire ») écrits comme du contenu. Le même aplatissement réduisait en
+texte un bloc de code Markdown qui CITE du HTML, dès qu'une balise y était reconnue.
+
+- **Un fichier reçoit du Markdown, une copie reçoit du texte** : `lib/html-markdown.ts`
+  écrit un fragment HTML en GFM (titres ATX, emphase, liens suivables seulement —
+  `https:`, `mailto:`, `tel:`, listes imbriquées, tableaux, blocs de code clôturés avec
+  leur langage, citations). Le document est lu par le `DOMParser` du navigateur, inerte :
+  rien n'est rendu, ce n'est pas un assainisseur.
+- **Le vocabulaire LIA a son équivalent** : callout → alerte GFM de même gravité
+  (`> [!NOTE|TIP|WARNING|CAUTION]`, titre en gras), tuiles → tableau libellés/valeurs,
+  `dl.lia-kv` → liste « **Libellé** : valeur » avec la ponctuation du lecteur
+  (`common.label_separator`, espace insécable en français, « ： » en chinois), étapes →
+  liste numérotée, pli rédigé → ligne en gras puis corps. Une carte s'ouvre sur son titre
+  en `###` (lien conservé), ses puces sur une ligne séparées par « · », ses lignes de
+  détail en liste ; ce qui n'existe qu'à l'écran — icônes, avatars, boutons d'action,
+  « Voir plus », sentinelles de widget, images (URL proxifiée et expirante) — n'entre pas
+  dans le fichier ; les deux puces dont le sens tient à l'icône seule reçoivent un glyphe
+  texte (📎 pour un compteur de pièces jointes, ★ pour une note). Les séparateurs autour
+  des cartes se réduisent à un seul `---` entre deux cartes.
+- **Seul le HTML est réécrit** : `lib/message-markdown.ts` découpe la réponse selon la
+  lecture CommonMark d'un bloc HTML (une ligne ouvrant une balise de bloc, hors d'une
+  clôture de code, ouvre la région ; elle court tant qu'une balise ouverte reste ouverte ;
+  un document tronqué court jusqu'à la fin). Le Markdown du modèle — sauts durs,
+  indentation, bloc de code citant du HTML — atteint le fichier octet pour octet.
+- Les trois exports écrivent ce même texte (« Télécharger », « Envoyer par e-mail », export
+  d'un signet — ADR-282) ; le presse-papiers, le partage natif et le relais vers une
+  connexion gardent l'aplatissement texte du point 5.
+- Mesuré sur les 24 réponses HTML archivées de l'instance de dev (aucune balise ne fuit,
+  aucune n'est vide), puis dans un vrai Chromium (`e2e/smoke/chat-answer-actions.spec.ts` :
+  le fichier téléchargé d'une réponse `lia-response` suivie d'une carte est comparé octet
+  pour octet) ; le corpus des tests unitaires (`lib/__tests__/fixtures/assistant-html-corpus.ts`)
+  réunit une réponse archivée et les cartes rendues par les composants backend. Les
+  échappements sont minimaux (début de ligne, balise citée, `*`/`_` littéraux hors formule
+  `$…$`, `|` en cellule), pour qu'un `.md` reste lisible aussi en texte brut. Une liste
+  imbriquée hors de son `li` — HTML invalide qu'un modèle écrit quand même — rejoint
+  l'élément qui la précède, et des `dt`/`dd` groupés dans un `div` (HTML5) sont lus.
+
 ## Alternatives considérées
 
 - **Composants React interceptés** (tabs, accordéons animés — pattern

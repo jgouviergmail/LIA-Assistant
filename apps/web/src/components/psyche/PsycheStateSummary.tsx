@@ -88,7 +88,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
                   ['D', state.mood_dominance, 'text-violet-400'],
                 ] as const
               ).map(([axis, val, color]) => (
-                <span key={axis} className={cn('text-[10px] font-mono', color)}>
+                <span key={axis} className={cn('text-px-10 font-mono', color)}>
                   {axis}
                   {val >= 0 ? '+' : ''}
                   {val.toFixed(2)}
@@ -128,7 +128,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
 
       {/* ── Active emotions ── */}
       <div className="space-y-1.5 pt-2 border-t border-border/40">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="text-px-10 font-medium uppercase tracking-wider text-muted-foreground">
           {t('psyche.activeEmotion', 'Active emotions')}
         </span>
         {state?.active_emotions && state.active_emotions.length > 0 ? (
@@ -152,7 +152,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
                         }}
                       />
                     </div>
-                    <span className="w-8 text-right font-mono text-muted-foreground text-[10px]">
+                    <span className="w-8 text-right font-mono text-muted-foreground text-px-10">
                       {pct}%
                     </span>
                   </div>
@@ -169,12 +169,12 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
       {/* ── Relationship ── */}
       <div className="pt-2 border-t border-border/40 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="text-px-10 font-medium uppercase tracking-wider text-muted-foreground">
             {t('psyche.relationshipStage', 'Relationship')}
           </span>
           <span
             className={cn(
-              'text-[10px] rounded-full px-2 py-0.5 font-semibold',
+              'text-px-10 rounded-full px-2 py-0.5 font-semibold',
               moodConfig.bgClass,
               moodConfig.textClass
             )}
@@ -209,7 +209,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
         )}
 
         {state && (
-          <div className="text-[10px] text-muted-foreground text-right">
+          <div className="text-px-10 text-muted-foreground text-right">
             {state.relationship_interaction_count} {t('psyche.interactions', 'interactions')}
           </div>
         )}
@@ -218,7 +218,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
       {/* ── Big Five Traits ── */}
       {state && (
         <div className="pt-2 border-t border-border/40 space-y-2">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="text-px-10 font-medium uppercase tracking-wider text-muted-foreground">
             {t('psyche.education.traits.title', 'Personality Traits')}
           </span>
           <div className="space-y-1">
@@ -257,14 +257,14 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
               const pct = Math.round(value * 100);
               return (
                 <div key={key} className="flex items-center gap-2">
-                  <span className="w-28 text-[10px] text-muted-foreground truncate">{label}</span>
+                  <span className="w-28 text-px-10 text-muted-foreground truncate">{label}</span>
                   <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div
                       className={cn('h-full rounded-full transition-all', color)}
                       style={{ width: `${pct}%`, opacity: 0.7 }}
                     />
                   </div>
-                  <span className="w-7 text-right text-[10px] font-mono text-muted-foreground">
+                  <span className="w-7 text-right text-px-10 font-mono text-muted-foreground">
                     {pct}%
                   </span>
                 </div>
@@ -296,7 +296,7 @@ function PadBar({
 
   return (
     <div className="space-y-0.5">
-      <div className="flex items-center justify-between text-[10px]">
+      <div className="flex items-center justify-between text-px-10">
         <span className="font-medium text-muted-foreground">{label}</span>
         <span className="font-mono text-muted-foreground">
           {value >= 0 ? '+' : ''}
@@ -304,7 +304,7 @@ function PadBar({
         </span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="w-14 text-[9px] text-right text-muted-foreground truncate">
+        <span className="w-14 text-px-9 text-right text-muted-foreground truncate">
           {negLabel}
         </span>
         <div className="flex-1 h-2 rounded-full bg-muted relative overflow-hidden">
@@ -323,7 +323,7 @@ function PadBar({
             }}
           />
         </div>
-        <span className="w-14 text-[9px] text-muted-foreground truncate">{posLabel}</span>
+        <span className="w-14 text-px-9 text-muted-foreground truncate">{posLabel}</span>
       </div>
     </div>
   );
@@ -354,11 +354,11 @@ function MiniGauge({ label, value, color }: { label: string; value: number; colo
             strokeDashoffset={offset}
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-semibold">
+        <span className="absolute inset-0 flex items-center justify-center text-px-9 font-mono font-semibold">
           {pct}
         </span>
       </div>
-      <span className="text-[9px] text-muted-foreground text-center leading-tight truncate max-w-full">
+      <span className="text-px-9 text-muted-foreground text-center leading-tight truncate max-w-full">
         {label}
       </span>
     </div>

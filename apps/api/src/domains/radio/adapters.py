@@ -55,6 +55,7 @@ from src.domains.radio.editorial import NEWS_MAX_AGE_S, NewsCandidate
 from src.domains.radio.flash import FlashNote
 from src.domains.radio.formats import FORMAT_SPECS, RadioFormat
 from src.domains.radio.interest_search import refresh_listener_interests
+from src.domains.radio.interests import interest_stories_max
 from src.domains.radio.jev_checker import JevLineChecker
 from src.domains.radio.live_store import RadioSessionRecord
 from src.domains.radio.meanings import RedisHeadlineVectors
@@ -121,9 +122,10 @@ RADIO_ANALYST_SLOT: Final[LLMType] = "radio_analyst"
 RADIO_VERIFIER_SLOT: Final[LLMType] = "radio_verifier"
 RADIO_VOICE_SLOT: Final[str] = "radio_voice"
 
-#: The stories a gathering reads, never heard first — enough for every shortlist once
-#: the second tellings and an outlet's excess are set aside (every language: 818 stories
-#: in 48 hours on dev, 2026-09-27).
+#: The stories of the sources a gathering reads, never heard first — enough for every
+#: shortlist once the second tellings and an outlet's excess are set aside (every
+#: language: 818 stories in 48 hours on dev, 2026-09-27). What a search found for the
+#: listener's interests is read under a bound of its own (:func:`interest_stories_limit`).
 NEWS_CANDIDATES_READ_MAX: Final[int] = 300
 
 #: The engines whose voice list is fixed and shipped with the client.
@@ -291,10 +293,12 @@ class AccountSetupBuilder:
         """Nothing in company; else what the listener let LIA use, recorded."""
         if in_company(account.preferences, request):
             return ListenerTaste()
+        interests_on = await is_capability_enabled(PlatformCapability.INTERESTS)
         async with collecting(run_id):
             return await read_taste(
                 user_id,
-                interests_allowed=await is_capability_enabled(PlatformCapability.INTERESTS),
+                # ONE count: the interests the writer is told are those the search looks up.
+                interests_max=settings.radio_interest_topics_max if interests_on else 0,
                 stated_allowed=account.memory_enabled,
                 record=recorder_for(user_id, run_id),
             )
@@ -311,19 +315,41 @@ async def _file_listening(user_id: UUID, now: datetime) -> None:
 # --- The loop ---------------------------------------------------------------------------
 
 
+def interest_stories_limit(setup: RadioSetup) -> int:
+    """How many stories a search found for the listener's interests a session reads.
+
+    None when the session holds no interest — in company, with the interests capability
+    off, the operator's zero, or none left: what a search found earlier would voice what
+    the listener cares about. Otherwise every story the searches can have filed within
+    the desk's horizon, so none the listener's key paid for is cut.
+    """
+    if not setup.interests:
+        return 0
+    return interest_stories_max(
+        topics=settings.radio_interest_topics_max,
+        stories_per_search=settings.radio_interest_stories_max,
+        fresh_s=settings.radio_interest_fresh_seconds,
+        horizon_s=NEWS_MAX_AGE_S,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class NewsDesk:
     """The stored stories a session may choose from (the antenna's ``NewsSource``).
 
     Attributes:
         user_id: The listener (their running sites are offered).
+        run_id: The session's run (the reading is one of its consultations).
         disabled_feeds: The base sources they unticked (every other one airs).
+        interests_limit: The most stories a search found for their interests offered,
+            apart from the sources' bound (:func:`interest_stories_limit`).
         clock: The current instant (aware).
     """
 
     user_id: UUID
     run_id: str
     disabled_feeds: frozenset[str]
+    interests_limit: int
     clock: Callable[[], datetime]
 
     async def candidates(
@@ -336,6 +362,7 @@ class NewsDesk:
                 disabled_feeds=self.disabled_feeds,
                 since=self.clock() - timedelta(seconds=NEWS_MAX_AGE_S),
                 limit=NEWS_CANDIDATES_READ_MAX,
+                interests_limit=self.interests_limit,
                 heard_keys=heard_keys,
                 heard_stories=heard_stories,
             )
@@ -576,6 +603,7 @@ def _antenna(
             user_id=record.user_id,
             run_id=record.run_id,
             disabled_feeds=setup.disabled_feeds,
+            interests_limit=interest_stories_limit(setup),
             clock=clock,
         ),
         aired=aired,
@@ -683,6 +711,7 @@ __all__ = [
     "SpendFiler",
     "aired_ledger",
     "bound_call",
+    "interest_stories_limit",
     "radio_engine",
     "radio_engine_key",
     "session_parts",

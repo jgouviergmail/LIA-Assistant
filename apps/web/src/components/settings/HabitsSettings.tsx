@@ -234,7 +234,7 @@ function HabitsOverviewBody({
           {t('settings.habits.rhythm_title')}
         </p>
         {overview.profile.computed_at ? (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-px-11 text-muted-foreground">
             {t('settings.habits.computed_at', {
               date: new Intl.DateTimeFormat(i18n.language, {
                 day: '2-digit',
@@ -292,7 +292,7 @@ function HabitsOverviewBody({
           not (ADR-184): say so rather than let the person wait for an
           offer that cannot come. */}
       {overview.chat_suggestions_enabled === false && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-px-11 text-muted-foreground">
           {t('settings.habits.chat_suggestions_off')}
         </p>
       )}
@@ -308,7 +308,7 @@ function HabitsOverviewBody({
             ))}
           </ul>
           {overview.candidates_more > 0 && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-px-11 text-muted-foreground">
               {t('settings.habits.candidates_more', { count: overview.candidates_more })}
             </p>
           )}
@@ -370,7 +370,7 @@ function CandidateRow({ lng, candidate }: { lng: Language; candidate: HabitCandi
       <span className="min-w-0 flex-1 truncate text-sm font-medium">
         {domainsLabel(t, candidate.key)}
         {candidate.origin === 'seed' && (
-          <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+          <span className="ml-2 text-px-11 font-normal text-muted-foreground">
             {t('settings.habits.candidate_origin_seed')}
           </span>
         )}
@@ -465,7 +465,7 @@ function RhythmHeatmap({ lng, bins }: { lng: Language; bins: number[] }) {
       </div>
       <div
         aria-hidden="true"
-        className="flex justify-between text-[9px] leading-none tracking-tight text-muted-foreground tabular-nums"
+        className="flex justify-between text-px-9 leading-none tracking-tight text-muted-foreground tabular-nums"
       >
         <span>00</span>
         <span>06</span>
@@ -593,7 +593,7 @@ function HabitRow({
           <p className="truncate text-sm font-medium" title={label}>
             {label}
           </p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-px-11 text-muted-foreground">
             {t('settings.habits.signals_caption', {
               positive: habit.positive_signals,
               negative: habit.negative_signals,

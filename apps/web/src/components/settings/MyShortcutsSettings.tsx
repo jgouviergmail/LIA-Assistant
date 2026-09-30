@@ -131,7 +131,7 @@ export function MyShortcutsSettings({ lng }: BaseSettingsProps) {
               if (sections.length === 0) return null;
               return (
                 <div key={group.key} className="mt-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="text-px-11 font-semibold uppercase tracking-wide text-muted-foreground">
                     {t(`settings.groups.${group.key}`)}
                   </p>
                   <ul className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2" role="list">

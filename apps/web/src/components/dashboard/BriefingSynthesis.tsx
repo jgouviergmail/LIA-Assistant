@@ -75,7 +75,7 @@ export function BriefingSynthesis({ synthesis }: BriefingSynthesisProps) {
 
       <div className="relative p-5 sm:p-6">
         <p
-          className="text-[15px] sm:text-base leading-relaxed text-foreground/90"
+          className="text-px-15 sm:text-base leading-relaxed text-foreground/90"
           style={{ textWrap: 'pretty' } as React.CSSProperties}
         >
           {synthesis.text}

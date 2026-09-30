@@ -25,6 +25,7 @@ import {
   routineZones,
   rovingTarget,
   timelineKey,
+  weatherRuleSentence,
   weekDates,
   chipKey,
 } from '../scheduled-actions';
@@ -441,5 +442,61 @@ describe('isConditionRoutine', () => {
   it('reads which clock the routine runs on', () => {
     expect(isConditionRoutine({ trigger_kind: 'condition' })).toBe(true);
     expect(isConditionRoutine({ trigger_kind: 'time' })).toBe(false);
+  });
+});
+
+/**
+ * `weatherRuleSentence` — the studio says when a weather routine fires exactly
+ * as the server applies it (ADR-322 amendment 2026-09-29): the kinds it
+ * watches, the horizon, the STRICT probability floor, the one source.
+ */
+describe('weatherRuleSentence', () => {
+  const RULE = { horizon_hours: 4, min_precipitation_percent: 50, source: 'google_weather' };
+  /** An echoing `t` that shows the interpolation, like i18next would. */
+  const t = (key: string, options?: Record<string, unknown>) =>
+    options ? `${key}|${JSON.stringify(options)}` : key.split('.').pop()!;
+
+  it('names every kind when the routine chose none', () => {
+    const sentence = weatherRuleSentence(RULE, null, 'en', t);
+
+    expect(sentence).toBe(
+      'scheduled_actions.studio.weather_rule|' +
+        JSON.stringify({ kinds: 'rain, drizzle, snow, or thunderstorm', hours: 4, percent: 50 })
+    );
+  });
+
+  it('names only the kinds the edited weather routine watches, in the studio order', () => {
+    const sentence = weatherRuleSentence(
+      RULE,
+      { type: 'weather_change', kinds: ['snow', 'rain'] },
+      'en',
+      t
+    );
+
+    expect(sentence).toContain('"kinds":"rain or snow"');
+  });
+
+  it('ignores the kinds of a routine of another type', () => {
+    const sentence = weatherRuleSentence(RULE, { type: 'mail_match', kinds: ['snow'] }, 'en', t);
+
+    expect(sentence).toContain('"kinds":"rain, drizzle, snow, or thunderstorm"');
+  });
+
+  it('claims nothing when no kind it knows is watched', () => {
+    expect(weatherRuleSentence(RULE, { type: 'weather_change', kinds: ['hail'] }, 'en', t)).toBe(
+      null
+    );
+  });
+
+  it('reads the published figures, never typed ones', () => {
+    const sentence = weatherRuleSentence(
+      { ...RULE, horizon_hours: 2, min_precipitation_percent: 70 },
+      null,
+      'en',
+      t
+    );
+
+    expect(sentence).toContain('"hours":2');
+    expect(sentence).toContain('"percent":70');
   });
 });

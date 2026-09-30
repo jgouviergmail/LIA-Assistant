@@ -299,13 +299,13 @@ function DailyForecastStrip({ days }: { days: DailyForecastItem[] }) {
             className="flex flex-col items-center gap-0.5 text-center"
             title={`${day.date_iso} · ${day.condition_code}`}
           >
-            <span className="text-[10px] font-medium uppercase text-muted-foreground tracking-wide">
+            <span className="text-px-10 font-medium uppercase text-muted-foreground tracking-wide">
               {localized}
             </span>
             <span className="text-base leading-none" aria-hidden="true">
               {day.icon_emoji}
             </span>
-            <span className="text-[10px] tabular-nums leading-tight">
+            <span className="text-px-10 tabular-nums leading-tight">
               <span className="font-semibold text-foreground">{Math.round(day.temp_max_c)}°</span>
               <span className="text-muted-foreground"> / {Math.round(day.temp_min_c)}°</span>
             </span>

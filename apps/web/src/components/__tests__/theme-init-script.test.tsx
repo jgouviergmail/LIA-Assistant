@@ -11,25 +11,47 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { renderWithProviders } from '@/__tests__/test-utils';
+import {
+  FONT_SIZE_CSS_VAR,
+  FONT_SIZE_STEPS,
+  FONT_SIZE_STORAGE_KEY,
+  FONT_STORAGE_KEY,
+} from '@/constants/fonts';
 import { COLOR_THEMES, COLOR_THEME_STORAGE_KEY } from '@/lib/color-themes';
 import { OLED_STORAGE_KEY } from '@/lib/theme-mode';
 import { ThemeInitScript } from '../theme-init-script';
 
-/** Render the component, pull its inline source out, and run it. */
+/** Put `<html>` back to what the server sends, before any script ran. */
+function resetRoot() {
+  document.documentElement.removeAttribute('data-oled');
+  document.documentElement.removeAttribute('data-theme');
+  document.documentElement.removeAttribute('data-font');
+  document.documentElement.style.removeProperty(FONT_SIZE_CSS_VAR);
+}
+
+/**
+ * Render the component, pull its inline source out, and run it.
+ *
+ * The harness mounts the real providers, whose effects apply the same stored
+ * preferences AFTER mount — so the root is reset between the render and the
+ * run, and what the assertions see is the script's work alone.
+ */
 function runInitScript() {
   const { container, unmount } = renderWithProviders(<ThemeInitScript />);
   const source = container.querySelector('script')?.innerHTML ?? '';
   expect(source, 'ThemeInitScript emitted no inline source').not.toBe('');
-  new Function(source)();
   unmount();
+  resetRoot();
+  new Function(source)();
   return source;
 }
 
 beforeEach(() => {
   window.localStorage.clear();
-  document.documentElement.removeAttribute('data-oled');
-  document.documentElement.removeAttribute('data-theme');
+  resetRoot();
 });
+
+const textScale = () => document.documentElement.style.getPropertyValue(FONT_SIZE_CSS_VAR);
 
 describe('ThemeInitScript', () => {
   it('applies nothing when nothing is stored', () => {
@@ -107,6 +129,43 @@ describe('ThemeInitScript', () => {
       expect(() => new Function(source)()).not.toThrow();
     } finally {
       if (original) Object.defineProperty(window, 'localStorage', original);
+    }
+  });
+
+  it('applies the chosen text size before paint, so the page never jumps', () => {
+    window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, '18');
+    runInitScript();
+    expect(textScale()).toBe('1.125');
+  });
+
+  it('knows every offered text size', () => {
+    for (const size of FONT_SIZE_STEPS) {
+      window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, String(size));
+      runInitScript();
+      expect(textScale()).toBe(String(size / 16));
+    }
+  });
+
+  it.each(['13', '21', '16.5', 'large', '1e2', '', 'constructor', 'toString', '__proto__'])(
+    'refuses the stored text size %j, leaving the browser default',
+    raw => {
+      window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, raw);
+      runInitScript();
+      expect(textScale()).toBe('');
+    }
+  );
+
+  it('applies the chosen font family before paint', () => {
+    window.localStorage.setItem(FONT_STORAGE_KEY, 'geist');
+    runInitScript();
+    expect(document.documentElement.getAttribute('data-font')).toBe('geist');
+  });
+
+  it('leaves the system font attribute-less and refuses an unknown family', () => {
+    for (const raw of ['system', 'comic-sans']) {
+      window.localStorage.setItem(FONT_STORAGE_KEY, raw);
+      runInitScript();
+      expect(document.documentElement.hasAttribute('data-font')).toBe(false);
     }
   });
 

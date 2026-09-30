@@ -112,7 +112,7 @@ export function CatalogueStatusPanel({ status, t }: CatalogueStatusPanelProps) {
       )}
 
       {snapshotDate && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-px-11 text-muted-foreground">
           {t('settings.admin.llm.catalogue.snapshot', { date: snapshotDate })}
         </p>
       )}

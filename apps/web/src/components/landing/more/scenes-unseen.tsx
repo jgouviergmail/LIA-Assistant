@@ -80,7 +80,7 @@ function DemoOfferScene({ active, labels }: SceneProps) {
   const shown = DEMO_OFFER_RANK[phase];
   const column = (title: string, tone: 'on' | 'off', ranks: readonly number[]) => (
     <div className="flex-1 space-y-1">
-      <div className="flex items-center gap-1 text-[10px] font-semibold">
+      <div className="flex items-center gap-1 text-px-10 font-semibold">
         {tone === 'on' ? (
           <CircleCheck className="h-3 w-3 text-primary" />
         ) : (
@@ -108,7 +108,7 @@ function DemoOfferScene({ active, labels }: SceneProps) {
   );
   return (
     <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
-      <div className="flex items-center gap-1.5 text-[10px] font-medium">
+      <div className="flex items-center gap-1.5 text-px-10 font-medium">
         <ListChecks className="h-3.5 w-3.5 text-primary" />
         <SkeletonLine w="w-2/3" />
       </div>
@@ -150,7 +150,7 @@ function FinishedAnswerScene({ active, labels }: SceneProps) {
   return (
     <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
       <MiniBubble side="assistant" className="w-4/5">
-        <span className="text-[10px] text-muted-foreground">{labels.announce}</span>
+        <span className="text-px-10 text-muted-foreground">{labels.announce}</span>
       </MiniBubble>
       <MiniBubble
         side="assistant"
@@ -431,7 +431,7 @@ function NarrowScreensScene({ active }: SceneProps) {
           </div>
           <span
             className={cn(
-              'shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-medium text-primary transition-all duration-500',
+              'shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-px-9 font-medium text-primary transition-all duration-500',
               narrow && 'self-start'
             )}
           >
@@ -439,7 +439,7 @@ function NarrowScreensScene({ active }: SceneProps) {
           </span>
         </div>
       </div>
-      <span className="mt-2 flex items-center gap-1 text-[9px] text-muted-foreground">
+      <span className="mt-2 flex items-center gap-1 text-px-9 text-muted-foreground">
         <Check className="h-2.5 w-2.5 text-emerald-500" aria-hidden="true" />
         <SkeletonLine w="w-10" className="h-1" />
       </span>
@@ -672,7 +672,7 @@ function CapabilityHonestyScene({ active, labels }: SceneProps) {
         />
         <span
           className={cn(
-            'flex-1 text-[10px] font-medium transition-opacity duration-300',
+            'flex-1 text-px-10 font-medium transition-opacity duration-300',
             off ? 'opacity-40' : 'opacity-100'
           )}
         >
@@ -738,7 +738,7 @@ function HabitStatusHoldsScene({ active, labels }: SceneProps) {
         />
         <span
           className={cn(
-            'flex-1 truncate text-[10px] font-medium transition-opacity duration-300',
+            'flex-1 truncate text-px-10 font-medium transition-opacity duration-300',
             paused ? 'opacity-40' : 'opacity-100'
           )}
         >
@@ -773,7 +773,7 @@ function HabitStatusHoldsScene({ active, labels }: SceneProps) {
         ))}
         <span
           className={cn(
-            'text-[10px] text-muted-foreground transition-opacity duration-300',
+            'text-px-10 text-muted-foreground transition-opacity duration-300',
             paused ? 'opacity-100' : 'opacity-0'
           )}
         >
@@ -808,13 +808,13 @@ function PluginReportScene({ active, labels }: SceneProps) {
       )}
     >
       {icon}
-      <span className="flex-1 truncate text-[10px] font-medium">{name}</span>
+      <span className="flex-1 truncate text-px-10 font-medium">{name}</span>
       {badge}
     </div>
   );
 
   const installedBadge = (
-    <span className="flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+    <span className="flex items-center gap-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-px-9 font-medium text-primary">
       <Check className="h-2.5 w-2.5" aria-hidden="true" />
       {labels.installed}
     </span>
@@ -838,7 +838,7 @@ function PluginReportScene({ active, labels }: SceneProps) {
         reached('server'),
         <Server className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />,
         labels.server,
-        <span className="rounded-full border border-border px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+        <span className="rounded-full border border-border px-1.5 py-0.5 text-px-9 font-medium text-muted-foreground">
           {labels.skipped}
         </span>
       )}
@@ -926,7 +926,7 @@ function ActivityTimelineScene({ active, labels }: SceneProps) {
     >
       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
       {icon}
-      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <span className="text-px-10 text-muted-foreground">{label}</span>
     </div>
   );
   return (
@@ -976,11 +976,11 @@ function AirQualityHonestyScene({ active, labels }: SceneProps) {
     <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
       <div className="flex items-center gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-2">
         <Wind className="h-4 w-4 text-primary" aria-hidden="true" />
-        <span className="flex-1 text-[10px] font-medium">{labels.index}</span>
+        <span className="flex-1 text-px-10 font-medium">{labels.index}</span>
         <span
           aria-hidden="true"
           className={cn(
-            'rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-primary transition-all duration-500 motion-reduce:transition-none',
+            'rounded-full bg-primary/15 px-1.5 py-0.5 text-px-10 font-semibold tabular-nums text-primary transition-all duration-500 motion-reduce:transition-none',
             numbered ? 'opacity-100' : 'w-0 scale-75 overflow-hidden px-0 opacity-0'
           )}
         >
@@ -988,7 +988,7 @@ function AirQualityHonestyScene({ active, labels }: SceneProps) {
         </span>
         <span
           className={cn(
-            'rounded-full px-1.5 py-0.5 text-[10px] transition-colors duration-500 motion-reduce:transition-none',
+            'rounded-full px-1.5 py-0.5 text-px-10 transition-colors duration-500 motion-reduce:transition-none',
             numbered
               ? 'bg-muted font-medium text-muted-foreground'
               : 'bg-primary/15 font-semibold text-primary'
@@ -1078,6 +1078,80 @@ function OledBlackScene({ active }: SceneProps) {
 }
 
 /**
+ * The text grows, the room does not. The frame, its rail and the slider track
+ * keep their exact size through the whole loop; only the two lines of text
+ * change, because that is the decision the setting encodes: the text scale
+ * multiplies font sizes and nothing else. The sizes are `text-px-N` classes,
+ * so the scene itself follows the reader's own text scale, like the product.
+ */
+type TextSizePhase = 'small' | 'large' | 'default';
+const TEXT_SIZE_STEPS: readonly TimelineStep<TextSizePhase>[] = [
+  { at: 0, state: 'small' },
+  { at: 1300, state: 'large' },
+  { at: 2600, state: 'default' },
+];
+const TEXT_SIZE_TITLE: Readonly<Record<TextSizePhase, string>> = {
+  small: 'text-px-11',
+  default: 'text-px-13',
+  large: 'text-px-16',
+};
+const TEXT_SIZE_BODY: Readonly<Record<TextSizePhase, string>> = {
+  small: 'text-px-8',
+  default: 'text-px-9',
+  large: 'text-px-11',
+};
+/** Thumb position on a 14-20 px track: 14 at the start, 16 a third in, 20 at the end. */
+const TEXT_SIZE_THUMB: Readonly<Record<TextSizePhase, string>> = {
+  small: 'left-0',
+  default: 'left-1/3',
+  large: 'left-full',
+};
+
+function TextSizeScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(TEXT_SIZE_STEPS, { active });
+  const grow = 'transition-all duration-500 ease-out motion-reduce:transition-none';
+
+  return (
+    <div className={cn(STAGE, 'gap-3')}>
+      <div className="flex h-[72px] w-full max-w-[190px] overflow-hidden rounded-xl border border-border bg-background">
+        <div className="w-7 shrink-0 space-y-1.5 border-r border-border bg-card p-1.5">
+          {[0, 1, 2].map(index => (
+            <span key={index} className="block h-3 w-3 rounded bg-muted-foreground/20" />
+          ))}
+        </div>
+        <div className="min-w-0 flex-1 space-y-1 overflow-hidden p-2">
+          <p className={cn('font-semibold leading-tight text-foreground', grow, TEXT_SIZE_TITLE[phase])}>
+            Aa
+          </p>
+          <p
+            className={cn(
+              'truncate leading-tight text-muted-foreground',
+              grow,
+              TEXT_SIZE_BODY[phase]
+            )}
+          >
+            Aa Aa Aa Aa Aa Aa
+          </p>
+        </div>
+      </div>
+      <div className="flex w-full max-w-[170px] items-center gap-2">
+        <span className="text-px-9 font-semibold text-muted-foreground">A</span>
+        <div className="relative h-1 flex-1 rounded-full bg-muted-foreground/20">
+          <span
+            className={cn(
+              'absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-sm',
+              grow,
+              TEXT_SIZE_THUMB[phase]
+            )}
+          />
+        </div>
+        <span className="text-px-13 font-semibold text-muted-foreground">A</span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * The register line is written BEFORE the action, and closed only from an
  * explicit result. The whole craft is in the order — so the scene animates the
  * order rather than the outcome: the row appears grey while nothing has
@@ -1118,7 +1192,7 @@ function ClaimBeforeEffectScene({ active, labels }: SceneProps) {
             aria-hidden="true"
           />
         )}
-        <span className="truncate text-[10px] text-muted-foreground">
+        <span className="truncate text-px-10 text-muted-foreground">
           {settled ? labels.settled : labels.claimed}
         </span>
       </div>
@@ -1130,7 +1204,7 @@ function ClaimBeforeEffectScene({ active, labels }: SceneProps) {
           reached('acting') && !settled ? 'opacity-100' : 'opacity-0'
         )}
       >
-        <span className="text-[10px] text-muted-foreground">{labels.acting}</span>
+        <span className="text-px-10 text-muted-foreground">{labels.acting}</span>
         <Send className="h-3 w-3 text-primary" aria-hidden="true" />
       </div>
     </div>
@@ -1171,7 +1245,7 @@ function LocalModelFitScene({ active, labels }: SceneProps) {
 
         <div className="space-y-1.5 border-t border-border pt-2">
           <div className="flex items-center gap-1.5">
-            <span className="text-[9px] font-medium text-muted-foreground">{labels.thinking}</span>
+            <span className="text-px-9 font-medium text-muted-foreground">{labels.thinking}</span>
             {['a', 'b', 'c'].map((chip, index) => (
               <span
                 key={chip}
@@ -1205,7 +1279,7 @@ function LocalModelFitScene({ active, labels }: SceneProps) {
             )}
           >
             <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <span className="text-[9px] text-muted-foreground">{labels.dropped}</span>
+            <span className="text-px-9 text-muted-foreground">{labels.dropped}</span>
           </div>
         </div>
       </div>
@@ -1236,7 +1310,7 @@ function OwnInitiativeScene({ active, labels }: SceneProps) {
   return (
     <div className={cn(STAGE, 'flex-col items-stretch justify-center gap-2')}>
       <div className="space-y-1 rounded-md border border-border bg-background px-2 py-1.5">
-        <span className="text-[9px] text-muted-foreground">{labels.asked}</span>
+        <span className="text-px-9 text-muted-foreground">{labels.asked}</span>
         <SkeletonLine w="w-3/5" />
         <SkeletonLine w="w-2/5" />
       </div>
@@ -1256,7 +1330,7 @@ function OwnInitiativeScene({ active, labels }: SceneProps) {
             )}
             aria-hidden="true"
           />
-          <span className={cn('text-[9px]', alone ? 'text-primary' : 'text-muted-foreground')}>
+          <span className={cn('text-px-9', alone ? 'text-primary' : 'text-muted-foreground')}>
             {labels.alone}
           </span>
         </div>
@@ -1341,6 +1415,7 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   claim_before_effect: ClaimBeforeEffectScene,
   readable_at_a_glance: ReadableAtAGlanceScene,
   oled_black: OledBlackScene,
+  text_size: TextSizeScene,
   capability_map: CapabilityMapScene,
   capability_honesty: CapabilityHonestyScene,
   demo_offer: DemoOfferScene,

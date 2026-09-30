@@ -8,7 +8,12 @@ import { describe, expect, it } from 'vitest';
 import { bookmarkExportBaseName, bookmarkToMarkdown } from '@/lib/bookmarks/markdown';
 import type { Bookmark } from '@/types/bookmarks';
 
-const LABELS = { request: 'Request', answer: 'Answer', kept: 'Kept from LIA — answered on 12 Sept' };
+const LABELS = {
+  request: 'Request',
+  answer: 'Answer',
+  kept: 'Kept from LIA — answered on 12 Sept',
+  labelSeparator: ' : ',
+};
 
 function bookmark(over: Partial<Bookmark> = {}): Bookmark {
   return {
@@ -63,14 +68,19 @@ describe('bookmarkToMarkdown', () => {
     expect(md).toContain('## Answer');
   });
 
-  it('flattens a lia-response HTML document like the chat export does', () => {
+  it('writes a lia-response HTML document as Markdown, like the chat export does', () => {
     const md = bookmarkToMarkdown(
-      bookmark({ content: '<div class="lia-response"><p>Bonjour <b>Marie</b></p></div>' }),
+      bookmark({
+        content:
+          '<div class="lia-response"><p>Bonjour <b>Marie</b></p>' +
+          '<dl class="lia-kv"><dt>Salle</dt><dd>B</dd></dl></div>',
+      }),
       LABELS
     );
 
     expect(md).not.toContain('<div');
-    expect(md).toContain('Bonjour Marie');
+    // Emphasis survives, and a key-value pair takes the reader's punctuation.
+    expect(md).toContain('## Answer\n\nBonjour **Marie**\n\n- **Salle** : B\n');
   });
 });
 

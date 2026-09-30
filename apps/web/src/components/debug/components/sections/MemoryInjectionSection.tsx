@@ -75,7 +75,7 @@ const MemoryRow = React.memo(function MemoryRow({
       </div>
 
       {/* Content (truncated) */}
-      <div className="truncate pl-6 text-[11px] text-muted-foreground" title={memory.content}>
+      <div className="truncate pl-6 text-px-11 text-muted-foreground" title={memory.content}>
         {memory.content}
       </div>
     </div>

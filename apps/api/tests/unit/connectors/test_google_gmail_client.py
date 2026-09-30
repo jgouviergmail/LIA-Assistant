@@ -941,6 +941,63 @@ async def test_search_emails_skips_failed_fetches(gmail_client):
     assert [m["id"] for m in result["messages"]] == ["ok1", "ok2"]
 
 
+class TestSearchHitFormat:
+    """A hit carries its whole message unless the caller asks for headers only.
+
+    ``headers_only`` used to be « accepted for parity » and ignored: every hit
+    was read at ``format=metadata``, so a listing could never show a body or an
+    attachment — the cards of a ``detail=metadata`` answer were empty. It now
+    means what it means on IMAP, with the same number of requests either way.
+    """
+
+    @staticmethod
+    async def _search(gmail_client, **kwargs):
+        formats: list[str] = []
+
+        async def fake_request(method, endpoint, params=None, **_kwargs):
+            if endpoint == "/users/me/messages":
+                return {"messages": [{"id": "m1"}, {"id": "m2"}], "resultSizeEstimate": 2}
+            formats.append(params["format"])
+            return {"id": endpoint.rsplit("/", 1)[-1], "threadId": "t"}
+
+        with (
+            patch.object(gmail_client, "_make_request", side_effect=fake_request),
+            patch(
+                "src.domains.connectors.clients.google_gmail_client.get_redis_cache"
+            ) as mock_cache,
+        ):
+            mock_redis = AsyncMock()
+            mock_redis.get = AsyncMock(return_value=None)
+            mock_redis.set = AsyncMock()
+            mock_cache.return_value = mock_redis
+            await gmail_client.search_emails(query="in:inbox", max_results=10, **kwargs)
+        return formats, mock_redis
+
+    async def test_a_hit_is_read_whole_by_default(self, gmail_client):
+        formats, _ = await self._search(gmail_client)
+        assert formats == [GMAIL_FORMAT_FULL, GMAIL_FORMAT_FULL]
+
+    async def test_headers_only_reads_the_headers(self, gmail_client):
+        from src.core.constants import GMAIL_FORMAT_METADATA
+
+        formats, _ = await self._search(gmail_client, headers_only=True)
+        assert formats == [GMAIL_FORMAT_METADATA, GMAIL_FORMAT_METADATA]
+
+    async def test_the_two_shapes_never_share_a_cache_entry(self, gmail_client):
+        """A headers-only page served to a caller that expects bodies would
+        silently bring the empty cards back."""
+        _, whole = await self._search(gmail_client)
+        _, headers = await self._search(gmail_client, headers_only=True)
+        assert whole.set.await_args_list[-1].args[0] != headers.set.await_args_list[-1].args[0]
+
+    async def test_a_bypassed_cache_is_bypassed_for_every_hit(self, gmail_client):
+        """``use_cache=False`` used to reach the listing only: each hit was
+        still served from (and written to) the message cache."""
+        _, redis = await self._search(gmail_client, use_cache=False)
+        redis.get.assert_not_awaited()
+        redis.set.assert_not_awaited()
+
+
 @pytest.mark.asyncio
 async def test_reply_email_quoted_body_survives_mime_encoding(gmail_client):
     """Reply body + quoted original must decode correctly (audit wave 3, N-194.10).

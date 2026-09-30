@@ -31,6 +31,7 @@ from typing import Any
 import structlog
 
 from src.core.field_names import FIELD_CORRELATED_TO
+from src.domains.agents.data_registry.card_payload import card_payload
 from src.domains.agents.utils.type_domain_mapping import get_result_key_from_type
 
 logger = structlog.get_logger(__name__)
@@ -111,7 +112,7 @@ def detect_correlations(
     for item_id, item in registry.items():
         correlated_to = _get_correlated_to(item)
         item_type = _get_item_type(item)
-        payload = _get_payload(item)
+        payload = card_payload(item)
         domain = get_result_key_from_type(item_type) or "other"
 
         if correlated_to:
@@ -137,7 +138,7 @@ def detect_correlations(
             continue
 
         parent_type = _get_item_type(parent_item)
-        parent_payload = _get_payload(parent_item)
+        parent_payload = card_payload(parent_item)
         parent_domain = get_result_key_from_type(parent_type) or "other"
 
         # Keep (domain, payload) tuples for proper rendering
@@ -190,12 +191,3 @@ def _get_item_type(item: Any) -> str:
         item_type = item.get("type", "")
         return item_type.value if hasattr(item_type, "value") else str(item_type)
     return ""
-
-
-def _get_payload(item: Any) -> dict[str, Any] | None:
-    """Extract payload from item (handles dict and Pydantic)."""
-    if hasattr(item, "payload"):
-        return item.payload
-    if isinstance(item, dict):
-        return item.get("payload")
-    return None

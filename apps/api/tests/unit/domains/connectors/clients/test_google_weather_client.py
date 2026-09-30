@@ -15,6 +15,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.constants import GOOGLE_WEATHER_MAX_FORECAST_HOURS
 from src.domains.connectors.clients.google_weather_client import (
     _ICON_BY_CONDITION_TYPE,
     GoogleWeatherClient,
@@ -285,6 +286,60 @@ class TestForecastMapping:
         assert request_spy.call_args_list[1].kwargs["params"]["pageToken"] == "page2"
         assert len(forecast["list"]) == 2
         assert forecast["list"][1]["main"]["temp"] == 23.0
+
+
+class TestHourlyForecast:
+    """Every hour, unsampled — what a weather routine reads (ADR-322 amendment)."""
+
+    async def test_every_hour_is_an_entry_in_order(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        request_spy.return_value = {
+            "forecastHours": [
+                _hour(f"2026-08-27T{hour:02d}:00:00Z", 20.0 + hour) for hour in range(5)
+            ]
+        }
+
+        forecast = await client.get_hourly_forecast(lat=48.85, lon=2.35, hours=5)
+
+        temps = [entry["main"]["temp"] for entry in forecast["list"]]
+        assert temps == [20.0, 21.0, 22.0, 23.0, 24.0]
+        assert forecast["list"][0]["pop"] == 0.2
+        assert request_spy.await_args.kwargs["params"]["hours"] == 5
+
+    async def test_a_short_horizon_is_one_billed_call(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        request_spy.return_value = {
+            "forecastHours": [_hour("2026-08-27T12:00:00Z", 20.0)],
+            "nextPageToken": "never-followed",
+        }
+        with patch(
+            "src.domains.connectors.clients.google_weather_client.track_google_api_call"
+        ) as tracker:
+            forecast = await client.get_hourly_forecast(lat=1.0, lon=2.0, hours=1)
+
+        assert request_spy.await_count == 1
+        tracker.assert_called_once_with("weather", "/v1/forecast/hours:lookup", cached=False)
+        assert len(forecast["list"]) == 1
+
+    async def test_more_hours_than_the_provider_returns_is_what_it_returned(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        request_spy.return_value = {"forecastHours": [_hour("2026-08-27T12:00:00Z", 20.0)]}
+
+        forecast = await client.get_hourly_forecast(lat=1.0, lon=2.0, hours=5)
+
+        assert len(forecast["list"]) == 1
+
+    async def test_the_request_is_bounded_by_the_provider_maximum(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        request_spy.return_value = {"forecastHours": []}
+
+        await client.get_hourly_forecast(lat=1.0, lon=2.0, hours=10_000)
+
+        assert request_spy.await_args.kwargs["params"]["hours"] == GOOGLE_WEATHER_MAX_FORECAST_HOURS
 
 
 class TestDailyForecast:

@@ -21,6 +21,11 @@ sites you add, voices and personality, and a verification level: off, news, or
 all. You can pause a site without deleting it. A model verification pass costs
 extra and is never hidden; the settings describe it before you choose.
 
+When a session starts and you have your own Brave or Perplexity key, up to
+five of your strongest interests are searched with it, and every story found
+can go on air. When you listen in company, nothing about your interests is
+read or broadcast.
+
 ## How are sources, privacy and cost handled?
 The newsroom collects public pages once for the instance. Your personal
 antenna combines only material allowed by your settings; it never shares your

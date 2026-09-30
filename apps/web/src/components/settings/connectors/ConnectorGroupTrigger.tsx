@@ -72,7 +72,7 @@ export function ConnectorGroupTrigger({
       <span className="text-muted-foreground text-sm shrink-0">({count})</span>
       <span
         className={cn(
-          'ml-auto shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium',
+          'ml-auto shrink-0 rounded-full border px-2 py-0.5 text-px-11 font-medium',
           STATE_CHIP_TONE[state]
         )}
       >

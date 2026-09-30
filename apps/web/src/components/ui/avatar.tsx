@@ -107,7 +107,7 @@ const avatarVariants = cva(
        * Size variants
        */
       size: {
-        xs: 'h-6 w-6 text-[10px]', // 24px - tiny icons
+        xs: 'h-6 w-6 text-px-10', // 24px - tiny icons
         sm: 'h-8 w-8 text-xs', // 32px - compact lists
         md: 'h-12 w-12 text-sm', // 48px - default size
         lg: 'h-16 w-16 text-base', // 64px - prominent display
@@ -197,7 +197,7 @@ function StatusBadge({ status, size }: StatusBadgeProps) {
       aria-label={config.label}
       title={config.label}
     >
-      {config.icon && <span className="text-[8px] text-white font-bold">{config.icon}</span>}
+      {config.icon && <span className="text-px-8 text-white font-bold">{config.icon}</span>}
     </span>
   );
 }

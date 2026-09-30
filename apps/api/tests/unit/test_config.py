@@ -136,6 +136,9 @@ class TestSettings:
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "ENVIRONMENT": "production",
+                # A production instance refuses DEBUG (ADR-326); a developer's
+                # environment may carry it, so the contract is stated whole.
+                "DEBUG": "false",
             },
         ):
             settings = Settings()
@@ -177,6 +180,9 @@ class TestSettings:
                 "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
                 "REDIS_URL": "redis://localhost:6379",
                 "ENVIRONMENT": "production",
+                # A production instance refuses DEBUG (ADR-326); a developer's
+                # environment may carry it, so the contract is stated whole.
+                "DEBUG": "false",
             },
         ):
             settings = Settings()
@@ -329,3 +335,36 @@ class TestSettings:
             settings = Settings()
 
             assert settings.mcp_react_step_timeout_seconds == 240
+
+
+def test_debug_is_refused_in_production():
+    """A production instance refuses DEBUG (ADR-326): an unhandled exception
+    would answer with its own text. Measured False on the live host; held here."""
+    from pydantic import ValidationError as PydanticValidationError
+
+    with patch.dict(
+        os.environ,
+        {
+            "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
+            "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+            "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
+            "REDIS_URL": "redis://localhost:6379",
+            "ENVIRONMENT": "production",
+            "DEBUG": "true",
+        },
+    ):
+        with pytest.raises(PydanticValidationError, match="DEBUG=true is refused"):
+            Settings(_env_file=None)
+
+    with patch.dict(
+        os.environ,
+        {
+            "SECRET_KEY": "test-secret-key-minimum-32-characters-long",
+            "FERNET_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+            "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/db",
+            "REDIS_URL": "redis://localhost:6379",
+            "ENVIRONMENT": "development",
+            "DEBUG": "true",
+        },
+    ):
+        assert Settings(_env_file=None).debug is True

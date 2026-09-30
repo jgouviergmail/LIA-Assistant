@@ -5,7 +5,9 @@
  * They replaced a « … » menu that hid both behind one more click (owner
  * request, 2026-09-24):
  *
- * - **Download** is one click everywhere: the answer as a dated `.md` file.
+ * - **Download** is one click everywhere: the answer as a dated `.md` file —
+ *   written as Markdown (`messageToMarkdown`), so an HTML answer keeps its
+ *   headings, tables, links and components instead of flattening to text.
  * - **Share** is one click too when the platform share sheet is the only way
  *   out. Its availability is FEATURE detection, never platform sniffing —
  *   desktop Chrome/Edge on Windows expose `navigator.share` too.
@@ -44,6 +46,7 @@ import type { ConnectionView } from '@/hooks/usePeerConnections';
 import { fallbackLng, isLanguage } from '@/i18n/settings';
 import { formatDate } from '@/lib/format';
 import { messageToPlainText } from '@/lib/message-clipboard';
+import { messageToMarkdown } from '@/lib/message-markdown';
 import { usePeersAvailable } from '@/lib/peers/availability-context';
 import { connectionsSettingsPath } from '@/lib/peers/recipients';
 import { downloadMarkdown } from '@/lib/utils/download-markdown';
@@ -65,9 +68,10 @@ const ICON_CLASS = 'h-3.5 w-3.5 text-muted-foreground';
 
 export interface ShareResponseActionsProps {
   /**
-   * Raw assistant response content — markdown, or a `lia-response` HTML
-   * document in `html` display mode. HTML is flattened to readable text
-   * before sharing/exporting (ADR-177); markdown passes through verbatim.
+   * Raw assistant response content — markdown, a `lia-response` HTML
+   * document in `html` display mode, or markdown followed by data cards.
+   * Sharing flattens the HTML to readable text (ADR-177); the `.md` file is
+   * written as Markdown. Markdown passes through verbatim either way.
    */
   content: string;
   /** When the response landed — stamps the export filename (local time). */
@@ -127,12 +131,17 @@ export function ShareResponseActions({
     );
   }
 
+  // The ONE export text: « Download » writes it, « Send by e-mail » attaches it.
+  // Built on click only — twenty bubbles must not convert twenty answers.
+  const exportText = () =>
+    messageToMarkdown(content, { labelSeparator: t('common.label_separator') });
+
   return (
     <>
       {share}
       <ActionChipButton
         label={t('chat.message.download_md')}
-        onClick={() => downloadMarkdown(messageToPlainText(content), exportBaseName(timestamp))}
+        onClick={() => downloadMarkdown(exportText(), exportBaseName(timestamp))}
       >
         <Download className={ICON_CLASS} aria-hidden="true" />
       </ActionChipButton>
@@ -142,7 +151,7 @@ export function ShareResponseActions({
         getSource={() => ({
           kind: 'markdown',
           filename: exportBaseName(timestamp),
-          text: messageToPlainText(content),
+          text: exportText(),
         })}
         defaultSubject={t('email_share.answer_subject', {
           date: formatDate(timestamp, isLanguage(i18n.language) ? i18n.language : fallbackLng, {

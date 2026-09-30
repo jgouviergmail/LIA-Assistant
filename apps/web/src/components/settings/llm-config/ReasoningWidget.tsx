@@ -100,7 +100,7 @@ function LevelField({
         </SelectContent>
       </Select>
       {levels.length === 1 && (
-        <p className="text-[10px] text-muted-foreground italic">
+        <p className="text-px-10 text-muted-foreground italic">
           {t('settings.admin.llmConfig.constraints.reasoningSingleLevel')}
         </p>
       )}
@@ -138,7 +138,7 @@ function BudgetField({
 
   return (
     <div className="space-y-1">
-      <Label htmlFor={fieldId} className="text-[11px] text-muted-foreground">
+      <Label htmlFor={fieldId} className="text-px-11 text-muted-foreground">
         {t('settings.admin.llmConfig.fields.reasoningBudget')}
       </Label>
       <Input
@@ -157,7 +157,7 @@ function BudgetField({
       <p
         id={errorId}
         className={
-          outOfRange ? 'text-[10px] text-destructive' : 'text-[10px] text-muted-foreground'
+          outOfRange ? 'text-px-10 text-destructive' : 'text-px-10 text-muted-foreground'
         }
       >
         {hint}
@@ -200,7 +200,7 @@ export function ReasoningWidget({ caps, value, onChange, disabled, t }: Reasonin
       <LevelField {...shared} levels={levels} />
       {caps?.reasoning_supports_budget && range && <BudgetField {...shared} range={range} />}
       {caps?.reasoning_supports_exclude && <ExcludeField {...shared} />}
-      {docText && <p className="text-[10px] text-muted-foreground">{docText}</p>}
+      {docText && <p className="text-px-10 text-muted-foreground">{docText}</p>}
     </div>
   );
 }

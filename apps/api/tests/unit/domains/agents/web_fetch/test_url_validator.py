@@ -13,17 +13,19 @@ Tests cover:
 - Edge cases (empty URL, malformed URL, no hostname)
 - DNS resolution mocking
 - check_ip_safety() reusable helper
-- validate_resolved_url() post-redirect check
+- the verdict carries the addresses it validated, and a pinned request uses them
 """
 
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 
 from src.domains.agents.web_fetch.url_validator import (
     UrlValidationResult,
     check_ip_safety,
-    validate_resolved_url,
+    pinned_request_parts,
+    pinned_stream,
     validate_url,
 )
 
@@ -326,37 +328,140 @@ class TestValidateUrl:
 
 
 # ============================================================================
-# validate_resolved_url() TESTS
+# THE VERDICT CARRIES ITS ADDRESSES, AND A REQUEST IS PINNED TO THEM (ADR-326)
 # ============================================================================
 
 
-class TestValidateResolvedUrl:
-    """Tests for post-redirect URL validation."""
+class TestVerdictAddresses:
+    """A valid verdict names what it validated; a refusal names nothing."""
 
-    async def test_safe_public_url(self, mock_dns_public):
-        result = await validate_resolved_url("https://example.com/redirected")
-        assert result is True
+    async def test_a_name_carries_what_it_resolved_to(self, mock_dns_public):
+        result = await validate_url("https://example.com/page")
+        assert result.valid is True
+        assert result.resolved_ips == ("93.184.216.34",)
 
-    async def test_blocked_hostname(self):
-        result = await validate_resolved_url("https://localhost/admin")
-        assert result is False
+    async def test_a_raw_address_carries_itself(self):
+        result = await validate_url("https://93.184.216.34/page")
+        assert result.valid is True
+        assert result.resolved_ips == ("93.184.216.34",)
 
-    async def test_blocked_raw_ip(self):
-        result = await validate_resolved_url("https://192.168.1.1/internal")
-        assert result is False
+    async def test_a_refusal_carries_no_address(self, mock_dns_private):
+        result = await validate_url("https://evil.attacker.com/page")
+        assert result.valid is False
+        assert result.resolved_ips == ()
 
-    async def test_blocked_cgnat_ip(self):
-        result = await validate_resolved_url("https://100.64.0.1/internal")
-        assert result is False
 
-    async def test_dns_resolving_to_private(self, mock_dns_private):
-        result = await validate_resolved_url("https://evil.attacker.com/redirect")
-        assert result is False
+class TestPinnedRequest:
+    """The request goes where the check looked; the name stays in Host and the SNI."""
 
-    async def test_malformed_url(self):
-        result = await validate_resolved_url("")
-        assert result is False
+    def test_the_url_host_is_the_validated_address(self):
+        verdict = UrlValidationResult(
+            valid=True, url="https://example.com:8443/a?b=1", resolved_ips=("93.184.216.34",)
+        )
+        url, headers, extensions = pinned_request_parts(verdict)
+        assert str(url) == "https://93.184.216.34:8443/a?b=1"
+        assert headers == {"Host": "example.com:8443"}
+        assert extensions == {"sni_hostname": "example.com"}
 
-    async def test_dns_failure(self, mock_dns_failure):
-        result = await validate_resolved_url("https://unreachable.invalid")
-        assert result is False
+    def test_a_default_port_leaves_host_bare_and_http_sets_no_sni(self):
+        verdict = UrlValidationResult(
+            valid=True, url="http://example.com/a", resolved_ips=("93.184.216.34",)
+        )
+        url, headers, extensions = pinned_request_parts(verdict)
+        assert str(url) == "http://93.184.216.34/a"
+        assert headers == {"Host": "example.com"}
+        assert extensions == {}
+
+    def test_an_ipv6_address_is_bracketed(self):
+        verdict = UrlValidationResult(
+            valid=True,
+            url="https://example.com/a",
+            resolved_ips=("2606:2800:220:1:248:1893:25c8:1946",),
+        )
+        url, _headers, _extensions = pinned_request_parts(verdict)
+        assert url.host == "2606:2800:220:1:248:1893:25c8:1946"
+        assert str(url).startswith("https://[2606:2800:220:1:248:1893:25c8:1946]/a")
+
+    def test_an_internationalised_name_travels_in_its_wire_form(self):
+        # `URL.host` decodes the IDNA name; a header is ASCII, so sending the
+        # decoded spelling raised UnicodeEncodeError where the plain URL had
+        # always worked (the client encodes it itself). Regression found by
+        # the cold review of ADR-326.
+        verdict = UrlValidationResult(
+            valid=True, url="https://bücher.example:8443/p?q=1", resolved_ips=("93.184.216.34",)
+        )
+        url, headers, extensions = pinned_request_parts(verdict)
+        assert str(url) == "https://93.184.216.34:8443/p?q=1"
+        assert headers == {"Host": "xn--bcher-kva.example:8443"}
+        assert extensions == {"sni_hostname": "xn--bcher-kva.example"}
+        # And the request builds: this is where the decoded form used to raise.
+        httpx.Request("GET", url, headers=headers, extensions=extensions)
+
+    @pytest.mark.parametrize(
+        "verdict",
+        [
+            UrlValidationResult(valid=False, url="https://example.com/", error="blocked"),
+            UrlValidationResult(valid=True, url="https://example.com/"),
+        ],
+        ids=["a refusal", "a valid verdict that validated no address"],
+    )
+    def test_a_verdict_without_an_address_is_refused(self, verdict):
+        with pytest.raises(ValueError, match="carries an address"):
+            pinned_request_parts(verdict)
+
+    async def test_a_callers_host_header_never_unpins_the_request(self):
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return httpx.Response(200, content=b"ok")
+
+        verdict = UrlValidationResult(
+            valid=True, url="https://example.com/page", resolved_ips=("93.184.216.34",)
+        )
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            async with pinned_stream(
+                client, "GET", verdict, headers={"host": "evil.example", "X-Probe": "1"}
+            ) as response:
+                assert response.status_code == 200
+        (request,) = seen
+        assert request.headers.get_list("host") == ["example.com"]
+        assert request.headers["x-probe"] == "1"
+
+    async def test_the_stream_connects_to_the_address_with_the_name_in_host(self):
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return httpx.Response(200, content=b"ok")
+
+        verdict = UrlValidationResult(
+            valid=True, url="https://example.com/page", resolved_ips=("93.184.216.34",)
+        )
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            async with pinned_stream(
+                client, "GET", verdict, headers={"User-Agent": "probe"}
+            ) as response:
+                assert response.status_code == 200
+        (request,) = seen
+        assert request.url.host == "93.184.216.34"
+        assert request.headers["host"] == "example.com"
+        assert request.headers["user-agent"] == "probe"
+        assert request.extensions["sni_hostname"] == "example.com"
+
+    async def test_the_stream_never_follows_a_redirect_itself(self):
+        hops: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            hops.append(str(request.url))
+            return httpx.Response(302, headers={"location": "https://evil.example/"})
+
+        verdict = UrlValidationResult(
+            valid=True, url="https://example.com/page", resolved_ips=("93.184.216.34",)
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), follow_redirects=True
+        ) as client:
+            async with pinned_stream(client, "GET", verdict) as response:
+                assert response.status_code == 302
+        assert hops == ["https://93.184.216.34/page"]

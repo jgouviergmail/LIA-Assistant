@@ -75,7 +75,6 @@ async def _resolve_calendar_id(
     from src.domains.connectors.preferences.resolver import resolve_calendar_name
 
     draft_calendar_id = draft_content.get("calendar_id")
-    calendar_id = "primary"
 
     if draft_calendar_id and draft_calendar_id != "primary":
         if _is_calendar_id(draft_calendar_id):

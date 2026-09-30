@@ -97,7 +97,7 @@ function AgendaContent({
                 {event.start_local}
               </span>
               {event.end_local && (
-                <span className="text-[11px] text-muted-foreground">{event.end_local}</span>
+                <span className="text-px-11 text-muted-foreground">{event.end_local}</span>
               )}
             </span>
             {/* Title + optional location */}

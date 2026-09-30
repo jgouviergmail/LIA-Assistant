@@ -169,7 +169,7 @@ function PhaseGroup({
             type="button"
             aria-expanded={showIdle}
             onClick={() => setShowIdle(v => !v)}
-            className="flex w-full items-center gap-1 px-1 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            className="flex w-full items-center gap-1 px-1 py-1 text-px-10 text-muted-foreground transition-colors hover:text-foreground"
           >
             <ChevronRight
               aria-hidden="true"

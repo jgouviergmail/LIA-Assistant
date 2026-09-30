@@ -65,7 +65,7 @@ export function MiniBubble({
   return (
     <div
       className={cn(
-        'max-w-[85%] rounded-2xl border px-3 py-2 text-[10px] leading-snug',
+        'max-w-[85%] rounded-2xl border px-3 py-2 text-px-10 leading-snug',
         side === 'user'
           ? 'self-end rounded-br-[5px] border-primary/30 bg-primary/10'
           : 'self-start rounded-tl-[5px] border-border bg-background',
@@ -93,7 +93,7 @@ export function MiniToast({
   return (
     <div
       className={cn(
-        'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-[10px] font-medium shadow-sm',
+        'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-px-10 font-medium shadow-sm',
         tone === 'warning' && 'border-warning/40 text-warning',
         tone === 'success' && 'border-primary/40 text-primary',
         tone === 'info' && 'border-border text-muted-foreground',
@@ -130,7 +130,7 @@ export function MiniSettingRow({
     >
       <Icon className={cn('h-3 w-3 shrink-0 transition-colors duration-500', iconClassName)} />
       {label ? (
-        <span className="truncate text-[10px] text-foreground/80">{label}</span>
+        <span className="truncate text-px-10 text-foreground/80">{label}</span>
       ) : (
         <SkeletonLine w="w-1/2" />
       )}
@@ -150,7 +150,7 @@ export function MiniChip({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[10px] transition-colors',
+        'inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-px-10 transition-colors',
         pressed && 'border-primary/50 bg-primary/10 text-primary',
         className
       )}
@@ -189,7 +189,7 @@ export function KeyCap({ children, className }: { children: ReactNode; className
   return (
     <kbd
       className={cn(
-        'inline-flex min-w-5 items-center justify-center rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground/80 shadow-[0_1px_0_1px] shadow-border',
+        'inline-flex min-w-5 items-center justify-center rounded-md border border-border bg-background px-1.5 py-0.5 text-px-10 font-semibold text-foreground/80 shadow-[0_1px_0_1px] shadow-border',
         className
       )}
     >

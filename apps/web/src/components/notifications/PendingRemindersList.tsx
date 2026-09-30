@@ -48,7 +48,7 @@ export function PendingRemindersList({
             <p className="text-sm text-foreground/90">{reminder.content}</p>
             <time
               dateTime={reminder.trigger_at}
-              className="text-[11px] tabular-nums text-muted-foreground"
+              className="text-px-11 tabular-nums text-muted-foreground"
             >
               {t('notifications_hub.reminder_at', {
                 when: formatInstant(reminder.trigger_at, locale),

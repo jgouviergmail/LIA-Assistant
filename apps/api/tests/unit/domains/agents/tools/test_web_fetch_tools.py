@@ -11,11 +11,13 @@ Tests cover:
 - UnifiedToolOutput and RegistryItem format validation
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from collections.abc import Callable
+from unittest.mock import patch
 
 import httpx
 import pytest
 
+from src.domains.agents.tools import web_fetch_tools as tool_module
 from src.domains.agents.tools.web_fetch_tools import (
     _clean_html,
     _estimate_text_word_count,
@@ -413,8 +415,17 @@ class TestTruncateContent:
 
 
 # ============================================================================
-# FULL TOOL TESTS (with mocked dependencies)
+# FULL TOOL TESTS — a real httpx client over a recording transport
 # ============================================================================
+#
+# The client the tool builds is REAL (its redirect policy, its header merging,
+# its error classes); only the transport is replaced, so a request that
+# reaches the handler is a request that would have left the process. The
+# former tests replaced the client with a MagicMock and could not tell where
+# a redirect was contacted (ADR-326). The run identity, the reputation
+# screening and the cache are replaced around the tool.
+
+PUBLIC_IP = "93.184.216.34"
 
 
 class _MockConfig:
@@ -423,429 +434,359 @@ class _MockConfig:
     user_id = "test-user-123"
 
 
-def _make_mock_response(
-    *,
-    status_code: int = 200,
-    content_type: str = "text/html; charset=utf-8",
-    html: str = SAMPLE_HTML,
-    url: str = "https://example.com/article",
-    content_length: str | None = None,
-) -> MagicMock:
-    """Create a mock httpx streaming response."""
-    response = AsyncMock()
-    response.status_code = status_code
-    response.url = httpx.URL(url)
+class _Miss:
+    """A cache that holds nothing."""
 
-    headers = {"content-type": content_type}
-    if content_length is not None:
-        headers["content-length"] = content_length
-    response.headers = headers
-
-    response.raise_for_status = MagicMock()
-    if status_code >= 400:
-        response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            f"HTTP {status_code}",
-            request=MagicMock(),
-            response=MagicMock(status_code=status_code),
-        )
-
-    response.aread = AsyncMock()
-    response.content = html.encode("utf-8")
-    response.text = html
-
-    return response
+    from_cache = False
+    data = None
+    cache_age_seconds = None
 
 
-def _make_httpx_mocks(mock_response: MagicMock) -> MagicMock:
-    """Create nested httpx.AsyncClient context manager mocks."""
-    mock_client = AsyncMock()
-    mock_stream_cm = AsyncMock()
-    mock_stream_cm.__aenter__ = AsyncMock(return_value=mock_response)
-    mock_stream_cm.__aexit__ = AsyncMock(return_value=False)
-    mock_client.stream = MagicMock(return_value=mock_stream_cm)
+class _NoCache:
+    """No Redis: every fetch is fresh and nothing is written."""
 
-    mock_client_cm = AsyncMock()
-    mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client_cm.__aexit__ = AsyncMock(return_value=False)
-    return mock_client_cm
+    def __init__(self, *_: object) -> None: ...
+
+    async def get_fetch(self, *_: object, **__: object) -> _Miss:
+        return _Miss()
+
+    async def set_fetch(self, *_: object, **__: object) -> None:
+        return None
 
 
+Answer = tuple[int, bytes | str] | Callable[[httpx.Request], httpx.Response]
+
+
+def _requested_url(request: httpx.Request) -> str:
+    """The URL the tool ASKED for: the pinned URL carries the validated address,
+    the name travels in ``Host`` (ADR-326)."""
+    return f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
+
+
+class _Web:
+    """A scripted web: URL → (status, body) or → (3xx, location); records every request."""
+
+    def __init__(
+        self, plan: dict[str, Answer], *, content_type: str = "text/html; charset=utf-8"
+    ) -> None:
+        self.plan = plan
+        self.content_type = content_type
+        self.requests: list[httpx.Request] = []
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        entry = self.plan[_requested_url(request)]
+        if callable(entry):
+            return entry(request)
+        status, payload = entry
+        if status in (301, 302, 303, 307, 308):
+            return httpx.Response(status, headers={"location": str(payload)})
+        content = payload.encode("utf-8") if isinstance(payload, str) else payload
+        return httpx.Response(status, content=content, headers={"content-type": self.content_type})
+
+    @property
+    def contacted(self) -> list[str]:
+        return [f"{r.url.scheme}://{r.url.host}{r.url.raw_path.decode()}" for r in self.requests]
+
+
+@pytest.fixture()
+def web_fetch_boundaries(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The run identity, the reputation screening and the cache, replaced."""
+    monkeypatch.setattr(tool_module, "validate_runtime_config", lambda runtime, name: _MockConfig())
+
+    async def no_screening(url: str, runtime: object) -> None:
+        return None
+
+    async def no_redis() -> None:
+        return None
+
+    monkeypatch.setattr(tool_module, "web_risk_gate", no_screening)
+    monkeypatch.setattr(tool_module, "WebSearchCache", _NoCache)
+    monkeypatch.setattr(tool_module, "get_redis_cache", no_redis)
+
+
+@pytest.fixture()
+def public_dns(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every name resolves to one public address; no resolver is asked."""
+    from src.domains.agents.web_fetch import url_validator
+
+    monkeypatch.setattr(url_validator, "_resolve_dns_sync", lambda hostname: [PUBLIC_IP])
+
+
+def _install(monkeypatch: pytest.MonkeyPatch, web: _Web) -> None:
+    """The tool's own client, over the scripted web."""
+    real_client = httpx.AsyncClient
+
+    def factory(**kwargs: object) -> httpx.AsyncClient:
+        return real_client(transport=httpx.MockTransport(web.handler), **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(tool_module.httpx, "AsyncClient", factory)
+
+
+async def _fetch(url: str, **arguments: object) -> object:
+    from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
+
+    return await fetch_web_page_tool.ainvoke({"url": url, "force_refresh": True, **arguments})
+
+
+@pytest.mark.usefixtures("web_fetch_boundaries", "public_dns")
 class TestFetchWebPageTool:
-    """Integration-style tests for the full fetch_web_page_tool.
+    """The whole tool, over a real client and a scripted web."""
 
-    Strategy: Patch validate_runtime_config to bypass ToolRuntime Pydantic
-    validation. InjectedToolArg cannot accept MagicMock, so we intercept
-    the validation at the application level.
-    """
-
-    @pytest.fixture(autouse=True)
-    def mock_runtime(self):
-        """Patch validate_runtime_config for all tool tests."""
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.validate_runtime_config",
-            return_value=_MockConfig(),
-        ) as mock:
-            yield mock
-
-    @pytest.fixture()
-    def mock_validate_url(self):
-        """Mock URL validation to return valid result."""
-        from src.domains.agents.web_fetch.url_validator import UrlValidationResult
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.validate_url",
-            new_callable=AsyncMock,
-            return_value=UrlValidationResult(valid=True, url="https://example.com/article"),
-        ) as mock:
-            yield mock
-
-    @pytest.fixture()
-    def mock_validate_url_rejected(self):
-        """Mock URL validation to return invalid result."""
-        from src.domains.agents.web_fetch.url_validator import UrlValidationResult
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.validate_url",
-            new_callable=AsyncMock,
-            return_value=UrlValidationResult(
-                valid=False, url="http://evil.com", error="Blocked hostname: evil.com"
-            ),
-        ) as mock:
-            yield mock
-
-    @pytest.fixture()
-    def mock_validate_resolved_url(self):
-        """Mock post-redirect URL validation."""
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.validate_resolved_url",
-            new_callable=AsyncMock,
-            return_value=True,
-        ) as mock:
-            yield mock
-
-    async def test_successful_fetch(self, mock_validate_url, mock_validate_resolved_url):
-        """Test complete successful web fetch flow."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        mock_response = _make_mock_response()
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke(
-                {
-                    "url": "https://example.com/article",
-                    "extract_mode": "article",
-                    "max_length": 30000,
-                }
-            )
-
+    async def test_successful_fetch(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        web = _Web({"https://example.com/article": (200, SAMPLE_HTML)})
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/article", extract_mode="article")
         assert result.success is True
         assert result.structured_data is not None
-        assert "web_fetchs" in result.structured_data
-        assert isinstance(result.structured_data["web_fetchs"], list)
-        assert len(result.structured_data["web_fetchs"]) == 1
-        fetch_item = result.structured_data["web_fetchs"][0]
-        assert "title" in fetch_item
-        assert "url" in fetch_item
-        assert "word_count" in fetch_item
-        assert "language" in fetch_item
+        (fetch_item,) = result.structured_data["web_fetchs"]
+        assert {"title", "url", "word_count", "language"} <= set(fetch_item)
+
+    async def test_the_request_goes_to_the_validated_address_under_the_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """DNS rebinding closed (ADR-326): the connection is made to the address
+        the check saw, the name kept in ``Host`` and the SNI."""
+        web = _Web({"https://example.com/article": (200, SAMPLE_HTML)})
+        _install(monkeypatch, web)
+        await _fetch("https://example.com/article")
+        (request,) = web.requests
+        assert request.url.host == PUBLIC_IP
+        assert request.headers["host"] == "example.com"
+        assert request.extensions["sni_hostname"] == "example.com"
+        assert request.headers["user-agent"]
 
     async def test_successful_fetch_verifies_registry_updates(
-        self, mock_validate_url, mock_validate_resolved_url
-    ):
-        """Test that successful fetch produces valid registry updates."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        mock_response = _make_mock_response()
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            # force_refresh bypasses the shared Redis fetch cache so this test
-            # deterministically exercises the FRESH-FETCH path (which builds the
-            # registry item). Without it, a cache hit left by an earlier test —
-            # or a prior run's stale DB-15 entry — returns success WITHOUT
-            # registry_updates, making the assertion flaky.
-            result = await fetch_web_page_tool.ainvoke(
-                {"url": "https://example.com/article", "force_refresh": True}
-            )
-
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        web = _Web({"https://example.com/article": (200, SAMPLE_HTML)})
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/article")
         assert result.success is True
         assert result.registry_updates is not None
-        assert len(result.registry_updates) == 1
-        registry_item = next(iter(result.registry_updates.values()))
+        (registry_item,) = result.registry_updates.values()
         assert registry_item.type.value == "WEB_PAGE"
         assert registry_item.payload["url"] == "https://example.com/article"
 
-    async def test_url_validation_failure(self, mock_validate_url_rejected):
-        """Test that invalid URLs return failure with correct error code."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        result = await fetch_web_page_tool.ainvoke({"url": "http://evil.com"})
-
+    async def test_url_validation_failure(self) -> None:
+        result = await _fetch("http://localhost/admin")
         assert result.success is False
         assert result.error_code == "INVALID_INPUT"
         assert "rejected" in result.message.lower()
 
-    async def test_invalid_extract_mode_defaults(
-        self, mock_validate_url, mock_validate_resolved_url
-    ):
-        """Test that invalid extract_mode falls back to default."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        mock_response = _make_mock_response()
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke(
-                {"url": "https://example.com", "extract_mode": "invalid_mode"}
-            )
-
-        # Should succeed (falls back to default "article" mode)
+    async def test_invalid_extract_mode_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        web = _Web({"https://example.com/": (200, SAMPLE_HTML)})
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com", extract_mode="invalid_mode")
         assert result.success is True
 
-    async def test_non_html_content_type_rejected(
-        self, mock_validate_url, mock_validate_resolved_url
-    ):
-        """Test that non-HTML content types are rejected."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        mock_response = _make_mock_response(content_type="application/pdf")
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://example.com/file.pdf"})
-
+    async def test_non_html_content_type_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        web = _Web({"https://example.com/file.pdf": (200, b"%PDF")}, content_type="application/pdf")
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/file.pdf")
         assert result.success is False
         assert result.error_code == "INVALID_RESPONSE_FORMAT"
         assert "not an html" in result.message.lower()
 
-    async def test_content_type_case_insensitive(
-        self, mock_validate_url, mock_validate_resolved_url
-    ):
-        """Test that Content-Type matching is case-insensitive (HTTP spec)."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        mock_response = _make_mock_response(content_type="Text/HTML; Charset=UTF-8")
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://example.com"})
-
-        # Should succeed regardless of Content-Type casing
+    async def test_content_type_case_insensitive(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        web = _Web(
+            {"https://example.com/": (200, SAMPLE_HTML)}, content_type="Text/HTML; Charset=UTF-8"
+        )
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com")
         assert result.success is True
 
-    async def test_content_too_large_via_header(
-        self, mock_validate_url, mock_validate_resolved_url
-    ):
-        """Test that oversized content is rejected via Content-Length header."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
+    async def test_content_too_large_via_header(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def huge(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                content=b"<html></html>",
+                headers={"content-type": "text/html", "content-length": "999999999"},
+            )
 
-        mock_response = _make_mock_response(content_length="999999999")
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://example.com/huge"})
-
+        web = _Web({"https://example.com/huge": huge})
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/huge")
         assert result.success is False
         assert result.error_code == "CONSTRAINT_VIOLATION"
         assert "too large" in result.message.lower()
 
-    async def test_timeout_returns_failure(self, mock_validate_url):
-        """Test that httpx timeout returns proper error."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
+    async def test_content_too_large_via_body(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from src.core.constants import WEB_FETCH_MAX_CONTENT_LENGTH
 
-        mock_client = AsyncMock()
-        mock_stream_cm = AsyncMock()
-        mock_stream_cm.__aenter__ = AsyncMock(
-            side_effect=httpx.TimeoutException("Connection timed out")
-        )
-        mock_stream_cm.__aexit__ = AsyncMock(return_value=False)
-        mock_client.stream = MagicMock(return_value=mock_stream_cm)
+        body = "<html><body>" + "x" * (WEB_FETCH_MAX_CONTENT_LENGTH + 1) + "</body></html>"
+        web = _Web({"https://example.com/big": (200, body)})
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/big")
+        assert result.success is False
+        assert result.error_code == "CONSTRAINT_VIOLATION"
 
-        mock_client_cm = AsyncMock()
-        mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client_cm.__aexit__ = AsyncMock(return_value=False)
+    async def test_timeout_returns_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def slow(request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("Connection timed out", request=request)
 
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://slow.example.com"})
-
+        web = _Web({"https://slow.example.com/": slow})
+        _install(monkeypatch, web)
+        result = await _fetch("https://slow.example.com")
         assert result.success is False
         assert result.error_code == "TIMEOUT"
         assert "timed out" in result.message.lower()
 
-    async def test_http_404_returns_not_found(self, mock_validate_url):
-        """Test that 404 errors return NOT_FOUND error code."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        mock_response = _make_mock_response(status_code=404)
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://example.com/missing"})
-
+    async def test_http_404_returns_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        web = _Web({"https://example.com/missing": (404, "gone")})
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/missing")
         assert result.success is False
         assert result.error_code == "NOT_FOUND"
         assert "404" in result.message
 
-    async def test_redirect_to_private_ip_blocked(self, mock_validate_url):
-        """Test that redirect to a private IP is blocked (post-redirect SSRF)."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        # Response redirected to a different (private) URL
-        mock_response = _make_mock_response(url="http://192.168.1.1/internal")
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        with (
-            patch(
-                "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-                return_value=mock_client_cm,
-            ),
-            patch(
-                "src.domains.agents.tools.web_fetch_tools.validate_resolved_url",
-                new_callable=AsyncMock,
-                return_value=False,
-            ),
-        ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://example.com/redirect"})
-
-        assert result.success is False
-        assert result.error_code == "INVALID_INPUT"
-        assert "redirect" in result.message.lower()
-        assert "blocked" in result.message.lower()
-
-    async def test_max_length_clamped(self, mock_validate_url, mock_validate_resolved_url):
-        """Test that max_length is clamped to [1000, WEB_FETCH_MAX_OUTPUT_LENGTH]."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        mock_response = _make_mock_response()
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        # Pass max_length=50 (below minimum of 1000)
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke(
-                {"url": "https://example.com", "max_length": 50}
-            )
-
-        # Should succeed (clamped to 1000, not fail)
-        assert result.success is True
-
-    async def test_network_error_returns_failure(
-        self, mock_validate_url, mock_validate_resolved_url
-    ):
-        """Test that generic network errors (ConnectError, etc.) return EXTERNAL_API_ERROR."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
-
-        mock_stream_cm = AsyncMock()
-        mock_stream_cm.__aenter__ = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
-        mock_stream_cm.__aexit__ = AsyncMock(return_value=False)
-        mock_client = AsyncMock()
-        mock_client.stream = MagicMock(return_value=mock_stream_cm)
-        mock_client_cm = AsyncMock()
-        mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client_cm.__aexit__ = AsyncMock(return_value=False)
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://down.example.com"})
-
+    async def test_http_500_returns_external_api_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        web = _Web({"https://example.com/error": (500, "boom")})
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/error")
         assert result.success is False
         assert result.error_code == "EXTERNAL_API_ERROR"
 
-    async def test_extraction_error_returns_failure(
-        self, mock_validate_url, mock_validate_resolved_url
-    ):
-        """Test that HTML extraction errors return INVALID_RESPONSE_FORMAT."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
+    async def test_network_error_returns_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def down(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("Connection refused", request=request)
 
-        mock_response = _make_mock_response()
-        mock_client_cm = _make_httpx_mocks(mock_response)
+        web = _Web({"https://down.example.com/": down})
+        _install(monkeypatch, web)
+        result = await _fetch("https://down.example.com")
+        assert result.success is False
+        assert result.error_code == "EXTERNAL_API_ERROR"
 
-        with (
-            patch(
-                "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-                return_value=mock_client_cm,
-            ),
-            patch(
-                "src.domains.agents.tools.web_fetch_tools._html_to_markdown",
-                side_effect=RuntimeError("parse error"),
-            ),
+    async def test_extraction_error_returns_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        web = _Web({"https://example.com/page": (200, SAMPLE_HTML)})
+        _install(monkeypatch, web)
+        with patch(
+            "src.domains.agents.tools.web_fetch_tools._html_to_markdown",
+            side_effect=RuntimeError("parse error"),
         ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://example.com/page"})
-
+            result = await _fetch("https://example.com/page")
         assert result.success is False
         assert result.error_code == "INVALID_RESPONSE_FORMAT"
 
-    async def test_http_500_returns_external_api_error(
-        self, mock_validate_url, mock_validate_resolved_url
-    ):
-        """Test that HTTP 500 errors return EXTERNAL_API_ERROR (not NOT_FOUND)."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
+    async def test_max_length_clamped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        web = _Web({"https://example.com/": (200, SAMPLE_HTML)})
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com", max_length=50)
+        assert result.success is True
 
-        mock_response = _make_mock_response(status_code=500)
-        mock_response.raise_for_status = MagicMock(
-            side_effect=httpx.HTTPStatusError(
-                "Server Error",
-                request=MagicMock(),
-                response=MagicMock(status_code=500),
-            )
+
+@pytest.mark.usefixtures("web_fetch_boundaries", "public_dns")
+class TestRedirectsAreValidatedBeforeTheyAreContacted:
+    """Every hop is checked BEFORE it is requested (ADR-326). Measured before:
+    a redirect to a cloud metadata address, a private host or the loopback was
+    GET-ed and only then refused, and a private hop that redirected back to a
+    public page was never refused at all."""
+
+    @pytest.mark.parametrize(
+        "target",
+        [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://10.0.0.5:9090/api/v1/status",
+            "http://127.0.0.1:8000/health",
+            "https://localhost/admin",
+        ],
+        ids=["cloud metadata", "private host", "loopback", "localhost"],
+    )
+    async def test_a_redirect_to_a_blocked_destination_is_never_contacted(
+        self, monkeypatch: pytest.MonkeyPatch, target: str
+    ) -> None:
+        web = _Web({"https://attacker.example/start": (302, target), target: (200, "INTERNAL")})
+        _install(monkeypatch, web)
+        result = await _fetch("https://attacker.example/start")
+        assert result.success is False
+        assert result.error_code == "INVALID_INPUT"
+        assert "redirect" in result.message.lower() and "blocked" in result.message.lower()
+        assert web.contacted == [f"https://{PUBLIC_IP}/start"]
+
+    async def test_a_private_hop_on_the_way_to_a_public_page_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        web = _Web(
+            {
+                "https://attacker.example/start": (302, "http://10.0.0.5:9090/-/reload"),
+                "http://10.0.0.5:9090/-/reload": (302, "https://attacker.example/final"),
+                "https://attacker.example/final": (200, SAMPLE_HTML),
+            }
         )
-        mock_client_cm = _make_httpx_mocks(mock_response)
-
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://example.com/error"})
-
+        _install(monkeypatch, web)
+        result = await _fetch("https://attacker.example/start")
         assert result.success is False
-        assert result.error_code == "EXTERNAL_API_ERROR"
+        assert web.contacted == [f"https://{PUBLIC_IP}/start"]
 
-    async def test_content_too_large_via_body_size(
-        self, mock_validate_url, mock_validate_resolved_url
-    ):
-        """Test rejection when actual body exceeds max size (no Content-Length header)."""
-        from src.domains.agents.tools.web_fetch_tools import fetch_web_page_tool
+    async def test_a_public_redirect_is_followed_and_the_content_attributed_to_its_end(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        web = _Web(
+            {
+                "https://example.com/old": (301, "https://example.com/new"),
+                "https://example.com/new": (200, SAMPLE_HTML),
+            }
+        )
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/old")
+        assert result.success is True
+        assert web.contacted == [f"https://{PUBLIC_IP}/old", f"https://{PUBLIC_IP}/new"]
+        assert result.structured_data["url"] == "https://example.com/new"
 
-        large_body = b"<html><body>" + b"x" * 2_100_000 + b"</body></html>"
-        mock_response = _make_mock_response(content_length=None)
-        mock_response.aread = AsyncMock(return_value=large_body)
-        mock_response.content = large_body
-        mock_client_cm = _make_httpx_mocks(mock_response)
+    async def test_a_relative_redirect_is_resolved_against_its_hop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        web = _Web(
+            {
+                "https://example.com/a/old": (302, "../new"),
+                "https://example.com/new": (200, SAMPLE_HTML),
+            }
+        )
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/a/old")
+        assert result.success is True
+        assert result.structured_data["url"] == "https://example.com/new"
 
-        with patch(
-            "src.domains.agents.tools.web_fetch_tools.httpx.AsyncClient",
-            return_value=mock_client_cm,
-        ):
-            result = await fetch_web_page_tool.ainvoke({"url": "https://example.com/huge"})
+    async def test_a_plain_http_redirect_is_upgraded_like_the_first_hop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        web = _Web(
+            {
+                "https://example.com/old": (302, "http://example.com/new"),
+                "https://example.com/new": (200, SAMPLE_HTML),
+            }
+        )
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/old")
+        assert result.success is True
+        assert web.contacted[-1] == f"https://{PUBLIC_IP}/new"
 
+    async def test_a_redirect_loop_stops_at_the_published_bound(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.core.constants import WEB_FETCH_MAX_REDIRECTS
+
+        web = _Web({"https://example.com/loop": (302, "https://example.com/loop")})
+        _install(monkeypatch, web)
+        result = await _fetch("https://example.com/loop")
         assert result.success is False
-        assert "too large" in result.message.lower() or "size" in result.message.lower()
+        assert result.error_code == "INVALID_INPUT"
+        assert len(web.requests) == WEB_FETCH_MAX_REDIRECTS + 1
+
+    async def test_a_name_that_rebinds_at_connect_time_cannot_steer_the_request(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The connection goes to the address validated at check time; a
+        resolver that answers a private address afterwards is never asked."""
+        from src.domains.agents.web_fetch import url_validator
+
+        answers = iter([[PUBLIC_IP], ["127.0.0.1"], ["127.0.0.1"]])
+        monkeypatch.setattr(url_validator, "_resolve_dns_sync", lambda hostname: next(answers))
+        web = _Web({"https://rebind.attacker.example/console": (200, SAMPLE_HTML)})
+        _install(monkeypatch, web)
+        result = await _fetch("https://rebind.attacker.example/console")
+        assert result.success is True
+        (request,) = web.requests
+        assert request.url.host == PUBLIC_IP

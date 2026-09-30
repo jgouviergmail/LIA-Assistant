@@ -236,7 +236,9 @@ def test_session_cookie_secure_explicit_override():
     """Test that explicit SESSION_COOKIE_SECURE value is respected."""
     # Explicitly set to False even in production
     with patch.dict(
-        os.environ, {"ENVIRONMENT": "production", "SESSION_COOKIE_SECURE": "false"}, clear=False
+        os.environ,
+        {"ENVIRONMENT": "production", "SESSION_COOKIE_SECURE": "false", "DEBUG": "false"},
+        clear=False,
     ):
         settings = Settings()
         assert settings.session_cookie_secure is False

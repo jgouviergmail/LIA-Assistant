@@ -47,6 +47,7 @@ from src.domains.agents.constants import (
     CONTEXT_DOMAIN_WEATHER,
 )
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.data_registry.card_payload import take_display_fields
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -121,7 +122,8 @@ class ToolOutputMixin:
         Args:
             item_type: Type of the item (CONTACT, EMAIL, etc.)
             unique_key: Unique identifier from source system
-            payload: Complete data for the item
+            payload: Complete data for the item; its ``FIELD_DISPLAY_ONLY``
+                fields are moved to ``meta.display`` (mutated in place).
             source: Source system name
             domain: Optional domain context
             step_id: Optional execution step ID
@@ -140,6 +142,9 @@ class ToolOutputMixin:
                 domain=domain,
                 tool_name=self.tool_name,
                 step_id=step_id,
+                # Out of the payload BEFORE any copy is taken (structured data,
+                # context store, $steps): the model never reads meta.
+                display=take_display_fields(payload),
             ),
         )
 

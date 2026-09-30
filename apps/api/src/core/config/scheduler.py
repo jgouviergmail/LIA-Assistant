@@ -12,7 +12,7 @@ Reference: docs/technical/TIMEOUT_REGISTRY.md
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -24,6 +24,9 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS,
     SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES,
     SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES_DEFAULT,
+    SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS_DEFAULT,
+    SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS_MAX,
+    SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT_DEFAULT,
 )
 
 
@@ -102,10 +105,37 @@ class SchedulerSettings(BaseSettings):
         ge=10,
         le=1440,
         description=(
-            "How often a weather-change routine is checked. The forecast comes "
-            "in hourly or three-hourly slots, and on the Google provider every "
-            "check is two billed calls on the deployment's key, attributed to "
-            "the routine's owner."
+            "How often a weather-change routine is checked. It reads Google "
+            "Weather's hourly forecast, and every check is two billed calls on "
+            "the deployment's key, attributed to the routine's owner. Never "
+            "longer than SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS (refused at "
+            "boot): the hours between two checks' windows would be read by nobody."
+        ),
+    )
+
+    scheduled_actions_weather_horizon_hours: int = Field(
+        default=SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS_DEFAULT,
+        ge=1,
+        le=SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS_MAX,
+        description=(
+            "How far ahead a weather-change routine looks for rain, drizzle, "
+            "snow or a thunderstorm, in hours. The hour under way counts. "
+            "Symptom if too high: a change announced hours before it matters, "
+            "and forecasts that move before it comes. Symptom if too low: the "
+            "announcement arrives too late to act on."
+        ),
+    )
+
+    scheduled_actions_weather_min_precipitation_percent: int = Field(
+        default=SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT_DEFAULT,
+        ge=0,
+        le=99,
+        description=(
+            "A forecast hour triggers a weather-change routine only when its "
+            "precipitation probability is STRICTLY above this percentage; an "
+            "hour the provider gives no probability for never does. Symptom if "
+            "too low: a routine fires on a mere chance of showers. Symptom if "
+            "too high: only near-certain changes are announced."
         ),
     )
 
@@ -148,3 +178,21 @@ class SchedulerSettings(BaseSettings):
             "to avoid recovering still-running actions."
         ),
     )
+
+    @model_validator(mode="after")
+    def _weather_checks_leave_no_hour_unread(self) -> SchedulerSettings:
+        """Refuse weather checks further apart than the horizon they read.
+
+        A check at T reads the changes due up to T + horizon; the next one, at
+        T + interval, starts there only if the interval is not longer. Past
+        it, a shower in between is announced by no check at all.
+        """
+        horizon_minutes = self.scheduled_actions_weather_horizon_hours * 60
+        if self.scheduled_actions_weather_check_minutes > horizon_minutes:
+            raise ValueError(
+                "SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES must be <= "
+                "SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS * 60 (got check="
+                f"{self.scheduled_actions_weather_check_minutes}, "
+                f"horizon={self.scheduled_actions_weather_horizon_hours} h)"
+            )
+        return self

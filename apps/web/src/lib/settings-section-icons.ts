@@ -22,6 +22,7 @@
  */
 
 import {
+  ALargeSmall,
   Activity,
   AudioLines,
   Bell,
@@ -95,6 +96,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   location: MapPin,
   theme: Palette,
   font: Type,
+  'font-size': ALargeSmall,
   'eyes-style': Eye,
   'display-mode': LayoutGrid,
   'usage-preferences': UserCog,

@@ -34,6 +34,7 @@ from src.core.constants import (
     JOURNAL_MAX_ENTRY_CHARS_DEFAULT,
     JOURNAL_MAX_TOTAL_CHARS_DEFAULT,
 )
+from src.domains.users.display_preferences_columns import DisplayPreferencesColumns
 from src.domains.users.image_generation_columns import ImageGenerationColumns
 from src.domains.users.live_preferences_columns import LivePreferencesColumns
 from src.domains.users.phone_identity_columns import PhoneIdentityColumns
@@ -55,6 +56,7 @@ if TYPE_CHECKING:
 
 
 class User(
+    DisplayPreferencesColumns,
     ImageGenerationColumns,
     LivePreferencesColumns,
     PhoneIdentityColumns,
@@ -260,29 +262,6 @@ class User(
         server_default="cards",
         comment="Response display mode: cards (HTML data cards), html (rich formatting), "
         "html_cards (rich HTML with selected data cards), markdown (plain text).",
-    )
-
-    # Theme preferences (persisted per user)
-    theme: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-        default="system",
-        server_default="system",
-        comment="User display mode preference: 'light', 'dark', or 'system' (follow OS).",
-    )
-    color_theme: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-        default="default",
-        server_default="default",
-        comment="User color theme preference: 'default', 'ocean', 'forest', 'sunset', 'slate'.",
-    )
-    font_family: Mapped[str] = mapped_column(
-        String(30),
-        nullable=False,
-        default="system",
-        server_default="system",
-        comment="User font family preference: system, noto-sans, plus-jakarta-sans, ibm-plex-sans, geist, source-sans-pro, merriweather, libre-baskerville, fira-code.",
     )
 
     # Last login tracking

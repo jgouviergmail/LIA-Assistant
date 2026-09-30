@@ -102,7 +102,7 @@ function LogsBlock({ logs, t }: { logs: DiagnosisContextLogs; t: TFunction }) {
               <span className="font-mono">{entry.event || '—'}</span>
               {entry.level ? <span className="uppercase">{entry.level}</span> : null}
               {entry.head ? (
-                <span className="min-w-0 basis-full break-words font-mono text-[11px]">
+                <span className="min-w-0 basis-full break-words font-mono text-px-11">
                   {entry.head}
                 </span>
               ) : null}

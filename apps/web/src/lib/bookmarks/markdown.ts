@@ -1,14 +1,14 @@
 /**
  * The Markdown a bookmark exports to (ADR-282).
  *
- * The chat's own path (`ShareResponseMenu`): the answer flattened by
- * `messageToPlainText` when it is a `lia-response` HTML document, verbatim
- * when it is markdown — and, above it, what the chat cannot know about a
- * bookmark: the request that produced the answer, as a quotation, and the
- * answer's date. Pure: the download itself goes through `downloadMarkdown`.
+ * The chat's own path (`ShareResponseActions`): the answer written as
+ * Markdown by `messageToMarkdown` — an HTML answer converted, a markdown one
+ * verbatim — and, above it, what the chat cannot know about a bookmark: the
+ * request that produced the answer, as a quotation, and the answer's date.
+ * Pure: the download itself goes through `downloadMarkdown`.
  */
 
-import { messageToPlainText } from '@/lib/message-clipboard';
+import { messageToMarkdown } from '@/lib/message-markdown';
 import type { Bookmark } from '@/types/bookmarks';
 
 /** The translated words the export needs; resolved by the caller. */
@@ -19,6 +19,8 @@ export interface BookmarkExportLabels {
   answer: string;
   /** « Kept from LIA — answered on {date} », already interpolated. */
   kept: string;
+  /** What joins a label to its value in the reader's punctuation (« : » in French). */
+  labelSeparator: string;
 }
 
 /** Two-digit zero-pad for the filename date components. */
@@ -44,7 +46,8 @@ export function bookmarkToMarkdown(bookmark: Bookmark, labels: BookmarkExportLab
     }
     lines.push('');
   }
-  lines.push(`## ${labels.answer}`, '', messageToPlainText(bookmark.content).trimEnd(), '');
+  const answer = messageToMarkdown(bookmark.content, { labelSeparator: labels.labelSeparator });
+  lines.push(`## ${labels.answer}`, '', answer.trimEnd(), '');
   return lines.join('\n');
 }
 

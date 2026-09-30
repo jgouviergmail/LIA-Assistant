@@ -5,8 +5,8 @@
  * (display/components/base.py): same bullets ("• "), block spacing (one empty
  * line between blocks), inline tags stripped to '' (no injected space), ≤1
  * empty line, per-line trim. Extended for the ADR-177 vocabulary (dl/dt/dd,
- * details/summary, caption/figcaption). Feeds the clipboard text/plain flavor,
- * the native share sheet and the .md export.
+ * details/summary, caption/figcaption). Feeds the clipboard text/plain flavor
+ * and the native share sheet (a `.md` file is Markdown: `message-markdown.ts`).
  */
 import { describe, it, expect } from 'vitest';
 

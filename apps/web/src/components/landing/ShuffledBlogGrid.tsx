@@ -70,7 +70,7 @@ export function ShuffledBlogGrid({
                   <div className="flex items-center justify-between">
                     <span
                       className={cn(
-                        'text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full',
+                        'text-px-10 font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full',
                         CATEGORY_BADGE[article.category]
                       )}
                     >

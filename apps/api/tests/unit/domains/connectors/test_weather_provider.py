@@ -15,7 +15,10 @@ import pytest
 from src.domains.connectors.clients.google_weather_client import GoogleWeatherClient
 from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
 from src.domains.connectors.models import ConnectorType
-from src.domains.connectors.weather_provider import resolve_weather_client
+from src.domains.connectors.weather_provider import (
+    open_platform_weather_client,
+    resolve_weather_client,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -67,6 +70,37 @@ class TestResolveWeatherClient:
         service.get_api_key_credentials = AsyncMock(return_value=None)
         with _resolver(ConnectorType.OPENWEATHERMAP):
             assert await resolve_weather_client(uuid4(), service) is None
+
+
+class TestOpenPlatformWeatherClient:
+    """What a weather routine reads: the instance's Google Weather, never the person's choice."""
+
+    async def test_the_instance_serving_google_weather_yields_its_client(self) -> None:
+        service = MagicMock()
+        service.is_connector_active = AsyncMock(return_value=True)
+        user_id = uuid4()
+
+        client = await open_platform_weather_client(user_id, service)
+
+        assert isinstance(client, GoogleWeatherClient)
+        assert client.user_id == user_id
+        service.is_connector_active.assert_awaited_once_with(user_id, ConnectorType.GOOGLE_WEATHER)
+
+    async def test_a_person_on_openweathermap_still_gets_google_weather(self) -> None:
+        service = MagicMock()
+        service.is_connector_active = AsyncMock(return_value=True)
+        with _resolver(ConnectorType.OPENWEATHERMAP) as resolver:
+            client = await open_platform_weather_client(uuid4(), service)
+
+        assert isinstance(client, GoogleWeatherClient)
+        resolver.assert_not_awaited()
+
+    async def test_the_instance_withholding_google_weather_yields_none(self) -> None:
+        # Switched off by the administrator, or no platform key (ADR-307).
+        service = MagicMock()
+        service.is_connector_active = AsyncMock(return_value=False)
+
+        assert await open_platform_weather_client(uuid4(), service) is None
 
 
 class TestGoogleWeatherClientContractSurface:

@@ -119,14 +119,14 @@ export const LLMPipelineSection = React.memo(function LLMPipelineSection({
                       title={`${call.node_name}: starts at ${formatDuration(offset)}, lasts ${formatDuration(duration)}`}
                     />
                   </div>
-                  <span className="w-12 shrink-0 text-right font-mono text-[10px] text-muted-foreground">
+                  <span className="w-12 shrink-0 text-right font-mono text-px-10 text-muted-foreground">
                     {duration ? formatDuration(duration) : '—'}
                   </span>
                 </div>
               );
             })}
           </div>
-          <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
+          <div className="mt-1 flex justify-between text-px-9 text-muted-foreground">
             <span>0</span>
             <span>{formatDuration(wall)}</span>
           </div>
@@ -147,7 +147,7 @@ export const LLMPipelineSection = React.memo(function LLMPipelineSection({
               <div
                 key={`pipeline-${seq}`}
                 className={cn(
-                  'flex items-center gap-2 rounded px-2 py-1.5 text-[10px]',
+                  'flex items-center gap-2 rounded px-2 py-1.5 text-px-10',
                   index % 2 === 0 ? 'bg-muted/20' : ''
                 )}
               >

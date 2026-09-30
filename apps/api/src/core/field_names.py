@@ -115,6 +115,11 @@ FIELD_REACT_SYNTHESIS = "react_synthesis"  # ReAct loop's final answer (response
 FIELD_BODY = "body"
 FIELD_BODY_PART = "body_part"
 FIELD_BODY_PARTS = "body_parts"
+# Payload fields a tool withholds from the model but the card still draws (the
+# e-mail body under ``metadata`` — ADR-287 amendment). Transient: the tool puts
+# them under this key, ``create_registry_item`` moves them to
+# ``RegistryItemMeta.display`` before any copy of the payload is taken.
+FIELD_DISPLAY_ONLY = "_display_only"
 
 # Connectors & OAuth
 FIELD_CONNECTOR = "connector"

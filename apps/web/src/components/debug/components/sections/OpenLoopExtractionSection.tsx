@@ -81,7 +81,7 @@ export const OpenLoopExtractionSection = React.memo(function OpenLoopExtractionS
                 <div className="mt-0.5 flex items-center gap-2 text-muted-foreground">
                   {item.counterparty && <span>{item.counterparty}</span>}
                   {item.due_hint_iso && (
-                    <span className="font-mono text-[10px]">{item.due_hint_iso}</span>
+                    <span className="font-mono text-px-10">{item.due_hint_iso}</span>
                   )}
                 </div>
               )}

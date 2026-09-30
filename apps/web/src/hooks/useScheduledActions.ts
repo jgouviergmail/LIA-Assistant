@@ -229,6 +229,20 @@ export interface ScheduledActionListResponse {
   condition_check_minutes?: Partial<Record<ConditionType, number>>;
   /** Most runs one condition routine may start in one local day. */
   condition_max_fires_per_day?: number;
+  /** When a weather-change routine fires, as the server applies it. */
+  weather_condition_rule?: WeatherConditionRule;
+}
+
+/**
+ * When a weather-change routine fires (ADR-322 amendment 2026-09-29): a
+ * watched kind forecast by Google Weather within the horizon, with a
+ * precipitation probability STRICTLY above the floor.
+ */
+export interface WeatherConditionRule {
+  horizon_hours: number;
+  min_precipitation_percent: number;
+  /** The one forecast source read, whatever provider the person chose. */
+  source: string;
 }
 
 const ENDPOINT = '/scheduled-actions';
@@ -277,6 +291,7 @@ export function useScheduledActions() {
   const total = listData?.total ?? 0;
   const conditionCheckMinutes = listData?.condition_check_minutes;
   const conditionMaxFiresPerDay = listData?.condition_max_fires_per_day;
+  const weatherConditionRule = listData?.weather_condition_rule;
   const week = isWeekResponse(weekData) ? weekData : null;
   // The FIRST load only. `useApiQuery` raises `loading` on every refetch too,
   // and swapping the section for a spinner then unmounts every card — the
@@ -431,6 +446,8 @@ export function useScheduledActions() {
     conditionCheckMinutes,
     /** Most runs one condition routine may start in a day. */
     conditionMaxFiresPerDay,
+    /** When a weather-change routine fires, as the server applies it. */
+    weatherConditionRule,
     loading,
     initialLoading,
     error,

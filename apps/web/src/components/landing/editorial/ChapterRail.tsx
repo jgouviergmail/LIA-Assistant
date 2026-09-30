@@ -54,7 +54,7 @@ export function ChapterRail() {
           aria-label={t(`landing.chapters.${chapter.key}.title`)}
           aria-current={active === chapter.anchor ? 'true' : undefined}
           className={cn(
-            'rounded px-1 text-[10px] font-bold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'rounded px-1 text-px-10 font-bold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             active === chapter.anchor
               ? 'text-primary'
               : 'text-muted-foreground hover:text-foreground'
@@ -68,7 +68,7 @@ export function ChapterRail() {
         aria-label={t('landing.transparency.title')}
         aria-current={active === TRANSPARENCY_ANCHOR ? 'true' : undefined}
         className={cn(
-          'rounded px-1 text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'rounded px-1 text-px-10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           active === TRANSPARENCY_ANCHOR
             ? 'text-primary'
             : 'text-muted-foreground hover:text-foreground'

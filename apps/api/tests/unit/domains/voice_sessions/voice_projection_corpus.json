@@ -120,6 +120,21 @@
       "id": "a-bracket-inside-a-tag",
       "input": "<p title=\"a<b\">Texte</p> puis <h2>Titre</h2> et <a href=\"x\">lien</a>",
       "expected": "<p title=\"aTexte puis Titre et lien"
+    },
+    {
+      "id": "marker-alone-on-its-line",
+      "input": "-\nfoo\n\n1.\nbar\n#\nbaz",
+      "expected": "- foo 1. bar # baz"
+    },
+    {
+      "id": "long-emphasis-keeps-its-marks",
+      "input": "*aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa* and *b*",
+      "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa and b"
+    },
+    {
+      "id": "empty-table-cells-row",
+      "input": "--| | | | | | | | | | | | | | | | | | | | | | | | x",
+      "expected": "--| | | | | | | | | | | | | | | | | | | | | | | | x"
     }
   ],
   "bound": [
@@ -184,6 +199,31 @@
       "id": "empty",
       "input": "",
       "expected": 0
+    },
+    {
+      "id": "emoji",
+      "input": "😀😀😀😀😀😀😀😀",
+      "expected": 2
+    },
+    {
+      "id": "yi-syllables",
+      "input": "ꀀꀀꀀꀀꀀꀀꀀꀀ",
+      "expected": 2
+    },
+    {
+      "id": "private-use",
+      "input": "",
+      "expected": 2
+    },
+    {
+      "id": "compatibility-ideographs",
+      "input": "豈豈豈豈豈豈豈豈",
+      "expected": 8
+    },
+    {
+      "id": "hangul",
+      "input": "가가가가가가가가",
+      "expected": 8
     }
   ]
 }

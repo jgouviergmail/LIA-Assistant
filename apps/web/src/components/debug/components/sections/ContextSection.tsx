@@ -73,7 +73,7 @@ export const ContextSection = React.memo(function ContextSection({ data }: Conte
               >
                 <span className="font-medium text-primary">{key}</span>
                 <span className="text-muted-foreground">→</span>
-                <span className="truncate font-mono text-[11px] text-foreground/80">{value}</span>
+                <span className="truncate font-mono text-px-11 text-foreground/80">{value}</span>
               </div>
             ))}
           </div>

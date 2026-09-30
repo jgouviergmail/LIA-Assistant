@@ -13,6 +13,7 @@ import pytest
 
 from src.domains.radio.interests import (
     InterestStory,
+    interest_stories_max,
     interest_story,
     refresh_interest_stories,
 )
@@ -181,22 +182,22 @@ class TestRefreshing:
                 record=recorded,
                 language="fr",
                 now=NOW,
-                topics_max=3,
                 max_age_s=MAX_AGE_S,
             )
         assert recorded.reads == [(frozenset(), frozenset({"brave"}))]
 
-    async def test_the_strongest_topics_are_searched_and_their_stories_filed(self) -> None:
+    async def test_every_topic_the_start_read_is_searched_and_its_stories_filed(self) -> None:
+        # The count is applied ONCE, where the start reads the interests: the writer is
+        # told exactly the topics the search looks up.
         search, marks, filed, recorded = Search(), Marks(), Filed(), Recorded()
         count = await refresh_interest_stories(
-            ["jazz", "chess", "sailing", "cycling"],
+            ["jazz", "chess", "sailing"],
             search=search,
             marks=marks,
             file=filed,
             record=recorded,
             language="fr",
             now=NOW,
-            topics_max=3,
             max_age_s=MAX_AGE_S,
         )
         assert [topic for topic, _ in search.asked] == ["jazz", "chess", "sailing"]
@@ -215,7 +216,6 @@ class TestRefreshing:
             record=Recorded(),
             language="fr",
             now=NOW,
-            topics_max=3,
             max_age_s=MAX_AGE_S,
         )
         assert [topic for topic, _ in search.asked] == ["chess"]
@@ -232,7 +232,6 @@ class TestRefreshing:
             record=recorded,
             language="fr",
             now=NOW,
-            topics_max=3,
             max_age_s=MAX_AGE_S,
         )
         assert count == 2
@@ -260,12 +259,13 @@ class TestRefreshing:
             found_at=NOW,
         )
         assert old is not None and fresh is not None
+        both = [old, fresh]
 
         class Mixed(Search):
             async def search(
                 self, topic: str, *, language: str, found_at: datetime
             ) -> list[InterestStory]:
-                return [old, fresh]
+                return both
 
         filed = Filed()
         count = await refresh_interest_stories(
@@ -276,7 +276,6 @@ class TestRefreshing:
             record=Recorded(),
             language="fr",
             now=NOW,
-            topics_max=3,
             max_age_s=MAX_AGE_S,
         )
         assert count == 1 and [story.title for story in filed.stories] == ["Fresh"]
@@ -291,7 +290,89 @@ class TestRefreshing:
             record=Recorded(),
             language="fr",
             now=NOW,
-            topics_max=3,
             max_age_s=MAX_AGE_S,
         )
         assert [topic for topic, _ in search.asked] == ["jazz"]
+
+
+class TestTheDeskReadsEveryStoryTheSearchesFiled:
+    """The desk reads what the searches filed under a bound of its own (never in
+    competition with the sources): the bound is the most they CAN file within the desk's
+    horizon, so no story a listener's key paid for is ever cut."""
+
+    HORIZON_S = 48 * 3600
+    FRESH_S = 6 * 3600
+    PER_SEARCH = 3
+    TOPICS = ("jazz", "chess")
+
+    @dataclass
+    class ClockedMarks:
+        now: list[datetime]
+        fresh_s: int
+        until: dict[str, datetime] = field(default_factory=dict)
+
+        async def fresh(self, topic: str) -> bool:
+            return topic in self.until and self.now[0] < self.until[topic]
+
+        async def mark(self, topic: str) -> None:
+            self.until[topic] = self.now[0] + timedelta(seconds=self.fresh_s)
+
+    @dataclass
+    class EverNew:
+        per_search: int
+        section: str = "brave"
+        made: int = 0
+
+        async def search(
+            self, topic: str, *, language: str, found_at: datetime
+        ) -> list[InterestStory]:
+            stories = []
+            for _ in range(self.per_search):
+                self.made += 1
+                story = interest_story(
+                    url=f"https://o.example/{self.made}",
+                    title=f"Story {self.made}",
+                    summary="",
+                    outlet="O",
+                    published_at=found_at,
+                    found_at=found_at,
+                )
+                assert story is not None
+                stories.append(story)
+            return stories
+
+    async def test_a_session_starting_every_half_hour_never_outgrows_the_bound(self) -> None:
+        bound = interest_stories_max(
+            topics=len(self.TOPICS),
+            stories_per_search=self.PER_SEARCH,
+            fresh_s=self.FRESH_S,
+            horizon_s=self.HORIZON_S,
+        )
+        clock = [NOW]
+        marks = self.ClockedMarks(clock, self.FRESH_S)
+        search, filed = self.EverNew(self.PER_SEARCH), Filed()
+        most = 0
+        for step in range(3 * self.HORIZON_S // 1800):
+            clock[0] = NOW + timedelta(seconds=1800 * step)
+            await refresh_interest_stories(
+                self.TOPICS,
+                search=search,
+                marks=marks,
+                file=filed,
+                record=Recorded(),
+                language="fr",
+                now=clock[0],
+                max_age_s=self.HORIZON_S,
+            )
+            since = clock[0] - timedelta(seconds=self.HORIZON_S)
+            most = max(most, sum(1 for story in filed.stories if story.published_at >= since))
+        # Tight: every story on the desk at the busiest instant fits, and not one more.
+        assert most == bound
+
+    def test_no_topic_means_no_story_to_read(self) -> None:
+        assert (
+            interest_stories_max(
+                topics=0, stories_per_search=5, fresh_s=self.FRESH_S, horizon_s=self.HORIZON_S
+            )
+            == 0
+        )

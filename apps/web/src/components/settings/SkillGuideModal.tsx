@@ -1369,7 +1369,7 @@ function AgentToolsBlock({ agent, t }: { agent: AgentDef; t: (key: string) => st
         </code>
         <span className="text-xs text-muted-foreground">— {agent.label}</span>
         {agent.oauth && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <span className="text-px-10 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
             Connector
           </span>
         )}
@@ -1379,12 +1379,12 @@ function AgentToolsBlock({ agent, t }: { agent: AgentDef; t: (key: string) => st
           <div key={tool.name} className="pl-2 border-l-2 border-primary/20 ml-1">
             <div className="flex items-center gap-2 mb-1">
               <code className="font-mono text-xs text-foreground/80">{tool.name}</code>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-px-10 text-muted-foreground">
                 {t(`settings.skills.${tool.desc}`)}
               </span>
             </div>
             {tool.params.length > 0 && (
-              <div className="grid grid-cols-1 gap-0.5 text-[11px] ml-2">
+              <div className="grid grid-cols-1 gap-0.5 text-px-11 ml-2">
                 {tool.params.map(p => (
                   <div key={p.name} className="flex gap-1.5 items-baseline">
                     <code className="font-mono text-primary/60 shrink-0">

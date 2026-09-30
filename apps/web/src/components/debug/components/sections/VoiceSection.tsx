@@ -56,7 +56,7 @@ export const VoiceSection = React.memo(function VoiceSection({ data }: VoiceSect
                 <DebugChip tone="neutral">{call.provider}</DebugChip>
                 <span className="font-mono font-medium">{call.model}</span>
               </div>
-              <div className="space-y-0.5 text-[10px] text-muted-foreground">
+              <div className="space-y-0.5 text-px-10 text-muted-foreground">
                 <div className="flex justify-between">
                   <span>Characters:</span>
                   <span className="font-mono">{call.characters}</span>

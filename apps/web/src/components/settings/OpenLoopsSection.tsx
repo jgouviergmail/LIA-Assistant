@@ -180,7 +180,7 @@ function LoopGroup({
                   <p className="truncate text-sm font-medium" title={loop.subject}>
                     {loop.subject}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-px-11 text-muted-foreground">
                     {loop.counterparty ? `${loop.counterparty} · ` : ''}
                     {loop.due_hint
                       ? new Intl.DateTimeFormat(i18n.language, {

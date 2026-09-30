@@ -1722,6 +1722,11 @@
       "title": "JEV decide, ogni utilizzo mantiene il proprio interruttore",
       "summary": "JEV aiuta LIA a scegliere, instradare o valutare entro un ambito definito. Ogni utilizzo ha un interruttore modificabile senza riavvio; in caso di dubbio subentra il processo esistente. Le anteprime conservano tutti i risultati, gli osservatori non bloccano alcuna estrazione e un’esclusione non equivale mai a un’approvazione. Gli amministratori vedono contesto, risposta ed esito; ogni chiamata a pagamento viene contabilizzata. I risparmi di tempo si verificano sull’intero percorso prima dell’attivazione.",
       "src": "7ebe153c5910"
+    },
+    "326": {
+      "title": "Nessun testo ostile blocca LIA, nessun reindirizzamento la devia",
+      "summary": "Le funzioni che appiattiscono un testo per una voce, una notifica o una scheda leggevano alcuni testi in tempo esponenziale: 51 caratteri digitati nella chat costavano 4,5 s, un'e-mail trappola di 32 KB bloccava LIA per 3 s. Ogni schema è riscritto lineare e due test lo garantiscono, sul server come nel browser. La lettura di una pagina web controlla ora ogni reindirizzamento prima di seguirlo e si collega all'indirizzo verificato, mai a una risoluzione successiva del nome.",
+      "src": "b378d83b1215"
     }
   }
 }

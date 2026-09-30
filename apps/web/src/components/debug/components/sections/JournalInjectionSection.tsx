@@ -102,7 +102,7 @@ function InjectionSubSection({
                     >
                       {/* Theme + Title */}
                       <div className="flex items-center gap-1.5">
-                        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                        <span className="shrink-0 font-mono text-px-10 text-muted-foreground">
                           #{index + 1}
                         </span>
                         <span>{themeEmoji}</span>

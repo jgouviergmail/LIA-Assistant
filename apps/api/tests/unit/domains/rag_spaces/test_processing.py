@@ -1125,6 +1125,7 @@ class TestProcessDocument:
 
     def _patch_processing(self):
         """Return a dict of common patches for process_document tests."""
+        settings_double = MagicMock()
         return {
             "db_ctx": patch(
                 "src.domains.rag_spaces.processing.get_db_context",
@@ -1138,8 +1139,12 @@ class TestProcessDocument:
             "clear_ctx": patch(
                 "src.domains.rag_spaces.processing.clear_embedding_context",
             ),
-            "settings": patch(
-                "src.domains.rag_spaces.processing.settings",
+            # ONE settings double for the two modules that read the storage root:
+            # the path is built by ``storage_paths`` (ADR-326), the rest of the
+            # pipeline by ``processing``, and a test sets the root once.
+            "settings": patch("src.domains.rag_spaces.processing.settings", settings_double),
+            "storage_settings": patch(
+                "src.domains.rag_spaces.storage_paths.settings", settings_double
             ),
             "metrics_processed": patch(
                 "src.domains.rag_spaces.processing.rag_documents_processed_total",
@@ -1181,6 +1186,7 @@ class TestProcessDocument:
             patches["set_ctx"],
             patches["clear_ctx"],
             patches["settings"] as mock_settings,
+            patches["storage_settings"],
             patches["metrics_processed"],
         ):
             ctx_manager = AsyncMock()
@@ -1238,6 +1244,7 @@ class TestProcessDocument:
             patches["set_ctx"],
             patches["clear_ctx"],
             patches["settings"] as mock_settings,
+            patches["storage_settings"],
             patches["metrics_processed"],
         ):
             ctx_manager = AsyncMock()
@@ -1294,6 +1301,7 @@ class TestProcessDocument:
             patches["set_ctx"],
             patches["clear_ctx"],
             patches["settings"] as mock_settings,
+            patches["storage_settings"],
             patches["metrics_processed"],
         ):
             ctx_manager = AsyncMock()
@@ -1349,6 +1357,7 @@ class TestProcessDocument:
             patches["set_ctx"],
             patches["clear_ctx"],
             patches["settings"] as mock_settings,
+            patches["storage_settings"],
             patches["metrics_processed"],
         ):
             ctx_manager = AsyncMock()
@@ -1422,6 +1431,7 @@ class TestProcessDocument:
             patches["set_ctx"],
             patches["clear_ctx"],
             patches["settings"] as mock_settings,
+            patches["storage_settings"],
             patches["metrics_processed"],
             patches["metrics_duration"],
             patches["metrics_chunks"],

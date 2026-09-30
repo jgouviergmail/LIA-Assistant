@@ -167,7 +167,7 @@ function PeerMessageItem({ message }: { message: RelationPeerMessage }) {
         >
           {received ? t('relations.peer_message_received') : t('relations.peer_message_sent')}
         </Badge>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-px-11 text-muted-foreground">
           {timeAgoLabel(t, message.occurred_at)}
         </span>
       </p>
@@ -205,7 +205,7 @@ function PeerLinkSection({ link }: { link: RelationPeerLink | null }) {
         {shares.map(share => (
           <span
             key={`${share.domain}_${share.level}`}
-            className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+            className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-px-11 font-medium text-primary"
           >
             {t(`settings.peers.shares.badge.${share.domain}_${share.level}`)}
           </span>
@@ -221,7 +221,7 @@ function PeerLinkSection({ link }: { link: RelationPeerLink | null }) {
         <Handshake className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
         {t('relations.peer_link_title')}
         {link.connected_since && (
-          <span className="text-[11px] font-normal text-muted-foreground">
+          <span className="text-px-11 font-normal text-muted-foreground">
             {t('relations.peer_link_since', { when: timeAgoLabel(t, link.connected_since) })}
           </span>
         )}
@@ -305,7 +305,7 @@ function OpenLoopsSection({
             <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2 text-sm text-foreground/90">
               {loop.subject}
               {/* amber-800 for the AA floor at this size — see RelationCardList. */}
-              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-px text-[10px] font-medium text-amber-800 dark:text-amber-300">
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-px text-px-10 font-medium text-amber-800 dark:text-amber-300">
                 {t('relations.days_open', { count: loop.days_open })}
               </span>
             </p>
@@ -407,7 +407,7 @@ function CallsSection({ calls, total }: { calls: RelationDetail['recent_calls'];
             <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
               {call.objective}
             </span>
-            <span className="shrink-0 text-[11px] text-muted-foreground">
+            <span className="shrink-0 text-px-11 text-muted-foreground">
               {timeAgoLabel(t, call.created_at)}
             </span>
           </p>
@@ -589,7 +589,7 @@ function RelationHeader({
             <h2 className="truncate text-xl font-bold tracking-tight">{detail.display_name}</h2>
             {detail.is_peer && (
               <span
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-px-10 font-semibold text-primary"
                 title={t('relations.peer_badge_hint')}
               >
                 <Handshake className="h-3 w-3" aria-hidden="true" />

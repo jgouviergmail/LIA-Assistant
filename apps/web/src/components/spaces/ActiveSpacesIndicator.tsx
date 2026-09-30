@@ -32,7 +32,7 @@ import { fallbackLng } from '@/i18n/settings';
  * the wider R01 text surfaced that latent collision. Its colour is
  * DELIBERATELY subdued (muted, not the loud primary badge) while its
  * dimensions match the sibling pills exactly (rounded-full, px-3 py-1.5,
- * text-[11px]) — homogeneous in shape, discreet in tone.
+ * text-px-11) — homogeneous in shape, discreet in tone.
  *
  * The accessible name lives on the TRIGGER and is the same at every width
  * (S5b invariant): below `sm` the visible text is the bare count, and a
@@ -76,9 +76,9 @@ export function ActiveSpacesIndicator() {
           data-testid="active-spaces-indicator"
           aria-label={t('spaces.indicator_tooltip', { count: activeCount })}
           // Homogeneous with the sibling header pills (offline / processing /
-          // delete / context): same rounded-full px-3 py-1.5 text-[11px]
+          // delete / context): same rounded-full px-3 py-1.5 text-px-11
           // shell. Discreet TONE: muted neutral, not the primary badge.
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/50 px-3 py-1.5 text-[11px] mobile:text-xs font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/50 px-3 py-1.5 text-px-11 mobile:text-xs font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Library className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">{t('spaces.indicator', { count: activeCount })}</span>

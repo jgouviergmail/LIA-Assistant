@@ -28,6 +28,7 @@ import structlog
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import Settings, get_settings, settings
+from src.core.field_names import FIELD_DISPLAY_ONLY, FIELD_REGISTRY_ID
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_CURRENT_TURN_ID,
@@ -38,6 +39,7 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.context.access import get_tcm_session
 from src.domains.agents.context.runtime_context import runtime_user_id_str
+from src.domains.agents.data_registry.card_payload import display_fields
 from src.domains.agents.models import MessagesState
 from src.domains.agents.services.reference_resolver import ResolvedContext
 from src.domains.agents.utils.type_domain_mapping import TOOL_PATTERN_TO_DOMAIN_MAP
@@ -74,6 +76,28 @@ _DATA_KEY_TO_RESULT_KEY: dict[str, str] = {
     "articles": "wikipedias",
     "results": "perplexitys",
 }
+
+
+def _resolved_payload(item_id: str, payload: dict[str, Any], item: object) -> dict[str, Any]:
+    """A registry payload as a resolved reference carries it.
+
+    It keeps its registry id, and the display-only fields the card of a later
+    turn draws, under ``FIELD_DISPLAY_ONLY`` — the model readers of a resolved
+    item skip ``_`` keys (``payload_to_text``, ``ResolvedContext.to_llm_context``;
+    ADR-287 amendment).
+
+    Args:
+        item_id: The registry id.
+        payload: The item's payload (never mutated).
+        item: The registry item (object or JSON dump), for its display fields.
+
+    Returns:
+        A new dict.
+    """
+    resolved = {**payload, FIELD_REGISTRY_ID: item_id}
+    if display := display_fields(item):
+        resolved[FIELD_DISPLAY_ONLY] = display
+    return resolved
 
 
 # =============================================================================
@@ -656,16 +680,14 @@ class ContextResolutionService:
                     for _item_id, reg_item in registry_updates.items():
                         if isinstance(reg_item, RegistryItem):
                             # Enrich with metadata for domain detection
-                            payload = dict(reg_item.payload)
-                            payload["_registry_id"] = _item_id
+                            payload = _resolved_payload(_item_id, reg_item.payload, reg_item)
                             payload["_item_type"] = reg_item.type.value
                             all_items.append(payload)
                         elif isinstance(reg_item, dict):
                             raw_payload = reg_item.get("payload", reg_item)
                             if isinstance(raw_payload, dict):
                                 # Enrich with metadata for domain detection
-                                payload = dict(raw_payload)
-                                payload["_registry_id"] = _item_id
+                                payload = _resolved_payload(_item_id, raw_payload, reg_item)
                                 # Try to get type from dict if available
                                 if "type" in reg_item:
                                     payload["_item_type"] = reg_item["type"]
@@ -885,15 +907,13 @@ class ContextResolutionService:
                 continue
 
             if isinstance(item, RegistryItem):
-                payload = dict(item.payload)
-                payload["_registry_id"] = item_id
+                payload = _resolved_payload(item_id, item.payload, item)
                 payload["_item_type"] = item.type.value
                 items.append(payload)
             elif isinstance(item, dict):
                 payload = item.get("payload", item)
                 if isinstance(payload, dict):
-                    payload = dict(payload)
-                    payload["_registry_id"] = item_id
+                    payload = _resolved_payload(item_id, payload, item)
                 items.append(payload)
             else:
                 logger.warning(

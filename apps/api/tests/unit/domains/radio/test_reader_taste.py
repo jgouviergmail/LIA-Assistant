@@ -1,4 +1,5 @@
-"""The listener's taste: only what the start allowed, only preferences, as many as are shown."""
+"""The listener's taste: only what the start allowed, only preferences, as many as it was
+given for interests — the one count the writer is told and the search looks up."""
 
 from __future__ import annotations
 
@@ -11,24 +12,27 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from src.domains.radio.prompting import INTERESTS_SHOWN_MAX, STATED_TASTES_SHOWN_MAX
+from src.domains.radio.prompting import STATED_TASTES_SHOWN_MAX
 from src.domains.radio.readers import taste as module
 from src.domains.radio.readers.taste import read_taste
 
 pytestmark = pytest.mark.unit
+
+#: The count the start hands the reader (``RADIO_INTEREST_TOPICS_MAX``, read by the caller).
+INTERESTS_MAX = 5
 
 
 @pytest.mark.parametrize("section", ["interests", "memories"])
 async def test_cancelled_start_records_only_attempted_sources(
     section: str, reads: Reads, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    async def cancelled(user_id: UUID) -> tuple[str, ...]:
+    async def cancelled(user_id: UUID, *args: int) -> tuple[str, ...]:
         raise asyncio.CancelledError()
 
     monkeypatch.setattr(module, "_interests" if section == "interests" else "_stated", cancelled)
     recorder = Recorder()
     with pytest.raises(asyncio.CancelledError):
-        await read_taste(uuid4(), interests_allowed=True, stated_allowed=True, record=recorder)
+        await read_taste(uuid4(), interests_max=INTERESTS_MAX, stated_allowed=True, record=recorder)
     opened = {"interests"} if section == "interests" else {"interests", "memories"}
     assert recorder.rows == [(frozenset(opened), frozenset({section}))]
 
@@ -88,29 +92,35 @@ def reads(monkeypatch: pytest.MonkeyPatch) -> Reads:
     return seen
 
 
-async def test_only_preferences_are_read_and_as_many_as_the_writer_is_shown(reads: Reads) -> None:
+async def test_only_preferences_are_read_and_exactly_as_many_interests_as_asked(
+    reads: Reads,
+) -> None:
     recorder = Recorder()
-    taste = await read_taste(uuid4(), interests_allowed=True, stated_allowed=True, record=recorder)
+    taste = await read_taste(
+        uuid4(), interests_max=INTERESTS_MAX, stated_allowed=True, record=recorder
+    )
     assert (taste.interests, taste.stated) == (("astronomy",), ("Dislikes football",))
-    assert reads.interests == [INTERESTS_SHOWN_MAX]
+    assert reads.interests == [INTERESTS_MAX]
     assert reads.memories == [("preference", STATED_TASTES_SHOWN_MAX)]
     assert recorder.rows == [(frozenset({"interests", "memories"}), frozenset())]
 
 
 async def test_a_part_the_start_did_not_allow_is_neither_read_nor_recorded(reads: Reads) -> None:
     recorder = Recorder()
-    taste = await read_taste(uuid4(), interests_allowed=True, stated_allowed=False, record=recorder)
+    taste = await read_taste(
+        uuid4(), interests_max=INTERESTS_MAX, stated_allowed=False, record=recorder
+    )
     assert (taste.stated, reads.memories) == ((), [])
     assert recorder.rows == [(frozenset({"interests"}), frozenset())]
-    nothing = await read_taste(
-        uuid4(), interests_allowed=False, stated_allowed=False, record=recorder
-    )
+    nothing = await read_taste(uuid4(), interests_max=0, stated_allowed=False, record=recorder)
     assert (nothing.interests, nothing.stated, len(recorder.rows)) == ((), (), 1)
 
 
 async def test_a_blind_part_is_empty_and_recorded_failed_the_other_kept(reads: Reads) -> None:
     reads.memories_fail = True
     recorder = Recorder()
-    taste = await read_taste(uuid4(), interests_allowed=True, stated_allowed=True, record=recorder)
+    taste = await read_taste(
+        uuid4(), interests_max=INTERESTS_MAX, stated_allowed=True, record=recorder
+    )
     assert (taste.interests, taste.stated) == (("astronomy",), ())
     assert recorder.rows == [(frozenset({"interests", "memories"}), frozenset({"memories"}))]

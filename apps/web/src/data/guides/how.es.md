@@ -6,7 +6,7 @@
 
 **Versión**: 5.1
 **Fecha**: 2026-09-24
-**Aplicación**: LIA v2.1.0
+**Aplicación**: LIA v2.1.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 608 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 324 ADRs, más de 46.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 325 ADRs, más de 47.000 pruebas automatizadas de backend y frontend, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -89,10 +89,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | Más de 46.000 pruebas automatizadas con pytest y Vitest (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | Más de 47.000 pruebas automatizadas con pytest y Vitest (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 1.082, de las cuales 48 compartidas mediante conftest |
 | Documentos de documentación | 716 |
-| ADRs (Architecture Decision Records) | 324 |
+| ADRs (Architecture Decision Records) | 325 |
 | Métricas Prometheus | 608 definiciones |
 | Dashboards Grafana | 30 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -955,7 +955,7 @@ El mismo despertar sirve las **vigilancias**: una rutina con condición «correo
 
 ### Una rutina tiene un solo reloj
 
-El editor separa horario y condición. Una rutina programada usa el motor de recurrencia; una condicionada no tiene horario y se comprueba al ritmo de su fuente. Una comprobación sin hecho nuevo que coincida no registra ejecución. Ambas respetan los mismos límites, confirmaciones e historial semanal visible cuando actúan de verdad.
+El editor separa horario y condición. Una rutina programada usa el motor de recurrencia; una condicionada no tiene horario y se comprueba al ritmo de su fuente. Una comprobación sin hecho nuevo que coincida no registra ejecución. Ambas respetan los mismos límites, confirmaciones e historial semanal visible cuando actúan de verdad. Una condición meteorológica lee siempre Google Weather, la única fuente que la plataforma garantiza: una regla única, compartida con la tarjeta del briefing, retiene la primera franja horaria de un fenómeno vigilado dentro del horizonte (4 horas por defecto) cuya probabilidad de precipitación supera estrictamente el umbral publicado (50 %), y la nota entregada a la ejecución nombra la hora, el día, la zona horaria, la probabilidad y la fuente. Un ritmo de comprobación más largo que el horizonte se rechaza al arrancar, para que ninguna ventana quede sin vigilar.
 
 ---
 
@@ -1008,7 +1008,7 @@ La búsqueda del chat lee solo los espacios activos, de modo que un documento in
 
 ### 18.1. Web Fetch
 
-URL → validación SSRF (DNS + IP blocklist + post-redirect recheck) → readability extraction (fallback full page) → HTML cleaning → Markdown → wrapping `<external_content>` (prevención prompt injection). Caché Redis 10 min.
+URL → validación SSRF (DNS + IP blocklist) → conexión fijada a la dirección comprobada (nombre en `Host` y en el SNI, sin segunda resolución DNS) → redirecciones seguidas a mano, cada salto revalidado antes de cualquier contacto → readability extraction (fallback full page) → HTML cleaning → Markdown → wrapping `<external_content>` (prevención prompt injection). Caché Redis 10 min.
 
 ### 18.2. Browser Control (ADR-059)
 
@@ -1045,9 +1045,10 @@ Diseño **fail-open**: los fallos de infraestructura no bloquean a los usuarios.
 | XSS (renderizado LLM) | Frontera `rehype-sanitize` en el pipeline markdown del chat (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeRestoreDollars → rehypeKatex`, esquema auditado — `script`/`iframe`/`form`/handlers eliminados), cookies HTTP-only, CSP backend; las MCP/Skill Apps nunca pasan por markdown (centinela → widget iframe en sandbox) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (consultas parametrizadas) |
-| SSRF | Resolución DNS + lista de bloqueo de IP (Web Fetch, MCP, Browser); la instalación de skills por URL reutiliza el mismo validador con términos más estrictos: solo https, redirecciones rechazadas, tope de tamaño en streaming, deadline TOTAL de transferencia, rate limit por usuario El navegador va más lejos: **cada petición que emite una página** — redirección, subrecurso, iframe, XHR — resuelve su propio destino tras una caché de veredictos acotada, y un fallo aborta en lugar de dejar pasar. |
+| SSRF | Resolución DNS + lista de bloqueo de IP (Web Fetch, MCP, Browser); la instalación de skills por URL reutiliza el mismo validador con términos más estrictos: solo https, redirecciones rechazadas, tope de tamaño en streaming, deadline TOTAL de transferencia, rate limit por usuario El navegador va más lejos: **cada petición que emite una página** — redirección, subrecurso, iframe, XHR — resuelve su propio destino tras una caché de veredictos acotada, y un fallo aborta en lugar de dejar pasar. Una URL validada sale solo por `pinned_stream`: la conexión apunta a la dirección que resolvió la comprobación (sin *DNS rebinding*), nunca por un cliente que siga redirecciones (ADR-326). |
 | Prompt Injection | Procedencia llevada por el dato: 24 tipos clasificados (fallo cerrado, assert al arranque), marcado en las tres superficies que alcanzan el LLM, 7 familias de patrones detectadas en 6 idiomas sin reescribir jamás el contenido (ADR-167); marcadores `<external_content>` conservados del lado de las herramientas |
 | Rate Limiting / spoofing IP | Redis sliding window distribuido (Lua atómico); cadena proxy de confianza — puertos API vinculados a loopback (cloudflared = única entrada), uvicorn `--proxy-headers`, `request.client.host` validado como única fuente de IP (ningún bucket global compartido, XFF bruto nunca leído) Un techo global precede a cada ruta como verdadero middleware ASGI sobre ese mismo limitador compartido, de modo que un solo cliente no puede consumir toda la API; las sondas quedan exentas para no estrangular nunca la supervisión. |
+| Texto hostil (ReDoS) | Los aplanadores Markdown/HTML — push, voz, comentarios de ticket, radio, tarjetas de correo — se ejecutan en el bucle de eventos: cada tramo emparejado está acotado (`MARKDOWN_SPAN_MAX_CHARS`) y ningún carácter pertenece a dos clases vecinas; pruebas de crecimiento (n y luego 4n) y de equivalencia exhaustiva, en la API y el navegador, mantienen la linealidad (ADR-326) |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot weekly |
 
 ### 19.4. Durabilidad de los datos: copias de seguridad automatizadas (ADR-109)
@@ -1381,7 +1382,7 @@ Seis capacidades transversales comparten la misma filosofía de producto: **feed
 - **Renderizado LaTeX** — Las fórmulas matemáticas y científicas que LIA escribe (`$inline$` / `$$block$$`) se renderizan con KaTeX en `MarkdownContent.tsx`. Como el asistente emite toda su respuesta en HTML, un plugin `rehypeMathInText` detecta los delimitadores `$`/`$$` a nivel hast — después de que `rehypeRaw` haya expandido el HTML — y los convierte en los marcadores que `rehype-katex` renderiza; `remark-math`, limitado al markdown, nunca ve las fórmulas incrustadas en HTML. Orden: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeRestoreDollars → rehypeKatex`; los pasos de math solo leen texto ya sanitizado y emiten spans de clase fija, sin nueva superficie de ataque. Un dólar referenciado (`&#36;`, como una tarjeta dibuja el `$` de un valor) es un dólar literal: un paso sobre el texto lo marca antes de los pasos de math y `rehypeRestoreDollars` lo vuelve a escribir después.
 - **Resaltado de sintaxis** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 lenguajes registrados bajo demanda vía `SyntaxHighlighter.registerLanguage(...)` para mantener el bundle inicial ligero (los lenguajes se cargan en el primer code block). Tema automático `one-dark` / `one-light` pilotado por `next-themes`.
 
-- **Modo HTML enriquecido: un vocabulario de componentes** — cuando el usuario elige el modo de visualización HTML enriquecido, la directiva de prompt expone siete componentes estilizados por el design system (avisos con título, chips con iconos, secciones `details` nativas, listas clave-valor, columnas responsivas, pasos numerados, fichas de cifras) más los acentos inline `mark`/`kbd`/`abbr`, bajo una regla de maquetación explícita — toda respuesta que lleva datos es una página compuesta (una frase de entrada, una sección por faceta en su componente, un aviso de cierre), y la forma sigue los datos de la respuesta, nunca la forma de las respuestas anteriores. El enriquecimiento es puramente declarativo (prompt + CSS + allowlist de sanitización: seis etiquetas inertes añadidas, orden de plugins sin cambios) y un guard de CI falla si la directiva anuncia una clase que la hoja de estilos no cubre. Copiar, compartir y exportar `.md` aplanan el HTML a texto legible (portapapeles de doble formato `text/html` + `text/plain`), espejo cliente de la semántica `html_to_text` del backend; las ligaduras de iconos quedan excluidas del resaltado de búsqueda.
+- **Modo HTML enriquecido: un vocabulario de componentes** — cuando el usuario elige el modo de visualización HTML enriquecido, la directiva de prompt expone siete componentes estilizados por el design system (avisos con título, chips con iconos, secciones `details` nativas, listas clave-valor, columnas responsivas, pasos numerados, fichas de cifras) más los acentos inline `mark`/`kbd`/`abbr`, bajo una regla de maquetación explícita — toda respuesta que lleva datos es una página compuesta (una frase de entrada, una sección por faceta en su componente, un aviso de cierre), y la forma sigue los datos de la respuesta, nunca la forma de las respuestas anteriores. El enriquecimiento es puramente declarativo (prompt + CSS + allowlist de sanitización: seis etiquetas inertes añadidas, orden de plugins sin cambios) y un guard de CI falla si la directiva anuncia una clase que la hoja de estilos no cubre. Copiar y compartir aplanan el HTML a texto legible (portapapeles de doble formato `text/html` + `text/plain`), espejo cliente de la semántica `html_to_text` del backend; un archivo recibe en cambio Markdown: la exportación `.md` (descarga, correo, marcador) reescribe en GFM solo las regiones HTML, tal como las lee CommonMark — callouts como alertas GFM, mosaicos como tablas, tarjetas como título y viñetas — sin tocar el Markdown del modelo; las ligaduras de iconos quedan excluidas del resaltado de búsqueda.
 
 ### 23.9. Persistencia del feedback proactivo
 
@@ -1501,6 +1502,8 @@ La coherencia visual es un contrato con herramientas, no una disciplina de revis
 
 El negro absoluto (ADR-243) prolonga ese contrato en lugar de ensancharlo. Convertirlo en un tercer tema habría sido lo natural; también habría retirado la clase `dark` de la página y, con ella, volcado nueve comprobaciones internas a su rama clara — resaltado de sintaxis claro sobre página negra, diagramas blancos — y devuelto todo el sitio público a su variante clara. El negro absoluto es, por tanto, un **refinamiento** del modo oscuro, sostenido por un atributo distinto cuyo selector gana a los cinco acentos sea cual sea el orden del archivo. Se mueven seis superficies neutras y ningún color de acento: los bordes conservan incluso su valor oscuro, que destaca mejor sobre negro que sobre el gris original. Las superficies se calibran contra el modo oscuro ya publicado, no contra cero, de modo que nada se distingue menos que en el modo oscuro.
 
+El tamaño del texto sigue la misma lógica de refinamiento (un ajuste por cuenta, de 14 a 20 px). Agrandar el tamaño raíz lo habría agrandado todo — márgenes, paneles, iconos — y estrechado el chat y el panel de depuración; por eso es una **escala de texto**, `--lia-text-scale`, la que multiplica la escala tipográfica de Tailwind, los tokens de texto, el `body` y una utilidad `text-px-N` que sustituye cada tamaño en píxeles escrito a mano. Las dimensiones de maquetación siguen en `rem` fijos. Dos trampas quedan fijadas por pruebas: `tailwind-merge` debe saber que `text-px-N` es un tamaño, o lo toma por un color y borra el color vecino; y una prueba de extremo a extremo compara las cajas de los paneles a 14, 16 y 20 px, de 320 a 1440 px de ancho.
+
 La propia superficie de ajustes sigue la misma doctrina de estructura antes que disciplina (ADR-227). La página se renderiza como una carcasa maestro-detalle — un riel permanente de secciones junto a un panel que monta exactamente una, una vista general de tarjetas descriptivas cuando no hay selección — y no lista nada a mano: el orden del riel, los grupos y el componente montado derivan de la tabla de enlaces profundos más dos registros de completitud verificada por el compilador, cada uno probado contra el código fuente de las secciones. La consecuencia es arquitectónica, no cosmética: una sección existe en la página si y solo si las tablas la declaran, ningún layout se duplica de una sección a otra, y solo la sección elegida consulta la red — las demás no disparan ninguna petición al cargar una pestaña. La ausencia sigue siendo honesta: una sección que legítimamente no renderiza nada (instancia sin MFA, ninguna llamada realizada) produce un estado vacío explícito que sigue sondeando, de modo que un dato tardío reemplaza el mensaje.
 
 La misma doctrina responde a un fallo más discreto: una superficie que deja de describir el producto sin que nadie lo note (ADR-229). El mapa de capacidades — la página que responde «¿qué sabe hacer mi asistente por mí?» — es la pantalla cuyo único oficio es estar al día, y una lista de nodos congelada se quedaría atrás con cada capacidad entregada; una convención escrita no basta ahí, así que la respuesta es estructural. Dos tablas declaradas particionan la enumeración de capacidades de plataforma entre «dibuja un nodo» y «deliberadamente fuera del mapa, por esta razón escrita», y un assert se ejecuta en el IMPORT: una capacidad añadida sin decidir su suerte hace fallar el arranque en lugar de publicarse invisible. Un guardián gemelo lee las tres superficies cliente que el assert no ve — los sitios del gráfico, los enlaces «paso siguiente», los seis idiomas — porque un guardián limitado a Python dejaría pasar la mitad TypeScript de la deriva. Esa misma agregación alimenta después la vista general de ajustes: una petición dice qué contiene cada sección, con las mismas palabras que la lista de capacidades, y no dice nada mientras la respuesta está en vuelo, cuando ha fallado, o para una sección de la que no sabe nada.
@@ -1509,7 +1512,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-324 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+325 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1854,8 +1857,8 @@ Los mismos dos modos valen para el teléfono (ADR-301): transmitir la conversaci
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 324 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 46.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 325 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Las más de 47.000 pruebas automatizadas, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 324 ADRs y del changelog (v1.0 a v2.1.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (700+ documentos), de los 325 ADRs y del changelog (v1.0 a v2.1.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

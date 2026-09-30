@@ -334,7 +334,7 @@ export const InterestNotificationCard = memo(function InterestNotificationCard({
           </div>
 
           {/* Timestamp */}
-          <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium block">
+          <span className="text-px-11 mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium block">
             {formatTime(timestamp)}
           </span>
         </div>

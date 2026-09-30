@@ -49,9 +49,12 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
+from src.core.config import settings
 from src.core.i18n import normalize_language
 from src.core.time_utils import now_utc, resolve_user_timezone
 from src.domains.briefing.exceptions import ConnectorNotConfiguredError
+from src.domains.briefing.formatters import ForecastAlertRule
+from src.domains.briefing.schemas import ForecastAlert, ForecastAlertKind
 from src.domains.scheduled_actions.condition_ledger import ConditionCheckError
 from src.domains.scheduled_actions.models import (
     CONDITION_TYPE_CALENDAR_EVENT,
@@ -75,6 +78,9 @@ CALENDAR_CONDITION_DEFAULT_WITHIN_HOURS: Final[int] = 4
 
 #: How many new facts the prompt note names; the rest are counted by the run.
 CONDITION_NOTE_MAX_ITEMS: Final[int] = 5
+
+#: The one source a weather routine reads, named in the note its run is given.
+WEATHER_CONDITION_SOURCE: Final[str] = "Google Weather"
 
 #: The consultation surface every check files under (``consultation_surfaces``).
 CONSULTATION_SURFACE: Final[str] = "routine_condition"
@@ -172,25 +178,65 @@ async def _eval_task_overdue(user: User, params: dict[str, Any]) -> ConditionVer
     return ConditionVerdict(facts=facts, note_prefix="Overdue tasks: ")
 
 
-async def _eval_weather_change(user: User, params: dict[str, Any]) -> ConditionVerdict:
-    """The coming change, if of a configured kind — one fact per kind and DAY.
+def _weather_rule(params: Mapping[str, Any]) -> ForecastAlertRule:
+    """The rule a weather routine fires on: its kinds, the published horizon and floor.
 
-    Keyed on the local day of the forecast slot: a forecast moving from 15:00
-    to 18:00 is the same rain, tomorrow's rain at the same hour is not.
+    No selection (or one of a shape no writer produces) watches every kind; a
+    stored kind this release does not know is dropped, never read as « every
+    kind »: a selection of unknown kinds watches nothing.
+    """
+    stored = params.get("kinds")
+    watched = set(stored) if isinstance(stored, list) and stored else WEATHER_CONDITION_KINDS
+    return ForecastAlertRule(
+        horizon=timedelta(hours=settings.scheduled_actions_weather_horizon_hours),
+        kinds=frozenset(kind for kind in ForecastAlertKind if kind.value in watched),
+        min_precipitation_percent=settings.scheduled_actions_weather_min_precipitation_percent,
+    )
+
+
+def _weather_label(alert: ForecastAlert, tz: ZoneInfo) -> str:
+    """The fact as the run reads it: kind, local hour AND day, zone, chance, source.
+
+    « rain expected around 20:00 » alone let a run look at today's 20:00 and
+    answer that nothing was changing.
+    """
+    at = (alert.starts_at or now_utc()).astimezone(tz)
+    chance = (
+        f", {alert.precipitation_percent}% chance of precipitation"
+        if alert.precipitation_percent is not None
+        else ""
+    )
+    return (
+        f"{alert.kind.value} expected around {alert.time} on {at.date().isoformat()} "
+        f"({tz.key}){chance} (source: {WEATHER_CONDITION_SOURCE})"
+    )
+
+
+async def _eval_weather_change(user: User, params: dict[str, Any]) -> ConditionVerdict:
+    """The coming change of a watched kind, from Google Weather — one fact per kind and DAY.
+
+    Always the instance's Google Weather, within the published horizon, above
+    the published probability (ADR-322 amendment 2026-09-29). Keyed on the
+    local day of the change: a forecast moving from 15:00 to 16:00 is the same
+    rain, tomorrow's rain at the same hour is not.
     """
     from src.domains.briefing.fetchers import fetch_forecast_alert
 
     tz = _user_tz(user)
-    kinds = set(params.get("kinds") or WEATHER_CONDITION_KINDS)
+    rule = _weather_rule(params)
     alert = await fetch_forecast_alert(
-        user=user, user_tz=tz, language=normalize_language(user.language)
+        user=user,
+        user_tz=tz,
+        language=normalize_language(user.language),
+        now=now_utc(),
+        rule=rule,
     )
-    if alert is None or alert.kind.value not in kinds:
+    if alert is None or alert.kind not in rule.kinds:
         return ConditionVerdict(note_prefix="Weather alert: ")
     day = (alert.starts_at or now_utc()).astimezone(tz).date()
     fact = ConditionFact(
         key=_key("weather", alert.kind.value, day.isoformat()),
-        label=f"{alert.kind.value} expected around {alert.time}",
+        label=_weather_label(alert, tz),
     )
     return ConditionVerdict(facts=(fact,), note_prefix="Weather alert: ")
 

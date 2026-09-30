@@ -58,5 +58,5 @@ export type { TestUser } from './test-user';
 export type { MockRoute } from './api-mock';
 export { waitForHydration } from './hydration';
 export { briefingCardsMock, briefingWindowsMock } from './dashboard-shell';
-export { chatRoutes } from './chat';
+export { chatRoutes, loadedChatRoutes } from './chat';
 export type { ChatBody } from './chat';

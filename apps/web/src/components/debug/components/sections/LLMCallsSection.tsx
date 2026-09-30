@@ -169,7 +169,7 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
                     {failed && <DebugChip tone="destructive">{call.failure_kind ?? 'failed'}</DebugChip>}
                   </div>
                   <span
-                    className="ml-2 truncate font-mono text-[10px] text-muted-foreground"
+                    className="ml-2 truncate font-mono text-px-10 text-muted-foreground"
                     title={`${call.provider ? `${call.provider} · ` : ''}${callModelTitle(model)}`}
                   >
                     {truncateText(model.name, MODEL_NAME_TRUNCATE_LENGTH)}
@@ -177,7 +177,7 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
                 </div>
 
                 {/* Call metrics */}
-                <div className="space-y-0.5 text-[10px] text-muted-foreground">
+                <div className="space-y-0.5 text-px-10 text-muted-foreground">
                   <div className="flex justify-between">
                     <span>In:</span>
                     <span className="font-mono">{formatTokenCount(call.tokens_in)}</span>

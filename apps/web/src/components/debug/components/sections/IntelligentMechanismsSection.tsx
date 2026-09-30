@@ -122,7 +122,7 @@ export const IntelligentMechanismsSection = React.memo(function IntelligentMecha
                 <span className="text-muted-foreground">&quot;{ref.original}&quot;</span>
                 <span className="text-muted-foreground">→</span>
                 <span className="font-medium text-foreground">&quot;{ref.resolved}&quot;</span>
-                <span className="text-[10px] text-muted-foreground">({ref.type})</span>
+                <span className="text-px-10 text-muted-foreground">({ref.type})</span>
               </div>
             ))}
             {/* v3.0 legacy fallback: only show if resolved_references empty/missing */}
@@ -137,7 +137,7 @@ export const IntelligentMechanismsSection = React.memo(function IntelligentMecha
                   <span className="text-muted-foreground">&quot;{key}&quot;</span>
                   <span className="text-muted-foreground">→</span>
                   <span className="font-medium text-foreground">&quot;{value}&quot;</span>
-                  <span className="text-[10px] text-muted-foreground">(v3.0)</span>
+                  <span className="text-px-10 text-muted-foreground">(v3.0)</span>
                 </div>
               ))}
           </div>

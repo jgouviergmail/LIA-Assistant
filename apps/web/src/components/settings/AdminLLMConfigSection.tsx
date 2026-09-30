@@ -262,16 +262,16 @@ function LLMTypeCard({
       <div className="flex items-center justify-between mb-0.5">
         <span className="font-medium text-sm">{config.info.display_name}</span>
         {config.is_overridden ? (
-          <Badge variant="default" className="text-[10px] px-1.5 py-0">
+          <Badge variant="default" className="text-px-10 px-1.5 py-0">
             {t('settings.admin.llmConfig.types.overridden')}
           </Badge>
         ) : (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+          <Badge variant="secondary" className="text-px-10 px-1.5 py-0">
             {t('settings.admin.llmConfig.types.default')}
           </Badge>
         )}
       </div>
-      <p className="text-[11px] text-muted-foreground mb-1.5 line-clamp-1">
+      <p className="text-px-11 text-muted-foreground mb-1.5 line-clamp-1">
         {t(config.info.description_key)}
       </p>
       <div className="text-xs text-muted-foreground flex items-center gap-2">
@@ -293,7 +293,7 @@ function ParamTooltip({ text }: { text: string }) {
   return (
     <span className="group relative inline-flex ml-1">
       <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-md bg-popover px-3 py-2 text-[11px] text-popover-foreground shadow-md border opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 leading-relaxed">
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-md bg-popover px-3 py-2 text-px-11 text-popover-foreground shadow-md border opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 leading-relaxed">
         {text}
       </span>
     </span>
@@ -322,7 +322,7 @@ function OverridableFieldLabel({
       <Label id={labelId}>{t(labelKey)}</Label>
       {tooltipKey && <ParamTooltip text={t(tooltipKey)} />}
       {modified && (
-        <Badge variant="default" className="text-[10px] px-1 py-0">
+        <Badge variant="default" className="text-px-10 px-1 py-0">
           {t('settings.admin.llmConfig.types.overridden')}
         </Badge>
       )}
@@ -801,7 +801,7 @@ function TTSProviderConfigBlock({
       )}
 
       {voicesData?.source === 'live' && provider === 'elevenlabs' && (
-        <p className="text-[11px] text-emerald-500">
+        <p className="text-px-11 text-emerald-500">
           {t('settings.admin.llmConfig.voiceTts.liveCatalogue')}
         </p>
       )}
@@ -966,7 +966,7 @@ function OllamaCatalogueNote({
   const undescribed = data.undescribed?.length ?? 0;
   return (
     <>
-      <p className={`text-[11px] mt-1 ${live ? 'text-emerald-500' : 'text-amber-500'}`}>
+      <p className={`text-px-11 mt-1 ${live ? 'text-emerald-500' : 'text-amber-500'}`}>
         {t(`settings.admin.llmConfig.ollama.${live ? 'live' : 'fallback'}`)}
       </p>
       {/* Tags the server listed and described NOTHING about carry no
@@ -974,7 +974,7 @@ function OllamaCatalogueNote({
           offer them — but the field above still accepts a typed name, and a
           silent absence would read as "the server does not have it". */}
       {undescribed > 0 && (
-        <p className="text-[11px] mt-1 text-amber-500">
+        <p className="text-px-11 mt-1 text-amber-500">
           {t('settings.admin.llmConfig.ollama.undescribed', { count: undescribed })}
         </p>
       )}
@@ -1203,7 +1203,7 @@ function SamplingFields({
           onValueChange={raw => setForm({ ...form, context_window: fromK(raw) })}
           t={t}
         />
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-px-11 text-muted-foreground">
           {discoveredWindow?.max_context_window
             ? t('settings.admin.llmConfig.fields.contextWindowCeiling', {
                 max: toK(discoveredWindow.max_context_window),
@@ -1214,7 +1214,7 @@ function SamplingFields({
         {discoveredWindow && !discoveredWindow.is_cloud && (
           // Said only for a LOCAL tag: the cap protects THIS machine's memory,
           // and there is none of ours to protect on somebody else's.
-          <p className="text-[11px] text-amber-600 dark:text-amber-500">
+          <p className="text-px-11 text-amber-600 dark:text-amber-500">
             {t('settings.admin.llmConfig.fields.contextWindowLocalCap')}
           </p>
         )}

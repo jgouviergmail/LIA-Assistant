@@ -490,7 +490,7 @@ function ImageExpiryNotice({
 }) {
   const { t, i18n } = useTranslation();
   if (kept) {
-    return <p className="mt-1 text-[11px] text-primary">{t(`chat.${family}_expiry.kept`)}</p>;
+    return <p className="mt-1 text-px-11 text-primary">{t(`chat.${family}_expiry.kept`)}</p>;
   }
   // Read once per render: the notice is informational, not a live countdown —
   // a ticking timer on every image card would re-render the whole thread.
@@ -499,7 +499,7 @@ function ImageExpiryNotice({
 
   if (expiry.kind === 'expired') {
     return (
-      <p className="mt-1 text-[11px] text-muted-foreground">{t(`chat.${family}_expiry.expired`)}</p>
+      <p className="mt-1 text-px-11 text-muted-foreground">{t(`chat.${family}_expiry.expired`)}</p>
     );
   }
 
@@ -510,7 +510,7 @@ function ImageExpiryNotice({
   return (
     <p
       className={cn(
-        'mt-1 text-[11px]',
+        'mt-1 text-px-11',
         expiry.kind === 'soon' ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground'
       )}
     >
@@ -535,7 +535,7 @@ function GoneFileCard({ family, name }: { family: 'image' | 'document'; name: st
       className="w-full max-w-[512px] mx-auto rounded-lg border border-dashed bg-muted/30 p-3"
     >
       <div className="truncate text-sm font-medium text-muted-foreground">{name}</div>
-      <p className="mt-1 text-[11px] text-muted-foreground">{t(`chat.${family}_expiry.gone`)}</p>
+      <p className="mt-1 text-px-11 text-muted-foreground">{t(`chat.${family}_expiry.gone`)}</p>
     </div>
   );
 }
@@ -791,7 +791,7 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
           </div>
           <div className="flex items-center gap-1.5 mt-1.5 px-1">
             <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-            <span className="text-[10px] text-muted-foreground truncate">
+            <span className="text-px-10 text-muted-foreground truncate">
               {t('browser.screenshot.finalCard')}
             </span>
           </div>
@@ -884,7 +884,7 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachmentMet
               <FileText className="h-4 w-4 flex-shrink-0" />
               <div className="min-w-0">
                 <p className="text-xs font-medium truncate max-w-[120px]">{att.filename}</p>
-                <p className="text-[10px] opacity-70">{formatFileSize(att.size)}</p>
+                <p className="text-px-10 opacity-70">{formatFileSize(att.size)}</p>
               </div>
             </a>
           );
@@ -1084,9 +1084,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
         {/* System message content */}
         <div className="flex flex-col flex-1 max-w-2xl">
           <div className="px-4 py-3 rounded-xl shadow-md bg-card/70 backdrop-blur-md border border-warning/20">
-            <p className="text-[13px] mobile:text-sm text-muted-foreground">{message.content}</p>
+            <p className="text-px-13 mobile:text-sm text-muted-foreground">{message.content}</p>
           </div>
-          <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium">
+          <span className="text-px-11 mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium">
             {formatTime(message.timestamp)}
           </span>
         </div>
@@ -1228,7 +1228,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
               />
             )}
           </div>
-          <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
+          <span className="text-px-11 mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
             {formatTime(message.timestamp)}
             <LiveOriginMark metadata={message.metadata} />
             {/* ADR-117 Lot 3: partial answer of a cancelled/interrupted run.
@@ -1311,7 +1311,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
             searchHighlight={props.searchHighlight}
           />
         </div>
-        <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-left">
+        <span className="text-px-11 mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-left">
           {formatTime(message.timestamp)}
           <PhoneOriginMark metadata={message.metadata} />
           <LiveOriginMark metadata={message.metadata} />

@@ -38,6 +38,7 @@ from src.domains.rag_spaces.repository import (
     RAGDocumentRepository,
     RAGSpaceRepository,
 )
+from src.domains.rag_spaces.storage_paths import stored_file_path
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
@@ -492,9 +493,7 @@ async def process_document(
             await db.commit()
 
             # 1. Extract text
-            file_path = (
-                Path(settings.rag_spaces_storage_path) / str(user_id) / str(space_id) / filename
-            )
+            file_path = stored_file_path(user_id, space_id, filename)
             if not file_path.exists():
                 await _mark_document_error(
                     doc_repo,

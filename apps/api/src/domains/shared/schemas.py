@@ -34,6 +34,9 @@ from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
+    USER_FONT_SIZE_DEFAULT_PX,
+    USER_FONT_SIZE_MAX_PX,
+    USER_FONT_SIZE_MIN_PX,
 )
 from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
 from src.core.security import validate_password_strict
@@ -349,6 +352,13 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
         default="system",
         description="User font family: system, noto-sans, plus-jakarta-sans, ibm-plex-sans, geist, source-sans-pro, merriweather, libre-baskerville, fira-code",
     )
+    font_size: int = Field(
+        default=USER_FONT_SIZE_DEFAULT_PX,
+        description=(
+            "Interface text size in CSS px at the browser's default root size "
+            f"({USER_FONT_SIZE_MIN_PX}-{USER_FONT_SIZE_MAX_PX})"
+        ),
+    )
     # Image Generation preferences
     image_generation_enabled: bool = Field(default=False, description="AI image generation enabled")
     image_generation_default_quality: str = Field(
@@ -490,6 +500,12 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_font_family_default(cls, v: str | None) -> str:
         """Ensure font_family defaults to 'system' if None."""
         return v if v is not None else "system"
+
+    @field_validator("font_size", mode="before")
+    @classmethod
+    def set_font_size_default(cls, v: int | None) -> int:
+        """Ensure font_size defaults to the default size if None."""
+        return v if v is not None else USER_FONT_SIZE_DEFAULT_PX
 
 
 class ProvenanceItem(BaseModel):

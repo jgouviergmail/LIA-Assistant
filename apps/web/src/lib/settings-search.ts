@@ -145,6 +145,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'personalization',
     gate: { kind: 'always' },
   },
+  'font-size': {
+    titleKey: 'settings.font_size.title',
+    descriptionKey: 'settings.font_size.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.font-size`,
+    group: 'personalization',
+    gate: { kind: 'always' },
+  },
   'eyes-style': {
     titleKey: 'settings.eyes_style.title',
     descriptionKey: 'settings.eyes_style.description',

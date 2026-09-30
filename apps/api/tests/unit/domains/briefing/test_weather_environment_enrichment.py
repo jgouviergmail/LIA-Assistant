@@ -10,6 +10,7 @@ a briefing must never break because air quality could not be fetched.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -37,6 +38,7 @@ def _build(environment: dict[str, Any] | None) -> WeatherData:
         user_tz=ZoneInfo("Europe/Paris"),
         daily_forecast_days=5,
         environment=environment,
+        now=datetime(2026, 8, 27, 12, 0, tzinfo=UTC),
     )
 
 

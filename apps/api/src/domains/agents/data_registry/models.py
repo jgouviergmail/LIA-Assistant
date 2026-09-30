@@ -29,9 +29,11 @@ Created: 2025-11-27
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from src.core.field_names import FIELD_DISPLAY_ONLY
 
 
 class RegistryItemType(str, Enum):
@@ -158,6 +160,14 @@ class RegistryItemMeta(BaseModel):
         default=None,
         description="Registry ID of parent item for correlated display (e.g., Route correlated to Event)",
     )
+    display: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Payload fields a tool withheld from the model but the card still draws "
+            "(e.g. an e-mail body under detail=metadata). Card renderers merge them "
+            "over the payload (card_payload); no model projection reads meta."
+        ),
+    )
 
 
 class RegistryItem(BaseModel):
@@ -219,6 +229,22 @@ class RegistryItem(BaseModel):
     )
 
     model_config = {}  # datetime serializes to ISO format by default in Pydantic v2
+
+    @model_validator(mode="after")
+    def _hold_display_fields_in_meta(self) -> Self:
+        """No payload carries display-only fields, whoever built the item.
+
+        Model projections read payloads, never ``meta`` (ADR-287 amendment).
+        The input dict is never mutated: a resolved reference in graph state
+        keeps its display fields for the card of a later turn.
+        """
+        display = self.payload.get(FIELD_DISPLAY_ONLY)
+        if display is None:
+            return self
+        self.payload = {k: v for k, v in self.payload.items() if k != FIELD_DISPLAY_ONLY}
+        if isinstance(display, dict):
+            self.meta.display = {**self.meta.display, **display}
+        return self
 
 
 def generate_registry_id(item_type: RegistryItemType, unique_key: str) -> str:

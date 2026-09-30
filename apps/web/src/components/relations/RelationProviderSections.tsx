@@ -191,7 +191,7 @@ export function ProviderEmailsSection({
               {received ? t('relations.peer_message_received') : t('relations.peer_message_sent')}
             </Badge>
             {email.occurred_at && (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-px-11 text-muted-foreground">
                 {timeAgoLabel(t, email.occurred_at)}
               </span>
             )}
@@ -201,7 +201,7 @@ export function ProviderEmailsSection({
                 under the 4.5:1 AA floor (axe, production bundle) — the same
                 trap already closed on the relayed-message placeholder. */}
             {absolute(email.occurred_at) && (
-              <span className="text-[11px] tabular-nums text-muted-foreground">
+              <span className="text-px-11 tabular-nums text-muted-foreground">
                 {absolute(email.occurred_at)}
               </span>
             )}
@@ -236,7 +236,7 @@ export function ProviderEmailsSection({
       )}
 
       {/* The scope, never a total: a window is not the whole mailbox. */}
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-px-11 text-muted-foreground">
         {t('relations.emails_window', { count: windowDays })}
       </p>
     </CollapsibleSection>
@@ -252,13 +252,13 @@ function EventRow({ event, showRole }: { event: SharedEvent; showRole: boolean }
       <p className="flex flex-wrap items-baseline gap-2 text-sm text-foreground/90">
         {event.summary}
         {event.starts_at && (
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-px-11 text-muted-foreground">
             {timeAgoLabel(t, event.starts_at)}
           </span>
         )}
         {/* A meeting is a SLOT: the reader needs the day and both hours to
             know whether they can be there, not only how far off it is. */}
-        {slot && <span className="text-[11px] tabular-nums text-muted-foreground">{slot}</span>}
+        {slot && <span className="text-px-11 tabular-nums text-muted-foreground">{slot}</span>}
         {showRole && (
           // The house badge rather than a grey inline span: a role is a fact
           // about the meeting, and it sat next to an "upcoming" pill that was
@@ -310,7 +310,7 @@ export function ProviderEventsSection({
       {events.map(event => (
         <EventRow key={event.id} event={event} showRole={showRole} />
       ))}
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-px-11 text-muted-foreground">
         {t('relations.events_window', { count: windowDays })}
       </p>
     </CollapsibleSection>

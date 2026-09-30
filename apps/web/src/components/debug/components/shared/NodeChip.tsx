@@ -30,7 +30,7 @@ export const NodeChip = React.memo(function NodeChip({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap',
+        'inline-flex items-center rounded-full border px-1.5 py-0.5 font-mono text-px-10 whitespace-nowrap',
         nodeChipClasses(nodeName),
         className
       )}

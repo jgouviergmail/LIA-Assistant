@@ -30,7 +30,7 @@ def no_dns(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_validate(url: str) -> UrlValidationResult:
         if "internal" in url:
             return UrlValidationResult(valid=False, url=url, error="blocked")
-        return UrlValidationResult(valid=True, url=url)
+        return UrlValidationResult(valid=True, url=url, resolved_ips=("93.184.216.34",))
 
     monkeypatch.setattr(fetch_module, "validate_url", fake_validate)
 

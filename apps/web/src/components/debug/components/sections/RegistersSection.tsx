@@ -101,7 +101,7 @@ export const RegistersSection = React.memo(function RegistersSection({
               when this reaches the browser. Saying so is the difference
               between a reading and a verdict. */}
           {!decision.settled && (
-            <p className="pt-0.5 text-[10px] italic text-muted-foreground">
+            <p className="pt-0.5 text-px-10 italic text-muted-foreground">
               Read live — the register row is written when the turn closes.
             </p>
           )}
@@ -111,11 +111,11 @@ export const RegistersSection = React.memo(function RegistersSection({
       <div className="space-y-1">
         <SubSectionHeader label="Consulted" borderTop={Boolean(decision)} />
         {treatments.count === 0 ? (
-          <p className="text-[10px] italic text-muted-foreground">
+          <p className="text-px-10 italic text-muted-foreground">
             This turn opened none of the person&apos;s sources.
           </p>
         ) : (
-          <div className="space-y-0.5 text-[10px] text-muted-foreground">
+          <div className="space-y-0.5 text-px-10 text-muted-foreground">
             {treatments.entries.map((entry, index) => (
               <div
                 key={`${entry.tool_name}-${index}`}
@@ -160,7 +160,7 @@ function SilentCorrections({ verdicts }: { verdicts: RegistersMetrics['verdicts'
   return (
     <div className="space-y-1">
       <SubSectionHeader label="Silently corrected" borderTop />
-      <div className="space-y-0.5 text-[10px] text-muted-foreground">
+      <div className="space-y-0.5 text-px-10 text-muted-foreground">
         {verdicts.entries.map((entry, index) => (
           <div key={`${entry.kind}-${index}`} className="flex items-center justify-between gap-2">
             <span className={cn('font-mono', TONE_TEXT.warning)}>
@@ -177,7 +177,7 @@ function SilentCorrections({ verdicts }: { verdicts: RegistersMetrics['verdicts'
       {/* A capped list that does not say it is capped reads as an exact
           count (ADR-185). */}
       {verdicts.dropped > 0 && (
-        <p className="text-[10px] italic text-muted-foreground">
+        <p className="text-px-10 italic text-muted-foreground">
           +{verdicts.dropped} more, past the per-turn cap.
         </p>
       )}

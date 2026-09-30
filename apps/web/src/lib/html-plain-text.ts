@@ -4,7 +4,9 @@
  * Owns the client-side "is this really HTML?" detection and the multi-line
  * flattener. `notification-preview.ts` builds its single-line toast previews
  * on top; `message-clipboard.ts` uses the multi-line form for the clipboard
- * text/plain flavor, the native share sheet and the .md export.
+ * text/plain flavor and the native share sheet. A `.md` FILE is written as
+ * Markdown instead (`message-markdown.ts`), and falls back to this flattener
+ * only where no DOM parser exists.
  *
  * XSS note: everything here produces TEXT rendered as escaped React children
  * or written to the clipboard. It is a legibility helper, never a sanitizer —
@@ -69,9 +71,16 @@ export const BLOCK_RE = /<(head|style|script)\b[^<>]*(?<!\/)>[\s\S]*?(?:<\/\1\s*
  * "event Déjeuner avec Marie". Dropped whole, content included.
  *
  * Mirrors `_ICON_SPAN_RE` in `apps/api/src/domains/agents/display/plain_text.py`.
+ *
+ * Linear by construction (ADR-326): the class value before the literal is a
+ * TEMPERED run — `(?:(?!literal)[^"'])*` — so the literal is anchored to its
+ * first occurrence and an unclosed quote is scanned once. With a plain `[^"']*`
+ * on both sides, a value repeating the class name with no closing quote made
+ * the engine retry every occurrence: measured ×16 for ×4 the text; the tempered
+ * form ×3.7, and 177 155 exhaustive short strings match identically.
  */
 export const ICON_SPAN_RE =
-  /<span[^<>]*class=["'][^"']*material-symbols-outlined[^"']*["'][^<>]*>[^<]*<\/span\s*>/gi;
+  /<span[^<>]*?class=["'](?:(?!material-symbols-outlined)[^"'])*material-symbols-outlined[^"']*["'][^<>]*>[^<]*<\/span\s*>/gi;
 
 /**
  * The named entities worth decoding on a client surface. Deliberately a fixed

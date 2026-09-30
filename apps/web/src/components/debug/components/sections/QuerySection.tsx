@@ -51,7 +51,7 @@ export const QuerySection = React.memo(function QuerySection({
 
         {/* Original query */}
         <div>
-          <div className="mb-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <div className="mb-0.5 text-px-10 uppercase tracking-wide text-muted-foreground">
             Original query
           </div>
           <div className="rounded border border-border/50 bg-muted/50 p-2 text-xs">
@@ -66,7 +66,7 @@ export const QuerySection = React.memo(function QuerySection({
 
         {/* English query */}
         <div>
-          <div className="mb-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <div className="mb-0.5 text-px-10 uppercase tracking-wide text-muted-foreground">
             English query (processing)
           </div>
           <div className="rounded border border-border/50 bg-muted/50 p-2 text-xs">
@@ -81,7 +81,7 @@ export const QuerySection = React.memo(function QuerySection({
               <span className="text-xs text-muted-foreground">↓ enrichment</span>
             </div>
             <div>
-              <div className="mb-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <div className="mb-0.5 text-px-10 uppercase tracking-wide text-muted-foreground">
                 Enriched query
               </div>
               <div className="rounded border border-primary/20 bg-primary/10 p-2 text-xs font-medium">

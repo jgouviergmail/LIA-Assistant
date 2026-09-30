@@ -25,6 +25,7 @@
 import type { Page } from '@playwright/test';
 
 import { test, expect, type MockRoute } from '../fixtures';
+import { probeControls, waitForStableControls } from './control-probe';
 
 /** Widths that matter: the reflow floor, a common phone, and the tablet/split
  *  band where the nav and the control labels are shown SIMULTANEOUSLY, and
@@ -50,112 +51,18 @@ const ROUTES: MockRoute[] = [
   { url: '**/api/v1/usage/**', json: {} },
 ];
 
-interface HeaderProbe {
-  clipped: Array<{ name: string; overflowPx: number }>;
-  overlaps: string[];
-}
-
-/**
- * Wait until the header stops moving before measuring.
- *
- * Several header controls settle asynchronously — the personality selector
- * swaps a "loading" placeholder for the emoji + title, which changes its
- * width. Measuring during that swap produced a flaky overlap. Rather than
- * waiting on one specific control (brittle, and it would hide a future
- * control with the same behaviour), poll the geometry until two consecutive
- * readings agree.
- */
-async function waitForStableHeader(page: Page): Promise<void> {
-  const signature = () =>
-    page.evaluate(() => {
-      const header = document.querySelector('header');
-      if (!header) return '';
-      return Array.from(header.querySelectorAll('a, button'))
-        .map(el => {
-          const r = el.getBoundingClientRect();
-          return `${Math.round(r.x)}:${Math.round(r.width)}`;
-        })
-        .join('|');
-    });
-
-  let previous = await signature();
-  for (let attempt = 0; attempt < 20; attempt++) {
-    await page.waitForTimeout(100);
-    const current = await signature();
-    if (current === previous && current !== '') return;
-    previous = current;
-  }
-}
-
-/**
- * Measure the header's interactive controls against the viewport.
- *
- * Only LEAF controls are considered (links and buttons): the flex wrappers are
- * elastic by design and their boxes carry no user-facing meaning. A control is
- * "clipped" when its right edge sits past the viewport — with `overflow-x:
- * hidden` on the root, that is exactly the cut the user sees.
- */
-async function probeHeader(page: Page): Promise<HeaderProbe> {
-  return page.evaluate(() => {
-    const header = document.querySelector('header');
-    const viewportWidth = document.documentElement.clientWidth;
-    const clipped: Array<{ name: string; overflowPx: number }> = [];
-    const overlaps: string[] = [];
-    if (!header) return { clipped, overlaps };
-
-    const name = (el: Element): string =>
-      el.getAttribute('aria-label') ||
-      el.getAttribute('title') ||
-      (el.textContent ?? '').trim().slice(0, 24) ||
-      el.tagName.toLowerCase();
-
-    const controls = Array.from(header.querySelectorAll('a, button')).filter(el => {
-      const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0;
-    });
-
-    for (const el of controls) {
-      const r = el.getBoundingClientRect();
-      if (r.right > viewportWidth + 1) {
-        clipped.push({
-          name: name(el),
-          overflowPx: Math.round((r.right - viewportWidth) * 10) / 10,
-        });
-      }
-    }
-
-    for (let i = 0; i < controls.length; i++) {
-      for (let j = i + 1; j < controls.length; j++) {
-        // Skip nesting (a button inside a link): only siblings can "cover".
-        if (controls[i].contains(controls[j]) || controls[j].contains(controls[i])) continue;
-        const a = controls[i].getBoundingClientRect();
-        const b = controls[j].getBoundingClientRect();
-        if (
-          a.left < b.right - 1 &&
-          b.left < a.right - 1 &&
-          a.top < b.bottom - 1 &&
-          b.top < a.bottom - 1
-        ) {
-          overlaps.push(`${name(controls[i])} ×× ${name(controls[j])}`);
-        }
-      }
-    }
-    return { clipped, overlaps };
-  });
-}
-
 /** Every width, one locale: nothing clipped past the viewport, nothing covered. */
 async function assertReachableAtEveryWidth(page: Page, locale: string): Promise<void> {
   await page.goto(`/${locale}/dashboard/chat`);
   await page.locator('header').waitFor({ state: 'visible' });
-  await waitForStableHeader(page);
+  await waitForStableControls(page, 'dashboard-header');
 
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 800 });
     await page.waitForFunction(w => document.documentElement.clientWidth === w, width);
-    await waitForStableHeader(page);
+    await waitForStableControls(page, 'dashboard-header');
 
-    const { clipped, overlaps } = await probeHeader(page);
+    const { clipped, overlaps } = await probeControls(page, 'dashboard-header');
 
     expect(
       clipped,
@@ -226,7 +133,7 @@ test.describe('dashboard header reachability', () => {
     await page.setViewportSize({ width: 390, height: 800 });
     await page.goto('/de/dashboard/chat');
     await page.locator('header').waitFor({ state: 'visible' });
-    await waitForStableHeader(page);
+    await waitForStableControls(page, 'dashboard-header');
 
     const tooSmall = await page.evaluate(() => {
       const header = document.querySelector('header');

@@ -29,7 +29,6 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from fastapi import status
 from prometheus_client import Counter
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +37,6 @@ from src.core.constants import (
     RAG_DRIVE_GOOGLE_EXPORT_MAP,
     RAG_DRIVE_REGULAR_FILE_MAP,
 )
-from src.core.exceptions import BaseAPIException
 from src.domains.rag_spaces.models import (
     RAGDocument,
     RAGDocumentSourceType,
@@ -49,42 +47,16 @@ from src.domains.rag_spaces.repository import (
     RAGChunkRepository,
     RAGDocumentRepository,
 )
+from src.domains.rag_spaces.storage_paths import (  # noqa: F401  (safe_storage_path re-exported for drive_sync)
+    safe_storage_path,
+    stored_file_path,
+)
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import rag_drive_sync_files_total
 
 logger = get_logger(__name__)
 
 _PROCESS_CONCURRENCY = 5
-
-
-def safe_storage_path(base_dir: Path, *segments: str) -> Path:
-    """Build a storage path and verify it stays within the base directory.
-
-    Prevents path-traversal attacks when segments originate from the database.
-
-    Args:
-        base_dir: Trusted root directory (e.g. ``/app/data/rag_uploads``).
-        *segments: Untrusted path components (user_id, space_id, filename).
-
-    Returns:
-        Resolved absolute path guaranteed to be under *base_dir*.
-
-    Raises:
-        BaseAPIException: If the resolved path escapes *base_dir*.
-    """
-    target = (base_dir / Path(*segments)).resolve()
-    if not target.is_relative_to(base_dir.resolve()):
-        logger.error(
-            "rag_path_traversal_blocked",
-            base_dir=str(base_dir),
-            segments=segments,
-        )
-        raise BaseAPIException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file path",
-            log_event="rag_path_traversal_blocked",
-        )
-    return target
 
 
 def is_supported_drive_file(drive_file: dict[str, Any]) -> bool:
@@ -126,12 +98,6 @@ class IngestResult:
 # ============================================================================
 
 
-def _storage_path(user_id: UUID, space_id: UUID, filename: str) -> Path:
-    return safe_storage_path(
-        Path(settings.rag_spaces_storage_path), str(user_id), str(space_id), filename
-    )
-
-
 def _unlink_if_exists(path: Path) -> None:
     if path.exists():
         path.unlink()
@@ -156,7 +122,9 @@ async def discard_document(
 
     Disk I/O runs off the event loop; the row and chunks go in one commit.
     """
-    await asyncio.to_thread(_unlink_if_exists, _storage_path(user_id, space_id, document.filename))
+    await asyncio.to_thread(
+        _unlink_if_exists, stored_file_path(user_id, space_id, document.filename)
+    )
     await RAGChunkRepository(db).delete_by_document(document.id)
     await RAGDocumentRepository(db).delete(document)
     await db.commit()
@@ -195,7 +163,7 @@ async def create_pending_document(
         The ``process_document`` kwargs for the created document.
     """
     stored_filename = f"{uuid_mod.uuid4().hex}{extension}"
-    file_path = _storage_path(user_id, space_id, stored_filename)
+    file_path = stored_file_path(user_id, space_id, stored_filename)
     await asyncio.to_thread(_write_stored_file, file_path, content)
     document = await RAGDocumentRepository(db).create(
         {

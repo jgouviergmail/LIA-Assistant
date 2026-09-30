@@ -17,6 +17,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Accessibility,
+  ALargeSmall,
   AlertTriangle,
   AppWindow,
   ArrowDownCircle,
@@ -225,6 +226,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'haptics',
       'readable_at_a_glance',
       'oled_black',
+      'text_size',
       'a11y_care',
       'frosted_glass',
       'narrow_screens',
@@ -301,6 +303,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   pricing_workbook: FileSpreadsheet,
   readable_at_a_glance: Contrast,
   oled_black: Eclipse,
+  text_size: ALargeSmall,
   a11y_care: Accessibility,
   haptics: Vibrate,
   folded_settings: ChevronsDownUp,
@@ -393,6 +396,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   exchange_rhythm: ['frequent', 'occasional', 'cost'],
   readable_at_a_glance: [],
   oled_black: [],
+  text_size: [],
   a11y_care: [],
   frosted_glass: [],
   provenance_why: [],

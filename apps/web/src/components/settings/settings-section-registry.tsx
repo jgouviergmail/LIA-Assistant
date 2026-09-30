@@ -52,6 +52,7 @@ import ConsumptionExportSection from './ConsumptionExportSection';
 import { DeviceSessionsSettings } from './DeviceSessionsSettings';
 import { EyesStyleSettings } from './EyesStyleSettings';
 import { FontSettings } from './FontSettings';
+import { FontSizeSettings } from './FontSizeSettings';
 import { HabitsSettings } from './HabitsSettings';
 import { HapticsSettings } from './HapticsSettings';
 import { HealthMetricsSettings } from './HealthMetricsSettings';
@@ -102,6 +103,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   location: { render: lng => <LocationSettings lng={lng} /> },
   theme: { render: lng => <ThemeSelector lng={lng} /> },
   font: { render: lng => <FontSettings lng={lng} /> },
+  'font-size': { render: lng => <FontSizeSettings lng={lng} /> },
   'eyes-style': { render: lng => <EyesStyleSettings lng={lng} /> },
   'display-mode': { render: lng => <CardsDisplaySettings lng={lng} /> },
   'usage-preferences': { render: lng => <UsagePreferencesSettings lng={lng} /> },

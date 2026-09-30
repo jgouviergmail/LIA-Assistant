@@ -53,7 +53,7 @@ export function SecurityDetail({ t, lng }: { t: Translate; lng: string }) {
       <ul className="mt-4 grid list-none grid-cols-1 gap-4 md:grid-cols-2">
         {SECURITY_BLOCKS.map(({ key, icon: Icon }) => (
           <li key={key} className="rounded-xl border border-border bg-background p-5">
-            <h5 className="flex items-center gap-2 text-[13px] font-semibold">
+            <h5 className="flex items-center gap-2 text-px-13 font-semibold">
               <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />
               {t(`landing.security.${key}.title`)}
             </h5>
@@ -64,7 +64,7 @@ export function SecurityDetail({ t, lng }: { t: Translate; lng: string }) {
         ))}
       </ul>
       <div className="mt-5 rounded-xl border border-dashed border-border bg-muted/30 p-4">
-        <h5 className="flex items-center gap-2 text-[13px] font-semibold">
+        <h5 className="flex items-center gap-2 text-px-13 font-semibold">
           <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />
           {t('landing.security.standards.title')}
         </h5>
@@ -72,7 +72,7 @@ export function SecurityDetail({ t, lng }: { t: Translate; lng: string }) {
           {STANDARDS.map(name => (
             <li
               key={name}
-              className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium"
+              className="rounded-full border border-border bg-background px-2.5 py-1 text-px-11 font-medium"
             >
               {name}
             </li>

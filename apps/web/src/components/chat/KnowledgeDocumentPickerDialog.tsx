@@ -185,7 +185,7 @@ export function KnowledgeDocumentPickerDialog({
                         <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                           <span className="truncate">{doc.space_name}</span>
                           {!doc.space_is_active && (
-                            <Badge variant="outline" className="h-4 px-1 text-[10px] font-normal">
+                            <Badge variant="outline" className="h-4 px-1 text-px-10 font-normal">
                               {t('chat.knowledge_picker.inactive_badge')}
                             </Badge>
                           )}

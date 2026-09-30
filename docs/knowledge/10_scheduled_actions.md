@@ -143,6 +143,7 @@ Yes. When you create or edit a routine, first choose **when it runs**: *on a sch
 • At a regular interval, day and night — the dialog and the card say how often; the weather is checked less often than your mail, tasks, calendar and documents
 • It runs only when something **new** is there: the same mail, task or event never triggers it twice
 • A daily limit on runs, shown in the dialog; something new past it waits for the next day
+• **A weather change** is read from **Google Weather**, the weather source your instance provides to every account — whatever weather service you set up for yourself: rain, drizzle, snow or a thunderstorm forecast within the next few hours, with a likely enough chance of precipitation. The dialog states the horizon and the threshold, and the run is told the hour, the day, the chance and the source
 
 **📅 Until when:**
 • *Watch until* is optional: the routine stops after that day, or keeps watching until you pause it
@@ -152,3 +153,22 @@ Yes. When you create or edit a routine, first choose **when it runs**: *on a sch
 • **Check now** instead of Test: a real check, which runs the routine only if something new is there
 
 A night-time fact is announced at night: there are no quiet hours yet.
+
+## How does a routine watching for a weather change work?
+It always reads **Google Weather**, the weather source your instance provides to
+every account — whatever weather service you set up for yourself.
+
+**🌦️ What triggers it:**
+• Rain, drizzle, snow or a thunderstorm forecast within the next few hours — **4 hours** by default
+• With a chance of precipitation **above 50%** by default
+• Only for the phenomena ticked in the routine
+
+The editor shows your instance's horizon and threshold under the condition.
+
+**🧭 What LIA is told:** the hour, the day, the chance and the source of the
+change, so the run knows exactly what to check.
+
+**📅 Once a day per phenomenon:** a second shower the same day does not run the
+routine again. During the run, LIA reads the weather with your own tools: if
+your service differs from Google Weather, the answer can say which source saw
+the change.

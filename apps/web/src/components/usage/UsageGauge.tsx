@@ -61,7 +61,7 @@ export function UsageGauge({
   const pct = detail.usage_pct ?? 0;
   const cappedPct = Math.min(pct, 100);
   const barColor = getGaugeColor(detail.usage_pct);
-  const textSize = size === 'sm' ? 'text-[10px]' : 'text-xs';
+  const textSize = size === 'sm' ? 'text-px-10' : 'text-xs';
 
   return (
     <div className="space-y-0.5">

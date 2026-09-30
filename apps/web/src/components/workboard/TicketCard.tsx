@@ -177,7 +177,7 @@ function CardHead({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-2 text-[11px]">
+    <div className="flex items-center gap-2 text-px-11">
       <Badge variant="outline" icon={partyIcon(holder.kind, BADGE_GLYPH)}>
         {partyLabel(holder, t)}
       </Badge>
@@ -224,7 +224,7 @@ function CardMeta({
   const { t } = useTranslation();
   const dated = ticket.due_at;
   return (
-    <div className="mt-2 space-y-1 text-[11px]">
+    <div className="mt-2 space-y-1 text-px-11">
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {/* The bell leads the line and the date follows it (owner, 2026-09-10):
             « will the chat tell me, and by when » is one question. */}
@@ -280,7 +280,7 @@ function RunFailureLine({ ticket, run }: { ticket: TicketRow; run: RunState }) {
   const failure = runFailure(t, ticket.last_run_error);
   if (!failure || run !== 'failed') return null;
   return (
-    <p className="mt-2 truncate text-[11px] text-destructive" title={failure.detail ?? failure.label}>
+    <p className="mt-2 truncate text-px-11 text-destructive" title={failure.detail ?? failure.label}>
       {failure.label}
     </p>
   );

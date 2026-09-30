@@ -32,7 +32,7 @@ export const RetrievalSettingsBar = React.memo(function RetrievalSettingsBar({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-muted/20 p-2 text-[10px] text-muted-foreground',
+        'flex flex-wrap items-center gap-x-3 gap-y-1 rounded bg-muted/20 p-2 text-px-10 text-muted-foreground',
         className
       )}
     >

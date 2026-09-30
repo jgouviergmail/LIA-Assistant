@@ -39,7 +39,7 @@ export function InteractiveChatMockup({ lng, withCta = true }: InteractiveChatMo
               aria-pressed={sceneId === scene.id}
               onClick={() => select(scene.id)}
               className={cn(
-                'flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                'flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-px-11 font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                 sceneId === scene.id
                   ? cn(tone.border, tone.surface, tone.text)
                   : 'border-border bg-background/70 text-muted-foreground hover:text-foreground'
@@ -54,7 +54,7 @@ export function InteractiveChatMockup({ lng, withCta = true }: InteractiveChatMo
       <div className="flex min-h-7 items-center justify-between gap-2">
         <ol
           aria-label={t(`${PRODUCT_DEMO_KEY}.steps`)}
-          className="flex gap-2 text-[10px] sm:gap-3 sm:text-[11px]"
+          className="flex gap-2 text-px-10 sm:gap-3 sm:text-px-11"
         >
           {['request', 'context', 'result'].map((step, i) => (
             <li

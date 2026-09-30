@@ -31,18 +31,44 @@ import re
 from collections.abc import Callable
 from typing import Final
 
+from src.core.constants import MARKDOWN_SPAN_MAX_CHARS
 from src.domains.shared.markdown_literal import read_as_markdown
 
 #: Characters per token the estimator assumes for Latin text.
 CHARS_PER_TOKEN: Final = 4
-_CJK: Final = re.compile("[぀-ヿ㐀-䶿一-鿿豈-﫿가-힯]")
+#: The scripts whose every character is a token: Hiragana and Katakana, the
+#: CJK unified ideographs (extension A included), the compatibility ideographs,
+#: Hangul. Written as escapes, NEVER as literal characters (ADR-326): the
+#: literal « 豈 » that opened the compatibility range was silently normalised
+#: (NFC) to U+8C48, and the range became U+8C48–U+FAFF — 28 000 characters
+#: wide, overlapping the ideographs and the Hangul, and counting every
+#: private-use, Yi or Devanagari-extended character as a token. The browser's
+#: twin (``lib/live/delegation.ts``) declares the same ranges, and
+#: ``test_projection_cjk.py`` holds them equal and disjoint.
+CJK_RANGES: Final[tuple[tuple[int, int], ...]] = (
+    (0x3040, 0x30FF),
+    (0x3400, 0x4DBF),
+    (0x4E00, 0x9FFF),
+    (0xF900, 0xFAFF),
+    (0xAC00, 0xD7AF),
+)
+_CJK: Final = re.compile(
+    "[" + "".join(f"\\u{low:04x}-\\u{high:04x}" for low, high in CJK_RANGES) + "]"
+)
 
+#: Linear by construction (ADR-326): a list or heading marker is preceded by
+#: BLANKS of its own line (``[ \t]``), never by ``\s``, which crossed the
+#: newlines — at every line start the rule swallowed the rest of a run of empty
+#: lines before failing, and 40 KB of newlines cost 14 s. A link's label and
+#: target are bounded like every paired span of the flatteners.
 _FENCE: Final = re.compile(r"```[\s\S]*?```")
-_HEADING: Final = re.compile(r"^#{1,6}\s+(.+)$", re.MULTILINE)
-_LINK: Final = re.compile(r"\[([^\]]+)\]\([^)]*\)")
+_HEADING: Final = re.compile(r"^#{1,6}[ \t]+(.+)$", re.MULTILINE)
+_LINK: Final = re.compile(
+    rf"\[([^\]]{{1,{MARKDOWN_SPAN_MAX_CHARS}}})\]\([^)]{{0,{MARKDOWN_SPAN_MAX_CHARS}}}\)"
+)
 _MARKS: Final = re.compile(r"[*_`~]+")
-_BULLET: Final = re.compile(r"^\s*[-*+•]\s+(.+)$", re.MULTILINE)
-_NUMBERED: Final = re.compile(r"^\s*\d+[.)]\s+(.+)$", re.MULTILINE)
+_BULLET: Final = re.compile(r"^[ \t]*[-*+•][ \t]+(.+)$", re.MULTILINE)
+_NUMBERED: Final = re.compile(r"^[ \t]*\d+[.)][ \t]+(.+)$", re.MULTILINE)
 _DOTS: Final = re.compile(r"\.{2,}")
 _SPACES: Final = re.compile(r"\s+")
 

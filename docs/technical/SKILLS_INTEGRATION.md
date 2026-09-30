@@ -326,10 +326,10 @@ Error `detail` prefixes are a stable frontend contract (`url_not_https`,
 `url_blocked`, `url_fetch_failed`, `url_too_large`, `url_not_skill_content`)
 mapped to localized toasts. Outcomes are counted in
 `skill_url_imports_total{outcome}` (ok | blocked | too_large | fetch_failed |
-invalid_content | pipeline_rejected). Residual DNS-rebinding risk (resolve
-then connect without IP pinning) is documented in `url_import.py` with its
-mitigations; an IP-pinned transport or hostname allowlist are noted as future
-hardening.
+invalid_content | pipeline_rejected). The request connects to the address
+the validator resolved (`pinned_stream`, [ADR-326](../architecture/ADR-326-Linear-Flatteners-And-Pinned-Fetches.md)):
+the name travels in `Host` and the SNI, so a DNS answer that changes between
+the check and the connection (rebinding) reaches nothing.
 
 ## Configuration
 

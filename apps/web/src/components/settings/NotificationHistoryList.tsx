@@ -142,7 +142,7 @@ export function NotificationHistoryList({
                 {row.chips.map(chip => (
                   <span
                     key={chip.key}
-                    className="rounded border border-border/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    className="rounded border border-border/40 px-1.5 py-0.5 text-px-10 text-muted-foreground"
                   >
                     {chip.label}
                   </span>

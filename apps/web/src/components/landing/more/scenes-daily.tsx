@@ -228,7 +228,7 @@ function ServerEscapeHatchScene({ active }: SceneProps) {
                 )}
               />
             ) : (
-              <span className="w-12 truncate text-[7px] leading-none text-destructive line-through">
+              <span className="w-12 truncate text-px-7 leading-none text-destructive line-through">
                 https://oops.
               </span>
             )}
@@ -362,7 +362,7 @@ function FoldedSettingsScene({ active }: SceneProps) {
             {/* Refused-source count: the one thing that must stay readable
                 while the block is shut. */}
             {row === 1 && (
-              <span className="ml-auto rounded-full bg-muted px-1.5 text-[9px] tabular-nums text-muted-foreground">
+              <span className="ml-auto rounded-full bg-muted px-1.5 text-px-9 tabular-nums text-muted-foreground">
                 2
               </span>
             )}
@@ -487,7 +487,7 @@ function WeekGridScene({ active }: SceneProps) {
                   {chip && (
                     <span
                       className={cn(
-                        'inline-flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[9px] font-semibold tabular-nums transition-colors duration-500',
+                        'inline-flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-px-9 font-semibold tabular-nums transition-colors duration-500',
                         tone ? WEEK_TONE_CLASS[tone] : 'border-border bg-background text-foreground'
                       )}
                     >
@@ -523,7 +523,7 @@ function PhoneChannelScene({ active, labels }: SceneProps) {
     <div className={cn(STAGE, 'justify-end gap-1.5')}>
       <div
         className={cn(
-          'flex items-center gap-1.5 self-stretch rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[10px] transition-all duration-300',
+          'flex items-center gap-1.5 self-stretch rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-px-10 transition-all duration-300',
           phase === 'ringing' || phase === 'talking'
             ? 'translate-y-0 opacity-100'
             : '-translate-y-1 opacity-0'
@@ -582,7 +582,7 @@ function LiveBandScene({ active, labels }: SceneProps) {
   const working = phase === 'working';
   return (
     <div className={cn(STAGE, 'justify-start gap-1.5')}>
-      <div className="flex items-center gap-1.5 self-stretch rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[10px]">
+      <div className="flex items-center gap-1.5 self-stretch rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-px-10">
         <AudioLines
           className={cn('h-3 w-3 shrink-0 text-primary', !working && 'motion-safe:animate-pulse')}
         />
@@ -610,7 +610,7 @@ function LiveBandScene({ active, labels }: SceneProps) {
       </MiniBubble>
       <div
         className={cn(
-          'ml-1 border-l-2 border-primary/30 pl-2 text-[9px] text-muted-foreground transition-opacity duration-300',
+          'ml-1 border-l-2 border-primary/30 pl-2 text-px-9 text-muted-foreground transition-opacity duration-300',
           phase === 'meter' ? 'opacity-100' : 'opacity-0'
         )}
       >
@@ -651,7 +651,7 @@ function ExchangeRhythmScene({ active, labels }: SceneProps) {
       <div className="grid w-full max-w-[220px] grid-cols-2 gap-3">
         {(['frequent', 'occasional'] as const).map(rhythm => (
           <div key={rhythm} className="flex flex-col items-center gap-1.5">
-            <span className="truncate text-[10px] font-medium text-foreground/80">
+            <span className="truncate text-px-10 font-medium text-foreground/80">
               {labels[rhythm]}
             </span>
             <div className="flex h-14 w-full items-end justify-center gap-1.5 border-b border-border">
@@ -668,7 +668,7 @@ function ExchangeRhythmScene({ active, labels }: SceneProps) {
           </div>
         ))}
       </div>
-      <span className="text-[9px] text-muted-foreground">{labels.cost}</span>
+      <span className="text-px-9 text-muted-foreground">{labels.cost}</span>
     </div>
   );
 }
@@ -689,7 +689,7 @@ function RadioCompanionScene({ active, labels }: SceneProps) {
     <div className={cn(STAGE, 'justify-center gap-2')}>
       <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-primary">
         <Radio className="h-4 w-4 motion-safe:animate-pulse" aria-hidden="true" />
-        <span className="text-[10px] font-semibold">{labels[phase]}</span>
+        <span className="text-px-10 font-semibold">{labels[phase]}</span>
       </div>
       <div className="flex items-end gap-1" aria-hidden="true">
         {[2, 4, 3, 5, 2, 4, 3].map((height, index) => (

@@ -160,7 +160,7 @@ export function DeviceSessionsSettings() {
                   {deviceIcon(session)}
                   <span className="text-sm font-medium truncate">{sessionName(session)}</span>
                   {session.current && (
-                    <Badge variant="secondary" className="text-[10px]">
+                    <Badge variant="secondary" className="text-px-10">
                       {t('settings.security.devices.current')}
                     </Badge>
                   )}

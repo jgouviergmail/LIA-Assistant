@@ -537,7 +537,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
     );
 
     return (
-      <div className={cn('markdown-content text-[13px] mobile:text-sm leading-relaxed', className)}>
+      <div className={cn('markdown-content text-px-13 mobile:text-sm leading-relaxed', className)}>
         <ReactMarkdown
           // singleDollarTextMath: false — remark-math never touches single `$`
           // (so currency is never swallowed); all `$…$`/`$$…$$` rendering is

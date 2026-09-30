@@ -37,7 +37,7 @@ function ExportJobStatus({ job, locale }: { job: ExportJob | null | undefined; l
   if (!job) return null;
   return (
     <div className="space-y-1.5">
-      <Badge variant={lifecycleTone(job.status)} className="text-[10px]">
+      <Badge variant={lifecycleTone(job.status)} className="text-px-10">
         {t(`settings.security.export.status_${job.status}`)}
       </Badge>
       {job.status === 'done' && (

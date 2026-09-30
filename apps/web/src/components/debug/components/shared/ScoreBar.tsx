@@ -53,7 +53,7 @@ export const ScoreBar = React.memo(function ScoreBar({
         )}
       </div>
       {showValue && (
-        <span className="w-10 text-right font-mono text-[11px] text-muted-foreground">
+        <span className="w-10 text-right font-mono text-px-11 text-muted-foreground">
           {clamped.toFixed(3)}
         </span>
       )}

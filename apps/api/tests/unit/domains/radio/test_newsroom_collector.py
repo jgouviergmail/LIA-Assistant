@@ -58,7 +58,7 @@ ARTICLE = (
 @pytest.fixture(autouse=True)
 def no_dns(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_validate(url: str) -> UrlValidationResult:
-        return UrlValidationResult(valid=True, url=url)
+        return UrlValidationResult(valid=True, url=url, resolved_ips=("93.184.216.34",))
 
     monkeypatch.setattr(fetch_module, "validate_url", fake_validate)
 
@@ -135,6 +135,12 @@ class FakeNewsroom:
         return 2
 
 
+def requested_url(request: httpx.Request) -> str:
+    """The URL the caller ASKED for: a pinned request carries the validated
+    address in its URL and the name in ``Host`` (ADR-326)."""
+    return f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
+
+
 class Web:
     """A MockTransport: feeds, articles, robots.txt, and who was asked what, when."""
 
@@ -147,8 +153,8 @@ class Web:
         self.peak: Counter[str] = Counter()
 
     async def handler(self, request: httpx.Request) -> httpx.Response:
-        url = str(request.url)
-        host = request.url.host
+        url = requested_url(request)
+        host = request.headers["host"]
         if request.url.path == "/robots.txt":
             rule = "Disallow: /" if host in self.disallowed_hosts else "Allow: /"
             return httpx.Response(200, text=f"User-agent: *\n{rule}\n")

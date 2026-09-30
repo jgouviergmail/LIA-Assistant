@@ -48,7 +48,7 @@ export function PortraitProvenance({ provenance, lng }: PortraitProvenanceProps)
   const unavailableNames = unavailable.map(key => t(`journals.provenance.source.${key}`));
 
   return (
-    <div className="space-y-0.5 text-[10px] text-muted-foreground">
+    <div className="space-y-0.5 text-px-10 text-muted-foreground">
       <p
         data-testid="portrait-provenance"
         data-parts={parts.map(part => `${part.key}:${part.count}`).join('|')}

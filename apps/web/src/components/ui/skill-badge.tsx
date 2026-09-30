@@ -21,8 +21,8 @@ const skillBadgeVariants = cva(
   {
     variants: {
       size: {
-        default: 'text-[10px]',
-        sm: 'text-[9px]',
+        default: 'text-px-10',
+        sm: 'text-px-9',
       },
     },
     defaultVariants: {

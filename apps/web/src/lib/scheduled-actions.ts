@@ -13,6 +13,7 @@ import type {
   ScheduledActionWeekCell,
   ScheduledActionWeekResponse,
   ScheduledActionWeekSlot,
+  WeatherConditionRule,
 } from '@/hooks/useScheduledActions';
 import { SCHEDULED_ACTION_TITLE_MAX_LENGTH } from '@/lib/constants';
 
@@ -23,6 +24,54 @@ import { SCHEDULED_ACTION_TITLE_MAX_LENGTH } from '@/lib/constants';
  */
 export function isConditionRoutine(action: Pick<ScheduledAction, 'trigger_kind'>): boolean {
   return action.trigger_kind === 'condition';
+}
+
+/** The kinds a weather routine may watch, in the order the studio names them. */
+const WEATHER_KINDS = ['rain', 'drizzle', 'snow', 'thunderstorm'] as const;
+
+/** The little of i18next's `t` the sentence needs. */
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+function orList(parts: string[], locale: string): string {
+  try {
+    return new Intl.ListFormat(locale, { style: 'long', type: 'disjunction' }).format(parts);
+  } catch {
+    return parts.join(', ');
+  }
+}
+
+/**
+ * When a weather routine fires, as the server applies it (ADR-322 amendment
+ * 2026-09-29): the kinds it watches, the horizon, the strict probability
+ * floor — every figure the one the server publishes, never typed here.
+ *
+ * The kinds are the edited routine's own when it is a weather routine (the
+ * studio carries them over unedited); every kind otherwise.
+ *
+ * @param rule - The published rule.
+ * @param editing - The edited routine's stored condition, if any.
+ * @param locale - The reader's locale, for the « or » list.
+ * @param t - The translation function.
+ * @returns The sentence, or `null` when the routine watches no kind this
+ *   release knows — no claim rather than a false one.
+ */
+export function weatherRuleSentence(
+  rule: WeatherConditionRule,
+  editing: ConditionConfig | null,
+  locale: string,
+  t: Translate
+): string | null {
+  const stored = editing?.type === 'weather_change' ? editing.kinds : undefined;
+  const kinds = WEATHER_KINDS.filter(kind => !stored?.length || stored.includes(kind));
+  if (kinds.length === 0) return null;
+  return t('scheduled_actions.studio.weather_rule', {
+    kinds: orList(
+      kinds.map(kind => t(`scheduled_actions.studio.weather_kind.${kind}`)),
+      locale
+    ),
+    hours: rule.horizon_hours,
+    percent: rule.min_precipitation_percent,
+  });
 }
 
 /**

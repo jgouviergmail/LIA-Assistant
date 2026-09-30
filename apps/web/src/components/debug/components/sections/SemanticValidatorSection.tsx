@@ -101,11 +101,11 @@ export const SemanticValidatorSection = React.memo(function SemanticValidatorSec
                 <DebugChip tone={SEVERITY_TONE[issue.severity] ?? 'neutral'}>
                   {issue.severity}
                 </DebugChip>
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="font-mono text-px-10 text-muted-foreground">
                   {issue.issue_type}
                 </span>
                 {issue.step_index !== null && (
-                  <span className="font-mono text-[10px] text-muted-foreground">
+                  <span className="font-mono text-px-10 text-muted-foreground">
                     step #{issue.step_index}
                   </span>
                 )}

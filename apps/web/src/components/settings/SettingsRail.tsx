@@ -79,7 +79,7 @@ export function SettingsRail({ lng, model, activeToken, onSelect }: SettingsRail
                     weight, never from fading the ink. */}
                 <p
                   className={cn(
-                    'text-[11px] font-semibold uppercase tracking-wide text-muted-foreground',
+                    'text-px-11 font-semibold uppercase tracking-wide text-muted-foreground',
                     'mt-2 rounded-md bg-muted px-3 py-1.5 text-center',
                     'lg:mt-0 lg:rounded-none lg:bg-transparent lg:px-2 lg:py-0 lg:pb-0.5 lg:pt-2 lg:text-left'
                   )}

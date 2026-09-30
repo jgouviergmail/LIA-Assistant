@@ -275,7 +275,7 @@ export function VoiceModeBadge({
    */
   const getBadgeClasses = (currentState: VoiceModeState): string => {
     const baseClasses =
-      'gap-2 text-[11px] mobile:text-xs font-semibold transition-all duration-200';
+      'gap-2 text-px-11 mobile:text-xs font-semibold transition-all duration-200';
 
     // Initializing - amber/orange with spinner
     if (isInitializing) {

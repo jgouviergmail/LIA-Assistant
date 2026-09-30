@@ -107,7 +107,7 @@ function RelationCard({
               </span>
               {relation.is_peer && (
                 <span
-                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-primary/25 bg-primary/10 px-1.5 py-px text-[9px] font-semibold text-primary"
+                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-primary/25 bg-primary/10 px-1.5 py-px text-px-9 font-semibold text-primary"
                   title={t('relations.peer_badge_hint')}
                 >
                   <Handshake className="h-2.5 w-2.5" aria-hidden="true" />
@@ -117,12 +117,12 @@ function RelationCard({
             </span>
             {relation.last_interaction_at ? (
               <span className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-px-11 text-muted-foreground">
                   {timeAgoLabel(t, relation.last_interaction_at)}
                 </span>
                 {isDormant(relation) && (
                   <span
-                    className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-muted/60 px-1.5 py-px text-[9px] font-medium text-muted-foreground"
+                    className="inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-muted/60 px-1.5 py-px text-px-9 font-medium text-muted-foreground"
                     title={t('relations.dormant_hint')}
                   >
                     <Moon className="h-2.5 w-2.5" aria-hidden="true" />
@@ -133,7 +133,7 @@ function RelationCard({
             ) : (
               // Full muted-foreground: a diluted italic falls under the AA
               // contrast floor at this size (same defect as the detail panel).
-              <span className="text-[11px] italic text-muted-foreground">
+              <span className="text-px-11 italic text-muted-foreground">
                 {t('relations.no_recent_signal')}
               </span>
             )}
@@ -142,7 +142,7 @@ function RelationCard({
         {(relation.open_loops_count > 0 ||
           relation.calls_count > 0 ||
           relation.peer_messages_count > 0) && (
-          <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+          <div className="mt-3 flex flex-wrap gap-1.5 text-px-11">
             {/* amber-800, not -700: at 11px on the tinted background the -700
                 pair measures 4.34:1, under the 4.5:1 AA floor (axe, production
                 bundle). Same fix as the v1.27.0 pills. */}
@@ -207,7 +207,7 @@ function Band({
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
         <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
         {title}
-        <span className="rounded-full bg-muted px-2 py-px text-[11px] font-medium tabular-nums text-muted-foreground">
+        <span className="rounded-full bg-muted px-2 py-px text-px-11 font-medium tabular-nums text-muted-foreground">
           {count}
         </span>
       </h2>

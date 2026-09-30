@@ -579,7 +579,6 @@ class AgentService(
         start_time = time.time()
         journey_timing = JourneyTiming()
         first_token_time = None
-        intention_label = "unknown"
         token_count = 0
         # Populated on the archive path; read unconditionally by the product
         # analytics seam (ADR-178), so it must exist on every path.

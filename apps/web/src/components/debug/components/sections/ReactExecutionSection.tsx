@@ -28,18 +28,18 @@ const ScriptCard = React.memo(function ScriptCard({ script }: { script: Ephemera
   return (
     <div className="rounded border border-border p-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-[11px] font-medium">{script.purpose}</span>
+        <span className="truncate text-px-11 font-medium">{script.purpose}</span>
         <DebugChip tone={script.success ? 'info' : 'warning'}>
           {script.success ? 'ok' : 'failed'}
         </DebugChip>
       </div>
-      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-1.5 font-mono text-[10px]">
+      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-1.5 font-mono text-px-10">
         {script.code}
       </pre>
       {script.output_head ? (
         <pre
           className={cn(
-            'mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-words rounded p-1.5 font-mono text-[10px]',
+            'mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-words rounded p-1.5 font-mono text-px-10',
             script.success ? 'bg-muted/50' : TONE_TEXT.warning
           )}
         >
@@ -277,7 +277,7 @@ export const ReactExecutionSection = React.memo(function ReactExecutionSection({
             {data.tool_names.map(name => (
               <span
                 key={name}
-                className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]"
+                className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-px-10"
               >
                 {name}
               </span>

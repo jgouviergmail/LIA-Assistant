@@ -226,7 +226,10 @@ def _acquire(lock_path: Path) -> _Claim:
         # directory anyway, so create it here too rather than mistaking its
         # absence for a busy peer.
         lock_path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        # Owner-only: nothing reads the marker's content (the claim is its
+        # existence and its mtime, both readable without the file's bits), so
+        # a world-readable mode was a habit, not a need (CodeQL #860).
+        descriptor = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     except FileExistsError:
         return _Claim.HELD_BY_OTHER
     except OSError as exc:

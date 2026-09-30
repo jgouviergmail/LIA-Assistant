@@ -240,10 +240,10 @@ export function AssistantAvatar({
             {/* Header: Relationship stage */}
             <div className="px-3 pt-2 pb-1.5 border-b border-border/30">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground text-[10px] uppercase tracking-wider">
+                <span className="text-muted-foreground text-px-10 uppercase tracking-wider">
                   {t('psyche.relationshipStage', 'Relationship')}
                 </span>
-                <span className="text-foreground font-medium text-[11px]">
+                <span className="text-foreground font-medium text-px-11">
                   {t(
                     `psyche.stages.${psycheState.relationship_stage}`,
                     psycheState.relationship_stage
@@ -255,19 +255,19 @@ export function AssistantAvatar({
             {/* Mood + PAD */}
             <div className="px-3 py-1.5 border-b border-border/30">
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-[10px] uppercase tracking-wider w-12 shrink-0">
+                <span className="text-muted-foreground text-px-10 uppercase tracking-wider w-12 shrink-0">
                   {t('psyche.tooltip.mood', 'Mood')}
                 </span>
                 <span className="text-foreground font-semibold">
                   {t(`psyche.moods.${psycheState.mood_label}`, psycheState.mood_label)}
                 </span>
                 {psycheState.mood_intensity && psycheState.mood_intensity !== 'slightly' && (
-                  <span className="text-muted-foreground text-[10px] italic">
+                  <span className="text-muted-foreground text-px-10 italic">
                     {psycheState.mood_intensity}
                   </span>
                 )}
               </div>
-              <div className="flex gap-2 mt-0.5 text-[10px] font-mono">
+              <div className="flex gap-2 mt-0.5 text-px-10 font-mono">
                 <span className={padColor(Math.round(psycheState.mood_pleasure * 100))}>
                   P:{Math.round(psycheState.mood_pleasure * 100)}%
                 </span>
@@ -283,7 +283,7 @@ export function AssistantAvatar({
             {/* Emotions with mini intensity bars */}
             {emotions.length > 0 && (
               <div className="px-3 py-1.5 border-b border-border/30">
-                <div className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">
+                <div className="text-muted-foreground text-px-10 uppercase tracking-wider mb-1">
                   {emotions.length === 1
                     ? t('psyche.tooltip.emotion', 'Emotion')
                     : t('psyche.tooltip.emotions', 'Emotions')}
@@ -298,10 +298,10 @@ export function AssistantAvatar({
                           EMOTION_BAR_COLORS[emo.name] ?? 'bg-muted-foreground'
                         )}
                       />
-                      <span className="text-foreground font-medium text-[11px]">
+                      <span className="text-foreground font-medium text-px-11">
                         {t(`psyche.emotions.${emo.name}`, emo.name)}
                       </span>
-                      <span className="text-muted-foreground text-[10px] ml-auto tabular-nums">
+                      <span className="text-muted-foreground text-px-10 ml-auto tabular-nums">
                         {Math.round(emo.intensity * 100)}%
                       </span>
                     </div>
@@ -315,7 +315,7 @@ export function AssistantAvatar({
               <div className="px-3 py-1.5">
                 <div className="flex items-center gap-3">
                   {showCuriosity && (
-                    <div className="flex items-center gap-1 text-[10px]">
+                    <div className="flex items-center gap-1 text-px-10">
                       <span className="text-violet-400">⟳</span>
                       <span className="text-muted-foreground">
                         {Math.round((psycheState.drive_curiosity ?? 0) * 100)}%
@@ -323,7 +323,7 @@ export function AssistantAvatar({
                     </div>
                   )}
                   {showEngagement && (
-                    <div className="flex items-center gap-1 text-[10px]">
+                    <div className="flex items-center gap-1 text-px-10">
                       <span className="text-amber-400">⚡</span>
                       <span className="text-muted-foreground">
                         {Math.round((psycheState.drive_engagement ?? 0) * 100)}%

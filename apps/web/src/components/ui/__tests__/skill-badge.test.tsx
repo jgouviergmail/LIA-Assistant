@@ -51,9 +51,9 @@ describe('SkillBadge', () => {
 
   it('exposes a smaller size without letting call sites hand-roll the type scale', () => {
     const { rerender } = renderWithProviders(<SkillBadge name="a" />);
-    expect(screen.getByTestId('skill-badge').className).toContain('text-[10px]');
+    expect(screen.getByTestId('skill-badge').className).toContain('text-px-10');
     rerender(<SkillBadge name="a" size="sm" />);
-    expect(screen.getByTestId('skill-badge').className).toContain('text-[9px]');
+    expect(screen.getByTestId('skill-badge').className).toContain('text-px-9');
   });
 
   it('merges an extra className without dropping its own', () => {

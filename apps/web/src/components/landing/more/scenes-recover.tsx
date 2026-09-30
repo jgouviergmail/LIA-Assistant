@@ -243,7 +243,7 @@ function HonestFreshnessScene({ active, labels }: SceneProps) {
           <SkeletonLine w="w-1/3" />
           <span
             className={cn(
-              'flex items-center gap-1 text-[9px] font-medium transition-colors duration-300',
+              'flex items-center gap-1 text-px-9 font-medium transition-colors duration-300',
               stale ? 'text-warning' : 'text-muted-foreground'
             )}
           >
@@ -261,7 +261,7 @@ function HonestFreshnessScene({ active, labels }: SceneProps) {
         />
         <span
           className={cn(
-            'flex w-fit items-center gap-1 rounded-md border px-2 py-1 text-[9px] transition-all duration-300',
+            'flex w-fit items-center gap-1 rounded-md border px-2 py-1 text-px-9 transition-all duration-300',
             stale ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0',
             phase === 'retry'
               ? 'border-primary/60 text-primary ring-2 ring-primary/30'
@@ -351,7 +351,7 @@ function FixCommitmentScene({ active, labels }: SceneProps) {
             violation, and a line nobody could read anyway. */}
         <span
           className={cn(
-            'min-w-0 flex-1 truncate text-[10px] text-muted-foreground transition-all duration-300',
+            'min-w-0 flex-1 truncate text-px-10 text-muted-foreground transition-all duration-300',
             corrected && 'line-through'
           )}
         >
@@ -371,7 +371,7 @@ function FixCommitmentScene({ active, labels }: SceneProps) {
         )}
       >
         <Check className="h-3 w-3 shrink-0 text-primary" />
-        <span className="min-w-0 flex-1 truncate text-[10px] text-foreground">{labels.after}</span>
+        <span className="min-w-0 flex-1 truncate text-px-10 text-foreground">{labels.after}</span>
       </div>
     </div>
   );
@@ -456,7 +456,7 @@ function DiagnosisEvidenceScene({ active }: SceneProps) {
           </div>
           <div className={row(reached('logs'))}>
             <ScrollText className="h-3 w-3 shrink-0 text-primary" />
-            <span className="text-[9px] font-medium tabular-nums text-foreground">×8</span>
+            <span className="text-px-9 font-medium tabular-nums text-foreground">×8</span>
             <SkeletonLine w="w-3/5" />
           </div>
           <div className={row(reached('build'))}>

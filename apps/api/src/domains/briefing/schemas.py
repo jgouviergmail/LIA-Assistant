@@ -81,7 +81,10 @@ class ForecastAlertKind(str, Enum):
 
 
 class ForecastAlert(BaseModel):
-    """Structured one-liner alert for the next notable change in the next 24 h.
+    """Structured one-liner alert for the next notable change within a horizon.
+
+    The card looks 24 hours ahead; a weather routine its own, shorter horizon
+    (``detect_forecast_alert``).
 
     Returned as a structured object (not a pre-formatted string) so the
     frontend renders it through ``react-i18next`` in the user's language —
@@ -100,6 +103,12 @@ class ForecastAlert(BaseModel):
     # same hour read as today's, and the watch stayed silent.
     starts_at: datetime | None = Field(
         default=None, description="Start instant of the forecast slot (UTC)."
+    )
+    precipitation_percent: int | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Precipitation probability of the slot, in percent, when the provider gave one.",
     )
 
 

@@ -11,18 +11,16 @@ Hardening layers, in order:
        hostname blacklist, DNS resolution, blocked ranges (RFC 1918, loopback,
        link-local/metadata, CGNAT, ULA, IPv4-mapped IPv6 …).
     3. ``follow_redirects=False`` — a 3xx answer is a REFUSAL, not a hop
-       (redirects would bypass the pre-resolved DNS check).
+       (a skill package is fetched from the URL the person gave, nowhere else).
     4. Streamed read bounded by ``settings.skills_url_import_max_bytes``
        (aborts mid-transfer, never buffers an unbounded body).
     5. Content sniffing: zip magic / markdown frontmatter — anything else
        is rejected before touching the import pipeline.
 
-Residual risk (documented, accepted): DNS rebinding between the validation
-resolve and httpx's own connect resolve (no IP pinning). Mitigations in
-place: https-only (certificate must match the hostname), no redirects,
-bounded read, and the import pipeline's own validation downstream. A
-per-request pinned-IP transport or a hostname allowlist are noted as future
-hardening options in the program document.
+DNS rebinding is closed: the request connects to the address the validator
+resolved (``pinned_stream``, ADR-326) — the name travels in ``Host`` and the
+SNI, never through a second resolution at connect time. https-only still means
+the certificate must match the hostname.
 """
 
 from __future__ import annotations
@@ -34,7 +32,11 @@ import httpx
 import structlog
 
 from src.core.config import settings
-from src.domains.agents.web_fetch.url_validator import validate_url
+from src.domains.agents.web_fetch.url_validator import (
+    UrlValidationResult,
+    pinned_stream,
+    validate_url,
+)
 from src.domains.skills.exceptions import (
     raise_url_import_blocked,
     raise_url_import_fetch_failed,
@@ -73,16 +75,18 @@ def _infer_filename(url: str, content: bytes) -> str:
     raise_url_import_not_skill_content()
 
 
-async def _fetch_bytes(active: httpx.AsyncClient, url: str) -> bytes:
+async def _fetch_bytes(active: httpx.AsyncClient, verdict: UrlValidationResult) -> bytes:
     """Perform the bounded GET under the TOTAL transfer deadline.
 
     httpx's timeout is PER PHASE (connect/read/write) — a server dripping
     one byte per read window would never trip it. The ``asyncio.timeout``
-    is the total deadline for the whole transfer.
+    is the total deadline for the whole transfer. The request connects to the
+    address the verdict validated (``pinned_stream``, ADR-326), so a name that
+    answers differently at connect time cannot steer it elsewhere.
 
     Args:
         active: The client to use (caller owns its lifecycle).
-        url: The validated https URL.
+        verdict: The validated https URL, with the addresses it resolved to.
 
     Returns:
         The body bytes.
@@ -94,12 +98,7 @@ async def _fetch_bytes(active: httpx.AsyncClient, url: str) -> bytes:
     """
     timeout = settings.skills_url_import_timeout_seconds
     async with asyncio.timeout(timeout):
-        async with active.stream(
-            "GET",
-            url,
-            follow_redirects=False,
-            timeout=timeout,
-        ) as response:
+        async with pinned_stream(active, "GET", verdict, timeout=timeout) as response:
             if 300 <= response.status_code < 400:
                 raise_url_import_blocked("redirects are not followed for skill imports")
             if response.status_code != 200:
@@ -143,7 +142,7 @@ async def fetch_skill_from_url(
     own_client = client is None
     active = client or httpx.AsyncClient()
     try:
-        content = await _fetch_bytes(active, validation.url)
+        content = await _fetch_bytes(active, validation)
     except TimeoutError:
         raise_url_import_fetch_failed("TotalDeadlineExceeded")
     except httpx.HTTPError as exc:

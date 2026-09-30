@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Datum**: 2026-09-24
-**Anwendung**: LIA v2.1.0
+**Anwendung**: LIA v2.1.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,7 +60,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Kanäle**: Verbinde Telegram, um auf dem Handy zu chatten und Benachrichtigungen zu empfangen
 - **Bildgenerierung**: Aktiviere und konfiguriere die KI-gestützte Bilderstellung
 - **Persönliche MCP-Server**: Verbinde deine eigenen MCP-Server, um die Fähigkeiten von LIA zu erweitern
-- **Darstellung**: Sprache, Zeitzone, Theme (5 Farbpaletten, Hell, Dunkel oder absolutes Schwarz), Schrift (9 Optionen), Anzeigeformat der Antworten (HTML-Karten, HTML, Markdown)
+- **Darstellung**: Sprache, Zeitzone, Theme (5 Farbpaletten, Hell, Dunkel oder absolutes Schwarz), Schrift (9 Optionen), Textgröße (14 bis 20 px, ohne einen Bereich zu verschieben), Anzeigeformat der Antworten (HTML-Karten, HTML, Markdown)
 - **Mein Dashboard**: Blende die 9 Briefing-Karten aus oder ordne sie neu — eine ausgeblendete Karte wird gar nicht mehr abgerufen
 - **Nutzungspräferenzen**: Wähle deinen Austauschrhythmus — häufig, und LIA hält alle Werkzeuge bereit, damit jeder Durchgang im ReAct-Modus den vorigen aus dem Cache des Anbieters liest; gelegentlich, und sie wählt die Werkzeuge, die jede Frage braucht, zu stabilen Kosten
 - **Debug**: Zugriff auf das Debug-Panel zur Inspektion jedes Austauschs (wenn vom Administrator aktiviert)
@@ -367,6 +367,8 @@ Dasselbe Prinzip gilt überall: Eine Anzahl trägt die Farbe der anderen Anzahle
 
 Und Farbe trägt die Bedeutung nie allein: Jede Markierung behält ihr Wort. Eine Oberfläche, die nur in Farbe funktioniert, funktioniert nicht für alle.
 
+Und die Textgröße gehört dir: Von 14 bis 20 px wächst nur der Text — Bereiche, Abstände und Symbole bleiben, wo du sie gefunden hast, damit lesbarerer Text nie eine weniger lesbare Seite kostet.
+
 ### 6.7. Selbst was LIA über dich lernt, ist einsehbar
 
 Dieselbe Transparenz gilt für das Gewohnheitslernen: Was LIA über deinen Rhythmus und deine wiederkehrenden Anfragen zu wissen glaubt, lebt in einem eigenen Panel — eine Heatmap deiner 24 Stunden, dein Anteil aktiver Tage, ein Fortschrittsbalken bis zu den ersten Erkennungen, und für jede Gewohnheit die realen Beobachtungstage plus die exakten Schwellenwerte des Detektors. Gibt es keine stabile Gewohnheit, sagt das Panel das, statt eine zu erfinden. Pause, endgültige Blockierung, vollständige Löschung, sofortige rückwirkende Neuberechnung — und die ganze Funktion bleibt aus, bis du sie aktivierst. Was du dort festlegst, gilt überall: Eine pausierte Gewohnheit ist für die Benachrichtigungen, deren Zeitplanung und den Kontext der Assistentin gleichermaßen pausiert; eine Routine, die du verpasst, wird dir beim Namen angeboten; und eine gelernte Gewohnheit lebt — befördert, aufgefrischt oder zurückgestuft, wie sich deine Tage ändern, nie im Zweifel.
@@ -546,7 +548,7 @@ Offene Standards statt eines Hausprotokolls: Was LIA spricht, kann ein anderes W
 
 ### 9.3. Was diese Garantien überprüfbar macht
 
-Eine Garantie, die man nicht prüfen kann, ist keine. Das technische Audit des Projekts ist öffentlich — Bewertungsraster, Methode, Stärken und eingestandene Schwächen sowie das Protokoll, um es zu wiederholen. Jede Architekturentscheidung ist aufgeschrieben und indexiert. Jede Schutzmaßnahme ist durch einen Test abgesichert, der fehlschlägt, sobald der Schutz verschwindet. Und zur nächtlichen Datenbanksicherung gehört eine Wiederherstellungsprozedur, die tatsächlich ausgeführt wurde, nicht nur verfasst.
+Eine Garantie, die man nicht prüfen kann, ist keine. Das technische Audit des Projekts ist öffentlich — Bewertungsraster, Methode, Stärken und eingestandene Schwächen sowie das Protokoll, um es zu wiederholen. Jede Architekturentscheidung ist aufgeschrieben und indexiert. Jede Schutzmaßnahme ist durch einen Test abgesichert, der fehlschlägt, sobald der Schutz verschwindet. Und zur nächtlichen Datenbanksicherung gehört eine Wiederherstellungsprozedur, die tatsächlich ausgeführt wurde, nicht nur verfasst. Meldet die Code-Analyse eine Schwäche, zielt die Antwort auf ihre ganze Klasse statt auf die Warnung: Die Korrektur kommt mit einer Prüfung, die fehlschlägt, wenn dieselbe Klasse anderswo wieder auftaucht, und die Analyse umfasst auch die ausgelieferten Skripte, die Infrastruktur und die Workflows.
 
 ## 10. Radikale Offenheit
 

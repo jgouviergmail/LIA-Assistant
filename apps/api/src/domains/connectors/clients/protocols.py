@@ -33,6 +33,12 @@ class OutgoingCeiling(Protocol):
 class EmailClientProtocol(OutgoingCeiling, Protocol):
     """Protocol for email clients (Gmail, Apple Mail, Outlook)."""
 
+    #: Whether each hit of ``search_emails`` (``headers_only=False``) is already
+    #: the whole message — body and attachments — so a reader needs no
+    #: ``get_message`` per hit. False where the provider's listing carries a
+    #: preview only (Graph selects ``bodyPreview`` and never expands attachments).
+    SEARCH_HITS_ARE_WHOLE: ClassVar[bool]
+
     async def search_emails(
         self,
         query: str,

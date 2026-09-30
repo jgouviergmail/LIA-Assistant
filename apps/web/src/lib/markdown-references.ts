@@ -43,8 +43,21 @@ const CHARACTER_REFERENCE = /&(?:#([0-9]{1,7})|#[xX]([0-9A-Fa-f]{1,6})|([A-Za-z]
 /**
  * A fenced block's opening line (group 1, its fence group 2) or a code span
  * (its backticks group 3, its content group 4; never across a blank line).
+ *
+ * Linear by construction (ADR-326), rule for rule with the server's `_CODE`:
+ * the fence is taken whole and never handed back (`(?=(…))\2`, the atomic form
+ * JavaScript can write) — a line of n backticks with no newline used to try
+ * every shorter fence and rescan the line each time; a code span opens with at
+ * most CODE_SPAN_TICKS_MAX backticks and holds at most SPAN_MAX_CHARS, since a
+ * run of n backticks was compared n times over as a closing run of every length.
  */
-const CODE = /^([ \t]{0,3}(`{3,}|~{3,})[^\n]*\n)|(?<!`)(`+)(?!`)((?:(?!\n[ \t]*\n)[\s\S])*?)(?<!`)\3(?!`)/gm;
+const CODE_SPAN_TICKS_MAX = 3;
+const SPAN_MAX_CHARS = 400;
+const CODE = new RegExp(
+  '^([ \\t]{0,3}(?=(`{3,}|~{3,}))\\2[^\\n]*\\n)' +
+    `|(?<!\`)(\`{1,${CODE_SPAN_TICKS_MAX}})(?!\`)((?:(?!\\n[ \\t]*\\n)[\\s\\S]){0,${SPAN_MAX_CHARS}}?)(?<!\`)\\3(?!\`)`,
+  'gm'
+);
 /** A bare URL the chat autolinks — the server's `_URL`, rule for rule. */
 const BARE_URL =
   /(?<![^\s(*_~])(?:https?:\/\/|www\.)(?:[\p{L}\p{N}]|-)+(?:\.(?:[\p{L}\p{N}]|-)+)*(?![\p{L}\p{N}_-])[^\s<>"']*/gu;

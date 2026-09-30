@@ -459,3 +459,22 @@ class TestTheListPublishesTheClock:
         assert set(listing.condition_check_minutes) == set(CONDITION_TYPES)
         assert listing.condition_check_minutes["weather_change"] == 60
         assert listing.condition_max_fires_per_day == 7
+
+    def test_the_weather_rule_is_published_as_the_executor_applies_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The studio states when a weather routine fires BEFORE it is saved:
+        # the horizon, the strict threshold and the one source (ADR-184).
+        from src.core.config import settings
+        from src.domains.scheduled_actions.schemas import ScheduledActionListResponse
+
+        monkeypatch.setattr(settings, "scheduled_actions_weather_horizon_hours", 3)
+        monkeypatch.setattr(settings, "scheduled_actions_weather_min_precipitation_percent", 65)
+
+        rule = ScheduledActionListResponse(scheduled_actions=[], total=0).weather_condition_rule
+
+        assert rule.model_dump() == {
+            "horizon_hours": 3,
+            "min_precipitation_percent": 65,
+            "source": "google_weather",
+        }

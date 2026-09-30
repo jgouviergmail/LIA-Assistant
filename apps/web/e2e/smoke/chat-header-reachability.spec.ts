@@ -17,154 +17,11 @@
  * or a run in flight — precisely the state a real user is in, and precisely the
  * one the nominal fixtures never reach.
  */
-import type { Page } from '@playwright/test';
-
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, loadedChatRoutes } from '../fixtures';
+import { probeControls, waitForStableControls } from './control-probe';
 
 const WIDTHS = [320, 390, 768, 880, 1024, 1280] as const;
 const LOCALES = ['fr', 'de', 'en'] as const;
-
-const CONVERSATION = {
-  id: '00000000-0000-4000-8000-00000000c0h1',
-  user_id: '00000000-0000-4000-8000-000000000001',
-  title: 'E2E chat header',
-  message_count: 2,
-  total_tokens: 1200,
-  created_at: '2026-07-26T09:00:00Z',
-  updated_at: '2026-07-26T10:00:00Z',
-};
-
-/** Loaded state: context pill + active RAG spaces both take header room. */
-const LOADED: MockRoute[] = [
-  { url: '**/api/v1/conversations/me', json: CONVERSATION },
-  {
-    url: '**/api/v1/conversations/me/messages*',
-    json: {
-      messages: [
-        {
-          id: '00000000-0000-4000-8000-00000000m0h1',
-          role: 'assistant',
-          content: '<p>Bonjour.</p>',
-          created_at: '2026-07-26T10:00:00Z',
-        },
-      ],
-      conversation_id: CONVERSATION.id,
-      total_count: 1,
-      has_more: false,
-      next_cursor: null,
-    },
-  },
-  {
-    url: '**/api/v1/conversations/me/totals',
-    json: {
-      total_tokens_in: 42000,
-      total_tokens_out: 18000,
-      total_tokens_cache: 6000,
-      total_cost_eur: 0.42,
-      total_google_api_requests: 12,
-      context_tokens: 68000,
-      context_threshold: 100000,
-    },
-  },
-  {
-    url: '**/api/v1/rag-spaces*',
-    json: {
-      spaces: [
-        { id: 's1', name: 'Documentation', is_active: true, document_count: 12 },
-        { id: 's2', name: 'Contrats', is_active: true, document_count: 4 },
-      ],
-      total: 2,
-    },
-  },
-  { url: '**/api/v1/agents/health', json: { status: 'healthy', graph_compiled: true } },
-  { url: '**/api/v1/agents/runs/active', json: { active: false } },
-  { url: '**/api/v1/agents/hitl/pending', json: null },
-  { url: '**/api/v1/usage/**', json: {} },
-];
-
-interface Probe {
-  clipped: Array<{ name: string; overflowPx: number }>;
-  overlaps: string[];
-}
-
-/**
- * Measure the chat header row.
- *
- * The row is reached through the shell's own sizing class — the very
- * declaration S2 rewrote — rather than a structural path, so the probe points
- * at the code under study and breaks loudly if that shell disappears.
- */
-async function probeChatHeader(page: Page): Promise<Probe> {
-  return page.evaluate(() => {
-    const shell = document.querySelector('[class*="calc(100vh"]');
-    const row = shell?.firstElementChild?.firstElementChild?.firstElementChild ?? null;
-    const clipped: Probe['clipped'] = [];
-    const overlaps: string[] = [];
-    if (!row) return { clipped, overlaps };
-
-    const viewportWidth = document.documentElement.clientWidth;
-    const name = (el: Element): string =>
-      el.getAttribute('aria-label') ||
-      el.getAttribute('title') ||
-      (el.textContent ?? '').trim().slice(0, 20) ||
-      el.tagName.toLowerCase();
-
-    const controls = Array.from(row.querySelectorAll('button, a, input')).filter(el => {
-      const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0;
-    });
-
-    for (const el of controls) {
-      const r = el.getBoundingClientRect();
-      if (r.right > viewportWidth + 1) {
-        clipped.push({
-          name: name(el),
-          overflowPx: Math.round((r.right - viewportWidth) * 10) / 10,
-        });
-      }
-    }
-
-    for (let i = 0; i < controls.length; i++) {
-      for (let j = i + 1; j < controls.length; j++) {
-        if (controls[i].contains(controls[j]) || controls[j].contains(controls[i])) continue;
-        const a = controls[i].getBoundingClientRect();
-        const b = controls[j].getBoundingClientRect();
-        if (
-          a.left < b.right - 1 &&
-          b.left < a.right - 1 &&
-          a.top < b.bottom - 1 &&
-          b.top < a.bottom - 1
-        ) {
-          overlaps.push(`${name(controls[i])} ×× ${name(controls[j])}`);
-        }
-      }
-    }
-    return { clipped, overlaps };
-  });
-}
-
-/** Poll until the header geometry stops changing (async shell widgets). */
-async function waitForStableRow(page: Page): Promise<void> {
-  const signature = () =>
-    page.evaluate(() => {
-      const shell = document.querySelector('[class*="calc(100vh"]');
-      const row = shell?.firstElementChild?.firstElementChild?.firstElementChild;
-      if (!row) return '';
-      return Array.from(row.querySelectorAll('button, a, input'))
-        .map(el => {
-          const r = el.getBoundingClientRect();
-          return `${Math.round(r.x)}:${Math.round(r.width)}`;
-        })
-        .join('|');
-    });
-  let previous = await signature();
-  for (let attempt = 0; attempt < 20; attempt++) {
-    await page.waitForTimeout(100);
-    const current = await signature();
-    if (current === previous && current !== '') return;
-    previous = current;
-  }
-}
 
 test.describe('chat header — the destructive action stays named and reachable', () => {
   /**
@@ -176,11 +33,11 @@ test.describe('chat header — the destructive action stays named and reachable'
   for (const width of [320, 640, 1280] as const) {
     test(`named and operable at ${width} px`, async ({ page, authenticate, mockApi }) => {
       await authenticate({ language: 'fr' });
-      await mockApi(LOADED);
+      await mockApi(loadedChatRoutes());
       await page.setViewportSize({ width, height: 800 });
       await page.goto('/fr/dashboard/chat');
       await page.locator('textarea').first().waitFor({ state: 'visible' });
-      await waitForStableRow(page);
+      await waitForStableControls(page, 'chat-header');
 
       // Located by its accessible name, which is exactly what a screen-reader
       // user gets — not by a class or a position.
@@ -209,17 +66,17 @@ test.describe('chat header reachability', () => {
       mockApi,
     }) => {
       await authenticate({ language: locale });
-      await mockApi(LOADED);
+      await mockApi(loadedChatRoutes());
       await page.goto(`/${locale}/dashboard/chat`);
       await page.locator('textarea').first().waitFor({ state: 'visible' });
-      await waitForStableRow(page);
+      await waitForStableControls(page, 'chat-header');
 
       for (const width of WIDTHS) {
         await page.setViewportSize({ width, height: 800 });
         await page.waitForFunction(w => document.documentElement.clientWidth === w, width);
-        await waitForStableRow(page);
+        await waitForStableControls(page, 'chat-header');
 
-        const { clipped, overlaps } = await probeChatHeader(page);
+        const { clipped, overlaps } = await probeControls(page, 'chat-header');
         expect(
           clipped,
           `${locale} @ ${width}px — chat header controls off-screen: ` +

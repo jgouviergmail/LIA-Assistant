@@ -90,7 +90,7 @@ export function ProductResult({ sceneId }: { sceneId: ProductSceneId }) {
         {[1, 2].map(n => (
           <div key={n} className="px-3">
             <p className="text-xs font-semibold leading-snug">{t(`${key}.result_${n}`)}</p>
-            <span className="mt-1.5 block text-[10px] leading-snug text-muted-foreground">
+            <span className="mt-1.5 block text-px-10 leading-snug text-muted-foreground">
               {t(`${key}.evidence_${n}`)}
             </span>
           </div>
@@ -122,7 +122,7 @@ export function ProductScene({ sceneId, phase = 2, className }: ProductSceneProp
       <div className="flex min-h-12 items-center gap-2 border-b border-border px-4 py-3">
         <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
         <p className="text-sm font-semibold">{t(`${key}.title`)}</p>
-        <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+        <span className="ml-auto shrink-0 text-px-10 text-muted-foreground">
           {t(`${PRODUCT_DEMO_KEY}.example`)}
         </span>
       </div>
@@ -138,7 +138,7 @@ export function ProductScene({ sceneId, phase = 2, className }: ProductSceneProp
             phase < 1 && 'opacity-0'
           )}
         >
-          <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-px-11 font-medium text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
             {t(`${PRODUCT_DEMO_KEY}.context`)}
           </p>
@@ -148,10 +148,10 @@ export function ProductScene({ sceneId, phase = 2, className }: ProductSceneProp
                 key={source}
                 className="min-w-0 rounded-lg border border-border bg-background px-2 py-2"
               >
-                <span className="block text-[10px] font-semibold leading-snug text-primary">
+                <span className="block text-px-10 font-semibold leading-snug text-primary">
                   {t(`${PRODUCT_DEMO_KEY}.sources.${source}`)}
                 </span>
-                <span className="mt-1 block text-[11px] leading-snug">
+                <span className="mt-1 block text-px-11 leading-snug">
                   {t(`${key}.source_${i + 1}`)}
                 </span>
               </div>
@@ -174,13 +174,13 @@ export function ProductScene({ sceneId, phase = 2, className }: ProductSceneProp
             {t(`${key}.result_title`)}
           </p>
           <ProductResult sceneId={sceneId} />
-          <div className="flex items-start gap-1.5 border-t border-border pt-2 text-[10px] leading-relaxed text-muted-foreground">
+          <div className="flex items-start gap-1.5 border-t border-border pt-2 text-px-10 leading-relaxed text-muted-foreground">
             <LockKeyhole className="mt-0.5 h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
             <span>{t(`${key}.guardrail`)}</span>
           </div>
         </div>
       </div>
-      <p className="border-t border-border px-4 py-2 text-[10px] leading-snug text-muted-foreground">
+      <p className="border-t border-border px-4 py-2 text-px-10 leading-snug text-muted-foreground">
         {t(`${PRODUCT_DEMO_KEY}.illustrative`)}
       </p>
     </div>

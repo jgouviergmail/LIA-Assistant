@@ -738,6 +738,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                   </div>
                   <Slider
                     id="edit-emotional"
+                    aria-label={t('memories.field_emotional_weight')}
                     min={-10}
                     max={10}
                     step={1}
@@ -760,6 +761,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                   </div>
                   <Slider
                     id="edit-importance"
+                    aria-label={t('memories.field_importance')}
                     min={0}
                     max={1}
                     step={0.1}
@@ -865,6 +867,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                   </div>
                   <Slider
                     id="create-emotional"
+                    aria-label={t('memories.field_emotional_weight')}
                     min={-10}
                     max={10}
                     step={1}
@@ -887,6 +890,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                   </div>
                   <Slider
                     id="create-importance"
+                    aria-label={t('memories.field_importance')}
                     min={0}
                     max={1}
                     step={0.1}

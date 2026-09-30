@@ -78,7 +78,7 @@ function ResultRow({
         aria-label={t('chat.search.jump_aria', { date: dateLabel })}
         className="w-full text-left px-3 py-2 rounded-md hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <span className="block text-[11px] font-semibold text-muted-foreground">{dateLabel}</span>
+        <span className="block text-px-11 font-semibold text-muted-foreground">{dateLabel}</span>
         <span className="block text-xs text-foreground/90 truncate">
           {excerpt ? (
             <>

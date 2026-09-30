@@ -67,6 +67,7 @@ import {
   type ScheduledActionUpdate,
   type RecurrenceSpec,
   type TriggerKind,
+  type WeatherConditionRule,
 } from '@/hooks/useScheduledActions';
 import { RecurrenceEditor, type RecurrenceLimits } from '@/components/recurrence/RecurrenceEditor';
 import { formatLocalDateInput } from '@/lib/date-format';
@@ -78,6 +79,7 @@ import {
   numberByTriggerTime,
   routineCardId,
   sameCondition,
+  weatherRuleSentence,
 } from '@/lib/scheduled-actions';
 import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
 import { toast } from 'sonner';
@@ -466,6 +468,34 @@ function TriggerModeFields({
 }
 
 /**
+ * When a weather routine fires, stated before it is saved (ADR-322 amendment
+ * 2026-09-29): nothing for another condition, nor before the server published
+ * its rule.
+ */
+function WeatherRuleHint({
+  type,
+  rule,
+  editing,
+  intlLocale,
+  t,
+}: {
+  type: ConditionType;
+  rule: WeatherConditionRule | undefined;
+  editing: ConditionConfig | null;
+  intlLocale: string;
+  t: Translate;
+}) {
+  const sentence =
+    type === 'weather_change' && rule ? weatherRuleSentence(rule, editing, intlLocale, t) : null;
+  if (!sentence) return null;
+  return (
+    <p className="text-xs text-muted-foreground" data-testid="weather-rule-hint">
+      {sentence}
+    </p>
+  );
+}
+
+/**
  * What a condition routine waits for (ADR-322): the condition, its filter,
  * the last day it watches, and the system's clock stated as the server
  * applies it — before anything is saved.
@@ -475,12 +505,18 @@ function ConditionFields({
   setForm,
   checkMinutes,
   maxFiresPerDay,
+  weatherRule,
+  editing,
+  intlLocale,
   t,
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
   checkMinutes: number | undefined;
   maxFiresPerDay: number | undefined;
+  weatherRule: WeatherConditionRule | undefined;
+  editing: ConditionConfig | null;
+  intlLocale: string;
   t: Translate;
 }) {
   const problem = conditionProblem(form);
@@ -503,6 +539,13 @@ function ConditionFields({
             ))}
           </SelectContent>
         </Select>
+        <WeatherRuleHint
+          type={form.condition_type}
+          rule={weatherRule}
+          editing={editing}
+          intlLocale={intlLocale}
+          t={t}
+        />
       </div>
       {QUERY_CONDITION_TYPES.includes(form.condition_type) && (
         <div className="space-y-3">
@@ -689,6 +732,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     total,
     conditionCheckMinutes,
     conditionMaxFiresPerDay,
+    weatherConditionRule,
     loading,
     initialLoading,
     week,
@@ -894,6 +938,9 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
               setForm={setForm}
               checkMinutes={conditionCheckMinutes?.[form.condition_type]}
               maxFiresPerDay={conditionMaxFiresPerDay}
+              weatherRule={weatherConditionRule}
+              editing={editingAction?.condition_config ?? null}
+              intlLocale={intlLocale}
               t={t}
             />
           ) : (

@@ -77,6 +77,8 @@ class AppleEmailClient(BaseAppleClient):
 
     connector_type = ConnectorType.APPLE_EMAIL
     OUTGOING_FILE_MAX_BYTES = max_file_bytes(APPLE_MAIL_MESSAGE_MAX_BYTES)
+    # The IMAP fetch returns whole messages unless headers_only.
+    SEARCH_HITS_ARE_WHOLE = True
 
     def __init__(
         self,

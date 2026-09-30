@@ -43,6 +43,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.constants import USER_FONT_SIZE_MAX_PX
 from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
 from src.domains.shared.schemas import (
     VALID_COLOR_THEMES,
@@ -89,6 +90,7 @@ DISTINCTIVE_VALUES: dict[str, Any] = {
     "theme": "dark",
     "color_theme": "ocean",
     "font_family": "",  # replaced below: the allowed set is the authority
+    "font_size": 0,  # replaced below: the bounds are the authority
     "image_generation_enabled": True,
     # Legal members of their allowed sets, not merely "not the default". The
     # strict validators for these three live in ``ImageGenerationValidatorMixin``,
@@ -109,6 +111,7 @@ DISTINCTIVE_VALUES: dict[str, Any] = {
 # Read the allowed sets rather than hardcoding a member: a test that pins a
 # literal breaks the day the list is reordered, for no reason of its own.
 DISTINCTIVE_VALUES["font_family"] = next(f for f in VALID_FONT_FAMILIES if f != "system")
+DISTINCTIVE_VALUES["font_size"] = USER_FONT_SIZE_MAX_PX
 # The rhythm's default is the instance setting: pick the OTHER one, whatever it is.
 DISTINCTIVE_VALUES["exchange_rhythm"] = next(
     rhythm.value for rhythm in ExchangeRhythm if rhythm is not effective_exchange_rhythm(None)

@@ -6,13 +6,17 @@
  * everything else dies on the 501 catch-all. What only a laid-out page proves:
  *
  * 1. **Download is ONE click** — the « … » menu that hid it is gone — and the
- *    file is the answer, under a dated `lia-` name.
+ *    file is the answer, under a dated `lia-` name; an HTML answer and its
+ *    card are written as Markdown by the browser's own parser (ADR-177,
+ *    amendment 2026-09-30).
  * 2. **Share reaches a connection by the ordinary road**: the menu lists the
  *    accepted connections, and picking one PREFILLS the composer (nothing is
  *    sent — the relay goes through the assistant and its confirmation).
  * 3. **The debug panel widens INTO the conversation** by drag and by keyboard,
  *    and the conversation keeps the rest of the row.
  */
+import { readFileSync } from 'node:fs';
+
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
 import { scanPage } from '../a11y/scan';
 
@@ -50,7 +54,27 @@ const ANSWER = {
   stt_provider: null,
 };
 
-function routes(options: { debugPanel?: boolean } = {}): MockRoute[] {
+/** An `html_cards` answer: a lia-response document, then an event card the response node appended. */
+const HTML_ANSWER = {
+  ...ANSWER,
+  content:
+    '<div class="lia-response">\n<p>Your quarter is <strong>up 12 %</strong>.</p>\n\n' +
+    '<h2>Figures</h2>\n<table><thead><tr><th>Quarter</th><th>Revenue</th></tr></thead>' +
+    '<tbody><tr><td>Q3</td><td>1.2 M€</td></tr></tbody></table>\n\n' +
+    '<dl class="lia-kv"><dt>Status</dt><dd><span class="lia-chip lia-chip--green">' +
+    '<span class="material-symbols-outlined">check_circle</span>On track</span></dd></dl>\n' +
+    '<div class="lia-callout lia-callout-warning"><p class="lia-callout__title">Caveat</p>' +
+    '<p>Unaudited.</p></div>\n</div>\n\n' +
+    '<hr class="lia-response-separator"><div class="lia-response-wrapper"><div class="lia-card lia-event">' +
+    '<div class="lia-card-top"><div class="lia-illus"><span class="material-symbols-outlined">event</span></div>' +
+    '<div class="lia-card-top__info"><a class="lia-card-top__title" href="https://calendar.google.com/x">Board review</a></div></div>' +
+    '<div class="lia-chip-row"><span class="lia-chip"><span class="material-symbols-outlined">calendar_month</span>Monday</span>' +
+    '<span class="lia-chip"><span class="material-symbols-outlined">schedule</span>10:00 - 11:00</span></div></div>' +
+    '<div class="lia-suggested-actions"><a class="lia-action-btn" href="https://calendar.google.com/x">View</a></div></div>' +
+    '<hr class="lia-response-separator">',
+};
+
+function routes(options: { debugPanel?: boolean; answer?: typeof ANSWER } = {}): MockRoute[] {
   return [
     CONFIG,
     { url: '**/api/v1/conversations/me/totals', json: {} },
@@ -65,7 +89,7 @@ function routes(options: { debugPanel?: boolean } = {}): MockRoute[] {
     {
       url: '**/api/v1/conversations/me/messages*',
       json: {
-        messages: [ANSWER],
+        messages: [options.answer ?? ANSWER],
         conversation_id: '00000000-0000-4000-8000-0000000000ff',
         total_count: 1,
         has_more: false,
@@ -112,6 +136,47 @@ test.describe("an answer's own actions", () => {
     expect(file.suggestedFilename()).toMatch(/^lia-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}\.md$/);
     // The « … » menu that used to hide it is gone.
     await expect(page.getByRole('button', { name: 'More actions' })).toHaveCount(0);
+  });
+
+  test('an HTML answer with a card downloads as readable Markdown', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate();
+    await mockApi(routes({ answer: HTML_ANSWER }));
+    await page.goto('/en/dashboard/chat');
+    await waitForHydration(page, 'textarea');
+
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download as Markdown' }).click();
+    const file = await download;
+    const path = await file.path();
+    const text = readFileSync(path, 'utf-8');
+
+    // The browser's own parser writes the layout the person read, as Markdown.
+    expect(text).toBe(
+      [
+        'Your quarter is **up 12 %**.',
+        '',
+        '## Figures',
+        '',
+        '| Quarter | Revenue |',
+        '| --- | --- |',
+        '| Q3 | 1.2 M€ |',
+        '',
+        '- **Status**: On track',
+        '',
+        '> [!WARNING]',
+        '> **Caveat**',
+        '>',
+        '> Unaudited.',
+        '',
+        '### [Board review](https://calendar.google.com/x)',
+        '',
+        'Monday · 10:00 - 11:00',
+      ].join('\n')
+    );
   });
 
   test('Share lists the connections, and picking one prefills the composer', async ({

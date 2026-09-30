@@ -40,7 +40,7 @@ function AnomalyCounter({ count }: { count: number }) {
   return (
     <span
       title={`${count} anomal${count > 1 ? 'ies' : 'y'} on this request`}
-      className="flex items-center gap-0.5 text-[10px] font-medium text-destructive"
+      className="flex items-center gap-0.5 text-px-10 font-medium text-destructive"
     >
       <TriangleAlert className="h-3 w-3" aria-hidden="true" />
       {count}
@@ -55,7 +55,7 @@ function EntrySummaryStrip({ metrics }: { metrics: DebugMetrics }) {
   const cost = totalRunCostEur(metrics);
 
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-px-10 text-muted-foreground">
       {metrics.execution_mode === 'react' && <DebugChip tone="info">react</DebugChip>}
       {durationMs > 0 && <span className="font-mono">{formatDuration(durationMs)}</span>}
       {totalTokens !== undefined && (

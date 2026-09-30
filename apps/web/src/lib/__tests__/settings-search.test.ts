@@ -120,7 +120,10 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // (ADR-324, 2026-09-26): what the personal radio talks about, its
     // voices, and how a session listens.
     // 65 since native JEV routing joined Administration / AI & Connectors.
-    expect(TOKENS).toHaveLength(65);
+    // 66 since the font size joined Preferences / Personalization
+    // (2026-09-29), right after the font family: the interface text size,
+    // with a preview and a cap that follows the screen width.
+    expect(TOKENS).toHaveLength(66);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

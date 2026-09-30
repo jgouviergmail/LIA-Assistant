@@ -172,7 +172,7 @@ function Glance({ lng, summary }: { lng: BaseSettingsProps['lng']; summary: Boar
       </div>
 
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-px-11 font-semibold uppercase tracking-wide text-muted-foreground">
           {t('settings.workboard.by_column')}
         </p>
         <ul className="mt-1.5 flex flex-wrap gap-2" aria-label={t('settings.workboard.by_column')}>

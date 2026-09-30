@@ -111,7 +111,7 @@ export function HeroLiaCard({ greeting = null, isLoadingGreeting = false }: Hero
             </>
           ) : isLoadingGreeting ? (
             <span
-              className="text-[10px] uppercase tracking-wider text-muted-foreground"
+              className="text-px-10 uppercase tracking-wider text-muted-foreground"
               aria-live="polite"
             >
               {t('dashboard.briefing.refreshing')}

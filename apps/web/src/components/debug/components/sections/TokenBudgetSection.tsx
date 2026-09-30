@@ -158,7 +158,7 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
           <div className="flex items-center gap-2">
             <DebugChip tone={fallbackLevelTone(strategy)}>{strategyLabel}</DebugChip>
             {fallback_active && (
-              <span className={cn('text-[10px] italic', TONE_TEXT.warning)}>(degraded mode)</span>
+              <span className={cn('text-px-10 italic', TONE_TEXT.warning)}>(degraded mode)</span>
             )}
           </div>
         </div>
@@ -188,7 +188,7 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
-          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+          <div className="mt-1 flex justify-between text-px-10 text-muted-foreground">
             <span>0</span>
             <span className={cn('font-medium', TONE_TEXT[zoneTone(zone)])}>
               {Math.round(progressPercentage)}%
@@ -246,7 +246,7 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
             highlight
             valueClassName="text-primary font-bold"
           />
-          <div className="grid grid-cols-3 gap-1 text-[10px]">
+          <div className="grid grid-cols-3 gap-1 text-px-10">
             <div className="flex flex-col items-center rounded bg-muted/30 p-1">
               <span className="text-muted-foreground">Input</span>
               <span className="font-medium text-foreground">

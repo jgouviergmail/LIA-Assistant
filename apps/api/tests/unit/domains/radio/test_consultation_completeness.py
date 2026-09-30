@@ -63,7 +63,11 @@ async def test_reading_news_material_is_a_consultation_even_without_stories(
 
     monkeypatch.setattr(adapters, "news_candidates", read)
     source = adapters.NewsDesk(
-        user_id=USER, run_id="radio_audit", disabled_feeds=frozenset(), clock=lambda: NOW
+        user_id=USER,
+        run_id="radio_audit",
+        disabled_feeds=frozenset(),
+        interests_limit=0,
+        clock=lambda: NOW,
     )
     if failure:
         with pytest.raises(failure):

@@ -42,6 +42,11 @@ Multiple security levels protect your data:
 • If that isolation cannot be set up, the script does not run at all rather than running less protected
 • Any administration task on the server is submitted for your approval first, showing in full what will be sent
 
+**🌐 Reading the web:**
+• Every address a page sends LIA to is checked before connecting, redirects included, one hop at a time
+• The connection goes to the address that was checked: neither your internal network nor the server's can be reached this way
+• A booby-trapped text (e-mail, page, message) is formatted in time proportional to its length and cannot stall the server
+
 **📋 Best practices:**
 • Automatic logout after inactivity
 • Ability to revoke connector access

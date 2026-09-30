@@ -5,9 +5,13 @@ Users domain schemas (Pydantic models for API).
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.core.constants import IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT
+from src.core.constants import (
+    IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
+    USER_FONT_SIZE_MAX_PX,
+    USER_FONT_SIZE_MIN_PX,
+)
 from src.core.exchange_rhythm import ExchangeRhythm
 from src.core.i18n import _
 from src.domains.shared.schemas import (
@@ -70,6 +74,14 @@ class UserUpdate(
         None,
         description="User font family: 'system', 'noto-sans', 'plus-jakarta-sans', 'ibm-plex-sans', 'geist', 'source-sans-pro', 'merriweather', 'libre-baskerville', 'fira-code'",
     )
+    # Strict: the slider sends integers; a string or a boolean is a client defect.
+    font_size: int | None = Field(
+        None,
+        strict=True,
+        ge=USER_FONT_SIZE_MIN_PX,
+        le=USER_FONT_SIZE_MAX_PX,
+        description="Interface text size in CSS px at the browser's default root size",
+    )
 
     # Image Generation preferences
     image_generation_enabled: bool | None = Field(
@@ -103,6 +115,22 @@ class UserUpdate(
     )
 
     model_config = {"from_attributes": True, "use_enum_values": True}
+
+    @field_validator("theme", "color_theme", "font_family", "font_size", mode="before")
+    @classmethod
+    def refuse_explicit_null_display_preference(cls, value: object) -> object:
+        """Refuse a display preference SENT as null: its column is NOT NULL.
+
+        ``exclude_unset`` keeps a key the client sent, so a null used to reach the
+        flush and answer a 500. An omitted field is never validated, so it stays
+        unset and unwritten.
+
+        Raises:
+            ValueError: When the value is an explicit null.
+        """
+        if value is None:
+            raise ValueError("must not be null")
+        return value
 
 
 class UserProfile(UserBase, LanguageValidatorMixin):

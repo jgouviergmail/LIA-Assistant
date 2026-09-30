@@ -30,6 +30,7 @@ order, and is the ONE door for such a surface — a ticket comment, where
 
 import re
 
+from src.core.constants import MARKDOWN_SPAN_MAX_CHARS
 from src.domains.shared.markdown_literal import read_as_markdown
 
 # Recognised HTML element tags emitted by the response/display layer.
@@ -56,8 +57,15 @@ _ATTR_TAG_RE = re.compile(rf"""<(?:{_TAGS})\s+[a-z-]+\s*=\s*["']""", re.IGNORECA
 # markup when a span is left unclosed. Either quote style is accepted — the
 # server renders double quotes, but the pattern must not silently miss an icon
 # over a quoting detail.
+#
+# Linear by construction (ADR-326): the class value is read up to the FIRST
+# occurrence of the ligature family (a tempered ``[^"']``), and every run after
+# it is possessive (``*+``) — a run that can never be handed back is never
+# rescanned. The former ``[^"']*`` on both sides of the keyword split a value
+# holding the keyword n times in n ways (quadratic, measured 4.9 s on 208 KB).
 _ICON_SPAN_RE = re.compile(
-    r"""<span[^<>]*class=["'][^"']*material-symbols-outlined[^"']*["'][^<>]*>[^<]*</span\s*>""",
+    r"""<span[^<>]*?class=["'](?:(?!material-symbols-outlined)[^"'])*+"""
+    r"""material-symbols-outlined[^"']*+["'][^<>]*+>[^<]*+</span\s*+>""",
     re.IGNORECASE,
 )
 
@@ -122,17 +130,25 @@ def strip_html_if_markup(text: str) -> str:
     return html_to_text(_ICON_SPAN_RE.sub(" ", text), preserve_links=False)
 
 
+#: Every span a rule below PAIRS — a link label and its target, an emphasis, a
+#: code span — is bounded by ``MARKDOWN_SPAN_MAX_CHARS`` (ADR-326). An unbounded
+#: lazy span made each opening mark rescan the whole rest of the text: 30 KB of
+#: « *a » cost 3.6 s, 120 KB of « [a](http://x » 9 s, on the event loop. Under
+#: the bound the rules accept exactly what they accepted (proved on every short
+#: string of each rule's alphabet, ``test_flatteners_differential.py``); past
+#: it a span keeps its marks and reads as prose.
+_SPAN = MARKDOWN_SPAN_MAX_CHARS
 #: ``[label](url)`` — the label is what a reader needs, the URL what they lose.
 #: The target must be an http(s) URL with no space in it: ``[le devis](voir
 #: plus bas)`` is prose, and flattening it would invent a link that is not one.
-_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+_MD_LINK_RE = re.compile(rf"\[([^\]]{{1,{_SPAN}}})\]\((https?://[^)\s]{{1,{_SPAN}}})\)")
 #: A fenced block's delimiter line, with or without a language tag.
 _MD_FENCE_RE = re.compile(r"^[ \t]*(?:```|~~~)[^\n]*\n?", re.MULTILINE)
 #: Emphasis, which always comes in pairs: bold, italic, strike-through, code.
 #: ``_`` is deliberately absent — in the text these surfaces carry it lives
 #: inside identifiers (``run_id``, ``in_progress``) far more often than around
 #: emphasis, and stripping it there would corrupt the value being confirmed.
-_MD_EMPHASIS_RE = re.compile(r"(\*\*|\*|~~|`)(?=\S)(.+?)(?<=\S)\1", re.DOTALL)
+_MD_EMPHASIS_RE = re.compile(rf"(\*\*|\*|~~|`)(?=\S)(.{{1,{_SPAN}}}?)(?<=\S)\1", re.DOTALL)
 #: A heading's leading hashes, and a blockquote's mark.
 _MD_HEADING_RE = re.compile(r"^[ \t]*#{1,6}[ \t]+", re.MULTILINE)
 _MD_QUOTE_RE = re.compile(r"^[ \t]*>[ \t]?", re.MULTILINE)
@@ -142,8 +158,17 @@ _MD_BULLET_RE = re.compile(r"^([ \t]*)[-*+][ \t]+", re.MULTILINE)
 #: A table's delimiter row (``|---|:--:|``). The header and the rows are data a
 #: reader wants; this line only tells a renderer where the head stops, and it
 #: must go BEFORE the bullet rule, which would read its dashes as a list.
+#:
+#: Written so that no blank can belong to two neighbouring classes (ADR-326):
+#: the former ``[ \t]*(\|[ \t]*:?-*:?[ \t]*)*`` let the blanks of an EMPTY cell
+#: be split between the cell's two runs, and a row of n empty cells that fails
+#: at its end was retried 2^n ways — 51 characters of « --| | | … x » cost 4.5 s
+#: (exponential, measured 2026-09-30). Here a cell's dashes are entered only
+#: when one is there (the ``(?=[:\-])`` guard), so each blank has one owner.
+#: Same language, proved on every string up to 8 characters of the row's alphabet.
 _MD_TABLE_RULE_RE = re.compile(
-    r"^[ \t]*\|?[ \t]*:?-{2,}:?[ \t]*(\|[ \t]*:?-*:?[ \t]*)*\|?[ \t]*$\n?", re.MULTILINE
+    r"^[ \t]*(?:\|[ \t]*)?:?-{2,}:?[ \t]*(?:\|[ \t]*(?:(?=[:\-])(?::?-*:?)[ \t]*)?)*$\n?",
+    re.MULTILINE,
 )
 #: Three line breaks or more — a gap nothing renders and every surface shows.
 _MD_BLANK_RUN_RE = re.compile(r"\n{3,}")

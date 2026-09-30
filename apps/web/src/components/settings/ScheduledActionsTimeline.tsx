@@ -295,10 +295,10 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-3">
-        <p className="text-[11px] text-muted-foreground">{zoneLine}</p>
+        <p className="text-px-11 text-muted-foreground">{zoneLine}</p>
 
         {week === null && (
-          <p role="status" className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+          <p role="status" className="flex items-start gap-1.5 text-px-11 text-muted-foreground">
             <AlertTriangle className="mt-px h-3 w-3 shrink-0 text-warning" aria-hidden="true" />
             <span>{t('scheduled_actions.timeline.unavailable')}</span>
           </p>
@@ -322,7 +322,7 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
               <tr>
                 <th
                   scope="col"
-                  className="pb-1.5 text-right text-[10px] font-medium text-muted-foreground"
+                  className="pb-1.5 text-right text-px-10 font-medium text-muted-foreground"
                 >
                   <span className="sr-only">{t('scheduled_actions.timeline.hour_header')}</span>
                 </th>
@@ -335,7 +335,7 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
                       aria-current={isToday ? 'date' : undefined}
                       data-today={isToday || undefined}
                       className={cn(
-                        'px-0.5 pb-1.5 text-center text-[11px] font-medium leading-tight',
+                        'px-0.5 pb-1.5 text-center text-px-11 font-medium leading-tight',
                         isToday ? 'text-primary' : 'text-muted-foreground'
                       )}
                     >
@@ -343,7 +343,7 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
                       {dates[index] && (
                         <span
                           className={cn(
-                            'block text-[10px] tabular-nums',
+                            'block text-px-10 tabular-nums',
                             isToday ? 'font-semibold' : 'font-normal'
                           )}
                         >
@@ -363,7 +363,7 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
                 <tr key={hour}>
                   <th
                     scope="row"
-                    className="h-7 border-t border-border/40 pr-1.5 text-right align-top text-[10px] font-normal leading-7 tabular-nums text-muted-foreground"
+                    className="h-7 border-t border-border/40 pr-1.5 text-right align-top text-px-10 font-normal leading-7 tabular-nums text-muted-foreground"
                   >
                     {String(hour).padStart(2, '0')}
                   </th>
@@ -413,7 +413,7 @@ export const ScheduledActionsTimeline = memo(function ScheduledActionsTimeline({
         </div>
 
         <ul
-          className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-px-11 text-muted-foreground"
           aria-label={t('scheduled_actions.timeline.legend_title')}
         >
           {LEGEND_TONES.map(tone => (

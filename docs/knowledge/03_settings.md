@@ -249,12 +249,13 @@ Manage your personal information:
 • 🌐 **Language**: interface language
 • 🎨 **Theme**: color theme and display mode (light, dark, absolute black, or system)
 • 🔤 **Font**: choose from 9 font families (System, Noto Sans, Plus Jakarta Sans, IBM Plex Sans, Geist, Source Sans Pro, Merriweather, Libre Baskerville, Fira Code)
+• 🔠 **Font size**: make the interface text a little smaller or noticeably larger than the default, with a live preview. Only the text changes size: panels, spacing and icons keep their dimensions
 
 **Not editable:**
 • 📧 **Email**: login identifier (fixed after registration)
 
 **To modify:**
-Your full name lives in **Settings > Profile**. Timezone, language, theme and font live in **Settings > Preferences**, under the **Personalization** group.
+Your full name lives in **Settings > Profile**. Timezone, language, theme, font and font size live in **Settings > Preferences**, under the **Personalization** group.
 
 ## How do I customize LIA's style?
 LIA can adapt its **communication style** to your preferences:
@@ -286,7 +287,7 @@ Yes, all your preferences are **automatically synchronized**:
 **🔄 What's synchronized:**
 • Interface language
 • Timezone
-• Theme, color theme, font family, and light/dark mode
+• Theme, color theme, font family, font size, and light/dark mode
 • LIA personality style
 • Voice preferences
 • Active connectors
@@ -719,3 +720,16 @@ fresh installation and needs its own provider key, decision model and price.
 An uncertain or unavailable decision returns to LIA's existing process. Both
 a paid JEV attempt and its fallback count, and the diagnostic panel shows what
 ran. JEV does not grant permissions or approve actions.
+
+## Can I make the interface text bigger or smaller?
+Yes. In **Settings › Preferences › Personalization**, the **Font size** section
+sets the text from **14 to 20 px** (16 px by default), with a live preview and a
+button to return to the default size.
+
+**🔠 Only the text changes:** panels, spacing and icons keep their dimensions —
+the chat, the settings and the debug panel stay laid out as before, and only
+what you read grows or shrinks.
+
+**🔄 On all your devices:** the choice is saved on your account and applies
+wherever you sign in. It combines with the font chosen in the section just
+above.

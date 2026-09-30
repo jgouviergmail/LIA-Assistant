@@ -5,7 +5,7 @@ Connectors domain schemas (Pydantic models for API).
 import re
 from datetime import datetime
 from enum import Enum
-from ipaddress import IPv4Address, ip_address
+from ipaddress import IPv4Address, IPv4Network, ip_address
 from typing import Any
 from uuid import UUID
 
@@ -374,22 +374,32 @@ class HueBridgeDiscoveryResponse(BaseModel):
     bridges: list[HueBridgeInfo] = Field(default_factory=list, description="Discovered bridges")
 
 
+#: Where a Hue bridge lives: the three RFC 1918 networks, exactly. ``is_private``
+#: says yes to more — the link-local range that holds a cloud's metadata
+#: address, ``0.0.0.0`` (the local host, on Linux), the benchmarking,
+#: documentation and reserved ranges — none of which a bridge on a home
+#: network ever gets from DHCP (measured 2026-09-30, ADR-326).
+HUE_BRIDGE_NETWORKS: tuple[IPv4Network, ...] = (
+    IPv4Network("10.0.0.0/8"),
+    IPv4Network("172.16.0.0/12"),
+    IPv4Network("192.168.0.0/16"),
+)
+
+
 class _HueBridgeIpValidatorMixin(BaseModel):
-    """Mixin validating bridge_ip is a private, non-loopback IPv4 address."""
+    """Mixin validating bridge_ip is an RFC 1918 IPv4 address."""
 
     @field_validator("bridge_ip", check_fields=False)
     @classmethod
     def validate_bridge_ip(cls, v: str) -> str:
-        """Validate bridge_ip is a private IPv4 address (RFC 1918)."""
+        """Validate bridge_ip is an IPv4 address of one of the RFC 1918 networks."""
         try:
             ip = ip_address(v)
         except ValueError as e:
             raise ValueError(f"Invalid IP address format: {v}") from e
         if not isinstance(ip, IPv4Address):
             raise ValueError("Bridge IP must be an IPv4 address")
-        if ip.is_loopback:
-            raise ValueError("Loopback addresses are not allowed")
-        if not ip.is_private:
+        if not any(ip in network for network in HUE_BRIDGE_NETWORKS):
             raise ValueError("Bridge IP must be a private network address (RFC 1918)")
         return v
 

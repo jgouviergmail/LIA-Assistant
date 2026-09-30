@@ -172,7 +172,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                   <div className="flex justify-end">
                     <button
                       onClick={() => setRefreshKey(k => k + 1)}
-                      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      className="flex items-center gap-1 text-px-10 text-muted-foreground hover:text-foreground transition-colors"
                       title={t('psyche.summary.refresh', 'Refresh')}
                     >
                       <RefreshCw className="h-3 w-3" />

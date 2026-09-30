@@ -1092,7 +1092,7 @@ its own personality, distinct from the chat's.
     interests). Each part was measured or proven on dev before it was kept.
     - **Searched with the listener's own key** when a session's loop starts, beside it (a task
       the session's parts own and cancel, which never raises): their strongest interests
-      (`RADIO_INTEREST_TOPICS_MAX`, 3, from the taste the start already read — none in
+      (`RADIO_INTEREST_TOPICS_MAX`, 5 since the amendment below, from the taste the start already read — none in
       company, none with the operator's interests capability off), each at most once per
       `RADIO_INTEREST_FRESH_SECONDS` (six hours; `radio:interests:{user}:{digest}`), their
       Brave key's news endpoint first (articles with their dates and outlets), else their
@@ -1125,6 +1125,24 @@ its own personality, distinct from the chat's.
       404 while the catalogue lists it active). Every such search is billed PER CALL on top
       of the tokens, which no tariff of the platform records — the slot is not built until
       that fee is priced and traced like every other euro.
+    - **Amended 2026-09-30 (owner review): one count, two bounds, no story bought for
+      nothing.** Measured on dev 2026-09-29: 1 214 source stories in 48 hours, and four of
+      the six stories a search had found fell past the 300 freshest the desk read — filed,
+      paid for with the listener's key, and read by no programme; and the writer was told
+      eight interests while the search looked up three. Now: ONE count
+      (`RADIO_INTEREST_TOPICS_MAX`, 5) is applied once, where the start reads the interests
+      (`read_taste(interests_max=)`, 0 with the interests capability off): the writer is
+      told exactly the topics the search looks up. The desk reads the sources and what a
+      search found under TWO bounds (`news_candidates(limit=, interests_limit=)`), the
+      second the most the searches can file within its horizon
+      (`interests.interest_stories_max`: topics × stories per search × (horizon ÷ freshness
+      + 1), proven tight by a simulation), so no story a key paid for is cut while the
+      interests stay the same — and 0 when the session holds no interest
+      (`adapters.interest_stories_limit`): in company, with the capability off or with none
+      left, what a search found earlier used to air anyway, voicing what the listener cares
+      about. A Brave search asks for the desk's days (`interest_search.brave_freshness`,
+      its custom `YYYY-MM-DDtoYYYY-MM-DD` range) instead of the week, whose older results
+      were dropped unfiled.
 
 41. **One journal, three editions** (2026-09-28, owner decision: « merge "for you" into the
     journal »; lot 4a of the 2026-09-27 spec). « Your day », « for you » and the evening recap

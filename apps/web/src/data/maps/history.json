@@ -2416,6 +2416,20 @@
         "t.metrics",
         "t.web"
       ]
+    },
+    {
+      "adr": 326,
+      "date": "2026-09-30",
+      "theme": "security",
+      "functional": ["f.chat", "f.mail", "f.web", "f.voice", "f.radio", "f.security"],
+      "technical": [
+        "t.response",
+        "t.toolsys",
+        "t.live",
+        "t.connclients",
+        "t.cicd",
+        "t.web"
+      ]
     }
   ]
 }

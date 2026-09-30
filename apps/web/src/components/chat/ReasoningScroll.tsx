@@ -45,7 +45,7 @@ export function ReasoningScroll({ children }: ReasoningScrollProps) {
         'lia-reasoning',
         'my-3 max-h-32 overflow-y-auto rounded-md border-l-4 border-primary/30',
         'bg-muted/20 px-3 py-2',
-        'text-[13px] italic text-muted-foreground',
+        'text-px-13 italic text-muted-foreground',
         // Bottom fade so older lines dim out as new ones stream in.
         '[mask-image:linear-gradient(to_bottom,transparent_0,black_16px)]'
       )}

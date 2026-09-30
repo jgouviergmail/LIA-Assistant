@@ -6,7 +6,7 @@
 
 **Version**: 5.1
 **Date**: 2026-09-24
-**Application**: LIA v2.1.0
+**Application**: LIA v2.1.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 608 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 324 ADRs, 46,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Production reliability | 325 ADRs, 47,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -89,10 +89,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 46,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
+| Tests | 47,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 324 |
+| ADRs (Architecture Decision Records) | 325 |
 | Prometheus metrics | 608 definitions |
 | Grafana dashboards | 30 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -955,7 +955,7 @@ The same wake serves the **watches**: a condition routine "mail from this sender
 
 ### A routine has one clock
 
-The studio makes schedule and condition exclusive. A scheduled routine uses the recurrence engine; a condition routine has no recurrence and is checked at a cadence determined by its source. A check without a new matching fact writes no run. Both use the same execution limits, approval rules and visible week history when they actually act.
+The studio makes schedule and condition exclusive. A scheduled routine uses the recurrence engine; a condition routine has no recurrence and is checked at a cadence determined by its source. A check without a new matching fact writes no run. Both use the same execution limits, approval rules and visible week history when they actually act. A weather condition always reads Google Weather, the one source the platform guarantees: a single rule, shared with the briefing card, keeps the first hourly slot of a watched phenomenon within the horizon (4 hours by default) whose chance of precipitation is strictly above the published threshold (50%), and the note handed to the run names the hour, the day, the timezone, the chance and the source. A check cadence longer than the horizon is refused at boot, so no window goes unwatched.
 
 ---
 
@@ -1006,7 +1006,7 @@ The chat's retrieval reads the active spaces alone, so a document indexed in a p
 
 ### 18.1. Web Fetch
 
-URL → SSRF validation (DNS + IP blocklist + post-redirect recheck) → readability extraction (fallback full page) → HTML cleaning → Markdown → `<external_content>` wrapping (prompt injection prevention). Redis cache 10 min.
+URL → SSRF validation (DNS + IP blocklist) → connection pinned to the checked address (name in `Host` and the SNI, no second DNS lookup) → redirects followed by hand, each hop revalidated before any contact → readability extraction (fallback full page) → HTML cleaning → Markdown → `<external_content>` wrapping (prompt injection prevention). Redis cache 10 min.
 
 ### 18.2. Browser Control (ADR-059)
 
@@ -1043,9 +1043,10 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 | XSS (LLM rendering) | `rehype-sanitize` boundary on the chat markdown pipeline (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeRestoreDollars → rehypeKatex`, audited schema — `script`/`iframe`/`form`/handlers dropped), HTTP-only cookies, backend CSP; MCP/Skill Apps never go through markdown (sentinel → sandboxed iframe widget) |
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (parameterized queries) |
-| SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser); skill install-from-URL reuses the same validator with stricter terms: https only, redirects refused, streamed size cap, TOTAL transfer deadline, per-user rate limit The browser goes further: **every request a page makes** — redirect, sub-resource, iframe, XHR — resolves its own destination behind a bounded verdict cache, and a failure aborts instead of forwarding. |
+| SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser); skill install-from-URL reuses the same validator with stricter terms: https only, redirects refused, streamed size cap, TOTAL transfer deadline, per-user rate limit The browser goes further: **every request a page makes** — redirect, sub-resource, iframe, XHR — resolves its own destination behind a bounded verdict cache, and a failure aborts instead of forwarding. A validated URL leaves through `pinned_stream` alone: the connection targets the address the check resolved (no *DNS rebinding*), never a client that follows redirects (ADR-326). |
 | Prompt Injection | Provenance carried by the data: 24 classified types (fail-closed, boot-time assert), marking on the three surfaces that reach the LLM, 7 pattern families detected across 6 languages without ever rewriting the content (ADR-167); `<external_content>` markers kept on the tool side |
 | Rate Limiting / IP spoofing | Distributed Redis sliding window (atomic Lua); trusted proxy chain — API ports loopback-bound (cloudflared = single entry), uvicorn `--proxy-headers`, `request.client.host` validated as the single IP source (no shared global bucket, raw XFF never read) A global ceiling sits in front of every route as real ASGI middleware on that same shared limiter, so one client cannot consume the whole API; probes stay exempt so supervision is never throttled. |
+| Hostile text (ReDoS) | The Markdown/HTML flatteners — push, voice, ticket comments, radio, e-mail cards — run on the event loop: every paired span is bounded (`MARKDOWN_SPAN_MAX_CHARS`) and no character belongs to two neighbouring classes; growth (n then 4n) and exhaustive-equivalence tests, API and browser side, hold the linearity (ADR-326) |
 | Supply Chain | SHA-pinned GitHub Actions, Dependabot weekly |
 
 ### 19.4. Data durability: automated backups (ADR-109)
@@ -1375,7 +1376,7 @@ Six cross-cutting capabilities share the same product philosophy: **instant feed
 - **LaTeX rendering** — The mathematical and scientific formulas LIA writes (`$inline$` / `$$block$$`) render via KaTeX in `MarkdownContent.tsx`. Since the assistant emits its whole answer as HTML, a `rehypeMathInText` plugin detects the `$`/`$$` delimiters at the hast level — after `rehypeRaw` has expanded the HTML — and turns them into the markers `rehype-katex` renders; `remark-math`, confined to markdown, never sees math buried in HTML. Order: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeRestoreDollars → rehypeKatex`; the math steps read only already-sanitised text and emit fixed-class spans, so no new attack surface. A referenced dollar (`&#36;`, how a card draws a value's `$`) is a literal one: a string step marks it before the math steps and `rehypeRestoreDollars` writes it back after them.
 - **Syntax highlighting** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 languages registered on-demand via `SyntaxHighlighter.registerLanguage(...)` to keep the initial bundle small (languages fetched at first code block). Theme auto-switches `one-dark` / `one-light` driven by `next-themes`.
 
-- **Rich-HTML mode: a component vocabulary** — when the user picks the rich-HTML display mode, the prompt directive exposes seven design-system-styled components (titled callouts, icon chips, native `details` collapsibles, key-value lists, responsive columns, numbered steps, stat tiles) plus the inline accents `mark`/`kbd`/`abbr`, under an explicit layout rule — every answer that carries data is a composed page (a lead sentence, one section per facet in its component, a closing callout), and the shape follows the answer's own data, never the shape of earlier answers. The enrichment is purely declarative (prompt + CSS + sanitize allowlist: six inert tags added, plugin order unchanged) and a CI guard fails if the directive ever advertises a class the stylesheet does not cover. Copy, share and `.md` export flatten the HTML to readable text (dual-flavor clipboard `text/html` + `text/plain`), a client-side mirror of the backend's `html_to_text` semantics; icon ligatures are excluded from search highlighting.
+- **Rich-HTML mode: a component vocabulary** — when the user picks the rich-HTML display mode, the prompt directive exposes seven design-system-styled components (titled callouts, icon chips, native `details` collapsibles, key-value lists, responsive columns, numbered steps, stat tiles) plus the inline accents `mark`/`kbd`/`abbr`, under an explicit layout rule — every answer that carries data is a composed page (a lead sentence, one section per facet in its component, a closing callout), and the shape follows the answer's own data, never the shape of earlier answers. The enrichment is purely declarative (prompt + CSS + sanitize allowlist: six inert tags added, plugin order unchanged) and a CI guard fails if the directive ever advertises a class the stylesheet does not cover. Copy and share flatten the HTML to readable text (dual-flavor clipboard `text/html` + `text/plain`), a client-side mirror of the backend's `html_to_text` semantics; a file gets Markdown instead: the `.md` export (download, e-mail, bookmark) rewrites only the HTML regions, as CommonMark reads them, into GFM — callouts as GFM alerts, tiles as tables, cards as a heading and bullets — leaving the model's own Markdown untouched; icon ligatures are excluded from search highlighting.
 
 ### 23.9. Proactive feedback persistence
 
@@ -1495,6 +1496,8 @@ Visual consistency is a tooled contract rather than a review-time discipline (AD
 
 Absolute black (ADR-243) extends that contract rather than widening it. Making it a third theme would have been the natural move; it would also have removed the `dark` class from the page, and with it flipped nine internal checks to their light branch — light syntax highlighting on a black page, white diagrams — then sent the whole public site back to its light variant. Absolute black is therefore a **refinement** of dark, carried by a distinct attribute whose selector outranks the five accents whatever the file order. Six neutral surfaces move and no accent colour does: borders even keep their dark value, which reads better against black than against the original grey. Surfaces are calibrated against the shipped dark mode rather than against zero, so nothing separates less than in dark mode.
 
+Text size follows the same refinement logic (a per-account setting, from 14 to 20 px). Enlarging the root size would have enlarged everything — spacing, panels, icons — and squeezed the chat and the debug panel; it is therefore a **text scale**, `--lia-text-scale`, that multiplies the Tailwind type scale, the text tokens, the `body` and a `text-px-N` utility replacing every hand-written pixel size. Layout dimensions stay in fixed `rem`. Two traps are held by tests: `tailwind-merge` must learn that `text-px-N` is a size, or it takes it for a colour and drops the neighbouring colour; and an end-to-end test compares the panels' boxes at 14, 16 and 20 px, from 320 to 1,440 px wide.
+
 The settings surface itself follows the same doctrine of structure over discipline (ADR-227). The page renders as a master-detail shell — a permanent rail of sections beside a pane that mounts exactly one of them, an overview of descriptive cards when nothing is selected — and hand-lists nothing: rail order, grouping and the mounted component all derive from the deep-link table plus two compiler-complete registries, each proven against the section sources by tests. The consequence is architectural rather than cosmetic: a section exists on the page if and only if the tables declare it, no layout is duplicated from one section to the next, and only the selected section fetches — the others fire no request on a tab load. Absence stays honest: a section that legitimately renders nothing (an instance without MFA, no call ever placed) yields an explicit inline empty state that keeps polling, so data answering late replaces the message.
 
 The same doctrine answers a subtler failure: a surface that quietly stops describing the product (ADR-229). The capability map — the page that answers “what can my assistant do for me?” — is the one screen whose entire job is to be current, and a fixed list of nodes would fall behind with every capability shipped; a written convention is not enough there, so the answer is structural. Two declared tables partition the platform-capability enum between “draws a node” and “deliberately off the map, for this written reason”, and an assert runs at IMPORT, so a capability added without deciding its fate fails the boot rather than shipping invisible. A companion guard reads the three client surfaces the assert cannot see — the chart's slots, the “next step” links, the six locales — because a guard watching only Python would miss the half of the drift that lives in TypeScript. The same aggregate then feeds the settings overview: one request states what each section currently holds, in the very words the capability list uses, and says nothing at all while the answer is in flight, when it failed, or for a section it knows nothing about.
@@ -1503,7 +1506,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-324 ADRs in MADR format document the major architectural decisions. Some representative examples:
+325 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1848,8 +1851,8 @@ The same two modes hold for the phone (ADR-301): relaying the conversation at it
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 324 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 46,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 325 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 47,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 324 ADRs, and the changelog (v1.0 to v2.1.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 325 ADRs, and the changelog (v1.0 to v2.1.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

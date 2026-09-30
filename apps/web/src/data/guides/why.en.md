@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Date**: 2026-09-24
-**Application**: LIA v2.1.0
+**Application**: LIA v2.1.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,7 +60,7 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Channels**: link Telegram for chatting and receiving notifications on mobile
 - **Image generation**: enable and configure AI image creation
 - **Personal MCP servers**: connect your own MCP servers to extend LIA's capabilities
-- **Appearance**: language, timezone, theme (5 palettes, light, dark or absolute black), font (9 choices), response display format (HTML cards, HTML, Markdown)
+- **Appearance**: language, timezone, theme (5 palettes, light, dark or absolute black), font (9 choices), text size (14 to 20 px, without moving a panel), response display format (HTML cards, HTML, Markdown)
 - **My dashboard**: hide or reorder the 9 briefing cards — a hidden card is not even fetched anymore
 - **Usage preferences**: choose your exchange rhythm — frequent, and LIA keeps every tool at hand so each ReAct turn re-reads the previous one from the provider's cache; occasional, and it picks the tools each question needs, at a steady cost
 - **Debug**: access the debug panel to inspect each exchange (if enabled by administrator)
@@ -367,6 +367,8 @@ The same principle applies throughout: a count wears the colour of the other cou
 
 And colour never carries meaning on its own: every label keeps its word. An interface that only works in colour does not work for everyone.
 
+And the text size is yours: from 14 to 20 px, only the text grows — panels, spacing and icons stay where you found them, so that more readable text never costs a less readable page.
+
 ### 6.7. Even what LIA learns about you is inspectable
 
 The same transparency covers habit learning: what LIA believes about your rhythm and your recurring requests sits in a dedicated panel — a 24-hour heat map, your active-day percentage, a progress bar toward the first claims, and for every habit the real days it was observed plus the exact thresholds the detector applied. When there is no stable habit, the panel says so instead of inventing one. Pause, permanent block, total deletion, instant retroactive recompute — and the whole feature is off until you turn it on. What you set there holds everywhere: a paused habit is paused for the notifications, their timing and the assistant's context alike; a routine you miss is offered by name; and a learned habit lives — promoted, refreshed or demoted as your days change, never on doubt.
@@ -546,7 +548,7 @@ Open standards rather than a house protocol: what LIA speaks, another tool can s
 
 ### 9.3. What makes those guarantees checkable
 
-A guarantee you cannot check is not one. The project's technical audit is public — scoring grid, method, strengths and owned weaknesses, and the protocol to replay it. Every architecture decision is written down and indexed. Every protection is backed by a test that fails if the protection disappears. And the nightly database backup comes with a restore procedure that has actually been run, not merely written.
+A guarantee you cannot check is not one. The project's technical audit is public — scoring grid, method, strengths and owned weaknesses, and the protocol to replay it. Every architecture decision is written down and indexed. Every protection is backed by a test that fails if the protection disappears. And the nightly database backup comes with a restore procedure that has actually been run, not merely written. When code scanning reports a weakness, the answer targets its whole class rather than the alert: the fix arrives with a guard that fails if the same class reappears elsewhere, and the scanning also covers the deployed scripts, the infrastructure and the workflows.
 
 ## 10. Radical openness
 

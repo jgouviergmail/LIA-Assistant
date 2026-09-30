@@ -132,6 +132,17 @@ Container query: `@container card (max-width: 430px)`
 | `.lia-part-list` | Reduced left margin |
 | `.lia-card-hero img` | Max height 140px |
 
+### Text Scale
+
+Every font size in the card sheet is multiplied by `--lia-text-scale` (the
+reader's **Font size** preference, 14 to 20 px, divided by 16). Only text
+scales: padding, borders, avatars and icons keep their `rem`/`px` values, so a
+card never reflows because its reader wants larger letters. A new size in the
+sheet is written as `calc(<size> * var(--lia-text-scale, 1))`; in React it is a
+`text-*` or `text-px-N` utility — never `text-[Npx]` nor a `rem` in an inline
+style, which would not follow the scale. `e2e/smoke/font-size-extremes.spec.ts`
+measures the panels at 14, 16 and 20 px.
+
 ---
 
 ## Python Helpers

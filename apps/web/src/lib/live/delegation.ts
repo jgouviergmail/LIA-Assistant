@@ -88,7 +88,34 @@ const CHARS_PER_TOKEN = 4;
 /** How long a replaced turn is given to end after its Stop before the new one starts. */
 export const SUPERSEDE_GRACE_MS = 3_000;
 
-const CJK_RE = /[぀-ヿ㐀-䶿一-鿿豈-﫿가-힯]/;
+/**
+ * The scripts whose every character is a token: Hiragana and Katakana, the
+ * CJK unified ideographs (extension A included), the compatibility ideographs,
+ * Hangul. Declared as code points, NEVER as literal characters (ADR-326): the
+ * literal « 豈 » that opened the compatibility range was silently normalised
+ * (NFC) to U+8C48 and the range became U+8C48–U+FAFF — wide enough to hold a
+ * surrogate, so every emoji counted as a token here and a quarter on the
+ * server. The server's twin (`voice_sessions/projection.py`, `CJK_RANGES`)
+ * declares the same pairs; its `test_projection_cjk.py` reads THIS constant.
+ */
+const CJK_RANGES: ReadonlyArray<readonly [number, number]> = [
+  [0x3040, 0x30ff],
+  [0x3400, 0x4dbf],
+  [0x4e00, 0x9fff],
+  [0xf900, 0xfaff],
+  [0xac00, 0xd7af],
+];
+const CJK_RE = new RegExp(
+  `[${CJK_RANGES.map(([low, high]) => `\\u{${low.toString(16)}}-\\u{${high.toString(16)}}`).join('')}]`,
+  'u'
+);
+
+/**
+ * Every span a flattening rule PAIRS — a link label and its target — is bounded
+ * (the server's `MARKDOWN_SPAN_MAX_CHARS`, ADR-326): unbounded, each unmatched
+ * « [ » rescanned the text to its end. Past the bound a span keeps its marks.
+ */
+const SPAN_MAX_CHARS = 400;
 
 /** What one character costs: an ideograph is a token (ADR-274), four Latin characters are one. */
 export function charTokenCost(char: string): number {
@@ -134,14 +161,23 @@ export function flattenForVoice(content: string): string {
   return readAsMarkdown(content, flattenShielded);
 }
 
+/**
+ * Linear by construction (ADR-326), rule for rule with `projection._flatten`:
+ * a list or heading marker is preceded by the BLANKS of its own line
+ * (`[ \t]`), never by `\s`, which crossed the newlines — at every line start
+ * the rule swallowed the rest of a run of empty lines before failing, and
+ * 40 KB of newlines cost 14 s; a link's label and target are bounded.
+ */
+const LINK_RE = new RegExp(`\\[([^\\]]{1,${SPAN_MAX_CHARS}})\\]\\([^)]{0,${SPAN_MAX_CHARS}}\\)`, 'g');
+
 function flattenShielded(content: string): string {
   return htmlToPlainText(content)
     .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/^#{1,6}\s+(.+)$/gm, '$1.')
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/^#{1,6}[ \t]+(.+)$/gm, '$1.')
+    .replace(LINK_RE, '$1')
     .replace(/[*_`~]+/g, '')
-    .replace(/^\s*[-*+•]\s+(.+)$/gm, '$1.')
-    .replace(/^\s*\d+[.)]\s+(.+)$/gm, '$1.')
+    .replace(/^[ \t]*[-*+•][ \t]+(.+)$/gm, '$1.')
+    .replace(/^[ \t]*\d+[.)][ \t]+(.+)$/gm, '$1.')
     .replace(/\.{2,}/g, '.')
     .replace(/\s+/g, ' ')
     .trim();

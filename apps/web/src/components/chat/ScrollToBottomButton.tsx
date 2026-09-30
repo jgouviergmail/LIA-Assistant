@@ -39,7 +39,7 @@ export function ScrollToBottomButton({ historyView, count, onClick }: ScrollToBo
       <ArrowDown className="h-3.5 w-3.5" aria-hidden />
       {historyView && <span>{label}</span>}
       {count > 0 && (
-        <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+        <span className="rounded-full bg-primary px-1.5 py-0.5 text-px-10 font-semibold text-primary-foreground">
           {t('chat.scroll.new_responses', { count })}
         </span>
       )}

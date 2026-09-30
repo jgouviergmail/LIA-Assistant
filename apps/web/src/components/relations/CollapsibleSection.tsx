@@ -98,7 +98,7 @@ export function CollapsibleSection({
  */
 export function SectionBadge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-px text-[11px] font-medium tabular-nums text-primary">
+    <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-px text-px-11 font-medium tabular-nums text-primary">
       {children}
     </span>
   );

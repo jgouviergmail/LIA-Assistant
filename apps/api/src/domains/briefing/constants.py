@@ -68,8 +68,14 @@ SECTION_DOCUMENTS_TTL_SECONDS = 600  # 10 min — Drive activity cadence
 
 # Forecast 3-h slots fetched from OpenWeatherMap.
 # 40 slots × 3 h = 120 h = 5 days (the free-tier maximum).
-# Used both to detect short-term alerts AND to aggregate the 5-day forecast.
+# Aggregated into the 5-day strip; the card's alert reads its first 24 h only.
 BRIEFING_WEATHER_FORECAST_CNT = 40
+
+# How far ahead the card's forecast alert looks — its documented contract,
+# « the next notable change in the next 24 h ». The alert shows an HOUR with no
+# day: read over the whole 5-day list, it announced a rain four days away as
+# « Rain at 15:00 », today.
+BRIEFING_FORECAST_ALERT_HORIZON_HOURS = 24
 
 # How long a request waits for ANOTHER uvicorn worker to publish the bundle
 # before building it itself (ADR-271 amendment). Production runs four workers

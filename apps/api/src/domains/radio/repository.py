@@ -7,7 +7,9 @@ holds a transaction around anything but its own statements.
 - The stories offered to a session are those of every base source the
   listener did not untick, in every language (everything airs translated),
   and of their own sites they did not pause — the ones they never heard first,
-  so a bound keeps what can still air.
+  so a bound keeps what can still air. What a search found for their interests is
+  read under a bound of its OWN: thousands of source stories would otherwise push
+  it past the sources' bound, unread although the listener's key paid for it.
 - The settings are one row: the JSON the settings page edits, the personality
   in a column so its deletion clears it. They are read field by field
   (``read_radio_preferences``): a row older than a field reads as its default.
@@ -32,7 +34,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, and_, delete, func, or_, select, update
+from sqlalchemy import ColumnElement, Select, and_, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -104,14 +106,23 @@ class SourceStory:
     fingerprint: str
 
 
-def _heard_by(user_id: uuid.UUID, disabled_feeds: Collection[str]) -> ColumnElement[bool]:
-    """The feeds a listener's radio reads: every base source they did not untick, in
-    every language, their own sites they did not pause, and the row of what a search
-    found for their interests (never paused)."""
+def _sources_heard_by(user_id: uuid.UUID, disabled_feeds: Collection[str]) -> ColumnElement[bool]:
+    """The sources a listener's radio reads: every base source they did not untick, in
+    every language, and their own sites they did not pause."""
     base: ColumnElement[bool] = RadioFeed.owner_id.is_(None)
     if disabled_feeds:
         base = and_(base, RadioFeed.url.not_in(list(disabled_feeds)))
-    return or_(base, and_(RadioFeed.owner_id == user_id, RadioFeed.paused.is_(False)))
+    own_sites = and_(
+        RadioFeed.owner_id == user_id,
+        RadioFeed.kind == FeedKind.SOURCE.value,
+        RadioFeed.paused.is_(False),
+    )
+    return or_(base, own_sites)
+
+
+def _interests_of(user_id: uuid.UUID) -> ColumnElement[bool]:
+    """The row of what a search found for the listener's interests (never paused)."""
+    return and_(RadioFeed.owner_id == user_id, RadioFeed.kind == FeedKind.INTEREST.value)
 
 
 def _story_ids(keys: Collection[str]) -> list[uuid.UUID]:
@@ -144,6 +155,7 @@ async def news_candidates(
     disabled_feeds: Collection[str],
     since: datetime,
     limit: int,
+    interests_limit: int,
     heard_keys: Collection[str] = (),
     heard_stories: Collection[str] = (),
 ) -> list[NewsCandidate]:
@@ -154,45 +166,61 @@ async def news_candidates(
     listener heard come last: the bound keeps what can still air, and what was heard
     still tells an exhausted newsroom from an empty one.
 
+    What a search found for their interests (ADR-324 decision 40) is read under a bound
+    of its own, never in competition with the sources: measured on dev 2026-09-29, 1 214
+    source stories in 48 hours left four of six such stories past a shared bound of 300.
+
     Args:
         user_id: The listener.
         disabled_feeds: The base sources they unticked (by address).
         since: The oldest story worth offering.
-        limit: The most stories returned.
+        limit: The most stories of the sources and their sites returned.
+        interests_limit: The most stories a search found for their interests returned
+            (0: none — the session holds no interest).
         heard_keys: The keys they heard (a story's key is its id; others are ignored).
         heard_stories: The fingerprints of the stories they heard.
 
     Returns:
-        The stories of every base source they hear, of their running sites and of
-        what a search found for their interests (ADR-324 decision 40).
+        The stories of every base source they hear and of their running sites, then
+        what a search found for their interests.
     """
-    stmt = (
-        select(RadioNewsItem, RadioFeed.outlet, RadioFeed.kind)
-        .join(RadioFeed, RadioFeed.id == RadioNewsItem.feed_id)
-        .where(RadioNewsItem.published_at >= since, _heard_by(user_id, disabled_feeds))
-        .order_by(
-            *_heard_last(heard_keys, heard_stories),
-            RadioNewsItem.published_at.desc(),
-            RadioNewsItem.id.desc(),
+    heard_last = _heard_last(heard_keys, heard_stories)
+
+    def read(where: ColumnElement[bool], bound: int) -> Select[tuple[RadioNewsItem, str]]:
+        return (
+            select(RadioNewsItem, RadioFeed.outlet)
+            .join(RadioFeed, RadioFeed.id == RadioNewsItem.feed_id)
+            .where(RadioNewsItem.published_at >= since, where)
+            .order_by(*heard_last, RadioNewsItem.published_at.desc(), RadioNewsItem.id.desc())
+            .limit(bound)
         )
-        .limit(limit)
-    )
+
     async with get_db_context() as db:
-        rows = (await db.execute(stmt)).all()
-    return [
-        NewsCandidate(
-            key=str(item.id),
-            outlet=item.outlet or outlet,
-            url=item.url,
-            title=item.title,
-            summary=item.summary,
-            published_at=item.published_at,
-            fingerprint=item.fingerprint,
-            full_text=item.full_text if item.text_state == TextState.READY.value else None,
-            from_interests=kind == FeedKind.INTEREST.value,
+        sources = (await db.execute(read(_sources_heard_by(user_id, disabled_feeds), limit))).all()
+        found = (
+            (await db.execute(read(_interests_of(user_id), interests_limit))).all()
+            if interests_limit > 0
+            else []
         )
-        for item, outlet, kind in rows
+    return [
+        *(_candidate(item, outlet, from_interests=False) for item, outlet in sources),
+        *(_candidate(item, outlet, from_interests=True) for item, outlet in found),
     ]
+
+
+def _candidate(item: RadioNewsItem, outlet: str, *, from_interests: bool) -> NewsCandidate:
+    """One stored story as a desk candidate — its own outlet first (a search names one)."""
+    return NewsCandidate(
+        key=str(item.id),
+        outlet=item.outlet or outlet,
+        url=item.url,
+        title=item.title,
+        summary=item.summary,
+        published_at=item.published_at,
+        fingerprint=item.fingerprint,
+        full_text=item.full_text if item.text_state == TextState.READY.value else None,
+        from_interests=from_interests,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,7 +249,8 @@ class NewsStory:
 
 
 async def read_story(user_id: uuid.UUID, story_id: uuid.UUID) -> NewsStory | None:
-    """A story the listener may open: the catalogue's, or one of their own sites'.
+    """A story the listener may open: the catalogue's, one of their own sites', or one a
+    search found for their interests.
 
     Args:
         user_id: The listener.

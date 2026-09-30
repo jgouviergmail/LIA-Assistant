@@ -1735,14 +1735,19 @@ async def pair_hue_bridge(
             error="Unexpected response from Hue Bridge",
         )
     except Exception as e:
+        # The exception's CLASS is logged, never its text: a connect error
+        # quotes the address it tried. The caller is told the bridge could not
+        # be reached and nothing of WHY — « connection refused » against « no
+        # route » told an account holder which private hosts were up (measured
+        # 2026-09-30, ADR-326); the reason lives in the log for the operator.
         logger.error(
             "hue_pairing_failed",
             bridge_ip=data.bridge_ip,
-            error=str(e),
+            error_type=type(e).__name__,
         )
         return HuePairingResponse(
             success=False,
-            error=f"Cannot reach bridge at {data.bridge_ip}: {e}",
+            error=f"Cannot reach bridge at {data.bridge_ip}",
         )
 
 

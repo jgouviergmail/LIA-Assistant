@@ -39,6 +39,19 @@ describe('FontSettings', () => {
     expect(screen.getByRole('button', { name: LABEL('noto-sans') })).toBeInTheDocument();
   });
 
+  it('states the selected font, not by colour alone', () => {
+    useAuth.mockReturnValue({ user: { id: 'u1' }, refreshUser: vi.fn() });
+    renderWithProviders(<FontSettings lng="en" />);
+    expect(screen.getByRole('button', { name: LABEL('system') })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: LABEL('noto-sans') })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+  });
+
   it('selecting a font updates local state and persists it for an authenticated user', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1' }, refreshUser: vi.fn() });
     const { user } = renderWithProviders(<FontSettings lng="en" />);

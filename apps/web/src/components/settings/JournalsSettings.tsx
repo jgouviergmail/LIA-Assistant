@@ -531,7 +531,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                       </Label>
                       <p
                         id="journal-max-total-chars-hint"
-                        className="text-[11px] text-muted-foreground"
+                        className="text-px-11 text-muted-foreground"
                       >
                         {t(
                           'journals.maxTotalCharsDescription',
@@ -567,7 +567,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                       </Label>
                       <p
                         id="journal-context-max-chars-hint"
-                        className="text-[11px] text-muted-foreground"
+                        className="text-px-11 text-muted-foreground"
                       >
                         {t(
                           'journals.contextMaxCharsDescription',
@@ -603,7 +603,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                       </Label>
                       <p
                         id="journal-max-entry-chars-hint"
-                        className="text-[11px] text-muted-foreground"
+                        className="text-px-11 text-muted-foreground"
                       >
                         {t(
                           'journals.maxEntryCharsDescription',
@@ -639,7 +639,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                       </Label>
                       <p
                         id="journal-context-max-results-hint"
-                        className="text-[11px] text-muted-foreground"
+                        className="text-px-11 text-muted-foreground"
                       >
                         {t(
                           'journals.contextMaxResultsDescription',
@@ -814,7 +814,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                 {groupBy === 'level' ? (
                                   <Badge
                                     variant="outline"
-                                    className={`text-[10px] px-1.5 py-0 font-mono ${
+                                    className={`text-px-10 px-1.5 py-0 font-mono ${
                                       LEVEL_BADGE[g.key as JournalEntryLevel]
                                     }`}
                                   >
@@ -861,7 +861,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                                 synthesis. */}
                                             <Badge
                                               variant="outline"
-                                              className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[entry.level]}`}
+                                              className={`text-px-10 px-1.5 py-0 font-mono ${LEVEL_BADGE[entry.level]}`}
                                               title={t(
                                                 `journals.levels.${entry.level}.description`,
                                                 entry.level
@@ -915,14 +915,14 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                                     <Badge
                                                       key={idx}
                                                       variant="outline"
-                                                      className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground"
+                                                      className="text-px-10 px-1.5 py-0 font-normal text-muted-foreground"
                                                     >
                                                       {hint}
                                                     </Badge>
                                                   ))}
                                                 </div>
                                               )}
-                                            <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                                            <div className="flex flex-wrap items-center gap-2 text-px-10 text-muted-foreground">
                                               <span
                                                 className="flex items-center gap-1"
                                                 title={t(
@@ -1163,7 +1163,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 rows={5}
               />
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-px-11 text-muted-foreground">
               {t(
                 'journals.portraitFeedbackHelp',
                 'Submitting will trigger a synchronous re-consolidation (~10-15s).'
@@ -1345,7 +1345,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               </Label>
               <p
                 id="journal-edit-search-hints-hint"
-                className="text-[11px] text-muted-foreground mb-1"
+                className="text-px-11 text-muted-foreground mb-1"
               >
                 {t(
                   'journals.searchHintsDescription',
@@ -1371,7 +1371,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             </div>
             <div className="space-y-3">
               <Label>{t('journals.confidenceLabel', 'Confidence')}</Label>
-              <p className="text-[11px] text-muted-foreground mb-1">
+              <p className="text-px-11 text-muted-foreground mb-1">
                 {t(
                   'journals.confidenceDescription',
                   'Epistemic status — override only when you know the assistant misclassified.'
@@ -1402,7 +1402,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             </div>
             <div className="space-y-3">
               <Label>{t('journals.levelLabel', 'Level')}</Label>
-              <p className="text-[11px] text-muted-foreground mb-1">
+              <p className="text-px-11 text-muted-foreground mb-1">
                 {t(
                   'journals.levelDescription',
                   'Cognitive abstraction level — L0 raw observations, L1 directives, L2 patterns, L3 portrait facets.'
@@ -1421,7 +1421,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                       <span className="flex items-center gap-2">
                         <Badge
                           variant="outline"
-                          className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[l]}`}
+                          className={`text-px-10 px-1.5 py-0 font-mono ${LEVEL_BADGE[l]}`}
                         >
                           {l}
                         </Badge>

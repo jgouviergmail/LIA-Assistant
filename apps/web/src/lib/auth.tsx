@@ -37,6 +37,7 @@ export interface User {
   theme?: string;
   color_theme?: string;
   font_family?: string;
+  font_size?: number;
   image_generation_enabled?: boolean;
   image_generation_default_quality?: string;
   image_generation_default_size?: string;

@@ -238,7 +238,7 @@ export function CompanionPresence({ isAuthenticated }: CompanionPresenceProps) {
             // -0.5 rather than -1: the button box grew from 40 to 44 px for the
             // touch target, so the corner moved out by 2 px. Compensating here
             // keeps the badge exactly where it sat against the avatar.
-            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold tabular-nums shadow ring-2 ring-background"
+            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-px-10 font-bold tabular-nums shadow ring-2 ring-background"
           >
             {state.badgeCount > 9 ? '9+' : state.badgeCount}
           </span>

@@ -1722,6 +1722,11 @@
       "title": "JEV decide y cada uso conserva su interruptor",
       "summary": "JEV ayuda a LIA a elegir, orientar o evaluar dentro de un ámbito definido. Cada uso tiene un interruptor en caliente; ante la duda, el proceso existente toma el relevo. Las vistas previas conservan todos los resultados, los observadores no bloquean ninguna extracción y una exclusión nunca equivale a una aprobación. Los administradores ven el contexto, la respuesta y el resultado; cada llamada de pago se contabiliza. El ahorro de tiempo se comprueba en el recorrido completo antes de activar cada uso.",
       "src": "7ebe153c5910"
+    },
+    "326": {
+      "title": "Ningún texto hostil congela a LIA, ninguna redirección la desvía",
+      "summary": "Las funciones que aplanan un texto para una voz, una notificación o una tarjeta leían algunos textos en tiempo exponencial: 51 caracteres escritos en el chat costaban 4,5 s, un correo trampa de 32 KB congelaba a LIA 3 s. Cada patrón se reescribe lineal y dos pruebas lo sostienen, en el servidor y en el navegador. La lectura de una página web comprueba ahora cada redirección antes de seguirla y se conecta a la dirección verificada, nunca a una resolución posterior del nombre.",
+      "src": "b378d83b1215"
     }
   }
 }

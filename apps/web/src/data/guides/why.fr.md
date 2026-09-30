@@ -4,7 +4,7 @@
 
 **Version** : 6.1
 **Date** : 2026-09-24
-**Application** : LIA v2.1.0
+**Application** : LIA v2.1.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -60,7 +60,7 @@ Chaque utilisateur dispose de son propre espace de paramétrage, organisé en de
 - **Canaux** : relie Telegram pour chatter et recevoir des notifications sur mobile
 - **Génération d'images** : active et configure la création d'images par IA
 - **Serveurs MCP personnels** : connecte tes propres serveurs MCP pour étendre les capacités de LIA
-- **Apparence** : langue, fuseau horaire, thème (5 palettes, mode clair, sombre ou noir absolu), police (9 choix), format d'affichage des réponses (cartes HTML, HTML, Markdown)
+- **Apparence** : langue, fuseau horaire, thème (5 palettes, mode clair, sombre ou noir absolu), police (9 choix), taille du texte (de 14 à 20 px, sans déplacer un panneau), format d'affichage des réponses (cartes HTML, HTML, Markdown)
 - **Mon dashboard** : masque ou réordonne les 9 cartes du briefing — une carte masquée n'est même plus récupérée
 - **Préférences d'usage** : choisis ton rythme d'échanges — fréquents, et LIA garde tous ses outils sous la main pour que chaque tour du mode ReAct relise le précédent dans le cache du fournisseur ; ponctuels, et elle choisit les outils utiles à chaque question, pour un coût stable
 - **Debug** : accède au panneau de debug pour inspecter chaque échange (si activé par l'administrateur)
@@ -367,6 +367,8 @@ Le même principe vaut partout : un compteur porte la couleur des autres compteu
 
 Et la couleur ne porte jamais seule le sens : chaque étiquette garde son mot. Une interface qui ne fonctionne qu'en couleurs ne fonctionne pas pour tout le monde.
 
+La taille du texte, enfin, t'appartient : de 14 à 20 px, seul le texte grandit — les panneaux, les marges et les icônes restent où tu les as trouvés, pour qu'un texte plus lisible ne coûte pas une page moins lisible.
+
 ### 6.7. Même ce que LIA apprend de toi est inspectable
 
 La même transparence couvre l'apprentissage des habitudes : ce que LIA croit savoir de ton rythme et de tes demandes récurrentes vit dans un panneau dédié — carte de chaleur de tes 24 heures, pourcentage de jours actifs, barre de progression vers les premières détections, et pour chaque habitude les jours réels où elle a été observée plus les seuils exacts appliqués par le détecteur. Quand il n'y a pas d'habitude stable, le panneau le dit au lieu d'en inventer une. Pause, blocage définitif, suppression totale, recalcul rétroactif immédiat — et toute la fonction est éteinte tant que tu ne l'actives pas. Ce que tu y poses vaut partout : une habitude en pause l'est pour les notifications, leur horaire et le contexte de l'assistante à la fois ; une routine que tu manques t'est proposée par son nom ; et une habitude apprise vit — promue, rafraîchie ou rétrogradée au fil de tes journées, jamais dans le doute.
@@ -546,7 +548,7 @@ Des standards ouverts plutôt qu'un protocole maison : ce que LIA parle, un autr
 
 ### 9.3. Ce qui rend ces garanties vérifiables
 
-Une garantie qu'on ne peut pas contrôler n'en est pas une. L'audit technique du projet est public — grille de notation, méthode, points forts et faiblesses assumées, et le protocole pour le rejouer. Chaque décision d'architecture est écrite et indexée. Chaque protection est adossée à un test qui échoue si la protection disparaît. Et la sauvegarde nocturne de la base s'accompagne d'une procédure de restauration réellement exécutée, pas seulement rédigée.
+Une garantie qu'on ne peut pas contrôler n'en est pas une. L'audit technique du projet est public — grille de notation, méthode, points forts et faiblesses assumées, et le protocole pour le rejouer. Chaque décision d'architecture est écrite et indexée. Chaque protection est adossée à un test qui échoue si la protection disparaît. Et la sauvegarde nocturne de la base s'accompagne d'une procédure de restauration réellement exécutée, pas seulement rédigée. Quand l'analyse de code signale une faiblesse, la réponse vise sa classe entière plutôt que l'alerte : la correction arrive avec une garde qui échoue si la même classe réapparaît ailleurs, et l'analyse couvre aussi les scripts déployés, l'infrastructure et les workflows.
 
 ## 10. Ouverture radicale
 

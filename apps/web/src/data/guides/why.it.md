@@ -4,7 +4,7 @@
 
 **Versione**: 6.1
 **Data**: 2026-09-24
-**Applicazione**: LIA v2.1.0
+**Applicazione**: LIA v2.1.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,7 +60,7 @@ Ogni utente ha il proprio spazio di configurazione, organizzato in due schede. U
 - **Canali**: collega Telegram per chattare e ricevere notifiche sul cellulare
 - **Generazione di immagini**: attiva e configura la creazione di immagini tramite IA
 - **Server MCP personali**: connetti i tuoi server MCP per estendere le capacità di LIA
-- **Aspetto**: lingua, fuso orario, tema (5 palette, modalità chiara, scura o nero assoluto), font (9 scelte), formato di visualizzazione delle risposte (schede HTML, HTML, Markdown)
+- **Aspetto**: lingua, fuso orario, tema (5 palette, modalità chiara, scura o nero assoluto), font (9 scelte), dimensione del testo (da 14 a 20 px, senza spostare un pannello), formato di visualizzazione delle risposte (schede HTML, HTML, Markdown)
 - **La mia dashboard**: nascondi o riordina le 9 schede del briefing — una scheda nascosta non viene nemmeno più recuperata
 - **Preferenze d'uso**: scegli il tuo ritmo di scambi — frequenti, e LIA tiene a portata di mano tutti gli strumenti perché ogni turno in modalità ReAct rilegga il precedente dalla cache del fornitore; occasionali, e sceglie gli strumenti che servono a ogni domanda, a un costo stabile
 - **Debug**: accedi al pannello di debug per ispezionare ogni scambio (se abilitato dall'amministratore)
@@ -367,6 +367,8 @@ Lo stesso principio vale ovunque: un contatore porta il colore degli altri conta
 
 E il colore non porta mai da solo il significato: ogni etichetta conserva la sua parola. Un'interfaccia che funziona solo a colori non funziona per tutti.
 
+E la dimensione del testo è tua: da 14 a 20 px cresce solo il testo — pannelli, margini e icone restano dove li hai trovati, perché un testo più leggibile non costi mai una pagina meno leggibile.
+
 ### 6.7. Anche ciò che LIA impara di te è ispezionabile
 
 La stessa trasparenza copre l'apprendimento delle abitudini: ciò che LIA crede di sapere del tuo ritmo e delle tue richieste ricorrenti vive in un pannello dedicato — mappa di calore delle tue 24 ore, percentuale di giorni attivi, barra di avanzamento verso i primi rilevamenti, e per ogni abitudine i giorni reali in cui è stata osservata più le soglie esatte applicate dal rilevatore. Quando non c'è un'abitudine stabile, il pannello lo dice invece di inventarla. Pausa, blocco definitivo, cancellazione totale, ricalcolo retroattivo immediato — e l'intera funzione resta spenta finché non la attivi. Ciò che imposti lì vale ovunque: un'abitudine in pausa lo è per le notifiche, il loro orario e il contesto dell'assistente allo stesso modo; una routine che manchi ti viene proposta per nome; e un'abitudine appresa vive — promossa, aggiornata o retrocessa mentre le tue giornate cambiano, mai nel dubbio.
@@ -546,7 +548,7 @@ Standard aperti anziché un protocollo proprietario: ciò che LIA parla, un altr
 
 ### 9.3. Ciò che rende verificabili queste garanzie
 
-Una garanzia che non si può controllare non è una garanzia. L'audit tecnico del progetto è pubblico — griglia di punteggio, metodo, punti di forza e debolezze assunte, e il protocollo per rieseguirlo. Ogni decisione di architettura è scritta e indicizzata. Ogni protezione è sostenuta da un test che fallisce se la protezione scompare. E al backup notturno del database si accompagna una procedura di ripristino realmente eseguita, non soltanto redatta.
+Una garanzia che non si può controllare non è una garanzia. L'audit tecnico del progetto è pubblico — griglia di punteggio, metodo, punti di forza e debolezze assunte, e il protocollo per rieseguirlo. Ogni decisione di architettura è scritta e indicizzata. Ogni protezione è sostenuta da un test che fallisce se la protezione scompare. E al backup notturno del database si accompagna una procedura di ripristino realmente eseguita, non soltanto redatta. Quando l'analisi del codice segnala una debolezza, la risposta punta all'intera classe e non alla sola segnalazione: la correzione arriva con una verifica che fallisce se la stessa classe ricompare altrove, e l'analisi copre anche gli script distribuiti, l'infrastruttura e i workflow.
 
 ## 10. Apertura radicale
 

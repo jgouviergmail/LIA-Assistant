@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.1.0</strong> — <strong>Clearer choices, a closer look at LIA, steadier speech.</strong> Explore its capabilities in a renewed interactive demo; administrators can enable bounded JEV decisions one use at a time, with fallback and accounted cost, while shared ElevenLabs capacity keeps spoken sequences in order — 29 September 2026.
+  <strong>Version 2.1.1</strong> — <strong>Text at your size, readable exports, safer reading.</strong> Choose the interface text size without moving a panel; a downloaded or e-mailed answer keeps its structure in Markdown; e-mail cards show the message and its attachments again; a weather routine fires only on a likely change in the next four hours, read from Google Weather; and every page LIA reads is fetched on the address that was checked, one validated redirect at a time — 30 September 2026.
 </p>
 
 ---
@@ -112,8 +112,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **53** functional domains | **785,000+** source lines (excl. tests) | **46,000+** automated tests | **324** ADRs                                                            |
-| **271** versions shipped  | **6 languages**, parity enforced in CI  | **608** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **53** functional domains | **785,000+** source lines (excl. tests) | **47,000+** automated tests | **325** ADRs                                                            |
+| **272** versions shipped  | **6 languages**, parity enforced in CI  | **608** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 Source-line figure: 785,055 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-09-29). The published technical audit does not score security.
 
@@ -211,7 +211,8 @@ Every capability below is documented in an architecture decision record (ADR) or
 - Answers arrive over SSE with rich HTML cards, interactive widgets and a per-message cost badge.
 - In the rich HTML mode every data-bearing answer is a composed page — a lead sentence, one section per facet in the component that fits it, a closing callout — laid out on conversational turns too unless a voice is reading them ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
 - Images and PDFs can be attached (vision analysis, text extraction, strict per-user isolation).
-- Long conversations are compacted by an LLM summary that preserves identifiers, the history scrolls back page by page without limit, and each answer is shared — to the device's sheet, or to a connection through an ordinary confirmed message — or downloaded as a dated Markdown file in one click.
+- Long conversations are compacted by an LLM summary that preserves identifiers, the history scrolls back page by page without limit, and each answer is shared — to the device's sheet, or to a connection through an ordinary confirmed message — or downloaded as a dated Markdown file in one click. A formatted answer keeps its headings, lists, tables, links and code in that file, its cards summed up as a heading and a few bullets; copying stays plain text ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
+- The text size is a per-account preference from 14 to 20 px: only the text scales, panels, spacing and icons keep their dimensions.
 
 #### One conversation across devices and channels
 
@@ -371,7 +372,7 @@ A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR
 #### Routines and reminders
 
 - A scheduled routine or reminder uses the timezone-aware recurrence engine ("every three days", "the 2nd Tuesday of the month").
-- A condition routine has no schedule: it is checked at the system's cadence for its source and records a run only when it fires.
+- A condition routine has no schedule: it is checked at the system's cadence for its source and records a run only when it fires. A weather condition always reads Google Weather and fires only on a change due within the next hours, above a published precipitation threshold, the run told the hour, the day and the source.
 - The studio offers one mode at a time, with a week view of actual runs ([ADR-268](docs/architecture/ADR-268-Generic-Recurrence-And-Reminder-Management.md), [ADR-322](docs/architecture/ADR-322-One-Clock-Per-Routine.md), [ADR-265](docs/architecture/ADR-265-Routine-Week-Timeline-And-Run-History.md), [SCHEDULED_ACTIONS](docs/technical/SCHEDULED_ACTIONS.md)).
 
 #### Interests and habits, learned with restraint
@@ -792,7 +793,7 @@ Alembic migration conflicts     Docker build smoke test
 .env.example completeness       Secret scan (Gitleaks)
 ESLint + TypeScript check       ──────────────────────
                                 Security workflow (weekly)
-                                  CodeQL (Python + JS)
+                                  CodeQL (Python, JS/TS, Actions)
                                   Dependency audit (pip-audit + pnpm audit)
                                   Trivy filesystem scan
                                   SBOM generation
@@ -816,6 +817,7 @@ ESLint + TypeScript check       ────────────────
 | [EU AI Act](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai) | The interface identifies LIA as AI; approval before mutation and separate records of actions, reads and decisions support transparency and traceability. Applicable duties still depend on the deployment and use case ([traceability boundaries](docs/technical/AI_ACT_TRACEABILITY.md))                                                                                                     |
 | OWASP Top 10                                                                           | XSS, SQL injection and CSRF safeguards; a global Redis-backed rate limit before routes; request bodies bounded before they are read, webhooks included                                                                                                                                                                                                                                        |
 | Prompt injection                                                                       | External content wrapped in safety markers, trust classified by data type rather than by producing tool, and a provenance that survives history compaction — a summary built from third-party text inherits its banner instead of promoting the claim to system authority                                                                                                                     |
+| SSRF & hostile text                                                                    | Every fetched URL is validated, then fetched on the very address the check resolved, one redirect hop at a time; text flatteners run in linear time on hostile input, held by growth and equivalence tests ([ADR-326](docs/architecture/ADR-326-Linear-Flatteners-And-Pinned-Fetches.md)) |
 | OAuth / PKCE                                                                           | PKCE S256, single-use state and issuer/identity checks; grouped Google/Microsoft consent shares grants only within the verified provider account ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)); linking a federated identity never changes an account's status ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md)) |
 | [MCP](https://modelcontextprotocol.io/) / plugins                                      | Model Context Protocol servers and apps, agentskills.io skills and Agent Plugins v1 packages use documented open interfaces, with separately reviewed trust and sandbox boundaries ([MCP](docs/technical/MCP_INTEGRATION.md), [plugins](docs/technical/PLUGINS_INTEGRATION.md))                                                                                                               |
 | Supply chain                                                                           | Hash-verified universal lockfiles, pip-audit on the full transitive tree, SBOM per release                                                                                                                                                                                                                                                                                                    |
@@ -865,7 +867,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-324 ADR files (ADR-001 through ADR-325 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+325 ADR files (ADR-001 through ADR-326 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

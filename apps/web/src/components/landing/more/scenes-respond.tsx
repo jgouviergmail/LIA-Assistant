@@ -225,7 +225,7 @@ function ShareExportScene({ active, labels }: SceneProps) {
           </div>
           <div
             className={cn(
-              'flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] transition-colors duration-300',
+              'flex items-center gap-1.5 rounded-md border px-2 py-1 text-px-10 transition-colors duration-300',
               prefilled
                 ? 'border-primary/40 bg-primary/10 text-primary'
                 : 'border-border bg-background text-foreground/80'
@@ -244,7 +244,7 @@ function ShareExportScene({ active, labels }: SceneProps) {
         />
         <span
           className={cn(
-            'flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] transition-all duration-300',
+            'flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-px-10 transition-all duration-300',
             downloaded ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
           )}
         >
@@ -256,7 +256,7 @@ function ShareExportScene({ active, labels }: SceneProps) {
         className={cn('transition-opacity duration-300', prefilled ? 'opacity-100' : 'opacity-40')}
       >
         {prefilled ? (
-          <span className="block truncate text-[10px] text-foreground/80">{labels.prefill}</span>
+          <span className="block truncate text-px-10 text-foreground/80">{labels.prefill}</span>
         ) : (
           <SkeletonLine w="w-2" />
         )}
@@ -311,11 +311,11 @@ function ImageShareScene({ active, labels }: SceneProps) {
             composing ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
           )}
         >
-          <span className="flex items-center gap-1.5 text-[10px] text-foreground/80">
+          <span className="flex items-center gap-1.5 text-px-10 text-foreground/80">
             <User className="h-3 w-3 shrink-0 text-muted-foreground" />
             <span className="truncate">{labels.peer}</span>
           </span>
-          <span className="block truncate text-[10px] italic text-muted-foreground">
+          <span className="block truncate text-px-10 italic text-muted-foreground">
             {labels.comment}
           </span>
           <span
@@ -334,7 +334,7 @@ function ImageShareScene({ active, labels }: SceneProps) {
             received ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
           )}
         >
-          <span className="block truncate text-[9px] text-primary">{labels.received}</span>
+          <span className="block truncate text-px-9 text-primary">{labels.received}</span>
           <MiniPicture className="h-8 w-full" />
           <span className="block truncate italic">{labels.comment}</span>
         </MiniBubble>
@@ -404,7 +404,7 @@ function KeepAnswerScene({ active, labels }: SceneProps) {
       </MiniToast>
       <span
         className={cn(
-          'absolute bottom-3 left-4 text-[10px] text-muted-foreground transition-opacity duration-500',
+          'absolute bottom-3 left-4 text-px-10 text-muted-foreground transition-opacity duration-500',
           gone ? 'opacity-100' : 'opacity-0'
         )}
       >
@@ -437,7 +437,7 @@ function MiniDraftCard({
   return (
     <div
       className={cn(
-        'w-4/5 self-start overflow-hidden rounded-lg border border-border bg-background text-[10px] transition-all duration-300',
+        'w-4/5 self-start overflow-hidden rounded-lg border border-border bg-background text-px-10 transition-all duration-300',
         className
       )}
     >
@@ -537,7 +537,7 @@ function NetworkQuestionScene({ active, labels }: SceneProps) {
     <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
       <div
         className={cn(
-          'w-4/5 self-start overflow-hidden rounded-lg border border-border bg-background text-[10px] transition-opacity duration-300',
+          'w-4/5 self-start overflow-hidden rounded-lg border border-border bg-background text-px-10 transition-opacity duration-300',
           resumed ? 'opacity-50' : 'opacity-100'
         )}
       >
@@ -770,7 +770,7 @@ function ProvenanceWhyScene({ active }: SceneProps) {
           )}
         >
           <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1">
-            <span className="rounded bg-primary/15 px-1 py-px text-[8px] font-medium uppercase tracking-wide text-primary">
+            <span className="rounded bg-primary/15 px-1 py-px text-px-8 font-medium uppercase tracking-wide text-primary">
               ●
             </span>
             <SkeletonLine w="w-3/5" />
@@ -974,7 +974,7 @@ function ComposedPageScene({ active, labels }: SceneProps) {
           </div>
         </div>
       </MiniBubble>
-      <span className="absolute bottom-3 left-4 text-[10px] text-muted-foreground">
+      <span className="absolute bottom-3 left-4 text-px-10 text-muted-foreground">
         {phase === 'plain' ? labels.plain : labels.composed}
       </span>
     </div>

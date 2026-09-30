@@ -113,13 +113,13 @@
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --lia-font-mono: 'SF Mono', 'Fira Code', 'Monaco', monospace;
 
-  --lia-text-xs: 0.75rem; /* 12px */
-  --lia-text-sm: 0.8125rem; /* 13px */
-  --lia-text-base: 0.875rem; /* 14px */
-  --lia-text-md: 0.9375rem; /* 15px */
-  --lia-text-lg: 1rem; /* 16px */
-  --lia-text-xl: 1.125rem; /* 18px */
-  --lia-text-2xl: 1.25rem; /* 20px */
+  --lia-text-xs: calc(0.75rem * var(--lia-text-scale, 1)); /* 12px */
+  --lia-text-sm: calc(0.8125rem * var(--lia-text-scale, 1)); /* 13px */
+  --lia-text-base: calc(0.875rem * var(--lia-text-scale, 1)); /* 14px */
+  --lia-text-md: calc(0.9375rem * var(--lia-text-scale, 1)); /* 15px */
+  --lia-text-lg: calc(1rem * var(--lia-text-scale, 1)); /* 16px */
+  --lia-text-xl: calc(1.125rem * var(--lia-text-scale, 1)); /* 18px */
+  --lia-text-2xl: calc(1.25rem * var(--lia-text-scale, 1)); /* 20px */
 
   --lia-leading-tight: 1.2;
   --lia-leading-normal: 1.35;
@@ -389,7 +389,7 @@ html.dark[data-oled] {
 
 .lia-detail-item .material-symbols-outlined {
   flex-shrink: 0;
-  font-size: 18px;
+  font-size: calc(18px * var(--lia-text-scale, 1));
   margin-top: 1px;
 }
 
@@ -488,7 +488,7 @@ html.dark[data-oled] {
 }
 
 .lia-illus .material-symbols-outlined {
-  font-size: 22px;
+  font-size: calc(22px * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 1,
     'wght' 400,
@@ -555,7 +555,7 @@ html.dark[data-oled] {
 }
 
 .lia-illus-sm .material-symbols-outlined {
-  font-size: 16px;
+  font-size: calc(16px * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 1,
     'wght' 400,
@@ -613,7 +613,7 @@ html.dark[data-oled] {
 }
 
 .lia-chip .material-symbols-outlined {
-  font-size: 14px;
+  font-size: calc(14px * var(--lia-text-scale, 1));
   color: var(--lia-text-secondary);
 }
 
@@ -676,7 +676,7 @@ html.dark[data-oled] {
     'GRAD' 0,
     'opsz' 20;
   color: #f59e0b;
-  font-size: 13px;
+  font-size: calc(13px * var(--lia-text-scale, 1));
 }
 .lia-chip--stars .lia-chip__star-empty {
   font-variation-settings:
@@ -685,7 +685,7 @@ html.dark[data-oled] {
     'GRAD' 0,
     'opsz' 20;
   color: #f59e0b;
-  font-size: 13px;
+  font-size: calc(13px * var(--lia-text-scale, 1));
   opacity: 0.3;
 }
 
@@ -781,7 +781,7 @@ html.dark[data-oled] {
 }
 
 .lia-d-row .material-symbols-outlined {
-  font-size: 16px;
+  font-size: calc(16px * var(--lia-text-scale, 1));
   flex-shrink: 0;
   color: var(--lia-text-muted);
 }
@@ -809,7 +809,7 @@ html.dark[data-oled] {
 }
 
 .lia-d-item .material-symbols-outlined {
-  font-size: 15px;
+  font-size: calc(15px * var(--lia-text-scale, 1));
   flex-shrink: 0;
   margin-top: 2px;
   color: var(--lia-text-muted);
@@ -872,7 +872,7 @@ html.dark[data-oled] {
 
 /* --- Type Badge: small colored label (contacts, files) --- */
 .lia-tbadge {
-  font-size: 0.625rem;
+  font-size: calc(0.625rem * var(--lia-text-scale, 1));
   padding: var(--lia-space-2xs) var(--lia-space-xs);
   border-radius: var(--lia-radius-sm);
   font-weight: 600;
@@ -915,7 +915,7 @@ html.dark[data-oled] {
   border-radius: var(--lia-radius-full);
   background: linear-gradient(135deg, #c7d2fe, #a5b4fc);
   color: #3730a3;
-  font-size: 0.5625rem;
+  font-size: calc(0.5625rem * var(--lia-text-scale, 1));
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -955,7 +955,7 @@ html.dark[data-oled] {
 }
 
 .lia-part-item .material-symbols-outlined {
-  font-size: 14px;
+  font-size: calc(14px * var(--lia-text-scale, 1));
   flex-shrink: 0;
 }
 
@@ -984,7 +984,7 @@ html.dark[data-oled] {
 }
 
 .lia-src-link .material-symbols-outlined {
-  font-size: 15px;
+  font-size: calc(15px * var(--lia-text-scale, 1));
   color: var(--lia-primary);
   flex-shrink: 0;
 }
@@ -1050,7 +1050,7 @@ html.dark[data-oled] {
 }
 
 .lia-review__hdr .material-symbols-outlined {
-  font-size: 12px;
+  font-size: calc(12px * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 1,
     'wght' 400,
@@ -1094,7 +1094,7 @@ html.dark[data-oled] {
 }
 
 .lia-file-meta .material-symbols-outlined {
-  font-size: 12px;
+  font-size: calc(12px * var(--lia-text-scale, 1));
 }
 
 /* =============================================================================
@@ -1311,18 +1311,18 @@ html.dark[data-oled] {
 
 @container card (max-width: 430px) {
   .lia-chip {
-    font-size: 0.6875rem;
+    font-size: calc(0.6875rem * var(--lia-text-scale, 1));
     padding: 2px var(--lia-space-xs);
   }
 
   .lia-chip .material-symbols-outlined {
-    font-size: 12px;
+    font-size: calc(12px * var(--lia-text-scale, 1));
   }
 
   .lia-att-av {
     width: 20px;
     height: 20px;
-    font-size: 0.5rem;
+    font-size: calc(0.5rem * var(--lia-text-scale, 1));
     margin-left: -4px;
   }
 
@@ -1339,11 +1339,11 @@ html.dark[data-oled] {
   }
 
   .lia-kv-row {
-    font-size: 0.6875rem;
+    font-size: calc(0.6875rem * var(--lia-text-scale, 1));
   }
 
   .lia-file-meta {
-    font-size: 0.625rem;
+    font-size: calc(0.625rem * var(--lia-text-scale, 1));
   }
 
   .lia-card-hero img {
@@ -1360,7 +1360,7 @@ html.dark[data-oled] {
   font-family: 'Material Symbols Outlined';
   font-weight: normal;
   font-style: normal;
-  font-size: 20px;
+  font-size: calc(20px * var(--lia-text-scale, 1));
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
@@ -1392,7 +1392,7 @@ html.dark[data-oled] {
 }
 
 .lia-icon .material-symbols-outlined {
-  font-size: 18px;
+  font-size: calc(18px * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 0,
     'wght' 400,
@@ -1406,7 +1406,7 @@ html.dark[data-oled] {
   height: 14px;
 }
 .lia-icon--xs .material-symbols-outlined {
-  font-size: 14px;
+  font-size: calc(14px * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 0,
     'wght' 400,
@@ -1419,7 +1419,7 @@ html.dark[data-oled] {
   height: 16px;
 }
 .lia-icon--sm .material-symbols-outlined {
-  font-size: 16px;
+  font-size: calc(16px * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 0,
     'wght' 400,
@@ -1432,7 +1432,7 @@ html.dark[data-oled] {
   height: 20px;
 }
 .lia-icon--md .material-symbols-outlined {
-  font-size: 18px;
+  font-size: calc(18px * var(--lia-text-scale, 1));
 }
 
 .lia-icon--lg {
@@ -1440,7 +1440,7 @@ html.dark[data-oled] {
   height: 24px;
 }
 .lia-icon--lg .material-symbols-outlined {
-  font-size: 22px;
+  font-size: calc(22px * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 0,
     'wght' 400,
@@ -1453,7 +1453,7 @@ html.dark[data-oled] {
   height: 32px;
 }
 .lia-icon--xl .material-symbols-outlined {
-  font-size: 28px;
+  font-size: calc(28px * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 0,
     'wght' 400,
@@ -1512,7 +1512,7 @@ html.dark[data-oled] {
 
 /* Action button icons - slightly smaller */
 .lia-action-btn__icon .material-symbols-outlined {
-  font-size: 16px;
+  font-size: calc(16px * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 0,
     'wght' 500,
@@ -1522,7 +1522,7 @@ html.dark[data-oled] {
 
 /* Star rating with Material Symbols */
 .lia-rating .material-symbols-outlined {
-  font-size: 16px;
+  font-size: calc(16px * var(--lia-text-scale, 1));
   color: var(--lia-warning);
 }
 
@@ -1553,7 +1553,7 @@ html.dark[data-oled] {
 
 /* Weather icons - larger display */
 .lia-weather__icon .material-symbols-outlined {
-  font-size: 2.5rem;
+  font-size: calc(2.5rem * var(--lia-text-scale, 1));
   font-variation-settings:
     'FILL' 1,
     'wght' 300,
@@ -1976,7 +1976,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-email__status-icon .lia-icon {
-  font-size: 16px;
+  font-size: calc(16px * var(--lia-text-scale, 1));
 }
 
 /* Status icon colors */
@@ -2027,7 +2027,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-email__recipient-row .lia-icon {
-  font-size: 14px;
+  font-size: calc(14px * var(--lia-text-scale, 1));
   color: var(--lia-text-muted);
   flex-shrink: 0;
 }
@@ -2071,7 +2071,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-email__status--unread .lia-icon {
-  font-size: 12px;
+  font-size: calc(12px * var(--lia-text-scale, 1));
 }
 
 /* Labels */
@@ -2182,7 +2182,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-email__read-more .lia-icon {
-  font-size: 14px;
+  font-size: calc(14px * var(--lia-text-scale, 1));
 }
 
 /* Recipients section (inside collapsible) */
@@ -3642,16 +3642,16 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-weather__icon {
-  font-size: 3rem;
+  font-size: calc(3rem * var(--lia-text-scale, 1));
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .lia-weather__icon--lg {
-  font-size: 4rem;
+  font-size: calc(4rem * var(--lia-text-scale, 1));
 }
 
 .lia-weather__temp {
-  font-size: 3rem;
+  font-size: calc(3rem * var(--lia-text-scale, 1));
   font-weight: 700;
   line-height: 1;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -3659,7 +3659,7 @@ a.lia-email__sender-email:hover {
 
 /* Smaller temperature for desktop header row */
 .lia-weather__temp--sm {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--lia-text-scale, 1));
   font-weight: 600;
 }
 
@@ -3771,7 +3771,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-weather__stat-icon .lia-icon {
-  font-size: 1.1rem;
+  font-size: calc(1.1rem * var(--lia-text-scale, 1));
   color: var(--lia-text-secondary);
 }
 
@@ -3921,7 +3921,7 @@ a.lia-email__sender-email:hover {
 
 .lia-weather__day-icon,
 .lia-weather__hour-icon {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--lia-text-scale, 1));
   margin: var(--lia-space-xs) 0;
 }
 
@@ -3939,7 +3939,7 @@ a.lia-email__sender-email:hover {
 /* Weather icon colored variants */
 .lia-weather__day-icon--color,
 .lia-weather__hour-icon--color {
-  font-size: 2rem;
+  font-size: calc(2rem * var(--lia-text-scale, 1));
 }
 
 .lia-weather--sunny .lia-weather__day-icon--color .lia-icon,
@@ -4012,11 +4012,11 @@ a.lia-email__sender-email:hover {
 
 /* Current weather icon size matching temperature */
 .lia-weather__icon--xl {
-  font-size: 3.5rem;
+  font-size: calc(3.5rem * var(--lia-text-scale, 1));
 }
 
 .lia-weather__icon--xl .material-symbols-outlined {
-  font-size: 3.5rem;
+  font-size: calc(3.5rem * var(--lia-text-scale, 1));
 }
 
 /* =============================================================================
@@ -4040,12 +4040,12 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-file__icon {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--lia-text-scale, 1));
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .lia-file__icon--lg {
-  font-size: 2.5rem;
+  font-size: calc(2.5rem * var(--lia-text-scale, 1));
 }
 
 .lia-file__thumb {
@@ -4427,7 +4427,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-source__icon {
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--lia-text-scale, 1));
 }
 
 .lia-search__related {
@@ -4489,7 +4489,7 @@ a.lia-email__sender-email:hover {
   padding: 1px var(--lia-space-xs);
   background: var(--lia-surface-hover);
   border-radius: var(--lia-radius-xs);
-  font-size: 0.6875rem;
+  font-size: calc(0.6875rem * var(--lia-text-scale, 1));
   line-height: 1.2;
   color: var(--lia-text-muted);
   border: 1px solid var(--lia-border-light);
@@ -4781,19 +4781,19 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-icon--xs {
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--lia-text-scale, 1));
 }
 .lia-icon--sm {
-  font-size: 0.875rem;
+  font-size: calc(0.875rem * var(--lia-text-scale, 1));
 }
 .lia-icon--md {
-  font-size: 1rem;
+  font-size: calc(1rem * var(--lia-text-scale, 1));
 }
 .lia-icon--lg {
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--lia-text-scale, 1));
 }
 .lia-icon--xl {
-  font-size: 2rem;
+  font-size: calc(2rem * var(--lia-text-scale, 1));
 }
 
 /* Rating */
@@ -5054,7 +5054,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-empty__icon {
-  font-size: 2.5rem;
+  font-size: calc(2.5rem * var(--lia-text-scale, 1));
   display: block;
   margin-bottom: var(--lia-space-md);
   opacity: 0.5;
@@ -5077,11 +5077,11 @@ a.lia-email__sender-email:hover {
   }
 
   .lia-weather__temp {
-    font-size: 2.5rem;
+    font-size: calc(2.5rem * var(--lia-text-scale, 1));
   }
 
   .lia-weather__icon--lg {
-    font-size: 3rem;
+    font-size: calc(3rem * var(--lia-text-scale, 1));
   }
 
   .lia-weather__grid {
@@ -5437,7 +5437,7 @@ details.lia-collapsible > summary::marker {
 }
 
 .lia-badge-attachment__icon {
-  font-size: 11px;
+  font-size: calc(11px * var(--lia-text-scale, 1));
 }
 
 /* Importance indicator (gold border) */
@@ -5457,7 +5457,7 @@ details.lia-collapsible > summary::marker {
 .lia-label {
   display: inline-block;
   padding: 1px var(--lia-space-xs);
-  font-size: 10px;
+  font-size: calc(10px * var(--lia-text-scale, 1));
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -5659,7 +5659,7 @@ details.lia-collapsible > summary::marker {
 .lia-weather-drop {
   position: absolute;
   top: -2px;
-  font-size: 8px;
+  font-size: calc(8px * var(--lia-text-scale, 1));
   line-height: 1;
   opacity: 0;
   pointer-events: none;
@@ -5746,7 +5746,7 @@ details.lia-collapsible > summary::marker {
 }
 
 .lia-attachment__icon {
-  font-size: 12px;
+  font-size: calc(12px * var(--lia-text-scale, 1));
 }
 
 .lia-attachment__name {
@@ -5952,11 +5952,11 @@ details.lia-collapsible > summary::marker {
 
   /* Mobile: smaller temp and icon in left section */
   .lia-weather .lia-weather__left .lia-weather__temp {
-    font-size: 1.75rem;
+    font-size: calc(1.75rem * var(--lia-text-scale, 1));
   }
 
   .lia-weather .lia-weather__left .lia-weather__icon {
-    font-size: 2rem;
+    font-size: calc(2rem * var(--lia-text-scale, 1));
     display: flex;
     align-items: center;
     margin-bottom: var(--lia-space-xs); /* Vertical space between icon and temp */
@@ -6047,7 +6047,7 @@ details.lia-collapsible > summary::marker {
   }
 
   .lia-weather--hourly .lia-weather__hour-icon {
-    font-size: 1.25rem;
+    font-size: calc(1.25rem * var(--lia-text-scale, 1));
   }
 
   .lia-weather--hourly .lia-weather__hour-temp {
@@ -6979,7 +6979,7 @@ a:focus-visible {
   padding: var(--lia-space-xs) var(--lia-space-md);
   background: var(--lia-bg-muted);
   border-bottom: 1px solid var(--lia-border);
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--lia-text-scale, 1));
 }
 
 .lia-mcp-app-widget__link-banner a {
@@ -6996,7 +6996,7 @@ a:focus-visible {
   border: none;
   color: var(--lia-text-muted);
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: calc(1.1rem * var(--lia-text-scale, 1));
   line-height: 1;
   padding: 0 var(--lia-space-xs);
 }
@@ -7084,7 +7084,7 @@ a:focus-visible {
   padding: var(--lia-space-xs) var(--lia-space-md);
   background: var(--lia-bg-muted);
   border-bottom: 1px solid var(--lia-border);
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--lia-text-scale, 1));
 }
 
 .lia-skill-app-widget__link-banner a {
@@ -7101,7 +7101,7 @@ a:focus-visible {
   border: none;
   color: var(--lia-text-muted);
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: calc(1.1rem * var(--lia-text-scale, 1));
   line-height: 1;
   padding: 0 var(--lia-space-xs);
 }

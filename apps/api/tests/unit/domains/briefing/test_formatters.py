@@ -13,8 +13,9 @@ from src.core.recurrence import RecurrenceSpec
 from src.domains.briefing.formatters import (
     WEATHER_EMOJI_DEFAULT,
     WEATHER_EMOJI_MAP,
-    _detect_forecast_alert,
+    ForecastAlertRule,
     _format_event_time,
+    detect_forecast_alert,
     format_agenda_event,
     format_email_item,
     format_reminder_item,
@@ -22,7 +23,7 @@ from src.domains.briefing.formatters import (
     make_health_summary_item,
     upcoming_birthdays_from_connections,
 )
-from src.domains.briefing.schemas import ForecastAlertKind
+from src.domains.briefing.schemas import ForecastAlert, ForecastAlertKind, WeatherData
 
 # Birthday computation moved to the neutral connectors home (P7) — the
 # private occurrence helper is imported from its new module; the public
@@ -48,7 +49,12 @@ class TestFormatWeatherData:
         }
         forecast = {"list": []}
         out = format_weather_data(
-            current=current, forecast=forecast, city="Paris", user_tz=PARIS, daily_forecast_days=5
+            current=current,
+            forecast=forecast,
+            city="Paris",
+            user_tz=PARIS,
+            daily_forecast_days=5,
+            now=ALERT_NOW,
         )
         assert out.temperature_c == 18.4
         assert out.condition_code == "Clear"
@@ -63,7 +69,12 @@ class TestFormatWeatherData:
             "weather": [{"main": "Wibble", "description": "weird stuff"}],
         }
         out = format_weather_data(
-            current=current, forecast={"list": []}, city=None, user_tz=PARIS, daily_forecast_days=5
+            current=current,
+            forecast={"list": []},
+            city=None,
+            user_tz=PARIS,
+            daily_forecast_days=5,
+            now=ALERT_NOW,
         )
         assert out.icon_emoji == WEATHER_EMOJI_DEFAULT
 
@@ -74,6 +85,7 @@ class TestFormatWeatherData:
             city=None,
             user_tz=PARIS,
             daily_forecast_days=5,
+            now=ALERT_NOW,
         )
         assert out.condition_code == "Unknown"
         assert out.description == "Unknown"
@@ -84,34 +96,209 @@ class TestFormatWeatherData:
 # =============================================================================
 
 
+#: The reference instant of the detection tests: 13:00 in Paris.
+ALERT_NOW = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+FOUR_HOURS = ForecastAlertRule(horizon=timedelta(hours=4))
+CLEAR = {"weather": [{"main": "Clear"}]}
+
+
+def _slot(at: datetime, main: str, *, pop: object = None) -> dict[str, object]:
+    """One OWM-shaped forecast slot."""
+    entry: dict[str, object] = {"dt": int(at.timestamp()), "weather": [{"main": main}]}
+    if pop is not None:
+        entry["pop"] = pop
+    return entry
+
+
+def _detect(
+    *slots: dict[str, object],
+    current: dict[str, object] = CLEAR,
+    rule: ForecastAlertRule = FOUR_HOURS,
+) -> ForecastAlert | None:
+    return detect_forecast_alert(
+        current=current, forecast={"list": list(slots)}, user_tz=PARIS, now=ALERT_NOW, rule=rule
+    )
+
+
 @pytest.mark.unit
 class TestDetectForecastAlert:
     def test_returns_none_when_currently_raining(self) -> None:
         current = {"weather": [{"main": "Rain"}]}
-        forecast = {"list": [{"dt": 0, "weather": [{"main": "Rain"}]}]}
-        assert _detect_forecast_alert(current=current, forecast=forecast, user_tz=PARIS) is None
+        assert _detect(_slot(ALERT_NOW, "Rain"), current=current) is None
 
     def test_emits_structured_alert_when_rain_appears_in_forecast(self) -> None:
-        current = {"weather": [{"main": "Clear"}]}
-        ts = int(datetime(2026, 1, 1, 16, 0, tzinfo=PARIS).timestamp())
-        forecast = {"list": [{"dt": ts, "weather": [{"main": "Rain"}]}]}
-        out = _detect_forecast_alert(current=current, forecast=forecast, user_tz=PARIS)
+        out = _detect(_slot(datetime(2026, 1, 1, 16, 0, tzinfo=PARIS), "Rain"))
         assert out is not None
         assert out.kind is ForecastAlertKind.RAIN
         assert out.time == "16:00"
+        assert out.starts_at == datetime(2026, 1, 1, 15, 0, tzinfo=UTC)
 
     def test_maps_thunderstorm_to_enum(self) -> None:
-        current = {"weather": [{"main": "Clear"}]}
-        ts = int(datetime(2026, 1, 1, 18, 30, tzinfo=PARIS).timestamp())
-        forecast = {"list": [{"dt": ts, "weather": [{"main": "Thunderstorm"}]}]}
-        out = _detect_forecast_alert(current=current, forecast=forecast, user_tz=PARIS)
+        out = _detect(_slot(datetime(2026, 1, 1, 15, 30, tzinfo=PARIS), "Thunderstorm"))
         assert out is not None
         assert out.kind is ForecastAlertKind.THUNDERSTORM
 
     def test_no_alert_for_clouds_only(self) -> None:
-        current = {"weather": [{"main": "Clear"}]}
-        forecast = {"list": [{"dt": 0, "weather": [{"main": "Clouds"}]}]}
-        assert _detect_forecast_alert(current=current, forecast=forecast, user_tz=PARIS) is None
+        assert _detect(_slot(ALERT_NOW, "Clouds")) is None
+
+
+@pytest.mark.unit
+class TestTheAlertHorizon:
+    """A change is announced only when it is due within the rule's horizon."""
+
+    def test_the_last_instant_of_the_horizon_is_inside_it(self) -> None:
+        assert _detect(_slot(ALERT_NOW + timedelta(hours=4), "Rain")) is not None
+
+    def test_a_change_past_the_horizon_is_no_alert(self) -> None:
+        # The defect: a 5-day forecast read whole announced a rain four days away.
+        later = ALERT_NOW + timedelta(hours=4, seconds=1)
+        assert _detect(_slot(later, "Rain"), _slot(ALERT_NOW + timedelta(days=4), "Rain")) is None
+
+    def test_a_slot_past_the_horizon_never_hides_one_inside_it(self) -> None:
+        # Providers list slots chronologically, but nothing is assumed.
+        out = _detect(
+            _slot(ALERT_NOW + timedelta(hours=9), "Snow"),
+            _slot(ALERT_NOW + timedelta(hours=2), "Rain"),
+        )
+        assert out is not None
+        assert out.kind is ForecastAlertKind.RAIN
+
+    def test_the_hour_under_way_is_stated_from_now_never_in_the_past(self) -> None:
+        # Google's first hourly slot starts at the top of the CURRENT hour.
+        out = _detect(_slot(ALERT_NOW - timedelta(minutes=37), "Rain"))
+        assert out is not None
+        assert out.starts_at == ALERT_NOW
+        assert out.time == "13:00"
+
+    def test_an_unreadable_slot_is_skipped_not_fatal(self) -> None:
+        out = _detect(
+            {"weather": [{"main": "Rain"}]},
+            {"dt": "soon", "weather": [{"main": "Rain"}]},
+            {"dt": 1, "weather": []},
+            _slot(ALERT_NOW + timedelta(hours=1), "Snow"),
+        )
+        assert out is not None
+        assert out.kind is ForecastAlertKind.SNOW
+
+
+@pytest.mark.unit
+class TestTheProbabilityThreshold:
+    """With a threshold, a slot counts only when its probability is STRICTLY above it."""
+
+    RULE = ForecastAlertRule(horizon=timedelta(hours=4), min_precipitation_percent=50)
+
+    @pytest.mark.parametrize(
+        ("pop", "fires"),
+        [(0.5, False), (0.51, True), (0.49, False), (1, True), (0, False)],
+    )
+    def test_strictly_above_the_threshold(self, pop: float, fires: bool) -> None:
+        out = _detect(_slot(ALERT_NOW + timedelta(hours=1), "Rain", pop=pop), rule=self.RULE)
+        assert (out is not None) is fires
+
+    def test_a_slot_with_no_probability_is_not_likely(self) -> None:
+        assert _detect(_slot(ALERT_NOW + timedelta(hours=1), "Rain"), rule=self.RULE) is None
+
+    @pytest.mark.parametrize("pop", ["0.9", True, None])
+    def test_an_unreadable_probability_is_not_likely(self, pop: object) -> None:
+        entry = _slot(ALERT_NOW + timedelta(hours=1), "Rain")
+        entry["pop"] = pop
+        assert _detect(entry, rule=self.RULE) is None
+
+    def test_an_unlikely_slot_never_hides_a_likely_one(self) -> None:
+        out = _detect(
+            _slot(ALERT_NOW + timedelta(hours=1), "Rain", pop=0.2),
+            _slot(ALERT_NOW + timedelta(hours=2), "Rain", pop=0.8),
+            rule=self.RULE,
+        )
+        assert out is not None
+        assert out.starts_at == ALERT_NOW + timedelta(hours=2)
+        assert out.precipitation_percent == 80
+
+    @pytest.mark.parametrize(("pop", "percent"), [(1.7, 100), (-0.2, 0)])
+    def test_an_out_of_range_probability_is_clamped_never_fatal(
+        self, pop: float, percent: int
+    ) -> None:
+        # The card reads the same detector: a bad provider value must not
+        # fail the whole weather card on the alert's 0-100 bounds.
+        out = _detect(_slot(ALERT_NOW + timedelta(hours=1), "Rain", pop=pop))
+        assert out is not None
+        assert out.precipitation_percent == percent
+
+    @pytest.mark.parametrize("pop", [float("nan"), float("inf")])
+    def test_a_non_finite_probability_is_unknown(self, pop: float) -> None:
+        out = _detect(_slot(ALERT_NOW + timedelta(hours=1), "Rain", pop=pop))
+        assert out is not None
+        assert out.precipitation_percent is None
+        assert (
+            _detect(_slot(ALERT_NOW + timedelta(hours=1), "Rain", pop=pop), rule=self.RULE) is None
+        )
+
+    def test_the_probability_is_carried_even_without_a_threshold(self) -> None:
+        out = _detect(_slot(ALERT_NOW + timedelta(hours=1), "Rain", pop=0.3))
+        assert out is not None
+        assert out.precipitation_percent == 30
+
+
+@pytest.mark.unit
+class TestTheWatchedKinds:
+    """A rule watching some kinds reads the forecast for THOSE kinds only."""
+
+    SNOW_ONLY = ForecastAlertRule(
+        horizon=timedelta(hours=4), kinds=frozenset({ForecastAlertKind.SNOW})
+    )
+
+    def test_an_earlier_unwatched_kind_never_hides_a_watched_one(self) -> None:
+        out = _detect(
+            _slot(ALERT_NOW + timedelta(hours=1), "Rain"),
+            _slot(ALERT_NOW + timedelta(hours=3), "Snow"),
+            rule=self.SNOW_ONLY,
+        )
+        assert out is not None
+        assert out.kind is ForecastAlertKind.SNOW
+
+    def test_an_unwatched_kind_falling_now_is_not_already_happening(self) -> None:
+        out = _detect(
+            _slot(ALERT_NOW + timedelta(hours=2), "Snow"),
+            current={"weather": [{"main": "Rain"}]},
+            rule=self.SNOW_ONLY,
+        )
+        assert out is not None
+
+    def test_a_watched_kind_falling_now_is_already_happening(self) -> None:
+        out = _detect(
+            _slot(ALERT_NOW + timedelta(hours=2), "Snow"),
+            current={"weather": [{"main": "Snow"}]},
+            rule=self.SNOW_ONLY,
+        )
+        assert out is None
+
+    def test_no_watched_kind_in_the_forecast_is_no_alert(self) -> None:
+        assert _detect(_slot(ALERT_NOW + timedelta(hours=1), "Rain"), rule=self.SNOW_ONLY) is None
+
+
+@pytest.mark.unit
+class TestTheCardsAlert:
+    """The card keeps its documented contract: the next change within 24 hours."""
+
+    @staticmethod
+    def _card(*slots: dict[str, object]) -> WeatherData:
+        return format_weather_data(
+            current={"main": {"temp": 10}, "weather": [{"main": "Clear"}]},
+            forecast={"list": list(slots)},
+            city=None,
+            user_tz=PARIS,
+            daily_forecast_days=5,
+            now=ALERT_NOW,
+        )
+
+    def test_a_change_tomorrow_morning_is_on_the_card(self) -> None:
+        out = self._card(_slot(ALERT_NOW + timedelta(hours=20), "Rain", pop=0.1))
+        assert out.forecast_alert is not None
+        assert out.forecast_alert.time == "09:00"
+
+    def test_a_change_in_three_days_is_not_announced_at_an_hour_of_today(self) -> None:
+        out = self._card(_slot(ALERT_NOW + timedelta(days=3), "Rain"))
+        assert out.forecast_alert is None
 
 
 # =============================================================================

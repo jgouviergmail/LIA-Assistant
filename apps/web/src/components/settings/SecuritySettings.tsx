@@ -193,7 +193,7 @@ export function SecuritySettings() {
                   {passkey.backed_up && (
                     // `success`, not grey: a synced passkey is a positive
                     // state, and grey is reserved for inactive ones.
-                    <Badge variant="success" className="text-[10px]">
+                    <Badge variant="success" className="text-px-10">
                       {t('settings.security.passkeys.synced')}
                     </Badge>
                   )}

@@ -131,7 +131,7 @@ export const GoogleApiCallsSection = React.memo(function GoogleApiCallsSection({
                   {call.api_name}
                 </DebugChip>
                 <span
-                  className="truncate font-mono text-[10px] text-muted-foreground"
+                  className="truncate font-mono text-px-10 text-muted-foreground"
                   title={call.endpoint}
                 >
                   {formatEndpoint(call.endpoint)}
@@ -139,7 +139,7 @@ export const GoogleApiCallsSection = React.memo(function GoogleApiCallsSection({
               </div>
 
               {/* Call metrics */}
-              <div className="space-y-0.5 text-[10px] text-muted-foreground">
+              <div className="space-y-0.5 text-px-10 text-muted-foreground">
                 {call.cached ? (
                   <div className={cn('flex justify-between', TONE_TEXT.success)}>
                     <span>Status:</span>

@@ -143,6 +143,7 @@ async def test_a_session_is_offered_every_ticked_base_source_and_its_running_sit
         disabled_feeds={unticked.url},
         since=NOW - timedelta(hours=24),
         limit=10,
+        interests_limit=0,
     )
 
     assert [candidate.title for candidate in offered] == ["Story fr-new", "Story zh", "Story mine"]
@@ -175,6 +176,7 @@ async def test_the_bound_keeps_the_stories_the_listener_never_heard(
         disabled_feeds=(),
         since=NOW - timedelta(hours=48),
         limit=3,
+        interests_limit=0,
         heard_keys={str(heard_itself.id), "event:a fact of their day"},
         heard_stories={heard_elsewhere.fingerprint, ""},
     )
@@ -501,7 +503,11 @@ async def test_the_stories_a_search_found_are_offered_under_their_own_outlet(
     offered = {
         candidate.title: candidate
         for candidate in await news_candidates(
-            me.id, disabled_feeds=(), since=NOW - timedelta(hours=48), limit=50
+            me.id,
+            disabled_feeds=(),
+            since=NOW - timedelta(hours=48),
+            limit=50,
+            interests_limit=50,
         )
     }
     assert (offered["Story s1"].from_interests, offered["Story s1"].outlet) == (
@@ -516,6 +522,68 @@ async def test_the_stories_a_search_found_are_offered_under_their_own_outlet(
     opened = await read_story(me.id, mine.id)
     assert opened is not None and opened.outlet == "The Outlet"
     assert await read_story(other.id, mine.id) is None
+
+
+async def test_the_interests_stories_have_a_bound_of_their_own(
+    async_session: AsyncSession,
+) -> None:
+    """Measured on dev 2026-09-29: 1 214 source stories in 48 hours, and four of the six a
+    search found fell past the 300 freshest — read by no desk although the listener's key
+    paid for them. Two bounds: the sources never crowd the interests out, the interests
+    never the sources, and within each what was heard comes last."""
+    me = await listener(async_session, "interests_bound")
+    base = feed("https://interests-bound.example/rss", language="en")
+    site = feed("https://interests-bound-site.example/feed", owner=me.id)
+    found = interest_row(me.id)
+    async_session.add_all([base, site, found])
+    await async_session.flush()
+    heard = story(found, "i-heard", 20)
+    async_session.add_all(
+        [
+            *(story(base, f"s{hours}", hours) for hours in (1, 2, 3, 4)),
+            story(site, "site", 5),
+            heard,
+            story(found, "i30", 30),
+            story(found, "i40", 40),
+        ]
+    )
+    await async_session.flush()
+
+    offered = await news_candidates(
+        me.id,
+        disabled_feeds=(),
+        since=NOW - timedelta(hours=48),
+        limit=2,
+        interests_limit=2,
+        heard_keys={str(heard.id)},
+    )
+
+    assert [(c.title, c.from_interests) for c in offered] == [
+        ("Story s1", False),
+        ("Story s2", False),
+        ("Story i30", True),  # older than every source story, still on the desk
+        ("Story i40", True),
+    ]
+
+
+async def test_a_session_without_interests_is_offered_none_of_their_stories(
+    async_session: AsyncSession,
+) -> None:
+    """In company, with the capability off or with no interest left, what a search found
+    earlier would voice what the listener cares about: a zero bound reads none of it."""
+    me = await listener(async_session, "interests_none")
+    site = feed("https://interests-none-site.example/feed", owner=me.id)
+    found = interest_row(me.id)
+    async_session.add_all([site, found])
+    await async_session.flush()
+    async_session.add_all([story(site, "site", 1), story(found, "i1", 1)])
+    await async_session.flush()
+
+    offered = await news_candidates(
+        me.id, disabled_feeds=(), since=NOW - timedelta(hours=48), limit=10, interests_limit=0
+    )
+
+    assert [candidate.title for candidate in offered] == ["Story site"]
 
 
 async def test_what_a_search_found_is_filed_once_under_one_row_per_listener(

@@ -725,7 +725,7 @@ export default function ChatPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-3">
           <LoadingSpinner size="xl" />
-          <p className="text-[13px] mobile:text-sm text-muted-foreground">
+          <p className="text-px-13 mobile:text-sm text-muted-foreground">
             {t('chat.loading_conversation')}
           </p>
         </div>
@@ -791,7 +791,7 @@ export default function ChatPage() {
                     {!apiAvailable ? (
                       <div className="flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-900 px-3 py-1.5 shadow-sm border border-rose-200 dark:border-rose-800 shrink-0">
                         <WifiOff className="h-3.5 w-3.5 text-rose-700 dark:text-rose-300" />
-                        <span className="text-[11px] mobile:text-xs font-semibold text-rose-700 dark:text-rose-300">
+                        <span className="text-px-11 mobile:text-xs font-semibold text-rose-700 dark:text-rose-300">
                           {t('chat.input.status.offline')}
                         </span>
                       </div>
@@ -816,9 +816,12 @@ export default function ChatPage() {
                       <Search className="h-4 w-4 text-muted-foreground" aria-hidden />
                     </button>
                     {/* Search input (≥ 880px) — filters currently loaded messages
-                    by content; left-aligned in the header. */}
+                    by content; left-aligned in the header. 12rem when the side
+                    has it, narrower when it does not: a fixed-width field in a
+                    shrinking side overflowed onto the centre group at 880 px
+                    with an enlarged text size (font-size-extremes.spec.ts). */}
                     <div
-                      className="relative hidden mobile:flex items-center"
+                      className="relative hidden min-w-0 mobile:flex items-center"
                       data-eyes-anchor-start
                     >
                       <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -829,7 +832,7 @@ export default function ChatPage() {
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder={t('conversations.search_placeholder')}
                         aria-label={t('conversations.search_placeholder')}
-                        className="h-8 w-48 pl-7 pr-7 text-xs rounded-full bg-background border border-border focus:outline-none focus:ring-1 focus:ring-ring"
+                        className="h-8 w-48 max-w-full pl-7 pr-7 text-xs rounded-full bg-background border border-border focus:outline-none focus:ring-1 focus:ring-ring"
                       />
                       {searchQuery && (
                         <button
@@ -904,7 +907,7 @@ export default function ChatPage() {
                       ) : (
                         <Trash2 className="h-3.5 w-3.5 text-rose-700 dark:text-rose-300" />
                       )}
-                      <span className="hidden sm:inline text-[11px] mobile:text-xs font-semibold text-rose-700 dark:text-rose-300">
+                      <span className="hidden sm:inline text-px-11 mobile:text-xs font-semibold text-rose-700 dark:text-rose-300">
                         {t('chat.new_chat')}
                       </span>
                     </button>

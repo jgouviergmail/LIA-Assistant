@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Final
 from uuid import UUID
 
@@ -43,10 +43,21 @@ from src.domains.radio.repository import file_interest_stories
 
 logger = structlog.get_logger(__name__)
 
-#: How far back a search looks — a week, the services' narrowest window past a day; a
+#: How far back a Perplexity search looks — a week, its narrowest window past a day; a
 #: story older than any programme may air is then left unfiled (the desk reads two days).
-BRAVE_FRESHNESS: Final[str] = "pw"
 PERPLEXITY_RECENCY: Final[str] = "week"
+
+
+def brave_freshness(found_at: datetime) -> str:
+    """The UTC days a Brave news search covers: the desk's horizon, never the week.
+
+    A result older than any programme may air is dropped unfiled, so a week's window
+    bought results nobody could hear; Brave takes a custom day range
+    (``YYYY-MM-DDtoYYYY-MM-DD``).
+    """
+    until = found_at.astimezone(UTC)
+    since = until - timedelta(seconds=NEWS_MAX_AGE_S)
+    return f"{since:%Y-%m-%d}to{until:%Y-%m-%d}"
 
 
 def _brave_date(value: object) -> datetime | None:
@@ -86,7 +97,7 @@ class BraveInterestSearch:
         self._stories_max = stories_max
 
     async def search(self, topic: str, *, language: str, found_at: datetime) -> list[InterestStory]:
-        """The week's news about ``topic``, as stories.
+        """The news about ``topic`` within the desk's days, as stories.
 
         Raises:
             ConnectionError: When Brave could not answer (its client says so with
@@ -95,7 +106,10 @@ class BraveInterestSearch:
         client = BraveSearchClient(api_key=self._api_key, language=language, user_id=self._user_id)
         try:
             data = await client.search(
-                query=topic, endpoint="news", count=self._stories_max, freshness=BRAVE_FRESHNESS
+                query=topic,
+                endpoint="news",
+                count=self._stories_max,
+                freshness=brave_freshness(found_at),
             )
         finally:
             await client.close()
@@ -220,7 +234,8 @@ async def refresh_listener_interests(
     Args:
         user_id: The listener.
         run_id: The session's run (the searches are its consultations).
-        topics: Their interests, strongest first (none in company).
+        topics: Their interests the start read, strongest first — already bounded by
+            ``RADIO_INTEREST_TOPICS_MAX`` (none in company, none with the capability off).
         language: Their language.
         redis: Where the searches are remembered.
         now: The instant (aware).
@@ -228,8 +243,7 @@ async def refresh_listener_interests(
     Returns:
         How many new stories were filed.
     """
-    topics_max = settings.radio_interest_topics_max
-    if not topics or topics_max <= 0:
+    if not topics:
         return 0
     try:
         search = await listener_interest_search(
@@ -252,7 +266,6 @@ async def refresh_listener_interests(
                 record=recorder_for(user_id, run_id),
                 language=language,
                 now=now,
-                topics_max=topics_max,
                 max_age_s=NEWS_MAX_AGE_S,
             )
     except Exception as exc:  # noqa: BLE001 — the interests are extra material, never the session
@@ -266,6 +279,7 @@ __all__ = [
     "BraveInterestSearch",
     "PerplexityInterestSearch",
     "RedisSearchMarks",
+    "brave_freshness",
     "listener_interest_search",
     "refresh_listener_interests",
 ]

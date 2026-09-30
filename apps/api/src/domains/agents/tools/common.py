@@ -120,7 +120,7 @@ def http_status_to_error_code(status: int) -> ToolErrorCode:
         return ToolErrorCode.RATE_LIMIT_EXCEEDED
     if status == 408 or status >= 500:
         return ToolErrorCode.EXTERNAL_API_ERROR
-    if 400 <= status < 500:
+    if status >= 400:  # below 500, the branch above having taken 408 and 5xx
         return ToolErrorCode.INVALID_INPUT
     return ToolErrorCode.EXTERNAL_API_ERROR
 

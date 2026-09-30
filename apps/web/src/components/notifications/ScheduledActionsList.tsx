@@ -54,14 +54,14 @@ export function ScheduledActionsList({
             <p className="flex flex-wrap items-baseline gap-2">
               <span className="text-sm font-medium text-foreground/90">{action.title}</span>
               {!action.is_enabled && (
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <span className="rounded-full bg-muted px-2 py-0.5 text-px-10 font-medium uppercase tracking-wide text-muted-foreground">
                   {t('notifications_hub.routine_disabled')}
                 </span>
               )}
             </p>
-            <p className="text-[11px] text-muted-foreground">{action.schedule_display}</p>
+            <p className="text-px-11 text-muted-foreground">{action.schedule_display}</p>
             {action.is_enabled && action.trigger_kind !== 'condition' && (
-              <p className="text-[11px] tabular-nums text-muted-foreground">
+              <p className="text-px-11 tabular-nums text-muted-foreground">
                 {action.next_trigger_at
                   ? t('notifications_hub.next_run', {
                       when: formatInstant(action.next_trigger_at, locale),

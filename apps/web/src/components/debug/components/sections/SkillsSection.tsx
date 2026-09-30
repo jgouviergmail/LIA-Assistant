@@ -59,7 +59,7 @@ export const SkillsSection = React.memo(function SkillsSection({ data }: SkillsS
       {data.priority !== undefined && <MetricRow label="Priority" value={data.priority} />}
 
       {/* Capability flags */}
-      <div className="flex flex-wrap items-center gap-2 rounded bg-muted/20 p-2 text-[10px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 rounded bg-muted/20 p-2 text-px-10 text-muted-foreground">
         {data.has_scripts && <DebugChip tone="warning">scripts/</DebugChip>}
         {data.has_references && <DebugChip tone="neutral">references/</DebugChip>}
         {!data.has_scripts && !data.has_references && (

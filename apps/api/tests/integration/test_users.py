@@ -5,6 +5,11 @@ Integration tests for users CRUD operations.
 import pytest
 from httpx import AsyncClient
 
+from src.core.constants import (
+    USER_FONT_SIZE_DEFAULT_PX,
+    USER_FONT_SIZE_MAX_PX,
+    USER_FONT_SIZE_MIN_PX,
+)
 from src.domains.users.models import User
 
 
@@ -130,6 +135,46 @@ class TestUpdateUser:
 
         assert data["id"] == str(user.id)
         assert data["full_name"] == "Updated Name"
+
+    @pytest.mark.asyncio
+    async def test_font_size_is_saved_and_read_back(
+        self, authenticated_client: tuple[AsyncClient, User]
+    ):
+        """The interface text size persists through the generic profile update.
+
+        Read back through ``/auth/me`` — what every device loads at sign-in —
+        not only from the PATCH answer, so the column really holds it.
+        """
+        client, user = authenticated_client
+
+        chosen = USER_FONT_SIZE_MAX_PX - 1
+
+        response = await client.patch(f"/api/v1/users/{user.id}", json={"font_size": chosen})
+
+        assert response.status_code == 200
+        assert response.json()["font_size"] == chosen
+        me = await client.get("/api/v1/auth/me")
+        assert me.json()["font_size"] == chosen
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "size", [USER_FONT_SIZE_MIN_PX - 1, USER_FONT_SIZE_MAX_PX + 1, "18", None]
+    )
+    async def test_font_size_out_of_bounds_is_refused(
+        self, authenticated_client: tuple[AsyncClient, User], size: object
+    ):
+        """A size the interface cannot draw is refused, and nothing is written.
+
+        An explicit null included: the column is NOT NULL, so it used to reach
+        the flush and answer a 500.
+        """
+        client, user = authenticated_client
+
+        response = await client.patch(f"/api/v1/users/{user.id}", json={"font_size": size})
+
+        assert response.status_code == 422
+        me = await client.get("/api/v1/auth/me")
+        assert me.json()["font_size"] == USER_FONT_SIZE_DEFAULT_PX
 
     @pytest.mark.asyncio
     async def test_email_cannot_be_changed_through_the_profile_endpoint(

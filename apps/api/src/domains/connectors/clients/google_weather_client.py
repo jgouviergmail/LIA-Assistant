@@ -164,6 +164,23 @@ def _epoch(iso_time: str | None) -> int:
     return int(datetime.now(UTC).timestamp())
 
 
+def _forecast_entry(hour_entry: dict[str, Any]) -> dict[str, Any]:
+    """One OWM forecast entry (``dt``, ``main``, ``weather``, ``wind``, ``pop``) from a Google hour."""
+    entry: dict[str, Any] = {
+        "dt": _epoch((hour_entry.get("interval") or {}).get("startTime")),
+        "main": {
+            "temp": (hour_entry.get("temperature") or {}).get("degrees"),
+            "humidity": hour_entry.get("relativeHumidity"),
+        },
+        "weather": [_condition_entry(hour_entry)],
+        "wind": _wind_entry(hour_entry),
+    }
+    percent = ((hour_entry.get("precipitation") or {}).get("probability") or {}).get("percent")
+    if percent is not None:
+        entry["pop"] = round(percent / 100, 2)
+    return entry
+
+
 class GoogleWeatherClient:
     """Google Weather API client with the OpenWeatherMap-shaped interface."""
 
@@ -304,19 +321,34 @@ class GoogleWeatherClient:
         logger.info("google_weather_current_retrieved", user_id=str(self.user_id))
         return weather
 
-    async def get_forecast(
+    async def get_hourly_forecast(
         self,
         lat: float | None = None,
         lon: float | None = None,
         city: str | None = None,
         country: str | None = None,
-        units: str = "metric",
         lang: str | None = None,
-        cnt: int = 40,
+        *,
+        hours: int,
     ) -> dict[str, Any]:
-        """Hourly forecast sampled to OWM 3-hour entries ({"list", "city"})."""
+        """Every forecast hour, unsampled, in OWM entries (``{"list", "city"}``).
+
+        The first entry is the hour under way. What a weather routine reads: a
+        change due within a few hours falls between two 3-hour samples.
+
+        Args:
+            lat: Latitude (geocoded from ``city`` when absent).
+            lon: Longitude.
+            city: City name, when no coordinates.
+            country: Country code, with ``city``.
+            lang: Language of the condition descriptions.
+            hours: How many hours to read, bounded by the provider's maximum.
+
+        Returns:
+            The OWM-shaped forecast, one entry per hour the provider returned.
+        """
         lat, lon, name, resolved_country = await self._resolve_point(lat, lon, city, country)
-        hours_needed = min(max(cnt, 1) * 3, GOOGLE_WEATHER_MAX_FORECAST_HOURS)
+        hours_needed = min(max(hours, 1), GOOGLE_WEATHER_MAX_FORECAST_HOURS)
 
         forecast_hours: list[dict[str, Any]] = []
         page_token: str | None = None
@@ -338,37 +370,36 @@ class GoogleWeatherClient:
             if not page_token:
                 break
 
-        entries = []
-        for hour_entry in forecast_hours[:hours_needed:3]:
-            entry: dict[str, Any] = {
-                "dt": _epoch((hour_entry.get("interval") or {}).get("startTime")),
-                "main": {
-                    "temp": (hour_entry.get("temperature") or {}).get("degrees"),
-                    "humidity": hour_entry.get("relativeHumidity"),
-                },
-                "weather": [_condition_entry(hour_entry)],
-                "wind": _wind_entry(hour_entry),
-            }
-            percent = ((hour_entry.get("precipitation") or {}).get("probability") or {}).get(
-                "percent"
-            )
-            if percent is not None:
-                entry["pop"] = round(percent / 100, 2)
-            entries.append(entry)
-
+        entries = [_forecast_entry(hour_entry) for hour_entry in forecast_hours[:hours_needed]]
         logger.info(
             "google_weather_forecast_retrieved",
             user_id=str(self.user_id),
             entries=len(entries),
         )
         return {
-            "list": entries[:cnt],
+            "list": entries,
             "city": {
                 "name": name,
                 "country": resolved_country,
                 "coord": {"lat": lat, "lon": lon},
             },
         }
+
+    async def get_forecast(
+        self,
+        lat: float | None = None,
+        lon: float | None = None,
+        city: str | None = None,
+        country: str | None = None,
+        units: str = "metric",
+        lang: str | None = None,
+        cnt: int = 40,
+    ) -> dict[str, Any]:
+        """Hourly forecast sampled to OWM 3-hour entries ({"list", "city"})."""
+        hourly = await self.get_hourly_forecast(
+            lat=lat, lon=lon, city=city, country=country, lang=lang, hours=max(cnt, 1) * 3
+        )
+        return {"list": hourly["list"][::3][:cnt], "city": hourly["city"]}
 
     async def get_daily_forecast(
         self,

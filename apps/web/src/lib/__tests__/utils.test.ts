@@ -24,6 +24,15 @@ describe('cn', () => {
     expect(cn('p-2', 'p-4')).toBe('p-4');
     expect(cn('text-red-500', 'text-blue-500')).toBe('text-blue-500');
   });
+
+  it('reads text-px-N as a font size, never as a text colour', () => {
+    // Read as a colour, the caption size silently dropped the colour beside it
+    // (the cyan skill badge lost `text-cyan-800`).
+    expect(cn('text-px-10', 'text-cyan-800')).toBe('text-px-10 text-cyan-800');
+    expect(cn('text-px-10', 'text-px-9')).toBe('text-px-9');
+    expect(cn('text-sm', 'text-px-11')).toBe('text-px-11');
+    expect(cn('text-px-11', 'text-xs')).toBe('text-xs');
+  });
 });
 
 describe('proxyGoogleImageUrl', () => {

@@ -55,7 +55,7 @@ export function RoutineNumberChip({
       data-executing={executing || undefined}
       className={cn(
         'inline-flex h-5 min-w-5 select-none items-center justify-center rounded-full border px-1',
-        'text-[11px] font-semibold leading-none tabular-nums',
+        'text-px-11 font-semibold leading-none tabular-nums',
         TONE_CLASSES[tone],
         kind === 'condition' && 'ring-2 ring-primary/40 ring-offset-1 ring-offset-background',
         executing && 'animate-pulse motion-reduce:animate-none',

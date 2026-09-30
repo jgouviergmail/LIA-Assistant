@@ -43,7 +43,7 @@ export function BrowserScreenshotOverlay({ screenshot }: BrowserScreenshotOverla
               <p className="text-xs font-medium text-foreground truncate">
                 {screenshot.title || t('browser.screenshot.viewing')}
               </p>
-              <p className="text-[10px] text-muted-foreground truncate">{displayUrl}</p>
+              <p className="text-px-10 text-muted-foreground truncate">{displayUrl}</p>
             </div>
           </div>
           {/* Screenshot */}

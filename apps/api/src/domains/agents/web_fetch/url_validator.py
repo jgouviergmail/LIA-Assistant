@@ -6,22 +6,32 @@ Multi-tenant security module that prevents:
 - Access to cloud metadata endpoints
 - Access to internal services via hostname blacklists
 - Non-HTTP(S) schemes
-- DNS rebinding attacks (resolved before fetch)
+- DNS rebinding attacks: the request connects to the address the check saw
 - IPv4-mapped IPv6 bypass attacks
 
-Architecture:
-    validate_url() is the single async entry point.
+Architecture (ADR-326):
+    validate_url() is the single async entry point; its verdict carries the
+    addresses it validated. pinned_stream() is the ONE way a validated URL is
+    requested: connected to a validated address, the name kept in ``Host`` and
+    the SNI, redirects never followed — a redirect is a new URL the caller
+    validates and requests again, so every hop is checked BEFORE it is
+    contacted. The former shape (validate, then let the client follow
+    redirects and re-resolve the name, then check where it ended up) was
+    measured to contact a cloud metadata address on a redirect and to hand an
+    internal page back under a rebinding name.
     DNS resolution runs via asyncio.to_thread() to avoid blocking the event loop.
-    check_ip_safety() is a reusable sync helper for post-redirect validation.
+    check_ip_safety() is the reusable sync predicate over one address.
 """
 
 import asyncio
 import ipaddress
 import socket
-from contextlib import suppress
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlparse
 
+import httpx
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -90,12 +100,22 @@ _ALLOWED_SCHEMES = frozenset({"http", "https"})
 
 @dataclass(frozen=True)
 class UrlValidationResult:
-    """Immutable result of URL validation."""
+    """Immutable result of URL validation.
+
+    ``resolved_ips`` are the addresses the verdict validated — the raw IP of
+    the URL, or what the name resolved to at check time. A request made on the
+    verdict connects to ONE of them (:func:`pinned_stream`), never to a fresh
+    resolution of the name: a name that answers a public address at check
+    time and a private one at connect time (DNS rebinding) was measured to hand
+    an internal page back to the tool (ADR-326). A valid verdict always carries
+    at least one; a refusal carries none.
+    """
 
     valid: bool
     url: str
     error: str | None = None
     https_upgraded: bool = False
+    resolved_ips: tuple[str, ...] = ()
 
 
 def _normalize_ip(
@@ -267,46 +287,83 @@ async def validate_url(url: str) -> UrlValidationResult:
         valid=True,
         url=safe_url,
         https_upgraded=https_upgraded,
+        resolved_ips=tuple(resolved_ips),
     )
 
 
-async def validate_resolved_url(url: str) -> bool:
-    """
-    Validate a URL after redirect (post-redirect SSRF check).
+def pinned_request_parts(
+    verdict: UrlValidationResult,
+) -> tuple[httpx.URL, dict[str, str], dict[str, Any]]:
+    """What a request made on a verdict is built from: its URL, headers, extensions.
 
-    Lighter version of validate_url() focused on hostname/IP safety only.
-    Used to check response.url after httpx follows redirections.
+    The URL's host is the FIRST address the verdict validated, so the connection
+    goes where the check looked; the ``Host`` header and, over TLS, the SNI
+    carry the name, so the server answers for the right site and the
+    certificate is verified against the name, never the address. The name is
+    the WIRE form (``raw_host``, IDNA-encoded): a header is ASCII, and
+    ``URL.host`` of an internationalised name is its decoded spelling — sent as
+    a header it raised ``UnicodeEncodeError`` where the plain URL, encoded by
+    the client itself, had always worked. :func:`pinned_stream` keeps these two
+    headers OVER a caller's own.
 
     Args:
-        url: Final URL after redirections
+        verdict: A VALID verdict of :func:`validate_url`.
 
     Returns:
-        True if safe, False if blocked
+        ``(url, headers, extensions)`` for ``client.stream`` / ``client.request``.
+
+    Raises:
+        ValueError: The verdict is a refusal, or validated no address.
     """
-    try:
-        parsed = urlparse(url)
-    except Exception:
-        return False
+    if not verdict.valid or not verdict.resolved_ips:
+        raise ValueError("a request is made on a valid verdict that carries an address")
+    logical = httpx.URL(verdict.url)
+    pinned = logical.copy_with(host=verdict.resolved_ips[0])
+    wire_name = logical.raw_host.decode("ascii")
+    host_header = wire_name
+    if logical.port is not None:
+        host_header = f"{host_header}:{logical.port}"
+    headers = {"Host": host_header}
+    extensions: dict[str, Any] = {}
+    if logical.scheme == "https":
+        extensions["sni_hostname"] = wire_name
+    return pinned, headers, extensions
 
-    hostname = parsed.hostname
-    if not hostname:
-        return False
 
-    # Check hostname blacklist
-    if _check_hostname_safety(hostname) is not None:
-        return False
+def pinned_stream(
+    client: httpx.AsyncClient,
+    method: str,
+    verdict: UrlValidationResult,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: float | httpx.Timeout | None = None,
+) -> AbstractAsyncContextManager[httpx.Response]:
+    """Open a streaming request on a verdict, connected to the address it validated.
 
-    # Check if hostname is a raw IP address
-    # Not a raw IP — resolve DNS below
-    with suppress(ValueError):
-        ipaddress.ip_address(hostname)
-        # It's a raw IP — validate it
-        return check_ip_safety(hostname)
+    The ONE way a validated URL is requested (ADR-326): redirects are never
+    followed here — a redirect is a new URL, which the caller validates and
+    requests through this function again, so every hop is checked BEFORE it is
+    contacted and connects to the address that was checked.
 
-    # Resolve DNS for domain hostnames
-    try:
-        resolved_ips = await asyncio.to_thread(_resolve_dns_sync, hostname)
-    except socket.gaierror:
-        return False
+    Args:
+        client: The caller's client.
+        method: The HTTP method.
+        verdict: A valid verdict of :func:`validate_url`.
+        headers: The caller's headers. The pinning ``Host`` wins over any
+            ``host`` they carry, whatever its case: a request that could be
+            unpinned by a header would not be pinned.
+        timeout: The request timeout, the client's when None.
 
-    return all(check_ip_safety(ip_str) for ip_str in resolved_ips)
+    Returns:
+        The response context manager ``client.stream`` hands back.
+    """
+    url, pin_headers, extensions = pinned_request_parts(verdict)
+    caller_headers = {k: v for k, v in (headers or {}).items() if k.lower() != "host"}
+    request_kwargs: dict[str, Any] = {
+        "headers": {**caller_headers, **pin_headers},
+        "extensions": extensions,
+        "follow_redirects": False,
+    }
+    if timeout is not None:
+        request_kwargs["timeout"] = timeout
+    return client.stream(method, url, **request_kwargs)

@@ -68,7 +68,7 @@ export interface SettingsOverviewProps {
 function SectionStatus({ node, t }: { node: CapabilityNode; t: TFunction }) {
   return (
     <span
-      className="mt-1.5 flex items-center gap-1.5 text-[11px] leading-tight"
+      className="mt-1.5 flex items-center gap-1.5 text-px-11 leading-tight"
       aria-hidden="true"
     >
       <span

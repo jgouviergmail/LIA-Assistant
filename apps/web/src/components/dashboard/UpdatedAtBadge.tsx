@@ -61,7 +61,7 @@ export function UpdatedAtBadge({
     <time
       dateTime={generatedAt}
       title={generatedAt}
-      className={`text-[10px] text-muted-foreground tabular-nums ${className ?? ''}`}
+      className={`text-px-10 text-muted-foreground tabular-nums ${className ?? ''}`}
     >
       {label}
       {/* D-04: "updated 2 h ago" without saying it came from a cache was

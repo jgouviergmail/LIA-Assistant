@@ -135,7 +135,7 @@ export function ProvenanceDisclosure({ endpoint, locale, onCorrect }: Provenance
                 </Badge>
                 <time
                   dateTime={reference.captured_at}
-                  className="text-[11px] tabular-nums text-muted-foreground"
+                  className="text-px-11 tabular-nums text-muted-foreground"
                 >
                   {formatInstant(reference.captured_at, locale)}
                 </time>
@@ -163,7 +163,7 @@ export function ProvenanceDisclosure({ endpoint, locale, onCorrect }: Provenance
           "capped at N", and "capped at undefined" would be worse than silence.
           Same defensive reading as everything else in this block. */}
       {data && data.total > 0 && typeof data.kept_at_most === 'number' && (
-        <p className="mt-2 text-[11px] tabular-nums text-muted-foreground">
+        <p className="mt-2 text-px-11 tabular-nums text-muted-foreground">
           {t('provenance.count', { total: data.total, cap: data.kept_at_most })}
         </p>
       )}

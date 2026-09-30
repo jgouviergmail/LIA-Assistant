@@ -90,7 +90,8 @@ fichier).
 8. **La forme est restituée par le composant de la bulle** :
    `MarkdownContent`, donc markdown ET documents HTML enrichis (ADR-177). Le
    `.md` est construit côté client par le chemin du chat (`downloadMarkdown` +
-   `messageToPlainText`), avec la requête citée ligne à ligne et la date en
+   `messageToMarkdown` depuis l'amendement 2026-09-30 de l'ADR-177 — une réponse
+   HTML y est écrite en Markdown), avec la requête citée ligne à ligne et la date en
    tête ; le nom de fichier suit la convention `lia-YYYY-MM-DD-HH-mm`.
 
 ## Conséquences

@@ -92,7 +92,7 @@ function CelebrationLine({ t }: { t: (key: string) => string }) {
             {CELEBRATION_PARTICLE_OFFSETS_PX.map((offset, i) => (
               <span
                 key={offset}
-                className="animate-particle-up absolute text-[10px] leading-none"
+                className="animate-particle-up absolute text-px-10 leading-none"
                 style={{
                   ['--particle-x' as string]: `${offset}px`,
                   animationDelay: `${i * 90}ms`,

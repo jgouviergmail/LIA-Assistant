@@ -285,7 +285,6 @@ async def _probe_platform_egress() -> ProbeOutcome:
     timeout = float(settings.diagnostics_egress_probe_timeout_seconds)
     started = time.monotonic()
     writer: asyncio.StreamWriter | None = None
-    elapsed_ms = 0.0
     try:
         _reader, writer = await asyncio.wait_for(
             asyncio.open_connection(host, port), timeout=timeout

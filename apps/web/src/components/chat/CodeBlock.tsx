@@ -165,7 +165,8 @@ export function CodeBlock({ language, children }: CodeBlockProps) {
               margin: 0,
               padding: '0.75rem',
               background: 'transparent',
-              fontSize: '0.875rem',
+              // Follows the reader's text scale like every stylesheet size.
+              fontSize: 'calc(0.875rem * var(--lia-text-scale, 1))',
             }}
             codeTagProps={{ className: 'font-mono' }}
           >

@@ -1,8 +1,9 @@
 """``get_emails_tool`` serves the level the question needs (ADR-287).
 
-- ``metadata`` reads the listing as the client returned it and fetches NO
-  body — before, every search re-downloaded every message in ``full``
-  (Gmail: 2N+1 requests for N hits);
+- every level reads a search the SAME way — the level shapes what the MODEL
+  reads, never what the card draws: a client whose hits are whole messages
+  (Gmail, IMAP) is never asked for them twice, and one whose listing is a
+  preview (Graph) is asked for each hit once;
 - ``full`` fetches the bodies and serves ONE part of each, paginated by
   paragraph, saying how many parts there are;
 - the page token travels to the client and the next one comes back with the
@@ -60,35 +61,81 @@ def client() -> AsyncMock:
             "from_cache": False,
         }
     )
+    # A preview listing by default: each hit is fetched through _fetch_full_details.
+    client.SEARCH_HITS_ARE_WHOLE = False
     return client
 
 
-class TestMetadata:
-    async def test_no_body_is_fetched_and_the_listing_is_served(
+def _gmail_hit(index: int) -> dict[str, Any]:
+    """A Gmail ``format=full`` hit as the client normalises it: body top-level,
+    attachments still inside the MIME tree, labels as ids."""
+    return {
+        **_listing_message(index),
+        "labelIds": ["INBOX", "Label_7"],
+        "body": f"Body {index}",
+        "payload": {
+            "mimeType": "multipart/mixed",
+            "parts": [
+                {"mimeType": "text/plain", "filename": "", "body": {"size": 6}},
+                {
+                    "mimeType": "application/pdf",
+                    "filename": f"quote-{index}.pdf",
+                    "body": {"attachmentId": f"att{index}", "size": 1234},
+                },
+            ],
+        },
+    }
+
+
+@pytest.fixture
+def whole_client() -> AsyncMock:
+    """A client whose search hits are whole messages (Gmail, IMAP)."""
+    client = AsyncMock()
+    client.SEARCH_HITS_ARE_WHOLE = True
+    client.search_emails = AsyncMock(
+        return_value={"messages": [_gmail_hit(1), _gmail_hit(2)], "resultSizeEstimate": 2}
+    )
+    client.list_labels = AsyncMock(return_value={"Label_7": "Clients"})
+    return client
+
+
+class TestOneReadingForEveryLevel:
+    @pytest.mark.parametrize("detail", ["metadata", "full", "summary"])
+    async def test_whole_hits_are_never_fetched_again(
+        self, tool: GetEmailsTool, whole_client: AsyncMock, detail: str
+    ) -> None:
+        with (
+            patch.object(tool, "_fetch_full_details", AsyncMock()) as fetch,
+            patch("src.domains.agents.emails.digest.EmailDigestService.digest_many", AsyncMock()),
+        ):
+            result = await tool.execute_api_call(
+                whole_client, uuid4(), query="in:inbox", detail=detail
+            )
+
+        fetch.assert_not_awaited()
+        whole_client.get_message.assert_not_awaited()
+        assert "headers_only" not in whole_client.search_emails.await_args.kwargs
+        first = result["emails"][0]
+        assert [a["filename"] for a in first["attachments"]] == ["quote-1.pdf"]
+        assert first["labelIds"] == ["INBOX", "Clients"]
+
+    async def test_a_preview_listing_is_completed_once_per_hit(
         self, tool: GetEmailsTool, client: AsyncMock
     ) -> None:
-        with patch.object(tool, "_fetch_full_details", AsyncMock()) as fetch:
+        """Graph lists a preview: the level ``metadata`` needs the whole message
+        too, since the card draws its body and attachments."""
+        with patch.object(
+            tool, "_fetch_full_details", AsyncMock(return_value=[_full_message(1)])
+        ) as fetch:
             result = await tool.execute_api_call(
                 client, uuid4(), query="in:inbox", max_results=2, detail="metadata"
             )
 
-        fetch.assert_not_awaited()
+        fetch.assert_awaited_once()
+        assert fetch.await_args.args[2] == ["m1", "m2"]
         assert result["detail"] == "metadata"
-        assert [e["subject"] for e in result["emails"]] == ["Subject 1", "Subject 2"]
-        assert all("body" not in e for e in result["emails"])
         assert result["result_size_estimate"] == 137
         assert result["next_page_token"] == "tok-2"
-
-    async def test_apple_listing_asks_for_envelopes_only(self, tool: GetEmailsTool) -> None:
-        """The IMAP client can skip the bodies at the wire: it is told to."""
-        from src.domains.connectors.clients.apple_email_client import AppleEmailClient
-
-        client = AsyncMock(spec=AppleEmailClient)
-        client.search_emails = AsyncMock(
-            return_value={"messages": [], "resultSizeEstimate": 0, "next_page_token": None}
-        )
-        await tool.execute_api_call(client, uuid4(), query="in:inbox", detail="metadata")
-        assert client.search_emails.await_args.kwargs["headers_only"] is True
 
 
 class TestFull:

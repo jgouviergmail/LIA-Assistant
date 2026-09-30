@@ -288,3 +288,77 @@ propriétaire dans l'interface :
   suite possible, non engagée.
 - Le condensé de FIL (plusieurs messages en un) : le niveau `summary` condense
   par message ; la synthèse d'un fil reste au modèle du tour.
+
+## Amendement 2026-09-30 — le niveau décide de ce que lit le MODÈLE, jamais de ce que dessine la carte
+
+**Constat, reproduit dans le conteneur `lia-api-dev`.** Une liste demandée en
+`detail=metadata`, ce que le manifeste, le planificateur et le prompt de
+l'agent prescrivent pour « mes derniers e-mails », dessinait des cartes vides.
+Leur « Voir plus » ne portait que les destinataires, sans corps, et aucune
+pastille de pièce jointe. Deux causes :
+
+1. **Le modèle et la carte lisaient la même charge.** Retirer le corps au
+   modèle le retirait aussi de la carte.
+2. **La recherche Gmail lisait chaque résultat en `format=metadata`**, sans
+   parties MIME. `headers_only` était « accepté pour la parité » et ignoré.
+   Les pièces jointes ne pouvaient pas être extraites, alors que le manifeste
+   promettait `attachments` à ce niveau.
+
+**Décision.**
+
+- **Chaque niveau lit les messages en entier.** `search_emails` de Gmail
+  respecte `headers_only` comme IMAP : sans lui, chaque résultat est lu en
+  `format=full`, avec toujours une requête par résultat. La clé de cache de la
+  recherche nomme ce format, et `use_cache=False` atteint aussi la lecture de
+  chaque résultat. Un client DÉCLARE si ses résultats sont déjà des messages
+  complets (`EmailClientProtocol.SEARCH_HITS_ARE_WHOLE` : Gmail et IMAP oui,
+  Graph non, car sa liste sélectionne `bodyPreview` et n'étend pas les pièces
+  jointes). `get_emails_tool` ne relit jamais un message complet : N+1
+  requêtes Gmail à tous les niveaux, contre 2N+1 auparavant en `full`. La
+  garde de parité exige que chaque `ClassVar` d'un protocole soit posé par
+  chaque client.
+- **Un corps retenu voyage hors de la charge.** Le niveau le range sous
+  `FIELD_DISPLAY_ONLY`. `create_registry_item` le déplace dans
+  `RegistryItemMeta.display` AVANT toute copie de la charge (données
+  structurées, magasin de contexte, `$steps`). Aucune projection vers le
+  modèle ne lit `meta`, le recensement l'a vérifié chemin par chemin : boucle
+  ReAct, téléphone, outils de contexte, références du pipeline, résumé de
+  réponse. Les rendus de cartes lisent l'item par `card_payload`
+  (`data_registry/card_payload.py`), qui fusionne ces champs sur la charge.
+  La carte est inchangée : elle lit `body`. En `full`, le corps servi suffit
+  et rien n'est dupliqué.
+- Même règle en `summary` : une carte condensée dessine le condensé ET le
+  message sous « Voir plus ».
+- **L'invariant est central.** Un validateur de `RegistryItem` sort
+  `FIELD_DISPLAY_ONLY` de TOUTE charge, quel que soit le constructeur :
+  fabrique de formateurs, candidats réhydratés d'une référence. Il ne mute
+  jamais le dictionnaire reçu. `create_registry_item` retire en plus la clé du
+  dictionnaire SOURCE, parce que les données structurées en copient les items.
+- **Une référence résolue (« ouvre le deuxième ») garde la carte entière.** Le
+  chemin normal réassocie la référence à l'élément du registre, `display`
+  compris. La revue à froid a trouvé les deux replis, qui dessinent depuis les
+  éléments résolus eux-mêmes : ils portent désormais leurs champs d'affichage
+  sous `FIELD_DISPLAY_ONLY` (`context_resolution_service._resolved_payload`),
+  une clé que le résumé pour le modèle et `to_llm_context` ignorent (préfixe
+  `_`). `generate_html_for_resolved_context` et `_registry_from_resolved_context`
+  les restituent à la carte.
+
+**Effet de bord accepté (arbitrage du propriétaire).** Le briefing, le
+heartbeat et la fiche Relations reçoivent eux aussi les messages Gmail
+complets : plus d'octets, aucune requête en plus. Aucun ne lit le corps, et la
+radio demande déjà `headers_only`.
+
+**Non traité, dit.** La carte, texte du corps compris (tronqué à
+`EMAILS_BODY_MAX_LENGTH`), fait partie de la réponse enregistrée. L'historique
+ReAct la relit brute au tour suivant, comme toute carte et comme en `full`
+depuis toujours. La retirer serait retirer du contexte au modèle, ce qui est
+une décision à part.
+
+**Preuves.** `tests/unit/domains/agents/emails/test_withheld_body_reaches_the_card.py`
+(aucune charge ni projection ReAct ne porte le corps ; la carte le dessine,
+après un aller-retour de checkpoint, dans un groupe corrélé, pour une
+référence résolue et ses deux replis ; les trois vrais normaliseurs Gmail,
+Graph et IMAP, de la recherche à la carte),
+`test_get_emails_tool_detail.py` (une seule lecture pour les trois niveaux),
+`test_detail_levels.py`, `tests/unit/connectors/test_google_gmail_client.py::TestSearchHitFormat`,
+`test_provider_parity_contract.py::test_client_sets_every_declared_class_attribute`.

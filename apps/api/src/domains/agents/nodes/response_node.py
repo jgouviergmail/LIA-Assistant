@@ -84,9 +84,10 @@ from src.domains.agents.context.runtime_context import (
     runtime_user_id_str,
     runtime_voice_enabled,
 )
-from src.domains.agents.display.collection_preview import CollectionPreview
+from src.domains.agents.data_registry.card_payload import card_payload
 
 # V3 Display Architecture imports
+from src.domains.agents.display.collection_preview import CollectionPreview
 from src.domains.agents.display.config import config_for_viewport
 
 # ResponseFormatter removed - pure HTML mode only
@@ -660,10 +661,10 @@ def _extract_payloads_from_registry(
         # Handle both dict and Pydantic RegistryItem objects
         if hasattr(item, "type"):
             item_type = item.type.value if hasattr(item.type, "value") else str(item.type)
-            payload = item.payload if hasattr(item, "payload") else {}
         else:
             item_type = item.get("type", "")
-            payload = item.get("payload", {})
+        # What the card draws: display-only fields restored (ADR-287 amendment).
+        payload = card_payload(item)
 
         # Skip DRAFT items (handled separately by HITL flow)
         if item_type == "DRAFT":
@@ -678,8 +679,7 @@ def _extract_payloads_from_registry(
         if domain not in domain_payloads:
             domain_payloads[domain] = []
 
-        # Ensure payload is a dict
-        if isinstance(payload, dict):
+        if payload is not None:
             domain_payloads[domain].append(payload)
 
     return domain_payloads

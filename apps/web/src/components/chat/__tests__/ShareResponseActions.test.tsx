@@ -292,6 +292,30 @@ describe('Send by e-mail — the very file Download writes (ADR-321)', () => {
     );
   });
 
+  it('writes an HTML answer as Markdown in BOTH the download and the attachment', async () => {
+    // The layout the person read survives (heading, emphasis, key-value), and
+    // the label punctuation is the locale's (the i18n stub echoes the key).
+    const html =
+      '<div class="lia-response"><h2>Salle</h2><p>Réservée à <strong>14 h</strong>.</p>' +
+      '<dl class="lia-kv"><dt>Lieu</dt><dd>B</dd></dl></div>';
+    const markdown = '## Salle\n\nRéservée à **14 h**.\n\n- **Lieu**common.label_separatorB';
+    const { user } = renderWithProviders(
+      <EmailShareAvailabilityProvider available>
+        <ShareResponseActions content={html} timestamp={TIMESTAMP} />
+      </EmailShareAvailabilityProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: 'chat.message.download_md' }));
+    await user.click(screen.getByRole('button', { name: 'email_share.button' }));
+
+    expect(downloadMarkdown).toHaveBeenCalledWith(markdown, 'lia-2026-07-28-19-42');
+    expect(emailDialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: { kind: 'markdown', filename: 'lia-2026-07-28-19-42', text: markdown },
+      })
+    );
+  });
+
   it('is absent where the page does not offer sending by e-mail', () => {
     renderActions();
 

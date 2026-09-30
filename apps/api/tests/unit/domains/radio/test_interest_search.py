@@ -72,7 +72,7 @@ def fake_clients(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class TestBrave:
-    async def test_the_news_it_found_this_week_become_stories(self) -> None:
+    async def test_the_news_it_found_within_the_desk_s_days_become_stories(self) -> None:
         FakeBrave.answer = {
             "results": [
                 {
@@ -95,8 +95,15 @@ class TestBrave:
         stories = await search.search("chess", language="fr", found_at=NOW)
         [client] = FakeBrave.made
         assert (client.api_key, client.language, client.user_id) == ("key", "fr", USER)
+        # The days the desk may still air (48 hours), never the week: a result older than
+        # any programme may air is dropped unfiled, so buying it bought nothing.
         assert client.asked == [
-            {"query": "chess", "endpoint": "news", "count": 4, "freshness": "pw"}
+            {
+                "query": "chess",
+                "endpoint": "news",
+                "count": 4,
+                "freshness": "2026-09-26to2026-09-28",
+            }
         ]
         assert client.closed
         assert [(s.title, s.outlet, s.summary) for s in stories] == [
@@ -323,21 +330,3 @@ class TestASessionsStart:
             )
             == 0
         )
-
-    async def test_the_operator_s_zero_searches_nothing(
-        self, monkeypatch: pytest.MonkeyPatch, filed: list[InterestStory]
-    ) -> None:
-        asked = self.search_of(monkeypatch, None)
-        monkeypatch.setattr(settings, "radio_interest_topics_max", 0)
-        assert (
-            await refresh_listener_interests(
-                USER,
-                run_id="radio_run",
-                topics=("jazz",),
-                language="fr",
-                redis=FakeRedis(),
-                now=NOW,
-            )
-            == 0
-        )
-        assert asked == []

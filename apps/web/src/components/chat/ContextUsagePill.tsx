@@ -151,7 +151,7 @@ export function ContextUsagePill({ usage, totals }: Props) {
         </svg>
         {/* Percentage label — kept always visible. The header bar fits even on
             small phones (360 px) because the badge total width stays ~52 px. */}
-        <span className="text-[11px] mobile:text-xs font-semibold text-muted-foreground">
+        <span className="text-px-11 mobile:text-xs font-semibold text-muted-foreground">
           {percent}%
         </span>
       </button>

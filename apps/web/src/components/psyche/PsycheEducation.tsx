@@ -69,7 +69,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             </p>
 
             {/* 5-layer diagram */}
-            <div className="bg-muted/50 rounded-lg p-3 font-mono text-[10px] space-y-1">
+            <div className="bg-muted/50 rounded-lg p-3 font-mono text-px-10 space-y-1">
               <div className="border border-border/50 rounded px-2 py-1 text-center">
                 {t(
                   'psyche.education.overview.layer5',
@@ -92,7 +92,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                 )}
               </div>
             </div>
-            <p className="text-[10px] italic">
+            <p className="text-px-10 italic">
               {t(
                 'psyche.education.overview.layers_note',
                 'Each layer operates on a different timescale. Lower layers change slowly, upper layers change with every message.'
@@ -121,7 +121,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               )}
             </p>
             <div className="overflow-x-auto">
-              <table className="w-full text-[10px] border-collapse">
+              <table className="w-full text-px-10 border-collapse">
                 <thead>
                   <tr className="border-b border-border/30">
                     <th className="text-left py-1 pr-2 font-medium text-foreground">
@@ -236,33 +236,33 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-sky-500/10 rounded-md p-2 text-center">
                 <div className="font-bold text-sky-500 text-sm">P</div>
-                <div className="text-[10px]">{t('psyche.education.mood.pleasure', 'Pleasure')}</div>
-                <div className="text-[9px] mt-1">
+                <div className="text-px-10">{t('psyche.education.mood.pleasure', 'Pleasure')}</div>
+                <div className="text-px-9 mt-1">
                   -1 = {t('psyche.education.mood.pleasure_neg', 'unhappy')}
                 </div>
-                <div className="text-[9px]">
+                <div className="text-px-9">
                   +1 = {t('psyche.education.mood.pleasure_pos', 'happy')}
                 </div>
               </div>
               <div className="bg-amber-500/10 rounded-md p-2 text-center">
                 <div className="font-bold text-amber-500 text-sm">A</div>
-                <div className="text-[10px]">{t('psyche.education.mood.arousal', 'Arousal')}</div>
-                <div className="text-[9px] mt-1">
+                <div className="text-px-10">{t('psyche.education.mood.arousal', 'Arousal')}</div>
+                <div className="text-px-9 mt-1">
                   -1 = {t('psyche.education.mood.arousal_neg', 'calm')}
                 </div>
-                <div className="text-[9px]">
+                <div className="text-px-9">
                   +1 = {t('psyche.education.mood.arousal_pos', 'energized')}
                 </div>
               </div>
               <div className="bg-violet-500/10 rounded-md p-2 text-center">
                 <div className="font-bold text-violet-500 text-sm">D</div>
-                <div className="text-[10px]">
+                <div className="text-px-10">
                   {t('psyche.education.mood.dominance', 'Dominance')}
                 </div>
-                <div className="text-[9px] mt-1">
+                <div className="text-px-9 mt-1">
                   -1 = {t('psyche.education.mood.dominance_neg', 'submissive')}
                 </div>
-                <div className="text-[9px]">
+                <div className="text-px-9">
                   +1 = {t('psyche.education.mood.dominance_pos', 'assertive')}
                 </div>
               </div>
@@ -273,7 +273,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               {t('psyche.education.mood.table_title', 'Mood profiles:')}
             </p>
             <div className="overflow-x-auto">
-              <table className="w-full text-[10px] border-collapse">
+              <table className="w-full text-px-10 border-collapse">
                 <thead>
                   <tr className="border-b border-border/30">
                     <th className="text-left py-1 pr-2 font-medium text-foreground">
@@ -326,7 +326,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             <p className="font-medium text-foreground text-xs">
               {t('psyche.education.mood.dynamics_title', 'How mood changes:')}
             </p>
-            <ul className="list-disc list-inside space-y-1 text-[11px]">
+            <ul className="list-disc list-inside space-y-1 text-px-11">
               <li>
                 {t(
                   'psyche.education.mood.decay',
@@ -389,7 +389,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
 
             {/* Emotion table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-[10px] border-collapse">
+              <table className="w-full text-px-10 border-collapse">
                 <thead>
                   <tr className="border-b border-border/30">
                     <th className="text-left py-1 pr-2 font-medium text-foreground">
@@ -460,7 +460,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             <p className="font-medium text-foreground text-xs">
               {t('psyche.education.emotions.mechanics_title', 'Key mechanics:')}
             </p>
-            <ul className="list-disc list-inside space-y-1 text-[11px]">
+            <ul className="list-disc list-inside space-y-1 text-px-11">
               <li>
                 {t(
                   'psyche.education.emotions.cross_suppression',
@@ -534,7 +534,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             </p>
 
             {/* Stage progression */}
-            <div className="flex items-center gap-1 text-[10px] font-mono overflow-x-auto py-1">
+            <div className="flex items-center gap-1 text-px-10 font-mono overflow-x-auto py-1">
               {['ORIENTATION', 'EXPLORATORY', 'AFFECTIVE', 'STABLE'].map((stage, i) => (
                 <React.Fragment key={stage}>
                   <div className="bg-muted rounded-md px-2 py-1 whitespace-nowrap text-center">
@@ -547,7 +547,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               ))}
             </div>
 
-            <ul className="list-disc list-inside space-y-1 text-[11px]">
+            <ul className="list-disc list-inside space-y-1 text-px-11">
               <li>
                 <strong>{t('psyche.stages.ORIENTATION', 'Orientation')}:</strong>{' '}
                 {t(
@@ -581,7 +581,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             <p className="font-medium text-foreground text-xs">
               {t('psyche.education.relationship.metrics_title', 'Tracked metrics:')}
             </p>
-            <ul className="list-disc list-inside space-y-1 text-[11px]">
+            <ul className="list-disc list-inside space-y-1 text-px-11">
               <li>
                 <strong>{t('psyche.depth', 'Depth')}:</strong>{' '}
                 {t(
@@ -635,7 +635,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             </p>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-[10px] border-collapse">
+              <table className="w-full text-px-10 border-collapse">
                 <thead>
                   <tr className="border-b border-border/30">
                     <th className="text-left py-1 pr-2 font-medium text-foreground">
@@ -685,7 +685,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               </table>
             </div>
 
-            <p className="text-[11px]">
+            <p className="text-px-11">
               {t(
                 'psyche.education.drives.dynamics',
                 'Both drives use a smooth moving average (20% new signal, 80% previous value). They never jump — they drift gradually toward the quality and energy of your exchanges.'
@@ -695,7 +695,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             <p className="font-medium text-foreground text-xs">
               {t('psyche.education.drives.efficacy_title', 'Self-efficacy')}
             </p>
-            <p className="text-[11px]">
+            <p className="text-px-11">
               {t(
                 'psyche.education.drives.efficacy_desc',
                 'The assistant tracks its confidence across domains (planning, technical, emotional support, etc.). High confidence means bolder suggestions; low confidence means more caution and thoroughness. Updated after each interaction based on quality feedback.'
@@ -705,7 +705,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             <p className="font-medium text-foreground text-xs">
               {t('psyche.education.drives.transitions_title', 'Narrative transitions')}
             </p>
-            <p className="text-[11px]">
+            <p className="text-px-11">
               {t(
                 'psyche.education.drives.transitions_desc',
                 'The assistant perceives its own emotional shifts between messages. When mood or emotion changes significantly, it receives a narrative transition cue — reunion after absence, valence shifts, arousal changes — guiding a natural, unforced transition rather than a jarring switch.'
@@ -729,10 +729,10 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
           <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-muted/50 rounded-lg p-2.5">
-                <div className="font-medium text-foreground text-[11px] mb-1">
+                <div className="font-medium text-foreground text-px-11 mb-1">
                   {t('psyche.sensitivity', 'Expressiveness')}
                 </div>
-                <ul className="text-[10px] space-y-0.5">
+                <ul className="text-px-10 space-y-0.5">
                   <li>
                     0% →{' '}
                     {t(
@@ -757,10 +757,10 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                 </ul>
               </div>
               <div className="bg-muted/50 rounded-lg p-2.5">
-                <div className="font-medium text-foreground text-[11px] mb-1">
+                <div className="font-medium text-foreground text-px-11 mb-1">
                   {t('psyche.stability', 'Mood Stability')}
                 </div>
-                <ul className="text-[10px] space-y-0.5">
+                <ul className="text-px-10 space-y-0.5">
                   <li>
                     0% →{' '}
                     {t(

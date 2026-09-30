@@ -5,15 +5,18 @@ Pure functions: no DB, no I/O, no global state. Trivially unit-testable.
 
 from __future__ import annotations
 
+import math
 from contextlib import suppress
-from datetime import UTC, date, datetime, tzinfo
-from typing import Any
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta, tzinfo
+from typing import Any, Final
 from zoneinfo import ZoneInfo
 
 from src.core.geo_utils import wind_deg_to_cardinal
 from src.core.i18n import resolve_language
 from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context
+from src.domains.briefing.constants import BRIEFING_FORECAST_ALERT_HORIZON_HOURS
 from src.domains.briefing.schemas import (
     AgendaEventItem,
     AirQuality,
@@ -76,6 +79,7 @@ def format_weather_data(
     city: str | None,
     user_tz: ZoneInfo,
     daily_forecast_days: int,
+    now: datetime,
     environment: dict[str, Any] | None = None,
 ) -> WeatherData:
     """Build a WeatherData payload from OpenWeatherMap responses.
@@ -86,12 +90,13 @@ def format_weather_data(
 
     Args:
         current: Response of ``client.get_current_weather()``.
-        forecast: Response of ``client.get_forecast()`` (cnt=8 = next ~24 h).
+        forecast: Response of ``client.get_forecast()`` (3-hour slots, 5 days).
         city: Reverse-geocoded city name (or None if resolution failed).
         user_tz: User timezone for slot filtering and time labels.
         daily_forecast_days: Number of forecast days to aggregate/return (caller
             passes ``settings.briefing_weather_daily_forecast_days`` — keeps this
             formatter pure / free of global state).
+        now: Reference instant of the forecast alert's 24-hour horizon.
         environment: Optional AQ/pollen extras (2026-08) as returned by
             ``weather_environment_enrichment.fetch_environment_extras``.
             ``None`` (the default) leaves the card exactly as before.
@@ -129,7 +134,9 @@ def format_weather_data(
     # Next 3 h precipitation probability (first forecast slot).
     pop_first = _first_forecast_pop(forecast)
 
-    forecast_alert = _detect_forecast_alert(current=current, forecast=forecast, user_tz=user_tz)
+    forecast_alert = detect_forecast_alert(
+        current=current, forecast=forecast, user_tz=user_tz, now=now, rule=BRIEFING_CARD_ALERT_RULE
+    )
 
     # 5-day daily summary aggregated from the 3-h forecast slots.
     daily_forecast = _aggregate_daily_forecast(forecast, user_tz, daily_forecast_days)
@@ -338,50 +345,119 @@ def _first_forecast_pop(forecast: dict[str, Any]) -> float | None:
     return max(0.0, min(1.0, value))
 
 
-def _detect_forecast_alert(
+@dataclass(frozen=True, slots=True)
+class ForecastAlertRule:
+    """What counts as a notable change of weather, for one reader.
+
+    Attributes:
+        horizon: How far ahead of ``now`` a change may be due (inclusive).
+        kinds: The kinds the reader watches. Already FALLING now, one of them
+            is no change; falling now, another kind is no obstacle.
+        min_precipitation_percent: When set, a slot counts only when its
+            precipitation probability is STRICTLY above it — a slot with no
+            readable probability never does. ``None`` = the condition alone.
+    """
+
+    horizon: timedelta
+    kinds: frozenset[ForecastAlertKind] = frozenset(ForecastAlertKind)
+    min_precipitation_percent: int | None = None
+
+
+#: The card's rule: every kind, its documented 24 hours, no probability floor.
+BRIEFING_CARD_ALERT_RULE: Final[ForecastAlertRule] = ForecastAlertRule(
+    horizon=timedelta(hours=BRIEFING_FORECAST_ALERT_HORIZON_HOURS)
+)
+
+
+def detect_forecast_alert(
     *,
     current: dict[str, Any],
     forecast: dict[str, Any],
     user_tz: ZoneInfo,
+    now: datetime,
+    rule: ForecastAlertRule,
 ) -> ForecastAlert | None:
-    """Detect a notable upcoming change in the next 24 h.
+    """The first notable change the rule accepts, or ``None``.
 
-    Looks for the first rain/thunder/snow start in the forecast list when the
-    current weather isn't already in that state. Returns a structured alert
-    so the frontend can render it in the user's language.
+    Reads OWM-shaped data from either provider. A slot already under way (its
+    start before ``now``) is stated from ``now``, never at an hour in the past.
 
     Args:
         current: Current weather response.
-        forecast: Forecast response (3-h slots).
-        user_tz: User timezone for time formatting.
+        forecast: Forecast response (hourly or 3-hour slots).
+        user_tz: User timezone for the alert's local time.
+        now: Reference instant (aware).
+        rule: What counts, and how far ahead.
 
     Returns:
-        Structured alert, or None if no notable change.
+        The structured alert of the earliest accepted slot, or ``None``.
     """
-    current_arr = current.get("weather", []) or []
-    current_main = (current_arr[0].get("main") if current_arr else "") or ""
-
-    if current_main in _FORECAST_ALERT_KIND_BY_OWM_MAIN:
+    current_kind = _alert_kind(current)
+    if current_kind is not None and current_kind in rule.kinds:
         return None  # already happening — no point alerting
+    limit = now + rule.horizon
+    accepted = (
+        alert
+        for entry in forecast.get("list", []) or []
+        if (alert := _slot_alert(entry, rule=rule, now=now, limit=limit, user_tz=user_tz))
+    )
+    return min(accepted, key=lambda alert: alert.starts_at or now, default=None)
 
-    entries = forecast.get("list", []) or []
-    for entry in entries:
-        weather_arr = entry.get("weather", []) or []
-        if not weather_arr:
-            continue
-        slot_main = weather_arr[0].get("main", "") or ""
-        kind = _FORECAST_ALERT_KIND_BY_OWM_MAIN.get(slot_main)
-        if kind is None:
-            continue
-        try:
-            ts = entry.get("dt")
-            if ts is None:
-                continue
-            dt = datetime.fromtimestamp(int(ts), tz=user_tz)
-            return ForecastAlert(kind=kind, time=dt.strftime("%H:%M"), starts_at=dt.astimezone(UTC))
-        except ValueError, TypeError, OSError:
-            continue
-    return None
+
+def _alert_kind(block: dict[str, Any]) -> ForecastAlertKind | None:
+    """The alert kind of a current-weather or forecast block, if it has one."""
+    weather_arr = block.get("weather", []) or []
+    main = (weather_arr[0].get("main") if weather_arr else "") or ""
+    return _FORECAST_ALERT_KIND_BY_OWM_MAIN.get(main)
+
+
+def _slot_percent(entry: dict[str, Any]) -> int | None:
+    """The slot's precipitation probability in percent (OWM ``pop`` is 0..1).
+
+    Clamped like ``_first_forecast_pop``: a provider's out-of-range value must
+    not fail the whole card on the alert's bounds; a non-finite one reads as
+    unknown.
+    """
+    pop = entry.get("pop")
+    if isinstance(pop, bool) or not isinstance(pop, int | float) or not math.isfinite(pop):
+        return None
+    return round(max(0.0, min(1.0, float(pop))) * 100)
+
+
+def _slot_start(entry: dict[str, Any]) -> datetime | None:
+    """The slot's start instant, or ``None`` when unreadable."""
+    try:
+        return datetime.fromtimestamp(int(entry["dt"]), tz=UTC)
+    except KeyError, ValueError, TypeError, OSError, OverflowError:
+        return None
+
+
+def _slot_alert(
+    entry: dict[str, Any],
+    *,
+    rule: ForecastAlertRule,
+    now: datetime,
+    limit: datetime,
+    user_tz: ZoneInfo,
+) -> ForecastAlert | None:
+    """The alert one slot makes under the rule, or ``None``."""
+    kind = _alert_kind(entry)
+    if kind is None or kind not in rule.kinds:
+        return None
+    start = _slot_start(entry)
+    if start is None or start > limit:
+        return None
+    percent = _slot_percent(entry)
+    floor = rule.min_precipitation_percent
+    if floor is not None and (percent is None or percent <= floor):
+        return None
+    shown = max(start, now)
+    return ForecastAlert(
+        kind=kind,
+        time=shown.astimezone(user_tz).strftime("%H:%M"),
+        starts_at=shown.astimezone(UTC),
+        precipitation_percent=percent,
+    )
 
 
 # =============================================================================

@@ -685,6 +685,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "theme": _PREFERENCE,
     "color_theme": _PREFERENCE,
     "font_family": _PREFERENCE,
+    "font_size": _PREFERENCE,
     "habits_enabled": _PREFERENCE,
     "interests_enabled": _PREFERENCE,
     "interests_notify_start_hour": _PREFERENCE,

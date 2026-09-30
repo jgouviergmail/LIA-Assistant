@@ -557,6 +557,24 @@ EMAILS_BODY_MAX_LENGTH_DEFAULT = 20000  # Characters
 # URLs longer than this threshold are replaced with [link](url) markdown format
 # Short URLs (e.g., https://google.com) are kept as-is for readability
 EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT = 20  # Characters
+
+# --- Text flatteners are linear by construction (ADR-326) ---------------------
+# A flattener (Markdown or HTML → the prose a bare surface renders) runs
+# synchronously on the event loop over text a THIRD PARTY may have written: an
+# e-mail body reaches the card whole, a chat message reaches the radio's
+# excerpt. Every span a flattener pairs — an emphasis, a link label, a code
+# span — is therefore bounded, which is what keeps its pattern linear: a lazy
+# quantifier with no bound rescans the whole rest of the text for every opening
+# mark (measured 2026-09-30: 51 characters of empty table cells cost 4.5 s, a
+# 32 KB e-mail body 3.3 s of frozen loop). A span longer than the bound keeps
+# its marks and reads as prose; the same bound governs the browser's twins
+# (`lib/live/delegation.ts`, `lib/markdown-references.ts`), pinned by the shared
+# corpus. Held by `tests/unit/domains/agents/display/test_flatteners_are_linear.py`.
+MARKDOWN_SPAN_MAX_CHARS: Final = 400
+#: A code span opens with one to this many backticks; a longer run is a fence
+#: (three or more at a line start) or, mid-line, prose. Bounding the opener is
+#: what stops a run of N backticks from being compared N times over.
+MARKDOWN_CODE_SPAN_TICKS_MAX: Final = 3
 # The label of a link in a text body handed to a model: technical English
 # (ADR-256); the cards re-label it in the user's language at render time.
 HTML_TEXT_LINK_LABEL: str = "link"
@@ -867,10 +885,21 @@ SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH = 500
 #: source reads through when it has one — a check faster than the cache only
 #: re-reads Redis.
 SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES_DEFAULT = 10
-#: The forecast comes in hourly (Google) or three-hourly (OpenWeatherMap)
-#: slots, and every check is two billed calls on the Google provider: checking
-#: it every ten minutes would pay six times an hour for one answer.
+#: A weather routine reads Google Weather's HOURLY forecast, and every check is
+#: two billed calls on the deployment's key: checking it every ten minutes
+#: would pay six times an hour for one answer. Never longer than the horizon
+#: below, or the hours between two checks' windows are read by nobody.
 SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES_DEFAULT = 60
+#: How far ahead a weather routine looks for a change: owner decision
+#: 2026-09-29, « a change due within the next four hours, and nothing else ».
+#: A check reads the horizon PLUS the hour under way, in ONE page of Google's
+#: hourly forecast: the horizon is therefore at most a page minus one hour.
+SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS_DEFAULT = 4
+SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS_MAX = GOOGLE_WEATHER_FORECAST_PAGE_SIZE - 1
+#: A forecast slot counts only when its precipitation probability is STRICTLY
+#: above this percentage (owner decision 2026-09-29): a « chance of showers »
+#: at 30 % is not a change of weather.
+SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT_DEFAULT = 50
 #: Most runs a condition routine may start in one local day. The checks are
 #: free; a run is a full agent pipeline and a notification, so a source that
 #: flaps must not turn into a stream of them. Twelve, like the most moments a
@@ -3773,6 +3802,15 @@ DEFAULT_USER_DISPLAY_TIMEZONE = "Europe/Paris"
 USER_PREFERENCES_CACHE_TTL_SECONDS_DEFAULT = 300
 # Entry-count safety valve; the cache resets if it ever exceeds this.
 USER_PREFERENCES_CACHE_MAX_ENTRIES = 10_000
+
+# Text size of the interface, in CSS pixels at the browser's default root size.
+# The web client multiplies every font size by it (size / 16) and nothing else:
+# panels, spacing and icons keep their dimensions. The bounds and their
+# measurement are documented in apps/web/src/constants/fonts.ts, which mirrors
+# them; pinned by tests/unit/domains/users/test_font_size_preference.py.
+USER_FONT_SIZE_MIN_PX = 14
+USER_FONT_SIZE_MAX_PX = 20
+USER_FONT_SIZE_DEFAULT_PX = 16
 
 # ============================================================================
 # ARCHITECTURE V3 - Intelligence, Autonomy, Relevance (NOW DEFAULT)
@@ -6759,9 +6797,10 @@ RADIO_AIRED_LEDGER_TTL_SECONDS_DEFAULT: int = 86_400
 #: 34): measured 2026-09-27, the two closest distinct events at 0.898; the articles
 #: of one event at 0.906 or more, but for one big story's angles (0.874 to 0.898).
 RADIO_SAME_EVENT_SIMILARITY_DEFAULT: float = 0.9
-#: The listener's strongest interests searched for stories when a session starts, with
-#: their own search key (ADR-324 decision 40); 0 = none.
-RADIO_INTEREST_TOPICS_MAX_DEFAULT: int = 3
+#: The listener's strongest interests a session reads when it starts: ONE count, the
+#: interests the writer is told and those searched for stories with their own search key
+#: (ADR-324 decision 40); 0 = none.
+RADIO_INTEREST_TOPICS_MAX_DEFAULT: int = 5
 #: The stories one interest's search keeps (the shortlists take what airs).
 RADIO_INTEREST_STORIES_MAX_DEFAULT: int = 5
 #: An interest searched within this window is not searched again: a session reuses

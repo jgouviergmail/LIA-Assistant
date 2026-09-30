@@ -24,9 +24,34 @@
 /* Enable dark: variant for .dark class */
 @variant dark (.dark &);
 
+/* `text-[13px]` written so it follows the text scale: `text-px-13` is
+   13 px times the reader's factor (Settings › Personalization › Font size).
+   A bare px size would stay put while the rest of the text grows. */
+@utility text-px-* {
+  font-size: calc(--value(integer) * 1px * var(--lia-text-scale, 1));
+}
+
 @theme {
   /* Custom breakpoints - Mobile ends at 880px */
   --breakpoint-mobile: 880px;
+
+  /* Text scale (Settings › Personalization › Font size): Tailwind's own
+     sizes times the reader's factor. Only text follows it — the root rem, so
+     panels, spacing and icons, keeps the browser's size. Line heights are
+     ratios and follow by themselves. */
+  --text-xs: calc(0.75rem * var(--lia-text-scale, 1));
+  --text-sm: calc(0.875rem * var(--lia-text-scale, 1));
+  --text-base: calc(1rem * var(--lia-text-scale, 1));
+  --text-lg: calc(1.125rem * var(--lia-text-scale, 1));
+  --text-xl: calc(1.25rem * var(--lia-text-scale, 1));
+  --text-2xl: calc(1.5rem * var(--lia-text-scale, 1));
+  --text-3xl: calc(1.875rem * var(--lia-text-scale, 1));
+  --text-4xl: calc(2.25rem * var(--lia-text-scale, 1));
+  --text-5xl: calc(3rem * var(--lia-text-scale, 1));
+  --text-6xl: calc(3.75rem * var(--lia-text-scale, 1));
+  --text-7xl: calc(4.5rem * var(--lia-text-scale, 1));
+  --text-8xl: calc(6rem * var(--lia-text-scale, 1));
+  --text-9xl: calc(8rem * var(--lia-text-scale, 1));
 
   /* Font family */
   --font-sans: var(--font-inter), system-ui, sans-serif;
@@ -572,6 +597,12 @@
     overflow-x: hidden;
   }
 
+  /* Text nobody sized inherits the body's: the reader's factor, on the
+     browser's own size. The root rem is never touched (see the text scale). */
+  body {
+    font-size: calc(1rem * var(--lia-text-scale, 1));
+  }
+
   /* Text selection follows the user's accent instead of the browser's own blue.
      Without this, selecting text on any of the four non-default themes — and on
      OLED especially — paints a colour that belongs to no palette in the product.
@@ -787,7 +818,7 @@
       var(--color-muted) 0%,
       color-mix(in oklab, var(--color-muted-foreground) 20%, transparent) 100%
     );
-    font-size: 4rem;
+    font-size: calc(4rem * var(--lia-text-scale, 1));
     color: var(--color-muted-foreground);
     /* Subtle vignette - elliptical to follow rectangular edges */
     -webkit-mask-image: radial-gradient(
@@ -2123,7 +2154,7 @@ html:not(.dark) .cosmos .cosmos-grain {
 }
 .cosmos-pl-body em {
   font-style: normal;
-  font-size: 0.66rem;
+  font-size: calc(0.66rem * var(--lia-text-scale, 1));
   font-weight: 600;
   color: var(--cosmos-ink);
   background: var(--cosmos-glass);
@@ -2198,14 +2229,14 @@ html:not(.dark) .cosmos .cosmos-grain {
     0 0 40px -18px var(--cosmos-glow-cyan);
 }
 .cosmos-step time {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--lia-text-scale, 1));
   font-weight: 700;
   letter-spacing: 0.18em;
   color: var(--cosmos-cyan);
 }
 .cosmos-step p {
   margin-top: 0.4rem;
-  font-size: 0.9rem;
+  font-size: calc(0.9rem * var(--lia-text-scale, 1));
   color: var(--cosmos-mut);
 }
 .cosmos-progress {

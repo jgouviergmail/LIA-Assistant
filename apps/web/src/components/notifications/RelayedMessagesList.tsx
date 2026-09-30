@@ -66,7 +66,7 @@ export function RelayedMessagesList({
               </span>
               <time
                 dateTime={message.occurred_at}
-                className="text-[11px] tabular-nums text-muted-foreground"
+                className="text-px-11 tabular-nums text-muted-foreground"
               >
                 {formatInstant(message.occurred_at, locale)}
               </time>

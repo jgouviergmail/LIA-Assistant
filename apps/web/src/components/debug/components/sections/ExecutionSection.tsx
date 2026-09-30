@@ -49,7 +49,7 @@ export const ExecutionSection = React.memo(function ExecutionSection({
       title="Execution Timeline"
       icon={ListChecks}
       badge={
-        <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+        <span className="ml-2 font-mono text-px-10 text-muted-foreground">
           {completed_steps}/{total_steps}
         </span>
       }
@@ -69,7 +69,7 @@ export const ExecutionSection = React.memo(function ExecutionSection({
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+        <div className="mt-1 flex justify-between text-px-10 text-muted-foreground">
           <span>0%</span>
           <span>{progressPercentage.toFixed(0)}%</span>
           <span>100%</span>
@@ -85,7 +85,7 @@ export const ExecutionSection = React.memo(function ExecutionSection({
               <div key={step.step_id} className="border-l-2 border-border pl-3 pb-1">
                 {/* Header: tool + status */}
                 <div className="mb-0.5 flex items-center justify-between text-xs">
-                  <span className="flex-1 truncate font-mono text-[11px] font-medium">
+                  <span className="flex-1 truncate font-mono text-px-11 font-medium">
                     {step.tool_name}
                   </span>
                   <DebugChip tone={executionStatusTone(step.status)} className="ml-2">
@@ -94,7 +94,7 @@ export const ExecutionSection = React.memo(function ExecutionSection({
                 </div>
 
                 {/* Details */}
-                <div className="space-y-0.5 text-[10px] text-muted-foreground">
+                <div className="space-y-0.5 text-px-10 text-muted-foreground">
                   <div>Domain: {step.domain}</div>
                   {step.duration_ms !== null && step.duration_ms !== undefined && (
                     <div className="flex items-center gap-1">

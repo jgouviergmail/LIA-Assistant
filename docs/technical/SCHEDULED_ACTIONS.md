@@ -154,6 +154,7 @@ Le job `process_scheduled_actions` tourne toutes les 60 secondes :
 
 Une routine a UNE horloge. Une routine `time` suit sa `recurrence` ; une routine `condition` n'en a pas : le système vérifie sa condition lui-même, jour et nuit, et ne l'exécute que sur un fait NOUVEAU. La règle est écrite une fois (`schemas.trigger_mode_refusal`, lue par le schéma de création et par la mise à jour du service, qui voit la moitié stockée de la paire) et tenue par la table.
 
+- **Météo** — toujours Google Weather, la source que l'instance garantit à chaque compte, jamais le fournisseur choisi par la personne (`weather_provider.open_platform_weather_client`) ; la prévision HORAIRE sur l'horizon publié, l'heure en cours comprise ; un changement d'un type surveillé dont la probabilité de précipitations dépasse strictement le seuil publié ; la note donnée à l'exécution nomme le type, l'heure, le jour, le fuseau, la probabilité et la source (ADR-322, amendement 2026-09-29).
 - **Cadence** — `domains/scheduled_actions/trigger.py::CONDITION_CHECKS` : `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` pour le courrier, les tâches, l'agenda et les documents, `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` pour la météo ; jamais plus rapide que le cache que sa source lit (la recherche Gmail, `EMAILS_CACHE_SEARCH_TTL_SECONDS`) ; une phase par routine tirée de son identifiant, sur une grille ancrée sur l'époque, donc sans dérive. `TriggerPlan` arme à la création, à l'édition, à la réactivation, au changement de fuseau et après chaque passage ; une vérification manquée n'est jamais rejouée.
 - **Fin** — `condition_config.until`, dernier jour local inclus : la routine s'arrête au minuit local suivant et `close_finished` la clôt, comme une série épuisée.
 - **Registre des faits** — `condition_state`, écrit par `condition_ledger.py` seul : un fait est neuf quand sa clé (identité hachée : message, tâche et son échéance, événement et son début, fichier, type et jour de la météo) n'a jamais été vue ; un fait non servi (plafond, question en attente, échec) reste neuf ; un fait encore présent n'est jamais évincé.
@@ -329,7 +330,9 @@ Cles `scheduled_actions.*` dans les 6 langues (fr, en, es, de, it, zh).
 | `SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES` | 5 | Seuil auto-disable |
 | `SCHEDULED_ACTIONS_BATCH_SIZE` | 50 | Limite batch par cycle |
 | `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` | `…_DEFAULT` (`core/constants.py`) | Cadence des routines sur condition : courrier, tâches, agenda, documents (ADR-322) |
-| `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` | `…_DEFAULT` (`core/constants.py`) | Cadence d'une routine météo (chaque vérification Google est facturée) |
+| `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` | `…_DEFAULT` (`core/constants.py`) | Cadence d'une routine météo (deux appels Google Weather facturés par vérification ; jamais plus longue que l'horizon, refusé au démarrage) |
+| `SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS` | `…_DEFAULT` (`core/constants.py`) | Horizon d'une routine météo : un changement dû dans ce nombre d'heures, l'heure en cours comprise (ADR-322, amendement 2026-09-29) |
+| `SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT` | `…_DEFAULT` (`core/constants.py`) | Probabilité de précipitations qu'une heure prévue doit dépasser STRICTEMENT pour déclencher une routine météo |
 | `SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY` | `…_DEFAULT` (`core/constants.py`) | Exécutions au plus par routine sur condition et par jour local |
 
 ---

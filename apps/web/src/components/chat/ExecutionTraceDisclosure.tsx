@@ -71,7 +71,7 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
         aria-expanded={open}
         aria-label={t('chat.trace.aria_toggle')}
         onClick={() => setOpen(o => !o)}
-        className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+        className="ml-auto flex items-center gap-1.5 text-px-11 text-muted-foreground transition-colors hover:text-foreground"
       >
         <Cog className="h-3 w-3" aria-hidden="true" />
         <span>{t('chat.trace.summary', { count: stepCount })}</span>
@@ -91,7 +91,7 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
         <div className="w-full mt-1 space-y-3 rounded-md border border-border/40 bg-muted/20 px-3 py-2">
           {groups.map(group => (
             <div key={group.category}>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-px-10 font-semibold uppercase tracking-wide text-muted-foreground">
                 {t(`chat.trace.category.${group.category}`)}
               </p>
               <ul className="mt-1 space-y-0.5">
@@ -112,14 +112,14 @@ export function ExecutionTraceDisclosure({ trace }: ExecutionTraceDisclosureProp
             // Steps are grouped by category, so a positional "gap" marker
             // would be meaningless — the omission is a property of the whole
             // trace and is stated once, as a global note.
-            <p className="text-[10px] italic text-muted-foreground">
+            <p className="text-px-10 italic text-muted-foreground">
               {t('chat.trace.omitted', { count: omitted })}
             </p>
           )}
 
           {trace.reasoning.trim() && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-px-10 font-semibold uppercase tracking-wide text-muted-foreground">
                 {t('chat.trace.reasoning_title')}
               </p>
               <p className="mt-1 whitespace-pre-line text-xs italic text-muted-foreground">

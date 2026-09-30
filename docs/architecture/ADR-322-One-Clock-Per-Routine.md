@@ -224,3 +224,84 @@ scanned clean by axe.
   midnight, the fact does not.
 - **Pacing every source on a cache TTL**: only the Gmail search is cached; a TTL
   nobody applies would turn the cadence table into a claim.
+
+## Amendment 2026-09-29 — a weather trigger reads Google Weather, four hours ahead, a likely change
+
+**Owner request**: « it regularly happens that a routine triggered by a weather
+change fires while LIA then says in its answer that, after checking, there is
+no change of weather »; decisions: « the weather-change alert must fire for a
+change due within the next 4 hours at most, only », « the trigger source must
+ALWAYS be Google Weather, the only one the platform can guarantee is
+enabled », « a threshold strictly above 50 % ».
+
+**Measured in the code before the change** — four defects, each enough to
+produce the reported contradiction:
+
+1. **The horizon was five days.** `_detect_forecast_alert` scanned the whole
+   forecast the card fetches — 40 three-hour slots, 120 hours — while its
+   docstring and the `ForecastAlert` schema said « the next 24 h ». A shower
+   four days away fired the routine.
+2. **No probability was read.** Google's `CHANCE_OF_SHOWERS`,
+   `SCATTERED_SHOWERS` and `CHANCE_OF_SNOW_SHOWERS` normalise to `Rain` /
+   `Snow`; the slot's `pop` was available and ignored.
+3. **The run was told an hour with no day.** The note read « rain expected
+   around 15:00 »: the run checked today at 15:00, found nothing, and said so.
+4. **The source was the person's provider.** `resolve_weather_client` returns
+   OpenWeatherMap when the person set a key of their own — a trigger fired by a
+   source the platform does not guarantee, and read differently from Google
+   Weather.
+
+Two smaller ones rode along: a routine watching some kinds took the FIRST
+notable slot of ANY kind and then dropped it (snow after a shower was never
+announced), and « already falling » was read over every kind (a snow routine
+stayed silent while it rained).
+
+**Decision.**
+
+- **One source**: `fetch_forecast_alert` opens
+  `weather_provider.open_platform_weather_client` — Google Weather under the
+  keyless predicate (ADR-307), never a per-account row; when the instance
+  withholds it the check is `not_configured`, never a fallback on another
+  provider. The card keeps the person's provider.
+- **One rule, two readers**: `briefing.formatters.detect_forecast_alert` takes
+  a `ForecastAlertRule` — horizon (inclusive), watched kinds, optional
+  probability floor (STRICTLY above; a slot with no readable probability never
+  passes). The card's rule is its documented 24 hours, every kind, no floor
+  (`BRIEFING_CARD_ALERT_RULE`); the routine's is
+  `SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS` (default 4, 1–23, so that with the
+  hour under way it fits one 24-hour page) and
+  `SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT` (default 50, 0–99)
+  over the routine's kinds. The earliest accepted slot wins whatever the
+  list's order; a slot under way is stated from now, never at a past hour;
+  « already falling » only counts for a watched kind.
+- **Hourly, unsampled**: `GoogleWeatherClient.get_hourly_forecast` returns
+  every hour (`get_forecast` is now its 3-hour sample); a check reads the
+  horizon plus the hour under way — ONE page, so two billed calls per check
+  where the five-day read made six (1 + 5 pages of 24 hours).
+- **The note says everything the run needs**: « rain expected around 14:00 on
+  2026-09-29 (Europe/Paris), 80% chance of precipitation (source: Google
+  Weather) ». The fact key is unchanged (kind and local day).
+- **Coverage without a hole**: `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` above
+  the horizon is refused at boot — a check reads up to T + horizon, the next
+  one starts at T + interval.
+- **Published because enforced** (ADR-184):
+  `ScheduledActionListResponse.weather_condition_rule` (horizon, floor,
+  source); the studio states it under the condition, naming the edited
+  routine's own kinds (`weatherRuleSentence`).
+
+**Consequences.** A weather routine fires at most once per watched kind and
+local day, as before — a second shower the same afternoon is not announced
+(the key is the day, a deliberate choice against forecasts that move by an
+hour). The card no longer announces a change more than 24 hours away at an
+hour of today. What a triggered run then reads with its own weather tools is
+still the person's provider: the note names the source so the answer can say
+which one saw the change.
+
+**Proven by**: `tests/unit/domains/briefing/test_formatters.py` (horizon,
+strict floor, kinds, the hour under way, the card), `test_fact_identity.py`
+(Google-only, hourly, errors), `test_google_weather_client.py`
+(`TestHourlyForecast`), `test_weather_provider.py`,
+`tests/unit/core/config/test_scheduler_settings.py`,
+`test_condition_evaluators.py` (the note, the published rule), and
+`tests/integration/domains/scheduled_actions/test_condition_ticks_pg.py` —
+the five condition types through five successive checks on PostgreSQL.

@@ -71,7 +71,7 @@ const MemoryActionRow = React.memo(function MemoryActionRow({
       </div>
 
       {/* Content */}
-      <div className="truncate pl-4 text-[11px] text-muted-foreground" title={memory.content}>
+      <div className="truncate pl-4 text-px-11 text-muted-foreground" title={memory.content}>
         {action === 'delete' ? (
           <span className={cn('line-through', TONE_TEXT.destructive, 'opacity-70')}>
             {memory.content}
@@ -103,7 +103,7 @@ const SimilarMemoryRow = React.memo(function SimilarMemoryRow({
       </span>
       <ScoreBar score={memory.score} space="similarity" className="flex-shrink-0" />
       <DebugChip tone="info">{memory.category}</DebugChip>
-      <span className="truncate text-[11px] text-muted-foreground" title={memory.content}>
+      <span className="truncate text-px-11 text-muted-foreground" title={memory.content}>
         {memory.content}
       </span>
     </div>
@@ -122,7 +122,7 @@ export const ExtractionLLMFooter = React.memo(function ExtractionLLMFooter({
   };
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border-t border-border/50 pt-2 text-[10px] text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-3 border-t border-border/50 pt-2 text-px-10 text-muted-foreground">
       <span>
         <strong>Model:</strong> {metadata.model}
       </span>

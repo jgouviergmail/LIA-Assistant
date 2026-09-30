@@ -116,10 +116,11 @@ ALLOWED: dict[tuple[str, str, str], str] = {
         "_apply_angle_to_topic",
         "topic",
     ): "the search the sources run (topic, then its diversity angle) — never shown",
-    ("domains/agents/display/components/base.py", "html_to_text", "' : '"): (
+    ("domains/agents/display/components/html_flatten.py", "html_to_text", "' : '"): (
         "html_to_text flattens a definition list exactly like the browser's projection "
         "(apps/web/src/lib/html-plain-text.ts) under one shared corpus: both sides change "
-        "together or not at all — named in ADR-323"
+        "together or not at all — named in ADR-323 (moved out of components/base.py by "
+        "ADR-326)"
     ),
 }
 

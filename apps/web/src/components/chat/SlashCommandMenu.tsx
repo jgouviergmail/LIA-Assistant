@@ -175,7 +175,7 @@ export function SlashCommandMenu({
             <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
               {command.description}
             </span>
-            <span className="shrink-0 rounded border border-border/40 px-1 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span className="shrink-0 rounded border border-border/40 px-1 py-0.5 text-px-10 uppercase tracking-wide text-muted-foreground">
               {t(command.kind === 'local' ? 'chat.slash.kind_local' : 'chat.slash.kind_chat')}
             </span>
           </li>

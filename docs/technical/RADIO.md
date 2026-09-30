@@ -245,7 +245,9 @@ surface gained the sections `agenda`, `tasks`, `mails`, `sent_mails`, `reminders
 
 **Taste** (`readers/taste.py`, `prompting.ListenerTaste`): active interests and
 remembered preferences reach the WRITER as context, never as facts — shown
-only to the formats that choose news, above the prompt's dynamic marker.
+only to the formats that choose news, above the prompt's dynamic marker. The
+interests read are ONE count, `RADIO_INTEREST_TOPICS_MAX` (0 with the interests
+capability off): the writer is told exactly the topics the search looks up.
 
 **Heard, never offered**: a segment remembers the facts its voiced lines cite
 (`ProductionResult.aired`, `antenna.heard_facts`), so a story the writer left
@@ -300,9 +302,11 @@ feed keeps listing stories the purge removed, and they came back « new ».
 A news programme draws from the sources OR from what a search found for the listener's
 interests (ADR-324 decision 40). When a session's loop starts, its parts launch one
 refresh beside it (`interest_search.refresh_listener_interests`, a task they own and
-cancel): the listener's strongest interests (`RADIO_INTEREST_TOPICS_MAX`, from the taste
-the start already read — none in company, none with the operator's interests capability
-off) are searched with their OWN key — their Brave key's news endpoint, else their
+cancel): the interests the start already read (`RADIO_INTEREST_TOPICS_MAX`, the same ones
+the writer is told — none in company, none with the operator's interests capability
+off) are searched with their OWN key — their Brave key's news endpoint over the desk's
+days (`brave_freshness`: a custom day range, never the week whose older results were
+dropped unfiled), else their
 Perplexity key (the articles its answer rests on, `search_results`) — each at most once per
 `RADIO_INTEREST_FRESH_SECONDS` (`radio:interests:{user}:{digest}`: the topic is never a
 key's text). Their key, their spend, never recorded as the platform's; each search is one
@@ -318,6 +322,14 @@ listener) with its own outlet (`radio_news_items.outlet`). The newsroom never re
 but reads its stories' text like any other; the settings never list, count, rename, pause
 or remove it, nor count its stories as a source's; the shortlists, the aired ledger, the
 article page and the retention read them unchanged.
+
+The desk reads the sources and what a search found under TWO bounds
+(`news_candidates(limit=, interests_limit=)`): the sources' `NEWS_CANDIDATES_READ_MAX`, and
+the most the searches can file within the desk's horizon (`interests.interest_stories_max`,
+`adapters.interest_stories_limit`) — measured on dev 2026-09-29, a shared bound left four
+of six such stories past 1 214 source stories, paid for and heard by nobody. A session
+holding no interest (in company, the capability off, none left) reads none of them: what a
+search found earlier would voice what the listener cares about.
 
 Each format's shortlist draws from ONE material (`NewsCandidate.from_interests`,
 `news_desk.read_news_desk(interests_first=)`): the sources first; once a programme of a
@@ -573,8 +585,9 @@ session looks for what LIA just wrote (a news flash's delay); `RADIO_TTS_RATE_LI
 the wait a voice's rate limit may ask; `RADIO_COST_ESTIMATE_MIN_AUDIO_SECONDS` is the
 radio a session must have produced before its rate prices the rest (the estimate
 below); `RADIO_SAME_EVENT_SIMILARITY` is how close in meaning two headlines tell one
-event (0 turns the reading off); `RADIO_INTEREST_*` bound the listener's interest
-searches (topics searched, stories kept per search, how long a search is reused);
+event (0 turns the reading off); `RADIO_INTEREST_*` bound the listener's interests
+(interests read — told to the writer and searched —, stories kept per search, how long a
+search is reused; together they bound the interest stories a desk reads);
 `RADIO_SEGMENT_GAP_SECONDS` is the station's music
 between two programmes; `RADIO_BUDGET_24H_EUR` is what one listener's radio may spend
 over a rolling day (0 = no bound). Bounds that contradict each other refuse the

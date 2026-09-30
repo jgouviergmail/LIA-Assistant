@@ -782,6 +782,58 @@ describe('ScheduledActionsSettings — one clock per routine (ADR-322)', () => {
     expect(screen.getByText('scheduled_actions.studio.condition_cadence')).toBeInTheDocument();
   });
 
+  describe('the weather rule (ADR-322 amendment 2026-09-29)', () => {
+    const RULE = { horizon_hours: 4, min_precipitation_percent: 50, source: 'google_weather' };
+    const hint = () => screen.queryByTestId('weather-rule-hint');
+
+    async function chooseType(user: User, type: string) {
+      await user.click(
+        screen.getByRole('combobox', { name: 'scheduled_actions.studio.condition_type' })
+      );
+      await user.click(
+        await screen.findByRole('option', { name: `scheduled_actions.studio.condition.${type}` })
+      );
+    }
+
+    it('states when a weather routine fires before it is saved', async () => {
+      useScheduledActions.mockReturnValue(hook({ weatherConditionRule: RULE }));
+      const { user } = render();
+      await openCreate(user);
+      await chooseCondition(user);
+      expect(hint()).not.toBeInTheDocument();
+
+      await chooseType(user, 'weather_change');
+
+      expect(hint()).toHaveTextContent('scheduled_actions.studio.weather_rule');
+      // Inside the condition's own group, beside the select it explains.
+      expect(
+        screen.getByRole('group', { name: 'scheduled_actions.section_condition' })
+      ).toContainElement(hint());
+    });
+
+    it('states nothing another condition does not apply', async () => {
+      useScheduledActions.mockReturnValue(hook({ weatherConditionRule: RULE }));
+      const { user } = render();
+      await openCreate(user);
+      await chooseCondition(user);
+
+      await chooseType(user, 'mail_match');
+
+      expect(hint()).not.toBeInTheDocument();
+    });
+
+    it('claims nothing before the server published its rule', async () => {
+      useScheduledActions.mockReturnValue(hook());
+      const { user } = render();
+      await openCreate(user);
+      await chooseCondition(user);
+
+      await chooseType(user, 'weather_change');
+
+      expect(hint()).not.toBeInTheDocument();
+    });
+  });
+
   it('creates a condition routine with no schedule, its last day included', async () => {
     const createAction = vi.fn().mockResolvedValue(action());
     useScheduledActions.mockReturnValue(hook({ createAction }));

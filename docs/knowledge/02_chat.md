@@ -268,7 +268,7 @@ The chat has several useful finishing touches:
 
 **📤 Share or download an answer**
 - Two icons sit next to the Copy button at the bottom of every answer
-- **Download** saves it in one click as a dated Markdown file (`lia-YYYY-MM-DD-HH-mm.md`), accents preserved
+- **Download** saves it in one click as a dated Markdown file (`lia-YYYY-MM-DD-HH-mm.md`), accents preserved. A formatted answer (rich HTML, cards) keeps its headings, lists, tables, links and code blocks in that file; each card becomes a heading and a few bullets, and what only makes sense on screen — icons, buttons, pictures — stays out. Sending the answer by e-mail and exporting a bookmark write the same Markdown; copying gives plain text
 - **Share** hands the raw text to your device's share sheet (Messages, Mail, Notes…) where the browser provides one — dismissing the sheet is not an error. If you have connections, Share opens a menu that lists them as well: picking one fills your message box with a request to relay the answer; you send it, and LIA prepares the message for you to approve, like any message to a connection
 
 **🎨 Syntax highlighting on code**

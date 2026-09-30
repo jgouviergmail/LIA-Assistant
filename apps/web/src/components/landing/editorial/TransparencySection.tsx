@@ -66,7 +66,7 @@ export async function TransparencySection({
           {proofs.map(({ key, href }, i) => (
             <FadeInOnScroll key={key} delay={i * 80}>
               <div className="h-full rounded-2xl border border-border bg-background p-5 transition-colors hover:border-primary/30">
-                <h3 className="text-[15px] font-bold tracking-tight">
+                <h3 className="text-px-15 font-bold tracking-tight">
                   {t(`landing.transparency.${key}_t`)}
                 </h3>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">

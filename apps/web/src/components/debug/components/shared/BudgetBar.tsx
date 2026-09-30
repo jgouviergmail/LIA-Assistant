@@ -49,7 +49,7 @@ export const BudgetBar = React.memo(function BudgetBar({
           unit, while a SubSectionHeader separates sub-blocks. The debug panel
           is an admin surface and is English throughout — no locale lookup
           here, and the primitive never invents a string of its own. */}
-      {label && <div className="mb-0.5 text-[10px] text-muted-foreground">{label}</div>}
+      {label && <div className="mb-0.5 text-px-10 text-muted-foreground">{label}</div>}
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
         <div
           data-testid="budget-bar-fill"
@@ -58,7 +58,7 @@ export const BudgetBar = React.memo(function BudgetBar({
         />
       </div>
       {exhausted && (
-        <div className={cn('mt-1 text-[10px]', TONE_TEXT.warning)}>{exhaustedLabel}</div>
+        <div className={cn('mt-1 text-px-10', TONE_TEXT.warning)}>{exhaustedLabel}</div>
       )}
     </div>
   );

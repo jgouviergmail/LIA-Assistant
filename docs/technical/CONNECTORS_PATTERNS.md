@@ -181,6 +181,11 @@ la garde de parité refuse un client qui l'étend seul. La pagination est
 opaque (`page_token` / `next_page_token` : `pageToken` Gmail, URL
 `@odata.nextLink` Graph — refusée hors de `api_base_url` —, décalage décimal
 IMAP), et un compte du fournisseur est publié comme ESTIMATION (ADR-185).
+`headers_only` a le même sens partout : sans lui, un résultat est le message
+entier (Gmail `format=full`, IMAP), et chaque client DÉCLARE si ses résultats
+le sont (`SEARCH_HITS_ARE_WHOLE` ; Graph non, sa liste est un aperçu), pour que
+l'outil ne relise jamais un message qu'il a déjà (ADR-287, amendement du
+2026-09-30).
 
 ---
 

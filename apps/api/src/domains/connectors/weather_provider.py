@@ -6,16 +6,25 @@ callers stay provider-agnostic:
 
 - Google Weather: platform key, toggle activation (default-friendly);
 - OpenWeatherMap: personal API key.
+
+A weather ROUTINE is the exception, and reads :func:`open_platform_weather_client`:
+what fires it must be the source the platform guarantees for every account,
+not whichever provider the person picked (ADR-322 amendment 2026-09-29).
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import structlog
 
 from src.core.config import settings
+from src.domains.connectors.models import ConnectorType
+
+if TYPE_CHECKING:
+    from src.domains.connectors.clients.google_weather_client import GoogleWeatherClient
+    from src.domains.connectors.service import ConnectorService
 
 logger = structlog.get_logger(__name__)
 
@@ -51,3 +60,28 @@ async def resolve_weather_client(user_id: UUID, connector_service: Any) -> Any |
     from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
 
     return OpenWeatherMapClient(api_key=credentials.api_key, user_id=user_id)
+
+
+async def open_platform_weather_client(
+    user_id: UUID, connector_service: ConnectorService
+) -> GoogleWeatherClient | None:
+    """The instance's own weather client — Google Weather — whatever the person chose.
+
+    Google Weather is keyless: whether it serves the account is the
+    instance's answer (the administrator's switch and the platform key,
+    ADR-307), never a per-account row, so it is the one weather source the
+    platform can guarantee. A person's OpenWeatherMap key is never read here.
+
+    Args:
+        user_id: The account the calls are billed to.
+        connector_service: Answers whether the instance serves Google Weather.
+
+    Returns:
+        The client, or ``None`` when the instance withholds Google Weather —
+        never a fallback on another provider.
+    """
+    if not await connector_service.is_connector_active(user_id, ConnectorType.GOOGLE_WEATHER):
+        return None
+    from src.domains.connectors.clients.google_weather_client import GoogleWeatherClient
+
+    return GoogleWeatherClient(user_id)

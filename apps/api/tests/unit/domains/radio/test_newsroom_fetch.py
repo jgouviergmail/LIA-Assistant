@@ -29,7 +29,7 @@ def no_dns(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_validate(url: str) -> UrlValidationResult:
         if "internal" in url:
             return UrlValidationResult(valid=False, url=url, error="blocked")
-        return UrlValidationResult(valid=True, url=url)
+        return UrlValidationResult(valid=True, url=url, resolved_ips=("93.184.216.34",))
 
     monkeypatch.setattr(fetch_module, "validate_url", fake_validate)
 
@@ -42,6 +42,12 @@ Handler = (
 
 def client(handler: Handler) -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+
+def requested_url(request: httpx.Request) -> str:
+    """The URL the caller ASKED for: a pinned request carries the validated
+    address in its URL and the name in ``Host`` (ADR-326)."""
+    return f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
 
 
 class TestFetch:
@@ -124,7 +130,7 @@ class TestFetch:
 
     async def test_a_redirect_loop_stops(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(302, headers={"Location": str(request.url)})
+            return httpx.Response(302, headers={"Location": requested_url(request)})
 
         async with client(handler) as c:
             result = await fetch_public(c, "https://f.example.org/loop", max_bytes=100)
@@ -179,7 +185,7 @@ class TestRobots:
         reads: list[str] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
-            reads.append(str(request.url))
+            reads.append(requested_url(request))
             return httpx.Response(200, content=ROBOTS)
 
         now = [1000.0]
@@ -196,7 +202,7 @@ class TestRobots:
         reads: list[str] = []
 
         async def handler(request: httpx.Request) -> httpx.Response:
-            reads.append(str(request.url))
+            reads.append(requested_url(request))
             await asyncio.sleep(0)  # let the other checks run meanwhile
             return httpx.Response(200, content=ROBOTS)
 

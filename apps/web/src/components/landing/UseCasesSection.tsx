@@ -53,7 +53,7 @@ export async function UseCasesSection({ lng }: { lng: string }) {
                       {[1, 2, 3].map(n => (
                         <span
                           key={n}
-                          className="flex min-h-10 items-center justify-center rounded-md border border-border/70 bg-background px-2 py-1.5 text-center text-[11px] leading-snug text-muted-foreground"
+                          className="flex min-h-10 items-center justify-center rounded-md border border-border/70 bg-background px-2 py-1.5 text-center text-px-11 leading-snug text-muted-foreground"
                         >
                           {t(`${prefix}.source_${n}`)}
                         </span>

@@ -33,7 +33,7 @@ export const PipelineStrip = React.memo(function PipelineStrip({ lifecycle }: Pi
           )}
           <span className="flex items-center gap-1">
             <NodeChip nodeName={node.name} maxLength={18} />
-            <span className="font-mono text-[9px] text-muted-foreground">
+            <span className="font-mono text-px-9 text-muted-foreground">
               {formatDuration(node.duration_ms || 0)}
             </span>
           </span>
