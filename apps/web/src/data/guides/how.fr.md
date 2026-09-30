@@ -122,7 +122,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Technologie | Version | Rôle |
 |-------------|---------|------|
-| Next.js | 16.3.4 | App Router, SSR, ISR |
+| Next.js | 16.3.6 | App Router, SSR, ISR |
 | React | 19.2.7 | UI avec Server Components |
 | TypeScript | 6.0.3 | Typage strict |
 | TailwindCSS | 4.3.3 | Utility-first CSS |

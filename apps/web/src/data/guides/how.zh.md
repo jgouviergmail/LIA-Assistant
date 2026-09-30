@@ -122,7 +122,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 
 | 技术 | 版本 | 角色 |
 |------|------|------|
-| Next.js | 16.3.4 | App Router、SSR、ISR |
+| Next.js | 16.3.6 | App Router、SSR、ISR |
 | React | 19.2.7 | UI（含 Server Components） |
 | TypeScript | 6.0.3 | 严格类型 |
 | TailwindCSS | 4.3.3 | 实用优先 CSS |

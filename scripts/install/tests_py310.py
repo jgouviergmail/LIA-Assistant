@@ -102,7 +102,7 @@ def check_imports_and_enums() -> None:
             )
             for service in manifest._catalogue_services()
         ),
-        sboms={"api": fake_digest, "web": fake_digest},
+        sboms={app: fake_digest for app in manifest.APP_IMAGES},
         qualification="passed",
     )
     errors = manifest.validate_manifest(parsed)
