@@ -151,6 +151,9 @@ def test_a_typographic_space_touching_the_text_stays_and_layout_folds(
         ),
         ("<style>p {margin:0}</style foo>Réunion", "Réunion", "margin"),
         ("Avant<!-- a > b -->Après", "Avant Après", "b --"),
+        # `--!>` ends a comment for the HTML parser too (a recovered parse
+        # error): read as still open, it hid « Après » (CodeQL py/bad-tag-filter).
+        ("Avant<!-- a --!>Après", "Avant Après", "a --"),
         ("<head><title>Invitation</title></head>Réunion", "Réunion", "Invitation"),
     ],
     ids=[
@@ -164,6 +167,7 @@ def test_a_typographic_space_touching_the_text_stays_and_layout_folds(
         "a_closing_before_its_block_closes_nothing",
         "a_closing_tag_with_attributes",
         "a_comment_holding_a_bracket",
+        "a_comment_closed_by_the_bang_form",
         "the_head_and_its_title",
     ],
 )

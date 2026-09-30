@@ -414,8 +414,8 @@ def _claims_any(days: DayHistograms, as_of: date, th: RhythmThresholds) -> bool:
 
 def measure_rhythm(trials: int, real: DayHistograms | None) -> list[dict[str, Any]]:
     populations = (
-        ("uniform", lambda r: gen_uniform(r)),
-        ("night_spread", lambda r: gen_night_spread(r)),
+        ("uniform", gen_uniform),
+        ("night_spread", gen_night_spread),
         ("habitual_15", lambda r: gen_habitual(r, 0.15)),
         ("habitual_35", lambda r: gen_habitual(r, 0.35)),
     )
@@ -435,8 +435,8 @@ def measure_rhythm(trials: int, real: DayHistograms | None) -> list[dict[str, An
 
 
 RHYTHM_TRAJECTORY_POPULATIONS: tuple[tuple[str, Any], ...] = (
-    ("uniform", lambda r: gen_uniform(r)),
-    ("night_spread", lambda r: gen_night_spread(r)),
+    ("uniform", gen_uniform),
+    ("night_spread", gen_night_spread),
     ("scattered_3pw", lambda r: gen_moderate_scattered(r, 3.0)),
     ("scattered_2pw", lambda r: gen_moderate_scattered(r, 2.0)),
     ("habitual_15", lambda r: gen_habitual(r, 0.15)),
@@ -523,7 +523,7 @@ def _format_lock(sig: str, lock: Any) -> str:
 
 def measure_recurrence(trials: int, real: dict[str, DayHours] | None) -> list[dict[str, Any]]:
     populations = (
-        ("random_hours", lambda r: gen_random_recurrence(r)),
+        ("random_hours", gen_random_recurrence),
         ("daily_s0.5", lambda r: gen_daily_recurrence(r, 0.5)),
         ("daily_s1.5", lambda r: gen_daily_recurrence(r, 1.5)),
         ("daily_s3.0", lambda r: gen_daily_recurrence(r, 3.0)),
@@ -551,7 +551,7 @@ def measure_recurrence(trials: int, real: dict[str, DayHours] | None) -> list[di
 
 
 RECURRENCE_TRAJECTORY_POPULATIONS: tuple[tuple[str, Any], ...] = (
-    ("random_hours", lambda r: gen_random_long(r)),
+    ("random_hours", gen_random_long),
     ("sparse_random_2pw", lambda r: gen_sparse_random(r, 2.0)),
     ("daily_s1.5", lambda r: gen_daily_long(r, 1.5)),
     ("workdays_85", lambda r: gen_workdays_recurrence(r, 0.85, 0.75)),

@@ -311,9 +311,14 @@ jobs:
       - name: Download and verify both runs' artifacts
         env:
           GH_TOKEN: ${{ github.token }}
+          # Through the environment, never expanded into the script: an
+          # expression expansion lands in the shell BEFORE the decimal check
+          # can read it (ADR-326 amendment 2026-09-30).
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification_run_id }}
         run: |
           set -euo pipefail
-          for run_id in "${{ inputs.candidate_run_id }}" "${{ inputs.qualification_run_id }}"; do
+          for run_id in "$CANDIDATE_RUN_ID" "$QUALIFICATION_RUN_ID"; do
             case "$run_id" in (*[!0-9]*|'') echo "::error::run id must be decimal" >&2; exit 1;; esac
           done
           check_run() {
@@ -326,9 +331,9 @@ jobs:
             [ "$(echo "$info" | jq -r '.repo')" = "${{ github.repository }}" ] || { echo "::error::run ${run_id} belongs to another repository" >&2; exit 1; }
             echo "$info" | jq -r '.workflow' | grep -q "$expected_workflow" || { echo "::error::run ${run_id} is not ${expected_workflow}" >&2; exit 1; }
           }
-          check_run "${{ inputs.candidate_run_id }}" "release.yml"
-          check_run "${{ inputs.qualification_run_id }}" "installer-disposable-smoke.yml"
-          gh run download "${{ inputs.candidate_run_id }}" -R "${{ github.repository }}" -n self-host-candidate -D dist/
+          check_run "$CANDIDATE_RUN_ID" "release.yml"
+          check_run "$QUALIFICATION_RUN_ID" "installer-disposable-smoke.yml"
+          gh run download "$CANDIDATE_RUN_ID" -R "${{ github.repository }}" -n self-host-candidate -D dist/
           # The smoke uploads ONE artifact per matrix leg
           # (qualification-evidence-<job-index>); the old single-name
           # download matched nothing and the old comparison hashed the
@@ -337,7 +342,7 @@ jobs:
           # promotion, first ever dispatched). Every leg row must bind the
           # manifest sha, and the merged document is what the promotion CLI
           # re-validates (defense in depth).
-          gh run download "${{ inputs.qualification_run_id }}" -R "${{ github.repository }}" -p "qualification-evidence-*" -D evidence-raw/
+          gh run download "$QUALIFICATION_RUN_ID" -R "${{ github.repository }}" -p "qualification-evidence-*" -D evidence-raw/
           candidate_sha="$(sha256sum dist/lia-self-host-manifest.json | cut -d' ' -f1)"
           mkdir -p evidence
           rows="[]"

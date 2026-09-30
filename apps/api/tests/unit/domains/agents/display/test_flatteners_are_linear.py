@@ -36,6 +36,11 @@ pytestmark = pytest.mark.unit
 SMALL = 8_000
 #: Below this many seconds at the large size, the ratio is noise and passes.
 FLOOR_SECONDS = 0.02
+#: The small measurement is read as at least this: under xdist on a loaded host
+#: a 3 ms run is not measurable to a factor of 8 (measured 2026-09-30: ×8.2 on
+#: a flattener whose exponent is 1.01). A quadratic flattener starting from this
+#: floor takes ×16 of it, twice what the criterion admits — still refused.
+SMALL_FLOOR_SECONDS = FLOOR_SECONDS / 4
 #: A flattener may take at most this many times longer on four times the text.
 MAX_GROWTH = 8.0
 #: Whatever the growth, the large size must stay under this (linear and fast).
@@ -90,13 +95,18 @@ WITNESSES: dict[str, Callable[[int], str]] = {
     "unclosed scripts": lambda n: "<script>" * (n // 8),
     "ampersands": lambda n: "&#" * (n // 2),
     "quoted lines": lambda n: "> a\n" * (n // 4),
+    # The two witnesses CodeQL named against the rewritten patterns (#927 on the
+    # anchor, #928 on the table rule), measured linear: its analysis models
+    # neither `\b` inside a lookahead nor a `(?=…)` guard.
+    "a link opener then '<a >a' repeated": lambda n: "<a >" + "<a >a" * (n // 5),
+    "tab-pipe pairs": lambda n: "\t|" * (n // 2),
 }
 
 
 def _seconds(flatten: Flattener, text: str) -> float:
-    """The better of two runs: a scheduler hiccup on one run is not the code."""
+    """The best of three runs: a scheduler hiccup on one run is not the code."""
     best = float("inf")
-    for _ in range(2):
+    for _ in range(3):
         started = time.perf_counter()
         flatten(text)
         best = min(best, time.perf_counter() - started)
@@ -114,7 +124,7 @@ def test_a_flattener_grows_linearly_on_a_hostile_text(name: str, witness: str) -
     assert large < CEILING_SECONDS, f"{name} on {witness!r}: {large:.2f} s at {4 * SMALL} chars"
     if large < FLOOR_SECONDS:
         return
-    assert large <= MAX_GROWTH * small, (
+    assert large <= MAX_GROWTH * max(small, SMALL_FLOOR_SECONDS), (
         f"{name} on {witness!r} grows ×{large / small:.1f} for ×4 the text "
         f"({small * 1000:.1f} ms → {large * 1000:.1f} ms): super-linear"
     )
@@ -141,6 +151,6 @@ def test_the_criterion_catches_the_former_link_pattern() -> None:
     large = _seconds(lambda s: former.sub("", s), make(8_000))
 
     assert large >= FLOOR_SECONDS, "the former pattern is too fast here to judge its growth"
-    assert (
-        large > MAX_GROWTH * small
+    assert large > MAX_GROWTH * max(
+        small, SMALL_FLOOR_SECONDS
     ), f"the criterion would have let the former pattern pass ({large / small:.1f})"

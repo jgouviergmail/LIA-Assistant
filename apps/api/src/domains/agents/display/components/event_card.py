@@ -61,13 +61,17 @@ _INVISIBLE_OPENING_RE = re.compile(r"<(style|script|head|title)\b[^<>]*>|<(!--)"
 #: Where each closes. CSS and code hold « < » and « > » (« div > p »,
 #: « a<b »), so a block ends at its closing tag and nowhere before; a closing
 #: tag may carry what HTML ignores (``</style foo>`` closes the block), and a
-#: comment ends at ``-->`` whatever it holds (« <!-- a > b --> »).
+#: comment ends at ``-->`` whatever it holds (« <!-- a > b --> ») — or at
+#: ``--!>``, which the HTML parser also reads as its end (an « incorrectly
+#: closed comment » parse error, recovered): read as an open comment, that
+#: form dropped everything a reader wrote after it (CodeQL py/bad-tag-filter,
+#: ADR-326 amendment).
 _INVISIBLE_CLOSINGS = {
     **{
         name: re.compile(rf"</{name}\b[^<>]*>", re.IGNORECASE)
         for name in ("style", "script", "head", "title")
     },
-    "!--": re.compile("-->"),
+    "!--": re.compile("--!?>"),
 }
 
 #: A tag, never a « < » inside it: a run of unclosed « < » is read once. With

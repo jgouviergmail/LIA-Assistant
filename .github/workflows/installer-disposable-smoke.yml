@@ -79,14 +79,31 @@ jobs:
       - name: Download the candidate bundle
         env:
           GH_TOKEN: ${{ github.token }}
+          # Through the environment, never expanded into the script: an
+          # expression expansion lands in the shell BEFORE any check can read
+          # it, and `123"; …` would leave its quotes.
+          CANDIDATE_RUN_ID: ${{ github.event.inputs.candidate_run_id }}
         run: |
           set -euo pipefail
+          # The run id is an operator's input: before a byte of its artifact is
+          # used, refuse anything but a SUCCESSFUL run of release.yml in THIS
+          # repository — the guard release.yml applies to a qualification run
+          # id, applied here to the candidate's (CodeQL
+          # actions/cache-poisoning/poisonable-step, ADR-326 amendment).
+          run_id="$CANDIDATE_RUN_ID"
+          case "$run_id" in (*[!0-9]*|'') echo "::error::run id must be decimal" >&2; exit 1;; esac
+          info="$(gh api "repos/${{ github.repository }}/actions/runs/${run_id}" \
+            --jq '{workflow: .path, conclusion: .conclusion, repo: .repository.full_name}')"
+          echo "$info"
+          [ "$(echo "$info" | jq -r '.conclusion')" = "success" ] || { echo "::error::run ${run_id} did not succeed" >&2; exit 1; }
+          [ "$(echo "$info" | jq -r '.repo')" = "${{ github.repository }}" ] || { echo "::error::run ${run_id} belongs to another repository" >&2; exit 1; }
+          echo "$info" | jq -r '.workflow' | grep -q "release.yml" || { echo "::error::run ${run_id} is not release.yml" >&2; exit 1; }
           # Artifact NAME per release.yml's upload (`self-host-candidate`,
           # containing lia-self-host-bundle.tar.gz at its root). The old
           # `lia-self-host-bundle` name matched nothing — every matrix leg
           # died on "no artifact matches" (measured on the v1.30.1
           # qualification attempt).
-          gh run download "${{ github.event.inputs.candidate_run_id }}" \
+          gh run download "$run_id" \
             -R "${{ github.repository }}" \
             --name self-host-candidate --dir candidate
           mkdir -p work && tar -xzf candidate/lia-self-host-bundle.tar.gz -C work

@@ -93,9 +93,9 @@ def _catalogue() -> str:
     ]
     lines += [
         "- create_task_tool: adds a to-do to the user's own provider account "
-        "(Google Tasks and the like).",
-        "- create_reminder_tool: sends the user a notification at a given " "date and time.",
-        "- create_scheduled_action_tool: runs something on a recurring " "schedule, on its own.",
+        + "(Google Tasks and the like).",
+        "- create_reminder_tool: sends the user a notification at a given date and time.",
+        "- create_scheduled_action_tool: runs something on a recurring schedule, on its own.",
     ]
     return "\n".join(lines)
 

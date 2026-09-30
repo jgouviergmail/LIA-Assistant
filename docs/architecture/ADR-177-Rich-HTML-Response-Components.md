@@ -207,6 +207,13 @@ texte un bloc de code Markdown qui CITE du HTML, dès qu'une balise y était rec
   `$…$`, `|` en cellule), pour qu'un `.md` reste lisible aussi en texte brut. Une liste
   imbriquée hors de son `li` — HTML invalide qu'un modèle écrit quand même — rejoint
   l'élément qui la précède, et des `dt`/`dd` groupés dans un `div` (HTML5) sont lus.
+- Un antislash est échappé là où Markdown le lirait — devant une ponctuation ASCII — et
+  jamais ailleurs (`C:\Users` voyage intact) ; les crochets du texte d'un lien le sont au
+  moment où ce texte est écrit (`inLink`), dans la seule fonction qui échappe les marques :
+  échappés après coup par un `replace` propre au lien, un antislash devant un crochet
+  était doublé après l'échappement du crochet, et `a\]b` atteignait le fichier en `\\]` —
+  un antislash littéral, puis le crochet qui ferme le lien (CodeQL
+  `js/incomplete-sanitization`, revue du 2026-09-30 sous ADR-326).
 
 ## Alternatives considérées
 

@@ -20,6 +20,11 @@ import { toPlainPreview } from '../notification-preview';
 
 const SMALL = 8_000;
 const FLOOR_MS = 20;
+// The small measurement is read as at least this: on a loaded runner a 3 ms
+// run is not measurable to a factor of 8 (the API's guard read ×8.2 on a
+// flattener whose exponent is 1.01). A quadratic flattener starting from this
+// floor takes ×16 of it, twice what the criterion admits — still refused.
+const SMALL_FLOOR_MS = FLOOR_MS / 4;
 const MAX_GROWTH = 8;
 const CEILING_MS = 1_500;
 
@@ -60,11 +65,16 @@ const WITNESSES: Record<string, (n: number) => string> = {
   'unclosed scripts': n => '<script>'.repeat(n / 8),
   ampersands: n => '&#'.repeat(n / 2),
   'quoted lines': n => '> a\n'.repeat(n / 4),
+  // The two witnesses CodeQL named against the API's rewritten patterns (#927,
+  // #928), measured linear on both sides: its analysis models neither `\b`
+  // inside a lookahead nor a `(?=…)` guard.
+  "a link opener then '<a >a' repeated": n => '<a >' + '<a >a'.repeat(n / 5),
+  'tab-pipe pairs': n => '\t|'.repeat(n / 2),
 };
 
 function milliseconds(flatten: (text: string) => unknown, text: string): number {
   let best = Number.POSITIVE_INFINITY;
-  for (let run = 0; run < 2; run += 1) {
+  for (let run = 0; run < 3; run += 1) {
     const started = performance.now();
     flatten(text);
     best = Math.min(best, performance.now() - started);
@@ -81,7 +91,7 @@ describe('every flattener grows linearly on a hostile text (ADR-326)', () => {
         expect(large, `${large.toFixed(0)} ms at ${4 * SMALL} chars`).toBeLessThan(CEILING_MS);
         if (large < FLOOR_MS) return;
         expect(large, `grows ×${(large / small).toFixed(1)} for ×4 the text`).toBeLessThanOrEqual(
-          MAX_GROWTH * small
+          MAX_GROWTH * Math.max(small, SMALL_FLOOR_MS)
         );
       });
     }
@@ -95,6 +105,6 @@ describe('every flattener grows linearly on a hostile text (ADR-326)', () => {
     const small = milliseconds(former, make(SMALL));
     const large = milliseconds(former, make(4 * SMALL));
     expect(large).toBeGreaterThanOrEqual(FLOOR_MS);
-    expect(large).toBeGreaterThan(MAX_GROWTH * small);
+    expect(large).toBeGreaterThan(MAX_GROWTH * Math.max(small, SMALL_FLOOR_MS));
   });
 });

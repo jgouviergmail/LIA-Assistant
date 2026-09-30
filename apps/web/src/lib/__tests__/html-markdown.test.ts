@@ -342,8 +342,20 @@ describe('links and code', () => {
     expect(md('<p><a href="https://a.fr/c d">t</a></p>')).toBe('[t](<https://a.fr/c d>)');
   });
 
-  it('escapes brackets in a link text', () => {
+  it('escapes brackets in a link text, and nowhere else', () => {
     expect(md('<p><a href="https://a.fr">[1] note</a></p>')).toBe('[\\[1\\] note](https://a.fr)');
+    expect(md('<p>voir [1]</p>')).toBe('voir [1]');
+    expect(md('<p><a href="#top">[1] haut</a></p>')).toBe('[1] haut');
+  });
+
+  it('escapes a backslash where Markdown would read it, and keeps a path', () => {
+    // A backslash before a mark used to reach the file as written: Markdown
+    // read it as the escape of the mark, and both vanished from the render.
+    expect(md('<p>a\\*b</p>')).toBe('a\\\\\\*b');
+    expect(md('<p>C:\\Users\\jo</p>')).toBe('C:\\Users\\jo');
+    // In a link, `a\]b` used to become `a\\]b`: a literal backslash, then the
+    // bracket ending the text (CodeQL js/incomplete-sanitization).
+    expect(md('<p><a href="https://a.fr">a\\]b</a></p>')).toBe('[a\\\\\\]b](https://a.fr)');
   });
 
   it('drops a link with no text', () => {

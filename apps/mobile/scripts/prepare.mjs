@@ -19,7 +19,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { cp, mkdir, readdir, readFile, stat } from 'node:fs/promises';
+import { cp, mkdir, readdir } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -77,6 +77,23 @@ function hashOf(path) {
 }
 
 /**
+ * A JSON file's content, or `{}` when there is no such file — read in ONE
+ * call, so the answer is the file's state at the read and not at a check made
+ * before it (CodeQL js/file-system-race on the baseline's rewrite).
+ *
+ * @param {string} path - The file.
+ * @returns {Record<string, string>} Its parsed content, or an empty record.
+ */
+function readJsonIfPresent(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return {};
+    throw error;
+  }
+}
+
+/**
  * List every file under a directory, as paths relative to it.
  *
  * @param {string} dir - Directory to walk.
@@ -113,9 +130,7 @@ async function overlay(platform, acceptDrift, freshlyGenerated) {
     return;
   }
 
-  const baseline = existsSync(DRIFT_BASELINE)
-    ? JSON.parse(readFileSync(DRIFT_BASELINE, 'utf8'))
-    : {};
+  const baseline = readJsonIfPresent(DRIFT_BASELINE);
   const drifted = [];
   const observed = { ...baseline };
 

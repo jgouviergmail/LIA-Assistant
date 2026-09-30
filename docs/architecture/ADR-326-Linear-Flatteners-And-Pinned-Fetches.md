@@ -221,3 +221,56 @@ e-mail probe with HEAD's own detail levels, the event-loop ticker, the rebinding
 real sockets, the exhaustive pattern equivalences, the local CodeQL run
 (`codeql-bundle-linux64 2.27.1`, checksum verified, throwaway container), the production
 read of `settings.debug`.
+
+## Amendment 2026-09-30 — what the first scan of the widened perimeter said
+
+The scan that followed v2.1.1 closed the eleven alerts this decision fixed and opened
+twenty-seven on the wider perimeter, each read on pieces before it was answered:
+
+- **Two ReDoS findings on the rewritten patterns are false positives, measured.** CodeQL
+  named its witnesses — `<a >` then `<a >a` repeated against the anchor rule, `\t|`
+  repeated against the table rule — and both grow linearly through the real patterns
+  and the real entry points (exponents 0.99 and 0.96; 0.86 ms and 0.26 ms at 64 000
+  characters): its analysis models neither `\b` inside a lookahead nor a `(?=…)` guard.
+  Both witnesses joined the growth guards on both sides, so the answer is held by a test
+  rather than by a dismissal comment. The same day the guards learned to read a small
+  measurement as at least 5 ms and to keep the best of three runs: under xdist on a loaded
+  host, a 3 ms run read ×8.2 on a flattener whose exponent is 1.01 (measured in the
+  container over four sizes), and a quadratic flattener starting from that floor still
+  takes twice what the criterion admits.
+- **The two `partial-ssrf` findings on the Google proxies are structural false
+  positives**: scheme, host and path are literals, the person's value lands in the query
+  string, and the redirects followed are Google's own. They are dismissed with that
+  reason, not excluded by rule — the next occurrence of the rule anywhere else must
+  surface.
+- **`--!>` ends an HTML comment too** (a recovered parse error): read as an open comment,
+  it dropped everything a reader wrote after it from an event's description. The closing
+  pattern accepts both forms; the description was already escaped at insertion, so this
+  was a loss of text, never an injection.
+- **The Markdown export escapes a backslash where Markdown would read it** (before an
+  ASCII punctuation character), and a link's brackets as the link's text is written,
+  in the ONE function that escapes every mark: escaped later by a replace of its own, a
+  backslash before a bracket was doubled after the bracket had been escaped, and `a\]b`
+  reached the file as `\\]` — a literal backslash, then the bracket ending the link.
+- **The qualification workflow refuses a candidate run id that is not a successful run
+  of `release.yml` in this repository** before a byte of its artifact is used — the guard
+  `release.yml` already applied to a qualification run id. The job writes no cache and
+  runs by hand under an approval environment, so the finding was a false positive; the
+  guard makes the input trustworthy by construction. In both workflows the run ids now
+  reach the shell through the step's environment, never by expression expansion into the
+  script — an expansion lands in the shell before the decimal check can read it, and
+  `123"; …` would have left its quotes. The guard's logic was played locally against real
+  run ids: a successful `release.yml` run accepted; a `ci.yml` run, a failed run, an
+  unknown id, an empty or non-decimal value each refused for the reason named.
+- **A development script verifies TLS by default** (`simulate_live_call.py --insecure`,
+  passed by the `telephony:simulate:live` task for the self-signed certificate); the
+  mobile shell's build scripts read a file in one call instead of checking then reading;
+  and seventeen quality findings in operator scripts were fixed in the code (four implicit
+  string concatenations that were sentences cut in two, four bare `exit()`, six pass-through
+  lambdas, a dead store, two unused imports).
+
+Found by the same scan, on the other side of the ledger: the five `rag_spaces` tests this
+decision's `storage_paths` extraction broke on the runner. They patched `settings` on the
+two modules that used to build the path and passed on the author's host, where the real
+storage root exists — a settings read that moves is a census of every test patching the
+module it left.

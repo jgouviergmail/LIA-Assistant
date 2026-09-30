@@ -39,6 +39,8 @@ interface Walk {
   written: Set<Element>;
   /** Inside a table cell: a pipe is escaped. */
   inCell: boolean;
+  /** Inside a link's text: a bracket is escaped, or it ends the text early. */
+  inLink: boolean;
   /** What a `<br>` becomes: a hard break in prose, `<br>` in a cell, a space on one line. */
   lineBreak: string;
 }
@@ -200,6 +202,14 @@ const MATH = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)/;
 /** A letter or digit of any script: an underscore between two is not emphasis. */
 const WORD = /[\p{L}\p{N}]/u;
 
+/**
+ * CommonMark's ASCII punctuation: what a backslash escapes. Before anything
+ * else (a letter, a space, the end) a backslash is a literal backslash, so
+ * « C:\Users » travels untouched while « a\*b » is written `a\\\*b` — left as
+ * it was, the reader's backslash escaped the mark and vanished.
+ */
+const PUNCTUATION = /[!-/:-@[-`{-~]/;
+
 /** What would open a Markdown block at the start of a line of text. */
 const LINE_STARTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/^(#{1,6})(?=\s|$)/, '\\$1'],
@@ -227,7 +237,12 @@ function isBlock(element: Element): boolean {
 // Text
 // ---------------------------------------------------------------------------
 
-function shouldEscape(mark: string, before: string, after: string, inCell: boolean): boolean {
+function shouldEscape(
+  mark: string,
+  before: string,
+  after: string,
+  walk: Pick<Walk, 'inCell' | 'inLink'>
+): boolean {
   switch (mark) {
     case '*':
       return !(before === ' ' && after === ' ');
@@ -236,16 +251,27 @@ function shouldEscape(mark: string, before: string, after: string, inCell: boole
     case '<':
       return /[A-Za-z/!?]/.test(after);
     case '|':
-      return inCell;
+      return walk.inCell;
+    case '[':
+    case ']':
+      return walk.inLink;
+    case '\\':
+      return PUNCTUATION.test(after);
     default:
       return true;
   }
 }
 
-/** Escape what Markdown would read as markup, and nothing a reader types every day. */
-function escapeMarks(text: string, inCell: boolean): string {
-  return text.replace(/[`*_<|]/g, (mark: string, offset: number) =>
-    shouldEscape(mark, text[offset - 1] ?? '', text[offset + 1] ?? '', inCell) ? `\\${mark}` : mark
+/**
+ * Escape what Markdown would read as markup, and nothing a reader types every
+ * day. ONE place for every mark, the backslash included: escaped later, in a
+ * link's own replace, a backslash before a bracket was doubled after the
+ * bracket had been escaped and the text read as `\\]` — a literal backslash,
+ * then the bracket ending the link (CodeQL js/incomplete-sanitization).
+ */
+function escapeMarks(text: string, walk: Pick<Walk, 'inCell' | 'inLink'>): string {
+  return text.replace(/[`*_<|[\]\\]/g, (mark: string, offset: number) =>
+    shouldEscape(mark, text[offset - 1] ?? '', text[offset + 1] ?? '', walk) ? `\\${mark}` : mark
   );
 }
 
@@ -255,7 +281,7 @@ function textOf(raw: string, walk: Walk): string {
   const folded = raw.replace(/[ \t\n\r\f]+/g, ' ');
   return folded
     .split(MATH)
-    .map((part, index) => (index % 2 === 1 ? part : escapeMarks(part, walk.inCell)))
+    .map((part, index) => (index % 2 === 1 ? part : escapeMarks(part, walk)))
     .join('');
 }
 
@@ -305,15 +331,19 @@ function inlineCode(element: Element, walk: Walk): string {
 }
 
 function link(element: Element, walk: Walk): string {
-  const text = tidy(joinInline(element.childNodes, { ...walk, lineBreak: ' ' }));
-  if (!text) return '';
   const href = (element.getAttribute('href') ?? '').trim();
-  if (!FOLLOWABLE_HREF.test(href)) return text;
+  const followable = FOLLOWABLE_HREF.test(href);
+  // The brackets of a link's text are escaped as its text is written (`inLink`).
+  const text = tidy(
+    joinInline(element.childNodes, { ...walk, lineBreak: ' ', inLink: followable })
+  );
+  if (!text) return '';
+  if (!followable) return text;
   if ((element.textContent ?? '').trim() === href) return `<${href}>`;
   // A pipe in a cell's link would end the cell: percent-encoded, it is the same URL.
   const url = walk.inCell ? href.replaceAll('|', '%7C') : href;
   const target = /[\s()<>]/.test(url) ? `<${url.replace(/[<>]/g, encodeURIComponent)}>` : url;
-  return `[${text.replace(/[[\]]/g, '\\$&')}](${target})`;
+  return `[${text}](${target})`;
 }
 
 const INLINE_RULES: Readonly<Record<string, (element: Element, walk: Walk) => string>> = {
@@ -676,6 +706,12 @@ function blocksOf(element: Element, walk: Walk): Block[] {
 export function htmlToMarkdown(html: string, options: MarkdownExportOptions): string {
   if (typeof DOMParser === 'undefined') return htmlToPlainText(html);
   const { body } = new DOMParser().parseFromString(html, 'text/html');
-  const walk: Walk = { options, written: new Set(), inCell: false, lineBreak: HARD_BREAK };
+  const walk: Walk = {
+    options,
+    written: new Set(),
+    inCell: false,
+    inLink: false,
+    lineBreak: HARD_BREAK,
+  };
   return joinBlocks(childBlocks(body, walk)).trim();
 }

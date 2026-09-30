@@ -1,7 +1,13 @@
 """Simulate a Live owner call end to end — without a phone (ADR-301).
 
     docker exec lia-api-dev python -m scripts.telephony.simulate_live_call \\
-        --user <uuid> [--api https://localhost:8000] [--request "..."] [--answer "..."]
+        --user <uuid> [--api https://localhost:8000] [--insecure] \\
+        [--request "..."] [--answer "..."]
+
+``--insecure`` skips the TLS verification of ``--api``: the development API
+answers on a self-signed certificate, and the ``telephony:simulate:live``
+task passes it. Verification is the default — a script that switches it off
+for everyone was two CodeQL findings (py/request-without-cert-validation).
 
 What a real call does, this does with HTTP alone, against a RUNNING API:
 
@@ -120,8 +126,10 @@ def _signature(body: bytes, secret: str) -> str:
     return f"t={ts},v0={digest}"
 
 
-async def _delegate(api: str, call_id: UUID, token: str, request: str) -> dict[str, Any]:
-    async with httpx.AsyncClient(base_url=api, verify=False, timeout=300.0) as client:
+async def _delegate(
+    api: str, call_id: UUID, token: str, request: str, *, verify: bool
+) -> dict[str, Any]:
+    async with httpx.AsyncClient(base_url=api, verify=verify, timeout=300.0) as client:
         started = time.monotonic()
         resp = await client.post(
             f"{settings.api_prefix}/telephony/tools/send_to_lia",
@@ -209,9 +217,9 @@ def _unanswered_payload(call_id: UUID, agent_id: str) -> dict[str, Any]:
     }
 
 
-async def _post_call(api: str, secret: str, payload: dict[str, Any]) -> None:
+async def _post_call(api: str, secret: str, payload: dict[str, Any], *, verify: bool) -> None:
     body = json.dumps(payload).encode()
-    async with httpx.AsyncClient(base_url=api, verify=False, timeout=60.0) as client:
+    async with httpx.AsyncClient(base_url=api, verify=verify, timeout=60.0) as client:
         resp = await client.post(
             f"{settings.api_prefix}/telephony/webhook",
             content=body,
@@ -318,8 +326,14 @@ async def main() -> int:
         action="store_true",
         help="Nobody picks up: no delegation, the fallback push",
     )
+    parser.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Skip TLS verification of --api (the development API's self-signed certificate)",
+    )
     args = parser.parse_args()
     user_id = UUID(args.user)
+    verify = not args.insecure
     import_all_models()
 
     print("[1] inserting a DIALING Live owner-call row")
@@ -330,24 +344,24 @@ async def main() -> int:
 
     if args.unanswered:
         print("[2] nobody picks up: posting the vendor's post-call webhook (no_answer)")
-        await _post_call(args.api, secret, _unanswered_payload(call_id, agent_id))
+        await _post_call(args.api, secret, _unanswered_payload(call_id, agent_id), verify=verify)
         print("[3] reading the books")
         await _read_books(call_id, user_id)
         return 0
 
     print(f"[2] delegating: {args.request!r}")
     exchanges: list[tuple[str, str]] = []
-    first = await _delegate(args.api, call_id, token, args.request)
+    first = await _delegate(args.api, call_id, token, args.request, verify=verify)
     exchanges.append((args.request, first.get("result", "")))
     if args.answer:
         print(f"[2b] answering: {args.answer!r}")
-        second = await _delegate(args.api, call_id, token, args.answer)
+        second = await _delegate(args.api, call_id, token, args.answer, verify=verify)
         exchanges.append((args.answer, second.get("result", "")))
 
     if args.skip_close:
         return 0
     print("[3] posting the vendor's post-call webhook")
-    await _post_call(args.api, secret, _payload(call_id, agent_id, exchanges))
+    await _post_call(args.api, secret, _payload(call_id, agent_id, exchanges), verify=verify)
     print("[4] reading the books")
     await _read_books(call_id, user_id)
     return 0

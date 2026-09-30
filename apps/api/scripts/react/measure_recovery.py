@@ -732,7 +732,7 @@ def _parse_models(spec: str) -> list[tuple[str, str, Level]]:
 def _summary(runs: list[Run]) -> str:
     rows = [
         "| variant | model | scenario | n | obtained | wrong | declared | passes | outcomes | "
-        "calls | repeated | fallback | USD/run |",
+        + "calls | repeated | fallback | USD/run |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     groups: dict[tuple[str, str, str], list[Run]] = {}

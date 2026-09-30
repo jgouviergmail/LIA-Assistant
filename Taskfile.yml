@@ -382,7 +382,9 @@ tasks:
     # the books through the signed post-call webhook. Runs inside the API
     # container (the connector's secret, the database).
     cmds:
-      - cmd: docker exec lia-api-dev python -m scripts.telephony.simulate_live_call {{.CLI_ARGS}}
+      # `--insecure`: the development API answers on a self-signed certificate;
+      # the script verifies TLS by default.
+      - cmd: docker exec lia-api-dev python -m scripts.telephony.simulate_live_call --insecure {{.CLI_ARGS}}
 
   telephony:probe:live:
     desc: Run the phone's Live mode on the vendor's REAL engine through a public callback URL, without a phone (NETWORK, the operator's key)

@@ -34,7 +34,7 @@
       "eslint-config-next>typescript-eslint": "8.58.2",
       "flatted": "3.4.2",
       "picomatch": "4.0.4",
-      "brace-expansion": "^5.0.9",
+      "brace-expansion": "^5.0.12",
       "vite": "8.1.5",
       "defu": "6.1.5",
       "protobufjs": "^7.6.3",
@@ -55,7 +55,7 @@
       "@humanfs/node": "^0.16.8"
     },
     "patchedDependencies": {
-      "brace-expansion@5.0.9": "patches/brace-expansion@5.0.9.patch"
+      "brace-expansion@5.0.12": "patches/brace-expansion@5.0.12.patch"
     }
   }
 }

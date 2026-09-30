@@ -32,6 +32,7 @@ import asyncio
 import json
 import os
 import statistics
+import sys
 import time
 import uuid
 from collections import defaultdict
@@ -491,17 +492,17 @@ def main():
         success_rate = summary["execution"]["success_rate"]
         if success_rate < 95.0:
             print(f"\n⚠️  WARNING: Success rate below 95% ({success_rate:.2f}%)")
-            exit(1)
+            sys.exit(1)
         else:
             print(f"\n✅ All tests passed (success rate: {success_rate:.2f}%)")
-            exit(0)
+            sys.exit(0)
 
     except KeyboardInterrupt:
         print("\n🛑 Load test interrupted by user")
-        exit(130)
+        sys.exit(130)
     except Exception as e:
         print(f"\n❌ Load test failed: {e}")
-        exit(1)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

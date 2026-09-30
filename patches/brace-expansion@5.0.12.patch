@@ -1,12 +1,12 @@
 diff --git a/dist/commonjs/index.js b/dist/commonjs/index.js
-index 869a6bee23807b9f01c18c99ab8e952b4b242f97..79f1acf61a7b764610f665927930c238b26a39d4 100644
+index 48cf0d3dabc885249c65909c4912712c834786f5..ec716b177c48c0ebdef43afa75998f9582d48746 100644
 --- a/dist/commonjs/index.js
 +++ b/dist/commonjs/index.js
-@@ -287,3 +287,21 @@ function expand_(str, max, maxLength, isTop) {
+@@ -331,3 +331,21 @@ function expand_(str, max, maxLength, maxDepth, depth, maxRewrites, isTop) {
      return acc;
  }
  //# sourceMappingURL=index.js.map
-+/* LIA interop shim — see patches/brace-expansion@5.0.9.patch.
++/* LIA interop shim — see patches/brace-expansion@5.0.12.patch.
 + *
 + * 5.x publishes ONLY the named `expand`, but the two `minimatch` versions in
 + * this tree predate that change and load it as a default export:

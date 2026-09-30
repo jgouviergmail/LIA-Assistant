@@ -424,7 +424,6 @@ def run_install(argv: Sequence[str], deps: Deps) -> int:
                 deps.io.print_fn("resume_stop_mismatch")
                 return EXIT_PREFLIGHT
             public = previous_state.public_answers
-            mode = public.mode
             if decision is ResumeDecision.REPROMPT_SECRETS:
                 secrets = collect_secret_answers(
                     build_questions(),

@@ -16,7 +16,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 /**
  * A pbxproj identifier: 24 uppercase hex characters, stable for a given name.
@@ -39,10 +39,17 @@ function identifierFor(seed) {
  * @returns {{added: string[], skipped: string[]}} What changed.
  */
 export function declareSwiftSources(pbxprojPath, fileNames) {
-  if (!existsSync(pbxprojPath)) {
-    throw new Error(`no Xcode project at ${pbxprojPath}`);
+  // Read in ONE call: an existence check before the read answered for a file
+  // that could change in between (CodeQL js/file-system-race).
+  let content;
+  try {
+    content = readFileSync(pbxprojPath, 'utf8');
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      throw new Error(`no Xcode project at ${pbxprojPath}`);
+    }
+    throw error;
   }
-  let content = readFileSync(pbxprojPath, 'utf8');
   const added = [];
   const skipped = [];
 
