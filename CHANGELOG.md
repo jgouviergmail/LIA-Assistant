@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - **Premier scan du périmètre CodeQL élargi** (amendement [ADR-326](docs/architecture/ADR-326-Linear-Flatteners-And-Pinned-Fetches.md)) : l'export Markdown échappe une barre oblique inverse devant une ponctuation et les crochets d'un lien dans la fonction unique d'échappement ; `--!>` ferme aussi un commentaire HTML dans la description d'un événement ; le workflow de qualification refuse un identifiant de run candidat qui n'est pas un run réussi de `release.yml` de ce dépôt, et les identifiants passent par l'environnement, jamais par expansion dans le script ; `simulate_live_call.py` vérifie TLS par défaut ; deux signalements ReDoS mesurés faux positifs sur les témoins de CodeQL, ajoutés aux gardes de croissance ; brace-expansion 5.0.12.
+- **urllib3 2.8.0** (CVE-2026-97687, CVE-2026-97688, CVE-2026-97689, publiées le 2026-09-30) : TLS d'un proxy HTTPS séparé de celui de la cible, boucle infinie sur un flux Deflate suivi d'octets, taille de bloc chunked bornée en lecture en flux. Dépendance transitive, seul pin déplacé dans les trois lockfiles.
 
 ### Tests
 
