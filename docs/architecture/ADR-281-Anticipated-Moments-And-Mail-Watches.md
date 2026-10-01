@@ -367,3 +367,10 @@ règle a UNE implémentation, `scheduler_lock.ttl_for_interval` (90 % de la
 période, plancher 30 s), lue par les deux balayages et par le garde
 `test_scheduler_lock_timing_guard.py`, qui n'avait jamais listé le balayage
 des réveils — un job enregistré après l'écriture du garde y était invisible.
+
+## Amendement 2026-10-01 — plus de quota quotidien (ADR-328)
+
+Le heartbeat n'a plus ni quota quotidien ni lissage probabiliste : un moment
+passe par exactement le contrôle d'un passage régulier. La fenêtre horaire et
+les cooldowns global, croisé et d'activité s'appliquent toujours ; le « quota
+quotidien » cité plus haut n'existe plus.

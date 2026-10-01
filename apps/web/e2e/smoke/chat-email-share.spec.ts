@@ -14,6 +14,10 @@
  *    its own file by id.
  * 3. **A refusal is said in words** and the dialog stays for another try.
  * 4. **At 320 px the dialog fits**, and it scans clean (axe WCAG A/AA).
+ * 5. **With a contacts connector, a contact is picked by name** (ADR-321
+ *    amendment): typing « lef » offers Jérôme Lefèvre, the keyboard picks him,
+ *    Escape closes the list and not the dialog, and the ADDRESS is what is sent
+ *    — the list fits at 320 px and scans clean while open.
  */
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
 import { scanPage } from '../a11y/scan';
@@ -66,7 +70,7 @@ const MESSAGE = {
   stt_provider: null,
 };
 
-function options(route: 'mailbox' | 'relay') {
+function options(route: 'mailbox' | 'relay', suggestions = false) {
   return {
     route,
     own_address: route === 'relay' ? 'me@example.com' : null,
@@ -75,8 +79,17 @@ function options(route: 'mailbox' | 'relay') {
     max_recipients: 10,
     subject_max_chars: 200,
     message_max_chars: 5000,
+    recipient_suggestions: suggestions,
+    recipient_query_min_chars: 2,
+    recipient_suggestions_max: 8,
   };
 }
+
+/** The contacts a query answers, as the server matches them (accents ignored). */
+const CONTACTS = [
+  { name: 'Jérôme Lefèvre', email: 'jerome.lefevre@example.org' },
+  { name: 'Léa Lefort', email: 'lea.lefort@example.org' },
+];
 
 interface Sent {
   bodies: unknown[];
@@ -84,7 +97,11 @@ interface Sent {
   answer: unknown;
 }
 
-function routes(route: 'mailbox' | 'relay', sent: Sent): MockRoute[] {
+function routes(
+  route: 'mailbox' | 'relay',
+  sent: Sent,
+  { suggestions = false, asked = [] as string[] } = {}
+): MockRoute[] {
   return [
     CONFIG,
     { url: '**/api/v1/conversations/me/totals', json: {} },
@@ -102,7 +119,18 @@ function routes(route: 'mailbox' | 'relay', sent: Sent): MockRoute[] {
         next_cursor: null,
       },
     },
-    { url: '**/api/v1/email-share/options', json: options(route) },
+    { url: '**/api/v1/email-share/options', json: options(route, suggestions) },
+    {
+      url: '**/api/v1/email-share/recipients?*',
+      handler: async request => {
+        const q = new URL(request.request().url()).searchParams.get('q') ?? '';
+        asked.push(q);
+        await request.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ query: q, suggestions: CONTACTS, truncated: false }),
+        });
+      },
+    },
     {
       url: '**/api/v1/email-share',
       method: 'POST',
@@ -237,5 +265,50 @@ test.describe('sending a file or an answer by e-mail', () => {
 
     const { blocking, summary } = await scanPage(page, testInfo, 'chat email share dialog');
     expect(blocking, `axe violations on the e-mail dialog:\n${summary}`).toHaveLength(0);
+  });
+
+  test('a contact is picked by name and its address is what is sent', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await authenticate();
+    const sent = sentOk('mailbox');
+    const asked: string[] = [];
+    await mockApi(routes('mailbox', sent, { suggestions: true, asked }));
+
+    await page.goto('/en/dashboard/chat');
+    await waitForHydration(page, DOC_CARD);
+    await page.getByRole('button', { name: 'Send plan.pdf by e-mail' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Send by e-mail' });
+    const field = dialog.getByRole('combobox', { name: 'To' });
+    await field.click();
+    await field.pressSequentially('lef');
+
+    const list = dialog.getByRole('listbox', { name: 'Contacts' });
+    await expect(list.getByRole('option', { name: /Jérôme Lefèvre/ })).toBeVisible();
+    expect(asked).toContain('lef');
+    const box = await list.boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+    const { blocking, summary } = await scanPage(page, testInfo, 'e-mail dialog, suggestions open');
+    expect(blocking, `axe violations with the list open:\n${summary}`).toHaveLength(0);
+
+    await page.keyboard.press('Escape');
+    await expect(list).toBeHidden();
+    await expect(dialog).toBeVisible();
+
+    await field.pressSequentially('e');
+    await expect(list.getByRole('option').first()).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(field).toHaveValue('jerome.lefevre@example.org, ');
+    await expect(field).toBeFocused();
+
+    await dialog.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect.poll(() => sent.bodies.length).toBe(1);
+    expect((sent.bodies[0] as { recipients: string[] }).recipients).toEqual([
+      'jerome.lefevre@example.org',
+    ]);
   });
 });

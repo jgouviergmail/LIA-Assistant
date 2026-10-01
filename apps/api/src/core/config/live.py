@@ -34,6 +34,9 @@ from src.core.constants import (
     LIVE_SESSION_MAX_MINUTES_DEFAULT,
     LIVE_SESSION_MAX_MINUTES_MAX,
     LIVE_SESSION_MAX_MINUTES_MIN,
+    LIVE_STANDBY_MAX_SECONDS_DEFAULT,
+    LIVE_STANDBY_MAX_SECONDS_MAX,
+    LIVE_STANDBY_MAX_SECONDS_MIN,
     VOICE_DELEGATION_LEASE_WAIT_SECONDS_DEFAULT,
     VOICE_DELEGATION_RUN_TIMEOUT_SECONDS_DEFAULT,
 )
@@ -91,16 +94,25 @@ class LiveSettings(BaseSettings):
         ge=LIVE_IDLE_TIMEOUT_SECONDS_MIN,
         le=LIVE_IDLE_TIMEOUT_SECONDS_MAX,
         description=(
-            "Default silence after which the client ends the session (nobody speaks, LIA "
-            "neither, no delegation in flight, no provider processing) for a model whose "
-            "connector stores none; each model keeps its own, 0 meaning never."
+            "Default silence after which the client puts the session on standby (nobody "
+            "speaks, LIA neither, no delegation in flight, no provider processing) for a "
+            "model whose connector stores none; each model keeps its own, 0 meaning never."
         ),
     )
     live_hidden_grace_seconds: int = Field(
         default=LIVE_HIDDEN_GRACE_SECONDS_DEFAULT,
         ge=0,
         le=600,
-        description="Tab hidden longer than this ends the session (iOS suspends audio).",
+        description="Tab hidden longer than this puts the session on standby (iOS suspends audio).",
+    )
+    live_standby_max_seconds: int = Field(
+        default=LIVE_STANDBY_MAX_SECONDS_DEFAULT,
+        ge=LIVE_STANDBY_MAX_SECONDS_MIN,
+        le=LIVE_STANDBY_MAX_SECONDS_MAX,
+        description=(
+            "How long a live session may stay on standby — no provider connection, nothing "
+            "billed — before it ends as expired (ADR-329)."
+        ),
     )
     live_max_concurrent_sessions: int = Field(
         default=LIVE_MAX_CONCURRENT_SESSIONS_DEFAULT,

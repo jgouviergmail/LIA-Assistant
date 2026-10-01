@@ -101,3 +101,10 @@ nothing the user notices.
 - Startup: the push jobs (sync + sweep) live in
   `infrastructure/startup/scheduler_push.py`, listed in the jitter guard and
   the first-run guard next to `schedulers.py` (frozen file).
+
+## Amendment 2026-10-01 — nothing left to bypass (ADR-328)
+
+The heartbeat has no daily quota and no probabilistic pacing any more, so a wake
+runs under exactly the checker a tick runs under, and `skip_probabilistic_gate`
+is gone. In point 2, « daily quota » leaves the list of gates; the notification
+window and the global, cross-type and activity cooldowns still apply.

@@ -5,36 +5,6 @@ FROM node:24-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10.18.3 --activate
 
 # ============================================================================
-# Stage 0: Download Sherpa-onnx WASM runtime for voice mode (wake word)
-# ============================================================================
-FROM alpine:latest AS model-downloader
-
-RUN apk add --no-cache curl tar
-
-WORKDIR /models
-
-# Download sherpa-onnx WASM (VAD + ASR + Whisper Tiny.en bundled in .data)
-# Source: https://github.com/k2-fsa/sherpa-onnx/releases
-# The .data file bundles Silero VAD + Whisper Tiny.en models (~100MB)
-# No separate model download needed - everything is in the WASM package.
-ARG SHERPA_VERSION=1.12.32
-ARG SHERPA_TARBALL=sherpa-onnx-wasm-simd-${SHERPA_VERSION}-vad-asr-en-whisper_tiny.tar.bz2
-
-RUN curl -L -o /tmp/sherpa-wasm.tar.bz2 \
-    "https://github.com/k2-fsa/sherpa-onnx/releases/download/v${SHERPA_VERSION}/${SHERPA_TARBALL}" && \
-    mkdir -p sherpa-wasm && \
-    tar -xjf /tmp/sherpa-wasm.tar.bz2 -C /tmp && \
-    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-vad.js sherpa-wasm/ && \
-    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-asr.js sherpa-wasm/ && \
-    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-wasm-main-vad-asr.js sherpa-wasm/ && \
-    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-wasm-main-vad-asr.wasm sherpa-wasm/ && \
-    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-wasm-main-vad-asr.data sherpa-wasm/ && \
-    rm -rf /tmp/sherpa-wasm.tar.bz2 /tmp/sherpa-onnx-wasm-simd-*
-
-# Create wake words file
-RUN printf "ok\nokay\nguy\nguys\nok guy\nokay guy\nok guys\nokay guys\n" > keywords.txt
-
-# ============================================================================
 # Stage 1: Install dependencies
 # ============================================================================
 FROM base AS deps
@@ -176,12 +146,9 @@ COPY --from=builder --chown=nextjs:nodejs /monorepo/node_modules/.pnpm /monorepo
 # Copy static files (not included in standalone)
 # Next.js standalone looks for static files relative to server.js location (apps/web/)
 COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/.next/static ./apps/web/.next/static
+# `public/` carries the wake-word models (committed, ADR-329) and the ONNX
+# Runtime binary `pnpm run build` copied into `public/ort/<version>/`.
 COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/public ./apps/web/public
-
-# Copy sherpa-onnx WASM runtime for wake word detection (downloaded in model-downloader stage)
-# The .data file includes Silero VAD + Whisper Tiny.en (no separate model dir needed)
-COPY --from=model-downloader --chown=nextjs:nodejs /models/sherpa-wasm ./apps/web/public/models/sherpa-wasm
-COPY --from=model-downloader --chown=nextjs:nodejs /models/keywords.txt ./apps/web/public/models/keywords.txt
 
 USER nextjs
 EXPOSE 3000

@@ -60,7 +60,8 @@ never copied.
 | Server-Sent Events | **yes** |
 | Service Worker | **absent** — see the trade-off above |
 | Notifications / Push API | **absent** → push must be native, and on iOS that needs a relay (§5) |
-| `crossOriginIsolated` / `SharedArrayBuffer` | **absent** → no wake word (already the case in Safari) |
+| `crossOriginIsolated` / `SharedArrayBuffer` | **absent** — no longer a loss: the wake word does not need them (ADR-329) |
+| The wake word's engine (ONNX Runtime Web, single-threaded WASM in a module worker, ADR-329) | **to measure** — `task mobile:probe:*` reports `wake_runtime`; the engine needs neither `SharedArrayBuffer` nor isolation, so nothing in the shell's headers should refuse it |
 | `getUserMedia`, geolocation | **yes**, once the usage descriptions are declared |
 
 Re-measure on a macOS runner:
@@ -406,7 +407,8 @@ across locales).
 | `scheme App not found` on a runner | No shared scheme in the generated project | `-target App`, or share the scheme |
 | Google sign-in shows `disallowed_useragent` | OAuth attempted inside the WebView | `SFSafariViewController` + Universal Link + session handoff |
 | No offline page | No Service Worker without app-bound domains | Native offline screen — the accepted trade-off |
-| Voice mode has no wake word | No cross-origin isolation | Expected; also absent in Safari today |
+| Voice mode has no wake word | No model for the interface language, or the engine failed to load (`wake_runtime`) | The badge offers tap-to-speak; check the language and the probe's `wake_runtime` |
+| A live session asleep does not hear its phrase | The screen locked: a hidden page releases the wake word's microphone (ADR-329) | Keep the screen on — the band says so on an iPhone — or tap « Wake up » |
 
 ---
 

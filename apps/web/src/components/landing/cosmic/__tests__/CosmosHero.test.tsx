@@ -26,9 +26,33 @@ vi.mock('@/lib/showroom-config', () => ({
 }));
 
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
+import { LANDING_PLANETARIUM_ENABLED } from '../../constants';
 import { CosmosHero } from '../CosmosHero';
 
 const variantMock = vi.mocked(getPublicShowroomVariant);
+
+describe('CosmosHero — the planetarium switch', () => {
+  it('mounts no planetarium while the switch is off, and reserves no orbit zone for it', async () => {
+    const { queryByTestId, getByTestId, container } = render(
+      await CosmosHero({ lng: 'fr', planetarium: false })
+    );
+    expect(queryByTestId('planetarium')).not.toBeInTheDocument();
+    expect(getByTestId('chat-mockup')).toBeInTheDocument();
+    expect(container.querySelector('.cosmos-orbit-zone')).not.toBeInTheDocument();
+  });
+
+  it('mounts the planetarium around the mockup while the switch is on', async () => {
+    const { getByTestId, container } = render(await CosmosHero({ lng: 'fr', planetarium: true }));
+    expect(getByTestId('planetarium')).toBeInTheDocument();
+    expect(getByTestId('chat-mockup')).toBeInTheDocument();
+    expect(container.querySelector('.cosmos-orbit-zone')).toBeInTheDocument();
+  });
+
+  it('follows the landing switch by default', async () => {
+    const { queryByTestId } = render(await CosmosHero({ lng: 'fr' }));
+    expect(queryByTestId('planetarium') !== null).toBe(LANDING_PLANETARIUM_ENABLED);
+  });
+});
 
 describe('CosmosHero — guided demo CTA', () => {
   beforeEach(() => {

@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 2.2
-**Date**: 2026-09-30
-**Application**: LIA v2.2.0
+**Date**: 2026-10-02
+**Application**: LIA v2.3.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 54 functional domains | **785,000+** |
+| Source lines (excluding tests) — 54 functional domains | **800,000+** |
 | Automated tests, run on every commit and release | **48,000+** |
-| Documented architecture decisions (ADR) | **326** |
-| Versions shipped at a steady pace | **273** |
+| Documented architecture decisions (ADR) | **329** |
+| Versions shipped at a steady pace | **274** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -52,7 +52,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 326 documented:
+Three structural decisions, among the 329 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -70,6 +70,8 @@ A system flown on instruments:
 - **Compliance**: security reviewed endpoint by endpoint; personal data encrypted; account lifecycle aligned with the GDPR.
 
 The product makes its engineering choices visible at a human scale. A conversation follows a person across devices without disturbing what they are reading; a radio starts when they choose to listen and names the news it draws upon and what it costs. A generated file has a lifetime the person can extend deliberately. Scheduled work and condition checks have separate clocks. These are small, observable promises, backed by source records, limits and tests, rather than a claim that an assistant simply knows what the person wants.
+
+The same rule holds for what is not yet up to standard. The wake word "Dis LIA" is a small model trained offline and measured on a bench whose thresholds are published before training: the French model does not reach them yet, so it ships marked **beta**, and the product says so, rather than lowering the bar to be able to write "done". A voice session that falls asleep on a silence costs nothing, and only the person ends it.
 
 ## 6. The proof
 

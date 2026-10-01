@@ -6,7 +6,13 @@ import { describe, it, expect } from 'vitest';
 
 import { LIVE_RECONNECT_ATTEMPTS } from '@/lib/constants';
 
-import { closeDecision, isSessionOpen, transition, type LiveStatus } from '../session-machine';
+import {
+  closeDecision,
+  isSessionGone,
+  isSessionOpen,
+  transition,
+  type LiveStatus,
+} from '../session-machine';
 
 describe('live session machine', () => {
   it('walks the nominal path, reconnection included', () => {
@@ -50,8 +56,41 @@ describe('live session machine', () => {
     expect(closeDecision(1000, 'h', 0)).toBe('provider_closed');
   });
 
+  it('sleeps from a live session, or from a wake the provider refused, and wakes into a new connection (ADR-329)', () => {
+    expect(transition('live', 'standby')).toBe('standby');
+    // A wake refused twice goes back to sleep from its connection attempt.
+    expect(transition('connecting', 'standby')).toBe('standby');
+    for (const s of ['minting', 'reconnecting', 'ending', 'ended'] as const) {
+      expect(transition(s, 'standby')).toBe(s);
+    }
+    expect(transition('standby', 'wake')).toBe('connecting');
+    expect(transition('live', 'wake')).toBe('live');
+    // A sleeping session still ends, by the button or a failure, through ending.
+    expect(transition('standby', 'end')).toBe('ending');
+    expect(transition('standby', 'failed')).toBe('ending');
+    expect(transition('standby', 'ended')).toBe('ended');
+    // Nothing of a closed socket reaches a session asleep.
+    expect(transition('standby', 'socket_closed')).toBe('standby');
+  });
+
+  it('reads a 404 as the API no longer holding the session, and nothing else', () => {
+    expect(isSessionGone({ status: 404 })).toBe(true);
+    for (const error of [
+      { status: 409 },
+      { status: '404' },
+      new Error('x'),
+      null,
+      undefined,
+      404,
+    ]) {
+      expect(isSessionGone(error)).toBe(false);
+    }
+  });
+
   it('says which states hold a session (and the microphone)', () => {
-    const open: LiveStatus[] = ['connecting', 'live', 'reconnecting'];
+    // Asleep the session still holds the microphone — its wake word listens —
+    // and the classic voice loop stays aside.
+    const open: LiveStatus[] = ['connecting', 'live', 'reconnecting', 'standby'];
     const closed: LiveStatus[] = ['idle', 'minting', 'ending', 'ended'];
     for (const s of open) expect(isSessionOpen(s)).toBe(true);
     for (const s of closed) expect(isSessionOpen(s)).toBe(false);

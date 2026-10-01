@@ -58,10 +58,10 @@ import { LiveConnectorGroup } from './connectors/LiveConnectorGroup';
 import { isLiveConnectorType } from '@/lib/live/providers';
 import { bumpRevision } from '@/stores/revisionStore';
 import { DisconnectConnectorConfirm } from './connectors/DisconnectConnectorConfirm';
-import { BulkReconnectDialog } from './connectors/BulkReconnectDialog';
+import { BulkReconnectDialog } from '@/components/connectors/BulkReconnectDialog';
 import { BulkConnectAccountDialog } from './connectors/BulkConnectAccountDialog';
 import { OAuthErrorGroup } from './connectors/OAuthErrorGroup';
-import { useBulkReconnect } from './connectors/hooks/useBulkReconnect';
+import { useBulkReconnect } from '@/hooks/useBulkReconnect';
 import { CONNECTOR_LABELS, type ConnectorType } from '@/constants/connectors';
 import type { BaseSettingsProps } from '@/types/settings';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
@@ -565,7 +565,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
             connectors={errorOAuthConnectors}
             busy={bulkReconnect.busy}
             reconnectingConnector={reconnectingConnector}
-            onBulkReconnect={eligible => bulkReconnect.start('google', eligible)}
+            onBulkReconnect={candidates => bulkReconnect.start('google', candidates)}
             onReconnect={handleReconnect}
             t={t}
           />
@@ -576,7 +576,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
             connectors={errorMicrosoftConnectors}
             busy={bulkReconnect.busy}
             reconnectingConnector={reconnectingConnector}
-            onBulkReconnect={eligible => bulkReconnect.start('microsoft', eligible)}
+            onBulkReconnect={candidates => bulkReconnect.start('microsoft', candidates)}
             onReconnect={handleReconnect}
             t={t}
           />
@@ -1054,25 +1054,23 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
         onOpenChange={open => {
           if (!open) bulkConnect.closeAccountDialog();
         }}
-        onSubmit={grantId => { void bulkConnect.confirmAccount(grantId); }}
+        onSubmit={grantId => {
+          void bulkConnect.confirmAccount(grantId);
+        }}
         t={t}
       />
-      {bulkReconnect.dialogProvider && (
+      {bulkReconnect.dialog && (
         <BulkReconnectDialog
           open
           onOpenChange={open => {
-            if (!open) bulkReconnect.setDialogProvider(null);
+            if (!open) bulkReconnect.closeDialog();
           }}
-          provider={bulkReconnect.dialogProvider}
-          connectors={
-            bulkReconnect.dialogProvider === 'google'
-              ? errorOAuthConnectors.filter(row => row.connector_type !== 'gmail')
-              : errorMicrosoftConnectors
-          }
+          provider={bulkReconnect.dialog.provider}
+          connectors={bulkReconnect.dialog.candidates}
           busy={bulkReconnect.busy}
           onSubmit={types => {
-            if (bulkReconnect.dialogProvider) {
-              void bulkReconnect.submit(bulkReconnect.dialogProvider, types);
+            if (bulkReconnect.dialog) {
+              void bulkReconnect.submit(bulkReconnect.dialog.provider, types);
             }
           }}
           t={t}

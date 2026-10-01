@@ -1,0 +1,19 @@
+# Tool configuration of the wake-word toolbox (ADR-329). Its dependencies are
+# in requirements.in / requirements.lock.txt; this file configures the linters
+# only, aligned on the API's rules with the image's interpreter as the target.
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true

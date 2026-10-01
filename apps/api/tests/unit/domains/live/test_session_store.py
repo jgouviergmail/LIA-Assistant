@@ -9,7 +9,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.core.constants import LIVE_SESSION_MAX_MINUTES_DEFAULT
+from src.core.constants import (
+    LIVE_SESSION_MAX_MINUTES_DEFAULT,
+    LIVE_SESSION_RECORD_GRACE_SECONDS,
+)
 from src.domains.live.session_store import LiveSessionRecord, LiveSessionStore
 from tests.unit.domains.live.fakes import FakeRedis
 
@@ -273,3 +276,131 @@ async def test_a_release_takes_the_turns_with_the_record(
     await store.append_turns(user, [("user", "a")], ttl_seconds=30, max_rows=10)
     assert await store.release(user, "a") is True
     assert f"live:session:{user}:turns" not in redis.lists
+
+
+# -- the standby (ADR-329) -------------------------------------------------------
+
+_T0 = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+
+
+def _awake_record() -> LiveSessionRecord:
+    return replace(
+        _record(uuid.uuid4()),
+        started_at=_T0,
+        awake_since=_T0,
+        expires_at=_T0 + timedelta(minutes=10),
+    )
+
+
+def test_the_awake_time_is_the_sum_of_the_awake_stretches() -> None:
+    record = _awake_record()
+    assert record.awake_duration_seconds(_T0 + timedelta(seconds=90)) == 90
+    asleep = record.entering_standby(_T0 + timedelta(seconds=90), conversation_id=None)
+    assert asleep.in_standby and asleep.standbys == 1 and asleep.awake_seconds == 90
+    # Time asleep counts for nothing.
+    assert asleep.awake_duration_seconds(_T0 + timedelta(hours=3)) == 90
+    awake = asleep.waking(_T0 + timedelta(hours=3))
+    assert not awake.in_standby
+    assert awake.awake_duration_seconds(_T0 + timedelta(hours=3, seconds=30)) == 120
+
+
+def test_a_wake_shifts_the_cap_by_the_length_of_the_standby() -> None:
+    # The cap measures time AWAKE: three hours asleep leave the ten minutes of
+    # cap exactly where they were relative to the conversation.
+    record = _awake_record()
+    asleep = record.entering_standby(_T0 + timedelta(minutes=4), conversation_id=None)
+    awake = asleep.waking(_T0 + timedelta(hours=3, minutes=4))
+    assert awake.expires_at == record.expires_at + timedelta(hours=3)
+    assert awake.awake_since == _T0 + timedelta(hours=3, minutes=4)
+
+
+def test_every_conversation_a_wire_named_is_kept_once_in_order() -> None:
+    record = _awake_record()
+    first = record.entering_standby(_T0 + timedelta(minutes=1), conversation_id="conv_a")
+    again = first.waking(_T0 + timedelta(minutes=2)).entering_standby(
+        _T0 + timedelta(minutes=3), conversation_id="conv_b"
+    )
+    repeated = again.waking(_T0 + timedelta(minutes=4)).entering_standby(
+        _T0 + timedelta(minutes=5), conversation_id="conv_b"
+    )
+    assert repeated.provider_conversation_ids == ("conv_a", "conv_b")
+    assert repeated.standbys == 3
+
+
+def test_a_record_asleep_lives_to_the_standby_bound_and_awake_to_its_cap() -> None:
+    record = _awake_record()
+    now = _T0 + timedelta(minutes=2)
+    assert record.life_seconds(now, standby_max_seconds=3600) == record.remaining_life_seconds(now)
+    asleep = record.entering_standby(now, conversation_id=None)
+    assert asleep.standby_deadline(3600) == now + timedelta(seconds=3600)
+    later = now + timedelta(minutes=10)
+    # Asleep, the record outlives the standby bound by the closing grace —
+    # whatever the cap says, which no longer runs.
+    assert asleep.life_seconds(later, standby_max_seconds=3600) == (
+        50 * 60 + LIVE_SESSION_RECORD_GRACE_SECONDS
+    )
+    # Past the bound the record still gets a positive life (it is about to go).
+    assert asleep.life_seconds(now + timedelta(hours=5), standby_max_seconds=3600) >= 1
+
+
+def test_the_standby_fields_round_trip_and_read_awake_when_absent() -> None:
+    record = _awake_record().entering_standby(_T0 + timedelta(minutes=1), conversation_id="c1")
+    assert LiveSessionRecord.from_json(record.to_json()) == record
+    # A record written by the previous release has never slept.
+    bare = json.loads(_awake_record().to_json())
+    for key in ("standby_since", "awake_since", "awake_seconds", "standbys"):
+        del bare[key]
+    del bare["provider_conversation_ids"]
+    older = LiveSessionRecord.from_json(json.dumps(bare))
+    assert not older.in_standby and older.standbys == 0 and older.awake_seconds == 0
+    assert older.awake_duration_seconds(_T0 + timedelta(seconds=5)) == 5
+    assert older.provider_conversation_ids == ()
+
+
+async def test_the_standby_drains_the_kept_turns_atomically(
+    store: LiveSessionStore, redis: FakeRedis
+) -> None:
+    # The rows are taken and removed in one command: a turn kept after the
+    # drain belongs to the next connection, never relayed twice.
+    user = uuid.uuid4()
+    assert await store.claim(_record(user), ttl_seconds=600) is True
+    await store.append_turns(user, [("user", "a"), ("assistant", "b")], ttl_seconds=600, max_rows=9)
+    assert await store.drain_turns(user, max_rows=9) == [("user", "a"), ("assistant", "b")]
+    assert await store.turns(user) == []
+    assert await store.drain_turns(user, max_rows=9) == []
+    await store.append_turns(user, [("user", "c")], ttl_seconds=600, max_rows=9)
+    assert await store.drain_turns(user, max_rows=9) == [("user", "c")]
+
+
+async def test_the_standby_relay_fates_are_kept_in_order_with_the_record(
+    store: LiveSessionStore, redis: FakeRedis
+) -> None:
+    user = uuid.uuid4()
+    record = _record(user, "a")
+    assert await store.claim(record, ttl_seconds=600) is True
+    await store.append_relay(user, "answered", None, ttl_seconds=500)
+    await store.append_relay(user, "quota_blocked", "the recap", ttl_seconds=400)
+    assert await store.relays(user) == [("answered", None), ("quota_blocked", "the recap")]
+    assert redis.ttls[f"live:session:{user}:relays"] == 400
+    # A rewrite of the record with a new life carries the fates along.
+    assert await store.extend(replace(record, extensions=1), ttl_seconds=900) is True
+    assert redis.ttls[f"live:session:{user}:relays"] == 900
+    # A new session starts without the fates of a dead one; a release takes them.
+    assert await store.release(user, "a") is True
+    assert f"live:session:{user}:relays" not in redis.lists
+    redis.lists[f"live:session:{user}:relays"] = [json.dumps(["failed", None])]
+    assert await store.claim(_record(user, "b"), ttl_seconds=60) is True
+    assert await store.relays(user) == []
+
+
+async def test_an_extension_carries_the_lookup_budget_with_the_record(
+    store: LiveSessionStore, redis: FakeRedis
+) -> None:
+    # The counter was given the record's life at the first lookup; a session
+    # extended (or asleep) past it would find its counter reset to zero.
+    user = uuid.uuid4()
+    record = _record(user, "a")
+    assert await store.claim(record, ttl_seconds=600) is True
+    await store.consume_tool_budget(record.session_id, limit=5, ttl_seconds=600)
+    assert await store.extend(replace(record, extensions=1), ttl_seconds=3000) is True
+    assert redis.ttls[f"live_tools:{record.session_id}"] == 3000

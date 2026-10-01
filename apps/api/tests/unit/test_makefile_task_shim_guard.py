@@ -24,7 +24,6 @@ _MAKE_ONLY = {
     "prod-logs",
     "clean",
     "clean-models",
-    "download-models",
     "prune",
     "shell-web",
     "help",

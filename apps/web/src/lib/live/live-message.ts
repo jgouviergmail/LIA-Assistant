@@ -26,6 +26,10 @@ export interface LiveSummaryFigures {
   relay: LiveRelayFate | null;
   /** The recap of the words when the relay could not run — so nothing said is lost; null otherwise. */
   relaySummary: string | null;
+  /** How many times the session went to sleep (ADR-329). */
+  standbys: number;
+  /** The recaps of the words a standby's relay could not deliver (a DIRECT session). */
+  standbyRecaps: string[];
 }
 
 type Metadata = Record<string, unknown> | undefined;
@@ -68,6 +72,13 @@ export function liveSummaryOf(metadata: Metadata): LiveSummaryFigures {
       typeof session.relay_summary === 'string' && session.relay_summary.trim()
         ? session.relay_summary.trim()
         : null,
+    standbys: asNumber(session.standbys),
+    standbyRecaps: Array.isArray(session.standby_recaps)
+      ? session.standby_recaps
+          .filter((recap): recap is string => typeof recap === 'string')
+          .map(recap => recap.trim())
+          .filter(Boolean)
+      : [],
   };
 }
 
@@ -87,6 +98,8 @@ export const LIVE_ERROR_CODES = [
   'mode_unsupported',
   'session_not_found',
   'session_expired',
+  'session_awake',
+  'session_standby',
   'credential_invalid',
   'unsupported_browser',
   'key_ip_restricted',
@@ -97,6 +110,11 @@ export type LiveErrorCode = (typeof LIVE_ERROR_CODES)[number];
 const CODED_ERRORS: ReadonlySet<string> = new Set(LIVE_ERROR_CODES);
 
 /** The i18n key of a start failure: its code when the API named one, else the generic line. */
+/** A wake the session could not complete: a coded refusal names itself, anything else is generic. */
+export function wakeRefusalKey(code: string | null): string {
+  return code && CODED_ERRORS.has(code) ? `live.error.${code}` : 'live.wake.refused';
+}
+
 export function liveErrorKey(error: string | null): string {
   // Gemini's ephemeral token is used by the browser itself. A key restricted
   // to the API server's IP can mint the token, then Google rejects the phone's

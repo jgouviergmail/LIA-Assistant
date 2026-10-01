@@ -59,7 +59,8 @@ headers** — the probe imports them from
 | Server-Sent Events | **yes** — the chat rail works |
 | Service Worker (offline shell, ADR-146) | **yes**, scope `/` |
 | Notifications / Push API | **absent** → push must be native |
-| `crossOriginIsolated` / `SharedArrayBuffer` | **absent**, even under COEP `require-corp` → **no wake word** |
+| `crossOriginIsolated` / `SharedArrayBuffer` | **absent**, even under COEP `require-corp` — no longer a loss: the wake word does not need them (ADR-329) |
+| The wake word's engine (ONNX Runtime Web, single-threaded WASM in a module worker, ADR-329) | **to measure** — `task mobile:probe:*` reports `wake_runtime`; the engine needs neither `SharedArrayBuffer` nor isolation, so nothing in the shell's headers should refuse it |
 | `getUserMedia`, `MediaRecorder`, geolocation | **yes** — the API exists; an actual capture also needs `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS` in the manifest overlay (`apps/mobile/native/android/…/AndroidManifest.xml`), which Capacitor checks before granting the WebView's `AUDIO_CAPTURE` request. The bench only measures presence. |
 | Outbound WebSocket to the live provider under the production `connect-src` (ADR-299) | **to measure** — `task mobile:probe:*` now reports `external_websocket`: `open` or `error` (the provider refuses a handshake without a credential, which is fine); `blocked:*` would mean the policy or the engine refused the socket before it left the page |
 | A WebRTC offer with a data channel (the GPT-Live wire, ADR-300) and an AudioWorklet module from a `blob:` URL (the live PCM player) under the production CSP | `task mobile:probe:*` reports `webrtc_offer` (`offer` expected) and `audio_worklet_blob` (`loaded` expected) — **measured on Android 2026-09-19: `offer` and `loaded`** |
@@ -73,10 +74,13 @@ Two consequences worth stating plainly:
   runtime** with options your own server publishes, so notifications come from
   the Firebase project **you** own. Nothing passes through the app's publisher
   — unlike iOS, which has no such option (see the iOS guide).
-- **The wake word is lost.** `isSherpaKwsSupported()` returns false without
-  cross-origin isolation and voice mode degrades to tap-to-speak. This is a
-  regression against the PWA, which keeps the wake word in Chrome. It is not a
-  header choice — `require-corp` was measured and changes nothing.
+- **The wake word no longer depends on isolation** (ADR-329). The previous
+  engine required cross-origin isolation, which the WebView never grants — even
+  under `require-corp`, measured twice — so the shell fell back to tap-to-speak.
+  The current engine runs single-threaded WebAssembly in a worker and needs no
+  shared memory; whether it runs in this WebView is what the probe's
+  `wake_runtime` measures, not yet measured on a device. A live session asleep
+  hears its phrase only while the page is visible.
 
 Re-measure at any time:
 
@@ -395,7 +399,7 @@ not supported by the QEMU2 emulator"). Install `system-images;android-NN;google_
 | Signed out on every launch | Cookie flush window | The native `flush()` on pause |
 | Google sign-in shows `disallowed_useragent` | OAuth attempted inside the WebView | System browser + deep link + session handoff |
 | TLS refused on API 37 | Certificate not CT-logged | Use a publicly-trusted, CT-logged certificate |
-| Voice mode has no wake word | No cross-origin isolation in WebView | Expected; tap-to-speak is the documented fallback |
+| Voice mode has no wake word | No model for the interface language, or the engine failed to load (`wake_runtime`) | The badge offers tap-to-speak; check the language and the probe's `wake_runtime` |
 | No push | Web push does not exist in a WebView | Native FCM, `device_type='android'` |
 
 ---

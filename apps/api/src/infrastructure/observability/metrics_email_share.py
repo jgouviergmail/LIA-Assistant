@@ -15,3 +15,10 @@ email_shares_total = Counter(
     #          unavailable | reconnect | refused | failed
     ["route", "outcome"],
 )
+
+email_share_recipient_directory_reads_total = Counter(
+    "email_share_recipient_directory_reads_total",
+    "Address-book reads behind the recipient suggestions of « Send by e-mail »",
+    # outcome: live (a provider was read) | cached | no_connector | failed | timeout
+    ["outcome"],
+)

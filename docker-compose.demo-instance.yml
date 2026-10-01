@@ -234,6 +234,9 @@ services:
     environment:
       - NODE_ENV=production
       - APP_URL_SERVER=${APP_URL_SERVER}
+      # Landing video (ADR-330): empty on the demonstrator unless it points at
+      # a media directory of its own.
+      - LANDING_MEDIA_BASE_URL=${LANDING_MEDIA_BASE_URL:-}
     read_only: true
     tmpfs:
       - /tmp

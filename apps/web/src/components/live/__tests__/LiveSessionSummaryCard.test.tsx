@@ -104,4 +104,49 @@ describe('LiveSessionSummaryCard', () => {
       'The person asked for a reminder on Thursday.'
     );
   });
+
+  it('says how many times the session slept, and nothing when never (ADR-329)', () => {
+    const { unmount } = renderWithProviders(
+      <LiveSessionSummaryCard
+        metadata={{ ...SUMMARY, live_summary: { ...SUMMARY.live_summary, standbys: 2 } }}
+      />
+    );
+    expect(screen.getByText(/live\.summary\.standbys/)).toBeInTheDocument();
+    unmount();
+    renderWithProviders(<LiveSessionSummaryCard metadata={SUMMARY} />);
+    expect(screen.queryByText(/live\.summary\.standbys/)).not.toBeInTheDocument();
+  });
+
+  it("quotes every standby's recap of a DIRECT session before the closing one, never on a delegated one", () => {
+    const { unmount } = renderWithProviders(
+      <LiveSessionSummaryCard
+        metadata={{
+          ...SUMMARY,
+          live_summary: {
+            ...SUMMARY.live_summary,
+            mode: 'direct',
+            standbys: 2,
+            standby_recaps: ['First stretch: the weather.', 'Second stretch: a reminder.'],
+            relay: 'busy',
+            relay_summary: 'Last stretch: an e-mail.',
+          },
+        }}
+      />
+    );
+    expect(screen.getAllByTestId('live-session-recap').map(node => node.textContent)).toEqual([
+      'First stretch: the weather.',
+      'Second stretch: a reminder.',
+      'Last stretch: an e-mail.',
+    ]);
+    unmount();
+    renderWithProviders(
+      <LiveSessionSummaryCard
+        metadata={{
+          ...SUMMARY,
+          live_summary: { ...SUMMARY.live_summary, standby_recaps: ['Not quoted.'] },
+        }}
+      />
+    );
+    expect(screen.queryByTestId('live-session-recap')).not.toBeInTheDocument();
+  });
 });

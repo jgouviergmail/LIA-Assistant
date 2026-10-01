@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 5.1
-**Date**: 2026-09-30
-**Application**: LIA v2.2.0
+**Date**: 2026-10-02
+**Application**: LIA v2.3.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 612 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 326 ADRs, 48,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Full transparency | 616 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 329 ADRs, 48,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -92,8 +92,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 48,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 326 |
-| Prometheus metrics | 612 definitions |
+| ADRs (Architecture Decision Records) | 329 |
+| Prometheus metrics | 616 definitions |
 | Grafana dashboards | 30 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -846,6 +846,10 @@ Listing a message's attachments is a metadata read; opening one is a download, a
 
 The bytes are read by a module that touches no client. The MIME type comes from the magic bytes, the sender's header being only a fallback; a document goes through the knowledge spaces' own extraction (fifteen formats) in a worker thread; a picture, or a PDF whose pages carry images and no text layer, is rendered to a bounded, downscaled set of PNG pages and handed to the vision slot — the raster itself is bounded, a page 200 inches a side must not allocate gigabytes before any downscale — and a cut page set is stated to the model rather than read as the whole. The vision call is the turn's spend, travelling on the runtime's own configuration so the account's and the instance's ceilings both see it; a quota refusal is « skipped », never « failed », and a truncated answer is a refusal. The bound on size travels down to the client, so a part the listing already says is too large is refused before a single byte moves. What comes back is served in parts like a mail body and wrapped as external content, its file name escaped inside the tag — an attachment is what a stranger sent, and so is its name.
 
+### An address book read whole, matched once
+
+Typing a recipient in "Send by e-mail" suggests the person's contacts. The three providers each search their own way — three ways of matching a name —, so every contacts client reads the **whole book** behind one interface (Google People's pagination with every parameter repeated, Graph's `@odata.nextLink`, the CardDAV cache), under a declared ceiling whose cut is stated. The book is compacted — names, addresses, numbers —, cached in a declared Redis family with a version stamp, built once across workers and dropped by every contacts write; a keystroke reads the stamp first and opens neither the book nor the connector when that version is already projected. Matching has one implementation: names through the product's identity folding, addresses through their normalised form, digits through the telephony domain's number variants. Reading the book is a consultation in the register, never on a cache hit, and nothing of a contact reaches a log.
+
 ---
 
 ## 14. MCP: Model Context Protocol
@@ -880,7 +884,7 @@ Two facts travel with each server as data, never as prompt prose. A user server 
 
 ### 15.1. STT
 
-Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmission). Whisper Small transcription (99+ languages, offline) server-side via ThreadPoolExecutor. Per-user STT language; per worker, a bounded LRU cache of `OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, one by default) — nothing loaded at construction, the first transcription pays the load for its language, an eviction returns memory to the system, and the resident count is published per worker (`voice_stt_recognizers_loaded`).
+Wake word "Dis LIA": the openWakeWord architecture — a shared melspectrogram and embedding, plus a small classifier per phrase — trained offline on synthetic voices and permissively licensed corpora, run by ONNX Runtime Web in a worker (single-threaded WASM: no `SharedArrayBuffer`, no isolation, so iOS and the native shells too; zero external transmission). Every file is named after its SHA-256 and checked before it runs; a second classifier over the same embeddings hears "Stop" and cuts the reading. A bench publishes its thresholds before training and never lowers them: the French model, the only one shipped, is declared **beta** because it does not reach them yet, and a guard holds that status to the bench's verdict both ways (ADR-329). Whisper Small transcription (99+ languages, offline) server-side via ThreadPoolExecutor. Per-user STT language; per worker, a bounded LRU cache of `OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, one by default) — nothing loaded at construction, the first transcription pays the load for its language, an eviction returns memory to the system, and the resident count is published per worker (`voice_stt_recognizers_loaded`).
 
 **Latency optimizations**: KWS → recording microphone stream reuse (~200-800 ms saved), WebSocket pre-connection, `getUserMedia` + WS parallelized via `Promise.allSettled`, AudioWorklet Worklet cache.
 
@@ -937,7 +941,7 @@ The reminder's sentence follows the same rule as any short answer: it is asked f
 
 ### 16.4. A push notification that leads to a decision
 
-A push channel that only invalidated caches would buy freshness for a card nobody opened. A processed notification therefore **queues a wake** — `SET NX` per (user, provider), so a storm is one wake dated by the first — and the webhook still answers 200 without deciding anything. A short leader-elected sweep serves the queue under the **full** eligibility checker: window, quota, cooldowns, the user's source preference. Only the "guaranteed minimum" smoothing is bypassed, because a wake answers an event.
+A push channel that only invalidated caches would buy freshness for a card nobody opened. A processed notification therefore **queues a wake** — `SET NX` per (user, provider), so a storm is one wake dated by the first — and the webhook still answers 200 without deciding anything. A short leader-elected sweep serves the queue under the **full** eligibility checker: window, cooldowns, the user's source preference — the heartbeat has neither a daily quota nor a probabilistic smoothing; the decision is the judge (ADR-328).
 
 The mail delta is **previewed, never consumed** until the wake is served, so a refused wake leaves the message for the next tick — the two Gmail anchors stay distinct on purpose (the channel's is the last event *seen*, the heartbeat's the last mail *consumed*). The pre-filter is deterministic and published as settings: a required label, excluded categories, list mail out; an event starting within the lookahead, changed by someone else or awaiting the user's answer. And the decision knows why it was woken: a FRESH line opens its context, and the audit row persists `trigger = push | tick`, which the history renders.
 
@@ -947,7 +951,7 @@ A Drive change is not a decision at all: it drains the changes feed from the cha
 
 The heartbeat is **periodic**: it cannot return to an instant. A meeting ends at 15:00, the next pass falls at 15:22 on a batch the account may not be in, and the context's calendar window starts at `now` and looks forward — a finished meeting is invisible to the decision. A `proactive_moments` table therefore holds the instants: one row per account and per source, unique on `(account, kind, source)` so a meeting never produces two moments, filed by a detector and served by a single sweep — jittered, under a scheduler lock whose TTL is tied to the interval. The claim is a `FOR UPDATE SKIP LOCKED` followed by a conditional `UPDATE` in the same transaction, with an owner token; a claim nobody settled is **reclaimed** after its lease, never left immortal. Before it is served, a moment is **revalidated**: a cancelled meeting, a declined one, or a person who has already written — it is dropped.
 
-A moment runs under the **full** eligibility checker and bypasses only the probabilistic smoothing and the learned rhythm — exactly like a push-driven wake, and for the same reason: an instant does not defer. The question is **asked, never the evaluation**: one open question, at most two facts, no judgement, never two moments stacked nor the same question twice. The in-meeting guard reads the calendar behind a Redis verdict cache and records no consultation on a hit; a failed read declares itself `failed`. Control ships with the capability: one switch per kind, the capability's own switch, a counter per kind and outcome and a "due → notified" latency on the heartbeat dashboard, and `task moments:preflight`, which says what an account would be offered, without writing anything.
+A moment runs under the **full** eligibility checker and bypasses only the learned rhythm — exactly like a push-driven wake, and for the same reason: an instant does not defer. The question is **asked, never the evaluation**: one open question, at most two facts, no judgement, never two moments stacked nor the same question twice. The in-meeting guard reads the calendar behind a Redis verdict cache and records no consultation on a hit; a failed read declares itself `failed`. Control ships with the capability: one switch per kind, the capability's own switch, a counter per kind and outcome and a "due → notified" latency on the heartbeat dashboard, and `task moments:preflight`, which says what an account would be offered, without writing anything.
 
 The same wake serves the **watches**: a condition routine "mail from this sender" would otherwise wait up to two hours for the executor's pass; the wake, which already holds the Gmail delta, serves it before the pre-filter's verdict — the pre-filter answers "is this worth a wake", a watch answers "is this what I am waiting for". It never runs the routine: it advances its due time, the executor stays the sole judge, and it arms past the published search-cache TTL, because a cache filled before the mail arrived would answer "not met" and that verdict consumes the arming. A finished routine **closes** (`is_enabled = false`, `status = completed`) — its end has one authority, the `SeriesEnd` already stored. And the briefing's "Watch" chip writes that routine, keyed on the sender and never the subject, after reading what the account already holds.
 
@@ -1093,7 +1097,7 @@ A generated file's deadline is nullable: a person may keep it within published p
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 612 custom metrics (RED pattern) |
+| Prometheus | 616 custom metrics (RED pattern) |
 | Grafana | 30 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1101,7 +1105,7 @@ A generated file's deadline is nullable: a person may keep it within published p
 | Alertmanager | 29-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 612 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 616 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1180,6 +1184,10 @@ emits.
 | Semantic Embeddings | High precision multilingual routing | Depends on API provider availability |
 | Parallel Execution | Latency = max(steps) | Dependency management complexity |
 | Context Compaction | ~60% per compaction | Information loss (mitigated by ID preservation) |
+
+### A public page does no work per request
+
+The public pages are prerendered and host-neutral: nothing deployment-specific enters the image. The blog's illustrations are therefore **pre-generated** — four WebP widths and a social image per article, served as they are: a static file is cached at the network edge by its extension, whereas an image-optimizer response never is, and an on-demand resize cost up to several seconds on the Raspberry Pi. The landing video, for its part, is **declared by the operator at run time** (`LANDING_MEDIA_BASE_URL`, a manifest read behind a timeout and a cache): without it, the section does not exist. A single `<video>` element lives for the whole visit, mounted by the layout and only framed, docked or hidden depending on the page; its titles beat on a beat map computed offline — calibrated onsets, bar downbeats voted locally — read from the presented frame's clock, never a microphone. The motion falls silent under `prefers-reduced-motion` (ADR-330).
 
 ---
 
@@ -1508,7 +1516,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-326 ADRs in MADR format document the major architectural decisions. Some representative examples:
+329 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1849,14 +1857,16 @@ A **direct session** is the phone's line in the browser: the voice holds LIA's r
 
 The same two modes hold for the phone (ADR-301): relaying the conversation at its *end* on one line while delegating every request *during* it on the other would make two truths for one word. A voice session therefore has a **mode** and a **carrier**, and the policy follows the mode alone: `delegated` (« Live »), every request a chat turn of the person as it is said; `direct` (« Live direct »), the voice reads, acts on nothing, and the words are relayed at the end as the person's own turn. **One closing** serves both lines, called by the browser's end route and the phone's post-call webhook; what the lines share lives outside both, in `domains/voice_sessions/`, and the phone's Live mode is the browser's delegation server-side — an asynchronous vendor tool with the browser's own name and schema, a bridge that mirrors the TypeScript one rule for rule (the newest request wins through a Redis marker the running bridge polls; a question LIA asked is the result and the next request resumes the run that asked). On the vendor's engine the voice announces the call and keeps talking, and a late answer past its bound is lost: the bridge therefore answers before it. The effective mode is derived and published — Live exists only where the callback host is public — and a runner holds no database session across the turn, so no connection sits `idle in transaction` while it talks to the model.
 
+**A session sleeps, it does not die** (ADR-329). The model's silence, a hidden page or the person's button put the session to sleep: the browser closes the connection to the provider — nothing runs or bills — then says so; the record stays claimed, lives to a long standby bound instead of its cap, and moves from the instance's active sessions to its standby set. Only the person ends a session. A wake opens a **new** connection: the API refuses in order (awake already, cap, mint rate, instance cap), **re-renders the setup** at the instant of the wake through the start's own function — the spoken clock, the inner state, the current switches —, mints the credential, and only then writes the record awake: a refusal leaves the session asleep exactly as it was. The memory is the application's, never the provider's; the cap is shifted by the length of the sleep, so every figure — card, decision row, histogram, meter — counts time awake, and a direct session relays its words at each standby. In the browser, a policy (`LiveStandby`) borrows the controller's wire, listens for "Dis LIA" on a capture of its own while the page is visible, and checks after every wait that the session is still the one the store holds.
+
 ---
 
 ## 44. Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 326 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 48,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 329 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 48,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 326 ADRs, and the changelog (v1.0 to v2.2.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 329 ADRs, and the changelog (v1.0 to v2.3.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

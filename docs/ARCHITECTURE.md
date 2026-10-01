@@ -3282,14 +3282,14 @@ data/skills/
 │       │                                                              │
 │       ▼                                                              │
 │  ┌──────────────────────────────────────────────────────────────┐   │
-│  │ MediaRecorder → AudioWorklet → SharedArrayBuffer             │   │
+│  │ getUserMedia → AudioWorklet (PCM 16 kHz, sans isolation)     │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │       │                    │                    │                    │
 │       ▼                    ▼                    ▼                    │
 │  ┌──────────┐      ┌──────────────┐      ┌──────────────┐          │
-│  │ KWS WASM │      │   VAD WASM   │      │   STT API    │          │
-│  │ Sherpa   │      │   Silero     │      │  Whisper     │          │
-│  │ "OK"     │      │   0.5 seuil  │      │  Small       │          │
+│  │ Wake ONNX│      │   VAD WASM   │      │   STT API    │          │
+│  │ worker   │      │   Silero     │      │  Whisper     │          │
+│  │ Dis LIA β│      │   0.5 seuil  │      │  Small       │          │
 │  └──────────┘      └──────────────┘      └──────────────┘          │
 │       │                    │                    │                    │
 │       ▼                    ▼                    ▼                    │
@@ -3345,7 +3345,8 @@ VOICE_LLM_MODEL=gpt-4.1-nano
 VOICE_CHAT_MODE_MAX_SENTENCES=3   # 1..50 cap on sentence streaming
 
 # Wake Word : pas de variable d'environnement (VOICE_WAKE_WORD_ENABLED et
-# VOICE_VAD_THRESHOLD n'existent pas). Le modele WASM est pilote cote client.
+# VOICE_VAD_THRESHOLD n'existent pas). Le modele ONNX (francais, beta) est
+# pilote cote client (ADR-329).
 # Variables voix reellement exposees : grep '^VOICE_' .env.example
 ```
 
@@ -3722,14 +3723,15 @@ async with TrackingContext(user_id, run_id) as tracker:
 
 - **Détection changements météo** : début/fin pluie, chute température, alerte vent (seuils configurables)
 - **Anti-redondance** : historique récent + cross-type dedup heartbeat ↔ intérêts
-- **Push aligné sur l'opt-in global** (v1.27.11) : le runner n'interroge plus `heartbeat_push_enabled` — FCM/Telegram suivent l'activation générale des notifications (archive + SSE toujours). Le champ reste en base et dans l'API pour compatibilité, sans effet.
+- **Push aligné sur l'opt-in global** (v1.27.11) : FCM/Telegram suivent l'activation générale des notifications (archive + SSE toujours) ; plus aucun interrupteur par fonctionnalité.
+- **Pas de quota quotidien** ([ADR-328](architecture/ADR-328-Heartbeat-Without-A-Daily-Quota.md)) : le modèle de décision juge la pertinence de chaque passage ; la plage horaire et les cooldowns bornent seuls le rythme.
 - **Plages horaires dédiées** : `heartbeat_notify_start_hour` / `heartbeat_notify_end_hour` (indépendantes des intérêts)
 - **Early-exit** : skip si utilisateur inactif > N jours (économie tokens)
 - **Continuité conversationnelle** : résumé stocké dans LangGraph Store (write-only v1)
 
 **Infrastructure réutilisée** : `ProactiveTask` Protocol, `EligibilityChecker`, `ProactiveTaskRunner`, `NotificationDispatcher`, `SchedulerLock`, `SchedulerLeaderElector`, `get_structured_output()`, `PersonalityService`.
 
-**Table** : `heartbeat_notifications` (audit trail immuable) + 5 colonnes User (heartbeat_enabled, heartbeat_max_per_day, heartbeat_push_enabled, heartbeat_notify_start_hour, heartbeat_notify_end_hour).
+**Table** : `heartbeat_notifications` (audit trail immuable) + 3 colonnes User (heartbeat_enabled, heartbeat_notify_start_hour, heartbeat_notify_end_hour).
 
 > Voir [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) pour la documentation complète.
 

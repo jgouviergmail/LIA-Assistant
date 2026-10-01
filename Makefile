@@ -13,7 +13,7 @@
 
 .PHONY: setup dev dev-up dev-down dev-restart dev-rebuild prod-build prod-up \
         prod-down prod-logs logs logs-api logs-web clean clean-models \
-        download-models prune test-api test-web shell-api shell-web db-shell \
+        prune test-api test-web shell-api shell-web db-shell \
         redis-cli help
 
 .DEFAULT_GOAL := help
@@ -102,16 +102,10 @@ clean:
 	@docker compose -f docker-compose.prod.yml down -v 2>/dev/null || true
 	@echo "Cleaned up."
 
-## clean-models: Remove downloaded ML models
+## clean-models: Remove downloaded or derived ML files (the wake-word models are committed)
 clean-models:
 	rm -rf apps/api/models/whisper-small
-	rm -rf apps/web/public/models/whisper-tiny-en
-	rm -rf apps/web/public/models/sherpa-wasm/*.wasm
-	rm -rf apps/web/public/models/sherpa-wasm/*.data
-
-## download-models: Download all ML models
-download-models:
-	@bash scripts/download-whisper-wasm-model.sh
+	rm -rf apps/web/public/ort
 
 ## prune: Docker system prune
 prune:

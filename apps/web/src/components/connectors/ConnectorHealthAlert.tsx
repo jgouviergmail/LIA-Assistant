@@ -31,7 +31,13 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { initiateOAuthReconnect } from '@/lib/connector-reconnect';
+import { alertBulkGroups, type BulkGroup } from '@/lib/connectors/bulk-reconnect';
+import { useBulkReconnect } from '@/hooks/useBulkReconnect';
+import { BulkReconnectDialog } from './BulkReconnectDialog';
 import { ConnectorHealthBanner } from './ConnectorHealthBanner';
+
+/** Where a health item keeps its account address. */
+const emailOf = (item: ConnectorHealthItem) => item.oauth_account_email;
 
 interface ConnectorHealthAlertProps {
   lng: Language;
@@ -62,6 +68,16 @@ export function ConnectorHealthAlert({ lng }: ConnectorHealthAlertProps) {
     isAuthenticated: !!user,
     onCritical: handleCritical,
   });
+  // « Reconnect my Google services », as « My connectors » offers it, once two
+  // joinable rows of one provider are down. The marker makes the health hook
+  // refetch on return, exactly as a single reconnection does.
+  const bulk = useBulkReconnect(t, { onBeforeRedirect: markReconnectPending });
+  const startBulk = (group: BulkGroup) => {
+    // An account choice opens its own dialog: never two stacked modals.
+    setShowModal(false);
+    bulk.start(group.provider, group.candidates);
+  };
+  const modalGroups = alertBulkGroups(modalConnectors, emailOf);
 
   // Auto-close modal when all critical connectors are resolved
   useEffect(() => {
@@ -101,42 +117,82 @@ export function ConnectorHealthAlert({ lng }: ConnectorHealthAlertProps) {
         t={t}
         reconnecting={reconnecting !== null}
         onReconnect={handleReconnect}
+        bulkGroups={alertBulkGroups(criticalConnectors, emailOf)}
+        bulkBusy={bulk.busy}
+        onBulkReconnect={startBulk}
       />
+      {bulk.dialog && (
+        <BulkReconnectDialog
+          open
+          onOpenChange={open => {
+            if (!open) bulk.closeDialog();
+          }}
+          provider={bulk.dialog.provider}
+          connectors={bulk.dialog.candidates}
+          busy={bulk.busy}
+          onSubmit={types => {
+            if (bulk.dialog) void bulk.submit(bulk.dialog.provider, types);
+          }}
+          t={t}
+        />
+      )}
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            {t('settings.connectors.health.modal_title')}
-          </DialogTitle>
-          <DialogDescription>{t('settings.connectors.health.modal_description')}</DialogDescription>
-        </DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              {t('settings.connectors.health.modal_title')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('settings.connectors.health.modal_description')}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-3 py-4">
-          {modalConnectors.map(connector => (
-            <div
-              key={connector.id}
-              className="flex flex-col gap-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-destructive font-medium">{connector.display_name}</span>
-                <span className="text-sm text-muted-foreground">- {getStatusText(connector)}</span>
-              </div>
+          <div className="space-y-3 py-4">
+            {modalGroups.map(group => (
               <Button
-                size="sm"
-                variant="outline"
+                key={group.provider}
                 className="w-full"
-                disabled={reconnecting === connector.id}
-                onClick={() => handleReconnect(connector.id, connector.authorize_url)}
+                aria-disabled={bulk.busy || undefined}
+                onClick={() => {
+                  if (!bulk.busy) startBulk(group);
+                }}
               >
-                <ExternalLink className="h-4 w-4 mr-1" />
-                {reconnecting === connector.id
-                  ? t('settings.connectors.health.reconnecting')
-                  : t('settings.connectors.health.reconnect')}
+                {t(`settings.connectors.bulk_reconnect.${group.provider}_action`)}
               </Button>
-            </div>
-          ))}
-        </div>
+            ))}
+            {modalConnectors.map(connector => (
+              <div
+                key={connector.id}
+                className="flex flex-col gap-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-destructive font-medium">{connector.display_name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    - {getStatusText(connector)}
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  // Busy without `disabled` (the focus stays), and one redirect at
+                  // a time: a second button must not start another meanwhile.
+                  aria-disabled={reconnecting === connector.id || undefined}
+                  onClick={() => {
+                    if (reconnecting === null) {
+                      void handleReconnect(connector.id, connector.authorize_url);
+                    }
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  {reconnecting === connector.id
+                    ? t('settings.connectors.health.reconnecting')
+                    : t('settings.connectors.health.reconnect')}
+                </Button>
+              </div>
+            ))}
+          </div>
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowModal(false)}>

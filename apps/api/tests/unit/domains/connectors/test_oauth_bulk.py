@@ -6,6 +6,7 @@ import pytest
 
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
 from src.domains.connectors.oauth_bulk import (
+    bulk_reconnect_provider,
     connectable_provider_types,
     plan_connection,
     plan_reconnection,
@@ -189,3 +190,36 @@ def test_connect_all_microsoft_uses_one_scope_union() -> None:
     assert plan.scopes.count("offline_access") == 1
     assert "Mail.Send" in plan.scopes
     assert "Tasks.ReadWrite" in plan.scopes
+
+
+@pytest.mark.parametrize(
+    ("kind", "status", "expected"),
+    [
+        (ConnectorType.GOOGLE_CALENDAR, ConnectorStatus.ERROR, "google"),
+        (ConnectorType.GOOGLE_GMAIL, ConnectorStatus.ERROR, "google"),
+        (ConnectorType.GOOGLE_CONTACTS, ConnectorStatus.ERROR, "google"),
+        (ConnectorType.MICROSOFT_TASKS, ConnectorStatus.ERROR, "microsoft"),
+        (ConnectorType.GOOGLE_CALENDAR, ConnectorStatus.ACTIVE, None),
+        (ConnectorType.MICROSOFT_OUTLOOK, ConnectorStatus.REVOKED, None),
+        (ConnectorType.GMAIL, ConnectorStatus.ERROR, None),
+        (ConnectorType.APPLE_CALENDAR, ConnectorStatus.ERROR, None),
+    ],
+)
+def test_a_row_is_offered_for_grouped_reconnection_exactly_when_the_plan_accepts_it(
+    kind: ConnectorType, status: ConnectorStatus, expected: str | None
+) -> None:
+    """The alert and the settings page offer the button; the plan decides.
+
+    Both read ``bulk_reconnect_provider``: offering a row the plan refuses
+    fails the whole grouped consent with an error, and refusing one it accepts
+    hides a button that would have worked.
+    """
+    connector = _connector(kind, status=status)
+
+    assert bulk_reconnect_provider(kind, status) == expected
+    for provider in ("google", "microsoft"):
+        if provider == expected:
+            assert plan_reconnection(provider, [connector], [kind]).connector_types == (kind,)
+        else:
+            with pytest.raises(ValueError):
+                plan_reconnection(provider, [connector], [kind])

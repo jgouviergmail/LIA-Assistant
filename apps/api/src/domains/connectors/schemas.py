@@ -6,13 +6,14 @@ import re
 from datetime import datetime
 from enum import Enum
 from ipaddress import IPv4Address, IPv4Network, ip_address
-from typing import Any
+from typing import Any, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.core.i18n import _
 from src.domains.connectors.models import ConnectorStatus, ConnectorType
+from src.domains.connectors.oauth_bulk import BulkProvider, bulk_reconnect_provider
 
 
 class ConnectorCreate(BaseModel):
@@ -51,11 +52,24 @@ class ConnectorResponse(BaseModel):
     )
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
+    bulk_reconnect_provider: BulkProvider | None = Field(
+        None,
+        description=(
+            "The provider whose grouped consent can reconnect this row "
+            "(oauth_bulk.bulk_reconnect_provider); derived, never read from input."
+        ),
+    )
 
     model_config = {
         "from_attributes": True,
         "populate_by_name": True,
     }
+
+    @model_validator(mode="after")
+    def _derive_bulk_reconnect_provider(self) -> Self:
+        """Stated by the server, from the one rule the grouped consent applies."""
+        self.bulk_reconnect_provider = bulk_reconnect_provider(self.connector_type, self.status)
+        return self
 
 
 class ConnectorListResponse(BaseModel):
@@ -556,6 +570,19 @@ class ConnectorHealthItem(BaseModel):
         "oauth",
         description="Reconnection method: 'oauth' for Google redirect, "
         "'apple_credentials' for Apple credential form",
+    )
+    bulk_reconnect_provider: BulkProvider | None = Field(
+        None,
+        description=(
+            "The provider whose grouped consent can reconnect this row, or null "
+            "(oauth_bulk.bulk_reconnect_provider)"
+        ),
+    )
+    oauth_grant_id: UUID | None = Field(
+        None, description="The OAuth account the row belongs to, for grouping"
+    )
+    oauth_account_email: str | None = Field(
+        None, description="That account's address, for the account-choice dialog"
     )
 
     model_config = {"from_attributes": True}

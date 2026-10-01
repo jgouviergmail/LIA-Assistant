@@ -82,7 +82,7 @@ async def test_the_bill_is_read_on_the_persons_key_under_the_conversation_the_wi
     provider = _Billing()
     user = SimpleNamespace(id=uuid.uuid4())
     with patch(f"{MODULE}.PROVIDERS", {"x": provider}):
-        bill = await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), "conv_42")
+        bill = await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), ["conv_42"])
     assert bill == BILL
     assert provider.asked == [("sk_test", "conv_42")]
 
@@ -92,9 +92,11 @@ async def test_no_conversation_no_billing_provider_or_a_vendor_failure_reads_as_
     silent = SimpleNamespace(provider_id="gemini")  # states no bill: not a VendorBilling
     failing = _Billing(error=RuntimeError("vendor down"))
     with patch(f"{MODULE}.PROVIDERS", {"a": silent, "b": failing}):
-        assert await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), None) is None
-        assert await fetch_vendor_bill(_connectors(), user, _record("gemini"), "conv_1") is None
-        assert await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), "conv_1") is None
+        assert await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), []) is None
+        assert await fetch_vendor_bill(_connectors(), user, _record("gemini"), ["conv_1"]) is None
+        assert (
+            await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), ["conv_1"]) is None
+        )
     # The provider that stated no bill was never asked; the failing one was, once.
     assert failing.asked == [("sk_test", "conv_1")]
 
@@ -117,7 +119,7 @@ async def test_a_vendor_still_settling_the_conversation_is_asked_again_briefly()
         patch(f"{MODULE}.PROVIDERS", {"x": provider}),
         patch(f"{MODULE}.asyncio.sleep", _sleep),
     ):
-        bill = await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), "conv_42")
+        bill = await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), ["conv_42"])
     assert bill == BILL
     assert len(provider.asked) == 3
     assert sleeps == [LIVE_VENDOR_BILL_SETTLE_INTERVAL_SECONDS] * 2
@@ -130,9 +132,53 @@ async def test_a_vendor_that_never_states_the_bill_is_asked_a_bounded_number_of_
         patch(f"{MODULE}.PROVIDERS", {"x": provider}),
         patch(f"{MODULE}.asyncio.sleep", AsyncMock()),
     ):
-        bill = await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), "conv_42")
+        bill = await fetch_vendor_bill(_connectors(), user, _record("elevenlabs"), ["conv_42"])
     assert bill is None
     assert len(provider.asked) == LIVE_VENDOR_BILL_SETTLE_ATTEMPTS
+
+
+async def test_a_session_that_slept_states_the_sum_of_its_conversations() -> None:
+    # ADR-329: every wake on a vendor-billed provider opens a new conversation;
+    # the person is shown what the WHOLE session cost them.
+    second = LiveVendorBill(
+        provider="elevenlabs",
+        cost_usd=0.05,
+        credits=5,
+        llm_credits=1,
+        call_credits=4,
+        llm_model="gemini-flash",
+        duration_seconds=30,
+    )
+    first = BILL.model_copy(update={"llm_model": "gpt-mini", "duration_seconds": 60})
+    provider = _Billing(answers=[first, second])
+    user = SimpleNamespace(id=uuid.uuid4())
+    with patch(f"{MODULE}.PROVIDERS", {"x": provider}):
+        bill = await fetch_vendor_bill(
+            _connectors(), user, _record("elevenlabs"), ["conv_1", "conv_2", "conv_1"]
+        )
+    assert bill is not None
+    assert bill.cost_usd == pytest.approx(0.17)
+    assert (bill.credits, bill.llm_credits, bill.call_credits) == (17, 5, 12)
+    assert bill.duration_seconds == 90
+    assert bill.llm_model == "gpt-mini, gemini-flash"
+    assert bill.platform_credits is None  # stated by neither: not invented as zero
+    # Each conversation asked once, the repeated id once.
+    assert sorted(conversation for _, conversation in provider.asked) == ["conv_1", "conv_2"]
+
+
+async def test_a_conversation_whose_bill_cannot_be_read_hides_the_total() -> None:
+    # A figure shown is exact or absent: a sum missing a conversation would
+    # understate what the person paid.
+    provider = _Billing(answers=[BILL])  # the second read finds nothing
+    user = SimpleNamespace(id=uuid.uuid4())
+    with (
+        patch(f"{MODULE}.PROVIDERS", {"x": provider}),
+        patch(f"{MODULE}.asyncio.sleep", AsyncMock()),
+    ):
+        bill = await fetch_vendor_bill(
+            _connectors(), user, _record("elevenlabs"), ["conv_1", "conv_2"]
+        )
+    assert bill is None
 
 
 def test_the_bill_reaches_no_row_no_ledger_and_no_card() -> None:

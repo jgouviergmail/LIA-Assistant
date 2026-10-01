@@ -108,6 +108,62 @@ describe('liveStore', () => {
     expect(useLiveStore.getState().status).toBe('idle');
   });
 
+  it('a standby banks the awake time and the connection, and the wake resumes them (ADR-329)', () => {
+    const store = useLiveStore.getState();
+    store.begin('s1');
+    store.apply('minted');
+    store.apply('setup_complete');
+    store.markLive(1_000);
+    store.reportUsage({ duration: { seconds: 40, contextRatio: null } });
+    store.setVoiceState('speaking');
+    store.setTimeLeft(900);
+    store.enterStandby({ at: 61_000, deadline: 9_000_000 });
+    let state = useLiveStore.getState();
+    expect(state.status).toBe('standby');
+    expect(state.standbys).toBe(1);
+    expect(state.awakeMs).toBe(60_000);
+    expect(state.liveSince).toBeNull();
+    expect(state.standbyDeadline).toBe(9_000_000);
+    expect(state.standbySince).toBe(61_000);
+    expect(state.voiceState).toBe('idle');
+    expect(state.timeLeftMs).toBeNull();
+    // The closed connection's seconds are banked: the next one adds on top.
+    expect(state.meter.secondsBanked).toBe(40);
+    store.leaveStandby();
+    state = useLiveStore.getState();
+    expect(state.status).toBe('connecting');
+    expect(state.standbySince).toBeNull();
+    // The meter's clock restarts on the next `live`, the banked time kept.
+    store.apply('setup_complete');
+    store.markLive(500_000);
+    expect(useLiveStore.getState().liveSince).toBe(500_000);
+    expect(useLiveStore.getState().awakeMs).toBe(60_000);
+  });
+
+  it('the wake word state and phrase are published for the banner', () => {
+    const store = useLiveStore.getState();
+    store.setWakeWord('listening', 'Dis LIA');
+    expect(useLiveStore.getState().wakeWordState).toBe('listening');
+    expect(useLiveStore.getState().wakePhrase).toBe('Dis LIA');
+    store.finish('ended');
+    expect(useLiveStore.getState().wakeWordState).toBe('idle');
+  });
+
+  it('a wake refusal is a fresh signal each time, cleared once told and by the end', () => {
+    const store = useLiveStore.getState();
+    store.refuseWake('live_mint_rate_limited');
+    const first = useLiveStore.getState().wakeRefusal;
+    expect(first).toEqual({ code: 'live_mint_rate_limited' });
+    store.refuseWake('live_mint_rate_limited');
+    // The same code twice is told twice: a new object re-runs the banner's effect.
+    expect(useLiveStore.getState().wakeRefusal).not.toBe(first);
+    store.clearWakeRefusal();
+    expect(useLiveStore.getState().wakeRefusal).toBeNull();
+    store.refuseWake(null);
+    store.finish('ended');
+    expect(useLiveStore.getState().wakeRefusal).toBeNull();
+  });
+
   it('hands the eyes the session voice state only while it holds the microphone', () => {
     expect(effectiveVoiceState('listening')).toBe('listening');
     const store = useLiveStore.getState();

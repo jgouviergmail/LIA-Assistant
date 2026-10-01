@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input
+from src.core.i18n_api_messages import APIMessages
 from src.core.security.authorization import (
     check_user_ownership_or_superuser,
     require_superuser,
@@ -25,6 +26,7 @@ from src.domains.shared.settings_shortcuts import (
     SettingsShortcutsResponse,
     sanitize_settings_shortcuts,
 )
+from src.domains.users.admin_columns import ADMIN_USER_SORT_KEYS
 from src.domains.users.models import User
 from src.domains.users.schemas import (
     AccountDeletionRequest,
@@ -287,15 +289,7 @@ async def search_users_admin(
     page_size: int = Query(10, ge=1, le=100, description="Items per page (max 100)"),
     sort_by: str = Query(
         "created_at",
-        description=(
-            "Sort column. User fields: email, full_name, created_at, is_active, language, "
-            "voice_enabled, memory_enabled, tokens_display_enabled. "
-            "Statistics: total_messages, total_tokens, total_cost_eur, total_google_api_requests, "
-            "cycle_messages, cycle_tokens, cycle_cost_eur, cycle_google_api_requests. "
-            "Counts: active_connectors_count, memories_count, interests_count, skills_count, "
-            "mcp_servers_count, scheduled_actions_count, rag_spaces_count. "
-            "Other: last_message_at, is_usage_blocked."
-        ),
+        description=f"Sort column, one of: {', '.join(sorted(ADMIN_USER_SORT_KEYS))}.",
     ),
     sort_order: str = Query("desc", description="Sort order (asc or desc)"),
     current_user: User = Depends(get_current_superuser_session),
@@ -314,6 +308,11 @@ async def search_users_admin(
     - sort_by: Sort column (default created_at)
     - sort_order: Sort order asc/desc (default desc)
     """
+    if sort_by not in ADMIN_USER_SORT_KEYS:
+        raise_invalid_input(
+            APIMessages.invalid_sort_parameter(sorted(ADMIN_USER_SORT_KEYS)),
+            sort_by=sort_by,
+        )
     params = UserSearchParams(
         q=q,
         is_active=is_active,

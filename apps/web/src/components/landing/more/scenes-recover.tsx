@@ -27,6 +27,7 @@ import {
   RotateCw,
   ScrollText,
   SearchX,
+  CheckCircle2,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -470,10 +471,60 @@ function DiagnosisEvidenceScene({ active }: SceneProps) {
   );
 }
 
+type ReconnectPhase = 'alert' | 'tap' | 'done';
+const RECONNECT_STEPS: readonly TimelineStep<ReconnectPhase>[] = [
+  { at: 0, state: 'alert' },
+  { at: 1500, state: 'tap' },
+  { at: 2200, state: 'done' },
+];
+
+/**
+ * Reconnect everything (ADR-302 amendment): when several services of one
+ * account have expired, the connection alert offers the grouped consent the
+ * connectors page uses — one tap, one authorisation. Resting frame: back on.
+ */
+function ReconnectAllScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(RECONNECT_STEPS, { active });
+  const done = phase === 'done';
+  return (
+    <div className={cn(STAGE, 'gap-2')}>
+      <div
+        className={cn(
+          'flex w-full max-w-[230px] items-center gap-1.5 rounded-md border px-2 py-1.5 text-px-10 transition-colors duration-500',
+          done ? 'border-primary/40 bg-primary/5' : 'border-warning/40 bg-background'
+        )}
+      >
+        {done ? (
+          <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />
+        ) : (
+          <AlertTriangle className="h-3 w-3 shrink-0 text-warning" />
+        )}
+        <span className={cn('min-w-0 flex-1 truncate', done ? 'text-primary' : 'text-warning')}>
+          {done ? labels.done : labels.alert}
+        </span>
+      </div>
+      <MiniChip
+        pressed={phase === 'tap'}
+        className={cn('transition-opacity duration-300', done ? 'opacity-0' : 'opacity-100')}
+      >
+        <RefreshCw className="h-2.5 w-2.5" />
+        {labels.all}
+      </MiniChip>
+      <Cursor
+        className={cn(
+          'left-[56%] top-[58%]',
+          phase === 'tap' ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
 export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   meeting_banner: MeetingBannerScene,
   diagnosis_evidence: DiagnosisEvidenceScene,
   actionable_errors: ActionableErrorsScene,
+  reconnect_all: ReconnectAllScene,
   retry_turn: RetryTurnScene,
   honest_freshness: HonestFreshnessScene,
   honest_gaps: HonestGapsScene,

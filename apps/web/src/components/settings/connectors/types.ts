@@ -4,6 +4,7 @@
  */
 
 import { CONNECTOR_STATUS } from '@/constants/connectors';
+import type { BulkProvider } from '@/lib/connectors/bulk-reconnect';
 
 export interface Connector {
   id: string;
@@ -12,6 +13,8 @@ export interface Connector {
   created_at: string;
   oauth_grant_id?: string | null;
   metadata?: { oauth_account_email?: string | null } | null;
+  /** The provider whose grouped consent can reconnect this row (server rule), or null. */
+  bulk_reconnect_provider?: BulkProvider | null;
 }
 
 export interface ConnectorsResponse {

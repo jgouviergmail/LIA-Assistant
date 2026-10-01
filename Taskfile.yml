@@ -10,6 +10,9 @@ vars:
   WEB_DIR: ./apps/web
   PYTHON: python
   UV: uv  # Optional: faster pip alternative
+  # Memory cap of one wake-word toolbox run (ADR-329): the Docker VM is shared
+  # with the dev stack. Raise it with `task wake:train WAKE_MEMORY=24g -- fr`.
+  WAKE_MEMORY: 14g
   # Shared flags for Python lockfile compilation (deps:lock / deps:upgrade*).
   # --universal: single multi-platform lock (linux amd64/arm64, Windows, py>=3.12)
   UV_COMPILE_FLAGS: --universal --python-version 3.14 --generate-hashes --custom-compile-command "task deps:lock"
@@ -275,6 +278,19 @@ tasks:
       - lint:hygiene
       - lint:lockfiles
       - lint:ci-parity
+      - lint:wake
+
+  lint:wake:
+    desc: Ruff + Black over the wake-word toolbox (strict MyPy runs in its own image, ADR-329)
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python -m ruff check scripts/wake-word
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python -m ruff check scripts/wake-word
+        platforms: [linux, darwin]
+      - cmd: apps/api/.venv/Scripts/python -m black --check scripts/wake-word
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python -m black --check scripts/wake-word
+        platforms: [linux, darwin]
 
   lint:ci-parity:
     desc: The CI workflow must orchestrate (task calls), never implement (inline gates)
@@ -383,6 +399,90 @@ tasks:
         platforms: [windows]
       - cmd: .venv/bin/python scripts/live/probe.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
+
+  # The wake-word toolbox (ADR-329): synthesise, train and measure one
+  # language's model OFFLINE, in its own image — never on the API's interpreter
+  # nor on the Pi. Corpora and features live in the named volume
+  # `lia-wake-data`; the only output is apps/web/public/models/wake/, committed.
+  # A MEASUREMENT and a build step, never a gate: it downloads gigabytes.
+  # Each run is capped in memory: the Docker VM is shared with the dev stack,
+  # and an uncapped synthesis plus training starved lia-web-dev out of memory
+  # (measured 2026-10-01: 22 GB + 18 GB on a 33 GB VM).
+  wake:image:
+    desc: Build the wake-word toolbox image (pinned base, hashed lock)
+    cmds:
+      - docker build -t lia-wake-word:dev scripts/wake-word
+
+  wake:image:gpu:
+    desc: Build the toolbox's GPU image (VoxCPM2 voices; pinned base, hashed lock)
+    cmds:
+      - docker build -f scripts/wake-word/Dockerfile.gpu -t lia-wake-word-gpu:dev scripts/wake-word
+
+  wake:deps:lock:
+    desc: Recompile the toolbox's two hashed locks (Linux x86_64, Python 3.12; CPU image torch from the CPU index)
+    dir: scripts/wake-word
+    cmds:
+      - >-
+        {{.UV}} pip compile requirements.in --generate-hashes --python-version 3.12
+        --python-platform x86_64-manylinux_2_28 --index-url https://pypi.org/simple
+        --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+        --custom-compile-command "task wake:deps:lock" -o requirements.lock.txt
+      - >-
+        {{.UV}} pip compile requirements-gpu.in --generate-hashes --python-version 3.12
+        --python-platform x86_64-manylinux_2_28 --index-url https://pypi.org/simple
+        --custom-compile-command "task wake:deps:lock" -o requirements-gpu.lock.txt
+
+  wake:run:
+    desc: Run one toolbox command for a language (e.g. task wake:run -- train --lang fr)
+    deps: [wake:image]
+    cmds:
+      - cmd: >-
+          MSYS_NO_PATHCONV=1 docker run --rm --memory {{.WAKE_MEMORY}} -v lia-wake-data:/data
+          -v "{{.ROOT_DIR}}/scripts/wake-word:/toolbox"
+          -v "{{.ROOT_DIR}}/apps/web/public/models/wake:/out"
+          lia-wake-word:dev {{.CLI_ARGS}}
+
+  wake:clone:
+    desc: Generate one language's natural-voice clips with VoxCPM2 on the GPU (e.g. task wake:clone -- fr)
+    deps: [wake:image:gpu]
+    cmds:
+      - cmd: >-
+          MSYS_NO_PATHCONV=1 docker run --rm --gpus all --memory {{.WAKE_MEMORY}} -v lia-wake-data:/data
+          -v "{{.ROOT_DIR}}/scripts/wake-word:/toolbox"
+          lia-wake-word-gpu:dev clone --lang {{.CLI_ARGS}}
+
+  wake:run:gpu:
+    desc: Run one toolbox command on the GPU image — training on CUDA (e.g. task wake:run:gpu -- train --lang fr); measure and golden stay on wake:run
+    deps: [wake:image:gpu]
+    cmds:
+      - cmd: >-
+          MSYS_NO_PATHCONV=1 docker run --rm --gpus all --memory {{.WAKE_MEMORY}} -v lia-wake-data:/data
+          -v "{{.ROOT_DIR}}/scripts/wake-word:/toolbox"
+          -v "{{.ROOT_DIR}}/apps/web/public/models/wake:/out"
+          lia-wake-word-gpu:dev {{.CLI_ARGS}}
+
+  wake:train:
+    desc: Build one language's model end to end — prepare, synth, train, measure, export (e.g. task wake:train -- fr)
+    cmds:
+      - task: wake:run
+        vars: { CLI_ARGS: "all --lang {{.CLI_ARGS}}" }
+
+  wake:golden:
+    desc: Write the web engine's parity fixture from a language's EXPORTED model (e.g. task wake:golden -- fr)
+    deps: [wake:image]
+    cmds:
+      - cmd: >-
+          MSYS_NO_PATHCONV=1 docker run --rm --memory {{.WAKE_MEMORY}} -v lia-wake-data:/data
+          -v "{{.ROOT_DIR}}/scripts/wake-word:/toolbox"
+          -v "{{.ROOT_DIR}}/apps/web/public/models/wake:/out"
+          -v "{{.ROOT_DIR}}/apps/web/src/lib/audio/wake-word/__tests__/fixtures:/fixtures"
+          lia-wake-word:dev golden --lang {{.CLI_ARGS}}
+
+  wake:selfcheck:
+    desc: Hold the toolbox's features to openWakeWord, the reference (batch, segmented, streaming, scores)
+    cmds:
+      - task: wake:run
+        vars: { CLI_ARGS: selfcheck }
 
   telephony:simulate:live:
     desc: Simulate a Live owner call end to end on the RUNNING dev API without a phone (ADR-301; the dev account, real turns)

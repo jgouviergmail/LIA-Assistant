@@ -1,8 +1,9 @@
 /**
  * Active RAG spaces indicator — quick-toggle menu (R01, extends S5b).
  *
- * History: S5b gave the badge an explicit accessible name (below `sm` the
- * visible text is the bare count, and `title` is hover-only). R01 turns the
+ * History: S5b gave the badge an explicit accessible name (the visible text
+ * is the bare count — at every width since 2026-10-01 — and `title` is
+ * hover-only). R01 turns the
  * bare link into a menu of per-space switches so activation is two taps from
  * the chat — and, crucially, renders the trigger whenever the user HAS
  * spaces: the old `activeCount === 0 → null` rule hid the surface exactly
@@ -94,10 +95,12 @@ describe('ActiveSpacesIndicator — the trigger', () => {
     expect(name).not.toBe('1');
   });
 
-  it('still shows the active count visually', () => {
+  it('shows the bare active count as its only visible text, at every width', () => {
+    // Owner decision 2026-10-01: « [icon] N », never « N knowledge base(s) » —
+    // the words live in the accessible name, not in a breakpoint-gated span.
     useSpaces.mockReturnValue(hookValue(TWO_SPACES));
     renderWithProviders(<ActiveSpacesIndicator />);
-    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByRole('button').textContent).toBe('1');
   });
 
   it('keeps the decorative icon out of the accessible name', () => {

@@ -1,6 +1,6 @@
 {
   "name": "@lia-assistant/web",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "LIA Assistant - Frontend application",
   "license": "AGPL-3.0-or-later",
   "author": "LIA Contributors",
@@ -9,10 +9,10 @@
     "url": "https://github.com/jgouviergmail/LIA-Assistant.git"
   },
   "scripts": {
-    "dev": "next dev --webpack",
-    "dev:local": "next dev --webpack --hostname localhost",
-    "dev:network": "next dev --webpack --hostname 0.0.0.0",
-    "build": "next build",
+    "dev": "node scripts/copy-ort-runtime.mjs && next dev --webpack",
+    "dev:local": "node scripts/copy-ort-runtime.mjs && next dev --webpack --hostname localhost",
+    "dev:network": "node scripts/copy-ort-runtime.mjs && next dev --webpack --hostname 0.0.0.0",
+    "build": "node scripts/copy-ort-runtime.mjs && next build",
     "start": "next start",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "lint": "eslint src",
@@ -59,6 +59,7 @@
     "next": "16.3.6",
     "next-i18n-router": "^5.5.8",
     "next-themes": "^0.4.6",
+    "onnxruntime-web": "1.30.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.82.0",

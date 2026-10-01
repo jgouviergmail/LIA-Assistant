@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -656,3 +657,33 @@ class TestModelCheck:
         result, ledger = await produce(tmp_path, client, checker=FakeChecker(None))
         assert result.outcome is ProductionOutcome.CHECK_FAILED
         assert client.calls == [] and ledger.calls == []
+
+
+class TestLineFiles:
+    async def test_a_cancelled_write_ends_before_the_cancellation_propagates(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A sibling line's failure cancels this one mid-write: the thread keeps
+        # writing, so the cleanup that follows must not see a file still open.
+        started, release, finished = threading.Event(), threading.Event(), threading.Event()
+        real_write = Path.write_bytes
+
+        def slow_write(self: Path, data: bytes) -> int:
+            started.set()
+            release.wait(5)
+            written = real_write(self, data)
+            finished.set()
+            return written
+
+        monkeypatch.setattr(Path, "write_bytes", slow_write)
+        target = tmp_path / "segment.line00.mp3"
+        task = asyncio.create_task(production_module._write_file(target, b"audio"))
+        await asyncio.to_thread(started.wait, 5)
+        task.cancel()
+        await asyncio.sleep(0.05)
+        assert not task.done()  # still waiting for the write, never abandoning it
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert finished.is_set()
+        assert target.read_bytes() == b"audio"

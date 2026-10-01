@@ -1093,6 +1093,49 @@ function CodeScrollScene({ active }: SceneProps) {
   );
 }
 
+type RecipientPhase = 'empty' | 'typed' | 'list' | 'picked';
+const RECIPIENT_STEPS: readonly TimelineStep<RecipientPhase>[] = [
+  { at: 0, state: 'empty' },
+  { at: 700, state: 'typed' },
+  { at: 1400, state: 'list' },
+  { at: 2600, state: 'picked' },
+];
+
+/**
+ * Recipient suggestions (ADR-321 amendment): a few letters of a name in the
+ * « Send by e-mail » field, the matching contacts listed under it, and the
+ * contact's ADDRESS is what lands in the field. Resting frame: the address.
+ */
+function RecipientSuggestScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(RECIPIENT_STEPS, { active });
+  const listed = phase === 'list';
+  return (
+    <div className={cn(STAGE, 'justify-start gap-1.5 pt-6')}>
+      <div className="flex w-full max-w-[220px] items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-px-10">
+        <Mail className="h-3 w-3 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate text-foreground/80">
+          {phase === 'picked' ? labels.address : phase === 'empty' ? '' : labels.query}
+        </span>
+      </div>
+      <div
+        className={cn(
+          'w-full max-w-[220px] rounded-md border border-border bg-background p-1 shadow-sm transition-all duration-300',
+          listed ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'
+        )}
+      >
+        <div className="flex items-center gap-1.5 rounded bg-primary/10 px-1.5 py-1 text-px-10">
+          <User className="h-3 w-3 shrink-0 text-primary" />
+          <span className="truncate font-medium text-foreground/80">{labels.contact}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-1.5 py-1">
+          <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <SkeletonLine w="w-1/2" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   provenance_why: ProvenanceWhyScene,
   expressive_eyes: ExpressiveEyesScene,
@@ -1104,6 +1147,7 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   bubble_actions: BubbleActionsScene,
   selection_actions: SelectionActionsScene,
   share_export: ShareExportScene,
+  recipient_suggest: RecipientSuggestScene,
   image_share: ImageShareScene,
   keep_answer: KeepAnswerScene,
   draft_sequence: DraftSequenceScene,

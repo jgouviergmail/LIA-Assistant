@@ -31,11 +31,12 @@
  * - Next.js App Router ships inline bootstrap scripts → 'unsafe-inline' is
  *   required in script-src (no per-request nonce with static headers). The
  *   header still blocks every EXTERNAL script origin and eval().
- * - Sherpa-onnx voice mode compiles WASM → 'wasm-unsafe-eval' + blob: workers.
+ * - The wake-word engine compiles ONNX Runtime's WASM in its worker
+ *   (ADR-328) → 'wasm-unsafe-eval' + worker-src.
  * - Voice features load code from blob: URLs → blob: in script-src is
- *   required for: the push-to-talk STT AudioWorklet (useVoiceInput), the
- *   voice-mode KWS + recording AudioWorklets (useVoiceMode), and the Sherpa
- *   WASM glue `<script src=blob:>` loader (sherpaKws). Per CSP L3 a
+ *   required for: the shared PCM AudioWorklet (`pcm-worklet`: push-to-talk,
+ *   the wake word's capture, the live mode), the voice-mode recording
+ *   AudioWorklet (useVoiceMode) and the live PCM player. Per CSP L3 a
  *   worklet's fetch destination is "audioworklet"/"paintworklet", governed
  *   by script-src, NOT worker-src.
  * - Skill widget iframes use srcDoc (inherit this CSP) and are
@@ -144,7 +145,7 @@ export function buildConnectSrc(isDev: boolean, apiUrl: string | undefined): str
 export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string {
   return [
     "default-src 'self'",
-    // blob: → voice AudioWorklets + Sherpa glue loader (see module docstring)
+    // blob: → voice AudioWorklets (see module docstring)
     // static.cloudflareinsights.com → the analytics beacon Cloudflare injects
     // at the edge in production; without the allowance it dies as a console
     // CSP error on every public page
@@ -154,7 +155,11 @@ export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string 
     // https: for user-facing remote images (chat markdown, connector data);
     // images are not a script vector and COEP already gates embedding
     "img-src 'self' data: blob: https:",
-    "media-src 'self' data: blob:",
+    // https: — the landing video is hosted where the operator says, at run
+    // time (LANDING_MEDIA_BASE_URL, ADR-330); the pages are prebuilt and
+    // host-neutral, so the origin cannot be named here. Same posture as
+    // img-src.
+    "media-src 'self' data: blob: https:",
     "worker-src 'self' blob:",
     // 'self' → widget airlock + srcDoc frames; www.google.com → the
     // interactive-map system skill's Google Maps embed (frame.url), the only
@@ -196,10 +201,10 @@ export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string 
  * the Spectre guarantee holds — while WebKit, which does not implement it,
  * falls back to no isolation and therefore embeds normally.
  *
- * The trade is deliberate and already handled by the product: without
- * isolation `isSherpaKwsSupported()` returns false and voice mode degrades to
- * tap-to-speak (no wake word) — a path that predates this change. Losing the
- * wake word on iOS is worth widgets that work on iOS.
+ * The trade was deliberate while the wake word needed isolation (the previous
+ * engine's predicate required `SharedArrayBuffer`): losing it on iOS was worth
+ * widgets that work there. Since ADR-329 the wake word runs single-threaded
+ * and loses nothing to the absence of isolation.
  */
 export type CoepMode = 'require-corp' | 'credentialless';
 

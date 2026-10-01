@@ -156,3 +156,45 @@ result, never from the absence of an exception (`recorded_action`, the
 subject, the words, the recipients' addresses — is not copied into the row: the
 count of recipients is the label's only value. No model decides anything, so no
 turn is filed.
+
+## Amendment 2026-10-01 — the recipient field suggests the person's contacts
+
+**Amends:** the recipient field of decision 4 (owner request: suggest, while a
+recipient is typed in any « Send by e-mail » dialog, the contacts matching it by
+last name or first name — accents and punctuation ignored — or by a normalised
+phone number, and insert the contact's ADDRESS; nothing without an active
+contacts connector).
+
+- **Published, then asked.** `GET /email-share/options` gains
+  `recipient_suggestions` (true only on the mailbox road with an active contacts
+  connector), `recipient_query_min_chars` and `recipient_suggestions_max` (ADR-184).
+  `GET /email-share/recipients?q=` answers the contacts for ONE recipient being
+  typed, under a rate limit of its own (`EMAIL_SHARE_SUGGEST_RATE_LIMIT_*`), and
+  echoes the query so the field never shows an answer to an older one.
+- **One match, not three.** The providers' own searches match three different
+  ways, so each contacts client reads its book whole (`list_email_directory`,
+  parity-pinned): Google People pages `connections` with every parameter repeated
+  on each page, Graph follows `@odata.nextLink`, CardDAV reads its own cache —
+  under `EMAIL_SHARE_DIRECTORY_MAX_CONTACTS`, a cut stated as `truncated`. The book
+  is compacted to names, addresses and phones, cached under the declared
+  `contacts_directory` family (`USER_CACHE`, ADR-260) with a version stamp, built
+  once across workers (`shared_flight`) and dropped by every contacts write of the
+  three clients. `email_share/recipient_match.py` matches it: names through
+  `fold_name`, addresses through `fold_email`, phone digits through the telephony
+  domain's `number_search_variants` (a query of digits alone is a phone query);
+  names rank before addresses, addresses before phones.
+- **Measured before shaped.** Projecting 5 000 contacts costs about 140 ms of CPU
+  and the match about 12 ms, so the projection is memoised per worker by the
+  book's version (bounded by entry count) and both run in a thread; a keystroke
+  reads the small stamp first and opens neither the book nor the connector when
+  that version is already projected.
+- **A read of the book is a consultation** (ADR-263): filed on the `email_share`
+  surface when a provider was actually opened, `failed` when the read failed, and
+  nothing on a cache hit. The read runs under a timeout and every outcome is
+  counted (`email_share_recipient_directory_reads_total{outcome}`, dashboard 10).
+  No model, no spend, and no contact's data in a log.
+- **The field is a WAI-ARIA combobox** (`RecipientCombobox`): debounced, arrows
+  and Enter pick, a pick on `mousedown` keeps the phone keyboard open, Escape
+  closes the list before the dialog (`DialogContent` lets an expanded combobox
+  keep its Escape), and a name being typed is not reported as a wrong address
+  until the field is left.

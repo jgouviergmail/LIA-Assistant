@@ -441,6 +441,16 @@ TOOL_CONTEXT_CONFIDENCE_THRESHOLD = 0.7
 
 # Field sets for different use cases (optimized for token efficiency and UX)
 
+# Whole-directory reads (clients/contact_directory, ADR-321 amendment): pages of
+# the provider's own size, not the agent-facing API_MAX_ITEMS_PER_REQUEST.
+# People API documents 1..1000 for connections.list; Graph documents no maximum
+# for contacts, so its read stays at a modest page and follows @odata.nextLink.
+GOOGLE_PEOPLE_CONNECTIONS_PAGE_SIZE_MAX = 1000
+MICROSOFT_CONTACTS_DIRECTORY_PAGE_SIZE = 100
+# How long a second worker waits for the first one's cold directory read
+# before reading the provider itself (shared_flight).
+CONTACTS_DIRECTORY_SHARED_WAIT_SECONDS = 10
+
 # Minimal preview for listing contacts (4 fields, ~110 tokens/contact)
 # Use case: "list my contacts" - quick overview like a phone book
 GOOGLE_CONTACTS_LIST_FIELDS = [
@@ -2167,9 +2177,6 @@ VOICE_MODE_VAD_ENERGY_THRESHOLD_DEFAULT = 0.02
 # Prevents very short sounds from triggering transcription
 VOICE_MODE_MIN_SPEECH_MS_DEFAULT = 500
 
-# KWS detection threshold (0.0-1.0) - higher = fewer false negatives
-VOICE_MODE_KWS_THRESHOLD_DEFAULT = 0.25
-
 # Maximum recording duration (seconds)
 VOICE_MODE_MAX_RECORDING_SECONDS_DEFAULT = 60
 
@@ -2394,10 +2401,8 @@ SCHEDULER_JOB_HEARTBEAT_NOTIFICATION = "heartbeat_notification"
 HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES_DEFAULT = 30
 HEARTBEAT_NOTIFICATION_BATCH_SIZE_DEFAULT = 50
 
-# User settings defaults
-HEARTBEAT_MAX_PER_DAY_DEFAULT = 3
-HEARTBEAT_MIN_PER_DAY_DEFAULT = 1
-HEARTBEAT_PUSH_ENABLED_DEFAULT = True
+# User settings defaults. No per-day bound (ADR-328): the decision model judges
+# whether to speak; the window and the cooldowns bound how often.
 HEARTBEAT_NOTIFY_START_HOUR_DEFAULT = 9  # 9 AM
 HEARTBEAT_NOTIFY_END_HOUR_DEFAULT = 22  # 10 PM
 
@@ -3518,6 +3523,9 @@ MCP_USER_TOOL_NAME_PREFIX = "mcp_user"
 MCP_ITERATIVE_TASK_SUFFIX = "_task"  # Suffix for per-server iterative ReAct task tools
 MCP_USER_DEFAULT_API_KEY_HEADER = "X-API-Key"
 MCP_USER_MAX_SERVERS_PER_USER_DEFAULT = 20
+# The operator's ceiling: the quota is read where it is enforced, nothing is sized on it.
+# Raised from 20 when production asked for 50 (2026-10-01).
+MCP_USER_MAX_SERVERS_PER_USER_MAX = 100
 MCP_USER_POOL_TTL_SECONDS_DEFAULT = 900  # 15 min idle before connection eviction
 MCP_USER_POOL_MAX_TOTAL_DEFAULT = 50  # Global pool limit across all users
 MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT = 60  # Seconds between eviction sweeps
@@ -4730,6 +4738,24 @@ EMAIL_SHARE_MAX_RECIPIENTS: Final = 10
 # Per-account sliding window on the send route.
 EMAIL_SHARE_RATE_LIMIT_CALLS_DEFAULT = 10
 EMAIL_SHARE_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 600
+
+# Recipient suggestions (ADR-321 amendment): matched against the contacts
+# connector's whole address book, read once and cached (clients/contact_directory).
+#: The largest book read; past it the list says contacts are left out.
+EMAIL_SHARE_DIRECTORY_MAX_CONTACTS_DEFAULT = 5_000
+#: Suggestions shown for one query — published by the options route.
+EMAIL_SHARE_RECIPIENT_SUGGESTIONS_MAX: Final = 8
+#: Shortest name or address query compared — published; a number needs three digits.
+EMAIL_SHARE_RECIPIENT_QUERY_MIN_CHARS: Final = 2
+#: Longest query the route accepts: one recipient, not a paragraph.
+EMAIL_SHARE_RECIPIENT_QUERY_MAX_CHARS: Final = 100
+#: A cold read of a large book takes a few pages; past this the field offers nothing.
+EMAIL_SHARE_DIRECTORY_READ_TIMEOUT_SECONDS: Final = 15
+#: Projected directory entries one worker keeps (≈ 400 bytes each).
+EMAIL_SHARE_RECIPIENT_PROJECTION_MEMO_MAX_ENTRIES: Final = 20_000
+# Per-account window on the suggestion route: one request per pause in typing.
+EMAIL_SHARE_SUGGEST_RATE_LIMIT_CALLS_DEFAULT = 120
+EMAIL_SHARE_SUGGEST_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
 
 # ============================================================================
 # RAG SPACES (Knowledge Spaces with Document Upload)
@@ -6715,6 +6741,9 @@ LIVE_SESSION_SUMMARY_MESSAGE_TYPE: str = "live_session_summary"
 REDIS_KEY_LIVE_SESSION_PREFIX: str = "live:session:"
 #: Redis: sorted set of active sessions across workers (the instance cap).
 REDIS_KEY_LIVE_ACTIVE: str = "live:active"
+#: Redis: sorted set of the sessions asleep (ADR-329), scored by their standby
+#: deadline — what the standby gauge counts across workers.
+REDIS_KEY_LIVE_STANDBY: str = "live:standby"
 #: Redis: the mint rate limiter bucket per account.
 REDIS_KEY_LIVE_MINT_PREFIX: str = "live_mint:"
 #: Redis: the voice-sample rate limiter bucket per account (the mint's bounds).
@@ -6850,6 +6879,12 @@ LIVE_TURN_TEXT_MAX_CHARS: int = 4_000
 #: card, the decision row, the learning pass). The provider credential itself
 #: expires at the cap; only the Redis record is kept a little longer.
 LIVE_SESSION_RECORD_GRACE_SECONDS: int = 120
+#: How long a live session may sleep (ADR-329): in standby no provider connection
+#: exists and nothing is billed, so the bound is long (8 h, owner rule « the
+#: standby can last long ») — but a record must never live for ever.
+LIVE_STANDBY_MAX_SECONDS_DEFAULT: int = 28_800
+LIVE_STANDBY_MAX_SECONDS_MIN: int = 60
+LIVE_STANDBY_MAX_SECONDS_MAX: int = 86_400
 
 # =============================================================================
 # ASSISTANT TOOLS — calculation, journal lookup, activity, generated files (ADR-318)

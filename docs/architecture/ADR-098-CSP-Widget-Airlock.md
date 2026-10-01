@@ -133,3 +133,14 @@ and silently re-block the airlock.
 - Negative: hostile sibling-iframe payload rejected ✅; second payload
   ignored (single-shot) ✅; unsandboxed inertness guaranteed by locks 1–2.
 - Suite: 145/145 vitest (22 new), `tsc --noEmit` and ESLint clean.
+
+## Amendments
+
+### Amendment 2026-10-01: the Sherpa glue loader is gone ([ADR-329](ADR-329-Live-Standby-And-Multilingual-Wake-Word.md))
+
+The fifth code path listed in the context — the Sherpa WASM glue
+`<script src=blob:>` loader — no longer exists: the wake word runs ONNX Runtime
+Web in a same-origin module worker. `blob:` stays in `script-src` for the voice
+AudioWorklets (push-to-talk, the wake word's capture, the recording, the live
+player), which is the rule this ADR established; `'wasm-unsafe-eval'` stays for
+the wake word's runtime.

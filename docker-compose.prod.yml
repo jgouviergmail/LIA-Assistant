@@ -308,6 +308,10 @@ services:
       # this server-only value at request time (src/lib/site-origin.ts).
       # Empty = relative canonicals, JSON-LD off, empty sitemap.
       - APP_URL_SERVER=${APP_URL_SERVER:-}
+      # Landing video (ADR-330): the media directory the web server resolves
+      # at request time (src/lib/landing/media-origin.ts). Not a secret; empty
+      # = no video section.
+      - LANDING_MEDIA_BASE_URL=${LANDING_MEDIA_BASE_URL:-}
       - API_URL_SERVER_HTTP=${API_URL_SERVER_HTTP:-}
       - RAG_SPACES_MAX_FILE_SIZE_MB=${RAG_SPACES_MAX_FILE_SIZE_MB:-}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-}

@@ -353,6 +353,7 @@
         "« Qu'ai-je demain ? » est délégué au moteur de LIA comme un tour ordinaire.",
         "L'agenda est lu avec les mêmes règles que dans le chat.",
         "Une action sensible ? La question de validation devient la réponse vocale.",
+        "Un silence ? La session se met en veille — plus rien n'est facturé — et un toucher la réveille.",
         "À la fin, une carte récapitule la session et ce qu'elle a coûté."
       ]
     },

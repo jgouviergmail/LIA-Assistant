@@ -18,8 +18,8 @@ couple of minutes and, for each queued user:
    handed down rather than fetched again;
 4. the deterministic pre-filter (published rules, no LLM);
 5. the heartbeat task for THIS user only, under the FULL eligibility
-   checker (window, quota, cooldowns, activity) — only the "guaranteed
-   minimum" smoothing is skipped, because a wake answers an event;
+   checker a tick runs under (window, cooldowns, activity — the heartbeat
+   has no daily quota and no probabilistic smoothing, ADR-328);
 6. Drive wakes are not a decision at all: they reindex the changed files of
    linked folders (``rag_spaces/drive_push.py``), under bounds (ADR-304).
 
@@ -308,7 +308,6 @@ async def _serve_heartbeat(payload: WakePayload) -> str:
         eligibility_checker=_create_heartbeat_eligibility_checker(),
         batch_size=1,
         user_ids=[payload.user_id],
-        skip_probabilistic_gate=True,
     )
     if stats.success > 0:
         return "notified"
@@ -320,7 +319,7 @@ async def _serve_heartbeat(payload: WakePayload) -> str:
 async def _serve_mail_sources(payload: WakePayload) -> None:
     """A Gmail wake also feeds the user's label sources (ADR-262), before any gate.
 
-    Indexing is not a decision: it answers to no cooldown, quota or window,
+    Indexing is not a decision: it answers to no cooldown or window,
     and its outcome is counted on its own metric. Best-effort — it must never
     cost the heartbeat wake.
     """

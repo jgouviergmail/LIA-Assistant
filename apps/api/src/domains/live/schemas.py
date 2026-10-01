@@ -31,6 +31,15 @@ LiveSessionMode = VoiceSessionMode
 
 LiveOutcome = VoiceSessionOutcome
 
+#: Why a session went to sleep (ADR-329): the silence clock, the person's
+#: button, a page hidden past its grace, or a wake the provider refused twice
+#: (the session goes back to sleep rather than end).
+LiveStandbyReason = Literal["idle", "manual", "hidden", "wake_failed"]
+#: Why a session woke: the wake phrase, or the person's button.
+LiveWakeReason = Literal["wake_word", "manual"]
+#: A provider's own id of a conversation, as its wire spells it.
+_PROVIDER_CONVERSATION_ID_PATTERN = r"^[A-Za-z0-9_\-]+$"
+
 
 class LiveModelCapabilitiesResponse(BaseModel):
     """What one model can do — the browser reads THIS, never a provider id (spec A11)."""
@@ -340,9 +349,17 @@ class LiveConfigResponse(BaseModel):
     )
     connect_window_seconds: int
     idle_timeout_seconds: int = Field(
-        ..., description="The instance default for a model whose connector stores none."
+        ...,
+        description=(
+            "The instance default silence before standby, for a model whose connector "
+            "stores none."
+        ),
     )
     hidden_grace_seconds: int
+    standby_max_seconds: int = Field(
+        ...,
+        description="How long a session may stay on standby before it ends as expired (ADR-329).",
+    )
     delegation_timeout_seconds: int
     delegation_result_max_tokens: int
     delegation_tool_name: str
@@ -434,7 +451,13 @@ class LiveSessionStartResponse(LiveCredentialResponse):
         ...,
         description="This model's cap, 0 = unlimited: the client extends silently instead of asking.",
     )
-    idle_timeout_seconds: int = Field(..., description="This model's silence timeout, 0 = never.")
+    idle_timeout_seconds: int = Field(
+        ..., description="This model's silence before standby, 0 = never."
+    )
+    standby_max_seconds: int = Field(
+        ...,
+        description="How long the session may stay on standby before it ends as expired (ADR-329).",
+    )
     preferences: LivePreferences
     capabilities: LiveModelCapabilitiesResponse = Field(
         ..., description="What THIS session's model can do; the controller branches on it alone."
@@ -507,6 +530,57 @@ class LiveExtendResponse(BaseModel):
             "« auth token has expired »); the client reconnects on it at once."
         ),
     )
+
+
+class LiveStandbyRequest(BaseModel):
+    """``POST /live/sessions/{id}/standby`` — the browser closed the provider connection."""
+
+    reason: LiveStandbyReason = Field(..., description="What put the session to sleep.")
+    provider_conversation_id: str | None = Field(
+        None,
+        max_length=128,
+        pattern=_PROVIDER_CONVERSATION_ID_PATTERN,
+        description=(
+            "The provider's own id of the conversation the closed connection held, when its "
+            "wire names one: the end reads the vendor's bill over every conversation."
+        ),
+    )
+
+
+class LiveStandbyResponse(BaseModel):
+    """The session is asleep: nothing is connected, nothing is billed."""
+
+    standby_since: datetime = Field(..., description="When the session went to sleep.")
+    awake_seconds: int = Field(..., description="The time spent awake so far, in seconds.")
+    standby_deadline_at: datetime = Field(
+        ..., description="When an unbroken sleep ends the session as expired."
+    )
+    relay: Literal["scheduled", "empty"] | None = Field(
+        None,
+        description=(
+            "A DIRECT session's words since its last wake: scheduled — becoming the person's "
+            "own turn, off the request path — or empty (nothing was said). Null for a "
+            "delegated session, whose exchanges were archived as they happened."
+        ),
+    )
+
+
+class LiveWakeRequest(BaseModel):
+    """``POST /live/sessions/{id}/wake``."""
+
+    reason: LiveWakeReason = Field(..., description="What woke the session.")
+
+
+class LiveWakeResponse(BaseModel):
+    """The session is awake again: a fresh credential on a setup rendered now."""
+
+    credential: LiveCredentialResponse = Field(
+        ..., description="The connection's credential, minted to the shifted cap."
+    )
+    expires_at: datetime = Field(
+        ..., description="The session's cap, shifted by the length of the sleep."
+    )
+    extensions: int = Field(..., description="The person's explicit extensions so far.")
 
 
 class LiveOfferRequest(BaseModel):
@@ -587,11 +661,12 @@ class LiveEndRequest(BaseModel):
     provider_conversation_id: str | None = Field(
         None,
         max_length=128,
-        pattern=r"^[A-Za-z0-9_\-]+$",
+        pattern=_PROVIDER_CONVERSATION_ID_PATTERN,
         description=(
             "The provider's own id of the conversation, when its wire names one "
             "(ElevenLabs' conversation_initiation_metadata): the closing reads the "
-            "vendor's bill under it and shows it, never records it."
+            "vendor's bill under it — and under the ones each standby named — and shows "
+            "it, never records it."
         ),
     )
 
@@ -605,13 +680,17 @@ class LiveEndResponse(BaseModel):
     """The closed books of a session."""
 
     summary_message_id: UUID | None
-    duration_seconds: int
+    duration_seconds: int = Field(
+        ..., description="The time the session spent AWAKE (standbys excluded, ADR-329)."
+    )
     delegations: int
     voice_turns: int
     extensions: int = Field(
         0,
         description="How many times the person prolonged the session (rolling renewals excluded).",
     )
+    standbys: int = Field(0, description="How many times the session went to sleep (ADR-329).")
+    standby_seconds: int = Field(0, description="The time the session spent asleep, in seconds.")
     usage: LiveUsage | None
     vendor_bill: LiveVendorBill | None = Field(
         default=None,

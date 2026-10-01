@@ -17,12 +17,48 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { buildAppCsp, resolveCoepMode, buildHsts } from '../../apps/web/src/lib/csp.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const WEB = join(HERE, '..', '..', 'apps', 'web');
+
+/**
+ * The wake-word runtime's files (ADR-329), served as the app serves them: the
+ * pinned ONNX Runtime Web bundle and binary, and the melspectrogram model the
+ * app SHIPS (read through the French manifest, so a missing or renamed model
+ * is a failed measurement, never a stale file).
+ *
+ * @returns {Promise<Record<string, {path: string, type: string}>>} Path to file.
+ */
+async function wakeFiles() {
+  const dist = dirname(
+    createRequire(join(WEB, 'package.json')).resolve('onnxruntime-web/ort-wasm-simd-threaded.wasm')
+  );
+  const files = {
+    '/wake/worker.mjs': { path: join(HERE, 'wake-worker.mjs'), type: 'application/javascript' },
+    '/wake/ort.mjs': { path: join(dist, 'ort.wasm.bundle.min.mjs'), type: 'application/javascript' },
+    '/wake/ort-wasm-simd-threaded.wasm': {
+      path: join(dist, 'ort-wasm-simd-threaded.wasm'),
+      type: 'application/wasm',
+    },
+  };
+  try {
+    const manifest = JSON.parse(
+      await readFile(join(WEB, 'public', 'models', 'wake', 'v1', 'fr', 'manifest.json'), 'utf8')
+    );
+    files['/wake/melspectrogram.onnx'] = {
+      path: join(WEB, 'public', manifest.files.melspectrogram.url),
+      type: 'application/octet-stream',
+    };
+  } catch {
+    // No shipped model yet: the worker's fetch answers 404 and the check says so.
+  }
+  return files;
+}
 
 /** Sentinel session value: proves the server received the httpOnly cookie. */
 export const SESSION_SENTINEL = 'probe-session-sentinel';
@@ -129,6 +165,7 @@ export async function startProbeServer({ port = 8787, coep, expected = 1, apiUrl
   const template = await readFile(join(HERE, 'page.html'), 'utf8');
   const page = template.replace('__API_ORIGIN__', apiUrl);
   const headers = productionHeaders(coep, apiUrl);
+  const wake = await wakeFiles();
 
   const collected = [];
   let documentsServed = 0;
@@ -164,6 +201,21 @@ export async function startProbeServer({ port = 8787, coep, expected = 1, apiUrl
         'Service-Worker-Allowed': '/',
       });
       res.end("self.addEventListener('install', () => self.skipWaiting());\n");
+      return;
+    }
+
+    const wakeFile = wake[url.pathname];
+    if (wakeFile) {
+      readFile(wakeFile.path).then(
+        body => {
+          res.writeHead(200, { 'Content-Type': wakeFile.type, ...headers });
+          res.end(body);
+        },
+        () => {
+          res.writeHead(404, headers);
+          res.end();
+        }
+      );
       return;
     }
 

@@ -9,6 +9,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.users.admin_columns import ADMIN_USER_SWITCHES
 from src.domains.users.models import User
 
 # ============================================================================
@@ -495,3 +496,79 @@ async def test_search_users_unauthenticated(async_client: AsyncClient):
     response = await async_client.get("/api/v1/users/admin/search")
 
     assert response.status_code == 401
+
+
+# ============================================================================
+# SWITCHES AND SORT VOCABULARY (admin_columns)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.parametrize("sort_by", ["hashed_password", "id", "not_a_column"])
+async def test_a_sort_outside_the_vocabulary_is_refused(
+    admin_client: tuple[AsyncClient, User], sort_by: str
+):
+    """``getattr(User, sort_by)`` used to order by anything, password hash included."""
+    client, _ = admin_client
+
+    response = await client.get(f"/api/v1/users/admin/search?sort_by={sort_by}")
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_every_switch_is_served_with_the_account(
+    admin_client: tuple[AsyncClient, User], multiple_test_users: list[User]
+):
+    client, _ = admin_client
+
+    response = await client.get("/api/v1/users/admin/search?page_size=100")
+
+    assert response.status_code == 200
+    for row in response.json()["users"]:
+        assert all(isinstance(row[name], bool) for name in ADMIN_USER_SWITCHES)
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.parametrize("sort_order", ["asc", "desc"])
+async def test_sorting_by_a_switch_pages_through_every_account_once(
+    admin_client: tuple[AsyncClient, User], async_session: AsyncSession, sort_order: str
+):
+    """Twelve accounts share one value: without a tie-breaker a page boundary
+    among them is decided by PostgreSQL's whim, and an account appears on two
+    pages while another appears on none (ADR-185)."""
+    from src.core.security import get_password_hash
+
+    client, _ = admin_client
+    hashed_password = get_password_hash("TestPass123!!")
+    for index in range(12):
+        async_session.add(
+            User(
+                email=f"switch-{index:02d}@example.com",
+                full_name=f"Switch {index:02d}",
+                hashed_password=hashed_password,
+                is_active=True,
+                is_verified=True,
+                is_superuser=False,
+            )
+        )
+    await async_session.commit()
+
+    total = (await client.get("/api/v1/users/admin/search?page_size=1")).json()["total"]
+    seen: list[str] = []
+    page = 1
+    while len(seen) < total:
+        response = await client.get(
+            "/api/v1/users/admin/search?sort_by=heartbeat_enabled"
+            f"&sort_order={sort_order}&page_size=5&page={page}"
+        )
+        assert response.status_code == 200
+        rows = response.json()["users"]
+        assert rows, "a page came back empty before every account was seen"
+        seen.extend(row["id"] for row in rows)
+        page += 1
+
+    assert len(seen) == len(set(seen)) == total

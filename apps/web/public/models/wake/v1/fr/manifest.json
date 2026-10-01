@@ -1,0 +1,120 @@
+{
+  "version": "v1",
+  "language": "fr",
+  "phrase": "Dis LIA",
+  "sample_rate": 16000,
+  "chunk_samples": 1280,
+  "threshold": 0.998,
+  "patience": 1,
+  "refractory_chunks": 25,
+  "warmup_chunks": 25,
+  "files": {
+    "melspectrogram": {
+      "url": "/models/wake/v1/shared/melspectrogram-ba2b0e0f8b7b.onnx",
+      "sha256": "ba2b0e0f8b7b875369a2c89cb13360ff53bac436f2895cced9f479fa65eb176f",
+      "bytes": 1087958
+    },
+    "embedding": {
+      "url": "/models/wake/v1/shared/embedding_model-70d164290c1d.onnx",
+      "sha256": "70d164290c1d095d1d4ee149bc5e00543250a7316b59f31d056cff7bd3075c1f",
+      "bytes": 1326578
+    },
+    "classifier": {
+      "url": "/models/wake/v1/fr/classifier-5c05cbdd76cd.onnx",
+      "sha256": "5c05cbdd76cdc99d296a11e50c6dc4e94a11d901be946444836146fa638fde46",
+      "bytes": 871612
+    }
+  },
+  "measured": {
+    "recall_clean": 0.8826979472140762,
+    "recall_10db": 0.5002932551319648,
+    "recall_5db": 0.3853372434017595,
+    "recall_by_form_clean": {
+      "Dilia": 0.8739,
+      "Dis Lia": 0.8738,
+      "Dis [[ liˈa ]]": 0.9476,
+      "Dis [[ lˈia ]]": 0.906,
+      "Dis, Lia": 0.8292
+    },
+    "median_latency_ms": -26,
+    "near_miss_accepts": 0.089,
+    "false_accepts_per_hour": {
+      "speech (language)": 0.499,
+      "speech (English)": 0.817,
+      "music": 0.405,
+      "noise": 1.52
+    },
+    "verdict": "no-go",
+    "checks": {
+      "recall_clean": false,
+      "recall_10db": false,
+      "fa_speech": false,
+      "fa_music": false,
+      "latency": true,
+      "recall_each_form": false
+    }
+  },
+  "provenance": {
+    "generator": "scripts/wake-word",
+    "trained_at": "2026-10-01T14:42:45+00:00",
+    "sources_lock_sha256": "789c792dbca3149acc8e63f37e037a48a646f118836a6a39701011c0fc26bbb6",
+    "voices": [
+      "fr_FR-gilles-low (CC0-1.0)",
+      "fr_FR-mls-medium (CC-BY-4.0)",
+      "fr_FR-mls_1840-low (CC-BY-4.0)",
+      "fr_FR-siwis-medium (CC-BY-4.0)"
+    ],
+    "synthesisers": [
+      "Piper (piper-tts 1.8.0, GPL-3.0-or-later; run as a tool, never shipped; voices above)",
+      "VoxCPM2 (openbmb/VoxCPM2@32279effe8c19989596f05d353d1447f51d9e915, Apache-2.0): voices designed from descriptions, or cloned from the corpora below"
+    ],
+    "corpora": [
+      "FLEURS fr_fr (CC-BY-4.0)",
+      "Multilingual LibriSpeech mls_french (CC-BY-4.0)",
+      "MUSAN (CC-BY-4.0)"
+    ],
+    "feature_models": "openWakeWord v0.5.1 (Apache-2.0; embedding: Google speech_embedding)"
+  },
+  "commands": {
+    "stop": {
+      "phrase": "Stop",
+      "threshold": 0.95,
+      "patience": 1,
+      "refractory_chunks": 25,
+      "warmup_chunks": 25,
+      "classifier": {
+        "url": "/models/wake/v1/fr/stop-classifier-8ac842cbcde4.onnx",
+        "sha256": "8ac842cbcde47599f46632c03b412ff7113d82b9d3f9ceacb8355083ee7530ad",
+        "bytes": 871612
+      },
+      "measured": {
+        "recall_clean": 0.8277703604806409,
+        "recall_10db": 0.5180240320427236,
+        "recall_5db": 0.417890520694259,
+        "recall_by_form_clean": {
+          "Stop": 0.5842,
+          "Stop stop": 0.9628,
+          "Stop, stop": 0.9717
+        },
+        "median_latency_ms": -6,
+        "near_miss_accepts": 0.0702,
+        "false_accepts_per_hour": {
+          "speech (language)": 2.33,
+          "speech (English)": 3.176,
+          "music": 3.109,
+          "noise": 4.56
+        },
+        "verdict": "no-go",
+        "checks": {
+          "recall_clean": false,
+          "recall_10db": false,
+          "fa_speech": false,
+          "fa_music": false,
+          "latency": true,
+          "recall_each_form": false
+        }
+      },
+      "trained_at": "2026-10-01T17:15:25+00:00"
+    }
+  }
+}

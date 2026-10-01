@@ -21,7 +21,8 @@ Contract change (the ONLY one, user-approved 2026-07-10): the heartbeat
 "min > max" 422 used to be swallowed into a generic 500 by the endpoint's
 ``except Exception``; the migration added ``except HTTPException: raise`` so
 the 422 now reaches the client as intended — and its detail is now localized
-through ``APIMessages`` (6 languages).
+through ``APIMessages`` (6 languages). That guard left with the daily bounds
+(ADR-328); the refused-source 422 of the same endpoint keeps the contract.
 
 The ``agents/api/router.py`` HITL 429 lives inside the SSE
 ``event_generator``: its REAL contract is an SSE ``error`` event (never an
@@ -473,9 +474,6 @@ def _heartbeat_user(language: str = "en") -> SimpleNamespace:
         id=uuid4(),
         language=language,
         heartbeat_enabled=True,
-        heartbeat_min_per_day=1,
-        heartbeat_max_per_day=3,
-        heartbeat_push_enabled=True,
         heartbeat_notify_start_hour=9,
         heartbeat_notify_end_hour=21,
     )
@@ -484,52 +482,32 @@ def _heartbeat_user(language: str = "en") -> SimpleNamespace:
 class TestHeartbeatRouterContract:
     """Pins the heartbeat settings/feedback error edge.
 
-    Contract change (approved 2026-07-10, ADR-124): the 422 'min > max' guard
-    used to be swallowed by the endpoint's ``except Exception`` and degraded
-    to a generic 500. The migration added ``except HTTPException: raise`` so
-    the 422 now reaches the client as originally intended — and, being now
-    user-visible, its detail goes through ``APIMessages`` (6 languages, the
-    English wording keeping the endpoint's historical text).
+    Contract change (approved 2026-07-10, ADR-124): a 422 raised inside the
+    update used to be swallowed by the endpoint's ``except Exception`` and
+    degraded to a generic 500. The migration added ``except HTTPException:
+    raise`` so the 422 reaches the client. Its first site, the min/max guard,
+    left with the daily bounds (ADR-328); the refused-source validation is the
+    one that remains.
     """
 
     @pytest.mark.asyncio
-    async def test_min_gt_max_returns_422(self):
-        """Site: inconsistent min/max -> 422 (no longer degraded to 500)."""
+    async def test_unknown_refused_source_returns_422(self):
+        """Site: an unknown refused source -> 422 (never degraded to 500)."""
         from src.domains.heartbeat.router import update_heartbeat_settings
         from src.domains.heartbeat.schemas import HeartbeatSettingsUpdate
 
         db = AsyncMock()
         with pytest.raises(UnprocessableEntityError) as exc_info:
             await update_heartbeat_settings(
-                data=HeartbeatSettingsUpdate(heartbeat_min_per_day=5, heartbeat_max_per_day=2),
+                data=HeartbeatSettingsUpdate(heartbeat_disabled_sources=["no_such_source"]),
                 user=_heartbeat_user(language="en"),
                 db=db,
             )
 
         assert exc_info.value.status_code == 422
-        assert exc_info.value.detail == "heartbeat_min_per_day must be <= heartbeat_max_per_day"
+        assert "no_such_source" in exc_info.value.detail
         # The guard fires before any write: nothing to roll back.
         db.rollback.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("language", ["fr", "zh", "zh-CN"])
-    async def test_min_gt_max_detail_is_localized(self, language):
-        """The 422 detail follows user.language through the normalize chokepoint
-        (raw 'zh' and canonical 'zh-CN' both reach the zh-CN table)."""
-        from src.core.i18n import normalize_language
-        from src.domains.heartbeat.router import update_heartbeat_settings
-        from src.domains.heartbeat.schemas import HeartbeatSettingsUpdate
-
-        with pytest.raises(UnprocessableEntityError) as exc_info:
-            await update_heartbeat_settings(
-                data=HeartbeatSettingsUpdate(heartbeat_min_per_day=5, heartbeat_max_per_day=2),
-                user=_heartbeat_user(language=language),
-                db=AsyncMock(),
-            )
-
-        expected = APIMessages.heartbeat_min_max_invalid(normalize_language(language))
-        assert exc_info.value.detail == expected
-        assert exc_info.value.detail != APIMessages.heartbeat_min_max_invalid("en")
 
     @pytest.mark.asyncio
     async def test_db_failure_maps_to_500(self):
@@ -541,7 +519,7 @@ class TestHeartbeatRouterContract:
         db.commit = AsyncMock(side_effect=RuntimeError("db down"))
         with pytest.raises(InternalServerError) as exc_info:
             await update_heartbeat_settings(
-                data=HeartbeatSettingsUpdate(heartbeat_min_per_day=1, heartbeat_max_per_day=2),
+                data=HeartbeatSettingsUpdate(heartbeat_notify_start_hour=8),
                 user=_heartbeat_user(),
                 db=db,
             )

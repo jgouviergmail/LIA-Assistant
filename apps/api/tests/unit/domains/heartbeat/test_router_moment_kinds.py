@@ -36,9 +36,6 @@ def _user(kinds_disabled: list[str] | None = None) -> SimpleNamespace:
         id=uuid.uuid4(),
         language="fr",
         heartbeat_enabled=True,
-        heartbeat_min_per_day=1,
-        heartbeat_max_per_day=4,
-        heartbeat_push_enabled=True,
         heartbeat_notify_start_hour=8,
         heartbeat_notify_end_hour=22,
         heartbeat_disabled_sources=None,
@@ -122,7 +119,7 @@ class TestWriting:
 
         with _patch_availability():
             await update_heartbeat_settings(
-                data=HeartbeatSettingsUpdate(heartbeat_min_per_day=2),
+                data=HeartbeatSettingsUpdate(heartbeat_notify_start_hour=8),
                 user=user,
                 db=AsyncMock(),
             )

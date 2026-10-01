@@ -68,7 +68,7 @@ export function InteractiveChatMockup({ lng, withCta = true }: InteractiveChatMo
               <span
                 aria-hidden="true"
                 className={cn(
-                  'h-1.5 w-1.5 rounded-full',
+                  'cosmos-demo-step-dot h-1.5 w-1.5 rounded-full',
                   phase >= i ? SCENE_TONES[sceneId].fill : 'bg-border'
                 )}
               />

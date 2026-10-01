@@ -21,6 +21,8 @@ import {
   LifeBuoy,
   Phone,
   AudioLines,
+  Mic,
+  Moon,
   Radio,
 } from 'lucide-react';
 
@@ -620,6 +622,125 @@ function LiveBandScene({ active, labels }: SceneProps) {
   );
 }
 
+type WakePhrasePhase = 'listening' | 'heard' | 'recording' | 'speaking' | 'stop';
+const WAKE_PHRASE_STEPS: readonly TimelineStep<WakePhrasePhase>[] = [
+  { at: 0, state: 'listening' },
+  { at: 1100, state: 'heard' },
+  { at: 1900, state: 'recording' },
+  { at: 3200, state: 'speaking' },
+  { at: 4300, state: 'stop' },
+];
+
+/**
+ * The wake word (ADR-329): the badge listens for the phrase, the phrase opens
+ * the recording, and while LIA reads her answer aloud « Stop » cuts her voice.
+ * The badge carries its « beta » mark. Resting frame: the voice cut.
+ */
+function WakePhraseScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(WAKE_PHRASE_STEPS, { active });
+  const recording = phase === 'recording';
+  const speaking = phase === 'speaking';
+  return (
+    <div className={cn(STAGE, 'justify-start gap-2')}>
+      <div className="flex items-center gap-1.5 self-center">
+        <span
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded-full border transition-colors duration-300',
+            recording
+              ? 'border-destructive/50 bg-destructive/10'
+              : 'border-primary/40 bg-primary/10'
+          )}
+        >
+          {speaking ? (
+            <AudioLines className="h-3 w-3 text-primary" />
+          ) : (
+            <Mic
+              className={cn(
+                'h-3 w-3',
+                recording ? 'text-destructive' : 'text-primary',
+                active && recording && 'motion-safe:animate-pulse'
+              )}
+            />
+          )}
+        </span>
+        <span className="truncate text-px-10 text-muted-foreground">{labels.listening}</span>
+        <MiniChip className="px-1.5 py-0">{labels.beta}</MiniChip>
+      </div>
+      <MiniBubble
+        side="user"
+        className={cn(
+          'transition-all duration-300',
+          phase === 'listening' ? 'translate-y-1 opacity-0' : 'translate-y-0 opacity-100'
+        )}
+      >
+        {labels.heard}
+      </MiniBubble>
+      <MiniBubble
+        side="user"
+        className={cn(
+          'transition-all duration-300',
+          phase === 'stop' ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.stop}
+      </MiniBubble>
+    </div>
+  );
+}
+
+type StandbyPhase = 'live' | 'asleep' | 'tap' | 'awake';
+const STANDBY_STEPS: readonly TimelineStep<StandbyPhase>[] = [
+  { at: 0, state: 'live' },
+  { at: 1300, state: 'asleep' },
+  { at: 2900, state: 'tap' },
+  { at: 3500, state: 'awake' },
+];
+
+/**
+ * The live standby (ADR-329): a silence puts the session to sleep — the band
+ * says nothing is billed — and a tap on « Wake up » opens a new connection.
+ * One button changes role, so the cursor never moves. Resting frame: awake.
+ */
+function LiveStandbyScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(STANDBY_STEPS, { active });
+  const asleep = phase === 'asleep' || phase === 'tap';
+  return (
+    <div className={cn(STAGE, 'gap-2')}>
+      <div
+        className={cn(
+          'flex w-full max-w-[230px] items-center gap-1.5 rounded-md border px-2 py-1.5 text-px-10 transition-colors duration-500',
+          asleep ? 'border-border bg-background' : 'border-primary/30 bg-primary/5'
+        )}
+      >
+        {asleep ? (
+          <Moon className="h-3 w-3 shrink-0 text-muted-foreground" />
+        ) : (
+          <AudioLines
+            className={cn('h-3 w-3 shrink-0 text-primary', active && 'motion-safe:animate-pulse')}
+          />
+        )}
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate',
+            asleep ? 'text-muted-foreground' : 'text-primary'
+          )}
+        >
+          {asleep ? labels.asleep : labels.live}
+        </span>
+        <MiniChip pressed={phase === 'tap'} className="px-1.5 py-0">
+          {asleep ? labels.wake : <Moon className="h-2.5 w-2.5" />}
+        </MiniChip>
+      </div>
+      <Cursor
+        className={cn(
+          'right-[22%] top-[52%]',
+          phase === 'tap' ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
 type RhythmPhase = 'none' | 'first' | 'second' | 'third' | 'fourth';
 const RHYTHM_STEPS: readonly TimelineStep<RhythmPhase>[] = [
   { at: 0, state: 'none' },
@@ -718,7 +839,9 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   empty_starters: EmptyStartersScene,
   pwa: PwaScene,
   phone_channel: PhoneChannelScene,
+  wake_phrase: WakePhraseScene,
   live_band: LiveBandScene,
+  live_standby: LiveStandbyScene,
   radio_companion: RadioCompanionScene,
   server_escape_hatch: ServerEscapeHatchScene,
 };

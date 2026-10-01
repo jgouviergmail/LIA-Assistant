@@ -392,4 +392,22 @@ VOICE_MODE_MAX_RECORDING_SECONDS=60
 
 ---
 
+## Amendments
+
+### Amendment 2026-10-01: a wake word per language, without Sherpa in the browser ([ADR-329](ADR-329-Live-Standby-And-Multilingual-Wake-Word.md))
+
+The browser's wake word described above — Sherpa-onnx WASM transcribing every
+speech segment with Whisper tiny.en, the English phrase « OK Guy », a
+`keywords.txt` matcher, ~116 MB downloaded at build without a checksum — is
+**removed**. The phrase is now the interface language's own (« Dis LIA »,
+« Hey LIA », « Oye LIA », « Ehi LIA », « 嗨 LIA »): one openWakeWord classifier
+per language over two shared stages, trained offline (`scripts/wake-word`),
+committed under `apps/web/public/models/wake/`, run by ONNX Runtime Web
+single-threaded in a worker (`apps/web/src/lib/audio/wake-word/`), its
+microphone handed to the recording after a detection. The backend STT
+(Sherpa-onnx Whisper Small) is unchanged. The engine, the bench and the
+measurements are in ADR-329.
+
+---
+
 **Fin de ADR-054** - Voice Input Architecture Decision Record.

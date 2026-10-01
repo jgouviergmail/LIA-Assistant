@@ -67,6 +67,9 @@ import { SkillProposalCards } from '../SkillProposalCards';
 
 const ID = 'a'.repeat(32);
 
+/** A proposal still offered: its deadline is an hour ahead of the clock the card reads. */
+const FUTURE = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
 function card(over: Partial<SkillProposalCard> = {}): SkillProposalCard {
   return {
     id: ID,
@@ -78,7 +81,7 @@ function card(over: Partial<SkillProposalCard> = {}): SkillProposalCard {
       { path: 'references/r.md', size: 40 },
     ],
     changes: null,
-    expires_at: '2026-10-01T10:00:00+00:00',
+    expires_at: FUTURE,
     ...over,
   };
 }

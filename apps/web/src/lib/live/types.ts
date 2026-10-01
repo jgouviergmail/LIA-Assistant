@@ -230,9 +230,11 @@ export interface LiveConfigResponse {
   /** Seconds before the cap at which the extension is offered. */
   extension_prompt_seconds: number;
   connect_window_seconds: number;
-  /** The instance default for a model whose connector stores none. */
+  /** The instance default silence before standby, for a model whose connector stores none. */
   idle_timeout_seconds: number;
   hidden_grace_seconds: number;
+  /** How long a session may stay on standby before it ends as expired (ADR-329). */
+  standby_max_seconds: number;
   delegation_timeout_seconds: number;
   delegation_result_max_tokens: number;
   delegation_tool_name: string;
@@ -280,8 +282,10 @@ export interface LiveSessionStart extends LiveCredential {
   expires_at: string;
   /** This model's cap; 0 = unlimited: the client extends silently instead of asking. */
   session_max_minutes: number;
-  /** This model's silence timeout; 0 = never. */
+  /** This model's silence before standby; 0 = never. */
   idle_timeout_seconds: number;
+  /** How long the session may stay on standby before it ends as expired (ADR-329). */
+  standby_max_seconds: number;
   preferences: LivePreferences;
   /** What THIS session's model can do. */
   capabilities: LiveModelCapabilities;
@@ -328,10 +332,14 @@ export interface LiveUsage {
 
 export interface LiveEndResponse {
   summary_message_id: string | null;
+  /** The time the session spent AWAKE (standbys excluded, ADR-329). */
   duration_seconds: number;
   delegations: number;
   voice_turns: number;
   extensions: number;
+  /** How many times the session went to sleep, and how long it slept (ADR-329). */
+  standbys: number;
+  standby_seconds: number;
   usage: LiveUsage | null;
   /** The vendor's own bill of the session, when its wire names the conversation and it could be read. */
   vendor_bill?: LiveVendorBill | null;
@@ -361,6 +369,29 @@ export interface LiveExtendResponse {
   expires_at: string;
   extensions: number;
   credential: LiveCredential | null;
+}
+
+/** Why a session went to sleep (ADR-329); `wake_failed`: a wake the provider refused twice. */
+export type LiveStandbyReason = 'idle' | 'manual' | 'hidden' | 'wake_failed';
+/** Why a session woke. */
+export type LiveWakeReason = 'wake_word' | 'manual';
+
+/** `POST /live/sessions/{id}/standby` — asleep: nothing connected, nothing billed. */
+export interface LiveStandbyResponse {
+  standby_since: string;
+  awake_seconds: number;
+  /** When an unbroken sleep ends the session as expired. */
+  standby_deadline_at: string;
+  /** A DIRECT session's words since its last wake: relayed (`scheduled`) or none (`empty`). */
+  relay: 'scheduled' | 'empty' | null;
+}
+
+/** `POST /live/sessions/{id}/wake` — a fresh credential on a setup rendered at the wake. */
+export interface LiveWakeResponse {
+  credential: LiveCredential;
+  /** The cap, shifted by the length of the sleep. */
+  expires_at: string;
+  extensions: number;
 }
 
 export type LiveTranscriptRole = 'user' | 'assistant';

@@ -247,6 +247,24 @@ foreach ($file in $webFiles) {
     }
 }
 
+# Scripts que `pnpm run build` lance avant `next build` (apps/web/package.json) :
+# absent du bundle, le build de l'image web echoue ("Cannot find module
+# .../copy-ort-runtime.mjs", deploiement du 2026-10-01, ADR-329). La liste suit la
+# commande build ; deploy-prod.Tests.ps1 refuse tout script qu'elle nomme et oublie.
+$webScripts = @(
+    "copy-ort-runtime.mjs"
+)
+$webScriptsDir = Join-Path $webDir "scripts"
+New-Item -ItemType Directory -Path $webScriptsDir -Force | Out-Null
+foreach ($file in $webScripts) {
+    $src = Join-Path $SourceDir "apps\web\scripts\$file"
+    if (-not (Test-Path $src)) {
+        throw "apps/web/scripts/$file introuvable : le build de l'image web l'execute."
+    }
+    Copy-Item $src -Destination $webScriptsDir
+    Write-Host "  + apps/web/scripts/$file" -ForegroundColor DarkGray
+}
+
 # Copier les dossiers source Web
 $webDirs = @("src", "public", "locales")
 foreach ($dir in $webDirs) {

@@ -12,6 +12,8 @@
 import { render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { LANDING_PLANETARIUM_ENABLED } from '@/components/landing/constants';
+
 vi.mock('@/components/seo/JsonLd', async importOriginal => ({
   // serializeJsonLd stays real (pure helper used by blog metadata).
   ...(await importOriginal<typeof import('@/components/seo/JsonLd')>()),
@@ -123,11 +125,12 @@ describe('public pages — cosmos identity', () => {
     expect(getByTestId('jsonld-breadcrumb')).toBeInTheDocument();
   });
 
-  it('/demo centers the real mockup inside the planetarium and keeps its funnel event', async () => {
-    const { container, getByTestId } = render(await DemoPage(PARAMS));
+  it('/demo centers the real mockup, the planetarium following the landing switch, and keeps its funnel event', async () => {
+    const { container, getByTestId, queryByTestId } = render(await DemoPage(PARAMS));
     expect(container.querySelector('.landing-page.cosmos')).toBeInTheDocument();
     expect(getByTestId('chat-mockup')).toBeInTheDocument();
-    expect(getByTestId('planetarium')).toBeInTheDocument();
+    // One switch for the hero and the legacy demo: the two never disagree.
+    expect(queryByTestId('planetarium') !== null).toBe(LANDING_PLANETARIUM_ENABLED);
     expect(getByTestId('track-view')).toHaveAttribute('data-event', 'demo_started');
   });
 

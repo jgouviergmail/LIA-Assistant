@@ -374,23 +374,10 @@ export const LIVE_GO_AWAY_MARGIN_MS = 1500;
 export const LIVE_TURN_SETTLE_MS = 400;
 
 // ============================================================================
-// VOICE MODE (Wake Word Detection + Talk Mode)
+// VOICE MODE (Talk Mode)
 // ============================================================================
-// Configuration for Sherpa-onnx WASM KWS and Voice Activity Detection.
-// Reference: plan zippy-drifting-valley.md (section 2.5)
-
-/**
- * Default wake word for keyword spotting (display value).
- * User-facing wake word: "OK Guy" or "OK Guys" (always in English).
- * Must match keywords.txt file in public/models/.
- */
-export const VOICE_MODE_DEFAULT_WAKE_WORD = 'OK Guy';
-
-/**
- * Default keyword detection sensitivity (0.0-1.0).
- * Higher = fewer false negatives, more false positives.
- */
-export const VOICE_MODE_KWS_THRESHOLD = 0.25;
+// Voice Activity Detection and recording bounds. The wake word's phrase and
+// detection policy belong to its model (lib/audio/wake-word, ADR-329).
 
 /**
  * Voice Activity Detection silence threshold (milliseconds).
@@ -418,12 +405,6 @@ export const VOICE_MODE_MIN_SPEECH_MS = 500;
  * Prevents runaway recordings.
  */
 export const VOICE_MODE_MAX_RECORDING_SECONDS = 60;
-
-/**
- * Idle timeout before voice mode auto-disables (seconds).
- * If no wake word detected for this duration, mode disables.
- */
-export const VOICE_MODE_IDLE_TIMEOUT_SECONDS = 300;
 
 /**
  * LocalStorage key for voice mode enabled preference.

@@ -20,6 +20,11 @@
  * provider makes answered through the API's tool door and nothing in the
  * thread, the banner naming the session and the lookup.
  *
+ * A third plays the standby (ADR-329): the banner's door puts the session to
+ * sleep — the provider's socket closed, the API told, the banner saying what
+ * wakes it — and « Wake up » opens a NEW provider connection on the wake's
+ * credential; the closing card counts the sleep.
+ *
  * No backend, LLM, or paid provider is contacted.
  */
 import { test, expect, type MockRoute } from '../fixtures';
@@ -58,6 +63,7 @@ const START = {
   connection: 'token',
   session_max_minutes: 30,
   idle_timeout_seconds: 300,
+  standby_max_seconds: 28_800,
   setup: { model: 'models/gemini-x-live' },
   preferences: {
     interruptions: true,
@@ -95,6 +101,7 @@ const LIVE_CONFIG = {
   connect_window_seconds: 60,
   idle_timeout_seconds: 300,
   hidden_grace_seconds: 20,
+  standby_max_seconds: 28_800,
   delegation_timeout_seconds: 90,
   delegation_result_max_tokens: 600,
   delegation_tool_name: 'send_to_lia',
@@ -126,7 +133,9 @@ function routes(
   startBodies: unknown[] = [],
   toolBodies: unknown[] = [],
   turnBodies: unknown[] = [],
-  endRelay: string | null = null
+  endRelay: string | null = null,
+  standbyBodies: Array<{ url: string; body: unknown }> = [],
+  endFigures: Record<string, unknown> = {}
 ): MockRoute[] {
   return [
     { url: '**/api/v1/config', json: APP_CONFIG },
@@ -200,6 +209,50 @@ function routes(
       },
     },
     {
+      url: `**/api/v1/live/sessions/${SESSION}/standby`,
+      method: 'POST',
+      handler: async route => {
+        standbyBodies.push({ url: 'standby', body: route.request().postDataJSON() });
+        const now = Date.now();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            standby_since: new Date(now).toISOString(),
+            awake_seconds: 4,
+            standby_deadline_at: new Date(now + 28_800_000).toISOString(),
+            relay: null,
+          }),
+        });
+      },
+    },
+    {
+      url: `**/api/v1/live/sessions/${SESSION}/wake`,
+      method: 'POST',
+      handler: async route => {
+        standbyBodies.push({ url: 'wake', body: route.request().postDataJSON() });
+        const deadlines = liveSessionDeadlines(
+          START.session_max_minutes,
+          LIVE_CONFIG.connect_window_seconds
+        );
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            credential: {
+              credential: 'tok-wake',
+              credential_expires_at: deadlines.credential_expires_at,
+              connect_deadline_at: deadlines.connect_deadline_at,
+              connection: 'token',
+              setup: { model: 'models/gemini-x-live', rendered: 'at-wake' },
+            },
+            expires_at: deadlines.expires_at,
+            extensions: 0,
+          }),
+        });
+      },
+    },
+    {
       url: `**/api/v1/live/sessions/${SESSION}/end`,
       method: 'POST',
       handler: async route => {
@@ -221,6 +274,9 @@ function routes(
               google_api_requests: 0,
             },
             relay: endRelay,
+            standbys: 0,
+            standby_seconds: 0,
+            ...endFigures,
           }),
         });
       },
@@ -471,5 +527,74 @@ test.describe('chat live session', () => {
     await expect(card.getByTestId('live-session-relay')).toContainText(
       'Tes mots sont en cours de relais dans la conversation'
     );
+  });
+
+  test('sleeps on its door and wakes into a new provider connection (ADR-329)', async ({
+    page,
+    context,
+    authenticate,
+    mockApi,
+  }) => {
+    await context.grantPermissions(['microphone']);
+    await authenticate();
+    const endBodies: unknown[] = [];
+    const standbyBodies: Array<{ url: string; body: unknown }> = [];
+    await mockApi(
+      routes([], endBodies, [], [], [], null, standbyBodies, { standbys: 1, standby_seconds: 30 })
+    );
+    // No wake-word model here: the banner must point at its button.
+    await page.route('**/models/wake/**', route => route.fulfill({ status: 404, body: '' }));
+
+    const setups: Array<Record<string, unknown>> = [];
+    let closes = 0;
+    await page.routeWebSocket(/generativelanguage\.googleapis\.com/, ws => {
+      const frame = (payload: unknown) => ws.send(Buffer.from(JSON.stringify(payload)));
+      ws.onMessage(message => {
+        const received = JSON.parse(String(message)) as Record<string, unknown>;
+        if (received.setup) {
+          setups.push(received.setup as Record<string, unknown>);
+          frame({ setupComplete: {} });
+        }
+      });
+      ws.onClose(() => {
+        closes += 1;
+      });
+    });
+
+    await page.goto('/fr/dashboard/chat');
+    await page.getByRole('button', { name: 'Voix et session live' }).click();
+    await page.getByRole('menuitem', { name: 'Session Live (Gemini)' }).click();
+    const banner = page.getByRole('region', { name: 'Session live' });
+    await expect(banner.getByRole('status')).toContainText('Tu parles avec LIA');
+    await expect.poll(() => setups.length).toBe(1);
+
+    // Asleep: the provider's socket closed, the API told, the banner says what wakes it.
+    await banner.getByRole('button', { name: 'Mettre la session en veille' }).click();
+    await expect(banner.getByRole('status')).toContainText('En veille');
+    await expect(banner.getByTestId('live-standby-note')).toContainText(
+      'Touche « Réveiller » pour reprendre'
+    );
+    await expect(banner.getByTestId('live-standby-note')).toContainText("rien n'est facturé");
+    await expect.poll(() => closes).toBe(1);
+    await expect.poll(() => standbyBodies.length).toBe(1);
+    expect(standbyBodies[0]).toEqual({
+      url: 'standby',
+      body: { reason: 'manual', provider_conversation_id: null },
+    });
+    // The session holds no microphone of its own while asleep.
+    await expect(banner.getByRole('button', { name: 'Couper le micro' })).toHaveCount(0);
+
+    // Awake again: a NEW connection on the setup the API rendered at the wake.
+    await banner.getByRole('button', { name: 'Réveiller' }).click();
+    await expect(banner.getByRole('status')).toContainText('Tu parles avec LIA');
+    await expect.poll(() => setups.length).toBe(2);
+    expect(standbyBodies[1]).toEqual({ url: 'wake', body: { reason: 'manual' } });
+    await expect(banner.getByRole('button', { name: 'Couper le micro' })).toBeVisible();
+
+    await banner.getByRole('button', { name: 'Terminer la session live' }).click();
+    await expect(banner).toHaveCount(0);
+    await expect.poll(() => endBodies.length).toBe(1);
+    const card = page.getByTestId('live-session-summary');
+    await expect(card).toContainText('mise en veille 1 fois');
   });
 });

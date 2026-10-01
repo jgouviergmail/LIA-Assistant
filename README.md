@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.2.0</strong> — <strong>A skill library, and skills from elsewhere kept apart.</strong> Search the public skills.sh library and read a skill file by file before installing it at an exact commit; a skill can run its own Python, Node or shell commands in a throwaway copy of its folder and hand you files, reaching the network only through permitted hosts; a skill written elsewhere never touches your connectors, and one LIA writes in the chat enters your skills only when you click Install. Claude Sonnet 5.5 and GPT-6.1 Sol join the catalogue — 30 September 2026.
+  <strong>Version 2.3.0</strong> — <strong>A Live session that sleeps instead of ending, and a wake word heard in the browser.</strong> A silence puts a Live session on standby — the provider connection closes and nothing is billed until a tap or the phrase wakes it with LIA's own context; "Dis LIA" is a small trained model running in a browser worker, in French and in beta for now, and "Stop" cuts LIA's voice; the heartbeat evaluates every pass of its window with no daily quota; "Send by e-mail" suggests your contacts as you type a recipient — 2 October 2026.
 </p>
 
 ---
@@ -112,10 +112,10 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **54** functional domains | **785,000+** source lines (excl. tests) | **48,000+** automated tests | **326** ADRs                                                            |
-| **273** versions shipped  | **6 languages**, parity enforced in CI  | **612** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **54** functional domains | **800,000+** source lines (excl. tests) | **48,000+** automated tests | **329** ADRs                                                            |
+| **274** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 785,055 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-09-29). The published technical audit does not score security.
+Source-line figure: 802,541 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-02). The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -221,7 +221,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Voice, both ways
 
-- Push-to-talk or the wake word "OK Guy", detected in the browser by sherpa-onnx so no audio leaves the device for detection.
+- Push-to-talk, or the wake word "Dis LIA" — a small trained model run by ONNX Runtime in a browser worker, every file checked against its SHA-256, so no audio leaves the device for detection. "Stop" cuts LIA's voice while it reads an answer. French only for now, in beta; the other interface languages keep tap-to-speak ([ADR-329](docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md), [WAKE_WORD_TRAINING](docs/technical/WAKE_WORD_TRAINING.md)).
 - Offline Whisper transcription in the user's own language.
 - Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs) streamed sentence by sentence, first audio in about a second ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
 - ElevenLabs synthesis shares an administrator-set concurrency ceiling across API workers and speech surfaces; the browser plays queued audio in sequence, even when synthesis completes out of order.
@@ -233,6 +233,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - The voice model owns the conversation and delegates every request for data or action to the chat engine through one declared function, so the delegated turn runs in the graph with its approvals, registers and quotas and is drawn in the thread while the person speaks.
 - A provider declares its wire and the seam never branches on its name.
 - A direct session holds the read-only tools itself and acts on nothing.
+- A silence puts the session on standby instead of ending it: the provider connection closes and nothing is billed until the phrase or a tap wakes it into a new connection; only the person ends a session ([ADR-329](docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md)).
 - The provider's own usage is folded into an indicative meter and shown, never recorded — the vendor's bill read once at the end where it has one ([ADR-299](docs/architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md), [ADR-300](docs/architecture/ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md), [LIVE_MODE](docs/technical/LIVE_MODE.md)).
 
 #### A personal radio, on demand
@@ -266,7 +267,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 - Google (OAuth 2.1 + PKCE), Apple iCloud (IMAP/SMTP, CalDAV, CardDAV) and Microsoft 365 (Graph API, personal and business tenants).
 - One active provider per category; activating one deactivates its competitor.
-- Google and Microsoft each offer one consent to connect or reconnect several services on the same verified account. Each service can still be disconnected separately ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md), [OAUTH](docs/technical/OAUTH.md)).
+- Google and Microsoft each offer one consent to connect or reconnect several services on the same verified account, and the connection alert offers it as soon as two services of one provider have expired. Each service can still be disconnected separately ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md), [OAUTH](docs/technical/OAUTH.md)).
 
 #### E-mail, read whole and clean
 
@@ -343,7 +344,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 - Generated images, documents and screenshots can be kept without a deadline within published account limits, or released to a fresh normal deadline.
 - Their chat cards reflect the current state ([ADR-319](docs/architecture/ADR-319-A-Generated-File-Can-Be-Kept.md)).
-- A file or answer can be sent by e-mail with a subject and optional note: chosen recipients through a connected mailbox, or the account's verified address through LIA's relay, under the selected provider's displayed size limit ([ADR-321](docs/architecture/ADR-321-A-File-Or-An-Answer-Sent-By-E-Mail.md)).
+- A file or answer can be sent by e-mail with a subject and optional note: chosen recipients through a connected mailbox, or the account's verified address through LIA's relay, under the selected provider's displayed size limit; typing a recipient suggests the person's contacts by name or phone number and inserts their address ([ADR-321](docs/architecture/ADR-321-A-File-Or-An-Answer-Sent-By-E-Mail.md)).
 
 #### A browser, a sandbox, delegates
 
@@ -364,7 +365,7 @@ A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR
 #### The heartbeat
 
 - LIA takes the initiative when it is worth it: calendar, mail, tasks, weather changes, interests, memories, habits and the workboard are aggregated, a cheap structured decision says whether to speak, at your local time, and a second pass writes it in your voice and language.
-- Each source has a switch that says whether it is connected, you set the windows, the daily maximum and the channels, rate every notification, and every pass files what it read in your registers ([HEARTBEAT_AUTONOME](docs/technical/HEARTBEAT_AUTONOME.md), [GUIDE_HEARTBEAT](docs/guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md)).
+- Each source has a switch that says whether it is connected, you set the window and the channels — there is no daily quota: every pass of the window reaches the decision, bounded by the cooldowns ([ADR-328](docs/architecture/ADR-328-Heartbeat-Without-A-Daily-Quota.md)) —, rate every notification, and every pass files what it read in your registers ([HEARTBEAT_AUTONOME](docs/technical/HEARTBEAT_AUTONOME.md), [GUIDE_HEARTBEAT](docs/guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md)).
 
 #### Moments served to the minute
 
@@ -493,7 +494,7 @@ Operators get complete control and real-time visibility without touching configu
 | **Platform capabilities**     | One switch per capability, grouped in families, each row showing the deployment bound, the operator choice and the state actually enforced                                                                                                                                  |
 | **Budgets & limits**          | Per-user token, message and cost quotas with live gauges; the instance daily ceiling in euros, today's spend and what remains                                                                                                                                               |
 | **Knowledge & skills**        | Knowledge spaces and reindexation, the system FAQ space, skills (enable, translate, delete), admin MCP servers and plugins                                                                                                                                                  |
-| **People & voice**            | Users, roles, connector health, assistant personalities, the TTS catalogue and voice picker                                                                                                                                                                                 |
+| **People & voice**            | Users with every per-account switch as a sortable column, roles, connector health, assistant personalities, the TTS catalogue and voice picker                                                                                                                                                                                 |
 | **Platform health**           | Incidents and their diagnoses, each shown with the evidence it was written from                                                                                                                                                                                             |
 | **Registers**                 | Readable, technical and Article-12 extractions over one, several or all accounts — masked unless audited                                                                                                                                                                    |
 | **Broadcast, debug, demo**    | Announcements to everyone or to chosen accounts, each stored with its recipients and listed with its audience; per-user debug verbosity, the public showroom link, CSV consumption exports                                                                                  |
@@ -515,7 +516,7 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### Observability
 
-- **Prometheus**: 612 custom metrics (agents, LLM, infrastructure). A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
+- **Prometheus**: 616 custom metrics (agents, LLM, infrastructure). A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
 - **Grafana**: 31 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing · **Langfuse**: LLM tracing with prompt versions.
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
 - **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
@@ -726,7 +727,7 @@ docs/                     # Architecture, technical documents, guides, runbooks,
 | Orchestration | LangGraph 1.2.11 · LangChain 1.3.15 · `mcp` SDK (Streamable HTTP)                                                     | Multi-agent graph, LLM abstraction, Model Context Protocol        |
 | Data          | PostgreSQL 16 + pgvector · Redis 7.4                                                                                  | Data, checkpoints, vector search · cache, sessions, locks         |
 | Frontend      | Node.js 24 LTS · Next.js 16.3.6 · React 19.2.7 · TypeScript · TailwindCSS · Radix UI · TanStack Query · react-i18next | App Router UI, accessible primitives, server state, six languages |
-| Voice         | sherpa-onnx (wake word, offline Whisper) · Edge TTS · OpenAI · ElevenLabs                                             | In-browser detection and transcription, speech synthesis          |
+| Voice         | ONNX Runtime Web (wake word) · sherpa-onnx (offline Whisper) · Edge TTS · OpenAI · ElevenLabs                        | In-browser detection, server transcription, speech synthesis      |
 | Observability | Prometheus · Grafana · Loki · Tempo · Langfuse · structlog                                                            | Metrics, dashboards, logs, traces, LLM tracing                    |
 | Delivery      | Docker (multi-arch amd64/arm64) · GitHub Actions · Task                                                               | Images, CI/CD, one build tool for every command                   |
 
@@ -869,7 +870,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-326 ADR files (ADR-001 through ADR-327 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+329 ADR files (ADR-001 through ADR-330 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

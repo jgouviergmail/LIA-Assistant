@@ -1,0 +1,3 @@
+# The openWakeWord REFERENCE (Apache-2.0), installed WITHOUT dependencies: the features
+# and the streaming detector are checked against it (python -m wakeword selfcheck).
+openwakeword==0.6.0 --hash=sha256:6f423a4e3ae9dd0e3cd12b50ff8abf69679f687b4ab349d7c82c021c0e2abc9d

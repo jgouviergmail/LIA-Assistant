@@ -2,14 +2,19 @@ import { Button } from '@/components/ui/button';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConnectorGroupTrigger } from './ConnectorGroupTrigger';
 import { ErrorConnectorCard } from './ErrorConnectorCard';
+import {
+  bulkCandidates,
+  type BulkProvider,
+  type BulkReconnectCandidate,
+} from '@/lib/connectors/bulk-reconnect';
 import type { Connector } from './types';
 
 interface Props {
-  provider: 'google' | 'microsoft';
+  provider: BulkProvider;
   connectors: Connector[];
   busy: boolean;
   reconnectingConnector: string | null;
-  onBulkReconnect: (connectors: Connector[]) => void;
+  onBulkReconnect: (candidates: BulkReconnectCandidate[]) => void;
   onReconnect: (connectorType: string) => void;
   t: (key: string) => string;
 }
@@ -25,9 +30,13 @@ export function OAuthErrorGroup({
   t,
 }: Props) {
   if (connectors.length === 0) return null;
-  const eligible = provider === 'google'
-    ? connectors.filter(connector => connector.connector_type !== 'gmail')
-    : connectors;
+  // The server says which rows the grouped consent accepts (the legacy
+  // `gmail` row is not one of them): the button never offers a refusal.
+  const eligible = bulkCandidates(
+    connectors,
+    provider,
+    connector => connector.metadata?.oauth_account_email
+  );
 
   return (
     <AccordionItem value={`error-${provider}`} className="border rounded-lg px-3">

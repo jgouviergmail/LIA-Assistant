@@ -53,7 +53,7 @@ class LiveModelSettings(BaseModel):
         ...,
         description=(
             "Silence (nobody speaks, no delegation, no processing) after which the client "
-            f"ends the session; {LIVE_DURATION_UNLIMITED} = never."
+            f"puts the session on standby (ADR-329); {LIVE_DURATION_UNLIMITED} = never."
         ),
     )
     session_max_minutes: int = Field(

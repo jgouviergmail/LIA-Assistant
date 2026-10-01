@@ -18,6 +18,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useApiQuery } from './useApiQuery';
 import { logger } from '@/lib/logger';
 import apiClient from '@/lib/api-client';
+import type { BulkProvider } from '@/lib/connectors/bulk-reconnect';
 import {
   OAUTH_HEALTH_POLLING_INTERVAL_MS,
   OAUTH_HEALTH_TOAST_DEDUP_KEY,
@@ -36,6 +37,12 @@ export interface ConnectorHealthItem {
   severity: ConnectorHealthSeverity;
   expires_in_minutes: number | null;
   authorize_url: string;
+  /** The provider whose grouped consent can reconnect this row (server rule), or null. */
+  bulk_reconnect_provider: BulkProvider | null;
+  /** The OAuth account the row belongs to, for grouping. */
+  oauth_grant_id: string | null;
+  /** That account's address, for the account-choice dialog. */
+  oauth_account_email: string | null;
 }
 
 export interface ConnectorHealthResponse {

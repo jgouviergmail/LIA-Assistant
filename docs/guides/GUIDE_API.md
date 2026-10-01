@@ -1886,8 +1886,6 @@ Cookie: session_id=xxx
 ```json
 {
   "heartbeat_enabled": true,
-  "heartbeat_max_per_day": 3,
-  "heartbeat_push_enabled": true,
   "heartbeat_notify_start_hour": 8,
   "heartbeat_notify_end_hour": 22,
   "available_sources": ["calendar", "weather", "interests", "memories"]
@@ -1920,7 +1918,6 @@ Content-Type: application/json
 
 {
   "heartbeat_enabled": true,
-  "heartbeat_max_per_day": 5,
   "heartbeat_notify_start_hour": 9,
   "heartbeat_notify_end_hour": 21
 }
@@ -1931,10 +1928,10 @@ Content-Type: application/json
 | Champ | Type | Requis | Description |
 |-------|------|--------|-------------|
 | `heartbeat_enabled` | bool | Non | Activer/desactiver le heartbeat |
-| `heartbeat_max_per_day` | int (1-8) | Non | Nombre max de notifications par jour |
-| `heartbeat_push_enabled` | bool | Non | Accepte pour compatibilite mais ignore depuis v1.27.11 — le push suit l'activation globale des notifications |
 | `heartbeat_notify_start_hour` | int (0-23) | Non | Debut de la fenetre de notification |
 | `heartbeat_notify_end_hour` | int (0-23) | Non | Fin de la fenetre de notification |
+
+Pas de nombre de notifications par jour (ADR-328) : le modele de decision juge la pertinence, la fenetre et les cooldowns bornent le rythme. Un champ retire (`heartbeat_min_per_day`, `heartbeat_max_per_day`, `heartbeat_push_enabled`) encore envoye est ignore, jamais refuse.
 
 **Response :** `200 OK` — `HeartbeatSettingsResponse`
 
@@ -1944,7 +1941,7 @@ Content-Type: application/json
 curl -X PATCH http://localhost:8000/api/v1/heartbeat/settings \
   -H "Content-Type: application/json" \
   -b cookies.txt \
-  -d '{"heartbeat_max_per_day": 5}'
+  -d '{"heartbeat_notify_start_hour": 9}'
 ```
 
 ---

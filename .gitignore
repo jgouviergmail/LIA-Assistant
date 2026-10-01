@@ -354,3 +354,7 @@ infrastructure/caddy/Caddyfile
 docs/superpowers/specs/*audit-securite*.md
 docs/superpowers/specs/*security-audit*.md
 modeles.txt
+
+# Landing media fixtures served by the dev container (ADR-330): a local
+# stand-in for LANDING_MEDIA_BASE_URL, never a product asset.
+apps/web/public/landing-media-dev/

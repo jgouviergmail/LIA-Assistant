@@ -152,9 +152,7 @@ class TestServeOne:
 
 
 class TestServeHeartbeat:
-    async def test_the_runner_targets_the_user_and_skips_only_the_probabilistic_gate(
-        self,
-    ) -> None:
+    async def test_the_runner_targets_the_user_under_the_heartbeat_checker(self) -> None:
         payload = _payload("google_gmail")
         stats = SimpleNamespace(success=1, skip_reasons={})
         with (
@@ -170,7 +168,6 @@ class TestServeHeartbeat:
             assert await sweep._serve_heartbeat(payload) == "notified"
         kwargs = run.await_args.kwargs
         assert kwargs["user_ids"] == [payload.user_id]
-        assert kwargs["skip_probabilistic_gate"] is True
         assert kwargs["eligibility_checker"] == "checker"
         assert kwargs["task"].wake is payload
 

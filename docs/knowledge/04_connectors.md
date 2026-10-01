@@ -283,7 +283,9 @@ Settings. Disconnect only when you want to remove that service.
 
 **Several Google or Microsoft services in error:**
 Open **Settings → Connectors** and use **Reconnect my Google services** or
-**Reconnect my Microsoft services**. Services already linked to the same verified
+**Reconnect my Microsoft services**. When at least two services of one provider have expired, the
+connection alert shown in the app offers **Reconnect all** — the same journey,
+without going through the settings. Services already linked to the same verified
 provider account can be authorized together in one OAuth journey. If the
 services belong to different known accounts, choose one account's services at
 a time. For older connections whose account has not yet been verified, choose
@@ -291,6 +293,10 @@ the services explicitly and check the provider account shown during consent.
 The result reports services whose permissions were granted and those still in
 error. Disconnecting one service does not disconnect other services linked to
 the same account.
+
+The connection alert shown on every page offers the same grouped
+button as soon as two services of one provider are in error, so they can be
+reconnected together without opening the settings.
 
 MCP servers can each use a different OAuth authorization server. Their
 refreshes are retried without changing their connection status on temporary

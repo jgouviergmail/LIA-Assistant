@@ -904,10 +904,66 @@ function SkillLibraryScene({ active, labels }: SceneProps) {
   );
 }
 
+type FrozenPhase = 'start' | 'scrolled';
+const FROZEN_STEPS: readonly TimelineStep<FrozenPhase>[] = [
+  { at: 0, state: 'start' },
+  { at: 1400, state: 'scrolled' },
+];
+
+/** One row of switches: on, off, on, on, off — read by its colour alone here. */
+const FROZEN_SWITCHES = [true, false, true, true, false, true, false, true] as const;
+
+/**
+ * The administrators' user table: every per-account switch is a column, the
+ * table scrolls sideways, and the e-mail and the name stay put. Resting
+ * frame: scrolled, the identity still in view.
+ */
+function FrozenColumnsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(FROZEN_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'gap-1')}>
+      {[0, 1, 2].map(row => (
+        <div
+          key={row}
+          className="flex w-full max-w-[240px] items-center overflow-hidden rounded border border-border bg-background text-px-9"
+        >
+          <span className="w-[42%] shrink-0 truncate border-r border-border bg-background px-1.5 py-1 font-medium text-foreground/80">
+            {row === 0 ? labels.email : <SkeletonLine w="w-4/5" className="h-1.5" />}
+          </span>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <div
+              className={cn(
+                'flex gap-1.5 px-1.5 transition-transform duration-1000 ease-in-out',
+                phase === 'scrolled' ? '-translate-x-10' : 'translate-x-0'
+              )}
+            >
+              {FROZEN_SWITCHES.map((on, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    'h-2 w-3.5 shrink-0 rounded-full',
+                    row === 0
+                      ? 'bg-muted-foreground/25'
+                      : on !== (row === 2)
+                        ? 'bg-primary/70'
+                        : 'bg-muted-foreground/25'
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+      <span className="text-px-9 text-muted-foreground">{labels.switches}</span>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
   settings_search: SettingsSearchScene,
+  frozen_columns: FrozenColumnsScene,
   deep_links: DeepLinksScene,
   history_search: HistorySearchScene,
   template_library: TemplateLibraryScene,

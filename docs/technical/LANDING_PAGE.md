@@ -114,7 +114,7 @@ catalogue est calculé depuis sa liste, jamais recopié dans la traduction.
 
 | Composant                                                                                 | Type   | Notes                                                                                                                                                                                                                                            |
 | ----------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `cosmic/CosmosHero`                                                                       | Server | Hero Cosmos et démonstration partagée dans le planetarium ; CTA propre et lien vers `#features`.                                                                                                                                                 |
+| `cosmic/CosmosHero`                                                                       | Server | Hero Cosmos et démonstration partagée ; le planetarium ne l'entoure que si `LANDING_PLANETARIUM_ENABLED` (`landing/constants.ts`, ÉTEINT depuis le 2026-10-01, décision du propriétaire — composant, styles et tests conservés) ; CTA propre et lien vers `#features`. |
 | `UseCasesSection`                                                                         | Server | Parcours visuel des mêmes six scènes, placé avant les chapitres : intention, contexte et résultat. Chaque carte est un lien vers le chapitre retrouvé dans `CHAPTERS` par son champ `scene`.                                                     |
 | `TechSection`                                                                             | Server | Quatre principes lisibles — relier le contexte, organiser le travail, vérifier, rendre l’action lisible — puis choix d’ingénierie détaillés et schéma d’architecture dans le dépliant facultatif. Les chiffres restent issus de `LANDING_STATS`. |
 | `ArchitectureDiagram`                                                                     | Client | Comparaison lisible de Pipeline et ReAct : trois étapes par parcours, exemples concrets et garanties communes. Met en avant rapidité, contrôle et fiabilité, sans ratio de tokens ; rendue dans le dépliant facultatif de `TechSection`.         |
@@ -131,6 +131,7 @@ catalogue est calculé depuis sa liste, jamais recopié dans la traduction.
 AuthRedirect | LandingHeader (fixed) | ChapterRail (fixed, xl+)
 <main>
    1. CosmosHero           — démonstration partagée, choix parmi six scènes
+   1b. LandingVideoSection — vidéo de l'opérateur, montée seulement si LANDING_MEDIA_BASE_URL répond (§10)
    2. PromiseSection       — trois promesses
    3. UseCasesSection      — mêmes situations, liens vers leurs chapitres
    4. EditorialChapters    — features ; chapter-{act,know,anticipate,control,grow,connect}
@@ -257,7 +258,8 @@ sous `more.*` ; les chiffres de la bande « Le soin, en chiffres » proviennent 
 ### `/demo` — la démonstration en URL partageable
 
 `app/[lng]/demo/page.tsx` conserve une URL publique sans header, footer ni redirection d’authentification.
-La variante illustrative rend `InteractiveChatMockup` avec son CTA dans le planetarium. Le même lecteur que
+La variante illustrative rend `InteractiveChatMockup` avec son CTA, dans le planetarium quand le hero le dessine
+(même commutateur `LANDING_PLANETARIUM_ENABLED` : les deux surfaces ne divergent jamais). Le même lecteur que
 le hero permet de choisir une scène, de la mettre en pause et de la rejouer ; il reste sur son résultat.
 Le choix de variante dans `lib/showroom-config.ts` peut rendre à la place le parcours `GuidedShowroom` :
 ce parcours guidé est distinct des illustrations éditoriales.
@@ -333,6 +335,90 @@ traversee que la garde 401 ci-dessus).
 
 ---
 
+## 10. La vidéo de la landing — un média déclaré par l'opérateur (ADR-330)
+
+Entre le hero et la promesse, une section vidéo n'existe **que si le serveur en cours nomme un répertoire de
+médias** : `LANDING_MEDIA_BASE_URL` (lue à la requête, jamais cuite dans l'image — les pages publiques sont
+prégénérées et neutres, B03). Le répertoire porte un `manifest.json` (schéma `lib/landing/media.ts` : affiche,
+renditions avec leur `type` négocié par le navigateur et un `minWidth` facultatif, rapport d'image, durée, carte
+des temps, crédit `https`, drapeau « généré par IA ») ; `GET /api/landing-media` le lit derrière un délai de 3 s et
+un cache de 5 min (60 s pour un échec), résout chaque nom NU sous ce seul répertoire, et répond `{ video: null }`
+pour tout le reste. `components/landing/video/LandingVideo.tsx` monte alors la section (`#video`, `data-testid`
+`landing-video`) — un **emplacement** vide au ratio du clip et la légende ; **l'élément `<video>` lui-même
+appartient à la visite** (amendement ADR-330 du 2026-10-01) : `LandingVideoHost`, monté par la mise en page
+racine `app/[lng]/layout.tsx` autour de chaque page, garde UN élément, que la section lui confie par contexte
+(`landing-video-context.tsx`) ; le lecteur (`LandingVideoPlayer.tsx`, `data-testid` `landing-video-player`,
+`data-mode`) est **cadré** sur l'emplacement en coordonnées document (`lib/landing/frame-placement.ts`,
+re-mesuré par `ResizeObserver` et au redimensionnement — il défile avec la page, rien à chaque scroll),
+**amarré** en bas à gauche (vignette, pause, son, « Revenir à la vidéo » en `Link` vers `/{lng}#video`, fermer)
+tant que la musique joue sans cadre à l'écran — autre page publique ou landing défilée —, **caché** muet ou en
+pause sans cadre ; il n'existe que sur les pages publiques déclarées (`lib/landing/player-routes.ts`, chaque
+route sous `app/[lng]` nommée d'un côté par un test) et s'arrête, en pause puis démonté, sur la connexion, le
+dashboard, `/share`. Un changement de langue remonte la mise en page : le lecteur note `{ time, sound }` en
+session (`lib/landing/player-session.ts`, deux minutes) et reprend là. Politique de lecture inchangée (en
+boucle, sources attachées à 600 px du viewport, lecture **à l'entrée en vue**, jamais sous
+`prefers-reduced-motion` ni `Save-Data` ; **le son est voulu par défaut** — décision du propriétaire,
+2026-10-01 — avec repli muet sur `NotAllowedError` seul, le bouton son l'indique ; une vidéo muette se met en
+pause hors champ ou onglet masqué et reprend au retour ; « pas d'emplacement » se lit « hors champ ») ; aucune
+rendition lisible → section et lecteur se retirent. Sous la vidéo : la mention « Vidéo générée par IA » et le
+crédit (lien externe, `sr-only` « nouvelle fenêtre »), six langues sous `landing.video.*` (`close` compris).
+
+**Les titres battent sur une carte des temps**, pas sur un micro : `scripts/assets/encode_landing_video.py`
+analyse la bande son hors ligne (flux spectral, tempo par fenêtre, suivi dynamique, chaque temps calé sur son
+attaque **puis avancé de l'avance de la fenêtre d'analyse** — `ONSET_LEAD_MS`, 72,9 ms, calibré sur une piste de
+clics synthétique passée par les fonctions mêmes de l'encodeur : biais 0,0 ms, écart-type 0,5 ms — et **la mesure
+votée localement** sur ±16 temps dans la bande basse, `bar_flags`, testé : une égalité ou un passage où personne ne
+joue la mesure n'en ouvre aucune, parce qu'un compte depuis le début de la pièce se décale à chaque temps que le
+suiveur insère ou saute dans un breakdown) en triplets `[ms, poids, mesure]`, dans un fichier dont le nom porte
+l'empreinte du master ET la version de l'analyse (`-beats-v2.json`, `BEAT_ANALYSIS_VERSION` : tout le répertoire est
+servi immuable un an) ; la page la charge par `/api/landing-media/beats` dès que la vidéo joue avec le son (pas
+quand le son est seulement voulu) et `lib/landing/beat-sync.ts` lit l'horloge de l'image présentée
+(`requestVideoFrameCallback`, `mediaTime` ancré sur `expectedDisplayTime` quand le navigateur le donne, repli
+`currentTime`), calcule la valeur une image d'écran en avance (`BEAT_PAINT_LEAD_MS`, 16 ms : ce qu'un rappel écrit
+n'est peint qu'au vsync suivant) et écrit TROIS propriétés sur le document (`:root`, `data-beat` pendant la
+lecture) : `--beat` (chaque temps), `--beat-bar` (les temps forts seuls), `--beat-hue` (±8° sur un cycle de
+quatre mesures) ; les lignes du `h1` du hero (son animation d'entrée `cosmos-rise`, figée en `forwards`, possède
+le `transform` du `h1` lui-même) et chaque `h2` de **toute page cosmos visitée** les lisent en `transform` seul —
+6 px et 4,5 % sur un temps fort (`--beat-lift`, `--beat-scale`, un seul endroit à régler), plancher 60 % de
+l'amplitude pour le temps le plus faible (`BEAT_WEIGHT_FLOOR`), attaque 12 ms, relâche 180 ms, origine selon
+l'alignement du titre. **Six effets** s'y ajoutent, son actif seulement, `transform`/`opacity` seuls, rien en
+mouvement réduit (choix du propriétaire, 2026-10-01) : le halo du cadre vidéo (anneau pré-peint, opacité au
+temps et à la mesure), le battement du logo du header (`.landing-logo`), la respiration des mots fantômes (sur
+leur cadre, le mot gardant la dérive du scroll), le point d'étape actif de la maquette de chat
+(`.cosmos-demo-step-dot`), le numéro actif du rail des chapitres (`.cosmos-chapter-rail`), la dérive de
+teinte du dégradé signature (`hue-rotate(var(--beat-hue))` sur `.cosmos-grad-text`) et **les yeux de LIA qui
+sautent entre deux temps et retombent, écrasés, sur le suivant** (quatrième propriété du pilote,
+`--beat-progress` : arc en `sin(π·progress)`, squash depuis les pieds sur l'enveloppe du temps, saut plus haut
+après une mesure — sur la racine `.lia-eyes`, que ni le déplacement ni le rig ne transforment).
+
+Le même script écrit les quatre renditions (AV1 et H.264, 1080p pour ≥ 900 px, 720p pour les téléphones), l'affiche,
+le manifeste et `PROVENANCE.json`, avec l'empreinte du master dans chaque nom — un cache immuable d'un an est alors
+sûr. En dev, un répertoire de fixtures sous `apps/web/public/landing-media-dev/` (ignoré par git) tient lieu
+d'origine : `LANDING_MEDIA_BASE_URL=https://localhost:3000/landing-media-dev`. Preuve hermétique :
+`e2e/smoke/landing-video.spec.ts` (origine simulée par `page.route` avec des réponses `206` aux requêtes Range —
+sans elles le pipeline média de Chromium cale —, clip de deux secondes sous `e2e/fixtures/media/`). Deux mesures
+qui ne se devinent pas : la politique d'autoplay est **émulée** (le shell headless ne refuse rien, même sous
+`--autoplay-policy=user-gesture-required`) sur un **événement d'entrée réel** (`pointerdown`/`keydown`), jamais sur
+`navigator.userActivation` — chaque `evaluate` de Playwright, donc chaque `expect`, vaut un geste pour Chromium
+(mesuré : `isActive` faux du chargement au premier `evaluate`, vrai cinq secondes après chacun) ; et le scan axe
+attend la fin des animations d'entrée (`FadeInOnScroll`), car scanné en plein fondu il composite un texte translucide
+sur le fond et rapporte 61 violations de contraste que personne ne voit.
+
+## 11. Les illustrations du blog — des variantes prégénérées (ADR-330)
+
+Mesuré 2026-10-01 : 28 PNG de 2752×1536 à 6-9 Mo redimensionnés par l'optimiseur sur le Pi (0,4-0,6 s par
+variante froide, 4,8 s quand quatorze cartes arrivent ensemble), des réponses `/_next/image` sans extension que
+Cloudflare ne met jamais en cache, et une image de partage de 8 Mo refusée par X. Désormais
+`apps/web/scripts/build-article-images.mjs <masters>` écrit, par article, quatre WebP (`480, 768, 1024, 1536`) et
+un JPEG 1200×675 (`<slug>-og.jpg`) dans `public/articles/` ; `lib/blog/article-images.ts` est l'unique lieu des
+noms et des `sizes` (cartes de l'index, grille de la landing, hero de l'article) ; `ArticleIllustration` dessine un
+`<img srcset sizes>` (`loading`/`fetchpriority` selon la position) et la page d'article préannonce son hero par
+`preload` de React 19. Les masters ne sont pas versionnés (l'historique git garde les 28 d'origine : `git show
+<commit>:apps/web/public/articles/<slug>.png`). La garde `data/__tests__/blog-article-images.guard.test.ts` refuse
+un slug sans son jeu complet, avec une liste en attente qui ne peut que rétrécir.
+
+---
+
 ## Arborescence (extrait)
 
 ```
@@ -358,6 +444,10 @@ apps/web/src/components/landing/
     PromiseSection.tsx  BasicsBand.tsx  TransparencySection.tsx
     DayTimeline.tsx  GallerySection.tsx
     __tests__/                  # Contenu, i18n, catalogue et interactions
+  video/
+    LandingVideoSection.tsx      # Libellés côté serveur (landing.video.*)
+    LandingVideo.tsx             # Section montée sur le descripteur de /api/landing-media, commandes, pilule
+    use-landing-video.ts         # Descripteur, mouvement réduit, « proche » / « en vue », page chargée
   UseCasesSection.tsx           # Même catalogue de scènes, liens vers les chapitres
   TechSection.tsx               # Principes visibles, détails dépliables, chiffres sources
   ArchitectureDiagram.tsx

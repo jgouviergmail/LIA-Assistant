@@ -20,6 +20,8 @@ const session = {
   toggleMute: vi.fn(),
   extend: vi.fn(async () => true),
   declineExtension: vi.fn(),
+  standby: vi.fn(async () => {}),
+  wake: vi.fn(async () => {}),
 };
 
 function live() {
@@ -27,6 +29,15 @@ function live() {
   store.begin('a'.repeat(32));
   store.apply('minted');
   store.apply('setup_complete');
+}
+
+/** A session asleep (ADR-329), its wake word in the given state. */
+function asleep(wakeWord: 'listening' | 'loading' | 'unavailable' = 'listening') {
+  live();
+  const store = useLiveStore.getState();
+  store.markLive(Date.now() - 65_000);
+  store.enterStandby({ at: Date.now(), deadline: Date.now() + 3_600_000 });
+  store.setWakeWord(wakeWord, wakeWord === 'listening' ? 'Dis LIA' : null);
 }
 
 describe('LiveBanner', () => {
@@ -319,8 +330,124 @@ describe('LiveBanner', () => {
     expect(toast.info).toHaveBeenCalledWith(
       'live.captions.title · live.outcome.provider_closed — close 1007: Unsupported voice'
     );
-    useLiveStore.getState().finish('ended');
+    act(() => useLiveStore.getState().finish('ended'));
     expect(toast.info).toHaveBeenCalledTimes(1);
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  describe('standby (ADR-329)', () => {
+    it('offers standby while live and while LIA speaks, closed while LIA works', async () => {
+      live();
+      const { unmount } = renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
+      const door = screen.getByRole('button', { name: 'live.button.standby' });
+      expect(door).toBeEnabled();
+      await userEvent.click(door);
+      expect(session.standby).toHaveBeenCalledTimes(1);
+      // The person's own act cuts the voice (owner request 2026-10-01): only the
+      // silence clock waits for the end of an answer.
+      act(() => useLiveStore.getState().setVoiceState('speaking'));
+      const speaking = screen.getByRole('button', { name: 'live.button.standby' });
+      expect(speaking).toBeEnabled();
+      await userEvent.click(speaking);
+      expect(session.standby).toHaveBeenCalledTimes(2);
+      act(() => {
+        useLiveStore.getState().setVoiceState('idle');
+        useLiveStore.getState().setDelegating(true);
+      });
+      expect(screen.getByRole('button', { name: 'live.button.standby' })).toBeDisabled();
+      unmount();
+    });
+
+    it('keeps the keyboard focus on its door through the sleep, the connection and the wake', async () => {
+      live();
+      renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
+      const door = screen.getByRole('button', { name: 'live.button.standby' });
+      door.focus();
+      act(() =>
+        useLiveStore.getState().enterStandby({ at: Date.now(), deadline: Date.now() + 60_000 })
+      );
+      expect(screen.getByRole('button', { name: 'live.button.wake' })).toHaveFocus();
+      act(() => useLiveStore.getState().leaveStandby());
+      // Opening the connection: the door stays, closed, and keeps the focus.
+      const opening = screen.getByRole('button', { name: 'live.button.standby' });
+      expect(opening).toBeDisabled();
+      expect(opening).toBe(door);
+      act(() => useLiveStore.getState().apply('setup_complete'));
+      expect(screen.getByRole('button', { name: 'live.button.standby' })).toBeEnabled();
+    });
+
+    it('says the session sleeps and what wakes it, offers Wake up and hides the microphone', async () => {
+      asleep('listening');
+      renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
+      expect(screen.getByRole('status')).toHaveTextContent('live.status.standby');
+      expect(screen.getByTestId('live-standby-note')).toHaveTextContent('live.standby.listening');
+      expect(screen.queryByRole('button', { name: /live\.mic\./ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'live.button.standby' })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'live.button.wake' }));
+      expect(session.wake).toHaveBeenCalledTimes(1);
+      // End stays reachable while asleep.
+      await userEvent.click(screen.getByRole('button', { name: 'live.button.end' }));
+      expect(session.end).toHaveBeenCalledWith('ended');
+    });
+
+    it.each(['loading', 'unavailable'] as const)(
+      'points at the button when no phrase listens (%s)',
+      state => {
+        asleep(state);
+        renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
+        expect(screen.getByTestId('live-standby-note')).toHaveTextContent(
+          'live.standby.button_only'
+        );
+      }
+    );
+
+    it('asks an iPhone to keep its screen on while asleep', () => {
+      const agent = vi.spyOn(navigator, 'userAgent', 'get');
+      agent.mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)');
+      asleep();
+      try {
+        const { unmount } = renderWithProviders(
+          <LiveBanner session={session} onStopAll={vi.fn()} />
+        );
+        expect(screen.getByTestId('live-standby-note')).toHaveTextContent('live.standby.screen_on');
+        unmount();
+      } finally {
+        agent.mockRestore();
+      }
+      // Any other browser: the same sleep, no such hint.
+      renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
+      expect(screen.getByTestId('live-standby-note')).not.toHaveTextContent(
+        'live.standby.screen_on'
+      );
+    });
+
+    it('tells a refused wake once, by its code or generically, the session still asleep', () => {
+      asleep();
+      renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
+      act(() => useLiveStore.getState().refuseWake('mint_rate_limited'));
+      expect(toast.error).toHaveBeenCalledWith('live.error.mint_rate_limited');
+      expect(useLiveStore.getState().wakeRefusal).toBeNull();
+      act(() => useLiveStore.getState().refuseWake(null));
+      expect(toast.error).toHaveBeenLastCalledWith('live.wake.refused');
+      expect(toast.error).toHaveBeenCalledTimes(2);
+      expect(useLiveStore.getState().status).toBe('standby');
+    });
+
+    it('freezes the meter clock on the time spent awake', () => {
+      asleep();
+      useLiveStore.getState().setRates(
+        {
+          pricing_unit: 'per_audio_minute',
+          input_unit_price: 0.05,
+          output_unit_price: 0,
+          audio_input_unit_price: null,
+          audio_output_unit_price: null,
+          usd_eur_rate: 0.9,
+        },
+        null
+      );
+      renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
+      expect(screen.getByTestId('live-meter')).toHaveTextContent('⏱ 1:05');
+    });
   });
 });

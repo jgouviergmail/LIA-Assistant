@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { ARTICLE_CARD_SIZES } from '@/lib/blog/article-images';
 import type { BlogArticle, BlogCategory } from '@/data/blog-articles';
+import { ArticleIllustration } from './ArticleIllustration';
 
 const CATEGORY_BADGE: Record<BlogCategory, string> = {
   architecture: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
@@ -40,13 +41,12 @@ export function BlogCard({
       <Card className="hover-lift hover-glow h-full border-border/60 overflow-hidden transition-all">
         {/* Article illustration */}
         <div className="relative w-full aspect-[16/9] overflow-hidden">
-          <Image
-            src={`/articles/${article.slug}.png`}
+          <ArticleIllustration
+            slug={article.slug}
             alt={title}
-            fill
+            sizes={ARTICLE_CARD_SIZES}
             priority={priority}
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover group-hover:scale-[1.03] transition-transform duration-300"
+            className="group-hover:scale-[1.03] transition-transform duration-300"
           />
         </div>
         <CardHeader className="space-y-2.5 pt-4">

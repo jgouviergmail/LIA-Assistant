@@ -488,17 +488,12 @@ class TestHeartbeatSettingsResponse:
         """Test valid settings response."""
         settings = HeartbeatSettingsResponse(
             heartbeat_enabled=True,
-            heartbeat_min_per_day=1,
-            heartbeat_max_per_day=3,
-            heartbeat_push_enabled=True,
             heartbeat_notify_start_hour=9,
             heartbeat_notify_end_hour=22,
             available_sources=["calendar", "weather"],
         )
 
         assert settings.heartbeat_enabled is True
-        assert settings.heartbeat_min_per_day == 1
-        assert settings.heartbeat_max_per_day == 3
         assert settings.heartbeat_notify_start_hour == 9
         assert settings.heartbeat_notify_end_hour == 22
         assert len(settings.available_sources) == 2
@@ -507,9 +502,6 @@ class TestHeartbeatSettingsResponse:
         """Test settings with no available sources."""
         settings = HeartbeatSettingsResponse(
             heartbeat_enabled=False,
-            heartbeat_min_per_day=1,
-            heartbeat_max_per_day=3,
-            heartbeat_push_enabled=True,
             heartbeat_notify_start_hour=9,
             heartbeat_notify_end_hour=22,
             available_sources=[],
@@ -527,31 +519,22 @@ class TestHeartbeatSettingsUpdate:
         update = HeartbeatSettingsUpdate(heartbeat_enabled=True)
 
         assert update.heartbeat_enabled is True
-        assert update.heartbeat_max_per_day is None
-        assert update.heartbeat_push_enabled is None
+        assert update.heartbeat_notify_start_hour is None
 
     def test_empty_update_valid(self):
         """Test that empty update is valid."""
         update = HeartbeatSettingsUpdate()
 
         assert update.heartbeat_enabled is None
-        assert update.heartbeat_max_per_day is None
+        assert update.model_dump(exclude_unset=True) == {}
 
-    def test_max_per_day_valid_range(self):
-        """Test valid max_per_day range (1-8)."""
-        for n in (1, 4, 8):
-            update = HeartbeatSettingsUpdate(heartbeat_max_per_day=n)
-            assert update.heartbeat_max_per_day == n
+    def test_a_retired_daily_bound_is_ignored_not_refused(self):
+        """A client still sending the per-day bounds (ADR-328) saves the rest."""
+        update = HeartbeatSettingsUpdate.model_validate(
+            {"heartbeat_max_per_day": 5, "heartbeat_min_per_day": 2, "heartbeat_enabled": True}
+        )
 
-    def test_max_per_day_below_minimum(self):
-        """Test that max_per_day below 1 is rejected."""
-        with pytest.raises(ValidationError):
-            HeartbeatSettingsUpdate(heartbeat_max_per_day=0)
-
-    def test_max_per_day_above_maximum(self):
-        """Test that max_per_day above 8 is rejected."""
-        with pytest.raises(ValidationError):
-            HeartbeatSettingsUpdate(heartbeat_max_per_day=9)
+        assert update.model_dump(exclude_unset=True) == {"heartbeat_enabled": True}
 
     def test_notify_hours_valid_range(self):
         """Test valid notification hour range (0-23)."""

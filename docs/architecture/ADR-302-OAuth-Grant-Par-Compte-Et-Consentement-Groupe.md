@@ -99,6 +99,24 @@ consentement Microsoft réel n'est revendiqué ici.
 - `apps/api/src/domains/connectors/oauth_grant_runtime.py`
 - `apps/api/src/infrastructure/scheduler/token_refresh.py`
 - `apps/web/src/components/settings/connectors/hooks/useBulkConnect.ts`
-- `apps/web/src/components/settings/connectors/hooks/useBulkReconnect.ts`
+- `apps/web/src/hooks/useBulkReconnect.ts`
 - [Procédure et callbacks](../technical/OAUTH.md)
 - [Schéma des grants](../technical/DATABASE_SCHEMA.md)
+
+## Amendement 2026-10-01 — « Tout reconnecter » depuis l'alerte de connexion
+
+**Amende** : le parcours « Reconnecter mes services » (demande du propriétaire :
+quand l'alerte d'un connecteur OAuth expiré s'affiche et qu'au moins deux sont
+expirés, proposer « Tout reconnecter » comme dans « Mes connecteurs »).
+
+- **Le serveur dit ce qui est groupable.** `bulk_reconnect_provider` (dans
+  `oauth_bulk.py`) répond le fournisseur d'un connecteur en erreur que le parcours
+  groupé sait reconnecter, et rien sinon ; la liste des connecteurs ET le bilan de
+  santé (`ConnectorHealthItem`, avec le grant et le compte) le publient. Le client
+  ne devine plus le fournisseur à partir du type.
+- **Un seul mécanisme, deux surfaces.** Le hook et le dialogue de choix de compte
+  sont sortis des réglages (`hooks/useBulkReconnect.ts`,
+  `components/connectors/BulkReconnectDialog.tsx`) ; l'alerte et la fenêtre de
+  reconnexion proposent le bouton groupé dès que deux connecteurs d'un même
+  fournisseur sont en erreur, et le réglage partage le même calcul
+  (`lib/connectors/bulk-reconnect.ts`).

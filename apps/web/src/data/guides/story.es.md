@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 2.2
-**Fecha**: 2026-09-30
-**Aplicación**: LIA v2.2.0
+**Fecha**: 2026-10-02
+**Aplicación**: LIA v2.3.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests) — 54 dominios funcionales | **785.000+** |
+| Líneas de código fuente (sin tests) — 54 dominios funcionales | **800.000+** |
 | Tests automatizados, ejecutados en cada commit y entrega | **48.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **326** |
-| Versiones entregadas a ritmo regular | **273** |
+| Decisiones de arquitectura documentadas (ADR) | **329** |
+| Versiones entregadas a ritmo regular | **274** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -52,7 +52,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 326 documentadas:
+Tres decisiones estructurantes, entre las 329 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -70,6 +70,8 @@ Un sistema que se pilota con instrumentos:
 - **Conformidad**: seguridad revisada punto de acceso por punto de acceso; cifrado de los datos personales; ciclo de vida de las cuentas alineado con el RGPD.
 
 El producto hace visibles sus decisiones técnicas a escala humana. La conversación acompaña a una persona entre dispositivos sin interrumpir su lectura; la radio empieza cuando decide escuchar y muestra las fuentes y el coste de las noticias. La vida de un archivo generado puede prolongarse por decisión propia. El trabajo programado y las comprobaciones de condiciones tienen relojes distintos. Son promesas observables, respaldadas por fuentes, límites y pruebas, en lugar de afirmar que una asistente adivina lo que alguien desea.
+
+La misma regla vale para lo que aún no está a la altura. La palabra de activación «Dis LIA» es un pequeño modelo entrenado sin conexión y medido en un banco cuyos umbrales se publican antes del entrenamiento: el modelo francés aún no los alcanza, así que se entrega marcado como **beta**, y el producto lo dice, en lugar de bajar el listón para poder escribir «terminado». Una sesión de voz que se duerme con un silencio no cuesta nada, y solo la persona la termina.
 
 ## 6. La prueba
 

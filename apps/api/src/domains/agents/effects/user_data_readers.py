@@ -37,6 +37,9 @@ CONSULTATION_RECORDERS: Final[dict[str, str]] = {
     "space": "domains/rag_spaces/consultations.py",
     "wake": "infrastructure/scheduler/heartbeat_wake_sweep.py",
     "profile": "domains/users/geocoding.py",
+    # The recipient suggestions of « Send by e-mail » read the contacts
+    # connector's address book (ADR-321 amendment) — a live read only.
+    "email_share": "domains/email_share/recipients.py",
     # The dial path opens the calendar for the free/busy projection (and, for
     # an owner call, the context sections of lot 4); the return synthesis that
     # spends under the same task type reads nothing of its own. A live lookup

@@ -12,7 +12,10 @@ changed without regenerating the lockfiles via ``task deps:lock``:
 4. every pin of ``requirements-sandbox.lock.txt`` (the skill sandbox image,
    ADR-327) carries the dev lock's version: it is compiled with
    ``-c requirements-dev.lock.txt``, and the dev manifest includes the
-   sandbox's, so the image runs exactly what the unit suite imported.
+   sandbox's, so the image runs exactly what the unit suite imported;
+5. the wake-word toolbox (``scripts/wake-word``, ADR-329) has its own two
+   manifests and locks — a CPU image and a GPU image, apart from the API,
+   compiled by ``task wake:deps:lock`` — held to rules 1 and 2 like the API's.
 
 The check is fully offline and deterministic: it never queries an index, so
 new upstream releases can never make it flaky. Requires only ``packaging``.
@@ -29,7 +32,9 @@ from pathlib import Path
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
-API_DIR = Path(__file__).resolve().parent.parent / "apps" / "api"
+ROOT = Path(__file__).resolve().parent.parent
+API_DIR = ROOT / "apps" / "api"
+WAKE_DIR = ROOT / "scripts" / "wake-word"
 
 # Pinned line of a compiled lockfile: `name[extras]==version [; marker] [\]`
 _LOCK_PIN_RE = re.compile(r"^([A-Za-z0-9_.\-]+)(?:\[[^\]]+\])?==([^ ;\\]+)")
@@ -74,7 +79,9 @@ def parse_lock(path: Path) -> dict[str, set[str]]:
     return pins
 
 
-def check_manifest_against_lock(manifests: list[Path], lock_path: Path, errors: list[str]) -> None:
+def check_manifest_against_lock(
+    manifests: list[Path], lock_path: Path, errors: list[str], remedy: str = "task deps:lock"
+) -> None:
     """Ensure every manifest requirement is satisfied by a pin of the lock."""
     pins = parse_lock(lock_path)
     for manifest in manifests:
@@ -84,14 +91,14 @@ def check_manifest_against_lock(manifests: list[Path], lock_path: Path, errors: 
             if not versions:
                 errors.append(
                     f"{manifest.name}: '{req}' is missing from {lock_path.name} "
-                    f"— run 'task deps:lock'"
+                    f"— run '{remedy}'"
                 )
                 continue
             if not any(req.specifier.contains(v, prereleases=True) for v in versions):
                 errors.append(
                     f"{manifest.name}: '{req}' is not satisfied by "
                     f"{lock_path.name} ({name}=={', '.join(sorted(versions))}) "
-                    f"— run 'task deps:lock'"
+                    f"— run '{remedy}'"
                 )
 
 
@@ -130,6 +137,10 @@ def main() -> int:
     runtime_lock = API_DIR / "requirements.lock.txt"
     dev_lock = API_DIR / "requirements-dev.lock.txt"
     sandbox_lock = API_DIR / "requirements-sandbox.lock.txt"
+    wake_manifest = WAKE_DIR / "requirements.in"
+    wake_lock = WAKE_DIR / "requirements.lock.txt"
+    wake_gpu_manifest = WAKE_DIR / "requirements-gpu.in"
+    wake_gpu_lock = WAKE_DIR / "requirements-gpu.lock.txt"
 
     for path in (
         runtime_manifest,
@@ -138,6 +149,10 @@ def main() -> int:
         runtime_lock,
         dev_lock,
         sandbox_lock,
+        wake_manifest,
+        wake_lock,
+        wake_gpu_manifest,
+        wake_gpu_lock,
     ):
         if not path.exists():
             print(f"::error::{path} not found")
@@ -153,6 +168,8 @@ def main() -> int:
     check_layering(runtime_lock, dev_lock, errors)
     check_manifest_against_lock([sandbox_manifest], sandbox_lock, errors)
     check_constrained(sandbox_lock, dev_lock, errors)
+    check_manifest_against_lock([wake_manifest], wake_lock, errors, "task wake:deps:lock")
+    check_manifest_against_lock([wake_gpu_manifest], wake_gpu_lock, errors, "task wake:deps:lock")
 
     if errors:
         for error in errors:
@@ -161,7 +178,7 @@ def main() -> int:
 
     print(
         "Lockfiles are in sync with their manifests "
-        f"({runtime_lock.name}, {dev_lock.name}, {sandbox_lock.name})"
+        f"({runtime_lock.name}, {dev_lock.name}, {sandbox_lock.name}, wake-word toolbox)"
     )
     return 0
 

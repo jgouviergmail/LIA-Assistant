@@ -1585,27 +1585,6 @@ class APIMessages:
         return messages.get(resolve_language(language), messages["en"])
 
     # =========================================================================
-    # HEARTBEAT SETTINGS
-    # =========================================================================
-
-    @staticmethod
-    def heartbeat_min_max_invalid(language: SupportedLanguage | None = None) -> str:
-        """Heartbeat settings validation - min per day above max per day (422).
-
-        Field names stay verbatim (API payload identifiers); the English
-        wording keeps the historical detail of the endpoint's guard.
-        """
-        messages = {
-            "fr": "heartbeat_min_per_day doit être inférieur ou égal à heartbeat_max_per_day",
-            "en": "heartbeat_min_per_day must be <= heartbeat_max_per_day",
-            "es": "heartbeat_min_per_day debe ser menor o igual que heartbeat_max_per_day",
-            "de": "heartbeat_min_per_day muss kleiner oder gleich heartbeat_max_per_day sein",
-            "it": "heartbeat_min_per_day deve essere minore o uguale a heartbeat_max_per_day",
-            "zh-CN": "heartbeat_min_per_day 必须小于或等于 heartbeat_max_per_day",
-        }
-        return messages.get(resolve_language(language), messages["en"])
-
-    # =========================================================================
     # EMAIL TOOL VALIDATION
     # =========================================================================
 

@@ -24,6 +24,8 @@ KEYS = {
     "mint_rate_limited",
     "session_not_found",
     "session_expired",
+    "session_awake",
+    "session_standby",
     "credential_invalid",
     "provider_refused",
     "voice_unknown",
@@ -43,6 +45,7 @@ KEYS = {
     # fallback carries it in a push; the browser's card carries it here).
     "summary_recap",
     "summary_extended",
+    "summary_standbys",
     "voice_sample",
     *(f"outcome_{outcome}" for outcome in get_args(LiveOutcome)),
 }

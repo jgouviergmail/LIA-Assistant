@@ -596,58 +596,65 @@ class TestCalculateElapsedHours:
 
 
 @pytest.mark.unit
-class TestWakeGateBypass:
-    """ADR-261: a push wake skips ONLY the probabilistic smoothing — the hard
-    eligibility check still runs first and still refuses."""
+class TestAnUnboundedCheckerIsNeverPaced:
+    """ADR-328: a checker with no daily bounds (the heartbeat's) is never
+    paced — every tick, wake and moment reaches the task's own decision; the
+    hard eligibility check still runs first and still refuses."""
 
     @pytest.mark.asyncio
-    async def test_skip_probabilistic_gate_never_consults_should_send(self):
+    async def test_no_count_and_no_probabilistic_draw(self):
         from src.infrastructure.proactive.eligibility import EligibilityResult
 
-        checker = AsyncMock()
-        checker.check = AsyncMock(return_value=EligibilityResult.success())
-        checker.should_send_notification = MagicMock(return_value=(False, {}))
-        checker.notification_model = None
-        checker.start_hour_field = "interests_notify_start_hour"
-        checker.end_hour_field = "interests_notify_end_hour"
+        checker = _unbounded_heartbeat_checker()
         task = MagicMock()
         task.task_type = "heartbeat"
         task.check_eligibility = AsyncMock(return_value=False)  # stop right after the gate
-        runner = ProactiveTaskRunner(
-            task=task, eligibility_checker=checker, skip_probabilistic_gate=True
-        )
-        runner._get_today_notification_count = AsyncMock(return_value=3)
+        runner = ProactiveTaskRunner(task=task, eligibility_checker=checker)
         stats = RunnerStats()
 
-        result = await runner._process_user(_make_mock_user(), AsyncMock(), stats)
+        with (
+            patch.object(
+                checker, "check", AsyncMock(return_value=EligibilityResult.success())
+            ) as check,
+            patch.object(checker, "should_send_notification") as should_send,
+            patch.object(runner, "_get_today_notification_count", AsyncMock()) as count,
+        ):
+            result = await runner._process_user(_make_mock_user(), AsyncMock(), stats)
 
         assert result is False
-        checker.check.assert_awaited_once()
-        checker.should_send_notification.assert_not_called()
+        check.assert_awaited_once()
+        should_send.assert_not_called()
+        count.assert_not_awaited()
         task.check_eligibility.assert_awaited_once()
         assert "probabilistic_skip" not in stats.skip_reasons
 
     @pytest.mark.asyncio
-    async def test_hard_eligibility_still_refuses_a_wake(self):
+    async def test_hard_eligibility_still_refuses(self):
         from src.infrastructure.proactive.eligibility import (
             EligibilityReason,
             EligibilityResult,
         )
 
-        checker = AsyncMock()
-        checker.check = AsyncMock(
-            return_value=EligibilityResult(
-                eligible=False, reason=EligibilityReason.OUTSIDE_TIME_WINDOW
-            )
-        )
+        checker = _unbounded_heartbeat_checker()
+        refused = EligibilityResult(eligible=False, reason=EligibilityReason.OUTSIDE_TIME_WINDOW)
         task = MagicMock()
         task.task_type = "heartbeat"
-        runner = ProactiveTaskRunner(
-            task=task, eligibility_checker=checker, skip_probabilistic_gate=True
-        )
+        runner = ProactiveTaskRunner(task=task, eligibility_checker=checker)
         stats = RunnerStats()
-        assert await runner._process_user(_make_mock_user(), AsyncMock(), stats) is False
+
+        with patch.object(checker, "check", AsyncMock(return_value=refused)):
+            assert await runner._process_user(_make_mock_user(), AsyncMock(), stats) is False
+
         assert stats.skip_reasons == {"outside_time_window": 1}
+
+
+def _unbounded_heartbeat_checker() -> EligibilityChecker:
+    return EligibilityChecker(
+        task_type="heartbeat",
+        enabled_field="interests_enabled",
+        start_hour_field="interests_notify_start_hour",
+        end_hour_field="interests_notify_end_hour",
+    )
 
 
 @pytest.mark.unit

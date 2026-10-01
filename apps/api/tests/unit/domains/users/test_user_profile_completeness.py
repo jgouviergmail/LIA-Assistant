@@ -42,6 +42,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import Boolean
 
 from src.core.constants import USER_FONT_SIZE_MAX_PX
 from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
@@ -50,8 +51,9 @@ from src.domains.shared.schemas import (
     VALID_FONT_FAMILIES,
     VALID_THEMES,
 )
+from src.domains.users.admin_columns import ADMIN_USER_NON_SWITCHES, ADMIN_USER_SWITCHES
 from src.domains.users.models import User
-from src.domains.users.schemas import UserProfile
+from src.domains.users.schemas import UserProfile, UserProfileWithStats
 from src.domains.users.service import UserService
 
 pytestmark = pytest.mark.unit
@@ -257,3 +259,55 @@ class TestTheDerivedHomeAddressStillWorks:
         profile = _service()._build_user_profile(_orm_user())
 
         assert profile.home_address is None
+
+
+class TestTheAdminTableShowsEverySwitch:
+    """The administrators' table lists each account's switches (``admin_columns``).
+
+    It showed three of them: voice, memory and the token display. A switch the
+    model gains tomorrow must reach the table the same day, so the declaration
+    is checked against the table of ``users`` itself, not against a list.
+    """
+
+    def test_every_boolean_column_is_a_switch_or_says_why_not(self) -> None:
+        boolean_columns = {
+            column.name for column in User.__table__.columns if isinstance(column.type, Boolean)
+        }
+
+        unclassified = sorted(
+            boolean_columns - set(ADMIN_USER_SWITCHES) - set(ADMIN_USER_NON_SWITCHES)
+        )
+        stale = sorted((set(ADMIN_USER_SWITCHES) | set(ADMIN_USER_NON_SWITCHES)) - boolean_columns)
+
+        assert not unclassified, (
+            f"{unclassified} are boolean columns the admin table neither shows "
+            "nor excludes with a reason — add them to ADMIN_USER_SWITCHES"
+        )
+        assert not stale, f"{stale} are declared but are no boolean column of users"
+
+    def test_a_column_is_declared_once(self) -> None:
+        declared = [*ADMIN_USER_SWITCHES, *ADMIN_USER_NON_SWITCHES]
+
+        assert len(declared) == len(set(declared))
+
+    def test_every_switch_is_a_boolean_field_of_the_listing_row(self) -> None:
+        fields = UserProfileWithStats.model_fields
+
+        wrong = [
+            name
+            for name in ADMIN_USER_SWITCHES
+            if name not in fields or fields[name].annotation is not bool
+        ]
+
+        assert not wrong, f"UserProfileWithStats must declare {wrong} as bool"
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_each_switch_is_copied_from_the_row(self, value: bool) -> None:
+        """Both values: a builder that ignored a switch would report its default."""
+        user = _orm_user(**dict.fromkeys(ADMIN_USER_SWITCHES, value))
+
+        enriched = _service()._build_user_profile_with_stats(user, None)
+
+        assert {name: getattr(enriched, name) for name in ADMIN_USER_SWITCHES} == dict.fromkeys(
+            ADMIN_USER_SWITCHES, value
+        )

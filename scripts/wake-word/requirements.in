@@ -1,0 +1,16 @@
+# The wake-word training and measurement toolbox (ADR-329). Runs in its own image
+# (scripts/wake-word/Dockerfile), never on the API's interpreter nor on the Pi.
+piper-tts==1.8.0
+onnxruntime==1.30.0
+numpy==2.5.3
+scipy==1.18.1
+soundfile==0.14.0
+torch==2.14.1+cpu
+# torch.onnx's exporter (the classifier is shipped as ONNX).
+onnx==1.23.1
+onnxscript==0.7.2
+# Import-time dependencies of the openWakeWord REFERENCE (requirements.reference.txt),
+# which is installed without its own: its tflite-runtime has no wheel here.
+requests==2.34.2
+scikit-learn==1.9.1
+tqdm==4.70.1

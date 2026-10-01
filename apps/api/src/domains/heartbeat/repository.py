@@ -3,15 +3,13 @@ Heartbeat Autonome domain repository.
 
 Provides database operations for HeartbeatNotification audit records:
 - CRUD operations
-- Quota checking (count_today_for_user)
 - History queries with pagination
 - Feedback updates
 - Content hash deduplication
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 import structlog
 from sqlalchemy import Select, and_, func, select, update
@@ -141,44 +139,6 @@ class HeartbeatNotificationRepository:
             select(HeartbeatNotification).where(HeartbeatNotification.id == notification_id)
         )
         return result.scalar_one_or_none()
-
-    async def count_today_for_user(
-        self,
-        user_id: UUID,
-        user_timezone: str = "UTC",
-        now: datetime | None = None,
-    ) -> int:
-        """Count notifications sent today for a user.
-
-        Args:
-            user_id: User UUID.
-            user_timezone: User's IANA timezone name.
-            now: Current datetime (for testing).
-
-        Returns:
-            Count of notifications sent today.
-        """
-        now = now or datetime.now(UTC)
-
-        try:
-            user_tz: ZoneInfo | timezone = ZoneInfo(user_timezone)
-        except KeyError, ValueError:
-            user_tz = UTC
-
-        user_now = now.astimezone(user_tz)
-        today_start = datetime(
-            user_now.year, user_now.month, user_now.day, tzinfo=user_tz
-        ).astimezone(UTC)
-
-        result = await self.db.execute(
-            select(func.count()).where(
-                and_(
-                    HeartbeatNotification.user_id == user_id,
-                    HeartbeatNotification.created_at >= today_start,
-                )
-            )
-        )
-        return result.scalar() or 0
 
     async def get_last_for_user(
         self,

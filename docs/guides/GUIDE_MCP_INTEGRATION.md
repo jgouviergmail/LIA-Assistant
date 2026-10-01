@@ -145,7 +145,7 @@ Toutes les variables sont definies dans `MCPSettings` (`apps/api/src/core/config
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `MCP_USER_MAX_SERVERS_PER_USER` | `int` | `5` | Serveurs max par utilisateur |
+| `MCP_USER_MAX_SERVERS_PER_USER` | `int` | `20` | Serveurs max par utilisateur (1 à 100) |
 | `MCP_USER_POOL_TTL_SECONDS` | `int` | `3600` | TTL idle pour les entrees du pool |
 | `MCP_USER_POOL_MAX_TOTAL` | `int` | `100` | Entrees max dans le pool global |
 | `MCP_USER_POOL_EVICTION_INTERVAL` | `int` | `300` | Intervalle d'eviction des entrees idle |

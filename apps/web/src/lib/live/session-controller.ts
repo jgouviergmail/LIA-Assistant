@@ -24,14 +24,21 @@
  * The one-owner-of-the-microphone rule (ADR-258) is enforced by the CALLER,
  * which refuses to start while a meeting records; this controller pauses
  * nothing.
+ *
+ * A session sleeps (ADR-329) on the silence clock, a page hidden past its
+ * grace or the person's button, and wakes on its phrase or the button: the
+ * policy is `LiveStandby`'s, this controller lends it the wire — closed for a
+ * sleep (nothing of the provider runs or bills), reopened on the wake's
+ * credential.
  */
 import { parseActivity } from '@/components/eyes/activity';
 import { inferToneFromContent, REGISTER_EXPRESSIONS, toneAmplitude } from '@/components/eyes/tone';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
+import type { Language } from '@/i18n/settings';
 import { getApiErrorCode } from '@/lib/api-error';
 import { LIVE_GO_AWAY_MARGIN_MS, LIVE_IDLE_COUNTDOWN_MS } from '@/lib/constants';
 import type { Message } from '@/types/chat';
-import { meterCost } from '@/lib/live/meter';
+import { meterCost, providerSeconds } from '@/lib/live/meter';
 import { useLiveStore } from '@/stores/liveStore';
 
 import { ActivityClock } from './activity-clock';
@@ -42,8 +49,11 @@ import {
   LIVE_END_DETAIL_MAX_CHARS,
   closeDecision,
   closeDetail,
+  isSessionGone,
   isSessionOpen,
 } from './session-machine';
+import { LiveStandby, type LiveWakeListener, type LiveWakeListenerOptions } from './standby';
+import { isAppleMobile } from './support';
 import type { LiveTransport } from './transport';
 import type {
   LiveConfigResponse,
@@ -56,6 +66,7 @@ import type {
   LiveOutcome,
   LiveSessionMode,
   LiveSessionStart,
+  LiveStandbyReason,
   LiveToolCallResponse,
   LiveTranscriptRole,
   LiveTurnResponse,
@@ -101,6 +112,12 @@ export interface LiveControllerDeps {
   /** Whether this browser can hold a session — asked before anything is minted. */
   isSupported: () => boolean;
   chat: LiveChatBindings;
+  /** The wake word of a sleeping session (ADR-329); null where this browser cannot run it. */
+  createWakeListener: (options: LiveWakeListenerOptions) => LiveWakeListener | null;
+  /** The language whose phrase wakes a session, or null when none ships. */
+  wakeLanguage: () => Language | null;
+  /** The ready chime, once a session its phrase woke can hear. */
+  chime: () => void;
 }
 
 interface TurnBuffer {
@@ -115,13 +132,6 @@ const LIVE_TURN_TYPE = 'live_turn';
 const LIVE_SUMMARY_TYPE = 'live_session_summary';
 /** Leave the browser time to complete a WebSocket handshake before a token's opening deadline. */
 const LIVE_CONNECT_MARGIN_MS = 15_000;
-
-/** The API no longer holds this session (404): superseded, or past its cap and grace. */
-function isGone(error: unknown): boolean {
-  return (
-    typeof error === 'object' && error !== null && (error as { status?: unknown }).status === 404
-  );
-}
 
 /** What `POST /live/sessions/{id}/turns` takes: the two bounded texts and the exchange's span. */
 interface TurnBody {
@@ -174,9 +184,28 @@ export class LiveSessionController {
   private ending = false;
   private awaitingMicrophone = false;
   private pageIsHidden = false;
+  private readonly sleeper: LiveStandby;
 
   constructor(private readonly deps: LiveControllerDeps) {
     this.chat = deps.chat;
+    this.sleeper = new LiveStandby(
+      {
+        api: deps.api,
+        createWakeListener: deps.createWakeListener,
+        wakeLanguage: deps.wakeLanguage,
+        chime: deps.chime,
+      },
+      {
+        close: () => this.closeForSleep(),
+        conversationId: () => this.providerConversationId,
+        forgetConversation: () => {
+          this.providerConversationId = null;
+        },
+        open: (credential, resume) => this.openAfterSleep(credential, resume),
+        armExpiry: (expiresAt, extensions) => this.armExpiry(expiresAt, extensions),
+        end: (outcome, error) => this.end(outcome, error ?? null),
+      }
+    );
   }
 
   // -- public surface --------------------------------------------------------
@@ -210,7 +239,7 @@ export class LiveSessionController {
       this.store.getState().setExtensionMinutes(this.config.extension_minutes);
       session = await this.deps.api.post<LiveSessionStart>('/live/sessions', {
         mode,
-        audio_transport: /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'webrtc' : 'websocket',
+        audio_transport: isAppleMobile() ? 'webrtc' : 'websocket',
       });
       this.session = session;
       this.store.getState().begin(session.session_id, session.mode);
@@ -276,8 +305,15 @@ export class LiveSessionController {
         {}
       );
     } catch (error) {
-      if (isGone(error)) void this.end('superseded');
+      if (isSessionGone(error)) void this.end('superseded');
       return false;
+    }
+    if (this.store.getState().status === 'standby') {
+      // Asleep the cap does not run: it is kept for the wake, and a wake it
+      // refused runs now.
+      this.store.getState().setExpiry(Date.parse(extended.expires_at), extended.extensions);
+      await this.sleeper.extended(session.session_id);
+      return true;
     }
     this.armExpiry(extended.expires_at, extended.extensions);
     // Measured 2026-09-19: the provider closes an open connection at its
@@ -292,7 +328,20 @@ export class LiveSessionController {
     this.store.getState().offerExtension(false);
   }
 
-  /** Close the session's books: everything released, the card appended. */
+  /** Put the session to sleep (ADR-329): nothing of the provider runs or bills until a wake. */
+  async standby(reason: LiveStandbyReason = 'manual'): Promise<void> {
+    const session = this.session;
+    if (!session || this.ending) return;
+    await this.sleeper.enter(session.session_id, reason);
+  }
+
+  /** Wake a sleeping session on the person's word (its phrase wakes it by itself). */
+  async wake(): Promise<void> {
+    const session = this.session;
+    if (!session || this.ending) return;
+    await this.sleeper.wake(session.session_id, 'manual');
+  }
+
   /**
    * End the session: close the wire, the microphone and the player, archive
    * the turn, close the books. `error` is the coded reason the store shows
@@ -312,6 +361,7 @@ export class LiveSessionController {
     this.ending = true;
     this.store.getState().apply('end');
     this.clearTimers();
+    this.sleeper.dispose();
     this.clock?.stop();
     this.generation += 1;
     await this.transport?.close().catch(() => undefined);
@@ -326,19 +376,72 @@ export class LiveSessionController {
   }
 
   toggleMute(): void {
+    // Asleep the session holds no microphone of its own to mute.
+    if (this.store.getState().status === 'standby') return;
     this.setMuted(!this.store.getState().muted);
   }
 
-  /** The page went hidden (or came back): a hidden page past the grace ends the session. */
+  /** The page went hidden (or came back): a hidden page past the grace puts the session to sleep. */
   pageHidden(hidden: boolean): void {
     this.pageIsHidden = hidden;
     this.clearTimer('hidden');
+    this.sleeper.pageHidden(hidden);
     // iOS may mark the page hidden while its system microphone permission
     // sheet is open. The grace starts after that sheet has returned a stream.
     if (!hidden || !this.config || this.awaitingMicrophone) return;
-    this.timers.hidden = setTimeout(() => {
-      if (isSessionOpen(this.store.getState().status)) void this.end('hidden');
-    }, this.config.hidden_grace_seconds * 1000);
+    this.timers.hidden = setTimeout(
+      () => this.onHiddenPastGrace(),
+      this.config.hidden_grace_seconds * 1000
+    );
+  }
+
+  /** A live session sleeps; one still connecting ends (nothing to keep yet); one asleep stays. */
+  private onHiddenPastGrace(): void {
+    const status = this.store.getState().status;
+    if (status === 'live') void this.standby('hidden');
+    else if (status === 'connecting' || status === 'reconnecting') void this.end('hidden');
+  }
+
+  // -- standby wire -----------------------------------------------------------
+
+  /**
+   * The standby's wire, closed: the clocks stopped, the socket and the
+   * microphone released, the queued voice dropped, the turn archived (a
+   * DIRECT session's words reach the record before the standby drains it).
+   * The player is kept for the wake. False when the session went away meanwhile.
+   */
+  private async closeForSleep(): Promise<boolean> {
+    const session = this.session;
+    this.clearTimers();
+    this.clock?.stop();
+    this.clock = null;
+    // A late event of the closed socket reaches nothing.
+    this.generation += 1;
+    this.captionBreak = true;
+    this.store.getState().offerExtension(false);
+    await this.transport?.close().catch(() => undefined);
+    await this.mic?.stop().catch(() => undefined);
+    this.mic = null;
+    this.player?.flush();
+    await this.archiveTurn();
+    return !this.ending && this.session === session;
+  }
+
+  /** The standby's wire, reopened on a wake's credential: the microphone, then the connection. */
+  private async openAfterSleep(credential: LiveCredential, resume: boolean): Promise<boolean> {
+    const transport = this.transport;
+    if (!transport || this.ending) return false;
+    const managed = transport.audio.ownership === 'managed';
+    if (!this.mic && !managed && !(await this.openMicrophoneAfterPrompt())) return false;
+    if (!resume) this.handle = null;
+    this.attempts = 0;
+    this.awaitingMicrophone = managed;
+    try {
+      await this.connect(credential);
+    } finally {
+      this.awaitingMicrophone = false;
+    }
+    return !this.ending;
   }
 
   // -- start ------------------------------------------------------------------
@@ -704,7 +807,7 @@ export class LiveSessionController {
       if (activity) this.store.getState().recordActivity(activity);
       return answer.text;
     } catch (error) {
-      if (isGone(error) && !this.ending) {
+      if (isSessionGone(error) && !this.ending) {
         void this.end('superseded');
         return null;
       }
@@ -746,7 +849,7 @@ export class LiveSessionController {
       // The record is gone: a newer session of this account superseded this
       // one (or the cap and its grace passed). This tab must not keep talking
       // as if it were the session — close it, named.
-      if (isGone(error) && !this.ending) {
+      if (isSessionGone(error) && !this.ending) {
         void this.end('superseded');
         return;
       }
@@ -849,6 +952,7 @@ export class LiveSessionController {
           delegations: summary.delegations,
           voice_turns: summary.voice_turns,
           extensions: summary.extensions,
+          standbys: summary.standbys,
           mode: session.mode,
           // A DIRECT session's relay fate at the closing (ADR-301); the row
           // is rewritten server-side once the relayed turn settles, and the
@@ -898,7 +1002,11 @@ export class LiveSessionController {
       countdownMs: LIVE_IDLE_COUNTDOWN_MS,
       onCountdown: msLeft =>
         this.store.getState().setIdleCountdown(msLeft === null ? null : Math.ceil(msLeft / 1000)),
-      onIdle: () => void this.end('idle_timeout'),
+      onIdle: () => {
+        // A clock that fired is spent: the next connection starts its own.
+        this.clock = null;
+        void this.standby('idle');
+      },
     });
     this.clock.start();
   }
@@ -937,11 +1045,14 @@ export class LiveSessionController {
    * one tolls with the clock, so it is checked every second as well.
    */
   private checkBudget(): void {
-    const { rates, budgetEur, meter, liveSince, status } = this.store.getState();
+    const { rates, budgetEur, meter, liveSince, awakeMs, status } = this.store.getState();
     if (rates === null || budgetEur === null || !isSessionOpen(status)) return;
-    const elapsed = liveSince === null ? 0 : Math.floor((Date.now() - liveSince) / 1000);
+    // The time AWAKE: a sleep bills nothing (ADR-329).
+    const awake = awakeMs + (liveSince === null ? 0 : Date.now() - liveSince);
     const seconds =
-      rates.pricing_unit === 'per_1m_tokens' ? undefined : Math.max(meter.seconds ?? 0, elapsed);
+      rates.pricing_unit === 'per_1m_tokens'
+        ? undefined
+        : Math.max(providerSeconds(meter) ?? 0, Math.floor(awake / 1000));
     const cost = meterCost(meter, rates, seconds);
     if (cost !== null && cost.eur >= budgetEur) void this.end('budget_reached');
   }

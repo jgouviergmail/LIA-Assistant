@@ -20,11 +20,8 @@ from src.core.config import settings
 from src.core.constants import (
     DEFAULT_LANGUAGE_DEFAULT,
     DEFAULT_USER_DISPLAY_TIMEZONE,
-    HEARTBEAT_MAX_PER_DAY_DEFAULT,
-    HEARTBEAT_MIN_PER_DAY_DEFAULT,
     HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
     HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
-    HEARTBEAT_PUSH_ENABLED_DEFAULT,
     INTEREST_NOTIFY_END_HOUR_DEFAULT,
     INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT,
     INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT,
@@ -350,24 +347,6 @@ class User(
         nullable=False,
         server_default="false",
         comment="Enable proactive heartbeat notifications (opt-in).",
-    )
-    heartbeat_min_per_day: Mapped[int] = mapped_column(
-        default=HEARTBEAT_MIN_PER_DAY_DEFAULT,
-        nullable=False,
-        server_default=str(HEARTBEAT_MIN_PER_DAY_DEFAULT),
-        comment="Minimum heartbeat notifications per day (1-8).",
-    )
-    heartbeat_max_per_day: Mapped[int] = mapped_column(
-        default=HEARTBEAT_MAX_PER_DAY_DEFAULT,
-        nullable=False,
-        server_default=str(HEARTBEAT_MAX_PER_DAY_DEFAULT),
-        comment="Maximum heartbeat notifications per day (1-8).",
-    )
-    heartbeat_push_enabled: Mapped[bool] = mapped_column(
-        default=HEARTBEAT_PUSH_ENABLED_DEFAULT,
-        nullable=False,
-        server_default=str(HEARTBEAT_PUSH_ENABLED_DEFAULT).lower(),
-        comment="Enable push (FCM/Telegram) for heartbeats. If false, only SSE + archive.",
     )
     heartbeat_notify_start_hour: Mapped[int] = mapped_column(
         default=HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,

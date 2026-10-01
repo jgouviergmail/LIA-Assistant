@@ -29,7 +29,9 @@ from src.infrastructure.scheduler.voice_relay import RelayOutcome
 from src.infrastructure.scheduler.voice_session_closing import (
     RELAY_SCHEDULED,
     _settle_direct_relay,
+    _settle_standby_relay,
     close_voice_session,
+    schedule_standby_relay,
 )
 
 pytestmark = pytest.mark.unit
@@ -282,3 +284,74 @@ async def test_a_rewrite_that_raised_is_retried_with_the_true_fate() -> None:
     # The turn DID run: the retry writes « answered », never a false « failed ».
     assert _fate(rig) == RelayOutcome.ANSWERED.value
     rig.counter.labels.assert_called_with(outcome=RelayOutcome.ANSWERED.value)
+
+
+# -- the standby's relay (ADR-329) ---------------------------------------------------
+
+
+async def _settle_standby(rig: _Rig) -> AsyncMock:
+    keep_fate = AsyncMock()
+    with ExitStack() as stack:
+        for seam in rig.patches():
+            stack.enter_context(seam)
+        await _settle_standby_relay(_session(), _transcript(), keep_fate)
+    return keep_fate
+
+
+async def test_a_standby_relay_keeps_its_fate_and_tells_the_screen() -> None:
+    rig = _Rig()
+    keep_fate = await _settle_standby(rig)
+    keep_fate.assert_awaited_once_with(RelayOutcome.ANSWERED.value, None)
+    rig.notify.assert_awaited_once()
+    # No card exists yet: nothing is rewritten.
+    rig.rewrite.assert_not_awaited()
+    rig.counter.labels.assert_called_with(outcome=RelayOutcome.ANSWERED.value)
+
+
+async def test_a_standby_relay_that_did_not_run_keeps_the_recap_of_the_words() -> None:
+    rig = _Rig()
+    rig.relay_outcome = RelayOutcome.BUSY
+    keep_fate = await _settle_standby(rig)
+    keep_fate.assert_awaited_once_with(RelayOutcome.BUSY.value, "s")
+
+
+async def test_a_standby_relay_that_raised_still_keeps_a_failed_fate() -> None:
+    rig = _Rig()
+    rig.relay_run = AsyncMock(side_effect=RuntimeError("lease lost"))
+    keep_fate = await _settle_standby(rig)
+    keep_fate.assert_awaited_once_with(RelayOutcome.FAILED.value, None)
+    rig.counter.labels.assert_called_with(outcome=RelayOutcome.FAILED.value)
+
+
+async def test_the_standby_relay_runs_off_the_request_path() -> None:
+    scheduled = MagicMock()
+    with patch(f"{MODULE}.safe_fire_and_forget", scheduled):
+        schedule_standby_relay(_session(), _transcript(), keep_fate=AsyncMock())
+    coroutine = scheduled.call_args.args[0]
+    assert coroutine.cr_code.co_name == "_settle_standby_relay"
+    coroutine.close()
+
+
+async def test_the_card_counts_the_sleeps_and_keeps_the_words_a_standby_could_not_relay() -> None:
+    archive = AsyncMock(return_value=SimpleNamespace(id=CARD_ID))
+    db = MagicMock()
+    db.commit = AsyncMock()
+    with ExitStack() as stack:
+        for seam in _closing_patches(archive=archive):
+            stack.enter_context(seam)
+        stack.enter_context(patch(f"{MODULE}.safe_fire_and_forget", MagicMock()))
+        await close_voice_session(
+            db,
+            session=_session(),
+            memory_enabled=True,
+            outcome="ended",
+            duration_seconds=90,
+            transcript=VoiceTranscript.from_rows([]),
+            standbys=2,
+            standby_relays=[("answered", None), ("quota_blocked", "call the bank")],
+        )
+    card = archive.call_args.kwargs
+    figures = card["metadata"]["live_summary"]
+    assert figures["standbys"] == 2
+    assert figures["standby_recaps"] == ["call the bank"]
+    assert "×2" in card["content"] and "call the bank" in card["content"]

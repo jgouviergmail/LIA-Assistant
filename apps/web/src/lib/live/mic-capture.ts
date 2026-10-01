@@ -9,6 +9,10 @@
  * disables it. One capture owns its stream, context and node, and releases
  * all three — including on a failure halfway through the setup, so a refused
  * worklet never leaves a microphone light on.
+ *
+ * `detach()` hands the live stream to a new owner and releases only what the
+ * capture built around it: the wake word's capture becomes the recording's
+ * without a second permission round trip (ADR-329).
  */
 import { PCM_WORKLET_PROCESSOR_NAME, getPcmWorkletUrl } from '@/lib/audio/pcm-worklet';
 
@@ -28,6 +32,12 @@ export interface MicCapture {
   /** Drop chunks (or disable the track) instead of delivering them. */
   mute(on: boolean): void;
   stop(): Promise<void>;
+  /**
+   * Release the context and the worklet but keep the stream LIVE, and hand it
+   * over: the caller owns its tracks from now on (a later `stop` leaves them).
+   * Null once stopped or already detached.
+   */
+  detach(): Promise<MediaStream | null>;
 }
 
 async function releaseStream(stream: MediaStream): Promise<void> {
@@ -48,16 +58,21 @@ async function openStream(sampleRate: number): Promise<MediaStream> {
 
 /** The stream alone: a native transport carries it, a mute disables the track. */
 function nativeCapture(stream: MediaStream): MicCapture {
-  let stopped = false;
+  let released = false;
   return {
     stream,
     mute(on: boolean) {
       for (const track of stream.getAudioTracks()) track.enabled = !on;
     },
     async stop() {
-      if (stopped) return;
-      stopped = true;
+      if (released) return;
+      released = true;
       await releaseStream(stream);
+    },
+    async detach() {
+      if (released) return null;
+      released = true;
+      return stream;
     },
   };
 }
@@ -101,6 +116,17 @@ export async function startMicCapture(options: MicCaptureOptions): Promise<MicCa
     await context.close();
     throw error;
   }
+  /** Unplug the worklet and close the context; the stream is the caller's business. */
+  const release = async (): Promise<void> => {
+    node.port.onmessage = null;
+    source.disconnect();
+    node.disconnect();
+    // A context the browser already closed rejects; nothing is left to free,
+    // and a `detach` must still hand its stream over.
+    await context.close().catch(() => undefined);
+  };
+  // `stopped` is set before the first await: a second call while the first is
+  // closing must not close the context twice (a closed context rejects).
   return {
     stream,
     mute(on: boolean) {
@@ -109,11 +135,14 @@ export async function startMicCapture(options: MicCaptureOptions): Promise<MicCa
     async stop() {
       if (stopped) return;
       stopped = true;
-      node.port.onmessage = null;
-      source.disconnect();
-      node.disconnect();
       await releaseStream(stream);
-      await context.close();
+      await release();
+    },
+    async detach() {
+      if (stopped) return null;
+      stopped = true;
+      await release();
+      return stream;
     },
   };
 }

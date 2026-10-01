@@ -1732,6 +1732,21 @@
       "title": "Ein Skill von anderswo wird als Daten gelesen, und die Bibliothek installiert, was gelesen wurde",
       "summary": "Skills lassen sich auf skills.sh oder unter einer GitHub-Adresse suchen, vor der Installation einzeln lesen und aktuell halten; installiert wird genau der gelesene Commit, jede Datei geprüft. Ein anderswo geschriebener Skill läuft getrennt, nur mit seinen eigenen Dateien: nie mit den Konnektoren der Person, keine Bilder oder Webinhalte in seinen Antworten. Ein Skill kann eigene Befehle in einer Wegwerfkopie seines Ordners ausführen, Netzwerk nur zu erlaubten Hosts, und einer, den der Chat schreibt, kommt erst auf den Klick der Person hinzu.",
       "src": "26f9206a5fb1"
+    },
+    "328": {
+      "title": "Der Heartbeat hat kein Tageskontingent mehr: jeder Durchlauf erreicht die Entscheidung",
+      "summary": "LIA hält eine nützliche Benachrichtigung nicht mehr zurück, weil ein Tageslimit erreicht wäre: Das Entscheidungsmodell beurteilt, ob ein Signal eine Unterbrechung verdient. Jeder Durchlauf im Zeitfenster der Person erreicht diese Entscheidung, und nur das Zeitfenster, die Pausen zwischen zwei Nachrichten, ein laufender Termin und die Ausgabengrenzen begrenzen den Rhythmus. Das Wecken durch eine E-Mail und vorhergesehene Momente folgen denselben Regeln.",
+      "src": "efbca67500f4"
+    },
+    "329": {
+      "title": "Ein trainiertes Aktivierungswort, im Browser gehört, und ein Live-Standby, der nichts berechnet",
+      "summary": "LIA wacht bei einer Phrase auf, die vollständig im Browser von einem kleinen, für ihre Sprache trainierten Modell erkannt wird, ohne die technische Bedingung, die das alte englische „OK Guy“ vom iPhone und den nativen Apps fernhielt; „Stop“ unterbricht ihre Stimme. Das erste Modell, „Dis LIA“ auf Französisch, erscheint als Beta, weil sein Prüfstand die veröffentlichten Schwellen noch nicht erreicht, und die anderen Sprachen behalten das Tippen. Im Live-Modus versetzt eine Stille die Assistentin in den Standby: die Verbindung zum Anbieter schließt, nichts wird mehr berechnet, und ein Tippen oder die Phrase weckt sie, ohne das Gespräch zu verlieren.",
+      "src": "c2b699b7c2d6"
+    },
+    "330": {
+      "title": "Medien ohne Arbeit zur Laufzeit: vorab erzeugte Illustrationen, ein vom Betreiber erklärtes Video",
+      "summary": "Die Blog-Illustrationen werden einmal geschrieben, in vier Breiten und einem Vorschaubild, und so ausgeliefert, wie sie sind: der Server skaliert nichts mehr, und der Edge-Cache behält sie. Das Video der Startseite liegt dort, wo der Betreiber es erklärt, und wird durch ein Manifest beschrieben, das bei Bedarf gelesen wird; ohne Manifest gibt es den Abschnitt nicht. In Schleife startet es, sobald es sichtbar ist — mit Ton, wo der Browser es erlaubt, sonst stumm bis zu einem Klick —, und solange der Ton läuft, schlagen der Titel der Seite und die Abschnittstitel dank einer vorab berechneten Taktkarte im Rhythmus der Musik.",
+      "src": "7ab6089b847d"
     }
   }
 }

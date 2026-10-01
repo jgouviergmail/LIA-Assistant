@@ -13,6 +13,7 @@ Created: 2026-03-10
 from collections.abc import Sequence
 from typing import ClassVar, Protocol, runtime_checkable
 
+from src.domains.connectors.clients.contact_directory import ContactDirectory
 from src.domains.connectors.clients.email_attachments import EmailAttachmentContent
 from src.infrastructure.email.outgoing import OutgoingAttachment
 
@@ -216,6 +217,8 @@ class ContactsClientProtocol(Protocol):
     ) -> dict: ...
 
     async def delete_contact(self, resource_name: str) -> bool: ...
+
+    async def list_email_directory(self, max_contacts: int) -> ContactDirectory: ...
 
 
 class TasksClientProtocol(Protocol):

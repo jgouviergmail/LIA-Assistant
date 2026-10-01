@@ -29,6 +29,9 @@ function item(over: Partial<ConnectorHealthItem> = {}): ConnectorHealthItem {
     severity: 'critical',
     expires_in_minutes: null,
     authorize_url: '/connectors/google_calendar/authorize',
+    bulk_reconnect_provider: 'google',
+    oauth_grant_id: 'grant-a',
+    oauth_account_email: 'someone@example.org',
     ...over,
   };
 }
@@ -40,6 +43,9 @@ function renderBanner(over: Partial<React.ComponentProps<typeof ConnectorHealthB
     t,
     reconnecting: false,
     onReconnect: vi.fn(),
+    bulkGroups: [],
+    bulkBusy: false,
+    onBulkReconnect: vi.fn(),
     ...over,
   };
   return { props, ...renderWithProviders(<ConnectorHealthBanner {...props} />) };
@@ -119,7 +125,9 @@ describe('ConnectorHealthBanner', () => {
     const button = screen.getByRole('button', {
       name: 'settings.connectors.health.reconnecting',
     });
-    expect(button).toBeDisabled();
+    // Marked busy without `disabled`: the button keeps the focus the click
+    // put on it, and the guard is what refuses the second submission.
+    expect(button).toHaveAttribute('aria-disabled', 'true');
     await user.click(button);
 
     expect(onReconnect).not.toHaveBeenCalled();
@@ -136,6 +144,66 @@ describe('ConnectorHealthBanner', () => {
     // Deep link (ADR-172): the locale is carried and the section is targeted.
     expect(link).toHaveAttribute('href', expect.stringContaining('/fr/'));
     expect(link).toHaveAttribute('href', expect.stringContaining('connectors'));
+  });
+
+  it('offers the grouped reconnection of each provider the alert computed', async () => {
+    const onBulkReconnect = vi.fn();
+    const group = {
+      provider: 'google' as const,
+      candidates: [
+        {
+          id: 'c1',
+          connector_type: 'google_calendar',
+          oauth_grant_id: 'a',
+          oauth_account_email: null,
+        },
+        {
+          id: 'c2',
+          connector_type: 'google_gmail',
+          oauth_grant_id: 'a',
+          oauth_account_email: null,
+        },
+      ],
+    };
+    const { user } = renderBanner({
+      connectors: [item(), item({ id: 'c2', display_name: 'Gmail' })],
+      bulkGroups: [group],
+      onBulkReconnect,
+    });
+
+    await user.click(
+      screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.google_action' })
+    );
+
+    expect(onBulkReconnect).toHaveBeenCalledWith(group);
+    // What no group covers is still one link away.
+    expect(
+      screen.getByRole('link', { name: 'settings.connectors.health.banner_manage' })
+    ).toBeInTheDocument();
+  });
+
+  it('refuses a second grouped start while one is in flight, without dropping focus', async () => {
+    const onBulkReconnect = vi.fn();
+    const { user } = renderBanner({
+      connectors: [item(), item({ id: 'c2' })],
+      bulkGroups: [{ provider: 'microsoft', candidates: [] }],
+      bulkBusy: true,
+      onBulkReconnect,
+    });
+    const button = screen.getByRole('button', {
+      name: 'settings.connectors.bulk_reconnect.microsoft_action',
+    });
+
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    await user.click(button);
+
+    expect(onBulkReconnect).not.toHaveBeenCalled();
+  });
+
+  it('offers no grouped button for a single broken connector', () => {
+    renderBanner({ bulkGroups: [] });
+
+    expect(screen.queryByRole('button', { name: /bulk_reconnect/ })).not.toBeInTheDocument();
   });
 
   it('publishes its height so the viewport-locked chat shell can subtract it', () => {
@@ -160,9 +228,7 @@ describe('ConnectorHealthBanner', () => {
     const { unmount } = renderBanner();
 
     expect(observed).toHaveLength(1);
-    expect(
-      document.documentElement.style.getPropertyValue('--connector-banner-h')
-    ).toMatch(/px$/);
+    expect(document.documentElement.style.getPropertyValue('--connector-banner-h')).toMatch(/px$/);
 
     unmount();
 

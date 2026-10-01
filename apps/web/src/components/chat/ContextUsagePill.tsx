@@ -55,7 +55,7 @@ type Props = {
  * identical: they sit side by side and any drift is visible at a glance.
  */
 const BADGE_CHROME =
-  'rounded-full border border-border/60 bg-muted/50 px-3 py-1.5 text-muted-foreground shadow-sm';
+  'rounded-full border border-border/60 bg-muted/50 px-2 sm:px-3 py-1.5 text-muted-foreground shadow-sm';
 
 /** Stroke of the filled arc — the single conditional colour left. */
 function ringForRatio(ratio: number): string {

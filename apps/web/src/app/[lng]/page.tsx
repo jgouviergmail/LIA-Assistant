@@ -8,6 +8,7 @@ import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { EditorialChapters } from '@/components/landing/editorial/EditorialChapters';
 import { PromiseSection } from '@/components/landing/editorial/PromiseSection';
+import { LandingVideoSection } from '@/components/landing/video/LandingVideoSection';
 import { BasicsBand } from '@/components/landing/editorial/BasicsBand';
 import { TransparencySection } from '@/components/landing/editorial/TransparencySection';
 import { GallerySection } from '@/components/landing/editorial/GallerySection';
@@ -143,6 +144,9 @@ export default async function HomePage({ params }: HomePageProps) {
             scope + the cosmos compositions provide the skin. */}
         <main>
           <CosmosHero lng={lng} />
+          {/* Operator-hosted video (ADR-330): mounts only when the running
+              server names a media directory — nothing of it is in the build. */}
+          <LandingVideoSection lng={lng} />
           <PromiseSection lng={lng} />
           <UseCasesSection lng={lng} />
           <EditorialChapters lng={lng} ghosts />

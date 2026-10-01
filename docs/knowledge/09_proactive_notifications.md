@@ -26,7 +26,6 @@ Settings → "*Proactive Notifications*" section → Enable the toggle
 
 **📝 Available options:**
 • **Time window**: configure your own start hour (default: 9 AM) and end hour (default: 10 PM) — independent from interest notification hours
-• **Min/max per day**: set the minimum (default: 1) and maximum (default: 3) notifications per day (range: 1-8)
 • **Travel weather**: a foldable block to opt in to location-aware weather
 
 **💡 Push delivery:**
@@ -76,7 +75,6 @@ The Settings section shows a **green badge** for each connected source and a **g
 Frequency is **controlled at multiple levels**:
 
 **📊 Your controls:**
-• **Min/max per day**: you choose (1-8 range, default min 1 / max 3)
 • **Time window**: only during your configured hours (default 9 AM - 10 PM, independent from interest hours)
 
 **🛡️ Automatic safeguards:**
@@ -86,7 +84,7 @@ Frequency is **controlled at multiple levels**:
 • **Activity cooldown**: if you chatted with LIA in the last 15 minutes, no notification will be sent
 
 **💡 In practice:**
-You'll receive between 0 and 3 notifications per day, only when relevant. Some days, LIA may decide not to send anything.
+There is no daily quota: LIA only writes when a signal warrants it, and no useful notification is held back by a cap. Some days, LIA sends nothing at all.
 
 **🛡️ Response filtering protection:**
 Proactive suggestions (weather alerts, upcoming event reminders, etc.) are protected from being filtered out. When LIA adds proactive data to a response, those items are preserved even if the response filtering considers them unrelated to the original question.
@@ -110,7 +108,7 @@ Your feedback helps LIA improve:
 • The interest notifications have their own list, in the same shape
 
 **⚙️ Adjustment:**
-• If you receive too many notifications, reduce the daily maximum
+• If you receive too many notifications, narrow your notification window
 • If a source is not relevant, switch it off in **Notification topics** —
   thirteen switches, one per source. You keep the service connected and the tool
   you ask with: being connected to a service and being interrupted by it are
@@ -188,7 +186,7 @@ Yes, when the administrator has switched the capability on. Instead of waiting f
 - an email carrying the label you treat as important, never promotions, social or mailing lists
 - an event starting soon that someone else changed, or one still waiting for your answer
 
-**What does not change:** your notification window, your daily cap, the pauses between two messages, and your choice of sources. A burst of arrivals still produces a single wake-up, and if the moment is not right the message simply waits for the regular pass — nothing is consumed by a wake that was refused.
+**What does not change:** your notification window, the pauses between two messages, and your choice of sources. A burst of arrivals still produces a single wake-up, and if the moment is not right the message simply waits for the regular pass — nothing is consumed by a wake that was refused.
 
 In the notification history, the ones that answered an email or an invitation are marked as such, next to those that came from the regular pass.
 
@@ -200,7 +198,7 @@ Yes. The regular proactive pass is periodic, so it could not return to a precise
 • one open question, grounded in at most two facts — never a judgement, never an evaluation
 • the moment is re-checked just before it is served: a meeting that was cancelled or declined, or one you already wrote about, says nothing
 • two back-to-back meetings earn one question, at the end of the block, never in the middle of the next one
-• your notification hours, daily limit and pauses still apply — only the "spread over the day" smoothing is bypassed, because an instant does not defer
+• your notification hours and pauses still apply
 
 **Where to control it:** Settings → *Proactive Notifications* → *Anticipated moments*. Each kind has its own switch ("After a meeting" needs a connected calendar), and your administrator can switch the whole capability off.
 
@@ -211,7 +209,7 @@ Yes, once it has learned the habit. When a request you make regularly — say yo
 **What it needs:**
 • habit learning on for your account, and a recurring request recognised in the habits panel (the row reads what and when, e.g. "Search · E-mails — every day ~08:30")
 • a habit that is neither paused nor blocked — a status you set holds everywhere
-• the proactive pass itself: your hours, daily limit and pauses still apply, and a person in a meeting is not interrupted
+• the proactive pass itself: your hours and pauses still apply, and a person in a meeting is not interrupted
 
 **How to answer:** a 👍 or a 👎 on the notification is an answer about the habit itself; a habit refused often enough stops being offered.
 

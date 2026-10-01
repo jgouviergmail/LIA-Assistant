@@ -27,7 +27,7 @@ Le Voice Mode de LIA est un système complet de saisie vocale avec :
 
 | Fonctionnalité | Description | Technologie |
 |----------------|-------------|-------------|
-| **Wake Word** | Activation par "OK" / "OK Guy" | Sherpa-onnx WASM (Whisper tiny) |
+| **Wake Word** | Activation par « Dis LIA » — français seul pour l'instant, en **bêta** ; « Stop » coupe la lecture | Classifieur openWakeWord par langue, ONNX Runtime Web dans un worker ([ADR-329](../architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md)) |
 | **Push-to-Talk** | Activation manuelle par clic/tap | Web Audio API |
 | **VAD** | Détection fin de parole automatique | Energy-based detection |
 | **STT** | Transcription multilingue | Sherpa-onnx Whisper Small (backend) |
@@ -40,7 +40,7 @@ idle → listening → recording → processing → speaking → listening
   │        │           │            │            │
   │        │           │            └────────────┘
   │        │           └────(VAD silence 1s)─────┘
-  │        └────(wake word "OK")──────┘
+  │        └────(phrase « Dis LIA »)──────┘
   └────(enable voice mode)────┘
 ```
 
@@ -54,8 +54,8 @@ Le guard de coupure lit l'état courant du store (pas la closure du render du
 setup est désarmé une fois l'enregistrement démarré (plus d'unhandled
 rejection différée après les enregistrements au wake word). La machine
 complète est verrouillée par la suite `useVoiceMode.test.ts` (sans audio
-réel : fakes AudioContext/Worklet/getUserMedia, callbacks KWS/VAD/WS
-capturés).
+réel : fakes AudioContext/Worklet/getUserMedia, détection du mot de réveil,
+VAD et WS capturés).
 
 ---
 
@@ -69,15 +69,15 @@ capturés).
 ├─────────────────────────────────────────────────────────────────┤
 │  UI Layer                                                        │
 │  ├── VoiceOverlay.tsx      Overlay fullscreen, états visuels    │
-│  └── VoiceModeBadge.tsx    Badge compact, long-press activation │
+│  └── VoiceModeBadge.tsx    Badge mains libres, icône seule      │
 │                                                                  │
 │  Hooks Layer                                                     │
-│  ├── useVoiceMode.ts       Orchestration principale (830 lines) │
-│  ├── useSherpaKws.ts       Hook React pour KWS WASM             │
+│  ├── useVoiceMode.ts       Orchestration principale             │
+│  ├── useWakeWord.ts        Mot de réveil (WakeListener)         │
 │  └── useVAD.ts             Hook React pour VAD                  │
 │                                                                  │
 │  Audio Layer                                                     │
-│  ├── sherpaKws.ts          WASM KWS (Sherpa-onnx, 1030 lines)  │
+│  ├── wake-word/            Moteur ONNX dans un worker (ADR-329) │
 │  ├── vad.ts                Energy-based speech detection        │
 │  └── AudioWorklet          Buffering + streaming                │
 │                                                                  │
@@ -101,26 +101,27 @@ capturés).
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Flux Complet (User dit "OK quelque chose")
+### Flux Complet (User dit « Dis LIA, quelque chose »)
 
 ```
-1. VoiceModeBadge (long-press 500ms)
+1. VoiceModeBadge (badge grisé : un appui l'active)
    └─→ store.enable() → state='listening'
 
-2. KWS listening active (microphone ouvert)
-   └─→ Sherpa WASM traite audio en continu
-   └─→ VAD WASM détecte segments de parole
-   └─→ Whisper WASM transcrit segments
+2. Écoute du mot de réveil (useWakeWord → WakeListener)
+   └─→ le modèle de la langue de l'interface se charge (worker, ONNX Runtime Web)
+   └─→ PUIS le micro s'ouvre (16 kHz, morceaux de 80 ms, pcm-worklet)
+   └─→ chaque morceau est scoré dans le worker
 
-3. User dit "OK"
-   └─→ KWS détecte wake word
-   └─→ handleKeywordDetected('ok')
-   └─→ cleanupKwsAudio() (ferme mic KWS)
-   └─→ startRecording()
+3. User dit « Dis LIA »
+   └─→ le worker détecte la phrase
+   └─→ handleWakeWordDetected()
+   └─→ onWakeWord() : la voix de LIA se coupe si elle parlait (interruption)
+   └─→ handOff() : la capture se ferme mais REMET son flux vivant
+   └─→ startRecording(flux remis)
 
 4. Recording context initialisé
-   └─→ getUserMedia() (nouveau mic)
-   └─→ VoiceInputService.connect()
+   └─→ flux remis (aucun getUserMedia ; sinon un nouveau micro)
+   └─→ VoiceInputService pré-connecté (sinon connect())
         └─→ POST /voice/ticket → ticket
         └─→ WebSocket /ws/audio?ticket=xxx
    └─→ AudioWorklet 'voice-mode-processor'
@@ -159,27 +160,39 @@ capturés).
 
 **Fichier** : `apps/web/src/components/voice/VoiceModeBadge.tsx`
 
-Badge compact avec activation long-press (500ms).
+Badge mains libres, **toujours affiché** dans le groupe central de l'entête du
+chat (dans l'ordre : mains libres, jauge de contexte, espaces de connaissances),
+**icône seule** à toutes les largeurs : l'état passe par l'icône et la couleur, les
+mots par le nom accessible et l'infobulle.
+
+- **Inactif** (grisé) : un appui active le mode mains libres.
+- **Actif** : un appui agit sur l'état courant (parler, arrêter) ; un **appui long**
+  (500 ms) le désactive — au clavier, **maintenir Espace** (Entrée reste un appui).
+- Les deux transitions enregistrent la préférence (`PATCH /auth/me/voice-mode-preference`,
+  la même requête que Réglages › Mode vocal) et l'annoncent avec les messages de
+  cette page.
 
 ```typescript
-// Long-press mechanism
-onMouseDown → setTimeout(500ms) → toggle voice mode
-onMouseUp (before 500ms) → cancel timer
+// Long press (turns hands-free mode OFF only; never armed while off)
+onMouseDown / onTouchStart / Space keydown → setTimeout(500ms) → disable()
+release, leave, blur (before 500ms) → cancel timer
+// The click that ends a fired press is swallowed
 ```
 
-**Couleurs par état** :
-| État | Couleur | Animation |
-|------|---------|-----------|
-| Inactive | Gray | - |
-| Initializing | Amber | Spinner |
-| Listening | Green | - |
-| Recording | Green | Pulse |
-| Processing | Green/80 | Spinner |
-| Speaking | Dark green | - |
+**Icône et couleur par état** :
+| État | Icône | Couleur | Animation |
+|------|-------|---------|-----------|
+| Inactif | Micro | Gris discret | - |
+| Navigateur non compatible | Micro barré | Gris discret, désactivé | - |
+| Initializing | Spinner | Amber | Spin |
+| Listening | Micro | Green | - |
+| Recording | Micro | Green | Pulse |
+| Processing | Spinner | Green/80 | Spin |
+| Speaking | Ondes audio | Dark green | - |
 
 ### 2. useVoiceMode.ts
 
-**Fichier** : `apps/web/src/hooks/useVoiceMode.ts` (830 lignes)
+**Fichier** : `apps/web/src/hooks/useVoiceMode.ts`
 
 Hook principal d'orchestration du Voice Mode.
 
@@ -187,8 +200,8 @@ Hook principal d'orchestration du Voice Mode.
 
 | Contexte | Usage | Cleanup |
 |----------|-------|---------|
-| **KWS** | Wake word detection (continu) | `cleanupKwsAudio()` |
-| **Recording** | Capture vocale post-wake word | `cleanupAudio()` |
+| **Mot de réveil** | Capture dédiée du `WakeListener` (continu en `listening`) | `pause()` / `handOff()` du listener |
+| **Recording** | Capture vocale après la phrase (reprend le flux remis) | `cleanupAudio()` |
 | **VAD** | Détection fin de parole | Avec recording |
 
 **API** :
@@ -196,7 +209,7 @@ Hook principal d'orchestration du Voice Mode.
 const {
   // State
   isEnabled, state, error,
-  isKwsReady, isKwsLoading, isKwsListening,
+  wakeWordState, wakePhrase,   // 'idle' | 'loading' | 'listening' | 'unavailable'
 
   // Actions
   enable, disable, toggle,
@@ -208,7 +221,6 @@ const {
   onTranscription: (text) => { /* use transcribed text */ },
   onStartSpeaking: () => { /* TTS starting */ },
   onStopSpeaking: () => { /* TTS ended */ },
-  onWakeWordDetected: () => { /* wake word detected */ },
   onError: (error) => { /* handle error */ },
 });
 ```
@@ -221,11 +233,8 @@ const {
 interface VoiceModeState {
   isEnabled: boolean;           // Persisted (localStorage)
   state: VoiceModeState;        // idle|listening|recording|processing|speaking
-  isKwsReady: boolean;
-  isKwsLoading: boolean;
-  isKwsListening: boolean;
   error: Error | null;
-  lastWakeWordTime: number | null;
+  lastWakeWordTime: number | null;  // l'état du détecteur vit dans useWakeWord
 }
 ```
 
@@ -364,78 +373,98 @@ class SherpaSttService:
 
 ## Wake Word Detection
 
-### Architecture KWS (Keyword Spotting)
+Depuis [ADR-329](../architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md),
+la phrase est celle de la langue de l'interface. Une phrase est un **modèle
+entraîné**, jamais une saisie libre : `phrases.ts` déclare celles que la boîte à
+outils entraîne (« Dis LIA » en fr, « Hey LIA » en en/de, « Oye LIA » en es,
+« Ehi LIA » en it, « 嗨 LIA » en zh), mais seul ce qui est **livré** est offert.
 
-**Fichier** : `apps/web/src/lib/audio/sherpaKws.ts` (1030 lignes)
+### Langues livrées et statut bêta
 
-Le système de détection du wake word utilise Sherpa-onnx compilé en WASM :
+`WAKE_MODEL_STATUS` (`lib/audio/wake-word/manifest.ts`) déclare les langues dont
+un modèle est livré et leur statut : aujourd'hui `{ fr: 'beta' }`. Pour toute
+autre langue d'interface, `wakeLanguageOf` répond `null` : l'écouteur reste
+`unavailable` sans jamais demander un manifeste absent ni ouvrir le micro, le
+badge offre l'appui pour parler, et les réglages disent que la phrase n'existe
+pas encore dans cette langue (jamais un « {{phrase}} » vide). `beta` signifie
+que le banc n'atteint pas encore ses seuils publiés (verdict `no-go` du
+manifeste — mesures du modèle français : rappel 88 % au propre, 50 % à 10 dB,
+0,5 faux déclenchement par heure sur la parole française) ; les réglages
+affichent un badge « Bêta » et une note. La garde `shipped-models.test.ts` tient
+le statut au verdict dans les deux sens : `stable` exige `go` pour la phrase
+ET le mot « Stop », un modèle `beta` dont le banc dit `go` doit passer
+`stable`, et aucun manifeste n'est livré pour une langue non déclarée.
+
+### Moteur (`apps/web/src/lib/audio/wake-word/`)
 
 ```
-Audio Input (microphone)
+Micro (WakeListener, 16 kHz, 1 280 échantillons = 80 ms, pcm-worklet)
+    ↓ transferable int16
+Worker module (worker.ts → worker-core.ts)
     ↓
-AudioWorklet (chunks 100ms = 1600 samples)
+engine.ts : melspectrogram des 1 760 derniers échantillons (x/10 + 2)
+          → fenêtre de 76 trames mel → embedding (96)
+          → fenêtre de 16 embeddings → score du classifieur
     ↓
-Circular Buffer
+policy.ts : échauffement, seuil, patience, période réfractaire (du manifeste)
     ↓
-VAD (Voice Activity Detection WASM)
-    ↓ (segments de parole détectés)
-Whisper Tiny WASM (transcription)
-    ↓
-Wake Word Matching ("ok guy", "ok guys", "okay guy", "okay guys")
-    ↓
-Callback onKeywordDetected()
+'detected' → onDetected → handOff() du flux → enregistrement
 ```
 
-### Wake Words Supportés
+- **Arithmétique** : celle d'openWakeWord en streaming, à l'identique ; tenue à
+  la référence de la boîte à outils par une fixture dorée exécutée sur les VRAIS
+  modèles par ONNX Runtime Web (`__tests__/parity.test.ts`).
+- **Runtime** : `onnxruntime-web/wasm`, **monothread, sans proxy** : ni
+  `SharedArrayBuffer` ni isolation cross-origin — les deux conditions qui
+  ôtaient le mot de réveil à iOS et aux coques natives (sonde mobile :
+  `scripts/mobile-probe/`). Le binaire est servi depuis `/ort/<version>/`,
+  copié du paquet par `apps/web/scripts/copy-ort-runtime.mjs` avant
+  `next dev` / `next build` (jamais un CDN).
+- **Modèles** : versionnés dans `apps/web/public/models/wake/v1/` — deux étages
+  partagés (`shared/`) et un classifieur par langue, chaque fichier nommé
+  d'après son SHA-256, et un `manifest.json` par langue (phrase, politique,
+  fichiers avec taille et SHA-256, mesures, provenance et licences). Le
+  navigateur refuse tout fichier qui ne correspond pas à son manifeste ; la
+  garde `shipped-models.test.ts` tient chaque modèle livré à son manifeste.
+- **Cache** : fichiers de modèle et binaire servis `immutable` (leur nom ou leur
+  dossier change avec leur contenu), manifeste revalidé (`next.config.ts`).
+- **Entraînement** : hors ligne, dans `scripts/wake-word/` (son README décrit
+  les données, leurs licences et les mesures d'acceptation ; la procédure complète
+  est expliquée dans [WAKE_WORD_TRAINING.md](WAKE_WORD_TRAINING.md)).
 
-| Wake Word | Variations |
-|-----------|------------|
-| **OK Guy** | "ok guy", "okay guy" |
-| **OK Guys** | "ok guys", "okay guys" |
+### États (`WakeListenerState`)
 
-**Pour l'utilisateur** : Le wake word est **"OK Guy"** ou **"OK Guys"** (prononcé en anglais).
+| État | Sens | Badge |
+|------|------|-------|
+| `loading` | le modèle de la langue se charge | « Initialisation » |
+| `listening` | micro ouvert, la phrase est écoutée | « Prononce « Dis LIA » ou appuie pour parler » |
+| `idle` | en pause (enregistrement, réponse, micro pris par une réunion, le mode Live ou la radio) | appui pour parler |
+| `unavailable` | pas de modèle pour la langue, runtime absent, fichier refusé | appui pour parler |
 
-> **Note technique** : Le fichier keywords.txt contient aussi les mots simples ("ok", "okay", "guy", "guys") comme fallback pour une détection plus robuste.
+Le micro ne s'ouvre **qu'après** le chargement du modèle : une langue sans
+modèle utilisable n'allume jamais le micro. Une détection n'est remontée que
+pendant l'écoute **et** si le dernier appel de l'appelant demandait d'écouter.
 
-### Configuration KWS
+La phrase s'écoute aussi pendant que LIA lit sa réponse à voix haute : la dire
+coupe sa voix **avant** que l'enregistrement s'ouvre (`onWakeWord` → `stopVoice`
+du chat, le même arrêt qu'un clic). Sans cela, sa voix continuait par-dessus la
+personne jusqu'à l'envoi de la transcription. Si rien n'est dit ensuite, la
+transcription est vide et aucun message ne part.
 
-**Fichier** : `apps/web/public/models/keywords.txt`
+**Le mot « stop »** coupe aussi sa voix, sans rien d'autre : ni enregistrement, ni
+transcription, ni message. Chaque langue a le sien (« Stop » en français, anglais et
+italien, « Stopp » en allemand, « 停下 » en chinois, « Detente » en espagnol),
+nommé par `STOP_WORDS` (`phrases.ts`) et par l'indice du badge. C'est un second
+classifieur sur les mêmes plongements, déclaré dans le manifeste de la langue sous
+`commands`, posté par le worker comme `command` et relayé par l'écouteur sous la même
+garde que la phrase (`useWakeWord.onCommand` → `useVoiceMode.onInterrupt`). Il n'est pas
+armé : entendu quand rien ne joue, il n'arrête rien.
 
-```
-ok
-okay
-guy
-guys
-ok guy
-okay guy
-ok guys
-okay guys
-```
-
-**Seuil de détection** : `VOICE_MODE_KWS_THRESHOLD = 0.25`
-
-### Modèles WASM
-
-Downloaded via `scripts/download-sherpa-wasm.sh` (or automatically during Docker build):
-
-```
-apps/web/public/models/sherpa-wasm/
-├── sherpa-onnx-vad.js                    (~8KB)   - VAD + CircularBuffer API
-├── sherpa-onnx-asr.js                    (~52KB)  - OfflineRecognizer API
-├── sherpa-onnx-wasm-main-vad-asr.js      (~96KB)  - Emscripten main module
-├── sherpa-onnx-wasm-main-vad-asr.wasm    (~12MB)  - WASM binary (SIMD)
-├── sherpa-onnx-wasm-main-vad-asr.data    (~100MB) - Bundled Silero VAD + Whisper Tiny.en
-└── app-vad-asr.js                        (optional - demo file)
-```
-
-**Setup**: `scripts/setup-dev.sh` (dev) or `Dockerfile.prod` model-downloader stage (prod).
-
-**Prérequis navigateur** : `SharedArrayBuffer`, donc un contexte cross-origin isolé (`COOP: same-origin` + un `COEP` non vide, configurés dans `next.config.ts`).
-
-> [!IMPORTANT]
-> Depuis [ADR-136](../architecture/ADR-136-COEP-Posture-And-Widget-Failure-States.md), la posture par défaut est `COEP: credentialless`. WebKit ne l'implémente pas : sur **iOS**, la page n'est donc pas isolée, `SharedArrayBuffer` est absent et **le mot-clé vocal est indisponible** — `isSherpaKwsSupported()` le détecte et le mode vocal bascule en appui-pour-parler. C'est un arbitrage mesuré : `require-corp` conserverait le mot-clé vocal sur iOS mais y bloquerait tous les embeds externes (carte, MCP Apps). Réversible par `COEP_MODE=require-corp` sans reconstruction.
-
----
+Le même `WakeListener` réveille une **session Live en veille** (ADR-329,
+[LIVE_MODE.md](LIVE_MODE.md) § « Standby and wake ») : il écoute sur sa propre
+capture tant que la page est visible, et libère le micro avant que la connexion
+du réveil ne s'ouvre. Pendant une session Live — en veille comprise — l'écoute du
+mode vocal classique reste en pause : un seul mot de réveil écoute à la fois.
 
 ## Voice Activity Detection
 
@@ -498,8 +527,8 @@ au mode wake-word, indépendamment du toggle `voice_mode_enabled` :
 | **`local`** (default) | Sherpa-onnx Whisper Small INT8 (Python backend) | Gratuit | Reste sur le serveur LIA | Confidentialité maximum, qualité honnête |
 | **`remote`** | ElevenLabs Scribe v2 (cloud) | $0.22 / heure d'audio | Transmis à ElevenLabs | Qualité supérieure, refacturable |
 
-Le KWS (frontend, Whisper tiny WASM, anglais-only) reste local dans les
-deux cas — seul le segment de parole **après** la détection du wake word
+Le mot de réveil (frontend, un modèle par langue, ADR-329) reste local dans
+les deux cas — seul le segment de parole **après** la détection de la phrase
 est routé selon `voice_stt_mode`.
 
 ### Routage backend
@@ -609,7 +638,7 @@ la factory — aucun lookup DB par transcription.
 
 | Composant | Modèle | Contexte | Usage |
 |-----------|--------|----------|-------|
-| **KWS (Frontend)** | Whisper tiny.en | WASM bundled | Détection wake word (anglais only) |
+| **Mot de réveil (Frontend)** | openWakeWord, un classifieur par langue | ONNX Runtime Web (versionné) | Détection de la phrase |
 | **STT (Backend)** | Whisper small INT8 | Python | Transcription complète |
 
 ```bash
@@ -662,33 +691,17 @@ VOICE_WS_IDLE_TIMEOUT_SECONDS=120
 
 **Fichier** : `apps/web/src/lib/constants.ts`
 
-```typescript
-// WebSocket
-VOICE_INPUT_WS_RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000]
-VOICE_INPUT_HEARTBEAT_INTERVAL_MS = 30000
-
-// Audio
-VOICE_INPUT_SAMPLE_RATE = 16000
-VOICE_INPUT_CHUNK_SIZE = 4096  // 256ms
-
-// Wake Word
-VOICE_MODE_DEFAULT_WAKE_WORD = 'OK Guy'  // User-facing display value
-VOICE_MODE_KWS_THRESHOLD = 0.25
-
-// VAD
-VOICE_MODE_VAD_SILENCE_MS = 1000
-VOICE_MODE_VAD_ENERGY_THRESHOLD = 0.02
-VOICE_MODE_MIN_SPEECH_MS = 500
-
-// Recording
-VOICE_MODE_MAX_RECORDING_SECONDS = 60
-VOICE_MODE_IDLE_TIMEOUT_SECONDS = 300
-
-// Persistence
-VOICE_MODE_ENABLED_KEY = 'voice_mode_enabled'
-```
+Audio (`VOICE_INPUT_SAMPLE_RATE`, `VOICE_INPUT_CHUNK_SIZE`), WebSocket
+(`VOICE_INPUT_WS_RECONNECT_DELAYS`, `VOICE_INPUT_HEARTBEAT_INTERVAL_MS`), VAD
+(`VOICE_MODE_VAD_SILENCE_MS`, `VOICE_MODE_VAD_ENERGY_THRESHOLD`,
+`VOICE_MODE_MIN_SPEECH_MS`), enregistrement (`VOICE_MODE_MAX_RECORDING_SECONDS`)
+et persistance (`VOICE_MODE_ENABLED_KEY`) — leurs valeurs vivent dans le
+fichier, pas ici. La phrase et la politique de détection du mot de réveil
+appartiennent à son modèle (manifeste), pas aux constantes.
 
 ---
+
+## Sécurité---
 
 ## Sécurité
 
@@ -710,69 +723,16 @@ VOICE_MODE_ENABLED_KEY = 'voice_mode_enabled'
 
 ### Headers COOP/COEP
 
-**Requis pour** : `SharedArrayBuffer` utilisé par Sherpa-onnx WASM pour le threading.
+Le mode vocal **n'en dépend plus** : le mot de réveil s'exécute en WASM
+monothread (ADR-329), sans `SharedArrayBuffer` ni isolation. Les en-têtes
+restent servis pour la posture décrite par
+[ADR-136](../architecture/ADR-136-COEP-Posture-And-Widget-Failure-States.md)
+(`COEP` résolu par `resolveCoepMode`, `credentialless` par défaut) ; leur choix
+ne coûte plus le mot de réveil sur aucune plateforme.
 
-**Pourquoi** : Les navigateurs modernes (Chrome 92+, Firefox 79+, Safari 15.2+) restreignent `SharedArrayBuffer` pour des raisons de sécurité (Spectre). Les headers COOP/COEP créent un environnement "cross-origin isolated" qui autorise `SharedArrayBuffer`.
-
-**Configuration Next.js** (`apps/web/next.config.ts`) :
-
-```typescript
-async headers() {
-  return [
-    {
-      source: '/(.*)',
-      headers: [
-        {
-          key: 'Cross-Origin-Opener-Policy',
-          value: 'same-origin',
-        },
-        {
-          // ADR-136 : valeur résolue par resolveCoepMode(process.env.COEP_MODE),
-          // `credentialless` par défaut. Voir CoepMode dans src/lib/csp.ts.
-          key: 'Cross-Origin-Embedder-Policy',
-          value: coepMode,
-        },
-      ],
-    },
-  ];
-}
-```
-
-**Vérification** :
-
-```javascript
-// Console navigateur
-console.log(crossOriginIsolated);  // Doit être: true
-
-// Si false, SharedArrayBuffer non disponible
-if (!crossOriginIsolated) {
-  console.warn('WASM threading disabled - COOP/COEP headers missing');
-}
-```
-
-**Conséquences par valeur de COEP** (ADR-136) :
-
-| | `credentialless` (défaut) | `require-corp` |
-| --- | --- | --- |
-| Ressources externes sans `CORP` | chargées **sans credentials** | **bloquées** (nécessite `CORP: cross-origin` ou `crossorigin="anonymous"`) |
-| Documents imbriqués cross-origin sans COEP | levés par l'attribut `credentialless` (Chromium) | idem — mais l'attribut est **Chromium-only** |
-| Isolation sur Chromium | oui (mot-clé vocal OK) | oui |
-| Isolation sur WebKit / iOS | **non** (mot-clé vocal indisponible, embeds OK) | oui (mot-clé vocal OK, **embeds bloqués**) |
-
-Les images de profil Google restent proxifiées (`/api/v1/auth/profile-image-proxy`) et Google Fonts reste chargé en `crossorigin="anonymous"` : ces protections valent pour les deux valeurs et permettent de revenir à `require-corp` sans régression.
-
-**Détection navigateur** :
-
-```typescript
-// apps/web/src/lib/audio/sherpaKws.ts
-const isWasmSupported = () => {
-  return (
-    typeof WebAssembly !== 'undefined' &&
-    typeof SharedArrayBuffer !== 'undefined' &&
-    crossOriginIsolated
-  );
-};
-```
+**Prérequis navigateur du mot de réveil** (`isWakeWordSupported()`) : un worker
+module, WebAssembly, un `AudioContext` et un `AudioWorkletNode`,
+`crypto.subtle.digest` (contexte sécurisé) et `getUserMedia`.
 
 ---
 
@@ -811,10 +771,15 @@ logger.info("stt_transcription_completed", duration_seconds=2.5, text_length=50)
 
 ### Wake Word Non Détecté
 
-1. Vérifier que `SharedArrayBuffer` est supporté (COOP/COEP headers)
-2. Vérifier les logs console `kws_transcription` (toutes les transcriptions)
-3. Augmenter `VOICE_MODE_KWS_THRESHOLD` si trop de faux positifs
-4. Vérifier que le microphone est autorisé
+1. Le badge doit afficher la phrase : sinon l'état est `unavailable` (pas de
+   modèle pour la langue de l'interface, runtime absent, fichier refusé par
+   son SHA-256) — la console du worker le dit
+2. Vérifier que `/models/wake/v1/<langue>/manifest.json` et `/ort/<version>/`
+   répondent (un `pnpm run dev` / `build` copie le binaire)
+3. Vérifier que le microphone est autorisé (un refus est journalisé
+   `voice_mode_wake_word_microphone_failed`, l'appui pour parler reste)
+4. Le seuil et la patience sont ceux du manifeste, mesurés à l'entraînement :
+   ils se changent en réentraînant (`scripts/wake-word`), jamais en production
 
 ### Transcription Vide
 
@@ -835,13 +800,9 @@ logger.info("stt_transcription_completed", duration_seconds=2.5, text_length=50)
 2. Vérifier la charge CPU backend
 3. Consulter `stt_transcription_duration_seconds`
 
-### Erreur "SharedArrayBuffer not supported"
-
-Ajouter les headers COOP/COEP dans `next.config.ts`.
-
 ### Erreur générique « une erreur s'est produite lors de la saisie vocale » (CSP)
 
-La capture vocale (push-to-talk **et** mode wake-word) charge son `AudioWorklet`
+La capture vocale (push-to-talk, mot de réveil **et** enregistrement) charge son `AudioWorklet`
 depuis une URL `blob:`. D'après la spec CSP niveau 3, la destination fetch d'un
 worklet est `audioworklet`, **gouvernée par `script-src`** (et non `worker-src`).
 La CSP de l'app **doit donc conserver `blob:` dans `script-src`** — la retirer
@@ -861,8 +822,8 @@ la vague 3).
 
 - **VoiceModeBadge**: `apps/web/src/components/voice/VoiceModeBadge.tsx`
 - **useVoiceMode**: `apps/web/src/hooks/useVoiceMode.ts`
-- **useSherpaKws**: `apps/web/src/hooks/useSherpaKws.ts`
-- **sherpaKws**: `apps/web/src/lib/audio/sherpaKws.ts`
+- **useWakeWord**: `apps/web/src/hooks/useWakeWord.ts`
+- **wake-word**: `apps/web/src/lib/audio/wake-word/` (listener, detector, worker, engine, policy, manifest, phrases)
 - **vad**: `apps/web/src/lib/audio/vad.ts`
 - **VoiceInputService**: `apps/web/src/lib/voice-input-service.ts`
 - **voiceModeStore**: `apps/web/src/stores/voiceModeStore.ts`
@@ -880,7 +841,8 @@ la vague 3).
 
 - [ADR-050: Voice Domain TTS Architecture](../architecture/ADR-050-Voice-Domain-TTS-Architecture.md)
 - [ADR-054: Voice Input Architecture](../architecture/ADR-054-Voice-Input-Architecture.md)
-- [Sherpa-onnx](https://k2-fsa.github.io/sherpa/onnx/)
+- [ADR-329: Live standby and a multilingual wake word](../architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md)
+- [openWakeWord](https://github.com/dscripka/openWakeWord) · [ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/)
 
 ---
 
@@ -900,7 +862,7 @@ la vague 3).
 
 | Optimization | Technique | Gain |
 |-------------|-----------|------|
-| Stream reuse | KWS mic stream transferred to recording (skip `getUserMedia`) | ~200-800ms |
+| Stream reuse | The wake word's live stream handed to the recording (`handOff`, skip `getUserMedia`), on a detection and on a tap | ~200-800ms |
 | WS pre-warm | Service pre-connected during listening state | ~100-300ms |
 | Parallel fallback | `Promise.allSettled` when stream reuse unavailable | ~100-300ms |
 | Worklet cache | Same as push-to-talk | ~20-50ms |

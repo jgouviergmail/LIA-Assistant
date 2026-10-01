@@ -173,8 +173,8 @@ LIA's voice mode supports **99+ languages** thanks to Whisper:
 **🔄 Automatic detection:**
 You don't need to configure the language. LIA automatically detects which language you're speaking.
 
-**🎯 Universal wake word:**
-The wake word "OK Guy" or "OK Guys" works regardless of your language. You can say "OK Guy" then continue in your language.
+**🎯 The wake word:**
+"Dis LIA" exists in French for now, in beta: its recognition is still improving. The other interface languages do not have their phrase yet — tapping the badge and the long press work everywhere. Once recording starts, speak in any language.
 
 **💰 100% free:**
 Transcription uses Whisper locally on the server, with no external API costs.
@@ -195,11 +195,11 @@ Voice mode requires a modern browser:
 • ✅ Edge 92+
 • ❌ Internet Explorer (not supported)
 
-**🔒 Security headers:**
-Voice mode uses advanced features (SharedArrayBuffer) that require security headers. If you see a "crossOriginIsolated" error, contact the administrator.
+**🧩 Wake word unavailable:**
+The wake word needs WebAssembly and an audio worklet, which every current browser offers, phones included, and exists in French only for now. In another interface language, or when its model cannot load, the badge offers tap-to-speak instead.
 
 **🔇 Wake word not detected:**
-• Say "OK Guy" or "OK Guys" clearly
+• Say the phrase shown on the badge clearly
 • Avoid noisy environments
 • Get closer to the microphone
 • Use Push-to-Talk (click the overlay) as an alternative
@@ -313,8 +313,8 @@ Click the **speaker icon** 🔊 in the title bar. When enabled, LIA reads its re
 • **ElevenLabs**: `eleven_multilingual_v2`, `eleven_turbo_v2_5`, or `eleven_flash_v2_5` — premium, ultra-natural voices, custom and library voices supported
 
 **🎙️ Voice Mode (STT) - Speak to LIA:**
-Hold the voice badge in the chat header for 500ms to enable voice mode.
-• **Wake word**: Say 'OK Guy' or 'OK Guys' to activate recording
+Tap the hands-free badge (microphone) in the chat header to turn voice mode on; hold it for 500ms (or hold Space) to turn it off. Greyed, the badge says the mode is off.
+• **Wake word** (beta, French interface): say "Dis LIA" to start recording, "Stop" to cut LIA's voice
 • **Push-to-talk**: Click the overlay to speak manually
 • **Auto-detection**: LIA detects when you stop speaking (1s silence)
 • **Local mode (default)**: free, offline transcription via Sherpa-onnx Whisper — your audio never leaves the LIA server

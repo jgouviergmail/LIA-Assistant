@@ -156,8 +156,6 @@ class TestCrossTypeCooldown:
             enabled_field="heartbeat_enabled",
             start_hour_field="heartbeat_notify_start_hour",
             end_hour_field="heartbeat_notify_end_hour",
-            min_per_day_field="heartbeat_min_per_day",
-            max_per_day_field="heartbeat_max_per_day",
             notification_model=HeartbeatNotification,
             cross_type_models=[InterestNotification],
             cross_type_cooldown_minutes=30,
@@ -176,3 +174,92 @@ class TestCrossTypeCooldown:
         # Both checkers have the other's model as cross-type
         assert heartbeat_checker.cross_type_models == [InterestNotification]
         assert interest_checker.cross_type_models == [HeartbeatNotification]
+
+
+def _session_counting(today: int) -> AsyncMock:
+    """A session answering every daily COUNT with ``today`` and nothing else.
+
+    The cooldown lookups find no earlier notification, so the only thing that
+    can refuse is the day's count — which is exactly what is under test.
+    """
+
+    async def execute(statement: Any) -> MagicMock:
+        result = MagicMock()
+        result.scalar.return_value = today if _is_count(statement) else None
+        return result
+
+    db = AsyncMock()
+    db.execute = AsyncMock(side_effect=execute)
+    return db
+
+
+def _is_count(statement: Any) -> bool:
+    return "count(" in str(statement).lower()
+
+
+def _counted(db: AsyncMock) -> bool:
+    return any(_is_count(call.args[0]) for call in db.execute.await_args_list)
+
+
+def _unbounded(**kwargs: Any) -> EligibilityChecker:
+    return EligibilityChecker(
+        task_type="heartbeat",
+        enabled_field="interests_enabled",
+        start_hour_field="interests_notify_start_hour",
+        end_hour_field="interests_notify_end_hour",
+        notification_model=HeartbeatNotification,
+        **kwargs,
+    )
+
+
+@pytest.mark.unit
+class TestADailyBoundIsOptional:
+    """ADR-328: the heartbeat has no daily bound — the decision is the model's.
+
+    A checker given no per-day fields neither refuses past a count nor counts
+    the day at all; one given both keeps refusing at its maximum (interests).
+    """
+
+    async def test_without_bounds_the_day_is_never_counted(self) -> None:
+        db = _session_counting(today=50)
+        user = _make_user(start_hour=0, end_hour=24)
+
+        result = await _unbounded().check(user, db, datetime.now(UTC))
+
+        assert result.eligible
+        assert not _counted(db)
+
+    async def test_with_bounds_the_same_day_is_refused(self) -> None:
+        db = _session_counting(today=50)
+        user = _make_user(start_hour=0, end_hour=24, max_per_day=8)
+        checker = _unbounded(
+            min_per_day_field="interests_notify_min_per_day",
+            max_per_day_field="interests_notify_max_per_day",
+        )
+
+        result = await checker.check(user, db, datetime.now(UTC))
+
+        assert result.reason == EligibilityReason.QUOTA_EXCEEDED
+
+    def test_bounds_are_both_given_or_neither(self) -> None:
+        assert not _unbounded().has_daily_bounds
+        assert _unbounded(
+            min_per_day_field="interests_notify_min_per_day",
+            max_per_day_field="interests_notify_max_per_day",
+        ).has_daily_bounds
+        with pytest.raises(ValueError, match="both"):
+            _unbounded(max_per_day_field="interests_notify_max_per_day")
+
+    def test_the_heartbeat_scheduler_bounds_no_day(self) -> None:
+        """Ticks, push wakes and anticipated moments share this checker."""
+        from src.infrastructure.scheduler.heartbeat_notification import (
+            _create_heartbeat_eligibility_checker,
+        )
+
+        checker = _create_heartbeat_eligibility_checker()
+
+        assert not checker.has_daily_bounds
+        # Every other gate stays: the window, the cooldowns, the activity probe.
+        assert checker.notification_model is HeartbeatNotification
+        assert checker.cross_type_models == [InterestNotification]
+        assert checker.activity_probe is not None

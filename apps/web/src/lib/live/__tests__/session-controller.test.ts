@@ -13,7 +13,10 @@
  *    ignored;
  *  - a close without a handle ends as provider_closed; too many attempts end as
  *    resumption_failed;
- *  - idle → idle_timeout; hidden past the grace → hidden; the cap → expired;
+ *  - idle → standby; hidden past the grace → standby; the cap → expired;
+ *  - standby (ADR-329): the wire closed and the turn archived before the API
+ *    is told, a wake reopening the microphone and a connection on the kept
+ *    handle, the clocks counting time AWAKE only;
  *  - a refused mint names its code; a refused microphone ends as mic_denied;
  *  - end → transport closed, mic stopped, POST end, summary appended, and a
  *    second end is a no-op.
@@ -28,6 +31,7 @@ import {
   type LiveApi,
   type LiveControllerDeps,
 } from '../session-controller';
+import type { LiveWakeListener, LiveWakeListenerOptions } from '../standby';
 import type { LiveTransport } from '../transport';
 import type {
   LiveConnectOptions,
@@ -62,6 +66,7 @@ const START: LiveSessionStart = {
   connection: 'token',
   session_max_minutes: 10,
   idle_timeout_seconds: 10,
+  standby_max_seconds: 8 * 3600,
   setup: { model: 'models/m' },
   preferences: {
     interruptions: true,
@@ -89,6 +94,7 @@ const CONFIG = {
   connect_window_seconds: 60,
   idle_timeout_seconds: 10,
   hidden_grace_seconds: 20,
+  standby_max_seconds: 8 * 3600,
   delegation_timeout_seconds: 90,
   delegation_result_max_tokens: 600,
   delegation_tool_name: 'send_to_lia',
@@ -193,12 +199,19 @@ function build(overrides: Partial<LiveControllerDeps> = {}) {
     isSpeaking: false,
   };
   const stream = { id: 'mic-stream' } as unknown as MediaStream;
-  const mic = { stream, mute: vi.fn(), stop: vi.fn(async () => {}) };
+  const mic = {
+    stream,
+    mute: vi.fn(),
+    stop: vi.fn(async () => {}),
+    detach: vi.fn(async () => null),
+  };
   let micChunk: ((pcm: ArrayBuffer) => void) | null = null;
   const post = vi.fn(async (url: string, _body?: unknown): Promise<unknown> => {
     if (url === '/live/sessions') return START;
     if (url.endsWith('/credential')) return { ...START, credential: 'tok-2', setup: START.setup };
     if (url.endsWith('/turns')) return { user_message_id: 'u1', assistant_message_id: 'a1' };
+    if (url.endsWith('/standby')) return asleepAnswer();
+    if (url.endsWith('/wake')) return wokenAnswer();
     if (url.endsWith('/end'))
       return {
         summary_message_id: 's1',
@@ -219,9 +232,11 @@ function build(overrides: Partial<LiveControllerDeps> = {}) {
   const chat = {
     sendMessage: vi.fn(async () => {}),
     stop: vi.fn(async () => {}),
+    detach: vi.fn(async () => null),
     appendMessage: vi.fn(),
     readAnswer: async () => ({ text: 'answer', pendingQuestion: null }),
   };
+  const wakeWord: { listener: FakeWakeListener | null } = { listener: null };
   const deps: LiveControllerDeps = {
     api: fakeApi(post),
     createTransport: () => transport,
@@ -232,10 +247,67 @@ function build(overrides: Partial<LiveControllerDeps> = {}) {
     }),
     isSupported: () => true,
     chat,
+    createWakeListener: options => {
+      wakeWord.listener = new FakeWakeListener(options);
+      return wakeWord.listener;
+    },
+    wakeLanguage: () => 'fr',
+    chime: vi.fn(),
     ...overrides,
   };
   const controller = new LiveSessionController(deps);
-  return { controller, transport, player, mic, post, chat, deps, stream, chunk: () => micChunk };
+  return {
+    controller,
+    transport,
+    player,
+    mic,
+    post,
+    chat,
+    deps,
+    stream,
+    chunk: () => micChunk,
+    wakeWord: () => wakeWord.listener,
+  };
+}
+
+/** What `POST …/standby` answers: asleep now, its bound eight hours away. */
+const STANDBY_BOUND_MS = 8 * 3600 * 1000;
+function asleepAnswer() {
+  return {
+    standby_since: new Date().toISOString(),
+    awake_seconds: 30,
+    standby_deadline_at: new Date(Date.now() + STANDBY_BOUND_MS).toISOString(),
+    relay: null,
+  };
+}
+
+/** What `POST …/wake` answers: a credential on a setup rendered at the wake, the cap shifted. */
+function wokenAnswer() {
+  return {
+    credential: { ...START, credential: 'tok-wake', setup: { model: 'models/m', woken: true } },
+    expires_at: new Date(Date.now() + 9 * 60_000).toISOString(),
+    extensions: 0,
+  };
+}
+
+class FakeWakeListener implements LiveWakeListener {
+  phrase: string | null = null;
+  listens = 0;
+  pauses = 0;
+  disposed = false;
+  constructor(readonly options: LiveWakeListenerOptions) {}
+  async listen() {
+    this.listens += 1;
+    this.phrase = 'Dis LIA';
+    this.options.onStateChange('listening');
+    return 'listening' as const;
+  }
+  async pause() {
+    this.pauses += 1;
+  }
+  async dispose() {
+    this.disposed = true;
+  }
 }
 
 describe('LiveSessionController', () => {
@@ -571,19 +643,24 @@ describe('LiveSessionController', () => {
     expect(g.transport.connects.length).toBeGreaterThan(1);
   });
 
-  it('ends on idle, on a hidden page past the grace, and at the cap', async () => {
+  it('sleeps on idle and on a hidden page past the grace, and ends at the cap', async () => {
     const h = build();
     await h.controller.start();
     await vi.advanceTimersByTimeAsync(CONFIG.idle_timeout_seconds * 1000 + 1);
-    expect(useLiveStore.getState().outcome).toBe('idle_timeout');
+    expect(useLiveStore.getState().status).toBe('standby');
+    expect(h.post).toHaveBeenCalledWith(
+      `/live/sessions/${SESSION}/standby`,
+      expect.objectContaining({ reason: 'idle' })
+    );
+    expect(h.post).not.toHaveBeenCalledWith(`/live/sessions/${SESSION}/end`, expect.anything());
 
     useLiveStore.getState().reset();
     // A long idle bound here: the hidden grace, not the silence, is under test.
-    const g = build({
-      api: fakeApi(async url =>
-        url === '/live/sessions' ? { ...START, idle_timeout_seconds: 300 } : {}
-      ),
-    });
+    const g = build();
+    const answer = g.post.getMockImplementation();
+    g.post.mockImplementation(async (url: string, body?: unknown) =>
+      url === '/live/sessions' ? { ...START, idle_timeout_seconds: 300 } : answer?.(url, body)
+    );
     await g.controller.start();
     g.controller.pageHidden(true);
     await vi.advanceTimersByTimeAsync(CONFIG.hidden_grace_seconds * 1000 - 1);
@@ -592,7 +669,13 @@ describe('LiveSessionController', () => {
     expect(useLiveStore.getState().status).toBe('live');
     g.controller.pageHidden(true);
     await vi.advanceTimersByTimeAsync(CONFIG.hidden_grace_seconds * 1000 + 1);
-    expect(useLiveStore.getState().outcome).toBe('hidden');
+    expect(useLiveStore.getState().status).toBe('standby');
+    expect(g.post).toHaveBeenCalledWith(
+      `/live/sessions/${SESSION}/standby`,
+      expect.objectContaining({ reason: 'hidden' })
+    );
+    // Asleep on a hidden page, the wake word does not listen.
+    expect(g.wakeWord()).toBeNull();
 
     useLiveStore.getState().reset();
     const soon = new Date(Date.now() + 2_000).toISOString();
@@ -604,7 +687,7 @@ describe('LiveSessionController', () => {
     expect(useLiveStore.getState().outcome).toBe('expired');
   });
 
-  it("the silence clock is the MODEL's, not the instance's, and 0 never ends a session on silence", async () => {
+  it("the silence clock is the MODEL's, not the instance's, and 0 never sleeps a session on silence", async () => {
     // Owner decision 2026-09-19: each model of a connector keeps its own
     // silence timeout; the start hands it over and the config's is not read.
     const h = build({
@@ -616,7 +699,7 @@ describe('LiveSessionController', () => {
     await vi.advanceTimersByTimeAsync(CONFIG.idle_timeout_seconds * 1000 + 1);
     expect(useLiveStore.getState().status).toBe('live');
     await vi.advanceTimersByTimeAsync(20_000);
-    expect(useLiveStore.getState().outcome).toBe('idle_timeout');
+    expect(useLiveStore.getState().status).toBe('standby');
 
     useLiveStore.getState().reset();
     const g = build({
@@ -660,13 +743,14 @@ describe('LiveSessionController', () => {
     await vi.advanceTimersByTimeAsync(idleMs * 3);
     expect(useLiveStore.getState().status).toBe('live');
     h.transport.events.onInteractionStatus?.('idle');
-    // Nobody: the last stretch is announced, then the session ends.
+    // Nobody: the last stretch is announced, then the session sleeps.
     await vi.advanceTimersByTimeAsync(idleMs - 3_000);
     expect(useLiveStore.getState().idleCountdownSeconds).toBe(3);
     h.transport.events.onTranscript?.('user', 'still here');
     expect(useLiveStore.getState().idleCountdownSeconds).toBeNull();
     await vi.advanceTimersByTimeAsync(idleMs + 10);
-    expect(useLiveStore.getState().outcome).toBe('idle_timeout');
+    expect(useLiveStore.getState().status).toBe('standby');
+    expect(useLiveStore.getState().idleCountdownSeconds).toBeNull();
   });
 
   it('offers the extension before the cap, extends on the word and reconnects on the new credential', async () => {
@@ -963,6 +1047,8 @@ describe('LiveSessionController', () => {
   function startingWith(start: LiveSessionStart) {
     const post = vi.fn(async (url: string): Promise<unknown> => {
       if (url === '/live/sessions') return start;
+      if (url.endsWith('/standby')) return asleepAnswer();
+      if (url.endsWith('/wake')) return wokenAnswer();
       if (url.endsWith('/end'))
         return {
           summary_message_id: 's1',
@@ -1289,5 +1375,172 @@ describe('LiveSessionController', () => {
       provider_conversation_id: null,
     });
     expect(h.player.diagnostics).toHaveBeenCalledBefore(h.player.dispose);
+  });
+
+  describe('standby (ADR-329)', () => {
+    it('sleeps on the button: the wire closed and the turn archived before the API is told', async () => {
+      const h = build();
+      await h.controller.start();
+      h.transport.events.onProviderConversation?.('conv_1');
+      h.transport.events.onTranscript?.('user', 'hello');
+      h.transport.events.onTranscript?.('assistant', 'hi');
+      useLiveStore.getState().offerExtension(true);
+      await h.controller.standby();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(h.transport.closes).toBe(1);
+      expect(h.mic.stop).toHaveBeenCalledTimes(1);
+      expect(h.player.flush).toHaveBeenCalledTimes(1);
+      // The player is kept: the wake speaks through it again.
+      expect(h.player.dispose).not.toHaveBeenCalled();
+      const urls = h.post.mock.calls.map(([url]) => String(url));
+      expect(urls.indexOf(`/live/sessions/${SESSION}/turns`)).toBeLessThan(
+        urls.indexOf(`/live/sessions/${SESSION}/standby`)
+      );
+      expect(h.post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/standby`, {
+        reason: 'manual',
+        provider_conversation_id: 'conv_1',
+      });
+      expect(useLiveStore.getState()).toMatchObject({
+        status: 'standby',
+        standbys: 1,
+        extensionOffered: false,
+        wakeWordState: 'listening',
+        wakePhrase: 'Dis LIA',
+      });
+      // A late event of the closed socket reaches nothing.
+      h.transport.events.onTranscript?.('user', 'late');
+      expect(useLiveStore.getState().captions.map(c => c.text)).toEqual(['hello', 'hi']);
+      // Asleep, neither the silence nor the cap ends it: only its bound.
+      await vi.advanceTimersByTimeAsync(11 * 60_000);
+      expect(useLiveStore.getState().status).toBe('standby');
+      await vi.advanceTimersByTimeAsync(STANDBY_BOUND_MS);
+      expect(useLiveStore.getState()).toMatchObject({ status: 'ended', outcome: 'expired' });
+    });
+
+    it('wakes on the button into a new connection on the kept handle, and sleeps again on silence', async () => {
+      const h = build();
+      await h.controller.start();
+      h.transport.events.onResumption?.('h1', true);
+      await h.controller.standby();
+      await h.controller.wake();
+      expect(h.wakeWord()?.pauses).toBe(1);
+      expect(h.post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/wake`, { reason: 'manual' });
+      expect(h.deps.startMic).toHaveBeenCalledTimes(2);
+      expect(h.transport.connects[1]).toEqual({
+        credential: 'tok-wake',
+        setup: { model: 'models/m', woken: true },
+        handle: 'h1',
+        microphone: null,
+      });
+      expect(useLiveStore.getState().status).toBe('live');
+      expect(h.deps.chime).not.toHaveBeenCalled();
+      // The microphone feeds the new connection.
+      h.chunk()?.(new Int16Array(4).buffer);
+      expect(h.transport.sent.at(-1)?.kind).toBe('audio');
+      // The silence clock runs again, and sleeps the session a second time.
+      await vi.advanceTimersByTimeAsync(CONFIG.idle_timeout_seconds * 1000 + 1);
+      expect(useLiveStore.getState()).toMatchObject({ status: 'standby', standbys: 2 });
+    });
+
+    it('wakes on the phrase and chimes once the provider is ready', async () => {
+      const h = build();
+      await h.controller.start();
+      await h.controller.standby();
+      h.wakeWord()?.options.onDetected();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(h.post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/wake`, {
+        reason: 'wake_word',
+      });
+      expect(h.transport.connects).toHaveLength(2);
+      expect(h.deps.chime).toHaveBeenCalledTimes(1);
+    });
+
+    it('ends from standby: the books closed, the wake word released, the conversation id sent once', async () => {
+      const h = build();
+      await h.controller.start();
+      h.transport.events.onProviderConversation?.('conv_1');
+      await h.controller.standby();
+      await h.controller.end('ended');
+      expect(h.post).toHaveBeenCalledWith(
+        `/live/sessions/${SESSION}/end`,
+        expect.objectContaining({ outcome: 'ended', provider_conversation_id: null })
+      );
+      expect(h.wakeWord()?.disposed).toBe(true);
+      expect(useLiveStore.getState()).toMatchObject({ status: 'ended', wakeWordState: 'idle' });
+    });
+
+    it('mutes nothing while asleep', async () => {
+      const h = build();
+      await h.controller.start();
+      await h.controller.standby();
+      const sent = h.transport.sent.length;
+      h.controller.toggleMute();
+      expect(useLiveStore.getState().muted).toBe(false);
+      expect(h.transport.sent).toHaveLength(sent);
+    });
+
+    it('a page change while asleep moves the wake word, never the session', async () => {
+      const h = build();
+      await h.controller.start();
+      await h.controller.standby();
+      h.controller.pageHidden(true);
+      await vi.advanceTimersByTimeAsync(CONFIG.hidden_grace_seconds * 1000 + 1);
+      expect(useLiveStore.getState().status).toBe('standby');
+      expect(h.wakeWord()?.pauses).toBe(1);
+      h.controller.pageHidden(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(h.wakeWord()?.listens).toBe(2);
+    });
+
+    it('an extension granted while asleep moves the cap without a connection', async () => {
+      const later = new Date(Date.now() + 30 * 60_000).toISOString();
+      const h = build();
+      h.post.mockImplementation(async (url: string): Promise<unknown> => {
+        if (url === '/live/sessions') return START;
+        if (url.endsWith('/standby')) return asleepAnswer();
+        if (url.endsWith('/extend')) return { expires_at: later, extensions: 1, credential: null };
+        return {};
+      });
+      await h.controller.start();
+      await h.controller.standby();
+      await expect(h.controller.extend()).resolves.toBe(true);
+      expect(h.transport.connects).toHaveLength(1);
+      expect(useLiveStore.getState()).toMatchObject({
+        status: 'standby',
+        extensions: 1,
+        expiresAt: Date.parse(later),
+      });
+      // No cap timer armed while asleep.
+      await vi.advanceTimersByTimeAsync(31 * 60_000);
+      expect(useLiveStore.getState().status).toBe('standby');
+    });
+
+    it('a minute-billed ceiling counts the time awake only, across a sleep', async () => {
+      const rates = {
+        pricing_unit: 'per_audio_minute' as const,
+        input_unit_price: 0.6,
+        output_unit_price: 0,
+        audio_input_unit_price: null,
+        audio_output_unit_price: null,
+        usd_eur_rate: 1,
+      };
+      // 0.01 EUR a second: a 0.05 EUR ceiling is five seconds AWAKE.
+      const { h } = startingWith({
+        ...START,
+        idle_timeout_seconds: 0,
+        rates,
+        session_budget_eur: 0.05,
+      });
+      await h.controller.start();
+      await vi.advanceTimersByTimeAsync(3_000);
+      await h.controller.standby();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(useLiveStore.getState().status).toBe('standby');
+      await h.controller.wake();
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(useLiveStore.getState().status).toBe('live');
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(useLiveStore.getState()).toMatchObject({ status: 'ended', outcome: 'budget_reached' });
+    });
   });
 });

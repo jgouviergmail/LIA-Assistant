@@ -10,6 +10,7 @@ import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 import { Planetarium } from '@/components/landing/cosmic/Planetarium';
+import { LANDING_PLANETARIUM_ENABLED } from '@/components/landing/constants';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
 import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
@@ -106,8 +107,14 @@ export default async function DemoPage({ params }: DemoPageProps) {
             <TrackView event="demo_started" />
             {/* The same illustrative product scenes used by the landing and
                 its chapters, with visitor-controlled playback. */}
-            <div className="cosmos-orbit-zone w-full">
-              <Planetarium />
+            <div
+              className={
+                LANDING_PLANETARIUM_ENABLED
+                  ? 'cosmos-orbit-zone w-full'
+                  : 'grid w-full place-items-center'
+              }
+            >
+              {LANDING_PLANETARIUM_ENABLED && <Planetarium />}
               {/* min-w-0/max-w-full: a long translated line must never widen
                   the centered grid track past a phone viewport. */}
               <div className="relative z-10 w-full min-w-0 max-w-md">

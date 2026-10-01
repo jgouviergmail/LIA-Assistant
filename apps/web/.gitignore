@@ -55,6 +55,5 @@ certificates
 # Run: ./scripts/setup-dev.sh (or individual download scripts)
 /public/models/whisper-tiny-en/
 /public/models/whisper-small/
-/public/models/sherpa-wasm/
-# Keep keywords.txt (small, versioned)
-!/public/models/keywords.txt
+# ONNX Runtime Web's WASM binary, copied from the pinned package (scripts/copy-ort-runtime.mjs)
+/public/ort/

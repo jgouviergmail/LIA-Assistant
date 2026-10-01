@@ -19,7 +19,7 @@ from typing import get_args
 import pytest
 
 from src.domains.live import errors
-from src.domains.live.schemas import LiveOutcome
+from src.domains.live.schemas import LiveOutcome, LiveStandbyReason, LiveWakeReason
 
 pytestmark = pytest.mark.unit
 
@@ -47,6 +47,13 @@ def _declared(path: Path, constant: str) -> set[str]:
         "this guard with it rather than deleting it"
     )
     return {value.strip().strip("'\"") for value in match["values"].split(",") if value.strip()}
+
+
+def _declared_union(path: Path, alias: str) -> set[str]:
+    """The members of one frontend string-literal union type."""
+    match = re.search(rf"export type {alias} =(?P<values>[^;]+);", path.read_text(encoding="utf-8"))
+    assert match is not None, f"{alias} not found in {path.name}"
+    return {value.strip().strip("'\"") for value in match["values"].split("|") if value.strip()}
 
 
 def _backend_codes() -> set[str]:
@@ -91,6 +98,17 @@ class TestTheTwoSidesShareOneVocabulary:
             f"the frontend declares {sorted(frontend - backend - _CLIENT_ONLY_CODES)} "
             "and the API never emits it — declare it client-only with a reason, or drop it"
         )
+
+    @pytest.mark.parametrize(
+        ("alias", "backend"),
+        [("LiveStandbyReason", LiveStandbyReason), ("LiveWakeReason", LiveWakeReason)],
+    )
+    def test_every_standby_and_wake_reason_is_the_same_on_both_sides(
+        self, alias: str, backend: object
+    ) -> None:
+        # ADR-329: the browser names why a session slept or woke, the API
+        # refuses any other word at its door (422) and counts each by label.
+        assert _declared_union(_TYPES_FILE, alias) == set(get_args(backend))
 
     def test_the_portal_voice_sentinel_is_the_same_word_on_both_sides(self) -> None:
         # ADR-300 wave 4: a portal-voiced model (an agent) is stored with a

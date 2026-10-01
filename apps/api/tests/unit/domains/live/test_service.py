@@ -190,6 +190,9 @@ def _service(
     store.count_active = AsyncMock(return_value=active)
     store.register_active = AsyncMock()
     store.unregister_active = AsyncMock()
+    store.count_standby = AsyncMock(return_value=0)
+    store.unregister_standby = AsyncMock()
+    store.relays = AsyncMock(return_value=[])
     store.release = AsyncMock(return_value=True)
     # A DIRECT session keeps its turns in the record (ADR-301): the fake
     # holds them exactly as the Redis list does.

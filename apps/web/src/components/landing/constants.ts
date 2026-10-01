@@ -369,14 +369,22 @@ export const LANDING_STATS = {
   tools: 124,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 612,
+  metrics: 616,
   uiLanguages: 6,
   tests: 48000,
-  adrs: 326,
-  releases: 273,
+  adrs: 329,
+  releases: 274,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;
+
+/**
+ * Whether the hero (and the legacy /demo) draws the planetarium — LIA's
+ * features orbiting the chat mockup. Off since 2026-10-01 (owner decision: the
+ * mockup stands alone, the video carries the motion); the component, its
+ * styles and its tests stay so one flip of this constant brings it back.
+ */
+export const LANDING_PLANETARIUM_ENABLED = false;
 
 /** Public audit report — target of the ProofSection audit tile. */
 export const AUDIT_REPORT_URL =

@@ -25,6 +25,7 @@ import { fontVariables } from '@/lib/fonts';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SnowfallEffect } from '@/components/effects/SnowfallEffect';
+import { LandingVideoHostSection } from '@/components/landing/video/LandingVideoHostSection';
 import { languages } from '@/i18n/settings';
 import { initI18next, validateLanguage } from '@/i18n';
 import { WebSiteJsonLd, OrganizationJsonLd } from '@/components/seo/JsonLd';
@@ -143,7 +144,11 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
                         <TelemetryBootstrap />
                         <PresencePing />
                         <FontPreferencesSync />
-                        {children}
+                        {/* The landing video's one element for the whole
+                            visit (ADR-330, amended): framed on the landing,
+                            docked on the other public pages, gone on sign-in
+                            and in the dashboard. */}
+                        <LandingVideoHostSection lng={lng}>{children}</LandingVideoHostSection>
                         <Toaster />
                       </TooltipProvider>
                     </LoggingProvider>

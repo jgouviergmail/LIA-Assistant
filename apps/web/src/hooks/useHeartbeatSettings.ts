@@ -7,9 +7,6 @@ import { useApiMutation } from './useApiMutation';
  */
 export interface HeartbeatSettings {
   heartbeat_enabled: boolean;
-  heartbeat_min_per_day: number;
-  heartbeat_max_per_day: number;
-  heartbeat_push_enabled: boolean;
   heartbeat_notify_start_hour: number;
   heartbeat_notify_end_hour: number;
   /** Sources this account is CONNECTED to — a fact, not a decision. */
@@ -57,9 +54,6 @@ export interface HeartbeatSettings {
  */
 export interface HeartbeatSettingsUpdate {
   heartbeat_enabled?: boolean;
-  heartbeat_min_per_day?: number;
-  heartbeat_max_per_day?: number;
-  heartbeat_push_enabled?: boolean;
   heartbeat_notify_start_hour?: number;
   heartbeat_notify_end_hour?: number;
   /** FULL replacement of the refusal set — never a partial diff. */

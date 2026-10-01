@@ -174,6 +174,16 @@ class LiveConnectorService:
         metadata = connector.connector_metadata or {}
         provider = PROVIDERS[ConnectorType(connector.connector_type)]
         model = str(metadata.get("model") or provider.default_model)
+        return LiveConnectorService.settings_for_model(connector, model)
+
+    @staticmethod
+    def settings_for_model(connector: Connector, model: str) -> LiveConnectorSettings:
+        """One model's own settings on the connector — a session's, even when the choice moved.
+
+        A session keeps its model for its life (ADR-299); its wake re-renders the
+        setup with what the connector NOW remembers for that model (ADR-329).
+        """
+        metadata = connector.connector_metadata or {}
         remembered = read_models(metadata).get(model)
         if remembered is None:
             # Never reached after an activation (it refuses a voice off the list);

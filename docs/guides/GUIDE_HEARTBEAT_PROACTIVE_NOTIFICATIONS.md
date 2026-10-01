@@ -139,7 +139,7 @@ class ProactiveTask(Protocol):
 Le `ProactiveTaskRunner._process_user()` orchestre le pipeline complet pour chaque utilisateur :
 
 1. **Eligibility checks communs** via `EligibilityChecker.check()`
-2. **Check probabiliste** via `should_send_notification()` (garantie de min_per_day)
+2. **Check probabiliste** via `should_send_notification()` (garantie de min_per_day) — uniquement pour un checker AVEC bornes quotidiennes (`has_daily_bounds`, les interets) ; le heartbeat n'en a pas (ADR-328)
 3. **Eligibilite task-specifique** via `task.check_eligibility()`
 4. **Selection de target** via `task.select_target()` (inclut decision LLM pour heartbeat)
 5. **Generation de contenu** via `task.generate_content()`
@@ -189,10 +189,10 @@ Le scheduler job ne s'enregistre que si `HEARTBEAT_ENABLED=true`. Le router API 
 | Champ | Type | Default | Description |
 |-------|------|---------|-------------|
 | `heartbeat_enabled` | bool | `false` | Activer les notifications proactives |
-| `heartbeat_max_per_day` | int | `3` | Max notifications par jour (1-8) |
-| `heartbeat_push_enabled` | bool | `true` | Ignore depuis v1.27.11 (compatibilite) — le push suit l'activation globale |
 | `heartbeat_notify_start_hour` | int | `9` | Heure de debut de la fenetre (0-23) |
 | `heartbeat_notify_end_hour` | int | `22` | Heure de fin de la fenetre (0-23) |
+
+Pas de min/max par jour (ADR-328) : le modele de decision juge la pertinence, et aucune notification n'est retenue parce qu'un plafond serait atteint. La fenetre horaire et les cooldowns bornent seuls le rythme.
 
 ### Plages horaires
 
@@ -283,6 +283,8 @@ def _create_mon_type_eligibility_checker() -> EligibilityChecker:
         enabled_field="mon_type_enabled",            # Champ User model
         start_hour_field="mon_type_notify_start_hour",
         end_hour_field="mon_type_notify_end_hour",
+        # Bornes quotidiennes : les deux ou aucune (ADR-328). Sans elles, ni
+        # quota ni lissage probabiliste — chaque passage atteint la decision.
         min_per_day_field="mon_type_min_per_day",
         max_per_day_field="mon_type_max_per_day",
         notification_model=MonTypeNotification,       # Modele SQLAlchemy
@@ -506,14 +508,7 @@ Le `NotificationDispatcher` (`infrastructure/proactive/notification.py`) gere l'
 
 ### Parametre `push_enabled`
 
-Le runner resout `push_enabled` par convention depuis le modele utilisateur :
-
-```python
-# Dans ProactiveTaskRunner._process_user()
-push_enabled = getattr(user, f"{self.task.task_type}_push_enabled", True)
-```
-
-Depuis v1.27.11 le heartbeat n'interroge plus `user.heartbeat_push_enabled` : le push suit l'opt-in global (tokens FCM enregistres, canaux actifs). Archive + SSE restent systematiques.
+Le runner passe toujours `push_enabled=True` : le push suit l'opt-in global (tokens FCM enregistres, canaux actifs), plus aucun interrupteur par type de tache — la colonne `heartbeat_push_enabled`, qu'aucun code ne lisait plus, a ete supprimee (ADR-328). Archive + SSE restent systematiques ; `push_enabled=False` reste ouvert aux appelants qui ne doivent rien pousser (la cloture d'une session vocale).
 
 ### Titres localises
 
@@ -575,7 +570,7 @@ La verification est symetrique : si un heartbeat a ete envoye il y a 10 minutes 
 
 ### Algorithme probabiliste (`should_send_notification`)
 
-L'`EligibilityChecker.should_send_notification()` utilise un algorithme time-aware pour distribuer les notifications dans la fenetre :
+L'`EligibilityChecker.should_send_notification()` utilise un algorithme time-aware pour distribuer les notifications dans la fenetre. Il ne s'applique qu'a un checker AVEC bornes quotidiennes (les interets) ; le heartbeat n'en a pas (ADR-328) et le runner ne compte meme pas sa journee :
 
 1. **Quota atteint** : si `today_count >= max_per_day` -> `False`
 2. **Guarantee zone** : dans les derniers 20% de la fenetre, si en-dessous de `min_per_day` -> `True` (force l'envoi)
@@ -843,17 +838,16 @@ def mock_settings(monkeypatch):
 1. `HEARTBEAT_ENABLED=true` dans `.env` ?
 2. L'utilisateur a `heartbeat_enabled=true` dans la DB ?
 3. L'heure courante est dans la fenetre `[heartbeat_notify_start_hour, heartbeat_notify_end_hour]` (timezone de l'utilisateur) ?
-4. Le quota journalier n'est pas atteint ? (`heartbeat_max_per_day`)
-5. Le cooldown global n'est pas actif ? (`heartbeat_global_cooldown_hours`)
-6. L'utilisateur n'est pas actif ? (`heartbeat_activity_cooldown_minutes`)
-7. Le cross-type cooldown n'est pas actif ? (verifier les notifications d'interets recentes)
+4. Le cooldown global n'est pas actif ? (`heartbeat_global_cooldown_hours`)
+5. L'utilisateur n'est pas actif ? (`heartbeat_activity_cooldown_minutes`)
+6. Le cross-type cooldown n'est pas actif ? (verifier les notifications d'interets recentes)
 
 **Logs a chercher** :
 - `heartbeat_notification_job_started` : le job scheduler a demarre
 - `eligibility_*` : raison du skip (feature_disabled, outside_time_window, quota_exceeded, etc.)
 - `heartbeat_skip_no_context` : aucune source de contexte n'a retourne de donnees
 - `heartbeat_llm_skip` : le LLM a decide de ne pas notifier
-- `proactive_probabilistic_decision` : le check probabiliste a decide de ne pas envoyer
+- `proactive_probabilistic_decision` : le check probabiliste a decide de ne pas envoyer (interets seulement — le heartbeat n'a pas de lissage, ADR-328)
 
 ### Probleme : les tokens ne sont pas comptes
 
@@ -870,7 +864,7 @@ def mock_settings(monkeypatch):
 ### Probleme : les push notifications ne sont pas recues
 
 **Verifications** :
-1. Des notifications push activees globalement (opt-in FCM) ? (`heartbeat_push_enabled` est ignore depuis v1.27.11)
+1. Des notifications push activees globalement (opt-in FCM) ?
 2. Des tokens FCM sont enregistres pour l'utilisateur ?
 3. Pour Telegram : `CHANNELS_ENABLED=true` et un binding actif existe ?
 
@@ -882,7 +876,7 @@ def mock_settings(monkeypatch):
 ### Probleme : trop de notifications
 
 **Solutions** :
-- Reduire `heartbeat_max_per_day` (cote utilisateur)
+- Resserrer la fenetre horaire ou couper des sources (cote utilisateur)
 - Augmenter `HEARTBEAT_GLOBAL_COOLDOWN_HOURS`
 - Augmenter `HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES`
 - Augmenter `PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES`

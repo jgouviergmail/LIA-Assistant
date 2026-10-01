@@ -37,12 +37,12 @@ describe('buildAppCsp (strict app policy)', () => {
   const prod = parsePolicy(buildAppCsp(false, 'https://api.example.com'));
   const dev = parsePolicy(buildAppCsp(true, undefined));
 
-  it('keeps blob: in script-src — voice AudioWorklets and the Sherpa glue loader load code from blob: URLs (worklet destination is governed by script-src, not worker-src)', () => {
+  it('keeps blob: in script-src — voice AudioWorklets load code from blob: URLs (worklet destination is governed by script-src, not worker-src)', () => {
     expect(prod.get('script-src')).toContain('blob:');
     expect(dev.get('script-src')).toContain('blob:');
   });
 
-  it('keeps wasm-unsafe-eval in script-src (Sherpa-onnx voice mode)', () => {
+  it('keeps wasm-unsafe-eval in script-src (the wake-word engine, ADR-329)', () => {
     expect(prod.get('script-src')).toContain("'wasm-unsafe-eval'");
   });
 
@@ -55,7 +55,7 @@ describe('buildAppCsp (strict app policy)', () => {
     expect(prod.get('frame-src')).toEqual(["'self'", 'https://www.google.com']);
   });
 
-  it('keeps blob: workers (Sherpa WASM) and self service worker', () => {
+  it('keeps the worker sources: the wake-word worker (ADR-329) and the service worker', () => {
     expect(prod.get('worker-src')).toEqual(["'self'", 'blob:']);
   });
 
@@ -73,6 +73,15 @@ describe('buildAppCsp (strict app policy)', () => {
 
   it('keeps blob: images (attachment previews) and https: images (chat markdown)', () => {
     expect(prod.get('img-src')).toEqual(expect.arrayContaining(['blob:', 'https:', 'data:']));
+  });
+
+  it('lets media come from any https origin — the landing video is hosted where the operator says (ADR-330)', () => {
+    // The pages are prebuilt and host-neutral, so the media origin cannot be
+    // named here; the same posture img-src already has.
+    expect(prod.get('media-src')).toEqual(
+      expect.arrayContaining(["'self'", 'blob:', 'data:', 'https:'])
+    );
+    expect(dev.get('media-src')).toContain('https:');
   });
 
   it('locks object-src, base-uri, form-action, frame-ancestors', () => {
@@ -188,7 +197,7 @@ describe('headers routing (app policy vs airlock)', () => {
     expect(re.test('/fr')).toBe(true);
     expect(re.test('/fr/chat')).toBe(true);
     expect(re.test('/api/v1/health')).toBe(true);
-    expect(re.test('/models/sherpa-wasm/kws.wasm')).toBe(true);
+    expect(re.test('/models/wake/v1/fr/manifest.json')).toBe(true);
   });
 
   it('keeps the exported pattern in sync with the regex used above', () => {
@@ -212,8 +221,8 @@ describe('resolveCoepMode (COEP posture)', () => {
   });
 
   it('never emits a value the platform would ignore — unknown input falls back to the default', () => {
-    // A typo must not silently drop cross-origin isolation (and with it the
-    // voice-mode wake word) by emitting an unparseable header value.
+    // A typo must not silently drop cross-origin isolation by emitting an
+    // unparseable header value.
     for (const raw of ['', '   ', 'unsafe-none', 'require corp', 'true', 'credential-less']) {
       expect(resolveCoepMode(raw)).toBe(DEFAULT_COEP_MODE);
     }

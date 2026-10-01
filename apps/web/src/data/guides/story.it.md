@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 2.2
-**Data**: 2026-09-30
-**Applicazione**: LIA v2.2.0
+**Data**: 2026-10-02
+**Applicazione**: LIA v2.3.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test) — 54 domini funzionali | **785.000+** |
+| Righe di codice sorgente (esclusi i test) — 54 domini funzionali | **800.000+** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **48.000+** |
-| Decisioni di architettura documentate (ADR) | **326** |
-| Versioni rilasciate a ritmo regolare | **273** |
+| Decisioni di architettura documentate (ADR) | **329** |
+| Versioni rilasciate a ritmo regolare | **274** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -52,7 +52,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 326 documentate:
+Tre decisioni strutturanti, tra le 329 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 
@@ -70,6 +70,8 @@ Un sistema che si pilota con gli strumenti:
 - **Conformità**: sicurezza rivista punto di accesso per punto di accesso; cifratura dei dati personali; ciclo di vita degli account allineato al GDPR.
 
 Il prodotto rende visibili le scelte tecniche alla misura di una persona. La conversazione la segue tra dispositivi senza disturbare la lettura; la radio parte quando sceglie di ascoltare e nomina fonti e costo delle notizie. La durata di un file generato può essere prolungata consapevolmente. Il lavoro programmato e i controlli delle condizioni hanno orologi distinti. Sono promesse osservabili, sostenute da fonti, limiti e test, non dalla pretesa che l'assistente sappia già ciò che la persona desidera.
+
+La stessa regola vale per ciò che non è ancora all'altezza. La parola di attivazione «Dis LIA» è un piccolo modello addestrato offline e misurato su un banco le cui soglie sono pubblicate prima dell'addestramento: il modello francese non le raggiunge ancora, quindi è distribuito con il marchio **beta**, e il prodotto lo dice, invece di abbassare l'asticella per poter scrivere «finito». Una sessione vocale che si addormenta su un silenzio non costa nulla, e solo la persona la termina.
 
 ## 6. La prova
 

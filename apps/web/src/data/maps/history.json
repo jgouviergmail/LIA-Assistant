@@ -2430,6 +2430,27 @@
       "theme": "trust",
       "functional": ["f.skills", "f.sandbox", "f.chat", "f.security", "f.admin"],
       "technical": ["t.skills", "t.sandbox", "t.response", "t.toolsys", "t.metrics", "t.web"]
+    },
+    {
+      "adr": 328,
+      "date": "2026-10-01",
+      "theme": "proactive",
+      "functional": ["f.heartbeat", "f.moments"],
+      "technical": ["t.proactive", "t.scheduler", "t.web"]
+    },
+    {
+      "adr": 329,
+      "date": "2026-10-01",
+      "theme": "voice",
+      "functional": ["f.voice", "f.live"],
+      "technical": ["t.web", "t.mobile", "t.live"]
+    },
+    {
+      "adr": 330,
+      "date": "2026-10-01",
+      "theme": "experience",
+      "functional": ["f.product"],
+      "technical": ["t.web", "t.edge"]
     }
   ]
 }

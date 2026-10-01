@@ -342,6 +342,15 @@ function assertions(first, second, restartMode, apiHost, platform) {
       detail: `webrtc_offer=${first.webrtc_offer}`,
     },
     {
+      // ADR-329: the wake word runs ONNX Runtime Web single-threaded in a module
+      // worker: no SharedArrayBuffer, no isolation, which no WebView offers.
+      // `frames` is 5 for the first 1 280-sample chunk; `run_ms` is evidence of
+      // the device's cost for one stage of one 80 ms chunk.
+      name: 'the wake-word runtime runs in a module worker under the CSP (ADR-329)',
+      ok: first.wake_runtime?.status === 'ok' && first.wake_runtime.frames === 5,
+      detail: JSON.stringify(first.wake_runtime),
+    },
+    {
       // ADR-300: the PCM player is ONE AudioWorklet loaded from a blob: URL
       // (script-src blob:) — the shape that replaced per-chunk scheduling.
       name: 'an AudioWorklet module loads from a blob: URL under the CSP (live player, ADR-300)',
@@ -370,10 +379,10 @@ function platformLimits(result) {
     service_worker_unavailable: result.has_serviceWorker === false,
     // No Push API in either WebView → push must be native on BOTH platforms.
     web_push_unavailable: result.has_Notification === false && result.has_PushManager === false,
-    // No cross-origin isolation → no SharedArrayBuffer → sherpaKws degrades to
-    // tap-to-speak. Measured false even under COEP `require-corp`.
+    // No cross-origin isolation, even under COEP `require-corp` (measured): the
+    // wake word is single-threaded since ADR-329 and no longer depends on it.
     cross_origin_isolation_unavailable: result.crossOriginIsolated === false,
-    wake_word_unavailable: result.has_SharedArrayBuffer === false,
+    wake_word_unavailable: result.wake_runtime?.status !== 'ok',
   };
 }
 

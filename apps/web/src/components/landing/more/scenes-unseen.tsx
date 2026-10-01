@@ -1120,7 +1120,13 @@ function TextSizeScene({ active }: SceneProps) {
           ))}
         </div>
         <div className="min-w-0 flex-1 space-y-1 overflow-hidden p-2">
-          <p className={cn('font-semibold leading-tight text-foreground', grow, TEXT_SIZE_TITLE[phase])}>
+          <p
+            className={cn(
+              'font-semibold leading-tight text-foreground',
+              grow,
+              TEXT_SIZE_TITLE[phase]
+            )}
+          >
             Aa
           </p>
           <p

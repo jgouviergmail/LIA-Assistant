@@ -8,7 +8,13 @@ import { act, renderHook } from '@testing-library/react';
 
 const h = vi.hoisted(() => ({
   instances: [] as Array<Record<string, ReturnType<typeof vi.fn>>>,
-  deps: [] as Array<{ chat: unknown }>,
+  deps: [] as Array<{
+    chat: unknown;
+    wakeLanguage: () => string | null;
+    createWakeListener: (options: unknown) => unknown;
+    chime: () => void;
+  }>,
+  wakeSupported: true,
 }));
 
 vi.mock('@/lib/live/session-controller', () => ({
@@ -19,6 +25,8 @@ vi.mock('@/lib/live/session-controller', () => ({
       toggleMute: vi.fn(),
       extend: vi.fn(async () => true),
       declineExtension: vi.fn(),
+      standby: vi.fn(async () => {}),
+      wake: vi.fn(async () => {}),
       pageHidden: vi.fn(),
       setChat: vi.fn(),
     };
@@ -31,6 +39,12 @@ vi.mock('@/lib/api-client', () => ({ default: { get: vi.fn(), post: vi.fn() } })
 vi.mock('@/lib/live/transports', () => ({ createLiveTransport: vi.fn() }));
 vi.mock('@/lib/live/pcm-player', () => ({ PcmStreamPlayer: vi.fn() }));
 vi.mock('@/lib/live/mic-capture', () => ({ startMicCapture: vi.fn() }));
+vi.mock('@/lib/audio/wake-word/support', () => ({ isWakeWordSupported: () => h.wakeSupported }));
+vi.mock('@/lib/audio/wake-word/listener', () => ({
+  WakeListener: vi.fn(function (this: Record<string, unknown>) {
+    this.kind = 'wake-listener';
+  }),
+}));
 
 import { useLiveStore } from '@/stores/liveStore';
 
@@ -70,6 +84,27 @@ describe('useLiveSession', () => {
     result.current.declineExtension();
     expect(h.instances[0].extend).toHaveBeenCalledTimes(1);
     expect(h.instances[0].declineExtension).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards standby and wake, and hands the controller the wake word of the interface language (ADR-329)', async () => {
+    const { result } = renderHook(props => useLiveSession(props), {
+      initialProps: bindings('a'),
+    });
+    await result.current.standby();
+    await result.current.wake();
+    expect(h.instances[0].standby).toHaveBeenCalledWith('manual');
+    expect(h.instances[0].wake).toHaveBeenCalledTimes(1);
+    const deps = h.deps[0];
+    expect(deps.wakeLanguage()).toBe('fr');
+    expect(deps.createWakeListener({})).toMatchObject({ kind: 'wake-listener' });
+    expect(typeof deps.chime).toBe('function');
+    // A browser without the runtime gets no wake word: the button still wakes.
+    h.wakeSupported = false;
+    try {
+      expect(deps.createWakeListener({})).toBeNull();
+    } finally {
+      h.wakeSupported = true;
+    }
   });
 
   it('points the controller at the LATEST bindings, not the ones of the first render', () => {

@@ -65,6 +65,8 @@ def render_summary_markdown(
     extensions: int,
     relay: str | None = None,
     relay_summary: str | None = None,
+    standbys: int = 0,
+    standby_recaps: list[str] | None = None,
 ) -> str:
     """The closing card's Markdown: how the session ended, then the figures.
 
@@ -87,6 +89,9 @@ def render_summary_markdown(
             ``RelayOutcome`` value); ignored for a delegated session.
         relay_summary: The neutral recap of the words when the relay did
             not run; None when it ran, or on a delegated session.
+        standbys: How many times the session went to sleep (ADR-329).
+        standby_recaps: The recaps of the words a standby's relay could not
+            turn into a turn.
 
     Returns:
         One Markdown line.
@@ -108,8 +113,12 @@ def render_summary_markdown(
     )
     if extensions:
         content += " · " + phrases["summary_extended"].format(count=extensions)
-    if mode == "direct" and relay_summary:
-        content += " · " + phrases["summary_recap"].format(recap=relay_summary)
+    if standbys:
+        content += " · " + phrases["summary_standbys"].format(count=standbys)
+    recaps = [*(standby_recaps or ()), *([relay_summary] if relay_summary else [])]
+    if mode == "direct":
+        for recap in recaps:
+            content += " · " + phrases["summary_recap"].format(recap=recap)
     return content
 
 

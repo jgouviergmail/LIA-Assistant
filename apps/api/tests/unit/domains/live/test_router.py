@@ -232,6 +232,7 @@ def test_start_relays_the_service(client: TestClient) -> None:
         "connection": "token",
         "session_max_minutes": 10,
         "idle_timeout_seconds": 60,
+        "standby_max_seconds": 28_800,
         "delegation_tool_name": LIVE_DELEGATION_TOOL_NAME,
         "delegation_timeout_seconds": 90,
         "delegation_result_max_tokens": 600,
@@ -340,6 +341,65 @@ def test_extend_relays_the_service(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json()["extensions"] == 1
     assert service.return_value.extend.call_args.args[1] == "a" * 32
+
+
+def test_config_publishes_the_standby_bound(client: TestClient) -> None:
+    # Enforced by the API (the record lives to it), so published (ADR-184).
+    body = client.get("/live/config").json()
+    assert body["standby_max_seconds"] == settings.live_standby_max_seconds
+
+
+def test_standby_relays_the_service_with_its_reason(client: TestClient) -> None:
+    from src.domains.live.schemas import LiveStandbyResponse
+
+    since = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+    with patch(f"{MODULE}.LiveService") as service:
+        service.return_value.standby = AsyncMock(
+            return_value=LiveStandbyResponse(
+                standby_since=since, awake_seconds=42, standby_deadline_at=since, relay=None
+            )
+        )
+        response = client.post(
+            f"/live/sessions/{'a' * 32}/standby",
+            json={"reason": "idle", "provider_conversation_id": "conv_1"},
+        )
+        refused = client.post(f"/live/sessions/{'a' * 32}/standby", json={"reason": "bored"})
+        # A wake the provider refused twice goes back to sleep under its own name.
+        failed_wake = client.post(
+            f"/live/sessions/{'a' * 32}/standby", json={"reason": "wake_failed"}
+        )
+    assert failed_wake.status_code == 200
+    assert response.status_code == 200 and response.json()["awake_seconds"] == 42
+    payload = service.return_value.standby.call_args_list[0].args[2]
+    assert (payload.reason, payload.provider_conversation_id) == ("idle", "conv_1")
+    # A reason the vocabulary does not hold is refused at the door.
+    assert refused.status_code == 422
+
+
+def test_wake_relays_the_service_with_the_persons_clock(client: TestClient) -> None:
+    from src.domains.live.schemas import LiveCredentialResponse, LiveWakeResponse
+
+    at = datetime(2026, 10, 1, 12, 0, tzinfo=UTC)
+    with patch(f"{MODULE}.LiveService") as service:
+        service.return_value.wake = AsyncMock(
+            return_value=LiveWakeResponse(
+                credential=LiveCredentialResponse(
+                    credential="auth_tokens/w",
+                    credential_expires_at=at,
+                    connect_deadline_at=at,
+                    connection="token",
+                    setup={},
+                    audio_transport="websocket",
+                ),
+                expires_at=at,
+                extensions=0,
+            )
+        )
+        response = client.post(f"/live/sessions/{'a' * 32}/wake", json={"reason": "wake_word"})
+    assert response.status_code == 200
+    assert response.json()["credential"]["credential"] == "auth_tokens/w"
+    kwargs = service.return_value.wake.call_args.kwargs
+    assert kwargs["timezone"] and kwargs["display_name"]
 
 
 def test_end_carries_the_clients_technical_detail_bounded(client: TestClient) -> None:

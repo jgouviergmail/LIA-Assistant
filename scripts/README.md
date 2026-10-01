@@ -30,11 +30,13 @@ chmod +x scripts/setup-dev.sh
 ```
 
 **Actions:**
-- Télécharge le modèle Wake Word WASM (Whisper Tiny.en, ~103MB)
-- Vérifie les fichiers WASM runtime
-- Configure les chemins pour développement local
+- Rappelle que le modèle STT backend (Whisper Small) est inclus dans l'image Docker
+- Rappelle que les modèles du mot de réveil sont versionnés dans
+  `apps/web/public/models/wake/` (ADR-329) : rien à télécharger ; `pnpm run dev`
+  et `pnpm run build` copient le binaire ONNX Runtime dans `public/ort/`
 
-**Note:** Le modèle STT backend (Whisper Small) est inclus dans l'image Docker.
+**Note:** L'entraînement des modèles du mot de réveil vit dans `scripts/wake-word/`
+(son README : données, licences, mesures).
 
 ---
 
@@ -75,36 +77,6 @@ chmod +x scripts/setup-dev.sh
 ```bash
 VOICE_STT_MODEL_PATH=apps/api/models/whisper-small
 ```
-
----
-
-### download-whisper-wasm-model.sh
-
-**Télécharge le modèle Whisper Tiny.en pour le Wake Word WASM (navigateur).**
-
-```bash
-./scripts/download-whisper-wasm-model.sh [target_dir]
-```
-
-**Arguments:**
-- `target_dir` - Répertoire cible (défaut: `apps/web/public/models/whisper-tiny-en`)
-
-**Modèle:**
-- **Source**: HuggingFace `csukuangfj/sherpa-onnx-whisper-tiny.en`
-- **Taille**: ~75 MB
-- **Langue**: Anglais seulement (pour wake word "OK Guy", "OK Guys")
-
-**Pourquoi Anglais seulement:**
-- Wake words sont en anglais ("OK Guy", "OK Guys")
-- Modèle multilingue détecte la langue parlée et transcrit dans cette langue
-- Modèle anglais garantit la transcription en anglais
-- Plus petit = chargement plus rapide dans le navigateur
-
-**Fichiers téléchargés:**
-- `encoder.onnx`
-- `decoder.onnx`
-- `tokens.txt`
-- `keywords.txt` (wake words)
 
 ---
 
@@ -269,7 +241,7 @@ scripts/
 ├── utils/                # Utilitaires divers
 │   └── fix-claude-session.ps1
 ├── download-whisper-model.sh      # Modèle STT backend
-├── download-whisper-wasm-model.sh # Modèle Wake Word WASM
+├── wake-word/                      # Entraînement du mot de réveil (ADR-329)
 ├── setup-dev.sh                   # Setup environnement dev
 ├── install-hooks.sh               # Git hooks
 ├── run-tests-exhaustive.sh        # Tests complets

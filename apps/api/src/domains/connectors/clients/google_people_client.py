@@ -16,6 +16,7 @@ from src.core.constants import (
     GOOGLE_CONTACT_GROUP_MAX_MEMBERS,
     GOOGLE_OTHER_CONTACTS_FIELDS,
     GOOGLE_OTHER_CONTACTS_SEARCH_MAX,
+    GOOGLE_PEOPLE_CONNECTIONS_PAGE_SIZE_MAX,
 )
 from src.core.field_names import FIELD_CACHED_AT, FIELD_QUERY
 from src.domains.connectors.clients.base_google_client import (
@@ -23,6 +24,11 @@ from src.domains.connectors.clients.base_google_client import (
     apply_max_items_limit,
 )
 from src.domains.connectors.clients.cache_mixin import CacheableMixin
+from src.domains.connectors.clients.contact_directory import (
+    CONTACTS_DIRECTORY_FIELDS,
+    ContactDirectory,
+    cached_directory,
+)
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache import ContactsCache
@@ -297,6 +303,42 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         )
 
         return results
+
+    async def list_email_directory(self, max_contacts: int) -> ContactDirectory:
+        """The whole address book, up to ``max_contacts`` (``clients/contact_directory``).
+
+        Args:
+            max_contacts: The caller's published cap.
+
+        Returns:
+            The persons (names, addresses, numbers), and whether the book was cut.
+        """
+        return await cached_directory(
+            self.user_id, self.connector_type.value, max_contacts, self._read_directory
+        )
+
+    async def _read_directory(self, max_contacts: int) -> tuple[list[dict[str, Any]], bool]:
+        """Read the connections page by page, most recently modified first.
+
+        Google requires every parameter but the token to repeat across pages,
+        so the page size is fixed for the whole read and the result is cut.
+        """
+        params: dict[str, Any] = {
+            "resourceName": "people/me",
+            "personFields": ",".join(CONTACTS_DIRECTORY_FIELDS),
+            "pageSize": min(GOOGLE_PEOPLE_CONNECTIONS_PAGE_SIZE_MAX, max_contacts),
+            "sortOrder": "LAST_MODIFIED_DESCENDING",
+        }
+        persons: list[dict[str, Any]] = []
+        while True:
+            response = await self._make_request("GET", "/people/me/connections", params=params)
+            persons.extend(response.get("connections") or [])
+            token = response.get("nextPageToken")
+            if len(persons) > max_contacts or (token and len(persons) >= max_contacts):
+                return persons[:max_contacts], True
+            if not token:
+                return persons, False
+            params = {**params, "pageToken": token}
 
     async def get_person(
         self,

@@ -219,6 +219,26 @@ class UserProfileWithStats(UserProfile):
     scheduled_actions_count: int = Field(0, description="Number of scheduled actions")
     rag_spaces_count: int = Field(0, description="Number of RAG knowledge spaces")
     is_usage_blocked: bool = Field(False, description="Whether user is usage-blocked by admin")
+    # The switches ``UserProfile`` does not carry (``admin_columns``). Required:
+    # a builder that forgot one must fail, never report a default.
+    psyche_enabled: bool = Field(..., description="Psyche engine (mood, emotions) enabled")
+    psyche_display_avatar: bool = Field(..., description="Emotional avatar shown in the chat")
+    habits_enabled: bool = Field(..., description="Learned habits enabled")
+    journals_enabled: bool = Field(..., description="Personal journals enabled")
+    journal_consolidation_enabled: bool = Field(
+        ..., description="Periodic journal consolidation enabled"
+    )
+    journal_consolidation_with_history: bool = Field(
+        ..., description="Journal consolidation may read the conversation history"
+    )
+    phone_rich_context_enabled: bool = Field(
+        ..., description="The chat's context is carried into the person's own calls"
+    )
+    heartbeat_enabled: bool = Field(..., description="Proactive notifications enabled")
+    interests_enabled: bool = Field(..., description="Interest notifications enabled")
+    relation_debrief_enabled: bool = Field(..., description="Relationship debriefs enabled")
+    discovery_enabled: bool = Field(..., description="Findable by peer discovery")
+    peer_email_visible: bool = Field(..., description="Real address shown to connections")
     deleted_at: datetime | None = Field(
         None, description="Account deletion timestamp (None = not deleted)"
     )
@@ -251,15 +271,7 @@ class UserSearchParams(BaseModel):
     page_size: int = Field(10, ge=1, le=100, description="Items per page")
     sort_by: str = Field(
         "created_at",
-        description=(
-            "Sort column. User fields: email, full_name, created_at, is_active, language, "
-            "voice_enabled, memory_enabled, tokens_display_enabled. "
-            "Statistics: total_messages, total_tokens, total_cost_eur, total_google_api_requests, "
-            "cycle_messages, cycle_tokens, cycle_cost_eur, cycle_google_api_requests. "
-            "Counts: active_connectors_count, memories_count, interests_count, skills_count, "
-            "mcp_servers_count, scheduled_actions_count, rag_spaces_count. "
-            "Other: last_message_at, is_usage_blocked."
-        ),
+        description="Sort column, a key of ``admin_columns.ADMIN_USER_SORT_KEYS``.",
     )
     sort_order: str = Field("desc", description="Sort order (asc or desc)")
 

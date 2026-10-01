@@ -254,6 +254,8 @@ def build_live_session_summary_metadata(
     mode: str = "delegated",
     relay: str | None = None,
     relay_summary: str | None = None,
+    standbys: int = 0,
+    standby_recaps: list[str] | None = None,
 ) -> dict[str, Any]:
     """What the end-of-session card carries (ADR-299).
 
@@ -277,6 +279,9 @@ def build_live_session_summary_metadata(
             for a delegated session.
         relay_summary: The neutral recap of the words when the relay did not
             run (the phone's fallback push carries the same); None otherwise.
+        standbys: How many times the session went to sleep (ADR-329).
+        standby_recaps: The recaps of the words a standby's relay could not
+            turn into a turn — kept on the card, never lost in silence.
 
     Returns:
         A NEW dict.
@@ -296,6 +301,8 @@ def build_live_session_summary_metadata(
             "mode": mode,
             **({"relay": relay} if relay is not None else {}),
             **({"relay_summary": relay_summary} if relay_summary else {}),
+            "standbys": standbys,
+            **({"standby_recaps": list(standby_recaps)} if standby_recaps else {}),
         },
     }
     if usage:

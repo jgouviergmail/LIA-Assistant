@@ -76,3 +76,24 @@ live_turns_archived_total = Counter(
     "Voice-only exchanges archived into the conversation, by role.",
     ["role"],
 )
+
+# The standby (ADR-329): no provider connection, nothing billed.
+live_session_standby_total = Counter(
+    "live_session_standby_total",
+    "Live sessions put on standby, by provider and reason: idle (the silence clock), "
+    "manual (the person's button), hidden (a page hidden past its grace), wake_failed (a wake "
+    "the provider refused twice, put back to sleep).",
+    ["provider", "reason"],
+)
+
+live_session_wakes_total = Counter(
+    "live_session_wakes_total",
+    "Wakes of a live session on standby, by provider, reason (wake_word, manual) and outcome: "
+    "ok, session_awake, session_expired, rate_limited, instance_busy, provider_error.",
+    ["provider", "reason", "outcome"],
+)
+
+live_sessions_standby = Gauge(
+    "live_sessions_standby",
+    "Live sessions currently on standby on this instance (pruned sorted set).",
+)

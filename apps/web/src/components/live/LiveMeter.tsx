@@ -25,15 +25,19 @@ import { fallbackLng, type Language } from '@/i18n/settings';
 import { describeMeter, formatClock } from '@/lib/live/meter-view';
 import { useLiveStore } from '@/stores/liveStore';
 
-/** Whole seconds since `since`, ticking every second; 0 while `since` is null. */
-function useElapsedSeconds(since: number | null): number {
+/**
+ * Whole seconds AWAKE (ADR-329): the banked stretches plus the current one,
+ * ticking every second while awake and frozen while asleep.
+ */
+function useAwakeSeconds(bankedMs: number, since: number | null): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (since === null) return undefined;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [since]);
-  return since === null ? 0 : Math.max(0, Math.floor((now - since) / 1000));
+  const current = since === null ? 0 : Math.max(0, now - since);
+  return Math.floor((bankedMs + current) / 1000);
 }
 
 export function LiveMeter() {
@@ -43,9 +47,10 @@ export function LiveMeter() {
   const budgetEur = useLiveStore(state => state.budgetEur);
   const meter = useLiveStore(state => state.meter);
   const liveSince = useLiveStore(state => state.liveSince);
+  const awakeMs = useLiveStore(state => state.awakeMs);
   const vendorBilled = useLiveStore(state => state.vendorBilled);
   const durationBilled = rates === null ? vendorBilled : rates.pricing_unit !== 'per_1m_tokens';
-  const elapsed = useElapsedSeconds(durationBilled ? liveSince : null);
+  const elapsed = useAwakeSeconds(durationBilled ? awakeMs : 0, durationBilled ? liveSince : null);
   if (rates === null) {
     // A vendor-billed session (ElevenLabs Agents, on the person's key): the
     // platform prices nothing of it — the clock alone, and the vendor's own

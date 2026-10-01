@@ -418,9 +418,10 @@
         "«Cosa ho domani?» viene delegato al motore di LIA come un turno ordinario.",
         "L'agenda viene letta con le stesse regole della chat.",
         "Un'azione sensibile? La domanda di validazione diventa la risposta vocale.",
+        "Un silenzio? La sessione va in standby — non viene più fatturato nulla — e un tocco la riattiva.",
         "Alla fine, una scheda riepiloga la sessione e quanto è costata."
       ],
-      "src": "77ddea7882a0"
+      "src": "6f5ca4ae4284"
     },
     "flow.learn": {
       "name": "LIA impara a conoscerti",

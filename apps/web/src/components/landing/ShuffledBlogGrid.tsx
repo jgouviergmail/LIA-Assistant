@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { ArticleIllustration } from '@/components/blog/ArticleIllustration';
+import { LANDING_CARD_SIZES } from '@/lib/blog/article-images';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { FadeInOnScroll } from './FadeInOnScroll';
@@ -58,12 +59,11 @@ export function ShuffledBlogGrid({
             <Link href={articlePath} className="block group h-full">
               <Card className="hover-lift hover-glow h-full border-border/60 overflow-hidden transition-all">
                 <div className="relative w-full aspect-[16/9] overflow-hidden">
-                  <Image
-                    src={`/articles/${article.slug}.png`}
+                  <ArticleIllustration
+                    slug={article.slug}
                     alt={t.title}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                    sizes={LANDING_CARD_SIZES}
+                    className="group-hover:scale-[1.03] transition-transform duration-300"
                   />
                 </div>
                 <CardHeader className="space-y-2 pt-4 pb-5">

@@ -86,4 +86,20 @@ describe('VoiceModeSettings — STT picker', () => {
     expect(screen.getByRole('button', { name: /stt_mode_remote/ })).toBeDisabled();
     expect(patch).not.toHaveBeenCalled();
   });
+
+  it("says how to cut LIA's voice by voice, and that the wake word is in beta", () => {
+    renderWithProviders(<VoiceModeSettings lng="fr" />);
+    expect(screen.getByText('settings.voice_mode.stop_note')).toBeInTheDocument();
+    expect(screen.getByText('settings.voice_mode.enable_description')).toBeInTheDocument();
+    expect(screen.getByText('settings.voice_mode.wake_beta')).toBeInTheDocument();
+    expect(screen.getByText('settings.voice_mode.wake_beta_note')).toBeInTheDocument();
+  });
+
+  it('never names a phrase in a language no model ships for', () => {
+    renderWithProviders(<VoiceModeSettings lng="de" />);
+    expect(screen.getByText('settings.voice_mode.enable_description_no_model')).toBeInTheDocument();
+    expect(screen.queryByText('settings.voice_mode.enable_description')).toBeNull();
+    expect(screen.queryByText('settings.voice_mode.stop_note')).toBeNull();
+    expect(screen.queryByText('settings.voice_mode.wake_beta')).toBeNull();
+  });
 });

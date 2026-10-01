@@ -382,6 +382,24 @@ boîte EST la confirmation (précédent ADR-316) ; aucun modèle n'écrit rien.
   (`email_shares_total{route,outcome}`, tableau 10).
 - **Capacité d'opérateur** `PlatformCapability.EMAIL_SHARE`
   (`EMAIL_SHARE_ENABLED`), coupée sur le démonstrateur.
+- **Suggestions de destinataires** (amendement ADR-321) : sur la route de la
+  boîte, avec un connecteur de contacts actif, le champ « À » propose les
+  contacts de la personne pendant qu'elle tape, par nom ou prénom (accents et
+  ponctuation ignorés), par adresse ou par numéro de téléphone normalisé ; un
+  choix insère l'ADRESSE. `/options` publie `recipient_suggestions`,
+  `recipient_query_min_chars` et `recipient_suggestions_max` ;
+  `GET /api/v1/email-share/recipients?q=` répond pour UN destinataire, sous sa
+  propre limite (`EMAIL_SHARE_SUGGEST_RATE_LIMIT_*`), et renvoie la requête
+  reçue pour qu'aucune réponse tardive ne s'affiche. Le carnet est lu entier par
+  le client de contacts (`list_email_directory`, borné par
+  `EMAIL_SHARE_DIRECTORY_MAX_CONTACTS`, la coupe dite `truncated`), compacté et
+  mis en cache sous la famille `contacts_directory` avec un tampon de version,
+  invalidé par chaque écriture de contact ; la correspondance
+  (`email_share/recipient_match.py`) passe par `fold_name`, `fold_email` et les
+  variantes de numéro de la téléphonie. Une lecture réelle du carnet est une
+  consultation (surface `email_share`), comptée
+  (`email_share_recipient_directory_reads_total{outcome}`, tableau 10). Sans
+  connecteur de contacts, le champ reste un simple champ d'adresses.
 
 ---
 

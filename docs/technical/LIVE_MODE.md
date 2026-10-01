@@ -10,7 +10,7 @@ or action to the chat engine: through ONE declared function on Gemini
 The delegated turn is an ordinary chat turn, drawn in the thread, bounded by
 the quotas, filed in the registers.
 
-- Architecture decisions: [ADR-299](../architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md) (the seam), [ADR-300](../architecture/ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md) (the second provider, the additive category, the offer connection)
+- Architecture decisions: [ADR-299](../architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md) (the seam), [ADR-300](../architecture/ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md) (the second provider, the additive category, the offer connection), [ADR-329](../architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md) (the standby and the wake word)
 - Specs (arbitrated with the owner, measured): `docs/superpowers/specs/2026-09-18-live-llm-connector-design.md` (§ 9), `docs/superpowers/specs/2026-09-19-live-wave2-design.md` (§ 6)
 - Feature flag: `LIVE_ENABLED` (default off); capability `live` (route-enforced, family *media*).
 - Per-user connectors `GEMINI_LIVE` and `GPT_LIVE`, category `live` (additive), in *Préférences → Mes Connecteurs*; the sessions' provider in *Préférences → Mode Live* (choosing a model IS choosing its provider).
@@ -286,6 +286,50 @@ phone's server-side bridge). `live/service.py` shrank (594 → 547 SLOC),
 `docs/architecture/ADR-301-Voice-Sessions-One-Policy-Per-Mode.md` for the
 decisions.
 
+## Standby and wake (ADR-329)
+
+A session **sleeps** on its model's silence timeout, on a page hidden past
+`LIVE_HIDDEN_GRACE_SECONDS`, or on the band's « standby » door; only the person
+ENDS it. Asleep, it holds no provider connection, so nothing of the provider
+runs or bills.
+
+```mermaid
+stateDiagram-v2
+    live --> standby: silence / hidden page / button
+    standby --> connecting: phrase or « Wake up » (POST wake)
+    connecting --> live: provider ready
+    connecting --> standby: provider refused twice (wake_failed)
+    standby --> ended: End, or LIVE_STANDBY_MAX_SECONDS of unbroken sleep (expired)
+```
+
+- **Standby** (`POST /live/sessions/{id}/standby {reason, provider_conversation_id}`): the
+  browser closes the provider connection, the microphone and the queued voice and archives the
+  turn FIRST, then tells the API. The record banks its awake time, names the closed
+  connection's provider conversation, leaves `live:active` for `live:standby` and lives to the
+  standby bound. Idempotent. A DIRECT session's words since its last wake are drained in one
+  command and relayed as the person's own turn off the request path (`relay: scheduled` /
+  `empty`); each fate is kept for the closing card.
+- **Wake** (`POST /live/sessions/{id}/wake {reason}`): refused in order — `session_awake`,
+  `session_expired` (asleep past its cap: the extension is offered, then the wake runs again),
+  `mint_rate_limited`, `instance_busy` — then the setup is re-rendered at the wake's instant,
+  an agent-bound provider learns its tools, a credential is minted, and only then is the record
+  written awake, its cap shifted by the length of the sleep. The browser connects on the kept
+  resumption handle, then once more without it on a fresh credential; refused twice, the
+  session sleeps again (`wake_failed`). Asleep, the credential renewal, the offer exchange, the
+  tool door and the turns door refuse with `session_standby`; an extension moves the cap without
+  minting.
+- **The wake word** of a sleeping session is the classic voice mode's engine
+  (`WakeListener`, [VOICE_MODE.md](VOICE_MODE.md)) on a capture of its own, in the interface's
+  language, on a visible page only, released before a wake; the chime plays once a phrase-woken
+  session can hear. Where no phrase can listen, the band points at « Wake up ».
+- **The figures are the awake ones**: the card's duration, the decision row, the duration
+  histogram and the band's meter; the card names the sleeps and quotes the recap of every
+  standby relay that could not run; the vendor's bill sums every conversation the connections
+  opened, all or nothing.
+- Metrics: `live_session_standby_total{provider,reason}`,
+  `live_session_wakes_total{provider,reason,outcome}`, `live_sessions_standby`; three panels on
+  dashboard 30.
+
 ## Backend (`apps/api/src/domains/live/`)
 
 | File | Role |
@@ -301,7 +345,8 @@ decisions.
 | `providers/openai_live.py`, `providers/openai_live_socket.py` | GPT-Live: the `session` object with `delegation: {type: client}`, the nonce as credential, the offer exchange (`POST /v1/live/sessions`), the twelve vendored voices, the probe and the sample over a server-side WebSocket (input silence at real-time pace, the sentence through an instruction append, the continuous output trimmed by `infrastructure/media/pcm.py`). The listing lives in `infrastructure/llm/providers/openai_live_listing.py` (a transcription model under the live prefix is dropped). |
 | `providers/elevenlabs_live.py` | ElevenLabs Agents (wave 4): the agents as models (`label` = the agent's name; the listing in `infrastructure/llm/providers/elevenlabs_live_listing.py`, shared with the key verifier so `connectors` imports neither `live` nor `telephony`), the initiation frame with the prompt alone, the signed URL as credential, `sync_agent` (permission merged, client tools by fingerprint, `tool_ids` = the person's own + this session's set), the probe over aiohttp, no sample (`portal_voice`). The agent doors it needs (`get_agent`, `signed_url`, `patch_agent`, `create_tool`, `set_agent_tool_ids`) are the phone's `telephony/client.py`. |
 | `direct_mandate.py`, `tool_door.py` | The DIRECT session (wave 4, above): the mandate, the declarations, the context block; the tool door. |
-| `session_store.py` | `LiveSessionRecord` (claim + record, `live:session`, USER_RUNTIME; TTL = cap + `LIVE_SESSION_RECORD_GRACE_SECONDS`; `nonce` / `nonce_until` for an offer connection; `mode`; `rewrite` under the claim), the active set (`live:active`, GLOBAL), the lookup budget of a direct session (`live_tools:<session>`, USER_RUNTIME). |
+| `session_store.py` | `LiveSessionRecord` (claim + record, `live:session`, USER_RUNTIME; TTL = cap + `LIVE_SESSION_RECORD_GRACE_SECONDS` awake, the standby bound + the same grace asleep — `life_seconds`; `nonce` / `nonce_until` for an offer connection; `mode`; the standby fields `standby_since`, `awake_since`, `awake_seconds`, `standbys`, `provider_conversation_ids`, pinned by the round-trip test; `rewrite` under the claim), the active set (`live:active`, GLOBAL), the standby set (`live:standby`, GLOBAL, the gauge's source), the lookup budget of a direct session (`live_tools:<session>`, USER_RUNTIME), a direct session's kept turns (drained atomically at a standby) and the fates of its standby relays (a list of its own). |
+| `standby.py`, `session_end.py`, `setup_render.py` | The standby and the wake (ADR-329, above); the end, measured on the time awake with the sleeps named; the setup rendered at an instant, ONE function for the start and every wake. Extracted from `service.py`, which only routes to them. |
 | `summary.py`, `learning.py`, `preferences.py`, `errors.py` | As in ADR-299: the exact figures of the card, the learning pass, the four reflexes plus the provider choice, the coded refusals (`credential_invalid` for a used or stale nonce). |
 | `infrastructure/observability/metrics_live.py` + dashboard 30 | Sessions by outcome, mints by outcome (`mode_unsupported` among them), active sessions, duration, extensions by kind (`explicit` / `rolling`), voice samples, **offer exchanges**, archived exchanges, **direct-session lookups** by provider and outcome. |
 
@@ -327,6 +372,7 @@ decisions.
 | `lib/live/session-machine.ts`, `lib/live/activity-clock.ts` | The session states; `closeDecision`; the silence clock with its holds (speaking, delegating, provider) and countdown. |
 | `lib/live/meter.ts`, `lib/live/meter-view.ts`, `components/live/LiveMeter.tsx` | **The indicative meter** (wave 3, owner request; the « never count a personal key's spend » rule amended the same day: a live DISPLAY is not an accounting). The transports normalise the provider's own reports (`geminiUsageReport`, `openaiUsageReport` → `LiveUsageReport`, `onUsage`), the store folds them (`accumulateUsage`: tokens add, a duration replaces), `meterCost` prices them by the `LiveRates` the start published — a cost that needs a rate nobody declared is null, never a partial figure (ADR-185) — and the band draws it UNDER the last caption, set off by a lateral bar (owner placement 2026-09-19), in the chat meter's vocabulary (🟠 IN · 🟢 OUT · euros · context); the captions fold is an icon button like its neighbours. A duration-billed model ticks with the wall clock, corrected upward by the provider's count. Never persisted, never on the closing card. When the connector carries a ceiling, the cost reads « 0,0450 € / 2,00 € » and the controller ends the session at it (`checkBudget`: on every report, and every second on a duration-billed model). |
 | `lib/live/delegation.ts` | `DelegationBridge`: the newest request wins, a bounded wait, a pending HITL question as the answer, `flattenForVoice` + `boundToTokens`, and the **delivery note**: the register the answering model declared (ADR-253, read off the live bubble's `metadata.expressivity`, which the reducer copies from the SSE `done` and never persists) mapped through the config's `tone_lines` — on Gemini a `tone` field beside `result` in the function response, on GPT-Live a silent `session.thinking.append` before the spoken one; a late answer (a text turn) carries none. |
+| `lib/live/standby.ts` | `LiveStandby` (ADR-329): the standby's policy — the two requests and their refusals, the wake word, the standby bound — over the wire the controller lends it; every step after a wait checks that the session it began for is still the store's. |
 | `lib/live/session-controller.ts`, `lib/live/support.ts` | `LiveSessionController`: the browser checked before anything is minted, mint, microphone BEFORE the connection, connect (the exchange door handed to an `offer` connection), turns, delegation, reconnection, idle / hidden / cap / extension timers — the silence clock is the MODEL's (`idle_timeout_seconds` from the start; `0`: none), a rolling cap (`session_max_minutes: 0`) is renewed at the prompt instant without a dialog — the closing card. Tested without React. |
 | `hooks/useLiveSession.ts`, `hooks/useLiveAvailability.ts` | The thin React shell (`start(mode)`); « is there an active live connector, on which provider, and can its model hold a direct session? » (`GET /live/connectors` → `{ available, provider, directTools }`). The store carries `pendingStart: LiveSessionMode | null` and `mode`. **The reading follows the Live settings** (owner request 2026-09-19): the voice toggle sits in the dashboard layout and never remounts between the settings and the chat, so its one read kept the old brand on « Session Live (<brand>) » after a provider or model change. `stores/revisionStore.ts` is the seam — a writer BUMPS the resource it changed (`bumpRevision('live_connectors')` on a saved connector, an activation, a live disconnect), a reader hands the revision to its query's `deps`; the vocabulary is a closed type. Journey `e2e/smoke/settings-live-header-menu.spec.ts` (red without the bump, measured). |
 | `components/live/LiveBanner.tsx`, `LiveExtendDialog.tsx`, `LiveCaptions.tsx`, `LiveSessionSummaryCard.tsx`, `VoicesProvenance.tsx`, `components/voice-toggle.tsx` | The opaque band above the thread with the idle countdown, the extension dialog, the captions, the closing card, the voice list's provenance, and the toast that greets a session on its OWN `live` status (once per session id); the header's ONE voice icon (a toggle, or a menu of two entries drawn alike with an icon before each: « Spoken replies » and « Live session (<brand>) », named after the provider the sessions open on). **The two voices are exclusive** (owner decision 2026-09-19): asking for a session switches the spoken replies off without a word, the checkbox is refused while a session is open, and the icon shows the live waveform while one runs. No talk mode: a live session is always automatic. |
@@ -338,7 +384,7 @@ decisions.
 
 - A **delegated turn** is a chat turn stamped `live_session_id` with the person's `spoken_text` beside the request (written by the model, or composed from the transcript).
 - A **voice-only exchange** is archived as two visible rows (`live_turn`) at the turn's end — `turnComplete` on Gemini, the assistant's quiet on GPT-Live.
-- The session closes on ONE card (`live_session_summary`): the outcome, the duration, the requests to LIA, the voice exchanges, the EXPLICIT extensions (a rolling cap's renewals are not the person's), and LIA's own spend.
+- The session closes on ONE card (`live_session_summary`): the outcome, the duration AWAKE, the requests to LIA, the voice exchanges, the EXPLICIT extensions (a rolling cap's renewals are not the person's), the sleeps, and LIA's own spend; a DIRECT session's card also quotes the recap of every standby relay that could not run.
 
 ## Bounds, all published by `GET /live/config`
 
@@ -347,7 +393,10 @@ starts from — each model of a connector keeps its own two durations, `0` meani
 within `LIVE_SESSION_MAX_MINUTES_MIN/MAX` (1–240) and `LIVE_IDLE_TIMEOUT_SECONDS_MIN/MAX`
 (5–3600), published as `session_max_bounds` / `idle_timeout_bounds` / `unlimited_value` because
 they are enforced (ADR-184); the silence is « nobody speaks, LIA neither, no delegation in
-flight, no provider processing », with a countdown for the last 5 s. `LIVE_EXTENSION_MINUTES`
+flight, no provider processing », with a countdown for the last 5 s; at its end the session
+SLEEPS. `LIVE_STANDBY_MAX_SECONDS` (default `LIVE_STANDBY_MAX_SECONDS_DEFAULT`, bounded by
+`LIVE_STANDBY_MAX_SECONDS_MIN/MAX`, published as `standby_max_seconds`) ends an unbroken sleep as
+`expired`. `LIVE_EXTENSION_MINUTES`
 (10, unlimited explicit extensions; the slice a rolling cap renews by),
 `LIVE_EXTENSION_PROMPT_SECONDS` (60, below the cap), `LIVE_CONNECT_WINDOW_SECONDS`, `LIVE_HIDDEN_GRACE_SECONDS`, `LIVE_MAX_CONCURRENT_SESSIONS`,
 `LIVE_MINT_RATE_LIMIT_*` (the voice sample shares its family), `LIVE_DELEGATION_TIMEOUT_SECONDS`,
@@ -357,7 +406,8 @@ flight, no provider processing », with a countdown for the last 5 s. `LIVE_EXTE
 per-session ceiling may be). Every refusal is coded (`connector_missing`, `session_in_progress`,
 `instance_busy`, `mint_rate_limited`, `provider_refused`, `voice_unknown`,
 `thinking_level_unknown`, `model_unpriced`, `mode_unsupported`, `session_not_found`,
-`session_expired`, `credential_invalid`; the browser adds `unsupported_browser` on its own).
+`session_expired`, `session_awake`, `session_standby`, `credential_invalid`; the browser adds
+`unsupported_browser` and `key_ip_restricted` on its own).
 `LIVE_DIRECT_TOOL_CALLS_MAX` (60) bounds the lookups of one direct session. The outcomes a session
 can end on: `ended`, `expired`, `idle_timeout`, `hidden`, `provider_closed`, `resumption_failed`,
 `error`, `mic_denied`, `superseded`, `budget_reached` — one closed vocabulary shared by the API,

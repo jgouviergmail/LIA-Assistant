@@ -117,6 +117,39 @@ class EmailShareOptions(BaseModel):
     max_recipients: int = Field(description="The published recipient cap.")
     subject_max_chars: int = Field(description="The published subject length cap.")
     message_max_chars: int = Field(description="The published message length cap.")
+    recipient_suggestions: bool = Field(
+        description=(
+            "Contacts may be suggested while typing a recipient: the route takes free "
+            "recipients AND a contacts connector is active."
+        )
+    )
+    recipient_query_min_chars: int = Field(
+        description="Shortest name or address query compared (a number needs three digits)."
+    )
+    recipient_suggestions_max: int = Field(description="Suggestions shown for one query.")
+
+
+class RecipientSuggestionItem(BaseModel):
+    """One contact address offered for the recipient field."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = Field(description="The contact's name, or its address when it has none.")
+    email: str = Field(description="The address the field receives.")
+
+
+class RecipientSuggestionsResponse(BaseModel):
+    """What ``GET /email-share/recipients`` answers."""
+
+    model_config = ConfigDict(frozen=True)
+
+    query: str = Field(description="The query as received, to match a late answer to its input.")
+    suggestions: list[RecipientSuggestionItem] = Field(
+        description="At most the published number: names first, then addresses, then numbers."
+    )
+    truncated: bool = Field(
+        description="The address book was longer than the instance reads: contacts are left out."
+    )
 
 
 class EmailShareResult(BaseModel):

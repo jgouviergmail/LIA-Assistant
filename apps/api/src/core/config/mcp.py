@@ -41,6 +41,7 @@ from src.core.constants import (
     MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT,
     MCP_USER_MAX_SERVERS_PER_USER_DEFAULT,
+    MCP_USER_MAX_SERVERS_PER_USER_MAX,
     MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT,
     MCP_USER_POOL_MAX_TOTAL_DEFAULT,
     MCP_USER_POOL_TTL_SECONDS_DEFAULT,
@@ -242,7 +243,7 @@ class MCPSettings(BaseSettings):
     mcp_user_max_servers_per_user: int = Field(
         default=MCP_USER_MAX_SERVERS_PER_USER_DEFAULT,
         ge=1,
-        le=20,
+        le=MCP_USER_MAX_SERVERS_PER_USER_MAX,
         description="Maximum MCP servers a single user can configure.",
     )
 

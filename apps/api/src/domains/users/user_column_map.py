@@ -100,9 +100,6 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "interests_notify_min_per_day": _PREFERENCE,
     "interests_notify_max_per_day": _PREFERENCE,
     "heartbeat_enabled": _PREFERENCE,
-    "heartbeat_min_per_day": _PREFERENCE,
-    "heartbeat_max_per_day": _PREFERENCE,
-    "heartbeat_push_enabled": _PREFERENCE,
     "heartbeat_notify_start_hour": _PREFERENCE,
     "heartbeat_notify_end_hour": _PREFERENCE,
     # Which sources may interrupt the reader (ADR-197). A setting like its

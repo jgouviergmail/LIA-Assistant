@@ -18,6 +18,7 @@
  */
 import { test, expect, type MockRoute } from '../fixtures';
 import { dashboardShellMocks } from '../fixtures/dashboard-shell';
+import { expectNoOverflow } from './overflow-report';
 
 const BROKEN_CONNECTOR = {
   id: 'conn-google-calendar',
@@ -85,6 +86,38 @@ async function dismissTheInterruptingModal(page: import('@playwright/test').Page
   await expect(page.getByRole('dialog', { name: /reconnexion requise/i })).toBeHidden();
 }
 
+/** Two Google services of one account expired: the grouped consent applies. */
+const TWO_GOOGLE_BROKEN: MockRoute[] = [
+  ...BROKEN_HEALTH,
+  {
+    url: '**/api/v1/connectors/health',
+    json: {
+      connectors: [
+        {
+          ...BROKEN_CONNECTOR,
+          bulk_reconnect_provider: 'google',
+          oauth_grant_id: 'grant-a',
+          oauth_account_email: 'someone@example.org',
+        },
+        {
+          ...BROKEN_CONNECTOR,
+          id: 'conn-google-gmail',
+          connector_type: 'google_gmail',
+          display_name: 'Gmail',
+          authorize_url: '/connectors/google_gmail/authorize',
+          bulk_reconnect_provider: 'google',
+          oauth_grant_id: 'grant-a',
+          oauth_account_email: 'someone@example.org',
+        },
+      ],
+      has_issues: true,
+      critical_count: 2,
+      warning_count: 0,
+      checked_at: '2026-07-30T10:00:00Z',
+    },
+  },
+];
+
 test.describe('connector health banner', () => {
   test('names the broken connector and offers the fix', async ({
     page,
@@ -100,6 +133,45 @@ test.describe('connector health banner', () => {
     await expect(banner).toBeVisible();
     await expect(banner).toContainText('Google Calendar');
     await expect(banner.getByRole('button', { name: /reconnecter/i })).toBeVisible();
+  });
+
+  test('two expired services of one account reconnect with one authorization', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    const bodies: unknown[] = [];
+    await mockApi([
+      ...TWO_GOOGLE_BROKEN,
+      {
+        url: '**/api/v1/connectors/oauth-bulk/google/authorize',
+        method: 'POST',
+        handler: async route => {
+          bodies.push(route.request().postDataJSON());
+          await route.fulfill({
+            contentType: 'application/json',
+            body: JSON.stringify({
+              authorization_url: 'https://accounts.google.com/o/oauth2/v2/auth?state=e2e',
+            }),
+          });
+        },
+      },
+    ]);
+    await page.route('https://accounts.google.com/**', route =>
+      route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>consent</title>' })
+    );
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto('/fr/dashboard');
+    await dismissTheInterruptingModal(page);
+
+    const banner = page.getByRole('status', { name: /connexions/i });
+    await expect(banner.getByRole('link', { name: /gérer/i })).toBeVisible();
+    await expectNoOverflow(page, 'banner with the grouped button at 390px');
+    await banner.getByRole('button', { name: 'Reconnecter mes services Google' }).click();
+
+    await expect(page).toHaveURL(/accounts\.google\.com/);
+    expect(bodies).toEqual([{ connector_types: ['google_calendar', 'google_gmail'] }]);
   });
 
   test('the composer stays in the viewport while the banner is shown', async ({

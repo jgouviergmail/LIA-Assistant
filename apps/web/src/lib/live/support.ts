@@ -16,3 +16,12 @@ export function isLiveSupported(): boolean {
     typeof navigator.mediaDevices?.getUserMedia === 'function'
   );
 }
+
+/**
+ * An iPhone, iPad or iPod browser: the live session's audio travels over
+ * WebRTC there, PCM playback gets headroom, and a sleeping session's wake
+ * word only hears a screen that stays on (ADR-329).
+ */
+export function isAppleMobile(): boolean {
+  return typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
+}

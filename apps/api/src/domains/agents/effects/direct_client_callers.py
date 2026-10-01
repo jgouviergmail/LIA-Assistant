@@ -50,6 +50,10 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "domains/rag_spaces/drive_sync.py": "space",
     "domains/rag_spaces/mail_source_service.py": "space",
     "domains/users/geocoding.py": "profile",
+    # The recipient suggestions open the contacts connector through the
+    # door (ADR-304) and file a LIVE read of the book; a cache hit opens
+    # nothing and files nothing (ADR-321 amendment).
+    "domains/email_share/recipients.py": "email_share",
     # Reads the person's CALENDAR (free/busy) before a call is dialled;
     # recorded by the dial path in ``telephony/service.py``. It was filed as
     # « not a read » until 2026-09-16 on the strength of a wrong reading of

@@ -590,7 +590,7 @@ At server registration (test_connection), embeddings from the memory embedder (`
 ```env
 # .env
 MCP_USER_ENABLED=false                    # Master toggle (default: off)
-MCP_USER_MAX_SERVERS_PER_USER=5           # Per-user server limit
+MCP_USER_MAX_SERVERS_PER_USER=20          # Per-user server limit (1-100)
 MCP_USER_POOL_TTL_SECONDS=900             # Idle connection TTL (15 min)
 MCP_USER_POOL_MAX_TOTAL=50                # Global pool connection limit
 MCP_USER_POOL_EVICTION_INTERVAL=60        # Eviction check interval (seconds)
@@ -623,7 +623,7 @@ Users can also force-(re)generate a description via `POST /mcp/servers/{id}/gene
 | Encrypted credentials | Fernet via `encrypt_data()`/`decrypt_data()` |
 | Credentials never exposed | API response excludes `credentials_encrypted`. Only boolean flags (`has_credentials`, `has_oauth_credentials`) and non-sensitive metadata (`header_name`) are returned |
 | Ownership isolation | All operations verify `user_id` match |
-| Per-user limits | `MCP_USER_MAX_SERVERS_PER_USER` (default 5) |
+| Per-user limits | `MCP_USER_MAX_SERVERS_PER_USER` (default 20, at most `MCP_USER_MAX_SERVERS_PER_USER_MAX`) |
 | Global pool limit | `MCP_USER_POOL_MAX_TOTAL` (default 50) |
 | HITL by default | Inherits `MCP_HITL_REQUIRED=true` |
 | Rate limiting | Per-server sliding window |
@@ -1295,7 +1295,8 @@ MCP iterative tools run a multi-iteration ReAct agent loop that needs significan
 | `MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT` | `30000` | Max chars of read_me content injected in planner prompt |
 | `MCP_USER_TOOL_NAME_PREFIX` | `"mcp_user"` | Prefix for per-user MCP tool adapter names |
 | `MCP_USER_DEFAULT_API_KEY_HEADER` | `"X-API-Key"` | Default header for API key auth |
-| `MCP_USER_MAX_SERVERS_PER_USER_DEFAULT` | `5` | Default per-user server limit |
+| `MCP_USER_MAX_SERVERS_PER_USER_DEFAULT` | `20` | Default per-user server limit |
+| `MCP_USER_MAX_SERVERS_PER_USER_MAX` | `100` | The highest per-user limit an operator may set |
 | `MCP_USER_POOL_TTL_SECONDS_DEFAULT` | `900` | Idle connection TTL (15 min) |
 | `MCP_USER_POOL_MAX_TOTAL_DEFAULT` | `50` | Global pool limit across all users |
 | `MCP_DISPLAY_EMOJI` | `🔌` | Shared display emoji for MCP tool card metadata |

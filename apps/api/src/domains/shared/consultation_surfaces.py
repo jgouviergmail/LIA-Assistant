@@ -329,6 +329,16 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
         source="user",
         domains={"geocoding": "place"},
     ),
+    # The person typing a recipient in « Send by e-mail »: their own action,
+    # and the address book of their contacts connector read to suggest from
+    # (ADR-321 amendment). Filed on a live read only — a cached book opened
+    # nothing.
+    "email_share": ConsultationSurface(
+        key="email_share",
+        prefix="email_share:",
+        source="user",
+        domains={"contacts": "contact"},
+    ),
     # An interest sweep does NOT only write text: it queries Brave, Perplexity
     # and Wikipedia through their clients directly, bypassing the tool layer
     # entirely. The same Brave search is therefore recorded when a person asks

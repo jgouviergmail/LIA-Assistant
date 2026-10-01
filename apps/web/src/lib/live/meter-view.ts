@@ -8,7 +8,7 @@
 import type { Language } from '@/i18n/settings';
 import { formatEuro, formatNumber } from '@/lib/format';
 
-import { meterCost, meterTotals, type LiveMeter } from './meter';
+import { meterCost, meterTotals, providerSeconds, type LiveMeter } from './meter';
 import type { LiveRates } from './types';
 
 export interface LiveMeterView {
@@ -37,7 +37,7 @@ export function formatClock(seconds: number): string {
  *
  * @param meter The provider's reports, folded.
  * @param rates The model's declared tariff.
- * @param elapsed Seconds since the session went live (the clock).
+ * @param elapsed Seconds the session spent awake (the clock; standbys excluded).
  * @param budgetEur The connector's ceiling, or null.
  * @param locale The person's locale, for the figures.
  */
@@ -51,7 +51,7 @@ export function describeMeter(
   const durationBilled = rates.pricing_unit !== 'per_1m_tokens';
   // A duration-billed model: the wall clock ticks every second, the
   // provider's own count corrects it upward when it arrives.
-  const seconds = durationBilled ? Math.max(meter.seconds ?? 0, elapsed) : 0;
+  const seconds = durationBilled ? Math.max(providerSeconds(meter) ?? 0, elapsed) : 0;
   const cost = meterCost(meter, rates, durationBilled ? seconds : undefined);
   const totals = meterTotals(meter);
   return {

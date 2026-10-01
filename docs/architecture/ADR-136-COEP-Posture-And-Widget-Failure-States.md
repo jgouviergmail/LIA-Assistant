@@ -212,3 +212,17 @@ jamais cassé).
 - `apps/web/src/lib/__tests__/frame-embedding.test.ts` — les quatre états de la sonde.
 - `apps/web/src/hooks/__tests__/useFrameLoadWatchdog.test.tsx` — machine à états, contenu du rapport, nettoyage du timer.
 - `apps/web/src/components/chat/__tests__/SkillAppWidget.test.tsx` — embed vs repli à charge utile identique, seul l'état du moteur changeant.
+
+## Amendements
+
+### Amendement 2026-10-01 : le mot-clé vocal ne dépend plus de l'isolation ([ADR-329](ADR-329-Live-Standby-And-Multilingual-Wake-Word.md))
+
+L'arbitrage de cet ADR coûtait le mot-clé vocal sur iOS, parce que
+`isSherpaKwsSupported()` exigeait `SharedArrayBuffer` et `crossOriginIsolated`
+— alors que le module WASM de Sherpa déclarait une mémoire **non partagée**
+(lu dans le binaire). Le moteur qui le remplace s'exécute en WASM
+**monothread** dans un worker de même origine : son prédicat
+(`isWakeWordSupported()`) ne demande ni l'un ni l'autre. La posture COEP
+décidée ici ne retire donc plus le mot-clé à aucune plateforme ; elle reste
+servie pour les raisons qui lui sont propres. La phrase « Isoler le KWS dans un
+document dédié » des alternatives n'a plus d'objet.

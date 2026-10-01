@@ -1,6 +1,6 @@
 {
   "_comment": "React 19 strict-mode ratchet (audit F021/F044). PER-FILE frozen counts for react-hooks/set-state-in-effect + react-hooks/immutability. A file may only DECREASE; new offending files fail CI. Flip the rules to error in eslint.config.mjs at 0. Regenerate with --update after fixing, never to absorb a regression.",
-  "total": 32,
+  "total": 31,
   "perFile": {
     "src/app/[lng]/(auth)/oauth-callback/page.tsx": 1,
     "src/app/[lng]/dashboard/layout.tsx": 1,
@@ -26,7 +26,6 @@
     "src/components/ui/search-input.tsx": 1,
     "src/hooks/useLiaGender.ts": 1,
     "src/hooks/useNotifications.ts": 1,
-    "src/hooks/useSherpaKws.ts": 1,
     "src/i18n/client.ts": 1,
     "src/lib/broadcast.tsx": 2
   }

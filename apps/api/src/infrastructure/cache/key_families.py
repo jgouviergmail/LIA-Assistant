@@ -60,6 +60,8 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "contacts_list": KeyScope.USER_CACHE,
     "contacts_search": KeyScope.USER_CACHE,
     "contacts_details": KeyScope.USER_CACHE,
+    # The whole address book the recipient suggestions match (clients/contact_directory).
+    "contacts_directory": KeyScope.USER_CACHE,
     "places_search": KeyScope.USER_CACHE,
     "places_nearby": KeyScope.USER_CACHE,
     "gmail:message": KeyScope.USER_CACHE,

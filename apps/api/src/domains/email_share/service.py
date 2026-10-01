@@ -42,6 +42,8 @@ from src.core.config import settings
 from src.core.constants import (
     EMAIL_SHARE_MAX_RECIPIENTS,
     EMAIL_SHARE_MESSAGE_MAX_CHARS,
+    EMAIL_SHARE_RECIPIENT_QUERY_MIN_CHARS,
+    EMAIL_SHARE_RECIPIENT_SUGGESTIONS_MAX,
     EMAIL_SHARE_SUBJECT_MAX_CHARS,
 )
 from src.core.exceptions import AuthenticationError, ConnectorAPIError
@@ -205,11 +207,14 @@ async def resolve_route(user: User) -> ShareRoute:
     return ShareRoute.unavailable(needs_reconnect=broken is not None)
 
 
-def options_for(route: ShareRoute) -> EmailShareOptions:
+def options_for(route: ShareRoute, *, contacts_connected: bool) -> EmailShareOptions:
     """What the dialog may offer on this road — every bound it will meet.
 
     Args:
         route: The account's road.
+        contacts_connected: A contacts connector is active. Suggestions are
+            offered only where recipients are free: the relay's one recipient
+            is locked, so nothing would be typed.
 
     Returns:
         The published options.
@@ -222,6 +227,9 @@ def options_for(route: ShareRoute) -> EmailShareOptions:
         max_recipients=EMAIL_SHARE_MAX_RECIPIENTS,
         subject_max_chars=EMAIL_SHARE_SUBJECT_MAX_CHARS,
         message_max_chars=EMAIL_SHARE_MESSAGE_MAX_CHARS,
+        recipient_suggestions=route.kind == "mailbox" and contacts_connected,
+        recipient_query_min_chars=EMAIL_SHARE_RECIPIENT_QUERY_MIN_CHARS,
+        recipient_suggestions_max=EMAIL_SHARE_RECIPIENT_SUGGESTIONS_MAX,
     )
 
 

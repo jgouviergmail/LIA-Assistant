@@ -9,7 +9,8 @@
  *     its wrapper grew to 54 px while all three controls stayed 48 px, and the
  *     field floated 6 px above them. `display: block` removes the baseline.
  *  2. the active-spaces indicator sat flush against the trailing controls. It
- *     now rides in the header's centred MIDDLE group beside the voice badge
+ *     now rides in the header's centred MIDDLE group, after the hands-free
+ *     badge and the context pill
  *     (v1.26.0: equal-weight flex sides keep that group centred and let it
  *     shift rather than overlap — the former `absolute` centring reserved no
  *     width and overlapped the search). Being siblings makes an overlap
@@ -128,12 +129,13 @@ test.describe('composer alignment', () => {
     });
 
     expect(geometry, 'the indicator must be laid out').not.toBeNull();
-    // Beside the voice badge in the centred group, so not exactly on the axis —
+    // Last of the centred group (hands-free, context, spaces — owner order
+    // 2026-10-01), so not exactly on the axis —
     // but nowhere near the right edge where it used to be glued.
     expect(Math.abs(geometry!.centre - geometry!.viewportCentre)).toBeLessThan(220);
   });
 
-  test('the indicator never overlaps the voice badge', async ({ page, authenticate, mockApi }) => {
+  test('the indicator never overlaps its neighbour', async ({ page, authenticate, mockApi }) => {
     // They share one flex row, so this is true by construction — pinned so a
     // future move back to absolute positioning is caught.
     await authenticate({ language: 'fr' });
@@ -143,7 +145,8 @@ test.describe('composer alignment', () => {
 
     const overlap = await page.evaluate(() => {
       const link = document.querySelector('[data-testid="active-spaces-indicator"]');
-      // The voice badge is the sibling right before the indicator in the group.
+      // The control right before the indicator in the group: the context
+      // pill once a turn has totals, else the hands-free badge.
       const badge = link?.previousElementSibling;
       if (!link || !badge || badge === link) return 0;
       const a = link.getBoundingClientRect();

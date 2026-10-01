@@ -22,9 +22,11 @@ __all__ = [
     "raise_live_mode_unsupported",
     "raise_live_model_unpriced",
     "raise_live_provider_refused",
+    "raise_live_session_awake",
     "raise_live_session_expired",
     "raise_live_session_in_progress",
     "raise_live_session_not_found",
+    "raise_live_session_standby",
     "raise_live_thinking_level_unknown",
     "raise_live_voice_unknown",
 ]
@@ -115,6 +117,29 @@ def raise_live_session_expired(language: str) -> NoReturn:
         status_code=status.HTTP_409_CONFLICT,
         code="session_expired",
         message=get_live_phrases(language)["session_expired"],
+    )
+
+
+def raise_live_session_awake(language: str) -> NoReturn:
+    """Raise 409: a wake asked of a session that is not asleep (ADR-329)."""
+    raise LiveRefusedError(
+        status_code=status.HTTP_409_CONFLICT,
+        code="session_awake",
+        message=get_live_phrases(language)["session_awake"],
+    )
+
+
+def raise_live_session_standby(language: str) -> NoReturn:
+    """Raise 409: a connection asked of a session asleep — a wake opens it, nothing else (ADR-329).
+
+    A credential, an offer exchange, a lookup or a turn of a sleeping session
+    would open (or feed) a provider connection that bills: the wake is the
+    one door back.
+    """
+    raise LiveRefusedError(
+        status_code=status.HTTP_409_CONFLICT,
+        code="session_standby",
+        message=get_live_phrases(language)["session_standby"],
     )
 
 

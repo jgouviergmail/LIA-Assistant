@@ -195,7 +195,6 @@ class ProactiveTaskRunner:
         max_retries: int = 3,
         continue_on_error: bool = True,
         user_ids: Sequence[UUID] | None = None,
-        skip_probabilistic_gate: bool = False,
     ):
         """
         Initialize proactive task runner.
@@ -209,12 +208,8 @@ class ProactiveTaskRunner:
             continue_on_error: Continue if one user fails (default True)
             user_ids: Restrict the candidates to these users (ADR-261 wake
                 sweep); None keeps the random batch.
-            skip_probabilistic_gate: Bypass the "guaranteed minimum" smoothing
-                only — a wake is an event, not a tick to spread; every HARD
-                gate (window, quota, cooldowns, activity) still applies.
         """
         self.user_ids = list(user_ids) if user_ids is not None else None
-        self.skip_probabilistic_gate = skip_probabilistic_gate
         self.task = task
         self.eligibility_checker = eligibility_checker
         self.dispatcher = dispatcher or NotificationDispatcher()
@@ -402,51 +397,24 @@ class ProactiveTaskRunner:
                 _record_eligibility(eligibility.reason.value)
                 return False
 
-            # 1b. Probabilistic check: should we send now?
-            # Time-aware algorithm with guaranteed minimum delivery. A push
-            # wake (ADR-261) skips THIS gate only: it answers an event, and
-            # the hard gates above already bounded the budget.
-            today_count = await self._get_today_notification_count(user, db, now)
-
-            start_hour_field = self.eligibility_checker.start_hour_field
-            end_hour_field = self.eligibility_checker.end_hour_field
-            start_hour = getattr(user, start_hour_field, 9)
-            end_hour = getattr(user, end_hour_field, 22)
-            window_hours = (
-                end_hour - start_hour if end_hour > start_hour else 24 - start_hour + end_hour
-            )
-
-            # Calculate elapsed hours in the user's notification window
-            elapsed_hours = self._calculate_elapsed_hours(user, now, start_hour, window_hours)
-
-            if self.skip_probabilistic_gate:
-                should_send, debug_info = True, {"skip_probabilistic_gate": True}
-            else:
-                should_send, debug_info = self.eligibility_checker.should_send_notification(
-                    user=user,
-                    today_count=today_count,
-                    window_hours=window_hours,
-                    elapsed_hours=elapsed_hours,
-                    interval_minutes=self.eligibility_checker.interval_minutes,
+            # 1b. Pacing: a task with daily bounds spreads them over its
+            # window. One without (the heartbeat, ADR-328) is never paced:
+            # every tick, push wake and moment reaches the task's own decision,
+            # and the hard gates above still bound it.
+            if self.eligibility_checker.has_daily_bounds:
+                should_send, debug_info = await self._paced_decision(
+                    self.eligibility_checker, user, db, now
                 )
-
-            if not should_send:
                 logger.info(
                     "proactive_probabilistic_decision",
                     task_type=self.task.task_type,
                     user_id=str(user.id),
                     **debug_info,
                 )
-                stats.record_skip("probabilistic_skip")
-                _record_eligibility("probabilistic_skip")
-                return False
-
-            logger.info(
-                "proactive_probabilistic_decision",
-                task_type=self.task.task_type,
-                user_id=str(user.id),
-                **debug_info,
-            )
+                if not should_send:
+                    stats.record_skip("probabilistic_skip")
+                    _record_eligibility("probabilistic_skip")
+                    return False
 
         # The correlation key is minted HERE, before the first source opens,
         # and the consultation collector is published around everything the
@@ -845,6 +813,39 @@ class ProactiveTaskRunner:
         # Clamp to [0, window_hours]
         return max(0.0, min(elapsed, float(window_hours)))
 
+    async def _paced_decision(
+        self, checker: EligibilityChecker, user: Any, db: AsyncSession, now: datetime
+    ) -> tuple[bool, dict[str, Any]]:
+        """Whether a task with daily bounds sends on this tick.
+
+        The time-aware algorithm with guaranteed minimum delivery
+        (``EligibilityChecker.should_send_notification``), fed with the day's
+        count and the position in the person's notification window.
+
+        Args:
+            checker: The runner's checker, which has daily bounds.
+            user: User model instance.
+            db: Database session.
+            now: Current datetime.
+
+        Returns:
+            The decision, and what it was computed from (for the log).
+        """
+        today_count = await self._get_today_notification_count(user, db, now)
+        start_hour = getattr(user, checker.start_hour_field, 9)
+        end_hour = getattr(user, checker.end_hour_field, 22)
+        window_hours = (
+            end_hour - start_hour if end_hour > start_hour else 24 - start_hour + end_hour
+        )
+        elapsed_hours = self._calculate_elapsed_hours(user, now, start_hour, window_hours)
+        return checker.should_send_notification(
+            user=user,
+            today_count=today_count,
+            window_hours=window_hours,
+            elapsed_hours=elapsed_hours,
+            interval_minutes=checker.interval_minutes,
+        )
+
     def _extract_user_settings(self, user: Any) -> dict[str, Any]:
         """
         Extract user settings as dict for task eligibility check.
@@ -869,9 +870,6 @@ class ProactiveTaskRunner:
             "interests_notify_max_per_day",
             # Heartbeat fields
             "heartbeat_enabled",
-            "heartbeat_min_per_day",
-            "heartbeat_max_per_day",
-            "heartbeat_push_enabled",
             "heartbeat_notify_start_hour",
             "heartbeat_notify_end_hour",
             # Habits preference (tick scoring gate, ADR-214)
@@ -982,7 +980,6 @@ async def execute_proactive_task(
     eligibility_checker: EligibilityChecker | None = None,
     batch_size: int = 50,
     user_ids: Sequence[UUID] | None = None,
-    skip_probabilistic_gate: bool = False,
 ) -> RunnerStats:
     """
     Convenience function to execute a proactive task.
@@ -1010,6 +1007,5 @@ async def execute_proactive_task(
         eligibility_checker=eligibility_checker,
         batch_size=batch_size,
         user_ids=user_ids,
-        skip_probabilistic_gate=skip_probabilistic_gate,
     )
     return await runner.execute()

@@ -528,3 +528,9 @@ le cooldown d'activité n'est pas rendu sensible à la présence (un ping de
 visibilité n'est pas un message) ; jamais de rétrogradation dans le doute ;
 un réveil push contourne le rythme (il est consommé quand il est servi — cf.
 ADR-281) mais s'écarte pour une réunion.
+
+## Amendement 2026-10-01 — la borne explicite du heartbeat est sa fenêtre horaire (ADR-328)
+
+Le heartbeat n'a plus de min/max par jour : au §4, ses bornes explicites se
+réduisent à la fenêtre horaire, que le rythme appris continue de ne jamais
+élargir. Les centres d'intérêt gardent leurs bornes quotidiennes.

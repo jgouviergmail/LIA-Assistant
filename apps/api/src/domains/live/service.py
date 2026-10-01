@@ -19,11 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import (
-    DEFAULT_USER_DISPLAY_TIMEZONE,
     LIVE_DELEGATION_TOOL_NAME,
     LIVE_DIRECT_TRANSCRIPT_MAX_ROWS,
     LIVE_DURATION_UNLIMITED,
-    LIVE_SESSION_RECORD_GRACE_SECONDS,
     LIVE_SESSION_RUN_PREFIX,
     LIVE_TURN_TEXT_MAX_CHARS,
     REDIS_KEY_LIVE_MINT_PREFIX,
@@ -35,7 +33,6 @@ from src.domains.connectors.models import (
     ConnectorType,
 )
 from src.domains.live.connector_service import LiveConnectorService
-from src.domains.live.direct_mandate import build_direct_setup_inputs
 from src.domains.live.errors import (
     raise_live_connector_missing,
     raise_live_credential_invalid,
@@ -47,6 +44,7 @@ from src.domains.live.errors import (
     raise_live_session_expired,
     raise_live_session_in_progress,
     raise_live_session_not_found,
+    raise_live_session_standby,
 )
 from src.domains.live.pricing import rates_for
 from src.domains.live.providers import (
@@ -70,29 +68,30 @@ from src.domains.live.schemas import (
     LiveRates,
     LiveSessionMode,
     LiveSessionStartResponse,
+    LiveStandbyRequest,
+    LiveStandbyResponse,
     LiveToolCallRequest,
     LiveToolCallResponse,
     LiveTurnRequest,
     LiveTurnResponse,
+    LiveWakeRequest,
+    LiveWakeResponse,
 )
+from src.domains.live.session_end import end_session
 from src.domains.live.session_store import LiveSessionRecord, LiveSessionStore
+from src.domains.live.setup_render import render_setup_inputs
+from src.domains.live.standby import enter_standby, wake
 from src.domains.live.tool_door import run_session_tool
-from src.domains.live.vendor_bill import fetch_vendor_bill
 from src.domains.users.models import User
-from src.domains.voice_sessions.session import VoiceSession, as_voice_session_mode
-from src.domains.voice_sessions.transcript import VoiceTranscript
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.metrics_live import (
     live_mint_total,
     live_offer_exchanges_total,
-    live_session_duration_seconds,
     live_session_extensions_total,
     live_sessions_active,
-    live_sessions_total,
     live_turns_archived_total,
 )
 from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
-from src.infrastructure.scheduler.voice_session_closing import close_voice_session
 
 logger = structlog.get_logger(__name__)
 
@@ -313,35 +312,19 @@ class LiveService:
         cap_minutes = chosen.session_max_minutes or settings.live_extension_minutes
         expires_at = now + timedelta(minutes=cap_minutes)
         session_id = uuid.uuid4().hex
-        personality = await self._personality_of(user.id)
-        psyche_block = await self._inner_state_of(user.id, timezone)
-        if mode == "direct":
-            inputs = await build_direct_setup_inputs(
-                user_id=user.id,
-                model=chosen.model,
-                voice=chosen.voice,
-                thinking_level=chosen.thinking_level,
-                preferences=prefs,
-                disabled_domains=frozenset(user.phone_disabled_domains or ()),
-                language=language,
-                timezone=timezone,
-                display_name=display_name,
-                now=now,
-                personality=personality,
-                psyche_block=psyche_block,
-            )
-        else:
-            inputs = self.connectors.setup_inputs(
-                provider,
-                user,
-                chosen,
-                language=language,
-                timezone=timezone,
-                display_name=display_name,
-                now=now,
-                personality=personality,
-                psyche_block=psyche_block,
-            )
+        inputs = await render_setup_inputs(
+            self.connectors,
+            provider,
+            user,
+            chosen,
+            mode=mode,
+            language=language,
+            timezone=timezone,
+            display_name=display_name,
+            now=now,
+            personality=await self._personality_of(user.id),
+            psyche_block=await self._inner_state_of(user.id, timezone),
+        )
         if provider.provider_id == "elevenlabs" and audio_transport == "webrtc":
             inputs = replace(inputs, audio_transport="webrtc")
         api_key = await self.connectors.api_key_of(user.id, connector_type)
@@ -424,6 +407,7 @@ class LiveService:
             expires_at=expires_at,
             session_max_minutes=chosen.session_max_minutes,
             idle_timeout_seconds=chosen.idle_timeout_seconds,
+            standby_max_seconds=settings.live_standby_max_seconds,
             preferences=prefs,
             capabilities=LiveModelCapabilitiesResponse(**asdict(capabilities)),
             delegation_tool_name=LIVE_DELEGATION_TOOL_NAME,
@@ -456,7 +440,7 @@ class LiveService:
 
         The record must be the person's; the rest is ``tool_door.run_session_tool``.
         """
-        record = await self._owned_record(user, session_id, language=language)
+        record = await self._awake_record(user, session_id, language=language)
         return await run_session_tool(
             record,
             await self._store(),
@@ -476,6 +460,42 @@ class LiveService:
             raise_live_session_not_found(language)
         return record
 
+    async def _awake_record(
+        self, user: User, session_id: str, *, language: str
+    ) -> LiveSessionRecord:
+        """The person's session, awake: asleep, only a wake opens a connection (ADR-329)."""
+        record = await self._owned_record(user, session_id, language=language)
+        if record.in_standby:
+            raise_live_session_standby(language)
+        return record
+
+    async def standby(
+        self, user: User, session_id: str, payload: LiveStandbyRequest, *, language: str
+    ) -> LiveStandbyResponse:
+        """Put the session to sleep (ADR-329) — ``standby.enter_standby``."""
+        return await enter_standby(self, user, session_id, payload, language=language)
+
+    async def wake(
+        self,
+        user: User,
+        session_id: str,
+        payload: LiveWakeRequest,
+        *,
+        language: str,
+        timezone: str,
+        display_name: str,
+    ) -> LiveWakeResponse:
+        """Wake a sleeping session (ADR-329) — ``standby.wake``."""
+        return await wake(
+            self,
+            user,
+            session_id,
+            payload,
+            language=language,
+            timezone=timezone,
+            display_name=display_name,
+        )
+
     async def renew_credential(
         self, user: User, session_id: str, *, language: str
     ) -> LiveCredentialResponse:
@@ -485,7 +505,7 @@ class LiveService:
         a fresh one with the resumption handle can. The session's expiry does
         not move — the credential expires with the session it belongs to.
         """
-        record = await self._owned_record(user, session_id, language=language)
+        record = await self._awake_record(user, session_id, language=language)
         if await self._rate_limited(user.id):
             live_mint_total.labels(provider=record.provider, outcome="rate_limited").inc()
             raise_live_mint_rate_limited(language)
@@ -528,7 +548,7 @@ class LiveService:
         and the browser asks for a fresh credential to try again (« one
         credential opens one connection », on both providers).
         """
-        record = await self._owned_record(user, session_id, language=language)
+        record = await self._awake_record(user, session_id, language=language)
         connector = await self.connectors.connector_of(user, record.provider, language=language)
         provider = PROVIDERS[ConnectorType(connector.connector_type)]
         if provider.connection != "offer" or not isinstance(provider, OfferExchanging):
@@ -588,6 +608,8 @@ class LiveService:
             provider is not None
             and provider.connection == "token"
             and record.setup_inputs.get("audio_transport") != "webrtc"
+            # Asleep there is no connection to reconnect (ADR-329).
+            and not record.in_standby
         )
         now = datetime.now(UTC)
         if now >= record.expires_at:
@@ -600,14 +622,15 @@ class LiveService:
             expires_at=record.expires_at + timedelta(minutes=settings.live_extension_minutes),
             extensions=record.extensions + (0 if record.unlimited_cap else 1),
         )
-        ttl_seconds = (
-            int((extended.expires_at - now).total_seconds()) + LIVE_SESSION_RECORD_GRACE_SECONDS
+        ttl_seconds = extended.life_seconds(
+            now, standby_max_seconds=settings.live_standby_max_seconds
         )
         store = await self._store()
         if not await store.extend(extended, ttl_seconds=ttl_seconds):
             # The claim is a successor's: this session is over for this tab.
             raise_live_session_not_found(language)
-        await store.register_active(session_id, extended.expires_at)
+        if not extended.in_standby:
+            await store.register_active(session_id, extended.expires_at)
         credential = await self._remint(user, extended, language=language) if reconnects else None
         live_session_extensions_total.labels(
             provider=record.provider, kind="rolling" if record.unlimited_cap else "explicit"
@@ -634,7 +657,7 @@ class LiveService:
         the person would have typed (ADR-301) — so the same door accumulates
         them, and answers no row ids.
         """
-        record = await self._owned_record(user, session_id, language=language)
+        record = await self._awake_record(user, session_id, language=language)
         if record.mode == "direct":
             # ADR-301: kept in the record until the end, when the exchanges
             # become the person's own turn — never archived one by one.
@@ -689,75 +712,8 @@ class LiveService:
     async def end(
         self, user: User, session_id: str, payload: LiveEndRequest, *, language: str
     ) -> LiveEndResponse:
-        """Close the books through the voice session's own policy, then free the slot.
-
-        Everything a session owes at its end — the card with EXACT figures,
-        the decision row, the learning of the voice-only rows — is the
-        carrier-neutral closing (ADR-301, ``voice_session_closing``): the
-        phone's post-call path calls the same function. What stays here is
-        the browser's own: the record, the claim, the metrics.
-        """
-        record = await self._owned_record(user, session_id, language=language)
-        store = await self._store()
-        now = datetime.now(UTC)
-        duration = int((now - record.started_at).total_seconds())
-        conversation_id = await self._conversation_id(user.id, language=language)
-        session = VoiceSession.browser(
-            session_id=session_id,
-            run_id=record.run_id,
-            mode=as_voice_session_mode(record.mode),
-            user_id=user.id,
-            conversation_id=conversation_id,
-            language=language,
-            timezone=str(user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE),
-        )
-        transcript = (
-            VoiceTranscript.from_rows(await store.turns(user.id))
-            if record.mode == "direct"
-            else None
-        )
-        closed = await close_voice_session(
-            self.db,
-            session=session,
-            memory_enabled=bool(user.memory_enabled),
-            outcome=payload.outcome,
-            duration_seconds=duration,
-            extensions=record.extensions,
-            transcript=transcript,
-        )
-        await store.release(user.id, record.token)
-        await store.unregister_active(session_id)
-        live_sessions_active.set(await store.count_active(now))
-        live_sessions_total.labels(provider=record.provider, outcome=payload.outcome).inc()
-        live_session_duration_seconds.observe(duration)
-        # The vendor's own bill, read on the person's key and SHOWN — after the
-        # books are closed and the slot freed, so a slow vendor delays nothing
-        # that matters; never written anywhere (the platform re-bills none of it).
-        vendor_bill = await fetch_vendor_bill(
-            self.connectors, user, record, payload.provider_conversation_id
-        )
-        logger.info(
-            "live_session_ended",
-            session_id=session_id,
-            outcome=payload.outcome,
-            detail=payload.detail,
-            audio_diagnostics=(
-                payload.audio_diagnostics.model_dump() if payload.audio_diagnostics else None
-            ),
-            duration_seconds=duration,
-            delegations=closed.delegations,
-            voice_turns=closed.voice_turns,
-        )
-        return LiveEndResponse(
-            summary_message_id=closed.summary_message_id,
-            duration_seconds=duration,
-            delegations=closed.delegations,
-            voice_turns=closed.voice_turns,
-            relay=closed.relay,
-            extensions=record.extensions,
-            usage=closed.usage,
-            vendor_bill=vendor_bill,
-        )
+        """Close the books, then free the slot — ``session_end.end_session``."""
+        return await end_session(self, user, session_id, payload, language=language)
 
 
 __all__ = ["LiveService", "live_session_run_id"]

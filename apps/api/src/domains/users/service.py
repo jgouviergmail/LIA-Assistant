@@ -24,6 +24,7 @@ from src.core.exceptions import (
 from src.core.field_names import FIELD_IS_ACTIVE, FIELD_USER_ID
 from src.core.i18n import _, normalize_language
 from src.core.sql_search import LIKE_ESCAPE, escape_like
+from src.domains.users.admin_columns import admin_user_switches
 from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 from src.domains.users.schemas import (
@@ -752,7 +753,8 @@ class UserService:
             # Base profile fields, spread rather than named: the list this
             # replaces had drifted the same way its sibling had, dropping the
             # very preferences the base profile has just been careful to read.
-            **base_profile.model_dump(),
+            # The table's switches are merged over it, a few being in both.
+            **{**base_profile.model_dump(), **admin_user_switches(user)},
             # Statistics fields - Lifetime totals
             last_login=user.last_login,
             last_message_at=last_message_at,

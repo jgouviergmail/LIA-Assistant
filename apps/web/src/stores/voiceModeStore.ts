@@ -6,7 +6,8 @@
  * Manages global voice mode state across the application:
  * - Voice mode enabled/disabled toggle
  * - Current voice state (idle, listening, recording, processing, speaking)
- * - Wake word detection status
+ * - The time of the last wake-word detection (the detector's own state lives
+ *   in `useWakeWord`, read by the one component that shows it)
  * - Error handling
  *
  * Persists enabled preference to localStorage.
@@ -49,12 +50,6 @@ export interface VoiceModeStore {
   isEnabled: boolean;
   /** Current voice mode state */
   state: VoiceModeState;
-  /** Whether KWS (Keyword Spotting) is ready */
-  isKwsReady: boolean;
-  /** Whether KWS is loading */
-  isKwsLoading: boolean;
-  /** Whether KWS microphone is actively listening (mic open + processing) */
-  isKwsListening: boolean;
   /** Last error (if any) */
   error: Error | null;
   /** Last detected wake word timestamp */
@@ -69,12 +64,6 @@ export interface VoiceModeStore {
   toggle: () => void;
   /** Set current state */
   setState: (state: VoiceModeState) => void;
-  /** Set KWS ready status */
-  setKwsReady: (ready: boolean) => void;
-  /** Set KWS loading status */
-  setKwsLoading: (loading: boolean) => void;
-  /** Set KWS listening status (mic actually open) */
-  setKwsListening: (listening: boolean) => void;
   /** Set error */
   setError: (error: Error | null) => void;
   /** Record wake word detection */
@@ -107,16 +96,13 @@ export const useVoiceModeStore = create<VoiceModeStore>()(
       // Initial state
       isEnabled: false,
       state: 'idle' as VoiceModeState,
-      isKwsReady: false,
-      isKwsLoading: false,
-      isKwsListening: false,
       error: null,
       lastWakeWordTime: null,
 
       // Actions
       enable: () => set({ isEnabled: true, state: 'listening', error: null }),
 
-      disable: () => set({ isEnabled: false, state: 'idle', error: null, isKwsListening: false }),
+      disable: () => set({ isEnabled: false, state: 'idle', error: null }),
 
       toggle: () =>
         set((s: VoiceModeStore) => ({
@@ -126,12 +112,6 @@ export const useVoiceModeStore = create<VoiceModeStore>()(
         })),
 
       setState: (newState: VoiceModeState) => set({ state: newState }),
-
-      setKwsReady: (ready: boolean) => set({ isKwsReady: ready }),
-
-      setKwsLoading: (loading: boolean) => set({ isKwsLoading: loading }),
-
-      setKwsListening: (listening: boolean) => set({ isKwsListening: listening }),
 
       setError: (err: Error | null) =>
         set((s: VoiceModeStore) => ({
@@ -150,7 +130,6 @@ export const useVoiceModeStore = create<VoiceModeStore>()(
           state: 'idle',
           error: null,
           lastWakeWordTime: null,
-          isKwsListening: false,
         }),
     }),
     {

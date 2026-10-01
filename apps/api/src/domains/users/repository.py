@@ -16,20 +16,92 @@ This eliminates 34 lines of duplicated CRUD code between AuthRepository and User
 
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, literal_column, nulls_last, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.core.i18n import normalize_language
 from src.core.repository import BaseRepository
 from src.domains.chat.models import MessageTokenSummary, UserStatistics
 from src.domains.connectors.models import Connector, ConnectorStatus
+from src.domains.users.admin_columns import (
+    ADMIN_USER_COLUMN_SORTS,
+    ADMIN_USER_SUBQUERY_SORTS,
+)
 from src.domains.users.models import AdminAuditLog, User
 
 logger = structlog.get_logger(__name__)
+
+
+def admin_sort_expression(sort_by: str) -> ColumnElement[Any]:
+    """The expression the administrators' listing sorts by.
+
+    Resolves exactly :data:`ADMIN_USER_SORT_KEYS` — the route refuses anything
+    else first; refusing here too means no caller can reach an attribute of
+    ``User`` the listing never declared (``hashed_password`` used to sort).
+    Every nullable value is wrapped in ``COALESCE`` so an account with no
+    statistics row sorts as zero rather than wherever NULL falls.
+
+    Args:
+        sort_by: A key of :data:`ADMIN_USER_SORT_KEYS`.
+
+    Returns:
+        The column, sum or subquery label to order by.
+
+    Raises:
+        ValueError: The key is not a declared sort column.
+    """
+    if sort_by in ADMIN_USER_COLUMN_SORTS:
+        column: ColumnElement[Any] = getattr(User, sort_by).expression
+        return column
+    if sort_by in ADMIN_USER_SUBQUERY_SORTS:
+        # Labelled columns of the listing's own SELECT.
+        return literal_column(sort_by)
+    statistic = _statistic_sort_expressions().get(sort_by)
+    if statistic is None:
+        raise ValueError(f"Unknown admin user sort column: {sort_by!r}")
+    return statistic
+
+
+def _statistic_sort_expressions() -> dict[str, ColumnElement[Any]]:
+    """The sums the listing sorts by, keyed like ``ADMIN_USER_STATISTIC_SORTS``."""
+    stats = UserStatistics
+
+    def total(*columns: Any) -> ColumnElement[Any]:
+        expression: ColumnElement[Any] = func.coalesce(columns[0], 0)
+        for column in columns[1:]:
+            expression = expression + func.coalesce(column, 0)
+        return expression
+
+    return {
+        "total_messages": total(stats.total_messages),
+        "total_google_api_requests": total(stats.total_google_api_requests),
+        "cycle_messages": total(stats.cycle_messages),
+        "cycle_google_api_requests": total(stats.cycle_google_api_requests),
+        # Tokens: prompt + completion + cached.
+        "total_tokens": total(
+            stats.total_prompt_tokens, stats.total_completion_tokens, stats.total_cached_tokens
+        ),
+        "cycle_tokens": total(
+            stats.cycle_prompt_tokens, stats.cycle_completion_tokens, stats.cycle_cached_tokens
+        ),
+        # Cost: LLM + Google API + image generation.
+        "total_cost_eur": total(
+            stats.total_cost_eur,
+            stats.total_google_api_cost_eur,
+            stats.total_image_generation_cost_eur,
+        ),
+        "cycle_cost_eur": total(
+            stats.cycle_cost_eur,
+            stats.cycle_google_api_cost_eur,
+            stats.cycle_image_generation_cost_eur,
+        ),
+    }
 
 
 class UserRepository(BaseRepository[User]):
@@ -528,73 +600,12 @@ class UserRepository(BaseRepository[User]):
             .where(*filters)
         )
 
-        # Build sort column mapping for non-User-model fields
-        # COALESCE wraps all nullable expressions so NULLs sort as 0, not inconsistently
-        from sqlalchemy import literal_column
-
-        stats_sort_map = {
-            # UserStatistics direct fields (COALESCE for NULL when no stats row)
-            "total_messages": func.coalesce(UserStatistics.total_messages, 0),
-            "total_google_api_requests": func.coalesce(UserStatistics.total_google_api_requests, 0),
-            "cycle_messages": func.coalesce(UserStatistics.cycle_messages, 0),
-            "cycle_google_api_requests": func.coalesce(UserStatistics.cycle_google_api_requests, 0),
-            # Computed: total_tokens = prompt + completion + cached
-            "total_tokens": (
-                func.coalesce(UserStatistics.total_prompt_tokens, 0)
-                + func.coalesce(UserStatistics.total_completion_tokens, 0)
-                + func.coalesce(UserStatistics.total_cached_tokens, 0)
-            ),
-            # Computed: total_cost = LLM + Google API + Image Generation
-            "total_cost_eur": (
-                func.coalesce(UserStatistics.total_cost_eur, 0)
-                + func.coalesce(UserStatistics.total_google_api_cost_eur, 0)
-                + func.coalesce(UserStatistics.total_image_generation_cost_eur, 0)
-            ),
-            # Computed: cycle_tokens = prompt + completion + cached
-            "cycle_tokens": (
-                func.coalesce(UserStatistics.cycle_prompt_tokens, 0)
-                + func.coalesce(UserStatistics.cycle_completion_tokens, 0)
-                + func.coalesce(UserStatistics.cycle_cached_tokens, 0)
-            ),
-            # Computed: cycle_cost = LLM + Google API + Image Generation
-            "cycle_cost_eur": (
-                func.coalesce(UserStatistics.cycle_cost_eur, 0)
-                + func.coalesce(UserStatistics.cycle_google_api_cost_eur, 0)
-                + func.coalesce(UserStatistics.cycle_image_generation_cost_eur, 0)
-            ),
-        }
-
-        # Subquery labels (already defined as labeled columns in the SELECT)
-        subquery_sort_fields = {
-            "active_connectors_count",
-            "last_message_at",
-            "skills_count",
-            "mcp_servers_count",
-            "scheduled_actions_count",
-            "rag_spaces_count",
-            "is_usage_blocked",
-            "memories_count",
-            "interests_count",
-        }
-
-        # Apply dynamic sorting
-        from typing import Any
-
-        from sqlalchemy import nulls_last
-
-        sort_expr: Any
-        if sort_by in stats_sort_map:
-            sort_expr = stats_sort_map[sort_by]
-        elif sort_by in subquery_sort_fields:
-            sort_expr = literal_column(sort_by)
-        else:
-            sort_expr = getattr(User, sort_by, User.created_at)
-
-        # NULLS LAST ensures users with no data always appear at the bottom
-        if sort_order.lower() == "desc":
-            stmt = stmt.order_by(nulls_last(sort_expr.desc()))
-        else:
-            stmt = stmt.order_by(nulls_last(sort_expr.asc()))
+        # The primary key breaks every tie: a page boundary among equal values
+        # (a switch, a zero count) must not move between two requests, or an
+        # account is shown twice and another never (ADR-185).
+        sort_expr = admin_sort_expression(sort_by)
+        direction = sort_expr.desc() if sort_order.lower() == "desc" else sort_expr.asc()
+        stmt = stmt.order_by(nulls_last(direction), User.id.asc())
 
         # Apply pagination
         stmt = stmt.offset(offset).limit(page_size)

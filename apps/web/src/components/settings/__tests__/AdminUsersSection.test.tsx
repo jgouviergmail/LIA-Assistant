@@ -9,8 +9,15 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { answerConfirmDialog, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import {
+  answerConfirmDialog,
+  renderWithProviders,
+  screen,
+  waitFor,
+  within,
+} from '@/__tests__/test-utils';
 import type { AdminUserRow } from '../AdminUsersSection';
+import type { AdminUserSwitch } from '../admin-users/columns';
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/lib/api-client', () => ({ default: { get } }));
@@ -39,6 +46,32 @@ const ACT = {
   erase: 'settings.admin.users.actions.erase',
 };
 
+/** Every switch, most of them off — the table must render each one. */
+const SWITCHES: Record<AdminUserSwitch, boolean> = {
+  memory_enabled: true,
+  psyche_enabled: false,
+  psyche_display_avatar: false,
+  habits_enabled: false,
+  journals_enabled: false,
+  journal_consolidation_enabled: false,
+  journal_consolidation_with_history: false,
+  voice_enabled: false,
+  voice_mode_enabled: false,
+  phone_rich_context_enabled: false,
+  heartbeat_enabled: false,
+  interests_enabled: false,
+  relation_debrief_enabled: false,
+  image_generation_enabled: false,
+  image_generation_prompt_enhancement: false,
+  discovery_enabled: false,
+  peer_email_visible: false,
+  use_last_known_location: false,
+  login_notifications_enabled: false,
+  health_metrics_agents_enabled: false,
+  tokens_display_enabled: false,
+  debug_panel_enabled: false,
+};
+
 function adminUser(over: Partial<AdminUserRow> = {}): AdminUserRow {
   return {
     id: 'u1',
@@ -50,9 +83,7 @@ function adminUser(over: Partial<AdminUserRow> = {}): AdminUserRow {
     created_at: '2026-01-01T00:00:00Z',
     language: 'en',
     personality_id: null,
-    voice_enabled: false,
-    memory_enabled: true,
-    tokens_display_enabled: false,
+    ...SWITCHES,
     last_login: null,
     last_message_at: null,
     total_messages: 0,
@@ -172,12 +203,18 @@ describe('AdminUsersSection — activate / deactivate', () => {
   it('reports the server refusal so the optimistic toggle rolls back', async () => {
     toggleUserActive.mockResolvedValue({ success: false, error: 'not allowed' });
     const { user } = await renderLoaded([adminUser({ is_active: false })]);
-    await user.click(screen.getByRole('button', { name: `${ACT.activate} alice@example.com` }));
+    const row = screen.getByRole('row', { name: /alice@example\.com/ });
+    await user.click(
+      within(row).getByRole('button', { name: `${ACT.activate} alice@example.com` })
+    );
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('not allowed'));
     // React reverts the optimistic toggle when the transition settles, which can
     // land after the toast — wait for the confirmed state rather than sampling it.
+    // Polled inside the row: a role query weighs every element it scans, and the
+    // table carries a column per switch (measured: the page-wide poll overran its
+    // second under the coverage run, twice out of two).
     expect(
-      await screen.findByRole('button', { name: `${ACT.activate} alice@example.com` })
+      await within(row).findByRole('button', { name: `${ACT.activate} alice@example.com` })
     ).toBeInTheDocument();
   });
 });
@@ -247,7 +284,7 @@ describe('AdminUsersSection — destructive paths', () => {
 describe('AdminUsersSection — sorting', () => {
   it('refetches with the chosen sort column and marks the header', async () => {
     const { user } = await renderLoaded([adminUser()]);
-    await user.click(screen.getByRole('columnheader', { name: /table\.email/ }));
+    await user.click(screen.getByRole('button', { name: /table\.email/ }));
     await waitFor(() =>
       expect(get).toHaveBeenLastCalledWith(
         '/users/admin/search',
@@ -259,6 +296,89 @@ describe('AdminUsersSection — sorting', () => {
     expect(screen.getByRole('columnheader', { name: /table\.email/ })).toHaveAttribute(
       'aria-sort',
       'ascending'
+    );
+  });
+});
+
+describe('AdminUsersSection — columns', () => {
+  /** The header names in order, and the body cells of the first row. */
+  async function grid(users: AdminUserRow[]) {
+    await renderLoaded(users);
+    // The sort arrow is `aria-hidden` but still text: the NAME is what matters.
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map(header => (header.textContent ?? '').replace(/[↑↓]/g, ''));
+    const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+    return { headers, cells };
+  }
+
+  it('lays the columns out: identity, sign-up, status, counts, usage — then every switch', async () => {
+    const { headers } = await grid([adminUser()]);
+
+    expect(headers.slice(0, 3)).toEqual([
+      'settings.admin.users.table.email',
+      'settings.admin.users.table.name',
+      'settings.admin.users.table.registered',
+    ]);
+    const lastStat = headers.indexOf('settings.admin.users.table.cost_period');
+    const switches = headers.slice(lastStat + 1);
+    expect(switches).toHaveLength(Object.keys(SWITCHES).length);
+    expect(switches.every(name => name.startsWith('settings.admin.users.switches.'))).toBe(true);
+    expect(headers).not.toContain('settings.admin.users.table.voice');
+  });
+
+  it('shows the sign-up date as a machine-readable date', async () => {
+    const { cells } = await grid([adminUser({ created_at: '2025-03-14T09:30:00Z' })]);
+
+    const time = cells[2].querySelector('time');
+    expect(time).toHaveAttribute('dateTime', '2025-03-14T09:30:00Z');
+    expect(time?.textContent).toMatch(/2025/);
+  });
+
+  it('spells each switch state out for a screen reader, not by colour alone', async () => {
+    const { headers, cells } = await grid([
+      adminUser({ heartbeat_enabled: true, debug_panel_enabled: false }),
+    ]);
+
+    const on = headers.indexOf('settings.admin.users.switches.heartbeat_enabled');
+    const off = headers.indexOf('settings.admin.users.switches.debug_panel_enabled');
+    expect(cells[on]).toHaveTextContent('settings.admin.users.state_on');
+    expect(cells[off]).toHaveTextContent('settings.admin.users.state_off');
+    expect(cells[off]).toHaveTextContent('—');
+  });
+
+  it('sorts by a switch from the keyboard', async () => {
+    const { user } = await renderLoaded([adminUser()]);
+    const header = screen.getByRole('button', {
+      name: 'settings.admin.users.switches.heartbeat_enabled',
+    });
+
+    header.focus();
+    await user.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(get).toHaveBeenLastCalledWith(
+        '/users/admin/search',
+        expect.objectContaining({
+          params: expect.objectContaining({ sort_by: 'heartbeat_enabled', sort_order: 'asc' }),
+        })
+      )
+    );
+    expect(
+      screen.getByRole('columnheader', { name: 'settings.admin.users.switches.heartbeat_enabled' })
+    ).toHaveAttribute('aria-sort', 'ascending');
+  });
+
+  it('names every icon column in a legend a touch screen can read', async () => {
+    const { user } = await renderLoaded([adminUser()]);
+
+    await user.click(screen.getByText('settings.admin.users.legend_title'));
+
+    const entries = within(screen.getByRole('list')).getAllByRole('listitem');
+    // The blocked flag, the seven counts and every switch.
+    expect(entries).toHaveLength(1 + 7 + Object.keys(SWITCHES).length);
+    expect(entries.map(entry => entry.textContent)).toContain(
+      'settings.admin.users.switches.heartbeat_enabled'
     );
   });
 });

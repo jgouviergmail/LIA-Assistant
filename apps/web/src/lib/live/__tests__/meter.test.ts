@@ -7,10 +7,12 @@ import { describe, expect, it } from 'vitest';
 import {
   EMPTY_METER,
   accumulateUsage,
+  bankConnection,
   geminiUsageReport,
   meterCost,
   meterTotals,
   openaiUsageReport,
+  providerSeconds,
 } from '../meter';
 import type { LiveRates } from '../types';
 
@@ -116,6 +118,22 @@ describe('accumulateUsage', () => {
     meter = accumulateUsage(meter, { duration: { seconds: 12, contextRatio: null } });
     expect(meter.seconds).toBe(30);
     expect(meter.contextRatio).toBe(0.1);
+  });
+
+  it('banks a closed connection so the next one counts from zero ON TOP (ADR-329)', () => {
+    // Each wake opens a NEW provider session whose own count restarts at zero:
+    // without the bank, the bill would stand still until it caught up.
+    let meter = accumulateUsage(EMPTY_METER, { duration: { seconds: 90, contextRatio: 0.2 } });
+    meter = bankConnection(meter);
+    expect(providerSeconds(meter)).toBe(90);
+    meter = accumulateUsage(meter, { duration: { seconds: 10, contextRatio: 0.01 } });
+    expect(providerSeconds(meter)).toBe(100);
+    expect(meterCost(meter, GPT_LIVE_RATES)?.usd).toBeCloseTo(100 * (0.05 / 60), 12);
+    // Tokens are per turn already: a bank leaves them added.
+    const tokens = bankConnection(accumulateUsage(EMPTY_METER, geminiUsageReport(FRAME_1)!));
+    expect(meterTotals(tokens).tokensIn).toBe(1227);
+    // Nothing reported yet: no count.
+    expect(providerSeconds(EMPTY_METER)).toBeNull();
   });
 });
 

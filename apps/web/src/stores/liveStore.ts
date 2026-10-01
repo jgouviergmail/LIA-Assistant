@@ -21,7 +21,8 @@ import {
   type LiveEvent,
   type LiveStatus,
 } from '@/lib/live/session-machine';
-import { EMPTY_METER, accumulateUsage, type LiveMeter } from '@/lib/live/meter';
+import { EMPTY_METER, accumulateUsage, bankConnection, type LiveMeter } from '@/lib/live/meter';
+import type { WakeListenerState } from '@/lib/audio/wake-word/listener';
 import type {
   LiveOutcome,
   LiveRates,
@@ -74,8 +75,26 @@ export interface LiveStore {
   budgetEur: number | null;
   /** The provider's usage reports folded together — the banner's indicative meter. */
   meter: LiveMeter;
-  /** Epoch ms of the first `live` status of this session, for a duration-billed meter. */
+  /** Epoch ms of the current awake stretch's `live` status, for a duration-billed meter. */
   liveSince: number | null;
+  /** The completed awake stretches (ms): the clock measures time AWAKE (ADR-329). */
+  awakeMs: number;
+  /** Epoch ms the session went to sleep; null while awake. */
+  standbySince: number | null;
+  /** Epoch ms an unbroken sleep ends the session (``expired``). */
+  standbyDeadline: number | null;
+  /** How many times this session went to sleep. */
+  standbys: number;
+  /** The wake word's own state while asleep: loading its model, listening, or unavailable. */
+  wakeWordState: WakeListenerState;
+  /** The phrase that wakes the session, once its model is loaded. */
+  wakePhrase: string | null;
+  /**
+   * A wake the session could not complete while it stays asleep: the API's
+   * error code, null for the network. A fresh object per refusal, so the
+   * banner tells a repeated refusal again.
+   */
+  wakeRefusal: { code: string | null } | null;
   /**
    * A start asked outside the chat page (the header menu): the chat page's
    * session consumes it on mount. A module store survives the client-side
@@ -102,8 +121,16 @@ export interface LiveStore {
   setVendorBill: (bill: LiveVendorBill | null) => void;
   setVendorBilled: (vendorBilled: boolean) => void;
   reportUsage: (report: LiveUsageReport) => void;
-  /** The session became live: the meter's clock starts once, never on a reconnection. */
+  /** The session became live: the meter's clock starts once per awake stretch, never on a reconnection. */
   markLive: (at: number) => void;
+  /** The connection closed for a standby: the awake time and the connection's seconds are banked. */
+  enterStandby: (sleep: { at: number; deadline: number }) => void;
+  /** A wake opens a new connection. */
+  leaveStandby: () => void;
+  setWakeWord: (state: WakeListenerState, phrase: string | null) => void;
+  refuseWake: (code: string | null) => void;
+  /** The refusal was told to the person. */
+  clearWakeRefusal: () => void;
   finish: (outcome: LiveOutcome, error?: string | null, detail?: string | null) => void;
   /** The outcome was told to the person (a toast): clear it so a later mount stays quiet. */
   acknowledge: () => void;
@@ -133,6 +160,13 @@ const INITIAL = {
   budgetEur: null,
   meter: EMPTY_METER,
   liveSince: null,
+  awakeMs: 0,
+  standbySince: null as number | null,
+  standbyDeadline: null as number | null,
+  standbys: 0,
+  wakeWordState: 'idle' as WakeListenerState,
+  wakePhrase: null as string | null,
+  wakeRefusal: null as { code: string | null } | null,
   pendingStart: null,
   mode: 'delegated' as LiveSessionMode,
 };
@@ -175,6 +209,30 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   setVendorBill: bill => set({ vendorBill: bill }),
   reportUsage: report => set(state => ({ meter: accumulateUsage(state.meter, report) })),
   markLive: at => set(state => (state.liveSince === null ? { liveSince: at } : state)),
+  enterStandby: ({ at, deadline }) =>
+    set(state => ({
+      status: transition(state.status, 'standby'),
+      awakeMs: state.awakeMs + (state.liveSince === null ? 0 : Math.max(0, at - state.liveSince)),
+      liveSince: null,
+      standbySince: at,
+      standbyDeadline: deadline,
+      standbys: state.standbys + 1,
+      meter: bankConnection(state.meter),
+      voiceState: 'idle',
+      delegating: false,
+      muted: false,
+      timeLeftMs: null,
+      idleCountdownSeconds: null,
+    })),
+  leaveStandby: () =>
+    set(state => ({
+      status: transition(state.status, 'wake'),
+      standbySince: null,
+      standbyDeadline: null,
+    })),
+  setWakeWord: (wakeWordState, wakePhrase) => set({ wakeWordState, wakePhrase }),
+  refuseWake: code => set({ wakeRefusal: { code } }),
+  clearWakeRefusal: () => set({ wakeRefusal: null }),
   finish: (outcome, error = null, detail = null) =>
     set({
       lastActivity: null,
@@ -188,6 +246,11 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
       idleCountdownSeconds: null,
       expiresAt: null,
       extensionOffered: false,
+      standbySince: null,
+      standbyDeadline: null,
+      wakeWordState: 'idle',
+      wakePhrase: null,
+      wakeRefusal: null,
     }),
   acknowledge: () => set({ outcome: null, error: null, detail: null }),
   reset: () => set(INITIAL),

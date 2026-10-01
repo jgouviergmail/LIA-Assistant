@@ -34,6 +34,7 @@ while ``voice_sessions`` imports no carrier. The carriers keep what is theirs
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -264,10 +265,14 @@ _RELAY_RAN: Final[frozenset[str]] = frozenset(
 )
 
 
-async def _relay_direct(
+async def relay_direct_transcript(
     session: VoiceSession, transcript: VoiceTranscript
 ) -> tuple[str, str | None]:
     """The fate of a direct session's words, and their recap when they could not become a turn.
+
+    The end's settle calls it, and so does every standby of a direct live
+    session (ADR-329): the words said since the last wake become the person's
+    own turn each time the connection closes, as a single session's did.
 
     The phone's fallback push carries the neutral recap when the relay did
     not run; the browser's card carries the same, so nothing said is lost in
@@ -322,7 +327,7 @@ async def _settle_direct_relay(
     """
     fate, recap = RelayOutcome.FAILED.value, None
     try:
-        fate, recap = await _relay_direct(session, transcript)
+        fate, recap = await relay_direct_transcript(session, transcript)
         async with get_db_context() as db:
             await _settle_card(db, session, card_id, fate, recap, extensions=extensions)
     except Exception as exc:  # noqa: BLE001 — the fate is written whatever broke
@@ -338,6 +343,55 @@ async def _settle_direct_relay(
                 await _settle_card(db, session, card_id, fate, recap, extensions=extensions)
     live_direct_relay_total.labels(outcome=fate).inc()
     logger.info("voice_direct_relay_settled", origin_id=session.origin_id, outcome=fate)
+
+
+#: Keeps a standby relay's fate where the closing card will read it.
+KeepFate = Callable[[str, str | None], Awaitable[None]]
+
+
+def schedule_standby_relay(
+    session: VoiceSession, transcript: VoiceTranscript, *, keep_fate: KeepFate
+) -> None:
+    """Relay the words of a direct session that went to sleep, off the request path (ADR-329).
+
+    The same synthesis and relay as the end's, in a task the closing owns
+    (the background-task set, drained at shutdown): the standby answers at
+    once, the words become the person's own turn when they settled, and the
+    fate is kept for the closing card — no card exists yet to rewrite.
+    """
+    safe_fire_and_forget(
+        _settle_standby_relay(session, transcript, keep_fate),
+        name=f"voice_standby_relay_{session.run_id}",
+    )
+
+
+async def _settle_standby_relay(
+    session: VoiceSession, transcript: VoiceTranscript, keep_fate: KeepFate
+) -> None:
+    """Relay, keep the fate, tell the person's screen — whatever raised, the fate is kept."""
+    fate, recap = RelayOutcome.FAILED.value, None
+    try:
+        fate, recap = await relay_direct_transcript(session, transcript)
+    except Exception as exc:  # noqa: BLE001 — the fate is kept whatever broke
+        logger.error(
+            "voice_standby_relay_failed", origin_id=session.origin_id, error_type=type(exc).__name__
+        )
+    try:
+        await keep_fate(fate, recap)
+        async with get_db_context() as db:
+            user = await db.get(User, session.user_id)
+            if user is not None:
+                await _notify_relay(db, user, session, fate)
+            await db.commit()
+    except Exception as exc:  # noqa: BLE001 — a lost fate is logged and counted, never raised
+        logger.warning(
+            "voice_standby_relay_fate_unkept",
+            origin_id=session.origin_id,
+            fate=fate,
+            error_type=type(exc).__name__,
+        )
+    live_direct_relay_total.labels(outcome=fate).inc()
+    logger.info("voice_standby_relay_settled", origin_id=session.origin_id, outcome=fate)
 
 
 async def _rewrite_card(
@@ -364,6 +418,9 @@ async def _rewrite_card(
     duration_seconds = int(figures.get("duration_seconds") or 0)
     delegations = int(figures.get("delegations") or 0)
     voice_turns = int(figures.get("voice_turns") or 0)
+    # The closing's own figures of the sleeps travel with the rewrite.
+    standbys = int(figures.get("standbys") or 0)
+    standby_recaps = [str(recap) for recap in figures.get("standby_recaps") or ()]
     usage = await aggregate_usage(db, [session.run_id])
     await rewrite_session_card(
         db,
@@ -379,6 +436,8 @@ async def _rewrite_card(
             extensions=extensions,
             relay=relay,
             relay_summary=relay_summary,
+            standbys=standbys,
+            standby_recaps=standby_recaps,
         ),
         metadata=build_live_session_summary_metadata(
             run_id=session.run_id,
@@ -392,6 +451,8 @@ async def _rewrite_card(
             mode=session.mode,
             relay=relay,
             relay_summary=relay_summary,
+            standbys=standbys,
+            standby_recaps=standby_recaps,
         ),
     )
 
@@ -495,6 +556,8 @@ async def close_voice_session(
     transcript: VoiceTranscript | None = None,
     started_at: datetime | None = None,
     learn_inline: bool = False,
+    standbys: int = 0,
+    standby_relays: list[tuple[str, str | None]] | None = None,
 ) -> ClosedSession:
     """Close a session's books: rows, card, decision — and, delegated, the learning.
 
@@ -515,6 +578,11 @@ async def close_voice_session(
         started_at: When the session started — required with a transcript
             that is archived.
         learn_inline: Tests only.
+        standbys: How many times a browser session went to sleep (ADR-329);
+            the phone passes none.
+        standby_relays: The ``(fate, recap)`` of each standby's relay of a
+            direct browser session, in order; a relay still running at the
+            end is not among them.
 
     Returns:
         The figures the carrier reports.
@@ -547,6 +615,8 @@ async def close_voice_session(
     voice_turns = await count_voice_turns(
         db, conversation_id=session.conversation_id, live_session_id=session.key
     )
+    # The words a standby could not turn into a turn stay on the card.
+    standby_recaps = [recap for _, recap in standby_relays or () if recap]
     row = await archive_row(
         db,
         conversation_id=session.conversation_id,
@@ -561,6 +631,8 @@ async def close_voice_session(
             usage=usage,
             extensions=extensions,
             relay=relay,
+            standbys=standbys,
+            standby_recaps=standby_recaps,
         ),
         metadata=build_live_session_summary_metadata(
             run_id=session.run_id,
@@ -573,6 +645,8 @@ async def close_voice_session(
             extensions=extensions,
             mode=session.mode,
             relay=relay,
+            standbys=standbys,
+            standby_recaps=standby_recaps,
         ),
     )
     await db.commit()
@@ -624,6 +698,8 @@ __all__ = [
     "archive_row",
     "archive_voice_turns",
     "close_voice_session",
+    "relay_direct_transcript",
+    "schedule_standby_relay",
     "schedule_voice_learning",
     "voice_turn_messages",
 ]

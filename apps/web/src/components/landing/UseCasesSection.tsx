@@ -17,11 +17,13 @@ export async function UseCasesSection({ lng }: { lng: string }) {
       aria-labelledby="use-cases-title"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 max-w-3xl">
+        {/* The intro spans the column its cards span: capped at 48rem it sat on
+            two lines above a 1088px grid (measured 2026-10-01 at 1280-1920px). */}
+        <div className="mb-8">
           <h2 id="use-cases-title" className="text-3xl font-bold tracking-tight mobile:text-4xl">
             {t('landing.editorial.examples_title')}
           </h2>
-          <p className="mt-4 max-w-[65ch] leading-relaxed text-muted-foreground">
+          <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">
             {t('landing.editorial.examples_sub')}
           </p>
         </div>

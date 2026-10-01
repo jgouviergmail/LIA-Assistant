@@ -74,7 +74,10 @@ const ALLOWED: Record<string, string> = {
   'lib/api-client.ts': 'the client itself',
   'lib/api-server.ts': 'the Server Action client itself',
   'lib/api/chat.ts': 'SSE: needs the raw ReadableStream body, which apiClient consumes as text',
-  'lib/audio/sherpaKws.ts': 'static WASM/model assets from /public, not the API',
+  'lib/audio/wake-word/ort-runtime.ts':
+    'wake-word model files from /public, as bytes checked against their SHA-256 (ADR-329)',
+  'lib/audio/wake-word/worker.ts':
+    'the wake-word manifest from /public, read inside a worker that has no apiClient (ADR-329)',
   'lib/utils/download-image.ts': 'binary blob download, not a JSON payload',
   'lib/utils/attachment-blob.ts': 'binary blob fetch for the document viewer, not a JSON payload',
   'lib/api/mcp-apps.ts': 'widget bridge: called from the sandboxed iframe shell origin',
@@ -94,6 +97,14 @@ const ALLOWED: Record<string, string> = {
     'application/json; the session cookie and the native-shell marker are kept by hand',
   'hooks/useAPIHealth.ts':
     'availability probe: a 401 here means "API unreachable", it must not eject the user to /login',
+  'components/landing/video/use-landing-video.ts':
+    'the landing video descriptor and beat map (ADR-330) come from a same-origin Next route ' +
+    '(/api/landing-media), anonymous by design on a public page: no API base, no session to ' +
+    'send, and a failure must surface as "no video", never as an eject or an error contract',
+  'lib/landing/media-origin.ts':
+    "server-side fetch of the operator's media manifest from a route handler (ADR-330): no " +
+    'browser, no session, no API — the origin is a static host named at run time, read behind ' +
+    'a timeout and a per-process cache of its own',
   'lib/product-telemetry.ts':
     'fire-and-forget telemetry (ADR-178): keepalive/sendBeacon on pagehide, anonymous allowed, ' +
     'failures swallowed — apiClient auth-eject and error surfaces must never trigger',

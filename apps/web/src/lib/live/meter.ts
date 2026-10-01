@@ -32,8 +32,14 @@ export interface LiveMeter {
   thoughts: number;
   /** The context size at the last report (tokens), or null before any. */
   context: number | null;
-  /** The provider's own count of the session's seconds (duration-billed models). */
+  /** The provider's own count of the CURRENT connection's seconds (duration-billed models). */
   seconds: number | null;
+  /**
+   * The seconds of the connections a standby closed (ADR-329): each wake opens
+   * a new provider session whose count restarts at zero, so the closed ones
+   * are banked here and the bill never stands still.
+   */
+  secondsBanked: number;
   /** The share of the context window in use at the last report, 0..1, or null. */
   contextRatio: number | null;
   /** How many reports were folded in. */
@@ -48,9 +54,21 @@ export const EMPTY_METER: LiveMeter = {
   thoughts: 0,
   context: null,
   seconds: null,
+  secondsBanked: 0,
   contextRatio: null,
   reports: 0,
 };
+
+/** The provider's count of the session's seconds over every connection, or null before any. */
+export function providerSeconds(meter: LiveMeter): number | null {
+  if (meter.seconds === null && meter.secondsBanked === 0) return null;
+  return meter.secondsBanked + (meter.seconds ?? 0);
+}
+
+/** A standby closed the connection: its seconds join the bank, the next counts from zero. */
+export function bankConnection(meter: LiveMeter): LiveMeter {
+  return { ...meter, secondsBanked: providerSeconds(meter) ?? 0, seconds: null };
+}
 
 /** Fold one provider report into the meter: tokens ADD, a duration REPLACES. */
 export function accumulateUsage(meter: LiveMeter, report: LiveUsageReport): LiveMeter {
@@ -104,7 +122,7 @@ export function meterCost(meter: LiveMeter, rates: LiveRates, seconds?: number):
         meter.audioOut * (rates.audio_output_unit_price ?? 0)) /
       MILLION;
   } else {
-    const billed = Math.max(0, seconds ?? meter.seconds ?? 0);
+    const billed = Math.max(0, seconds ?? providerSeconds(meter) ?? 0);
     const perSecond =
       rates.pricing_unit === 'per_audio_minute'
         ? rates.input_unit_price / 60

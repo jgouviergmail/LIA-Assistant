@@ -123,7 +123,7 @@ class HeartbeatProactiveTask:
     ) -> bool:
         """Check task-specific eligibility.
 
-        Common checks (time window, quota, cooldown) are handled by
+        Common checks (time window, cooldowns, activity) are handled by
         EligibilityChecker. This checks heartbeat-specific conditions, then
         the deterministic tick scoring (ADR-214 §11.2, own flag, default
         OFF): a tick outside the learned rhythm defers ONLY when a later
@@ -137,8 +137,8 @@ class HeartbeatProactiveTask:
             # A moment carries a short validity window, and every deferral here
             # answers « not now, later today ». A tick deferred comes back; a
             # moment deferred expires unserved, so the deferrals are bypassed —
-            # and ONLY they. The window, the daily quota and the three cooldowns
-            # live in EligibilityChecker and are applied in full (ADR-281).
+            # and ONLY they. The window and the three cooldowns live in
+            # EligibilityChecker and are applied in full (ADR-281, ADR-328).
             return True
         # ONE calendar read (cached), two questions. Before the rhythm, and
         # before any model call: someone in a meeting is the one person the

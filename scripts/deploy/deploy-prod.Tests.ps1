@@ -152,6 +152,11 @@ FERNET_KEY=fake-fernet
         Set-Content (Join-Path $proj "apps/web/src/page.tsx") "// WEB_SENTINEL"
         Set-Content (Join-Path $proj "apps/web/Dockerfile.prod") "FROM scratch"
         Set-Content (Join-Path $proj "apps/web/package.json") '{"version": "9.9.9-test"}'
+        # The web image's `pnpm run build` runs this script before `next build`
+        # (ADR-329): left out of the bundle, the production build failed on
+        # "Cannot find module .../copy-ort-runtime.mjs" (2026-10-01 deploy).
+        New-Item -ItemType Directory (Join-Path $proj "apps/web/scripts") -Force | Out-Null
+        Set-Content (Join-Path $proj "apps/web/scripts/copy-ort-runtime.mjs") "// ORT_SENTINEL"
 
         # Real git repo → prepare-prod's `git rev-parse HEAD` yields a
         # deterministic, assertable provenance SHA. autocrlf off: silence
@@ -624,6 +629,30 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         (Join-Path $prod "infrastructure/sandbox-egress/entrypoint.sh") | Should -Exist
         Get-Content (Join-Path $prod "infrastructure/sandbox-egress/entrypoint.sh") -Raw |
             Should -Match "EGRESS_SENTINEL"
+    }
+
+    It "stages the scripts the web image's build runs" {
+        (Join-Path $prod "apps/web/scripts/copy-ort-runtime.mjs") | Should -Exist
+        Get-Content (Join-Path $prod "apps/web/scripts/copy-ort-runtime.mjs") -Raw |
+            Should -Match "ORT_SENTINEL"
+    }
+
+    It "stages every script apps/web's build command names" {
+        # The staging list is hand-maintained; the build command is the
+        # authority on what the web image runs. Read both from the REPOSITORY
+        # and refuse any `scripts/<file>` the build names and the list forgets.
+        $repoRoot = (Resolve-Path (Join-Path $script:RepoDeployDir "../..")).Path
+        $prepare = Get-Content (Join-Path $repoRoot "scripts/deploy/prepare-prod.ps1") -Raw
+        $block = [regex]::Match($prepare, '(?m)\$webScripts = @\((?<body>[\s\S]*?)^\)').Groups['body'].Value
+        $staged = @()
+        $staged = [regex]::Matches($block, '"(?<name>[A-Za-z0-9_.-]+)"') | ForEach-Object { $_.Groups['name'].Value }
+        $build = (Get-Content (Join-Path $repoRoot "apps/web/package.json") -Raw | ConvertFrom-Json).scripts.build
+        $named = @()
+        $named = [regex]::Matches($build, 'scripts/(?<file>[A-Za-z0-9_.-]+)') | ForEach-Object { $_.Groups['file'].Value }
+        $named | Should -Contain "copy-ort-runtime.mjs"
+        foreach ($file in $named) {
+            $staged | Should -Contain $file
+        }
     }
 
     It "stages every infrastructure/ directory a shipped compose file bind-mounts" {

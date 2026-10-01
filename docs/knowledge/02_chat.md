@@ -221,7 +221,7 @@ The **/resume** command triggers **intelligent context compaction**:
 • When done, the toast morphs into a confirmation *"Conversation summarized — N tokens freed"*
 • If the summary cannot complete (LLM outage, timeout), an **explicit fallback** cleanly truncates the older history with a visible notice rather than a silent loss
 
-**📊 Persistent indicator:** A discreet pill in the chat header (next to the search box) continuously shows your *tokens/threshold* usage as a coloured ring — you can see at any moment when the next compaction will fire.
+**📊 Persistent indicator:** A discreet pill in the centre of the chat header (between the hands-free badge and the knowledge-spaces count) continuously shows your *tokens/threshold* usage as a coloured ring — you can see at any moment when the next compaction will fire.
 
 **💡 Note:** Compaction also triggers automatically when the conversation becomes very long. The /resume command lets you force it at any time.
 
@@ -483,4 +483,4 @@ the eyes stay still.
 Yes. When a message lands in your conversation from elsewhere — another tab or device, Telegram, a voice session, a routine, a reminder — the chat adds it without reloading the page: what is already on screen stays as it is, your selection and open panels included. If you are reading higher up, you are not moved; the round button at the bottom counts what arrived. Nothing changes while an answer is being written: the new messages join once it is done. And if the connection dropped (network, a laptop asleep), the chat catches up when it comes back or when you return to the tab.
 
 ## Can I send an answer by e-mail?
-Yes. Under each answer, « Send by e-mail » attaches the answer as the very Markdown file « Download » gives you, with the subject and the words you choose — LIA writes nothing in your place. It leaves from your connected mailbox, or, without one, goes to your own verified address. The answers you kept (« Bookmarks ») can be sent the same way.
+Yes. Under each answer, « Send by e-mail » attaches the answer as the very Markdown file « Download » gives you, with the subject and the words you choose — LIA writes nothing in your place. It leaves from your connected mailbox, or, without one, goes to your own verified address. While you type a recipient, the contacts of your contacts connector (Google, Apple or Microsoft) are suggested by last name or first name — accents and punctuation ignored — or by phone number; picking one puts its address in the field. Without a contacts connector, the field stays a plain address field. The answers you kept (« Bookmarks ») can be sent the same way.

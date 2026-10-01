@@ -607,6 +607,144 @@
       "title": "Direct-session relays (by outcome)",
       "type": "timeseries",
       "description": "A DIRECT session's words relayed into the chat as the person's own turn at its end (ADR-301), by outcome — the phone's relay vocabulary on the browser. `or vector(0)`: a counter that never fired exposes no series."
+    },
+    {
+      "id": 16,
+      "type": "row",
+      "title": "Standby (ADR-329)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 46
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 17,
+      "title": "Sessions on standby",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 47
+      },
+      "targets": [
+        {
+          "expr": "max(live_sessions_standby) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "Standbys by reason (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 6,
+        "y": 47
+      },
+      "targets": [
+        {
+          "expr": "sum by (provider, reason) (increase(live_session_standby_total[1h])) or vector(0)",
+          "legendFormat": "{{provider}} · {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "title": "Wakes by reason and outcome (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 15,
+        "y": 47
+      },
+      "targets": [
+        {
+          "expr": "sum by (reason, outcome) (increase(live_session_wakes_total[1h])) or vector(0)",
+          "legendFormat": "{{reason}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          },
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ]
 }

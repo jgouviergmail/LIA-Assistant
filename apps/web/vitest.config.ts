@@ -346,9 +346,11 @@ export default defineConfig({
         // wave, the data-layer wave that stopped mocking the hooks out, and
         // finally the voice/push chain (WS transport, push-to-talk state
         // machine, FCM enrolment). Deliberately NOT covered here and left to
-        // other lanes: App Router pages (hermetic E2E) and the WASM/Web-Audio
-        // modules `sherpaKws` / `audio-queue`, which jsdom cannot simulate
-        // without the test degenerating into a test of its own mocks.
+        // other lanes: App Router pages (hermetic E2E) and the Web-Audio
+        // module `audio-queue`, which jsdom cannot simulate without the test
+        // degenerating into a test of its own mocks. The wake word's WASM
+        // runtime is held by a node-environment test against the real models
+        // (`wake-word/__tests__/parity.test.ts`), not by jsdom.
         // Re-locked 2026-08-20 (473 files / 6,012 tests) after the
         // expressive-eyes waves (engine matrix + idle life + performances +
         // touch toolbar): measured 76.20 / 71.39 / 73.20 / 76.85 →

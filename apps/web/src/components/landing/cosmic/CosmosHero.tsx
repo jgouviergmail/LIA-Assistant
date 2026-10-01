@@ -15,7 +15,7 @@ import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
 import type { Language } from '@/i18n/settings';
 import { InteractiveChatMockup } from '../InteractiveChatMockup';
-import { LANDING_STATS } from '../constants';
+import { LANDING_PLANETARIUM_ENABLED, LANDING_STATS } from '../constants';
 import { APP_VERSION, LAST_UPDATED } from '@/lib/version';
 import { Planetarium } from './Planetarium';
 import { TrustStat } from './TrustStat';
@@ -47,7 +47,16 @@ function rise(delayMs: number): { style: React.CSSProperties } {
   return { style: { animationDelay: `${delayMs}ms` } };
 }
 
-export async function CosmosHero({ lng }: { lng: string }) {
+interface CosmosHeroProps {
+  lng: string;
+  /** Draw the planetarium around the mockup — the landing switch by default. */
+  planetarium?: boolean;
+}
+
+export async function CosmosHero({
+  lng,
+  planetarium = LANDING_PLANETARIUM_ENABLED,
+}: CosmosHeroProps) {
   const { t } = await initI18next(lng);
   const registerHref = buildLocalizedPath('/register', lng as Language);
   // The demo CTA exists ONLY when the guided mission is the /demo experience:
@@ -176,14 +185,16 @@ export async function CosmosHero({ lng }: { lng: string }) {
             </div>
           </div>
 
-          {/* The planetarium: LIA's chat at the center, her features in orbit.
+          {/* The planetarium: LIA's chat at the center, her features in orbit —
+              when the landing switch draws it; otherwise the mockup alone, in a
+              plain centred box so no orbit height is reserved for nothing.
               min-w-0 on the orbit-zone grid item: without it a single
               unbreakable line inside a mockup act sets the implicit track's
               min-content and silently widens the hero past a phone viewport
               (the historical hero-overflow mechanism, one level up). */}
           <div {...rise(RISE_DELAYS.mockup)} className="cosmos-rise w-full min-w-0">
-            <div className="cosmos-orbit-zone">
-              <Planetarium />
+            <div className={planetarium ? 'cosmos-orbit-zone' : 'grid place-items-center'}>
+              {planetarium && <Planetarium />}
               <div className="relative z-10 w-full min-w-0 rounded-2xl bg-background">
                 <InteractiveChatMockup lng={lng} withCta={false} />
               </div>

@@ -541,11 +541,6 @@ class HeartbeatSettingsResponse(BaseModel):
     """User heartbeat settings response with source availability indicators."""
 
     heartbeat_enabled: bool = Field(description="Whether heartbeat is enabled")
-    heartbeat_min_per_day: int = Field(ge=1, le=8, description="Minimum notifications per day")
-    heartbeat_max_per_day: int = Field(ge=1, le=8, description="Maximum notifications per day")
-    heartbeat_push_enabled: bool = Field(
-        description="Whether push notifications (FCM/Telegram) are enabled"
-    )
     heartbeat_notify_start_hour: int = Field(
         ge=0, le=23, description="Start hour for notification window (0-23)"
     )
@@ -609,9 +604,6 @@ class HeartbeatSettingsUpdate(BaseModel):
     """Partial update for heartbeat settings."""
 
     heartbeat_enabled: bool | None = None
-    heartbeat_min_per_day: int | None = Field(None, ge=1, le=8)
-    heartbeat_max_per_day: int | None = Field(None, ge=1, le=8)
-    heartbeat_push_enabled: bool | None = None
     heartbeat_notify_start_hour: int | None = Field(None, ge=0, le=23)
     heartbeat_notify_end_hour: int | None = Field(None, ge=0, le=23)
     # `None` means "not part of this PATCH" — an empty LIST means "I refuse

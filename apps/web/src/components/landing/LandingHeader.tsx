@@ -148,12 +148,13 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href={`/${lng}`} className="flex items-center gap-2 font-bold text-lg">
+            {/* `landing-logo`: the beat's heartbeat hook (ADR-330, amended). */}
             <Image
               src="/v4-lia-brain.svg"
               alt="LIA"
               width={28}
               height={28}
-              className="rounded-md"
+              className="landing-logo rounded-md"
             />
             <span>LIA</span>
           </Link>

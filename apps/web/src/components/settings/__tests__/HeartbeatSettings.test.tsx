@@ -47,9 +47,6 @@ function hook(over: Partial<HeartbeatHook> = {}) {
     // suite green over a component reading `undefined`.
     settings: {
       heartbeat_enabled: false,
-      heartbeat_min_per_day: 2,
-      heartbeat_max_per_day: 6,
-      heartbeat_push_enabled: false,
       heartbeat_notify_start_hour: 8,
       heartbeat_notify_end_hour: 22,
       available_sources: ['calendar'],
@@ -159,7 +156,7 @@ describe('HeartbeatSettings — per-source permission (ADR-197)', () => {
 });
 
 describe('HeartbeatSettings — folded by default', () => {
-  // The panel stacks a frequency form, eleven source switches and a ten-row
+  // The panel stacks an hour window, eleven source switches and a ten-row
   // history. Shown at once that is a wall, and the reader came to change one
   // thing. Both blocks fold CLOSED; the history additionally does not FETCH
   // until opened, which is the difference between "not shown" and "not paid

@@ -104,12 +104,6 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000',
   },
 
-  // Enable WASM async for Sherpa-onnx KWS
-  webpack: (config) => {
-    config.experiments = { ...config.experiments, asyncWebAssembly: true };
-    return config;
-  },
-
   // Headers for security
   async headers() {
     return [
@@ -119,6 +113,25 @@ const nextConfig: NextConfig = {
         // promptly instead of being pinned by an HTTP cache.
         source: '/firebase-messaging-sw.js',
         headers: [{ key: 'Cache-Control', value: 'no-cache' }],
+      },
+      {
+        // Wake-word models (ADR-329): every model file is named after its
+        // SHA-256 (a retrained model is a new URL), so it is immutable ...
+        source: '/models/wake/:version/:directory/:file',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
+        // ... except the manifest, which keeps its name and points at them:
+        // revalidated, so a new model reaches the browser at once. Declared
+        // AFTER the rule above, which it overrides (the last match wins).
+        source: '/models/wake/:version/:language/manifest.json',
+        headers: [{ key: 'Cache-Control', value: 'no-cache' }],
+      },
+      {
+        // ONNX Runtime Web's binary, under its release's directory
+        // (scripts/copy-ort-runtime.mjs): an upgrade is a new URL.
+        source: '/ort/:version/:file',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
         // Every route EXCEPT the widget airlock (negative lookahead): the

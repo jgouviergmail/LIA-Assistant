@@ -90,3 +90,47 @@ test.describe('chat header reachability', () => {
     });
   }
 });
+
+test.describe('chat header — the centre group in the owner order', () => {
+  /**
+   * Owner order (2026-10-01): hands-free mode, context usage, knowledge
+   * spaces — and every one an icon (plus a count for the spaces), the words
+   * moved to the accessible names. The hands-free badge is ALWAYS there: off
+   * (the fixtures never enable it) it is the greyed door that turns it on.
+   */
+  for (const width of [320, 1280] as const) {
+    test(`hands-free, context, spaces — left to right at ${width} px`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }) => {
+      await authenticate({ language: 'fr' });
+      await mockApi(loadedChatRoutes());
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/fr/dashboard/chat');
+      await page.locator('textarea').first().waitFor({ state: 'visible' });
+      await waitForStableControls(page, 'chat-header');
+
+      const handsFree = page.getByRole('button', { name: 'Activer le mode mains libres' });
+      const context = page.getByTestId('context-usage-pill');
+      const spaces = page.getByTestId('active-spaces-indicator');
+      await expect(handsFree).toBeVisible();
+      await expect(handsFree).toHaveAttribute('aria-pressed', 'false');
+      await expect(context).toBeVisible();
+      await expect(spaces).toBeVisible();
+
+      const [a, b, c] = await Promise.all([
+        handsFree.boundingBox(),
+        context.boundingBox(),
+        spaces.boundingBox(),
+      ]);
+      expect(a && b && c, 'the three controls must be laid out').toBeTruthy();
+      expect(a!.x + a!.width).toBeLessThanOrEqual(b!.x);
+      expect(b!.x + b!.width).toBeLessThanOrEqual(c!.x);
+
+      // Icons only: no visible word on the badge, a bare count on the spaces.
+      await expect(handsFree).toHaveText('');
+      await expect(spaces).toHaveText('2');
+    });
+  }
+});

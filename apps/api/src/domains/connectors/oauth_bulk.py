@@ -1,6 +1,7 @@
 """Provider-specific scope rules for a single OAuth reconnection journey."""
 
 from dataclasses import dataclass
+from typing import Literal
 from uuid import UUID
 
 from src.core.constants import (
@@ -84,8 +85,32 @@ class ReconnectionPlan:
     expected_grant_id: UUID | None
 
 
-def _belongs_to_provider(provider: str, connector_type: ConnectorType) -> bool:
-    return connector_type.is_google if provider == "google" else connector_type.is_microsoft
+BulkProvider = Literal["google", "microsoft"]
+
+
+def bulk_reconnect_provider(
+    connector_type: ConnectorType, status: ConnectorStatus
+) -> BulkProvider | None:
+    """The provider whose grouped consent can reconnect this row, if any.
+
+    The one eligibility rule: an EXPIRED row (status ``ERROR``) of a service
+    the grouped journey knows the scopes of. The legacy ``gmail`` type is not
+    one of them, and neither is a row whose credentials merely fail to decrypt
+    while it is still ``ACTIVE`` — the connector health reports that one as
+    broken too, and offering it would fail the whole consent. Every surface
+    that offers « reconnect my services » reads this, and the plan refuses the
+    rest with the same rule.
+
+    Args:
+        connector_type: The row's service.
+        status: The row's stored status.
+
+    Returns:
+        ``google`` or ``microsoft``, or None when the row is not eligible.
+    """
+    if status != ConnectorStatus.ERROR or connector_type not in _SCOPES:
+        return None
+    return "google" if connector_type.is_google else "microsoft"
 
 
 def _selected_connectors(
@@ -96,10 +121,8 @@ def _selected_connectors(
     for connector_type in selected:
         connector = by_type.get(connector_type)
         if (
-            not _belongs_to_provider(provider, connector_type)
-            or connector_type not in _SCOPES
-            or connector is None
-            or connector.status != ConnectorStatus.ERROR
+            connector is None
+            or bulk_reconnect_provider(connector.connector_type, connector.status) != provider
         ):
             raise ValueError("Only expired, configured provider connectors can be reconnected")
         chosen.append(connector)

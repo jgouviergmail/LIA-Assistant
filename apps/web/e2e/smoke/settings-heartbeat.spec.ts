@@ -57,9 +57,6 @@ const LABELS: Record<string, string> = {
 /** Mirrors `HeartbeatSettings` (src/hooks/useHeartbeatSettings.ts). */
 const SETTINGS = {
   heartbeat_enabled: true,
-  heartbeat_min_per_day: 1,
-  heartbeat_max_per_day: 3,
-  heartbeat_push_enabled: true,
   heartbeat_notify_start_hour: 8,
   heartbeat_notify_end_hour: 22,
   // Habits ARE available (the profile computed); health signals are not.

@@ -20,11 +20,11 @@ One tick does four things, in this order and for a reason:
    from an EXPLICIT result. Never from the absence of an exception.
 
 **What a moment bypasses, and what it does not.** It is served through the same
-``ProactiveTaskRunner`` as a push wake, with ``skip_probabilistic_gate=True``:
-the « guaranteed minimum » smoothing exists to spread a day's quota over a
-window, and a moment answers an instant. Everything else holds — notification
-window, daily quota, global cooldown, cross-type cooldown, activity cooldown —
-so a moment changes WHEN a decision is taken, never how many may fire.
+``ProactiveTaskRunner`` and the same eligibility checker as a tick and a push
+wake. The heartbeat has no daily quota and no probabilistic smoothing (ADR-328),
+and everything else holds — notification window, global cooldown, cross-type
+cooldown, activity cooldown — so a moment changes WHEN a decision is taken,
+never what may refuse it.
 
 The capability is read at CALL time, not at boot: an operator switching moments
 off must be obeyed without a restart.
@@ -228,7 +228,6 @@ async def _serve(
         eligibility_checker=_create_heartbeat_eligibility_checker(),
         batch_size=1,
         user_ids=[user_id],
-        skip_probabilistic_gate=True,
     )
     if stats.success > 0:
         return MomentState.SERVED, None

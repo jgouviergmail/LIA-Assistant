@@ -4,8 +4,9 @@
  * useEyesAnchor — computes the widget's DEFAULT docked position: centered
  * (both axes) between the chat header's search control
  * (`data-eyes-anchor-start` — carried by BOTH its responsive forms, the
- * first visible one wins) and the RAG-knowledge badge
- * (`data-eyes-anchor-end`).
+ * first visible one wins) and the header's centre group of controls
+ * (`data-eyes-anchor-end` — hands-free, context, spaces; its LEFT edge is the
+ * first control the eyes must not cover, whatever the group holds).
  *
  * The horizontal clamp order is deliberate: NEVER overlap the end landmark
  * (click interception is an e2e-proven trap), then stay right of the start

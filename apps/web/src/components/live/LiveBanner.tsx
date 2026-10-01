@@ -25,6 +25,15 @@
  * talk, and at the end what they asked is relayed to their conversation as
  * a message from them — which the API makes true by construction (no turn
  * archived, the transcript kept and relayed at the closing).
+ *
+ * A session sleeps (ADR-329): the status line says so, a note says what wakes
+ * it — its phrase, or the « Wake up » button when no phrase can listen — and
+ * that nothing bills meanwhile; on an iPhone, that the screen must stay on.
+ * The « standby » door is offered while live, LIA speaking included (the
+ * person's own act cuts the voice), closed while LIA works on a delegated
+ * request, whose answer the voice is waiting for; the microphone toggle is hidden
+ * while asleep, since the session holds no microphone of its own. A wake
+ * that could not complete is told once, the session still asleep.
  */
 import {
   AudioLines,
@@ -33,8 +42,10 @@ import {
   Forward,
   Mic,
   MicOff,
+  Moon,
   PhoneOff,
   Square,
+  Sun,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,7 +53,8 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import type { UseLiveSessionReturn } from '@/hooks/useLiveSession';
-import { liveErrorKey } from '@/lib/live/live-message';
+import { liveErrorKey, wakeRefusalKey } from '@/lib/live/live-message';
+import { isAppleMobile } from '@/lib/live/support';
 import type { LiveOutcome } from '@/lib/live/types';
 import { cn } from '@/lib/utils';
 import { useLiveStore } from '@/stores/liveStore';
@@ -125,9 +137,84 @@ function useVendorBillToast(): void {
   }, [bill, t, i18n.language]);
 }
 
+/** A wake the session could not complete, told once; the session stays asleep. */
+function useWakeRefusalToast(): void {
+  const { t } = useTranslation();
+  const refusal = useLiveStore(state => state.wakeRefusal);
+  useEffect(() => {
+    if (refusal === null) return;
+    toast.error(t(wakeRefusalKey(refusal.code)));
+    useLiveStore.getState().clearWakeRefusal();
+  }, [refusal, t]);
+}
+
+/**
+ * « Standby » while live (closed while LIA works, or while a connection
+ * opens), « Wake up » while asleep. ONE button whose role follows
+ * the session: the same DOM node throughout, so a keyboard user's focus
+ * survives the sleep and the wake.
+ */
+function StandbyControl({ session }: { session: UseLiveSessionReturn }) {
+  const { t } = useTranslation();
+  const status = useLiveStore(state => state.status);
+  // A delegated request in flight holds the door: its answer is what the voice
+  // waits for. LIA speaking does not — the person's own act cuts the voice
+  // (owner request 2026-10-01); only the silence clock waits for an answer's end.
+  const busy = useLiveStore(state => state.delegating);
+  const asleep = status === 'standby';
+  const label = asleep ? t('live.button.wake') : t('live.button.standby');
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={asleep ? 'secondary' : 'ghost'}
+      onClick={() => void (asleep ? session.wake() : session.standby())}
+      disabled={!asleep && (status !== 'live' || busy)}
+      aria-label={label}
+      title={label}
+      className={cn('min-h-11 min-w-11', asleep && 'gap-1.5')}
+    >
+      {asleep ? (
+        <Sun className="h-4 w-4" aria-hidden="true" />
+      ) : (
+        <Moon className="h-4 w-4" aria-hidden="true" />
+      )}
+      {asleep && <span>{label}</span>}
+    </Button>
+  );
+}
+
+/** What wakes a sleeping session, and that nothing bills meanwhile. */
+function StandbyNote() {
+  const { t } = useTranslation();
+  const asleep = useLiveStore(state => state.status === 'standby');
+  const listening = useLiveStore(state => state.wakeWordState === 'listening');
+  const phrase = useLiveStore(state => state.wakePhrase);
+  if (!asleep) return null;
+  return (
+    <p
+      role="note"
+      data-testid="live-standby-note"
+      className="flex items-start gap-1.5 text-muted-foreground"
+    >
+      <Moon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>
+        {listening && phrase
+          ? t('live.standby.listening', { phrase })
+          : t('live.standby.button_only')}
+        {/* The wake word hears a visible page only: a locked iPhone hears nothing. */}
+        {isAppleMobile() && ` ${t('live.standby.screen_on')}`}
+      </span>
+    </p>
+  );
+}
+
+/** The session's own microphone; none while asleep (the wake word's is not the session's). */
 function MicrophoneControl({ session }: { session: UseLiveSessionReturn }) {
   const { t } = useTranslation();
   const muted = useLiveStore(state => state.muted);
+  const asleep = useLiveStore(state => state.status === 'standby');
+  if (asleep) return null;
   return (
     <Button
       type="button"
@@ -160,6 +247,7 @@ export function LiveBanner({ session, onStopAll }: LiveBannerProps) {
   useOutcomeToast();
   useVendorBillToast();
   useStartedToast();
+  useWakeRefusalToast();
 
   if (status === 'idle' || status === 'ended') return null;
 
@@ -209,6 +297,7 @@ export function LiveBanner({ session, onStopAll }: LiveBannerProps) {
               <Captions className="h-4 w-4" aria-hidden="true" />
             )}
           </Button>
+          <StandbyControl session={session} />
           <MicrophoneControl session={session} />
           {delegating && !direct && (
             <Button
@@ -246,6 +335,7 @@ export function LiveBanner({ session, onStopAll }: LiveBannerProps) {
           <span>{t('live.direct_notice')}</span>
         </p>
       )}
+      <StandbyNote />
       <LiveCaptions captions={captions} expanded={expanded} />
       <LiveMeter />
       <LiveExtendDialog session={session} />

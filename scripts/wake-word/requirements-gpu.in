@@ -1,0 +1,14 @@
+# The wake-word toolbox's GPU half (ADR-329): natural voices by VoxCPM2
+# (Apache-2.0 code and weights), in its own image (Dockerfile.gpu). Never on the
+# API's interpreter nor on the Pi.
+voxcpm==2.0.3
+torch==2.14.1
+numpy==2.5.3
+scipy==1.18.1
+soundfile==0.14.0
+# The trainer runs here too, on CUDA (owner request 2026-10-01: an RTX 4090 beside
+# the dev stack): ONNX Runtime with its CUDA provider for the feature stages
+# (built for CUDA 13, the libraries torch already installs) and torch.onnx's exporter.
+onnxruntime-gpu==1.30.0
+onnx==1.23.1
+onnxscript==0.7.2

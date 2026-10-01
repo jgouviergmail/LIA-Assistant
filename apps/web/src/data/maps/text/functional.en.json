@@ -418,9 +418,10 @@
         "“What do I have tomorrow?” is delegated to LIA's engine as an ordinary turn.",
         "The calendar is read under the same rules as in the chat.",
         "A sensitive action? The approval question becomes the spoken answer.",
+        "A silence? The session goes on standby — nothing more is billed — and a tap wakes it.",
         "At the end, a card sums up the session and what it cost."
       ],
-      "src": "77ddea7882a0"
+      "src": "6f5ca4ae4284"
     },
     "flow.learn": {
       "name": "LIA gets to know you",

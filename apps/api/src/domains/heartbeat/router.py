@@ -21,8 +21,6 @@ from src.core.exceptions import (
     raise_notification_not_found,
     raise_unprocessable_entity,
 )
-from src.core.i18n import normalize_language
-from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import (
@@ -90,9 +88,6 @@ def _settings_response(user: User, available_sources: list[str]) -> HeartbeatSet
     """
     return HeartbeatSettingsResponse(
         heartbeat_enabled=user.heartbeat_enabled,
-        heartbeat_min_per_day=user.heartbeat_min_per_day,
-        heartbeat_max_per_day=user.heartbeat_max_per_day,
-        heartbeat_push_enabled=user.heartbeat_push_enabled,
         heartbeat_notify_start_hour=user.heartbeat_notify_start_hour,
         heartbeat_notify_end_hour=user.heartbeat_notify_end_hour,
         available_sources=available_sources,
@@ -140,14 +135,6 @@ async def update_heartbeat_settings(
     """Update user's heartbeat notification settings."""
     try:
         update_data = data.model_dump(exclude_unset=True)
-
-        # Validate min <= max consistency
-        min_val = update_data.get("heartbeat_min_per_day", user.heartbeat_min_per_day)
-        max_val = update_data.get("heartbeat_max_per_day", user.heartbeat_max_per_day)
-        if min_val > max_val:
-            raise_unprocessable_entity(
-                APIMessages.heartbeat_min_max_invalid(normalize_language(user.language))
-            )
 
         # Refusals are validated BEFORE anything is written: an unknown key
         # silently dropped would be a preference the reader believes they set.

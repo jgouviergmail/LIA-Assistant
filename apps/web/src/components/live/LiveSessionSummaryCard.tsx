@@ -11,7 +11,9 @@
  *
  * When the relayed words could not become a turn (a busy thread, a pending
  * question, a ceiling, a failure), the card quotes their recap — the phone's
- * fallback push carries the same — so nothing said is lost in silence.
+ * fallback push carries the same — so nothing said is lost in silence. A
+ * session that slept (ADR-329) says how many times, and a DIRECT one quotes
+ * the recap of every standby whose relay could not run, the same way.
  *
  * Drawn in place of the row's Markdown (which stays the FALLBACK for a
  * channel or an export); the bubble's meter line under it repeats the token
@@ -57,20 +59,25 @@ export function LiveSessionSummaryCard({ metadata }: LiveSessionSummaryCardProps
             })}
         {figures.extensions > 0 &&
           ` · ${t('live.summary.extended', { count: figures.extensions })}`}
+        {figures.standbys > 0 && ` · ${t('live.summary.standbys', { count: figures.standbys })}`}
       </p>
       {figures.mode === 'direct' && figures.relay && (
         <p className="text-muted-foreground" data-testid="live-session-relay">
           {t(`live.summary.relay.${figures.relay}`)}
         </p>
       )}
-      {figures.mode === 'direct' && figures.relaySummary && (
-        <blockquote
-          className="border-l-2 border-primary/40 pl-2 italic text-muted-foreground"
-          data-testid="live-session-recap"
-        >
-          {figures.relaySummary}
-        </blockquote>
-      )}
+      {figures.mode === 'direct' &&
+        [...figures.standbyRecaps, ...(figures.relaySummary ? [figures.relaySummary] : [])].map(
+          (recap, index) => (
+            <blockquote
+              key={index}
+              className="border-l-2 border-primary/40 pl-2 italic text-muted-foreground"
+              data-testid="live-session-recap"
+            >
+              {recap}
+            </blockquote>
+          )
+        )}
       <p className="text-xs text-muted-foreground">
         {cost === null
           ? t('live.summary.no_cost')

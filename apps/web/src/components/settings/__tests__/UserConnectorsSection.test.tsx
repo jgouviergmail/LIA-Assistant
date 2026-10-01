@@ -212,12 +212,14 @@ describe('UserConnectorsSection — shared OAuth reconnection', () => {
         connector_type: 'google_gmail',
         status: 'error',
         oauth_grant_id: 'same',
+        bulk_reconnect_provider: 'google',
       }),
       makeConnector({
         id: 'calendar',
         connector_type: 'google_calendar',
         status: 'error',
         oauth_grant_id: 'same',
+        bulk_reconnect_provider: 'google',
       }),
     ]);
     post.mockResolvedValue({ authorization_url: 'https://accounts.google.com/oauth' });
@@ -243,12 +245,14 @@ describe('UserConnectorsSection — shared OAuth reconnection', () => {
         connector_type: 'microsoft_outlook',
         status: 'error',
         oauth_grant_id: 'first',
+        bulk_reconnect_provider: 'microsoft',
       }),
       makeConnector({
         id: 'calendar',
         connector_type: 'microsoft_calendar',
         status: 'error',
         oauth_grant_id: 'second',
+        bulk_reconnect_provider: 'microsoft',
       }),
     ]);
     post.mockResolvedValue({ authorization_url: 'https://login.microsoftonline.com/common/oauth' });

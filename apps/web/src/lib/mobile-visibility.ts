@@ -130,7 +130,7 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
     minWidth: 640,
     substitute: 'The trash icon keeps the action, with an aria-label naming it.',
     reason:
-      'The label cannot share the chat header row with the spaces indicator below 640 px; ' +
+      'The label cannot share the chat header row with its centre group below 640 px; ' +
       'the destructive action itself is never hidden.',
   },
   {

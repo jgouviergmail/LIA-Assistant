@@ -1386,6 +1386,18 @@
     "327": {
       "title": "Une skill venue d'ailleurs est lue comme une donnée, et la bibliothèque installe ce qu'on a lu",
       "summary": "On peut chercher des skills sur skills.sh ou à une adresse GitHub, lire chacune avant de l'installer et la garder à jour ; l'installation reprend exactement le commit lu, chaque fichier vérifié. Une skill écrite ailleurs tourne à part, avec ses seuls fichiers : jamais les connecteurs de la personne, ni image ni contenu web dans ses réponses. Une skill peut exécuter ses propres commandes dans une copie jetable de son dossier, le réseau seulement vers les hôtes permis, et celle que le chat écrit n'entre qu'au clic de la personne."
+    },
+    "328": {
+      "title": "Le heartbeat n'a plus de quota quotidien : chaque passage atteint la décision",
+      "summary": "LIA ne retient plus une notification utile parce qu'un plafond par jour serait atteint : c'est le modèle de décision qui juge si un signal mérite d'interrompre la personne. Chaque passage dans sa plage horaire arrive jusqu'à cette décision, et seuls la plage, les pauses entre deux messages, une réunion en cours et les plafonds de dépense bornent le rythme. Les réveils par e-mail et les moments anticipés suivent les mêmes règles."
+    },
+    "329": {
+      "title": "Un mot de réveil entraîné, entendu dans le navigateur, et une veille Live qui ne facture rien",
+      "summary": "LIA se réveille sur une phrase reconnue entièrement dans le navigateur par un petit modèle entraîné pour sa langue, sans la condition technique qui privait l'iPhone et les applications natives de l'ancien mot anglais « OK Guy » ; « Stop » coupe sa voix. Le premier modèle, « Dis LIA » en français, est livré en bêta parce que son banc n'atteint pas encore les seuils publiés, et les autres langues gardent le toucher. En mode Live, un silence met l'assistante en veille : la connexion au fournisseur se ferme, plus rien n'est facturé, et un toucher ou la phrase la réveille sans perdre la conversation."
+    },
+    "330": {
+      "title": "Des médias servis sans travail à l'exécution : illustrations prégénérées, vidéo déclarée par l'opérateur",
+      "summary": "Les illustrations du blog sont écrites une fois, en quatre largeurs et une image de partage, et servies telles quelles : le serveur ne redimensionne plus rien et le cache de bord les garde. La vidéo de la page d'accueil est hébergée là où l'opérateur le déclare et décrite par un manifeste lu à la demande ; sans lui, la section n'existe pas. En boucle, elle démarre quand elle est visible, avec le son là où le navigateur l'accepte et muette ailleurs jusqu'à un clic, et tant que le son joue, le titre de la page et ceux des sections battent sur la musique grâce à une carte des temps calculée à l'avance."
     }
   }
 }

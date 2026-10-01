@@ -2,9 +2,11 @@
 import { test, expect, type MockRoute } from '../fixtures';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
+// `bulk_reconnect_provider` is the server's verdict (oauth_bulk): the page
+// offers the grouped consent on it, never on a guess from the type.
 const googleConnectors = [
-  { id: 'mail', connector_type: 'google_gmail', status: 'error', oauth_grant_id: 'grant-a' },
-  { id: 'calendar', connector_type: 'google_calendar', status: 'error', oauth_grant_id: 'grant-a' },
+  { id: 'mail', connector_type: 'google_gmail', status: 'error', oauth_grant_id: 'grant-a', bulk_reconnect_provider: 'google' },
+  { id: 'calendar', connector_type: 'google_calendar', status: 'error', oauth_grant_id: 'grant-a', bulk_reconnect_provider: 'google' },
 ];
 
 test('one click starts one Google OAuth request for a verified account', async ({
@@ -44,8 +46,8 @@ test('different Microsoft accounts require a choice and stay within a phone view
   const bodies: unknown[] = [];
   await mockApi([
     { url: '**/api/v1/connectors', json: { connectors: [
-      { id: 'mail', connector_type: 'microsoft_outlook', status: 'error', oauth_grant_id: 'first', metadata: { oauth_account_email: 'first@example.com' } },
-      { id: 'calendar', connector_type: 'microsoft_calendar', status: 'error', oauth_grant_id: 'second', metadata: { oauth_account_email: 'second@example.com' } },
+      { id: 'mail', connector_type: 'microsoft_outlook', status: 'error', oauth_grant_id: 'first', metadata: { oauth_account_email: 'first@example.com' }, bulk_reconnect_provider: 'microsoft' },
+      { id: 'calendar', connector_type: 'microsoft_calendar', status: 'error', oauth_grant_id: 'second', metadata: { oauth_account_email: 'second@example.com' }, bulk_reconnect_provider: 'microsoft' },
     ] } },
     {
       url: '**/api/v1/connectors/oauth-bulk/microsoft/authorize',

@@ -12,7 +12,7 @@ import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
-
+import { ARTICLE_SOCIAL_IMAGE, articleSocialImageSrc } from '@/lib/blog/article-images';
 
 function buildLangUrl(path: string, lng: Language): string {
   return localizedUrl(getSiteOrigin(), path, lng);
@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   const origin = getSiteOrigin();
   // A generic prebuilt image has no canonical host. Relative social images
   // would be resolved by Next against localhost:3000 at build time.
-  const imageUrl = origin ? `${origin}/articles/${slug}.png` : null;
+  const imageUrl = origin ? `${origin}${articleSocialImageSrc(slug)}` : null;
 
   return {
     title: `${title} — LIA Blog`,
@@ -73,7 +73,16 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
       publishedTime: article.date,
       section: article.category,
       tags: article.tags,
-      images: imageUrl ? [{ url: imageUrl, width: 1200, height: 675, alt: title }] : undefined,
+      images: imageUrl
+        ? [
+            {
+              url: imageUrl,
+              width: ARTICLE_SOCIAL_IMAGE.width,
+              height: ARTICLE_SOCIAL_IMAGE.height,
+              alt: title,
+            },
+          ]
+        : undefined,
     },
     twitter: {
       card: 'summary_large_image',
@@ -111,7 +120,7 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
         '@type': 'BlogPosting',
         headline: t(`blog.articles.${slug}.title`),
         description: t(`blog.articles.${slug}.excerpt`),
-        image: `${origin}/articles/${slug}.png`,
+        image: `${origin}${articleSocialImageSrc(slug)}`,
         datePublished: article.date,
         dateModified: article.date,
         author: {

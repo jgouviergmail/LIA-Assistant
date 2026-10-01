@@ -17,9 +17,6 @@ function resetStore(): void {
   useVoiceModeStore.setState({
     isEnabled: false,
     state: 'idle',
-    isKwsReady: false,
-    isKwsLoading: false,
-    isKwsListening: false,
     error: null,
     lastWakeWordTime: null,
   });
@@ -46,15 +43,14 @@ describe('voiceModeStore — enable / disable / toggle', () => {
     expect(s.error).toBeNull();
   });
 
-  it('disable returns to idle and stops the KWS mic flag', () => {
-    useVoiceModeStore.setState({ isEnabled: true, state: 'speaking', isKwsListening: true });
+  it('disable returns to idle and clears the error', () => {
+    useVoiceModeStore.setState({ isEnabled: true, state: 'speaking', error: new Error('x') });
 
     useVoiceModeStore.getState().disable();
 
     const s = useVoiceModeStore.getState();
     expect(s.isEnabled).toBe(false);
     expect(s.state).toBe('idle');
-    expect(s.isKwsListening).toBe(false);
     expect(s.error).toBeNull();
   });
 
@@ -69,23 +65,12 @@ describe('voiceModeStore — enable / disable / toggle', () => {
   });
 });
 
-describe('voiceModeStore — state machine and KWS flags', () => {
+describe('voiceModeStore — state machine', () => {
   it('setState walks the machine through its stations', () => {
     for (const station of ['listening', 'recording', 'processing', 'speaking', 'idle'] as const) {
       useVoiceModeStore.getState().setState(station);
       expect(useVoiceModeStore.getState().state).toBe(station);
     }
-  });
-
-  it('setKwsReady / setKwsLoading / setKwsListening update their flags independently', () => {
-    useVoiceModeStore.getState().setKwsReady(true);
-    useVoiceModeStore.getState().setKwsLoading(true);
-    useVoiceModeStore.getState().setKwsListening(true);
-
-    const s = useVoiceModeStore.getState();
-    expect(s.isKwsReady).toBe(true);
-    expect(s.isKwsLoading).toBe(true);
-    expect(s.isKwsListening).toBe(true);
   });
 
   it('recordWakeWord stamps the detection time', () => {
@@ -105,7 +90,6 @@ describe('voiceModeStore — state machine and KWS flags', () => {
       state: 'speaking',
       error: new Error('x'),
       lastWakeWordTime: 123,
-      isKwsListening: true,
     });
 
     useVoiceModeStore.getState().reset();
@@ -114,7 +98,6 @@ describe('voiceModeStore — state machine and KWS flags', () => {
     expect(s.state).toBe('idle');
     expect(s.error).toBeNull();
     expect(s.lastWakeWordTime).toBeNull();
-    expect(s.isKwsListening).toBe(false);
     expect(s.isEnabled).toBe(true);
   });
 });
@@ -155,7 +138,7 @@ describe('voiceModeStore — setError contract', () => {
 describe('voiceModeStore — persistence', () => {
   it('persists ONLY the enabled preference (partialize)', () => {
     useVoiceModeStore.getState().enable();
-    useVoiceModeStore.getState().setKwsReady(true);
+    useVoiceModeStore.getState().recordWakeWord();
 
     const raw = localStorage.getItem(VOICE_MODE_ENABLED_KEY);
     expect(raw).not.toBeNull();

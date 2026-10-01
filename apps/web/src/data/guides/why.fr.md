@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 6.1
-**Date** : 2026-09-30
-**Application** : LIA v2.2.0
+**Date** : 2026-10-02
+**Application** : LIA v2.3.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -53,9 +53,9 @@ Chaque utilisateur dispose de son propre espace de paramétrage, organisé en de
 
 **Préférences personnelles :**
 
-- **Connecteurs personnels** : choisis les services Google ou Microsoft dans une seule autorisation sur un compte vérifié, puis déconnecte-les indépendamment ; les liaisons existantes restent actives jusqu'à ta décision de les reconnecter. Apple passe par IMAP/CalDAV/CardDAV. Emails, agenda, contacts, tâches et Drive côtoient les services à clé API comme la météo ou la recherche.
+- **Connecteurs personnels** : choisis les services Google ou Microsoft dans une seule autorisation sur un compte vérifié, puis déconnecte-les indépendamment ; les liaisons existantes restent actives jusqu'à ta décision de les reconnecter. Apple passe par IMAP/CalDAV/CardDAV. Quand plusieurs services d'un même compte expirent, l'alerte propose de tout reconnecter en une seule autorisation. Emails, agenda, contacts, tâches et Drive côtoient les services à clé API comme la météo ou la recherche.
 - **Personnalité** : choisis parmi les personnalités disponibles (professeur, ami, philosophe, coach, poète...) — chacune influence le ton, le style et le comportement émotionnel de LIA
-- **Voix** : configure le mode vocal — mot-clé de détection, sensibilité, seuil de silence, lecture automatique des réponses
+- **Voix** : configure le mode vocal — mot d'activation mains libres, transcription locale ou distante, lecture des réponses à voix haute
 - **Notifications** : gère les notifications push et les appareils enregistrés
 - **Canaux** : relie Telegram pour chatter et recevoir des notifications sur mobile
 - **Génération d'images** : active et configure la création d'images par IA
@@ -148,10 +148,10 @@ Wikipédia, la navigation de pages, les lieux, la météo et la qualité de l'ai
 LIA propose un mode vocal complet :
 
 - **Push-to-Talk** : maintiens le bouton microphone pour parler, optimisé pour le mobile
-- **Mot-clé "OK Guy"** : détection mains-libres exécutée **entièrement dans ton navigateur** via Sherpa-onnx WASM — aucun son n'est transmis tant que le mot-clé n'est pas détecté
+- **« Dis LIA », entendu dans ton navigateur** : la détection mains libres tourne **entièrement sur ton appareil** — aucun son n'est transmis tant que la phrase n'est pas entendue — et « Stop » coupe la voix de LIA quand elle lit une réponse. Ce mot d'activation existe pour l'instant en français, en bêta : sa reconnaissance s'améliore encore ; dans les autres langues, un toucher suffit
 - **Synthèse vocale** : trois providers configurables côté admin — Edge TTS (gratuit), OpenAI TTS (`tts-1` / `tts-1-hd`) ou ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Messages vocaux Telegram** : envoie des messages audio, LIA les transcrit et répond
-- **Mode Live** : une conversation en temps réel, de vive voix, sur un modèle live que tu connectes avec **ta propre clé** — Gemini Live, GPT-Live ou un agent ElevenLabs. La voix tient la conversation et confie chaque demande à LIA, qui la traite comme un tour de chat ordinaire pendant que tu parles ; une session directe laisse la voix lire tes données elle-même sans agir sur rien. Ce que le fournisseur facture t'est montré, jamais enregistré.
+- **Mode Live** : une conversation en temps réel, de vive voix, sur un modèle live que tu connectes avec **ta propre clé** — Gemini Live, GPT-Live ou un agent ElevenLabs. La voix tient la conversation et confie chaque demande à LIA, qui la traite comme un tour de chat ordinaire pendant que tu parles ; une session directe laisse la voix lire tes données elle-même sans agir sur rien. Ce que le fournisseur facture t'est montré, jamais enregistré. Un silence ne clôt plus une session : il la met en veille — connexion fermée, rien de facturé — jusqu'à ce qu'un toucher la réveille avec le contexte de LIA ; c'est toujours toi qui la termines.
 
 ### 3.5. Création et médias
 
@@ -161,18 +161,19 @@ LIA propose un mode vocal complet :
 - **Pièces jointes** : joins photos et PDF — LIA analyse le contenu visuel et extrait le texte des documents ; le « + » propose aussi chaque document de tes espaces de connaissances, espace en pause compris, comme copie pour ce message
 - **MCP Apps** : widgets interactifs directement dans le chat (formulaires, visualisations, mini-applications)
 - **Réponses conservées** : un bookmark sur chaque réponse la garde hors de la conversation — avec ta demande et sa date — dans un onglet à côté de tes fichiers générés ; partage-la, télécharge-la en Markdown, ou laisse-la partir ; chaque réponse conservée rejoint aussi un espace de connaissances à toi, pour que LIA la retrouve et la cite des semaines plus tard
+- **Envoyer par e-mail** : un fichier généré ou une réponse part en un clic, depuis ta boîte connectée ou vers ta propre adresse ; en tapant un destinataire, LIA suggère tes contacts par nom, prénom ou numéro de téléphone et insère leur adresse
 
 ### 3.6. Proactivité et initiatives
 
 LIA ne se contente pas de répondre — elle anticipe :
 
-- **Notifications proactives** : LIA croise tes sources de contexte (calendrier, météo, tâches, emails, intérêts) et te notifie quand c'est genuinement utile — avec un système anti-spam intégré (quota quotidien, fenêtre horaire, cooldown)
+- **Notifications proactives** : LIA croise tes sources de contexte (calendrier, météo, tâches, emails, intérêts) et te notifie quand c'est genuinement utile — avec un système anti-spam intégré (fenêtre horaire, pauses entre deux messages) et sans quota quotidien : chaque passage est évalué, et c'est la pertinence qui décide, pas un compteur
 - **Initiative conversationnelle** : pendant un échange, LIA vérifie proactivement les informations connexes — si la météo annonce de la pluie samedi, elle consulte ton calendrier pour signaler d'éventuelles activités en extérieur
 - **Centres d'intérêt** : LIA retient ce à quoi tu tiens vraiment, pas ce que tu as demandé une fois — poser une question est une tâche, pas un goût, et il faut une passion déclarée, une pratique, une connaissance ou un approfondissement réel pour qu'un sujet compte. Les thèmes alternent (jamais deux fois le même d'affilée), chaque notification cite ses sources, et un sujet que tu refuses ne revient pas : le blocage est comparé à tout nouveau sujet, y compris sous un autre nom
 - **Un travail qu'on confie, et qui revient** : un ticket a un cycle de vie, un porteur et un résultat. Confies-en un à LIA et elle le prend à son rythme, le fait, commente ce qu'elle a trouvé et te rend le résultat à accepter — et quand elle rencontre quelque chose qu'elle n'a pas le droit de faire seule, elle demande sur le ticket, en montrant exactement ce qu'elle s'apprête à faire, plutôt que de décider à ta place ou de renoncer
 - **Sous-agents** : pour les tâches complexes, LIA délègue à des agents éphémères spécialisés qui travaillent en parallèle
 - **Revenir à l'instant qui compte** : une réunion se termine, et LIA te demande comment ça s'est passé — à la fin, pas au prochain passage deux heures plus tard. Une question ouverte, jamais une évaluation, jamais pendant la réunion suivante ; chaque genre de moment se coupe seul dans les réglages. Et un courrier que tu attends est servi à la minute : « Surveiller » depuis le briefing crée la veille, qui prend fin d'elle-même une fois la réponse arrivée
-- **Réagir, pas seulement vérifier** : quand la boîte aux lettres ou l'agenda signale quelque chose, LIA peut décider en quelques minutes au lieu d'attendre son prochain passage — sous exactement la même plage horaire, le même plafond et les mêmes pauses, et seulement pour un e-mail portant le libellé que tu juges important ou un événement qui te concerne bientôt. Une rafale d'arrivées ne fait qu'un réveil, et un moment jugé inopportun rend simplement le message au passage régulier
+- **Réagir, pas seulement vérifier** : quand la boîte aux lettres ou l'agenda signale quelque chose, LIA peut décider en quelques minutes au lieu d'attendre son prochain passage — sous exactement la même plage horaire et les mêmes pauses, et seulement pour un e-mail portant le libellé que tu juges important ou un événement qui te concerne bientôt. Une rafale d'arrivées ne fait qu'un réveil, et un moment jugé inopportun rend simplement le message au passage régulier
 
 ### 3.7. Navigation web autonome
 

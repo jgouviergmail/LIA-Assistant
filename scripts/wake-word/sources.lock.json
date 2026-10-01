@@ -1,0 +1,1204 @@
+{
+  "remotes": {
+    "fleurs/fr_fr/dev.tar.gz": {
+      "url": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/dev.tar.gz",
+      "sha256": "f2f065dec3b02212e27151c51162d2213df55d0a8efc6b88e36992673ddf66e6",
+      "bytes": 142638560,
+      "licence": "CC-BY-4.0"
+    },
+    "fleurs/fr_fr/test.tar.gz": {
+      "url": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/test.tar.gz",
+      "sha256": "d23690e102f373554d1b544cd2ff1e76e4fedeb04953c0b72751a1b7c518cfdd",
+      "bytes": 349036055,
+      "licence": "CC-BY-4.0"
+    },
+    "fleurs/fr_fr/train.tar.gz": {
+      "url": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/train.tar.gz",
+      "sha256": "39b5bad1f61d3ae4ef64c2eb16f9524ffb21d8568965dd71b09702befdbd7f95",
+      "bytes": 1730529959,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/10087_11650_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/10087_11650_000.tar.gz",
+      "sha256": "5deec28b0b21d5bfb0795e287eb27a63843a650dd68fa7ee265b33cdb4972027",
+      "bytes": 7259510,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/10087_14185_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/10087_14185_000.tar.gz",
+      "sha256": "e0371947246a4c92a6ad0eaeaabffa13c3b9b7a8e9c36855d73c74066cf4c52c",
+      "bytes": 9094323,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/10087_14327_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/10087_14327_000.tar.gz",
+      "sha256": "fcf9a112867f252d6554e8743d36245faabea7aac9bde2e1d7320981f91690f6",
+      "bytes": 6440732,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/10087_14588_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/10087_14588_000.tar.gz",
+      "sha256": "ecb616ff5f737221619624830b1af753a46707674c3cdcda657179f938199f96",
+      "bytes": 1920744,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/10177_10625_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/10177_10625_000.tar.gz",
+      "sha256": "ca5afef388990a030e37826687ba2fca35eb519cdf81f88a7c9a1b2ef6d670f0",
+      "bytes": 33928549,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/12205_11650_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/12205_11650_000.tar.gz",
+      "sha256": "f277ee7c6aae5811f41349ab93d52c8809dc5106991bb45476929dfb00e3823c",
+      "bytes": 21522592,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/1591_1028_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/1591_1028_000.tar.gz",
+      "sha256": "2b5bd438b01a48f4788f9c75f7fe85906710f6dcae1464f005048b0796dd5162",
+      "bytes": 33596781,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/1770_1028_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/1770_1028_000.tar.gz",
+      "sha256": "728ce14cd472aef3f2a6cd1aa6ddfddc8cfbf0dcf466e898d7dce3b2b4e58c5e",
+      "bytes": 13293416,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/1770_1167_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/1770_1167_000.tar.gz",
+      "sha256": "0b2913b1edbab1b6e267bf4f8aa67fba9eed7b6d2e76b8071ee74961603a4298",
+      "bytes": 5396116,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/1770_3103_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/1770_3103_000.tar.gz",
+      "sha256": "9a68afc68c68fd3b4d4c27e238cb8c966d3f442f2e291f432b10fefe419e4433",
+      "bytes": 15259530,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/1770_3135_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/1770_3135_000.tar.gz",
+      "sha256": "060c8ab4e8e9a407b853fa001974f59d0c99d5c7b8837a163ca9b5ab3b97bd65",
+      "bytes": 1944738,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/1770_3731_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/1770_3731_000.tar.gz",
+      "sha256": "09fb57f7940e15b3bc6b496072918c23e3b7678314777a809f7b1bda9b288921",
+      "bytes": 1725548,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/1770_7727_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/1770_7727_000.tar.gz",
+      "sha256": "d98c2c3f1ada98c4fac3812c7139604de3e6f3d3e0f218ee21fc03e422fd836d",
+      "bytes": 1740089,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/3267_1902_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/3267_1902_000.tar.gz",
+      "sha256": "b6389940a17debfadd4216930f1710a5e6b4345c540824a6458fe9a703d1b3f2",
+      "bytes": 31686216,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/4193_3103_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/4193_3103_000.tar.gz",
+      "sha256": "69fd9013da195f9fcf9f9845a3195a9edefd7f553e186ba24eb40628fd89bb10",
+      "bytes": 34903932,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/4193_4703_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/4193_4703_000.tar.gz",
+      "sha256": "bc08c10d6a83576b167cfbc6cdb7d1cb6782822d4e4d985c1074551d4d10139c",
+      "bytes": 4143065,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/4724_3731_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/4724_3731_000.tar.gz",
+      "sha256": "6235f8f0b9874fcd1999a1b892b6c161fe3b734cabd3fed0574aa6567c26a69b",
+      "bytes": 26894869,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/4937_2928_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/4937_2928_000.tar.gz",
+      "sha256": "4dd47d4508e858c931e87ac44f6d049c6a61656772084bf53e76246233cde9f1",
+      "bytes": 20045778,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/4937_3731_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/4937_3731_000.tar.gz",
+      "sha256": "5f5012fae21cd889551fabf4ac1bcaddce9466a6f7d85dd24485ef9428f77711",
+      "bytes": 2017732,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/577_394_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/577_394_000.tar.gz",
+      "sha256": "aeb00b50b218423a09ddd310563b890205a003bc2e97bd8c9531fc3873d171c3",
+      "bytes": 42675623,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/579_2548_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/579_2548_000.tar.gz",
+      "sha256": "f104805f0cd08e72b76f2df0c7fac75dc1dea9ae0cf95869ebd4901643ed2b82",
+      "bytes": 9740798,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/579_394_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/579_394_000.tar.gz",
+      "sha256": "8b6e59678bf413079a436166edfb8f9b8d1d80191e1a952bead0b07f314fe0eb",
+      "bytes": 23300063,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/5830_4703_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/5830_4703_000.tar.gz",
+      "sha256": "0174afb2c4490d520de48fc4495fd74348dac3c32a5c743845ed3ac629c8ac41",
+      "bytes": 39199329,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/6318_2432_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/6318_2432_000.tar.gz",
+      "sha256": "ed0a867f7dbe1268a0c5728dfec7db96886d0f56893bb909c3f866965bb88104",
+      "bytes": 7694695,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/6318_5203_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/6318_5203_000.tar.gz",
+      "sha256": "9a1d0d31b62ed280dc87714421d9dd32c2f37c61cc9f961f742764febeaf5055",
+      "bytes": 130618,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/6318_5367_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/6318_5367_000.tar.gz",
+      "sha256": "ea71a9967cfff4eac82ccda5f1629773367abd592a4ec2706c9cfd782a801485",
+      "bytes": 612473,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/6318_5471_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/6318_5471_000.tar.gz",
+      "sha256": "5ac39aea829f6d6231172d420f8496a9b8cd6e5dce994597656eeb74dffaf5a8",
+      "bytes": 795719,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/6318_5565_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/6318_5565_000.tar.gz",
+      "sha256": "f0154e9cdb916bb5c00c5be58a676d04897bb23fbd1afe2c6dd90f8b8e856a62",
+      "bytes": 656548,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/6318_7016_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/6318_7016_000.tar.gz",
+      "sha256": "f2f901dbbcdea1ea5025fa0b42d254bd81e565bf7f3d97edbad08559573c21f1",
+      "bytes": 7653225,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/7142_2432_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/7142_2432_000.tar.gz",
+      "sha256": "0ab14ab0a2fb2a619d238cc5faf801365bfa8e03c83838fad6779c030c028d1c",
+      "bytes": 43033872,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/7591_6742_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/7591_6742_000.tar.gz",
+      "sha256": "b02af5a87a22043038c750eae8b23ec45dbda7d37c618390ebed0278dafffd4f",
+      "bytes": 37164633,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/7601_7727_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/7601_7727_000.tar.gz",
+      "sha256": "6981493e48a4fe4f59cb6afb9011070561ae0dcdeb1ece89b1eeba6e0f9d88bb",
+      "bytes": 37115353,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/8128_7016_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/8128_7016_000.tar.gz",
+      "sha256": "491634efea0fef7ac789d9315271bbcf68885e81880ffb7f2b840a02d8a3e34b",
+      "bytes": 27080365,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/dev/928_486_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/dev/audio/928_486_000.tar.gz",
+      "sha256": "ac46aed1cb2c15d11445cdda24262c2bb05d28c88f17f372087df39bd06c4e35",
+      "bytes": 41392462,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/10179_11051_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/10179_11051_000.tar.gz",
+      "sha256": "c05a678a17b07a04cb745b5b3192d68d0f093e9c4287dd908805bc1600c8be42",
+      "bytes": 37895522,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/12080_11650_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/12080_11650_000.tar.gz",
+      "sha256": "06e89510a44e642af0e215df4511ea37748568439bc7cf43a05b7ac7c917e5e2",
+      "bytes": 38667353,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/12977_10625_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/12977_10625_000.tar.gz",
+      "sha256": "67573618062866b019b9c509e8f0f3af8c1f31ff91d9c5802474ba186fa6ccdb",
+      "bytes": 38992122,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/1406_1028_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/1406_1028_000.tar.gz",
+      "sha256": "522821c3b935cc4c79196bfadf10cffd9a0c0df3b0961dc754ebe7c2dffc09fa",
+      "bytes": 14805498,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/1406_1417_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/1406_1417_000.tar.gz",
+      "sha256": "28a56f107f1fc1451d259a7c36e81dd9017b05b7c854c6263ce691c68ccbfbdd",
+      "bytes": 19802366,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/1406_2548_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/1406_2548_000.tar.gz",
+      "sha256": "2b1f70502fdff1f57d976a58ba2c863fb259f6bfc306ec115ec474c806ec3bfb",
+      "bytes": 4639669,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2085_1565_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2085_1565_000.tar.gz",
+      "sha256": "7385c930f663ea7266d8d0ffc7938ec10a5d79fe36141af9212f8c6a41b15751",
+      "bytes": 21012086,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2114_1656_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2114_1656_000.tar.gz",
+      "sha256": "64cca9e0aa42b45c30d3d3324d6537fb9c89f4265e1994a135b31647ea608192",
+      "bytes": 21373556,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2154_1167_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2154_1167_000.tar.gz",
+      "sha256": "792b809743c751372716a3eed1c42a3d584190a5fad4b356f2433eeeb7e56610",
+      "bytes": 7392729,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2154_2548_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2154_2548_000.tar.gz",
+      "sha256": "f3f939bed5bf0ff3b57c0b1818fce2204a1dbcedf6a98a7ad521c445ae63755a",
+      "bytes": 6416531,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2154_2567_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2154_2567_000.tar.gz",
+      "sha256": "680c3cfb50ea0897e3e7d927b128d6385263e49e157e3c2afbb40c4e69097aaf",
+      "bytes": 2800981,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2154_2576_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2154_2576_000.tar.gz",
+      "sha256": "c716cfff8db96013f2c8b3c26c433fab1e41a833509c2224b518b2d822c836f9",
+      "bytes": 14043194,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2216_1259_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2216_1259_000.tar.gz",
+      "sha256": "fa724f37bb2d2e17c7efd224ea688333b73c399a35b9310533efbece008d18ad",
+      "bytes": 30341599,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2216_1745_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2216_1745_000.tar.gz",
+      "sha256": "44d9602a2bb902865da5ba1de8d879a79321fceec37bc178b1b96766bd22f786",
+      "bytes": 3055336,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2223_1565_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2223_1565_000.tar.gz",
+      "sha256": "bad19ddea71837d3b1fa98cf78e5641d031a14930dc7acdc4ee6fb022ccbc562",
+      "bytes": 4408944,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2223_1745_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2223_1745_000.tar.gz",
+      "sha256": "cdfc7cba0f948440423b4e5617707060323b8f14976c093b95a2b8c0c443c7ba",
+      "bytes": 35596400,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/2465_1943_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/2465_1943_000.tar.gz",
+      "sha256": "2fa4f5ca9482779e68b6078d0d2deab41293ab76d04be0a8b2aee9b066fa7a5e",
+      "bytes": 44834110,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/296_1028_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/296_1028_000.tar.gz",
+      "sha256": "44ec6f670e405a74c6852bfde5861fafb479ebdf9116ff07be932f7a7dbe3586",
+      "bytes": 14730361,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/296_486_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/296_486_000.tar.gz",
+      "sha256": "755530144b3fad7bf6a6bee3dec481a288bdb67f8c8a04fb9c7d9069387c051a",
+      "bytes": 8849597,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/4482_3103_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/4482_3103_000.tar.gz",
+      "sha256": "14d4a003018f7ac513eaeb929b564a6b4b14dbd2b1ebcc4a5b95eb853f133033",
+      "bytes": 21732533,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/5207_2928_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/5207_2928_000.tar.gz",
+      "sha256": "5ecf7955bf1697915c7a2248f1d5ef038a7a2823bf5cd2447cac29bf532cc364",
+      "bytes": 10526207,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/5207_3078_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/5207_3078_000.tar.gz",
+      "sha256": "c5bbfc73ad2376672fe7a8532724d77e64aebd0beee8ddacaecb837b51769819",
+      "bytes": 18347901,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/5207_4230_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/5207_4230_000.tar.gz",
+      "sha256": "bf70ab0e37e0af781a8ff7e2f83ee3c4f0b5dbf2c44550e2b40a82abbac6942a",
+      "bytes": 1841783,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/5476_3103_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/5476_3103_000.tar.gz",
+      "sha256": "9c953b85f05abdb3b970f322e97724f55dc67fe265aa24d7fbaa05908b3646ba",
+      "bytes": 41759046,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/5790_4893_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/5790_4893_000.tar.gz",
+      "sha256": "4784f6274ae6cd58dd14e6199cba622e49dac7724983b16a16cd61ecd8119f22",
+      "bytes": 43027793,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/7400_2928_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/7400_2928_000.tar.gz",
+      "sha256": "bb51d716ae9b159fecd6302e81ee35a6bcfe8bfee8a6dbaae379842f739fad49",
+      "bytes": 39504851,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/7762_8734_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/7762_8734_000.tar.gz",
+      "sha256": "16922468e1132dbea8f20a071aacfef0e9ea3d2a35db542ab99136bba2d93722",
+      "bytes": 24860965,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/test/9834_9697_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/test/audio/9834_9697_000.tar.gz",
+      "sha256": "8e79e8290a07ed91f47317a4baf9239d71b823908b32c42ea2743fef6952827d",
+      "bytes": 38851879,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/10032_9061_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/10032_9061_000.tar.gz",
+      "sha256": "2d0dae875d672d9ef03943bdc6f66dbb45830f94a0d896fb61a9bcd490bfcabe",
+      "bytes": 67713509,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/10065_10699_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/10065_10699_000.tar.gz",
+      "sha256": "1ad26a4e4902e5a01eb05a90971d57299b36a900745912f32b0fb1ef495bbe05",
+      "bytes": 61951881,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/103_149_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/103_149_000.tar.gz",
+      "sha256": "6bc0ae70ca427dd03f607eea5b57676d2c10a4544943a89dab9706a21731f708",
+      "bytes": 780145,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/10620_7271_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/10620_7271_000.tar.gz",
+      "sha256": "3dff2b0381bc60efb9bcc0223ad697d92eaaab7bbd23352e9d7779e35269acab",
+      "bytes": 15937797,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/10827_14238_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/10827_14238_000.tar.gz",
+      "sha256": "8c3b0cf0c2e86251ea03a494db0dbe653425b27537c3b4da03cc0b00365533f0",
+      "bytes": 14677554,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/11247_11650_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/11247_11650_000.tar.gz",
+      "sha256": "f2759cd076ba9b94a1787def466e723ecc4b8dfcd43999085460786989bdc5f3",
+      "bytes": 137207484,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/11743_7727_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/11743_7727_000.tar.gz",
+      "sha256": "c56f897266be4ec378e8a4eeff6f1b4c991bca6d39c799a3153cd93e01aa0640",
+      "bytes": 849319,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/11772_14327_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/11772_14327_000.tar.gz",
+      "sha256": "08283f58fa0a397f58ee0df1215221d22af6d98eb3d552ae03355f3002f87bbf",
+      "bytes": 8258482,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/11875_7727_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/11875_7727_000.tar.gz",
+      "sha256": "ad69c724c3af639e005c15dad59274bbe9ec0daabd6bc1de7660404ce9f1b39c",
+      "bytes": 5227099,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_1167_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_1167_000.tar.gz",
+      "sha256": "e6eaa42973c3e336717581e95cd8b815447fa9fc7fd5095618bae0bcc6796e8d",
+      "bytes": 5110044,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_1565_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_1565_000.tar.gz",
+      "sha256": "e234c2598c0736b2bc32206fb3ba7617a710c1b2df81918fda99a94e1ba1a240",
+      "bytes": 248134932,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_2205_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_2205_000.tar.gz",
+      "sha256": "8ce25a8e750cd008d681217cae7d2ca7042b86c0c229a36adb1b28103934d020",
+      "bytes": 28703337,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_2411_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_2411_000.tar.gz",
+      "sha256": "afd22d94381781f382bc354121494851e9d85b356a5ee14b23dfe086b20c7c4e",
+      "bytes": 247270697,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_2621_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_2621_001.tar.gz",
+      "sha256": "846c9749e90a314ce9c9c99959eb585a62af6a54d97bd1b79aa01429619bcb4b",
+      "bytes": 247237748,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_2839_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_2839_000.tar.gz",
+      "sha256": "fe5b67b7b70c57914c47a8cb6f45f00cf362c8f2f266b0d44201b008c2ca6303",
+      "bytes": 127377908,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_3368_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_3368_000.tar.gz",
+      "sha256": "204863e935c87f4eb6df85b49c8d38b1ba27ca632c21a6b7a9042c6c8c6fe932",
+      "bytes": 154725287,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_4230_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_4230_000.tar.gz",
+      "sha256": "f079ae1a0e2c8ad665d48f97735aca598cbd21cd8996ffad618587e5ce11fa92",
+      "bytes": 4973757,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_4695_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_4695_000.tar.gz",
+      "sha256": "b7937b9f9332c9807f1dab1a8eeac6b87681bacc2f90e7482bc8c1eae4da1877",
+      "bytes": 216183854,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_4889_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_4889_001.tar.gz",
+      "sha256": "fd8e17f9b6216ca1dc75d8b64c4ae3a7cdab5586e2673d7797721b8527350102",
+      "bytes": 243518034,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_4991_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_4991_000.tar.gz",
+      "sha256": "70807b691c2b4d62aa57d044b5ba169f7367ee233fb5acc0823f58c61f66dbbb",
+      "bytes": 82269665,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/123_5565_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/123_5565_000.tar.gz",
+      "sha256": "f816ef3ac021d78dbe0ef9a8f049803371ac304f214cbb3995b0c0c97d4ebd3b",
+      "bytes": 1074952,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12501_11650_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12501_11650_000.tar.gz",
+      "sha256": "14ec1285a686fc44ced6818836667f6b799ea4ce0d03b52ffccf60512edacfb8",
+      "bytes": 113506893,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12512_11650_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12512_11650_000.tar.gz",
+      "sha256": "ad30e272add19efe08b198d00b45efaad36cb7eed81176b34b020d713583beb4",
+      "bytes": 60789285,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12541_14185_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12541_14185_000.tar.gz",
+      "sha256": "af37e5c2cc21a728327cc1880ff79abfee736f72d61139e0553dd126bc5dfe30",
+      "bytes": 19626185,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12541_8878_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12541_8878_000.tar.gz",
+      "sha256": "c210aa360bd574ee8f79a57821768e447625648c5a5804cbdcabe7b6d18a61f4",
+      "bytes": 148259746,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12709_10527_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12709_10527_000.tar.gz",
+      "sha256": "3628084953777677145a738c2ea4e00ed216e9602020c6f9e6219007b206c5f0",
+      "bytes": 61112264,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12709_13548_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12709_13548_000.tar.gz",
+      "sha256": "c660131ce884e911f3f10f31c15c77267b7ae3f9815c5a27d3dde8eab15a2f22",
+      "bytes": 218277810,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12709_13651_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12709_13651_000.tar.gz",
+      "sha256": "184d2cd9dc54401fea3bf6b551fb33928fc4dc93f75c1feffc3ac09d7948e268",
+      "bytes": 221541037,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12709_13781_004.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12709_13781_004.tar.gz",
+      "sha256": "c27af4ff41d6866c376b538d389cc561aec9cb6b0ae77a0de8d44910a60fa1b3",
+      "bytes": 240143389,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12709_14185_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12709_14185_000.tar.gz",
+      "sha256": "c186763b4430632067d1d578a8e70fc5f42013e0c262497b941b3745821ded60",
+      "bytes": 92984303,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12709_14409_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12709_14409_000.tar.gz",
+      "sha256": "5794d4aebc53e146229bdd3343a3551adbaa6088de2f67039bc61d32154881ef",
+      "bytes": 157739127,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12709_7271_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12709_7271_000.tar.gz",
+      "sha256": "e7afc6e92d7f199ad06f25eaa988b1e8299a54d2bfe2a7d19d883b2e5605a8c6",
+      "bytes": 34319188,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12713_11650_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12713_11650_000.tar.gz",
+      "sha256": "b7fb4782ed13c6d25a8137711a697575ca696255ff8db24009663065635354bf",
+      "bytes": 89254804,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12823_10625_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12823_10625_000.tar.gz",
+      "sha256": "b9cd7d815694fdc988c95df24a638547c694c306dc84e2a6aed528d0473ca0b8",
+      "bytes": 27241025,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12823_9697_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12823_9697_000.tar.gz",
+      "sha256": "772149956a32703def03acc8b7f7ab6576f327bf3af7af5e88effa8473ccd4ec",
+      "bytes": 22267916,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12899_13782_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12899_13782_000.tar.gz",
+      "sha256": "621e833582d745f7ab6934489d228b9a6fa32e5944eaac6d43d2c6a6d1c5c0ab",
+      "bytes": 225803130,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12899_14327_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12899_14327_000.tar.gz",
+      "sha256": "321d94d57aa980d305b3aa3b045f66365a50da0c45deaedb2542c12bb54c279e",
+      "bytes": 62430090,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/12899_9961_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/12899_9961_000.tar.gz",
+      "sha256": "279563e653fb76c34d477bb69ac627986db6fb294bd23b46ffe2ebb6c4fbee97",
+      "bytes": 24742405,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/13177_14327_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/13177_14327_000.tar.gz",
+      "sha256": "43c87b7ef3dbaa0ab9dd404e741317ccf35c16734c18048799184a4248876810",
+      "bytes": 3975010,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/13634_14327_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/13634_14327_000.tar.gz",
+      "sha256": "ef3df194535862f1b153628b2738735d9f5e2e1190ee5cd94953aca424bdaff6",
+      "bytes": 54206320,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/13658_14327_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/13658_14327_000.tar.gz",
+      "sha256": "44441501478e17590300adfcdb6be5a58d72a8e616d1c2e3d91b2e280437af64",
+      "bytes": 10144379,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1474_1259_003.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1474_1259_003.tar.gz",
+      "sha256": "39241b1a44fd6c23c9d9cae2e2aecf6f25287435f5b20f7041174dfd31e6d8ed",
+      "bytes": 262133024,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1474_1259_008.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1474_1259_008.tar.gz",
+      "sha256": "158e315707674f015be31e33a74d61a6b7e24e680e7dfef2b5d67912ef383327",
+      "bytes": 267706304,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1474_1702_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1474_1702_000.tar.gz",
+      "sha256": "8660789420dd1af1277e8c8a0445ffa489ce48e7882de5680181febad4f10d84",
+      "bytes": 74334489,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1474_2105_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1474_2105_001.tar.gz",
+      "sha256": "8f6462c62fb9dabd7ced939d2b490565728647865ed2e069110362c1d4d1b191",
+      "bytes": 264008784,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1474_2105_006.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1474_2105_006.tar.gz",
+      "sha256": "ba2283ff815250f56fa0d3fe12edaa1c80c459cc104ed515ed37f42aea0124ec",
+      "bytes": 32720032,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1474_2589_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1474_2589_001.tar.gz",
+      "sha256": "8e7d18afd02ed94fc85072b2391206201bc49485f05e1573354b0a25b0f68c13",
+      "bytes": 34024972,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/14_394_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/14_394_000.tar.gz",
+      "sha256": "1050a4fa3bfd1acb3b32902d136adf52c37cbedc00f1aa4f389cd52152773aa8",
+      "bytes": 18622470,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1590_2232_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1590_2232_000.tar.gz",
+      "sha256": "c94b4e81b1255735825155b9be878357215d65617bd3a08799aead2551885e59",
+      "bytes": 1958005,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1649_1028_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1649_1028_000.tar.gz",
+      "sha256": "aaef4ee10456fd193fd6922d8ea458bb4e159f6c46f2c5d942e7c1a7ac53d6f9",
+      "bytes": 50803739,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1649_3135_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1649_3135_000.tar.gz",
+      "sha256": "51ce69fb558445a3556b629def8b813a142c2db45247f3fcad26387eff0d34a0",
+      "bytes": 4172832,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/177_149_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/177_149_000.tar.gz",
+      "sha256": "8fc28140acd9910a9865cc24e8b8684d975a25c857ac17e4b3736dc5716cbda1",
+      "bytes": 554216,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1817_1565_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1817_1565_001.tar.gz",
+      "sha256": "2822e62490fcdcecf16081265bb87e6642c6070722af5bc526654c5b0354082d",
+      "bytes": 269993437,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1817_2548_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1817_2548_000.tar.gz",
+      "sha256": "89a84190fb73b186005b93d2611994c6add3b2b696083ea8e808d6249dfde31d",
+      "bytes": 13556024,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_10379_002.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_10379_002.tar.gz",
+      "sha256": "28d3b3813635d44b6b92d55f82651e2624f92dcce1a72e4d6ab5ce249de41395",
+      "bytes": 231678923,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_1870_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_1870_000.tar.gz",
+      "sha256": "9c0ea71b99439cdde3431c24ae67c1d1e27c40af420bee6e1e9763c60b0a0431",
+      "bytes": 223341043,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_2513_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_2513_000.tar.gz",
+      "sha256": "9148b0d0874c0849a7df97c20ca3609cd005e43506a6df8884938359548fa32b",
+      "bytes": 183763148,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_2634_004.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_2634_004.tar.gz",
+      "sha256": "ad062564528ca40c7eb2050d77e8daef58a3c6f5bdbf698ac6792a260cd90217",
+      "bytes": 241095524,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_2830_004.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_2830_004.tar.gz",
+      "sha256": "7dcf45f20313cc62951a38f4a92df428b05a129ac49eebe1d388288e5789bf8b",
+      "bytes": 239484446,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_3660_002.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_3660_002.tar.gz",
+      "sha256": "8e5f6ecf6f9a0ed2eeb0919a99e318d8fd5277d3ca930f6364bc484c543db195",
+      "bytes": 238669374,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_4141_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_4141_001.tar.gz",
+      "sha256": "b4af538fb8dee9f0e20f4d8081819d3732b30d1905fe45a29dc6e9aeb57e2f53",
+      "bytes": 234240391,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_4878_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_4878_000.tar.gz",
+      "sha256": "e07bd3faf79197aba0b0729252ae028d5f7384fab50fe545d20a4513c0ed1bd7",
+      "bytes": 237354823,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_4878_005.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_4878_005.tar.gz",
+      "sha256": "16c70389c8ac675051c16c1ac3e487f1b57f33403d795eac59ada23c28fd70e3",
+      "bytes": 235003417,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_5824_002.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_5824_002.tar.gz",
+      "sha256": "9864d8a59289e5f8784130b124b34a8e4f4d6001d5c4962585ea3c0260c9fcb8",
+      "bytes": 246605342,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_6193_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_6193_001.tar.gz",
+      "sha256": "f9254f0675986bd66bdd457e3124209df458d7ae054c739b9fc9201ecee950a4",
+      "bytes": 229695826,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_6610_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_6610_001.tar.gz",
+      "sha256": "00c1c75e65d51556259dc956fd8d7fa2f6bb7a5cfc39b3ef36846e82d9fafd86",
+      "bytes": 236677140,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_7340_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_7340_000.tar.gz",
+      "sha256": "09c33700cab1fde6b80fb2a7fa3eb0b769a960f3264585efd81310ee29724708",
+      "bytes": 223503905,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_7340_005.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_7340_005.tar.gz",
+      "sha256": "52e95bbdd2b5fa59cfef2552f13a3a2dc428010afd8cafac149df1d3a0112495",
+      "bytes": 208559867,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_8843_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_8843_000.tar.gz",
+      "sha256": "f68496c0209afef0273c703804cbda05f0adc1f20f4741a5362fa04df9eb7f66",
+      "bytes": 248558476,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1840_974_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1840_974_000.tar.gz",
+      "sha256": "4fbfd0bd30231ce5998cc537f2e54da7b8791ef21b1c42555be0c7248b01bd28",
+      "bytes": 264620969,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/1869_1028_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/1869_1028_000.tar.gz",
+      "sha256": "42cfe6465b67973d1e690e1d703a9bf1b00b51d3fa069abfee16d30b25522c0a",
+      "bytes": 15119159,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/2033_2432_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/2033_2432_000.tar.gz",
+      "sha256": "9db1db7167d7c755fa455bdb0356417f83896cbbe07f891a7c69626dae840bbb",
+      "bytes": 9591289,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/2297_1745_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/2297_1745_000.tar.gz",
+      "sha256": "dbadf29274b8e055b63edc458e28ef9f0aac45104ec7b983d9d260e96d8da85e",
+      "bytes": 9545011,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/2587_4904_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/2587_4904_000.tar.gz",
+      "sha256": "2199c01acebcf4026c5be54d6505d4cef0d9342b94488a18793f894f67726a33",
+      "bytes": 720381,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/2596_2548_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/2596_2548_000.tar.gz",
+      "sha256": "3d22fd60803cf371e2a91eabbb0b84e018dd479fc1e7aa6f4ea0485d611244a2",
+      "bytes": 9462306,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/2771_1745_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/2771_1745_000.tar.gz",
+      "sha256": "f1055ecb141de26948aff466b069d94153cd86fd9499d25a6b5251de60e81337",
+      "bytes": 7821147,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/28_149_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/28_149_000.tar.gz",
+      "sha256": "88639609ecc81b45ad89896fc586a881653236a0526cb91ebf3bd85bc525419f",
+      "bytes": 562823,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3060_1902_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3060_1902_000.tar.gz",
+      "sha256": "c8681ace49f8359ced569816f47c71b8c85dfed788bf86355e460d1725e28c53",
+      "bytes": 98865491,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3060_2602_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3060_2602_000.tar.gz",
+      "sha256": "e8cd1f92a4d8f20b1aeff3590b2e836be9adc0aaab900a3ee9a0f727ee67036f",
+      "bytes": 178902698,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3060_2728_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3060_2728_000.tar.gz",
+      "sha256": "e32571b8c6ec24663d49178f8c574767c6407fc592348fe64a7ea45f447cf4d6",
+      "bytes": 57810418,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3204_1745_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3204_1745_000.tar.gz",
+      "sha256": "ec9a79e9093fba0cea9deaaa09c48264f941df1d6c0ffb3a456630d84b3ef5ad",
+      "bytes": 23430040,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3204_2798_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3204_2798_000.tar.gz",
+      "sha256": "bf2fa4e7f17f2e27999a9e6a01b06e2457efd2e64ab544c3c14e5a879355108a",
+      "bytes": 217059921,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3344_2567_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3344_2567_000.tar.gz",
+      "sha256": "386d2d914d4ee574c9f4fb96e1c8a72700a2aa52db05a21444282b92e2362262",
+      "bytes": 4498130,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3595_4904_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3595_4904_000.tar.gz",
+      "sha256": "67c9dffdb5ad9dc87f5fd5c58a7bd7620c0ca69714807450561f98857c8c48d8",
+      "bytes": 521847,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_2728_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_2728_000.tar.gz",
+      "sha256": "69e18e60949b1cd77c8da9fa2ea5bf99a67b200b10121ef745a158425cb898a4",
+      "bytes": 264303749,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_3103_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_3103_000.tar.gz",
+      "sha256": "2e8eadb7bbdf4e4748550237903318df861db652f1cbe6158a0611ae152df49a",
+      "bytes": 177896961,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_4013_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_4013_001.tar.gz",
+      "sha256": "2dc037ec361dd0f9387fa53499c8c2a38b57a53d1085b2e25088ab5424c59825",
+      "bytes": 118826291,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_4725_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_4725_001.tar.gz",
+      "sha256": "81d5971c3107386ee7f41b8079a244d49fae049abac14108d3a3be1e960d6955",
+      "bytes": 105380645,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_4991_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_4991_000.tar.gz",
+      "sha256": "7b94d4617c7969a337d9c6e08504729e2f639521c57df891bfe94be1ab82f5e8",
+      "bytes": 17584516,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_5471_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_5471_000.tar.gz",
+      "sha256": "296426837052d42a613f800e81470ca489ce841a79ca4cff404451209694c631",
+      "bytes": 520635,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_5498_002.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_5498_002.tar.gz",
+      "sha256": "7bde45f597970792e869f7488c6fbd0803fecfce7fc356b835f1633d26308c81",
+      "bytes": 222822429,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_6435_002.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_6435_002.tar.gz",
+      "sha256": "dcd5822e8a7bbcc5fe8fb8c5e2d04e8db2dfff3ff96769ee492382543ee6f443",
+      "bytes": 225584811,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_7016_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_7016_000.tar.gz",
+      "sha256": "18ecf443ebe3cb352f1cfebf8656ed2134fe0fce66f26ae79b45a142378e2f47",
+      "bytes": 8725980,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/3698_7271_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/3698_7271_001.tar.gz",
+      "sha256": "876e715476a3540848a9c2fd3b5a6a0db96e5ee755d5889409e4e3ed40ea8957",
+      "bytes": 104266856,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/4174_4991_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/4174_4991_000.tar.gz",
+      "sha256": "4b84f98cb7714ebc1ada7678a387d2d3e07704c6fe20714e6632cb83a55baa98",
+      "bytes": 1518852,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/4512_3103_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/4512_3103_000.tar.gz",
+      "sha256": "e11a7e7a6508c58f064ec64bead2d0584e41d7913ea4eb87793b5390304467cf",
+      "bytes": 264194454,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/4512_4991_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/4512_4991_000.tar.gz",
+      "sha256": "fe37b63b65479d39c315f34ad92764e213823c73bc954f3bf1d0fc835b314f1b",
+      "bytes": 116392999,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/5021_3078_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/5021_3078_000.tar.gz",
+      "sha256": "826b4da0c4490c9309aeb9ca56c65e3e4d61755833a1b2cfa2c333ed894c9484",
+      "bytes": 5896019,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/5232_4703_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/5232_4703_000.tar.gz",
+      "sha256": "aa4a608ee67ea811bb101e58e3c8a1fdc627df5c6aaacf32ec287f8a4dd5e47d",
+      "bytes": 67609302,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/5232_5565_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/5232_5565_000.tar.gz",
+      "sha256": "cdddc194bbc7564d897052a4e19353cd37da5ad443346199b7224bc779e72d55",
+      "bytes": 1003783,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/52_4703_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/52_4703_000.tar.gz",
+      "sha256": "75de9d44179c73f76777f1e7a76537a1658e0af5fd43b0d49bb193da8c143135",
+      "bytes": 3774169,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/5526_3078_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/5526_3078_000.tar.gz",
+      "sha256": "eee4be1c461b92bddc039530c03f7074d6c6f41d1a11a39bbedb7d097000d3ec",
+      "bytes": 13986778,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/5612_3078_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/5612_3078_000.tar.gz",
+      "sha256": "77364c48bd6e8ed11d2ad05d438cf08a7430f4c4f239d0a39981336fe421671b",
+      "bytes": 180440793,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/5764_7678_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/5764_7678_000.tar.gz",
+      "sha256": "46c256676fa83dc62b491b1ff3504c86f6095e7fefbc20951ae30b86968d81a7",
+      "bytes": 63628969,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/6070_4703_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/6070_4703_000.tar.gz",
+      "sha256": "f0140b48498483a3929173602fc733328819587f450e79984a9bbfcfff4359f1",
+      "bytes": 102869506,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/6128_8734_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/6128_8734_000.tar.gz",
+      "sha256": "a91bbfa53feaff06c5b765ad7ac30f85b84473f96c6e18580ebaa5b5fe480efa",
+      "bytes": 81632886,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/62_1028_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/62_1028_000.tar.gz",
+      "sha256": "1af9849e3c6a76f7f9b698b30dfff55056df813cf1e7059dd0e96cb4387601c0",
+      "bytes": 24819236,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/6381_4703_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/6381_4703_000.tar.gz",
+      "sha256": "9ae53acb9c8d8af42e40f9ac5e515018cf7850e02ea7e3aba90d890817467e06",
+      "bytes": 15424039,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/707_1167_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/707_1167_000.tar.gz",
+      "sha256": "1a4abb355390c5e58e8312f7adbffa75b8b450f5e774195a5be41a5611673b41",
+      "bytes": 689988,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/7239_7016_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/7239_7016_000.tar.gz",
+      "sha256": "d503e601c6bc16d6389c95dd180429b5c6650fda7fb0041746462aafec9e3250",
+      "bytes": 15348858,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/7423_3138_001.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/7423_3138_001.tar.gz",
+      "sha256": "71becbeb34a27bf120bd2706403ceae952a41973c457820241fd6460972371eb",
+      "bytes": 133375719,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/7423_6767_002.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/7423_6767_002.tar.gz",
+      "sha256": "cb3245f1e3453f302d341a773166012436b437faf01679446e0ec76f82452537",
+      "bytes": 215902324,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/7438_8373_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/7438_8373_000.tar.gz",
+      "sha256": "d5577654bea83bfad9c36a0a2c13f691331e98c7864477a2aa82637d5b09d7b0",
+      "bytes": 570456,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/7679_7016_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/7679_7016_000.tar.gz",
+      "sha256": "85fcd54dbb63e24dcf642929de1ccf4e87178bd4630c10b70de20d33c6e0bda2",
+      "bytes": 2090665,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/8582_4991_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/8582_4991_000.tar.gz",
+      "sha256": "9d97727c80238d67272055dbbf67ce191d488803875a75de51ec20f4aa0e6fab",
+      "bytes": 4607847,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/8778_8539_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/8778_8539_000.tar.gz",
+      "sha256": "5becec660d96f8a8d4db873228d9d5eaa5d16793bb051bb91fa7d6b37905564f",
+      "bytes": 269089784,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/8778_9061_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/8778_9061_000.tar.gz",
+      "sha256": "7437c9686b0ea2bd74a402908b068aa08fadb6f3f8bfb63648f9bd972f95738c",
+      "bytes": 244666141,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/9242_8978_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/9242_8978_000.tar.gz",
+      "sha256": "770887ff71f147616e757b43a39eba9330f1659281ad03b3010baef49b2bd101",
+      "bytes": 277172480,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/9242_8978_005.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/9242_8978_005.tar.gz",
+      "sha256": "3d7d0ed6df38b35e4cb23776b32c5216fd32e1beac73c77dd9920fe5f0298984",
+      "bytes": 77039667,
+      "licence": "CC-BY-4.0"
+    },
+    "mls/mls_french/train/94_149_000.tar.gz": {
+      "url": "https://huggingface.co/datasets/facebook/multilingual_librispeech/resolve/2e83e61823b4c47dcbcb1980bb88601274127609/data/mls_french/train/audio/94_149_000.tar.gz",
+      "sha256": "dc91426a086e25fbda404f69e8fba982b520dc6bb4ba73f7a30a3f6d6ed977a9",
+      "bytes": 541506,
+      "licence": "CC-BY-4.0"
+    },
+    "musan/musan.tar.gz": {
+      "url": "https://openslr.elda.org/resources/17/musan.tar.gz",
+      "sha256": "86d1061c7e15b5c9e906777685c519701df51bfde3001e1070dcc9ffac955ee1",
+      "bytes": 11086114085,
+      "licence": "CC-BY-4.0"
+    },
+    "oww/embedding_model.onnx": {
+      "url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/embedding_model.onnx",
+      "sha256": "70d164290c1d095d1d4ee149bc5e00543250a7316b59f31d056cff7bd3075c1f",
+      "bytes": 1326578,
+      "licence": "Apache-2.0"
+    },
+    "oww/melspectrogram.onnx": {
+      "url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/melspectrogram.onnx",
+      "sha256": "ba2b0e0f8b7b875369a2c89cb13360ff53bac436f2895cced9f479fa65eb176f",
+      "bytes": 1087958,
+      "licence": "Apache-2.0"
+    },
+    "voices/fr_FR-gilles-low.onnx": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/gilles/low/fr_FR-gilles-low.onnx",
+      "sha256": "5cd711846720e261c2a176f6924c198a7424d0a75dd4b0a5357a5fb9cb739285",
+      "bytes": 63104526,
+      "licence": "CC0-1.0"
+    },
+    "voices/fr_FR-gilles-low.onnx.json": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/gilles/low/fr_FR-gilles-low.onnx.json",
+      "sha256": "5a47cc0789e91267d17666bbec842dd92950669271a09023eb6970ee364cf88a",
+      "bytes": 4158,
+      "licence": "CC0-1.0"
+    },
+    "voices/fr_FR-mls-medium.onnx": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/mls/medium/fr_FR-mls-medium.onnx",
+      "sha256": "0ed223f78466917f2bae05ee90096ce69ab1fdeb251f55590d0e7422d234e162",
+      "bytes": 76733750,
+      "licence": "CC-BY-4.0"
+    },
+    "voices/fr_FR-mls-medium.onnx.json": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/mls/medium/fr_FR-mls-medium.onnx.json",
+      "sha256": "252b0b0a6e4cc4949e23eccb956f9c779986c32f934f2f7e2191e5fdc2edca61",
+      "bytes": 7036,
+      "licence": "CC-BY-4.0"
+    },
+    "voices/fr_FR-mls_1840-low.onnx": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/mls_1840/low/fr_FR-mls_1840-low.onnx",
+      "sha256": "dcea3d495b760f168179b6bd27c7daefa1d8304ce6ec48867e42bae7cb2e507a",
+      "bytes": 63104526,
+      "licence": "CC-BY-4.0"
+    },
+    "voices/fr_FR-mls_1840-low.onnx.json": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/mls_1840/low/fr_FR-mls_1840-low.onnx.json",
+      "sha256": "294a643de0ae6a4a885d841d9b74470263efe35c81e7cf37dd43e2d663fbd8b3",
+      "bytes": 4160,
+      "licence": "CC-BY-4.0"
+    },
+    "voices/fr_FR-siwis-medium.onnx": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx",
+      "sha256": "641d1ab097da2b81128c076810edb052b385decc8be3381814802a64a73baf99",
+      "bytes": 63201294,
+      "licence": "CC-BY-4.0"
+    },
+    "voices/fr_FR-siwis-medium.onnx.json": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx.json",
+      "sha256": "39479916c2db192b5ac9764daddd0c744d83e023ad890c6976c0633ae4df8959",
+      "bytes": 4875,
+      "licence": "CC-BY-4.0"
+    },
+    "voices/fr_FR-tom-medium.onnx": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx",
+      "sha256": "bf65074ccdeeeeaa832e75edb1c0a513c01c9a972bdf085ff8a6e71ea234fd41",
+      "bytes": 63511038,
+      "licence": "AGPL-3.0"
+    },
+    "voices/fr_FR-tom-medium.onnx.json": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx.json",
+      "sha256": "2f7f885ad5a0aad802e3cc24e4f57239febdcb142b4876de5d238094674361cc",
+      "bytes": 4959,
+      "licence": "AGPL-3.0"
+    },
+    "voices/fr_FR-upmc-medium.onnx": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx",
+      "sha256": "9abb3800c199148897a9ed64e100d224f3de83579f100044174ad19418f1786f",
+      "bytes": 76733615,
+      "licence": "CC-BY-SA-4.0"
+    },
+    "voices/fr_FR-upmc-medium.onnx.json": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/c10ece1aade47bb51c153c893d14e5bf8e5b7117/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx.json",
+      "sha256": "e8636ec15dfd5d72db37a02cb5320a20f2b8d339f2a0e4337da64c58a33a5868",
+      "bytes": 4996,
+      "licence": "CC-BY-SA-4.0"
+    }
+  }
+}

@@ -20,11 +20,34 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useTranslation } from '@/i18n/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
+import { Badge } from '@/components/ui/badge';
+import { isWakeBeta } from '@/lib/audio/wake-word/manifest';
+import { stopWordOf, wakePhraseOf } from '@/lib/audio/wake-word/phrases';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
 
 type SttMode = 'local' | 'remote';
+
+type Translate = ReturnType<typeof useTranslation>['t'];
+
+/**
+ * What the screen says about the wake word in the interface language
+ * (ADR-329): its phrase, its stop word and its beta status when a model ships
+ * for it; otherwise that the phrase is not offered in this language yet and
+ * the button still works. Never an empty « {{phrase}} ».
+ */
+function wakeWordCopy(t: Translate, lng: string) {
+  const phrase = wakePhraseOf(lng);
+  const stopWord = stopWordOf(lng);
+  return {
+    description: phrase
+      ? t('settings.voice_mode.enable_description', { phrase })
+      : t('settings.voice_mode.enable_description_no_model'),
+    stopNote: stopWord ? t('settings.voice_mode.stop_note', { word: stopWord }) : null,
+    beta: isWakeBeta(lng),
+  };
+}
 
 interface VoiceModePreferenceResponse {
   voice_mode_enabled: boolean;
@@ -39,6 +62,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
   const { enable: storeEnable, disable: storeDisable } = useVoiceModeStore();
   const [updating, setUpdating] = useState(false);
   const [sttRemoteAvailable, setSttRemoteAvailable] = useState<boolean | null>(null);
+  const wake = wakeWordCopy(t, lng);
 
   // Sync Zustand store with server preference when server state changes.
   // Zustand ignores same-value updates, so this is safe to call on every render.
@@ -172,13 +196,20 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
       </div>
 
       {/* Wake-word voice mode toggle — opt-in for hands-free, uses the STT
-          backend selected above. Push-to-talk works regardless of this. */}
+          backend selected above. Push-to-talk works regardless of this. The
+          phrase is the interface language's own (ADR-329). */}
       <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
         <div className="flex-1">
-          <p className="text-sm font-medium">{t('settings.voice_mode.enable')}</p>
-          <p className="text-xs text-muted-foreground">
-            {t('settings.voice_mode.enable_description')}
+          <p className="text-sm font-medium flex items-center gap-2">
+            {t('settings.voice_mode.enable')}
+            {wake.beta && <Badge variant="secondary">{t('settings.voice_mode.wake_beta')}</Badge>}
           </p>
+          <p className="text-xs text-muted-foreground">{wake.description}</p>
+          {wake.beta && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {t('settings.voice_mode.wake_beta_note')}
+            </p>
+          )}
         </div>
         <Switch
           checked={user?.voice_mode_enabled ?? false}
@@ -191,8 +222,9 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
       <InfoBox>
         <p className="text-xs text-muted-foreground">{t('settings.voice_mode.info')}</p>
         <p className="text-xs text-muted-foreground mt-2">
-          {t('settings.voice_mode.experimental_note')}
+          {t('settings.voice_mode.wake_privacy_note')}
         </p>
+        {wake.stopNote && <p className="text-xs text-muted-foreground mt-2">{wake.stopNote}</p>}
       </InfoBox>
     </div>
   );

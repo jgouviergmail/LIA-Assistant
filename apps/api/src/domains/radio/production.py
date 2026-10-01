@@ -301,7 +301,25 @@ class ProductionResult:
 
 
 async def _write_file(path: Path, data: bytes) -> None:
-    await asyncio.to_thread(path.write_bytes, data)
+    """Write a line's audio off the loop, and never leave the write behind.
+
+    A thread cannot be cancelled. When a sibling line fails, the task group
+    cancels this one while its bytes may still be going to disk; returning at
+    once would let the segment's cleanup race the write — Windows refuses to
+    unlink a file still open (measured: a red unit test), and elsewhere the
+    write recreates the file after its removal. So a cancellation waits for the
+    write to end, then propagates.
+    """
+    write = asyncio.ensure_future(asyncio.to_thread(path.write_bytes, data))
+    try:
+        await asyncio.shield(write)
+    except asyncio.CancelledError:
+        await asyncio.wait({write})
+        if not write.cancelled():
+            # Read so a failed write is never reported as an unretrieved error;
+            # the cancellation is what this task answers.
+            write.exception()
+        raise
 
 
 def _remove(paths: Sequence[Path]) -> None:

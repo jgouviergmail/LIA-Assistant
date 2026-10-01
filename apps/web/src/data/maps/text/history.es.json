@@ -1732,6 +1732,21 @@
       "title": "Una skill de fuera se lee como un dato, y la biblioteca instala lo que se leyó",
       "summary": "Se pueden buscar skills en skills.sh o en una dirección de GitHub, leer cada una antes de instalarla y mantenerla al día; la instalación toma exactamente el commit leído, cada archivo verificado. Una skill escrita fuera de LIA se ejecuta aparte, solo con sus propios archivos: nunca los conectores de la persona, ni imágenes ni contenido web en sus respuestas. Una skill puede ejecutar sus propios comandos en una copia desechable de su carpeta, con red solo hacia los hosts permitidos, y la que escribe el chat solo entra con el clic de la persona.",
       "src": "26f9206a5fb1"
+    },
+    "328": {
+      "title": "El heartbeat ya no tiene cupo diario: cada pasada llega a la decisión",
+      "summary": "LIA ya no retiene una notificación útil porque se haya alcanzado un tope diario: el modelo de decisión juzga si una señal merece interrumpir a la persona. Cada pasada dentro de su franja horaria llega a esa decisión, y solo la franja, las pausas entre dos mensajes, una reunión en curso y los topes de gasto acotan el ritmo. Los despertares por un correo y los momentos anticipados siguen las mismas reglas.",
+      "src": "efbca67500f4"
+    },
+    "329": {
+      "title": "Una palabra de activación entrenada, oída en el navegador, y una espera Live que no factura nada",
+      "summary": "LIA despierta con una frase reconocida íntegramente en el navegador por un pequeño modelo entrenado para su idioma, sin la condición técnica que privaba al iPhone y a las aplicaciones nativas del antiguo «OK Guy» en inglés; «Stop» corta su voz. El primer modelo, «Dis LIA» en francés, se entrega en beta porque su banco aún no alcanza los umbrales publicados, y los demás idiomas conservan el toque. En modo Live, un silencio pone a la asistente en espera: la conexión con el proveedor se cierra, ya no se factura nada, y un toque o la frase la despierta sin perder la conversación.",
+      "src": "c2b699b7c2d6"
+    },
+    "330": {
+      "title": "Medios servidos sin trabajo en ejecución: ilustraciones pregeneradas, un vídeo declarado por el operador",
+      "summary": "Las ilustraciones del blog se escriben una vez, en cuatro anchos y una imagen para compartir, y se sirven tal cual: el servidor ya no redimensiona nada y la caché de borde las conserva. El vídeo de la página de inicio se aloja donde el operador lo declara y lo describe un manifiesto leído bajo demanda; sin él, la sección no existe. En bucle, arranca cuando es visible, con sonido donde el navegador lo permite y en silencio en otros casos hasta un clic, y mientras suena, el título de la página y los de las secciones laten con la música gracias a un mapa de pulsos calculado de antemano.",
+      "src": "7ab6089b847d"
     }
   }
 }

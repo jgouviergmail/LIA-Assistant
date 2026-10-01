@@ -2285,6 +2285,40 @@
      }
     }
    ]
+  },
+  {
+   "id": 56,
+   "type": "timeseries",
+   "title": "Recipient suggestions — address-book reads (by outcome)",
+   "description": "The address-book reads behind the recipient suggestions of « Send by e-mail ». 'live' read a contacts provider (one consultation filed on the email_share surface, ADR-263); 'cached' opened nothing; 'no_connector' is an account without a contacts connector; 'failed' and 'timeout' left the field without suggestions.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 141
+   },
+   "targets": [
+    {
+     "expr": "sum by (outcome) (rate(email_share_recipient_directory_reads_total[$__rate_interval])) or vector(0)",
+     "legendFormat": "{{outcome}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
   }
  ]
 }

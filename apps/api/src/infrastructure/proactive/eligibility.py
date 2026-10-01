@@ -4,7 +4,7 @@ Eligibility Checking for Proactive Tasks.
 Provides generic eligibility checks that apply to all proactive tasks:
 - Feature enabled check
 - Time window check (user timezone)
-- Daily quota check
+- Daily quota check (only for a task with per-day bounds)
 - Global cooldown check
 - Activity cooldown check (don't interrupt active users)
 
@@ -113,7 +113,7 @@ class EligibilityChecker:
     Checks performed (in order):
     1. Feature enabled (task-specific setting)
     2. Time window (user timezone)
-    3. Daily quota (notifications sent today)
+    3. Daily quota (notifications sent today) — only with per-day bounds
     4. Global cooldown (time since last notification)
     5. Activity cooldown (time since last user message)
 
@@ -135,8 +135,8 @@ class EligibilityChecker:
         enabled_field: str,
         start_hour_field: str,
         end_hour_field: str,
-        min_per_day_field: str,
-        max_per_day_field: str,
+        min_per_day_field: str | None = None,
+        max_per_day_field: str | None = None,
         notification_model: Any = None,  # SQLAlchemy model class with user_id, created_at
         global_cooldown_hours: int = 2,
         activity_cooldown_minutes: int = 5,
@@ -159,8 +159,12 @@ class EligibilityChecker:
             enabled_field: User model field for feature toggle
             start_hour_field: User model field for notification start hour
             end_hour_field: User model field for notification end hour
-            min_per_day_field: User model field for min notifications per day
-            max_per_day_field: User model field for max notifications per day
+            min_per_day_field: User model field for min notifications per day.
+            max_per_day_field: User model field for max notifications per day.
+                Both or neither (ADR-328): a task given neither has no daily
+                bound at all — no quota refuses it and the runner never paces
+                it, so every tick reaches the task's own decision. The
+                heartbeat is that task; interests keep their bounds.
             notification_model: SQLAlchemy model for notifications (for quota check)
             global_cooldown_hours: Minimum hours between any notifications
             activity_cooldown_minutes: Don't notify if user active within N minutes
@@ -189,7 +193,12 @@ class EligibilityChecker:
                 scheduler (see :data:`ActivityProbe`). None disables the
                 activity-cooldown gate EXPLICITLY — both prod schedulers wire
                 a real probe (pinned by test).
+
+        Raises:
+            ValueError: One per-day field is given without the other.
         """
+        if (min_per_day_field is None) != (max_per_day_field is None):
+            raise ValueError("min_per_day_field and max_per_day_field are given both or neither")
         self.task_type = task_type
         self.enabled_field = enabled_field
         self.start_hour_field = start_hour_field
@@ -209,6 +218,11 @@ class EligibilityChecker:
         self.notification_filter = notification_filter
         self.cross_type_filters = cross_type_filters or {}
         self.activity_probe = activity_probe
+
+    @property
+    def has_daily_bounds(self) -> bool:
+        """Whether a day's count may refuse this task, and the runner pace it."""
+        return self.max_per_day_field is not None
 
     async def check(
         self,
@@ -239,8 +253,8 @@ class EligibilityChecker:
         if not result.eligible:
             return result
 
-        # 3. Daily quota check
-        if self.notification_model:
+        # 3. Daily quota check — a task without per-day bounds has none
+        if self.notification_model and self.has_daily_bounds:
             result = await self._check_daily_quota(user, db, now)
             if not result.eligible:
                 return result
@@ -334,7 +348,7 @@ class EligibilityChecker:
         now: datetime,
     ) -> EligibilityResult:
         """Check if user has exceeded daily notification quota."""
-        if not self.notification_model:
+        if not self.notification_model or self.max_per_day_field is None:
             return EligibilityResult.success()
 
         # Get user timezone for "today" calculation
@@ -552,6 +566,9 @@ class EligibilityChecker:
         """
         import random
 
+        if self.min_per_day_field is None or self.max_per_day_field is None:
+            # No daily bounds, nothing to spread (ADR-328).
+            return True, {"decision": "unbounded"}
         min_per_day = getattr(user, self.min_per_day_field, self.default_min_per_day)
         max_per_day = getattr(user, self.max_per_day_field, self.default_max_per_day)
 

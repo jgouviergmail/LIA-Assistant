@@ -212,6 +212,7 @@ export default function ChatPage() {
     hydrateContextUsage, // Seeds the pill from /me/totals on page load
     checkAndResumeActiveRun, // ADR-117 Lot 2: silent reattach to an in-flight run
     stopGeneration, // ADR-117 Lot 3: stop button (cancels the in-flight run)
+    stopVoice, // ADR-329: her phrase or the stop word cuts LIA's voice
     hitl, // HITL approval card state (Lot 1 P1-V1)
     submitHitlDecision, // One-click approval (structured decision, classifier bypassed)
     hydratePendingHitl, // Card rehydration after reload (GET /agents/hitl/pending)
@@ -774,7 +775,7 @@ export default function ChatPage() {
               {/* Frosted-glass header: translucent card + strong blur, no gradient. */}
               <div className="relative border-b border-border/30 bg-card/60 backdrop-blur-xl px-4 py-4 sm:px-6 shadow-sm">
                 {/* Three IN-FLOW columns with equal-weight (`flex-1`) sides and a
-                `shrink-0` middle: the middle (voice + spaces) is CENTRED when
+                `shrink-0` middle: the middle (hands-free, context, spaces) is CENTRED when
                 the sides are balanced, and SHIFTS by itself — never overlaps —
                 when a side grows (the processing / listening status pill, the
                 search field). The former `absolute left-1/2` centring reserved
@@ -847,33 +848,36 @@ export default function ChatPage() {
                     </div>
                   </div>
 
-                  {/* Centre (in flow, shrink-0): Voice Mode Badge — single
-                  instance, always mounted to preserve KWS state — the
-                  active-spaces pill and, at its right, the context-usage pill
-                  (owner arbitration 2026-08-05: observation it may be, it
-                  earns its place at EVERY width — it was `hidden` below
-                  `mobile` on the right side and users missed it; its ~52 px
-                  fit a 360 px row, and tap toggles the tooltip touch-side).
-                  Hidden until the first turn completes (no data yet);
-                  conversation totals ride its tooltip (QW-12). `shrink-0`
-                  keeps the group intact while the flex-1 sides absorb the
-                  width; equal sides keep it visually centred and let it SHIFT
-                  rather than overlap when a side grows. */}
-                  <div className="flex shrink-0 items-center gap-2">
+                  {/* Centre (in flow, shrink-0), in the owner's order
+                  (2026-10-01): the hands-free badge — single instance, always
+                  mounted AND always shown (greyed while off, a tap turns it
+                  on) to preserve KWS state —, the context-usage pill, then the
+                  active-spaces pill. The context pill (owner arbitration
+                  2026-08-05: observation it may be, it earns its place at
+                  EVERY width — it was `hidden` below `mobile` on the right
+                  side and users missed it; its ~52 px fit a 360 px row, and
+                  tap toggles the tooltip touch-side) stays hidden until the
+                  first turn completes (no data yet); conversation totals ride
+                  its tooltip (QW-12). `shrink-0` keeps the group intact while
+                  the flex-1 sides absorb the width; equal sides keep it
+                  visually centred and let it SHIFT rather than overlap when a
+                  side grows. data-eyes-anchor-end sits on the GROUP: the eyes
+                  dock between the search field and its first control, which
+                  they must never cover, whatever the group holds. Below `sm`
+                  the three pills and their gap tighten (px-2, gap-1.5): with
+                  the hands-free badge always shown, a 320 px row needs those
+                  pixels or the last pill slides under « Delete » (measured). */}
+                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2" data-eyes-anchor-end>
                     <VoiceModeBadge
                       onTranscription={(text, meta) =>
                         sendMessageFromPresent(text, undefined, undefined, meta)
                       }
+                      onInterrupt={stopVoice}
                       disabled={locks.voice}
                     />
                     {/* ADR-299 (wave 2, A1): the entry into the live mode is the
                         header's voice menu; the session it opens lives HERE, with
                         the chat's doors (`useLiveSession` consumes the start). */}
-                    {/* data-eyes-anchor-end: the eyes widget docks centered
-                    between the search field and this RAG-knowledge badge. */}
-                    <span className="inline-flex" data-eyes-anchor-end>
-                      <ActiveSpacesIndicator />
-                    </span>
                     {contextUsage && (
                       <ContextUsagePill
                         usage={contextUsage}
@@ -885,6 +889,7 @@ export default function ChatPage() {
                         }
                       />
                     )}
+                    <ActiveSpacesIndicator />
                   </div>
 
                   {/* Right side: Delete/New chat, in flow. `min-w-0 flex-1`
@@ -892,7 +897,7 @@ export default function ChatPage() {
                   `justify-end` keeps it pinned to the right edge. */}
                   <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
                     {/* Delete/New chat button. Below `sm` the label steps aside —
-                    the row cannot carry it next to the spaces indicator — so
+                    the row cannot carry it next to the centre group — so
                     the accessible name is carried explicitly: a bare trash
                     icon names nothing. The ACTION itself never disappears; it
                     is destructive and the only way to start over. */}

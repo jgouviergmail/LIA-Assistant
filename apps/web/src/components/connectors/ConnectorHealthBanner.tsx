@@ -32,6 +32,7 @@ import { AlertTriangle } from 'lucide-react';
 import type { ConnectorHealthItem } from '@/hooks/useConnectorHealth';
 import type { Language } from '@/i18n/settings';
 import { Button } from '@/components/ui/button';
+import type { BulkGroup } from '@/lib/connectors/bulk-reconnect';
 import { settingsSectionHref } from '@/lib/settings-sections';
 
 /**
@@ -58,6 +59,11 @@ interface ConnectorHealthBannerProps {
   reconnecting: boolean;
   /** Starts the reconnection for the single broken connector. */
   onReconnect: (connectorId: string, authorizeUrl: string) => void;
+  /** One grouped « reconnect my services » per provider with two joinable rows. */
+  bulkGroups: BulkGroup[];
+  /** True while a grouped authorization is being started. */
+  bulkBusy: boolean;
+  onBulkReconnect: (group: BulkGroup) => void;
 }
 
 export function ConnectorHealthBanner({
@@ -66,6 +72,9 @@ export function ConnectorHealthBanner({
   t,
   reconnecting,
   onReconnect,
+  bulkGroups,
+  bulkBusy,
+  onBulkReconnect,
 }: ConnectorHealthBannerProps) {
   const bannerRef = useRef<HTMLDivElement>(null);
   const visible = connectors.length > 0;
@@ -124,26 +133,46 @@ export function ConnectorHealthBanner({
           </span>
         </p>
         {single ? (
+          // `aria-disabled` + the guard, never `disabled`: the redirect starts
+          // from a focused button, and a disabled one drops the focus to <body>.
           <Button
             size="sm"
             variant="outline"
             className="w-full shrink-0 sm:w-auto"
-            disabled={reconnecting}
-            onClick={() => onReconnect(single.id, single.authorize_url)}
+            aria-disabled={reconnecting || undefined}
+            onClick={() => {
+              if (!reconnecting) onReconnect(single.id, single.authorize_url);
+            }}
           >
             {reconnecting
               ? t('settings.connectors.health.reconnecting')
               : t('settings.connectors.health.reconnect')}
           </Button>
         ) : (
-          // Several broken at once: one reconnection per provider is needed,
-          // so the banner sends to the page that lists them instead of
-          // arbitrarily picking one.
-          <Button asChild size="sm" variant="outline" className="w-full shrink-0 sm:w-auto">
-            <Link href={settingsSectionHref(lng, 'connectors')}>
-              {t('settings.connectors.health.banner_manage')}
-            </Link>
-          </Button>
+          // Several broken at once: one grouped authorization per provider
+          // holding two joinable rows, exactly as « My connectors » offers it —
+          // and the page that lists them all, for what no group covers.
+          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
+            {bulkGroups.map(group => (
+              <Button
+                key={group.provider}
+                size="sm"
+                variant="outline"
+                className="w-full sm:w-auto"
+                aria-disabled={bulkBusy || undefined}
+                onClick={() => {
+                  if (!bulkBusy) onBulkReconnect(group);
+                }}
+              >
+                {t(`settings.connectors.bulk_reconnect.${group.provider}_action`)}
+              </Button>
+            ))}
+            <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
+              <Link href={settingsSectionHref(lng, 'connectors')}>
+                {t('settings.connectors.health.banner_manage')}
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
     </div>

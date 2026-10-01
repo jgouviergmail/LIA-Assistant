@@ -18,9 +18,15 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.constants import MICROSOFT_CONTACTS_DIRECTORY_PAGE_SIZE
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
+from src.domains.connectors.clients.contact_directory import (
+    ContactDirectory,
+    cached_directory,
+    invalidate_contacts_cache,
+)
 from src.domains.connectors.clients.normalizers.microsoft_contacts_normalizer import (
     build_contact_body,
     build_contact_update_body,
@@ -37,6 +43,12 @@ _CONTACT_SELECT_FIELDS = (
     "homePhones,businessPhones,mobilePhone,companyName,jobTitle,"
     "department,homeAddress,businessAddress,otherAddress,"
     "birthday,personalNotes,photo"
+)
+
+
+#: What a directory entry needs of a Graph contact (``clients/contact_directory``).
+_DIRECTORY_SELECT_FIELDS = (
+    "id,displayName,givenName,surname,emailAddresses,homePhones,businessPhones,mobilePhone"
 )
 
 
@@ -165,6 +177,42 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             FIELD_CACHED_AT: None,
         }
 
+    async def list_email_directory(self, max_contacts: int) -> ContactDirectory:
+        """The whole address book, up to ``max_contacts`` (``clients/contact_directory``).
+
+        Args:
+            max_contacts: The caller's published cap.
+
+        Returns:
+            The persons (names, addresses, numbers), and whether the book was cut.
+        """
+        return await cached_directory(
+            self.user_id, self.connector_type.value, max_contacts, self._read_directory
+        )
+
+    async def _read_directory(self, max_contacts: int) -> tuple[list[dict[str, Any]], bool]:
+        """Read ``/me/contacts`` following ``@odata.nextLink``, then cut at the cap."""
+        response = await self._make_request(
+            "GET",
+            "/me/contacts",
+            {
+                "$select": _DIRECTORY_SELECT_FIELDS,
+                "$top": min(MICROSOFT_CONTACTS_DIRECTORY_PAGE_SIZE, max_contacts),
+            },
+        )
+        persons = [normalize_graph_contact(contact) for contact in response.get("value", [])]
+        next_link = response.get("@odata.nextLink")
+        while next_link and len(persons) < max_contacts:
+            response = await self._make_request_full_url("GET", next_link)
+            persons.extend(
+                normalize_graph_contact(contact) for contact in response.get("value", [])
+            )
+            next_link = response.get("@odata.nextLink")
+        truncated = len(persons) > max_contacts or (
+            bool(next_link) and len(persons) >= max_contacts
+        )
+        return persons[:max_contacts], truncated
+
     async def get_person(
         self,
         resource_name: str,
@@ -229,6 +277,8 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         body = build_contact_body(name, email, phone, organization, notes)
 
         response = await self._make_request("POST", "/me/contacts", json_data=body)
+        # The directory the recipient suggestions read is cached (Google parity).
+        await invalidate_contacts_cache(self.user_id)
 
         logger.info(
             "microsoft_contact_created",
@@ -267,6 +317,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         body = build_contact_update_body(name, email, phone, organization, notes, address)
 
         response = await self._make_request("PATCH", f"/me/contacts/{contact_id}", json_data=body)
+        await invalidate_contacts_cache(self.user_id)
 
         logger.info(
             "microsoft_contact_updated",
@@ -289,6 +340,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         contact_id = resource_name.replace("people/", "")
 
         await self._make_request("DELETE", f"/me/contacts/{contact_id}")
+        await invalidate_contacts_cache(self.user_id)
 
         logger.info(
             "microsoft_contact_deleted",

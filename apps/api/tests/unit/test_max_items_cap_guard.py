@@ -70,6 +70,13 @@ ALLOWED: set[tuple[str, str]] = {
     # 1 000. Capped at the agent ceiling (25) it took 5 832 calls in 50 minutes
     # to drain one account and blocked the wake sweep 22 minutes (2026-09-22).
     ("google_drive_client.py", "list_changes"),
+    # The whole address book behind the « Send by e-mail » recipient suggestions
+    # (clients/contact_directory, ADR-321 amendment): an internal read matched
+    # server-side, never handed to an agent, bounded by its OWN published cap
+    # (EMAIL_SHARE_DIRECTORY_MAX_CONTACTS) and stated when it cuts. At the agent
+    # ceiling a thousand contacts would take forty requests.
+    ("google_people_client.py", "_read_directory"),
+    ("microsoft_contacts_client.py", "_read_directory"),
 }
 
 

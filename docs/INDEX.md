@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 326 ADR files (ADR-327 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 329 ADR files (ADR-330 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -53,7 +53,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (326 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (329 ADR files) |
 
 ### Pour les Product Managers
 
@@ -135,6 +135,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GOOGLE_PUSH_CHANNELS.md](./technical/GOOGLE_PUSH_CHANNELS.md) | Notifications push Google (Calendar/Drive watch, Gmail Pub/Sub) — prérequis admin et architecture | ✅ |
 | [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) | Intégration Microsoft 365 (Outlook, Calendar, Contacts, To Do) | ✅ |
 | [VOICE.md](./technical/VOICE.md) | Voice/TTS catalogue-driven (Edge / OpenAI / ElevenLabs, ADR-081), per-message attribution, progressive sentence streaming (ADR-082) | ✅ |
+| [WAKE_WORD_TRAINING.md](./technical/WAKE_WORD_TRAINING.md) | Comment un mot-clé est entraîné, jugé et livré (ADR-329) : pipeline openWakeWord, voix Piper et VoxCPM2, formes séparée/soudée/avec pause, corpus négatifs, augmentation, recette d'entraînement, banc et grille d'acceptation, export, et ce que chaque mesure a appris | ✅ |
 | [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT (local Sherpa + remote ElevenLabs Scribe), Wake Word, Push-to-Talk, voice_stt_mode opt-in (v1.20.x) ; le mode Live (parole à parole, ADR-299) est une troisième porte à côté, documentée dans LIVE_MODE.md | ✅ |
 | [ROUTES.md](./technical/ROUTES.md) | Google Routes API, directions | ✅ |
 | [WEB_FETCH.md](./technical/WEB_FETCH.md) | Extraction contenu pages web (URL → Markdown), SSRF prevention | ✅ |

@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 2.2
-**Date** : 2026-09-30
-**Application** : LIA v2.2.0
+**Date** : 2026-10-02
+**Application** : LIA v2.3.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests) — 54 domaines fonctionnels | **785 000+** |
+| Lignes de source (hors tests) — 54 domaines fonctionnels | **800 000+** |
 | Tests automatisés, exécutés à chaque commit et livraison | **48 000+** |
-| Décisions d'architecture documentées (ADR) | **326** |
-| Versions livrées à rythme régulier | **273** |
+| Décisions d'architecture documentées (ADR) | **329** |
+| Versions livrées à rythme régulier | **274** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -52,7 +52,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 326 documentées :
+Trois décisions structurantes, parmi les 329 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
@@ -70,6 +70,8 @@ Un système qu'on pilote aux instruments :
 - **Conformité** : sécurité revue point d'accès par point d'accès ; chiffrement des données personnelles ; cycle de vie des comptes aligné sur le RGPD.
 
 Le produit rend ses choix d'ingénierie visibles à l'échelle humaine. La conversation suit une personne entre ses appareils sans bousculer sa lecture ; la radio démarre quand elle choisit d'écouter et nomme les nouvelles dont elle s'inspire et leur coût. Un fichier généré possède une durée de vie que la personne peut prolonger délibérément. Le travail planifié et les vérifications de conditions ont des horloges distinctes. Ce sont des promesses observables, étayées par des sources, des limites et des tests, plutôt qu'une prétention à deviner ce que la personne veut.
+
+La même règle vaut pour ce qui n'est pas encore au niveau. Le mot d'activation « Dis LIA » est un petit modèle entraîné hors ligne et mesuré sur un banc dont les seuils sont publiés avant l'entraînement : le modèle français ne les atteint pas encore, alors il est livré marqué **bêta**, et le produit le dit, plutôt que d'abaisser la barre pour pouvoir écrire « terminé ». Une session vocale qui s'endort sur un silence ne coûte rien, et seule la personne la termine.
 
 ## 6. La preuve
 

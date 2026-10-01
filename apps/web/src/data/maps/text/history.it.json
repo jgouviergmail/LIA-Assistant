@@ -1732,6 +1732,21 @@
       "title": "Una skill venuta da fuori è letta come un dato, e la libreria installa ciò che è stato letto",
       "summary": "Si possono cercare skill su skills.sh o a un indirizzo GitHub, leggerle una per una prima di installarle e tenerle aggiornate; l'installazione prende esattamente il commit letto, ogni file verificato. Una skill scritta fuori da LIA gira a parte, solo con i propri file: mai i connettori della persona, nessuna immagine né contenuto web nelle sue risposte. Una skill può eseguire i propri comandi in una copia usa e getta della sua cartella, con la rete solo verso gli host consentiti, e quella scritta dalla chat entra solo con il clic della persona.",
       "src": "26f9206a5fb1"
+    },
+    "328": {
+      "title": "L'heartbeat non ha più una quota giornaliera: ogni passaggio arriva alla decisione",
+      "summary": "LIA non trattiene più una notifica utile perché sarebbe stato raggiunto un tetto giornaliero: è il modello di decisione a giudicare se un segnale merita di interrompere la persona. Ogni passaggio nella sua fascia oraria arriva a quella decisione, e solo la fascia, le pause tra due messaggi, una riunione in corso e i tetti di spesa limitano il ritmo. I risvegli da un'e-mail e i momenti anticipati seguono le stesse regole.",
+      "src": "efbca67500f4"
+    },
+    "329": {
+      "title": "Una parola di attivazione addestrata, sentita nel browser, e uno standby Live che non fattura nulla",
+      "summary": "LIA si risveglia con una frase riconosciuta interamente nel browser da un piccolo modello addestrato per la sua lingua, senza la condizione tecnica che teneva il vecchio «OK Guy» inglese lontano dall'iPhone e dalle app native; «Stop» interrompe la sua voce. Il primo modello, «Dis LIA» in francese, è distribuito in beta perché il suo banco non raggiunge ancora le soglie pubblicate, e le altre lingue mantengono il tocco. In modalità Live, un silenzio mette l'assistente in standby: la connessione con il fornitore si chiude, non viene più fatturato nulla, e un tocco o la frase la riattiva senza perdere la conversazione.",
+      "src": "c2b699b7c2d6"
+    },
+    "330": {
+      "title": "Media serviti senza lavoro a runtime: illustrazioni pregenerate, un video dichiarato dall'operatore",
+      "summary": "Le illustrazioni del blog vengono scritte una volta, in quattro larghezze e un'immagine di condivisione, e servite così come sono: il server non ridimensiona più nulla e la cache di bordo le conserva. Il video della pagina iniziale è ospitato dove l'operatore lo dichiara ed è descritto da un manifesto letto su richiesta; senza di esso la sezione non esiste. In loop, parte quando è visibile, con l'audio dove il browser lo consente e muto altrove fino a un clic, e finché l'audio suona il titolo della pagina e quelli delle sezioni battono con la musica grazie a una mappa dei battiti calcolata in anticipo.",
+      "src": "7ab6089b847d"
     }
   }
 }

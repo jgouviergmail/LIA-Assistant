@@ -38,6 +38,21 @@ export interface EmailShareOptions {
   max_recipients: number;
   subject_max_chars: number;
   message_max_chars: number;
+  /** Contacts are suggested while a recipient is typed (mailbox road + contacts connector). */
+  recipient_suggestions: boolean;
+  /** Shortest name or address query the suggestions compare. */
+  recipient_query_min_chars: number;
+  /** Suggestions shown for one query. */
+  recipient_suggestions_max: number;
+}
+
+/** What `GET /email-share/recipients` answers. */
+export interface RecipientSuggestionsResponse {
+  /** The query as received: an answer to an older query is never shown. */
+  query: string;
+  suggestions: { name: string; email: string }[];
+  /** The address book was longer than the instance reads. */
+  truncated: boolean;
 }
 
 /** What `POST /email-share` answers. */
@@ -89,6 +104,73 @@ export function parseRecipients(raw: string): string[] {
     }
   }
   return addresses;
+}
+
+/** The recipient being typed: where it sits in the field, and what it says. */
+export interface ActiveRecipient {
+  /** First character of the segment a suggestion replaces. */
+  start: number;
+  /** One past its last character. */
+  end: number;
+  /** Its text, trimmed — what the suggestions are asked for. */
+  query: string;
+}
+
+const LIST_SEPARATOR = /[,;]/;
+
+/**
+ * The recipient under the caret.
+ *
+ * Recipients are separated by commas or semicolons — and by spaces BETWEEN
+ * addresses, which is why a name (« Jean Dup ») keeps its spaces while
+ * « a@x.org jean » asks about « jean »: complete addresses before the caret
+ * are what is already chosen.
+ *
+ * @param raw - The field's value.
+ * @param caret - The caret's position in it.
+ * @returns The segment a suggestion would replace.
+ */
+export function activeRecipient(raw: string, caret: number): ActiveRecipient {
+  const at = Math.max(0, Math.min(caret, raw.length));
+  let segmentStart = 0;
+  for (let index = at - 1; index >= 0; index -= 1) {
+    if (LIST_SEPARATOR.test(raw[index])) {
+      segmentStart = index + 1;
+      break;
+    }
+  }
+  const after = raw.slice(at).search(LIST_SEPARATOR);
+  const end = after === -1 ? raw.length : at + after;
+  // Complete addresses typed before the caret, space-separated, stay chosen:
+  // the recipient being typed starts after the last of them.
+  let start = segmentStart;
+  for (const word of raw.slice(segmentStart, at).matchAll(/\S+\s+/g)) {
+    if (ADDRESS.test(word[0].trim())) start = segmentStart + (word.index ?? 0) + word[0].length;
+  }
+  return { start, end, query: raw.slice(start, end).trim() };
+}
+
+/**
+ * The field once a suggested address replaces the recipient being typed.
+ *
+ * The address is followed by « , » so the next recipient can be typed at once;
+ * what followed the replaced segment is kept, after one separator.
+ *
+ * @param raw - The field's value.
+ * @param active - The segment being replaced (`activeRecipient`).
+ * @param email - The chosen address.
+ * @returns The new value, and where the caret goes (just after « , »).
+ */
+export function insertRecipient(
+  raw: string,
+  active: ActiveRecipient,
+  email: string
+): { value: string; caret: number } {
+  const before = raw.slice(0, active.start).trimEnd();
+  const lead = before === '' || /[,;]$/.test(before) ? before : `${before},`;
+  const head = `${lead}${lead === '' ? '' : ' '}${email}, `;
+  const rest = raw.slice(active.end).replace(/^[\s,;]+/, '');
+  return { value: `${head}${rest}`, caret: head.length };
 }
 
 /** One `@`, something before it, and a domain with a dot — the server holds the real rule. */

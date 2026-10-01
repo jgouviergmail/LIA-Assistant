@@ -44,8 +44,6 @@ def _checker(probe: Any = None, cooldown_minutes: int = 15) -> EligibilityChecke
         enabled_field="heartbeat_enabled",
         start_hour_field="heartbeat_notify_start_hour",
         end_hour_field="heartbeat_notify_end_hour",
-        min_per_day_field="heartbeat_min_per_day",
-        max_per_day_field="heartbeat_max_per_day",
         activity_cooldown_minutes=cooldown_minutes,
         activity_probe=probe,
     )

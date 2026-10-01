@@ -9,9 +9,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  activeRecipient,
   checkShare,
   emailShareAvailable,
   emailShareErrorKey,
+  insertRecipient,
   invalidRecipients,
   parseRecipients,
   requestBody,
@@ -111,6 +113,9 @@ describe('checkShare', () => {
     max_recipients: 2,
     subject_max_chars: 200,
     message_max_chars: 5000,
+    recipient_suggestions: true,
+    recipient_query_min_chars: 2,
+    recipient_suggestions_max: 8,
   };
   const note = { kind: 'markdown' as const, filename: 'lia-x', text: 'abc' };
 
@@ -154,5 +159,60 @@ describe('checkShare', () => {
     const none: EmailShareOptions = { ...mailbox, route: 'unavailable' };
 
     expect(checkShare(none, note, 'bob@example.com', 'S').ready).toBe(false);
+  });
+});
+
+describe('activeRecipient — the recipient under the caret', () => {
+  it('is the whole field when nothing is chosen yet, spaces of a name included', () => {
+    expect(activeRecipient('Jean Dup', 8)).toEqual({ start: 0, end: 8, query: 'Jean Dup' });
+  });
+
+  it('starts after the last comma or semicolon before the caret', () => {
+    const raw = 'a@x.org, jea';
+    expect(activeRecipient(raw, raw.length)).toEqual({ start: 8, end: 12, query: 'jea' });
+    expect(activeRecipient('a@x.org;jea', 11).query).toBe('jea');
+  });
+
+  it('leaves complete addresses typed before it, separated by spaces, alone', () => {
+    const raw = 'a@x.org b@y.org lef';
+    expect(activeRecipient(raw, raw.length).query).toBe('lef');
+  });
+
+  it('is the segment the caret sits in, not the last one', () => {
+    const raw = 'jea, b@y.org';
+    expect(activeRecipient(raw, 2)).toEqual({ start: 0, end: 3, query: 'jea' });
+  });
+
+  it('is empty right after a separator', () => {
+    expect(activeRecipient('a@x.org, ', 9).query).toBe('');
+    expect(activeRecipient('', 0).query).toBe('');
+  });
+});
+
+describe('insertRecipient — a picked address replaces what was typed', () => {
+  it('replaces the query and opens the next recipient', () => {
+    const raw = 'a@x.org, jea';
+    const result = insertRecipient(raw, activeRecipient(raw, raw.length), 'jean@example.org');
+
+    expect(result).toEqual({
+      value: 'a@x.org, jean@example.org, ',
+      caret: 'a@x.org, jean@example.org, '.length,
+    });
+    expect(parseRecipients(result.value)).toEqual(['a@x.org', 'jean@example.org']);
+  });
+
+  it('keeps what followed the segment, after one separator', () => {
+    const raw = 'jea, b@y.org';
+    const result = insertRecipient(raw, activeRecipient(raw, 2), 'jean@example.org');
+
+    expect(result.value).toBe('jean@example.org, b@y.org');
+    expect(result.caret).toBe('jean@example.org, '.length);
+  });
+
+  it('turns a space-separated list into a comma-separated one', () => {
+    const raw = 'a@x.org lef';
+    const result = insertRecipient(raw, activeRecipient(raw, raw.length), 'lefevre@example.org');
+
+    expect(result.value).toBe('a@x.org, lefevre@example.org, ');
   });
 });

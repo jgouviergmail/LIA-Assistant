@@ -66,6 +66,23 @@ class FakeRedis:
         held = self.lists.get(key, [])
         return held[start:] if stop == -1 else held[start : stop + 1]
 
+    async def lmpop(self, num_keys: int, *keys: str, direction: str, count: int = 1):
+        """Pop up to ``count`` items of the first non-empty list, atomically (Redis 7)."""
+        self.ops["lmpop"] += 1
+        self._check()
+        for key in keys[:num_keys]:
+            held = self.lists.get(key)
+            if not held:
+                continue
+            taken = held[:count] if direction == "LEFT" else held[-count:][::-1]
+            remaining = held[count:] if direction == "LEFT" else held[: len(held) - count]
+            if remaining:
+                self.lists[key] = remaining
+            else:
+                del self.lists[key]
+            return [key, taken]
+        return None
+
     async def incr(self, key: str) -> int:
         self.ops["incr"] += 1
         self._check()

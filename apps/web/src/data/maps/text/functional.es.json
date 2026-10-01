@@ -418,9 +418,10 @@
         "«¿Qué tengo mañana?» se delega al motor de LIA como un turno normal.",
         "El calendario se consulta con las mismas reglas que en el chat.",
         "¿Una acción sensible? La pregunta de validación se convierte en la respuesta de voz.",
+        "¿Un silencio? La sesión entra en espera — ya no se factura nada — y un toque la despierta.",
         "Al final, una tarjeta resume la sesión y lo que ha costado."
       ],
-      "src": "77ddea7882a0"
+      "src": "6f5ca4ae4284"
     },
     "flow.learn": {
       "name": "LIA aprende a conocerte",

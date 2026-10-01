@@ -18,8 +18,6 @@ from typing import Any
 
 from src.core.config import settings
 from src.core.constants import (
-    HEARTBEAT_MAX_PER_DAY_DEFAULT,
-    HEARTBEAT_MIN_PER_DAY_DEFAULT,
     HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
     HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
     SCHEDULER_JOB_HEARTBEAT_NOTIFICATION,
@@ -46,7 +44,12 @@ def _create_heartbeat_eligibility_checker() -> EligibilityChecker:
     - heartbeat_enabled: Feature toggle (opt-in)
     - heartbeat_notify_start_hour: Dedicated notification window start
     - heartbeat_notify_end_hour: Dedicated notification window end
-    - heartbeat_max_per_day: Maximum heartbeat notifications per day
+
+    No daily bound (ADR-328): the decision model already judges whether a
+    signal is worth interrupting the person, so no quota refuses a tick and
+    the runner paces none — the window, the cooldowns and the activity probe
+    are what still bound it. Ticks, push wakes and anticipated moments all run
+    under this one checker.
 
     Returns:
         Configured EligibilityChecker instance
@@ -56,8 +59,6 @@ def _create_heartbeat_eligibility_checker() -> EligibilityChecker:
         enabled_field="heartbeat_enabled",
         start_hour_field="heartbeat_notify_start_hour",
         end_hour_field="heartbeat_notify_end_hour",
-        min_per_day_field="heartbeat_min_per_day",
-        max_per_day_field="heartbeat_max_per_day",
         notification_model=HeartbeatNotification,
         global_cooldown_hours=settings.heartbeat_global_cooldown_hours,
         activity_cooldown_minutes=settings.heartbeat_activity_cooldown_minutes,
@@ -70,8 +71,6 @@ def _create_heartbeat_eligibility_checker() -> EligibilityChecker:
         cross_type_cooldown_minutes=settings.proactive_cross_type_cooldown_minutes,
         default_start_hour=HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
         default_end_hour=HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
-        default_min_per_day=HEARTBEAT_MIN_PER_DAY_DEFAULT,
-        default_max_per_day=HEARTBEAT_MAX_PER_DAY_DEFAULT,
         # D-01 fix (2026-08-19): real "don't interrupt" gate — last human
         # message via the conversations probe (automated rows excluded).
         activity_probe=fetch_last_user_activity_at,
@@ -90,7 +89,7 @@ async def process_heartbeat_notifications() -> dict[str, Any]:
     2. Creates HeartbeatProactiveTask and EligibilityChecker
     3. Executes via ProactiveTaskRunner which:
        - Fetches eligible users (batch)
-       - Checks eligibility (timezone, quota, cooldowns)
+       - Checks eligibility (window, cooldowns, activity)
        - Aggregates context (calendar, weather, interests, memories)
        - LLM decision (skip or notify)
        - Generates personalized message

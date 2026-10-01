@@ -516,7 +516,7 @@
     {
       "id": "flow.live",
       "icon": "audio-lines",
-      "steps": ["f.live", "f.live", "f.chat", "f.calendar", "f.hitl", "f.costs"]
+      "steps": ["f.live", "f.live", "f.chat", "f.calendar", "f.hitl", "f.live", "f.costs"]
     },
     {
       "id": "flow.learn",

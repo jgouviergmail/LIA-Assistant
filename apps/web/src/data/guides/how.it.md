@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 5.1
-**Data**: 2026-09-30
-**Applicazione**: LIA v2.2.0
+**Data**: 2026-10-02
+**Applicazione**: LIA v2.3.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 612 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 326 ADRs, oltre 48.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 616 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 329 ADRs, oltre 48.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -92,8 +92,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Test | Oltre 48.000 test automatizzati con pytest e Vitest (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 1.082, di cui 48 condivise tramite conftest |
 | Documenti di documentazione | 716 |
-| ADR (Architecture Decision Record) | 326 |
-| Metriche Prometheus | 612 definizioni |
+| ADR (Architecture Decision Record) | 329 |
+| Metriche Prometheus | 616 definizioni |
 | Dashboard Grafana | 30 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -846,6 +846,10 @@ Elencare gli allegati di un messaggio è una lettura di metadati; aprirne uno è
 
 I byte sono letti da un modulo che non tocca alcun client. Il tipo MIME viene dai byte magici, l'intestazione del mittente è solo un ripiego; un documento passa dall'estrazione propria degli spazi di conoscenza (quindici formati) in un thread di lavoro; un'immagine, o un PDF le cui pagine portano immagini e nessun livello di testo, viene resa in un insieme limitato e ridotto di pagine PNG affidato allo slot di visione — il raster stesso è limitato, una pagina di 200 pollici per lato non deve allocare gigabyte prima di ogni riduzione — e un insieme di pagine tagliato viene detto al modello invece di essere letto come il tutto. La chiamata di visione è la spesa del turno, portata dalla configurazione del runtime perché i tetti dell'account e dell'istanza la vedano entrambi; un rifiuto per quota è « saltato », mai « fallito », e una risposta troncata è un rifiuto. Il limite di dimensione scende fino al client, così una parte che l'elenco dichiara già troppo grande viene rifiutata prima che circoli un solo byte. Ciò che torna è servito a parti come il corpo di una mail e avvolto come contenuto esterno, con il nome del file escapato nel tag — un allegato è ciò che ha inviato uno sconosciuto, e il suo nome pure.
 
+### Una rubrica letta per intero, confrontata una sola volta
+
+Digitare un destinatario in «Invia per e-mail» suggerisce i contatti della persona. I tre fornitori cercano ciascuno a modo suo — tre modi di far corrispondere un nome —, quindi ogni client dei contatti legge la **rubrica intera** dietro un'unica interfaccia (la paginazione di Google People con ogni parametro ripetuto, il `@odata.nextLink` di Graph, la cache CardDAV), sotto un tetto dichiarato il cui taglio viene detto. La rubrica viene compattata — nomi, indirizzi, numeri —, messa in cache in una famiglia Redis dichiarata con un timbro di versione, costruita una sola volta tra i worker e invalidata da ogni scrittura dei contatti; un tasto legge prima il timbro e non apre né la rubrica né il connettore quando quella versione è già proiettata. Il confronto ha un'unica implementazione: i nomi tramite il ripiegamento d'identità del prodotto, gli indirizzi tramite la loro forma normalizzata, le cifre tramite le varianti di numero del dominio telefonia. Leggere la rubrica è una consultazione nel registro, mai su un colpo di cache, e nulla di un contatto entra in un log.
+
 ---
 
 ## 14. MCP: Model Context Protocol
@@ -880,7 +884,7 @@ Due fatti viaggiano con ciascun server come dati, mai come prosa di prompt. Un s
 
 ### 15.1. STT
 
-Wake word ("OK Guy") tramite Sherpa-onnx WASM nel browser (zero invio esterno). Trascrizione Whisper Small (99+ lingue, offline) lato backend tramite ThreadPoolExecutor. Lingua STT per utente; per worker, una cache LRU limitata di `OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, uno per impostazione predefinita) — nulla è caricato alla costruzione, la prima trascrizione paga il caricamento della sua lingua, un'espulsione restituisce la memoria al sistema, e il numero residente è pubblicato per worker (`voice_stt_recognizers_loaded`).
+Wake word «Dis LIA»: l'architettura openWakeWord — un melspettrogramma e un embedding condivisi, più un piccolo classificatore per frase — addestrata offline su voci sintetiche e corpora a licenza permissiva, eseguita da ONNX Runtime Web in un worker (WASM a thread singolo: né `SharedArrayBuffer` né isolamento, quindi anche su iOS e nelle shell native; zero invio esterno). Ogni file porta il suo SHA-256 nel nome ed è verificato prima di girare; un secondo classificatore sugli stessi embedding sente «Stop» e interrompe la lettura. Un banco pubblica le sue soglie prima dell'addestramento e non le abbassa mai: il modello francese, l'unico distribuito, è dichiarato **beta** perché non le raggiunge ancora, e una guardia lega questo stato al verdetto del banco nei due sensi (ADR-329). Trascrizione Whisper Small (99+ lingue, offline) lato backend tramite ThreadPoolExecutor. Lingua STT per utente; per worker, una cache LRU limitata di `OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, uno per impostazione predefinita) — nulla è caricato alla costruzione, la prima trascrizione paga il caricamento della sua lingua, un'espulsione restituisce la memoria al sistema, e il numero residente è pubblicato per worker (`voice_stt_recognizers_loaded`).
 
 **Ottimizzazioni latenza**: riutilizzo del flusso microfono KWS → registrazione (~200-800 ms risparmiati), pre-connessione WebSocket, `getUserMedia` + WS parallelizzati tramite `Promise.allSettled`, cache Worklet AudioWorklet.
 
@@ -937,7 +941,7 @@ La frase del promemoria segue la stessa regola di ogni risposta breve: si chiede
 
 ### 16.4. Una notifica push che sfocia in una decisione
 
-Un canale push che si limitasse a invalidare cache comprerebbe freschezza per una scheda che nessuno ha aperto. Una notifica elaborata **mette quindi l'utente in coda** — `SET NX` per (utente, fornitore), quindi una raffica è un solo risveglio datato dal primo — e il webhook risponde comunque 200 senza decidere nulla. Un breve passaggio, eletto leader, serve la coda sotto il verificatore di idoneità **completo**: finestra, tetto, pause, preferenza delle sorgenti. Solo il livellamento del «minimo garantito» viene aggirato, perché un risveglio risponde a un evento.
+Un canale push che si limitasse a invalidare cache comprerebbe freschezza per una scheda che nessuno ha aperto. Una notifica elaborata **mette quindi l'utente in coda** — `SET NX` per (utente, fornitore), quindi una raffica è un solo risveglio datato dal primo — e il webhook risponde comunque 200 senza decidere nulla. Un breve passaggio, eletto leader, serve la coda sotto il verificatore di idoneità **completo**: finestra, pause, preferenza delle sorgenti — l'heartbeat non ha né quota giornaliera né livellamento probabilistico; giudica la decisione (ADR-328).
 
 Il delta della posta è **letto in anteprima, mai consumato** finché il risveglio non è servito: un risveglio rifiutato lascia il messaggio al passaggio successivo — i due ancoraggi Gmail restano distinti di proposito (quello del canale è l'ultimo evento *visto*, quello del heartbeat l'ultima posta *consumata*). Il prefiltro è deterministico e pubblicato come impostazioni: etichetta richiesta, categorie escluse, liste di distribuzione fuori; un evento entro l'orizzonte, modificato da altri o in attesa della tua risposta. E la decisione sa perché è stata svegliata: una riga FRESH apre il suo contesto e la riga di audit conserva `trigger = push | tick`, che la cronologia mostra.
 
@@ -947,7 +951,7 @@ Una modifica su Drive non è affatto una decisione: svuota il flusso di modifich
 
 Il heartbeat è **periodico**: non sa tornare a un istante. Una riunione finisce alle 15:00, il passaggio successivo cade alle 15:22 su un lotto in cui l'account forse non c'è, e la finestra di calendario del contesto comincia a `now` guardando avanti — una riunione conclusa è invisibile alla decisione. Una tabella `proactive_moments` tiene quindi gli istanti: una riga per account e per sorgente, unica su `(account, tipo, sorgente)` perché una riunione non produca mai due momenti, depositata da un rilevatore e servita da un unico sweep — con jitter, sotto un lock di scheduler il cui TTL è legato all'intervallo. La rivendicazione è un `FOR UPDATE SKIP LOCKED` seguito da un `UPDATE` condizionale nella stessa transazione, con un token di proprietario; una rivendicazione che nessuno ha chiuso viene **ripresa** dopo la sua scadenza, mai lasciata immortale. Prima di essere servito, un momento è **riconvalidato**: riunione annullata, declinata, o persona che ha già scritto — viene abbandonato.
 
-Un momento gira sotto il verificatore di idoneità **completo** e aggira solo il lisciamento probabilistico e il ritmo appreso — esattamente come un risveglio push, e per la stessa ragione: un istante non si rimanda. La domanda viene **posta, mai la valutazione**: una domanda aperta, al massimo due fatti, nessun giudizio, mai due momenti impilati né la stessa domanda due volte. La guardia «in riunione» legge il calendario dietro una cache Redis di verdetto e non registra alcuna consultazione su un hit; una lettura fallita si dichiara `failed`. Il controllo è consegnato con la capacità: un interruttore per tipo, l'interruttore della capacità stessa, un contatore per tipo ed esito e una latenza «scaduto → notificato» sul cruscotto del heartbeat, e `task moments:preflight`, che dice cosa verrebbe proposto a un account, senza scrivere nulla.
+Un momento gira sotto il verificatore di idoneità **completo** e aggira solo il ritmo appreso — esattamente come un risveglio push, e per la stessa ragione: un istante non si rimanda. La domanda viene **posta, mai la valutazione**: una domanda aperta, al massimo due fatti, nessun giudizio, mai due momenti impilati né la stessa domanda due volte. La guardia «in riunione» legge il calendario dietro una cache Redis di verdetto e non registra alcuna consultazione su un hit; una lettura fallita si dichiara `failed`. Il controllo è consegnato con la capacità: un interruttore per tipo, l'interruttore della capacità stessa, un contatore per tipo ed esito e una latenza «scaduto → notificato» sul cruscotto del heartbeat, e `task moments:preflight`, che dice cosa verrebbe proposto a un account, senza scrivere nulla.
 
 Lo stesso risveglio serve le **vigilanze**: una routine a condizione «mail da questo mittente» aspetterebbe altrimenti fino a due ore il passaggio dell'esecutore; il risveglio, che tiene già il delta Gmail, la serve prima del verdetto del prefiltro — il prefiltro risponde «vale un risveglio?», una vigilanza risponde «è ciò che aspetto?». Non esegue mai la routine: ne anticipa la scadenza, l'esecutore resta l'unico giudice, e arma oltre il TTL pubblicato della cache di ricerca, perché una cache riempita prima dell'arrivo della mail risponderebbe «non soddisfatta» e quel verdetto consuma l'armamento. Una routine finita si **chiude** (`is_enabled = false`, `status = completed`) — la sua fine ha una sola autorità, il `SeriesEnd` già memorizzato. E il chip «Sorveglia» del briefing scrive quella routine, con chiave sul mittente e mai sull'oggetto, dopo aver letto ciò che l'account tiene già.
 
@@ -1095,7 +1099,7 @@ Un file generato può non avere scadenza quando è conservato entro i limiti pub
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 612 metriche custom (RED pattern) |
+| Prometheus | 616 metriche custom (RED pattern) |
 | Grafana | 30 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -1103,7 +1107,7 @@ Un file generato può non avere scadenza quando è conservato entro i limiti pub
 | Alertmanager | Nucleo di 29 alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) + webhook verso LIA: ogni avviso diventa un incidente nel prodotto (ADR-247) |
 | structlog | Logging strutturato con filtraggio PII |
 
-**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 612 definite; le metriche che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Senza questa guardia, una sorgente di heartbeat che cade in modo aperto può scartare parte dei segnali di salute per giorni senza che alcuna metrica se ne accorga (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
+**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 616 definite; le metriche che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Senza questa guardia, una sorgente di heartbeat che cade in modo aperto può scartare parte dei segnali di salute per giorni senza che alcuna metrica se ne accorga (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
 
 ### 20.2. Debug Panel integrato
 
@@ -1183,6 +1187,10 @@ emette.
 | Embeddings semantici | Routing multilingue ad alta precisione | Dipende dalla disponibilità del provider API |
 | Parallel Execution | Latenza = max(step) | Complessità di gestione delle dipendenze |
 | Context Compaction | ~60% per compaction | Perdita di informazioni (attenuata dalla preservazione degli ID) |
+
+### Una pagina pubblica non lavora a ogni richiesta
+
+Le pagine pubbliche sono prerenderizzate e neutre rispetto all'host: nulla di specifico di un deployment entra nell'immagine. Le illustrazioni del blog sono quindi **pregenerate** — quattro larghezze WebP e un'immagine social per articolo, servite così come sono: un file statico è messo in cache al bordo della rete in base alla sua estensione, mentre una risposta dell'ottimizzatore di immagini non lo è mai, e un ridimensionamento su richiesta costava fino a diversi secondi sul Raspberry Pi. Il video della pagina iniziale, invece, è **dichiarato dall'operatore a runtime** (`LANDING_MEDIA_BASE_URL`, un manifesto letto dietro un timeout e una cache): senza di esso, la sezione non esiste. Un solo elemento `<video>` vive per tutta la visita, montato dal layout e soltanto incorniciato, agganciato o nascosto a seconda della pagina; i suoi titoli battono su una mappa dei battiti calcolata offline — onset calibrati, tempi forti di battuta votati localmente — letta dall'orologio dell'immagine presentata, mai da un microfono. Il movimento tace sotto `prefers-reduced-motion` (ADR-330).
 
 ---
 
@@ -1516,7 +1524,7 @@ Una regola CSS governa le spaziature del design system: i margini verticali di u
 
 ## 24. Architettura delle decisioni (ADR)
 
-326 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+329 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1857,14 +1865,16 @@ Una **sessione diretta** è la linea del telefono nel browser: la voce tiene da 
 
 Le stesse due modalità valgono per il telefono (ADR-301): riportare la conversazione alla sua *fine* su una linea e delegare ogni richiesta *durante* sull'altra darebbe due verità per una stessa parola. Una sessione vocale ha quindi una **modalità** e un **portatore**, e la politica segue solo la modalità: `delegated` («Live»), ogni richiesta un turno di chat della persona nel momento in cui la dice; `direct` («Live diretto»), la voce legge, non agisce su nulla, e le parole sono riportate alla fine come turno della persona. **Una sola chiusura** serve entrambe le linee, chiamata dalla rotta di fine del browser e dal webhook post-chiamata del telefono; ciò che le linee condividono vive fuori da entrambe, in `domains/voice_sessions/`, e la modalità Live del telefono è la delega del browser lato server — uno strumento asincrono del fornitore con il nome e lo schema del browser, un ponte che rispecchia quello TypeScript regola per regola (la richiesta più recente vince tramite un marcatore Redis che il ponte in corso sonda; una domanda che LIA ha posto è il risultato e la richiesta successiva riprende l'esecuzione che l'ha posta). Sul motore del fornitore la voce annuncia la chiamata e continua a parlare, e una risposta tardiva oltre il suo limite è persa: il ponte risponde quindi prima. La modalità effettiva è derivata e pubblicata — Live esiste solo dove l'host di richiamo è pubblico — e un runner non tiene alcuna sessione di database durante il turno, così nessuna connessione resta `idle in transaction` mentre parla con il modello.
 
+**Una sessione dorme, non muore** (ADR-329). Il silenzio del modello, una pagina nascosta o il pulsante della persona addormentano la sessione: il browser chiude la connessione con il fornitore — nulla gira né viene fatturato — poi lo dichiara; il record resta rivendicato, vive fino a un limite di standby lungo invece del suo tetto e passa dalle sessioni attive dell'istanza al suo insieme in standby. Solo la persona termina una sessione. Un risveglio apre una connessione **nuova**: l'API rifiuta nell'ordine (già sveglia, tetto, cadenza di creazione, tetto d'istanza), **rigenera il setup** nell'istante del risveglio con la stessa funzione dell'avvio — l'ora parlata, lo stato interiore, gli interruttori del momento —, crea la chiave e solo allora scrive il record sveglio: un rifiuto lascia la sessione addormentata com'era. La memoria è dell'applicazione, mai del fornitore; il tetto si sposta della durata del sonno, così ogni cifra — scheda, riga di decisione, istogramma, contatore — conta il tempo da sveglia, e una sessione diretta inoltra le sue parole a ogni standby. Nel browser, una politica (`LiveStandby`) prende in prestito il filo del controller, ascolta «Dis LIA» su una cattura propria finché la pagina è visibile e verifica dopo ogni attesa che la sessione sia ancora quella che lo store detiene.
+
 ---
 
 ## 44. Conclusione
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 326 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 48.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 329 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 48.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 326 ADRs e del changelog (da v1.0 a v2.2.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 329 ADRs e del changelog (da v1.0 a v2.3.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

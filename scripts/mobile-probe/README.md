@@ -50,6 +50,7 @@ accident.
 | Service Worker registers | Offline shell, [ADR-146](../../docs/architecture/ADR-146-Offline-PWA.md). |
 | The production CSP is genuinely enforced | A cross-origin `fetch` must be refused. |
 | Voice and geolocation APIs reachable | `useVoiceInput`, `useGeolocation`. |
+| The wake-word runtime runs in a module worker | [ADR-329](../../docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md): ONNX Runtime Web single-threaded, a model the app ships, its SHA-256 by WebCrypto; `run_ms` records one stage of one 80 ms chunk on the device. |
 
 ## Platform limits it records (design inputs, not failures)
 
@@ -60,9 +61,9 @@ Measured on Android 16 / WebView 133, both under `COEP: credentialless` and
   WebView, so push must be native on **both** platforms. `UserFCMToken` already
   carries `device_type ∈ {android, ios, web}`, so no schema change is needed.
 - **No cross-origin isolation, therefore no `SharedArrayBuffer`.** Unchanged by
-  the COEP value — it is not a header choice. `isSherpaKwsSupported()` returns
-  false and voice mode degrades to tap-to-speak, so the **wake word is lost in
-  the shell on Android too**, not only on iOS where it is already lost.
+  the COEP value — it is not a header choice. It cost the shells the wake word
+  until ADR-329: the previous engine needed threads, the current one runs
+  single-threaded, and the probe measures that it does.
 
 ## The API origin: what the probe can and cannot reproduce
 

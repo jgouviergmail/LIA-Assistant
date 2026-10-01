@@ -1,27 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useOptimistic,
+  useTransition,
+  type ReactNode,
+} from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { SearchInput } from '@/components/ui/search-input';
 import { Pagination } from '@/components/ui/pagination';
 import { TableSkeleton } from '@/components/ui/skeleton';
-import {
-  Volume2,
-  VolumeOff,
-  Brain,
-  Eye,
-  EyeOff,
-  Plug,
-  Bookmark,
-  Users,
-  Sparkles,
-  Blocks,
-  Server,
-  Clock,
-  Database,
-  ShieldOff,
-} from 'lucide-react';
+import { ShieldOff, Users, type LucideIcon } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ADMIN_USERS_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { logger } from '@/lib/logger';
@@ -33,10 +25,24 @@ import {
 } from '@/lib/actions/settings-actions';
 import { useTranslation } from '@/i18n/client';
 import { useConfirm } from '@/components/ui/use-confirm';
-import { LOCALE_MAP } from '@/i18n/settings';
+import { LOCALE_MAP, type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import type { BaseSettingsProps } from '@/types/settings';
+import {
+  ADMIN_USER_COUNT_COLUMNS,
+  ADMIN_USER_STAT_COLUMNS,
+  ADMIN_USER_SWITCHES,
+  ADMIN_USER_SWITCH_ICONS,
+  switchLabelKey,
+  tableLabelKey,
+  type AdminUserCount,
+  type AdminUserStat,
+  type AdminUserSwitch,
+} from '@/components/settings/admin-users/columns';
+import { ColumnLegend } from '@/components/settings/admin-users/ColumnLegend';
+import { SortableHeader, type SortOrder } from '@/components/settings/admin-users/SortableHeader';
 
 // Language code to display label (universal, not translated)
 // Maps both frontend Language codes and backend codes (zh vs zh-CN)
@@ -57,8 +63,11 @@ const LANGUAGE_CODES: Record<string, string> = {
  * Named `AdminUserRow`, not `User`: `@/lib/auth` already exports a `User` (the
  * authenticated session's own account, a different shape). Two exported `User`
  * types in one app is an import waiting to go to the wrong one.
+ *
+ * The switches (`voice_enabled`, `heartbeat_enabled`…) come from the declared
+ * list: a switch the table renders is a field the row must carry.
  */
-export interface AdminUserRow {
+export interface AdminUserRow extends Record<AdminUserSwitch, boolean> {
   id: string;
   email: string;
   full_name: string | null;
@@ -69,9 +78,6 @@ export interface AdminUserRow {
   // User preferences
   language: string;
   personality_id: string | null;
-  voice_enabled: boolean;
-  memory_enabled: boolean;
-  tokens_display_enabled: boolean;
   // Statistics (from UserProfileWithStats) - Lifetime totals
   last_login: string | null;
   last_message_at: string | null;
@@ -111,13 +117,7 @@ export interface AdminUserRow {
  * guard. `secondary` for a deleted account follows the doctrine that grey is
  * reserved for inactive states.
  */
-function UserStatusBadge({
-  user,
-  t,
-}: {
-  user: AdminUserRow;
-  t: (key: string) => string;
-}) {
+function UserStatusBadge({ user, t }: { user: AdminUserRow; t: (key: string) => string }) {
   if (user.is_deleted) {
     return (
       <Badge variant="secondary" size="sm" className="line-through">
@@ -131,6 +131,34 @@ function UserStatusBadge({
     </Badge>
   );
 }
+
+/** Every column the listing sorts by — the backend's `ADMIN_USER_SORT_KEYS`. */
+type SortableColumn =
+  | 'email'
+  | 'full_name'
+  | 'created_at'
+  | 'is_active'
+  | 'language'
+  | 'is_usage_blocked'
+  | 'last_message_at'
+  | AdminUserCount
+  | AdminUserStat
+  | AdminUserSwitch;
+
+/**
+ * The frozen columns: the email always, the name from the product's mobile
+ * boundary (880 px) up — below it, two frozen columns would leave the phone
+ * almost nothing to scroll. The name's offset is the email column's width
+ * (`--admin-email-w`, set on the table) plus its horizontal padding. A frozen
+ * cell is opaque, or the columns scrolling under it would show through, and
+ * its hover tint is the row's own (`muted` at 30 % over `card`).
+ */
+const EMAIL_FROZEN =
+  'sticky left-0 z-[1] shadow-[inset_-1px_0_0_var(--color-border)] mobile:shadow-none';
+const NAME_FROZEN =
+  'mobile:sticky mobile:left-[calc(var(--admin-email-w)+2rem)] mobile:z-[1] mobile:shadow-[inset_-1px_0_0_var(--color-border)]';
+const FROZEN_BODY_BG =
+  'bg-card group-hover:bg-[color-mix(in_srgb,var(--color-muted)_30%,var(--color-card))]';
 
 interface UserListResponse {
   users: AdminUserRow[];
@@ -173,35 +201,8 @@ export default function AdminUsersSection({ lng }: BaseSettingsProps) {
   const [pageSize, setPageSize] = useState(ADMIN_USERS_PAGE_SIZE);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  // All sortable columns — must match backend sort_by options
-  type SortableColumn =
-    | 'email'
-    | 'full_name'
-    | 'created_at'
-    | 'is_active'
-    | 'language'
-    | 'voice_enabled'
-    | 'memory_enabled'
-    | 'tokens_display_enabled'
-    | 'is_usage_blocked'
-    | 'active_connectors_count'
-    | 'memories_count'
-    | 'interests_count'
-    | 'skills_count'
-    | 'mcp_servers_count'
-    | 'scheduled_actions_count'
-    | 'rag_spaces_count'
-    | 'last_message_at'
-    | 'total_messages'
-    | 'total_tokens'
-    | 'total_google_api_requests'
-    | 'total_cost_eur'
-    | 'cycle_messages'
-    | 'cycle_tokens'
-    | 'cycle_google_api_requests'
-    | 'cycle_cost_eur';
   const [sortBy, setSortBy] = useState<SortableColumn>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Search state (managed by SearchInput)
   const [searchQuery, setSearchQuery] = useState('');
@@ -377,25 +378,7 @@ export default function AdminUsersSection({ lng }: BaseSettingsProps) {
     });
   };
 
-  // Sort indicator arrow
-  const sortArrow = (column: SortableColumn) =>
-    sortBy === column ? (sortOrder === 'asc' ? '↑' : '↓') : null;
-
-  // aria-sort value for a column
-  const ariaSort = (column: SortableColumn): 'ascending' | 'descending' | 'none' =>
-    sortBy === column ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none';
-
-  // Common classes for sortable text headers
-  const sortableTextCls =
-    'px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors';
-
-  // Common classes for sortable icon headers (center-aligned)
-  const sortableIconCls =
-    'px-3 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors';
-
-  // Common classes for sortable right-aligned headers (stats)
-  const sortableRightCls =
-    'px-3 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors';
+  const sortProps = { sortBy, sortOrder, onSort: handleSort };
 
   // Loading state content
   if (loading && users.length === 0) {
@@ -430,578 +413,118 @@ export default function AdminUsersSection({ lng }: BaseSettingsProps) {
         <TableSkeleton rows={5} />
       ) : (
         <>
+          <ColumnLegend t={t} />
+          {/* A mutation dims the whole table (every row shares `isPending`),
+              which also keeps the frozen cells opaque. */}
           <div
-            className={`overflow-x-auto rounded-lg border border-border transition-opacity duration-150 ${loading ? 'opacity-60' : 'opacity-100'}`}
+            className={cn(
+              // `relative`: the `sr-only` labels are absolutely positioned, and
+              // without a positioned scroller their containing block is the
+              // page — they escape its clipping and widen the document.
+              'relative overflow-x-auto rounded-lg border border-border transition-opacity duration-150',
+              loading || isPending ? 'opacity-60' : 'opacity-100'
+            )}
+            aria-busy={loading || isPending}
           >
-            <table className="min-w-full divide-y divide-border" role="table">
-              <thead className="bg-muted/50">
+            <table className="min-w-full divide-y divide-border [--admin-email-w:9rem] [--admin-name-w:10rem] mobile:[--admin-email-w:14rem]">
+              <thead className="bg-muted">
                 <tr>
-                  {/* Email */}
+                  <SortableHeader
+                    column="email"
+                    label={t(tableLabelKey('email'))}
+                    className={cn(EMAIL_FROZEN, 'bg-muted')}
+                    {...sortProps}
+                  />
+                  <SortableHeader
+                    column="full_name"
+                    label={t(tableLabelKey('name'))}
+                    className={cn(NAME_FROZEN, 'bg-muted')}
+                    {...sortProps}
+                  />
+                  <SortableHeader
+                    column="created_at"
+                    label={t(tableLabelKey('registered'))}
+                    {...sortProps}
+                  />
+                  <SortableHeader
+                    column="language"
+                    label={t(tableLabelKey('lang_short'))}
+                    title={t(tableLabelKey('language'))}
+                    align="center"
+                    {...sortProps}
+                  />
+                  <SortableHeader
+                    column="is_active"
+                    label={t(tableLabelKey('status'))}
+                    {...sortProps}
+                  />
+                  <SortableHeader
+                    column="is_usage_blocked"
+                    label={t(tableLabelKey('blocked'))}
+                    icon={ShieldOff}
+                    align="center"
+                    {...sortProps}
+                  />
+                  {ADMIN_USER_COUNT_COLUMNS.map(column => (
+                    <SortableHeader
+                      key={column.key}
+                      column={column.key}
+                      label={t(tableLabelKey(column.labelKey))}
+                      icon={column.icon}
+                      align="center"
+                      {...sortProps}
+                    />
+                  ))}
                   <th
-                    className={sortableTextCls}
-                    onClick={() => handleSort('email')}
-                    aria-sort={ariaSort('email')}
-                    role="columnheader"
+                    scope="col"
+                    className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
                   >
-                    <div className="flex items-center space-x-1">
-                      <span>{t('settings.admin.users.table.email')}</span>
-                      {sortArrow('email') && <span aria-hidden="true">{sortArrow('email')}</span>}
-                    </div>
+                    {t(tableLabelKey('actions'))}
                   </th>
-                  {/* Name */}
-                  <th
-                    className={sortableTextCls}
-                    onClick={() => handleSort('full_name')}
-                    aria-sort={ariaSort('full_name')}
-                    role="columnheader"
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>{t('settings.admin.users.table.name')}</span>
-                      {sortArrow('full_name') && (
-                        <span aria-hidden="true">{sortArrow('full_name')}</span>
-                      )}
-                    </div>
-                  </th>
-                  {/* Language */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('language')}
-                    aria-sort={ariaSort('language')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.language')}
-                  >
-                    <span className="inline-flex items-center gap-0.5">
-                      {t('settings.admin.users.table.lang_short')}
-                      {sortArrow('language') && (
-                        <span aria-hidden="true">{sortArrow('language')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Status */}
-                  <th
-                    className={sortableTextCls}
-                    onClick={() => handleSort('is_active')}
-                    aria-sort={ariaSort('is_active')}
-                    role="columnheader"
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>{t('settings.admin.users.table.status')}</span>
-                      {sortArrow('is_active') && (
-                        <span aria-hidden="true">{sortArrow('is_active')}</span>
-                      )}
-                    </div>
-                  </th>
-                  {/* Usage blocked */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('is_usage_blocked')}
-                    aria-sort={ariaSort('is_usage_blocked')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.blocked')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <ShieldOff className="h-4 w-4" />
-                      {sortArrow('is_usage_blocked') && (
-                        <span aria-hidden="true">{sortArrow('is_usage_blocked')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Voice */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('voice_enabled')}
-                    aria-sort={ariaSort('voice_enabled')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.voice')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Volume2 className="h-4 w-4" />
-                      {sortArrow('voice_enabled') && (
-                        <span aria-hidden="true">{sortArrow('voice_enabled')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Memory */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('memory_enabled')}
-                    aria-sort={ariaSort('memory_enabled')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.memory')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Brain className="h-4 w-4" />
-                      {sortArrow('memory_enabled') && (
-                        <span aria-hidden="true">{sortArrow('memory_enabled')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Tokens display */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('tokens_display_enabled')}
-                    aria-sort={ariaSort('tokens_display_enabled')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.tokens_display')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Eye className="h-4 w-4" />
-                      {sortArrow('tokens_display_enabled') && (
-                        <span aria-hidden="true">{sortArrow('tokens_display_enabled')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Connectors count */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('active_connectors_count')}
-                    aria-sort={ariaSort('active_connectors_count')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.connectors')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Plug className="h-4 w-4" />
-                      {sortArrow('active_connectors_count') && (
-                        <span aria-hidden="true">{sortArrow('active_connectors_count')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Memories count */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('memories_count')}
-                    aria-sort={ariaSort('memories_count')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.memories')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Bookmark className="h-4 w-4" />
-                      {sortArrow('memories_count') && (
-                        <span aria-hidden="true">{sortArrow('memories_count')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Interests count */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('interests_count')}
-                    aria-sort={ariaSort('interests_count')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.interests')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Sparkles className="h-4 w-4" />
-                      {sortArrow('interests_count') && (
-                        <span aria-hidden="true">{sortArrow('interests_count')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Skills count */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('skills_count')}
-                    aria-sort={ariaSort('skills_count')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.skills')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Blocks className="h-4 w-4" />
-                      {sortArrow('skills_count') && (
-                        <span aria-hidden="true">{sortArrow('skills_count')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* MCP servers count */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('mcp_servers_count')}
-                    aria-sort={ariaSort('mcp_servers_count')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.mcp_servers')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Server className="h-4 w-4" />
-                      {sortArrow('mcp_servers_count') && (
-                        <span aria-hidden="true">{sortArrow('mcp_servers_count')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Scheduled actions count */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('scheduled_actions_count')}
-                    aria-sort={ariaSort('scheduled_actions_count')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.scheduled_actions')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Clock className="h-4 w-4" />
-                      {sortArrow('scheduled_actions_count') && (
-                        <span aria-hidden="true">{sortArrow('scheduled_actions_count')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* RAG spaces count */}
-                  <th
-                    className={sortableIconCls}
-                    onClick={() => handleSort('rag_spaces_count')}
-                    aria-sort={ariaSort('rag_spaces_count')}
-                    role="columnheader"
-                    title={t('settings.admin.users.table.rag_spaces')}
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-center">
-                      <Database className="h-4 w-4" />
-                      {sortArrow('rag_spaces_count') && (
-                        <span aria-hidden="true">{sortArrow('rag_spaces_count')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Actions — not sortable */}
-                  <th
-                    className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                    role="columnheader"
-                  >
-                    {t('settings.admin.users.table.actions')}
-                  </th>
-                  {/* Last message */}
-                  <th
-                    className={sortableTextCls}
-                    onClick={() => handleSort('last_message_at')}
-                    aria-sort={ariaSort('last_message_at')}
-                    role="columnheader"
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>{t('settings.admin.users.table.last_message')}</span>
-                      {sortArrow('last_message_at') && (
-                        <span aria-hidden="true">{sortArrow('last_message_at')}</span>
-                      )}
-                    </div>
-                  </th>
-                  {/* Lifetime stats */}
-                  <th
-                    className={sortableRightCls}
-                    onClick={() => handleSort('total_messages')}
-                    aria-sort={ariaSort('total_messages')}
-                    role="columnheader"
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-end">
-                      {t('settings.admin.users.table.messages_short')}
-                      {sortArrow('total_messages') && (
-                        <span aria-hidden="true">{sortArrow('total_messages')}</span>
-                      )}
-                    </span>
-                  </th>
-                  <th
-                    className={sortableRightCls}
-                    onClick={() => handleSort('total_tokens')}
-                    aria-sort={ariaSort('total_tokens')}
-                    role="columnheader"
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-end">
-                      {t('settings.admin.users.table.tokens')}
-                      {sortArrow('total_tokens') && (
-                        <span aria-hidden="true">{sortArrow('total_tokens')}</span>
-                      )}
-                    </span>
-                  </th>
-                  <th
-                    className={sortableRightCls}
-                    onClick={() => handleSort('total_google_api_requests')}
-                    aria-sort={ariaSort('total_google_api_requests')}
-                    role="columnheader"
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-end">
-                      {t('settings.admin.users.table.google_api')}
-                      {sortArrow('total_google_api_requests') && (
-                        <span aria-hidden="true">{sortArrow('total_google_api_requests')}</span>
-                      )}
-                    </span>
-                  </th>
-                  <th
-                    className={sortableRightCls}
-                    onClick={() => handleSort('total_cost_eur')}
-                    aria-sort={ariaSort('total_cost_eur')}
-                    role="columnheader"
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-end">
-                      {t('settings.admin.users.table.cost')}
-                      {sortArrow('total_cost_eur') && (
-                        <span aria-hidden="true">{sortArrow('total_cost_eur')}</span>
-                      )}
-                    </span>
-                  </th>
-                  {/* Cycle stats */}
-                  <th
-                    className={sortableRightCls}
-                    onClick={() => handleSort('cycle_messages')}
-                    aria-sort={ariaSort('cycle_messages')}
-                    role="columnheader"
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-end">
-                      {t('settings.admin.users.table.msgs_period')}
-                      {sortArrow('cycle_messages') && (
-                        <span aria-hidden="true">{sortArrow('cycle_messages')}</span>
-                      )}
-                    </span>
-                  </th>
-                  <th
-                    className={sortableRightCls}
-                    onClick={() => handleSort('cycle_tokens')}
-                    aria-sort={ariaSort('cycle_tokens')}
-                    role="columnheader"
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-end">
-                      {t('settings.admin.users.table.tokens_period')}
-                      {sortArrow('cycle_tokens') && (
-                        <span aria-hidden="true">{sortArrow('cycle_tokens')}</span>
-                      )}
-                    </span>
-                  </th>
-                  <th
-                    className={sortableRightCls}
-                    onClick={() => handleSort('cycle_google_api_requests')}
-                    aria-sort={ariaSort('cycle_google_api_requests')}
-                    role="columnheader"
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-end">
-                      {t('settings.admin.users.table.google_api_period')}
-                      {sortArrow('cycle_google_api_requests') && (
-                        <span aria-hidden="true">{sortArrow('cycle_google_api_requests')}</span>
-                      )}
-                    </span>
-                  </th>
-                  <th
-                    className={sortableRightCls}
-                    onClick={() => handleSort('cycle_cost_eur')}
-                    aria-sort={ariaSort('cycle_cost_eur')}
-                    role="columnheader"
-                  >
-                    <span className="inline-flex items-center gap-0.5 justify-end">
-                      {t('settings.admin.users.table.cost_period')}
-                      {sortArrow('cycle_cost_eur') && (
-                        <span aria-hidden="true">{sortArrow('cycle_cost_eur')}</span>
-                      )}
-                    </span>
-                  </th>
+                  <SortableHeader
+                    column="last_message_at"
+                    label={t(tableLabelKey('last_message'))}
+                    {...sortProps}
+                  />
+                  {ADMIN_USER_STAT_COLUMNS.map(column => (
+                    <SortableHeader
+                      key={column.key}
+                      column={column.key}
+                      label={t(tableLabelKey(column.labelKey))}
+                      align="right"
+                      {...sortProps}
+                    />
+                  ))}
+                  {ADMIN_USER_SWITCHES.map(key => (
+                    <SortableHeader
+                      key={key}
+                      column={key}
+                      label={t(switchLabelKey(key))}
+                      icon={ADMIN_USER_SWITCH_ICONS[key]}
+                      align="center"
+                      {...sortProps}
+                    />
+                  ))}
                 </tr>
               </thead>
-              <tbody className="bg-card divide-y divide-border">
+              <tbody className="divide-y divide-border bg-card">
                 {optimisticUsers.map(user => (
-                  <tr
+                  <UserRow
                     key={user.id}
-                    className={`transition-colors hover:bg-muted/30 ${isPending ? 'opacity-60' : ''}`}
-                  >
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">
-                      {user.email}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">
-                      {user.full_name || '-'}
-                    </td>
-                    {/* Language */}
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-center">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {LANGUAGE_CODES[user.language] || user.language}
-                      </span>
-                    </td>
-                    {/* Status */}
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <UserStatusBadge user={user} t={t} />
-                      {user.is_superuser && (
-                        <span className="ml-1 text-primary font-semibold text-xs">★</span>
-                      )}
-                    </td>
-                    {/* Usage blocked */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      {user.is_usage_blocked ? (
-                        <ShieldOff className="h-4 w-4 mx-auto text-destructive" />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    {/* Voice enabled */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      {user.voice_enabled ? (
-                        <Volume2 className="h-4 w-4 mx-auto text-green-600 dark:text-green-400" />
-                      ) : (
-                        <VolumeOff className="h-4 w-4 mx-auto text-muted-foreground" />
-                      )}
-                    </td>
-                    {/* Memory enabled */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      {user.memory_enabled ? (
-                        <Brain className="h-4 w-4 mx-auto text-green-600 dark:text-green-400" />
-                      ) : (
-                        <Brain className="h-4 w-4 mx-auto text-muted-foreground" />
-                      )}
-                    </td>
-                    {/* Tokens display enabled */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      {user.tokens_display_enabled ? (
-                        <Eye className="h-4 w-4 mx-auto text-green-600 dark:text-green-400" />
-                      ) : (
-                        <EyeOff className="h-4 w-4 mx-auto text-muted-foreground" />
-                      )}
-                    </td>
-                    {/* Active connectors count */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span
-                        className={`text-sm font-medium tabular-nums ${user.active_connectors_count > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}
-                      >
-                        {user.active_connectors_count}
-                      </span>
-                    </td>
-                    {/* Memories count */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span
-                        className={`text-sm font-medium tabular-nums ${user.memories_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
-                      >
-                        {user.memories_count}
-                      </span>
-                    </td>
-                    {/* Interests count */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span
-                        className={`text-sm font-medium tabular-nums ${user.interests_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
-                      >
-                        {user.interests_count}
-                      </span>
-                    </td>
-                    {/* Skills count */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span
-                        className={`text-sm font-medium tabular-nums ${user.skills_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
-                      >
-                        {user.skills_count}
-                      </span>
-                    </td>
-                    {/* MCP servers count */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span
-                        className={`text-sm font-medium tabular-nums ${user.mcp_servers_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
-                      >
-                        {user.mcp_servers_count}
-                      </span>
-                    </td>
-                    {/* Scheduled actions count */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span
-                        className={`text-sm font-medium tabular-nums ${user.scheduled_actions_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
-                      >
-                        {user.scheduled_actions_count}
-                      </span>
-                    </td>
-                    {/* RAG spaces count */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span
-                        className={`text-sm font-medium tabular-nums ${user.rag_spaces_count > 0 ? 'text-primary' : 'text-muted-foreground'}`}
-                      >
-                        {user.rag_spaces_count}
-                      </span>
-                    </td>
-                    {/* Actions */}
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <div className="flex gap-2">
-                        {/* Activate/Deactivate: hidden for deleted users (data purged, irreversible) */}
-                        {!user.is_deleted && (
-                          <Button
-                            variant={user.is_active ? 'destructive' : 'success'}
-                            size="sm"
-                            onClick={() => handleToggleActive(user.id, user.is_active)}
-                            disabled={isPending}
-                            className="min-w-[80px] justify-center"
-                            aria-label={`${user.is_active ? t('settings.admin.users.actions.deactivate') : t('settings.admin.users.actions.activate')} ${user.email}`}
-                          >
-                            {user.is_active
-                              ? t('settings.admin.users.actions.deactivate')
-                              : t('settings.admin.users.actions.activate')}
-                          </Button>
-                        )}
-                        {/* Delete: only for deactivated, non-deleted, non-superuser */}
-                        {!user.is_superuser && !user.is_active && !user.is_deleted && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteUser(user.id, user.email)}
-                            disabled={isPending}
-                            className="min-w-[80px] justify-center"
-                            aria-label={`${t('settings.admin.users.actions.delete')} ${user.email}`}
-                          >
-                            {t('settings.admin.users.actions.delete')}
-                          </Button>
-                        )}
-                        {/* Erase (GDPR): only for already soft-deleted users */}
-                        {!user.is_superuser && user.is_deleted && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleEraseUser(user.id, user.email)}
-                            disabled={isPending}
-                            className="min-w-[80px] justify-center"
-                            aria-label={`${t('settings.admin.users.actions.erase')} ${user.email}`}
-                          >
-                            {t('settings.admin.users.actions.erase')}
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                    {/* Last message at */}
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
-                      {user.last_message_at ? (
-                        <span
-                          title={new Date(user.last_message_at).toLocaleString(LOCALE_MAP[lng])}
-                        >
-                          {new Date(user.last_message_at).toLocaleDateString(LOCALE_MAP[lng], {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                    {/* Messages count */}
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-right tabular-nums">
-                      {user.total_messages.toLocaleString(LOCALE_MAP[lng])}
-                    </td>
-                    {/* Total tokens */}
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-right tabular-nums font-medium">
-                      {user.total_tokens.toLocaleString(LOCALE_MAP[lng])}
-                    </td>
-                    {/* Total Google API requests */}
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-right tabular-nums">
-                      {user.total_google_api_requests.toLocaleString(LOCALE_MAP[lng])}
-                    </td>
-                    {/* Total cost */}
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-right tabular-nums font-bold">
-                      {user.total_cost_eur.toLocaleString(LOCALE_MAP[lng], {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                      €
-                    </td>
-                    {/* Cycle messages */}
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-right tabular-nums text-muted-foreground">
-                      {user.cycle_messages.toLocaleString(LOCALE_MAP[lng])}
-                    </td>
-                    {/* Cycle tokens */}
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-right tabular-nums text-muted-foreground">
-                      {user.cycle_tokens.toLocaleString(LOCALE_MAP[lng])}
-                    </td>
-                    {/* Cycle Google API requests */}
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-right tabular-nums text-muted-foreground">
-                      {user.cycle_google_api_requests.toLocaleString(LOCALE_MAP[lng])}
-                    </td>
-                    {/* Cycle cost */}
-                    <td className="px-3 py-3 whitespace-nowrap text-sm text-right tabular-nums font-bold text-muted-foreground">
-                      {user.cycle_cost_eur.toLocaleString(LOCALE_MAP[lng], {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                      €
-                    </td>
-                  </tr>
+                    user={user}
+                    lng={lng}
+                    t={t}
+                    actions={
+                      <UserActions
+                        user={user}
+                        t={t}
+                        disabled={isPending}
+                        onToggleActive={handleToggleActive}
+                        onDelete={handleDeleteUser}
+                        onErase={handleEraseUser}
+                      />
+                    }
+                  />
                 ))}
               </tbody>
             </table>
@@ -1042,5 +565,213 @@ export default function AdminUsersSection({ lng }: BaseSettingsProps) {
       {content}
       {confirmDialog}
     </SettingsSection>
+  );
+}
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/** A yes/no cell: the glyph when set, a dash when not, and the state spelled out for a screen reader. */
+function FlagCell({
+  on,
+  icon: Icon,
+  tone,
+  t,
+}: {
+  on: boolean;
+  icon: LucideIcon;
+  tone: string;
+  t: Translate;
+}) {
+  return (
+    <td className="whitespace-nowrap px-3 py-3 text-center">
+      {on ? (
+        <Icon className={cn('mx-auto h-4 w-4', tone)} aria-hidden="true" />
+      ) : (
+        <span className="text-muted-foreground" aria-hidden="true">
+          —
+        </span>
+      )}
+      <span className="sr-only">
+        {t(on ? 'settings.admin.users.state_on' : 'settings.admin.users.state_off')}
+      </span>
+    </td>
+  );
+}
+
+const STAT_WEIGHT = {
+  normal: '',
+  medium: 'font-medium',
+  bold: 'font-bold',
+  cycle: 'text-muted-foreground',
+  'cycle-bold': 'font-bold text-muted-foreground',
+} as const;
+
+function formatStat(value: number, kind: 'count' | 'eur', locale: string): string {
+  if (kind === 'count') return value.toLocaleString(locale);
+  return `${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€`;
+}
+
+/** Activate / deactivate, then delete, then the GDPR erase — each only where it applies. */
+function UserActions({
+  user,
+  t,
+  disabled,
+  onToggleActive,
+  onDelete,
+  onErase,
+}: {
+  user: AdminUserRow;
+  t: Translate;
+  disabled: boolean;
+  onToggleActive: (userId: string, currentStatus: boolean) => void;
+  onDelete: (userId: string, userEmail: string) => void;
+  onErase: (userId: string, userEmail: string) => void;
+}) {
+  const toggleLabel = user.is_active
+    ? t('settings.admin.users.actions.deactivate')
+    : t('settings.admin.users.actions.activate');
+  return (
+    <div className="flex gap-2">
+      {/* Activate/Deactivate: hidden for deleted users (data purged, irreversible) */}
+      {!user.is_deleted && (
+        <Button
+          variant={user.is_active ? 'destructive' : 'success'}
+          size="sm"
+          onClick={() => onToggleActive(user.id, user.is_active)}
+          disabled={disabled}
+          className="min-w-[80px] justify-center"
+          aria-label={`${toggleLabel} ${user.email}`}
+        >
+          {toggleLabel}
+        </Button>
+      )}
+      {/* Delete: only for deactivated, non-deleted, non-superuser */}
+      {!user.is_superuser && !user.is_active && !user.is_deleted && (
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => onDelete(user.id, user.email)}
+          disabled={disabled}
+          className="min-w-[80px] justify-center"
+          aria-label={`${t('settings.admin.users.actions.delete')} ${user.email}`}
+        >
+          {t('settings.admin.users.actions.delete')}
+        </Button>
+      )}
+      {/* Erase (GDPR): only for already soft-deleted users */}
+      {!user.is_superuser && user.is_deleted && (
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => onErase(user.id, user.email)}
+          disabled={disabled}
+          className="min-w-[80px] justify-center"
+          aria-label={`${t('settings.admin.users.actions.erase')} ${user.email}`}
+        >
+          {t('settings.admin.users.actions.erase')}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** One account, in the column order the header declares. */
+function UserRow({
+  user,
+  lng,
+  t,
+  actions,
+}: {
+  user: AdminUserRow;
+  lng: Language;
+  t: Translate;
+  actions: ReactNode;
+}) {
+  const locale = LOCALE_MAP[lng];
+  const created = new Date(user.created_at);
+  return (
+    <tr className="group transition-colors hover:bg-muted/30">
+      <td className={cn('px-4 py-3 text-sm text-foreground', EMAIL_FROZEN, FROZEN_BODY_BG)}>
+        <div className="w-[var(--admin-email-w)] truncate" title={user.email}>
+          {user.email}
+        </div>
+      </td>
+      <td className={cn('px-4 py-3 text-sm text-foreground', NAME_FROZEN, FROZEN_BODY_BG)}>
+        <div className="w-[var(--admin-name-w)] truncate" title={user.full_name ?? undefined}>
+          {user.full_name || '-'}
+        </div>
+      </td>
+      <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+        <time dateTime={user.created_at} title={created.toLocaleString(locale)}>
+          {created.toLocaleDateString(locale, {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          })}
+        </time>
+      </td>
+      <td className="whitespace-nowrap px-3 py-3 text-center text-sm">
+        <span className="text-xs font-medium text-muted-foreground">
+          {LANGUAGE_CODES[user.language] || user.language}
+        </span>
+      </td>
+      <td className="whitespace-nowrap px-4 py-3 text-sm">
+        <UserStatusBadge user={user} t={t} />
+        {user.is_superuser && <span className="ml-1 text-xs font-semibold text-primary">★</span>}
+      </td>
+      <FlagCell on={user.is_usage_blocked} icon={ShieldOff} tone="text-destructive" t={t} />
+      {ADMIN_USER_COUNT_COLUMNS.map(column => {
+        const count = user[column.key];
+        const activeTone =
+          column.key === 'active_connectors_count' ? 'text-success' : 'text-primary';
+        return (
+          <td key={column.key} className="whitespace-nowrap px-3 py-3 text-center">
+            <span
+              className={cn(
+                'text-sm font-medium tabular-nums',
+                count > 0 ? activeTone : 'text-muted-foreground'
+              )}
+            >
+              {count}
+            </span>
+          </td>
+        );
+      })}
+      <td className="whitespace-nowrap px-4 py-3 text-sm">{actions}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+        {user.last_message_at ? (
+          <span title={new Date(user.last_message_at).toLocaleString(locale)}>
+            {new Date(user.last_message_at).toLocaleDateString(locale, {
+              day: '2-digit',
+              month: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )}
+      </td>
+      {ADMIN_USER_STAT_COLUMNS.map(column => (
+        <td
+          key={column.key}
+          className={cn(
+            'whitespace-nowrap px-3 py-3 text-right text-sm tabular-nums',
+            STAT_WEIGHT[column.weight]
+          )}
+        >
+          {formatStat(user[column.key], column.kind, locale)}
+        </td>
+      ))}
+      {ADMIN_USER_SWITCHES.map(key => (
+        <FlagCell
+          key={key}
+          on={user[key]}
+          icon={ADMIN_USER_SWITCH_ICONS[key]}
+          tone="text-success"
+          t={t}
+        />
+      ))}
+    </tr>
   );
 }

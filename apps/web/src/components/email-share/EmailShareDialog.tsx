@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Mail, Paperclip } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { RecipientCombobox } from '@/components/email-share/RecipientCombobox';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -39,6 +40,7 @@ import {
   checkShare,
   connectorsSettingsPath,
   emailShareErrorKey,
+  parseRecipients,
   requestBody,
   sourceName,
   sourceSize,
@@ -285,7 +287,10 @@ function AttachmentLine({
   );
 }
 
-/** Free recipients from the mailbox; the account's own address, locked, on the relay. */
+/**
+ * Free recipients from the mailbox — with contact suggestions when a contacts
+ * connector is active — or the account's own address, locked, on the relay.
+ */
 function RecipientsField({
   options,
   check,
@@ -298,6 +303,9 @@ function RecipientsField({
   onChange: (value: string) => void;
 }) {
   const { t } = useTranslation();
+  // The recipient being typed in the suggesting field: a name searched for is
+  // not yet a wrong address — it is said once the field is left.
+  const [typing, setTyping] = useState<string | null>(null);
   if (options.route === 'relay') {
     return (
       <div className="space-y-1 text-sm">
@@ -310,11 +318,27 @@ function RecipientsField({
       </div>
     );
   }
+  const pending = new Set(parseRecipients(typing ?? '').map(entry => entry.toLowerCase()));
+  const invalid = check.invalid.filter(entry => !pending.has(entry.toLowerCase()));
   let fieldError: string | undefined;
-  if (check.invalid.length > 0) {
-    fieldError = t('email_share.to_invalid', { entries: check.invalid.join(', ') });
+  if (invalid.length > 0) {
+    fieldError = t('email_share.to_invalid', { entries: invalid.join(', ') });
   } else if (check.tooMany) {
     fieldError = t('email_share.to_too_many', { max: options.max_recipients });
+  }
+  // With a contacts connector, the field also suggests contacts while typing.
+  if (options.recipient_suggestions) {
+    return (
+      <RecipientCombobox
+        label={t('email_share.to_label')}
+        placeholder={t('email_share.to_placeholder_contacts')}
+        value={value}
+        onChange={onChange}
+        error={fieldError}
+        minChars={options.recipient_query_min_chars}
+        onTypingChange={setTyping}
+      />
+    );
   }
   return (
     <Input

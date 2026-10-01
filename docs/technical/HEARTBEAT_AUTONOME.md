@@ -16,7 +16,7 @@ APScheduler (30 min, configurable)
 | EligibilityChecker         |  <-- Existing infrastructure (reused)
 | (heartbeat_enabled,        |
 |  dedicated time window,    |
-|  quota, cooldown, activity)|
+|  cooldowns, activity)      |
 +------------+---------------+
              v (if eligible)
 +----------------------------+
@@ -39,6 +39,15 @@ APScheduler (30 min, configurable)
 | FCM + Telegram             |  <-- Follows the global opt-in (v1.27.11)
 +----------------------------+
 ```
+
+### How often LIA speaks
+
+There is no daily quota and no probabilistic pacing (ADR-328): the decision
+model judges whether a signal is worth an interruption, and a notification is
+never held back because a count was reached. Every tick inside the person's
+window reaches the task, and what bounds the rhythm is the window, the global,
+cross-type and activity cooldowns, a meeting in progress, the learned rhythm,
+the account's usage limits and the instance's daily budget.
 
 ## Feature Flag
 
@@ -81,8 +90,6 @@ APScheduler (30 min, configurable)
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `heartbeat_enabled` | bool | `false` | Enable proactive notifications |
-| `heartbeat_max_per_day` | int | `3` | Max notifications per day (1-8) |
-| `heartbeat_push_enabled` | bool | `true` | Ignored since v1.27.11 (kept for compatibility) — push follows the global opt-in |
 | `heartbeat_notify_start_hour` | int | `9` | Start hour (0-23) for notification window |
 | `heartbeat_notify_end_hour` | int | `22` | End hour (0-23) for notification window |
 | `use_last_known_location` | bool | `false` | Opt-in: use the persisted browser geoloc (generalized, ADR-219 — setting lives on the account, `users.use_last_known_location`); the proactive cascade adds its own >50 km / <24 h gates |
@@ -235,8 +242,8 @@ The moment sweep (`MOMENTS_SWEEP_INTERVAL_MINUTES`, jittered, its lock TTL tied
 to its own interval through `scheduler_lock.ttl_for_interval` — the wake sweep
 sizes its lock the same way since 2026-09-11) detects, claims, revalidates and serves. Like a wake it
 runs the SAME `HeartbeatProactiveTask` for that account only, under the SAME
-`EligibilityChecker`, and skips only the probabilistic smoothing and the
-learned rhythm: **an instant does not defer**. It is additionally held back
+`EligibilityChecker` (no daily quota, no probabilistic pacing — ADR-328), and
+skips only the learned rhythm: **an instant does not defer**. It is additionally held back
 while the person is IN a meeting (`MOMENTS_BUSY_GUARD_ENABLED`), a verdict
 cached in Redis — and a cache hit records no consultation, because Redis
 answered and the calendar was never opened (ADR-263).
@@ -268,10 +275,9 @@ The periodic tick is no longer the only way a decision starts. When
 calendar) queues the user; the wake sweep serves the queue every
 `PUSH_WAKE_SWEEP_INTERVAL_SECONDS` (jittered) and runs the SAME
 `HeartbeatProactiveTask` for that user only, through the same
-`ProactiveTaskRunner` and the same `EligibilityChecker`. The gates a wake
-skips are the probabilistic "guaranteed minimum" smoothing and the learned
-rhythm (a wake is consumed when served, so « later today » would mean
-« lost ») — a wake answers an event; the window, the daily quota and every
+`ProactiveTaskRunner` and the same `EligibilityChecker`. The one gate a wake
+skips is the learned rhythm (a wake is consumed when served, so « later
+today » would mean « lost ») — a wake answers an event; the window and every
 cooldown still apply, plus a wake cooldown of its own
 (`PUSH_WAKE_COOLDOWN_MINUTES`), and a wake still stands aside for a meeting
 in progress: the next tick reads the mail from the anchor the refused wake
@@ -346,8 +352,6 @@ rules and the metrics.
 
 ### User columns (added)
 - `heartbeat_enabled` (boolean, default false)
-- `heartbeat_max_per_day` (integer, default 3)
-- `heartbeat_push_enabled` (boolean, default true — ignored since v1.27.11, kept for compatibility)
 - `heartbeat_notify_start_hour` (integer, default 9) — Start hour (0-23) for notification window
 - `heartbeat_notify_end_hour` (integer, default 22) — End hour (0-23) for notification window
 

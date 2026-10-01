@@ -4,6 +4,8 @@
  *  - the worklet is loaded at the LIVE chunk size, never the push-to-talk's;
  *  - chunks reach the caller while unmuted and are dropped while muted;
  *  - `stop()` releases the track, the node and the context, in that order;
+ *  - `detach()` hands the live stream over (the wake word's capture becomes
+ *    the recording's) and releases only what the capture built around it;
  *  - the PCM context is created before the permission prompt (iOS), and a
  *    refused microphone closes it with the browser's own error preserved.
  */
@@ -99,6 +101,64 @@ describe('startMicCapture', () => {
     expect(onChunk).toHaveBeenCalledTimes(2);
   });
 
+  it('hands the live stream over on detach, releasing only the worklet and the context', async () => {
+    const onChunk = vi.fn();
+    const capture = await startMicCapture({
+      sampleRate: SAMPLE_RATE,
+      chunkSamples: CHUNK_SAMPLES,
+      onChunk,
+    });
+    expect(await capture.detach()).toBe(stream);
+    expect(track.stop).not.toHaveBeenCalled();
+    expect(contexts[0].source.disconnect).toHaveBeenCalled();
+    expect(contexts[0].close).toHaveBeenCalled();
+    port.onmessage?.({ data: new Int16Array(CHUNK_SAMPLES).buffer });
+    expect(onChunk).not.toHaveBeenCalled();
+    // The stream is the new owner's: a late stop of the old capture must not end it.
+    await capture.stop();
+    expect(track.stop).not.toHaveBeenCalled();
+  });
+
+  it('hands the stream over even when the context fails to close', async () => {
+    // A context the browser already closed rejects `close()`: the stream must
+    // still reach its new owner, or nobody would ever stop its tracks.
+    const capture = await startMicCapture({
+      sampleRate: SAMPLE_RATE,
+      chunkSamples: CHUNK_SAMPLES,
+      onChunk: vi.fn(),
+    });
+    contexts[0].close.mockRejectedValueOnce(new DOMException('closed', 'InvalidStateError'));
+    await expect(capture.detach()).resolves.toBe(stream);
+  });
+
+  it('closes the context once when two stops overlap', async () => {
+    const capture = await startMicCapture({
+      sampleRate: SAMPLE_RATE,
+      chunkSamples: CHUNK_SAMPLES,
+      onChunk: vi.fn(),
+    });
+    await Promise.all([capture.stop(), capture.stop(), capture.detach()]);
+    expect(contexts[0].close).toHaveBeenCalledOnce();
+    expect(track.stop).toHaveBeenCalledOnce();
+  });
+
+  it('hands the stream over once: a second detach and a detach after stop have none', async () => {
+    const capture = await startMicCapture({
+      sampleRate: SAMPLE_RATE,
+      chunkSamples: CHUNK_SAMPLES,
+      onChunk: vi.fn(),
+    });
+    expect(await capture.detach()).toBe(stream);
+    expect(await capture.detach()).toBeNull();
+    const stopped = await startMicCapture({
+      sampleRate: SAMPLE_RATE,
+      chunkSamples: CHUNK_SAMPLES,
+      onChunk: vi.fn(),
+    });
+    await stopped.stop();
+    expect(await stopped.detach()).toBeNull();
+  });
+
   it('opens the PCM context before asking for the microphone and closes it on refusal', async () => {
     const denied = Object.assign(new Error('denied'), { name: 'NotAllowedError' });
     const getUserMedia = vi.fn(async () => {
@@ -135,6 +195,18 @@ describe('startMicCapture', () => {
     expect(track.enabled).toBe(true);
     await capture.stop();
     expect(track.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the stream of a native capture over untouched on detach', async () => {
+    const capture = await startMicCapture({
+      sampleRate: 24000,
+      chunkSamples: 480,
+      onChunk: vi.fn(),
+      pcm: false,
+    });
+    expect(await capture.detach()).toBe(stream);
+    await capture.stop();
+    expect(track.stop).not.toHaveBeenCalled();
   });
 
   it('releases the track when the worklet fails to load', async () => {

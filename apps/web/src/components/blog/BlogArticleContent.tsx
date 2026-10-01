@@ -1,8 +1,15 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import { preload } from 'react-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  ARTICLE_HERO_SIZES,
+  ARTICLE_IMAGE_DEFAULT_WIDTH,
+  articleImageSrc,
+  articleImageSrcSet,
+} from '@/lib/blog/article-images';
 import type { BlogArticle, BlogCategory } from '@/data/blog-articles';
+import { ArticleIllustration } from './ArticleIllustration';
 
 const CATEGORY_STYLES: Record<BlogCategory, string> = {
   architecture: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
@@ -42,6 +49,16 @@ export function BlogArticleContent({
   const badgeClass = CATEGORY_STYLES[article.category];
   const blogListPath = lng === 'fr' ? '/blog' : `/${lng}/blog`;
 
+  // The hero is the page's LCP candidate: announce it in <head> with the same
+  // candidates the <img> below offers, so the browser picks one before the
+  // body is parsed (what next/image's `priority` used to emit).
+  preload(articleImageSrc(article.slug, ARTICLE_IMAGE_DEFAULT_WIDTH), {
+    as: 'image',
+    imageSrcSet: articleImageSrcSet(article.slug),
+    imageSizes: ARTICLE_HERO_SIZES,
+    fetchPriority: 'high',
+  });
+
   return (
     <article className="relative max-w-3xl mx-auto">
       {/* Back link */}
@@ -55,14 +72,7 @@ export function BlogArticleContent({
 
       {/* Hero illustration */}
       <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden mb-8">
-        <Image
-          src={`/articles/${article.slug}.png`}
-          alt={title}
-          fill
-          sizes="(max-width: 768px) 100vw, 768px"
-          className="object-cover"
-          priority
-        />
+        <ArticleIllustration slug={article.slug} alt={title} sizes={ARTICLE_HERO_SIZES} priority />
       </div>
 
       {/* Compact header */}

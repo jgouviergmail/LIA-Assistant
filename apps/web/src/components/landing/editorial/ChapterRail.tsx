@@ -45,7 +45,7 @@ export function ChapterRail() {
   return (
     <nav
       aria-label={t('landing.rail.aria')}
-      className="fixed left-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center gap-3 xl:flex"
+      className="cosmos-chapter-rail fixed left-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center gap-3 xl:flex"
     >
       {CHAPTERS.map(chapter => (
         <a

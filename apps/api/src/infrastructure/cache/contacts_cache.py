@@ -74,6 +74,107 @@ class ContactsCache:
         """Generate cache key for get_contact_details."""
         return make_resource_key("contacts_details", user_id, resource_name)
 
+    def _make_directory_key(self, user_id: UUID, provider: str, max_contacts: int) -> str:
+        """Generate cache key for the whole directory (``clients/contact_directory``)."""
+        return make_resource_key("contacts_directory", user_id, f"{provider}:{max_contacts}")
+
+    def _make_directory_stamp_key(self, user_id: UUID, provider: str, max_contacts: int) -> str:
+        """The small key beside the directory: its version and cut, never its persons."""
+        return make_resource_key("contacts_directory", user_id, f"{provider}:{max_contacts}:stamp")
+
+    async def get_directory_stamp(
+        self, user_id: UUID, provider: str, max_contacts: int
+    ) -> dict[str, Any] | None:
+        """The directory's stamp (``{"version", "truncated"}``), or None.
+
+        Args:
+            user_id: User UUID.
+            provider: The contacts connector's type value.
+            max_contacts: The cap the directory was read under.
+
+        Returns:
+            The stamp, or None on a miss or an unreadable entry.
+        """
+        key = self._make_directory_stamp_key(user_id, provider, max_contacts)
+        try:
+            cached = await self.redis.get(key)
+            if cached:
+                stamp = json.loads(cached)
+                if isinstance(stamp, dict):
+                    return stamp
+            return None
+        except Exception as e:
+            logger.warning(
+                "contacts_cache_get_failed",
+                cache_type="directory_stamp",
+                user_id=str(user_id),
+                error_type=type(e).__name__,
+            )
+            return None
+
+    async def get_directory(
+        self, user_id: UUID, provider: str, max_contacts: int
+    ) -> dict[str, Any] | None:
+        """The cached directory (``{"persons", "truncated", "version"}``), or None.
+
+        Args:
+            user_id: User UUID.
+            provider: The contacts connector's type value.
+            max_contacts: The cap the directory was read under.
+
+        Returns:
+            The cached payload, or None on a miss or an unreadable entry.
+        """
+        key = self._make_directory_key(user_id, provider, max_contacts)
+        try:
+            cached = await self.redis.get(key)
+            if cached:
+                result = parse_cache_entry(cached, "contacts_directory", {"user_id": str(user_id)})
+                if result.from_cache and isinstance(result.data, dict):
+                    return result.data
+            record_cache_miss("contacts_directory")
+            return None
+        except Exception as e:
+            logger.warning(
+                "contacts_cache_get_failed",
+                cache_type="directory",
+                user_id=str(user_id),
+                error_type=type(e).__name__,
+            )
+            return None
+
+    async def set_directory(
+        self, user_id: UUID, provider: str, max_contacts: int, data: dict[str, Any]
+    ) -> None:
+        """Cache the whole directory with the contact list's TTL.
+
+        Args:
+            user_id: User UUID.
+            provider: The contacts connector's type value.
+            max_contacts: The cap the directory was read under.
+            data: ``{"persons": [...], "truncated": bool}``.
+        """
+        ttl_seconds = settings.contacts_cache_list_ttl_seconds
+        key = self._make_directory_key(user_id, provider, max_contacts)
+        stamp = {"version": data.get("version"), "truncated": bool(data.get("truncated"))}
+        try:
+            await self.redis.set(
+                key, json.dumps(create_cache_entry(data, ttl_seconds)), ex=ttl_seconds
+            )
+            # Written AFTER the book: a stamp never names a version not yet stored.
+            await self.redis.set(
+                self._make_directory_stamp_key(user_id, provider, max_contacts),
+                json.dumps(stamp),
+                ex=ttl_seconds,
+            )
+        except Exception as e:
+            logger.warning(
+                "contacts_cache_set_failed",
+                cache_type="directory",
+                user_id=str(user_id),
+                error_type=type(e).__name__,
+            )
+
     async def get_list(
         self, user_id: UUID
     ) -> tuple[dict[str, Any] | None, bool, str | None, int | None]:
@@ -343,6 +444,7 @@ class ContactsCache:
             f"contacts_list:{user_id}",
             f"contacts_search:{user_id}:*",
             f"contacts_details:{user_id}:*",
+            f"contacts_directory:{user_id}:*",
         ]
 
         invalidated_count = 0

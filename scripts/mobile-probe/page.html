@@ -33,11 +33,30 @@
       r.has_PushManager = 'PushManager' in window;
       r.has_serviceWorker = 'serviceWorker' in navigator;
 
-      // --- Wake-word prerequisites (sherpaKws.isSherpaKwsSupported) --------
+      // --- Isolation: recorded as evidence (the wake word no longer needs it) ---
       r.crossOriginIsolated = typeof crossOriginIsolated !== 'undefined' ? crossOriginIsolated : null;
       r.has_SharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
       r.has_WebAssembly = typeof WebAssembly !== 'undefined';
       r.has_AudioWorklet = typeof AudioContext !== 'undefined' && typeof AudioWorkletNode !== 'undefined';
+
+      // --- Wake word (ADR-329): the runtime single-threaded in a module worker ---
+      r.wake_runtime = await new Promise(resolve => {
+        let worker;
+        try {
+          worker = new Worker('/wake/worker.mjs', { type: 'module' });
+        } catch (e) {
+          resolve({ status: 'error:' + String(e && e.message) });
+          return;
+        }
+        const timer = setTimeout(() => { resolve({ status: 'timeout' }); worker.terminate(); }, 60000);
+        worker.onmessage = e => { clearTimeout(timer); resolve(e.data); worker.terminate(); };
+        worker.onerror = e => {
+          clearTimeout(timer);
+          resolve({ status: 'error:' + String(e && e.message) });
+          worker.terminate();
+        };
+        worker.postMessage('run');
+      });
 
       // --- Voice / geo / uploads ------------------------------------------
       r.has_getUserMedia = !!navigator.mediaDevices?.getUserMedia;

@@ -9,11 +9,13 @@ LIA offers voice interaction through two input methods and configurable speech o
 - Release to stop — LIA transcribes speech and places text in the input field
 - Works on desktop and mobile (optimized for touch devices)
 
-### Wake Word Detection
-- Say "OK Guy" to activate hands-free recording
-- Detection runs entirely in the browser using Sherpa-onnx WASM (no audio sent externally)
+### Wake Word Detection (French, beta)
+- With a French interface, say "Dis LIA" to activate hands-free recording; the other interface languages have no phrase yet and keep tap-to-speak and the long press
+- The wake word is in beta: its recognition is still improving, so it may ask you to repeat yourself or trigger by mistake
+- Detection runs entirely in the browser: a small trained model run by ONNX Runtime (WebAssembly) in a worker, every file checked against its fingerprint — no audio leaves the device before LIA hears it, iPhone included
+- While LIA reads an answer aloud, say "Stop" to cut her voice (nothing is recorded or sent), or "Dis LIA" to cut it and speak at once
 - An audible chime confirms the app is ready to listen
-- Requires Voice Mode to be enabled in Settings
+- Requires hands-free mode: tap the greyed microphone badge in the chat header (or use Settings > Voice Mode); hold the badge, or hold Space, to turn it off
 
 ### Speech-to-Text (STT)
 - **Local mode** (default): Sherpa-onnx Whisper running on LIA's server (99+ languages, fully offline). No audio leaves the server.
@@ -58,7 +60,7 @@ Two server-side safety mechanisms protect against ElevenLabs cost spikes when th
 ## Live mode
 
 ### What is the Live mode, and how do I start a session?
-A conversation with LIA **voice to voice, in real time**: you speak, it answers as it listens, you can interrupt it. It runs on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent — from **Settings → Connectors** (the « Live » family, additive: you may hold several). Once a connector is active, the voice icon in the chat header becomes a menu: **Live session (brand)** opens one. A band above the thread shows the captions, the time left and an indicative meter; the extension dialog asks before the cap, and the session ends by itself after a long silence.
+A conversation with LIA **voice to voice, in real time**: you speak, it answers as it listens, you can interrupt it. It runs on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent — from **Settings → Connectors** (the « Live » family, additive: you may hold several). Once a connector is active, the voice icon in the chat header becomes a menu: **Live session (brand)** opens one. A band above the thread shows the captions, the time left and an indicative meter; the extension dialog asks before the cap, and after a silence the session goes on standby instead of ending — nothing is billed until it wakes.
 
 **🧠 Two intelligences, one seam:** the voice holds the conversation; every request for data or action is handed to LIA, which runs it as an ordinary chat turn — the same confirmations, the same registers, the same quotas — drawn in the thread while you speak. A question LIA needs to ask you is what the voice says next.
 
@@ -81,6 +83,13 @@ Two bills, one of which is yours alone.
 
 **🧾 In every case:** the registers record that a session took place and which capability LIA read for you — never a word of what was said.
 
+### What happens when a Live session goes on standby?
+After the model's silence timeout, when the page stays hidden, or when you tap the standby button, the session falls asleep instead of ending: the connection to the provider closes, so **nothing is billed** during the standby, but the session stays open — its requests, its meter and its closing card wait for you.
+
+**⏰ Waking it:** tap **Wake up** in the band or, with a French interface, say "Dis LIA" (beta) while the page is visible. LIA opens a new connection with its own context of the moment — the time, its state, your settings: the memory is the application's, not the provider's. On an iPhone, keep the screen on so that it can hear you.
+
+**🛑 Ending it:** a session only ends on your gesture; an unbroken standby past the length your instance sets (8 hours by default) closes it by itself. The session's cap, its duration and the meter count awake time only, and the closing card says how many times it slept. In a direct session, what you said is relayed into the conversation at each standby.
+
 ### Settings › Live mode
 The model (choosing it is choosing its provider), the voice with a sample on every change, the thinking level where the model offers one, how the conversation behaves (interruptions, end of speech, when LIA delivers an answer), the silence and the duration cap per model (`0` = no limit, under a billing warning), an optional spend ceiling per session. Every model you connect keeps its own settings. The header's voice menu follows these settings at once.
 
@@ -90,7 +99,7 @@ The model (choosing it is choosing its provider), the voice with a sample on eve
 
 ## Privacy
 
-- Wake word detection: browser-only (WASM), no external transmission
+- Wake word detection: browser-only (ONNX Runtime, WebAssembly in a worker), no external transmission
 - Speech-to-text (local): LIA server only (Sherpa-onnx Whisper), no third-party API
 - Speech-to-text (remote): your audio is transmitted to ElevenLabs (opt-in only, off by default; admin can disable globally)
 - Voice output: depends on the active TTS provider (Edge = Microsoft, OpenAI = OpenAI, ElevenLabs = ElevenLabs)

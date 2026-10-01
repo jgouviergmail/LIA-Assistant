@@ -418,9 +418,10 @@
         "„Was habe ich morgen?“ wird wie ein gewöhnlicher Gesprächszug an LIAs Engine delegiert.",
         "Der Kalender wird mit denselben Regeln gelesen wie im Chat.",
         "Eine heikle Aktion? Die Freigabefrage wird zur gesprochenen Antwort.",
+        "Eine Stille? Die Sitzung geht in den Standby — nichts wird mehr berechnet — und ein Tippen weckt sie.",
         "Am Ende fasst eine Karte die Sitzung zusammen und was sie gekostet hat."
       ],
-      "src": "77ddea7882a0"
+      "src": "6f5ca4ae4284"
     },
     "flow.learn": {
       "name": "LIA lernt dich kennen",

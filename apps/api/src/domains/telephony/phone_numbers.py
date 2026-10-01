@@ -6,6 +6,10 @@ service (is the number the person declared a dialable E.164 line?). They used
 to be private helpers of the tool; a second copy in the identity service would
 have let a national number be accepted by one and refused by the other.
 
+A third reader outside telephony uses the same rules rather than a copy: the
+recipient suggestions of « Send by e-mail » (``email_share/recipient_match``)
+find a contact by a number typed however it is spaced.
+
 No domain import: the only dependency is the deployment's country code.
 """
 

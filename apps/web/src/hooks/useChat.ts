@@ -180,6 +180,8 @@ export interface UseChatReturn {
    * Flag OFF (or no active run), falls back to the legacy local abort.
    */
   stopGeneration: () => Promise<void>;
+  /** Cut LIA's voice now: the person spoke over her (her phrase, or the stop word). */
+  stopVoice: () => void;
 }
 
 /**
@@ -1047,5 +1049,6 @@ export const useChat = ({
     checkAndResumeActiveRun,
     // ADR-117 Lot 3: stop button
     stopGeneration,
+    stopVoice: stopPlayback,
   };
 };

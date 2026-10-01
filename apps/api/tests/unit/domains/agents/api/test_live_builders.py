@@ -53,6 +53,7 @@ def test_summary_metadata_carries_the_figures_in_the_meters_vocabulary() -> None
         "voice_turns": 7,
         "extensions": 0,
         "mode": "delegated",
+        "standbys": 0,
     }
     assert meta["tokens_in"] == 10 and meta["cost_eur"] == 0.01
     assert "provider" not in str(meta)

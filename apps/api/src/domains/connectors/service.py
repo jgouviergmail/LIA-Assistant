@@ -49,6 +49,7 @@ from src.domains.connectors.models import (
     get_conflicting_connector_types,
     get_connector_display_name,
 )
+from src.domains.connectors.oauth_bulk import bulk_reconnect_provider
 from src.domains.connectors.oauth_grant_lifecycle import delete_shared_connector
 from src.domains.connectors.oauth_grant_runtime import (
     OAuthGrantRuntime,
@@ -213,6 +214,12 @@ class ConnectorService:
                     expires_in_minutes=expires_in_minutes,
                     authorize_url=authorize_url,
                     reconnect_type=reconnect_type,
+                    # What the grouped « reconnect » button needs (oauth_bulk).
+                    bulk_reconnect_provider=bulk_reconnect_provider(ct, connector.status),
+                    oauth_grant_id=connector.oauth_grant_id,
+                    oauth_account_email=(connector.connector_metadata or {}).get(
+                        "oauth_account_email"
+                    ),
                 )
             )
 

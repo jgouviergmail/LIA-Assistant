@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.1
-**Date**: 2026-09-30
-**Application**: LIA v2.2.0
+**Date**: 2026-10-02
+**Application**: LIA v2.3.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -53,9 +53,9 @@ Every user has their own settings space, organized in two tabs. A search field s
 
 **Personal preferences:**
 
-- **Personal connectors**: choose Google or Microsoft services in one verified-account authorization, then disconnect each independently; existing links keep working until you choose to reconnect. Apple uses IMAP/CalDAV/CardDAV. Email, calendar, contacts, tasks and Drive sit beside API-key services such as weather and search.
+- **Personal connectors**: choose Google or Microsoft services in one verified-account authorization, then disconnect each independently; existing links keep working until you choose to reconnect. Apple uses IMAP/CalDAV/CardDAV. When several services of one account expire, the alert offers to reconnect them all in a single authorization. Email, calendar, contacts, tasks and Drive sit beside API-key services such as weather and search.
 - **Personality**: choose from available personalities (professor, friend, philosopher, coach, poet...) — each influences LIA's tone, style and emotional behavior
-- **Voice**: configure voice mode — wake word detection, sensitivity, silence threshold, automatic response playback
+- **Voice**: configure voice mode — the hands-free wake word, local or remote transcription, answers read aloud
 - **Notifications**: manage push notifications and registered devices
 - **Channels**: link Telegram for chatting and receiving notifications on mobile
 - **Image generation**: enable and configure AI image creation
@@ -148,10 +148,10 @@ Wikipedia, page browsing, places, weather and air quality ask nothing of you: yo
 LIA offers a complete voice mode:
 
 - **Push-to-Talk**: hold the microphone button to speak, optimized for mobile
-- **"OK Guy" wake word**: hands-free detection running **entirely in your browser** via Sherpa-onnx WASM — no audio is transmitted until the wake word is detected
+- **"Dis LIA", heard in your browser**: hands-free detection runs **entirely on your device** — no audio is transmitted until the phrase is heard — and "Stop" cuts LIA's voice while it reads an answer. This wake word exists in French for now, in beta: its recognition is still improving; in the other languages, a tap is enough
 - **Voice synthesis**: three admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), or ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Telegram voice messages**: send audio messages, LIA transcribes and responds
-- **Live mode**: a real-time, voice-to-voice conversation on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and hands every request to LIA, which runs it as an ordinary chat turn while you speak; a direct session lets the voice read your data itself and act on nothing. What the provider bills is shown to you, never recorded.
+- **Live mode**: a real-time, voice-to-voice conversation on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and hands every request to LIA, which runs it as an ordinary chat turn while you speak; a direct session lets the voice read your data itself and act on nothing. What the provider bills is shown to you, never recorded. A silence no longer closes a session: it puts it on standby — connection closed, nothing billed — until a tap wakes it with LIA's context; ending it is always yours.
 
 ### 3.5. Creation and media
 
@@ -161,18 +161,19 @@ LIA offers a complete voice mode:
 - **Attachments**: attach photos and PDFs — LIA analyzes visual content and extracts text from documents; the « + » also offers every document of your knowledge spaces, a paused space included, as a copy for that message
 - **MCP Apps**: interactive widgets directly in chat (forms, visualizations, mini-applications)
 - **Kept answers**: a bookmark on every answer keeps it out of the conversation — with your request and its date — in a tab beside your generated files; share it, download it as Markdown, or let it go; every kept answer also joins a knowledge space of your own, so LIA finds it and cites it weeks later
+- **Send by e-mail**: a generated file or an answer leaves in one click, from your connected mailbox or to your own address; as you type a recipient, LIA suggests your contacts by last name, first name or phone number and inserts their address
 
 ### 3.6. Proactivity and initiative
 
 LIA doesn't just respond — it anticipates:
 
-- **Proactive notifications**: LIA cross-references your context sources (calendar, weather, tasks, emails, interests) and notifies you when something is genuinely useful — with a built-in anti-spam system (daily quota, time window, cooldown)
+- **Proactive notifications**: LIA cross-references your context sources (calendar, weather, tasks, emails, interests) and notifies you when something is genuinely useful — with a built-in anti-spam system (time window, pauses between two messages) and no daily quota: every pass is evaluated, and relevance decides, not a counter
 - **Conversational initiative**: during an exchange, LIA proactively checks related information — if weather forecasts rain on Saturday, it checks your calendar to flag potential outdoor activities
 - **Interests**: LIA keeps what you actually care about, not what you asked once — asking a question is a task, not a taste, and it takes a stated passion, a practice, real prior knowledge or genuine digging for a subject to count. Themes rotate (never the same subject twice in a row), every notification includes clickable links to its sources, and a subject you refuse does not come back: the block is compared against every new subject, including under another name
 - **Work you hand over, and get back**: a ticket has a lifecycle, a holder and a result. Give one to LIA and it takes it in its own time, does it, comments what it found and returns the result for you to accept — and when it meets something it may not do alone, it asks on the ticket, showing exactly what it is about to do, rather than deciding for you or giving up
 - **Sub-agents**: for complex tasks, LIA delegates to ephemeral specialized agents working in parallel
 - **Coming back to the instant that matters**: a meeting ends, and LIA asks you how it went — at the end, not on the next pass two hours later. An open question, never an evaluation, never during the next meeting; each kind of moment switches off on its own in the settings. And a mail you are waiting for is served to the minute: "Watch" from the briefing creates the watch, which ends by itself once the reply has arrived
-- **Reacting, not just checking**: when the mailbox or the calendar signals something, LIA can decide within minutes instead of waiting for its next pass — under exactly the same time window, the same ceiling and the same cooldowns, and only for an email carrying the label you consider important or an event that concerns you soon. A burst of arrivals makes a single wake-up, and a moment judged inopportune simply hands the message back to the regular pass
+- **Reacting, not just checking**: when the mailbox or the calendar signals something, LIA can decide within minutes instead of waiting for its next pass — under exactly the same time window and the same cooldowns, and only for an email carrying the label you consider important or an event that concerns you soon. A burst of arrivals makes a single wake-up, and a moment judged inopportune simply hands the message back to the regular pass
 
 ### 3.7. Autonomous web browsing
 

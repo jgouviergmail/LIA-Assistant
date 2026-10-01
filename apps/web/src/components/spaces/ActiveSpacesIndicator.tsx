@@ -24,7 +24,8 @@ import { fallbackLng } from '@/i18n/settings';
  * (R01), opening per-space switches + a link to the management page.
  *
  * Placement + form (2026-07-29 fix): it rides in the CENTRED middle group of
- * the header (next to the voice badge), which is a normal flex child — NOT the
+ * the header (last, after the hands-free badge and the context gauge — owner
+ * order 2026-10-01), which is a normal flex child — NOT the
  * former `absolute left-1/2` row. Equal-weight (`flex-1`) side groups keep the
  * middle visually centred while it SHIFTS by itself, never overlapping, when a
  * side grows (the "processing" / "listening" status pill, the search field).
@@ -34,9 +35,10 @@ import { fallbackLng } from '@/i18n/settings';
  * dimensions match the sibling pills exactly (rounded-full, px-3 py-1.5,
  * text-px-11) — homogeneous in shape, discreet in tone.
  *
- * The accessible name lives on the TRIGGER and is the same at every width
- * (S5b invariant): below `sm` the visible text is the bare count, and a
- * `title` would be hover-only, which touch does not have.
+ * The visible text is the bare count at every width — the icon says what is
+ * counted (owner decision 2026-10-01). The accessible name lives on the
+ * TRIGGER and says it in words (S5b invariant): a `title` would be hover-only,
+ * which touch does not have.
  */
 export function ActiveSpacesIndicator() {
   const { t } = useTranslation();
@@ -78,11 +80,10 @@ export function ActiveSpacesIndicator() {
           // Homogeneous with the sibling header pills (offline / processing /
           // delete / context): same rounded-full px-3 py-1.5 text-px-11
           // shell. Discreet TONE: muted neutral, not the primary badge.
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/50 px-3 py-1.5 text-px-11 mobile:text-xs font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-muted/50 px-2 sm:px-3 py-1.5 text-px-11 mobile:text-xs font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Library className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">{t('spaces.indicator', { count: activeCount })}</span>
-          <span className="sm:hidden tabular-nums">{activeCount}</span>
+          <span className="tabular-nums">{activeCount}</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">

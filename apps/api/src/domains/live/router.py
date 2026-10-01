@@ -49,6 +49,8 @@ from src.domains.live.schemas import (
     LiveOfferResponse,
     LiveSessionStartRequest,
     LiveSessionStartResponse,
+    LiveStandbyRequest,
+    LiveStandbyResponse,
     LiveToolCallRequest,
     LiveToolCallResponse,
     LiveTurnRequest,
@@ -56,6 +58,8 @@ from src.domains.live.schemas import (
     LiveVoiceSampleRequest,
     LiveVoiceSampleResponse,
     LiveVoicesResponse,
+    LiveWakeRequest,
+    LiveWakeResponse,
 )
 from src.domains.live.service import LiveService
 from src.domains.users.models import User
@@ -90,6 +94,7 @@ async def live_config(_: User = Depends(get_current_active_session)) -> LiveConf
         connect_window_seconds=settings.live_connect_window_seconds,
         idle_timeout_seconds=settings.live_idle_timeout_seconds,
         hidden_grace_seconds=settings.live_hidden_grace_seconds,
+        standby_max_seconds=settings.live_standby_max_seconds,
         delegation_timeout_seconds=settings.live_delegation_timeout_seconds,
         delegation_result_max_tokens=settings.live_delegation_result_max_tokens,
         delegation_tool_name=LIVE_DELEGATION_TOOL_NAME,
@@ -336,6 +341,47 @@ async def extend_session(
 ) -> LiveExtendResponse:
     """The cap moves from its current value; a fresh credential rides back for the reconnection."""
     return await LiveService(db).extend(user, session_id, language=_language(user))
+
+
+@router.post(
+    "/sessions/{session_id}/standby",
+    response_model=LiveStandbyResponse,
+    summary="Put the session to sleep: no provider connection, nothing billed (ADR-329)",
+)
+async def standby_session(
+    session_id: str,
+    payload: LiveStandbyRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> LiveStandbyResponse:
+    """The browser closed the provider connection; the session stays the person's, asleep.
+
+    Idempotent. A DIRECT session's words since its last wake become the
+    person's own turn, off the request path.
+    """
+    return await LiveService(db).standby(user, session_id, payload, language=_language(user))
+
+
+@router.post(
+    "/sessions/{session_id}/wake",
+    response_model=LiveWakeResponse,
+    summary="Wake a sleeping session: a fresh credential on a setup rendered now (ADR-329)",
+)
+async def wake_session(
+    session_id: str,
+    payload: LiveWakeRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> LiveWakeResponse:
+    """The cap shifts by the length of the sleep; a refused wake leaves the session asleep."""
+    return await LiveService(db).wake(
+        user,
+        session_id,
+        payload,
+        language=_language(user),
+        timezone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
+        display_name=resolve_user_display_name(user.full_name, user.email),
+    )
 
 
 @router.post(
