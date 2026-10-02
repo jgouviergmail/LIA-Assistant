@@ -144,9 +144,9 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **python-jose** | 3.5.0 | JWT handling |
-| **passlib** | 1.7.x | Password hashing |
-| **cryptography** | 48.x | Encryption |
+| **PyJWT** | 2.x | JWT: e-mail and reset links, provider identity tokens, the APNs relay token |
+| **bcrypt** | 5.x | Password hashing |
+| **cryptography** | 50.x | Encryption (Fernet), the RSA keys PyJWT verifies with |
 
 ### Utilitaires
 

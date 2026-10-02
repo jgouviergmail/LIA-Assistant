@@ -1412,12 +1412,10 @@ SUPPORTED_CURRENCIES = ["USD", "EUR"]
 
 # JWT algorithm for email verification and password reset tokens.
 #
-# Constrained to HMAC (symmetric) algorithms on purpose: the CI pip-audit
-# exemption for CVE-2024-23342 (ecdsa timing attack on signing) holds only
-# because python-jose never reaches its ecdsa backend under HS*. Adding an
-# EC/RSA algorithm here means revisiting that exemption in
-# .github/workflows/security.yml — and switching to an asymmetric algorithm
-# also means `secret_key` stops being a valid signing key.
+# Constrained to HMAC (symmetric) algorithms on purpose: the tokens are signed
+# with `secret_key`, and an asymmetric algorithm would need a key pair instead.
+# (The constraint also carried the python-jose ecdsa exemption until PyJWT
+# replaced it — dependency programme, lot 5.)
 JwtAlgorithm = Literal["HS256", "HS384", "HS512"]
 JWT_ALGORITHM_DEFAULT: Final[JwtAlgorithm] = "HS256"
 

@@ -1,11 +1,14 @@
 """Verify the provider account behind a grouped connector authorization."""
 
+import base64
+import hashlib
+import hmac
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
 import httpx
-from jose import JWTError, jwt
+import jwt
 
 _JWKS_URLS = {
     "google": "https://www.googleapis.com/oauth2/v3/certs",
@@ -91,6 +94,25 @@ def _account_from_claims(provider: str, claims: dict[str, Any]) -> ProviderIdent
     return ProviderIdentity(subject=subject, email=email)
 
 
+def _verify_at_hash(claims: dict[str, Any], access_token: str) -> None:
+    """Bind the identity token to the access token it was issued with (OIDC Core 3.1.3.6).
+
+    The left half of the access token's SHA-256, base64url without padding — RS256
+    is the only algorithm accepted. PyJWT does not check it; python-jose did, and
+    skipped an absent claim, which this keeps.
+
+    Raises:
+        jwt.InvalidTokenError: The claim does not match the access token.
+    """
+    claimed = claims.get("at_hash")
+    if claimed is None:
+        return
+    digest = hashlib.sha256(access_token.encode("utf-8")).digest()
+    expected = base64.urlsafe_b64encode(digest[: len(digest) // 2]).rstrip(b"=").decode("ascii")
+    if not isinstance(claimed, str) or not hmac.compare_digest(claimed, expected):
+        raise jwt.InvalidTokenError("The identity token was not issued with this access token")
+
+
 def verify_provider_identity(
     provider: str,
     id_token: str,
@@ -103,20 +125,23 @@ def verify_provider_identity(
     """Validate signature, claims and the access token hash before accepting an account."""
     try:
         header = jwt.get_unverified_header(id_token)
-        unverified = jwt.get_unverified_claims(id_token)
+        unverified = jwt.decode(id_token, options={"verify_signature": False})
         issuer = _expected_issuer(provider, unverified)
         kid = header.get("kid")
         if header.get("alg") != "RS256" or not isinstance(kid, str):
             raise ValueError("Unsupported identity token algorithm")
         key = _matching_key(provider, jwks, kid, issuer, unverified.get("tid"))
+        # A provider clock ahead of ours must never fail a connector link: `iat` is
+        # not checked, as with python-jose (decision D3); `nbf` and `exp` hold.
         claims = jwt.decode(
             id_token,
-            key,
+            jwt.PyJWK(key),
             algorithms=["RS256"],
             audience=client_id,
             issuer=issuer,
-            access_token=access_token,
+            options={"verify_iat": False},
         )
+        _verify_at_hash(claims, access_token)
         authorized_party = claims.get("azp")
         audiences = claims.get("aud")
         if authorized_party is not None and authorized_party != client_id:
@@ -126,5 +151,5 @@ def verify_provider_identity(
         if claims.get("nonce") != nonce:
             raise ValueError("Identity token nonce mismatch")
         return _account_from_claims(provider, claims)
-    except (JWTError, KeyError, TypeError) as error:
+    except (jwt.PyJWTError, KeyError, TypeError) as error:
         raise ValueError("Invalid provider identity token") from error

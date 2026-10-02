@@ -1671,15 +1671,11 @@ tasks:
       # The lockfiles, not the manifests, so transitive dependencies are covered;
       # all three, since the sandbox image and the dev tools ship or run too.
       # --disable-pip: every lock is fully pinned and hashed, nothing to resolve.
-      # CVE-2024-23342 (ecdsa timing attack on ECDSA *signing*): LIA does sign JWTs
-      # (`jwt.encode` in core/security/utils.py), but with HS256 — the algorithm is
-      # a Literal of HMAC names (SecuritySettings.algorithm), so python-jose never
-      # reaches the ecdsa backend; widening it to an EC algorithm means dropping
-      # this ignore. Gone with python-jose (dependency programme, lot 5).
+      # No advisory is ignored: the last exemption (ecdsa, CVE-2024-23342) left
+      # with python-jose (dependency programme, lot 5).
       - >-
         {{.UV}} tool run --from pip-audit=={{.PIP_AUDIT_VERSION}} pip-audit --desc --disable-pip
         -r requirements.lock.txt -r requirements-dev.lock.txt -r requirements-sandbox.lock.txt
-        --ignore-vuln CVE-2024-23342
 
   security:scan:frontend:
     desc: Audit the pnpm lockfile (a high or critical advisory fails)

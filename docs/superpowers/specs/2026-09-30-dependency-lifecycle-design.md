@@ -402,7 +402,19 @@ The design, as specified:
   six-language map entries, `task docs:maps`, `task release:sync-counts`, and at most four lines in
   `CLAUDE.md` pointing at the ADR, then `task docs:sync-agents`.
 
-### Lot 5 — python-jose leaves
+### Lot 5 — python-jose leaves (implemented 2026-10-02, ADR-331 amendment)
+
+Measured on landing: the seventeen-row table ran red on python-jose on exactly one row (« aud
+absent »), then green on PyJWT 2.15.1, on the host and in the Linux dev container. A token minted
+by python-jose 3.5.0 is recorded in `tests/unit/core/security/test_jwt_tokens.py` and read by
+today's `verify_token`. D3 held its default. The resolution dropped exactly `python-jose`,
+`ecdsa`, `rsa`, `types-python-jose` and `types-pyasn1`, moved nothing else; pip-audit reads the
+three locks with no exemption left; the watch's ecdsa acceptance went with them. Proven on the
+dev API: a garbage token answers 401, a well-signed token for an unknown account reaches the
+account lookup (404), with `jose` absent from the host venv.
+
+The design, as specified:
+
 
 - Tests first: the seventeen cases of the JWT parity probe (§11) as a parametrised
   characterisation of `verify_provider_identity`, green on python-jose; the same table must hold

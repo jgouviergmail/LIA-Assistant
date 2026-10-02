@@ -730,7 +730,6 @@ cryptography==50.0.0 \
     #   google-auth
     #   pyjwt
     #   pyopenssl
-    #   python-jose
     #   webauthn
 cssselect==1.4.0 \
     --hash=sha256:c0ec5c0191c8ee39fcc8afc1540331d8b55b0183478c50e9c8a79d44dbceb1d8 \
@@ -764,10 +763,6 @@ ebooklib==0.20 \
     --hash=sha256:35e2f9d7d39907be8d39ae2deb261b19848945903ae3dbb6577b187ead69e985 \
     --hash=sha256:fff5322517a37e31c972d27be7d982cc3928c16b3dcc5fd7e8f7c0f5d7bcf42b
     # via -r requirements.txt
-ecdsa==0.19.2 \
-    --hash=sha256:62635b0ac1ca2e027f82122b5b81cb706edc38cd91c63dda28e4f3455a2bf930 \
-    --hash=sha256:840f5dc5e375c68f36c1a7a5b9caad28f95daa65185c9253c0c08dd952bb7399
-    # via python-jose
 edge-tts==7.2.8 \
     --hash=sha256:361fe48ce7ef613adbe30f664e3765dd71029c6cb57427279eff8ad6df2eb211 \
     --hash=sha256:fcf185a0d527a0d2d003f9d5841facc1d5e0e7b3b88d5df9c32990402c6b8cd0
@@ -2950,8 +2945,6 @@ pyasn1==0.6.4 \
     # via
     #   -r requirements.txt
     #   pyasn1-modules
-    #   python-jose
-    #   rsa
     #   webauthn
 pyasn1-modules==0.4.2 \
     --hash=sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a \
@@ -3163,10 +3156,6 @@ python-dotenv==1.2.2 \
     #   -r requirements.txt
     #   pydantic-settings
     #   uvicorn
-python-jose==3.5.0 \
-    --hash=sha256:abd1202f23d34dfad2c3d28cb8617b90acf34132c7afd60abd0b0b7d3cb55771 \
-    --hash=sha256:fb4eaa44dbeb1c26dcc69e4bd7ec54a1cb8dd64d3b4d81ef08d90ff453f2b01b
-    # via -r requirements.txt
 python-multipart==0.0.31 \
     --hash=sha256:8408153d68a9773291fc1da39a8b85a50044bddbabd2dd72e9229776b7b15e28 \
     --hash=sha256:fc631183bb13e56db3158a4909908dfb2e23565286744e798241e63750e5d680
@@ -3684,10 +3673,6 @@ rpds-py==2026.6.3 \
     # via
     #   jsonschema
     #   referencing
-rsa==4.9.1 \
-    --hash=sha256:68635866661c6836b8d39430f97a996acbd61bfa49406748ea243539fe239762 \
-    --hash=sha256:e7bdbfdb5497da4c07dfd35530e1a902659db6ff241e39d9953cad06ebd0ae75
-    # via python-jose
 sherpa-onnx==1.12.29 \
     --hash=sha256:00deacd1e206f6346a7333de52b0f85706b5680687865a6046788172c34fa585 \
     --hash=sha256:041f1466af9a6a6488278d5d21e0fe14f985d149f4143a9e67fcc5b5a8cfe3e9 \
@@ -3763,7 +3748,6 @@ six==1.17.0 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
     # via
     #   ebooklib
-    #   ecdsa
     #   markdownify
     #   python-dateutil
     #   vobject

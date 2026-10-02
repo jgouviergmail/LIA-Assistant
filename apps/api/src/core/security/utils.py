@@ -14,9 +14,9 @@ from typing import Any
 from uuid import uuid4
 
 import bcrypt
+import jwt
 import structlog
 from cryptography.fernet import Fernet
-from jose import JWTError, jwt
 
 from src.core.config import settings
 from src.core.constants import (
@@ -102,7 +102,7 @@ def verify_token(token: str) -> dict[str, Any] | None:
             algorithms=[settings.algorithm],
         )
         return payload
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
 

@@ -158,6 +158,19 @@ and the watch — joins `task lint` and the CI's backend lint step.
   would install, never what production runs: the deployed engine is as fresh as
   the last image build.
 
+## Amendment 2026-10-02 — python-jose leaves (lot 5)
+
+Every JWT LIA signs or reads goes through PyJWT, which the repository already carried. The
+verifier's decisions were written down first, as a seventeen-row table of provider identity
+tokens; one row changed on purpose — an identity token with no audience is refused, OpenID Connect
+requires `aud` and python-jose skipped the check when it was absent. Decision D3 keeps the rest:
+`iat` is not verified (a provider clock ahead of ours never fails a connector link), `nbf` and
+`exp` hold at zero leeway, and `at_hash` is checked by LIA itself, as python-jose did and PyJWT
+does not. A password-reset link minted by python-jose before the deploy opens after it (a recorded
+token is the test). The resolution drops `python-jose`, `ecdsa`, `rsa` and two stub packages and
+moves nothing else; the last pip-audit exemption (CVE-2024-23342) and the watch's ecdsa acceptance
+go with them. See `docs/technical/AUTHENTICATION.md`.
+
 ## Alternatives rejected
 
 - **A `uv.lock` project so that Dependabot can update Python**: ADR-112 weighed

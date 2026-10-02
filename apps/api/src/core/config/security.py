@@ -160,10 +160,8 @@ class SecuritySettings(BaseSettings):
         default=JWT_ALGORITHM_DEFAULT,
         description=(
             "JWT algorithm for email verification and password reset tokens. "
-            "HMAC only — an EC/RSA value would route python-jose through its "
-            "vulnerable ecdsa backend (CVE-2024-23342, exempted in CI on the "
-            "strength of this constraint) and would not accept `secret_key` "
-            "as a signing key."
+            "HMAC only: the tokens are signed with `secret_key`, which an "
+            "asymmetric algorithm would not accept as a signing key."
         ),
     )
     fernet_key: str = Field(

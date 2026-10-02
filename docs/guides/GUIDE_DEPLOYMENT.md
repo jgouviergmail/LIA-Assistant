@@ -237,9 +237,8 @@ API_URL=https://api.yourdomain.com
 
 # Generate with: openssl rand -base64 32
 SECRET_KEY=<GENERATE_SECURE_KEY>
-# HMAC only (HS256 / HS384 / HS512) — enforced by a Literal in SecuritySettings.
-# An EC/RSA value would route python-jose through its ecdsa backend, whose
-# CVE-2024-23342 is exempted in CI on the strength of this constraint.
+# HMAC only (HS256 / HS384 / HS512) — enforced by a Literal in SecuritySettings:
+# the tokens are signed with SECRET_KEY, which an asymmetric algorithm would not accept.
 ALGORITHM=HS256
 
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"

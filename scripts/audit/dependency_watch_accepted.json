@@ -73,14 +73,6 @@
   },
   {
     "kind": "advisory",
-    "subject": "pip:ecdsa@0.19.2",
-    "ref": "GHSA-wj6h-64fc-37mp",
-    "reason": "Pulled by python-jose, which LIA runs under HS256 only (SecuritySettings.algorithm is a Literal of HMAC names), so the ecdsa backend never signs; the same exemption pip-audit carries in Taskfile.yml. Gone when python-jose leaves (dependency programme, lot 5).",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "advisory",
     "subject": "pip:fsspec@2025.3.0",
     "ref": "GHSA-27vj-qcqg-25rc",
     "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): voxcpm pins datasets 3.6.0, which caps fsspec at 2025.3.0. It runs on the developer's machine, reads local audio and Hugging Face files, and never opens a ReferenceFileSystem; never in production. Lifted when voxcpm accepts a datasets that allows fsspec >= 2026.6.0.",

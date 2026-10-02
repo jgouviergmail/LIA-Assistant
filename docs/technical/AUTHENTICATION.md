@@ -3539,23 +3539,25 @@ FRONTEND_URL=https://app.lia-assistant.com
 (`src/core/constants.py`). Une valeur hors de cette liste est rejetee au demarrage par
 Pydantic, avant que l'application ne serve la moindre requete.
 
-La contrainte n'est pas cosmetique. Elle porte une garantie de securite :
+Les jetons sont signes avec `secret_key`, une chaine partagee : un algorithme asymetrique
+(ES*/RS*) exigerait une paire de cles, et `ALGORITHM` etant expose dans `.env.example`,
+`.env.prod.example` et `.env.min.prod`, le `Literal` est la barriere qui empeche une valeur de
+configuration de produire des jetons que rien ne saurait signer.
 
-- **python-jose route selon l'algorithme.** Sous `HS*` (HMAC, symetrique) il n'atteint jamais
-  son backend `ecdsa`. Or `ecdsa` est expose a **CVE-2024-23342** (attaque temporelle sur la
-  signature), sans correctif amont, et le depot **exempte** cette CVE dans `pip-audit`
-  (`Taskfile.yml`, tache `security:scan:backend`, que le workflow appelle). L'exemption n'est legitime **que** tant que
-  l'algorithme reste HMAC.
-- La justification historique de cette exemption affirmait que « LIA ne fait que verifier des
-  JWT ». C'etait faux : `core/security/utils.py` appelle bien `jwt.encode`. Ce qui rend
-  l'attaque inoperante est l'algorithme, pas l'absence de signature.
-- **Passer a un algorithme EC/RSA implique deux actions conjointes** : retirer l'exemption
-  `--ignore-vuln CVE-2024-23342`, et fournir une vraie cle asymetrique — `secret_key` (chaine
-  partagee) n'est pas une cle de signature valide pour ES*/RS*.
+**Bibliotheque : PyJWT** (programme dependances, lot 5, 2026-10-02 ; python-jose est retire).
+Ce qui a ete fige avant la bascule et tenu apres :
 
-`ALGORITHM` etant une variable exposee dans `.env.example`, `.env.prod.example` et
-`.env.min.prod`, le `Literal` est la seule barriere empechant un changement de configuration
-d'invalider silencieusement une exemption de securite.
+- **Les liens deja envoyes restent valables.** Un jeton emis par python-jose 3.5.0 est lu par
+  `verify_token` (`tests/unit/core/security/test_jwt_tokens.py`) : un lien de reinitialisation
+  envoye avant le deploiement s'ouvre apres.
+- **Les jetons d'identite des fournisseurs** (`domains/connectors/oauth_identity.py`) suivent un
+  tableau de dix-sept cas (`test_oauth_identity.py`). Une seule ligne a change, volontairement :
+  un jeton **sans `aud`** est refuse (OpenID Connect l'exige ; python-jose sautait la
+  verification). Decision D3 : `iat` n'est pas verifie, comme avant — une horloge de fournisseur
+  en avance ne fait jamais echouer une liaison — tandis que `nbf` et `exp` tiennent sans
+  tolerance. `at_hash` est verifie par LIA elle-meme (moitie gauche du SHA-256 du jeton d'acces,
+  comparaison a temps constant, revendication absente ignoree), PyJWT ne le faisant pas.
+- **Plus aucune exemption d'audit** : `ecdsa` et sa CVE-2024-23342 sont partis avec python-jose.
 
 ---
 

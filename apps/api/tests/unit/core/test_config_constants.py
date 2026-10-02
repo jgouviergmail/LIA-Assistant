@@ -83,7 +83,7 @@ def test_verification_token_uses_constant():
     token = create_verification_token("test@example.com")
 
     # Decode token to verify expiration
-    from jose import jwt
+    import jwt
 
     from src.core.config import settings
 
@@ -111,7 +111,7 @@ def test_password_reset_token_uses_constant():
     """Test that create_password_reset_token uses PASSWORD_RESET_TOKEN_EXPIRE_HOURS constant."""
     token = create_password_reset_token("test@example.com")
 
-    from jose import jwt
+    import jwt
 
     from src.core.config import settings
 
