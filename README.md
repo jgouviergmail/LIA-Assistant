@@ -723,7 +723,7 @@ docs/                     # Architecture, technical documents, guides, runbooks,
 
 | Layer         | Technology                                                                                                            | Role                                                              |
 | ------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Backend       | Python 3.14 · FastAPI 0.141.1 · Pydantic 2.13.4 · SQLAlchemy 2.0.50 · Alembic                                         | REST API, SSE streaming, validation, async ORM, migrations        |
+| Backend       | Python 3.14 · FastAPI 0.141.1 · Pydantic 2.13.4 · SQLAlchemy 2.0.54 · Alembic                                         | REST API, SSE streaming, validation, async ORM, migrations        |
 | Orchestration | LangGraph 1.2.11 · LangChain 1.3.15 · `mcp` SDK (Streamable HTTP)                                                     | Multi-agent graph, LLM abstraction, Model Context Protocol        |
 | Data          | PostgreSQL 16 + pgvector · Redis 7.4                                                                                  | Data, checkpoints, vector search · cache, sessions, locks         |
 | Frontend      | Node.js 24 LTS · Next.js 16.3.8 · React 19.3.0 · TypeScript · TailwindCSS · Radix UI · TanStack Query · react-i18next | App Router UI, accessible primitives, server state, six languages |

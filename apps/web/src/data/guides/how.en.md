@@ -109,7 +109,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | FastAPI | 0.141.1 | REST API + SSE | Auto Pydantic validation, OpenAPI docs, async-first, performance |
 | LangGraph | 1.2.11 | Multi-agent orchestration | Only framework offering native state persistence + cycles + interrupts (HITL) |
 | LangChain Core | 1.5.6 | LLM/tools abstractions | `@tool` decorator, message formats, standardized callbacks |
-| SQLAlchemy | 2.0.50 | Async ORM | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |
+| SQLAlchemy | 2.0.54 | Async ORM | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Database + vector search | Native LangGraph checkpoints, HNSW semantic search, maturity |
 | Redis | 7.4 | Cache, sessions, rate limiting | O(1) ops, atomic sliding window (Lua), SETNX leader election |
 | Pydantic | 2.13.4 | Validation + serialization | `ConfigDict`, `field_validator`, settings composition via MRO |

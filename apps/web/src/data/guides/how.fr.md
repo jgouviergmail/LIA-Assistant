@@ -109,7 +109,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | FastAPI | 0.141.1 | API REST + SSE | Validation auto Pydantic, docs OpenAPI, async-first, performances |
 | LangGraph | 1.2.11 | Orchestration multi-agent | Seul framework offrant state persistence + cycles + interrupts (HITL) natifs |
 | LangChain Core | 1.5.6 | Abstractions LLM/tools | Décorateur `@tool`, formats de messages, callbacks standardisés |
-| SQLAlchemy | 2.0.50 | ORM async | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |
+| SQLAlchemy | 2.0.54 | ORM async | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Database + vector search | Checkpoints LangGraph natifs, recherche sémantique HNSW, maturité |
 | Redis | 7.4 | Cache, sessions, rate limiting | O(1) ops, sliding window atomique (Lua), SETNX leader election |
 | Pydantic | 2.13.4 | Validation + sérialisation | `ConfigDict`, `field_validator`, composition de settings via MRO |

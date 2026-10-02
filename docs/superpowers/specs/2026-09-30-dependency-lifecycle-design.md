@@ -704,6 +704,33 @@ Below 1.0 a minor counts as a major: 0.141.1 was 64 days old (a major waits 60),
   `/api/v1/rag-spaces/{space_id}/mail-labels`, a 404 under `unmatched`, and the voice WebSocket
   still refuses an invalid ticket with 403.
 
+**9b — webauthn 3.0.0, cbor2 6.1.4, SQLAlchemy 2.0.54 (implemented 2026-10-02).** One door each:
+a manifest change through `task deps:lock`, cbor2 held to a major's window by the uv argument
+the refresh itself uses (`--exclude-newer-package`), so the three moves are the only ones.
+
+- **3.0.0, not 3.0.1.** From 2.8.0 both are a major: 3.0.0 is 94 days old, 3.0.1 six. Its one
+  change rejects a non-string attestation format EARLIER — 2.8.0 and 3.0.0 already refuse that
+  response (a 400, tested), so the cooldown costs nothing observable.
+- **The 22 passkey tests mocked the library**, by design: their subject is the orchestration.
+  A major of webauthn and of its CBOR library therefore needed a test that mocks NEITHER:
+  `test_webauthn_real_ceremony.py` drives `WebAuthnService` with a software authenticator (a
+  key, a `none` attestation, CBOR written with cbor2) through enrollment and login — EdDSA,
+  which 3.0 now asks authenticators for first (`-8, -7, -257`), and ES256 — plus a cloned
+  counter, a foreign origin and the non-string format. Green on 2.8.0 + cbor2 5.9.0 and on
+  3.0.0 + 6.1.4: the move changes nothing LIA sees. `cbor2` is declared in the dev manifest,
+  which the test imports (a floor: its version is the runtime lock's).
+- SQLAlchemy 2.0.51-2.0.54 are fixes. Two touch what LIA uses: an ORM-enabled
+  `UPDATE … RETURNING` could hand a column under another's key under concurrency (2.0.52) — only
+  under `synchronize_session="fetch"` or a CTE, and LIA's claims mostly set `False` (39 sites),
+  the rest falling to `auto`; and an asyncpg connection that failed in the dialect's
+  initialisation stayed open for the life of the process (2.0.53).
+- Measured: `task test:backend:unit:fast` (35,761 passed), `task test:backend:integration`
+  (1,479 passed and one fixture whose connection to PostgreSQL timed out in its TLS handshake
+  while the Docker VM also ran the browser matrix — before any dialect code; its module re-run
+  under the same load, 13 of 13), `task test:backend:agents` (1,132 passed), `task lint`, and
+  the dev API image rebuilt: healthy on SQLAlchemy 2.0.54, the five ceremonies green inside it
+  on webauthn 3.0.0 and cbor2 6.1.4.
+
 ## 6. Deferred, with the condition that reopens each
 
 | Subject | Stays on | Reopened when |

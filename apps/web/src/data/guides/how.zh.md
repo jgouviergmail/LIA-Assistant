@@ -109,7 +109,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | FastAPI | 0.141.1 | REST API + SSE | Pydantic 自动验证、OpenAPI 文档、async-first、高性能 |
 | LangGraph | 1.2.11 | 多智能体编排 | 唯一原生支持状态持久化 + 循环 + 中断（HITL）的框架 |
 | LangChain Core | 1.5.6 | LLM/工具抽象 | `@tool` 装饰器、消息格式、标准化回调 |
-| SQLAlchemy | 2.0.50 | 异步 ORM | `Mapped[Type]` + `mapped_column()`、异步会话、`selectinload()` |
+| SQLAlchemy | 2.0.54 | 异步 ORM | `Mapped[Type]` + `mapped_column()`、异步会话、`selectinload()` |
 | PostgreSQL | 16 + pgvector | 数据库 + 向量搜索 | 原生 LangGraph 检查点、HNSW 语义搜索、成熟度 |
 | Redis | 7.4 | 缓存、会话、限流 | O(1) 操作、原子滑动窗口（Lua）、SETNX 领导者选举 |
 | Pydantic | 2.13.4 | 验证 + 序列化 | `ConfigDict`、`field_validator`、通过 MRO 组合设置 |

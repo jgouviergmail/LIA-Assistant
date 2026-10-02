@@ -547,7 +547,7 @@ section ne référence.
 | FastAPI | 0.141.1 | Framework API |
 | LangGraph | 1.2.11 | Orchestration multi-agents |
 | langchain-core | 1.5.6 | Core abstractions |
-| SQLAlchemy | 2.0.50 | ORM async |
+| SQLAlchemy | 2.0.54 | ORM async |
 | PostgreSQL | 16 + pgvector | Database + vector search |
 | redis (client Python) | 8.0.1 | Cache, sessions, rate limiting (serveur Redis 7.4) |
 | Pydantic | 2.13.4 | Validation données |
