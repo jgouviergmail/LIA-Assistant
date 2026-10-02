@@ -32,17 +32,18 @@ export interface MockRoute {
 }
 
 /**
- * The person's real-time channel, open and saying nothing.
+ * The person's real-time channel, saying nothing — the request is never answered.
  *
- * `status: 204` tells an EventSource to FAIL (HTML spec), and Firefox logs every
- * failed connection and reconnection as a JavaScript error: a journey asserting
- * a clean page went red on Firefox alone. An idle event stream is a channel
- * that simply has nothing to say.
+ * Left pending, it stays open the way an idle stream does, and the hook does
+ * nothing at all. Every answer DROPS the channel: `status: 204` tells an
+ * EventSource to fail (HTML spec), which Firefox logs as a JavaScript error on
+ * every reconnection, and a complete body ends the stream, after which the
+ * hook reconnects every 3 s and resyncs the conversation (`onReconnected`).
  */
 export const idleNotificationStream: MockRoute = {
   url: '**/api/v1/notifications/stream',
-  handler: route =>
-    route.fulfill({ status: 200, contentType: 'text/event-stream', body: ': idle\n\n' }),
+  // Deliberately unanswered (no fulfill, continue or abort): the request hangs.
+  handler: () => undefined,
 };
 
 /**

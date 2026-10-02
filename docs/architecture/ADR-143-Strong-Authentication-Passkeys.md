@@ -20,7 +20,7 @@ Authentication was password + Google OAuth over the BFF session pattern (HTTP-on
 
 ## Decision (Lot 1 — implemented)
 
-- **Library**: `py_webauthn 2.8.0` (pinned; 3.x requires cryptography ≥ 49, repo pins 48.0.1 for CVE posture — revisit at the next crypto bump).
+- **Library**: `py_webauthn 3.0.0` (pinned). It was 2.8.0 until 2026-10-02: the 3.x line needed cryptography ≥ 49, and the dependency programme moved both (ADR-331, lot 9b), with a ceremony test that mocks neither py_webauthn nor cbor2.
 - **Model**: `webauthn_credentials` — base64url `credential_id` (unique) + COSE `public_key`, BigInteger `sign_count`, `transports` JSONB, `aaguid`, `device_type`, `backed_up`, user-supplied `label`, `last_used_at`. Classified `USER_PURGED`/`EXCLUDED` in `user_data_map` (Lot 0 guard enforces purge + export-exclusion).
 - **Ceremonies** (A1): discoverable credentials — enrollment requires `resident_key=REQUIRED` + `user_verification=REQUIRED`; login sends no `allowCredentials` (zero account enumeration) and the frontend arms **conditional UI** (passkey autofill via `autocomplete="username webauthn"`) plus an explicit button.
 - **Challenges**: single-use in Redis (`webauthn:reg:{user_id}`, `webauthn:auth:{challenge_id}`), TTL `WEBAUTHN_CHALLENGE_TTL_SECONDS` (300 s), consumed with GETDEL.

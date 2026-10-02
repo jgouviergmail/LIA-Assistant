@@ -11,6 +11,7 @@
  * mfa_enabled=false) is covered per-flag here too.
  */
 import { webcrypto } from 'node:crypto';
+import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
 import { dashboardShellMocks } from '../fixtures/dashboard-shell';
 import { makeTestUser } from '../fixtures/test-user';
@@ -33,13 +34,29 @@ async function generatePrivateKeyB64(): Promise<string> {
   return Buffer.from(pkcs8).toString('base64');
 }
 
+/**
+ * An ABSENCE proves something only once the page has decided: the button
+ * waits for the anonymous features answer and renders after it (the query's
+ * notification, then React). Asserted before, an absence passes on a button
+ * that was about to appear.
+ */
+async function openLoginOnceFeaturesSettled(page: Page): Promise<void> {
+  const answered = page.waitForResponse('**/api/v1/auth/features');
+  await page.goto('/en/login');
+  await answered;
+  await page.evaluate(
+    () =>
+      new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done())))
+  );
+}
+
 test.describe('passkey login', () => {
   test('the passkey button is hidden when the instance has MFA disabled', async ({
     page,
     mockApi,
   }) => {
     await mockApi([{ url: '**/api/v1/auth/features', json: { mfa_enabled: false } }]);
-    await page.goto('/en/login');
+    await openLoginOnceFeaturesSettled(page);
 
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sign in with a passkey' })).toHaveCount(0);
@@ -50,7 +67,7 @@ test.describe('passkey login', () => {
     mockApi,
   }) => {
     await mockApi([{ url: '**/api/v1/auth/features', json: { mfa_enabled: true } }]);
-    await page.goto('/en/login');
+    await openLoginOnceFeaturesSettled(page);
 
     // The button is offered only where the ceremony can run: Playwright's WebKit
     // exposes PublicKeyCredential without navigator.credentials.create (measured),

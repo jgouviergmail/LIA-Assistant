@@ -24,14 +24,18 @@ from unittest.mock import Mock, patch
 import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.trace import Tracer
 from opentelemetry.sdk.trace import TracerProvider as SdkTracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind
 
-from src.infrastructure.observability.tracing import configure_tracing, get_tracer, trace_node
+from src.infrastructure.observability.tracing import (
+    configure_tracing,
+    get_tracer,
+    instrument_fastapi,
+    trace_node,
+)
 
 
 class TestConfigureTracing:
@@ -483,7 +487,7 @@ def _instrumented_nested_client(exporter: InMemorySpanExporter) -> TestClient:
     api_router.include_router(domain)
     app = FastAPI()
     app.include_router(api_router, prefix="/api/v1")
-    FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)
+    instrument_fastapi(app, tracer_provider=provider)
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -512,3 +516,28 @@ class TestNestedRouteSpans:
         client = _instrumented_nested_client(InMemorySpanExporter())
 
         assert client.post("/api/v1/relations/favorites/someone").status_code == 405
+
+    def test_no_attribute_carries_the_path_or_the_query(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # 0.64b0 fixed the span NAME, not its attributes — measured on 0.65b0:
+        # `http.target` carried the person's name and `http.url` the query too.
+        monkeypatch.setenv("OTEL_SDK_DISABLED", "false")
+        exporter = InMemorySpanExporter()
+        client = _instrumented_nested_client(exporter)
+
+        client.get("/api/v1/relations/favorites/Jane%20Doe?q=secret-term")
+        client.get("/wp-admin/install.php?q=secret-term")
+
+        spans = exporter.get_finished_spans()
+        values = [str(value) for span in spans for value in span.attributes.values()]
+        assert [v for v in values if "Jane" in v or "secret-term" in v or "wp-admin" in v] == []
+        servers = {
+            s.attributes["http.status_code"]: s.attributes
+            for s in spans
+            if s.kind is SpanKind.SERVER
+        }
+        assert servers[200]["http.target"] == "/api/v1/relations/favorites/{name}"
+        assert servers[200]["http.url"] == "http://testserver/api/v1/relations/favorites/{name}"
+        assert servers[404]["http.target"] == "unmatched"
+        assert servers[404]["http.url"] == "http://testserver"

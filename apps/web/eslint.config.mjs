@@ -82,6 +82,14 @@ const eslintConfig = defineConfig([
                 "Import { z } from '@/lib/zod': it configures zod jitless before any schema runs (zod's eval probe violates the CSP).",
             },
           ],
+          // Its entry points too (`zod/v4`, `zod/mini`): the same probe, unconfigured.
+          patterns: [
+            {
+              group: ['zod/*'],
+              message:
+                "Import { z } from '@/lib/zod': it configures zod jitless before any schema runs (zod's eval probe violates the CSP).",
+            },
+          ],
         },
       ],
     },

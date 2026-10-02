@@ -102,7 +102,7 @@ class TestAssembly:
         async def probe(path: Path, *, timeout_s: float) -> float:
             started.append(path.name)
             if path.name == "bad.wav":
-                raise FfmpegError("ffprobe failed")
+                raise FfmpegError("ffprobe failed", kind="failed")
             try:
                 await asyncio.sleep(10)
             except asyncio.CancelledError:

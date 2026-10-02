@@ -4,16 +4,18 @@ Prometheus metrics configuration for FastAPI.
 
 import re
 import time
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 
 import structlog
 from fastapi.routing import iter_route_contexts
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
+from starlette._utils import get_route_path
+from starlette.applications import Starlette
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.routing import BaseRoute
-from starlette.types import ASGIApp
+from starlette.types import ASGIApp, Scope
 
 from src.core.field_names import FIELD_NODE_NAME
 
@@ -324,56 +326,111 @@ bm25_cache_size = Gauge(
 )
 
 
-# Cardinality guard (F27, 2026-07): path params (UUIDs, ids) and bot scans
-# used to flow RAW into the endpoint label of 3 metric families (one series
-# per UUID, never freed from the registry — amplified by the ADR-089
-# multiprocess mmap files). Segments that look like identifiers collapse to
-# "{id}"; the exact route template (available only AFTER routing) is
-# preferred for the counter/histogram, with "unmatched" for 404s/scans.
-_ID_SEGMENT_RE = re.compile(
-    r"^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-    r"|[0-9a-fA-F]{24,}"
-    r"|\d+)$"
-)
+# Cardinality and privacy guard (F27, 2026-07; lot 9 review, 2026-10): an
+# endpoint label is a served route TEMPLATE or "unmatched", never a path. Path
+# params used to flow raw into the label (one series per UUID, never freed
+# from the registry — amplified by the ADR-089 multiprocess mmap files), and
+# the in-progress gauge, labelled before routing, kept collapsing only the
+# segments that looked like identifiers: a person's name under
+# `/relations/{name}` stayed in a label for the worker's life, and every bot
+# scan opened a series of its own.
 
 
-def _normalize_path_fallback(path: str) -> str:
-    """Collapse identifier-looking path segments to bound label cardinality.
+@dataclass(frozen=True)
+class _ServedRoute:
+    """One served route as the router matches it: path, methods, template.
 
-    Used where the route template is not yet known (in-progress gauge is
-    incremented BEFORE routing). E.g. /api/v1/journals/9b2e…f1 → /api/v1/journals/{id}.
+    Attributes:
+        path_regex: The route's FULL-path expression, every prefix included —
+            the one FastAPI matches requests with.
+        methods: The methods it serves; ``None`` serves any.
+        template: Its served template.
     """
-    return "/".join("{id}" if _ID_SEGMENT_RE.match(seg) else seg for seg in path.split("/"))
+
+    path_regex: re.Pattern[str]
+    methods: frozenset[str] | None
+    template: str
 
 
-def _served_templates(routes: Sequence[BaseRoute]) -> dict[int, str]:
-    """The template each route OBJECT is served under, every prefix included.
+@dataclass(frozen=True)
+class _ServedRoutes:
+    """What the application serves, read once from its route tree.
+
+    Attributes:
+        matchers: Every served route, in the order requests are matched in
+            (the walk's order, measured both ways in lot 9a).
+        templates: ``id(route) -> served template`` for every route object
+            served under a single template.
+    """
+
+    matchers: tuple[_ServedRoute, ...]
+    templates: dict[int, str]
+
+
+def _served_routes(app: Starlette) -> _ServedRoutes:
+    """Read every served template, every prefix included.
 
     FastAPI 0.137+ keeps an included router as one node of ``routes`` and hands
     the request scope the ORIGINAL route, whose ``path`` misses the prefix of
     every router that includes it — measured on 0.141.1:
     ``/rag-spaces/{space_id}/documents`` where 0.136.3 labelled
     ``/api/v1/rag-spaces/{space_id}/documents``. A route object served under
-    two templates is left out: the scope cannot say which one matched, so its
-    own path stands rather than a guess.
+    two templates is left out of ``templates``: the public scope cannot say
+    which one matched, so its own path stands rather than a guess.
 
     Args:
-        routes: The application's routes (a tree since FastAPI 0.137).
+        app: The application, its routes a tree since FastAPI 0.137.
 
     Returns:
-        ``id(route) -> served template`` for every unambiguous route.
+        The served routes, for labelling before and after routing.
     """
+    matchers: list[_ServedRoute] = []
     templates: dict[int, str] = {}
     ambiguous: set[int] = set()
-    for context in iter_route_contexts(routes):
+    for context in iter_route_contexts(app.routes):
         if not context.path:
             continue
+        path_regex = getattr(context, "path_regex", None)
+        if isinstance(path_regex, re.Pattern):
+            methods = context.methods
+            matchers.append(
+                _ServedRoute(path_regex, frozenset(methods) if methods else None, context.path)
+            )
         key = id(context.original_route)
         if templates.setdefault(key, context.path) != context.path:
             ambiguous.add(key)
     for key in ambiguous:
         del templates[key]
-    return templates
+    return _ServedRoutes(matchers=tuple(matchers), templates=templates)
+
+
+def _template_before_routing(served: _ServedRoutes, scope: Scope) -> str:
+    """The template routing WILL serve this request under.
+
+    The router's own rule on the router's own expressions: the first route
+    whose path matches and which serves the method wins, else the first whose
+    path matches (a wrong method, refused with 405 under that route), else
+    ``unmatched``. Asking each route's ``matches`` gave the same answers at
+    120 to 243 µs a request over the 493 templates; this costs 9 to 38 µs.
+
+    Args:
+        served: The application's served routes.
+        scope: The request's ASGI scope.
+
+    Returns:
+        The served template, or ``unmatched``.
+    """
+    route_path = get_route_path(scope)
+    method = scope.get("method")
+    partial: str | None = None
+    for route in served.matchers:
+        if not route.path_regex.match(route_path):
+            continue
+        if route.methods is None or method in route.methods:
+            return route.template
+        if partial is None:
+            partial = route.template
+    return partial or "unmatched"
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
@@ -382,17 +439,21 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp) -> None:
         super().__init__(app)
         # Per APPLICATION, never per request: read from the routes on the
-        # first routed request, when every router has been included.
-        self._templates: dict[int, str] | None = None
+        # first request, when every router has been included.
+        self._served: _ServedRoutes | None = None
+
+    def _served_routes_of(self, request: Request) -> _ServedRoutes:
+        if self._served is None:
+            self._served = _served_routes(request.app)
+        return self._served
 
     def _endpoint_label(self, request: Request) -> str:
         """The served route template, or ``unmatched`` when routing found none."""
         route = request.scope.get("route")
         if route is None:
             return "unmatched"
-        if self._templates is None:
-            self._templates = _served_templates(request.app.routes)
-        return self._templates.get(id(route)) or getattr(route, "path", None) or "unmatched"
+        templates = self._served_routes_of(request).templates
+        return templates.get(id(route)) or getattr(route, "path", None) or "unmatched"
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -402,9 +463,11 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         method = request.method
-        # Route template unknown before routing: normalized-path fallback.
+        # Before routing: the template routing will serve the request under.
         # inc/dec MUST use the same label value (hence one variable).
-        in_progress_endpoint = _normalize_path_fallback(request.url.path)
+        in_progress_endpoint = _template_before_routing(
+            self._served_routes_of(request), request.scope
+        )
 
         # Track request in progress
         http_requests_in_progress.labels(method=method, endpoint=in_progress_endpoint).inc()

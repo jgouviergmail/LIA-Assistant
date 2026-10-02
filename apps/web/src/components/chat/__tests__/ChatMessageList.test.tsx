@@ -263,3 +263,28 @@ describe('ChatMessageList — loading older history', () => {
     expect(observer.disconnected).toBe(true);
   });
 });
+
+describe('ChatMessageList — where the floating return button is drawn', () => {
+  // jsdom lays nothing out: these pin WHERE the button mounts. That it then
+  // sits on screen and on top is the browser journey's (chat-scroll-follow).
+  const returnButton = () => screen.getByRole('button', { name: 'chat.scroll.return_to_present' });
+
+  it('in the slot the page holds above its composer', () => {
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    try {
+      render({ messages: [user('m1')], historyView: true, scrollUiSlot: slot });
+
+      expect(slot.contains(returnButton())).toBe(true);
+    } finally {
+      slot.remove();
+    }
+  });
+
+  it('sticky at the bottom of the list when the page holds no slot', () => {
+    const { container } = render({ messages: [user('m1')], historyView: true });
+
+    expect(container.contains(returnButton())).toBe(true);
+    expect(returnButton().closest('.sticky')).not.toBeNull();
+  });
+});

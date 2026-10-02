@@ -132,6 +132,13 @@ runner every other audio path already uses (`infrastructure/media/ffmpeg`, a
 bounded subprocess) into the 16 kHz mono int16 PCM that
 `transcribe_pcm_int16_async` reads. Both packages leave the manifest and the
 locks, and the native-dependency smoke test no longer lists `audioop`.
-Measured on a 120-second Opus note, the longest accepted: ffmpeg decodes it in
+Measured on a 120-second Opus note, Telegram's own ceiling: ffmpeg decodes it in
 0.2 s; the pure-Python sample loop the change removes took 0.7 s while holding
-the GIL, the numpy conversion that replaces it 33 ms.
+the GIL, the numpy conversion that replaces it 33 ms. The longest note ACCEPTED
+is the lower of that ceiling and the STT's cap (`voice_stt_max_duration_seconds`,
+60 s by default) — `voice_duration_cap_seconds()`, one cap for the gate, the
+refusal's wording and the decode, which stops one second past it whatever the
+sender declares. Found at the lot's review: a 90-second note had passed the gate,
+been refused by the STT and been answered « I could not understand »; and a
+missing ffmpeg or a decode past its ceiling, logged as the sender's bad file, is
+now an ERROR of its own (`FfmpegError.kind`).

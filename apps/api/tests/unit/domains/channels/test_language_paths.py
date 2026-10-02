@@ -39,7 +39,10 @@ from src.infrastructure.channels.telegram.hitl_keyboard import (
     get_button_label,
     question_fingerprint,
 )
-from src.infrastructure.channels.telegram.voice import MAX_VOICE_DURATION_SECONDS
+from src.infrastructure.channels.telegram.voice import (
+    MAX_VOICE_DURATION_SECONDS,
+    voice_duration_cap_seconds,
+)
 from src.infrastructure.channels.telegram.webhook_handler import client_language_of
 
 pytestmark = pytest.mark.unit
@@ -476,14 +479,19 @@ async def test_an_unknown_person_is_answered_in_their_client_s_language() -> Non
     assert resolve_language() == settings.default_language
 
 
-async def test_a_voice_message_too_long_is_told_so_and_never_transcribed() -> None:
+async def test_a_voice_message_too_long_is_told_so_and_never_transcribed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Within Telegram's 120 s, past the STT's 60: this note used to pass the
+    # gate, be refused by the STT and be answered « I could not understand ».
+    monkeypatch.setattr(settings, "voice_stt_max_duration_seconds", 60)
     sender = AsyncMock()
     handler = InboundMessageHandler(sender=sender)
     message = ChannelInboundMessage(
         channel_type=ChannelType.TELEGRAM,
         channel_user_id="12345",
         voice_file_id="voice-1",
-        voice_duration_seconds=MAX_VOICE_DURATION_SECONDS + 1,
+        voice_duration_seconds=90,
     )
 
     with (
@@ -498,25 +506,17 @@ async def test_a_voice_message_too_long_is_told_so_and_never_transcribed() -> No
     assert text is None
     transcribe.assert_not_awaited()
     told = sender.send_message.call_args.args[1].text
-    # The bound stated is the bound enforced.
-    assert told == get_bot_message("voice_too_long", "en").format(
-        max_minutes=MAX_VOICE_DURATION_SECONDS // 60
-    )
-    assert f"max {MAX_VOICE_DURATION_SECONDS // 60} min" in told
-
-
-def test_the_voice_bound_is_stated_in_whole_minutes() -> None:
-    """The refusal says « N min »: a bound that is not whole minutes would be misstated."""
-    assert MAX_VOICE_DURATION_SECONDS % 60 == 0
+    # The cap stated is the cap the transcription holds.
+    assert told == get_bot_message("voice_too_long", "en").format(max_seconds=60)
+    assert "max 60 s" in told
 
 
 @pytest.mark.parametrize("language", ["fr", "en", "es", "de", "it", "zh-CN"])
-def test_the_too_long_sentence_states_the_bound_in_every_language(language: str) -> None:
-    told = get_bot_message("voice_too_long", language).format(
-        max_minutes=MAX_VOICE_DURATION_SECONDS // 60
-    )
+def test_the_too_long_sentence_states_the_cap_in_every_language(language: str) -> None:
+    cap = voice_duration_cap_seconds()
+    told = get_bot_message("voice_too_long", language).format(max_seconds=cap)
 
-    assert str(MAX_VOICE_DURATION_SECONDS // 60) in told
+    assert str(cap) in told
     assert "{" not in told and "}" not in told
 
 

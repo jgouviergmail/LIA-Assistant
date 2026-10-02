@@ -2,7 +2,7 @@
 
 ``test_webauthn_service.py`` patches py_webauthn at the service-module
 boundary: the orchestration around the library is its subject. This file is
-the other half. A software authenticator — a P-256 key, a ``none``
+the other half. A software authenticator — an Ed25519 or a P-256 key, a ``none``
 attestation, CBOR written with cbor2 — drives ``WebAuthnService`` through
 enrollment and login with nothing of the library mocked, so a release of
 webauthn or cbor2 that changes what LIA passes in or reads back
@@ -243,6 +243,20 @@ async def test_a_replayed_counter_is_refused_as_a_clone(redis: _FakeRedis) -> No
 
     assert refused.value.status_code == 401
     assert row.sign_count == 5
+
+
+async def test_a_synced_passkey_that_never_counts_is_not_a_clone(redis: _FakeRedis) -> None:
+    """Synced passkeys (a platform keychain, a password manager) report 0 on every
+    use — the common case. 0 → 0 is no replay (ADR-143), on the real library too."""
+    user = _user()
+    service, repository = _service()
+    authenticator = _SoftAuthenticator(WebAuthnService._expected_origin())
+    row = await _enroll(service, user, authenticator)
+    repository.get_by_credential_id = AsyncMock(return_value=row)
+
+    assert await _sign_in(service, user, authenticator, sign_count=0) is user
+    assert await _sign_in(service, user, authenticator, sign_count=0) is user
+    assert row.sign_count == 0
 
 
 async def test_a_foreign_origin_is_refused(redis: _FakeRedis) -> None:

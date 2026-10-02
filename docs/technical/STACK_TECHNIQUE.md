@@ -134,10 +134,10 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **structlog** | 25.x | Structured logging |
 | **prometheus-client** | 0.25.x | Metrics |
 | **langfuse** | 4.7.1 | LLM observability |
-| **opentelemetry-api** | 1.42.1 | Distributed tracing |
-| **opentelemetry-sdk** | 1.42.1 | Tracing SDK |
-| **opentelemetry-instrumentation-fastapi** | 0.63b1 | FastAPI auto-instrumentation |
-| **opentelemetry-exporter-otlp** | 1.42.1 | OTLP export |
+| **opentelemetry-api** | 1.44.0 | Distributed tracing |
+| **opentelemetry-sdk** | 1.44.0 | Tracing SDK |
+| **opentelemetry-instrumentation-fastapi** | 0.65b0 | FastAPI auto-instrumentation |
+| **opentelemetry-exporter-otlp** | 1.44.0 | OTLP export |
 
 ### Securite & Auth
 

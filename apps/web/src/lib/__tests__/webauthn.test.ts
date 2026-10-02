@@ -5,7 +5,7 @@
  * challenges or credential ids silently.
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 
 import {
   base64urlToBuffer,
@@ -137,6 +137,31 @@ describe('feature detection', () => {
     vi.stubGlobal('PublicKeyCredential', undefined);
     // jsdom has no PublicKeyCredential by default either way
     expect(isWebAuthnSupported()).toBe(false);
+  });
+
+  describe('with PublicKeyCredential exposed', () => {
+    beforeEach(() => vi.stubGlobal('PublicKeyCredential', function PublicKeyCredential() {}));
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, 'credentials');
+    });
+
+    it('reports unsupported when navigator.credentials cannot create', () => {
+      // Playwright's WebKit, measured: the class without the ceremony. The
+      // login offers no passkey there rather than a button that cannot run.
+      Object.defineProperty(navigator, 'credentials', {
+        configurable: true,
+        value: { get: vi.fn() },
+      });
+      expect(isWebAuthnSupported()).toBe(false);
+    });
+
+    it('reports supported when the ceremony can run', () => {
+      Object.defineProperty(navigator, 'credentials', {
+        configurable: true,
+        value: { get: vi.fn(), create: vi.fn() },
+      });
+      expect(isWebAuthnSupported()).toBe(true);
+    });
   });
 
   it('conditional UI resolves false when detection is absent or throws', async () => {

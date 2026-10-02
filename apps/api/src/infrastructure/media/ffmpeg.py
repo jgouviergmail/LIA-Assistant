@@ -17,7 +17,7 @@ import asyncio
 from collections.abc import Sequence
 from contextlib import suppress
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 
 #: How much of the tool's stderr a failure carries.
 _STDERR_EXCERPT_CHARS: Final[int] = 300
@@ -25,8 +25,22 @@ _STDERR_EXCERPT_CHARS: Final[int] = 300
 _REAP_TIMEOUT_S: Final[float] = 5.0
 
 
+#: Why a run failed. ``failed`` is the INPUT's fault (a file the codec refuses);
+#: a missing tool or a ceiling reached is the INSTANCE's, never a bad file.
+FfmpegFailure = Literal["failed", "timed_out", "not_installed"]
+
+
 class FfmpegError(RuntimeError):
-    """ffmpeg or ffprobe failed, timed out, or is not installed."""
+    """ffmpeg or ffprobe failed, timed out, or is not installed.
+
+    Attributes:
+        kind: Which of the three, so a caller tells a bad file from a broken
+            instance without reading the message.
+    """
+
+    def __init__(self, message: str, *, kind: FfmpegFailure) -> None:
+        super().__init__(message)
+        self.kind: FfmpegFailure = kind
 
 
 async def _run(
@@ -47,7 +61,7 @@ async def _run(
             stderr=asyncio.subprocess.PIPE,
         )
     except FileNotFoundError as exc:
-        raise FfmpegError(f"{program} is not installed") from exc
+        raise FfmpegError(f"{program} is not installed", kind="not_installed") from exc
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(input_bytes), timeout=timeout_s)
     except BaseException as exc:
@@ -55,11 +69,13 @@ async def _run(
         # neither the process running nor its pipes open.
         await _reap(proc)
         if isinstance(exc, TimeoutError):
-            raise FfmpegError(f"{program} timed out after {timeout_s:.0f}s") from exc
+            raise FfmpegError(
+                f"{program} timed out after {timeout_s:.0f}s", kind="timed_out"
+            ) from exc
         raise
     if proc.returncode != 0:
         excerpt = stderr.decode(errors="replace").strip()[:_STDERR_EXCERPT_CHARS]
-        raise FfmpegError(f"{program} failed (exit {proc.returncode}): {excerpt}")
+        raise FfmpegError(f"{program} failed (exit {proc.returncode}): {excerpt}", kind="failed")
     return stdout
 
 
@@ -130,7 +146,7 @@ async def probe_duration(path: Path, *, timeout_s: float) -> float:
     try:
         return float(out.decode().strip())
     except ValueError as exc:
-        raise FfmpegError("ffprobe reported no duration") from exc
+        raise FfmpegError("ffprobe reported no duration", kind="failed") from exc
 
 
 async def transcode(
@@ -157,4 +173,4 @@ async def transcode(
     )
 
 
-__all__ = ["FfmpegError", "probe_duration", "run_ffmpeg", "transcode"]
+__all__ = ["FfmpegError", "FfmpegFailure", "probe_duration", "run_ffmpeg", "transcode"]

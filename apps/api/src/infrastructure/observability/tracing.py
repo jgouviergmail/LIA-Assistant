@@ -3,6 +3,7 @@ OpenTelemetry tracing configuration.
 Integrates with Tempo for distributed tracing.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 import structlog
@@ -18,6 +19,71 @@ from src.core.config import settings
 from src.core.run_config import run_id_of
 
 logger = structlog.get_logger(__name__)
+
+
+def _redacted_request_attributes(attributes: Mapping[str, Any]) -> dict[str, str]:
+    """The request's target attributes rewritten to the route template.
+
+    ``unmatched`` and the bare origin when no route matched, the query string
+    dropped, whichever semantic convention emitted them — and only the
+    attributes the span carries. Lookups alone: nothing here can raise.
+
+    Args:
+        attributes: The server span's attributes as the instrumentation set them.
+
+    Returns:
+        The rewritten value of every target attribute present.
+    """
+    template = attributes.get("http.route")
+    target = template if isinstance(template, str) and template else "unmatched"
+    scheme = attributes.get("http.scheme") or attributes.get("url.scheme")
+    host = attributes.get("http.host") or attributes.get("server.address")
+    origin = f"{scheme}://{host}" if scheme and host else ""
+    url = origin + target if target.startswith("/") else origin
+    rewritten = {
+        "http.target": target,
+        "url.path": target,
+        "http.url": url,
+        "url.full": url,
+        "url.query": "",
+    }
+    return {key: value for key, value in rewritten.items() if key in attributes}
+
+
+def _redact_request_target(span: trace.Span, scope: dict[str, Any]) -> None:
+    """Keep the words a person typed out of exported traces (ADR-317).
+
+    The instrumentation names the span after the route template, but records
+    the CONCRETE target: measured on 0.65b0, ``http.target`` carried
+    ``/api/v1/relations/favorites/Jane Doe`` and ``http.url`` the query string
+    too. A hook that raised would fail the request, so it only looks up.
+
+    Args:
+        span: The server span, just started.
+        scope: The request's ASGI scope (unused: the span already holds what
+            the instrumentation read from it).
+    """
+    if not span.is_recording():
+        return
+    attributes: Mapping[str, Any] = getattr(span, "attributes", None) or {}
+    for key, value in _redacted_request_attributes(attributes).items():
+        span.set_attribute(key, value)
+
+
+def instrument_fastapi(app: FastAPI, tracer_provider: TracerProvider | None = None) -> None:
+    """Instrument the application the one way LIA does — main.py and its tests.
+
+    Args:
+        app: FastAPI application instance.
+        tracer_provider: The provider spans go to; the global one when omitted.
+    """
+    excluded = "|".join(f"{p.rstrip('/')}/?" for p in settings.http_log_exclude_paths)
+    FastAPIInstrumentor.instrument_app(
+        app,
+        excluded_urls=excluded,
+        server_request_hook=_redact_request_target,
+        tracer_provider=tracer_provider,
+    )
 
 
 def configure_tracing(app: FastAPI) -> None:
@@ -56,9 +122,7 @@ def configure_tracing(app: FastAPI) -> None:
         # Set global tracer provider
         trace.set_tracer_provider(tracer_provider)
 
-        # Instrument FastAPI
-        excluded = "|".join(f"{p.rstrip('/')}/?" for p in settings.http_log_exclude_paths)
-        FastAPIInstrumentor.instrument_app(app, excluded_urls=excluded)
+        instrument_fastapi(app)
 
         logger.info(
             "tracing_configured",

@@ -109,14 +109,15 @@ TELEGRAM_BOT_MESSAGES: dict[str, dict[str, str]] = {
         "it": "Questa domanda è scaduta o ha già ricevuto una risposta.",
         "zh-CN": "这个问题已过期或已经回答过了。",
     },
-    # ``{max_minutes}`` is filled from the enforced bound, never written here.
+    # ``{max_seconds}`` is filled from the enforced cap, never written here — in
+    # seconds, because the STT's own cap may be any number of them.
     "voice_too_long": {
-        "fr": "Message vocal trop long (max. {max_minutes} min). Envoie un message plus court.",
-        "en": "Voice message too long (max {max_minutes} min). Please send a shorter message.",
-        "es": "Mensaje de voz demasiado largo (máx. {max_minutes} min). Envía un mensaje más corto.",
-        "de": "Sprachnachricht zu lang (max. {max_minutes} Min.). Bitte sende eine kürzere Nachricht.",
-        "it": "Messaggio vocale troppo lungo (max {max_minutes} min). Invia un messaggio più breve.",
-        "zh-CN": "语音消息太长（最长 {max_minutes} 分钟）。请发送更短的消息。",
+        "fr": "Message vocal trop long (max. {max_seconds} s). Envoie un message plus court.",
+        "en": "Voice message too long (max {max_seconds} s). Please send a shorter message.",
+        "es": "Mensaje de voz demasiado largo (máx. {max_seconds} s). Envía un mensaje más corto.",
+        "de": "Sprachnachricht zu lang (max. {max_seconds} Sek.). Bitte sende eine kürzere Nachricht.",
+        "it": "Messaggio vocale troppo lungo (max {max_seconds} s). Invia un messaggio più breve.",
+        "zh-CN": "语音消息太长（最长 {max_seconds} 秒）。请发送更短的消息。",
     },
 }
 

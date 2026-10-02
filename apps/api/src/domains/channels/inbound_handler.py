@@ -563,8 +563,8 @@ class InboundMessageHandler:
         from src.infrastructure.channels.telegram.bot import get_bot
         from src.infrastructure.channels.telegram.formatter import get_bot_message
         from src.infrastructure.channels.telegram.voice import (
-            MAX_VOICE_DURATION_SECONDS,
             transcribe_voice_message,
+            voice_duration_cap_seconds,
         )
 
         bot = get_bot()
@@ -581,14 +581,14 @@ class InboundMessageHandler:
 
         # Too long is its own answer: the transcription would refuse it, and
         # « I could not understand you » would send the person to repeat it.
-        if duration and duration > MAX_VOICE_DURATION_SECONDS:
+        # The cap stated is the cap the transcription holds.
+        cap = voice_duration_cap_seconds()
+        if duration and duration > cap:
             channel_voice_transcriptions_total.labels(
                 channel_type=message.channel_type.value,
                 status="too_long",
             ).inc()
-            too_long = get_bot_message("voice_too_long", user_language).format(
-                max_minutes=MAX_VOICE_DURATION_SECONDS // 60
-            )
+            too_long = get_bot_message("voice_too_long", user_language).format(max_seconds=cap)
             await self.sender.send_message(channel_user_id, ChannelOutboundMessage(text=too_long))
             return None
 

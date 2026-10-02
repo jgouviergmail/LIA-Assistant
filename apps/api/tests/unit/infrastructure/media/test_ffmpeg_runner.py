@@ -49,11 +49,15 @@ def test_a_failure_carries_a_bounded_stderr_excerpt() -> None:
     with pytest.raises(FfmpegError, match="exit 3") as caught:
         run_loop(lambda: run_python("import sys; sys.stderr.write('x' * 5000); sys.exit(3)"))
     assert str(caught.value).rsplit(": ", 1)[1] == "x" * ffmpeg._STDERR_EXCERPT_CHARS
+    # The INPUT's fault: a caller logs it as a fact about a file.
+    assert caught.value.kind == "failed"
 
 
 def test_a_timeout_kills_the_process() -> None:
-    with pytest.raises(FfmpegError, match="timed out"):
+    with pytest.raises(FfmpegError, match="timed out") as caught:
         run_loop(lambda: run_python("import time; time.sleep(30)", timeout_s=0.5))
+    # The INSTANCE's fault, like a missing binary: never read as a bad file.
+    assert caught.value.kind == "timed_out"
 
 
 @pytest.fixture
@@ -129,5 +133,6 @@ def test_a_run_given_up_closes_its_pipes_before_returning(
 
 
 def test_a_missing_binary_is_named() -> None:
-    with pytest.raises(FfmpegError, match="not installed"):
+    with pytest.raises(FfmpegError, match="not installed") as caught:
         run_loop(lambda: ffmpeg._run("definitely-not-a-binary-lia", [], timeout_s=5))
+    assert caught.value.kind == "not_installed"

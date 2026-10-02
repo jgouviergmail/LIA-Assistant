@@ -3,11 +3,15 @@
 FastAPI 0.137 keeps an included router as ONE node of ``router.routes``, so a
 test iterating that list sees the node and none of the operations under it: a
 presence check fails, and an absence check passes on nothing. Measured on the
-upgrade to 0.141.1: 44 tests red in 30 modules, two of them reading the list
-through ``getattr(router, "routes", [])``. Every read goes through
+upgrade to 0.141.1: 44 tests red in 30 modules, three of them reading the list
+through ``getattr(router, "routes", [])`` — one only so. Every read goes through
 ``tests/_routes.served_routes``, which also repairs the empty path FastAPI's own
 ``iter_route_contexts`` reports for a WebSocket under an included router — so a
 direct call to that walk is refused too.
+
+What it refuses is the spellings tests have used: the ``.routes`` attribute,
+``getattr`` with the literal ``"routes"``, and the walk itself. A determined
+spelling (``vars(router)``, ``attrgetter("routes")``) would pass it.
 
 A dotted module path (``src.api.v1.routes``) is a module, not a route list.
 """

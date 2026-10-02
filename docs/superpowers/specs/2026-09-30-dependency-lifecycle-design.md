@@ -691,8 +691,9 @@ Below 1.0 a minor counts as a major: 0.141.1 was 64 days old (a major waits 60),
     previous ones handed the middleware a mocked route and could not see the change;
   - the tracing instrumentation (`opentelemetry-instrumentation-fastapi` 0.63b1) read the tree
     flat: a span was named after the CONCRETE path (`GET …/favorites/Jane Doe` — a person's name
-    in every exported trace) and a wrong method answered 500 instead of 405. Fixed upstream in
-    0.64b0 (PR 4700); the family moves to 1.44.0 / 0.65b0 (77 days; 0.66b0 is seven), and a
+    in every exported trace) and a wrong method answered 500 instead of 405. The span NAME was
+    fixed upstream in 0.64b0 (PR 4700) — not its attributes, which the review found (below); the
+    family moves to 1.44.0 / 0.65b0 (77 days; 0.66b0 is seven), and a
     contract test instruments a real nested application, red on 0.63b1, green on 0.65b0. The
     1.43 and 1.44 changelogs touch nothing LIA uses (it uses the tracer, the SDK, the OTLP gRPC
     exporter and this instrumentation): they remove the Events API and stop collecting command
@@ -736,8 +737,9 @@ Telegram voice path was pydub's only user. It decodes now with the ffmpeg runner
 audio path uses (`infrastructure/media/ffmpeg.transcode`: a bounded subprocess, killed and reaped
 on timeout or cancellation) into the 16 kHz mono int16 PCM the STT protocol's
 `transcribe_pcm_int16_async` reads — the voice WebSocket's own door, so the Telegram path
-converts samples with numpy where it ran a Python loop. Measured on a 120-second Opus note, the
-longest accepted: ffmpeg decodes it in 0.17-0.21 s, exactly 120.0 s of PCM; the loop it replaces
+converts samples with numpy where it ran a Python loop. Measured on a 120-second Opus note,
+Telegram's own ceiling (the STT's cap is lower — see the review note): ffmpeg decodes it in
+0.17-0.21 s, exactly 120.0 s of PCM; the loop it replaces
 took 712 ms holding the GIL, the numpy conversion 33 ms. A file ffmpeg cannot read is the
 sender's, not a defect: a WARNING with the fact, the codec's words at DEBUG, no STT call. The
 tests stop at the `transcode` boundary (the runners carry no ffmpeg; the runner has its own
@@ -810,9 +812,10 @@ timeout:
   workflows' containers to the e2e package's Playwright, which Dependabot moves alone — a
   package whose browsers the image does not carry launches none. Proven red on a divergent
   container.
-- Measured: in the CI image, the 1,107 journeys on three engines, four workers and one retry
-  allowed — 1,089 passed, 18 skipped by name, none failed and none flaky (15.8 min, while a
-  training container held more than a core); repeated under that load, the landing journeys 42
+- Measured: in the CI image, the 1,107 journeys on three engines, four workers (locally — the
+  CI job runs two) and one retry allowed — 1,089 passed, 18 skipped by name, none failed and
+  none flaky (15.8 min, while a training container held more than a core); repeated under
+  that load, the landing journeys 42
   of 42 (three engines, three times), the header probes 210 of 210 (twice), the login journeys
   45 of 45 (five times); the e2e typecheck, the frontend lint chain, `task lint:ci-parity`,
   `task lint:docs`; the frontend coverage gate, 10,481 tests with its thresholds held — after a
@@ -820,6 +823,49 @@ timeout:
   `waitFor`) timed out under the same load, five times of five green alone; `jitless` costs its
   beat-map parse 0.0007 ms (4.4 ms at the 20,000-beat ceiling, once a page — and in production
   the CSP had always refused the compiler).
+
+**Lot 9 review (2026-10-02).** A cold review of the five commits found no defect the lot
+introduced, and these — each reproduced before it was touched:
+
+- **A name in a URL still reached Prometheus and Tempo** (older than the lot). The in-progress
+  gauge, labelled before routing, kept the path with only its identifier-looking segments
+  collapsed: `/api/v1/relations/Jane Doe/context` stayed a label for the worker's life, and every
+  scan opened a series. It now takes the template routing will pick, read on the router's own
+  expressions — 20 to 56 µs a request where asking each route to match cost 120 to 243, and not
+  one answer apart from FastAPI's own matching over 2,947 requests (421 paths, seven methods),
+  which `test_in_progress_label_routing_guard.py` re-checks on the real application. And 0.65b0
+  names the span after the template but recorded `http.target` with the name and `http.url` with
+  the query string too: a `server_request_hook` rewrites both to the template, `unmatched` off any
+  route (`tracing.instrument_fastapi`, the one door `main.py` and the tests share).
+- **A Telegram voice note had two caps and was told the wrong one**: the 120-second gate, then
+  the STT's own 60 — a 90-second note was answered « I could not understand » (reproduced; it was
+  so before the lot, whose 9c note had called 120 s « the longest accepted »). One cap now,
+  `voice_duration_cap_seconds()` (the lower), for the gate, the refusal (stated in seconds: the
+  STT's cap need not be whole minutes) and the decode, which ffmpeg stops one second past it
+  whatever duration the sender declares. A missing ffmpeg or a decode past its ceiling is the
+  instance's fault and an ERROR (`FfmpegError.kind`), no longer « the sender's file ».
+- **Two tests that could not fail.** The passkey button's absence was asserted before the
+  features answer could make it appear — measured, that pattern passed 5 times of 5 on a page
+  that OFFERS the button; it now waits for the answer and two frames, and the WebKit shape
+  (`PublicKeyCredential` without `credentials.create`) is pinned by unit tests of the predicate.
+  And the « idle » notification stream ended at once: the hook reconnected every 3 s and resynced
+  the conversation after each (6 stream requests and 2 extra history fetches in 8 s); left
+  pending, it is one request per consumer and nothing more, in the three engines.
+- **A rule lot 9d removed with the allowlist it lived in**: an `ignore` in pytest's
+  `filterwarnings` names the message it silences (`test_no_blanket_warning_ignore_guard.py`).
+- Smaller: `zod/v4` and `zod/mini` refused like `zod`; the synced-passkey path (0 → 0) driven
+  through the real library; the chat's return-button portal pinned by unit tests; documents
+  aligned (OpenTelemetry rows, ADR-143's py_webauthn pin, the voice cap, the claims above).
+- **Left on purpose, and said**: a value typed into the login form before hydration is lost
+  (measured in Chromium and WebKit, a ticked box in Chromium) — its controlled inputs are a
+  product change of their own; `ignore:unclosed transport:ResourceWarning` in pytest's filters
+  predates the lot and reads against CLAUDE.md's rule on unclosed transports.
+- Measured: `task test:backend:unit:fast` (35,770 passed; the complexity ratchet's two tests red
+  — the first trace redaction reached CC 15 — and green once it was split in two),
+  `task test:backend:integration` (1,479 passed, one fixture whose Redis connection the server
+  closed, its module re-run 13 of 13), mypy strict on every touched module; the four touched
+  journeys 75 times of 75 on three engines (six skips: the Chromium-only ceremony); the touched
+  frontend unit tests (31), ESLint, the e2e typecheck.
 
 ## 6. Deferred, with the condition that reopens each
 

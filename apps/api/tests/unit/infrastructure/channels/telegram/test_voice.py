@@ -7,25 +7,46 @@ no ffmpeg, so these tests stop at that boundary and pin what crosses it.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from structlog.testing import capture_logs
 
+from src.core.config import settings
 from src.domains.voice.stt.protocol import STTResult
+from src.infrastructure.channels.telegram import voice as voice_module
 from src.infrastructure.channels.telegram.voice import (
     _TARGET_SAMPLE_RATE,
     MAX_VOICE_DURATION_SECONDS,
     _download_voice_file,
     transcribe_voice_message,
+    voice_duration_cap_seconds,
 )
-from src.infrastructure.media.ffmpeg import FfmpegError
+from src.infrastructure.media.ffmpeg import FfmpegError, FfmpegFailure
+from tests.support.structlog_capture import fresh_module_logger
 
 MODULE = "src.infrastructure.channels.telegram.voice"
 _PATCH_STT = "src.domains.voice.stt.sherpa_stt.SherpaSttService"
 
 # Two samples of 16 kHz mono int16 PCM, as ffmpeg writes them.
 _PCM = b"\x00\x00\x00\x40"
+
+
+@pytest.fixture(autouse=True)
+def _fresh_logger() -> Iterator[None]:
+    """Keep ``capture_logs`` reliable under xdist — see ``tests/support``."""
+    yield from fresh_module_logger(voice_module)
+
+
+def _problems(logs: list[dict[str, object]]) -> list[tuple[object, object, object]]:
+    """What reached WARNING or above: event, level and failure kind."""
+    return [
+        (entry["event"], entry["log_level"], entry.get("kind"))
+        for entry in logs
+        if entry["log_level"] in ("warning", "error")
+    ]
 
 
 def _stt_answering(text: str) -> MagicMock:
@@ -86,16 +107,41 @@ class TestTranscribeVoiceMessage:
     @pytest.mark.asyncio
     async def test_a_file_ffmpeg_cannot_read_is_dropped_without_the_stt(self) -> None:
         stt = _stt_answering("never")
+        refused = FfmpegError("ffmpeg failed", kind="failed")
 
         with (
             patch(f"{MODULE}._download_voice_file", AsyncMock(return_value=b"not audio")),
-            patch(f"{MODULE}.transcode", AsyncMock(side_effect=FfmpegError("ffmpeg failed"))),
+            patch(f"{MODULE}.transcode", AsyncMock(side_effect=refused)),
             patch(_PATCH_STT, return_value=stt),
+            capture_logs() as logs,
         ):
             result = await transcribe_voice_message(AsyncMock(), "file_123")
 
         assert result is None
         stt.transcribe_pcm_int16_async.assert_not_awaited()
+        # The sender's file: a fact at WARNING, never an incident of ours.
+        assert _problems(logs) == [("telegram_voice_decode_failed", "warning", "failed")]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["timed_out", "not_installed"])
+    async def test_an_instance_fault_is_logged_as_ours(self, kind: FfmpegFailure) -> None:
+        """A missing ffmpeg or a decode past its ceiling is the INSTANCE's: logged
+        as a bad file, it answered every note « I could not understand » with
+        nothing above DEBUG saying why."""
+        stt = _stt_answering("never")
+        broken = FfmpegError("ffmpeg unavailable", kind=kind)
+
+        with (
+            patch(f"{MODULE}._download_voice_file", AsyncMock(return_value=b"ogg")),
+            patch(f"{MODULE}.transcode", AsyncMock(side_effect=broken)),
+            patch(_PATCH_STT, return_value=stt),
+            capture_logs() as logs,
+        ):
+            result = await transcribe_voice_message(AsyncMock(), "file_123")
+
+        assert result is None
+        stt.transcribe_pcm_int16_async.assert_not_awaited()
+        assert _problems(logs) == [("telegram_voice_decode_unavailable", "error", kind)]
 
     @pytest.mark.asyncio
     async def test_empty_pcm_returns_none_without_the_stt(self) -> None:
@@ -171,6 +217,80 @@ class TestTranscribeVoiceMessage:
             bot = AsyncMock()
             result = await transcribe_voice_message(bot, "file_123", voice_duration_seconds=None)
             assert result is None  # Returns None from download failure, not duration check
+
+
+class TestVoiceDurationCap:
+    """One cap for the gate, the decode and the refusal's wording: Telegram's
+    ceiling, or the STT's when it is lower. Measured before it existed: with the
+    STT's default (60 s), a 90-second note passed the 120-second gate, the STT
+    refused it, and the person read « I could not understand » instead of
+    « too long »."""
+
+    def test_the_cap_is_the_lower_of_telegram_s_and_the_stt_s(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "voice_stt_max_duration_seconds", 60)
+        assert voice_duration_cap_seconds() == 60
+        monkeypatch.setattr(settings, "voice_stt_max_duration_seconds", 300)
+        assert voice_duration_cap_seconds() == MAX_VOICE_DURATION_SECONDS
+
+    @pytest.mark.asyncio
+    async def test_a_note_declared_past_the_cap_is_never_downloaded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "voice_stt_max_duration_seconds", 60)
+        download = AsyncMock(return_value=b"ogg")
+
+        with patch(f"{MODULE}._download_voice_file", download):
+            result = await transcribe_voice_message(
+                AsyncMock(), "file_123", voice_duration_seconds=90
+            )
+
+        assert result is None
+        download.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_the_decode_holds_the_cap_whatever_the_sender_declared(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The declared duration is the sender's word — missing here. ffmpeg
+        stops one second past the cap, so the PCM stays bounded and a longer
+        note is still told from one of exactly the cap."""
+        monkeypatch.setattr(settings, "voice_stt_max_duration_seconds", 60)
+        stt = _stt_answering("never")
+        past_the_cap = b"\x00\x00" * (60 * _TARGET_SAMPLE_RATE + 1)
+        transcode = AsyncMock(return_value=past_the_cap)
+
+        with (
+            patch(f"{MODULE}._download_voice_file", AsyncMock(return_value=b"ogg")),
+            patch(f"{MODULE}.transcode", transcode),
+            patch(_PATCH_STT, return_value=stt),
+        ):
+            result = await transcribe_voice_message(AsyncMock(), "file_123")
+
+        assert result is None
+        stt.transcribe_pcm_int16_async.assert_not_awaited()
+        args = transcode.await_args.kwargs["args"]
+        assert args[args.index("-t") + 1] == "61"
+
+    @pytest.mark.asyncio
+    async def test_a_note_of_exactly_the_cap_is_transcribed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "voice_stt_max_duration_seconds", 60)
+        stt = _stt_answering("a full minute")
+        at_the_cap = b"\x00\x00" * (60 * _TARGET_SAMPLE_RATE)
+
+        with (
+            patch(f"{MODULE}._download_voice_file", AsyncMock(return_value=b"ogg")),
+            patch(f"{MODULE}.transcode", AsyncMock(return_value=at_the_cap)),
+            patch(_PATCH_STT, return_value=stt),
+        ):
+            result = await transcribe_voice_message(
+                AsyncMock(), "file_123", voice_duration_seconds=60
+            )
+
+        assert result == "a full minute"
 
 
 # =============================================================================
