@@ -18,12 +18,18 @@ What must hold:
 - the sandbox egress proxy (ADR-298) is the ONLY routed member of the
   ``lia-sandbox`` internal network, pinned by digest, identical in the dev
   compose and the skill-sandbox overlay, and the CA private key never reaches
-  the API read-write nor the sandbox at all.
+  the API read-write nor the sandbox at all;
+- a third-party image has ONE reference across every compose file and every
+  workflow, a divergence being declared with its reason (and a declaration that
+  no longer diverges failing);
+- the self-host catalogue pins what production runs.
 """
 
 from __future__ import annotations
 
+import json
 import re
+from typing import Any
 
 import pytest
 import yaml
@@ -50,8 +56,9 @@ OBSERVABILITY_SERVICES = {
 }
 
 
-def _load(name: str) -> dict:
-    return yaml.safe_load((ROOT / name).read_text(encoding="utf-8"))
+def _load(name: str) -> dict[str, Any]:
+    data: dict[str, Any] = yaml.safe_load((ROOT / name).read_text(encoding="utf-8"))
+    return data
 
 
 def test_app_images_are_parameterized_with_local_defaults() -> None:
@@ -226,3 +233,94 @@ def test_prometheus_probes_the_egress_proxy_health() -> None:
     assert job["metrics_path"] == "/probe"
     assert job["static_configs"][0]["targets"] == ["http://egress:9094/healthz"]
     assert any(r.get("replacement") == "blackbox-exporter:9115" for r in job["relabel_configs"])
+
+
+#: Every compose file of the repository (the root ones discovered, so a new one is
+#: read), and every workflow's services and containers: one third-party image, one
+#: reference (the generalisation of the egress pin above, dependency lot 3).
+_NESTED_COMPOSE_FILES = (
+    "infrastructure/docker/compose.services.yml",
+    "scripts/install/tests/runtime/docker-compose.disposable.yml",
+)
+#: References allowed to differ from the rest of their image, and why.
+_DIVERGENT_BY_DESIGN = {
+    ("docker-compose.dev.yml", "langfuse-redis"): (
+        "Langfuse's own cache in the dev observability profile, which follows Langfuse's "
+        "support matrix and sits outside the dependency programme (decision D2)"
+    ),
+}
+
+
+def _image_references() -> list[tuple[tuple[str, str], str]]:
+    """``((file, service or job), image)`` for every literal image reference."""
+    found: list[tuple[tuple[str, str], str]] = []
+    compose_files = [p.name for p in sorted(ROOT.glob("docker-compose*.yml"))]
+    for name in [*compose_files, *_NESTED_COMPOSE_FILES]:
+        for service, spec in (_load(name).get("services") or {}).items():
+            image = (spec or {}).get("image")
+            if image and not image.startswith("${"):
+                found.append(((name, service), image))
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for job_name, job in (_load(f".github/workflows/{path.name}")["jobs"]).items():
+            for service_name, service in (job.get("services") or {}).items():
+                found.append(((path.name, f"{job_name}/{service_name}"), service["image"]))
+            container = job.get("container")
+            if isinstance(container, dict) and container.get("image"):
+                found.append(((path.name, job_name), container["image"]))
+    return found
+
+
+def _repository(image: str) -> str:
+    return re.split(r"[:@]", image, maxsplit=1)[0]
+
+
+def test_a_third_party_image_has_one_reference_everywhere() -> None:
+    """A service the production compose runs is tested and developed on that same image.
+
+    A different tag in CI or in dev is a different engine: the CI's Redis was
+    ``redis:7-alpine`` while production, the demonstrator and the shared services ran
+    ``redis:7.4-alpine`` (found by this test when it was written).
+    """
+    found = _image_references()
+    references: dict[str, dict[str, list[str]]] = {}
+    for (where, what), image in found:
+        if (where, what) not in _DIVERGENT_BY_DESIGN:
+            references.setdefault(_repository(image), {}).setdefault(image, []).append(
+                f"{where}:{what}"
+            )
+
+    divergent = {repo: refs for repo, refs in references.items() if len(refs) > 1}
+    assert not divergent, f"one image, several references — align them: {divergent}"
+
+    declared = {place: image for place, image in found if place in _DIVERGENT_BY_DESIGN}
+    stale = sorted(
+        place
+        for place in _DIVERGENT_BY_DESIGN
+        if place not in declared
+        or set(references.get(_repository(declared[place]), {})) in (set(), {declared[place]})
+    )
+    assert not stale, f"declared divergent but no longer diverging — drop the entry: {stale}"
+
+
+def test_the_self_host_catalogue_pins_what_production_runs() -> None:
+    """``self_host_dependencies.json`` is what a PREBUILT install pins: a compose bump
+    that forgets it leaves every new install on the old image (F6). Caddy is the
+    installer's own proxy, so its entry is the default ``scripts/install/compose.py``
+    renders."""
+    catalogue = {
+        entry["service"]: entry["reference"]
+        for entry in json.loads(
+            (ROOT / "scripts/install/self_host_dependencies.json").read_text(encoding="utf-8")
+        )
+    }
+    production = _load("docker-compose.prod.yml")["services"]
+    caddy = re.search(
+        r"\$\{LIA_CADDY_IMAGE:-([^}]+)\}",
+        (ROOT / "scripts/install/compose.py").read_text(encoding="utf-8"),
+    )
+    assert caddy, "scripts/install/compose.py no longer renders a default Caddy image"
+
+    expected = {
+        service: production[service]["image"] for service in catalogue if service in production
+    } | {"caddy": caddy.group(1)}
+    assert catalogue == expected

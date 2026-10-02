@@ -9,7 +9,16 @@ vars:
   API_DIR: ./apps/api
   WEB_DIR: ./apps/web
   PYTHON: python
-  UV: uv  # Optional: faster pip alternative
+  # The lockfile writer. Pinned: another uv may resolve or format a lock
+  # differently, and 0.12.18 reproduces the committed locks byte for byte.
+  # deps:lock and deps:upgrade* refuse to run on any other version.
+  UV: uv
+  UV_VERSION: 0.12.18
+  # The supply-chain tools run isolated (`uv tool run`), never in the app's
+  # venv: cyclonedx-bom 7.4 requires chardet<6 where the app locks chardet 7.
+  # Pinned here and only here (dependency programme, lot 3).
+  PIP_AUDIT_VERSION: 2.10.1
+  CYCLONEDX_BOM_VERSION: 7.4.0  # 7.5.0 is younger than the 14-day minor cooldown (D4)
   # Memory cap of one wake-word toolbox run (ADR-329): the Docker VM is shared
   # with the dev stack. Raise it with `task wake:train WAKE_MEMORY=24g -- fr`.
   WAKE_MEMORY: 14g
@@ -83,9 +92,17 @@ tasks:
   # universal lockfiles actually installed everywhere (Docker, CI, venv).
   # Workflow: edit the manifest -> task deps:lock -> commit manifest + locks.
 
+  deps:uv-pinned:
+    internal: true
+    desc: Refuse to write a lockfile with any uv but UV_VERSION
+    preconditions:
+      - sh: '{{.UV}} --version | grep -qE "^uv {{.UV_VERSION}}( |$)"'
+        msg: "The lockfiles are written by uv {{.UV_VERSION}}, which reproduces them byte for byte. Install it: pip install uv=={{.UV_VERSION}} (or uv self update {{.UV_VERSION}})"
+
   deps:lock:
     desc: Regenerate Python lockfiles (keeps existing pins; only applies manifest changes)
     dir: "{{.API_DIR}}"
+    deps: [deps:uv-pinned]
     cmds:
       - "{{.UV}} pip compile requirements.txt {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt"
       - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt"
@@ -96,6 +113,7 @@ tasks:
   deps:upgrade:
     desc: "Upgrade specific packages in the lockfiles: task deps:upgrade -- <pkg> [<pkg>...]"
     dir: "{{.API_DIR}}"
+    deps: [deps:uv-pinned]
     preconditions:
       - sh: test -n "{{.CLI_ARGS}}"
         msg: "Usage: task deps:upgrade -- <pkg> [<pkg>...] (use deps:upgrade:all for a full upgrade)"
@@ -110,6 +128,7 @@ tasks:
   deps:upgrade:all:
     desc: Upgrade ALL packages in the lockfiles to the latest versions allowed by the manifests
     dir: "{{.API_DIR}}"
+    deps: [deps:uv-pinned]
     cmds:
       - "{{.UV}} pip compile requirements.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt"
       - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt"
@@ -421,6 +440,7 @@ tasks:
   wake:deps:lock:
     desc: Recompile the toolbox's two hashed locks (Linux x86_64, Python 3.12; CPU image torch from the CPU index)
     dir: scripts/wake-word
+    deps: [deps:uv-pinned]
     cmds:
       - >-
         {{.UV}} pip compile requirements.in --generate-hashes --python-version 3.12
@@ -1596,20 +1616,43 @@ tasks:
     desc: Run security scans
     deps:
       - security:scan:backend
+      - security:scan:frontend
       - security:scan:docker
 
+  # The Security workflow calls these two tasks (ADR-151): its audit, its ignore
+  # list and its tool version live here, not in the workflow.
   security:scan:backend:
-    desc: Scan backend dependencies for vulnerabilities
+    desc: Audit the three Python lockfiles (runtime, dev, sandbox) with the pinned pip-audit
     dir: "{{.API_DIR}}"
     cmds:
-      # --ignore-vuln: ecdsa CVE-2024-23342 is a timing attack on ECDSA *signing* (P-256 nonce leak).
-      # LIA uses python-jose only for JWT *verification*, which is explicitly unaffected.
-      # The ecdsa maintainer has declared side-channel attacks out of scope with no planned fix.
-      # Audits the lockfile (not the manifest) so transitive dependencies are covered too.
-      - cmd: python -m pip_audit -r requirements.lock.txt --ignore-vuln CVE-2024-23342
-        platforms: [windows]
-      - cmd: python3 -m pip_audit -r requirements.lock.txt --ignore-vuln CVE-2024-23342
-        platforms: [linux, darwin]
+      # The lockfiles, not the manifests, so transitive dependencies are covered;
+      # all three, since the sandbox image and the dev tools ship or run too.
+      # --disable-pip: every lock is fully pinned and hashed, nothing to resolve.
+      # CVE-2024-23342 (ecdsa timing attack on ECDSA *signing*): LIA does sign JWTs
+      # (`jwt.encode` in core/security/utils.py), but with HS256 — the algorithm is
+      # a Literal of HMAC names (SecuritySettings.algorithm), so python-jose never
+      # reaches the ecdsa backend; widening it to an EC algorithm means dropping
+      # this ignore. Gone with python-jose (dependency programme, lot 5).
+      - >-
+        {{.UV}} tool run --from pip-audit=={{.PIP_AUDIT_VERSION}} pip-audit --desc --disable-pip
+        -r requirements.lock.txt -r requirements-dev.lock.txt -r requirements-sandbox.lock.txt
+        --ignore-vuln CVE-2024-23342
+
+  security:scan:frontend:
+    desc: Audit the pnpm lockfile (a high or critical advisory fails)
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      # Fix the advisory or pin a `pnpm.overrides` entry in the root package.json
+      # (registered in docs/technical/CI_CD.md) — never a softer level.
+      - pnpm audit --audit-level=high
+
+  security:sbom:backend:
+    desc: CycloneDX SBOM of the runtime lockfile (apps/api/sbom-backend.json, gitignored)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - >-
+        {{.UV}} tool run --from cyclonedx-bom=={{.CYCLONEDX_BOM_VERSION}} cyclonedx-py
+        requirements requirements.lock.txt -o sbom-backend.json --output-format JSON
 
   security:scan:docker:
     desc: Scan Docker images with Trivy (using Docker)

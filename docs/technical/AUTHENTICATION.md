@@ -3544,7 +3544,7 @@ La contrainte n'est pas cosmetique. Elle porte une garantie de securite :
 - **python-jose route selon l'algorithme.** Sous `HS*` (HMAC, symetrique) il n'atteint jamais
   son backend `ecdsa`. Or `ecdsa` est expose a **CVE-2024-23342** (attaque temporelle sur la
   signature), sans correctif amont, et le depot **exempte** cette CVE dans `pip-audit`
-  (`.github/workflows/security.yml`). L'exemption n'est legitime **que** tant que
+  (`Taskfile.yml`, tache `security:scan:backend`, que le workflow appelle). L'exemption n'est legitime **que** tant que
   l'algorithme reste HMAC.
 - La justification historique de cette exemption affirmait que « LIA ne fait que verifier des
   JWT ». C'etait faux : `core/security/utils.py` appelle bien `jwt.encode`. Ce qui rend

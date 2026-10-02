@@ -17,6 +17,9 @@ developer runs. This guard enforces that shape:
 3. anything genuinely CI-only is listed here WITH a reason, so the exception is
    a decision on the record and not an oversight.
 
+The gating workflows are `ci.yml` and `security.yml`: the latter used to run
+its own `pip-audit` with its own ignore list (dependency programme, F8).
+
 Usage:
     python scripts/audit/check_ci_parity.py
     python scripts/audit/check_ci_parity.py --workflow .github/workflows/ci.yml
@@ -32,7 +35,13 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+#: The workflows that gate a change. ``security.yml`` joined in the dependency
+#: programme (lot 3, F8): it carried its own audit command and its own ignore
+#: list, which no developer could run before pushing.
+DEFAULT_WORKFLOWS = (
+    REPO_ROOT / ".github" / "workflows" / "ci.yml",
+    REPO_ROOT / ".github" / "workflows" / "security.yml",
+)
 TASKFILE = REPO_ROOT / "Taskfile.yml"
 
 # Commands that legitimately belong to the workflow rather than the Taskfile:
@@ -129,18 +138,39 @@ def _iter_run_steps(workflow: Path):
 
 
 def main() -> int:
-    """Check that the workflow only orchestrates.
+    """Check that every gating workflow only orchestrates.
 
     Returns:
-        1 when an unexplained implementation is found in the workflow.
+        1 when an unexplained implementation is found in any workflow checked.
     """
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workflow", default=str(DEFAULT_WORKFLOW))
+    parser.add_argument(
+        "--workflow",
+        action="append",
+        help="a workflow to check (repeatable); every gating workflow by default",
+    )
     args = parser.parse_args()
 
-    workflow = Path(args.workflow)
+    workflows = [Path(w) for w in args.workflow] if args.workflow else list(DEFAULT_WORKFLOWS)
     declared = _load_task_names()
+    results = [_check(workflow, declared) for workflow in workflows]
+    if not all(results):
+        return 1
+    print("\nParity holds: the workflows orchestrate, the Taskfile implements.")
+    return 0
 
+
+def _check(workflow: Path, declared: set[str]) -> bool:
+    """Report one workflow's run steps.
+
+    Args:
+        workflow: Path to the workflow file.
+        declared: Every task name the Taskfile declares.
+
+    Returns:
+        Whether every run step is a declared task call, provisioning or a
+        declared CI-only exception.
+    """
     offenders: list[str] = []
     missing_tasks: list[str] = []
     task_calls = 0
@@ -175,7 +205,7 @@ def main() -> int:
 
         offenders.append(f"{job} / {step}: {command[:100]}")
 
-    print(f"Workflow: {workflow.relative_to(REPO_ROOT)}")
+    print(f"\nWorkflow: {workflow.resolve().relative_to(REPO_ROOT).as_posix()}")
     print(f"  task calls        : {task_calls}")
     print(f"  infrastructure    : {infra}")
     print(f"  declared CI-only  : {ci_only}")
@@ -196,10 +226,7 @@ def main() -> int:
             "add it to CI_ONLY in this script WITH a reason."
         )
 
-    if offenders or missing_tasks:
-        return 1
-    print("\nParity holds: the workflow orchestrates, the Taskfile implements.")
-    return 0
+    return not (offenders or missing_tasks)
 
 
 if __name__ == "__main__":

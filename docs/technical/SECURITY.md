@@ -2701,10 +2701,10 @@ async with redis_lock(lock_key, timeout=CHANNEL_MESSAGE_LOCK_TIMEOUT):
 
 ```bash
 # Audit de dépendances Python — sur le lockfile compilé, transitifs inclus (ADR-112)
-task security:scan:backend          # équivalent : pip-audit -r requirements.lock.txt
+task security:scan:backend          # pip-audit (version épinglée, isolé par uv) sur les trois lockfiles
 
 # Audit de dépendances Node (bloquant en CI depuis 2026-07)
-cd apps/web && pnpm audit --audit-level=high
+task security:scan:frontend         # pnpm audit --audit-level=high
 
 # SAST : assuré par CodeQL (security-and-quality + security-extended) sur chaque
 # push et PR — voir .github/workflows/security.yml. `bandit` et `safety` ont été

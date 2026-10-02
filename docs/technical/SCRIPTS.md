@@ -85,7 +85,7 @@ Scripts pour validation et monitoring de l'observabilité.
 | `doc_facts.py` | Dérive de **contenu** : toute version ou tout seuil cité doit égaler sa source (manifestes, `pyproject.toml`, `Taskfile.yml`, compose). Un document choisit sa précision, jamais d'être précis et faux | `task lint:docs` · réparation `task docs:fix-facts` |
 | `agents_mirror.py` | `AGENTS.md` est un **miroir généré** de `CLAUDE.md` : une seule source d'instructions pour les agents, jamais deux copies qui divergent | `task lint:docs` · régénération `task docs:sync-agents` |
 | `check_code_hygiene.py` | 6 contrôles d'hygiène : `.bak`, appels Store synchrones sur chemin async, `setex` sans sérialisation, `raise HTTPException` brut (règle #18), heads Alembic multiples, complétude `.env.example`. `--github` bascule en annotations de workflow | `task lint:hygiene` |
-| `check_ci_parity.py` | Le workflow orchestre, il n'implémente pas (ADR-151) : échoue sur toute étape `run:` qui n'est ni un appel de tâche, ni un provisionnement déclaré, ni une exception motivée dans `CI_ONLY` | `task lint:ci-parity` |
+| `check_ci_parity.py` | Les workflows `ci.yml` et `security.yml` orchestrent, ils n'implémentent pas (ADR-151) : échoue sur toute étape `run:` qui n'est ni un appel de tâche, ni un provisionnement déclaré, ni une exception motivée dans `CI_ONLY` | `task lint:ci-parity` |
 | `check_test_marker_coverage.py` | Gate F006 : collecte chaque nodeid avec ses markers et échoue si un test ne tourne dans **aucun** job CI (allowlist justifiée, shrink-only) | `task test:markers` |
 
 Les gardes sont écrites en **Python et non en bash** délibérément : la machine

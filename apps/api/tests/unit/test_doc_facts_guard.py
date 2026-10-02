@@ -119,6 +119,18 @@ class TestSourcesOfTruth:
 
         assert len(keys) == len(set(keys)), f"duplicate fact keys: {keys}"
 
+    def test_the_postgres_major_survives_the_digest_pin(self, tmp_path: Path) -> None:
+        """Lot 7 pins the database by version and digest: the quoted major must still resolve."""
+        (tmp_path / "docker-compose.prod.yml").write_text(
+            "services:\n  postgres:\n    image: pgvector/pgvector:0.8.6-pg16-bookworm@sha256:"
+            + "0" * 64
+            + "\n",
+            encoding="utf-8",
+        )
+        postgres = next(fact for fact in _facts.FACTS if fact.key == "postgres")
+
+        assert postgres.resolve(tmp_path) == "16"
+
 
 class TestScanSanity:
     """Anti-rot: a guard that scans nothing passes forever (see module docstring)."""

@@ -584,7 +584,11 @@ FACTS: tuple[Fact, ...] = (
         key="postgres",
         label="PostgreSQL major",
         source="docker-compose.prod.yml (pgvector image tag)",
-        resolve=_compose_image_tag(re.compile(r"pgvector/pgvector:pg(?P<value>\d+)")),
+        # The floating ``pg16`` and the pinned ``0.8.6-pg16-bookworm@sha256:…``
+        # (dependency programme, lot 7) both name the same major.
+        resolve=_compose_image_tag(
+            re.compile(r"pgvector/pgvector:(?:\d+\.\d+\.\d+-)?pg(?P<value>\d+)")
+        ),
         pattern=_version_pattern("PostgreSQL", r"\d+"),
         exemptions=(
             Exemption(
@@ -604,6 +608,40 @@ FACTS: tuple[Fact, ...] = (
         source="docker-compose.prod.yml (redis image tag)",
         resolve=_compose_image_tag(re.compile(r"image:\s*redis:(?P<value>\d+\.\d+)")),
         pattern=_version_pattern("Redis", r"\d+\.\d+"),
+    ),
+    # The observability stack the production compose runs: a quoted version
+    # follows the image the day lot 6 of the dependency programme moves it.
+    Fact(
+        key="prometheus",
+        label="Prometheus",
+        source="docker-compose.prod.yml (prom/prometheus image tag)",
+        resolve=_compose_image_tag(
+            re.compile(r"image:\s*prom/prometheus:v(?P<value>\d+\.\d+\.\d+)")
+        ),
+        pattern=_version_pattern("Prometheus"),
+    ),
+    Fact(
+        key="grafana",
+        label="Grafana",
+        source="docker-compose.prod.yml (grafana/grafana image tag)",
+        resolve=_compose_image_tag(
+            re.compile(r"image:\s*grafana/grafana:(?P<value>\d+\.\d+\.\d+)")
+        ),
+        pattern=_version_pattern("Grafana"),
+    ),
+    Fact(
+        key="loki",
+        label="Loki",
+        source="docker-compose.prod.yml (grafana/loki image tag)",
+        resolve=_compose_image_tag(re.compile(r"image:\s*grafana/loki:(?P<value>\d+\.\d+\.\d+)")),
+        pattern=_version_pattern("Loki"),
+    ),
+    Fact(
+        key="tempo",
+        label="Tempo",
+        source="docker-compose.prod.yml (grafana/tempo image tag)",
+        resolve=_compose_image_tag(re.compile(r"image:\s*grafana/tempo:(?P<value>\d+\.\d+\.\d+)")),
+        pattern=_version_pattern("Tempo"),
     ),
 )
 

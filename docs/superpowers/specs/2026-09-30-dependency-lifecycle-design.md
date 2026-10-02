@@ -155,6 +155,13 @@ Decided on 2026-10-02:
   drives it through `executable_path` (`BROWSER_CHROMIUM_EXECUTABLE`), measured before deciding
   with the pool's arguments on amd64 and on the production Raspberry Pi: launch, CDP
   accessibility tree, click, fill, screenshot. ADR-059 amendment 2026-10-02.
+- **D5 — Dependabot for pip. Decided (2026-10-02): keep the alerts, stop the version-update pull
+  requests**; Python moves through `task deps:refresh` (lot 4).
+- **D6 — merge discipline on `main`. Decided and applied (2026-10-02)**: ruleset
+  « main: merge only green and up to date » (id 24349332) — a pull request merges only with its
+  18 CI and Security checks green on an up-to-date branch; the repository admin bypasses it, so
+  the owner's direct pushes are unchanged. `mobile-shell` is not required: it only runs when
+  `apps/mobile` changes, and a required check that never reports blocks the merge.
 
 Not blocking, defaults stated:
 
@@ -164,11 +171,6 @@ Not blocking, defaults stated:
   contract. Alternative: a named leeway, which also accepts a token up to that long after `exp`.
 - **D4 — cooldown values.** Default: patch 5 days, minor 14, major 60, never applied to a security
   fix.
-- **D5 — Dependabot for pip.** Every pull request of that ecosystem has been closed unmerged since
-  July. Default: keep the alerts, stop the version-update pull requests, replay through
-  `task deps:refresh` (lot 4). The owner's earlier decision was « keep »; this reverses it.
-- **D6 — merge discipline on `main`.** Default: a ruleset requiring the checks and an up-to-date
-  branch, which is what would have refused fact 3.
 - **D7 — a browser outside the API container.** D8 gives the browser a supported engine; the
   sandbox stays off, in the container that holds the secrets. Moving the browser to an isolated
   container (the skills sandbox's shape) is a separate design with its own ADR. Default: propose
@@ -299,28 +301,47 @@ The task-by-task plan is `docs/superpowers/plans/2026-10-02-dependency-urgent-lo
   red on the former tool (`aread`, `content`, `text`).
 - No new setting: the ceilings exist.
 
-### Lot 3 — guards that need no network
+### Lot 3 — guards that need no network (implemented 2026-10-02)
 
 - `tests/unit/test_imports_are_declared_guard.py`: every third-party module `src/` imports belongs
-  to a distribution `requirements.txt` declares (prototype: the import census of §11).
-  The lot declares `google-genai`, `starlette`, `typing-extensions` and `PyJWT`.
-- `tests/unit/test_build_inputs_pinned_guard.py`: in the production compose chain, the
-  demonstrator compose and the two production Dockerfiles, every image carries a version and a
-  digest, every global install a version, every download a checksum. Shrink-only baseline
-  (`build_inputs_baseline.json`) holding today's debt; lots 6 and 7 empty it.
-- `test_self_host_catalogue_matches_compose`: each `self_host_dependencies.json` reference equals
-  the production compose image of its service. And the generalisation of
-  `test_egress_image_is_pinned_by_digest_and_identical_everywhere`: a third-party service present
-  in several compose files carries one reference.
-- One value, several files: the pnpm version (`packageManager` against the two Dockerfiles), the
-  promtool version (`ci.yml:662`, `Taskfile.yml:755-759` against the Prometheus image), the CI
-  service images against the production compose.
-- `scripts/audit/doc_facts.py`: facts for the Prometheus, Grafana, Loki and Tempo image tags
-  (`_compose_image_tag`), so the seven documents that quote them follow `task docs:fix-facts`; the
-  PostgreSQL pattern accepts a digest-pinned `X.Y.Z-pg16-bookworm@sha256:…`.
-- `security.yml` calls `task security:scan:backend` and a new `task security:scan:frontend`; the
-  task audits both lockfiles; `--ignore-vuln CVE-2026-4539` is removed; `lint:ci-parity` reads
-  `security.yml` too; `uv`, `pip-audit` and `cyclonedx-bom` are installed at a pinned version.
+  to a distribution `requirements.txt` declares; a namespace package (`google`) is resolved by the
+  distribution whose files hold the sub-package — `from google import genai` read as the whole
+  namespace would have named nine distributions. Red on exactly `google-genai`, `PyJWT`,
+  `starlette` and `typing-extensions`, now declared as floors at their locked versions (PyJWT's
+  is also its security floor, CVE-2026-102274): the locks moved no version.
+- `tests/unit/test_build_inputs_pinned_guard.py`: in the production compose chain (read from
+  `deploy_readiness_gate.sh`, where the deploy declares it), the demonstrator compose and the three
+  Dockerfiles the release builds, every image carries a version and a digest, every global install
+  a version, every download a checksum and no moving URL (`latest`, a Hugging Face `resolve/main`);
+  `apt-get` is out of scope (signed repositories, updates wanted). Shrink-only baseline of 32
+  entries (`build_inputs_baseline.json`): 23 compose images, the two base images, the Claude Code
+  CLI, the Whisper `resolve/main`, the `latest-v24` Node URL, the Silero VAD archive, the DB-IP
+  file and the Docker key; lots 6 and 7 empty it. Proven to fail both ways (a new entry, a fixed
+  one still listed). The sandbox Dockerfile was already clean.
+- `test_self_host_compose_contract.py`: the catalogue pins what production runs (Caddy: the
+  default `scripts/install/compose.py` renders); one third-party image, one reference across every
+  compose file (the root ones discovered) and every workflow's services and containers — red on
+  the CI's `redis:7-alpine` against production's `redis:7.4-alpine`, aligned; the Playwright
+  container of `ci.yml` and `a11y-matrix.yml` is held equal the same way (lot 9 moves both). The
+  Langfuse profile's own Redis is exempt in writing (D2), and an exemption that no longer diverges
+  fails.
+- `test_one_value_one_owner_guard.py`: pnpm (`packageManager` against the two web Dockerfiles),
+  promtool (`ci.yml` and `Taskfile.yml` against the production Prometheus image), uv (the
+  workflows' install against `UV_VERSION`). Proven red on divergent copies.
+- `scripts/audit/doc_facts.py`: facts for the Prometheus, Grafana, Loki and Tempo image tags (eight
+  quotations in three living documents, all exact today); the PostgreSQL resolver accepts the
+  digest-pinned `X.Y.Z-pg16-bookworm@sha256:…` (tested).
+- Supply chain (F8): `security.yml` calls `task security:scan:backend` (the three locks, runtime,
+  dev and sandbox: 233 distinct packages read), `task security:scan:frontend` and
+  `task security:sbom:backend`; `CVE-2026-4539` is no longer ignored; `lint:ci-parity` reads
+  `security.yml` too. pip-audit 2.10.1 and cyclonedx-bom 7.4.0 run isolated through `uv tool run`
+  at the versions the Taskfile pins — they cannot share the app's venv: cyclonedx-bom 7.4 requires
+  `chardet<6` where the app locks 7.1 (7.5.0 is inside the minor cooldown). uv itself is pinned
+  (`UV_VERSION` 0.12.18, which reproduces the locks byte for byte): `deps:lock`, `deps:upgrade*`
+  and `wake:deps:lock` refuse any other.
+- Found on the way: a test leaked its git identity into the real `.git/config` through the
+  variables a git hook exports (every commit from `354484ed` to `13dfc167` authored « guard »);
+  fixed separately (`a0b7d85a`).
 
 ### Lot 4 — the watch, and a pipeline that moves
 

@@ -86,7 +86,9 @@ Quatre fichiers dans `apps/api/`, deux rôles distincts :
 Les lockfiles sont générés par `uv pip compile --universal` : un seul fichier
 multi-plateforme (linux/amd64, linux/arm64, Windows, Python ≥ 3.12) avec
 markers d'environnement et hashes SHA256, installable par pip vanilla.
-On ne les édite **jamais à la main**.
+On ne les édite **jamais à la main**. Ils sont écrits par **une seule version
+d'uv** (`UV_VERSION` dans `Taskfile.yml`), qui les reproduit octet pour octet :
+`task deps:lock` et `task deps:upgrade*` refusent de tourner avec une autre.
 
 **Process de bump d'une dépendance** :
 

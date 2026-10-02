@@ -1009,7 +1009,9 @@ google-crc32c==1.8.0 \
 google-genai==2.10.0 \
     --hash=sha256:77912cd558cd7dfd5b75c25fd1c609e78d7954dde583331104022a46ea90f9ee \
     --hash=sha256:d5350311567ae660c24cbc1752aee4b3d660f89c0106d2dcd2a69978c35afe1e
-    # via langchain-google-genai
+    # via
+    #   -r requirements.txt
+    #   langchain-google-genai
 google-resumable-media==2.8.0 \
     --hash=sha256:dd14a116af303845a8d932ddae161a26e86cc229645bc98b39f026f9b1717582 \
     --hash=sha256:f1157ed8b46994d60a1bc432544db62352043113684d4e030ee02e77ebe9a1ae
@@ -3108,6 +3110,7 @@ pyjwt==2.15.1 \
     --hash=sha256:42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193 \
     --hash=sha256:4f259e80cdfb6b3fc18a7de51fd1ef9ec79652f25019bae68975ca2468a34df8
     # via
+    #   -r requirements.txt
     #   firebase-admin
     #   mcp
 pymupdf==1.27.2 \
@@ -3835,6 +3838,7 @@ starlette==1.3.1 \
     --hash=sha256:05d0213193f2fbaae60e2ecb593b4add4262ad4e46536b54abe36f11a71724e0 \
     --hash=sha256:c7372aae11c3c3f26a42df7bd626cec2f47d03483d261d369516a615a53714c6
     # via
+    #   -r requirements.txt
     #   fastapi
     #   mcp
     #   sse-starlette
@@ -3932,6 +3936,7 @@ typing-extensions==4.15.0 \
     --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \
     --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548
     # via
+    #   -r requirements.txt
     #   alembic
     #   anthropic
     #   asyncssh

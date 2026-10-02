@@ -64,28 +64,22 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install pip-audit
-        working-directory: ./apps/api
-        run: |
-          pip install --upgrade pip
-          pip install pip-audit
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: pip-audit (Python)
-        working-directory: ./apps/api
-        # Audits the compiled lockfile so transitive dependencies are covered.
-        # (The previous `pip install -e .` audited an empty environment:
-        # pyproject.toml declares no dependencies.)
-        # CVE-2026-4539: Pygments ReDoS in AdlLexer (local-only, low severity,
-        # no fix available upstream — 2.20.0 is the latest release; dev-only, it
-        # is absent from the production image).
-        # CVE-2024-23342: ecdsa timing attack on signing. LIA DOES sign JWTs
-        # (`jwt.encode` in core/security/utils.py) — the earlier "only verifies"
-        # rationale was wrong. What makes this inert is the algorithm: HS256
-        # (HMAC, see JWT_ALGORITHM_DEFAULT), so python-jose never routes through
-        # the ecdsa backend. `SecuritySettings.algorithm` is a Literal of HMAC
-        # algorithms precisely so this exemption cannot be invalidated by an
-        # .env change; widening it to an EC algorithm means dropping this ignore.
-        run: pip-audit --desc -r requirements.lock.txt --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2024-23342
+      # The audits, their ignore list and the tool versions live in the
+      # Taskfile (ADR-151): this job runs literally what a developer runs before
+      # pushing. uv runs pip-audit isolated at the version Taskfile.yml pins;
+      # this uv version is held equal to UV_VERSION by
+      # apps/api/tests/unit/test_one_value_one_owner_guard.py.
+      - name: Install uv
+        run: pip install uv==0.12.18
+
+      - name: pip-audit (the three Python lockfiles)
+        run: task security:scan:backend
 
       - name: Setup pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v4
@@ -97,6 +91,9 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      # A frozen install is a gate of its own: on 2026-09-30 two Dependabot pull
+      # requests merged five minutes apart left a lockfile no install could
+      # read, and this is the step that said so.
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
@@ -106,9 +103,8 @@ jobs:
       # months with a green pipeline: the step reported it and the job passed
       # anyway. Fix the advisory or pin a `pnpm.overrides` entry in the root
       # package.json — do not restore the flag.
-      - name: npm audit (Node)
-        working-directory: ./apps/web
-        run: pnpm audit --audit-level=high
+      - name: pnpm audit (Node)
+        run: task security:scan:frontend
 
   trivy:
     name: Trivy Scan
@@ -165,15 +161,19 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv
+        run: pip install uv==0.12.18
+
+      # SBOM from the lockfile: exact versions actually shipped, transitives
+      # included, at the cyclonedx-bom version the Taskfile pins.
       - name: Generate Python SBOM
-        working-directory: ./apps/api
-        # SBOM from the lockfile: exact versions actually shipped, transitives
-        # included. (`pip install -e .` installed nothing: pyproject declares
-        # no dependencies, so the previous environment-mode SBOM was empty.)
-        run: |
-          pip install --upgrade pip
-          pip install cyclonedx-bom
-          python -m cyclonedx_py requirements requirements.lock.txt -o sbom-backend.json --output-format json
+        run: task security:sbom:backend
 
       - name: Upload backend SBOM
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

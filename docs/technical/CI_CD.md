@@ -9,7 +9,7 @@
 - `.github/workflows/release.yml` — artefacts candidats, promotion des digests qualifiés et GitHub Release
 - `.github/workflows/a11y-matrix.yml` — Matrice navigateurs hebdomadaire (AC-002) : rejoue la suite E2E/axe sur Chromium, Firefox et WebKit (`E2E_ALL_BROWSERS=1`), rapports archives 30 jours
 - `.github/hooks/pre-commit` — Hook Git pre-commit local
-- `scripts/audit/check_ci_parity.py` — Garde : le workflow orchestre, il n'implemente pas
+- `scripts/audit/check_ci_parity.py` — Garde : les workflows (`ci.yml`, `security.yml`) orchestrent, ils n'implementent pas
 - `.github/dependabot.yml` — Mises a jour automatiques des dependances
 
 ---
@@ -409,9 +409,9 @@ declaration aux entrees de construction ; seule l'image prouve une execution.
 | Job | Description |
 |-----|-------------|
 | CodeQL | Analyse statique Python + JavaScript (queries `security-and-quality` + `security-extended`), config `.github/codeql/codeql-config.yml` |
-| Dependency Audit | `pip-audit -r requirements.lock.txt` (Python, transitifs inclus — ADR-112) + `pnpm audit --audit-level=high` (Node). **Les deux etapes sont bloquantes.** |
+| Dependency Audit | `task security:scan:backend` (pip-audit a la version epinglee dans `Taskfile.yml`, lance isole par uv, sur les **trois** lockfiles runtime, dev et sandbox, transitifs inclus — ADR-112) + `pnpm install --frozen-lockfile` + `task security:scan:frontend` (`pnpm audit --audit-level=high`). **Bloquants.** La liste d'exceptions vit dans le Taskfile, plus dans le workflow : le developpeur lance exactement la meme commande. |
 | Trivy | Scan filesystem (severite CRITICAL/HIGH), resultats SARIF |
-| SBOM | Generation CycloneDX depuis `requirements.lock.txt` (versions exactes embarquees, artifact conserve 90 jours) |
+| SBOM | `task security:sbom:backend` : CycloneDX depuis `requirements.lock.txt` (cyclonedx-bom epingle dans le Taskfile ; versions exactes embarquees, artifact conserve 90 jours) |
 
 **`pnpm audit` a longtemps tourne avec `continue-on-error: true`** : l'etape signalait les
 advisories et le job passait quand meme. C'est ainsi qu'une advisory **critique**
@@ -604,6 +604,25 @@ from the file: rows missing, pins stale).
 | `katex` | One KaTeX: `rehype-katex` rendered with 0.16 while the layout served the 0.18 stylesheet; exact because 0.18.11 is deprecated upstream | dependency lot 1 (2026-10-02) |
 | `@ungap/structured-clone` | 1.3.0 is deprecated upstream (« Potential CWE-502 »); production code through react-markdown and the rehype plugins | dependency lot 1 (2026-10-02) |
 
+### Gardes de dependances (sans reseau)
+
+Quatre gardes du programme dependances (lot 3), dans `apps/api/tests/unit/`, tournent avec la
+suite unitaire :
+
+- `test_imports_are_declared_guard.py` : tout paquet tiers que `src/` importe est declare dans
+  `requirements.txt` — un paquet seulement transitif disparait le jour ou celui qui le tire
+  change d'avis.
+- `test_build_inputs_pinned_guard.py` : dans ce que la production construit et lance (chaine
+  compose du deploiement, compose du demonstrateur, Dockerfiles de la release), chaque image a
+  une version et une empreinte, chaque installation globale une version, chaque telechargement
+  une somme de controle. La dette du jour est une base qui ne fait que retrecir
+  (`build_inputs_baseline.json`).
+- `test_one_value_one_owner_guard.py` : pnpm, promtool et uv ont un seul proprietaire, et chaque
+  copie lui est tenue egale.
+- `test_self_host_compose_contract.py` : une image tierce porte une seule reference dans tous
+  les compose et tous les workflows (services et conteneurs), et le catalogue
+  d'auto-hebergement epingle ce que la production lance.
+
 ---
 
 ## Supply Chain Security
@@ -727,7 +746,9 @@ task format                 # Black + Prettier
 task deps:lock              # Regenere les lockfiles apres edition d'un manifeste
 task deps:upgrade -- <pkg>  # Bump cible d'un ou plusieurs paquets
 task deps:upgrade:all       # Bump global (mises a jour planifiees)
-task security:scan:backend  # pip-audit sur requirements.lock.txt (transitifs inclus)
+task security:scan:backend  # pip-audit epingle sur les trois lockfiles (runtime, dev, sandbox)
+task security:scan:frontend # pnpm audit --audit-level=high
+task security:sbom:backend  # SBOM CycloneDX du lockfile runtime
 ```
 
 ---
