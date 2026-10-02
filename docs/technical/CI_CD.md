@@ -537,7 +537,7 @@ workspace, les deux valeurs divergent, et chaque job faisant
 Constate sur #195 puis #210 (`vite` 8.1.5 cote workspace contre 8.1.3 cote override) — un
 rebase resout le conflit git sans corriger la contradiction. **Conduite a tenir** : rejouer
 le lot en alignant l'override sur la nouvelle version et en **regenerant** le lockfile
-(jamais en le fusionnant). Paquets concernes aujourd'hui : `vite`, `postcss`, `dompurify`.
+(jamais en le fusionnant). Paquets concernes aujourd'hui : `vite`, `postcss`, `katex`.
 
 ### Dependency Vulnerability Remediation (pnpm Overrides)
 
@@ -559,9 +559,10 @@ When a transitive dependency has a known CVE but the direct dependency hasn't re
   An exact pin becomes a liability once upstream patches again: `brace-expansion` was
   frozen at `2.0.2` by this very table while the fix shipped in `2.0.3`, so **our own
   override was pinning a vulnerable version**. Re-read the pins when auditing.
-- Scope the key when only one major line is affected: `"minimatch@9": "^9.0.7"` patches the
-  vulnerable 9.x without touching the `3.1.5` that ESLint depends on. An unscoped
-  `"minimatch"` key would force ESLint onto v9 and break it.
+- Scope the key when only one major line is affected: `"minimatch@9": "^9.0.7"` patched the
+  vulnerable 9.x without touching the `3.1.5` that ESLint depends on (removed on 2026-10-02,
+  once no 9.x copy was left to patch). An unscoped `"minimatch"` key would force ESLint onto
+  v9 and break it.
 - Never override a package that `apps/web/package.json` also declares without aligning both
   — see *Limites connues des PR Dependabot* above (`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`).
 - Run `pnpm install --lockfile-only` to regenerate the lockfile, then verify with
@@ -573,23 +574,35 @@ When a transitive dependency has a known CVE but the direct dependency hasn't re
 - Document the CVE in the commit message and CHANGELOG.
 - Remove the override once the direct dependency updates its own dependency.
 
-**Current overrides** (see `package.json` — 14 entries):
-| Package | Pinned Version | Reason |
-|---------|---------------|--------|
-| `flatted` | 3.4.2 | Prototype pollution fix |
-| `picomatch` | 4.0.4 | ReDoS fix |
-| `brace-expansion` | ^2.0.3 | CVE-2024-4068 (DoS) + CVE-2025-5889 (ReDoS) + zero-step sequence DoS (patched in 2.0.3) |
-| `vite` | 8.1.5 | Aligned with `apps/web/package.json` — divergence breaks `--frozen-lockfile` |
-| `defu` | 6.1.5 | Prototype pollution |
-| `protobufjs` | ^7.6.3 | Prototype pollution |
-| `uuid` | ^11.1.1 | Consolidation |
-| `postcss` | ^8.5.10 | Parsing advisory |
-| `dompurify` | ^3.4.11 | XSS bypass |
-| `@grpc/grpc-js` | ^1.9.16 | Memory exhaustion |
-| `@babel/core` | ^7.29.6 | RegExp complexity |
-| `websocket-driver` | ^0.7.5 | GHSA-xv26-6w52-cph6 (critical, message corruption) + GHSA-mp7j-qc5w-4988 (resource limit bypass). Transitive via `firebase` → `@firebase/database` → `faye-websocket`; unreachable at runtime (only `firebase/app` and `firebase/messaging` are imported) but present in the image |
-| `minimatch@9` | ^9.0.7 | 3 ReDoS advisories on the 9.x line; scoped so ESLint's `3.1.5` is untouched |
-| `js-yaml` | ^4.2.0 | Quadratic-complexity DoS in merge keys (dev-only, via ESLint) |
+**Current overrides** — `package.json` (`pnpm.overrides`) is the only source of their
+versions; this register records why each exists and which commit brought it, so that one
+can be removed the day its reason is gone (a table that restated the versions had drifted
+from the file: rows missing, pins stale).
+
+| Package | Why | Introduced by |
+|---------|-----|---------------|
+| `eslint-config-next>typescript-eslint` | Not recorded — to be documented or removed (lot 8 of the dependency programme) | `79a07125` |
+| `flatted` | Pinned with `picomatch` (four Dependabot alerts) | `d6612921` |
+| `picomatch` | ReDoS through extglob | `d6612921` |
+| `brace-expansion` | Three Dependabot alerts; the patched copy is declared in `patchedDependencies` (ADR-157) | `ad61235b` |
+| `vite` | Aligned with `apps/web/package.json`: a divergence breaks `--frozen-lockfile` | `7d1c7cf4` |
+| `defu` | Prototype pollution (high) | `aaffe092` |
+| `protobufjs` | CVE-2026-54269 | `0868cc98` |
+| `uuid` | One copy for the advisories Dependabot reported | `89e3cc40` |
+| `postcss` | Path traversal through a previous source map (≤ 8.5.17) | `c87100b4` |
+| `dompurify` | GHSA-p98j-92pf-mc4p | `f27f9ef6` |
+| `@grpc/grpc-js` | GHSA-m9gg-hp2v-232j | `ca88a27f` |
+| `@babel/core` | CVE-2026-49356 (low) | `0868cc98` |
+| `browserslist` | Advisory on ≤ 4.28.6, through autoprefixer and eslint-config-next | `9c662451` |
+| `electron-to-chromium` | Exact: the `browserslist` floor made this data table float on every install | `ba98aa02` |
+| `websocket-driver` | GHSA-xv26-6w52-cph6 (critical) and GHSA-mp7j-qc5w-4988, through firebase; unreachable at runtime | `37049474` |
+| `js-yaml` | GHSA-5p4m-2wfm-xmqj, then `maxTotalMergeKeys` not bounding time | `c020ec9f`, `65c6f24b` |
+| `nanoid` | GHSA-2v37-7h3g-55p8 | `c020ec9f` |
+| `sharp` | libheif vulnerabilities, reached through `next` | `65c6f24b` |
+| `undici` | Denial of service through unrequested responses (< 7.29.1); through jsdom, tests only | `1dd556e2` |
+| `@humanfs/node` | A recursive copy followed symbolic links | `2910cee2` |
+| `katex` | One KaTeX: `rehype-katex` rendered with 0.16 while the layout served the 0.18 stylesheet; exact because 0.18.11 is deprecated upstream | dependency lot 1 (2026-10-02) |
+| `@ungap/structured-clone` | 1.3.0 is deprecated upstream (« Potential CWE-502 »); production code through react-markdown and the rehype plugins | dependency lot 1 (2026-10-02) |
 
 ---
 

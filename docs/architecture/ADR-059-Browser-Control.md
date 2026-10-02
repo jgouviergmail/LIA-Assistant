@@ -54,6 +54,43 @@ Browser control follows the same connector pattern as Wikipedia:
 - ReAct loop adds latency (~15-60s per task) and token cost (~$0.01-0.03)
 - Global session coordination via Redis prevents OOM on RPi5
 
+## Amendment 2026-10-02 — the engine is Debian's chromium package
+
+**Measured.** Production ran Playwright 1.60's bundled Chromium 148, out of Chrome's
+support since 2026-06-02 — four months of security fixes missing, in the container that
+holds the secrets, with decision 1 above removing Chromium's own sandbox. Raising
+Playwright does not close the gap: Chrome now ships a stable release every two weeks
+(endoflife.date: 153 supported from 2026-09-08 to 2026-09-22) and Playwright every five
+to seven, so the newest Playwright, 1.63, bundled a Chromium already out of support.
+
+**Decision.** The API images install Debian's own `chromium` package (trixie-security,
+amd64 and arm64) without its recommends and declare it through
+`BROWSER_CHROMIUM_EXECUTABLE=/usr/bin/chromium`; `BrowserPool.initialize` passes it to
+Playwright as `executable_path`, and Playwright (1.63) stays the driver. In the
+production image that layer follows the provenance ARGs, which differ at every deploy
+and release, so each build re-resolves the package: the engine is the stable release
+Debian ships at build time, without a Playwright bump — and it ages, like every package
+of the image, until the next build. The packages are signed, where `playwright install`
+fetched an unchecked archive, and the package declares its own libraries, where the
+image kept a hand-written list. Unset (a host run), Playwright starts its bundled build.
+
+**Proven before adopting.** Playwright 1.63 driving Debian's Chromium 154.0.8037.92,
+with the pool's arguments, on amd64 and on the production Raspberry Pi (arm64), in
+throwaway containers: launch, `Accessibility.getFullAXTree` through CDP, click, fill,
+screenshot. The bundled 153 passed the same probe — it works, it is just not supported.
+
+**Consequences.**
+- Playwright is released against its bundled build; it also supports driving Chrome's
+  stable channel, which is where an engine one release ahead of its own stands. That is
+  why the pair was measured (above) rather than assumed, and why a launch the driver
+  cannot make any more is counted (`browser_errors_total{error_type="launch_failed"}`,
+  dashboard 20), the driver it started is stopped rather than left running, and the
+  engine that runs is logged at launch (`browser_pool_initialized chromium=… executable=…`).
+- An empty `BROWSER_CHROMIUM_EXECUTABLE` reads as unset: compose hands an empty `.env`
+  key to the process as an empty string, which would otherwise name a binary "".
+- The sandbox stays off; moving the browser into an isolated container of its own is the
+  next step (dependency programme, decision D7).
+
 ## References
 
 - [BROWSER_CONTROL.md](../technical/BROWSER_CONTROL.md) — Technical documentation

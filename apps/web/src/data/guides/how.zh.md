@@ -115,14 +115,14 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | Pydantic | 2.13.4 | 验证 + 序列化 | `ConfigDict`、`field_validator`、通过 MRO 组合设置 |
 | structlog | 25.5 | 结构化日志 | JSON 输出、自动 PII 过滤、snake_case 事件 |
 | Gemini Embeddings | gemini-embedding-001 | 语义嵌入 | Gemini多语言嵌入（记忆、路由、兴趣、日志）— ADR-069 |
-| Playwright | 1.60 | 浏览器自动化 | Chromium 无头模式、CDP 无障碍树、跨平台 |
+| Playwright | 1.63 | 浏览器自动化 | Chromium 无头模式（Debian 自带的软件包，每次构建镜像时更新）、CDP 无障碍树、跨平台 |
 | APScheduler | 3.x | 后台任务 | Cron/间隔触发器、兼容 Redis 领导者选举 |
 
 ### 2.2. 前端
 
 | 技术 | 版本 | 角色 |
 |------|------|------|
-| Next.js | 16.3.6 | App Router、SSR、ISR |
+| Next.js | 16.3.8 | App Router、SSR、ISR |
 | React | 19.2.7 | UI（含 Server Components） |
 | TypeScript | 6.0.3 | 严格类型 |
 | TailwindCSS | 4.3.3 | 实用优先 CSS |

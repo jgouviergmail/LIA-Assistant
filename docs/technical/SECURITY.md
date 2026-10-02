@@ -2719,6 +2719,11 @@ cd apps/web && pnpm audit --audit-level=high
 ### Sandbox and Isolation
 - Chromium runs with `--no-sandbox` (required in Docker — no user namespaces available)
 - Isolation is provided by the Docker container itself
+- With no sandbox, the engine's patch level is the barrier between a page and the API
+  container: the images run Debian's `chromium` package, re-resolved at every build
+  (ADR-059 amendment 2026-10-02), never a Chromium frozen in a Playwright release —
+  Chrome ships every two weeks, and production ran a build four months out of support
+  until this change
 - Each user gets a separate `BrowserContext` (isolated cookies, storage, cache)
 
 ### SSRF Prevention

@@ -17,7 +17,7 @@ Reference: docs/technical/BROWSER_CONTROL.md
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
@@ -39,6 +39,23 @@ class BrowserSettings(BaseSettings):
             "Deployment ceiling for the browser agent. Independent of whether "
             "Playwright is installed: this flag lets an operator switch page "
             "browsing off on an instance that could technically do it."
+        ),
+    )
+
+    # ========================================================================
+    # Engine
+    # ========================================================================
+
+    browser_chromium_executable: str | None = Field(
+        default=None,
+        description=(
+            "Chromium binary the browser pool launches. The API images set it to "
+            "Debian's own chromium package (/usr/bin/chromium): signed, and refreshed "
+            "at every image build, so the engine is the stable release Debian ships at "
+            "build time rather than the one a Playwright version froze (ADR-059 "
+            "amendment 2026-10-02). "
+            "Unset — or empty — Playwright starts its bundled build, which only a host "
+            "run has (`playwright install chromium`)."
         ),
     )
 
@@ -258,3 +275,21 @@ class BrowserSettings(BaseSettings):
         le=1800,
         description="Rate limit window (seconds) for expensive tools.",
     )
+
+    @field_validator("browser_chromium_executable", mode="before")
+    @classmethod
+    def _blank_executable_is_unset(cls, value: object) -> object:
+        """Read an empty value as « not set ».
+
+        Compose hands an empty ``.env`` key to the process as an empty string,
+        never as an absent variable; passed on, it would name a binary "".
+
+        Args:
+            value: The raw value, from the environment or a keyword.
+
+        Returns:
+            The stripped path, or None when nothing is left of it.
+        """
+        if isinstance(value, str):
+            return value.strip() or None
+        return value

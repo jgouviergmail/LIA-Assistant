@@ -430,7 +430,7 @@ Cleanup:
 
 ### Protocol Revisions & SDK (ADR-223)
 
-LIA runs the **MCP Python SDK v2** (`mcp>=2.0.0`) as a **dual-era client**
+LIA runs the **MCP Python SDK v2** (`mcp>=2.2.0`) as a **dual-era client**
 (`Client` with its default `mode="auto"`):
 
 - **Modern era**: protocol revision **2026-07-28** (stateless MCP — no
@@ -452,6 +452,16 @@ Supporting mechanics:
   (`unwrap_exception_group`); a server rejecting every revision LIA speaks
   surfaces as `MCPModernOnlyServerError` with an actionable message
   instead of a raw transport error.
+- A redirect is followed only within the endpoint's origin and only when it
+  keeps the request method (a 307/308 for a POST, any status for the GET
+  stream): the SDK does it itself since 2.2 and never reads the client's
+  `follow_redirects`, which LIA sets to `False` to state the same policy. A
+  server whose endpoint redirects to another origin fails with « Redirect to …
+  not followed »: register its final URL. A tool's `outputSchema` is validated
+  without fetching any remote `$ref` (GHSA-rwrf-2pqf-9j8j); an in-document
+  `$defs` reference still resolves. Both are held by
+  `apps/api/tests/unit/infrastructure/mcp/test_user_pool_untrusted_server.py`,
+  against real loopback servers.
 
 The OAuth 2.1 flow follows the 2026-07-28 authorization requirements:
 `iss` validation against the recorded issuer (RFC 9207), client credentials

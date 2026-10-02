@@ -41,7 +41,7 @@ class SandboxLibrary:
 
     Attributes:
         import_name: What the script writes after ``import``.
-        distribution: The PyPI name pinned in ``requirements.txt``.
+        distribution: The PyPI name pinned in ``requirements-sandbox.txt``.
         use: One word or two on what it is for (rendered nowhere yet — kept
             with the declaration so a reviewer can refuse a library nobody
             can name a use for).

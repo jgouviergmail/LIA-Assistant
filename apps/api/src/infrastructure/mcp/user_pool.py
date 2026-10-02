@@ -95,7 +95,10 @@ async def _ephemeral_client(
     revision 2026-07-28 and falls back to the legacy ``initialize`` handshake
     for pre-2026 servers. The httpx2 client mirrors the SDK's recommended MCP
     defaults (short connect/write/pool, long read for SSE streams) and carries
-    the per-server auth; it is owned here and closed with the scope.
+    the per-server auth; it is owned here and closed with the scope. It
+    follows no redirect itself: the SDK (2.2+) follows one only while it stays
+    on the endpoint's origin and keeps the method, and never reads this
+    setting — ``follow_redirects=False`` states that same policy.
 
     ``extra_headers`` are the fixed non-secret headers a plugin's mcp.json
     declares (agent-plugins.org §7.2.1, ADR-225) applied as client default
@@ -105,7 +108,7 @@ async def _ephemeral_client(
     async with AsyncExitStack() as stack:
         http_client = await stack.enter_async_context(
             httpx2.AsyncClient(
-                follow_redirects=True,
+                follow_redirects=False,
                 timeout=httpx2.Timeout(
                     MCP_HTTP_TIMEOUT_SECONDS, read=MCP_HTTP_READ_TIMEOUT_SECONDS
                 ),

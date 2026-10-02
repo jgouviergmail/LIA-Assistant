@@ -31,7 +31,8 @@ Architecture:
     fetch_web_page_tool (@tool)
         ├── validate_url()              → SSRF prevention (async DNS), every hop
         ├── web_risk_gate()             → Google Web Risk screening (lot D, fail-open)
-        ├── pinned_stream()             → HTTP fetch on the validated address (header checks pre-download; body read in full)
+        ├── pinned_stream()             → HTTP fetch on the validated address (header checks pre-download)
+        ├── read_bounded()              → Body counted WHILE decoded, under WEB_FETCH_MAX_CONTENT_LENGTH
         ├── readability.Document()      → Content extraction (article mode)
         ├── markdownify.markdownify()   → HTML → Markdown
         ├── _sanitize_markdown()        → Strip dangerous URIs
@@ -99,6 +100,11 @@ from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
     agent_tool_invocations,
 )
+from src.infrastructure.utils.bounded_read import (
+    BodyTooLargeError,
+    UnsupportedEncodingError,
+    read_bounded,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -151,6 +157,17 @@ _REMOVABLE_TAGS_PATTERN = re.compile(
     r"<(script|style|noscript|iframe|svg)[^>]*/?>",
     re.IGNORECASE,
 )
+# A header value the server chose, quoted in a failure message the model reads —
+# which is not wrapped as external content: only a short token passes.
+_HEADER_TOKEN_PATTERN = re.compile(r"[a-z0-9][a-z0-9!#$&^_.+/,-]{0,63}")
+
+
+def _header_token(value: str) -> str:
+    """``value``'s first token (a media type, a list of codings), or a neutral word."""
+    token = value.split(";", 1)[0].strip().lower()
+    if not token:
+        return "none"
+    return token if _HEADER_TOKEN_PATTERN.fullmatch(token) else "unreadable"
 
 
 def _extract_language(html: str) -> str | None:
@@ -285,9 +302,14 @@ class _NotHtml(Exception):
 
 
 class _TooLarge(Exception):
-    """The final hop's body is past the size ceiling."""
+    """The final hop's body is past the size ceiling.
 
-    def __init__(self, size: int) -> None:
+    Attributes:
+        size: The size the server declared, or None when the body itself ran
+            past the ceiling while it was read (its full size is never learned).
+    """
+
+    def __init__(self, size: int | None) -> None:
         super().__init__(size)
         self.size = size
 
@@ -316,6 +338,8 @@ async def _read_html_following_redirects(
 
     Raises:
         _NotHtml, _TooLarge, _TooManyRedirects: the refusals the caller names.
+        httpx.DecodingError: the body is in a coding the bounded reader refuses
+            (``UnsupportedEncodingError``), corrupt, or cut short.
         httpx.HTTPStatusError, httpx.HTTPError: as the client raises them.
     """
     current = verdict
@@ -344,7 +368,9 @@ async def _read_html_following_redirects(
             if not any(ct in content_type for ct in ("text/html", "application/xhtml")):
                 raise _NotHtml(content_type)
 
-            # Check Content-Length if available
+            # A declared size past the ceiling is refused before a byte is read.
+            # It is the size ON THE WIRE: a compressed body that inflates past
+            # the ceiling is stopped by the bounded read below.
             content_length_header = response.headers.get("content-length")
             if content_length_header:
                 # Invalid Content-Length header, proceed with download
@@ -353,13 +379,34 @@ async def _read_html_following_redirects(
                     if declared_length > WEB_FETCH_MAX_CONTENT_LENGTH:
                         raise _TooLarge(declared_length)
 
-            # Read the WHOLE body into memory (headers were validated
-            # pre-download; actual size is enforced after the read)
-            await response.aread()
-            body_bytes = response.content
-            if len(body_bytes) > WEB_FETCH_MAX_CONTENT_LENGTH:
-                raise _TooLarge(len(body_bytes))
-            return response.text, current.url
+            # The body is counted WHILE it is decoded (F2): read in full first,
+            # a 64 KiB gzip body inflated to 64 MiB before anyone measured it.
+            # A refused body is logged by its host: a bomb looks like this.
+            try:
+                body = await read_bounded(response, WEB_FETCH_MAX_CONTENT_LENGTH)
+            except BodyTooLargeError:
+                logger.warning(
+                    "web_fetch_body_refused",
+                    reason="too_large",
+                    url_host=url_host(current.url),
+                    user_id=user_id[:8],
+                )
+                raise _TooLarge(None) from None
+            except httpx.DecodingError as refusal:
+                logger.warning(
+                    "web_fetch_body_refused",
+                    reason=(
+                        "unsupported_encoding"
+                        if isinstance(refusal, UnsupportedEncodingError)
+                        else "undecodable"
+                    ),
+                    url_host=url_host(current.url),
+                    user_id=user_id[:8],
+                )
+                raise
+            # What ``response.text`` did: the declared charset when it is a
+            # known one, else UTF-8, undecodable bytes replaced.
+            return body.decode(response.encoding or "utf-8", errors="replace"), current.url
     raise _TooManyRedirects
 
 
@@ -480,7 +527,7 @@ async def fetch_web_page_tool(
         return blocked_output
 
     # 6. Fetch page: stream() lets us check headers BEFORE downloading the
-    # body, but the body itself is then read in full (no incremental cap).
+    # body, which is then read under its ceiling while it is decoded.
     # Redirects are walked HERE (ADR-326): each hop is validated before it is
     # contacted and requested on the address the check saw; the client itself
     # follows nothing.
@@ -500,20 +547,38 @@ async def fetch_web_page_tool(
                 )
     except _NotHtml as refusal:
         return UnifiedToolOutput.failure(
-            message=f"Not an HTML page (content-type: {refusal.content_type})",
+            message=f"Not an HTML page (content-type: {_header_token(refusal.content_type)})",
             error_code="INVALID_RESPONSE_FORMAT",
         )
     except _TooLarge as refusal:
+        size = (
+            f"more than {WEB_FETCH_MAX_CONTENT_LENGTH:,} bytes"
+            if refusal.size is None
+            else f"{refusal.size:,} bytes, max {WEB_FETCH_MAX_CONTENT_LENGTH:,}"
+        )
         return UnifiedToolOutput.failure(
-            message=(
-                f"Page too large ({refusal.size:,} bytes, max {WEB_FETCH_MAX_CONTENT_LENGTH:,})"
-            ),
+            message=f"Page too large ({size})",
             error_code="CONSTRAINT_VIOLATION",
         )
     except _TooManyRedirects:
         return UnifiedToolOutput.failure(
             message=f"Too many redirects (more than {WEB_FETCH_MAX_REDIRECTS})",
             error_code="INVALID_INPUT",
+        )
+    except UnsupportedEncodingError as refusal:
+        # Never offered (pinned_stream offers what the reader decodes): the
+        # server answered in a coding nobody asked for.
+        return UnifiedToolOutput.failure(
+            message=(
+                "The page uses a content encoding that is not read "
+                f"({_header_token(refusal.encoding)})"
+            ),
+            error_code="INVALID_RESPONSE_FORMAT",
+        )
+    except httpx.DecodingError:
+        return UnifiedToolOutput.failure(
+            message="The page's compressed body is corrupt or incomplete",
+            error_code="INVALID_RESPONSE_FORMAT",
         )
     except httpx.TimeoutException:
         return UnifiedToolOutput.failure(

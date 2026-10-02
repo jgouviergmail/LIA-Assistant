@@ -34,6 +34,8 @@ from urllib.parse import urlparse
 import httpx
 import structlog
 
+from src.infrastructure.utils.bounded_read import ACCEPT_ENCODING_HEADER
+
 logger = structlog.get_logger(__name__)
 
 # ============================================================================
@@ -351,7 +353,10 @@ def pinned_stream(
         verdict: A valid verdict of :func:`validate_url`.
         headers: The caller's headers. The pinning ``Host`` wins over any
             ``host`` they carry, whatever its case: a request that could be
-            unpinned by a header would not be pinned.
+            unpinned by a header would not be pinned. Without an
+            ``Accept-Encoding`` of theirs, the request offers exactly the
+            codings ``read_bounded`` decodes under its ceiling — never the
+            client's default, which grows with whatever decoder is installed.
         timeout: The request timeout, the client's when None.
 
     Returns:
@@ -359,6 +364,8 @@ def pinned_stream(
     """
     url, pin_headers, extensions = pinned_request_parts(verdict)
     caller_headers = {k: v for k, v in (headers or {}).items() if k.lower() != "host"}
+    if not any(name.lower() == "accept-encoding" for name in caller_headers):
+        caller_headers["Accept-Encoding"] = ACCEPT_ENCODING_HEADER
     request_kwargs: dict[str, Any] = {
         "headers": {**caller_headers, **pin_headers},
         "extensions": extensions,

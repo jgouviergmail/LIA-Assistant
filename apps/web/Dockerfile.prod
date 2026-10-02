@@ -2,7 +2,7 @@
 # Handles pnpm symlinks correctly for standalone mode
 
 FROM node:24-alpine AS base
-RUN corepack enable && corepack prepare pnpm@10.18.3 --activate
+RUN corepack enable && corepack prepare pnpm@10.34.6 --activate
 
 # ============================================================================
 # Stage 1: Install dependencies

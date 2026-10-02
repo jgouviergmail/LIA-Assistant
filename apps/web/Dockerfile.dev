@@ -8,7 +8,7 @@
 FROM node:24-alpine
 
 # Install pnpm and su-exec for user switching
-RUN corepack enable && corepack prepare pnpm@10.18.3 --activate && \
+RUN corepack enable && corepack prepare pnpm@10.34.6 --activate && \
     apk add --no-cache su-exec libc6-compat
 
 # Set up pnpm environment for BuildKit cache

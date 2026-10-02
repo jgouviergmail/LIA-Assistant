@@ -21,7 +21,7 @@ import { join } from 'node:path';
  * would let a silent upgrade change the answer without changing the evidence.
  * Bumping it is a deliberate act that must be followed by a fresh run.
  */
-export const CAPACITOR_VERSION = '8.5.0';
+export const CAPACITOR_VERSION = '8.5.2';
 
 /** Application id of the throwaway shell. */
 export const APP_ID = 'com.lia.webviewprobe';

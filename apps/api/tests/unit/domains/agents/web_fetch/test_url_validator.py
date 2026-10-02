@@ -28,6 +28,7 @@ from src.domains.agents.web_fetch.url_validator import (
     pinned_stream,
     validate_url,
 )
+from src.infrastructure.utils.bounded_read import ACCEPT_ENCODING_HEADER
 
 # ============================================================================
 # FIXTURES
@@ -465,3 +466,35 @@ class TestPinnedRequest:
             async with pinned_stream(client, "GET", verdict) as response:
                 assert response.status_code == 302
         assert hops == ["https://93.184.216.34/page"]
+
+    @pytest.mark.parametrize(
+        ("caller_headers", "offered"),
+        [
+            # The bounded reader refuses any other coding: never invite one.
+            (None, ACCEPT_ENCODING_HEADER),
+            # A caller that asks for something precise keeps it.
+            ({"accept-encoding": "identity"}, "identity"),
+        ],
+        ids=["offers what the reader decodes", "keeps the caller's choice"],
+    )
+    async def test_the_codings_offered_are_the_ones_the_reader_decodes(
+        self, caller_headers: dict[str, str] | None, offered: str
+    ):
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return httpx.Response(200, content=b"ok")
+
+        verdict = UrlValidationResult(
+            valid=True, url="https://example.com/page", resolved_ips=("93.184.216.34",)
+        )
+        # The client advertises brotli, as httpx does the day the package is installed.
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            headers={"accept-encoding": "gzip, deflate, br, zstd"},
+        ) as client:
+            async with pinned_stream(client, "GET", verdict, headers=caller_headers):
+                pass
+        (request,) = seen
+        assert request.headers.get_list("accept-encoding") == [offered]

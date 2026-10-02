@@ -168,9 +168,13 @@ COPY --from=geoip-downloader /data/geoip /data/geoip
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-# Install Playwright Chromium browser (F7 — Browser Control)
-# playwright install downloads the browser binary + system deps
-RUN playwright install --with-deps chromium
+# The browser tool's engine (F7): Debian's own chromium, as in the production
+# image (ADR-059 amendment 2026-10-02) — signed, on every architecture, and it
+# declares its own libraries. Playwright launches it through
+# BROWSER_CHROMIUM_EXECUTABLE.
+RUN apt-get update && apt-get install -y --no-install-recommends chromium \
+    && rm -rf /var/lib/apt/lists/*
+ENV BROWSER_CHROMIUM_EXECUTABLE=/usr/bin/chromium
 
 # Copy application code
 COPY . .

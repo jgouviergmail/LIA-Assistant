@@ -31,6 +31,7 @@ from src.infrastructure.browser.models import BrowserSessionInfo
 from src.infrastructure.browser.security import BrowserSecurityPolicy
 from src.infrastructure.observability.log_facts import url_host
 from src.infrastructure.observability.metrics_browser import (
+    browser_errors_total,
     browser_memory_bytes,
     browser_sessions_active,
 )
@@ -44,11 +45,12 @@ logger = structlog.get_logger(__name__)
 _browser_pool: BrowserPool | None = None
 
 
-async def get_browser_pool() -> BrowserPool | None:
-    """Return the browser pool singleton, or None if not initialized.
+async def get_browser_pool() -> BrowserPool:
+    """Return the browser pool singleton, created and launched on the first call.
 
     Returns:
-        BrowserPool instance if initialized and healthy, None otherwise.
+        The pool. A launch that failed leaves it unhealthy — every session
+        acquisition then refuses — until the process restarts.
     """
     global _browser_pool
     if _browser_pool is None:
@@ -99,11 +101,16 @@ class BrowserPool:
         return self._healthy
 
     async def initialize(self) -> None:
-        """Initialize Playwright and launch Chromium.
+        """Start Playwright and launch the Chromium the deployment declares.
 
-        If Chromium binary is not available, logs a warning and sets
-        is_healthy=False (does not crash).
+        ``browser_chromium_executable`` names the binary — the images' Debian
+        package (ADR-059 amendment 2026-10-02); unset, Playwright starts its
+        bundled build. A launch that fails never crashes the caller: it stops
+        the driver it started, is counted on the browser dashboard
+        (``browser_errors_total{error_type="launch_failed"}``) and leaves the
+        pool unhealthy.
         """
+        executable = settings.browser_chromium_executable
         try:
             # Lazy import — Playwright may not be installed
             from playwright.async_api import async_playwright
@@ -111,10 +118,11 @@ class BrowserPool:
             self._playwright = await async_playwright().start()
             self._browser = await self._playwright.chromium.launch(
                 headless=True,
+                executable_path=executable,
                 args=[
                     "--disable-gpu",
                     "--disable-dev-shm-usage",
-                    "--no-sandbox",  # Required in Docker (see ADR-056)
+                    "--no-sandbox",  # Docker gives Chromium no user namespace (ADR-059)
                     "--disable-extensions",
                     # Anti-detection: reduce headless browser fingerprint
                     "--disable-blink-features=AutomationControlled",
@@ -123,14 +131,37 @@ class BrowserPool:
                 ],
             )
             self._healthy = True
-            logger.info("browser_pool_initialized", pid=self._pid)
+            logger.info(
+                "browser_pool_initialized",
+                pid=self._pid,
+                chromium=self._browser.version,
+                executable=executable or "bundled",
+            )
         except Exception as e:
             self._healthy = False
+            await self._stop_driver()
+            browser_errors_total.labels(error_type="launch_failed").inc()
             logger.warning(
                 "browser_pool_initialization_failed",
                 error=str(e),
                 pid=self._pid,
+                executable=executable or "bundled",
             )
+
+    async def _stop_driver(self) -> None:
+        """Stop the Playwright driver a failed launch started.
+
+        Its process would otherwise live as long as the worker, serving nothing.
+        """
+        if self._playwright is None:
+            return
+        try:
+            await self._playwright.stop()
+        except Exception as stop_error:
+            # The launch failure is the signal already logged; a stop that fails
+            # too must not mask it.
+            logger.debug("browser_driver_stop_failed", error_type=type(stop_error).__name__)
+        self._playwright = None
 
     async def acquire_session(
         self,

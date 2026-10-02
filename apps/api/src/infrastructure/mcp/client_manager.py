@@ -223,9 +223,11 @@ class MCPClientManager:
             elif config.transport == MCPTransportType.STREAMABLE_HTTP:
                 # The httpx2 client carries headers and mirrors the SDK's
                 # recommended MCP timeouts; owned by this server's exit stack.
+                # It follows no redirect itself: the SDK (2.2+) follows one
+                # only within the endpoint's origin and never reads this setting.
                 http_client = await exit_stack.enter_async_context(
                     httpx2.AsyncClient(
-                        follow_redirects=True,
+                        follow_redirects=False,
                         timeout=httpx2.Timeout(
                             MCP_HTTP_TIMEOUT_SECONDS, read=MCP_HTTP_READ_TIMEOUT_SECONDS
                         ),

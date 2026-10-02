@@ -39,6 +39,24 @@ Response Node → synthesizes final answer for user
 | browser_snapshot_tool | `src/domains/agents/tools/browser_tools.py` | Get AX tree with [EN] refs for interaction |
 | browser_click/fill/press_key | `src/domains/agents/tools/browser_tools.py` | Element interaction tools |
 
+### Engine
+
+Playwright is the driver; the browser it launches is the one the deployment declares
+in `BROWSER_CHROMIUM_EXECUTABLE` ([ADR-059 amendment 2026-10-02](../architecture/ADR-059-Browser-Control.md)).
+The API images install Debian's own `chromium` package and set it to
+`/usr/bin/chromium`: a signed package on amd64 and arm64, re-resolved at every
+production build because its layer follows the provenance ARGs — so the engine is the
+stable release Debian ships at build time, which a version bundled in a Playwright
+release stops being within weeks (Chrome ships every two weeks). It is as fresh as the
+last image build: a deployment that is weeks old runs a weeks-old engine until the next
+build. Unset or empty, Playwright starts its own bundled build, which only a host run
+installs (`playwright install chromium`).
+
+The engine that runs is logged at launch (`browser_pool_initialized`, with `chromium`
+and `executable`). A launch that fails leaves the pool unhealthy until the worker
+restarts, stops the Playwright driver it started, and is counted as
+`browser_errors_total{error_type="launch_failed"}` on dashboard 20.
+
 ### Tool Design
 
 - **`browser_task_tool`** (planner-facing): Takes a natural language task, runs

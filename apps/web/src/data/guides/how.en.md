@@ -115,14 +115,14 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Pydantic | 2.13.4 | Validation + serialization | `ConfigDict`, `field_validator`, settings composition via MRO |
 | structlog | 25.5 | Structured logging | JSON output with automatic PII filtering, snake_case events |
 | Gemini Embeddings | gemini-embedding-001 | Semantic embeddings | Gemini multilingual embeddings (memory, routing, interests, journals) — ADR-069 |
-| Playwright | 1.60 | Browser automation | Headless Chromium, CDP accessibility tree, cross-platform |
+| Playwright | 1.63 | Browser automation | Headless Chromium (Debian's own package, refreshed at every image build), CDP accessibility tree, cross-platform |
 | APScheduler | 3.x | Background jobs | Cron/interval triggers, compatible with Redis leader election |
 
 ### 2.2. Frontend
 
 | Technology | Version | Role |
 |------------|---------|------|
-| Next.js | 16.3.6 | App Router, SSR, ISR |
+| Next.js | 16.3.8 | App Router, SSR, ISR |
 | React | 19.2.7 | UI with Server Components |
 | TypeScript | 6.0.3 | Strict typing |
 | TailwindCSS | 4.3.3 | Utility-first CSS |

@@ -214,13 +214,11 @@ async def _get_session(
         Tuple of (pool, session) or raises ValueError.
 
     Raises:
-        ValueError: If browser disabled, pool unhealthy, or session limit reached.
+        ValueError: If the pool is unhealthy or the session limit is reached.
     """
     from src.infrastructure.browser.pool import get_browser_pool
 
     pool = await get_browser_pool()
-    if pool is None:
-        raise ValueError("Browser not enabled")
 
     # The browser's locale and timezone come from the typed context (ADR-231);
     # without one, the declared language (ADR-323).

@@ -57,11 +57,15 @@ URL utilisateur
     |
     v
 +-------------------+
-| pinned_stream()   |  Fetch HTTP streaming sur l'IP validee (timeout 15s,
-|                   |  max 500KB), nom dans Host + SNI, follow_redirects=False
+| pinned_stream()   |  Fetch HTTP streaming sur l'IP validee (timeout 15s),
+|                   |  nom dans Host + SNI, follow_redirects=False
 +-------------------+
     |  3xx ? --> validate_url(Location) --> saut suivant (max 5)
     v
++-------------------+
+| read_bounded()    |  Corps decode (gzip, deflate, zstd) et compte PENDANT
+|                   |  la decompression, sous WEB_FETCH_MAX_CONTENT_LENGTH
++-------------------+
     |
     v
 +-------------------+
@@ -155,6 +159,10 @@ Le hostname est resolu via `socket.getaddrinfo()` (execute dans `asyncio.to_thre
 
 Le client ne suit jamais les redirections de lui-meme (`follow_redirects=False`). `_read_html_following_redirects()` (`web_fetch_tools.py`) lit la `Location`, la valide par `validate_url()` **avant** tout contact, puis ouvre le saut suivant de la meme facon, au plus `WEB_FETCH_MAX_REDIRECTS` fois ; un saut refuse arrete la lecture (`ssrf_redirect_blocked`) et le contenu est attribue a la derniere URL validee. L'ancienne re-validation de l'URL finale (`validate_resolved_url()`) est supprimee : elle refusait apres coup une chaine qui avait deja contacte les sauts intermediaires. Le collecteur de la radio et l'import de skills par URL passent par la meme porte.
 
+### Lecture bornee du corps (ADR-326, amendement 2026-10-02)
+
+Le corps n'est jamais lu par `aread()` : httpx decompresse un morceau brut entier avant que quiconque puisse le compter (mesure : une page gzip de 64 Ko occupait 128 Mo sous le plafond de 2 Mo). `read_bounded()` (`infrastructure/utils/bounded_read.py`) lit les octets BRUTS et les decode lui-meme, sans jamais produire plus que ce qui reste du plafond `WEB_FETCH_MAX_CONTENT_LENGTH` (compte en octets DECODES). Il decode exactement ce que httpx annonce dans l'image (gzip, deflate, zstd ; `x-gzip` lu comme gzip, comme le demande la RFC 9110 ; un test tient les deux listes egales) et `pinned_stream()` envoie cette liste en `Accept-Encoding`. Un autre codage, ou deux empiles, est refuse avant tout decodage ; un corps compresse corrompu ou coupe avant la fin de son flux est refuse plutot que montre tronque ; ce qui suit la fin d'un flux gzip/deflate n'est plus lu. Chaque refus est journalise par son hote (`web_fetch_body_refused`, `reason` = `too_large`, `unsupported_encoding` ou `undecodable`). Une valeur d'en-tete choisie par le serveur n'entre dans un message d'echec que reduite a un jeton court (un type de media, une liste de codages) : un message d'echec n'est pas encadre comme contenu externe. Le garde `test_pinned_stream_bounded_read_guard.py` refuse toute lecture httpx d'une reponse de `pinned_stream()`.
+
 ### Blacklist de hostnames
 
 | Hostname / Suffixe | Raison |
@@ -188,7 +196,7 @@ Le client ne suit jamais les redirections de lui-meme (`follow_redirects=False`)
 
 | Constante | Valeur | Description |
 |-----------|--------|-------------|
-| `WEB_FETCH_MAX_CONTENT_LENGTH` | `500 000` | Taille max reponse HTTP (octets) |
+| `WEB_FETCH_MAX_CONTENT_LENGTH` | `2 000 000` | Taille max du corps DECODE (octets), comptee pendant la decompression |
 | `WEB_FETCH_MAX_OUTPUT_LENGTH` | `30 000` | Taille max sortie Markdown (caracteres) |
 | `WEB_FETCH_MIN_OUTPUT_LENGTH` | `1 000` | Taille min du parametre `max_length` |
 | `WEB_FETCH_TIMEOUT_SECONDS` | `15` | Timeout requete httpx (secondes) |
@@ -377,8 +385,8 @@ async def fetch_web_page_tool(
 | `INVALID_INPUT` | URL rejetee (SSRF), redirection bloquee |
 | `TIMEOUT` | Requete expiree apres 15 secondes |
 | `NOT_FOUND` | Page inexistante (HTTP 404) |
-| `CONSTRAINT_VIOLATION` | Page trop volumineuse (> 500 KB) |
-| `INVALID_RESPONSE_FORMAT` | Contenu non-HTML, erreur d'extraction |
+| `CONSTRAINT_VIOLATION` | Page trop volumineuse (au-dela de `WEB_FETCH_MAX_CONTENT_LENGTH` octets decodes) |
+| `INVALID_RESPONSE_FORMAT` | Contenu non-HTML, erreur d'extraction, codage non lu, corps compresse corrompu ou tronque |
 | `EXTERNAL_API_ERROR` | Erreur reseau / HTTP (hors 404) |
 
 ### Rate Limiting
@@ -408,6 +416,8 @@ Ces dependances sont declarees dans `apps/api/requirements.txt` et `apps/api/pyp
 |---------|------------|
 | `apps/api/tests/unit/domains/agents/tools/test_web_fetch_tools.py` | Helpers, outil complet (mock httpx), redirections validees saut par saut, connexion epinglee |
 | `apps/api/tests/unit/domains/agents/web_fetch/test_url_validator.py` | Validation URL, plages IP, IPv4-mapped IPv6, DNS, hostnames |
+| `apps/api/tests/unit/infrastructure/utils/test_bounded_read.py` | Lecture bornee : bombes gzip et zstd (allocation mesuree), plafond exact, codages acceptes et refuses, flux tronque ou corrompu, octets apres la fin du flux |
+| `apps/api/tests/unit/test_pinned_stream_bounded_read_guard.py` | Garde AST : aucune lecture httpx d'une reponse de `pinned_stream()` |
 
 ### Cas testes (url_validator)
 
@@ -431,6 +441,7 @@ Ces dependances sont declarees dans `apps/api/requirements.txt` et `apps/api/pyp
 - Content-Type case-insensitive
 - Invocation complete avec mock httpx (succes, timeout, 404, non-HTML, trop volumineux)
 - Redirection interne refusee avant tout contact, chaine trop longue, rebinding DNS
+- Corps compresses servis en flux : page decodee, bombe refusee (pic memoire borne), codage `br` refuse par son nom, page tronquee refusee, `Accept-Encoding` envoye, valeurs d'en-tete hostiles tenues hors des messages
 - Validation format `UnifiedToolOutput` et `RegistryItem`
 
 ### Execution

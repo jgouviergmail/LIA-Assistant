@@ -33,7 +33,7 @@ pydantic-settings==2.14.2  # GHSA-4xgf-cpjx-pc3j fix
 pyyaml>=6.0.3  # YAML parsing for SKILL.md files (agentskills.io standard). >=6.0.3: security floor
 email-validator==2.3.0
 python-dateutil==2.9.0.post0  # Date utilities for billing cycle calculations
-tzdata==2026.2  # IANA timezone database for Windows/Python 3.9+
+tzdata==2026.4  # IANA timezone database for Windows/Python 3.9+
 
 # Authentication & Security
 python-jose[cryptography]==3.5.0  # CVE-2024-33663 fix (algorithm confusion)
@@ -136,15 +136,14 @@ ollama==0.6.2  # Ollama SDK, floor >=0.6.1 required by langchain-ollama 1.1.0 (n
 anthropic==0.122.0  # Anthropic SDK, floor >=0.120 required by langchain-anthropic 1.5.6 (no direct SDK import in src/)
 
 # MCP (Model Context Protocol) — evolution F2
-mcp>=2.0.0,<2.1.0  # SDK v2: speaks MCP 2026-07-28 (stateless) AND falls back to the legacy initialize handshake (mode="auto", dual-era — proven against a 1.28.1 server). v2 transports run on httpx2; client API is Client (ClientSession retired). <2.1.0: brand-new major, pin the minor and widen deliberately.
+mcp>=2.2.0,<2.3.0  # SDK v2: speaks MCP 2026-07-28 (stateless) AND falls back to the legacy initialize handshake (mode="auto", dual-era — proven against a 1.28.1 server on 2.0 and again on 2.2). v2 transports run on httpx2; client API is Client (ClientSession retired). >=2.2.0 is a SECURITY floor: 2.0 and 2.1 fetched a tool outputSchema's remote $ref while validating its result (GHSA-rwrf-2pqf-9j8j) and followed a redirect to any origin; 2.2 resolves no remote reference and follows a redirect only within the endpoint's origin. <2.3.0: pin the minor and widen deliberately.
 httpx2>=2.12.0  # 2.12.0 is a SECURITY floor, not a preference: 2.10.0 carries CVE-2026-84379 (CRLF injection into multipart part headers), CVE-2026-84380 (Content-Length beside a caller Transfer-Encoding — a request-smuggling primitive) and CVE-2026-84382 (a 64 KiB compressed read inflating to ~64 MiB in one allocation). httpx 2.x line under its new import name — required by mcp v2 transports; LIA's MCP auth classes subclass httpx2.Auth. Coexists with httpx 0.x (distinct package).
 
 # Browser Automation — Interactive web browsing (evolution F7)
-playwright==1.60.0  # Headless Chromium for web interaction via accessibility tree
+playwright==1.63.0  # Drives Chromium through the accessibility tree (evolution F7, ADR-059). The images launch Debian's own chromium package (BROWSER_CHROMIUM_EXECUTABLE), signed and refreshed at every image build; this version's bundled build (Chromium 153, already past Chrome's two-week support window) serves a host run only.
 
 # Push Notifications
 firebase-admin==7.4.0  # Firebase Cloud Messaging for push notifications
-pytz==2026.2  # Timezone handling for reminders
 
 # Channels — Multi-Channel Messaging (evolution F3)
 python-telegram-bot>=21.0  # Telegram Bot API (async, v21+)

@@ -20,8 +20,10 @@ easy to satisfy wrongly:
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from src.core.constants import PROFILE_IMAGE_MAX_BYTES, PROFILE_IMAGE_MAX_REDIRECTS
@@ -38,46 +40,50 @@ def _make_user() -> MagicMock:
     return user
 
 
+class _Body(httpx.AsyncByteStream):
+    """A body as the network delivers it: chunk by chunk, read by nobody yet."""
+
+    def __init__(self, chunks: list[bytes]) -> None:
+        self._chunks = chunks
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        for chunk in self._chunks:
+            yield chunk
+
+
 def _make_response(
     *,
-    status_code: int = 200,
+    status_code: int | None = None,
     content: bytes = b"\xff\xd8\xff\xe0JPEG",
     content_type: str = "image/jpeg",
     location: str | None = None,
     chunk_size: int | None = None,
-) -> MagicMock:
-    """Build a mock streaming ``httpx.Response``.
+) -> httpx.Response:
+    """Build a real streaming ``httpx.Response``, its body not yet read.
 
     Args:
-        status_code: HTTP status returned by the upstream.
-        content: Raw body bytes, yielded by ``aiter_bytes``.
+        status_code: HTTP status returned by the upstream — 302 for a redirect,
+            200 otherwise, unless given.
+        content: Raw body bytes, delivered in chunks.
         content_type: ``content-type`` header value.
-        location: When set, the response is a redirect to this target.
+        location: When set, the ``location`` header of a redirect.
         chunk_size: Split the body into chunks of this size (default: one chunk).
 
     Returns:
-        MagicMock response with ``is_redirect``, ``headers`` and ``aiter_bytes``.
+        A response whose headers, status and stream are httpx's own.
     """
-    response = MagicMock()
-    response.status_code = status_code
-    response.is_redirect = location is not None
+    if status_code is None:
+        status_code = 302 if location is not None else 200
     headers = {"content-type": content_type}
     if location is not None:
         headers["location"] = location
-    response.headers = headers
 
     size = chunk_size or max(len(content), 1)
-    chunks = [content[i : i + size] for i in range(0, len(content), size)] or [b""]
-
-    async def _aiter_bytes():
-        for chunk in chunks:
-            yield chunk
-
-    response.aiter_bytes = _aiter_bytes
-    return response
+    chunks = [content[i : i + size] for i in range(0, len(content), size)]
+    return httpx.Response(status_code, headers=headers, stream=_Body(chunks))
 
 
-def _patch_client(*responses: MagicMock) -> tuple[MagicMock, MagicMock]:
+def _patch_client(*responses: httpx.Response) -> tuple[MagicMock, MagicMock]:
     """Patch ``httpx.AsyncClient`` so no network call is ever made.
 
     Args:
@@ -249,10 +255,7 @@ class TestProfileImageProxyRedirectSsrf:
     @pytest.mark.asyncio
     async def test_redirect_without_location_is_refused(self):
         """A 302 with no Location cannot be followed — it is an error, not a loop."""
-        response = _make_response()
-        response.is_redirect = True  # redirect flag without a Location header
-
-        patcher, _ = _patch_client(response)
+        patcher, _ = _patch_client(_make_response(status_code=302))
         with patcher, pytest.raises(ValidationError):
             await proxy_profile_image(url=_ALLOWED_URL, current_user=_make_user())
 

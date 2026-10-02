@@ -274,3 +274,43 @@ decision's `storage_paths` extraction broke on the runner. They patched `setting
 two modules that used to build the path and passed on the author's host, where the real
 storage root exists — a settings read that moves is a census of every test patching the
 module it left.
+
+## Amendment 2026-10-02 — a fetched body is counted while it is decoded
+
+The dependency audit of 2026-09-30 (finding F2) measured what a ceiling counted on DECODED
+bytes is worth: httpx 0.28 inflates a whole raw chunk before any caller can count it.
+Under a 1 MiB ceiling, a 200 MiB bomb of a few hundred kilobytes peaked at 141.8 MiB in
+gzip and 400 MiB in zstd through `read_bounded`; the page-reading tool, which read the page
+whole (`aread`) before checking its size, held 128 MiB for a 64 KiB gzip page under its
+2 MB ceiling. Both paths were live in production.
+
+- **`read_bounded` decodes the raw bytes itself** (`infrastructure/utils/bounded_read.py`)
+  and never asks a decoder for more than what is left of the ceiling, plus one byte: the
+  same bombs now peak at 2.2 MiB and 2.0 MiB. It decodes exactly what httpx advertises in
+  the image — gzip, deflate (zlib-wrapped or raw, as httpx accepts it), zstd (the standard
+  library's `compression.zstd`, every frame), and `x-gzip` as gzip, as RFC 9110 asks — and
+  a test holds the two lists equal, so a decoder installed later (brotli) is a decision, not
+  a refusal of the answers it invited. `pinned_stream` sends that list as `Accept-Encoding`
+  unless its caller set one. What follows the end of a gzip or deflate stream is ignored, as
+  httpx ignores it, and no longer read: the first version held it in the decoder's buffer,
+  so a server that kept sending after the end filled the memory the ceiling was meant to
+  protect (32 MiB measured for 16 MiB of trailing bytes, found by the cold review).
+- **What it cannot bound, it refuses before decoding a byte**: another coding, or two
+  stacked, is `UnsupportedEncodingError` — httpx passed an unknown coding through as if it
+  were the body. A refusal, a corrupt body and a compressed stream cut before its end are
+  all `httpx.DecodingError`, which every one of the seven callers already handled as a
+  transport failure; a cut page is refused rather than shown shorter (ADR-275's rule). A
+  response read already — a test transport building it with `content=` — answers to the
+  ceiling alone.
+- The page-reading tool reads through it, names its refusals (`INVALID_RESPONSE_FORMAT`:
+  the coding it did not read, or a corrupt or incomplete body) and logs each by its host
+  (`web_fetch_body_refused`). A header value the server chose reaches a failure message —
+  which is not wrapped as external content — only as a short token; the `content-type`
+  quote had the same gap. `test_pinned_stream_bounded_read_guard.py` holds the rule for
+  every fetch path: a `pinned_stream` call is entered by `async with … as <name>`, and
+  nothing reads `<name>` through an httpx reader inside the block. Red on the former tool
+  (`aread`, `content`, `text`), green with no allowlist.
+- Proven over a real socket (chunked transfer) in the production image built from the
+  change: a 130 KB gzip bomb and a 4 KB zstd bomb refused in 0.02 s at a 4.7 and 4.0 MiB
+  peak, both pages read whole, a server sending 20 s of bytes after its gzip stream let go
+  of in 0.01 s, `br` refused.

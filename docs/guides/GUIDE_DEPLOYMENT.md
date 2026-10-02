@@ -744,7 +744,7 @@ CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 FROM node:24-alpine AS base
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@10.18.3 --activate
+RUN corepack enable && corepack prepare pnpm@10.34.6 --activate
 
 # ============================================================================
 # Stage 2: Install dependencies
