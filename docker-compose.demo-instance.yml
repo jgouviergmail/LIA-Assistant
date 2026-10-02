@@ -289,7 +289,7 @@ services:
   # inside the private network, and this container is the single place that
   # reaches the smarthost.
   demo-instance-smtp:
-    image: boky/postfix:v4.4.0
+    image: boky/postfix:v5.1.0
     restart: unless-stopped
     environment:
       # The REAL smarthost. ALERTMANAGER_SMTP_SMARTHOST now names this relay
