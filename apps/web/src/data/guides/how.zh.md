@@ -123,10 +123,10 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 技术 | 版本 | 角色 |
 |------|------|------|
 | Next.js | 16.3.8 | App Router、SSR、ISR |
-| React | 19.2.7 | UI（含 Server Components） |
+| React | 19.3.0 | UI（含 Server Components） |
 | TypeScript | 6.0.3 | 严格类型 |
 | TailwindCSS | 4.3.3 | 实用优先 CSS |
-| TanStack Query | 5.101 | 服务端状态管理、缓存、变更 |
+| TanStack Query | 5.x | 服务端状态管理、缓存、变更 |
 | Radix UI | v2 | 无障碍 UI 基元 |
 | react-i18next | 17.0 | i18n（6 种语言），基于命名空间 |
 | Zod | 4.x | 调试模式的运行时验证 |

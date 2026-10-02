@@ -556,8 +556,9 @@ workspace, les deux valeurs divergent, et chaque job faisant
 Constate sur #195 puis #210 (`vite` 8.1.5 cote workspace contre 8.1.3 cote override) — un
 rebase resout le conflit git sans corriger la contradiction. **Conduite a tenir** : rejouer
 le lot en alignant l'override sur la nouvelle version et en **regenerant** le lockfile
-(jamais en le fusionnant). Paquets concernes aujourd'hui : `postcss`, `katex` ; `vite` est
-devenu un plancher (`^8.1.5`) le 2026-10-02, a confirmer au premier passage de Dependabot.
+(jamais en le fusionnant). Paquet concerne aujourd'hui : `katex`. `vite` est devenu au lot 4
+un plancher, aligne sur la declaration du workspace (a confirmer au premier passage de
+Dependabot) ; `postcss` en est sorti au lot 8, son override n'ayant plus de raison.
 
 ### Dependency Vulnerability Remediation (pnpm Overrides)
 
@@ -601,19 +602,17 @@ from the file: rows missing, pins stale).
 
 | Package | Why | Introduced by |
 |---------|-----|---------------|
-| `eslint-config-next>typescript-eslint` | Not recorded — to be documented or removed (lot 8 of the dependency programme) | `79a07125` |
+| `eslint-config-next>typescript-eslint` | A floor for TypeScript 6: typescript-eslint accepts it from 8.58 on (its `typescript` peer range), while eslint-config-next still declares a range that admits older releases — the lockfile held 8.52.0 until v2.0.0. Remove when eslint-config-next's own range starts at 8.58 | `79a07125`, dependency lot 8 (2026-10-02) |
 | `flatted` | Pinned with `picomatch` (four Dependabot alerts) | `d6612921` |
 | `picomatch` | ReDoS through extglob | `d6612921` |
 | `brace-expansion` | Three Dependabot alerts; the patched copy is declared in `patchedDependencies` (ADR-157) | `ad61235b` |
-| `vite` | One vite for the workspace and vitest. A floor (`^8.1.5`) since dependency lot 4: the exact pin collided with every Dependabot bump of the workspace (#195, #210) | `7d1c7cf4`, dependency lot 4 (2026-10-02) |
-| `defu` | Prototype pollution (high) | `aaffe092` |
+| `vite` | One vite for the workspace and vitest. A floor since dependency lot 4, moved with the workspace's own declaration: the exact pin collided with every Dependabot bump of the workspace (#195, #210) | `7d1c7cf4`, dependency lot 4 (2026-10-02) |
 | `protobufjs` | CVE-2026-54269 | `0868cc98` |
 | `uuid` | One copy for the advisories Dependabot reported | `89e3cc40` |
-| `postcss` | Path traversal through a previous source map (≤ 8.5.17) | `c87100b4` |
 | `dompurify` | GHSA-p98j-92pf-mc4p | `f27f9ef6` |
 | `@grpc/grpc-js` | GHSA-m9gg-hp2v-232j | `ca88a27f` |
 | `@babel/core` | CVE-2026-49356 (low) | `0868cc98` |
-| `browserslist` | Advisory on ≤ 4.28.6, through autoprefixer and eslint-config-next | `9c662451` |
+| `browserslist` | Advisory on ≤ 4.28.6, through Babel (the react-hooks plugin of eslint-config-next, the styled-jsx of next) | `9c662451` |
 | `electron-to-chromium` | Exact: the `browserslist` floor made this data table float on every install | `ba98aa02` |
 | `websocket-driver` | GHSA-xv26-6w52-cph6 (critical) and GHSA-mp7j-qc5w-4988, through firebase; unreachable at runtime | `37049474` |
 | `js-yaml` | GHSA-5p4m-2wfm-xmqj, then `maxTotalMergeKeys` not bounding time | `c020ec9f`, `65c6f24b` |

@@ -571,6 +571,50 @@ Two changes, never one: the npm minor-and-patch group, then `task deps:refresh` 
 first Python refresh moves about 76 packages under a 14-day cooldown, four across a major
 (`websockets` 15 → 16 among them); it is read line by line before it is run.
 
+**8a — npm (implemented 2026-10-02).** The group Dependabot would open today, computed package by
+package from the registry's dates under its own cooldown (a patch waits 5 days, a minor 14), each
+target added at its exact version so that no younger release slips in under a caret. Whatever the
+new versions pull in was resolved under pnpm's `minimumReleaseAge` of 5 days, set for the run
+alone, with the deliberate young pins of lots 1 and 4 (`next`, `sharp`, their platform packages)
+excluded by name. Measured on the result: nothing in the lockfile younger than 5 days but those
+pins.
+
+- 34 direct dependencies move — React 19.3.0, the eleven Radix primitives, lucide-react 1.47,
+  zod 4.6, firebase 12.19, mermaid 11.17, vite 8.3.0 — and `eslint-config-next` reaches 16.3.5
+  (16.3.6 and later are younger than a minor's cooldown).
+- Five dependencies nothing ever imported leave, each present since the first public commit:
+  `@tanstack/react-query-devtools` (5.103 declares as runtime dependencies the thirty Solid.js
+  packages its build used to bundle — for a panel nobody mounts), `@headlessui/react`,
+  `react-hook-form`, `autoprefixer` (the PostCSS configuration runs Tailwind alone) and
+  `@hey-api/openapi-ts` with its `generate-api` script, whose input file does not exist. The code
+  generator was what pulled `powershell-utils` 0.1.0 (GHSA-x2gq-3jjh-794h, high): the advisory
+  leaves with it, and so does its acceptance. 49 package names leave the lockfile (1,111 entries
+  before, 1,061 after).
+- `postcss-selector-parser` 6.0.10 stays: `@tailwindcss/typography` pins it exactly, its latest
+  release included, and the fix is 7.1.6, a major it never declared. Its acceptance says so now.
+- The overrides: the `typescript-eslint` pin becomes a floor, its reason found (TypeScript 6 needs
+  8.58; the lockfile held 8.52.0 before v2.0.0); `vite` follows the workspace's declaration;
+  `postcss` goes (`next` 16.3 pins a fixed copy itself) and `defu` goes (it left with the code
+  generator).
+- `@next/next/no-location-assign-relative-destination` stays at its recommended level. Its one
+  finding was the chat stream sending an expired session to `/login?redirect=…` — a parameter
+  nobody reads, a path without the language — where the API client sends it to the localized
+  login. The stream now calls the client's rule (`redirectToLogin`), a full navigation on purpose:
+  there is no router there, and unloading drops what the expired session left in memory.
+- Two tests followed. React 19.3 renders `credentialless` as a boolean attribute, as Next's bundled
+  build already did: presence is the contract, not the value. And a landing-video test read its
+  observers before the effect that creates them had run — 1 run in 12 under load, 0 in 24 once it
+  waits for them. Whether React 19.3 made that race likelier is not measured: the host install of
+  the previous set hung on the bind-mounted `apps/web/node_modules`.
+- Measured: `task lint:frontend` (the new rule active and silent, the three ratchets hold, `tsc`),
+  `task test:frontend:coverage` (834 files, 10,480 tests, thresholds held), the production build
+  (416 pages), and the whole e2e suite — 369 of 369 — through the README's local proof (the bundle
+  built and served inside `lia-web-dev`, the official Playwright image on its network). The dev
+  web container was rebuilt on fresh volumes and its versions read inside. Served from the host
+  through `host.docker.internal`, the same build failed 16 journeys: that origin is not
+  trustworthy to the browser, so passkeys, the microphone and `crypto.randomUUID` are refused —
+  an environment that cannot prove those journeys, not a regression.
+
 ### Lot 9 — migrations with their own plan
 
 FastAPI ≥ 0.137 (one route walker for the 28 modules that read `router.routes`, then the bump);
@@ -593,8 +637,7 @@ allowlist whose `review_by` is 2026-10-01 (`pyproject.toml:291`).
 | KaTeX 0.19 | 0.18.9 (0.18.11 deprecated upstream) | 0.19 older than the cooldown, and `rehype-katex`, `mermaid` and the guard of lot 1 green on it |
 | `multidict` 7 | 6.9.1 | the major older than the cooldown, `aiohttp` declaring it |
 | `@bufbuild/protobuf` 2, through `@elevenlabs/client` | 1.10.1 (two medium advisories, input from the voice vendor's server) | an `@elevenlabs/client` release whose `livekit-client` moves to it; the client is pinned exactly because its protocol was measured |
-| `postcss-selector-parser` 7, `powershell-utils` 0.2 | 6.0.10, 0.1.0 (build and code-generation tools only) | lot 8, with the parents that pull them |
-| `eslint-config-next` 16.3.x | 16.2.10 beside `next` 16.3.8 | lot 8, with a decision on `@next/next/no-location-assign-relative-destination` at `lib/api/chat.ts:546` (a full reload to the login page from a module with no router) |
+| `postcss-selector-parser` 7 | 6.0.10 (a build-time CSS tool on the repository's own stylesheets) | a `@tailwindcss/typography` release that declares 7.x (its latest, 0.5.20, pins 6.0.10 exactly) |
 | The Google media proxies (`connectors/media_proxy_router.py`) and the Drive thumbnail proxy (`connectors/router.py`) | whole-body reads of Google's own images, `follow_redirects=True` | a proxy that serves a host somebody else chose, or an image measured past what a page can show; then `read_bounded` with a ceiling of its own |
 
 ## 7. Impact map and risks

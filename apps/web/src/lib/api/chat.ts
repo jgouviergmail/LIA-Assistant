@@ -4,6 +4,7 @@
  */
 
 import { ChatStreamChunk, ChatRequest } from '@/types/chat';
+import { redirectToLogin } from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { CHAT_SSE_STALL_TIMEOUT_MS } from '@/lib/constants';
 
@@ -540,11 +541,10 @@ export class ChatSSEClient {
     } else if (error instanceof ChatStreamError) {
       // ChatStreamError already has i18n info - pass through
       onError(error);
-      // Handle redirect for auth errors
-      if (error.name === 'AuthenticationError' && typeof window !== 'undefined') {
-        setTimeout(() => {
-          window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
-        }, 2000);
+      // An expired session follows the API client's rule, after a pause long
+      // enough to read the message.
+      if (error.name === 'AuthenticationError') {
+        setTimeout(redirectToLogin, 2000);
       }
     } else {
       onError(

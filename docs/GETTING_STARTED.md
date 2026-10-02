@@ -63,7 +63,7 @@ For ElevenLabs speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` is rendered at the appli
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
 | **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.136.3, LangGraph 1.2.11, LangChain 1.3.15, SQLAlchemy 2.0.50, Python 3.14 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.3.8, React 19.2.7 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.3.8, React 19.3.0 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector`, pinned by version and digest) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
 | **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.13.3, Grafana 12.4.11, Loki 3.7.8, Tempo 2.10.8 |

@@ -35,7 +35,6 @@ export default defineConfig({
       exclude: [
         'src/**/*.d.ts',
         'src/**/__tests__/**',
-        'src/lib/generated/**',
         // Trivial shadcn/ui primitives: thin re-exports of a Radix primitive or
         // a single HTML element with `cn()` class merging and no branching,
         // state, derived data or own interaction handlers. Testing them asserts

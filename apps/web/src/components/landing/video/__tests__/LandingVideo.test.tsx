@@ -155,6 +155,13 @@ const dock = () => screen.queryByRole('group', { name: HOST_LABELS.nowPlaying })
 async function findMounted() {
   const section = await screen.findByRole('region', { name: SLOT_LABELS.ariaLabel });
   await waitFor(() => expect(player()).not.toBeNull());
+  // The two observers are created by an effect AFTER the slot reaches the DOM:
+  // under load the player was found first and the next lookup threw (1 run in
+  // 12 with twelve coverage runs in parallel, 2026-10-02).
+  await waitFor(() => {
+    nearObserver();
+    viewObserver();
+  });
   return section;
 }
 

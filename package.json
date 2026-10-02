@@ -31,15 +31,13 @@
   "packageManager": "pnpm@10.34.6",
   "pnpm": {
     "overrides": {
-      "eslint-config-next>typescript-eslint": "8.58.2",
+      "eslint-config-next>typescript-eslint": "^8.58.0",
       "flatted": "3.4.2",
       "picomatch": "4.0.4",
       "brace-expansion": "^5.0.12",
-      "vite": "^8.1.5",
-      "defu": "6.1.5",
+      "vite": "^8.3.0",
       "protobufjs": "^7.6.3",
       "uuid": "^11.1.1",
-      "postcss": "^8.5.18",
       "dompurify": "^3.4.16",
       "@grpc/grpc-js": "^1.14.5",
       "@babel/core": "^7.29.6",

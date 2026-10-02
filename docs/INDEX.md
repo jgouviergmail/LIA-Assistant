@@ -562,7 +562,7 @@ section ne référence.
 | Technologie | Version | Usage |
 |-------------|---------|-------|
 | Next.js | 16.3.8 | Framework React |
-| React | 19.2.7 | UI Library |
+| React | 19.3.0 | UI Library |
 | TypeScript | 6.0.3 | Typage |
 | Tailwind CSS | 4.3.3 | Styling |
 | Radix UI | v1–v2 | Composants UI |

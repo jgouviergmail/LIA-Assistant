@@ -34,7 +34,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | Technologie | Version | Role |
 |-------------|---------|------|
 | **Next.js** | 16.3.8 | Framework React SSR/SSG |
-| **React** | 19.2.7 | UI Library |
+| **React** | 19.3.0 | UI Library |
 | **TypeScript** | 6.0.3 | Type safety |
 | **Tailwind CSS** | 4.3.3 | Utility-first CSS |
 
@@ -42,16 +42,15 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **@tanstack/react-query** | 5.101.x | Server state management |
-| **Zod** | 4.4.x | Schema validation |
-| **react-hook-form** | 7.81.x | Form management |
+| **@tanstack/react-query** | 5.x | Server state management |
+| **Zod** | 4.x | Schema validation |
 
 ### UI Components
 
 | Technologie | Version | Role |
 |-------------|---------|------|
 | **Radix UI** | 1.x-2.x | Accessible primitives |
-| **lucide-react** | 1.23.x | Icons |
+| **lucide-react** | 1.x | Icons |
 | **sonner** | 2.0.x | Toast notifications |
 | **next-themes** | 0.4.x | Dark mode |
 

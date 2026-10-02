@@ -163,7 +163,7 @@ describe('ChatSSEClient — HTTP status mapping', () => {
     expect((errors[0] as ChatStreamError).activeStreamId).toBeUndefined();
   });
 
-  it('sends the user back to the login page after an expired session', async () => {
+  it('sends the user back to the localized login page after an expired session', async () => {
     vi.useFakeTimers();
     const original = window.location;
     Object.defineProperty(window, 'location', {
@@ -178,10 +178,12 @@ describe('ChatSSEClient — HTTP status mapping', () => {
       i18nKey: 'errors.chat.session_expired',
     });
 
-    // The redirect is deferred so the user can read the message first.
+    // The redirect is deferred so the user can read the message first, then
+    // follows the API client's own rule for an expired session (the language
+    // kept, the same page for both clients).
     expect(window.location.href).toBe('');
     vi.advanceTimersByTime(2_000);
-    expect(window.location.href).toBe('/login?redirect=%2Ffr%2Fdashboard%2Fchat');
+    expect(window.location.href).toBe('/fr/login');
 
     Object.defineProperty(window, 'location', { value: original, configurable: true });
   });

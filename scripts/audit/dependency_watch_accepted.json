@@ -59,15 +59,7 @@
     "kind": "advisory",
     "subject": "npm:postcss-selector-parser@6.0.10",
     "ref": "GHSA-rj75-hqrm-r3gf",
-    "reason": "A build-time CSS tool reading the repository's own stylesheets, never a request. Moves with the parents that pull it in the npm catch-up (dependency programme, lot 8).",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "advisory",
-    "subject": "npm:powershell-utils@0.1.0",
-    "ref": "GHSA-x2gq-3jjh-794h",
-    "reason": "A code-generation tool of the build, fed by the repository's own files, never by a person's input. Moves with the parents that pull it in the npm catch-up (dependency programme, lot 8).",
+    "reason": "A build-time CSS tool reading the repository's own stylesheets, never a request. @tailwindcss/typography pins 6.0.10 exactly, its latest release (0.5.20) included, and the fix is 7.1.6, a major it never declared: the npm catch-up (dependency programme, lot 8) could not move it. Lifted by a typography release that moves to 7.x.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
   },

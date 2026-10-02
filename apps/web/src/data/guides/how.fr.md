@@ -123,10 +123,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Technologie | Version | Rôle |
 |-------------|---------|------|
 | Next.js | 16.3.8 | App Router, SSR, ISR |
-| React | 19.2.7 | UI avec Server Components |
+| React | 19.3.0 | UI avec Server Components |
 | TypeScript | 6.0.3 | Typage strict |
 | TailwindCSS | 4.3.3 | Utility-first CSS |
-| TanStack Query | 5.101 | Server state management, cache, mutations |
+| TanStack Query | 5.x | Server state management, cache, mutations |
 | Radix UI | v2 | Primitives UI accessibles |
 | react-i18next | 17.0 | i18n (6 langues), namespace-based |
 | Zod | 4.x | Validation runtime des schémas debug |

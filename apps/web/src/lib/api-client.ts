@@ -246,16 +246,26 @@ export function isCredentialCheckUrl(url: string): boolean {
   return url.includes('/auth/step-up/');
 }
 
+/**
+ * Send an expired session to the localized login page; public pages stay put.
+ *
+ * A FULL navigation, on purpose, which is why Next's
+ * `no-location-assign-relative-destination` advice (a router push) does not
+ * apply: both callers — this client and the chat stream — are plain modules
+ * with no router, and unloading the document drops everything the expired
+ * session left in memory (query caches, stores) before anyone signs in again.
+ */
+export function redirectToLogin(): void {
+  if (typeof window === 'undefined') return;
+  const pathname = window.location.pathname;
+  if (isPublicPath(pathname)) return;
+  const currentLang = currentLangFrom(pathname);
+  window.location.href = currentLang ? `/${currentLang}/login` : '/login';
+}
+
 /** 401: eject non-public pages to the localized login, then throw. */
 function handleUnauthorized(): never {
-  if (typeof window !== 'undefined') {
-    const pathname = window.location.pathname;
-    if (!isPublicPath(pathname)) {
-      const currentLang = currentLangFrom(pathname);
-      // Redirect to localized login page to preserve user's language
-      window.location.href = currentLang ? `/${currentLang}/login` : '/login';
-    }
-  }
+  redirectToLogin();
   throw new ApiError('Unauthorized', 401);
 }
 

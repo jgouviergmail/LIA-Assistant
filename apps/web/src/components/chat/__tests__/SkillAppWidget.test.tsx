@@ -82,11 +82,11 @@ describe('SkillAppWidget', () => {
       const frame = document.querySelector('iframe');
       expect(frame).not.toBeNull();
       expect(frame).toHaveAttribute('src', MAP_ITEM.payload.frame_url);
-      // The attribute is what makes the embed work under require-corp.
+      // The attribute is what makes the embed work under require-corp. React
+      // renders it as a boolean attribute (Next's bundled build, and the
+      // standalone one since 19.3), which drops an empty value: presence is
+      // the whole contract.
       expect(frame!.hasAttribute('credentialless')).toBe(true);
-      // Standalone React treats this as an unknown string attribute. Its value
-      // must be non-empty so Next's boolean-attribute renderer also keeps it.
-      expect(frame!.getAttribute('credentialless')).toBe('true');
       expect(screen.queryByText('skill_apps.frame_unsupported')).toBeNull();
     });
 
