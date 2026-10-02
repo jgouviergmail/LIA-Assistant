@@ -2,7 +2,7 @@
 
 import unicodedata
 
-import fitz
+import pymupdf
 import pytest
 
 from src.domains.document_generation import typography
@@ -37,7 +37,7 @@ class TestPdfRenderer:
 
     def test_round_trip_text(self) -> None:
         data = render_document(DocumentType.PDF, _content())
-        document = fitz.open(stream=data, filetype="pdf")
+        document = pymupdf.open(stream=data, filetype="pdf")
         text = "".join(page.get_text() for page in document)
         document.close()
         for fragment in (
@@ -57,7 +57,7 @@ class TestPdfRenderer:
         ]
         content = SectionedContent(filename_stem="long", title="Long", blocks=blocks)
         data = render_document(DocumentType.PDF, content)
-        document = fitz.open(stream=data, filetype="pdf")
+        document = pymupdf.open(stream=data, filetype="pdf")
         assert document.page_count > 1  # the Story loop actually paginates
         document.close()
 
@@ -126,7 +126,7 @@ class TestPdfCraft:
     """What a reader gets: a running head, exact page numbers, bookmarks."""
 
     def test_header_and_footer_on_every_page_and_metadata(self) -> None:
-        document = fitz.open(stream=_craft_document(), filetype="pdf")
+        document = pymupdf.open(stream=_craft_document(), filetype="pdf")
         total = document.page_count
         assert total >= 4
         for number, page in enumerate(document, start=1):
@@ -139,7 +139,7 @@ class TestPdfCraft:
 
     def test_the_contents_page_numbers_are_the_real_ones(self) -> None:
         """We paginate this document ourselves, so its numbers are exact."""
-        document = fitz.open(stream=_craft_document(), filetype="pdf")
+        document = pymupdf.open(stream=_craft_document(), filetype="pdf")
         assert "Sommaire" in document[0].get_text()
         outline = document.get_toc()
         assert [entry[1] for entry in outline][:2] == ["1 Partie 1", "1.1 Détail 1"]
@@ -148,13 +148,13 @@ class TestPdfCraft:
         document.close()
 
     def test_the_contents_entries_link_to_their_pages(self) -> None:
-        document = fitz.open(stream=_craft_document(), filetype="pdf")
-        links = [link for link in document[0].get_links() if link["kind"] == fitz.LINK_GOTO]
+        document = pymupdf.open(stream=_craft_document(), filetype="pdf")
+        links = [link for link in document[0].get_links() if link["kind"] == pymupdf.LINK_GOTO]
         assert links
         document.close()
 
     def test_a_plain_structure_has_no_contents_and_no_numbers(self) -> None:
-        document = fitz.open(stream=_craft_document(structure="plain"), filetype="pdf")
+        document = pymupdf.open(stream=_craft_document(structure="plain"), filetype="pdf")
         assert "Sommaire" not in document[0].get_text()
         assert "1 Partie 1" not in document[0].get_text()
         assert "Partie 1" in document[0].get_text()
@@ -170,7 +170,7 @@ class TestPdfCraft:
         backgrounds, and a cell's fill overshoots its glyphs by its padding,
         hence the 4 pt tolerance.
         """
-        document = fitz.open(stream=_craft_document(), filetype="pdf")
+        document = pymupdf.open(stream=_craft_document(), filetype="pdf")
         for page in list(document)[1:]:
             for drawing in page.get_drawings():
                 fill = drawing.get("fill")
@@ -179,7 +179,7 @@ class TestPdfCraft:
                     continue
                 if rect.height < _MIN_FILL_PT or rect.width <= _BORDER_WIDTH_PT:
                     continue
-                clip = fitz.Rect(
+                clip = pymupdf.Rect(
                     rect.x0 - _FILL_TOLERANCE_X_PT,
                     rect.y0 - _FILL_TOLERANCE_Y_PT,
                     rect.x1 + _FILL_TOLERANCE_X_PT,
@@ -194,7 +194,7 @@ class TestPdfCraft:
         text = unicodedata.normalize(
             "NFKC",
             "".join(
-                page.get_text() for page in fitz.open(stream=_craft_document(), filetype="pdf")
+                page.get_text() for page in pymupdf.open(stream=_craft_document(), filetype="pdf")
             ),
         )
         assert "中文测试" in text and "这是一个中文段落" in text
@@ -208,7 +208,7 @@ class TestPdfCraft:
         content = SectionedContent(
             filename_stem="x", title="T", blocks=[SectionBlock(kind="paragraph", text="p")]
         )
-        letter = fitz.open(
+        letter = pymupdf.open(
             stream=render_document(
                 DocumentType.PDF, content, RenderContext(language="en", page_size="letter")
             ),
@@ -254,7 +254,7 @@ class TestWideTablesStayOnThePage:
     def test_no_table_rule_crosses_the_right_margin(self, columns: int) -> None:
         from src.domains.document_generation import typography
 
-        document = fitz.open(stream=self._table_document(columns), filetype="pdf")
+        document = pymupdf.open(stream=self._table_document(columns), filetype="pdf")
         _left, _top, right_margin, _bottom = typography.PDF_MARGIN_PT
         for page in document:
             edge = page.rect.width - right_margin
@@ -302,11 +302,11 @@ class TestTheStampsAreReadableInEveryLanguage:
         from src.domains.document_generation.context import RenderContext
 
         data = render_document(DocumentType.PDF, content, RenderContext(language=language))
-        with fitz.open(stream=data, filetype="pdf") as document:
+        with pymupdf.open(stream=data, filetype="pdf") as document:
             page = document[0]
-            header = page.get_textbox(fitz.Rect(0, 0, page.rect.width, 40))
+            header = page.get_textbox(pymupdf.Rect(0, 0, page.rect.width, 40))
             footer = page.get_textbox(
-                fitz.Rect(0, page.rect.height - 40, page.rect.width, page.rect.height)
+                pymupdf.Rect(0, page.rect.height - 40, page.rect.width, page.rect.height)
             )
         return header.strip(), footer.strip()
 

@@ -532,24 +532,22 @@ class AttachmentService:
 
     @staticmethod
     def _extract_pdf_text(file_bytes: bytes, max_chars: int) -> str | None:
-        """Extract text from PDF using PyMuPDF (fitz)."""
+        """Extract text from PDF using PyMuPDF."""
         try:
-            import fitz  # type: ignore[import-untyped]  # PyMuPDF
+            import pymupdf
 
-            doc = fitz.open(stream=file_bytes, filetype="pdf")
             text_parts: list[str] = []
             total_chars = 0
 
-            for page in doc:
-                page_text = page.get_text()
-                if total_chars + len(page_text) > max_chars:
-                    remaining = max_chars - total_chars
-                    text_parts.append(page_text[:remaining])
-                    break
-                text_parts.append(page_text)
-                total_chars += len(page_text)
-
-            doc.close()
+            with pymupdf.open(stream=file_bytes, filetype="pdf") as doc:
+                for page in doc:
+                    page_text = page.get_text()
+                    if total_chars + len(page_text) > max_chars:
+                        remaining = max_chars - total_chars
+                        text_parts.append(page_text[:remaining])
+                        break
+                    text_parts.append(page_text)
+                    total_chars += len(page_text)
 
             full_text = "\n".join(text_parts).strip()
             if not full_text:

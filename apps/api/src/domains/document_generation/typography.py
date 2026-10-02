@@ -124,7 +124,7 @@ def pdf_table_class(columns: int) -> str:
 
 
 def page_rect_name(page_size: PageSize) -> str:
-    """The ``fitz.paper_rect`` name of a page size."""
+    """The ``pymupdf.paper_rect`` name of a page size."""
     return _PAGE_RECT_NAME[page_size]
 
 

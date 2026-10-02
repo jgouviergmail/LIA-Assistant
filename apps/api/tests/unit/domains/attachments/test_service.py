@@ -91,3 +91,39 @@ class TestHeicUploadIsConverted:
         with Image.open(io.BytesIO(converted)) as img:
             assert img.format == "JPEG"
             assert img.size == (24, 16)
+
+
+def _pdf_bytes(*pages: str) -> bytes:
+    """A real PDF, one page per text (an empty text leaves its page blank)."""
+    import pymupdf
+
+    with pymupdf.open() as doc:
+        for text in pages:
+            page = doc.new_page()
+            if text:
+                page.insert_text((72, 72), text)
+        return doc.tobytes()
+
+
+@pytest.mark.unit
+class TestPdfTextExtraction:
+    """An uploaded PDF reaches the model as its text, within a character budget."""
+
+    def test_every_page_is_read_in_order(self) -> None:
+        text = AttachmentService._extract_pdf_text(_pdf_bytes("first page", "second page"), 10_000)
+
+        assert text is not None
+        assert text.index("first page") < text.index("second page")
+
+    def test_the_page_that_crosses_the_budget_is_cut_there(self) -> None:
+        text = AttachmentService._extract_pdf_text(_pdf_bytes("abcdefghij", "klmnopqrst"), 15)
+
+        assert text is not None
+        assert text.startswith("abcdefghij")
+        assert text.endswith("klmn")
+
+    def test_a_pdf_without_a_text_layer_reads_as_nothing(self) -> None:
+        assert AttachmentService._extract_pdf_text(_pdf_bytes(""), 1_000) is None
+
+    def test_bytes_that_are_not_a_pdf_read_as_nothing(self) -> None:
+        assert AttachmentService._extract_pdf_text(b"%PDF-not really", 1_000) is None

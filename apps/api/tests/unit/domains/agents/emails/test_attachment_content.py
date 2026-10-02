@@ -34,15 +34,15 @@ def _png(width: int = 64, height: int = 32) -> bytes:
 
 
 def _pdf(text: str | None) -> bytes:
-    import fitz
+    import pymupdf
 
-    doc = fitz.open()
+    doc = pymupdf.open()
     page = doc.new_page()
     if text:
         page.insert_text((72, 72), text)
     else:
         # A scanned page: an image, no text layer.
-        page.insert_image(fitz.Rect(0, 0, 200, 100), stream=_png())
+        page.insert_image(pymupdf.Rect(0, 0, 200, 100), stream=_png())
     return doc.tobytes()
 
 
@@ -121,9 +121,9 @@ async def test_an_image_is_downscaled_to_the_edge_bound() -> None:
 
 
 async def test_pdf_pages_are_bounded() -> None:
-    import fitz
+    import pymupdf
 
-    doc = fitz.open()
+    doc = pymupdf.open()
     for _ in range(5):
         doc.new_page()
     data = doc.tobytes()
@@ -139,20 +139,20 @@ async def test_a_giant_pdf_page_is_rasterised_under_a_pixel_bound() -> None:
     A page of 14 400 pt (200 inches) a side at the nominal render scale would
     allocate a 28 800 px square pixmap — gigabytes — before any downscale.
     """
-    import fitz
+    import pymupdf
 
-    doc = fitz.open()
+    doc = pymupdf.open()
     doc.new_page(width=14_400, height=14_400)
     data = doc.tobytes()
     seen: list[tuple[int, int]] = []
-    original = fitz.Page.get_pixmap
+    original = pymupdf.Page.get_pixmap
 
     def spy(page, *args, **kwargs):
         pixmap = original(page, *args, **kwargs)
         seen.append((pixmap.width, pixmap.height))
         return pixmap
 
-    with patch.object(fitz.Page, "get_pixmap", spy):
+    with patch.object(pymupdf.Page, "get_pixmap", spy):
         pages = (await ac.render_pages(data, "application/pdf", max_pages=1, max_edge=400)).pages
     assert len(pages) == 1
     assert max(seen[0]) <= 2 * 400
@@ -283,12 +283,12 @@ async def test_a_heic_attachment_is_a_picture_the_vision_slot_can_see() -> None:
 async def test_a_cut_page_set_is_stated_to_the_model_and_to_the_loop() -> None:
     """Six pages under a bound of two: the vision message says « 2 of 6 » so the
     model claims no completeness, and the reading carries both counts."""
-    import fitz
+    import pymupdf
 
-    doc = fitz.open()
+    doc = pymupdf.open()
     for index in range(6):
         page = doc.new_page()
-        page.insert_image(fitz.Rect(0, 0, 200, 100), stream=_png())
+        page.insert_image(pymupdf.Rect(0, 0, 200, 100), stream=_png())
         del index
     content = EmailAttachmentContent("scan.pdf", "application/pdf", doc.tobytes())
     invoke = AsyncMock(return_value=_fake_llm("Page 1: a receipt. Page 2: a receipt."))

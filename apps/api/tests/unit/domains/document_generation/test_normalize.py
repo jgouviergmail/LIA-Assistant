@@ -388,9 +388,9 @@ def _text_of(doc_type: str, data: bytes) -> str:
             for cell in row
             if cell.value is not None
         )
-    import fitz
+    import pymupdf
 
-    with fitz.open(stream=data, filetype="pdf") as document:
+    with pymupdf.open(stream=data, filetype="pdf") as document:
         return "\n".join(page.get_text() for page in document)
 
 

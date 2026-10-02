@@ -20,7 +20,7 @@ from src.domains.document_generation import typography
 from src.domains.document_generation.typography import PageSize
 
 
-def _fitz() -> ModuleType:
+def _pymupdf() -> ModuleType:
     """PyMuPDF, imported on first use rather than at boot.
 
     The import costs 43 MB per process on the production arm64 (measured
@@ -29,7 +29,7 @@ def _fitz() -> ModuleType:
     so the accessor is a dictionary lookup afterwards. Pinned by
     ``tests/unit/test_lazy_heavy_imports_guard.py``.
     """
-    return importlib.import_module("fitz")
+    return importlib.import_module("pymupdf")
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +52,8 @@ class LaidOut:
 def content_rect(page_size: PageSize) -> Any:
     """The area the Story lays text into (margins from typography)."""
     left, top, right, bottom = typography.PDF_MARGIN_PT
-    return _fitz().paper_rect(typography.page_rect_name(page_size)) + (left, top, -right, -bottom)
+    paper = _pymupdf().paper_rect(typography.page_rect_name(page_size))
+    return paper + (left, top, -right, -bottom)
 
 
 def _recorder(positions: dict[str, Placed], page: int) -> Callable[[Any], None]:
@@ -65,7 +66,7 @@ def _recorder(positions: dict[str, Placed], page: int) -> Callable[[Any], None]:
 
     def record(position: Any) -> None:
         if position.id and position.id not in positions:
-            positions[position.id] = Placed(page, _fitz().Rect(position.rect))
+            positions[position.id] = Placed(page, _pymupdf().Rect(position.rect))
 
     return record
 
@@ -81,10 +82,10 @@ def lay_out(html: str, css: str, page_size: PageSize) -> LaidOut:
     Returns:
         The rendered bytes and the position of every id.
     """
-    story = _fitz().Story(html=html, user_css=css)
+    story = _pymupdf().Story(html=html, user_css=css)
     buffer = io.BytesIO()
-    writer = _fitz().DocumentWriter(buffer)
-    mediabox = _fitz().paper_rect(typography.page_rect_name(page_size))
+    writer = _pymupdf().DocumentWriter(buffer)
+    mediabox = _pymupdf().paper_rect(typography.page_rect_name(page_size))
     where = content_rect(page_size)
     positions: dict[str, Placed] = {}
     page_no = 0
@@ -108,8 +109,8 @@ def concatenate(front: LaidOut, body: LaidOut) -> LaidOut:
     makes the contents numbers EXACT rather than iterated: the body never
     contains the contents, so its pagination cannot move when numbers appear.
     """
-    merged = _fitz().open(stream=front.pdf, filetype="pdf")
-    tail = _fitz().open(stream=body.pdf, filetype="pdf")
+    merged = _pymupdf().open(stream=front.pdf, filetype="pdf")
+    tail = _pymupdf().open(stream=body.pdf, filetype="pdf")
     merged.insert_pdf(tail)
     tail.close()
     output: bytes = merged.tobytes()
@@ -137,12 +138,12 @@ def stamp_font(*texts: str) -> Any:
         *texts: Every string that will be stamped on the document.
 
     Returns:
-        A ``fitz.Font`` covering all of them.
+        A ``pymupdf.Font`` covering all of them.
     """
-    helvetica = _fitz().Font("helv")
+    helvetica = _pymupdf().Font("helv")
     if all(helvetica.has_glyph(ord(char)) for text in texts for char in text):
         return helvetica
-    return _fitz().Font("cjk")
+    return _pymupdf().Font("cjk")
 
 
 def finish(
@@ -167,7 +168,7 @@ def finish(
     Returns:
         The final PDF bytes.
     """
-    document = _fitz().open(stream=laid.pdf, filetype="pdf")
+    document = _pymupdf().open(stream=laid.pdf, filetype="pdf")
     left, _top, _right, _bottom = typography.PDF_MARGIN_PT
     grey = _grey()
     total = document.page_count
@@ -175,7 +176,7 @@ def finish(
     size = typography.PDF_STAMP_PT
     for number, page in enumerate(document, start=1):
         label = footer_label(number, total)
-        writer = _fitz().TextWriter(page.rect)
+        writer = _pymupdf().TextWriter(page.rect)
         # A TextWriter measures y from the BOTTOM of the page, where
         # ``insert_text`` measures it from the top — swapping the two stamps is
         # exactly what happened when this loop was rewritten (measured).
@@ -203,10 +204,10 @@ def finish(
             continue
         document[placed.page - 1].insert_link(
             {
-                "kind": _fitz().LINK_GOTO,
+                "kind": _pymupdf().LINK_GOTO,
                 "from": placed.rect,
                 "page": target_page - 1,
-                "to": _fitz().Point(0, 0),
+                "to": _pymupdf().Point(0, 0),
             }
         )
     document.set_metadata(

@@ -91,4 +91,6 @@ class TestTheRendering:
         """The model writes ``import bs4``, never ``import beautifulsoup4``."""
         rendered = render_libraries()
         assert "bs4" in rendered and "beautifulsoup4" not in rendered
-        assert "fitz" in rendered and "PyMuPDF" not in rendered
+        # PyMuPDF 1.28 prints a deprecation on `import fitz` (« will be removed in
+        # future »): the model is told the name that stays.
+        assert "pymupdf" in rendered and "fitz" not in rendered

@@ -81,11 +81,11 @@ def extract_text_plain(file_path: Path) -> str:
 
 
 def extract_text_pdf(file_path: Path) -> str:
-    """Extract text from PDF using PyMuPDF (fitz)."""
-    import fitz  # type: ignore[import-untyped]  # PyMuPDF
+    """Extract text from PDF using PyMuPDF."""
+    import pymupdf
 
     text_parts: list[str] = []
-    with fitz.open(str(file_path)) as doc:
+    with pymupdf.open(str(file_path)) as doc:
         for page in doc:
             text_parts.append(page.get_text())
     return "\n".join(text_parts)
@@ -93,9 +93,9 @@ def extract_text_pdf(file_path: Path) -> str:
 
 def _pdf_has_images(file_path: Path) -> bool:
     """Whether any page of the PDF carries an image — the shape of a scanned document."""
-    import fitz  # PyMuPDF
+    import pymupdf
 
-    with fitz.open(str(file_path)) as doc:
+    with pymupdf.open(str(file_path)) as doc:
         return any(page.get_images() for page in doc)
 
 

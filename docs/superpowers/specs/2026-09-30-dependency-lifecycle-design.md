@@ -615,6 +615,49 @@ pins.
   trustworthy to the browser, so passkeys, the microphone and `crypto.randomUUID` are refused —
   an environment that cannot prove those journeys, not a regression.
 
+**8b — Python (implemented 2026-10-02).** `task deps:refresh`, two resolution passes, 75 changes
+in the three lockfiles and none backwards: 11 patches, 54 minors, and 10 moves the cooldown
+counts as majors — every one transitive and inside the range its parent declares (`websockets`
+15 → 16 through uvicorn, google-genai, langgraph-sdk and langsmith; the nine others are 0.x
+lines, or `pywin32`, Windows only). Read line by line, the direct imports first:
+
+- **PyMuPDF 1.28 deprecates the `fitz` name** and prints so, on stderr, at the first import of
+  each process — outside the `warnings` module, so a line no log pipeline parses and a removal
+  announced. LIA now imports `pymupdf` everywhere, the sandbox tells the model the same name
+  (`task sandbox:libraries:check` on the rebuilt image: 25 libraries), and the renderer's
+  accessor is `_pymupdf()`. `pymupdf` ships its types where `fitz` did not, and mypy's first
+  finding was real: the attachment extraction iterated a document it closed only on success — it
+  is a context manager now, with behaviour tests on real PDFs (pages in order, the budget cut,
+  no text layer, bytes that are not a PDF).
+- starlette 1.6 only hardens what LIA uses (`FileResponse` refuses inverted ranges and more than
+  100 of them; the radio and the attachments serve one); websockets 16 drops Python 3.9 and
+  hardens; caldav 3.3 repairs the async client the Apple connector uses (its « breaking » items
+  are JMAP and a server profile LIA never touches); imap-tools 1.14 makes `fetch` arguments after
+  the charset keyword-only, which LIA already passes, and 1.12's lazy headers answer the `.get`
+  and `in` the normaliser reads; google-genai 2.24 raises no deprecation on the live session's
+  configuration (recorded under `warnings`); sherpa-onnx 1.13 keeps the Whisper and VAD
+  interfaces and only trims the spaces its results carried.
+- Left as it is: starlette 1.6's test client names `anyio.abc.BlockingPortal`, which anyio 4.15
+  deprecates — one warning per test process. starlette 1.7.0 names the new alias, and FastAPI
+  0.136.3 sets no upper bound: only the cooldown holds it (published 2026-09-23, a minor waits
+  14 days), so the first refresh after 2026-10-07 takes it. Five « Task was destroyed but it is
+  pending » from asyncpg's `Connection._cancel()` in the chain-notary integration tests predate
+  the refresh: the CI log of `main` carries the same five.
+- **The cooldown can walk INTO an advisory**, and only the watch sees it: the refresh took
+  msgpack 1.2.1 → 1.2.2 (via cachecontrol, firebase-admin), and GHSA-j586-36cw-2gc2 (high, a
+  map value leaked on every `strict_map_key` failure) affects 1.2.2 alone — its fix, 1.2.3, was
+  three days old, under a patch's five. `task deps:watch` named it; a security floor
+  (`msgpack>=1.2.3`, doctrine 5) took the fix without waiting, through `task deps:upgrade`. The
+  run after it found nothing to decide; eight repositories went unread there under GitHub's rate
+  limit, all eight read without a finding by the run before it.
+- Measured: `task lint:backend` (mypy clean on 1957 files), `task test:backend:unit:fast`
+  (35,748 passed), `task test:backend:integration` (1,480 passed, then 4 co-located), `task
+  test:backend:agents` (1,132 passed), the sandbox image rebuilt and its 25 libraries imported,
+  and the dev API image rebuilt: inside it the versions read back, `extract_text_pdf` reads a real
+  PDF with nothing on stderr, the production Whisper model loads and decodes on sherpa-onnx 1.13,
+  and a WebSocket upgrade reaches the voice route through uvicorn's sans-I/O implementation on
+  websockets 16 (an invalid ticket refused by the application, 403).
+
 ### Lot 9 — migrations with their own plan
 
 FastAPI ≥ 0.137 (one route walker for the 28 modules that read `router.routes`, then the bump);

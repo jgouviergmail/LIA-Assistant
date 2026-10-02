@@ -153,9 +153,9 @@ async def extract_text_from_bytes(data: bytes, mime_type: str) -> str:
 
 
 def _pdf_has_images(data: bytes) -> bool:
-    import fitz  # type: ignore[import-untyped]  # PyMuPDF
+    import pymupdf
 
-    with fitz.open(stream=data, filetype="pdf") as doc:
+    with pymupdf.open(stream=data, filetype="pdf") as doc:
         return any(page.get_images() for page in doc)
 
 
@@ -182,10 +182,10 @@ def _downscale(image_bytes: bytes, max_edge: int) -> bytes:
 
 
 def _render_pdf_pages(data: bytes, max_pages: int, max_edge: int) -> RenderedPages:
-    import fitz  # PyMuPDF
+    import pymupdf
 
     pages: list[bytes] = []
-    with fitz.open(stream=data, filetype="pdf") as doc:
+    with pymupdf.open(stream=data, filetype="pdf") as doc:
         total = len(doc)
         for index, page in enumerate(doc):
             if index >= max_pages:
@@ -196,7 +196,7 @@ def _render_pdf_pages(data: bytes, max_pages: int, max_edge: int) -> RenderedPag
             # the downscale a reduction on an ordinary page.
             longest_pt = max(page.rect.width, page.rect.height, 1.0)
             scale = min(EMAIL_ATTACHMENT_PDF_RENDER_SCALE, (2 * max_edge) / longest_pt)
-            pixmap = page.get_pixmap(matrix=fitz.Matrix(scale, scale))
+            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(scale, scale))
             pages.append(_downscale(pixmap.tobytes("png"), max_edge))
     return RenderedPages(pages=pages, total=total)
 

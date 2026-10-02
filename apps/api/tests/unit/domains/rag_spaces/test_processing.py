@@ -86,7 +86,7 @@ class TestExtractTextPlain:
 
 
 class TestExtractTextPdf:
-    """Tests for extract_text_pdf (PyMuPDF / fitz)."""
+    """Tests for extract_text_pdf (PyMuPDF)."""
 
     @pytest.mark.unit
     def test_extracts_text_from_pdf(self, tmp_path: Path) -> None:
@@ -101,10 +101,10 @@ class TestExtractTextPdf:
         mock_doc.__exit__ = MagicMock(return_value=False)
         mock_doc.__iter__ = MagicMock(return_value=iter([mock_page_1, mock_page_2]))
 
-        mock_fitz = MagicMock()
-        mock_fitz.open.return_value = mock_doc
+        mock_pymupdf = MagicMock()
+        mock_pymupdf.open.return_value = mock_doc
 
-        with patch.dict(sys.modules, {"fitz": mock_fitz}):
+        with patch.dict(sys.modules, {"pymupdf": mock_pymupdf}):
             from src.domains.rag_spaces.processing import extract_text_pdf
 
             result = extract_text_pdf(tmp_path / "dummy.pdf")
@@ -119,10 +119,10 @@ class TestExtractTextPdf:
         mock_doc.__exit__ = MagicMock(return_value=False)
         mock_doc.__iter__ = MagicMock(return_value=iter([]))
 
-        mock_fitz = MagicMock()
-        mock_fitz.open.return_value = mock_doc
+        mock_pymupdf = MagicMock()
+        mock_pymupdf.open.return_value = mock_doc
 
-        with patch.dict(sys.modules, {"fitz": mock_fitz}):
+        with patch.dict(sys.modules, {"pymupdf": mock_pymupdf}):
             from src.domains.rag_spaces.processing import extract_text_pdf
 
             result = extract_text_pdf(tmp_path / "empty.pdf")
@@ -1591,11 +1591,11 @@ class TestProcessDocument:
 
 def _write_image_only_pdf(path: Path) -> None:
     """One page carrying an image and no text: the shape of a scanned document."""
-    import fitz  # type: ignore[import-untyped]
+    import pymupdf
 
-    doc = fitz.open()
+    doc = pymupdf.open()
     page = doc.new_page()
-    pixmap = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 40), 0)
+    pixmap = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 40, 40), 0)
     page.insert_image(page.rect, pixmap=pixmap)
     doc.save(str(path))
     doc.close()
@@ -1603,9 +1603,9 @@ def _write_image_only_pdf(path: Path) -> None:
 
 def _write_blank_pdf(path: Path) -> None:
     """One page with neither text nor image."""
-    import fitz  # type: ignore[import-untyped]
+    import pymupdf
 
-    doc = fitz.open()
+    doc = pymupdf.open()
     doc.new_page()
     doc.save(str(path))
     doc.close()

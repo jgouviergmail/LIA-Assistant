@@ -13,9 +13,9 @@ import json
 from pathlib import Path
 
 import docx
-import fitz
 import openpyxl
 import pptx
+import pymupdf
 import pytest
 
 from src.domains.document_generation.context import RenderContext
@@ -61,7 +61,7 @@ def _open_xlsx(data: bytes) -> object:
 
 
 def _open_pdf(data: bytes) -> object:
-    document = fitz.open(stream=data, filetype="pdf")
+    document = pymupdf.open(stream=data, filetype="pdf")
     assert document.page_count >= 1
     document.close()
     return document

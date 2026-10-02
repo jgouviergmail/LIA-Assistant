@@ -69,7 +69,7 @@ PYTHON_SANDBOX_LIBRARIES: tuple[SandboxLibrary, ...] = (
     SandboxLibrary("dateutil", "python-dateutil", "date parsing", "Dates and calendars"),
     SandboxLibrary("pytz", "pytz", "timezones", "Dates and calendars"),
     SandboxLibrary("icalendar", "icalendar", "ICS parsing", "Dates and calendars"),
-    SandboxLibrary("fitz", "PyMuPDF", "PDF text", "Documents"),
+    SandboxLibrary("pymupdf", "PyMuPDF", "PDF text", "Documents"),
     SandboxLibrary("docx", "python-docx", "DOCX text", "Documents"),
     SandboxLibrary("markdownify", "markdownify", "HTML to Markdown", "Documents"),
     SandboxLibrary("yaml", "pyyaml", "YAML", "Text and formats"),

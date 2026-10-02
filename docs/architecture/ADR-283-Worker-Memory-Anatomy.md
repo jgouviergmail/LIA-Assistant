@@ -57,7 +57,8 @@ il se multiplie.**
    `tests/unit/test_lazy_heavy_imports_guard.py` déclare `LAZY_ONLY` avec le
    coût mesuré de chacune (fitz, pymupdf, pandas, sherpa_onnx, onnxruntime,
    playwright) et refuse tout import de premier niveau sous `src/`, y compris
-   dans un `try` de module. PyMuPDF passe par un accesseur `_fitz()`.
+   dans un `try` de module. PyMuPDF passe par un accesseur `_pymupdf()` (`_fitz()`
+   jusqu'au lot 8 du programme dépendances : PyMuPDF 1.28 déprécie le nom `fitz`).
 3. **Le STT garde UN recognizer résident par worker.** Le cache est un
    `OrderedDict` borné par `VOICE_STT_MAX_RECOGNIZERS` (1 par défaut),
    évincé au moins récemment utilisé ; rien n'est chargé à la construction, la
