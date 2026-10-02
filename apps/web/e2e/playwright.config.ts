@@ -73,6 +73,14 @@ export default defineConfig({
     // Deterministic viewport + reduced motion so animations never flake a scan.
     viewport: { width: 1280, height: 900 },
     contextOptions: { reducedMotion: 'reduce' },
+    // The suite mocks every API call with `page.route`. The production build
+    // registers the offline service worker (ADR-146), and once it controls the
+    // page, WebKit sends the requests the worker hands back to the browser by a
+    // path `page.route` never sees: they reached the real server and the chat
+    // answered « Erreur serveur (500) ». Measured: 5-7 of 10 WebKit journeys
+    // red, at random (whenever the worker took control first), 0 of 11 with
+    // workers blocked. The worker's own behaviour has its unit test.
+    serviceWorkers: 'block',
   },
   // Chromium is the fast PR smoke. Firefox/WebKit run in the periodic
   // browser-matrix job (.github/workflows/a11y-matrix.yml) or on demand with

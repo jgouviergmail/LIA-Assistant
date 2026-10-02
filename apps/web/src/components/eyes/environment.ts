@@ -1,5 +1,5 @@
 /** Passive ambient context: observed weather and the account's civil clock. */
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 
 export type WeatherFeeling =
   | 'rain'

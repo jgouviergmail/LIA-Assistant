@@ -32,6 +32,20 @@ export interface MockRoute {
 }
 
 /**
+ * The person's real-time channel, open and saying nothing.
+ *
+ * `status: 204` tells an EventSource to FAIL (HTML spec), and Firefox logs every
+ * failed connection and reconnection as a JavaScript error: a journey asserting
+ * a clean page went red on Firefox alone. An idle event stream is a channel
+ * that simply has nothing to say.
+ */
+export const idleNotificationStream: MockRoute = {
+  url: '**/api/v1/notifications/stream',
+  handler: route =>
+    route.fulfill({ status: 200, contentType: 'text/event-stream', body: ': idle\n\n' }),
+};
+
+/**
  * Install the single lowest-priority catch-all. Any `/api/v1/*` request not
  * matched by a specific mock is fulfilled 501 so a leaking call is a loud,
  * visible failure — never a silent hit on a real backend.

@@ -15,7 +15,7 @@
  * It is pure: the route handler fetches, this resolves, the component draws.
  */
 
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 
 /** A bare file name: no separator, no query, no fragment, no leading dot. */
 const FILE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;

@@ -173,6 +173,22 @@ token is the test). The resolution drops `python-jose`, `ecdsa`, `rsa` and two s
 moves nothing else; the last pip-audit exemption (CVE-2024-23342) and the watch's ecdsa acceptance
 go with them. See `docs/technical/AUTHENTICATION.md`.
 
+## Amendment 2026-10-02 — the browser matrix runs the suite's own task (lot 9e, F9)
+
+`a11y-matrix.yml` ran an `npx playwright test` of its own, with its own environment: a second
+definition of the suite that nobody ran before it went red. It now runs `task test:e2e:browsers`
+on the Playwright 1.63 `noble` image `ci.yml` uses, and the parity guard reads it (ADR-151). Its
+eleven red weeks were read in that image, the three engines against a production build, and every
+cause was MEASURED before it was touched: a service worker routing WebKit's requests around the
+mocks, a CSP refusing zod's compilation probe (a JavaScript error in Firefox), a mocked `204`
+failing every EventSource, races read as durations (media queries settle after two frames,
+hydration wipes what was typed before it), and capabilities an engine here lacks — the fake
+microphone, audio output in headless Firefox, `navigator.credentials.create` and video looping
+in Playwright's WebKit — each skipped by name with its measurement, never weakened. Two were
+product defects: the chat's « back to the bottom » button sat at the end of the thread, off
+screen, and the personality selector missed its 44 px touch target in WebKit by 0.03 px. The
+measurements are in the programme's spec (§ 5, lot 9e).
+
 ## Alternatives rejected
 
 - **A `uv.lock` project so that Dependabot can update Python**: ADR-112 weighed
@@ -192,6 +208,8 @@ go with them. See `docs/technical/AUTHENTICATION.md`.
   `docker-compose` ecosystem with `group-by`, the `vite` floor — is observable
   only on its next run.
 - The weekly workflow's first issue, on its first scheduled or dispatched run.
+- The browser matrix on GitHub's runner: it was measured in the same image locally, and its
+  first green scheduled run is the proof.
 
 ## Implementation references
 

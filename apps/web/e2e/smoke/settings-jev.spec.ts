@@ -1,5 +1,5 @@
 /** Native routing controls: confirmed state, keyboard focus and narrow-screen layout. */
-import { test, expect } from '../fixtures';
+import { test, expect, idleNotificationStream } from '../fixtures';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 import { scanPage } from '../a11y/scan';
 
@@ -51,7 +51,7 @@ for (const width of [1280, 320]) {
       { url: '**/api/v1/habits/presence', json: {} },
       { url: '**/api/v1/agents/runs/active', json: null },
       { url: '**/api/v1/notifications/broadcasts/unread', json: { broadcasts: [] } },
-      { url: '**/api/v1/notifications/stream', handler: route => route.fulfill({ status: 204 }) },
+      idleNotificationStream,
       {
         url: '**/api/v1/journals/portrait',
         json: { full: null, brief: null, compiled_at: null, sources: null },

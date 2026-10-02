@@ -1,5 +1,5 @@
 /** Early results arrive during a real ReadableStream; no provider or account API is used. */
-import { test, expect, chatRoutes } from '../fixtures';
+import { test, expect, chatRoutes, idleNotificationStream } from '../fixtures';
 import { scanPage } from '../a11y/scan';
 
 declare global {
@@ -20,7 +20,7 @@ for (const width of [390, 1280]) {
       { url: '**/api/v1/telephony/calls*', json: { calls: [], total: 0 } },
       { url: '**/api/v1/conversations/me', json: { id: '00000000-0000-4000-8000-0000000000ff' } },
       { url: '**/api/v1/notifications/broadcasts/unread', json: { broadcasts: [] } },
-      { url: '**/api/v1/notifications/stream', handler: route => route.fulfill({ status: 204 }) },
+      idleNotificationStream,
       { url: '**/api/v1/briefing/companion-context', json: { timezone: 'UTC', weather: null } },
       { url: '**/api/v1/psyche/settings', json: { enabled: false } },
       { url: '**/api/v1/skills*', json: { skills: [] } },

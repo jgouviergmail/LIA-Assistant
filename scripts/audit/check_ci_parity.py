@@ -18,7 +18,9 @@ developer runs. This guard enforces that shape:
    a decision on the record and not an oversight.
 
 The gating workflows are `ci.yml` and `security.yml`: the latter used to run
-its own `pip-audit` with its own ignore list (dependency programme, F8).
+its own `pip-audit` with its own ignore list (dependency programme, F8). The
+weekly `a11y-matrix.yml` gates nothing and is held to the same rule: it used
+to run its own `npx playwright test`, and nobody ran it before it went red.
 
 Usage:
     python scripts/audit/check_ci_parity.py
@@ -41,6 +43,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WORKFLOWS = (
     REPO_ROOT / ".github" / "workflows" / "ci.yml",
     REPO_ROOT / ".github" / "workflows" / "security.yml",
+    REPO_ROOT / ".github" / "workflows" / "a11y-matrix.yml",
 )
 TASKFILE = REPO_ROOT / "Taskfile.yml"
 

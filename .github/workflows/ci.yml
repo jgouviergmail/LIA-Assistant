@@ -104,7 +104,7 @@ jobs:
     name: E2E + a11y smoke (Playwright)
     runs-on: ubuntu-24.04
     container:
-      image: mcr.microsoft.com/playwright:v1.60.0-jammy
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

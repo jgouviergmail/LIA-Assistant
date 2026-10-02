@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Message, BrowserScreenshotData } from '@/types/chat';
 import type { StreamPhase } from '@/types/chat-state';
 import { ChatMessage } from './ChatMessage';
@@ -70,6 +71,11 @@ export interface ChatMessageListProps {
    *  engine (batched send render; post-done history reload swapping
    *  optimistic ids for server ids). */
   ownSendTick?: number;
+  /** Where the floating return button is drawn: a node the page places just
+   *  above its sticky composer. Without one the button sticks to the list's
+   *  own bottom — which, on the chat page, is UNDER the composer (measured in
+   *  all three engines: the composer took the click). */
+  scrollUiSlot?: HTMLElement | null;
 }
 
 export interface TimeGreeting {
@@ -108,13 +114,13 @@ export function getLastAssistantMessageId(messages: Message[]): string | null {
 /**
  * The element that actually scrolls for a given node.
  *
- * This component renders its own `overflow-y-auto` div, but the chat page
- * wraps it in ANOTHER one (`flex-1 overflow-y-auto chat-scrollbar`) — and that
- * outer one is the real scroller. The inner div is a plain block inside it, so
- * it grows to the full content height and permanently reports
- * `scrollHeight === clientHeight`: every `scrollTop` written to it is a no-op,
- * and an IntersectionObserver rooted on it sees a viewport as tall as the whole
- * conversation, which makes the top sentinel *always* intersect.
+ * The chat page wraps this component in a `flex-1 overflow-y-auto chat-scrollbar`
+ * div, and that outer one is the real scroller. The component's own root is a
+ * plain block inside it, so it grows to the full content height and
+ * permanently reports `scrollHeight === clientHeight`: every `scrollTop`
+ * written to it is a no-op, and an IntersectionObserver rooted on it sees a
+ * viewport as tall as the whole conversation, which makes the top sentinel
+ * *always* intersect.
  *
  * Resolving the real scroller from the DOM keeps the component correct whether
  * it owns the scrolling box or an ancestor does.
@@ -141,31 +147,41 @@ function resolveScrollerOf(node: HTMLElement | null): HTMLElement | null {
 
 /**
  * Floating return button + polite live region (UXR Lot 3). Extracted from the
- * render hotspot (CC discipline). Renders the sticky button in history view
- * (the reader is never "at the present" there — QW-2 semantics) or while the
- * reader is away; the live region announces off-screen responses.
+ * render hotspot (CC discipline). Renders the button in history view (the
+ * reader is never "at the present" there — QW-2 semantics) or while the reader
+ * is away — into the page's slot above the composer when there is one, sticky
+ * at the list's bottom otherwise; the live region announces off-screen responses.
  */
 function ScrollUiOverlay({
   historyView,
   scrollUi,
   onClick,
+  slot,
 }: {
   historyView: boolean;
   scrollUi: ScrollUiState;
   onClick: () => void;
+  slot: HTMLElement | null;
 }) {
   const { t } = useTranslation();
+  const button =
+    historyView || scrollUi.away ? (
+      <ScrollToBottomButton
+        historyView={historyView}
+        count={scrollUi.newWhileAway}
+        onClick={onClick}
+      />
+    ) : null;
   return (
     <>
-      {(historyView || scrollUi.away) && (
-        <div className="sticky bottom-2 z-10 flex justify-center pointer-events-none">
-          <ScrollToBottomButton
-            historyView={historyView}
-            count={scrollUi.newWhileAway}
-            onClick={onClick}
-          />
-        </div>
-      )}
+      {button &&
+        (slot ? (
+          createPortal(button, slot)
+        ) : (
+          <div className="sticky bottom-2 z-10 flex justify-center pointer-events-none">
+            {button}
+          </div>
+        ))}
       {/* The relative wrapper is load-bearing: sr-only is position:absolute,
           and without a positioned ancestor its static position (end of the
           thread) escapes the scroller's clipping and stretches the BODY —
@@ -387,6 +403,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   historyView = false,
   onReturnToPresent,
   ownSendTick = 0,
+  scrollUiSlot = null,
 }) => {
   const { t } = useTranslation();
 
@@ -805,11 +822,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const lastErrorId = lastRetryableErrorId(messages);
 
   return (
-    // pt-8 (32px) provides top padding; scroll-mt-8 on messages must match for proper scroll alignment
-    <div
-      ref={containerRef}
-      className="flex-1 overflow-y-auto px-2 pt-8 pb-6 mobile:px-6 scroll-smooth"
-    >
+    // pt-8 (32px) provides top padding; scroll-mt-8 on messages must match for proper scroll alignment.
+    // No `overflow` here: an element whose overflow is not `visible` is the
+    // scrollport a `sticky` descendant sticks to, even when it never scrolls —
+    // this div grows to the whole thread, so the floating return button stuck
+    // to the END of the thread, off-screen for a reader who scrolled up
+    // (measured in all three engines). The page's wrapper is the scroller.
+    <div ref={containerRef} className="flex-1 px-2 pt-8 pb-6 mobile:px-6 scroll-smooth">
       <div className="mobile:max-w-5xl mobile:mx-auto [&>*:first-child]:mt-2">
         <OlderHistoryEdge
           hasMoreOlder={hasMoreOlder}
@@ -857,6 +876,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           historyView={historyView}
           scrollUi={scrollUi}
           onClick={handleScrollButtonClick}
+          slot={scrollUiSlot}
         />
       </div>
     </div>

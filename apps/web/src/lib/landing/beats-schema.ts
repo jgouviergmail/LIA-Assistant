@@ -6,7 +6,7 @@
  * operator's file, and a list the browser walks every frame must be bounded.
  */
 
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 
 /** Five minutes at 200 BPM is 1 000 beats; this is twenty times that. */
 export const BEAT_MAP_MAX_ENTRIES = 20_000;

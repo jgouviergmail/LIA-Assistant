@@ -7,10 +7,10 @@
 - `Taskfile.yml` — **l'implementation reelle de tous les gates** (voir ci-dessous)
 - `.github/workflows/security.yml` — Scans de securite (CodeQL, Trivy, SBOM)
 - `.github/workflows/release.yml` — artefacts candidats, promotion des digests qualifiés et GitHub Release
-- `.github/workflows/a11y-matrix.yml` — Matrice navigateurs hebdomadaire (AC-002) : rejoue la suite E2E/axe sur Chromium, Firefox et WebKit (`E2E_ALL_BROWSERS=1`), rapports archives 30 jours
+- `.github/workflows/a11y-matrix.yml` — Matrice navigateurs hebdomadaire (AC-002) : rejoue la suite E2E/axe sur Chromium, Firefox et WebKit par la tache de la suite (`task test:e2e:browsers`), rapports archives 30 jours
 - `.github/hooks/pre-commit` — Hook Git pre-commit local
 - `.github/hooks/pre-push` — Hook Git pre-push : le scan de secrets de la CI (gitleaks) sur ce que le push envoie
-- `scripts/audit/check_ci_parity.py` — Garde : les workflows (`ci.yml`, `security.yml`) orchestrent, ils n'implementent pas
+- `scripts/audit/check_ci_parity.py` — Garde : les workflows (`ci.yml`, `security.yml`, `a11y-matrix.yml`) orchestrent, ils n'implementent pas
 - `.github/dependabot.yml` — Mises a jour automatiques des dependances (alertes seules pour pip, delais de carence partout — ADR-331)
 - `.github/workflows/dependency-watch.yml` — Veille hebdomadaire des dependances (ADR-331) : tient UNE issue `dependency-watch` a jour
 
@@ -285,7 +285,7 @@ figees par `package-lock.json` et installees avec `npm ci`).
 Chaque spec intercepte `/api/v1/**` et sert des payloads fixes : aucun backend,
 aucun LLM, aucun fournisseur payant n'est contacte. Playwright construit et sert
 l'application lui-meme. Smoke Chromium sur PR pour la vitesse ; la **meme**
-suite rejoue chaque semaine sur Firefox/WebKit via `a11y-matrix.yml` (AC-002),
+suite rejoue chaque semaine sur Firefox/WebKit via `a11y-matrix.yml` (AC-002, `task test:e2e:browsers`),
 et la campagne manuelle NVDA/VoiceOver est dans `docs/a11y/AT_CAMPAIGN.md`.
 
 L'environnement (serveur gere, IPv4, URLs d'API relatives) vit **dans la

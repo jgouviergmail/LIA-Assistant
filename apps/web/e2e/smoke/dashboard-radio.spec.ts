@@ -233,7 +233,12 @@ test.describe('the radio from the dashboard', () => {
     page,
     authenticate,
     mockApi,
+    browserName,
   }) => {
+    // The flash is offered once the programme has PLAYED a while: headless
+    // Firefox in the container has no audio output, so an AudioContext never
+    // leaves `suspended` even inside a real click (measured), and nothing plays.
+    test.skip(browserName === 'firefox', 'headless Firefox here has no audio output');
     // ADR-324 decision 32, in a real browser: the flash lasts eight seconds, so
     // at least one periodic report (every five) lands while it airs.
     const line = (text: string) => ({ role: 'host', text, offset_s: 0, sources: [] });

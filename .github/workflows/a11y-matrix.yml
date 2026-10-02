@@ -21,7 +21,7 @@ jobs:
     name: E2E + a11y (Chromium, Firefox, WebKit)
     runs-on: ubuntu-24.04
     container:
-      image: mcr.microsoft.com/playwright:v1.60.0-jammy
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -42,14 +42,17 @@ jobs:
         working-directory: ./apps/web/e2e
         run: npm ci --no-audit --no-fund
 
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # The suite's own task (ADR-151): this job used to run `npx playwright
+      # test` with an environment of its own, a second definition of the suite.
       - name: Run suite on all three engines
-        working-directory: ./apps/web/e2e
         env:
           CI: "true"
-          E2E_MANAGED_SERVER: "1"
-          E2E_BASE_URL: http://localhost:3000
-          NEXT_PUBLIC_API_URL: ""
-          E2E_ALL_BROWSERS: "1"
           # Firefox refuses to start when $HOME is not owned by the current
           # user, which is exactly what Actions sets up inside this container:
           # every Firefox project failed with "Failed to launch the browser
@@ -58,7 +61,7 @@ jobs:
           # this step so the pnpm/npm caches of the earlier steps keep their own
           # HOME. The workaround is the one Playwright itself prints.
           HOME: /root
-        run: npx playwright test
+        run: task test:e2e:browsers
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}

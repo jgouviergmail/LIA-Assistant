@@ -166,6 +166,19 @@ test.describe('chat scroll follow invariant', () => {
     const button = page.getByRole('button', { name: 'Revenir en bas de la conversation' });
     await expect(button).toBeVisible();
     await expect(button).toContainText('1 nouvelle réponse');
+    // ON SCREEN, where the reader is: `toBeVisible` ignores the viewport, and
+    // `click()` scrolls its target into view first — a button stuck at the end
+    // of the thread passed both, Playwright's own scroll bringing the reader
+    // back down (measured: the button 3,000 px below a 720 px viewport).
+    await expect(button).toBeInViewport();
+    // …and on TOP: once on screen it sat under the sticky composer, whose
+    // textarea took the tap in Firefox and WebKit (measured in all three).
+    expect(
+      await button.evaluate(el => {
+        const r = el.getBoundingClientRect();
+        return el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+      })
+    ).toBe(true);
 
     // One tap → back to the bottom, button (and badge) gone.
     await button.click();

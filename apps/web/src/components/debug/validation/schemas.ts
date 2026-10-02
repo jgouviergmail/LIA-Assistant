@@ -5,7 +5,7 @@
  * Detects anomalies, RAW vs CAL scores, and missing data.
  */
 
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 
 /**
  * Schema for a threshold comparison

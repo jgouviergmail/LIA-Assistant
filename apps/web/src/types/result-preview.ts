@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 
 /** Ephemeral side channel: bounded, reversible and never persisted with chat history. */
 export const qualifiedCollectionSchema = z

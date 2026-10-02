@@ -1,5 +1,5 @@
 /** Native background calls remain observable independently of chat history. */
-import { test, expect, chatRoutes } from '../fixtures';
+import { test, expect, chatRoutes, idleNotificationStream } from '../fixtures';
 import type { JevCallTrace } from '../../src/types/jev';
 import { scanPage } from '../a11y/scan';
 
@@ -53,7 +53,7 @@ for (const lng of ['en', 'fr'] as const) {
       { url: '**/api/v1/telephony/calls*', json: { calls: [], total: 0 } },
       { url: '**/api/v1/conversations/me', json: { id: '00000000-0000-4000-8000-0000000000ff' } },
       { url: '**/api/v1/notifications/broadcasts/unread', json: { broadcasts: [] } },
-      { url: '**/api/v1/notifications/stream', handler: route => route.fulfill({ status: 204 }) },
+      idleNotificationStream,
       { url: '**/api/v1/briefing/companion-context', json: { timezone: 'UTC', weather: null } },
       { url: '**/api/v1/psyche/settings', json: { enabled: false } },
       { url: '**/api/v1/skills*', json: { skills: [] } },

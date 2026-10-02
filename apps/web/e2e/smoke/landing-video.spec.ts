@@ -76,7 +76,17 @@ const player = (page: Page) => page.getByTestId('landing-video-player');
 const video = (page: Page) => page.locator('video');
 const isPaused = (page: Page) => video(page).evaluate(v => (v as HTMLVideoElement).paused);
 const isMuted = (page: Page) => video(page).evaluate(v => (v as HTMLVideoElement).muted);
-const currentTime = (page: Page) => video(page).evaluate(v => (v as HTMLVideoElement).currentTime);
+/** Marks the element and counts its reloads (`emptied`): the element is what
+ *  must survive a navigation, never its clock — see the test leaving the landing. */
+const markVideo = (page: Page) =>
+  video(page).evaluate(v => {
+    const marked = v as HTMLVideoElement & { e2eReloads?: number };
+    marked.e2eReloads = 0;
+    marked.addEventListener('emptied', () => (marked.e2eReloads = (marked.e2eReloads ?? 0) + 1));
+  });
+/** The marked element's reload count — `null` when the element was replaced. */
+const reloadsOfMarked = (page: Page) =>
+  video(page).evaluate(v => (v as HTMLVideoElement & { e2eReloads?: number }).e2eReloads ?? null);
 const beating = (page: Page) => page.locator('html').getAttribute('data-beat');
 
 /**
@@ -157,6 +167,16 @@ test.describe('landing video — configured, motion allowed, the browser wants a
   // contextOptions, not the top-level option: the config sets the default through
   // contextOptions, which wins (measured: the top-level override left `reduce`).
   test.use({ contextOptions: { reducedMotion: 'no-preference' }, locale: 'fr-FR' });
+  // Its pause comes after the 2 s fixture has looped, and Playwright's WebKit
+  // (the Linux port's GStreamer media stack, not Safari's) cannot loop: it seeks
+  // to 0 for ever, and a `pause()` there is undone by the engine's own `play`
+  // event, no script asking (measured: 3 journeys of 8). Chromium and Firefox
+  // run it; the other journeys pause before the loop or read no clock, and
+  // run in WebKit too.
+  test.skip(
+    ({ browserName }) => browserName === 'webkit',
+    'WebKit here cannot pause a looping video'
+  );
 
   test('starts muted when sound is refused, obeys its controls, keeps its music docked off-screen', async ({
     page,
@@ -269,7 +289,13 @@ test.describe('landing video — configured, motion allowed, the browser allows 
     await section(page).scrollIntoViewIfNeeded();
     await expect.poll(() => isPaused(page), { timeout: 10_000 }).toBe(false);
     await expect.poll(() => beating(page)).not.toBeNull();
-    const before = await currentTime(page);
+    // The SAME element, never reloaded — not a clock that kept advancing:
+    // Playwright's WebKit (GStreamer) cannot loop a video, and at the end of
+    // the 2 s fixture it seeks to 0 for ever (measured: ~1,500 `seeking` in
+    // 6 s on the fixture and on plain ffmpeg clips alike, Chromium looping
+    // them), so `currentTime` read 0 on a player that never left. A reload is
+    // what `emptied` announces; a replaced element carries no mark.
+    await markVideo(page);
 
     // The header's own link: a client-side navigation, the layout stays.
     await page.locator('header').getByRole('link', { name: 'Blog' }).first().click();
@@ -279,7 +305,7 @@ test.describe('landing video — configured, motion allowed, the browser allows 
     await expect(page.getByRole('group', { name: 'Vidéo en lecture' })).toBeVisible();
     expect(await isPaused(page)).toBe(false);
     expect(await isMuted(page)).toBe(false);
-    await expect.poll(() => currentTime(page)).toBeGreaterThanOrEqual(before);
+    expect(await reloadsOfMarked(page), 'the same <video>, never reloaded').toBe(0);
     await expect.poll(() => beating(page)).not.toBeNull();
     const blogTitle = page.locator('main h2').first();
     await expect

@@ -299,6 +299,10 @@ export default function ChatPage() {
   // These totals are the source of truth for persisted history
   const [apiTotals, setApiTotals] = useState<ConversationTotals | null>(null);
 
+  // The node, just above the sticky composer, where the list draws its floating
+  // return button: sticky at the list's own bottom it sat UNDER the composer.
+  const [scrollUiSlot, setScrollUiSlot] = useState<HTMLDivElement | null>(null);
+
   // Combined totals: API (history) + Current session (new messages not yet persisted)
   // On refresh, apiTotals contains the full history, sessionTotals is at 0
   // During the session, sessionTotals accumulates new tokens in real time
@@ -1004,6 +1008,7 @@ export default function ChatPage() {
                         historyView={historyView}
                         onReturnToPresent={handleReturnToPresent}
                         ownSendTick={ownSendTick}
+                        scrollUiSlot={scrollUiSlot}
                         onRetry={handleRetry}
                         onPrefillComposer={handleFollowupPick}
                         // W8: an empty chat offers three ways in. Same rail as the
@@ -1024,6 +1029,13 @@ export default function ChatPage() {
                 was moved in here. Same tokens as the header, so the two edges
                 of the thread are one material. */}
             <div className="sticky bottom-0 z-20">
+              {/* The floating return button's place: right above the footer,
+                  whatever its height (a multi-line draft, the surfaces above
+                  the composer), and above it in the stacking order. */}
+              <div
+                ref={setScrollUiSlot}
+                className="pointer-events-none absolute inset-x-0 bottom-full flex justify-center pb-2"
+              />
               {/* Conditional surfaces between the thread and the composer, gated by
                   the S1 arbiter. Extracted as one element on purpose: four inline
                   branches here would grow this render hotspot past its complexity

@@ -93,7 +93,7 @@ export async function probeControls(page: Page, row: ControlRow): Promise<Contro
  * Several controls settle asynchronously — the personality selector swaps a
  * "loading" placeholder for the emoji + title, the chat pills appear once the
  * totals arrive — and measuring during a swap produced flaky overlaps. Poll the
- * geometry until two consecutive readings agree.
+ * geometry until three consecutive readings agree.
  */
 export async function waitForStableControls(page: Page, row: ControlRow): Promise<void> {
   const signature = () =>
@@ -113,11 +113,24 @@ export async function waitForStableControls(page: Page, row: ControlRow): Promis
         .join('|');
     }, row);
 
+  // A resize reaches the stylesheet's media queries through rendering updates,
+  // up to TWO of them: once `clientWidth` already matched the new width, the
+  // header row still wore the previous width's padding in all three engines,
+  // and still after one frame in WebKit (7 of 30 resizes) — never after two.
+  // A time window alone let that stale layout through under load, reported as
+  // an overlap the settled header does not have.
+  await page.evaluate(
+    () =>
+      new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done())))
+  );
+  // Then stable means unchanged for 300 ms: the swaps above are asynchronous.
   let previous = await signature();
-  for (let attempt = 0; attempt < 20; attempt++) {
-    await page.waitForTimeout(100);
+  let unchanged = 0;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    await page.waitForTimeout(150);
     const current = await signature();
-    if (current === previous && current !== '') return;
+    unchanged = current === previous && current !== '' ? unchanged + 1 : 0;
+    if (unchanged >= 2) return;
     previous = current;
   }
 }

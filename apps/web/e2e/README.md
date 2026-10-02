@@ -44,8 +44,11 @@ a11y/   axe WCAG 2.x A/AA scans — smoke pages + journeys (chat, settings,
 ```
 
 PR scope is **Chromium** for speed. The same suite replays weekly on
-Firefox/WebKit via `.github/workflows/a11y-matrix.yml` (or locally with
-`E2E_ALL_BROWSERS=1`). The manual NVDA/VoiceOver campaign protocol is
+Firefox/WebKit via `.github/workflows/a11y-matrix.yml`, which runs
+`task test:e2e:browsers` (locally: the same task, or `E2E_ALL_BROWSERS=1`).
+Service workers are blocked for every engine: once the production build's
+offline worker controls a page, WebKit sends the requests it hands back by a
+path `page.route` never sees. The manual NVDA/VoiceOver campaign protocol is
 versioned at `docs/a11y/AT_CAMPAIGN.md`; the token-level contrast contract at
 `docs/a11y/CONTRAST_TOKENS.md`.
 
@@ -66,7 +69,7 @@ the official Playwright image sharing that container's network namespace, so
 ```bash
 docker run --rm --network container:lia-web-dev \
   -v "//d/Developpement/LIA/apps/web/e2e:/e2e" -w /e2e \
-  mcr.microsoft.com/playwright:v1.60.0-jammy \
+  mcr.microsoft.com/playwright:v1.63.0-noble \
   sh -c "npm ci --no-audit --no-fund && npx playwright test --reporter=list"
 ```
 
@@ -106,7 +109,7 @@ docker exec -d -u node -e NODE_ENV=production lia-web-dev sh -c \
 
 docker run --rm --network container:lia-web-dev -e E2E_BASE_URL=http://127.0.0.1:3100 \
   -v "//d/Developpement/LIA/apps/web/e2e:/e2e" -w /e2e \
-  mcr.microsoft.com/playwright:v1.60.0-jammy \
+  mcr.microsoft.com/playwright:v1.63.0-noble \
   sh -c "npm ci --no-audit --no-fund && npx playwright test --reporter=list"
 ```
 
@@ -177,7 +180,7 @@ docker exec -u node -e NODE_ENV=production -e NEXT_DIST_DIR=.next-e2e \
 MSYS_NO_PATHCONV=1 docker run --rm --network container:lia-web-dev \
   -e E2E_BASE_URL=http://127.0.0.1:3100 -e E2E_SHOWROOM=1 \
   -v "//d/Developpement/LIA/apps/web/e2e:/e2e" -w /e2e \
-  mcr.microsoft.com/playwright:v1.60.0-jammy \
+  mcr.microsoft.com/playwright:v1.63.0-noble \
   sh -c "npm ci --no-audit --no-fund && npx playwright test \
     smoke/public-demo-showroom.spec.ts a11y/axe-public-demo-showroom.spec.ts --reporter=list"
 ```

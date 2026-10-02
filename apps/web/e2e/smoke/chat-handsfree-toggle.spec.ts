@@ -16,6 +16,11 @@ test.use({
   },
 });
 
+// The fake microphone is a Chromium launch flag: WebKit refuses to start with it,
+// and Playwright grants Firefox no microphone permission (both measured in the
+// browser matrix).
+test.skip(({ browserName }) => browserName !== 'chromium', 'the fake microphone is Chromium-only');
+
 test('a click turns hands-free mode back on right after a long press turned it off', async ({
   page,
   authenticate,

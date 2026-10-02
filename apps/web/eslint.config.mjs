@@ -69,7 +69,27 @@ const eslintConfig = defineConfig([
       // Flip these to "error" here once the ratchet baseline reaches 0.
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/immutability': 'off',
+      // zod 4 probes `Function("")` to choose its JIT parsers, which the CSP
+      // refuses and Firefox reports as an error on every page: '@/lib/zod'
+      // configures it jitless before any schema runs.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'zod',
+              message:
+                "Import { z } from '@/lib/zod': it configures zod jitless before any schema runs (zod's eval probe violates the CSP).",
+            },
+          ],
+        },
+      ],
     },
+  },
+  {
+    // The one module allowed to import zod itself: it configures it.
+    files: ['src/lib/zod.ts'],
+    rules: { 'no-restricted-imports': 'off' },
   },
 ]);
 

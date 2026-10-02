@@ -8,7 +8,7 @@
  * escapes. Selectors are attribute/role based, not text, so the smoke is
  * language-agnostic.
  */
-import { test, expect } from '../fixtures';
+import { test, expect, waitForHydration } from '../fixtures';
 
 test.describe('public login page', () => {
   test('renders the credential form with no API call beyond the capability probe', async ({
@@ -34,6 +34,9 @@ test.describe('public login page', () => {
 
   test('lets the user type credentials', async ({ page }) => {
     await page.goto('/en/login');
+    // What is typed before hydration, hydration wipes in Chromium and WebKit
+    // (measured with the scripts held back: `""` once React attached).
+    await waitForHydration(page);
     await page.locator('input[type="email"]').fill('e2e.user@example.test');
     await page.locator('input[type="password"]').fill('correct horse battery');
     await expect(page.locator('input[type="email"]')).toHaveValue('e2e.user@example.test');
@@ -43,6 +46,8 @@ test.describe('public login page', () => {
     page,
   }) => {
     await page.goto('/en/login');
+    // A box ticked before hydration, hydration unticks in Chromium (measured).
+    await waitForHydration(page);
 
     // Role + real translated name proves the programmatic label association
     // in an actual browser accessibility tree (not just static analysis).

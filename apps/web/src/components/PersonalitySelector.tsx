@@ -58,7 +58,7 @@ export function PersonalitySelector() {
       <Button
         variant="ghost"
         size="sm"
-        className="gap-2 h-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:px-2"
+        className="gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2"
         disabled
         aria-label={t('common.loading')}
       >
@@ -78,7 +78,7 @@ export function PersonalitySelector() {
         <Button
           variant="ghost"
           size="sm"
-          className="gap-2 h-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:px-2"
+          className="gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2"
           disabled={updating}
           // A reload of the catalogue (an administrator saving a style) must
           // announce itself without taking the control away: swapping it for

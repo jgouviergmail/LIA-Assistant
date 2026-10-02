@@ -760,6 +760,67 @@ left open on a failed initialisation is the change between the two. The ignore, 
 its guard (`test_asyncpg_cancel_allowlist_guard.py`, whose own docstring asked for both to go
 once the driver stopped leaking) are removed; ADR-130's F028 row says so.
 
+**9e — Playwright 1.63 on `noble`, and the browser matrix repaired (F9, implemented 2026-10-02).**
+`@playwright/test` 1.63.0 (the lock loses a second `playwright-core`, 1.61.1, and `fsevents`),
+the image `mcr.microsoft.com/playwright:v1.63.0-noble` in `ci.yml` and `a11y-matrix.yml`, and
+the weekly matrix runs `task test:e2e:browsers` where it ran an `npx playwright test` of its own —
+so `a11y-matrix.yml` joins the parity guard (ADR-151). F9 was then read in the CI image itself,
+the three engines against a production build: the first full run left 40 journeys red and 23
+flaky of 1,107. Each cause was measured before it was touched, and none was fixed by a longer
+timeout:
+
+- **What the harness did not control.** The offline service worker (ADR-146), once it controls
+  the page, hands WebKit's requests back by a path `page.route` never sees: they reached the real
+  server (5-7 WebKit journeys of 10 red, 0 of 11 with workers blocked — `serviceWorkers:
+  'block'`). A notification stream mocked as `204` tells an EventSource to FAIL, and Firefox logs
+  every failed connection and the hook's reconnection as JavaScript errors — three journeys that
+  assert a clean page were red on Firefox alone; they mock an idle stream now
+  (`idleNotificationStream`).
+- **What the CSP refused.** zod 4 probes `Function("")` to decide whether it may compile; the
+  CSP refuses it, and Firefox logs that as a JavaScript error on every page parsing an object
+  schema. `z` is imported from `@/lib/zod`, configured `jitless` (ESLint refuses `zod` itself; a
+  unit test proves no `Function` call).
+- **What an engine here cannot do — skipped by name, with the measurement, never weakened.** The
+  fake microphone is Chromium's (four specs); headless Firefox in the container has no audio
+  output (the radio flash); Playwright's WebKit exposes `PublicKeyCredential` without
+  `navigator.credentials.create`, so the passkey button must be ABSENT there — asserted; and
+  Playwright's WebKit cannot loop a video: at a clip's end it seeks to 0 for ever (~1,500
+  `seeking` in 6 s, on the fixture and on plain ffmpeg clips alike, Chromium looping them) and a
+  `pause()` there is undone by the engine's own `play` event, no script asking (3 journeys of 8).
+  The landing journey across pages therefore asserts the ELEMENT — the same `<video>`, never
+  reloaded (`emptied`) — instead of a clock, which also catches a reload its `currentTime >=
+  before` could not; the journey that pauses after the loop runs in Chromium and Firefox.
+- **Races that were read as durations.** A resize reaches the stylesheet's media queries after
+  up to TWO rendering updates (WebKit: 7 resizes of 30 still stale after one, none after two), so
+  the header probes wait two frames before their stability window; a value typed before
+  hydration is wiped by it in Chromium and WebKit, a ticked box in Chromium (measured with the
+  scripts held back), so the login journeys wait for hydration; the answer actions' panel
+  announces its width before WebKit lays it out (400 announced, 320 laid out), so the baseline
+  is read once both agree.
+- **Two product defects.** The chat's « back to the bottom » button was stuck at the END of the
+  thread: `position: sticky` binds to the nearest ancestor whose overflow is not visible, and the
+  list's root carried an `overflow-y-auto` that never scrolled — the button sat 3,000 px below a
+  720 px viewport, and the Chromium journey passed because `toBeVisible` ignores the viewport
+  and `click()` scrolls its target into view first. Once on screen it sat under the sticky
+  composer, whose textarea took the tap in Firefox and WebKit. It now renders in a slot the
+  chat page holds above the composer, and the journey asserts it in the viewport and on top.
+  And the personality selector measured 43.97 px wide in WebKit, its emoji deciding, against a
+  44 px touch target: `min-w-11` (`min-w-9` under 380 px, like its height).
+- The guard holding one value to one owner (`test_one_value_one_owner_guard.py`) now holds both
+  workflows' containers to the e2e package's Playwright, which Dependabot moves alone — a
+  package whose browsers the image does not carry launches none. Proven red on a divergent
+  container.
+- Measured: in the CI image, the 1,107 journeys on three engines, four workers and one retry
+  allowed — 1,089 passed, 18 skipped by name, none failed and none flaky (15.8 min, while a
+  training container held more than a core); repeated under that load, the landing journeys 42
+  of 42 (three engines, three times), the header probes 210 of 210 (twice), the login journeys
+  45 of 45 (five times); the e2e typecheck, the frontend lint chain, `task lint:ci-parity`,
+  `task lint:docs`; the frontend coverage gate, 10,481 tests with its thresholds held — after a
+  first run in which a landing unit test outside this lot (`LandingVideo.test.tsx`, a one-second
+  `waitFor`) timed out under the same load, five times of five green alone; `jitless` costs its
+  beat-map parse 0.0007 ms (4.4 ms at the 20,000-beat ceiling, once a page — and in production
+  the CSP had always refused the compiler).
+
 ## 6. Deferred, with the condition that reopens each
 
 | Subject | Stays on | Reopened when |

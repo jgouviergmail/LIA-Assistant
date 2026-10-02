@@ -1,5 +1,5 @@
 /** Only execution evidence drives tool acting. Unknown versions fail closed. */
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 
 export const ACTIVITY_FAMILIES = [
   'reading',

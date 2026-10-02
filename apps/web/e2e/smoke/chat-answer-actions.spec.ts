@@ -234,6 +234,15 @@ test.describe('the debug panel width', () => {
 
     const handle = page.getByRole('separator', { name: 'Resize the debug panel' });
     await expect(handle).toBeVisible();
+    // The panel sizes itself from its row once mounted: WebKit lays it out at
+    // the floor (320) first and at the width it announces later (measured: 400
+    // announced, 320 laid out). The baseline is read once both agree.
+    await expect
+      .poll(
+        async () =>
+          (await rowWidths(handle)).panel === Number(await handle.getAttribute('aria-valuenow'))
+      )
+      .toBe(true);
     const before = Number(await handle.getAttribute('aria-valuenow'));
     const widthsBefore = await rowWidths(handle);
 

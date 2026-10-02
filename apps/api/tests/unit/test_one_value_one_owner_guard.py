@@ -9,7 +9,9 @@ a promtool that differs from the production Prometheus validates rules on anothe
 PromQL engine (the same rule passed on 2.53.2 and failed on 3.0.0). Since lot 7 the
 API image's pinned downloads have copies too: the development image and the local
 model script repeat them, and the Node tarball, which no updater reads, follows the
-sandbox's Node image, which Dependabot moves.
+sandbox's Node image, which Dependabot moves. Since lot 9 the browser journeys too:
+Dependabot moves the e2e package's Playwright, nothing moves the workflows' container,
+and a package whose browsers the image does not carry launches none.
 """
 
 from __future__ import annotations
@@ -170,3 +172,22 @@ def test_promtool_validates_on_the_prometheus_production_runs() -> None:
     assert {v for found in copies.values() for v in found} == {
         owner
     }, f"production runs Prometheus {owner}; promtool is pinned at {copies}"
+
+
+def test_the_ci_containers_carry_the_browsers_the_e2e_package_drives() -> None:
+    """Dependabot moves ``@playwright/test`` alone — its pull request cannot merge
+    until both workflows' containers follow."""
+    manifest = json.loads(_read("apps/web/e2e/package.json"))
+    owner = manifest["devDependencies"]["@playwright/test"]
+    copies = {
+        workflow: re.findall(r"mcr\.microsoft\.com/playwright:v(\d+\.\d+\.\d+)-", _read(workflow))
+        for workflow in (".github/workflows/ci.yml", ".github/workflows/a11y-matrix.yml")
+    }
+
+    assert all(
+        copies.values()
+    ), f"a Playwright container is no longer where this guard reads it: {copies}"
+    assert {v for found in copies.values() for v in found} == {owner}, (
+        f"the e2e package drives Playwright {owner}; the CI containers carry {copies}: "
+        f"set both to mcr.microsoft.com/playwright:v{owner}-noble"
+    )

@@ -52,7 +52,19 @@ test.describe('passkey login', () => {
     await mockApi([{ url: '**/api/v1/auth/features', json: { mfa_enabled: true } }]);
     await page.goto('/en/login');
 
-    await expect(page.getByRole('button', { name: 'Sign in with a passkey' })).toBeVisible();
+    // The button is offered only where the ceremony can run: Playwright's WebKit
+    // exposes PublicKeyCredential without navigator.credentials.create (measured),
+    // and there the login form must stand without it.
+    const ceremonyRuns = await page.evaluate(
+      () => 'PublicKeyCredential' in window && typeof navigator.credentials?.create === 'function'
+    );
+    const button = page.getByRole('button', { name: 'Sign in with a passkey' });
+    if (ceremonyRuns) {
+      await expect(button).toBeVisible();
+    } else {
+      await expect(page.locator('input[type="email"]')).toBeVisible();
+      await expect(button).toHaveCount(0);
+    }
   });
 
   test('a resident-key ceremony signs in and lands on the dashboard', async ({

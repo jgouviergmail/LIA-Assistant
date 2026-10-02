@@ -747,9 +747,20 @@ tasks:
       E2E_MANAGED_SERVER: "1"
       E2E_BASE_URL: http://127.0.0.1:3000
       NEXT_PUBLIC_API_URL: ""
+      E2E_ALL_BROWSERS: "{{.E2E_ALL_BROWSERS}}"
     cmds:
       - npm run typecheck
       - npx playwright test
+
+  test:e2e:browsers:
+    desc: The same journeys on Chromium, Firefox and WebKit (the weekly accessibility matrix)
+    # The matrix used to run `npx playwright test` with an environment of its
+    # own (no typecheck, its own base URL): a second definition of the suite,
+    # red for weeks without anyone running it. It runs the suite's task now.
+    cmds:
+      - task: test:e2e
+        vars:
+          E2E_ALL_BROWSERS: "1"
 
   test:e2e:showroom:
     desc: Guided showroom P0 — CLEAN managed build, telemetry OFF (zero-API oracle + axe)
