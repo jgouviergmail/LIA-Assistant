@@ -100,8 +100,9 @@ task deps:lock
 # Bump ciblé d'un paquet (dans les bornes du manifeste) sans toucher au manifeste :
 task deps:upgrade -- pillow mcp
 
-# Bump global de tous les paquets (à réserver aux mises à jour planifiées) :
-task deps:upgrade:all
+# Tout le reste, après son délai de carence (correctif 5 j, mineure 14, majeure 60),
+# sans jamais redescendre une version (ADR-331) :
+task deps:refresh
 
 # 3. Réinstaller le venv local puis lancer les tests
 pip install --require-hashes -r apps/api/requirements-dev.lock.txt
@@ -115,6 +116,13 @@ Le job CI `code-hygiene` appelle `task lint:lockfiles`
 régénération des lockfiles (pin absent, pin non satisfait, ou lock dev
 désynchronisé du lock runtime). Jouable en local avec la même commande.
 Décision et détails : `docs/architecture/ADR-112-Python-Dependency-Locking.md`.
+
+Un correctif de sécurité d'un paquet transitif devient un **plancher dans le
+manifeste** (`paquet>=version  # via …: l'avis`), jamais une ligne du lockfile
+seule : la résolution suivante qui ne le lit pas le défait. Ce que les
+barrières ne voient pas (avis publiés par les dépôts des dépendances, fins de
+vie, registres, moteur du navigateur) est lu par `task deps:watch`, chaque
+semaine et à chaque release (ADR-331).
 
 ### Configuration Frontend
 

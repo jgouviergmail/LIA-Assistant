@@ -52,9 +52,10 @@ jobs:
       # Ruff + Black + MyPy, then the F020 exemption ratchet (shrink-only:
       # freezes the disable_error_code surface as (module, code) pairs and fails
       # on any NEW exemption; pure pyproject parse, no MyPy run), then Ruff +
-      # Black over the wake-word toolbox (ADR-329), which this venv carries.
+      # Black over the wake-word toolbox (ADR-329) and over the dependency tools
+      # (ADR-331), which this venv carries.
       - name: Lint backend
-        run: task lint:backend lint:mypy-debt lint:wake
+        run: task lint:backend lint:mypy-debt lint:wake lint:deps
 
   lint-frontend:
     name: Lint Frontend

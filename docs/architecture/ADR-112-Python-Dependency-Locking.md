@@ -134,3 +134,15 @@ deterministic — new upstream releases can never make it flaky). It fails when:
   0.3.11 → 0.4.2 (langgraph 1.2.4 requires >=0.4.2), and websockets
   16.0 → 15.0.1 (langgraph-sdk 0.4.2 caps websockets <16; langsmith 0.9.8
   floors it >=15). The full pin diff is exactly those 20 packages.
+
+## Amendment 2026-10-02 — three doors, and a fix lives in its manifest (ADR-331)
+
+`task deps:upgrade:all` is gone: it moved every version at once, with no
+cooldown, and a 14-day window took a security fix backwards (`pyjwt` 2.15.1 to
+2.14.0, measured). A Python version now moves through three doors and no
+fourth: `task deps:lock` (a manifest change), `task deps:upgrade -- <pkg>` (a
+fix, at once) and `task deps:refresh` (everything else, after its cooldown,
+never backwards). A security fix adopted in a lockfile alone is undone by the
+first resolution that does not read it, so it becomes a floor in its manifest,
+with the advisory it clears in the comment. See
+[ADR-331](ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md).

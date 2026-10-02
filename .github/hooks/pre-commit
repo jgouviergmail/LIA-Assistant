@@ -354,7 +354,12 @@ if [ -n "$PYTHON_FILES" ]; then
         # A golden file's regeneration switch (`<NAME>_GOLDEN_WRITE=1 pytest …`)
         # is a developer knob read by ONE test to rewrite the file it pins —
         # never a setting of a running instance.
-        NEW_ENV_REFS=$(printf '%s\n' $QUOTED_REFS $RESOLVED_REFS | sed '/^$/d' | grep -v '^LIA_KEY_' | grep -v '_GOLDEN_WRITE$' | sort -u)
+        # A GitHub token (`GITHUB_TOKEN` on a runner, `GH_TOKEN` for the GitHub
+        # CLI) is the CI's or the developer's own credential, read by a
+        # repository tool — the dependency watch reads the GitHub API with it
+        # (ADR-331) — and never by a running instance: listing it in
+        # .env.example would invite a self-hoster to paste a token LIA never reads.
+        NEW_ENV_REFS=$(printf '%s\n' $QUOTED_REFS $RESOLVED_REFS | sed '/^$/d' | grep -v '^LIA_KEY_' | grep -v '_GOLDEN_WRITE$' | grep -vE '^(GITHUB_TOKEN|GH_TOKEN)$' | sort -u)
 
         if [ -n "$NEW_ENV_REFS" ]; then
             MISSING_VARS=""

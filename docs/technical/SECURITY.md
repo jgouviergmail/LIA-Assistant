@@ -2706,6 +2706,10 @@ task security:scan:backend          # pip-audit (version épinglée, isolé par 
 # Audit de dépendances Node (bloquant en CI depuis 2026-07)
 task security:scan:frontend         # pnpm audit --audit-level=high
 
+# Ce que ces audits ne voient pas (avis publiés par le dépôt de chaque dépendance,
+# fins de vie, registres, moteur du navigateur) — réseau, hebdomadaire et à chaque release (ADR-331)
+task deps:watch
+
 # SAST : assuré par CodeQL (security-and-quality + security-extended) sur chaque
 # push et PR — voir .github/workflows/security.yml. `bandit` et `safety` ont été
 # RETIRÉS des dépendances (2026-07-20) : jamais câblés, et redondants avec
@@ -2849,10 +2853,11 @@ See [ADR-149](../architecture/ADR-149-Security-Remediation-Wave-1.md).
 Transitive dependency vulnerabilities are managed through a layered approach:
 
 1. **Universal Python lockfiles** (ADR-112) — every environment (prod image, dev container, CI, local venv) installs `requirements.lock.txt` / `requirements-dev.lock.txt`, compiled with SHA256 hashes for every published file: the packages actually shipped are exact, reproducible, and integrity-verified at install time (`pip --require-hashes`).
-2. **Dependabot** — Weekly PRs for direct dependency updates (pip, npm, Docker, GitHub Actions).
+2. **Dependabot** — Weekly PRs for npm, Docker images (Dockerfiles and compose files) and GitHub Actions, each release waiting its cooldown (patch 5 days, minor 14, major 60; never a security update). For pip, alerts only: Python moves through `task deps:refresh` under the same cooldown, never backwards (ADR-331).
 3. **pnpm overrides** — Force safe versions of transitive dependencies when direct parents haven't updated yet. Overrides are defined in the root `package.json`. See `docs/technical/CI_CD.md` for the full override table and process. Two rules learned the hard way: an **exact** pin becomes a liability once upstream patches again (our own `brace-expansion: 2.0.2` was pinning a version vulnerable to a later advisory fixed in 2.0.3), and an override key must be **scoped to the affected major** when other majors are in use (`minimatch@9` leaves ESLint's `3.1.5` alone).
-4. **pip-audit + pnpm audit** — Automated scans in the `security.yml` CI workflow; `pip-audit` reads the Python lockfile, so transitive pins are audited too. **Both steps are blocking.** `pnpm audit` ran with `continue-on-error: true` for a long time, which is how a CRITICAL advisory (`websocket-driver`, GHSA-xv26-6w52-cph6) survived on `main` under a green pipeline — the step reported it and the job passed anyway. Targeted fixes land via `task deps:upgrade -- <pkg>` (plus a manifest pin bump when the package is a direct dependency).
+4. **pip-audit + pnpm audit** — Automated scans in the `security.yml` CI workflow; `pip-audit` reads the Python lockfile, so transitive pins are audited too. **Both steps are blocking.** `pnpm audit` ran with `continue-on-error: true` for a long time, which is how a CRITICAL advisory (`websocket-driver`, GHSA-xv26-6w52-cph6) survived on `main` under a green pipeline — the step reported it and the job passed anyway. Targeted fixes land via `task deps:upgrade -- <pkg>` plus a manifest line: a pin bump for a direct dependency, a **floor naming its advisory** for a transitive one — a fix in a lockfile alone is undone by the next resolution that does not read it (ADR-331).
 5. **CodeQL** — Static analysis for Python and JavaScript (`security-and-quality` + `security-extended`).
+6. **The dependency watch** (`task deps:watch`, ADR-331) — what the five above cannot see: the advisories each dependency's own repository publishes (twenty were invisible to GitHub's global database on 2026-09-30), end-of-life lines, registry facts and the browser engine. Weekly, as ONE issue, and at every release; every finding fixed or accepted in writing with a review date.
 
 ### When no compatible patched version exists (`auditConfig.ignoreGhsas`)
 

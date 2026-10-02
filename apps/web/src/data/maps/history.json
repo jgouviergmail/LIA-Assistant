@@ -2451,6 +2451,13 @@
       "theme": "experience",
       "functional": ["f.product"],
       "technical": ["t.web", "t.edge"]
+    },
+    {
+      "adr": 331,
+      "date": "2026-10-02",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.cicd", "t.release", "t.docker"]
     }
   ]
 }

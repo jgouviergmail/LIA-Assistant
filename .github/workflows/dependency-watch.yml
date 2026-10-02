@@ -1,0 +1,95 @@
+name: Dependency Watch
+
+# What the pull-request gates cannot see (ADR-331): the security advisories each
+# dependency's own repository publishes (the review found twenty that GitHub's
+# global database did not carry), end-of-life lines, registry facts and the
+# browser engine — every finding held to a written, dated acceptance in
+# scripts/audit/dependency_watch_accepted.json. Never a pull-request gate
+# (ADR-112: a network answer must not turn a pull request red), and never a run
+# nobody reads (F9: a scheduled job is read where the owner already looks): it
+# keeps ONE issue up to date, and closes it when nothing is left to decide.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dependency-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Dependency watch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Held equal to Taskfile.yml's UV_VERSION by test_one_value_one_owner_guard.py.
+      - name: Install uv
+        run: pip install uv==0.12.18
+
+      # The watch reads two wheels beyond the standard library; uv installs them
+      # at the versions the dev lock holds, hashes included.
+      - name: Create a minimal venv for the watch
+        working-directory: ./apps/api
+        run: |
+          uv venv .venv
+          uv pip install --python .venv/bin/python -c requirements-dev.lock.txt packaging pyyaml
+
+      - name: Read the watch
+        id: watch
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: task deps:watch -- --report "$RUNNER_TEMP/dependency-watch.md"
+
+      # One issue, labelled `dependency-watch`: opened or rewritten while
+      # something is left to decide or unread, closed once a run is clean.
+      - name: Keep the one issue up to date
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OUTCOME: ${{ steps.watch.outcome }}
+          REPORT: ${{ runner.temp }}/dependency-watch.md
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create dependency-watch --color c5def5 \
+            --description "Opened and closed by the weekly dependency watch (ADR-331)" --force
+          number=$(gh issue list --state open --label dependency-watch --json number --jq '.[0].number // empty')
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -n "$number" ]; then
+              gh issue close "$number" --comment "Clean on $(date -u +%F): everything read, nothing to decide ($RUN_URL)."
+            fi
+            exit 0
+          fi
+          if [ ! -s "$REPORT" ]; then
+            echo "The watch stopped before writing its report: $RUN_URL" > "$REPORT"
+          fi
+          printf '\n---\nRun: %s\n' "$RUN_URL" >> "$REPORT"
+          head -c 60000 "$REPORT" > "$REPORT.body"
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file "$REPORT.body"
+          else
+            gh issue create --title "Dependency watch" --label dependency-watch --body-file "$REPORT.body"
+          fi
+
+      - name: Fail while something is left to decide
+        if: steps.watch.outcome != 'success'
+        run: exit 1

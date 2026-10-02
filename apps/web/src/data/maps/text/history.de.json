@@ -1747,6 +1747,11 @@
       "title": "Medien ohne Arbeit zur Laufzeit: vorab erzeugte Illustrationen, ein vom Betreiber erklärtes Video",
       "summary": "Die Blog-Illustrationen werden einmal geschrieben, in vier Breiten und einem Vorschaubild, und so ausgeliefert, wie sie sind: der Server skaliert nichts mehr, und der Edge-Cache behält sie. Das Video der Startseite liegt dort, wo der Betreiber es erklärt, und wird durch ein Manifest beschrieben, das bei Bedarf gelesen wird; ohne Manifest gibt es den Abschnitt nicht. In Schleife startet es, sobald es sichtbar ist — mit Ton, wo der Browser es erlaubt, sonst stumm bis zu einem Klick —, und solange der Ton läuft, schlagen der Titel der Seite und die Abschnittstitel dank einer vorab berechneten Taktkarte im Rhythmus der Musik.",
       "src": "7ab6089b847d"
+    },
+    "331": {
+      "title": "Was die Prüfungen nicht sehen, wird jede Woche gelesen",
+      "summary": "Die Prüfungen jeder Änderung lasen eine einzige Datenbank für Sicherheitshinweise: Die Überprüfung vom September 2026 fand zwanzig Hinweise, die die Repositories der Abhängigkeiten selbst veröffentlicht hatten und die kein Werkzeug sah. Eine wöchentliche Überwachung liest nun diese Hinweise, die Support-Enden, die Registries und die Browser-Engine, und jeder Befund wird behoben oder schriftlich akzeptiert, mit einem Datum für die erneute Prüfung. Python-Versionen rücken über einen einzigen Befehl vor, nach einer Wartezeit und nie rückwärts.",
+      "src": "1fdde3db9932"
     }
   }
 }

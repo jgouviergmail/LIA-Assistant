@@ -4,7 +4,8 @@
 **Status:** adversarial review of the first dependency audit of 2026-09-30, every claim
 re-measured. D1 and D2 decided by the owner on 2026-10-02 (§3). Lot 1 is the urgent lot, planned
 in `docs/superpowers/plans/2026-10-02-dependency-urgent-lot.md`; the other lots get their plan
-after the owner's review of this spec. Nothing is implemented.
+after the owner's review of this spec. Lots 1 and 2 landed in `9923b414`, lot 3 in `5c05e329`,
+lot 4 with ADR-331. D5, D6 and D8 decided; D3, D4 and D7 hold their stated defaults (§3).
 **Scope:** every third-party input of the repository — the three Python lockfiles of the API
 (runtime, dev, skill sandbox), the pnpm lockfile and the e2e npm lockfile, the wake-word toolbox's
 lockfiles, every container image and build-time download, the CI toolchain, the native shells —
@@ -343,7 +344,34 @@ The task-by-task plan is `docs/superpowers/plans/2026-10-02-dependency-urgent-lo
   variables a git hook exports (every commit from `354484ed` to `13dfc167` authored « guard »);
   fixed separately (`a0b7d85a`).
 
-### Lot 4 — the watch, and a pipeline that moves
+### Lot 4 — the watch, and a pipeline that moves (implemented 2026-10-02, ADR-331)
+
+Measured on landing — the design below held, with these findings on the way:
+
+- **The first real run reported 94 findings; 21 were real.** The rest were ranges read
+  literally: `*`, `8+`, `11.0.x`, `||`, `14.3.0-canary.77`, one fix per release line
+  (`v16.0.7, v15.5.7, v15.4.8` — the line is major and minor, else major), a fix not
+  released (`16.3.?`), a local build (`torch 2.14.1+cpu`). Each shape is a recorded fixture of
+  `test_dependency_watch.py`, seen red before the reader moved. One run: about 80 seconds,
+  2,500 requests, 389 PyPI and 1,121 npm releases, 969 repositories, 17 product lines, 36 images.
+- **What it found**: `sharp` 0.35.4 under GHSA-wq5f-xc86-pv6w (librsvg, high), fixed by its
+  override's floor; `fsspec` 2025.3.0 under GHSA-27vj-qcqg-25rc in the wake-word GPU toolbox (the
+  wake-word locks were audited by nothing), held by `voxcpm` → `datasets` 3.6.0 and accepted;
+  five Next.js advisories whose fix is announced as `16.3.?`, each verified not to apply in the
+  code. Twenty acceptances, each dated to the lot that lifts it.
+- **The refresh needs the upload of what it holds.** uv's window filters ARTIFACTS (measured: a
+  cutoff between a release's two uploads keeps the version with one of its files), and a
+  per-package date overrides the global one in both directions (measured). So the window of a
+  locked package never ends before the last artifact of the version it holds, and a final plain
+  `deps:lock` restores every artifact. On the real locks: 75 changes in two passes, 17 seconds,
+  no version lower than before, `lint:lockfiles` green; the result was restored, lot 8 applies it.
+- `deps:upgrade:all` is removed (a second door for the same move, with no cooldown);
+  `deps:lock` takes the refresh's arguments through `UV_EXTRA` and writes byte for byte what it
+  wrote before. `task lint:deps` gates the three tools. The ten floors moved no version.
+- Not verified: Dependabot's next run (cooldowns, `docker-compose` with `group-by`, the `vite`
+  floor) and the workflow's first issue.
+
+The design, as specified:
 
 - `scripts/audit/dependency_watch.py` (proposed; standard library, network) and `task deps:watch`:
   repository-level advisories against every locked version; end-of-life dates of the product lines

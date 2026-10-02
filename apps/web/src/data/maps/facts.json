@@ -543,6 +543,7 @@
     "327": "ADR-327-Skill-Library-And-Third-Party-Skills.md",
     "328": "ADR-328-Heartbeat-Without-A-Daily-Quota.md",
     "329": "ADR-329-Live-Standby-And-Multilingual-Wake-Word.md",
-    "330": "ADR-330-Landing-Media-Served-Without-Runtime-Work.md"
+    "330": "ADR-330-Landing-Media-Served-Without-Runtime-Work.md",
+    "331": "ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md"
   }
 }

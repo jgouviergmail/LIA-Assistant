@@ -10,7 +10,8 @@
 - `.github/workflows/a11y-matrix.yml` — Matrice navigateurs hebdomadaire (AC-002) : rejoue la suite E2E/axe sur Chromium, Firefox et WebKit (`E2E_ALL_BROWSERS=1`), rapports archives 30 jours
 - `.github/hooks/pre-commit` — Hook Git pre-commit local
 - `scripts/audit/check_ci_parity.py` — Garde : les workflows (`ci.yml`, `security.yml`) orchestrent, ils n'implementent pas
-- `.github/dependabot.yml` — Mises a jour automatiques des dependances
+- `.github/dependabot.yml` — Mises a jour automatiques des dependances (alertes seules pour pip, delais de carence partout — ADR-331)
+- `.github/workflows/dependency-watch.yml` — Veille hebdomadaire des dependances (ADR-331) : tient UNE issue `dependency-watch` a jour
 
 ---
 
@@ -525,9 +526,10 @@ Les reconnaitre evite de rejouer indefiniment `@dependabot rebase`.
 `requirements*.lock.txt` avec son propre resolveur, alors que le depot les compile avec
 `uv pip compile --universal --generate-hashes` (ADR-112). Les lockfiles produits sont
 insolubles : la CI echoue des l'installation sur `ResolutionImpossible`, avant le moindre
-test. Constate sur 9 PR consecutives (#197-#204, #211). **Conduite a tenir** : fermer la PR
-et rejouer le bump localement via `task deps:upgrade -- <paquet>` puis `task deps:lock`,
-une majeure a la fois.
+test. Constate sur 9 PR consecutives (#197-#204, #211). **Depuis le 2026-10-02 (decision D5,
+ADR-331), l'ecosysteme pip ne garde que ses alertes** (`open-pull-requests-limit: 0`) : Python
+avance par `task deps:refresh` (apres le delai de carence, jamais en arriere) et un correctif
+par `task deps:upgrade -- <paquet>` avec son plancher dans le manifeste.
 
 **2. Ecosysteme npm — collision override / version workspace.** Tout paquet a la fois
 epingle dans `pnpm.overrides` (racine) **et** declare dans `apps/web/package.json` produit
@@ -537,7 +539,8 @@ workspace, les deux valeurs divergent, et chaque job faisant
 Constate sur #195 puis #210 (`vite` 8.1.5 cote workspace contre 8.1.3 cote override) — un
 rebase resout le conflit git sans corriger la contradiction. **Conduite a tenir** : rejouer
 le lot en alignant l'override sur la nouvelle version et en **regenerant** le lockfile
-(jamais en le fusionnant). Paquets concernes aujourd'hui : `vite`, `postcss`, `katex`.
+(jamais en le fusionnant). Paquets concernes aujourd'hui : `postcss`, `katex` ; `vite` est
+devenu un plancher (`^8.1.5`) le 2026-10-02, a confirmer au premier passage de Dependabot.
 
 ### Dependency Vulnerability Remediation (pnpm Overrides)
 
@@ -585,7 +588,7 @@ from the file: rows missing, pins stale).
 | `flatted` | Pinned with `picomatch` (four Dependabot alerts) | `d6612921` |
 | `picomatch` | ReDoS through extglob | `d6612921` |
 | `brace-expansion` | Three Dependabot alerts; the patched copy is declared in `patchedDependencies` (ADR-157) | `ad61235b` |
-| `vite` | Aligned with `apps/web/package.json`: a divergence breaks `--frozen-lockfile` | `7d1c7cf4` |
+| `vite` | One vite for the workspace and vitest. A floor (`^8.1.5`) since dependency lot 4: the exact pin collided with every Dependabot bump of the workspace (#195, #210) | `7d1c7cf4`, dependency lot 4 (2026-10-02) |
 | `defu` | Prototype pollution (high) | `aaffe092` |
 | `protobufjs` | CVE-2026-54269 | `0868cc98` |
 | `uuid` | One copy for the advisories Dependabot reported | `89e3cc40` |
@@ -598,7 +601,7 @@ from the file: rows missing, pins stale).
 | `websocket-driver` | GHSA-xv26-6w52-cph6 (critical) and GHSA-mp7j-qc5w-4988, through firebase; unreachable at runtime | `37049474` |
 | `js-yaml` | GHSA-5p4m-2wfm-xmqj, then `maxTotalMergeKeys` not bounding time | `c020ec9f`, `65c6f24b` |
 | `nanoid` | GHSA-2v37-7h3g-55p8 | `c020ec9f` |
-| `sharp` | libheif vulnerabilities, reached through `next` | `65c6f24b` |
+| `sharp` | GHSA-wq5f-xc86-pv6w (librsvg, high), found by the dependency watch; libheif vulnerabilities before it. Reached through `next` | `65c6f24b`, dependency lot 4 (2026-10-02) |
 | `undici` | Denial of service through unrequested responses (< 7.29.1); through jsdom, tests only | `1dd556e2` |
 | `@humanfs/node` | A recursive copy followed symbolic links | `2910cee2` |
 | `katex` | One KaTeX: `rehype-katex` rendered with 0.16 while the layout served the 0.18 stylesheet; exact because 0.18.11 is deprecated upstream | dependency lot 1 (2026-10-02) |
@@ -624,6 +627,30 @@ suite unitaire :
   d'auto-hebergement epingle ce que la production lance.
 
 ---
+
+### Veille des dependances (ADR-331)
+
+Les barrieres d'une pull request lisent une seule base d'avis ; `task deps:watch`
+(`scripts/audit/dependency_watch.py`, reseau) lit ce qu'elles ne voient pas, contre chaque version
+epinglee : les avis publies par le depot de chaque dependance, les fins de vie (endoflife.date),
+les faits de registre (image disparue ou sans arm64 la ou la production la lance, version npm
+depreciee, version PyPI retiree) et le Chromium que Debian livre face aux majeures que Chrome
+soutient. Chaque constat est corrige ou accepte dans
+`scripts/audit/dependency_watch_accepted.json` (motif, proprietaire, date de revision) ; une
+acceptation echue ou qui ne correspond plus a rien fait echouer, et une source muette est nommee.
+
+| Ou | Quand |
+|----|-------|
+| `.github/workflows/dependency-watch.yml` | Chaque lundi : ouvre ou reecrit UNE issue `dependency-watch`, la ferme au premier passage propre |
+| `lia-release` | A chaque release : on publie sur « rien a decider » et « 0 non lu » |
+| Jamais | Dans une barriere de pull request (ADR-112 : une reponse reseau ne rougit jamais une PR) |
+
+`task deps:refresh` (`scripts/refresh_requirements_lock.py`) deplace tout ce que les manifestes
+permettent apres son delai (correctif 5 jours, mineure 14, majeure 60 — decision D4, les memes
+valeurs que le cooldown npm de Dependabot, tenues egales par un test) et refuse toute version plus
+basse qu'avant : la fenetre d'un paquet ne finit jamais avant le dernier artefact de la version
+qu'il tient, et un echec restaure les trois lockfiles a l'octet pres. `task lint:deps` garde ces
+outils (Ruff, Black, MyPy strict).
 
 ## Supply Chain Security
 
@@ -651,7 +678,9 @@ venv local) depuis des **lockfiles compiles** avec hashes SHA256 :
 Deux builds du meme commit embarquent donc exactement les memes versions, verifiees
 par empreinte. Workflow : editer le manifeste → `task deps:lock` → committer manifeste
 et lockfiles ensemble (le check *Python lockfiles sync* du job code-hygiene echoue
-sinon). Bumps explicites : `task deps:upgrade -- <pkg>` ou `task deps:upgrade:all`.
+sinon). Bumps explicites : `task deps:upgrade -- <pkg>` (un correctif, tout de suite, avec
+son plancher dans le manifeste) ou `task deps:refresh` (tout le reste, apres son delai de
+carence, jamais en arriere — ADR-331).
 Details et pieges (metadonnees de wheels incoherentes, hashes multi-arch) :
 [ADR-112](../architecture/ADR-112-Python-Dependency-Locking.md).
 
@@ -745,7 +774,8 @@ task format                 # Black + Prettier
 # Dependances Python (lockfiles — ADR-112)
 task deps:lock              # Regenere les lockfiles apres edition d'un manifeste
 task deps:upgrade -- <pkg>  # Bump cible d'un ou plusieurs paquets
-task deps:upgrade:all       # Bump global (mises a jour planifiees)
+task deps:refresh          # Tout ce que les manifestes permettent, apres le delai de carence, jamais en arriere
+task deps:watch            # Ce que les barrieres ne voient pas (reseau ; hebdomadaire et a chaque release)
 task security:scan:backend  # pip-audit epingle sur les trois lockfiles (runtime, dev, sandbox)
 task security:scan:frontend # pnpm audit --audit-level=high
 task security:sbom:backend  # SBOM CycloneDX du lockfile runtime

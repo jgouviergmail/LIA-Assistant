@@ -1747,6 +1747,11 @@
       "title": "Medios servidos sin trabajo en ejecución: ilustraciones pregeneradas, un vídeo declarado por el operador",
       "summary": "Las ilustraciones del blog se escriben una vez, en cuatro anchos y una imagen para compartir, y se sirven tal cual: el servidor ya no redimensiona nada y la caché de borde las conserva. El vídeo de la página de inicio se aloja donde el operador lo declara y lo describe un manifiesto leído bajo demanda; sin él, la sección no existe. En bucle, arranca cuando es visible, con sonido donde el navegador lo permite y en silencio en otros casos hasta un clic, y mientras suena, el título de la página y los de las secciones laten con la música gracias a un mapa de pulsos calculado de antemano.",
       "src": "7ab6089b847d"
+    },
+    "331": {
+      "title": "Lo que los controles no ven se lee cada semana",
+      "summary": "Los controles de cada cambio leían una sola base de avisos de seguridad: la revisión de septiembre de 2026 encontró veinte avisos publicados por los propios repositorios de las dependencias que ninguna herramienta veía. Una vigilancia semanal lee ahora esos avisos, los fines de soporte, los registros y el motor del navegador, y cada hallazgo se corrige o se acepta por escrito, con una fecha de revisión. Las versiones de Python avanzan con un solo comando, tras un periodo de espera, sin retroceder nunca.",
+      "src": "1fdde3db9932"
     }
   }
 }

@@ -22,9 +22,12 @@ vars:
   # Memory cap of one wake-word toolbox run (ADR-329): the Docker VM is shared
   # with the dev stack. Raise it with `task wake:train WAKE_MEMORY=24g -- fr`.
   WAKE_MEMORY: 14g
-  # Shared flags for Python lockfile compilation (deps:lock / deps:upgrade*).
+  # Shared flags for Python lockfile compilation (deps:lock / deps:upgrade).
   # --universal: single multi-platform lock (linux amd64/arm64, Windows, py>=3.12)
   UV_COMPILE_FLAGS: --universal --python-version 3.14 --generate-hashes --custom-compile-command "task deps:lock"
+  # Extra uv arguments for deps:lock — set by deps:refresh only (its upgrade
+  # and its cooldown windows), never by hand.
+  UV_EXTRA: ""
   # Pattern training settings (change these for different environments)
   PATTERNS_BASE_URL: https://localhost:8000/api/v1
   PATTERNS_SSL_FLAG: --insecure  # Use --insecure for self-signed certs, empty for valid certs
@@ -91,6 +94,9 @@ tasks:
   # allowed); requirements.lock.txt / requirements-dev.lock.txt are the compiled
   # universal lockfiles actually installed everywhere (Docker, CI, venv).
   # Workflow: edit the manifest -> task deps:lock -> commit manifest + locks.
+  # Three doors move a version, never a fourth: deps:lock (a manifest change),
+  # deps:upgrade (a fix, at once, with its floor in the manifest) and deps:refresh
+  # (everything else, under the cooldown, never backwards — ADR-331).
 
   deps:uv-pinned:
     internal: true
@@ -104,11 +110,11 @@ tasks:
     dir: "{{.API_DIR}}"
     deps: [deps:uv-pinned]
     cmds:
-      - "{{.UV}} pip compile requirements.txt {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt"
-      - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt"
+      - "{{.UV}} pip compile requirements.txt {{.UV_COMPILE_FLAGS}} {{.UV_EXTRA}} -o requirements.lock.txt"
+      - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt {{.UV_COMPILE_FLAGS}} {{.UV_EXTRA}} -o requirements-dev.lock.txt"
       # The skill sandbox image (ADR-327 lot 2): constrained by the dev lock, which
       # includes its manifest, so the image runs the versions the tests imported.
-      - "{{.UV}} pip compile requirements-sandbox.txt -c requirements-dev.lock.txt {{.UV_COMPILE_FLAGS}} -o requirements-sandbox.lock.txt"
+      - "{{.UV}} pip compile requirements-sandbox.txt -c requirements-dev.lock.txt {{.UV_COMPILE_FLAGS}} {{.UV_EXTRA}} -o requirements-sandbox.lock.txt"
 
   deps:upgrade:
     desc: "Upgrade specific packages in the lockfiles: task deps:upgrade -- <pkg> [<pkg>...]"
@@ -116,7 +122,7 @@ tasks:
     deps: [deps:uv-pinned]
     preconditions:
       - sh: test -n "{{.CLI_ARGS}}"
-        msg: "Usage: task deps:upgrade -- <pkg> [<pkg>...] (use deps:upgrade:all for a full upgrade)"
+        msg: "Usage: task deps:upgrade -- <pkg> [<pkg>...] (everything at once, under the cooldown: task deps:refresh)"
     cmds:
       - |
         UPGRADE_FLAGS=""
@@ -125,14 +131,29 @@ tasks:
         {{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt $UPGRADE_FLAGS {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt
         {{.UV}} pip compile requirements-sandbox.txt -c requirements-dev.lock.txt $UPGRADE_FLAGS {{.UV_COMPILE_FLAGS}} -o requirements-sandbox.lock.txt
 
-  deps:upgrade:all:
-    desc: Upgrade ALL packages in the lockfiles to the latest versions allowed by the manifests
-    dir: "{{.API_DIR}}"
+  # What the pull-request gates cannot see (ADR-331): the advisories each
+  # dependency's own repository publishes, end-of-life lines, registry facts and
+  # the browser engine, held to scripts/audit/dependency_watch_accepted.json.
+  # Network, so never inside ci:fast (ADR-112): weekly in dependency-watch.yml,
+  # and at every release. `task deps:watch -- --report <file>` also writes it.
+  deps:watch:
+    desc: "Read the dependency watch — repository advisories, end of life, registries, browser engine — against its written acceptances (network)"
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/dependency_watch.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/dependency_watch.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
+  # Replaces deps:upgrade:all, which moved everything at once with no cooldown
+  # and could take a fix back (F7). Network: PyPI's JSON API and uv's index.
+  deps:refresh:
+    desc: "Move every Python version the manifests allow, after its cooldown (patch 5 d, minor 14 d, major 60 d), never backwards"
     deps: [deps:uv-pinned]
     cmds:
-      - "{{.UV}} pip compile requirements.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements.lock.txt"
-      - "{{.UV}} pip compile requirements-dev.txt -c requirements.lock.txt --upgrade {{.UV_COMPILE_FLAGS}} -o requirements-dev.lock.txt"
-      - "{{.UV}} pip compile requirements-sandbox.txt -c requirements-dev.lock.txt {{.UV_COMPILE_FLAGS}} -o requirements-sandbox.lock.txt"
+      - cmd: apps/api/.venv/Scripts/python scripts/refresh_requirements_lock.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/refresh_requirements_lock.py
+        platforms: [linux, darwin]
 
   # ---------------------------------------------------------------------------
   # Public model-capability catalogue (ADR-244)
@@ -298,6 +319,7 @@ tasks:
       - lint:lockfiles
       - lint:ci-parity
       - lint:wake
+      - lint:deps
 
   lint:wake:
     desc: Ruff + Black over the wake-word toolbox (strict MyPy runs in its own image, ADR-329)
@@ -309,6 +331,27 @@ tasks:
       - cmd: apps/api/.venv/Scripts/python -m black --check scripts/wake-word
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python -m black --check scripts/wake-word
+        platforms: [linux, darwin]
+
+  # The tools that read and write the lockfiles and watch the dependencies
+  # (ADR-331): Ruff, Black and strict MyPy, with the API's configuration (line
+  # length, target, the third-party modules it reads without stubs).
+  lint:deps:
+    desc: Ruff + Black + strict MyPy over the dependency tools (lock check, refresh, watch)
+    vars:
+      DEPS_TOOLS: scripts/check_requirements_lock.py scripts/refresh_requirements_lock.py scripts/audit/dependency_watch.py
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python -m ruff check {{.DEPS_TOOLS}}
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python -m ruff check {{.DEPS_TOOLS}}
+        platforms: [linux, darwin]
+      - cmd: apps/api/.venv/Scripts/python -m black --check --line-length 100 --target-version py314 {{.DEPS_TOOLS}}
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python -m black --check --line-length 100 --target-version py314 {{.DEPS_TOOLS}}
+        platforms: [linux, darwin]
+      - cmd: MYPYPATH="scripts;scripts/audit" apps/api/.venv/Scripts/python -m mypy --strict --config-file apps/api/pyproject.toml --no-warn-unused-configs --follow-imports=silent {{.DEPS_TOOLS}}
+        platforms: [windows]
+      - cmd: MYPYPATH="scripts:scripts/audit" apps/api/.venv/bin/python -m mypy --strict --config-file apps/api/pyproject.toml --no-warn-unused-configs --follow-imports=silent {{.DEPS_TOOLS}}
         platforms: [linux, darwin]
 
   lint:ci-parity:

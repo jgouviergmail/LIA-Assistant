@@ -88,6 +88,18 @@ Scripts pour validation et monitoring de l'observabilité.
 | `check_ci_parity.py` | Les workflows `ci.yml` et `security.yml` orchestrent, ils n'implémentent pas (ADR-151) : échoue sur toute étape `run:` qui n'est ni un appel de tâche, ni un provisionnement déclaré, ni une exception motivée dans `CI_ONLY` | `task lint:ci-parity` |
 | `check_test_marker_coverage.py` | Gate F006 : collecte chaque nodeid avec ses markers et échoue si un test ne tourne dans **aucun** job CI (allowlist justifiée, shrink-only) | `task test:markers` |
 
+**Veille** (réseau, jamais dans une barrière de pull request — ADR-331) :
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `dependency_watch.py` | Ce que les barrières ne voient pas, contre chaque version épinglée : avis publiés par le dépôt de chaque dépendance, fins de vie, faits de registre, moteur du navigateur. Chaque constat est corrigé ou accepté dans `dependency_watch_accepted.json` (motif, propriétaire, date de révision) ; une source muette est nommée | `task deps:watch` (hebdomadaire et à chaque release) |
+
+Hors de `audit/`, le rafraîchissement des verrous Python : `scripts/refresh_requirements_lock.py`
+(`task deps:refresh`) déplace tout ce que les manifestes permettent après le délai de carence de
+chaque classe de montée (5, 14, 60 jours) et restaure les trois verrous à l'octet près si une
+version redescendait ; `scripts/check_requirements_lock.py` (`task lint:lockfiles`) vérifie que les
+verrous suivent leurs manifestes. Les trois sont gardés par `task lint:deps`.
+
 Les gardes sont écrites en **Python et non en bash** délibérément : la machine
 de développement est sous Windows et le runner sous Linux — un contrôle
 bash-only est un contrôle qu'un seul des deux peut jouer.

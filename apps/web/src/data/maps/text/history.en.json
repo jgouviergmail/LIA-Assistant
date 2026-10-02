@@ -1747,6 +1747,11 @@
       "title": "Media served without runtime work: pre-generated illustrations, a video the operator declares",
       "summary": "The blog illustrations are written once, in four widths and a share image, and served as they are: the server resizes nothing any more and the edge cache keeps them. The landing's video is hosted where the operator declares it and described by a manifest read on demand; without one, the section does not exist. Looping, it starts when it is visible, with sound where the browser allows it and muted elsewhere until a click, and while the sound plays the page's title and the section titles beat with the music thanks to a beat map computed ahead of time.",
       "src": "7ab6089b847d"
+    },
+    "331": {
+      "title": "What the gates cannot see is read every week",
+      "summary": "The checks on every change read a single advisory database: the September 2026 review found twenty advisories published by the dependencies' own repositories that no tool saw. A weekly watch now reads those advisories, end-of-life dates, the registries and the browser engine, and every finding is fixed or accepted in writing, with a review date. Python versions move through a single command, after a cooldown, never backwards.",
+      "src": "1fdde3db9932"
     }
   }
 }

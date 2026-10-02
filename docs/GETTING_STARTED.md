@@ -1348,9 +1348,9 @@ Workflow when changing a dependency:
 # 2. Regenerate the lockfiles (requires uv; stable — only manifest changes move versions)
 task deps:lock
 
-# Targeted upgrade of one package, or everything:
+# A targeted upgrade (a fix, at once), or everything after its cooldown, never backwards (ADR-331):
 task deps:upgrade -- <package>
-task deps:upgrade:all
+task deps:refresh
 
 # 3. Reinstall locally
 pip install --require-hashes -r apps/api/requirements-dev.lock.txt

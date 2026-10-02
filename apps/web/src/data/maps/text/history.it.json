@@ -1747,6 +1747,11 @@
       "title": "Media serviti senza lavoro a runtime: illustrazioni pregenerate, un video dichiarato dall'operatore",
       "summary": "Le illustrazioni del blog vengono scritte una volta, in quattro larghezze e un'immagine di condivisione, e servite così come sono: il server non ridimensiona più nulla e la cache di bordo le conserva. Il video della pagina iniziale è ospitato dove l'operatore lo dichiara ed è descritto da un manifesto letto su richiesta; senza di esso la sezione non esiste. In loop, parte quando è visibile, con l'audio dove il browser lo consente e muto altrove fino a un clic, e finché l'audio suona il titolo della pagina e quelli delle sezioni battono con la musica grazie a una mappa dei battiti calcolata in anticipo.",
       "src": "7ab6089b847d"
+    },
+    "331": {
+      "title": "Ciò che i controlli non vedono viene letto ogni settimana",
+      "summary": "I controlli di ogni modifica leggevano un solo database di avvisi di sicurezza: la revisione di settembre 2026 ha trovato venti avvisi pubblicati dai repository stessi delle dipendenze, che nessuno strumento vedeva. Una sorveglianza settimanale legge ora questi avvisi, le fini del supporto, i registri e il motore del browser, e ogni rilievo viene corretto o accettato per iscritto, con una data di revisione. Le versioni di Python avanzano con un solo comando, dopo un periodo di attesa, senza mai tornare indietro.",
+      "src": "1fdde3db9932"
     }
   }
 }

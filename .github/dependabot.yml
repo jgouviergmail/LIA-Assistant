@@ -1,21 +1,28 @@
 version: 2
 
+# Cooldowns (decision D4 of the dependency programme, ADR-331): a release waits
+# 5 days for a patch, 14 for a minor and 60 for a major before a pull request
+# proposes it. Dependabot applies them to version updates only — a security
+# update never waits. Ecosystems without semantic versions take one
+# `default-days`. The same three values bound `task deps:refresh` for Python
+# (scripts/refresh_requirements_lock.py), held equal by
+# apps/api/tests/unit/test_requirements_refresh.py.
+
 updates:
-  # Python backend dependencies
+  # Python backend dependencies: alerts only (decision D5). Dependabot rewrites
+  # the uv universal lockfiles into files nothing can install (CI_CD.md, « Limites
+  # connues »), so every version-update pull request of this ecosystem was closed
+  # unmerged. Python moves through `task deps:refresh` (under the same cooldown)
+  # and `task deps:upgrade -- <pkg>` (a fix, with its floor in the manifest).
   - package-ecosystem: pip
     directory: /apps/api
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels:
       - dependencies
       - python
-    groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
 
   # Node.js frontend dependencies.
   # Must target the workspace ROOT: pnpm-lock.yaml lives at the repo root, so
@@ -27,6 +34,11 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 10
+    cooldown:
+      default-days: 5
+      semver-patch-days: 5
+      semver-minor-days: 14
+      semver-major-days: 60
     labels:
       - dependencies
       - javascript
@@ -56,11 +68,34 @@ updates:
         update-types:
           - version-update:semver-major
 
-  # Docker images
+  # The e2e suite's own npm lockfile (apps/web/e2e/package-lock.json): the
+  # Playwright and axe versions the browser journeys run on.
+  - package-ecosystem: npm
+    directory: /apps/web/e2e
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 5
+      semver-patch-days: 5
+      semver-minor-days: 14
+      semver-major-days: 60
+    labels:
+      - dependencies
+      - javascript
+    groups:
+      e2e:
+        patterns:
+          - "*"
+
+  # Docker images built from a Dockerfile
   - package-ecosystem: docker
     directory: /apps/api
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 5
     labels:
       - dependencies
       - docker
@@ -69,15 +104,44 @@ updates:
     directory: /apps/web
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 5
     labels:
       - dependencies
       - docker
 
-  # GitHub Actions
+  # Images the compose files run (production, development, the demonstrator,
+  # the shared services, the installer's disposable runtime). One pull request
+  # per image across the three directories: a third-party image has ONE
+  # reference everywhere (test_self_host_compose_contract.py), and the
+  # self-host catalogue follows the production compose
+  # (scripts/install/self_host_dependencies.json, same test).
+  - package-ecosystem: docker-compose
+    directories:
+      - /
+      - /infrastructure/docker
+      - /scripts/install/tests/runtime
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 5
+    labels:
+      - dependencies
+      - docker
+    groups:
+      compose-images:
+        group-by: dependency-name
+        patterns:
+          - "*"
+
+  # GitHub Actions: a compromised action runs with the repository's token, so
+  # a new release waits the minor window whatever its version says.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 14
     labels:
       - dependencies
       - ci

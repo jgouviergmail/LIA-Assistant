@@ -154,6 +154,7 @@ anyio==4.14.2 \
     --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494 \
     --hash=sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f
     # via
+    #   -r requirements.txt
     #   anthropic
     #   google-genai
     #   httpx
@@ -665,6 +666,7 @@ click==8.4.2 \
     --hash=sha256:9a6cea6e60b17ebe0a44c5cc636d94f09bd66142c1cd7d8b4cd731c4917a15f6 \
     --hash=sha256:e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76
     # via
+    #   -r requirements.txt
     #   uvicorn
     #   x-wr-timezone
 colorama==0.4.6 ; sys_platform == 'win32' \
@@ -1258,6 +1260,7 @@ icalendar==7.3.0 \
     --hash=sha256:7bd001c8e648205e1bde5c6a5b77096598e8d0893dcf57755c6c597635620132 \
     --hash=sha256:8355acfe17be81b368f0b1e3740817cea9b56ea889931f8f1a87c62f2d28db0b
     # via
+    #   -r requirements.txt
     #   caldav
     #   icalendar-searcher
     #   recurring-ical-events
@@ -1603,7 +1606,9 @@ langgraph-prebuilt==1.1.0 \
 langgraph-sdk==0.4.5 \
     --hash=sha256:d49a98a2ee8e0c494b101a7caf8061c8b4b94d3ee5ada0ea2dbe50903a5487b1 \
     --hash=sha256:e03ef033a20d21288af496e9b6c08ae3afcc1b58dc5abcd37575bfd1a93045de
-    # via langgraph
+    # via
+    #   -r requirements.txt
+    #   langgraph
 langsmith==0.9.8 \
     --hash=sha256:098da9fc6c184284f17913cb813a41e28c5ab1508e90bd50db40c28166681017 \
     --hash=sha256:8c3d6a6d5246a3ea6d439b726d59edefba31dfb251de9eedb256119bbea4439e
@@ -1760,7 +1765,9 @@ lxml-html-clean==0.4.5 \
 mako==1.4.3 \
     --hash=sha256:723296007c870bfd6b3f0c3230dba7198096e5269297ebf5e4eff9e7ffa39d4f \
     --hash=sha256:cd6537fe88d5fec315c55c2f8529bc4ce7a9a352ad7db3eeaa6a66e2dd4ec37a
-    # via alembic
+    # via
+    #   -r requirements.txt
+    #   alembic
 markdownify==1.2.2 \
     --hash=sha256:3f02d3cc52714084d6e589f70397b6fc9f2f3a8531481bf35e8cc39f975e186a \
     --hash=sha256:b274f1b5943180b031b699b199cbaeb1e2ac938b75851849a31fd0c3d6603d09
@@ -1962,7 +1969,9 @@ maxminddb==3.2.0 \
     --hash=sha256:f9e2e611a43b145270ead4e0d4c65e3c484d6cf59e75b0f353ddbafe74c9862e \
     --hash=sha256:fd454af7ed67069aa76c0fa9119ec9440cfd7abe7cd7aa66373ecf1f46067295 \
     --hash=sha256:fe5ffcaf17210ec2a6c46cff418199f974ba034cb2e02452615c1184d2001cb8
-    # via geoip2
+    # via
+    #   -r requirements.txt
+    #   geoip2
 mcp==2.2.0 \
     --hash=sha256:2dc37ecb1974becdcebdbf7561e7c15a07dbbf20ba21ba16c3593b3038b3afbd \
     --hash=sha256:bde982589473a060ae145e3406e9a5333fe538c97229ba841f5a7f92be004f81
@@ -2212,6 +2221,7 @@ multidict==6.9.1 \
     --hash=sha256:fc0dcb22fa9aeabfe3fa4e0430099acff985ec5d77a851382f76cc6146e780e5 \
     --hash=sha256:fd882aa29bf402b62bf1fd7c19fd5df4b6528cf468a908864b39368572b662a9
     # via
+    #   -r requirements.txt
     #   aiohttp
     #   yarl
 networkx==3.6.1 \
@@ -2938,6 +2948,7 @@ pyasn1==0.6.4 \
     --hash=sha256:9c447d8431c947fe4c8febc4ed9e760bc29011a5b01e5c74b67025bd9fb8ce81 \
     --hash=sha256:deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b
     # via
+    #   -r requirements.txt
     #   pyasn1-modules
     #   python-jose
     #   rsa
@@ -3767,7 +3778,9 @@ sniffio==1.3.1 \
 soupsieve==2.9.2 \
     --hash=sha256:4a55d8cf158a9c2e587fa4922f1bbb91d68ac829e2d6f25403a85747c71daf74 \
     --hash=sha256:8089a26fd974ca7a1f30276d3d8492ab266ab15af581642dfe8aa162e0c1c823
-    # via beautifulsoup4
+    # via
+    #   -r requirements.txt
+    #   beautifulsoup4
 sqlalchemy==2.0.50 \
     --hash=sha256:03f4323c980ad0e918cc9e5369b015f759f4e534db5bbaf4dc36832c10d05064 \
     --hash=sha256:06a9210bdc5f4298cff0781087e2ff45683922252dacc452846373a58761f093 \
@@ -3989,7 +4002,9 @@ tzlocal==5.3.1 \
 urllib3==2.8.0 \
     --hash=sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3 \
     --hash=sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63
-    # via requests
+    # via
+    #   -r requirements.txt
+    #   requests
 urllib3-future==2.17.901 \
     --hash=sha256:4e31ee8a68ac553732de0b9cfeda36ef8c1f2207f00fef13534b1ba5413ff59b \
     --hash=sha256:763dd2459c4c9f274ae9ba0cae3166204ccc1cad38fc08dc22a125e15d85f72f
