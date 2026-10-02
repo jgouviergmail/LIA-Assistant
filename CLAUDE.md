@@ -126,7 +126,7 @@ task ci                     # ci:fast + suites needing PostgreSQL, Redis, Docker
 
 `task pre-commit` is deliberately narrower than `ci:fast`: it skips the ratchets, the marker-coverage gate, the deploy tests and the frontend coverage thresholds to stay inside its ~5 min budget. Every one of those has redded a build after a green local run.
 
-Git hooks are installed via `task setup:hooks` and live in `.github/hooks/` (configured via `git config core.hooksPath`).
+Git hooks are installed via `task setup:hooks` and live in `.github/hooks/` (configured via `git config core.hooksPath`). The pre-push hook runs the CI's secret scan on what the push sends (`task security:secrets`, gitleaks in Docker): a secret on the remote cannot be taken back.
 
 ### Database
 

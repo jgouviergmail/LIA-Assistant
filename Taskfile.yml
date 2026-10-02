@@ -1686,6 +1686,25 @@ tasks:
       # (registered in docs/technical/CI_CD.md) — never a softer level.
       - pnpm audit --audit-level=high
 
+  # The CI's Secret Scan (gitleaks-action, the `secret-scan` job of ci.yml) runs
+  # AFTER a push, when a secret on the remote can no longer be taken back, and
+  # the pre-commit hook does not scan: on 2026-10-02 two dummy values a scanner
+  # reads as keys reached the remote, and the next commit held four more. This is
+  # its local twin — the same gitleaks (version held equal to the CI's
+  # GITLEAKS_VERSION by test_one_value_one_owner_guard.py), the same
+  # configuration (.gitleaks.toml, .gitleaksignore) — run by the pre-push hook on
+  # exactly what a push sends. RANGE is a `git log` range.
+  security:secrets:
+    desc: "Scan commits with the CI's gitleaks (Docker) — RANGE=<git log range>, default origin/main..HEAD"
+    vars:
+      RANGE: '{{.RANGE | default "origin/main..HEAD"}}'
+    cmds:
+      - cmd: >-
+          docker run --rm -v "{{.ROOT_DIR}}:/repo" -w /repo
+          zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055
+          detect --source /repo --redact --no-banner --exit-code=2
+          --log-opts="--no-merges --first-parent {{.RANGE}}"
+
   security:sbom:backend:
     desc: CycloneDX SBOM of the runtime lockfile (apps/api/sbom-backend.json, gitignored)
     dir: "{{.API_DIR}}"
@@ -2339,9 +2358,9 @@ tasks:
 
   ci:
     # ci:fast plus everything requiring PostgreSQL, Redis, Docker or a browser.
-    # Deliberately NOT reproduced here: the Docker image builds, the Python 3.13
-    # compatibility run and the gitleaks scan — all three are declared CI-only
-    # in scripts/audit/check_ci_parity.py with their reason.
+    # Deliberately NOT reproduced here: the Docker image builds and the Python
+    # 3.13 compatibility run. The gitleaks scan has its local twin,
+    # security:secrets, which the pre-push hook runs on what a push sends.
     desc: Full local CI (needs PostgreSQL + Redis + Docker; set TEST_DATABASE_URL to a DISPOSABLE db)
     cmds:
       - task: ci:fast

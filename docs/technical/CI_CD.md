@@ -9,6 +9,7 @@
 - `.github/workflows/release.yml` — artefacts candidats, promotion des digests qualifiés et GitHub Release
 - `.github/workflows/a11y-matrix.yml` — Matrice navigateurs hebdomadaire (AC-002) : rejoue la suite E2E/axe sur Chromium, Firefox et WebKit (`E2E_ALL_BROWSERS=1`), rapports archives 30 jours
 - `.github/hooks/pre-commit` — Hook Git pre-commit local
+- `.github/hooks/pre-push` — Hook Git pre-push : le scan de secrets de la CI (gitleaks) sur ce que le push envoie
 - `scripts/audit/check_ci_parity.py` — Garde : les workflows (`ci.yml`, `security.yml`) orchestrent, ils n'implementent pas
 - `.github/dependabot.yml` — Mises a jour automatiques des dependances (alertes seules pour pip, delais de carence partout — ADR-331)
 - `.github/workflows/dependency-watch.yml` — Veille hebdomadaire des dependances (ADR-331) : tient UNE issue `dependency-watch` a jour
@@ -102,6 +103,18 @@ Le hook ne s'execute que sur les fichiers stages et s'adapte au type de fichier 
 | 5 | `.env.example` completeness | `.py` stages | Oui |
 | 6.1 | ESLint | `.ts/.tsx` stages | Oui |
 | 6.2 | TypeScript check | `.ts/.tsx` stages | Oui |
+
+### Pre-push Hook
+
+**Fichier** : `.github/hooks/pre-push` (installe par `task setup:hooks`, comme le pre-commit).
+
+Le Secret Scan de la CI tourne APRES le push, quand un secret arrive sur le depot distant et ne peut
+plus etre repris : le 2026-10-02, deux valeurs factices lues comme des cles y sont arrivees ainsi.
+Le hook lance `task security:secrets` — le meme gitleaks que la CI, sa configuration
+(`.gitleaks.toml`, `.gitleaksignore`) — sur les commits que le push envoie, reference par
+reference : `distant..local` pour une reference existante, tout ce qu'aucun distant n'a pour une
+nouvelle, rien pour une suppression. Un constat, l'absence de Docker ou de Task refusent le push
+(`test_pre_push_hook.py`).
 
 ### Cross-platform
 
@@ -398,6 +411,10 @@ declaration aux entrees de construction ; seule l'image prouve une execution.
 #### Secret Scan
 
 [Gitleaks](https://github.com/gitleaks/gitleaks) sur l'historique complet (`fetch-depth: 0`).
+Sa version est ecrite (`GITLEAKS_VERSION`) et tenue egale a celle de `task security:secrets`, son
+jumeau local que lance le hook pre-push (`test_one_value_one_owner_guard.py`). Un faux positif se
+traite par `# gitleaks:allow` en fin de ligne, ou par empreinte exacte dans `.gitleaksignore`
+quand la ligne est deja commitee.
 
 ---
 
@@ -711,7 +728,7 @@ hook (`--no-verify`) ou clone sans installer les hooks, la CI rattrape.
 | Lockfiles Python (ADR-112) | — | ✓ | ✓ | Meme tache |
 | Parite CI/local (ADR-151) | — | ✓ | ✓ | Meme tache |
 | Tests de deploiement (F008) | — | ✓ | ✓ | Hermetiques, sans Docker ni reseau |
-| Secrets | grep + denylist infra | — | Gitleaks | La CI est superieure |
+| Secrets | grep + denylist infra ; gitleaks au pre-push | — | Gitleaks | Le pre-push lance le meme scanner que la CI (`task security:secrets`) |
 | Suite agents | — | — (dans `task ci`) | ✓ | Necessite ~1 min |
 | Tests d'integration | — | — (dans `task ci`) | ✓ | Necessitent PostgreSQL + Redis |
 | Replay des migrations | — | — (dans `task ci`) | ✓ | Necessite PostgreSQL |
@@ -749,6 +766,9 @@ task pre-commit
 
 # Gate d'avant-push : tous les gates CI sans service externe (~10 min mesure)
 task ci:fast
+
+# Le scan de secrets de la CI sur ce qu'un push enverrait (Docker ; le hook pre-push le lance)
+task security:secrets
 
 # CI complete en local (PostgreSQL + Redis + Docker + navigateur)
 # TEST_DATABASE_URL doit pointer vers une base JETABLE

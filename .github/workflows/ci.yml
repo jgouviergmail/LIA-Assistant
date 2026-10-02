@@ -715,3 +715,7 @@ jobs:
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Written out (the action's own default) because `task security:secrets`
+          # and the pre-push hook run the same scanner locally: held equal to the
+          # Taskfile's image by test_one_value_one_owner_guard.py.
+          GITLEAKS_VERSION: 8.24.3

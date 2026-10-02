@@ -110,6 +110,24 @@ def test_the_dev_api_image_downloads_what_production_downloads() -> None:
     assert script.group(1) == prod["HF_BASE_URL"]
 
 
+def test_the_local_secret_scan_runs_the_ci_s_gitleaks() -> None:
+    """`task security:secrets` (and the pre-push hook that calls it) is the twin of the
+    CI's Secret Scan, a `uses:` step nobody can run: a twin on another version reads
+    other rules, so the version is written in both places and held equal here."""
+    workflow = yaml.safe_load(_read(".github/workflows/ci.yml"))
+    steps = workflow["jobs"]["secret-scan"]["steps"]
+    action = [s for s in steps if "gitleaks/gitleaks-action" in str(s.get("uses", ""))]
+    assert len(action) == 1, "the CI's secret-scan job no longer runs the gitleaks action once"
+    owner = str((action[0].get("env") or {}).get("GITLEAKS_VERSION", ""))
+    assert owner, "the CI's gitleaks step no longer pins GITLEAKS_VERSION"
+    copies = re.findall(
+        r"zricethezav/gitleaks:v(\d+\.\d+\.\d+)@sha256:[0-9a-f]{64}", _read("Taskfile.yml")
+    )
+
+    assert copies, "Taskfile.yml no longer runs a gitleaks image pinned by version and digest"
+    assert set(copies) == {owner}, f"the CI scans with gitleaks {owner}, Taskfile.yml with {copies}"
+
+
 def test_tests_start_the_database_production_runs() -> None:
     """The Testcontainers fallback of tests/conftest.py starts the production image:
     a test that passes on another engine says nothing about the one that ships."""
