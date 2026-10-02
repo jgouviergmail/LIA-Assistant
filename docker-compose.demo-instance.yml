@@ -330,7 +330,7 @@ services:
     pids_limit: 128
 
   demo-instance-otel:
-    image: otel/opentelemetry-collector-contrib:0.115.1
+    image: otel/opentelemetry-collector-contrib:0.161.0
     restart: unless-stopped
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
