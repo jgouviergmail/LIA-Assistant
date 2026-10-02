@@ -85,7 +85,7 @@ services:
   # The connector token is a secret: it lives in the env file, never here.
   # Enable it with `--profile tunnel` (a laptop validation does not need it).
   demo-instance-tunnel:
-    image: cloudflare/cloudflared:2025.1.0
+    image: cloudflare/cloudflared:2026.9.3
     profiles: ["tunnel"]
     restart: unless-stopped
     # `:-` and not `:?`: Compose interpolates the WHOLE file before it filters
