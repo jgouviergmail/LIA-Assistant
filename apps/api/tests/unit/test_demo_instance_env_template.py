@@ -304,7 +304,7 @@ class TestTheConnectionBudgetFitsTheDemonstratorsOwnDatabase:
     - the template declared none of these settings, so the code defaults applied
       (4 workers x (30+30) + 4x8 + 4x4 = 288);
     - the reference ceiling was wrong. The demonstrator's database is a stock
-      ``pgvector/pgvector:pg16``, whose ``max_connections`` is 100, not the 200
+      ``pgvector/pgvector`` image, whose ``max_connections`` is 100, not the 200
       the setting claimed (verified with ``show max_connections``).
 
     The check only RAISES in production, which is why development never

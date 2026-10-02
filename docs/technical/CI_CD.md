@@ -191,7 +191,7 @@ la ou le runner, a froid, echoue.
 
 #### Test Backend
 
-Services containers : PostgreSQL (`pgvector/pgvector:pg16`) + Redis (`redis:7-alpine`).
+Services containers : PostgreSQL (pgvector) + Redis, sur les images exactes de la production (une reference par image, tenue par `test_self_host_compose_contract.py`).
 
 | Step | Commande |
 |------|----------|
@@ -618,10 +618,12 @@ suite unitaire :
 - `test_build_inputs_pinned_guard.py` : dans ce que la production construit et lance (chaine
   compose du deploiement, compose du demonstrateur, Dockerfiles de la release), chaque image a
   une version et une empreinte, chaque installation globale une version, chaque telechargement
-  une somme de controle. La dette du jour est une base qui ne fait que retrecir
-  (`build_inputs_baseline.json`).
+  une somme de controle. La dette mesuree au lot 3 (32 entrees) est soldee aux lots 6 et 7 ;
+  reste une seule exception ecrite et motivee (`_UNPINNABLE` : le fichier mensuel de DB-IP).
 - `test_one_value_one_owner_guard.py` : pnpm, promtool et uv ont un seul proprietaire, et chaque
-  copie lui est tenue egale.
+  copie lui est tenue egale ; l'image de dev de l'API telecharge exactement ce que celle de
+  production telecharge, le repli Testcontainers lance la base de production, et le Node de
+  l'image API suit celui du bac a sable, que Dependabot fait avancer.
 - `test_self_host_compose_contract.py` : une image tierce porte une seule reference dans tous
   les compose et tous les workflows (services et conteneurs), et le catalogue
   d'auto-hebergement epingle ce que la production lance.

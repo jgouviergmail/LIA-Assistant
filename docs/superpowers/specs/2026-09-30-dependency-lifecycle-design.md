@@ -501,7 +501,57 @@ After 6g the two Promtail guards still read the file Alloy runs. Step two — a 
 `config.alloy`, both guards reading it, the infrastructure module renamed on the maps in six
 languages — is a lot of its own.
 
-### Lot 7 — the demonstrator, the build inputs, the dev profile
+### Lot 7 — the demonstrator, the build inputs, the dev profile (rehearsed on dev and on the local demonstrator 2026-10-02)
+
+Opened with the production reads (read-only): Docker Engine 29.6.2; production and the
+demonstrator on PostgreSQL 16.11 with `vector` 0.8.1 from a 2025-11-13 pull (the floating `pg16`
+had frozen them there), Redis 7.4.7, the backup sidecar's build `16-alpine-d257e5d`, no
+replication slot; the host's `cloudflared` 2026.8.3; the API image of 2026-10-02 held Node 24.21.0
+and the Claude Code CLI 2.1.287. Two candidates were one day old and not taken: Python 3.14.8 and
+pgvector 0.8.7.
+
+- **Database and cache**: `pgvector/pgvector:0.8.6-pg16-bookworm` (PostgreSQL 16.15 on glibc 2.36,
+  the data's collation version) and `redis:7.4.11-alpine` everywhere one reference is held —
+  production, development, the shared services, the demonstrator, CI and the self-host catalogue.
+  The 16.12-16.15 notes ask nothing of LIA: no `btree_gist`/`ltree` index to rebuild, and 16.15's
+  three security entries concern logical-decoding plugins (no slot), pgcrypto's PGP (not
+  installed) and a failing scripted `COPY ... FROM STDIN` (no such script). On dev, after a volume
+  snapshot: the 16.11 data opened by 16.15, collation 2.36 = 2.36, HNSW scans on two tables, the
+  API healthy. On a throwaway copy: `ALTER EXTENSION vector UPDATE` to 0.8.6 and `amcheck` over
+  395 btree indexes, heap included, clean — the update stays a separate, deliberate act. The
+  backup sidecar is pinned to the very build production runs; the backup verification restores
+  into the source container's own image (its comment already said so, its default was a floating
+  `pg16`), and the Testcontainers fallback starts the production image (guarded). The restore
+  drill itself had read FAIL on every run since 2026-07-29 — eight GRANTs to ADR-178's cluster
+  role, which a database dump cannot carry, identical on the old engine — so it now recreates the
+  source's roles (passwords excluded) first, and passes on 16.15: 0 SQL errors, 102 tables.
+- **Build inputs**: one Python image, `3.14.7-slim-trixie` — the digest the sandbox already pinned
+  — for the API's four stages, its development image and the sandbox; Node 24.21.0 with both
+  archive checksums, held to the sandbox's Node stage (no updater reads an ARG; Dependabot moves
+  that stage); the Whisper revision `8f3c18b` and the sha256 of its three files and of Silero
+  (the bytes dev and production already held); the Docker key by sha256 (its fingerprint in the
+  comment); the Claude Code CLI at the `stable` channel's 2.1.285 (a root-installed CLI never
+  updates itself, so the floating install only meant a different CLI per build); `uv==0.12.18` in
+  the development image; `node:24.21.0-alpine` for the web; `alpine:3.24.2` for dev's `ssl-init`.
+  The development Dockerfile repeats every production value (guarded). Built: every checksum
+  checked, Python 3.14.7, Node 24.21.0, CLI 2.1.285, Chromium 154.
+- **The one input that cannot be pinned**: DB-IP's monthly file (no address keeps one content long
+  enough). It is written with its reason in `_UNPINNABLE`; the baseline file is gone, and a new
+  violation or a stale exemption fails.
+- **Demonstrator**: Caddy 2.11.4 (`caddy validate`), cloudflared 2026.9.3 (its flags; the tunnel
+  itself is the production step), Squid 6.14 on Ubuntu 24.04 (`squid -k parse` clean; its two
+  missing package updates are unreachable through `squid.conf` — the acceptance says so), Postfix
+  v5.1.0 on Debian 13 (same variables), the collector 0.161.0 (`validate`). `task demo:start` and
+  `task demo:verify` pass locally: marker, ceiling, host isolation, surface; a provider host passes
+  the proxy and another gets 403; the relay accepts the domain's sender and refuses a foreign one
+  with nothing sent (no `DATA`). Found on the way: v5 left the aliases on a table it never built
+  (`open database /etc/aliases.lmdb` from every smtpd) — the relay now names the table the image
+  builds; and the demonstrator's Prometheus had scraped `public-demo-otel`, a name no service
+  carried, since v1.29.0 — the target is `up` now.
+- Not done: the production step (the owner's): snapshot the database volume, deploy (the images
+  are pulled by digest), then, deliberately, `ALTER EXTENSION vector UPDATE`.
+
+The design, as specified:
 
 - Demonstrator: cloudflared 2026.9.x; `ubuntu/squid:6.6-24.04_edge` (it carries Squid 6.14 on a
   base supported to 2029; `squid -k parse` accepts `squid.conf`; the 26.04 image has no shell to

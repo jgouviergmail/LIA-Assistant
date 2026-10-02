@@ -6,7 +6,7 @@
 services:
   # PostgreSQL with pgvector
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.6-pg16-bookworm@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
     container_name: lia-postgres-prod
     restart: unless-stopped
     security_opt:
@@ -65,7 +65,7 @@ services:
   # Healthcheck is baked into the image (webhook hook on HEALTHCHECK_PORT 8080).
   # Restore & verification procedures: docs/runbooks/DATABASE_BACKUP_RESTORE.md
   postgres-backup:
-    image: prodrigestivill/postgres-backup-local:16-alpine
+    image: prodrigestivill/postgres-backup-local:16-alpine-d257e5d@sha256:08e7b70879af45a89305b91f4600cfbc88da2419a65948df870cddb082b8cf83
     container_name: lia-postgres-backup-prod
     restart: unless-stopped
     security_opt:
@@ -111,7 +111,7 @@ services:
 
   # Redis for caching and sessions
   redis:
-    image: redis:7.4-alpine
+    image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     container_name: lia-redis-prod
     restart: unless-stopped
     security_opt:

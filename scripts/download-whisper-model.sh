@@ -22,8 +22,10 @@
 
 set -e
 
-# Configuration
-HF_BASE_URL="https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main"
+# Configuration — the revision the images download (apps/api/Dockerfile.prod,
+# held equal by test_one_value_one_owner_guard.py): `resolve/main` could change
+# under the same address.
+HF_BASE_URL="https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/8f3c18b358db4d1f2fc1eae49d75cd20989e4309"
 TARGET_DIR="${1:-apps/api/models/whisper-small}"
 
 # Files to download

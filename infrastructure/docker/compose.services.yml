@@ -24,7 +24,7 @@ services:
   # car le chemin relatif differe selon l'emplacement du fichier appelant.
   # ---------------------------------------------------------------------------
   postgres-base:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.6-pg16-bookworm@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -44,7 +44,7 @@ services:
   # Redis
   # ---------------------------------------------------------------------------
   redis-base:
-    image: redis:7.4-alpine
+    image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

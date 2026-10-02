@@ -171,7 +171,7 @@ jobs:
 
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:0.8.6-pg16-bookworm@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
         env:
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
@@ -185,7 +185,7 @@ jobs:
           --health-retries 5
 
       redis:
-        image: redis:7.4-alpine
+        image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
         ports:
           - 6379:6379
         options: >-
@@ -272,7 +272,7 @@ jobs:
       # .env.test with override=True, so tests that read settings.database_url
       # directly (e.g. the LangGraph checkpointer) reach this same service.
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:0.8.6-pg16-bookworm@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -286,7 +286,7 @@ jobs:
           --health-retries 5
 
       redis:
-        image: redis:7.4-alpine
+        image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
         ports:
           - 6379:6379
         options: >-
@@ -366,7 +366,7 @@ jobs:
       # migration (F007 — the landmine that failed at the 71st migration on a
       # DELETE from a LangGraph runtime table absent on a fresh database).
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:0.8.6-pg16-bookworm@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test

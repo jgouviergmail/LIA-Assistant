@@ -487,7 +487,7 @@ services:
   # ============================================================================
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:<version>-pg16-bookworm@sha256:<digest>  # the pin of docker-compose.prod.yml
     container_name: lia-postgres
     environment:
       POSTGRES_USER: postgres
@@ -740,7 +740,7 @@ CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 # ============================================================================
 # Stage 1: Base image with Node.js and pnpm
 # ============================================================================
-FROM node:24-alpine AS base
+FROM node:<version>-alpine@sha256:<digest> AS base  # the pin of apps/web/Dockerfile.prod
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.34.6 --activate
@@ -1150,7 +1150,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:<version>-pg16-bookworm@sha256:<digest>  # the production pin
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test

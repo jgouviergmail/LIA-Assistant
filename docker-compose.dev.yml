@@ -59,7 +59,7 @@ services:
   # verification script reads dumps via `docker cp`, so storage type is opaque.
   # Runbook: docs/runbooks/DATABASE_BACKUP_RESTORE.md
   postgres-backup:
-    image: prodrigestivill/postgres-backup-local:16-alpine
+    image: prodrigestivill/postgres-backup-local:16-alpine-d257e5d@sha256:08e7b70879af45a89305b91f4600cfbc88da2419a65948df870cddb082b8cf83
     container_name: lia-postgres-backup-dev
     restart: unless-stopped
     security_opt:
@@ -108,7 +108,7 @@ services:
   # when it must; see infrastructure/ssl/generate-certs.sh)
   # SSL_DOMAIN is read from .env (e.g., 192.168.1.100.nip.io for LAN access)
   ssl-init:
-    image: alpine:latest
+    image: alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
     container_name: lia-ssl-init
     environment:
       - SSL_DOMAIN=${SSL_DOMAIN:-localhost}

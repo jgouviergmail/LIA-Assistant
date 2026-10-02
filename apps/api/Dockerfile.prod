@@ -1,4 +1,9 @@
-FROM python:3.14-slim-trixie AS builder
+# Every stage starts from ONE Python image, pinned by version and digest
+# (dependency programme, lot 7): the skills sandbox runs on the same one
+# (Dockerfile.sandbox, held equal by test_sandbox_toolbox.py) and so does the
+# development image (Dockerfile.dev, test_one_value_one_owner_guard.py), and
+# Dependabot moves all of them in one pull request.
+FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -48,7 +53,7 @@ RUN URLLIB3_NO_OVERRIDE=1 pip install --user --no-cache-dir --require-hashes --n
 # =============================================================================
 # Model download stage - Downloads Sherpa-onnx Whisper Small INT8 STT model
 # =============================================================================
-FROM python:3.14-slim-trixie AS model-downloader
+FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS model-downloader
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
@@ -56,8 +61,16 @@ WORKDIR /models/whisper-small
 
 # Download Whisper Small INT8 model files (~375MB total)
 # Multi-language: 99+ languages including French
-# Source: HuggingFace csukuangfj/sherpa-onnx-whisper-small
-ARG HF_BASE_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main
+# Source: HuggingFace csukuangfj/sherpa-onnx-whisper-small at a fixed revision
+# (its last commit, 2024-07-13) rather than `resolve/main`, an address whose
+# content could change under it, and every file checked against the sha256 of
+# that revision (the LFS metadata for the two models, the download itself for
+# the tokens). They are the files the images built from `main` held (measured
+# on dev and in production, 2026-10-02).
+ARG HF_BASE_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/8f3c18b358db4d1f2fc1eae49d75cd20989e4309
+ARG WHISPER_ENCODER_SHA256=4cbe7b22fa9026b843b60a68640c747de05bafb1a11b57edc0e66c232d9f33a9
+ARG WHISPER_DECODER_SHA256=acad50b5c782696e91b55914cc5ab4f756f1532f76e22aa6fc615f39fb69a8ee
+ARG WHISPER_TOKENS_SHA256=b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126
 
 # Three properties this layer needs and did not have:
 #   --fail       a plain `-L -o` writes the HTTP error BODY to the file: a 404 or
@@ -79,41 +92,39 @@ ARG HF_BASE_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/reso
 # about four minutes of patience, bounded so a genuinely dead host still fails
 # the build instead of hanging it. The User-Agent is not cosmetic: anonymous
 # clients without one are the first bucket a CDN throttles.
-# The size floor is the last line of defence: it catches any short body that still
-# came back with a 200, which --fail cannot see.
+# The checksum is the last line of defence: it refuses any body that is not the
+# file — a short one that still came back with a 200, which --fail cannot see,
+# as much as a different file under the same name.
 RUN set -eu; \
-    for f in "encoder.onnx:small-encoder.int8.onnx:1000000" \
-             "decoder.onnx:small-decoder.int8.onnx:1000000" \
-             "tokens.txt:small-tokens.txt:1000"; do \
-        out="${f%%:*}"; rest="${f#*:}"; src="${rest%%:*}"; min="${rest#*:}"; \
+    for f in "encoder.onnx:small-encoder.int8.onnx:${WHISPER_ENCODER_SHA256}" \
+             "decoder.onnx:small-decoder.int8.onnx:${WHISPER_DECODER_SHA256}" \
+             "tokens.txt:small-tokens.txt:${WHISPER_TOKENS_SHA256}"; do \
+        out="${f%%:*}"; rest="${f#*:}"; src="${rest%%:*}"; sha="${rest#*:}"; \
         curl -fL --http1.1 --retry 8 --retry-all-errors --retry-max-time 600 \
              -A "lia-build (+https://github.com/jgouviergmail/LIA-Assistant)" \
              -o "${out}" "${HF_BASE_URL}/${src}"; \
-        size="$(wc -c < "${out}")"; \
-        [ "${size}" -ge "${min}" ] || { \
-            echo "ERROR: ${out} is ${size} bytes, expected at least ${min}" >&2; exit 1; }; \
-        echo "${out}: ${size} bytes"; \
+        echo "${sha}  ${out}" | sha256sum -c -; \
     done
 
 # Silero VAD (~644 KB): the Whisper engine decodes only the first 30 s of a
 # buffer (measured 2026-09-02); the service cuts longer audio on the silences
-# this model finds. A missing file degrades to fixed windows, so the size floor
-# below is what makes the degradation impossible to ship by accident.
+# this model finds. A missing file degrades to fixed windows, so the checksum
+# below is what makes the degradation impossible to ship by accident — and a
+# release asset can be replaced under the same name, so it is also what pins
+# the content.
 WORKDIR /models/silero-vad
+ARG SILERO_VAD_SHA256=9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6
 RUN set -eu; \
     curl -fL --http1.1 --retry 8 --retry-all-errors --retry-max-time 600 \
          -A "lia-build (+https://github.com/jgouviergmail/LIA-Assistant)" \
          -o silero_vad.onnx \
          https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx; \
-    size="$(wc -c < silero_vad.onnx)"; \
-    [ "${size}" -ge 500000 ] || { \
-        echo "ERROR: silero_vad.onnx is ${size} bytes, expected at least 500000" >&2; exit 1; }; \
-    echo "silero_vad.onnx: ${size} bytes"
+    echo "${SILERO_VAD_SHA256}  silero_vad.onnx" | sha256sum -c -
 
 # =============================================================================
 # GeoIP database download stage - DB-IP Lite City (free, CC-BY-4.0)
 # =============================================================================
-FROM python:3.14-slim-trixie AS geoip-downloader
+FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS geoip-downloader
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
@@ -124,6 +135,10 @@ WORKDIR /data/geoip
 # available month at build time (current month, then the previous one) instead
 # of hard-coding a date that 404s a couple of months later. Override a specific
 # month with `--build-arg DBIP_DATE=YYYY-MM`.
+# The one download here without a checksum, by necessity: no address keeps one
+# content long enough to pin a digest. gunzip's CRC refuses a truncated file,
+# and a wrong one only mislabels a log line's country (ADR-213); the exception
+# is written, with that reason, in test_build_inputs_pinned_guard.py.
 ARG DBIP_DATE=""
 RUN set -eu; \
     if [ -n "${DBIP_DATE}" ]; then \
@@ -145,7 +160,7 @@ RUN set -eu; \
 # =============================================================================
 # Runtime stage
 # =============================================================================
-FROM python:3.14-slim-trixie
+FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -167,9 +182,9 @@ ENV APP_VERSION=${APP_VERSION} \
 RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js from the OFFICIAL nodejs.org distribution, latest of the 24 LTS
-# line — the same line the web image (node:24-alpine), CI (node-version: "24")
-# and the `engines` lock (>=24.0.0, enforced by engine-strict) already run on.
+# Install Node.js from the OFFICIAL nodejs.org distribution, on the 24 LTS line
+# — the same line the web image, CI (node-version: "24") and the `engines` lock
+# (>=24.0.0, enforced by engine-strict) already run on.
 #
 # NodeSource is deliberately NOT used, and the reason is the FAILURE MODE, not
 # the outage that revealed it. `curl -fsSL <url> | bash -` cannot fail loudly: a
@@ -182,38 +197,46 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg xz-u
 # Fetching a versioned archive from the official distribution and verifying it
 # removes both the third-party dependency and the silent-degradation mode.
 #
-# The version floats inside the 24 line, like both neighbouring bases
-# (python:3.14-slim-trixie, node:24-alpine): security patches then land without
-# a manual bump, and a hard-coded version in a file nobody re-reads is precisely
-# what failed above. SHASUMS256.txt is what makes floating safe — it yields BOTH
-# the exact archive name to fetch AND its checksum, so the download is verified
-# instead of merely trusted (it was not verified at all before).
-ARG NODE_MAJOR=24
+# The version is exact and both archives' checksums are written here
+# (dependency programme, lot 7): it used to float inside the 24 line through
+# `latest-v24.x`, verified only against a SHASUMS256.txt from the same server,
+# so each build could unpack a different Node. Nothing moves an ARG by itself,
+# so the version is held equal to the skills sandbox's Node stage
+# (Dockerfile.sandbox) by test_one_value_one_owner_guard.py: the pull request
+# Dependabot opens for that image cannot merge until this follows — the version
+# and both lines of https://nodejs.org/dist/v<version>/SHASUMS256.txt.
+ARG NODE_VERSION=24.21.0
+ARG NODE_SHA256_AMD64=fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6
+ARG NODE_SHA256_ARM64=6ad1325edbdb5649c379b75a237147a666c95d4f9ae8d340fef2d1575d289ad2
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
-    case "$arch" in amd64) node_arch=x64 ;; arm64) node_arch=arm64 ;; \
+    case "$arch" in \
+      amd64) node_arch=x64; sha="${NODE_SHA256_AMD64}" ;; \
+      arm64) node_arch=arm64; sha="${NODE_SHA256_ARM64}" ;; \
       *) echo "ERROR: unsupported architecture: $arch" >&2; exit 1 ;; esac; \
-    base="https://nodejs.org/dist/latest-v${NODE_MAJOR}.x"; \
+    file="node-v${NODE_VERSION}-linux-${node_arch}.tar.xz"; \
     cd /tmp; \
     curl -fsSL --retry 8 --retry-all-errors --retry-max-time 600 \
-         -o SHASUMS256.txt "${base}/SHASUMS256.txt"; \
-    file="$(grep -oE "node-v[0-9]+\.[0-9]+\.[0-9]+-linux-${node_arch}\.tar\.xz" \
-            SHASUMS256.txt | head -1)"; \
-    [ -n "${file}" ] || { \
-      echo "ERROR: no ${node_arch} tarball listed for Node ${NODE_MAJOR}.x" >&2; exit 1; }; \
-    curl -fsSL --retry 8 --retry-all-errors --retry-max-time 600 -o "${file}" "${base}/${file}"; \
-    expected="$(grep -F " ${file}" SHASUMS256.txt | awk '{print $1}')"; \
-    actual="$(sha256sum "${file}" | awk '{print $1}')"; \
-    if [ -z "${expected}" ] || [ "${expected}" != "${actual}" ]; then \
-      echo "ERROR: checksum mismatch for ${file}" >&2; exit 1; \
-    fi; \
+         -o "${file}" "https://nodejs.org/dist/v${NODE_VERSION}/${file}"; \
+    echo "${sha}  ${file}" | sha256sum -c -; \
     tar -xJf "${file}" -C /usr/local --strip-components=1 --no-same-owner; \
-    rm -f "${file}" SHASUMS256.txt; \
+    rm -f "${file}"; \
     node -v; npm -v
 
-# Add the Docker CE repository (Docker CLI for DevOps container management)
-RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian trixie stable" > /etc/apt/sources.list.d/docker.list
+# Add the Docker CE repository (Docker CLI for DevOps container management).
+# The signing key is checked before apt trusts it: this digest is the file
+# whose primary fingerprint is 9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88,
+# the one https://docs.docker.com/engine/install/debian/ publishes. A key Docker
+# re-issues changes the digest and stops the build until someone compares the
+# fingerprint again.
+ARG DOCKER_KEY_SHA256=1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570
+RUN set -eu; \
+    curl -fsSL --retry 8 --retry-all-errors --retry-max-time 600 \
+         -o /tmp/docker.asc https://download.docker.com/linux/debian/gpg; \
+    echo "${DOCKER_KEY_SHA256}  /tmp/docker.asc" | sha256sum -c -; \
+    gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg /tmp/docker.asc; \
+    rm -f /tmp/docker.asc; \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian trixie stable" > /etc/apt/sources.list.d/docker.list
 
 # Install runtime dependencies, security patches, Chromium and Docker CLI.
 # The browser tool's engine is Debian's own chromium (ADR-059 amendment
@@ -313,8 +336,13 @@ RUN mkdir -p /app/data/attachments /app/data/skills/users /app/data/tool_cache /
 # CLAUDE.md workspace is mounted via docker-compose
 # Refresh Node's bundled npm first: its vendored dependencies lag the fixed
 # brace-expansion, ip-address and tar releases even in the newest Node 24 tarball.
+# The CLI is the version Anthropic's `stable` channel named on 2026-10-02 (npm
+# dist-tag `stable`), pinned: installed by root for a non-root runtime, it can
+# never update itself, so an unversioned install only meant a different CLI at
+# each build — 2.1.287, the `latest` of the day, in the image built 2026-10-02.
+ARG CLAUDE_CODE_VERSION=2.1.285
 RUN npm install -g npm@12.1.0 \
-    && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code \
+    && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
     && rm -rf /root/.npm \
     && mkdir -p /opt/claude-workspace /home/appuser/.claude \
     && chown appuser:appuser /opt/claude-workspace /home/appuser/.claude

@@ -49,11 +49,12 @@ def test_interpreter_matches_contract() -> None:
 
 
 def test_dockerfiles_track_the_floor() -> None:
-    """Every python base image of the API and sandbox Dockerfiles carries the contract version."""
+    """Every python base image of the API and sandbox Dockerfiles carries the contract version
+    (``3.14-…`` or, pinned since dependency lot 7, ``3.14.7-…``)."""
     floor = _floor()
     for name in ("Dockerfile.dev", "Dockerfile.prod", "Dockerfile.sandbox"):
         text = (API_DIR / name).read_text(encoding="utf-8")
-        tags = re.findall(r"^FROM python:(\d+\.\d+)-", text, re.MULTILINE)
+        tags = re.findall(r"^FROM python:(\d+\.\d+)(?:\.\d+)?-", text, re.MULTILINE)
         assert tags, f"{name}: no python base image found"
         assert set(tags) == {floor}, f"{name}: FROM versions {sorted(set(tags))} != {floor}"
 

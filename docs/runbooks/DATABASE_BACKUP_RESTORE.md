@@ -13,7 +13,7 @@
 
 | Property | Value |
 |----------|-------|
-| **Mechanism** | `prodrigestivill/postgres-backup-local:16-alpine` sidecar (`postgres-backup` service, both compose files) |
+| **Mechanism** | `prodrigestivill/postgres-backup-local` sidecar, its `16-alpine` build pinned by version and digest (`postgres-backup` service, both compose files) |
 | **What is backed up** | The full `${POSTGRES_DB}` database (schema + data, no schema filter) via `pg_dump` 16 |
 | **Format** | Plain SQL, gzip level 6, `--clean --if-exists` (self-cleaning restore) |
 | **Schedule** | `POSTGRES_BACKUP_SCHEDULE` (default `@daily`, evaluated in `POSTGRES_BACKUP_TZ`, default UTC) |
@@ -104,9 +104,15 @@ docker exec lia-postgres-backup-prod /backup.sh
 ## Integrity verification (restore drill)
 
 Runs the **real proof**: copies the latest dump out of the sidecar, restores it into
-a **throwaway** `pgvector/pgvector:pg16` container (the live database is never touched),
-then compares `alembic_version`, the public-schema table count, and row counts of
-3 reference tables. Exit 0 = PASS.
+a **throwaway** container running the live server's own image (the live database is
+never touched; `VERIFY_IMAGE` overrides the image), then compares `alembic_version`,
+the public-schema table count, and row counts of 3 reference tables. Exit 0 = PASS.
+The source's cluster roles are created first, passwords excluded: a database dump
+carries GRANTs to roles it cannot carry (the read-only `grafana_product_reader` of
+ADR-178), and without them every drill since 2026-07-29 read FAIL on eight
+« role does not exist ». A real restore into a fresh server needs the same roles:
+create them first (`task db:create-grafana-reader` on dev, its script on production),
+or accept those eight GRANT errors knowingly.
 
 ```bash
 # Dev
@@ -135,9 +141,10 @@ Run this drill **after every schema migration deploy** and at least monthly.
 ```bash
 BACKUPFILE=./backups/postgres/last/lia-20260708-030000.sql.gz
 
+# The live server's own image: the engine that wrote the dump.
 docker run -d --name lia-restore-tmp \
   -e POSTGRES_USER=<user> -e POSTGRES_DB=lia -e POSTGRES_HOST_AUTH_METHOD=trust \
-  pgvector/pgvector:pg16
+  "$(docker inspect --format '{{.Config.Image}}' lia-postgres-prod)"
 # wait for: docker exec lia-restore-tmp pg_isready
 
 gunzip -c "$BACKUPFILE" | docker exec -i lia-restore-tmp psql -U <user> -d lia

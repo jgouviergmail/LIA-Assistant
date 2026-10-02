@@ -1,11 +1,13 @@
-# Public-demo Prometheus (P2 boundary, Task 6).
+# Demonstrator Prometheus (P2 boundary, Task 6).
 #
 # Scrapes ONLY the isolated collector on the internal observability
-# network. No host port, no remote_write, no existing backend.
+# network. No host port, no remote_write, no existing backend. The target is
+# the collector's compose service name: written `public-demo-otel` in v1.29.0,
+# a name no service carried, it was never scraped until 2026-10-02.
 global:
   scrape_interval: 30s
 
 scrape_configs:
-  - job_name: public-demo-otel
+  - job_name: demo-instance-otel
     static_configs:
-      - targets: ["public-demo-otel:8889"]
+      - targets: ["demo-instance-otel:8889"]

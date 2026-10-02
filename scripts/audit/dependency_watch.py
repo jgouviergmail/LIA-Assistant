@@ -453,6 +453,37 @@ def npm_lock_locked(data: Mapping[str, Any]) -> dict[str, set[str]]:
     return found
 
 
+_NPM_INSTALL = re.compile(r"\bnpm\s+(?:install|i)\b([^&;|\n]*)")
+_DOCKER_ARG = re.compile(r"^ARG\s+(\w+)=(\S*)\s*$", re.MULTILINE)
+_DOCKER_ARG_USE = re.compile(r"\$\{(\w+)\}")
+_EXACT_VERSION = re.compile(r"\d+\.\d+\.\d+\S*")
+
+
+def dockerfile_npm_globals(text: str) -> dict[str, set[str]]:
+    """``name -> versions`` a Dockerfile installs with ``npm install -g``.
+
+    Such an install reaches no lockfile, so neither Dependabot nor ``pnpm audit``
+    reads it: the Claude Code CLI of the API image is one. The Dockerfile's ARG
+    defaults are resolved; an unversioned package is the build-input guard's to
+    refuse, and is skipped here.
+    """
+    text = text.replace("\r\n", "\n")
+    args = dict(_DOCKER_ARG.findall(text))
+    found: dict[str, set[str]] = {}
+    for segment in _NPM_INSTALL.findall(text.replace("\\\n", " ")):
+        tokens = segment.split()
+        if not {"-g", "--global"} & set(tokens):
+            continue
+        for token in tokens:
+            if token.startswith("-"):
+                continue
+            resolved = _DOCKER_ARG_USE.sub(lambda m: args.get(m.group(1), m.group(0)), token)
+            name, separator, version = resolved.rpartition("@")
+            if separator and name and _EXACT_VERSION.fullmatch(version):
+                found.setdefault(name, set()).add(version)
+    return found
+
+
 # --------------------------------------------------------------------------- inventory
 
 
@@ -574,6 +605,8 @@ def inventory(root: Path) -> Inventory:
         _merge(python, parse_lock(root / lock))
     npm = pnpm_locked((root / _PNPM_LOCK).read_text(encoding="utf-8"))
     _merge(npm, npm_lock_locked(json.loads((root / _E2E_LOCK).read_text(encoding="utf-8"))))
+    for name in _DOCKERFILES:
+        _merge(npm, dockerfile_npm_globals((root / name).read_text(encoding="utf-8")))
     images = _image_references(root)
     production = _production_files(root)
     in_production = {ref for ref, places in images.items() if production & set(places)}

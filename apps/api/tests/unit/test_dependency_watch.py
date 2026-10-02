@@ -599,12 +599,30 @@ def test_a_source_that_does_not_answer_is_named_never_silent() -> None:
 # --------------------------------------------------------------------------- the real inputs
 
 
+def test_a_global_npm_install_is_read_with_its_arguments_resolved() -> None:
+    """A Dockerfile's ``npm install -g`` reaches no lockfile, so nothing else reads it."""
+    dockerfile = (
+        "ARG CLI_VERSION=2.1.285\r\n"
+        "RUN npm install -g npm@12.1.0 \\\r\n"
+        "    && npm install -g --allow-scripts=@x/cli @x/cli@${CLI_VERSION} \\\r\n"
+        "    && npm install -g unpinned-tool\r\n"
+        "RUN npm install --save-dev local-only@1.0.0\r\n"
+        "RUN npm i -g @y/z@${UNDECLARED}\r\n"
+    )
+
+    assert watch.dockerfile_npm_globals(dockerfile) == {
+        "npm": {"12.1.0"},
+        "@x/cli": {"2.1.285"},
+    }
+
+
 def test_the_inventory_reads_every_source_of_the_repository() -> None:
     """A watch that reads nothing passes forever (the doc_facts lesson)."""
     inventory = watch.inventory(REPO_ROOT)
 
     assert len(inventory.python) > 150
     assert len(inventory.npm) > 500
+    assert inventory.npm.get("@anthropic-ai/claude-code"), "the API image's CLI is unread"
     assert len(inventory.images) > 15
     products = {line.product for line in inventory.lines}
     assert {

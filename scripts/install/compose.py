@@ -135,7 +135,7 @@ def render_install_override(
     if public.exposure is Exposure.CADDY:
         lines += [
             "  caddy:",
-            "    image: ${LIA_CADDY_IMAGE:-caddy:2-alpine}",
+            "    image: ${LIA_CADDY_IMAGE:-caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b}",
             "    container_name: lia-caddy-prod",
             "    restart: unless-stopped",
             "    ports:",

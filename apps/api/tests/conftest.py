@@ -304,6 +304,14 @@ def _force_testcontainers_ipv4_on_windows() -> None:
         testcontainers_config.tc_host_override = "127.0.0.1"
 
 
+#: The database a Testcontainers run starts: the image production runs, held
+#: equal to docker-compose.prod.yml by test_one_value_one_owner_guard.py — the
+#: floating `pgvector/pgvector:pg16` was whatever the registry served that day.
+TESTCONTAINERS_POSTGRES_IMAGE = (
+    "pgvector/pgvector:0.8.6-pg16-bookworm"
+    "@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b"
+)
+
 # Process-wide DB redirection state (one-shot per test process/xdist worker).
 # _TESTCONTAINERS_ACTIVE is read by the integration dev-DB guard
 # (tests/integration/conftest.py): when a Testcontainers database is in play,
@@ -423,7 +431,7 @@ def postgres_container() -> Generator[PostgresContainer | None]:
         # and connection URL skip the slow doomed IPv6 attempt (~30× faster).
         _force_testcontainers_ipv4_on_windows()
         try:
-            with PostgresContainer("pgvector/pgvector:pg16", driver=None) as postgres:
+            with PostgresContainer(TESTCONTAINERS_POSTGRES_IMAGE, driver=None) as postgres:
                 # Arm the dev-DB guard (tests/integration/conftest.py): with a
                 # Testcontainers DB in play, any connection to the developer
                 # database (loopback:5432) is a redirection bug — fail loudly.

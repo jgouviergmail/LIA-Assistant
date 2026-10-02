@@ -45,7 +45,7 @@ name: lia-demo-instance
 
 services:
   demo-instance-edge:
-    image: caddy:2-alpine
+    image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
     restart: unless-stopped
     volumes:
       - ./infrastructure/demo-instance/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -85,7 +85,7 @@ services:
   # The connector token is a secret: it lives in the env file, never here.
   # Enable it with `--profile tunnel` (a laptop validation does not need it).
   demo-instance-tunnel:
-    image: cloudflare/cloudflared:2025.1.0
+    image: cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c
     profiles: ["tunnel"]
     restart: unless-stopped
     # `:-` and not `:?`: Compose interpolates the WHOLE file before it filters
@@ -257,7 +257,7 @@ services:
         condition: service_healthy
 
   demo-instance-egress:
-    image: ubuntu/squid:6.1-23.10_beta
+    image: ubuntu/squid:6.6-24.04_edge@sha256:8a3baed477e2c282ab8aa5edad442f69873246964f225c5c2ae8364b6610963c
     restart: unless-stopped
     volumes:
       - ./infrastructure/demo-instance/squid.conf:/etc/squid/squid.conf:ro
@@ -289,7 +289,7 @@ services:
   # inside the private network, and this container is the single place that
   # reaches the smarthost.
   demo-instance-smtp:
-    image: boky/postfix:v4.4.0
+    image: boky/postfix:v5.1.0-debian@sha256:aafc772384232497bed875e1eb66b4d3e54ba1ebc86e2e185a6dc1dbc48182ef
     restart: unless-stopped
     environment:
       # The REAL smarthost. ALERTMANAGER_SMTP_SMARTHOST now names this relay
@@ -317,6 +317,14 @@ services:
       - POSTFIX_smtpd_client_message_rate_limit=10
       - POSTFIX_smtpd_client_connection_rate_limit=30
       - POSTFIX_smtpd_client_recipient_rate_limit=10
+      # The aliases are the table the image builds at every start
+      # (/etc/postfix/aliases, lmdb). Image v5 leaves Debian 13's alias_maps on
+      # /etc/aliases, which its lmdb switch never rebuilds, and every smtpd
+      # logged « open database /etc/aliases.lmdb: No such file or directory »
+      # (measured 2026-10-02; v4 rebuilt it). An empty value would only fall
+      # back to Postfix's compiled default. The relay delivers nothing locally.
+      - POSTFIX_alias_maps=lmdb:/etc/postfix/aliases
+      - POSTFIX_alias_database=lmdb:/etc/postfix/aliases
       # The relay answers the application and nobody else: it sits on the mail
       # network, which the web, the edge and the proxy do not join.
     networks:
@@ -330,7 +338,7 @@ services:
     pids_limit: 128
 
   demo-instance-otel:
-    image: otel/opentelemetry-collector-contrib:0.115.1
+    image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
     restart: unless-stopped
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
@@ -359,7 +367,7 @@ services:
     pids_limit: 128
 
   demo-instance-postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.6-pg16-bookworm@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
     restart: unless-stopped
     environment:
       - POSTGRES_USER=demo
@@ -393,7 +401,7 @@ services:
       retries: 10
 
   demo-instance-redis:
-    image: redis:7.4-alpine
+    image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "no", "--save", ""]
     networks:

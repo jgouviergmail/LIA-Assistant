@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Next.js 16 in pnpm workspace monorepo
 # Handles pnpm symlinks correctly for standalone mode
 
-FROM node:24-alpine AS base
+FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS base
 RUN corepack enable && corepack prepare pnpm@10.34.6 --activate
 
 # ============================================================================
@@ -106,7 +106,7 @@ RUN if [ -n "$TARGETARCH" ] && [ -n "$BUILDARCH" ] && [ "$TARGETARCH" != "$BUILD
 # ============================================================================
 # Stage 3: Production runtime
 # ============================================================================
-FROM node:24-alpine AS runner
+FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS runner
 
 # Preserve the path structure for symlinks to work
 # Standalone symlinks: ../../../node_modules/.pnpm/

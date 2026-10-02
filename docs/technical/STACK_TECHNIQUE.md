@@ -179,9 +179,9 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Service | Image | Role |
 |---------|-------|------|
-| **PostgreSQL** | `pgvector/pgvector:pg16` | Base de donnees principale + vectors |
-| **postgres-backup** | `prodrigestivill/postgres-backup-local:16-alpine` | Sauvegardes pg_dump planifiees, rotation daily/weekly/monthly (ADR-109) |
-| **Redis** | `redis:7.4-alpine` | Cache, sessions, rate limiting |
+| **PostgreSQL** | `pgvector/pgvector` | Base de donnees principale + vectors |
+| **postgres-backup** | `prodrigestivill/postgres-backup-local` | Sauvegardes pg_dump planifiees, rotation daily/weekly/monthly (ADR-109) |
+| **Redis** | `redis` | Cache, sessions, rate limiting |
 
 ### Observabilite Stack
 
@@ -195,7 +195,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **Alloy** | `grafana/alloy` | Log shipper (runs the Promtail-format pipeline) |
 | **Tempo** | `grafana/tempo` | Distributed tracing |
 
-Versions live in `docker-compose.prod.yml`, each pinned by digest as it moves (dependency
+Versions live in `docker-compose.prod.yml`, every one pinned by version and digest (dependency
 programme, lots 6 and 7, `test_build_inputs_pinned_guard.py`); the self-host catalogue (`scripts/install/self_host_dependencies.json`) and the other
 compose files are held equal to it by `test_self_host_compose_contract.py`.
 

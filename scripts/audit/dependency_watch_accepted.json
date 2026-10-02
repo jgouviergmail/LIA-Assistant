@@ -96,21 +96,14 @@
   {
     "kind": "end-of-life",
     "subject": "squid 6",
-    "reason": "The demonstrator's egress proxy (ubuntu/squid:6.1-23.10_beta); replaced with the demonstrator's build inputs (dependency programme, lot 7).",
+    "reason": "Upstream line past support; the demonstrator's egress proxy runs Ubuntu 24.04's package instead (ubuntu/squid:6.6-24.04_edge, squid 6.14-0ubuntu0.24.04.2), which Canonical maintains in main until 2029. The image lags two updates (.3 and .4: CVE-2026-47729, FTP gateway; CVE-2026-50012, cache digests), both unreachable through infrastructure/demo-instance/squid.conf: only CONNECT to five provider hosts on 443 passes, with no cache and no peer. Re-read when Canonical rebuilds the image.",
     "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "end-of-life",
-    "subject": "ubuntu 23.10",
-    "reason": "The base of the demonstrator's egress proxy image, same image as squid 6 (dependency programme, lot 7).",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
+    "review_by": "2026-12-31"
   },
   {
     "kind": "image-missing",
     "subject": "minio/minio:latest",
-    "reason": "The object store of the development Langfuse profile (docker-compose.dev.yml), outside the dependency programme by decision D2; the image left Docker Hub. Replaced with the dev profile's inputs (dependency programme, lot 7).",
+    "reason": "The object store of the development Langfuse profile (docker-compose.dev.yml), outside the dependency programme by decision D2 (Langfuse is stopped; its repair is the first step the day it resumes); the image left Docker Hub.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
   },

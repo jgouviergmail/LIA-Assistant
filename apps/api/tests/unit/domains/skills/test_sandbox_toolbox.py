@@ -48,9 +48,9 @@ def _manifest_entries() -> set[str]:
     return {_canonical(m.group(1)) for line in lines if (m := _DIRECT.match(line))}
 
 
-def _instructions() -> list[str]:
-    """The Dockerfile's instructions, continuation lines joined, comments dropped."""
-    text = _DOCKERFILE.read_text(encoding="utf-8")
+def _instructions(dockerfile: Path = _DOCKERFILE) -> list[str]:
+    """A Dockerfile's instructions, continuation lines joined, comments dropped."""
+    text = dockerfile.read_text(encoding="utf-8")
     text = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
     return [line.strip() for line in text.replace("\\\n", " ").splitlines() if line.strip()]
 
@@ -93,9 +93,15 @@ _NODE_STAGE = re.compile(
 
 class TestTheDockerfile:
     def test_the_final_stage_is_the_apis_python_pinned_by_digest(self) -> None:
-        """The last FROM is the image a run starts from: the API's own Python."""
+        """The last FROM is the image a run starts from: the API's own Python — the
+        very reference the production image's runtime stage names, so the pull
+        request that moves one moves both."""
         base = [line for line in _instructions() if line.startswith("FROM ")][-1]
-        assert re.fullmatch(r"FROM python:3\.14-slim-trixie@sha256:[0-9a-f]{64}", base)
+        api = [
+            line for line in _instructions(_API / "Dockerfile.prod") if line.startswith("FROM ")
+        ][-1]
+        assert re.fullmatch(r"FROM python:3\.14\.\d+-slim-trixie@sha256:[0-9a-f]{64}", base)
+        assert base == api
 
     def test_node_comes_from_the_official_image_pinned_by_version_and_digest(self) -> None:
         stages = [line for line in _instructions() if line.startswith("FROM ")]

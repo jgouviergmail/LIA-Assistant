@@ -40,8 +40,10 @@ Measured before anything changed:
 `scripts/audit/dependency_watch.py`, standard library plus `packaging` and
 `pyyaml`, against every version the repository pins: the five Python lockfiles
 (the API's three and the wake-word toolbox's two, which no audit read before),
-`pnpm-lock.yaml`, the e2e suite's `package-lock.json`, every image of every
-compose file, Dockerfile and workflow, and the product lines the repository
+`pnpm-lock.yaml`, the e2e suite's `package-lock.json`, the Dockerfiles'
+`npm install -g` (since lot 7: the API image's Claude Code CLI reaches no
+lockfile, so no other gate reads it), every image of every compose file,
+Dockerfile and workflow, and the product lines the repository
 pins — each derived from the file that pins it, through `doc_facts` where it
 already reads it. Four sources:
 

@@ -118,7 +118,7 @@ def test_proxy_adds_no_ports_and_no_caddy() -> None:
 def test_caddy_exposure_owns_the_caddy_service_and_volumes() -> None:
     parsed = _render(_public(Exposure.CADDY))
     caddy = parsed["services"]["caddy"]
-    assert caddy["image"] == "${LIA_CADDY_IMAGE:-caddy:2-alpine}"
+    assert caddy["image"] == "${LIA_CADDY_IMAGE:-caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b}"
     assert set(caddy["ports"]) == {"80:80", "443:443"}
     volumes = caddy["volumes"]
     assert "./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" in volumes

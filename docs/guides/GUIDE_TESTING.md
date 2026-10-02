@@ -255,7 +255,8 @@ def postgres_container() -> Generator[PostgresContainer | None, None, None]:
     else:
         # Strategy 2: Create testcontainer (local development)
         try:
-            with PostgresContainer("pgvector/pgvector:pg16", driver=None) as postgres:
+            # TESTCONTAINERS_POSTGRES_IMAGE: the image production runs (tests/conftest.py)
+            with PostgresContainer(TESTCONTAINERS_POSTGRES_IMAGE, driver=None) as postgres:
                 yield postgres
         except Exception as e:
             pytest.skip(f"Testcontainers not available: {e}")
@@ -1968,7 +1969,7 @@ def event_loop():
 @pytest.fixture(scope="session")
 def postgres_container():
     """PostgreSQL testcontainer (session-wide for performance)."""
-    with PostgresContainer("pgvector/pgvector:pg16") as postgres:
+    with PostgresContainer(TESTCONTAINERS_POSTGRES_IMAGE) as postgres:
         yield postgres
 
 # ============================================================================
@@ -2200,8 +2201,8 @@ Lancer la tâche en local, c'est exécuter littéralement ce que la CI exécute.
 
 Points structurants :
 
-- **Services provisionnés** : les deux jobs déclarent PostgreSQL
-  (`pgvector/pgvector:pg16`) et Redis (`redis:7-alpine`) en services.
+- **Services provisionnés** : les deux jobs déclarent PostgreSQL (pgvector) et
+  Redis en services, sur les images exactes de la production.
 - **`TEST_DATABASE_URL`** (job integration) : seule variable DB qui survit au
   `load_dotenv(.env.test, override=True)` du conftest — elle route les
   fixtures vers le service PostgreSQL au lieu de Testcontainers
@@ -2525,7 +2526,7 @@ testcontainers.core.exceptions.DockerException: Docker not available
 @pytest.fixture(scope="session")
 def postgres_container():
     try:
-        with PostgresContainer("pgvector/pgvector:pg16") as postgres:
+        with PostgresContainer(TESTCONTAINERS_POSTGRES_IMAGE) as postgres:
             yield postgres
     except Exception as e:
         pytest.skip(f"Docker not available: {e}")
@@ -2539,7 +2540,7 @@ def test_database_url():
         return external_db
 
     # Fallback to testcontainer
-    with PostgresContainer("pgvector/pgvector:pg16") as postgres:
+    with PostgresContainer(TESTCONTAINERS_POSTGRES_IMAGE) as postgres:
         return postgres.get_connection_url()
 ```
 
@@ -2605,7 +2606,7 @@ pytest -n auto  # Utilise tous les CPU cores
 ```python
 @pytest.fixture(scope="session")  # Partagé entre tests
 def postgres_container():
-    with PostgresContainer("pgvector/pgvector:pg16") as postgres:
+    with PostgresContainer(TESTCONTAINERS_POSTGRES_IMAGE) as postgres:
         yield postgres
 ```
 

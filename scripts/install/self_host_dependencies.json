@@ -1,7 +1,7 @@
 [
-  {"service": "postgres", "reference": "pgvector/pgvector:pg16"},
-  {"service": "postgres-backup", "reference": "prodrigestivill/postgres-backup-local:16-alpine"},
-  {"service": "redis", "reference": "redis:7.4-alpine"},
+  {"service": "postgres", "reference": "pgvector/pgvector:0.8.6-pg16-bookworm@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b"},
+  {"service": "postgres-backup", "reference": "prodrigestivill/postgres-backup-local:16-alpine-d257e5d@sha256:08e7b70879af45a89305b91f4600cfbc88da2419a65948df870cddb082b8cf83"},
+  {"service": "redis", "reference": "redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499"},
   {"service": "tempo", "reference": "grafana/tempo:2.10.8@sha256:f0561deb1c68ec44d6e6e7e4487f30106c4e5e768642077695b37958b105812a"},
   {"service": "prometheus", "reference": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7"},
   {"service": "alertmanager", "reference": "prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a"},
@@ -14,5 +14,5 @@
   {"service": "postgres-exporter", "reference": "prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e"},
   {"service": "redis-exporter", "reference": "oliver006/redis_exporter:v1.92.0@sha256:ca3abd5f19da6c87e96038ba08aaa3dfaab34dc649834584c4d6880b05952fef"},
   {"service": "portainer", "reference": "portainer/portainer-ce:2.39.8@sha256:da7f74b74c7f37c50d2ebd3db4c6bcfdbf2fe9ca1e8b4c6c0203e39fde1fd249"},
-  {"service": "caddy", "reference": "caddy:2-alpine"}
+  {"service": "caddy", "reference": "caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b"}
 ]

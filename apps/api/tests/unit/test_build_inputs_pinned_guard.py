@@ -16,16 +16,16 @@ Dockerfiles the release builds:
 ``apt-get`` packages are out of scope on purpose: they come from signed Debian
 repositories, and their security updates are wanted at every build.
 
-Today's debt is a shrink-only baseline (``build_inputs_baseline.json``): a new
-violation fails, and so does a baseline entry that no longer occurs — fixing a pin
-means deleting its line, never leaving it to excuse a later regression.
+The debt this guard was written against — 32 unpinned inputs on 2026-10-02, held by
+a shrink-only baseline — is paid (dependency programme, lots 6 and 7). What remains
+is an input that CANNOT be pinned, named with its reason in ``_UNPINNABLE``: a new
+violation fails, and so does an exemption that no longer occurs.
 """
 
 from __future__ import annotations
 
-import json
 import re
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import Any, NamedTuple
 
 import pytest
@@ -36,7 +36,6 @@ from tests._repo_paths import repo_root_or_skip
 pytestmark = pytest.mark.unit
 
 REPO_ROOT = repo_root_or_skip()
-BASELINE = Path(__file__).with_name("build_inputs_baseline.json")
 
 #: Where the deploy declares the production compose chain (``COMPOSE_FILE`` default).
 _CHAIN_DECLARATION = "scripts/deploy/lib/deploy_readiness_gate.sh"
@@ -84,6 +83,21 @@ class Violation(NamedTuple):
     file: str
     rule: str
     subject: str
+
+
+#: Inputs that cannot be pinned, and why: a decision written here, not debt.
+_UNPINNABLE: dict[Violation, str] = {
+    Violation(
+        "apps/api/Dockerfile.prod",
+        "download without a checksum",
+        "https://download.db-ip.com/free/dbip-city-lite-${M}.mmdb.gz",
+    ): (
+        "DB-IP publishes a new City Lite file every month and keeps about two months "
+        "online, so no address keeps one content long enough to pin a digest; gunzip's "
+        "CRC refuses a truncated file, and a wrong one only mislabels a log line's "
+        "country (ADR-213)."
+    ),
+}
 
 
 def _compose_chain() -> list[str]:
@@ -254,7 +268,7 @@ def test_the_guard_sees_each_kind_of_unpinned_input() -> None:
     )
 
 
-def test_production_build_inputs_never_add_to_the_debt() -> None:
+def test_every_production_build_input_is_pinned() -> None:
     built = {
         _built_dockerfile(spec["build"])
         for name in [*_compose_chain(), _DEMONSTRATOR_COMPOSE]
@@ -267,11 +281,8 @@ def test_production_build_inputs_never_add_to_the_debt() -> None:
         not unread
     ), f"a production compose file builds a Dockerfile this guard does not read: {unread}"
 
-    current = {tuple(v) for v in _violations()}
-    baseline = {tuple(entry) for entry in json.loads(BASELINE.read_text(encoding="utf-8"))}
-    new = sorted(current - baseline)
-    fixed = sorted(baseline - current)
-    assert not new, f"new unpinned production input(s) — pin by version and digest: {new}"
-    assert (
-        not fixed
-    ), f"fixed debt still listed — delete these entries from {BASELINE.name}: {fixed}"
+    current = set(_violations())
+    new = sorted(current - set(_UNPINNABLE))
+    stale = sorted(set(_UNPINNABLE) - current)
+    assert not new, f"unpinned production input(s) — pin by version and digest: {new}"
+    assert not stale, f"exemption(s) that no longer occur — delete them: {stale}"

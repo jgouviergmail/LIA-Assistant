@@ -22,7 +22,7 @@
 # Env overrides:
 #   BACKUP_CONTAINER  sidecar holding /backups   (default: lia-postgres-backup-dev)
 #   SOURCE_CONTAINER  live postgres container    (default: lia-postgres-dev)
-#   VERIFY_IMAGE      throwaway restore image    (default: pgvector/pgvector:pg16)
+#   VERIFY_IMAGE      throwaway restore image    (default: SOURCE_CONTAINER's own image)
 #   VERIFY_TABLES     space-separated tables     (default: users conversations conversation_messages)
 #   BACKUP_FILE       dump path INSIDE the sidecar (default: newest /backups/last/*.sql.gz)
 #
@@ -34,7 +34,7 @@ set -euo pipefail
 
 BACKUP_CONTAINER="${BACKUP_CONTAINER:-lia-postgres-backup-dev}"
 SOURCE_CONTAINER="${SOURCE_CONTAINER:-lia-postgres-dev}"
-VERIFY_IMAGE="${VERIFY_IMAGE:-pgvector/pgvector:pg16}"
+VERIFY_IMAGE="${VERIFY_IMAGE:-}"
 VERIFY_TABLES="${VERIFY_TABLES:-users conversations conversation_messages}"
 BACKUP_FILE="${BACKUP_FILE:-}"
 
@@ -61,6 +61,14 @@ PGUSER="$(docker exec "$SOURCE_CONTAINER" printenv POSTGRES_USER)" \
     || die "cannot read POSTGRES_USER from $SOURCE_CONTAINER"
 PGDB="$(docker exec "$SOURCE_CONTAINER" printenv POSTGRES_DB)" \
     || die "cannot read POSTGRES_DB from $SOURCE_CONTAINER"
+
+# The restore runs on the live server's own image unless told otherwise: the
+# floating `pgvector/pgvector:pg16` this used to default to was whatever the
+# registry served that day, not the engine that wrote the dump.
+if [ -z "$VERIFY_IMAGE" ]; then
+    VERIFY_IMAGE="$(docker inspect --format '{{.Config.Image}}' "$SOURCE_CONTAINER")" \
+        || die "cannot read the image of $SOURCE_CONTAINER"
+fi
 
 # --- Locate the latest dump inside the sidecar --------------------------------
 if [ -z "$BACKUP_FILE" ]; then
@@ -94,6 +102,19 @@ for i in $(seq 1 30); do
     sleep 2
 done
 log "==> Throwaway postgres ready"
+
+# --- Cluster roles (what a database dump cannot carry) -------------------------
+# A dump's GRANTs name roles that live at the CLUSTER level — the read-only
+# product role of ADR-178 among them — and a bare server refused all eight as
+# « role does not exist »: the drill read FAIL on every run since 2026-07-29
+# (measured 2026-10-02, the same eight on the old and the new engine). The
+# source's roles are created first, passwords excluded. The one this container
+# already has errors out harmlessly; a role still missing fails the restore
+# below, where every error counts.
+docker exec "$SOURCE_CONTAINER" pg_dumpall -U "$PGUSER" --roles-only --no-role-passwords \
+    | docker exec -i "$VERIFY_CONTAINER" psql -q -v ON_ERROR_STOP=0 -U "$PGUSER" -d "$PGDB" \
+    > /dev/null 2>&1 || true
+log "==> Source cluster roles recreated (passwords excluded)"
 
 # --- Restore -------------------------------------------------------------------
 log "==> Restoring dump (this is the real proof)..."
