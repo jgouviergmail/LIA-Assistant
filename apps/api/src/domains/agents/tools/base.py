@@ -192,7 +192,7 @@ class _ToolLoggerMixin:
     moment it is bound: bound in ``__init__``, it froze structlog's defaults
     for the life of the process whenever the import came before
     ``configure_logging()`` — DEBUG lines at ``LOG_LEVEL=INFO``, console
-    rendering Promtail cannot parse, and no PII filter (measured in
+    rendering the log shipper cannot parse, and no PII filter (measured in
     production, 2026-09-23). Binding at each access follows whatever
     configuration is installed.
     """

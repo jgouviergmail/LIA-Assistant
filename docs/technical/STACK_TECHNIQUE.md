@@ -192,7 +192,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **blackbox-exporter** | `prom/blackbox-exporter` | HTTP probes (backup healthcheck, public URL/TLS) |
 | **Grafana** | `grafana/grafana` | Dashboards & visualization |
 | **Loki** | `grafana/loki` | Log aggregation |
-| **Promtail** | `grafana/promtail` | Log shipper |
+| **Alloy** | `grafana/alloy` | Log shipper (runs the Promtail-format pipeline) |
 | **Tempo** | `grafana/tempo` | Distributed tracing |
 
 Versions live in `docker-compose.prod.yml`, each pinned by digest as it moves (dependency
@@ -252,14 +252,6 @@ compose files are held equal to it by `test_self_host_compose_contract.py`.
 | Composant | Actuel | Cible | Impact |
 |-----------|--------|-------|--------|
 | **pgvector** | 0.4.2 | 0.8.1 | Performance HNSW |
-
-### Priorite Moyenne
-
-| Composant | Actuel | Cible | Impact |
-|-----------|--------|-------|--------|
-| **Prometheus** | 3.13.3 | 3.9.1 | New features |
-| **Loki/Promtail** | 3.2.1 | 3.6.x | Performance |
-| **Tempo** | 2.10.8 | 2.9.x | New features |
 
 ### Futures (Major)
 

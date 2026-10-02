@@ -62,7 +62,7 @@ graph TB
 
     subgraph "Storage & Visualization"
         G --> H[Prometheus]
-        E --> I[Promtail]
+        E --> I[Alloy]
         I --> J[Loki]
         A --> K[OTLP Exporter]
         K --> L[Tempo]
@@ -81,7 +81,7 @@ graph TB
     style E fill:#e74c3c
 ```
 
-**Architecture Pattern** : **Push-based metrics** (Prometheus scrape) + **Pull-based logs** (Promtail tail) + **OTLP tracing** (push).
+**Architecture Pattern** : **Push-based metrics** (Prometheus scrape) + **Pull-based logs** (Alloy tail) + **OTLP tracing** (push).
 
 ### Métriques Clés (KPIs)
 
@@ -2550,7 +2550,7 @@ def configure_logging() -> None:
     """
     Configure structlog with appropriate processors for environment.
 
-    All environments: JSON output for log aggregation (Loki, Promtail)
+    All environments: JSON output for log aggregation (Loki)
     """
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
 
@@ -2568,7 +2568,7 @@ def configure_logging() -> None:
         add_pii_filter,  # CRITICAL: Filter PII before rendering (GDPR compliance)
     ]
 
-    # Always use JSON output for Promtail/Loki parsing
+    # Always use JSON output for Loki parsing
     processors = shared_processors + [
         structlog.processors.dict_tracebacks,
         structlog.processors.JSONRenderer(),

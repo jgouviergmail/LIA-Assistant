@@ -100,7 +100,7 @@ def _build_json_formatter() -> logging.Formatter:
 
     Returns:
         A ``ProcessorFormatter`` producing the same JSON shape (and the same
-        keys) that Promtail's ``json`` stage already extracts.
+        keys) that the log shipper's ``json`` stage already extracts.
     """
     return structlog.stdlib.ProcessorFormatter(
         foreign_pre_chain=_SHARED_PROCESSORS,  # type: ignore[arg-type]
@@ -116,8 +116,8 @@ def configure_logging() -> None:
     """
     Configure structlog with appropriate processors for environment.
 
-    All environments: JSON output for log aggregation (Loki, Promtail)
-    Note: Changed from pretty console to JSON in dev for Promtail parsing
+    All environments: JSON output for log aggregation (Loki)
+    Note: Changed from pretty console to JSON in dev for the log shipper's parsing
     """
     # Determine log level
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
@@ -130,7 +130,7 @@ def configure_logging() -> None:
     # covers loggers obtained via structlog. Everything emitted by the stdlib —
     # uvicorn, uvicorn.access, httpx, sqlalchemy, any third-party library — went
     # straight to stdout, unfiltered AND unstructured (plain text, which
-    # Promtail's `json` stage cannot parse and therefore stores raw). An access
+    # the log shipper's `json` stage cannot parse and therefore stores raw). An access
     # line carries the full request target, so an OAuth callback
     # (`?code=…&state=…`) or a static-map URL (`?lat=…&lng=…`) landed verbatim
     # in Loki. Log levels currently keep those loggers quiet, but that is a
@@ -141,7 +141,7 @@ def configure_logging() -> None:
     # events reach it via `wrap_for_formatter`, foreign records via
     # `foreign_pre_chain`, and both then run the shared chain — PII filter
     # included — before the same JSONRenderer. The rendered keys are unchanged,
-    # so Promtail's extractions keep working exactly as before.
+    # so the log shipper's extractions keep working exactly as before.
     structlog.configure(
         processors=shared_processors  # type: ignore[arg-type]
         + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
@@ -173,7 +173,7 @@ def configure_logging() -> None:
     #
     # Dropping those handlers and re-enabling propagation routes them through
     # the shared chain like every other logger. Nothing is lost: the messages
-    # still reach stdout, now as filtered JSON that Promtail can parse.
+    # still reach stdout, now as filtered JSON that the log shipper can parse.
     for uvicorn_logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         uvicorn_logger = logging.getLogger(uvicorn_logger_name)
         uvicorn_logger.handlers.clear()

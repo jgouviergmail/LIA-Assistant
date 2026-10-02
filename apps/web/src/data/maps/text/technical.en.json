@@ -370,8 +370,8 @@
     "t.logs": {
       "name": "Logs",
       "role": "Structured logs with no personal data at INFO level, closed-set labels, read back through Loki.",
-      "stack": ["structlog JSON", "Loki", "Promtail", "PII filter"],
-      "src": "fa12e71a95d7"
+      "stack": ["structlog JSON", "Loki", "Alloy", "PII filter"],
+      "src": "f37c0c769616"
     },
     "t.tracing": {
       "name": "Traces",

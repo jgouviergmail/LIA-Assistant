@@ -354,8 +354,8 @@
     "t.logs": {
       "name": "日志",
       "role": "结构化日志，在 INFO 级别不含个人数据，标签取自封闭集合，由 Loki 读取。",
-      "stack": ["structlog JSON", "Loki", "Promtail", "PII 过滤器"],
-      "src": "fa12e71a95d7"
+      "stack": ["structlog JSON", "Loki", "Alloy", "PII 过滤器"],
+      "src": "f37c0c769616"
     },
     "t.tracing": {
       "name": "链路追踪",

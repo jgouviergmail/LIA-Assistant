@@ -557,7 +557,7 @@ Dev environment (`docker-compose.dev.yml`): 17 services by default, plus 6 opt-i
 | **blackbox-exporter** | — | HTTP probes (backup healthcheck, public URL) | — |
 | **grafana** | 3001 | Dashboards | http://localhost:3001 |
 | **loki** | 3100 | Log aggregation | — |
-| **promtail** | 9080 | Log collection | — |
+| **promtail** | 9080 | Log collection (Grafana Alloy) | — |
 | **tempo** | 3200, 4317, 4318 | Distributed traces (OTLP) | — |
 | **cadvisor** | 8080 | Container metrics | http://localhost:8080 |
 | **postgres-exporter** | 9187 | PostgreSQL metrics | — |

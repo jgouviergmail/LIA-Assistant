@@ -82,11 +82,6 @@
   [
     "docker-compose.prod.yml",
     "image without a version and a digest",
-    "grafana/promtail:3.2.1"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
     "pgvector/pgvector:pg16"
   ],
   [

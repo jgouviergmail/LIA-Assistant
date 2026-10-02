@@ -153,7 +153,7 @@ and the watch — joins `task lint` and the CI's backend lint step.
 - **Stated limits.** A package whose next major is younger than 60 days is held
   entirely — its minors and patches with it — until the major is old enough or
   a manifest caps it. Forty packages publish no GitHub repository: their own
-  advisories cannot be read, and the report counts them. Tempo, Promtail and
+  advisories cannot be read, and the report counts them. Tempo, Alloy and
   cAdvisor are not tracked by endoflife.date. The watch reads what a build
   would install, never what production runs: the deployed engine is as fresh as
   the last image build.

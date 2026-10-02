@@ -3,8 +3,8 @@
 Importing the application runs code that logs: tool modules build their
 singleton instances, registries announce what they register, the prompt loader
 reports the versions it found. Whatever logs before ``configure_logging()``
-has run does so under structlog's DEFAULTS — console rendering Promtail cannot
-parse, no level filter, no PII filter (measured 2026-09-23: DEBUG lines at
+has run does so under structlog's DEFAULTS — console rendering the log shipper
+cannot parse, no level filter, no PII filter (measured 2026-09-23: DEBUG lines at
 ``LOG_LEVEL=INFO`` in the production logs, tool parameters included).
 
 A call placed after the imports cannot come first, and a call placed before

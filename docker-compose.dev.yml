@@ -530,17 +530,31 @@ services:
     networks:
       - lia-network
 
-  # Promtail (Log Collection Agent)
+  # Log collection: Grafana Alloy runs the Promtail-format pipeline
+  # (promtail/promtail-config.yml, the file both redaction guards read),
+  # since Promtail reached end of life on 2026-03-02 (dependency programme,
+  # lot 6g). The service keeps its name until the native configuration
+  # lands: a renamed service would leave the old container shipping beside
+  # the new one, since the deploy removes no orphan. Alloy keeps how far it
+  # read each container under --storage.path, on the positions volume:
+  # without it a restart re-ships every log. And it reports no usage to
+  # Grafana Labs, like Loki, Tempo and Grafana.
   promtail:
-    image: grafana/promtail:3.2.1
+    image: grafana/alloy:v1.19.2@sha256:b8ec653c44235fbe910879145dac3597d66b0aaecf60bcbbe82580767771a839
     container_name: lia-promtail-dev
     security_opt:
       - no-new-privileges:true
-    command: -config.file=/etc/promtail/promtail-config.yml
+    command:
+      - run
+      - --config.format=promtail
+      - --disable-reporting
+      - --storage.path=/tmp/alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - /etc/promtail/promtail-config.yml
     ports:
-      - "${DEV_BIND_HOST:-127.0.0.1}:${PROMTAIL_HOST_PORT:-9080}:9080"  # Promtail metrics endpoint
+      - "${DEV_BIND_HOST:-127.0.0.1}:${PROMTAIL_HOST_PORT:-9080}:12345"  # Alloy's UI and metrics
     volumes:
-      - ./infrastructure/observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
+      - ./infrastructure/observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker socket (read-only)
       - promtail_positions:/tmp  # Position tracking (survive restarts)
     depends_on:

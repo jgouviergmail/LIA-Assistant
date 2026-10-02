@@ -374,8 +374,8 @@
     "t.logs": {
       "name": "Logs",
       "role": "Logs estructurados sin datos personales en el nivel INFO, etiquetas de conjunto cerrado, leídos por Loki.",
-      "stack": ["structlog JSON", "Loki", "Promtail", "Filtro de PII"],
-      "src": "fa12e71a95d7"
+      "stack": ["structlog JSON", "Loki", "Alloy", "Filtro de PII"],
+      "src": "f37c0c769616"
     },
     "t.tracing": {
       "name": "Trazas",

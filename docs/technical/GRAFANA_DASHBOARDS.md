@@ -53,7 +53,7 @@ Les **31 dashboards Grafana** fournissent une observabilite complete pour :
 
 ```
 FastAPI /metrics (port 9091 HTTP) --> Prometheus --> Grafana
-Structlog JSON --> Promtail --> Loki --> Grafana
+Structlog JSON --> Alloy --> Loki --> Grafana
 OpenTelemetry OTLP --> Tempo --> Grafana
 ```
 
@@ -409,9 +409,9 @@ docker ps --format "{{.Names}}"
 ### Probleme 4 : Panels Loki sans donnees (dashboards 05, 06, 17)
 
 Verifier que :
-1. Promtail est en cours d'execution et collecte les logs de l'API
+1. Le collecteur (Grafana Alloy, service `promtail`) est en cours d'execution et collecte les logs de l'API
 2. La datasource Loki est accessible dans Grafana (`http://localhost:3001` > Configuration > Data Sources)
-3. Le job label correspond : `{job="lia-api"}`
+3. Le job label correspond : `{job="api"}`
 
 ### Probleme 5 : Panels Tempo sans donnees (dashboard 06)
 

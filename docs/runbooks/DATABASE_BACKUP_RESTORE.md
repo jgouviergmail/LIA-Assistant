@@ -194,7 +194,7 @@ docker compose -f docker-compose.prod.yml up -d postgres   # fresh, empty PGDATA
 
 - The sidecar is `unhealthy` in `docker ps` if its internal webhook server dies —
   it also appears in Portainer and cAdvisor (Dashboard 03) like any container.
-- Backup runs and failures are visible in its logs (collected by Promtail → Loki):
+- Backup runs and failures are visible in its logs (collected by Alloy → Loki):
   `docker logs lia-postgres-backup-prod`.
 - Worst-case disk: (7 + 4 + 6 + last) ≈ 18 compressed dumps. First prod dump measured
   at ~119 MB (2026-07-08) → steady state ≈ 2-3 GB; the existing

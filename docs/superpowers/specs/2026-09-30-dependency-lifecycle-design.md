@@ -429,7 +429,7 @@ The design, as specified:
   at `Taskfile.yml:1481`; rewrite the description at `core/config/security.py:163`. The resolution
   drops `python-jose`, `ecdsa`, `rsa` and two type packages and moves nothing else.
 
-### Lot 6 — production observability, one service at a time (6a-6f and 6h rehearsed on dev 2026-10-02)
+### Lot 6 — production observability, one service at a time (6a-6h rehearsed on dev 2026-10-02)
 
 Rehearsed on dev, every image pinned by version and digest in the compose files and the self-host
 catalogue; production is the owner's step, each service's volume snapshotted first. The newest
@@ -459,7 +459,25 @@ redis_exporter 1.92.1, Grafana 12.4.12): 3.13.3, 1.92.0 and 12.4.11 instead.
   Prometheus. Its two configuration warnings (unscoped overrides, an unused v2 index setting) are
   left to the Tempo 3 move (§6), which removes those fields.
 - **6h Portainer 2.39.8**: 2.39.0's data upgraded on a throwaway volume, same instance, no error.
-- **6g Promtail → Alloy** is the next change, on its own: it carries the logs' redaction (ADR-317).
+- **6g Promtail → Alloy v1.19.2, step one**: the same Promtail-format file through
+  `--config.format=promtail`. The service keeps its name: the deploy removes no orphan, so a renamed
+  service would leave Promtail shipping beside Alloy. On dev, the redaction guard's corpus, written
+  by a throwaway container, is stored exactly as `sanitize_url_query` renders it, credentials then
+  content (5 lines of 5); the streams carry the same label keys before and after; Loki discarded
+  nothing. The first start re-ships what the engine still holds of each container (2 973 duplicate
+  lines on dev, whose containers were not recreated; production's deploy recreates them all); a
+  restart re-ships nothing. **Found on the way:** the converter imports Promtail's legacy positions
+  file into the file job of `/var/log/promtail.log` — a path that never existed and never shipped a
+  line — and Alloy rewrote its 30 944 stale entries on every save: 3.1 GB allocated in two minutes,
+  255 MiB held, the production limit to the MiB. That job goes, with every block Alloy ignores
+  (`server`, `positions`, a line-rate limit never enabled, a file-discovery period): 106-111 MiB held,
+  44 MB allocated in five minutes, and Alloy sets `GOMEMLIMIT` to 90 % of its container's limit by
+  itself (measured), so 256M stays. Alloy also reports usage to Grafana Labs by default:
+  `--disable-reporting`, and `test_observability_reports_no_usage_guard.py` holds Loki, Tempo,
+  Grafana and Alloy to it. Production step: through the deploy, which recreates every container
+  (Alloy started alone over old ones re-ships what the engine holds of each); then delete
+  Promtail's files from the positions volume (`rm -f /tmp/positions.yaml /tmp/.positions.yaml*`
+  in the container), which nothing reads now.
 
 The design, as specified:
 

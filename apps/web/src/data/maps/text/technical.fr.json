@@ -315,7 +315,7 @@
     "t.logs": {
       "name": "Journaux",
       "role": "Des journaux structurés sans donnée personnelle au niveau INFO, des labels à ensemble fermé, relus par Loki.",
-      "stack": ["structlog JSON", "Loki", "Promtail", "Filtre PII"]
+      "stack": ["structlog JSON", "Loki", "Alloy", "Filtre PII"]
     },
     "t.tracing": {
       "name": "Traces",

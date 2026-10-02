@@ -1,33 +1,29 @@
-# Configuration Promtail pour LIA
-# Collecte les logs Docker, parse le JSON structlog, extrait les labels et envoie vers Loki
-# Optimisé pour Raspberry Pi avec SSD NVMe (réduction I/O)
+# Log collection pipeline, in Promtail's format, run by Grafana Alloy
+# (`alloy run --config.format=promtail`, the `promtail` service of the compose
+# files): Promtail reached end of life on 2026-03-02.
+#
+# Only what Alloy's converter turns into a component belongs here. Alloy keeps
+# its positions under its own --storage.path and takes its listen address as a
+# flag, so there is no `positions` and no `server` block (a `server` log level
+# does not convert: Alloy logs at info). Nor is there any file job: the
+# converter imports Promtail's legacy positions file into a file source, and
+# Alloy then rewrote those 30,944 stale entries on every save — about 200 MB
+# allocated each time, measured on dev on 2026-10-02 — for a
+# /var/log/promtail.log that never existed and never shipped a line.
 
-server:
-  http_listen_port: 9080
-  grpc_listen_port: 0
-  log_level: warn  # info -> warn (moins de logs internes)
-
-# Position de sauvegarde (évite la perte de logs en cas de restart)
-positions:
-  filename: /tmp/positions.yaml
-
-# Client Loki
 clients:
   - url: http://loki:3100/loki/api/v1/push
-    # SSD-friendly: batching plus agressif (moins d'écritures)
-    batchwait: 5s          # 1s -> 5s (batch plus de logs avant envoi)
-    batchsize: 2097152     # 1MB -> 2MB (batches plus gros)
-    # Retry en cas d'échec
+    # SSD-friendly: larger, less frequent batches (fewer writes).
+    batchwait: 5s
+    batchsize: 2097152
     backoff_config:
-      min_period: 1s       # 500ms -> 1s
+      min_period: 1s
       max_period: 5m
       max_retries: 10
-    # Timeout
     timeout: 10s
 
-# Configuration de scraping des logs Docker
 scrape_configs:
-  # Scraping des logs de tous les conteneurs Docker
+  # Every container of the compose project.
   - job_name: docker
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
@@ -36,9 +32,8 @@ scrape_configs:
           - name: label
             values: ["com.docker.compose.project=lia"]
 
-    # Pipeline de traitement des logs
     pipeline_stages:
-      # Stage 1: Extraction des labels Docker
+      # Stage 1: the Docker envelope.
       - docker: {}
 
       # Stage 1bis: a URL's credentials never reach Loki, whatever wrote the line.
@@ -57,21 +52,21 @@ scrape_configs:
           expression: '(?i)[?&](?:token|access_token|refresh_token|id_token|code|code_verifier|code_challenge|secret|client_secret|password|passwd|pwd|api_key|apikey|key|appid|state|sig|signature|session|sessionid|jwt|authorization|lat|lng|lon|latitude|longitude|origin|dest|destination)=([^&\s#"''\\]+)'
           replace: '[REDACTED]'
 
-      # Stage 2: Parsing JSON (logs structlog de l'API)
+      # Stage 2: JSON parsing (the API's structlog lines).
       #
-      # On extrait UNIQUEMENT ce que les stages suivants consomment : l'horodatage
-      # (stage 3) et le niveau (seul label promu, stage 4). Extraire un champ qui
-      # ne devient ni label ni timestamp coutait du CPU par ligne sur le Pi sans
-      # rien apporter : la ligne complete est transmise telle quelle, donc TOUT le
-      # payload reste interrogeable a la lecture via `| json` — y compris les
-      # champs qui etaient extraits ici (run_id, user_id, trace_id, cost_usd,
-      # error, exception...).
+      # Only what the next stages consume is extracted: the timestamp (stage 3)
+      # and the level (the one promoted label, stage 4). Extracting a field that
+      # becomes neither a label nor the timestamp cost CPU per line on the Pi for
+      # nothing: the whole line is shipped as written, so EVERY field of the
+      # payload stays queryable at read time through `| json` — the ones once
+      # extracted here included (run_id, user_id, trace_id, cost_usd, error,
+      # exception...).
       - json:
           expressions:
             timestamp: timestamp
             level: level
 
-      # Stage 3: Extraction du timestamp ISO8601
+      # Stage 3: the ISO 8601 timestamp.
       - timestamp:
           source: timestamp
           format: RFC3339Nano
@@ -79,31 +74,30 @@ scrape_configs:
             - RFC3339
             - "2006-01-02T15:04:05.999999999Z07:00"
 
-      # Stage 4: Labels Loki (INDEXES — a garder bornes)
+      # Stage 4: Loki labels (INDEXED — keep them bounded).
       #
-      # Un label multiplie les STREAMS que Loki garde en memoire : les streams
-      # sont le produit cartesien des valeurs de labels. Promouvoir un champ dont
-      # l'ensemble de valeurs est ouvert n'est pas « plus cherchable », c'est un
-      # OOM differe. Mesure prod 2026-08-05 avant ce correctif :
-      #   event    -> 1416 valeurs distinctes
+      # A label multiplies the STREAMS Loki keeps in memory: streams are the
+      # cartesian product of label values. Promoting a field whose value set is
+      # open is not "more searchable", it is a deferred OOM. Measured in
+      # production on 2026-08-05, before this fix:
+      #   event    -> 1416 distinct values
       #   logger   ->  140
-      #   trace_id ->  107, et une par requete : non borne par construction
-      #   loki_ingester_memory_streams -> 771, en croissance
-      # avec QUATRE OOM kernel du conteneur Loki sur la semaine auditee, dont
-      # deux declenches par une seule requete de 7 jours : l'outil s'effondrait
-      # au moment precis ou l'on en avait besoin.
+      #   trace_id ->  107, one per request: unbounded by construction
+      #   loki_ingester_memory_streams -> 771, and climbing
+      # with FOUR kernel OOM kills of the Loki container over the audited week,
+      # two of them triggered by a single 7-day query: the tool collapsed at the
+      # exact moment it was needed.
       #
-      # Ces champs restent parfaitement interrogeables au moment de la LECTURE,
-      # sans creer de stream :
+      # Those fields stay perfectly queryable at READ time, without a stream:
       #   {container="lia-api-prod"} | json | event="chat_run_started"
       #   {container="lia-api-prod"} | json | logger=~".*agents.*"
       #
-      # Politique tenue par apps/api/tests/unit/test_promtail_label_cardinality_guard.py.
+      # Policy held by apps/api/tests/unit/test_promtail_label_cardinality_guard.py.
       - labels:
-          # Seul champ du payload promu : 4 valeurs, ensemble ferme.
+          # The one promoted payload field: 4 values, a closed set.
           level: level
 
-      # Stage 5: Ajout de labels statiques
+      # Stage 5: static labels.
       - static_labels:
           job: api
 
@@ -117,23 +111,22 @@ scrape_configs:
                 expression: '(?i)[?&](?:q|query|search|search_query|srsearch|\$search|\$filter|input|text|textquery|keyword|keywords|term|terms|titles|name|address|prompt|question|subject|body)=([^&\s#"''\\]+)'
                 replace: '[REDACTED]'
 
-      # Pas de stage `output` : il REMPLACE la ligne par un seul champ. Avec
-      # `source: message`, toute entree structlog portant une cle `message`
-      # arrivait dans Loki depouillee de son JSON — l'audit les a d'abord prises
-      # pour des `print()` egares dans le code. Un pipeline ne detruit pas la
-      # charge utile qu'il transporte.
+      # No `output` stage: it REPLACES the line with a single field. With
+      # `source: message`, every structlog entry carrying a `message` key reached
+      # Loki stripped of its JSON — the audit first read those lines as stray
+      # `print()` calls in the code. A pipeline does not destroy the payload it
+      # carries.
 
-    # Relabeling pour enrichissement
     relabel_configs:
-      # Extraction du nom du conteneur
+      # The container's name.
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'
         target_label: 'container'
 
-      # Environment dérivé du suffixe du nom de conteneur (-prod / -dev).
-      # Le label statique `environment` a été retiré du pipeline (stage 5) au profit
-      # de cette dérivation : un seul fichier partagé dev/prod, valeur correcte par conteneur.
-      # Conteneurs sans suffixe -prod/-dev (ex. lia-ssl-init) : pas de label environment.
+      # The environment, derived from the container name's suffix (-prod / -dev)
+      # rather than a static label: one file shared by dev and prod, the right
+      # value per container. A container with neither suffix (e.g. lia-ssl-init)
+      # gets no environment label.
       - source_labels: ['__meta_docker_container_name']
         regex: '.*-prod'
         target_label: 'environment'
@@ -143,39 +136,15 @@ scrape_configs:
         target_label: 'environment'
         replacement: 'development'
 
-      # Extraction du service depuis les labels Docker Compose
+      # The Docker Compose service and project.
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         target_label: 'service'
-
-      # Extraction du projet Docker Compose
       - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
         target_label: 'project'
 
-      # Drop des conteneurs non-API (optionnel: garder tous pour observabilité complète)
-      # - source_labels: ['service']
-      #   regex: 'api'
-      #   action: keep
-
-  # Scraping des logs système Promtail (auto-monitoring)
-  - job_name: promtail
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: promtail
-          __path__: /var/log/promtail.log
-
-# Limites pour éviter la surcharge
 limits_config:
-  # Limite de débit (évite DoS si logs excessifs)
-  readline_rate: 10000
-  readline_burst: 20000
-
-  # Limite taille ligne (logs très longs)
+  # A longer line is truncated, never dropped. Alloy truncates FIRST, before
+  # the redaction stages: a cut JSON line no longer parses, so it carries no
+  # level and gets the content redaction as well — more masking, never less.
   max_line_size: 256KB
   max_line_size_truncate: true
-
-# Configuration du serveur
-# SSD-friendly: sync moins fréquent
-target_config:
-  sync_period: 30s  # 10s -> 30s (moins de syncs disque)

@@ -2436,13 +2436,13 @@ docker exec lia-api-dev sh -c "cat /proc/net/tcp | grep ':1F40'"
 
 **Solutions** :
 
-1. **Vérifier Promtail** :
+1. **Vérifier le collecteur (Grafana Alloy, service `promtail`)** :
 
 ```bash
-# Check Promtail status
+# Check the log shipper's status
 docker-compose logs promtail
 
-# Check Promtail config
+# Check its Promtail-format configuration
 cat infrastructure/observability/promtail/promtail-config.yml
 ```
 
