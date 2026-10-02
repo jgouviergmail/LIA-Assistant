@@ -13,7 +13,7 @@ from src.core.security.utils import create_password_reset_token, verify_token
 
 pytestmark = pytest.mark.unit
 
-_SECRET = "recorded-secret-0123456789abcdef-recorded-secret"
+_SECRET = "recorded-secret-0123456789abcdef-recorded-secret"  # gitleaks:allow
 #: Minted by python-jose 3.5.0 (HS256, the secret above) on 2026-10-02; expires on 2100-01-01.
 _MINTED_BY_PYTHON_JOSE = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwZXJzb25AZXhhbXBsZS5jb20iLCJ0eXBlIjoicGFz"

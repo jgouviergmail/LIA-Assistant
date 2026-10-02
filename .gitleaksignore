@@ -1,0 +1,18 @@
+# gitleaks findings in commits that can no longer change, each one reviewed.
+#
+# An entry is an EXACT fingerprint (commit:file:rule:line): it cannot hide
+# anything but that one line of that one commit, so a real credential added
+# later still fails the scan. Every line below holds no credential, and was
+# fixed in the tree afterwards (dependency programme, 2026-10-02):
+#
+#  - a unit-test fixture, now marked `gitleaks:allow` at the end of its line;
+#  - an example command whose dummy key is now generated at run time;
+#  - two SHA-256 checksums of public files (the Whisper vocabulary, Docker's
+#    apt signing key), whose ARGs were named with TOKENS/KEY and are now
+#    WHISPER_VOCAB_SHA256 and DOCKER_GPG_SHA256.
+875ba9529856692beb824920ac352eda7c6fba39:apps/api/tests/unit/core/security/test_jwt_tokens.py:generic-api-key:16
+9923b4148616962ff74cb0707cc7332d362964a7:docs/superpowers/plans/2026-10-02-dependency-urgent-lot.md:generic-api-key:1212
+6cb221745539d85cc9d4070197fff8945fcf3fc5:apps/api/Dockerfile.dev:generic-api-key:19
+6cb221745539d85cc9d4070197fff8945fcf3fc5:apps/api/Dockerfile.dev:generic-api-key:108
+6cb221745539d85cc9d4070197fff8945fcf3fc5:apps/api/Dockerfile.prod:generic-api-key:73
+6cb221745539d85cc9d4070197fff8945fcf3fc5:apps/api/Dockerfile.prod:generic-api-key:232

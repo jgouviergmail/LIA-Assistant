@@ -1209,7 +1209,7 @@ docker build -f apps/api/Dockerfile.prod -t lia-api-prodcheck:urgent-lot apps/ap
 docker run --rm -i --entrypoint python \
   -e DATABASE_URL=postgresql+asyncpg://probe:probe@127.0.0.1:1/probe \
   -e REDIS_URL=redis://127.0.0.1:1/0 \
-  -e SECRET_KEY=probe-secret-key-0123456789abcdef0123456789abcdef \
+  -e SECRET_KEY="$(apps/api/.venv/Scripts/python -c 'import secrets; print(secrets.token_hex(32))')" \
   -e FERNET_KEY="$(apps/api/.venv/Scripts/python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" \
   lia-api-prodcheck:urgent-lot - < "$SCRATCH/browser_smoke.py" 2>&1 | grep -vE '^\{|\[(debug|info) '
 docker image rm lia-api-prodcheck:urgent-lot

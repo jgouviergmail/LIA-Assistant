@@ -70,7 +70,7 @@ WORKDIR /models/whisper-small
 ARG HF_BASE_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/8f3c18b358db4d1f2fc1eae49d75cd20989e4309
 ARG WHISPER_ENCODER_SHA256=4cbe7b22fa9026b843b60a68640c747de05bafb1a11b57edc0e66c232d9f33a9
 ARG WHISPER_DECODER_SHA256=acad50b5c782696e91b55914cc5ab4f756f1532f76e22aa6fc615f39fb69a8ee
-ARG WHISPER_TOKENS_SHA256=b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126
+ARG WHISPER_VOCAB_SHA256=b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126
 
 # Three properties this layer needs and did not have:
 #   --fail       a plain `-L -o` writes the HTTP error BODY to the file: a 404 or
@@ -98,7 +98,7 @@ ARG WHISPER_TOKENS_SHA256=b34b360dbb493e781e479794586d661700670d65564001f2302497
 RUN set -eu; \
     for f in "encoder.onnx:small-encoder.int8.onnx:${WHISPER_ENCODER_SHA256}" \
              "decoder.onnx:small-decoder.int8.onnx:${WHISPER_DECODER_SHA256}" \
-             "tokens.txt:small-tokens.txt:${WHISPER_TOKENS_SHA256}"; do \
+             "tokens.txt:small-tokens.txt:${WHISPER_VOCAB_SHA256}"; do \
         out="${f%%:*}"; rest="${f#*:}"; src="${rest%%:*}"; sha="${rest#*:}"; \
         curl -fL --http1.1 --retry 8 --retry-all-errors --retry-max-time 600 \
              -A "lia-build (+https://github.com/jgouviergmail/LIA-Assistant)" \
@@ -229,11 +229,11 @@ RUN set -eux; \
 # the one https://docs.docker.com/engine/install/debian/ publishes. A key Docker
 # re-issues changes the digest and stops the build until someone compares the
 # fingerprint again.
-ARG DOCKER_KEY_SHA256=1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570
+ARG DOCKER_GPG_SHA256=1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570
 RUN set -eu; \
     curl -fsSL --retry 8 --retry-all-errors --retry-max-time 600 \
          -o /tmp/docker.asc https://download.docker.com/linux/debian/gpg; \
-    echo "${DOCKER_KEY_SHA256}  /tmp/docker.asc" | sha256sum -c -; \
+    echo "${DOCKER_GPG_SHA256}  /tmp/docker.asc" | sha256sum -c -; \
     gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg /tmp/docker.asc; \
     rm -f /tmp/docker.asc; \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian trixie stable" > /etc/apt/sources.list.d/docker.list
