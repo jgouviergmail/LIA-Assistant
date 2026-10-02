@@ -123,3 +123,15 @@ Two latent defects made the migration urgent rather than cosmetic:
   the GIL build reaches today, and LIA's concurrency is asyncio-bound.
 - **Bookworm with a 3.14 base**: official `python:3.14` images target trixie;
   pinning bookworm would mean maintaining a divergent base for no benefit.
+
+## Amendment — 2026-10-02: pydub leaves, and `audioop-lts` with it
+
+Point 4 kept pydub working on 3.13+ through the `audioop-lts` shim. The
+Telegram voice path was pydub's only user, and it now decodes with the ffmpeg
+runner every other audio path already uses (`infrastructure/media/ffmpeg`, a
+bounded subprocess) into the 16 kHz mono int16 PCM that
+`transcribe_pcm_int16_async` reads. Both packages leave the manifest and the
+locks, and the native-dependency smoke test no longer lists `audioop`.
+Measured on a 120-second Opus note, the longest accepted: ffmpeg decodes it in
+0.2 s; the pure-Python sample loop the change removes took 0.7 s while holding
+the GIL, the numpy conversion that replaces it 33 ms.

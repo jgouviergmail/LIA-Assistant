@@ -209,7 +209,7 @@ Chaque type d'interaction déclare sa réponse (`hitl_keyboard._HITL_TYPE_BUTTON
 
 ### 5. Messages Vocaux
 
-Pipeline : Telegram OGG/Opus → `pydub.AudioSegment` (ffmpeg) → resample 16kHz mono → float PCM → `SherpaSttService.transcribe_async()` → texte
+Pipeline : Telegram OGG/Opus → ffmpeg (sous-processus borné, `infrastructure/media/ffmpeg.transcode`) → PCM 16 kHz mono int16 → `SherpaSttService.transcribe_pcm_int16_async()` → texte
 
 **Prérequis** : `ffmpeg` installé dans le container Docker (`apt-get install -y ffmpeg`).
 

@@ -2817,7 +2817,7 @@ Le système multi-channel est couvert par deux groupes : le domaine channels et 
 | `test_webhook_handler.py` | Handler webhook Telegram : réception, validation, `asyncio.create_task()` |
 | `test_formatter.py` | Formatage des messages pour l'API Telegram (Markdown → HTML Telegram) |
 | `test_hitl_keyboard.py` | Inline keyboards pour HITL : boutons Approve/Reject, callbacks |
-| `test_voice.py` | Réception et conversion audio Telegram (OGG → WAV via pydub/ffmpeg) |
+| `test_voice.py` | Réception, décodage par ffmpeg (OGG/Opus → PCM 16 kHz mono) et transcription des messages vocaux Telegram |
 
 **Infrastructure Proactive** (partagée avec Heartbeat) — `tests/unit/infrastructure/proactive/` :
 

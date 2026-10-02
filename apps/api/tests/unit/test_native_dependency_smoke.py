@@ -2,10 +2,8 @@
 
 A new interpreter invalidates every cpXY wheel at once, and a missing/broken wheel
 otherwise surfaces only at the first runtime use of its subsystem (STT, PDF, images,
-LangGraph checkpointing…). `audioop` is here because the stdlib module was removed in
-Python 3.13 and is now provided by `audioop-lts` — its absence broke `import pydub`
-invisibly for months (audited 2026-07-29, closed by ADR-241). Pure-Python deps are
-excluded on purpose: they cannot break this way.
+LangGraph checkpointing…). Pure-Python deps are excluded on purpose: they cannot break
+this way.
 """
 
 from __future__ import annotations
@@ -18,7 +16,6 @@ import pytest
 NATIVE_MODULES = [
     "aiohttp",
     "asyncpg",
-    "audioop",  # audioop-lts on Python >= 3.13 (pydub's hard dependency)
     "bcrypt",
     "cffi",
     "cryptography.fernet",

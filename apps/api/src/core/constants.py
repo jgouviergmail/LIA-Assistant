@@ -4618,6 +4618,9 @@ TELEGRAM_MESSAGE_MAX_LENGTH_DEFAULT = 4000  # Max before split (Telegram limit: 
 TELEGRAM_TYPING_ACTION = "typing"
 TELEGRAM_TYPING_INTERVAL_SECONDS = 4  # Re-send typing indicator every N seconds
 TELEGRAM_MAX_VOICE_FILE_SIZE = 20 * 1024 * 1024  # 20 MB — DoS protection on OGG download
+# ffmpeg's ceiling for one voice note: the longest accepted (120 s) decodes to
+# 16 kHz PCM in 0.2 s on the dev host (measured 2026-10-02).
+TELEGRAM_VOICE_DECODE_TIMEOUT_SECONDS = 30
 
 # ============================================================================
 # VOICE STT (Speech-to-Text) - Sherpa-onnx

@@ -1,4 +1,9 @@
-"""Tests for Telegram voice message handler."""
+"""Tests for Telegram voice message handler.
+
+The decode boundary is ``transcode`` (the ffmpeg runner, tested on its own in
+``tests/unit/infrastructure/media/test_ffmpeg_runner.py``); the CI runners carry
+no ffmpeg, so these tests stop at that boundary and pin what crosses it.
+"""
 
 from __future__ import annotations
 
@@ -7,21 +12,28 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# NOTE: pydub is imported for real since audioop-lts joined the manifest
-# (ADR-241) — the old module-level ``sys.modules.setdefault("pydub", mock)``
-# hack polluted every later test in the session (a sequential run handed a
-# MagicMock AudioSegment to unrelated files). ffmpeg-dependent decoding
-# (``AudioSegment.from_ogg``) is patched per-test, scope-safe, instead.
+from src.domains.voice.stt.protocol import STTResult
 from src.infrastructure.channels.telegram.voice import (
     _TARGET_SAMPLE_RATE,
     MAX_VOICE_DURATION_SECONDS,
     _download_voice_file,
-    _ogg_to_pcm_float,
     transcribe_voice_message,
 )
+from src.infrastructure.media.ffmpeg import FfmpegError
 
-# Patch targets at source modules
+MODULE = "src.infrastructure.channels.telegram.voice"
 _PATCH_STT = "src.domains.voice.stt.sherpa_stt.SherpaSttService"
+
+# Two samples of 16 kHz mono int16 PCM, as ffmpeg writes them.
+_PCM = b"\x00\x00\x00\x40"
+
+
+def _stt_answering(text: str) -> MagicMock:
+    stt = MagicMock()
+    stt.transcribe_pcm_int16_async = AsyncMock(
+        return_value=STTResult(text=text, audio_duration_seconds=0.1, language_code=None)
+    )
+    return stt
 
 
 # =============================================================================
@@ -30,37 +42,85 @@ _PATCH_STT = "src.domains.voice.stt.sherpa_stt.SherpaSttService"
 
 
 class TestTranscribeVoiceMessage:
-    """Tests for the full voice transcription pipeline."""
+    """Download → ffmpeg decode → STT, and every way out of it."""
 
     @pytest.mark.asyncio
-    @patch(
-        "src.infrastructure.channels.telegram.voice._ogg_to_pcm_float",
-        return_value=[0.1, 0.2, 0.3],
-    )
-    @patch(
-        "src.infrastructure.channels.telegram.voice._download_voice_file",
-        return_value=b"fake_ogg_bytes",
-    )
-    @patch(_PATCH_STT)
-    async def test_successful_transcription(
-        self,
-        mock_stt_cls: MagicMock,
-        mock_download: AsyncMock,
-        mock_ogg_to_pcm: MagicMock,
-    ) -> None:
-        """Happy path: download → transcode → transcribe → return text."""
-        mock_stt = mock_stt_cls.return_value
-        mock_stt.transcribe_async = AsyncMock(return_value="Hello world")
+    async def test_successful_transcription(self) -> None:
+        stt = _stt_answering("Hello world")
 
-        bot = AsyncMock()
-        result = await transcribe_voice_message(bot, "file_123", voice_duration_seconds=5)
+        with (
+            patch(f"{MODULE}._download_voice_file", AsyncMock(return_value=b"ogg")),
+            patch(f"{MODULE}.transcode", AsyncMock(return_value=_PCM)),
+            patch(_PATCH_STT, return_value=stt),
+        ):
+            result = await transcribe_voice_message(
+                AsyncMock(), "file_123", voice_duration_seconds=5
+            )
 
         assert result == "Hello world"
-        mock_download.assert_called_once_with(bot, "file_123")
-        mock_stt.transcribe_async.assert_called_once_with(
-            audio_samples=[0.1, 0.2, 0.3],
-            sample_rate=_TARGET_SAMPLE_RATE,
+        stt.transcribe_pcm_int16_async.assert_awaited_once_with(
+            _PCM, sample_rate=_TARGET_SAMPLE_RATE
         )
+
+    @pytest.mark.asyncio
+    async def test_ffmpeg_is_asked_for_the_format_the_stt_is_told(self) -> None:
+        """Mono int16 at the very rate the STT reads: a mismatch would transcribe noise."""
+        stt = _stt_answering("ok")
+        transcode = AsyncMock(return_value=_PCM)
+
+        with (
+            patch(f"{MODULE}._download_voice_file", AsyncMock(return_value=b"ogg")),
+            patch(f"{MODULE}.transcode", transcode),
+            patch(_PATCH_STT, return_value=stt),
+        ):
+            await transcribe_voice_message(AsyncMock(), "file_123")
+
+        decode = transcode.await_args
+        assert decode.args == (b"ogg",)
+        assert decode.kwargs["output_format"] == "s16le"
+        args = decode.kwargs["args"]
+        assert args[args.index("-ac") + 1] == "1"
+        told = stt.transcribe_pcm_int16_async.await_args.kwargs["sample_rate"]
+        assert args[args.index("-ar") + 1] == str(told)
+
+    @pytest.mark.asyncio
+    async def test_a_file_ffmpeg_cannot_read_is_dropped_without_the_stt(self) -> None:
+        stt = _stt_answering("never")
+
+        with (
+            patch(f"{MODULE}._download_voice_file", AsyncMock(return_value=b"not audio")),
+            patch(f"{MODULE}.transcode", AsyncMock(side_effect=FfmpegError("ffmpeg failed"))),
+            patch(_PATCH_STT, return_value=stt),
+        ):
+            result = await transcribe_voice_message(AsyncMock(), "file_123")
+
+        assert result is None
+        stt.transcribe_pcm_int16_async.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_empty_pcm_returns_none_without_the_stt(self) -> None:
+        stt = _stt_answering("never")
+
+        with (
+            patch(f"{MODULE}._download_voice_file", AsyncMock(return_value=b"ogg")),
+            patch(f"{MODULE}.transcode", AsyncMock(return_value=b"")),
+            patch(_PATCH_STT, return_value=stt),
+        ):
+            result = await transcribe_voice_message(AsyncMock(), "file_123")
+
+        assert result is None
+        stt.transcribe_pcm_int16_async.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_empty_transcription_returns_none(self) -> None:
+        with (
+            patch(f"{MODULE}._download_voice_file", AsyncMock(return_value=b"ogg")),
+            patch(f"{MODULE}.transcode", AsyncMock(return_value=_PCM)),
+            patch(_PATCH_STT, return_value=_stt_answering("")),
+        ):
+            result = await transcribe_voice_message(AsyncMock(), "file_123")
+
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_rejects_too_long_voice(self) -> None:
@@ -81,49 +141,6 @@ class TestTranscribeVoiceMessage:
         mock_download: AsyncMock,
     ) -> None:
         """Download failure should return None."""
-        bot = AsyncMock()
-        result = await transcribe_voice_message(bot, "file_123")
-        assert result is None
-
-    @pytest.mark.asyncio
-    @patch(
-        "src.infrastructure.channels.telegram.voice._ogg_to_pcm_float",
-        return_value=[],
-    )
-    @patch(
-        "src.infrastructure.channels.telegram.voice._download_voice_file",
-        return_value=b"fake_bytes",
-    )
-    async def test_empty_samples_returns_none(
-        self,
-        mock_download: AsyncMock,
-        mock_ogg_to_pcm: MagicMock,
-    ) -> None:
-        """Empty PCM samples should return None."""
-        bot = AsyncMock()
-        result = await transcribe_voice_message(bot, "file_123")
-        assert result is None
-
-    @pytest.mark.asyncio
-    @patch(
-        "src.infrastructure.channels.telegram.voice._ogg_to_pcm_float",
-        return_value=[0.1, 0.2],
-    )
-    @patch(
-        "src.infrastructure.channels.telegram.voice._download_voice_file",
-        return_value=b"fake_bytes",
-    )
-    @patch(_PATCH_STT)
-    async def test_empty_transcription_returns_none(
-        self,
-        mock_stt_cls: MagicMock,
-        mock_download: AsyncMock,
-        mock_ogg_to_pcm: MagicMock,
-    ) -> None:
-        """Empty transcription result should return None."""
-        mock_stt = mock_stt_cls.return_value
-        mock_stt.transcribe_async = AsyncMock(return_value="")
-
         bot = AsyncMock()
         result = await transcribe_voice_message(bot, "file_123")
         assert result is None
@@ -212,57 +229,3 @@ class TestDownloadVoiceFileSize:
         result = await _download_voice_file(mock_bot, "file_no_size")
 
         assert result == ogg_content
-
-
-# =============================================================================
-# _ogg_to_pcm_float
-# =============================================================================
-
-
-def _make_mock_audio_segment(raw_data: bytes) -> MagicMock:
-    """Build a mock AudioSegment whose transform chain yields ``raw_data``."""
-    mock_audio = MagicMock()
-    mock_audio.set_frame_rate.return_value = mock_audio
-    mock_audio.set_channels.return_value = mock_audio
-    mock_audio.set_sample_width.return_value = mock_audio
-    mock_audio.raw_data = raw_data
-    return mock_audio
-
-
-class TestOggToPcmFloat:
-    """Tests for OGG to PCM float conversion."""
-
-    def test_converts_to_16khz_mono(self) -> None:
-        """Should set frame rate to 16kHz, channels to 1, sample width to 2."""
-        # 2 samples: 0x0000 (0.0) and 0x4000 (0.5)
-        mock_audio = _make_mock_audio_segment(b"\x00\x00\x00\x40")
-
-        with patch("pydub.AudioSegment.from_ogg", return_value=mock_audio):
-            result = _ogg_to_pcm_float(b"fake_ogg")
-
-        mock_audio.set_frame_rate.assert_called_once_with(_TARGET_SAMPLE_RATE)
-        mock_audio.set_channels.assert_called_once_with(1)
-        mock_audio.set_sample_width.assert_called_once_with(2)
-        assert len(result) == 2
-        assert result[0] == pytest.approx(0.0, abs=0.001)
-        assert result[1] == pytest.approx(0.5, abs=0.001)
-
-    def test_normalizes_samples(self) -> None:
-        """Samples should be normalized to [-1.0, 1.0] range."""
-        # Max positive: 0x7FFF = 32767
-        mock_audio = _make_mock_audio_segment(b"\xff\x7f")
-
-        with patch("pydub.AudioSegment.from_ogg", return_value=mock_audio):
-            result = _ogg_to_pcm_float(b"fake_ogg")
-
-        assert len(result) == 1
-        assert result[0] == pytest.approx(32767 / 32768.0, abs=0.001)
-
-    def test_empty_audio(self) -> None:
-        """Empty audio should return empty list."""
-        mock_audio = _make_mock_audio_segment(b"")
-
-        with patch("pydub.AudioSegment.from_ogg", return_value=mock_audio):
-            result = _ogg_to_pcm_float(b"fake_ogg")
-
-        assert result == []

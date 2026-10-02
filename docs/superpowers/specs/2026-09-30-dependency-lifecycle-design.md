@@ -731,6 +731,24 @@ the refresh itself uses (`--exclude-newer-package`), so the three moves are the 
   the dev API image rebuilt: healthy on SQLAlchemy 2.0.54, the five ceremonies green inside it
   on webauthn 3.0.0 and cbor2 6.1.4.
 
+**9c — pydub leaves, and `audioop-lts` with it (implemented 2026-10-02, ADR-241 amendment).** The
+Telegram voice path was pydub's only user. It decodes now with the ffmpeg runner every other
+audio path uses (`infrastructure/media/ffmpeg.transcode`: a bounded subprocess, killed and reaped
+on timeout or cancellation) into the 16 kHz mono int16 PCM the STT protocol's
+`transcribe_pcm_int16_async` reads — the voice WebSocket's own door, so the Telegram path
+converts samples with numpy where it ran a Python loop. Measured on a 120-second Opus note, the
+longest accepted: ffmpeg decodes it in 0.17-0.21 s, exactly 120.0 s of PCM; the loop it replaces
+took 712 ms holding the GIL, the numpy conversion 33 ms. A file ffmpeg cannot read is the
+sender's, not a defect: a WARNING with the fact, the codec's words at DEBUG, no STT call. The
+tests stop at the `transcode` boundary (the runners carry no ffmpeg; the runner has its own
+tests), and one pins that ffmpeg is asked for the very rate the STT is told. Both packages leave
+the manifest, the locks (nothing else moves) and the mypy overrides; the native-dependency smoke
+test no longer lists `audioop`. Measured: `task test:backend:unit:fast` (35,757 passed), `task
+lint`, and the dev API image rebuilt without either package: a spoken OGG/Opus note (ffmpeg's
+offline `flite` voice) through `transcribe_voice_message`, the real ffmpeg and the real Whisper
+model came back word for word; bytes that are not audio returned nothing, with
+`telegram_voice_decode_failed` at WARNING and ffmpeg's own words at DEBUG.
+
 ## 6. Deferred, with the condition that reopens each
 
 | Subject | Stays on | Reopened when |

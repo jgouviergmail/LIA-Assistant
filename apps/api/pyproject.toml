@@ -129,7 +129,6 @@ module = [
     "readability.*",
     "markdownify.*",
     "telegram.*",
-    "pydub.*",
     "geoip2.*",
     "caldav.*",
     "imap_tools.*",

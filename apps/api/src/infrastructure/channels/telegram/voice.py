@@ -1,8 +1,9 @@
 """
 Voice message handler for Telegram.
 
-Downloads OGG/Opus voice messages from Telegram, transcodes to
-PCM float 16kHz mono via pydub+ffmpeg, and transcribes via SherpaSttService.
+Downloads OGG/Opus voice messages from Telegram, decodes them to 16 kHz mono
+PCM through ffmpeg (a bounded subprocess: the event loop never decodes), and
+transcribes them via SherpaSttService.
 
 Phase: evolution F3 — Multi-Channel Telegram Integration
 Created: 2026-03-03
@@ -10,10 +11,11 @@ Created: 2026-03-03
 
 from __future__ import annotations
 
-import asyncio
 from io import BytesIO
 from typing import TYPE_CHECKING
 
+from src.core.constants import TELEGRAM_MAX_VOICE_FILE_SIZE, TELEGRAM_VOICE_DECODE_TIMEOUT_SECONDS
+from src.infrastructure.media.ffmpeg import FfmpegError, transcode
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -36,8 +38,8 @@ async def transcribe_voice_message(
     """
     Download a Telegram voice message and transcribe it to text.
 
-    Pipeline: Telegram file API → OGG bytes → pydub AudioSegment
-    → resample 16kHz mono → float PCM → SherpaSttService.transcribe_async()
+    Pipeline: Telegram file API → OGG bytes → ffmpeg (16 kHz mono int16 PCM)
+    → SherpaSttService.transcribe_pcm_int16_async()
 
     Args:
         bot: Telegram Bot instance (for file download).
@@ -63,15 +65,17 @@ async def transcribe_voice_message(
         if not ogg_bytes:
             return None
 
-        # 2. Transcode OGG → PCM float samples (CPU-bound, run in executor)
-        loop = asyncio.get_running_loop()
-        samples = await loop.run_in_executor(
-            None,
-            _ogg_to_pcm_float,
-            ogg_bytes,
-        )
+        # 2. Decode OGG/Opus → 16 kHz mono PCM (ffmpeg, bounded)
+        try:
+            pcm = await _decode_to_pcm(ogg_bytes)
+        except FfmpegError as exc:
+            # A file ffmpeg cannot read is the sender's file, not a defect of
+            # ours: the fact at WARNING, the codec's own words at DEBUG.
+            logger.warning("telegram_voice_decode_failed", file_id=voice_file_id[:12])
+            logger.debug("telegram_voice_decode_detail", file_id=voice_file_id[:12], error=str(exc))
+            return None
 
-        if not samples:
+        if not pcm:
             logger.warning("telegram_voice_empty_samples", file_id=voice_file_id[:12])
             return None
 
@@ -80,10 +84,8 @@ async def transcribe_voice_message(
         from src.domains.voice.stt.sherpa_stt import SherpaSttService
 
         stt = SherpaSttService(settings)
-        text = await stt.transcribe_async(
-            audio_samples=samples,
-            sample_rate=_TARGET_SAMPLE_RATE,
-        )
+        result = await stt.transcribe_pcm_int16_async(pcm, sample_rate=_TARGET_SAMPLE_RATE)
+        text = result.text
 
         logger.info(
             "telegram_voice_transcribed",
@@ -103,6 +105,31 @@ async def transcribe_voice_message(
         return None
 
 
+async def _decode_to_pcm(ogg_bytes: bytes) -> bytes:
+    """
+    Decode a voice note to the PCM the STT reads: 16 kHz, mono, int16 LE.
+
+    ffmpeg runs as a subprocess under a ceiling, so a wedged codec cannot hold
+    the worker and nothing decodes on the event loop.
+
+    Args:
+        ogg_bytes: The voice note as Telegram serves it (OGG/Opus).
+
+    Returns:
+        Raw PCM samples, two bytes each.
+
+    Raises:
+        FfmpegError: When ffmpeg cannot decode the file, is missing, or runs
+            past its ceiling.
+    """
+    return await transcode(
+        ogg_bytes,
+        output_format="s16le",
+        args=["-ac", "1", "-ar", str(_TARGET_SAMPLE_RATE)],
+        timeout_s=TELEGRAM_VOICE_DECODE_TIMEOUT_SECONDS,
+    )
+
+
 async def _download_voice_file(bot: Bot, file_id: str) -> bytes | None:
     """
     Download a voice file from Telegram.
@@ -116,8 +143,6 @@ async def _download_voice_file(bot: Bot, file_id: str) -> bytes | None:
     Returns:
         Raw OGG bytes, or None on failure.
     """
-    from src.core.constants import TELEGRAM_MAX_VOICE_FILE_SIZE
-
     try:
         tg_file = await bot.get_file(file_id)
 
@@ -159,33 +184,3 @@ async def _download_voice_file(bot: Bot, file_id: str) -> bytes | None:
             exc_info=True,
         )
         return None
-
-
-def _ogg_to_pcm_float(ogg_bytes: bytes) -> list[float]:
-    """
-    Convert OGG/Opus audio to PCM float samples at 16kHz mono.
-
-    This is a CPU-bound operation — should be called via run_in_executor.
-
-    Args:
-        ogg_bytes: Raw OGG audio bytes.
-
-    Returns:
-        List of float samples normalized to [-1.0, 1.0].
-    """
-    from pydub import AudioSegment
-
-    # Load OGG from bytes
-    audio = AudioSegment.from_ogg(BytesIO(ogg_bytes))
-
-    # Resample to 16kHz mono, 16-bit
-    audio = audio.set_frame_rate(_TARGET_SAMPLE_RATE).set_channels(1).set_sample_width(2)
-
-    # Convert to float samples [-1.0, 1.0]
-    raw_data = audio.raw_data
-    samples: list[float] = []
-    for i in range(0, len(raw_data), 2):
-        sample_int = int.from_bytes(raw_data[i : i + 2], byteorder="little", signed=True)
-        samples.append(sample_int / 32768.0)
-
-    return samples

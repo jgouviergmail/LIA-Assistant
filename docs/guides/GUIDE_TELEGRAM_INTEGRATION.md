@@ -581,10 +581,8 @@ except Forbidden:
 ```
 Telegram voice message (OGG/Opus)
   -> Download via Bot API (limite 20 MB)
-  -> pydub.AudioSegment.from_ogg() (necessite ffmpeg)
-  -> Resample 16kHz mono, 16-bit
-  -> Conversion float PCM [-1.0, 1.0]
-  -> SherpaSttService.transcribe_async()
+  -> ffmpeg (sous-processus borne) : PCM 16 kHz mono, int16
+  -> SherpaSttService.transcribe_pcm_int16_async()
   -> Texte
 ```
 
@@ -601,21 +599,21 @@ async def transcribe_voice_message(bot, voice_file_id, voice_duration_seconds=No
     # 2. Download OGG bytes (avec validation taille)
     ogg_bytes = await _download_voice_file(bot, voice_file_id)
 
-    # 3. Transcode CPU-bound via run_in_executor
-    loop = asyncio.get_running_loop()
-    samples = await loop.run_in_executor(None, _ogg_to_pcm_float, ogg_bytes)
+    # 3. Decodage par ffmpeg (sous-processus borne, jamais sur la boucle) ;
+    #    un fichier illisible (FfmpegError) rend None sans appeler le STT
+    pcm = await _decode_to_pcm(ogg_bytes)
 
     # 4. Transcription Sherpa STT
     stt = SherpaSttService(settings)
-    text = await stt.transcribe_async(audio_samples=samples, sample_rate=16000)
-    return text if text else None
+    result = await stt.transcribe_pcm_int16_async(pcm, sample_rate=16000)
+    return result.text or None
 ```
 
 ### 8.3 Prerequis
 
 - **ffmpeg** doit etre installe dans le container Docker (`apt-get install -y ffmpeg`)
-- **pydub** doit etre dans les requirements Python
-- Le transcodage est CPU-bound : il est execute dans un `ThreadPoolExecutor` via `run_in_executor`
+- Le decodage tourne dans un sous-processus ffmpeg (`infrastructure/media/ffmpeg.transcode`),
+  borne par `TELEGRAM_VOICE_DECODE_TIMEOUT_SECONDS` : rien n'est decode sur la boucle d'evenements
 - Limite de duree : 120 secondes maximum
 - Limite de taille : 20 MB (`TELEGRAM_MAX_VOICE_FILE_SIZE`)
 
