@@ -931,7 +931,8 @@ tasks:
   test:alerts:
     # promtool is not installed locally; this uses the image, and the CI job
     # installs the same version, so a rule that passes here passes there.
-    # The version is pinned to the one docker-compose runs (v3.0.0), NOT an
+    # The image is the one docker-compose runs (held equal by
+    # test_one_value_one_owner_guard.py), NOT an
     # older promtool: the PromQL engine differs between majors and a rule
     # validated on 2.53.2 could behave differently in production. Measured on
     # this very repository — the SystemKnowledgeIndexationFailing unit test
@@ -940,10 +941,10 @@ tasks:
     desc: promtool validation of the live Prometheus rules + alert unit tests (F025)
     cmds:
       - cmd: docker run --rm -v "{{.ROOT_DIR}}/infrastructure/observability/prometheus:/cfg"
-          --entrypoint promtool prom/prometheus:v3.0.0
+          --entrypoint promtool prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7
           check rules /cfg/recording_rules.yml /cfg/alerts-core.yml
       - cmd: docker run --rm -v "{{.ROOT_DIR}}/infrastructure/observability/prometheus:/cfg"
-          --entrypoint promtool prom/prometheus:v3.0.0
+          --entrypoint promtool prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7
           test rules /cfg/tests/alerts_core_test.yml
 
   lint:i18n:

@@ -88,27 +88,6 @@
   },
   {
     "kind": "end-of-life",
-    "subject": "grafana 11.3",
-    "reason": "The production observability stack moves one service at a time, rehearsed on dev first (dependency programme, lot 6).",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "end-of-life",
-    "subject": "grafana-loki 3.2",
-    "reason": "Lot 6 of the dependency programme; Loki >= 3.5.8 ships no shell, so the ADR-317 purge procedure moves with it (finding F5).",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "end-of-life",
-    "subject": "prometheus 3.0",
-    "reason": "Lot 6 of the dependency programme, with promtool held equal to the production image (test_one_value_one_owner_guard.py).",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "end-of-life",
     "subject": "python 3.10",
     "reason": "The self-host installer's floor (ADR-215): it runs on a bare host's own Python, and Ubuntu 22.04 ships 3.10 with standard support until 2027-06-01. The application itself runs 3.14.",
     "owner": "maintainer",

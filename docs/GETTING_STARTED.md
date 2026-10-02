@@ -66,7 +66,7 @@ For ElevenLabs speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` is rendered at the appli
 | **Frontend** | Next.js + React + TailwindCSS | Next.js 16.3.8, React 19.2.7 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector:pg16`) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
-| **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.0.0, Grafana 11.3.0, Loki 3.2.1, Tempo 2.6.1 |
+| **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.13.3, Grafana 12.4.11, Loki 3.7.8, Tempo 2.10.8 |
 | **Backups** | pg_dump sidecar with 3-tier rotation | `postgres-backup-local:16-alpine` |
 
 ### Capabilities & Integrations

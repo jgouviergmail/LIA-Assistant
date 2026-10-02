@@ -355,7 +355,7 @@ services:
   # and generates span metrics pushed to Prometheus via remote-write.
   # Enables trace↔log↔metric correlation in Grafana (Dashboard 06).
   tempo:
-    image: grafana/tempo:2.6.1
+    image: grafana/tempo:2.10.8@sha256:f0561deb1c68ec44d6e6e7e4487f30106c4e5e768642077695b37958b105812a
     container_name: lia-tempo-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -388,7 +388,7 @@ services:
   # public domain never lands in the committed config (open-source repo).
   # Empty variable = zero probe targets.
   prometheus:
-    image: prom/prometheus:v3.0.0
+    image: prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7
     container_name: lia-prometheus-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -443,7 +443,7 @@ services:
   # The entrypoint renders the config from ALERTMANAGER_* env vars (.env.prod):
   # with SMTP set and Slack/PagerDuty empty it selects the email-only template.
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
     container_name: lia-alertmanager-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -501,7 +501,7 @@ services:
   # healthcheck webhook) and PublicEndpointDown/CertificateExpirySoon
   # (end-to-end public URL through the cloudflared tunnel).
   blackbox-exporter:
-    image: prom/blackbox-exporter:v0.25.0
+    image: prom/blackbox-exporter:v0.28.0@sha256:e753ff9f3fc458d02cca5eddab5a77e1c175eee484a8925ac7d524f04366c2fc
     container_name: lia-blackbox-exporter-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -524,7 +524,7 @@ services:
 
   # Grafana
   grafana:
-    image: grafana/grafana:11.3.0
+    image: grafana/grafana:12.4.11@sha256:3ea272e5cab64a4a62240c682e2c62433b25614d956d44c299a10cb6994f6f2e
     container_name: lia-grafana-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -555,14 +555,14 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 256M  # Was 512M — actual usage ~86M
+          memory: 384M  # 12.4 idles at ~124M where 11.3 idled at ~83M (measured, dependency lot 6)
         reservations:
           cpus: '0.1'
           memory: 128M
 
   # Loki (Logs)
   loki:
-    image: grafana/loki:3.2.1
+    image: grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193
     container_name: lia-loki-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -614,7 +614,7 @@ services:
   # Node Exporter - Host/system metrics (CPU, memory, disk, network)
   # Required for Dashboard 01 CPU/Memory panels and Dashboard 03 Infrastructure
   node-exporter:
-    image: prom/node-exporter:v1.8.2
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
     container_name: lia-node-exporter-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -641,7 +641,7 @@ services:
   # cAdvisor - Container metrics (CPU, memory, network per container)
   # Required for Dashboard 03 container resource panels
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: ghcr.io/google/cadvisor:v0.60.6@sha256:b8e7d1093144fd088f425ff003d75a4aa405de075db78dae3bc563730b1bd07a
     container_name: lia-cadvisor-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -670,7 +670,7 @@ services:
   # PostgreSQL Exporter - Database metrics
   # Required for Dashboard 03 DB panels
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
+    image: prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
     container_name: lia-postgres-exporter-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -697,7 +697,7 @@ services:
   # Redis Exporter - Cache metrics
   # Required for Dashboard 03 Redis panels
   redis-exporter:
-    image: oliver006/redis_exporter:v1.62.0
+    image: oliver006/redis_exporter:v1.92.0@sha256:ca3abd5f19da6c87e96038ba08aaa3dfaab34dc649834584c4d6880b05952fef
     container_name: lia-redis-exporter-prod
     profiles: ["observability"]
     restart: unless-stopped
@@ -724,7 +724,7 @@ services:
 
   # Portainer (Docker Management UI)
   portainer:
-    image: portainer/portainer-ce:2.39.0
+    image: portainer/portainer-ce:2.39.8@sha256:da7f74b74c7f37c50d2ebd3db4c6bcfdbf2fe9ca1e8b4c6c0203e39fde1fd249
     container_name: lia-portainer-prod
     profiles: ["observability"]
     restart: unless-stopped

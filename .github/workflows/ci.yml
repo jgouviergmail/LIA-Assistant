@@ -656,8 +656,8 @@ jobs:
         run: task lint:observability
 
       # NOTE: the two promtool steps below are deliberately NOT `task test:alerts`.
-      # They run the same promtool version (v3.0.0 — the version docker-compose
-      # actually runs, see below) on the same files with the same arguments, but
+      # They run the same promtool version (the version docker-compose actually
+      # runs, see below) on the same files with the same arguments, but
       # through the native binary rather than the container the local task uses — promtool is not installed on a dev machine, and
       # pulling an image on every CI run to avoid a 3-second download would be
       # the wrong trade. The MECHANISM differs, the checked artifact does not;
@@ -666,15 +666,19 @@ jobs:
       - name: Install promtool
         # Pinned to the version docker-compose runs, not an older promtool: the
         # PromQL engine differs between majors, so validating on 2.53.2 while
-        # production evaluates on 3.0.0 lets a rule pass CI and behave
+        # production evaluated on 3.0.0 let a rule pass CI and behave
         # differently in prod. Measured here: the SystemKnowledgeIndexationFailing
         # unit test passed on 2.53.2 and failed on 3.0.0, same rule, same data
-        # (`increase()` extrapolation changed). Bump this with the image.
+        # (`increase()` extrapolation changed). Held equal to the production
+        # image by test_one_value_one_owner_guard.py; the archive is checked
+        # against the release's own sums before it is unpacked.
         run: |
-          VER=3.0.0
-          curl -fsSL -o promtool.tar.gz \
-            "https://github.com/prometheus/prometheus/releases/download/v${VER}/prometheus-${VER}.linux-amd64.tar.gz"
-          tar xzf promtool.tar.gz
+          VER=3.13.3
+          BASE="https://github.com/prometheus/prometheus/releases/download/v${VER}"
+          curl -fsSL -o "prometheus-${VER}.linux-amd64.tar.gz" "${BASE}/prometheus-${VER}.linux-amd64.tar.gz"
+          curl -fsSL -o sha256sums.txt "${BASE}/sha256sums.txt"
+          sha256sum --check --ignore-missing sha256sums.txt
+          tar xzf "prometheus-${VER}.linux-amd64.tar.gz"
           echo "$PWD/prometheus-${VER}.linux-amd64" >> "$GITHUB_PATH"
 
       - name: promtool check live rules (deep PromQL, F025)

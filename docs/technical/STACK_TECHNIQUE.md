@@ -187,22 +187,26 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Service | Image | Role |
 |---------|-------|------|
-| **Prometheus** | `prom/prometheus:v3.0.0` | Metrics collection |
-| **Alertmanager** | `prom/alertmanager:v0.27.0` | Alert routing (core alert set by email, ADR-119) |
-| **blackbox-exporter** | `prom/blackbox-exporter:v0.25.0` | HTTP probes (backup healthcheck, public URL/TLS) |
-| **Grafana** | `grafana/grafana:11.3.0` | Dashboards & visualization |
-| **Loki** | `grafana/loki:3.2.1` | Log aggregation |
-| **Promtail** | `grafana/promtail:3.2.1` | Log shipper |
-| **Tempo** | `grafana/tempo:2.6.1` | Distributed tracing |
+| **Prometheus** | `prom/prometheus` | Metrics collection |
+| **Alertmanager** | `prom/alertmanager` | Alert routing (core alert set by email, ADR-119) |
+| **blackbox-exporter** | `prom/blackbox-exporter` | HTTP probes (backup healthcheck, public URL/TLS) |
+| **Grafana** | `grafana/grafana` | Dashboards & visualization |
+| **Loki** | `grafana/loki` | Log aggregation |
+| **Promtail** | `grafana/promtail` | Log shipper |
+| **Tempo** | `grafana/tempo` | Distributed tracing |
+
+Versions live in `docker-compose.prod.yml`, each pinned by digest as it moves (dependency
+programme, lots 6 and 7, `test_build_inputs_pinned_guard.py`); the self-host catalogue (`scripts/install/self_host_dependencies.json`) and the other
+compose files are held equal to it by `test_self_host_compose_contract.py`.
 
 ### Exporters
 
 | Service | Image | Role |
 |---------|-------|------|
-| **cAdvisor** | `gcr.io/cadvisor/cadvisor:v0.49.1` | Container metrics |
-| **postgres-exporter** | `prometheuscommunity/postgres-exporter:v0.15.0` | PostgreSQL metrics |
-| **redis-exporter** | `oliver006/redis_exporter:v1.62.0` | Redis metrics |
-| **node-exporter** | `prom/node-exporter:v1.8.2` | Host metrics |
+| **cAdvisor** | `ghcr.io/google/cadvisor` | Container metrics |
+| **postgres-exporter** | `prometheuscommunity/postgres-exporter` | PostgreSQL metrics |
+| **redis-exporter** | `oliver006/redis_exporter` | Redis metrics |
+| **node-exporter** | `prom/node-exporter` | Host metrics |
 
 ### LLM Observability
 
@@ -218,7 +222,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |---------|-------|------|
 | **pgAdmin** | `dpage/pgadmin4:9.9` | PostgreSQL admin UI |
 | **MinIO** | `minio/minio:latest` | S3-compatible storage |
-| **Portainer** | `portainer/portainer-ce:2.39.0` | Container management |
+| **Portainer** | `portainer/portainer-ce` | Container management |
 
 ---
 
@@ -253,9 +257,9 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Composant | Actuel | Cible | Impact |
 |-----------|--------|-------|--------|
-| **Prometheus** | 3.0.0 | 3.9.1 | New features |
+| **Prometheus** | 3.13.3 | 3.9.1 | New features |
 | **Loki/Promtail** | 3.2.1 | 3.6.x | Performance |
-| **Tempo** | 2.6.1 | 2.9.x | New features |
+| **Tempo** | 2.10.8 | 2.9.x | New features |
 
 ### Futures (Major)
 
@@ -263,7 +267,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |-----------|--------|-------|-------|
 | **PostgreSQL** | 16 | 18 | Tester migrations + pgvector |
 | **Redis** | 7.4 | 8.x | Nouvelle licence, evaluer impact |
-| **Grafana** | 11.3.0 | 12.x | Breaking changes possibles |
+| **Grafana** | 12.4.11 | 12.x | Breaking changes possibles |
 
 ---
 

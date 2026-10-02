@@ -40,7 +40,7 @@ Les **31 dashboards Grafana** fournissent une observabilite complete pour :
 | Dashboards | 28 |
 | Panels total | 721 |
 | Recording rules | 86 |
-| Schema version | 38 (Grafana 11.3) |
+| Schema version | 38 (Grafana 12.4) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
 | Navigation | Tag `lia` sur tous les dashboards |
 | Couverture metriques | Mesuree, jamais estimee : `python scripts/audit/measure_metric_coverage.py` (dashboard, recording rule ou alerte comptent comme couverture). Le reste est un **ratchet shrink-only** — `apps/api/tests/unit/metric_coverage_baseline.json`, garde `test_metric_coverage_ratchet_guard.py` : une metrique qui n'atteint aucun panel doit y figurer explicitement, et en sort des qu'elle est cablee (`task ratchet:metrics`). |

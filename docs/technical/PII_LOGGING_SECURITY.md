@@ -427,14 +427,17 @@ journaux `json-file` de Docker des anciens sont partis avec eux. Le Loki de dev 
 pas été purgé : sa rétention de sept jours l'efface d'elle-même.
 
 Procédure (depuis l'hôte, lecture seule hormis la demande elle-même ; `start`/`end`
-en secondes Unix) :
+en secondes Unix). L'image de Loki n'embarque plus de shell depuis la 3.5.8 : l'API
+s'appelle depuis le conteneur Prometheus, qui en garde un, par le réseau de la pile
+(programme dépendances, lot 6 — procédure éprouvée sur Loki 3.7.8 : 204 puis
+`received`) :
 
 ```bash
 # Poser la demande (réponse 204) ; le compacteur la traite par tranches de 24 h
-docker exec lia-loki-prod wget -qO- --post-data='' \
-  'http://localhost:3100/loki/api/v1/delete?query=<LogQL encodé>&start=<début>&end=<fin>'
+docker exec lia-prometheus-prod wget -qO- --post-data='' \
+  'http://loki:3100/loki/api/v1/delete?query=<LogQL encodé>&start=<début>&end=<fin>'
 # Suivre son statut (received → processed)
-docker exec lia-loki-prod wget -qO- 'http://localhost:3100/loki/api/v1/delete'
+docker exec lia-prometheus-prod wget -qO- 'http://loki:3100/loki/api/v1/delete'
 ```
 
 Vérifier sur une **fenêtre témoin** qui contient des lignes (la dernière heure après

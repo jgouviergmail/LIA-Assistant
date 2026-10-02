@@ -72,11 +72,6 @@
   [
     "docker-compose.demo-instance.yml",
     "image without a version and a digest",
-    "prom/prometheus:v3.0.0"
-  ],
-  [
-    "docker-compose.demo-instance.yml",
-    "image without a version and a digest",
     "redis:7.4-alpine"
   ],
   [
@@ -87,32 +82,7 @@
   [
     "docker-compose.prod.yml",
     "image without a version and a digest",
-    "gcr.io/cadvisor/cadvisor:v0.49.1"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
-    "grafana/grafana:11.3.0"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
-    "grafana/loki:3.2.1"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
     "grafana/promtail:3.2.1"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
-    "grafana/tempo:2.6.1"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
-    "oliver006/redis_exporter:v1.62.0"
   ],
   [
     "docker-compose.prod.yml",
@@ -122,37 +92,7 @@
   [
     "docker-compose.prod.yml",
     "image without a version and a digest",
-    "portainer/portainer-ce:2.39.0"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
     "prodrigestivill/postgres-backup-local:16-alpine"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
-    "prom/alertmanager:v0.27.0"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
-    "prom/blackbox-exporter:v0.25.0"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
-    "prom/node-exporter:v1.8.2"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
-    "prom/prometheus:v3.0.0"
-  ],
-  [
-    "docker-compose.prod.yml",
-    "image without a version and a digest",
-    "prometheuscommunity/postgres-exporter:v0.15.0"
   ],
   [
     "docker-compose.prod.yml",

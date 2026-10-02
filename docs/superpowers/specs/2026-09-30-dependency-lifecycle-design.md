@@ -429,7 +429,40 @@ The design, as specified:
   at `Taskfile.yml:1481`; rewrite the description at `core/config/security.py:163`. The resolution
   drops `python-jose`, `ecdsa`, `rsa` and two type packages and moves nothing else.
 
-### Lot 6 — production observability, one service at a time
+### Lot 6 — production observability, one service at a time (6a-6f and 6h rehearsed on dev 2026-10-02)
+
+Rehearsed on dev, every image pinned by version and digest in the compose files and the self-host
+catalogue; production is the owner's step, each service's volume snapshotted first. The newest
+patch of three lines was younger than the five-day cooldown and was not taken (Prometheus 3.13.4,
+redis_exporter 1.92.1, Grafana 12.4.12): 3.13.3, 1.92.0 and 12.4.11 instead.
+
+- **6a Prometheus 3.13.3.** promtool 3.13.3 passes both rule files (116 rules), the alert unit tests
+  and the configuration; on dev 116 rules evaluate `ok`, 11 targets `up`, no error line. The CI's
+  promtool archive is now checked against the release's `sha256sums.txt` (a tampered archive is
+  refused, measured).
+- **6b Alertmanager 0.34.1.** Six receiver combinations ({no SMTP, e-mail only, e-mail + Slack and
+  PagerDuty} × {LIA webhook off, on}) start through the real entrypoint, pass `amtool check-config`
+  and route a critical alert to the same receivers as 0.27.0; Prometheus sees it on dev.
+- **6c exporters and cAdvisor (now `ghcr.io/google/cadvisor`).** Of the metrics a dashboard or a
+  loaded rule reads, none lost and none gained, exporter by exporter. cAdvisor exposes 2 411 series
+  on the dev host: watch Prometheus's memory after the production step (F10).
+- **6d Grafana 12.4.11**, in place over the 11.3.0 database (snapshotted): 31 dashboards, four
+  datasources each answering its health check, no error line, 123.6 MiB — the production limit
+  goes from 256M to 384M. The dev compose's `GF_INSTALL_PLUGINS` (an unpinned clock panel no
+  dashboard uses, there since v1.0.0) is removed rather than migrated.
+- **6e Loki 3.7.8.** The configuration verifies (a broken copy is refused), ready in 19 s where 3.2.1
+  never answered `/ready` with 200, 39.7 MiB; a line pushed with structured metadata is read back by
+  it, and Promtail 3.2.1 keeps shipping. The purge procedure moves to the Prometheus container
+  (Loki has no shell since 3.5.8, F5), proven on dev: 204, then `received`.
+- **6f Tempo 2.10.8**, same configuration: an OTLP span pushed and read back, the API's traces
+  found, the metrics generator still writing span metrics (195 series) and the service graph to
+  Prometheus. Its two configuration warnings (unscoped overrides, an unused v2 index setting) are
+  left to the Tempo 3 move (§6), which removes those fields.
+- **6h Portainer 2.39.8**: 2.39.0's data upgraded on a throwaway volume, same instance, no error.
+- **6g Promtail → Alloy** is the next change, on its own: it carries the logs' redaction (ADR-317).
+
+The design, as specified:
+
 
 Every step updates the production and dev compose files, the catalogue, the documents, and pins by
 digest; is rehearsed on dev; snapshots the service's volume before the production change, because
