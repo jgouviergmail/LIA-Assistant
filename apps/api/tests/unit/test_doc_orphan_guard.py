@@ -35,13 +35,13 @@ out of scope by classification.
 from __future__ import annotations
 
 import importlib.util
-import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
 
 import pytest
 
+from tests._git_sandbox import run_git
 from tests._repo_paths import repo_root_or_skip
 
 REPO_ROOT = repo_root_or_skip()
@@ -74,13 +74,8 @@ _audit = _load()
 
 
 def _git(root: Path, *args: str) -> None:
-    """Run one git command in ``root``, quietly, failing loudly."""
-    subprocess.run(
-        ["git", "-C", str(root), *args],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    """Run one git command in ``root``, quietly, failing loudly — never in the caller's repository."""
+    run_git(root, *args)
 
 
 def _init_repo(root: Path) -> None:

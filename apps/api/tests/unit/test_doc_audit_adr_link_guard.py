@@ -22,12 +22,11 @@ This guard proves the refined contract of ``scripts/audit/doc_audit.py``:
 from __future__ import annotations
 
 import importlib.util
-import os
-import subprocess
 from pathlib import Path
 
 import pytest
 
+from tests._git_sandbox import run_git
 from tests._repo_paths import repo_root_or_skip
 
 REPO_ROOT = repo_root_or_skip()
@@ -101,12 +100,10 @@ def test_adr_link_in_unindexed_adr_not_escalated(tmp_path: Path) -> None:
 
 
 def _git(repo: Path, *args: str) -> None:
-    subprocess.run(
-        ["git", "-C", str(repo), *args],
-        check=True,
-        capture_output=True,
+    run_git(
+        repo,
+        *args,
         env={
-            **os.environ,
             "GIT_AUTHOR_NAME": "t",
             "GIT_AUTHOR_EMAIL": "t@t",
             "GIT_COMMITTER_NAME": "t",
