@@ -27,7 +27,7 @@ Ce document est un **ADR de bilan** : il n'introduit pas une nouvelle architectu
 |---------|----------|------|-----------------|
 | **F050** — guards `parents[N]` non portables | — | ✅ **Clôturé** | helper `tests/_repo_paths.py`, 17 guards migrés (skip propre sous montage `/app`), 11 tests |
 | **F051** — contrat API-key contradictoire | — | ✅ **Clôturé** | docstring 2-niveaux (`api_key_verifiers.py`) + 12 tests de contrat |
-| **F028** — teardown asyncpg `_cancel` | — | ✅ **Clôturé** | allowlist bornée (pyproject) + guard anti-bump `test_asyncpg_cancel_allowlist_guard.py` |
+| **F028** — teardown asyncpg `_cancel` | — | ✅ **Clôturé** | allowlist bornée (pyproject) + guard anti-bump — tous deux retirés à leur revue du 2026-10-02 : sous SQLAlchemy 2.0.54, les suites agents et intégration ne laissent plus aucun avertissement ni tâche `_cancel` en suspens (mesuré sans l'ignore ; 3 à 5 par exécution sous 2.0.50) |
 | **F006** — tests hors job PR | — | ✅ **Clôturé** | 2ᵉ invocation intégration en CI + 3 tests morts supprimés, guard cross-root |
 | **T1** — inbox retour téléphonie (P0) | MAJEUR | ✅ **Clôturé** | **ADR-127** — webhook chiffré persisté avant 200 + reaper, 9 tests PG réel |
 | **F020** — exemptions mypy | — | 🟩 **Lots 1-3 livrés** (481 → **91** paires, −81 %) | 19 modules repassés en strict, 2 vrais bugs corrigés (`Icons.FORUM`, `AgentRegistry._tools`) ; reste 91 paires sur gros modules |

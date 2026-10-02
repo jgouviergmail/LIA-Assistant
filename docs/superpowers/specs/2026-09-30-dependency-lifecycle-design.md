@@ -749,6 +749,17 @@ offline `flite` voice) through `transcribe_voice_message`, the real ffmpeg and t
 model came back word for word; bytes that are not audio returned nothing, with
 `telegram_voice_decode_failed` at WARNING and ffmpeg's own words at DEBUG.
 
+**9d — the asyncpg allowlist, reviewed and removed (2026-10-02).** F028 bounded a `filterwarnings`
+ignore of « coroutine 'Connection._cancel' was never awaited » to asyncpg 0.31.0 with a review
+date of 2026-10-01; 0.31.0 is still the latest release, so the review was a measurement, not a
+bump. With the ignore removed, the agents suite (1,132) and the integration suite (1,480, then
+4) ran without a single such warning and without one « Task was destroyed but it is pending »
+for `Connection._cancel()` — where the same integration suite on SQLAlchemy 2.0.50 left three
+(this lot's 9a run) and `main`'s CI log five. SQLAlchemy 2.0.53's fix to asyncio connections
+left open on a failed initialisation is the change between the two. The ignore, its comment and
+its guard (`test_asyncpg_cancel_allowlist_guard.py`, whose own docstring asked for both to go
+once the driver stopped leaking) are removed; ADR-130's F028 row says so.
+
 ## 6. Deferred, with the condition that reopens each
 
 | Subject | Stays on | Reopened when |

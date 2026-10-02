@@ -76,8 +76,10 @@ def test_guard_does_not_intercept_driver_coroutine_warning() -> None:
             "coroutine 'Connection._cancel' was never awaited", RuntimeWarning, stacklevel=1
         )
 
-    # A driver coroutine warning is not an AsyncMock leak → guard stays silent.
-    _drive(_body)
+    # A driver coroutine warning is not an AsyncMock leak: the guard stays
+    # silent and hands it on to the handler beneath it (pytest's, here).
+    with pytest.warns(RuntimeWarning, match=r"Connection\._cancel"):
+        _drive(_body)
 
 
 def test_guard_passes_unrelated_warnings_through() -> None:

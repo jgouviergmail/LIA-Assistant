@@ -273,25 +273,10 @@ filterwarnings = [
     # tracked as debt, not a test-code issue. Scoped to that exact deprecation
     # (StarletteDeprecationWarning subclasses UserWarning, not DeprecationWarning).
     "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
-    # F028: asyncpg finalizes a GC'd Connection with a pending ``Connection._cancel``
-    # coroutine that nobody awaits — a DRIVER teardown artifact at process shutdown,
-    # non-deterministically attributed to whichever frame the GC runs in, NOT a
-    # test-code await bug. The test-code class of un-awaited coroutine (AsyncMock's
-    # ``_execute_mock_call``) is caught deterministically and made a hard failure by
-    # ``tests/_coroutine_leak_guard.py``; this scoped ignore only silences the driver
-    # artifact so it cannot mask that gate or flake the suite.
-    #
-    # BOUNDED ALLOWLIST (audit F028): this ignore is accepted ONLY for the pinned
-    # asyncpg version and must be re-evaluated on any bump.
-    #   driver:    asyncpg==0.31.0 (see requirements.txt)
-    #   scope:     whole agents suite under warnings-as-errors; no single nodeid
-    #              (GC attribution is non-deterministic across the run)
-    #   owner:     backend-platform
-    #   review_by: 2026-10-01
-    #   guard:     tests/unit/test_asyncpg_cancel_allowlist_guard.py fails when the
-    #              pinned version changes, forcing a re-check of whether the driver
-    #              still leaks and this ignore is still needed.
-    "ignore:coroutine 'Connection\\._cancel' was never awaited:RuntimeWarning",
+    # (F028's asyncpg ``Connection._cancel`` ignore left at its 2026-10-01 review:
+    # on SQLAlchemy 2.0.54 the agents and integration suites run without one such
+    # warning or pending task — measured without the ignore, where 2.0.50 left
+    # three to five per integration run.)
     # google-genai (transitive, pinned through langchain-google-genai) reads
     # ``typing._UnionGenericAlias`` at import, which Python 3.14 deprecates for
     # removal in 3.17. It fires once per process at ``google.genai.types`` import,
