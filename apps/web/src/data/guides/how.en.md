@@ -106,7 +106,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Technology | Version | Role | Why this choice |
 |------------|---------|------|-----------------|
 | Python | 3.14 | Runtime | Richest ML/AI ecosystem, native async, complete typing |
-| FastAPI | 0.136.3 | REST API + SSE | Auto Pydantic validation, OpenAPI docs, async-first, performance |
+| FastAPI | 0.141.1 | REST API + SSE | Auto Pydantic validation, OpenAPI docs, async-first, performance |
 | LangGraph | 1.2.11 | Multi-agent orchestration | Only framework offering native state persistence + cycles + interrupts (HITL) |
 | LangChain Core | 1.5.6 | LLM/tools abstractions | `@tool` decorator, message formats, standardized callbacks |
 | SQLAlchemy | 2.0.50 | Async ORM | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |

@@ -8,6 +8,9 @@ surface is proven from the place the application really reaches it.
 from __future__ import annotations
 
 import pytest
+from fastapi import APIRouter
+
+from tests._routes import served_routes
 
 pytestmark = [pytest.mark.unit]
 
@@ -15,7 +18,7 @@ pytestmark = [pytest.mark.unit]
 def _served_paths() -> set[str]:
     from src.api.v1.routes import api_router
 
-    return {getattr(route, "path", "") for route in api_router.routes}
+    return {route.path for route in served_routes(api_router) if route.path}
 
 
 class TestBothRegistersAreReachable:
@@ -54,7 +57,7 @@ class TestEveryAdminRouteAsksWhoIsReading:
     a docstring saying « must be a superuser » and no check at all.
     """
 
-    def _routers(self) -> list[tuple[str, object]]:
+    def _routers(self) -> list[tuple[str, APIRouter]]:
         from src.domains.agents.effects.admin_router import router as effects_admin
         from src.domains.agents.effects.chain_router import admin_router as chain_admin
         from src.domains.agents.effects.statistics_router import admin_router as stats_admin
@@ -87,7 +90,7 @@ class TestEveryAdminRouteAsksWhoIsReading:
     def test_no_admin_route_is_reachable_without_the_check(self) -> None:
         unguarded: list[str] = []
         for name, router in self._routers():
-            for route in getattr(router, "routes", []):
+            for route in served_routes(router):
                 endpoint = getattr(route, "endpoint", None)
                 if endpoint is None:  # pragma: no cover - defensive
                     continue
@@ -122,7 +125,7 @@ class TestEveryAdminRouteAsksWhoIsReading:
 
         misused: list[str] = []
         for name, router in self._routers():
-            for route in getattr(router, "routes", []):
+            for route in served_routes(router):
                 for dependency in getattr(route, "dependencies", []):
                     if getattr(dependency, "dependency", None) is require_superuser:
                         misused.append(f"{name}:{getattr(route, 'path', '?')}")
@@ -166,10 +169,8 @@ class TestEveryAdminRouteAsksWhoIsReading:
 
     def _endpoint_for(self, path: str, method: str) -> object | None:
         for _name, router in self._routers():
-            for route in getattr(router, "routes", []):
-                if getattr(route, "path", None) == path and method.upper() in getattr(
-                    route, "methods", set()
-                ):
+            for route in served_routes(router):
+                if route.path == path and method.upper() in (route.methods or ()):
                     return getattr(route, "endpoint", None)
         return None
 
@@ -178,7 +179,7 @@ class TestEveryAdminRouteAsksWhoIsReading:
         # protect: the two lists are pinned to each other.
         served = _served_paths()
         for _name, router in self._routers():
-            for route in getattr(router, "routes", []):
+            for route in served_routes(router):
                 assert getattr(route, "path", "") in served
 
     def test_a_route_that_only_MENTIONS_the_guard_is_not_guarded(self) -> None:

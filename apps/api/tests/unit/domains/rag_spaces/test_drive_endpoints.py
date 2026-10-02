@@ -11,19 +11,22 @@ from __future__ import annotations
 import pytest
 
 from src.domains.rag_spaces.router import router
+from tests._routes import served_routes
 
 
 def _get_route_paths() -> list[str]:
-    """Extract all registered route paths from the router."""
-    return [r.path for r in router.routes]
+    """Every path the router serves, in the order a request is matched."""
+    return [r.path for r in served_routes(router)]
 
 
 def _get_route_methods(path: str) -> set[str]:
-    """Extract HTTP methods for a given route path."""
-    for route in router.routes:
-        if hasattr(route, "path") and route.path == path:
-            return route.methods or set()
-    return set()
+    """Every HTTP method served at a path (one route per method)."""
+    return {
+        method
+        for route in served_routes(router)
+        if route.path == path
+        for method in route.methods or ()
+    }
 
 
 # ============================================================================

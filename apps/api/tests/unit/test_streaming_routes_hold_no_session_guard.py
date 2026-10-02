@@ -20,12 +20,13 @@ from typing import Any
 
 import pytest
 from fastapi.dependencies.models import Dependant
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, RouteContext
 
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session_for_stream
 from src.infrastructure.database.session import get_db_session
 from src.main import app
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -43,11 +44,12 @@ def _calls(dependant: Dependant) -> Iterator[Callable[..., Any]]:
         yield from _calls(dependency)
 
 
-def _sse_routes() -> list[APIRoute]:
+def _sse_routes() -> list[RouteContext]:
     routes = [
         route
-        for route in app.routes
-        if isinstance(route, APIRoute) and SSE_MEDIA_TYPE in inspect.getsource(route.endpoint)
+        for route in served_routes(app)
+        if isinstance(route.original_route, APIRoute)
+        and SSE_MEDIA_TYPE in inspect.getsource(route.endpoint)
     ]
     assert routes, "no SSE route found: the guard's criterion no longer matches the code"
     return routes

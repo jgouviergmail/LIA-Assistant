@@ -31,6 +31,7 @@ from src.domains.skill_library.schemas import (
     LibraryInstallResponse,
     LibrarySearchResponse,
 )
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -81,8 +82,8 @@ class TestTheSwitches:
 
 class TestTheRoutes:
     def test_every_route_is_rate_limited_and_holds_no_request_session(self) -> None:
-        for route in router.routes:
-            assert isinstance(route, APIRoute)
+        for route in served_routes(router):
+            assert isinstance(route.original_route, APIRoute)
             dependencies = {d.call for d in route.dependant.dependencies}
             assert router_module.rate_limit_library in dependencies, route.path
             assert get_db not in dependencies, route.path

@@ -25,6 +25,7 @@ from src.domains.peers.schemas import (
     DiscoverySearchRequest,
     ShareUpdate,
 )
+from tests._routes import served_routes
 
 
 def _user():
@@ -121,7 +122,7 @@ class TestRouteTable:
     """The surface itself is pinned — a silently missing route cannot pass."""
 
     def test_all_expected_paths_declared(self):
-        paths = {route.path for route in router.routes}
+        paths = {route.path for route in served_routes(router)}
         assert paths == {
             "/peers/me",
             "/peers/discovery/search",
@@ -143,7 +144,7 @@ class TestRouteTable:
         }
 
     def test_discovery_search_carries_the_rate_limit_dependency(self):
-        route = next(r for r in router.routes if r.path == "/peers/discovery/search")
+        route = next(r for r in served_routes(router) if r.path == "/peers/discovery/search")
         dependency_names = {
             d.call.__name__ for d in route.dependant.dependencies if d.call is not None
         }

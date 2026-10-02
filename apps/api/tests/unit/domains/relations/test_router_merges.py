@@ -17,6 +17,7 @@ from fastapi import HTTPException
 
 from src.domains.relations.router import merge_relations, router, split_relation
 from src.domains.relations.schemas import RelationMergeRequest
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -76,7 +77,7 @@ class TestSplitEndpoint:
 
 class TestRoutesAreDeclared:
     def test_the_merge_routes_exist(self) -> None:
-        paths = {(route.path, tuple(sorted(route.methods))) for route in router.routes}
+        paths = {(route.path, tuple(sorted(route.methods))) for route in served_routes(router)}
 
         assert ("/relations/merges", ("POST",)) in paths
         assert ("/relations/merges/{name}", ("DELETE",)) in paths
@@ -87,6 +88,6 @@ class TestRoutesAreDeclared:
         FastAPI matches in declaration order, so a literal segment must be
         registered before the parameterised one that could absorb it.
         """
-        paths = [route.path for route in router.routes]
+        paths = [route.path for route in served_routes(router)]
 
         assert paths.index("/relations/merges") < paths.index("/relations/{name}")

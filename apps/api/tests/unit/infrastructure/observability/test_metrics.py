@@ -10,10 +10,12 @@ gauge, and update_db_pool_metrics no longer runs per request (it moved to
 the lifetime-metrics background updater).
 """
 
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from fastapi import APIRouter, FastAPI
+from fastapi.testclient import TestClient
+from prometheus_client import REGISTRY
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -27,12 +29,12 @@ from src.infrastructure.observability.metrics import (
 )
 
 
-def _make_request(path: str = "/api/test", route_path: str | None = None) -> Mock:
-    """Mock Starlette request; route_path simulates the post-routing template."""
+def _make_request(path: str = "/api/test") -> Mock:
+    """Mock Starlette request that routing never reached (no route in its scope)."""
     request = Mock(spec=Request)
     request.method = "GET"
     request.url.path = path
-    request.scope = {"route": SimpleNamespace(path=route_path)} if route_path else {}
+    request.scope = {}
     return request
 
 
@@ -125,26 +127,6 @@ class TestPrometheusMiddleware:
             mock_labels.assert_called_with(method="GET", endpoint="/api/v1/journals/{id}")
 
     @pytest.mark.asyncio
-    async def test_dispatch_records_request_duration_with_route_template(
-        self, middleware, mock_response
-    ):
-        """Duration histogram uses the matched route template (post-routing)."""
-        request = _make_request(
-            path="/api/v1/journals/9b2e4c1a-1234-4f5e-8a9b-0c1d2e3f4a5b",
-            route_path="/api/v1/journals/{entry_id}",
-        )
-        call_next = AsyncMock(return_value=mock_response)
-
-        with patch.object(http_request_duration_seconds, "labels") as mock_labels:
-            mock_metric = Mock()
-            mock_labels.return_value = mock_metric
-
-            await middleware.dispatch(request, call_next)
-
-            mock_labels.assert_called_with(method="GET", endpoint="/api/v1/journals/{entry_id}")
-            mock_metric.observe.assert_called_once()
-
-    @pytest.mark.asyncio
     async def test_dispatch_records_duration_on_exception(self, middleware, mock_request):
         """Duration is observed even when the endpoint raises (parity with the
         historical `with histogram.time():` context manager)."""
@@ -174,20 +156,6 @@ class TestPrometheusMiddleware:
 
             mock_labels.assert_called_with(method="GET", endpoint="unmatched", status=200)
             mock_metric.inc.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_dispatch_increments_requests_total_with_route(self, middleware, mock_response):
-        """Routed requests use the exact route template."""
-        request = _make_request(path="/api/v1/health", route_path="/api/v1/health")
-        call_next = AsyncMock(return_value=mock_response)
-
-        with patch.object(http_requests_total, "labels") as mock_labels:
-            mock_metric = Mock()
-            mock_labels.return_value = mock_metric
-
-            await middleware.dispatch(request, call_next)
-
-            mock_labels.assert_called_with(method="GET", endpoint="/api/v1/health", status=200)
 
     @pytest.mark.asyncio
     async def test_dispatch_does_not_update_db_pool_metrics(
@@ -229,6 +197,83 @@ class TestPrometheusMiddleware:
             assert all(
                 call.kwargs.get("endpoint") == "/api/test" for call in mock_labels.call_args_list
             )
+
+
+def _nested_app(*, served_twice: bool = False) -> FastAPI:
+    """LIA's shape: a domain router with its own prefix, included under /api/v1."""
+    domain = APIRouter(prefix="/spaces")
+
+    @domain.get("/{space_id}/documents")
+    async def documents(space_id: str) -> dict[str, str]:
+        return {"space": space_id}
+
+    @domain.get("/broken")
+    async def broken() -> None:
+        raise RuntimeError("endpoint failure")
+
+    api_router = APIRouter()
+    api_router.include_router(domain)
+    if served_twice:
+        api_router.include_router(domain, prefix="/mirror")
+    app = FastAPI()
+    app.include_router(api_router, prefix="/api/v1")
+    app.add_middleware(PrometheusMiddleware)
+    return app
+
+
+def _requests(endpoint: str, status: int) -> float:
+    labels = {"method": "GET", "endpoint": endpoint, "status": str(status)}
+    return REGISTRY.get_sample_value("http_requests_total", labels) or 0.0
+
+
+def _durations(endpoint: str) -> float:
+    labels = {"method": "GET", "endpoint": endpoint}
+    return REGISTRY.get_sample_value("http_request_duration_seconds_count", labels) or 0.0
+
+
+class TestServedRouteTemplate:
+    """The endpoint label is the template the request was SERVED under.
+
+    FastAPI 0.137+ hands the request scope the ORIGINAL route of an included
+    router, whose path misses every including router's prefix — measured on
+    0.141.1, ``/rag-spaces/{space_id}/documents`` where 0.136.3 labelled
+    ``/api/v1/rag-spaces/{space_id}/documents``. Only a real app routes.
+    """
+
+    def test_a_routed_request_carries_every_prefix(self) -> None:
+        template = "/api/v1/spaces/{space_id}/documents"
+        before = _requests(template, 200)
+        prefixless = _requests("/spaces/{space_id}/documents", 200)
+
+        TestClient(_nested_app()).get("/api/v1/spaces/7/documents")
+
+        assert _requests(template, 200) == before + 1
+        assert _requests("/spaces/{space_id}/documents", 200) == prefixless
+
+    def test_a_failing_endpoint_is_timed_under_its_template(self) -> None:
+        before = _durations("/api/v1/spaces/broken")
+
+        client = TestClient(_nested_app(), raise_server_exceptions=False)
+        assert client.get("/api/v1/spaces/broken").status_code == 500
+
+        assert _durations("/api/v1/spaces/broken") == before + 1
+
+    def test_an_unrouted_request_is_unmatched(self) -> None:
+        before = _requests("unmatched", 404)
+
+        TestClient(_nested_app()).get("/api/v1/nowhere/at/all")
+
+        assert _requests("unmatched", 404) == before + 1
+
+    def test_a_route_served_twice_keeps_its_own_path_rather_than_a_guess(self) -> None:
+        # One route object under two templates: the scope cannot say which one
+        # matched, so neither is claimed.
+        own = "/spaces/{space_id}/documents"
+        before = _requests(own, 200)
+
+        TestClient(_nested_app(served_twice=True)).get("/api/v1/mirror/spaces/7/documents")
+
+        assert _requests(own, 200) == before + 1
 
 
 class TestMetricsEndpoint:

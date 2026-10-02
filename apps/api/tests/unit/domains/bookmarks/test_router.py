@@ -27,6 +27,7 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.bookmarks import router as router_module
 from src.domains.bookmarks.router import router
 from src.domains.feature_switches.registry import PlatformCapability
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -102,8 +103,8 @@ class TestKeeping:
     def test_the_act_of_keeping_is_the_guarded_route(self) -> None:
         """ADR-279: a switch removes the capability, never the record."""
         guarded = {
-            getattr(route, "path", "")
-            for route in router.routes
+            route.path
+            for route in served_routes(router)
             if any(
                 getattr(getattr(d, "dependency", None), "__name__", "")
                 == f"require_capability_{PlatformCapability.BOOKMARKS.value}"

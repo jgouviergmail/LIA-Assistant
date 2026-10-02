@@ -27,6 +27,7 @@ import pytest
 
 from tests._demo_template import capability_flags
 from tests._repo_paths import repo_root_or_skip
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -452,9 +453,9 @@ def _matches(pattern: str, path: str) -> bool:
 def _routes_of(api_router: object) -> set[str]:
     """Every "METHOD /path" a router mounts, prefix included."""
     routes: set[str] = set()
-    for route in getattr(api_router, "routes", []):
-        path = "/api/v1" + str(getattr(route, "path", ""))
-        for method in getattr(route, "methods", None) or []:
+    for route in served_routes(api_router):
+        path = f"/api/v1{route.path}"
+        for method in route.methods or ():
             if method in {"HEAD", "OPTIONS"}:
                 continue
             routes.add(f"{method} {path}")

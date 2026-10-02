@@ -27,6 +27,8 @@ from typing import Any
 
 import pytest
 
+from tests._routes import served_routes
+
 pytestmark = pytest.mark.unit
 
 #: The guard, called imperatively inside the endpoint.
@@ -81,7 +83,7 @@ def _admin_routes() -> list[Any]:
     """
     from src.api.v1.routes import api_router
 
-    return [route for route in api_router.routes if "/admin" in getattr(route, "path", "")]
+    return [route for route in served_routes(api_router) if "/admin" in (route.path or "")]
 
 
 def _calls_the_guard(endpoint: Any) -> bool:

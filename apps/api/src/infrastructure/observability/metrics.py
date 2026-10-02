@@ -4,13 +4,16 @@ Prometheus metrics configuration for FastAPI.
 
 import re
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 
 import structlog
+from fastapi.routing import iter_route_contexts
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
+from starlette.routing import BaseRoute
+from starlette.types import ASGIApp
 
 from src.core.field_names import FIELD_NODE_NAME
 
@@ -343,8 +346,53 @@ def _normalize_path_fallback(path: str) -> str:
     return "/".join("{id}" if _ID_SEGMENT_RE.match(seg) else seg for seg in path.split("/"))
 
 
+def _served_templates(routes: Sequence[BaseRoute]) -> dict[int, str]:
+    """The template each route OBJECT is served under, every prefix included.
+
+    FastAPI 0.137+ keeps an included router as one node of ``routes`` and hands
+    the request scope the ORIGINAL route, whose ``path`` misses the prefix of
+    every router that includes it — measured on 0.141.1:
+    ``/rag-spaces/{space_id}/documents`` where 0.136.3 labelled
+    ``/api/v1/rag-spaces/{space_id}/documents``. A route object served under
+    two templates is left out: the scope cannot say which one matched, so its
+    own path stands rather than a guess.
+
+    Args:
+        routes: The application's routes (a tree since FastAPI 0.137).
+
+    Returns:
+        ``id(route) -> served template`` for every unambiguous route.
+    """
+    templates: dict[int, str] = {}
+    ambiguous: set[int] = set()
+    for context in iter_route_contexts(routes):
+        if not context.path:
+            continue
+        key = id(context.original_route)
+        if templates.setdefault(key, context.path) != context.path:
+            ambiguous.add(key)
+    for key in ambiguous:
+        del templates[key]
+    return templates
+
+
 class PrometheusMiddleware(BaseHTTPMiddleware):
     """Middleware to collect Prometheus metrics for HTTP requests."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        super().__init__(app)
+        # Per APPLICATION, never per request: read from the routes on the
+        # first routed request, when every router has been included.
+        self._templates: dict[int, str] | None = None
+
+    def _endpoint_label(self, request: Request) -> str:
+        """The served route template, or ``unmatched`` when routing found none."""
+        route = request.scope.get("route")
+        if route is None:
+            return "unmatched"
+        if self._templates is None:
+            self._templates = _served_templates(request.app.routes)
+        return self._templates.get(id(route)) or getattr(route, "path", None) or "unmatched"
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -368,7 +416,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             # AFTER routing the matched route template is available — the
             # exact, cardinality-bounded label. Unmatched paths (404s, bot
             # scans) collapse into a single series.
-            endpoint = getattr(request.scope.get("route"), "path", None) or "unmatched"
+            endpoint = self._endpoint_label(request)
 
             # Record request
             http_requests_total.labels(
@@ -389,7 +437,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             # route is read here: it is set once routing happened, even when
             # the endpoint later raised.
             duration = time.perf_counter() - start_time
-            final_endpoint = getattr(request.scope.get("route"), "path", None) or "unmatched"
+            final_endpoint = self._endpoint_label(request)
             http_request_duration_seconds.labels(
                 method=method,
                 endpoint=final_endpoint,

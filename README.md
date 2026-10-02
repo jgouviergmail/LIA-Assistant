@@ -21,7 +21,7 @@
 <p align="center">
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.14"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%20LTS-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 24 LTS"></a>
-  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.136.3-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.141.1-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.2.11-FF6F00?style=flat-square" alt="LangGraph"></a>
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.15-4B8BBE?style=flat-square" alt="LangChain"></a>
@@ -723,7 +723,7 @@ docs/                     # Architecture, technical documents, guides, runbooks,
 
 | Layer         | Technology                                                                                                            | Role                                                              |
 | ------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Backend       | Python 3.14 · FastAPI 0.136.3 · Pydantic 2.13.4 · SQLAlchemy 2.0.50 · Alembic                                         | REST API, SSE streaming, validation, async ORM, migrations        |
+| Backend       | Python 3.14 · FastAPI 0.141.1 · Pydantic 2.13.4 · SQLAlchemy 2.0.50 · Alembic                                         | REST API, SSE streaming, validation, async ORM, migrations        |
 | Orchestration | LangGraph 1.2.11 · LangChain 1.3.15 · `mcp` SDK (Streamable HTTP)                                                     | Multi-agent graph, LLM abstraction, Model Context Protocol        |
 | Data          | PostgreSQL 16 + pgvector · Redis 7.4                                                                                  | Data, checkpoints, vector search · cache, sessions, locks         |
 | Frontend      | Node.js 24 LTS · Next.js 16.3.8 · React 19.3.0 · TypeScript · TailwindCSS · Radix UI · TanStack Query · react-i18next | App Router UI, accessible primitives, server state, six languages |

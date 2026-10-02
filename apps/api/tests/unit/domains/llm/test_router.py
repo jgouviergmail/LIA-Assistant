@@ -20,6 +20,7 @@ from fastapi.routing import APIRoute
 
 from src.domains.llm.router import router
 from src.domains.llm.schemas import ReasoningFamilyResponse
+from tests._routes import served_routes
 
 
 @pytest.mark.unit
@@ -36,15 +37,16 @@ class TestLLMAdminRouterStructure:
         """It had exactly one caller, and that caller no longer exists."""
         assert not [
             route
-            for route in router.routes
-            if isinstance(route, APIRoute) and "reasoning-templates" in route.path
+            for route in served_routes(router)
+            if isinstance(route.original_route, APIRoute) and "reasoning-templates" in route.path
         ]
 
     def test_the_reasoning_family_route_exists_and_is_get_only(self) -> None:
         routes = [
             route
-            for route in router.routes
-            if isinstance(route, APIRoute) and route.path.endswith("/reasoning-family")
+            for route in served_routes(router)
+            if isinstance(route.original_route, APIRoute)
+            and route.path.endswith("/reasoning-family")
         ]
         assert len(routes) == 1
         assert routes[0].methods == {"GET"}
@@ -52,8 +54,9 @@ class TestLLMAdminRouterStructure:
     def test_the_reasoning_family_response_model_is_wired(self) -> None:
         route = next(
             route
-            for route in router.routes
-            if isinstance(route, APIRoute) and route.path.endswith("/reasoning-family")
+            for route in served_routes(router)
+            if isinstance(route.original_route, APIRoute)
+            and route.path.endswith("/reasoning-family")
         )
         assert route.response_model is ReasoningFamilyResponse
 
@@ -65,8 +68,8 @@ class TestLLMAdminRouterStructure:
         We assert each operation has at least one dependency whose call
         function is ``get_current_superuser_session``.
         """
-        for route in router.routes:
-            if not isinstance(route, APIRoute):
+        for route in served_routes(router):
+            if not isinstance(route.original_route, APIRoute):
                 continue  # Mount / WebSocketRoute / etc.
             dep_names = [
                 dep.call.__name__

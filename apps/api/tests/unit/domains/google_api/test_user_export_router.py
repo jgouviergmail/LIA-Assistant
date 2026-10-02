@@ -17,6 +17,7 @@ from src.domains.google_api.user_export_router import (
     user_export_google_api_usage,
     user_export_token_usage,
 )
+from tests._routes import served_routes
 
 
 @pytest.mark.unit
@@ -43,7 +44,7 @@ class TestUserExportRouterSecurity:
 
     def test_all_endpoints_require_authentication(self) -> None:
         """Verify that all endpoints depend on get_current_active_session."""
-        for route in router.routes:
+        for route in served_routes(router):
             if hasattr(route, "dependant"):
                 dep_names = [
                     dep.call.__name__
@@ -83,14 +84,12 @@ class TestUserExportRouterStructure:
 
     def test_five_get_endpoints_registered(self) -> None:
         """Verify exactly 5 GET endpoints are registered (3 historical + STT + TTS in v1.20.2)."""
-        get_routes = [
-            route for route in router.routes if hasattr(route, "methods") and "GET" in route.methods
-        ]
+        get_routes = [route for route in served_routes(router) if "GET" in (route.methods or ())]
         assert len(get_routes) == 5
 
     def test_expected_paths(self) -> None:
         """Verify the expected endpoint paths exist."""
-        paths = {route.path for route in router.routes if hasattr(route, "path")}
+        paths = {route.path for route in served_routes(router)}
         assert "/usage/export/token-usage" in paths
         assert "/usage/export/google-api-usage" in paths
         assert "/usage/export/consumption-summary" in paths

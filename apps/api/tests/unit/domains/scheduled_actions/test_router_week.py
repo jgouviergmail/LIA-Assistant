@@ -15,6 +15,7 @@ from src.domains.scheduled_actions.models import ScheduledRunOutcome
 from src.domains.scheduled_actions.router import router, week_scheduled_actions
 from src.domains.scheduled_actions.schemas import ScheduledActionWeekResponse
 from src.domains.scheduled_actions.week import ActionWeek, WeekCell
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -102,7 +103,11 @@ class TestTheResponse:
 class TestRouteOrder:
     def test_week_is_declared_before_any_action_id_route(self) -> None:
         """A literal segment after a path parameter is parsed as that parameter."""
-        paths = [route.path for route in router.routes if isinstance(route, APIRoute)]
+        paths = [
+            route.path
+            for route in served_routes(router)
+            if isinstance(route.original_route, APIRoute)
+        ]
         week_index = paths.index("/scheduled-actions/week")
         first_parametrised = next(
             index for index, path in enumerate(paths) if "{action_id}" in path
@@ -114,9 +119,9 @@ class TestRouteOrder:
         app.include_router(router)
         matched = [
             route
-            for route in app.routes
-            if isinstance(route, APIRoute)
+            for route in served_routes(app)
+            if isinstance(route.original_route, APIRoute)
             and route.path == "/scheduled-actions/week"
-            and "GET" in route.methods
+            and "GET" in (route.methods or ())
         ]
         assert len(matched) == 1

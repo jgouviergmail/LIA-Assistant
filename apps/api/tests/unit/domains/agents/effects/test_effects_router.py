@@ -28,6 +28,7 @@ from src.domains.agents.effects.router import (
     list_journal,
     list_run_effects,
 )
+from tests._routes import served_routes
 
 pytestmark = [pytest.mark.unit]
 
@@ -215,7 +216,7 @@ class TestTheRegisterIsReadOnly:
         """An executor able to edit its own record defeats the register."""
         from src.domains.agents.effects.router import router
 
-        methods = {method for route in router.routes for method in getattr(route, "methods", set())}
+        methods = {method for route in served_routes(router) for method in route.methods or ()}
         assert methods <= {"GET", "HEAD", "OPTIONS"}, f"a writing route appeared: {methods}"
 
 

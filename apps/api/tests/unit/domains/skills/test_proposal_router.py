@@ -23,6 +23,7 @@ from src.domains.skills import proposal_router as router_module
 from src.domains.skills import proposal_service
 from src.domains.skills.proposal_errors import STALE, STATUSES, ProposalRefusal
 from src.domains.skills.proposals import SkillProposal
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -82,9 +83,9 @@ def test_the_skills_switch_closes_the_card(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_every_route_is_rate_limited() -> None:
-    for route in router_module.router.routes:
-        dependencies = [d.call for d in route.dependant.dependencies]  # type: ignore[attr-defined]
-        assert router_module.rate_limit_proposals in dependencies, route.path  # type: ignore[attr-defined]
+    for route in served_routes(router_module.router):
+        dependencies = [d.call for d in route.dependant.dependencies]
+        assert router_module.rate_limit_proposals in dependencies, route.path
 
 
 @pytest.mark.parametrize("bad", ["x", "B" * 32, "b" * 31, "b" * 33, "../" + "b" * 29])

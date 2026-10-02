@@ -666,6 +666,44 @@ overlay); the e2e package on Playwright 1.63 and the `noble` image with the acce
 repaired; `pydub` replaced by a direct ffmpeg call, which also drops `audioop-lts`; the asyncpg
 allowlist whose `review_by` is 2026-10-01 (`pyproject.toml:291`).
 
+**9a — FastAPI 0.141.1, and what 0.137 changed outside the tests (implemented 2026-10-02).**
+Below 1.0 a minor counts as a major: 0.141.1 was 64 days old (a major waits 60), 0.142 two.
+
+- The route tree, in the tests: 44 tests red in 30 modules — 29 reading `.routes` (the review
+  counted 28) and one reading it only through `getattr(router, "routes", [])`, which a text
+  search for `.routes` misses. One walker, `tests/_routes.served_routes`, over FastAPI's public
+  `iter_route_contexts`, with one correction measured on the real application: a WebSocket under
+  an included router comes back with an empty path and no dependencies
+  (`/usage-limits/admin/ws`, `/voice/ws/audio`), so the walk returns the route FastAPI rebuilt
+  for it. The walk's order is the order requests are matched in (measured both ways on a toy
+  router), so the documents-before-`{space_id}` ordering check keeps its meaning. A guard
+  (`test_route_tree_walk_guard.py`) refuses `.routes`, `getattr(…, "routes")` and a direct
+  `iter_route_contexts` anywhere else in the tests; it flags the pre-migration files.
+- **Outside the tests, two defects no test saw**, both read in the 0.137.0 release notes and
+  measured against 0.136.3 before anything was changed:
+  - the HTTP metrics' `endpoint` label read `scope["route"].path`, and 0.137 puts the ORIGINAL
+    route there: `/rag-spaces/{space_id}/documents` where 0.136.3 gave
+    `/api/v1/rag-spaces/{space_id}/documents`, and `/{space_id}/mail-labels` for a sub-router
+    without a prefix of its own — every series renamed at the deploy, some no longer tied to
+    their domain. The label is now the SERVED template, from a table built once per application
+    from `iter_route_contexts` (495 routes, none served twice); a route served under two
+    templates keeps its own path rather than a guess. Its tests drive a real application — the
+    previous ones handed the middleware a mocked route and could not see the change;
+  - the tracing instrumentation (`opentelemetry-instrumentation-fastapi` 0.63b1) read the tree
+    flat: a span was named after the CONCRETE path (`GET …/favorites/Jane Doe` — a person's name
+    in every exported trace) and a wrong method answered 500 instead of 405. Fixed upstream in
+    0.64b0 (PR 4700); the family moves to 1.44.0 / 0.65b0 (77 days; 0.66b0 is seven), and a
+    contract test instruments a real nested application, red on 0.63b1, green on 0.65b0. The
+    1.43 and 1.44 changelogs touch nothing LIA uses (it uses the tracer, the SDK, the OTLP gRPC
+    exporter and this instrumentation): they remove the Events API and stop collecting command
+    arguments as resource attributes.
+- Measured: `task test:backend:unit:fast` (35,756 passed), `task test:backend:integration` (1,480
+  passed, then 4 co-located), `task test:backend:agents` (1,132 passed), `task lint`, and the dev
+  API image rebuilt: inside it FastAPI 0.141.1 and the instrumentation 0.65b0; a nested route
+  answers 200, a wrong method 405, a route of a prefixless sub-router is counted under
+  `/api/v1/rag-spaces/{space_id}/mail-labels`, a 404 under `unmatched`, and the voice WebSocket
+  still refuses an invalid ticket with 403.
+
 ## 6. Deferred, with the condition that reopens each
 
 | Subject | Stays on | Reopened when |

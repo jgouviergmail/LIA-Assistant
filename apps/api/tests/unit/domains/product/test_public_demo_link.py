@@ -25,6 +25,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from tests._routes import served_routes
+
 pytestmark = pytest.mark.unit
 
 
@@ -121,7 +123,7 @@ def test_the_endpoint_requires_no_session() -> None:
     # The landing is anonymous: a credentialed endpoint would make the link
     # invisible to exactly the people it is for.
     assert not getattr(router, "dependencies", [])
-    routes = [route for route in router.routes if getattr(route, "path", "")]
+    routes = [route for route in served_routes(router) if route.path]
     assert routes, "the router must expose the read endpoint"
     for route in routes:
         for dependency in getattr(route, "dependencies", []):

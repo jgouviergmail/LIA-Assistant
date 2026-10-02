@@ -24,6 +24,7 @@ import pytest
 
 from src.domains.reminders.models import Reminder, ReminderStatus
 from src.domains.reminders.router import list_pending_reminders
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -90,7 +91,11 @@ class TestWhatTheSurfaceOffers:
     def test_the_router_offers_reading_creating_changing_and_deleting(self) -> None:
         from src.domains.reminders.router import router
 
-        verbs = {(route.path, method) for route in router.routes for method in route.methods}  # type: ignore[attr-defined]
+        verbs = {
+            (route.path, method)
+            for route in served_routes(router)
+            for method in route.methods or ()
+        }
 
         assert ("/reminders", "GET") in verbs
         assert ("/reminders/detail", "GET") in verbs
@@ -107,7 +112,7 @@ class TestWhatTheSurfaceOffers:
         """
         from src.domains.reminders.router import router
 
-        paths = {route.path for route in router.routes}  # type: ignore[attr-defined]
+        paths = {route.path for route in served_routes(router)}
 
         assert not any("snooze" in p or "acknowledge" in p for p in paths), paths
 
@@ -120,6 +125,6 @@ class TestWhatTheSurfaceOffers:
         """
         from src.domains.reminders.router import router
 
-        paths = {route.path for route in router.routes}  # type: ignore[attr-defined]
+        paths = {route.path for route in served_routes(router)}
 
         assert not any("history" in p or "past" in p or "sent" in p for p in paths), paths

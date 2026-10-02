@@ -23,6 +23,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests._routes import served_routes
+
 pytestmark = pytest.mark.unit
 
 
@@ -122,9 +124,9 @@ class TestWiring:
         from src.domains.auth.router import router
 
         federated = [
-            "/api/v1/auth" + str(getattr(route, "path", ""))
-            for route in router.routes
-            if is_federated_signin_path("/api/v1/auth" + str(getattr(route, "path", "")))
+            f"/api/v1/auth{route.path}"
+            for route in served_routes(router)
+            if is_federated_signin_path(f"/api/v1/auth{route.path}")
         ]
         assert federated, "the auth router must still expose provider sign-in to guard"
 

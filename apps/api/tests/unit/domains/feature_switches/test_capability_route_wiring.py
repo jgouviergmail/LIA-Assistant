@@ -16,6 +16,7 @@ import importlib
 import pytest
 
 from src.domains.feature_switches.registry import CAPABILITY_SPECS, PlatformCapability
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -40,7 +41,7 @@ def _guarded_capabilities(router: object) -> set[str]:
     capability that declares ``route_enforced`` and enforces nothing anywhere.
     """
     names = _names_in(getattr(router, "dependencies", []))
-    for route in getattr(router, "routes", []):
+    for route in served_routes(router):
         names |= _names_in(getattr(route, "dependencies", []))
     return names
 
@@ -123,7 +124,7 @@ def test_uploads_are_guarded_at_the_ROUTE_not_at_the_router() -> None:
     assert _names_in(router.dependencies) == set()
     guarded = {
         route.path
-        for route in router.routes
+        for route in served_routes(router)
         if "attachments" in _names_in(getattr(route, "dependencies", []))
     }
     # The two doors that put a file IN — an upload, a copy of a knowledge
@@ -141,7 +142,7 @@ def test_habits_are_guarded_at_the_two_ACT_routes_only() -> None:
     assert _names_in(router.dependencies) == set()
     guarded = {
         route.path
-        for route in router.routes
+        for route in served_routes(router)
         if "habits" in _names_in(getattr(route, "dependencies", []))
     }
     assert guarded == {"/habits/recompute", "/habits/presence"}, guarded

@@ -15,16 +15,18 @@ from fastapi import status
 from src.core.exceptions import BaseAPIException
 from src.domains.rag_spaces import mail_router
 from src.domains.rag_spaces.router import router
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
 
 def _methods(path: str) -> set[str]:
-    methods: set[str] = set()
-    for route in router.routes:
-        if getattr(route, "path", None) == path:
-            methods |= set(route.methods or set())
-    return methods
+    return {
+        method
+        for route in served_routes(router)
+        if route.path == path
+        for method in route.methods or ()
+    }
 
 
 @pytest.mark.parametrize(

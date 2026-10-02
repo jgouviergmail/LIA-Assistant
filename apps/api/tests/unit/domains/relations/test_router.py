@@ -22,6 +22,7 @@ from src.domains.relations.router import (
     router,
     set_overview_scope,
 )
+from tests._routes import served_routes
 
 
 def _user() -> SimpleNamespace:
@@ -96,7 +97,7 @@ class TestRouteTable:
     """The specific routes must beat the `/{name}` catch-all by literal match."""
 
     def test_favorites_paths_declared(self) -> None:
-        paths = {(route.path, tuple(sorted(route.methods))) for route in router.routes}
+        paths = {(route.path, tuple(sorted(route.methods))) for route in served_routes(router)}
         assert ("/relations/favorites/{name}", ("DELETE",)) in paths
         assert ("/relations/favorites/{name}", ("PUT",)) in paths
 
@@ -105,7 +106,7 @@ class TestRouteTable:
         and every distinct name is its own cache entry, so the cache cannot
         bound a caller walking through names."""
         context_route = next(
-            route for route in router.routes if route.path == "/relations/{name}/context"
+            route for route in served_routes(router) if route.path == "/relations/{name}/context"
         )
         guards = {
             getattr(dependency.call, "__name__", "")
@@ -117,7 +118,7 @@ class TestRouteTable:
         """The overview and the detail are indexed queries on our own database:
         a budget there would only punish a user for browsing their own data."""
         for path in ("/relations", "/relations/{name}"):
-            route = next(candidate for candidate in router.routes if candidate.path == path)
+            route = next(candidate for candidate in served_routes(router) if candidate.path == path)
             guards = {
                 getattr(dependency.call, "__name__", "")
                 for dependency in route.dependant.dependencies
@@ -127,14 +128,14 @@ class TestRouteTable:
     def test_context_is_declared_before_the_catch_all(self) -> None:
         """Starlette matches in declaration order: `/{name}` declared first
         would swallow `/{name}/context`… and answer with the wrong payload."""
-        paths = [route.path for route in router.routes]
+        paths = [route.path for route in served_routes(router)]
         assert "/relations/{name}/context" in paths
         assert paths.index("/relations/{name}/context") < paths.index("/relations/{name}")
 
     def test_the_scope_routes_are_declared_before_the_catch_all(self) -> None:
         """Same hazard, worse symptom: `/{name}` would match "overview-scope"
         as a PERSON and answer a RelationDetail where a scope is expected."""
-        paths = [route.path for route in router.routes]
+        paths = [route.path for route in served_routes(router)]
         assert paths.index("/relations/overview-scope") < paths.index("/relations/{name}")
 
 
@@ -171,7 +172,7 @@ class TestOverviewScopeEndpoints:
     def test_the_scope_routes_are_not_rate_limited(self) -> None:
         """One row of our own database. A budget there would only punish a
         reader for changing their mind."""
-        for route in router.routes:
+        for route in served_routes(router):
             if route.path != "/relations/overview-scope":
                 continue
             guards = {
@@ -233,7 +234,7 @@ class TestRouteDeclarationOrder:
     """A literal segment declared after ``/{name}`` is a route nobody reaches."""
 
     def test_every_literal_route_is_declared_before_the_catch_all(self) -> None:
-        paths = [getattr(route, "path", "") for route in router.routes]
+        paths = [getattr(route, "path", "") for route in served_routes(router)]
         catch_all = paths.index("/relations/{name}")
         for literal in ("/relations/settings", "/relations/overview-scope"):
             assert paths.index(literal) < catch_all, literal

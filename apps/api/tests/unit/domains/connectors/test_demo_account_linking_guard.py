@@ -30,6 +30,7 @@ from src.core.demo_mode import (
 )
 from src.core.exceptions import BaseAPIException
 from src.domains.connectors.router import router
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -49,9 +50,9 @@ def _settings(demo: bool) -> MagicMock:
 def _linking_paths() -> list[str]:
     """Every authorize/callback path the router actually exposes today."""
     return [
-        route.path  # type: ignore[attr-defined]
-        for route in router.routes
-        if route.path.endswith(("/authorize", "/callback"))  # type: ignore[attr-defined]
+        route.path
+        for route in served_routes(router)
+        if route.path and route.path.endswith(("/authorize", "/callback"))
     ]
 
 
@@ -179,7 +180,7 @@ def test_credential_paths_are_linking_too(path: str) -> None:
 
 
 def _all_router_paths() -> list[str]:
-    return [str(route.path) for route in router.routes]  # type: ignore[attr-defined]
+    return [str(route.path) for route in served_routes(router)]
 
 
 def test_every_connector_route_is_classified() -> None:

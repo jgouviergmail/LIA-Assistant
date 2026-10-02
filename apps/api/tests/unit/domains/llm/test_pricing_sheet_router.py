@@ -19,6 +19,7 @@ from src.domains.llm.pricing_sheet_router import (
     router,
 )
 from src.infrastructure.tabular_io.report import CellIssue, IssueCode, ParsedWorkbook
+from tests._routes import served_routes
 
 
 def _plan(*changes: ModelChange, issues: tuple[CellIssue, ...] = ()) -> ChangePlan:
@@ -36,13 +37,17 @@ class TestRouterStructure:
 
     def test_the_export_is_read_only(self) -> None:
         route = next(
-            r for r in router.routes if isinstance(r, APIRoute) and r.path.endswith("export.xlsx")
+            r
+            for r in served_routes(router)
+            if isinstance(r.original_route, APIRoute) and r.path.endswith("export.xlsx")
         )
         assert route.methods == {"GET"}
 
     def test_the_import_is_a_post(self) -> None:
         route = next(
-            r for r in router.routes if isinstance(r, APIRoute) and r.path.endswith("/import")
+            r
+            for r in served_routes(router)
+            if isinstance(r.original_route, APIRoute) and r.path.endswith("/import")
         )
         assert route.methods == {"POST"}
 

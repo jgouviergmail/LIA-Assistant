@@ -29,6 +29,7 @@ from src.domains.connectors.media_proxy_router import (
     rate_limit_static_map,
 )
 from src.domains.connectors.router import router
+from tests._routes import served_routes
 
 _STATIC_MAP_PATHS = {
     "/connectors/google-routes/static-map",
@@ -80,7 +81,7 @@ class TestStaticMapProxiesRequireAuthentication:
 
     def test_both_routes_are_registered(self):
         """Guard against a rename silently dropping these routes from the audit."""
-        registered = {route.path for route in router.routes if hasattr(route, "path")}
+        registered = {route.path for route in served_routes(router)}
         assert (
             _STATIC_MAP_PATHS <= registered
         ), f"missing static-map routes: {_STATIC_MAP_PATHS - registered}"

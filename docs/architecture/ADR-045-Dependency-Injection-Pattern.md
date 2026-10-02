@@ -73,8 +73,10 @@ stream door reads the account on a session it opens and closes itself
 the request door, so the two cannot diverge; the row it returns is detached
 (every column loaded, `expire_on_commit=False`) and only ever READ by a
 stream. The guard `tests/unit/test_streaming_routes_hold_no_session_guard.py`
-walks `app.routes` and refuses any endpoint that mentions `text/event-stream`
-and still reaches `get_db` in its dependency tree.
+walks every route the application serves (`tests/_routes.served_routes` —
+FastAPI 0.137+ keeps an included router as one node of `app.routes`) and
+refuses any endpoint that mentions `text/event-stream` and still reaches
+`get_db` in its dependency tree.
 
 ### Authentication Dependency Chain
 

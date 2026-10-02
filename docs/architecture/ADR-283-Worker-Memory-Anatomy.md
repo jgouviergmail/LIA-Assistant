@@ -122,7 +122,8 @@ voyait pas ce qu'une REQUÊTE tient. Mesuré sur dev (`pg_stat_activity`,
   `get_current_session` ouvre la transaction. Corrigé par une porte propre aux
   routes qui streament (`get_current_active_session_for_stream`, ADR-045 : une
   session ouverte et fermée dans la dépendance, même authentification, ligne
-  détachée seulement lue), gardée sur `app.routes` ; mesuré après : un stream
+  détachée seulement lue), gardée sur toutes les routes servies
+  (`tests/_routes.served_routes`) ; mesuré après : un stream
   ouvert ne pince rien, l'instance n'a plus aucun backend dans cet état ;
 - **un runner vocal tenait la session de son appelant pendant tout le tour
   relayé** (8,9 s) : ADR-301, règle du runner workboard appliquée ;

@@ -19,6 +19,8 @@ from unittest.mock import patch
 
 import pytest
 
+from tests._routes import served_routes
+
 pytestmark = pytest.mark.unit
 
 
@@ -31,8 +33,8 @@ def _routes_under(attachments_enabled: bool) -> set[str]:
             router = importlib.reload(routes_module).api_router
             return {
                 f"{method} {route.path}"
-                for route in router.routes
-                for method in (getattr(route, "methods", None) or [])
+                for route in served_routes(router)
+                for method in route.methods or ()
                 if method not in {"HEAD", "OPTIONS"}
             }
     finally:
@@ -54,7 +56,7 @@ def test_the_upload_route_stays_guarded_by_the_capability() -> None:
     from src.domains.attachments.router import router
     from src.domains.feature_switches.registry import PlatformCapability
 
-    upload = next(r for r in router.routes if getattr(r, "path", "") == "/attachments/upload")
+    upload = next(r for r in served_routes(router) if r.path == "/attachments/upload")
     guards = {
         getattr(getattr(d, "dependency", None), "__name__", "")
         for d in getattr(upload, "dependencies", [])
@@ -108,7 +110,7 @@ def test_the_knowledge_copy_route_is_guarded_by_both_capabilities() -> None:
     from src.domains.feature_switches.registry import PlatformCapability
 
     route = next(
-        r for r in router.routes if getattr(r, "path", "") == "/attachments/from-knowledge-document"
+        r for r in served_routes(router) if r.path == "/attachments/from-knowledge-document"
     )
     assert "POST" in route.methods
     guards = {

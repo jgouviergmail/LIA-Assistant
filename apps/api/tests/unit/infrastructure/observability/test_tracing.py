@@ -22,8 +22,14 @@ OpenTelemetry Integration:
 from unittest.mock import Mock, patch
 
 import pytest
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
+from fastapi.testclient import TestClient
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.trace import Tracer
+from opentelemetry.sdk.trace import TracerProvider as SdkTracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import SpanKind
 
 from src.infrastructure.observability.tracing import configure_tracing, get_tracer, trace_node
 
@@ -461,3 +467,48 @@ class TestTraceNode:
 
         # Verify result
         assert result["routing_history"][0].intention == "get_contacts"
+
+
+def _instrumented_nested_client(exporter: InMemorySpanExporter) -> TestClient:
+    """LIA's shape (a prefixed domain router under /api/v1), instrumented as main.py does."""
+    provider = SdkTracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    domain = APIRouter(prefix="/relations")
+
+    @domain.get("/favorites/{name}")
+    async def favorite(name: str) -> dict[str, str]:
+        return {"name": name}
+
+    api_router = APIRouter()
+    api_router.include_router(domain)
+    app = FastAPI()
+    app.include_router(api_router, prefix="/api/v1")
+    FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)
+    return TestClient(app, raise_server_exceptions=False)
+
+
+class TestNestedRouteSpans:
+    """The FastAPI instrumentation reads FastAPI 0.137's route tree.
+
+    0.137 keeps an included router as one node of ``app.routes``; the
+    instrumentation before 0.64b0 read that list flat — measured with 0.63b1 on
+    FastAPI 0.141.1: the span of ``/favorites/{name}`` was named after the
+    person in the URL, and a wrong method answered 500 instead of 405.
+    """
+
+    def test_a_span_names_the_template_never_the_value(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The suite disables the SDK (conftest); a provider records only when built enabled.
+        monkeypatch.setenv("OTEL_SDK_DISABLED", "false")
+        exporter = InMemorySpanExporter()
+
+        _instrumented_nested_client(exporter).get("/api/v1/relations/favorites/Jane%20Doe")
+
+        servers = [s for s in exporter.get_finished_spans() if s.kind is SpanKind.SERVER]
+        assert [s.name for s in servers] == ["GET /api/v1/relations/favorites/{name}"]
+
+    def test_a_wrong_method_is_refused_not_crashed(self) -> None:
+        client = _instrumented_nested_client(InMemorySpanExporter())
+
+        assert client.post("/api/v1/relations/favorites/someone").status_code == 405

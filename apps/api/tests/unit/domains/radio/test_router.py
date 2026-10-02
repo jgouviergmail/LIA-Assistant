@@ -51,6 +51,7 @@ from src.domains.radio.schemas import (
     RadioStartRequest,
 )
 from src.domains.radio.setup_builder import RadioStartRefused
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -472,8 +473,8 @@ class TestTheSites:
 
     def test_every_route_that_reaches_a_stranger_s_server_is_rate_limited(self) -> None:
         limited: set[tuple[str, str]] = set()
-        for route in router.routes:
-            assert isinstance(route, APIRoute)
+        for route in served_routes(router):
+            assert isinstance(route.original_route, APIRoute)
             dependencies: list[Any] = [dep.dependency for dep in route.dependencies]
             if router_module.rate_limit_source_lookup in dependencies:
                 limited |= {(method, route.path) for method in route.methods}

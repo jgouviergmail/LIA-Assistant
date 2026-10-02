@@ -24,6 +24,7 @@ from src.domains.reminders.models import ReminderStatus
 from src.domains.reminders.router import ReminderDetail, router
 from src.domains.reminders.schemas import ReminderUpdate
 from src.domains.reminders.service import ReminderService
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -64,7 +65,7 @@ class TestRouteOrder:
     """
 
     def test_every_literal_path_precedes_every_parameterised_one(self) -> None:
-        paths = [r.path for r in router.routes]  # type: ignore[attr-defined]
+        paths = [r.path for r in served_routes(router)]
         first_parameterised = next(i for i, p in enumerate(paths) if "{" in p)
         assert not any("{" not in p for p in paths[first_parameterised:]), paths
 

@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.domains.interests.notifications_router import get_interest_notification_history
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -112,7 +113,7 @@ class TestItIsActuallyMounted:
     def test_the_path_is_reachable_on_the_v1_api(self) -> None:
         from src.api.v1.routes import api_router
 
-        paths = {route.path for route in api_router.routes}  # type: ignore[attr-defined]
+        paths = {route.path for route in served_routes(api_router)}
         assert "/interests/notifications/history" in paths
 
     def test_the_move_did_not_change_the_path_the_client_calls(self) -> None:

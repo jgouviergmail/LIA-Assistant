@@ -106,7 +106,7 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 | 技术 | 版本 | 角色 | 选型原因 |
 |------|------|------|---------|
 | Python | 3.14 | 运行时 | 最丰富的 ML/AI 生态系统、原生异步、完整类型标注 |
-| FastAPI | 0.136.3 | REST API + SSE | Pydantic 自动验证、OpenAPI 文档、async-first、高性能 |
+| FastAPI | 0.141.1 | REST API + SSE | Pydantic 自动验证、OpenAPI 文档、async-first、高性能 |
 | LangGraph | 1.2.11 | 多智能体编排 | 唯一原生支持状态持久化 + 循环 + 中断（HITL）的框架 |
 | LangChain Core | 1.5.6 | LLM/工具抽象 | `@tool` 装饰器、消息格式、标准化回调 |
 | SQLAlchemy | 2.0.50 | 异步 ORM | `Mapped[Type]` + `mapped_column()`、异步会话、`selectinload()` |

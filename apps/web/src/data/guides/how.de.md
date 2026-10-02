@@ -106,7 +106,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Technologie | Version | Rolle | Warum diese Wahl |
 |-------------|---------|------|-------------------|
 | Python | 3.14 | Runtime | Reichstes ML/KI-Ökosystem, natives Async, vollständiges Typing |
-| FastAPI | 0.136.3 | REST-API + SSE | Automatische Pydantic-Validierung, OpenAPI-Docs, Async-First, Performance |
+| FastAPI | 0.141.1 | REST-API + SSE | Automatische Pydantic-Validierung, OpenAPI-Docs, Async-First, Performance |
 | LangGraph | 1.2.11 | Multi-Agent-Orchestrierung | Einziges Framework mit nativer State-Persistenz + Zyklen + Interrupts (HITL) |
 | LangChain Core | 1.5.6 | LLM/Tools-Abstraktionen | `@tool`-Decorator, Nachrichtenformate, standardisierte Callbacks |
 | SQLAlchemy | 2.0.50 | Async ORM | `Mapped[Type]` + `mapped_column()`, Async Sessions, `selectinload()` |

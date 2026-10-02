@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.domains.feature_switches.registry import CAPABILITY_SPECS, PlatformCapability
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -143,7 +144,7 @@ class TestTheRouter:
         assert _names(router.dependencies) == set()
         guarded = {
             route.path
-            for route in router.routes
+            for route in served_routes(router)
             if "habits" in _names(getattr(route, "dependencies", []))
         }
         assert guarded == {"/habits/recompute", "/habits/presence"}, guarded

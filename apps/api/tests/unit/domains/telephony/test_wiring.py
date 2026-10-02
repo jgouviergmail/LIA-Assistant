@@ -11,6 +11,7 @@ import pytest
 
 from src.core.config import settings
 from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_TYPES_REGISTRY
+from tests._routes import served_routes
 
 
 @pytest.mark.unit
@@ -36,7 +37,7 @@ def test_telephony_routes_mounted() -> None:
         telephony_stale_call_reaper,
     )
 
-    paths = {getattr(route, "path", "") for route in api_router.routes}
+    paths = {route.path for route in served_routes(api_router) if route.path}
     assert any(p.endswith("/telephony/webhook") for p in paths)
     assert any(p.endswith("/telephony/calls") for p in paths)
     # The live tool call-back (lot 7) mounts with the feature, and hides itself

@@ -21,6 +21,7 @@ from src.core.exceptions import BaseAPIException
 from src.core.session_dependencies import get_current_active_session
 from src.domains.agents.python_sandbox.egress.hosts import ConnectorHost
 from src.domains.agents.python_sandbox.egress.router import REFUSAL_CODES, router
+from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
@@ -243,7 +244,7 @@ class TestChangingAndRevoking:
 class TestTheRecordIsNotGuarded:
     def test_no_route_carries_a_capability_dependency(self) -> None:
         """ADR-280: a switch removes the ACT (the tool's network run), never the record."""
-        for route in router.routes:
+        for route in served_routes(router):
             names = [
                 getattr(getattr(d, "dependency", None), "__name__", "")
                 for d in getattr(route, "dependencies", [])

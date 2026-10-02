@@ -76,7 +76,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **FastAPI** | 0.136.3 | Web framework async |
+| **FastAPI** | 0.141.1 | Web framework async |
 | **Uvicorn** | 0.48.0 | ASGI server |
 | **Pydantic** | 2.13.4 | Data validation |
 | **pydantic-settings** | 2.14.x | Configuration |
