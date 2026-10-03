@@ -620,7 +620,7 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
 
       {/* Contact Support Section - Always visible */}
       {!isSearching && (
-        <Card className="bg-primary/5 border-primary/20 p-6">
+        <Card className="bg-card bg-gradient-to-br from-primary/5 to-primary/5 border-primary/20 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-lg bg-primary/10 p-3">
               <HelpCircle className="h-6 w-6 text-primary" />

@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import apiClient from '@/lib/api-client';
 import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
-import { Plug, Save } from 'lucide-react';
+import { KeyRound, Lightbulb, Phone, Plug, Save } from 'lucide-react';
+import { AppleMark, GoogleMark, MicrosoftMark } from '@/components/icons/BrandMarks';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useApiMutation } from '@/hooks/useApiMutation';
@@ -443,6 +444,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="connected"
                   label={t('settings.connectors.connected_google')}
+                  icon={GoogleMark}
                   count={connectedOAuthConnectors.length}
                   t={t}
                 />
@@ -474,6 +476,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="connected"
                   label={t('settings.connectors.connected_apple')}
+                  icon={AppleMark}
                   count={connectedAppleConnectors.length}
                   t={t}
                 />
@@ -505,6 +508,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="connected"
                   label={t('settings.connectors.connected_microsoft')}
+                  icon={MicrosoftMark}
                   count={connectedMicrosoftConnectors.length}
                   t={t}
                 />
@@ -536,6 +540,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="connected"
                   label={t('settings.connectors.connected_api_key')}
+                  icon={KeyRound}
                   count={connectedApiKeyConnectors.length}
                   t={t}
                 />
@@ -590,6 +595,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="available"
                   label={t('settings.connectors.available_google')}
+                  icon={GoogleMark}
                   count={unconnectedGoogleCount}
                   t={t}
                 />
@@ -656,6 +662,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="available"
                   label={t('settings.connectors.apple.title')}
+                  icon={AppleMark}
                   count={unconnectedAppleCount}
                   t={t}
                 />
@@ -733,6 +740,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="available"
                   label={t('settings.connectors.microsoft.title')}
+                  icon={MicrosoftMark}
                   count={unconnectedMicrosoftCount}
                   t={t}
                 />
@@ -797,8 +805,8 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="connected"
                   label={t('settings.connectors.connected_hue')}
+                  icon={Lightbulb}
                   count={connectedHueConnectors.length}
-                  glyph="💡"
                   t={t}
                 />
               </AccordionTrigger>
@@ -829,8 +837,8 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="available"
                   label={t('settings.connectors.available_hue')}
+                  icon={Lightbulb}
                   count={1}
-                  glyph="💡"
                   t={t}
                 />
               </AccordionTrigger>
@@ -863,8 +871,8 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="connected"
                   label={t('settings.connectors.connected_telephony')}
+                  icon={Phone}
                   count={connectedTelephonyConnectors.length}
-                  glyph="📞"
                   t={t}
                 />
               </AccordionTrigger>
@@ -900,8 +908,8 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                 <ConnectorGroupTrigger
                   state="available"
                   label={t('settings.connectors.available_telephony')}
+                  icon={Phone}
                   count={1}
-                  glyph="📞"
                   t={t}
                 />
               </AccordionTrigger>
@@ -950,6 +958,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
               <ConnectorGroupTrigger
                 state="available"
                 label={t('settings.connectors.available_external')}
+                icon={KeyRound}
                 count={unconnectedApiKeyCount}
                 t={t}
               />

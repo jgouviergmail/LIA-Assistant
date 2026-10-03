@@ -47,6 +47,7 @@ from src.domains.briefing.schemas import (
     TaskItem,
     TasksData,
     WeatherData,
+    WorkboardData,
 )
 from src.domains.briefing.service import BriefingService
 from src.domains.connectors.birthdays import BirthdayItem
@@ -62,6 +63,7 @@ SECTION_NAMES: tuple[str, ...] = (
     "for_you",
     "tasks",
     "documents",
+    "workboard",
 )
 
 #: What a real connector costs. Far below a real round trip, far above zero:
@@ -228,6 +230,7 @@ def full_payloads() -> dict[str, Any]:
         "for_you": ForYouData(open_loops=[], recent_automations=[]),
         "tasks": TasksData(items=[TaskItem(title="Tache", overdue=False)], overdue_count=0),
         "documents": DocumentsData(items=[DocumentItem(name="Note", modified_local="10:00")]),
+        "workboard": WorkboardData(needs_me=1, held_by_lia=0, overdue=0, open_total=2),
     }
 
 

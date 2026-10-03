@@ -389,6 +389,37 @@ class DocumentsData(BaseModel):
     items: list[DocumentItem]
 
 
+class WorkboardTicketItem(BaseModel):
+    """One ticket waiting on the person, as the workboard card lists it."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(..., description="Ticket id — the card links to the ticket itself.")
+    title: str = Field(..., description="The ticket's title, as its owner wrote it.")
+    status: str = Field(..., description="The ticket's column (a workboard TicketStatus value).")
+    due_at: datetime | None = Field(default=None, description="Due instant (UTC), if any.")
+    overdue: bool = Field(..., description="True when the due instant is past and still open.")
+
+
+class WorkboardData(BaseModel):
+    """What on the board needs the person's attention (ADR-276).
+
+    Every count is an exact aggregate over its whole set (ADR-185); ``items``
+    is a short page of the « needs me » set, never its measure.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    needs_me: int = Field(..., ge=0, description="Tickets waiting on the person, or late.")
+    held_by_lia: int = Field(..., ge=0, description="Open tickets LIA holds.")
+    overdue: int = Field(..., ge=0, description="Open tickets past their due date.")
+    open_total: int = Field(..., ge=0, description="Every open ticket on the person's board.")
+    items: list[WorkboardTicketItem] = Field(
+        default_factory=list,
+        description="The first tickets waiting on the person, earliest due first.",
+    )
+
+
 class ForYouLoopItem(BaseModel):
     """One tracked open loop surfaced on the For-you card (P15/Lot 2)."""
 
@@ -440,6 +471,7 @@ SectionPayload = Annotated[
     | ForYouData
     | TasksData
     | DocumentsData
+    | WorkboardData
     | None,
     Field(description="Section-specific payload. None if status != OK."),
 ]
@@ -514,6 +546,7 @@ class CardsBundle(BaseModel):
     for_you: CardSection
     tasks: CardSection
     documents: CardSection
+    workboard: CardSection
 
 
 class BriefingResponse(BaseModel):
@@ -612,6 +645,7 @@ RefreshSectionLiteral = Literal[
     "for_you",
     "tasks",
     "documents",
+    "workboard",
     "all",
 ]
 
@@ -624,6 +658,6 @@ class RefreshRequest(BaseModel):
     sections: list[RefreshSectionLiteral] = Field(
         ...,
         min_length=1,
-        max_length=10,
+        max_length=11,
         description="Sections to force-refresh; 'all' bypasses every cache.",
     )

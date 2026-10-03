@@ -6,9 +6,9 @@
  * server's own message rather than a generic one.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 
 const { useUserMCPServers } = vi.hoisted(() => ({ useUserMCPServers: vi.fn() }));
 vi.mock('@/hooks/useUserMCPServers', () => ({ useUserMCPServers }));
@@ -270,5 +270,101 @@ describe('MCPServersSettings — discovered tools', () => {
 
     expect(await screen.findByText('Alpha does things')).toBeInTheDocument();
     expect(screen.getByText('Beta does others')).toBeInTheDocument();
+  });
+});
+
+describe('MCPServersSettings — the server cards', () => {
+  const LONG =
+    'Reads the household accounts, lists the transactions of a period and answers spending questions.';
+
+  it('lays the servers out as a list, one card per server', () => {
+    useUserMCPServers.mockReturnValue(
+      hook({ servers: [server(), server({ id: 's2', name: 'Notes MCP' })], total: 2 })
+    );
+    render();
+
+    const list = screen.getByRole('list');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(list).getByText('Weather MCP')).toBeInTheDocument();
+    expect(within(list).getByText('Notes MCP')).toBeInTheDocument();
+  });
+
+  it('shows the description the router reads, on the card itself', () => {
+    useUserMCPServers.mockReturnValue(hook({ servers: [server({ domain_description: LONG })] }));
+    render();
+
+    const description = screen.getByText(LONG);
+    // The whole text stays available to a pointer even while clamped.
+    expect(description).toHaveAttribute('title', LONG);
+  });
+
+  it('draws no description block when the server has none', () => {
+    useUserMCPServers.mockReturnValue(hook({ servers: [server({ domain_description: null })] }));
+    render();
+    expect(screen.queryByRole('button', { name: 'common.show_more' })).not.toBeInTheDocument();
+  });
+
+  it('names every row action, none of them revealed by hover', () => {
+    useUserMCPServers.mockReturnValue(hook({ servers: [server()] }));
+    render();
+
+    const card = screen.getByRole('listitem');
+    expect(within(card).getByRole('button', { name: TEST })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'common.edit' })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: DELETE })).toBeInTheDocument();
+    // The phone menu names the row it belongs to.
+    expect(within(card).getByRole('button', { name: 'common.actions_for' })).toBeInTheDocument();
+  });
+
+  it('keeps the OAuth connect action on the card of a server that asks for it', async () => {
+    const initiateOAuth = vi.fn().mockResolvedValue(undefined);
+    useUserMCPServers.mockReturnValue(
+      hook({
+        servers: [server({ auth_type: 'oauth2', status: 'auth_required' })],
+        initiateOAuth,
+      })
+    );
+    const { user } = render();
+
+    await user.click(screen.getByRole('button', { name: 'settings.mcp.connect_oauth' }));
+
+    expect(initiateOAuth).toHaveBeenCalledWith('s1');
+  });
+
+  describe('a description longer than its clamp', () => {
+    /** Reports the observed box once, as a real observer does on `observe()`. */
+    class FakeResizeObserver implements ResizeObserver {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe(): void {
+        this.callback([], this);
+      }
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+
+    beforeEach(() => {
+      // jsdom lays nothing out: the clamp "hides" text when the box is shorter
+      // than its content, which is exactly what these two numbers state.
+      vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(120);
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(60);
+      vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    it('offers to show the whole text, and to fold it back', async () => {
+      useUserMCPServers.mockReturnValue(hook({ servers: [server({ domain_description: LONG })] }));
+      const { user } = render();
+
+      const more = await screen.findByRole('button', { name: 'common.show_more' });
+      expect(more).toHaveAttribute('aria-expanded', 'false');
+      await user.click(more);
+
+      const less = screen.getByRole('button', { name: 'common.show_less' });
+      expect(less).toHaveAttribute('aria-expanded', 'true');
+    });
   });
 });

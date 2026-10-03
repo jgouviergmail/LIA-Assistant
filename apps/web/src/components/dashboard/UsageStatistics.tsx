@@ -2,7 +2,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { BarChart3, ChevronDown, Coins, Database, Globe, MessageSquare } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
+import { DashboardTile, TILE_ICON_BADGE } from '@/components/dashboard/DashboardTile';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { useUserStatistics } from '@/hooks/useUserStatistics';
 import { UsageLimitsTile } from '@/components/usage/UsageLimitsTile';
@@ -42,7 +42,7 @@ export function UsageStatistics() {
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
         <StatCard
           title={t('dashboard.statistics.messages.title')}
-          icon={<MessageSquare className="h-5 w-5 text-primary" />}
+          icon={<MessageSquare className="h-5 w-5" />}
           cycleDates={cycleDates}
           value={statsLoading ? '-' : formatNumber(statistics?.cycle_messages || 0)}
           totalLabel={t('dashboard.statistics.messages.total')}
@@ -52,7 +52,7 @@ export function UsageStatistics() {
 
         <StatCard
           title={t('dashboard.statistics.tokens.title')}
-          icon={<Database className="h-5 w-5 text-primary" />}
+          icon={<Database className="h-5 w-5" />}
           cycleDates={cycleDates}
           value={
             statsLoading
@@ -78,7 +78,7 @@ export function UsageStatistics() {
 
         <StatCard
           title={t('dashboard.statistics.google_api.title')}
-          icon={<Globe className="h-5 w-5 text-primary" />}
+          icon={<Globe className="h-5 w-5" />}
           cycleDates={cycleDates}
           value={statsLoading ? '-' : formatNumber(statistics?.cycle_google_api_requests || 0)}
           totalLabel={t('dashboard.statistics.google_api.total')}
@@ -90,7 +90,7 @@ export function UsageStatistics() {
 
         <StatCard
           title={t('dashboard.statistics.cost.title')}
-          icon={<Coins className="h-5 w-5 text-primary" />}
+          icon={<Coins className="h-5 w-5" />}
           cycleDates={cycleDates}
           value={statsLoading ? '-' : formatEuro(statistics?.cycle_cost_eur || 0, 2)}
           totalLabel={t('dashboard.statistics.cost.total')}
@@ -132,40 +132,37 @@ function StatCard({
         year: 'numeric',
       }).format(new Date(totalSinceIso))
     : null;
+  // The page's tile material (DashboardTile); the theme's primary keeps
+  // marking what is read first — the title and the cycle's figure.
   return (
-    <Card
-      variant="elevated"
-      className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background hover:shadow-xl transition-all"
-    >
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardDescription className="text-xs uppercase tracking-wider font-semibold text-primary">
-            {title}
-          </CardDescription>
+    <DashboardTile contentClassName="flex h-full flex-col gap-3 p-5 sm:p-6">
+      <div className="flex items-center gap-3">
+        <span className={TILE_ICON_BADGE} aria-hidden="true">
           {icon}
+        </span>
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold tracking-tight text-primary">{title}</h3>
+          {cycleDates && (
+            <p className="text-xs text-muted-foreground">
+              {t('dashboard.statistics.cycle_dates', cycleDates)}
+            </p>
+          )}
         </div>
-        {cycleDates && (
-          <div className="text-xs text-muted-foreground mt-1">
-            {t('dashboard.statistics.cycle_dates', cycleDates)}
+      </div>
+      <div className="text-4xl font-bold text-primary">{value}</div>
+      {totalValue !== null && (
+        <div className="mt-auto space-y-0.5 border-t border-border/50 pt-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{totalLabel}</span>
+            <span className="font-medium text-foreground/80">{totalValue}</span>
           </div>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="text-4xl font-bold text-primary">{value}</div>
-        {totalValue !== null && (
-          <div className="pt-2 border-t border-border/50 space-y-0.5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{totalLabel}</span>
-              <span className="font-medium text-foreground/80">{totalValue}</span>
+          {totalSinceLabel && (
+            <div className="text-px-10 text-muted-foreground text-right tabular-nums">
+              {t('dashboard.statistics.since', { date: totalSinceLabel })}
             </div>
-            {totalSinceLabel && (
-              <div className="text-px-10 text-muted-foreground text-right tabular-nums">
-                {t('dashboard.statistics.since', { date: totalSinceLabel })}
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </div>
+      )}
+    </DashboardTile>
   );
 }

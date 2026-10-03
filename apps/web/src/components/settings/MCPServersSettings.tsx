@@ -1,18 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import {
-  AlertTriangle,
-  MoreVertical,
-  Pencil,
-  Plug,
-  Plus,
-  Server,
-  Sparkles,
-  Trash2,
-  Unplug,
-  Zap,
-} from 'lucide-react';
+import { AlertTriangle, Plug, Plus, Server, Sparkles, Zap } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,8 +47,8 @@ import {
   type MCPDiscoveredTool,
 } from '@/hooks/useUserMCPServers';
 import { toast } from 'sonner';
-import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
 
+import { MCPServerCard } from './MCPServerCard';
 import { ToolDisplayName } from './ToolDisplayName';
 
 interface MCPServersSettingsProps {
@@ -95,52 +84,6 @@ const EMPTY_FORM: FormState = {
   timeout_seconds: 30,
   iterative_mode: false,
 };
-
-/**
- * Tone of a server's status pill.
- *
- * Being switched OFF outranks whatever the last probe reported: a disabled
- * server is inert, not healthy and not broken. Everything else comes from the
- * shared lifecycle table, so `active` and `error` look the same here as on
- * scheduled actions, Drive sources, documents and calls — they did not before
- * (`active` was blue here, green there, and `auth_required` was an outline
- * rather than the warning it is).
- */
-function getStatusBadgeVariant(server: UserMCPServer): BadgeTone {
-  if (!server.is_enabled) return 'secondary';
-  return lifecycleTone(server.status);
-}
-
-function getStatusLabel(server: UserMCPServer, t: (key: string) => string): string {
-  if (!server.is_enabled) return t('settings.mcp.status_disabled');
-  switch (server.status) {
-    case 'active':
-      return t('settings.mcp.status_active');
-    case 'error':
-      return t('settings.mcp.status_error');
-    case 'auth_required':
-      return t('settings.mcp.status_auth_required');
-    case 'inactive':
-      return t('settings.mcp.status_inactive');
-    default:
-      return server.status;
-  }
-}
-
-function getAuthTypeLabel(authType: UserMCPAuthType, t: (key: string) => string): string {
-  switch (authType) {
-    case 'none':
-      return t('settings.mcp.auth_none');
-    case 'api_key':
-      return t('settings.mcp.auth_api_key');
-    case 'bearer':
-      return t('settings.mcp.auth_bearer');
-    case 'oauth2':
-      return t('settings.mcp.auth_oauth2');
-    default:
-      return authType;
-  }
-}
 
 /**
  * The tools a server reported, as the connection test returned them.
@@ -217,7 +160,6 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
   const [testingServerId, setTestingServerId] = useState<string | null>(null);
   const [listTestResult, setListTestResult] = useState<TestConnectionResponse | null>(null);
   const [listTestServerName, setListTestServerName] = useState('');
-  const [mobileActionServer, setMobileActionServer] = useState<UserMCPServer | null>(null);
 
   // ADR-225 arbitrage F: a plugin's server leaves through the plugin
   // uninstall — the guard (not a disabled attribute) prevents the action and
@@ -788,158 +730,27 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         </div>
       )}
 
-      {/* Server list */}
-      <div className="space-y-3">
-        {servers.map(server => (
-          // role="presentation": the tap-anywhere onClick is a pointer-only
-          // convenience duplicating the dedicated mobile actions button
-          // (audit F012/F045); the card carries no semantics (it contains
-          // interactive children).
-          <div
-            key={server.id}
-            role="presentation"
-            className="rounded-lg border bg-card p-4 space-y-1.5 group cursor-pointer lg:cursor-default"
-            onClick={() => {
-              if (window.innerWidth < 1024) setMobileActionServer(server);
-            }}
-          >
-            {/* Row 1: Name + Status + Actions (hover) + Toggle */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <span className="font-medium truncate">{server.name}</span>
-                <Badge variant={getStatusBadgeVariant(server)}>{getStatusLabel(server, t)}</Badge>
-                {server.plugin_id && (
-                  <Badge variant="outline">{t('settings.plugins.via_plugin')}</Badge>
-                )}
-              </div>
-              {/* Desktop action buttons — hover reveal */}
-              <div className="hidden lg:flex gap-1 shrink-0 opacity-0 group-hover:opacity-100">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleTestFromList(server);
-                  }}
-                  disabled={testingServerId === server.id}
-                  title={t('settings.mcp.test_connection')}
-                >
-                  {testingServerId === server.id ? (
-                    <LoadingSpinner className="h-4 w-4" />
-                  ) : (
-                    <Zap className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleOpenEdit(server);
-                  }}
-                  title={t('common.edit')}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={e => {
-                    e.stopPropagation();
-                    requestDelete(server);
-                  }}
-                  title={t('common.delete')}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-              {/* Mobile actions button (audit F012/F045): the desktop buttons
-                  above are hidden below lg and the tap-anywhere card click is
-                  pointer-only — this is the keyboard/AT path to the popup. */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden shrink-0"
-                aria-label={t('common.actions')}
-                onClick={e => {
-                  e.stopPropagation();
-                  setMobileActionServer(server);
-                }}
-              >
-                <MoreVertical className="h-4 w-4 text-muted-foreground" />
-              </Button>
-              <Switch
-                checked={server.is_enabled}
-                onCheckedChange={() => handleToggle(server)}
-                onClick={e => e.stopPropagation()}
-                aria-label={t('settings.mcp.toggle_server', { name: server.name })}
-              />
-            </div>
-
-            {/* URL */}
-            <p className="text-xs text-muted-foreground truncate">{server.url}</p>
-
-            {/* Auth type */}
-            <p className="text-xs text-muted-foreground">{getAuthTypeLabel(server.auth_type, t)}</p>
-
-            {/* Tools count */}
-            {server.tool_count > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {t('settings.mcp.tools_count', { count: server.tool_count })}
-              </p>
-            )}
-
-            {/* Last connected */}
-            {server.last_connected_at && (
-              <p className="text-xs text-muted-foreground">
-                {t('settings.mcp.last_connected', {
-                  date: new Date(server.last_connected_at).toLocaleString(),
-                })}
-              </p>
-            )}
-
-            {/* Error message */}
-            {server.last_error && (
-              <div className="flex items-start gap-1.5 text-xs text-destructive">
-                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                <span className="line-clamp-2">{server.last_error}</span>
-              </div>
-            )}
-
-            {/* OAuth Connect — visible when auth required */}
-            {server.auth_type === 'oauth2' && server.status === 'auth_required' && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-1"
-                onClick={e => {
-                  e.stopPropagation();
-                  handleOAuth(server);
-                }}
-              >
-                {t('settings.mcp.connect_oauth')}
-              </Button>
-            )}
-
-            {/* OAuth Disconnect — visible when connected (active) */}
-            {server.auth_type === 'oauth2' && server.status === 'active' && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-1"
-                onClick={e => {
-                  e.stopPropagation();
-                  handleDisconnectOAuth(server);
-                }}
-                disabled={disconnecting}
-              >
-                <Unplug className="h-3 w-3 mr-1" />
-                {t('settings.mcp.disconnect_oauth')}
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* Server list — two columns from `md`, like the knowledge spaces; each
+          card holds at half width (see MCPServerCard). */}
+      {servers.length > 0 && (
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {servers.map(server => (
+            <MCPServerCard
+              key={server.id}
+              server={server}
+              lng={lng}
+              testing={testingServerId === server.id}
+              disconnecting={disconnecting}
+              onToggle={handleToggle}
+              onTest={handleTestFromList}
+              onEdit={handleOpenEdit}
+              onDelete={requestDelete}
+              onConnectOAuth={handleOAuth}
+              onDisconnectOAuth={handleDisconnectOAuth}
+            />
+          ))}
+        </ul>
+      )}
 
       {/* Create Dialog */}
       {formDialog(showCreateDialog, () => setShowCreateDialog(false), 'settings.mcp.add_title')}
@@ -1011,95 +822,6 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               {t('common.close')}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* Mobile actions dialog */}
-      <Dialog
-        open={mobileActionServer !== null}
-        onOpenChange={open => !open && setMobileActionServer(null)}
-      >
-        <DialogContent className="lg:hidden max-w-[90vw] rounded-lg">
-          <DialogHeader>
-            <DialogTitle className="text-base">{mobileActionServer?.name}</DialogTitle>
-            <DialogDescription className="sr-only">
-              {t('settings.mcp.form_description')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-2 py-2">
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3"
-              onClick={() => {
-                if (mobileActionServer) {
-                  handleTestFromList(mobileActionServer);
-                  setMobileActionServer(null);
-                }
-              }}
-              disabled={testingServerId === mobileActionServer?.id}
-            >
-              <Zap className="h-4 w-4" />
-              {t('settings.mcp.test_connection')}
-            </Button>
-            {mobileActionServer?.auth_type === 'oauth2' &&
-              mobileActionServer?.status === 'auth_required' && (
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3"
-                  onClick={() => {
-                    if (mobileActionServer) {
-                      handleOAuth(mobileActionServer);
-                      setMobileActionServer(null);
-                    }
-                  }}
-                >
-                  <Plug className="h-4 w-4" />
-                  {t('settings.mcp.connect_oauth')}
-                </Button>
-              )}
-            {mobileActionServer?.auth_type === 'oauth2' &&
-              mobileActionServer?.status === 'active' && (
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3"
-                  onClick={() => {
-                    if (mobileActionServer) {
-                      handleDisconnectOAuth(mobileActionServer);
-                      setMobileActionServer(null);
-                    }
-                  }}
-                  disabled={disconnecting}
-                >
-                  <Unplug className="h-4 w-4" />
-                  {t('settings.mcp.disconnect_oauth')}
-                </Button>
-              )}
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3"
-              onClick={() => {
-                if (mobileActionServer) {
-                  handleOpenEdit(mobileActionServer);
-                  setMobileActionServer(null);
-                }
-              }}
-            >
-              <Pencil className="h-4 w-4" />
-              {t('common.edit')}
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 text-destructive hover:text-destructive"
-              onClick={() => {
-                if (mobileActionServer) {
-                  requestDelete(mobileActionServer);
-                  setMobileActionServer(null);
-                }
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-              {t('common.delete')}
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </SettingsSection>

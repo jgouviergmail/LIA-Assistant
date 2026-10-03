@@ -3,18 +3,27 @@
 /**
  * SkillsSettings — thin section shell for the skills gallery (UXR Lot 10).
  *
- * Owns the data hook, the collapse state of the two scope sections, the
- * selected-skill modal, the URL-import dialog, the skill library (ADR-327) and
+ * Owns the data hook, the section toolbar, the two scope folds (`Disclosure`),
+ * the selected-skill modal, the URL-import dialog, the skill library (ADR-327) and
  * the delete confirmation; rendering lives in SkillGallery / SkillDetailModal /
  * ImportFromUrlDialog / SkillLibraryDialog (CC budgets — keep this file
  * orchestration-only).
  */
 
 import { useMemo, useRef, useState } from 'react';
-import { Blocks, BookOpen, ChevronDown, Library, Link2, ShieldCheck, Upload } from 'lucide-react';
+import {
+  Blocks,
+  BookOpen,
+  Library,
+  Link2,
+  ShieldCheck,
+  Upload,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
-import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   AlertDialog,
@@ -27,6 +36,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useTranslation } from '@/i18n/client';
+import { SectionToolbar, type ToolbarAction } from '@/components/settings/SectionToolbar';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SkillGuideModal } from '@/components/settings/SkillGuideModal';
 import { SkillGallery } from '@/components/settings/SkillGallery';
@@ -159,38 +169,97 @@ function useSkillsActions(args: {
   };
 }
 
-/** Collapsible admin-scope gallery section. */
-function AdminScopeSection(props: {
+/**
+ * The section's actions: import a file (primary), the library, a URL, the guide.
+ *
+ * They sit ABOVE the two folds rather than inside the user one: a `Disclosure`
+ * unmounts its content while folded, and importing is what the reader does
+ * when the list is still closed (or empty). `SectionToolbar` keeps the primary
+ * labelled at every size and folds the rest into « ⋯ » on a phone.
+ */
+function SkillsToolbar(props: {
+  t: Translator;
+  importing: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onShowGuide: () => void;
+  onShowUrlImport: () => void;
+  /** Opens the skill library — absent when this instance does not offer it. */
+  onShowLibrary?: () => void;
+}) {
+  const { t, importing, fileInputRef, onImportFile, onShowGuide, onShowUrlImport } = props;
+  const { onShowLibrary } = props;
+  const secondary: ToolbarAction[] = [
+    ...(onShowLibrary
+      ? [
+          {
+            key: 'library',
+            label: t('settings.skills.library.button'),
+            icon: Library,
+            onSelect: onShowLibrary,
+          },
+        ]
+      : []),
+    {
+      key: 'url',
+      label: t('settings.skills.url_import.button'),
+      icon: Link2,
+      onSelect: onShowUrlImport,
+    },
+    {
+      key: 'guide',
+      label: t('settings.skills.guide_button'),
+      icon: BookOpen,
+      onSelect: onShowGuide,
+    },
+  ];
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".md,.zip"
+        className="hidden"
+        onChange={onImportFile}
+        aria-label={t('settings.skills.import_button')}
+      />
+      <SectionToolbar
+        primary={{
+          key: 'import',
+          label: t('settings.skills.import_button'),
+          icon: Upload,
+          onSelect: () => fileInputRef.current?.click(),
+          loading: importing,
+        }}
+        secondary={secondary}
+        menuLabel={t('common.more_actions')}
+      />
+    </>
+  );
+}
+
+/**
+ * One scope of the gallery (admin or the person's own), folded by default.
+ *
+ * The standard `Disclosure` of every settings panel: theme-coloured icon, the
+ * EXACT count in the summary, closed on arrival — the panel stays an index.
+ */
+function ScopeDisclosure(props: {
+  icon: LucideIcon;
+  title: string;
   skills: Skill[];
   lng: string;
   t: Translator;
-  open: boolean;
-  onToggleOpen: () => void;
   onOpenSkill: (skill: Skill) => void;
   onToggle: (skill: Skill) => void;
   toggling: boolean;
 }) {
-  const { skills, lng, t, open, onToggleOpen, onOpenSkill, onToggle, toggling } = props;
+  const { icon, title, skills, lng, t, onOpenSkill, onToggle, toggling } = props;
   return (
-    <div>
-      <button
-        type="button"
-        onClick={onToggleOpen}
-        aria-expanded={open}
-        className="flex items-center gap-2 mb-3 w-full text-left hover:opacity-80 transition-opacity"
-      >
-        <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-            open ? '' : '-rotate-90'
-          }`}
-        />
-        <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-        <h4 className="text-sm font-medium text-muted-foreground">
-          {t('settings.skills.admin_section_title')}
-        </h4>
-        <span className="text-xs text-muted-foreground">({skills.length})</span>
-      </button>
-      {open && (
+    <Disclosure icon={icon} title={title} badge={skills.length}>
+      {skills.length === 0 ? (
+        <EmptyState description={t('settings.skills.empty')} />
+      ) : (
         <SkillGallery
           skills={skills}
           lng={lng}
@@ -200,121 +269,7 @@ function AdminScopeSection(props: {
           toggling={toggling}
         />
       )}
-    </div>
-  );
-}
-
-/** Collapsible user-scope gallery section with the import actions. */
-function UserScopeSection(props: {
-  skills: Skill[];
-  lng: string;
-  t: Translator;
-  open: boolean;
-  onToggleOpen: () => void;
-  onOpenSkill: (skill: Skill) => void;
-  onToggle: (skill: Skill) => void;
-  toggling: boolean;
-  importing: boolean;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  onImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onShowGuide: () => void;
-  onShowUrlImport: () => void;
-  /** Opens the skill library — absent when this instance does not offer it. */
-  onShowLibrary?: () => void;
-}) {
-  const { skills, lng, t, open, onToggleOpen, onOpenSkill, onToggle, toggling } = props;
-  const { importing, fileInputRef, onImportFile, onShowGuide, onShowUrlImport } = props;
-  const { onShowLibrary } = props;
-  return (
-    <div>
-      {/* No bottom margin here: it stacked UNDER the button row on top of the
-          card's own `pb-4/sm:pb-6`, so the band below the separator was ~48 px
-          against 12 px above and the buttons hugged the line. The spacing that
-          balances them now lives on the row and on the list below it. */}
-      <div className="flex flex-col gap-3">
-        <button
-          type="button"
-          onClick={onToggleOpen}
-          aria-expanded={open}
-          className="flex items-center gap-2 flex-wrap text-left hover:opacity-80 transition-opacity"
-        >
-          <ChevronDown
-            className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-              open ? '' : '-rotate-90'
-            }`}
-          />
-          <h4 className="text-sm font-medium text-muted-foreground">
-            {t('settings.skills.user_section_title')}
-          </h4>
-          {skills.length > 0 && (
-            <span className="text-xs text-muted-foreground">({skills.length})</span>
-          )}
-        </button>
-        {/* Import actions on their own row, visually detached by a separator
-            line (owner request 2026-07-30). `pt-4 sm:pt-6` MIRRORS the card's
-            own `pb-4 sm:pb-6`: what sits under these buttons is the card's
-            bottom padding, so matching it at the top is what actually centres
-            them between the line and the edge, at both breakpoints. */}
-        {/* Right-aligned (owner arbitration 2026-08-05), like the section
-            toolbars everywhere else: count/summary left, actions right. */}
-        <div className="flex items-center justify-end gap-2 flex-wrap border-t pt-4 sm:pt-6">
-          <Button
-            size="sm"
-            onClick={onShowGuide}
-            className="gap-1.5"
-            title={t('settings.skills.guide_toggle')}
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-            {t('settings.skills.guide_button')}
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".md,.zip"
-            className="hidden"
-            onChange={onImportFile}
-            aria-label={t('settings.skills.import_button')}
-          />
-          {onShowLibrary && (
-            <Button size="sm" onClick={onShowLibrary} className="gap-1.5">
-              <Library className="h-3.5 w-3.5" aria-hidden />
-              {t('settings.skills.library.button')}
-            </Button>
-          )}
-          <Button size="sm" onClick={onShowUrlImport}>
-            <Link2 className="h-3.5 w-3.5" />
-            {t('settings.skills.url_import.button')}
-          </Button>
-          <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            {importing ? (
-              <LoadingSpinner className="mr-2 h-4 w-4" />
-            ) : (
-              <Upload className="h-4 w-4 mr-1" />
-            )}
-            {t('settings.skills.import_button')}
-          </Button>
-        </div>
-      </div>
-
-      {/* When the list is EXPANDED it becomes what sits under the buttons, so
-          it carries the same gap the card's padding provides when collapsed —
-          the row keeps one balanced band in both states. */}
-      {open && skills.length === 0 && (
-        <EmptyState className="mt-4 sm:mt-6" description={t('settings.skills.empty')} />
-      )}
-      {open && skills.length > 0 && (
-        <div className="mt-4 sm:mt-6">
-          <SkillGallery
-            skills={skills}
-            lng={lng}
-            t={t}
-            onOpen={onOpenSkill}
-            onToggle={onToggle}
-            toggling={toggling}
-          />
-        </div>
-      )}
-    </div>
+    </Disclosure>
   );
 }
 
@@ -338,9 +293,6 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
   const libraryOffered = skillLibraryAvailable(config);
   const [libraryTab, setLibraryTab] = useState<LibraryTab | null>(null);
   const [selected, setSelected] = useState<Skill | null>(null);
-  // Collapse state per scope section — compact panel at first glance.
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [userOpen, setUserOpen] = useState(false);
 
   const {
     importing,
@@ -385,37 +337,37 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
       )}
 
       {!loading && !error && (
-        <div className="space-y-6">
-          {adminSkills.length > 0 && (
-            <>
-              <AdminScopeSection
-                skills={adminSkills}
-                lng={lng}
-                t={t}
-                open={adminOpen}
-                onToggleOpen={() => setAdminOpen(v => !v)}
-                onOpenSkill={setSelected}
-                onToggle={handleToggle}
-                toggling={toggling}
-              />
-              <div className="border-t" />
-            </>
-          )}
-          <UserScopeSection
-            skills={userSkills}
-            lng={lng}
+        <div className="space-y-3">
+          <SkillsToolbar
             t={t}
-            open={userOpen}
-            onToggleOpen={() => setUserOpen(v => !v)}
-            onOpenSkill={setSelected}
-            onToggle={handleToggle}
-            toggling={toggling}
             importing={importing}
             fileInputRef={fileInputRef}
             onImportFile={handleImport}
             onShowGuide={() => setShowGuide(true)}
             onShowUrlImport={() => setShowUrlImport(true)}
             onShowLibrary={libraryOffered ? () => setLibraryTab('search') : undefined}
+          />
+          {adminSkills.length > 0 && (
+            <ScopeDisclosure
+              icon={ShieldCheck}
+              title={t('settings.skills.admin_section_title')}
+              skills={adminSkills}
+              lng={lng}
+              t={t}
+              onOpenSkill={setSelected}
+              onToggle={handleToggle}
+              toggling={toggling}
+            />
+          )}
+          <ScopeDisclosure
+            icon={UserRound}
+            title={t('settings.skills.user_section_title')}
+            skills={userSkills}
+            lng={lng}
+            t={t}
+            onOpenSkill={setSelected}
+            onToggle={handleToggle}
+            toggling={toggling}
           />
         </div>
       )}

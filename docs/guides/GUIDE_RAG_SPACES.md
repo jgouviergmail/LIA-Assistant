@@ -302,12 +302,16 @@ destructive path wins).
 
 Embedding costs are tracked through two parallel mechanisms:
 
-1. **Prometheus metrics**: `embedding_tokens_consumed_total`, `embedding_cost_total` (from `TrackedOpenAIEmbeddings`)
+1. **Prometheus metrics**: `embedding_tokens_consumed_total`, `embedding_cost_total` (from the embedding client, `GeminiRetrievalEmbeddings`)
 2. **Database persistence**: `TokenUsageLog` → `MessageTokenSummary` → `UserStatistics` (via `EmbeddingTrackingContext`)
 
-Additionally, each `RAGDocument` stores:
+Additionally, each `RAGDocument` stores what the embedder BILLED for its chunks,
+read through `gemini_embeddings.billed_embedding_usage` — the client's own token
+estimate and the administered tariff (`llm_model_pricing`), never a second
+estimate (an OpenAI tokenizer and price table used here understated every
+Gemini-embedded document about sevenfold until 2026-10-03):
 - `embedding_tokens`: Total tokens consumed for indexing
-- `embedding_cost_eur`: Total cost in EUR (dynamic rate via `get_cached_usd_eur_rate()`)
+- `embedding_cost_eur`: Total cost in EUR, from the pricing cache's own exchange rate
 
 ---
 

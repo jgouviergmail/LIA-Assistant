@@ -33,6 +33,7 @@ import { HealthCard } from './cards/HealthCard';
 import { MailsCard } from './cards/MailsCard';
 import { RemindersCard } from './cards/RemindersCard';
 import { WeatherCard } from './cards/WeatherCard';
+import { WorkboardCard } from './cards/WorkboardCard';
 import { CardsGridSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
 
 /**
@@ -66,7 +67,7 @@ export function visibleOrderedSections(
   return order.filter(name => !hidden.has(name) && cards[name]?.status !== 'hidden');
 }
 
-/** One renderer per section — completeness vs the 9 names pinned by test. */
+/** One renderer per section — completeness vs the section names pinned by test. */
 const CARD_RENDERERS: Record<
   BriefingSection,
   (
@@ -84,6 +85,7 @@ const CARD_RENDERERS: Record<
   for_you: (c, p) => <ForYouCard section={c.for_you} {...p} />,
   tasks: (c, p) => <TasksCard section={c.tasks} {...p} />,
   documents: (c, p) => <DocumentsCard section={c.documents} {...p} />,
+  workboard: (c, p) => <WorkboardCard section={c.workboard} {...p} />,
 };
 
 /**

@@ -1,3 +1,5 @@
+import { AlertTriangle } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConnectorGroupTrigger } from './ConnectorGroupTrigger';
@@ -45,6 +47,7 @@ export function OAuthErrorGroup({
           state="error"
           label={t('settings.connectors.health.critical_title')}
           count={connectors.length}
+          icon={AlertTriangle}
           t={t}
         />
       </AccordionTrigger>

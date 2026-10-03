@@ -34,13 +34,18 @@ SECTION_MAILS_TTL_SECONDS = 300  # 5 min — important but Gmail-quota friendly
 # always had a reminders branch, and no ordinary page load could reach it. Only
 # "refresh all" ever fed it, so the same dashboard produced two different texts
 # depending on how it was asked. 60 s is deliberately the SHORTEST TTL of the
-# nine, so a bundle older than a minute is rebuilt rather than summarised from
+# grid (shared with the other always-live card, the workboard), so a bundle older than a minute is rebuilt rather than summarised from
 # a stale reminder list.
 SECTION_REMINDERS_TTL_SECONDS = 60
 SECTION_HEALTH_TTL_SECONDS = 900  # 15 min — Shortcuts ingest cadence
 SECTION_FOR_YOU_TTL_SECONDS = 300  # 5 min — open loops / automation runs move
 SECTION_TASKS_TTL_SECONDS = 600  # 10 min — same natural change rate as agenda
 SECTION_DOCUMENTS_TTL_SECONDS = 600  # 10 min — Drive activity cadence
+# The workboard card is always live, for the reminders card's reason: a ticket
+# answered a moment ago must stop reading « waits on you » now, and the read is
+# a handful of indexed aggregates on a local table. The TTL only makes the
+# section readable by the cache-only readers; it never serves the card.
+SECTION_WORKBOARD_TTL_SECONDS = 60
 
 # =============================================================================
 # Per-widget content limits (agenda/mails/birthdays/reminders item caps, agenda
@@ -99,6 +104,7 @@ SECTION_HEALTH = "health"
 SECTION_FOR_YOU = "for_you"
 SECTION_TASKS = "tasks"
 SECTION_DOCUMENTS = "documents"
+SECTION_WORKBOARD = "workboard"
 
 SECTION_NAMES: tuple[str, ...] = (
     SECTION_WEATHER,
@@ -110,7 +116,15 @@ SECTION_NAMES: tuple[str, ...] = (
     SECTION_FOR_YOU,
     SECTION_TASKS,
     SECTION_DOCUMENTS,
+    SECTION_WORKBOARD,
 )
+
+# Sections the LLM greeting and synthesis never read. The threshold deciding
+# whether a synthesis is worth generating counts the cards the prompt actually
+# summarises: counting one it never sees would let a synthesis run on a single
+# summarised card. The workboard card is the person's own board, shown as
+# exact counts and links; the synthesis was deliberately not extended to it.
+SECTIONS_NOT_SUMMARISED: tuple[str, ...] = (SECTION_WORKBOARD,)
 
 # Default DISPLAY order of the grid (UXR Lot 5, B4) — mirrors the historical
 # TodayBriefing layout so users without stored preferences keep the exact
@@ -126,6 +140,7 @@ SECTION_DISPLAY_ORDER_DEFAULT: tuple[str, ...] = (
     SECTION_FOR_YOU,
     SECTION_TASKS,
     SECTION_DOCUMENTS,
+    SECTION_WORKBOARD,
 )
 
 # =============================================================================

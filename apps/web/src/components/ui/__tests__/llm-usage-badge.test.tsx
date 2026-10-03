@@ -59,6 +59,17 @@ describe('LLMUsageBadge', () => {
     expect(title).toContain('model=—');
   });
 
+  it('names what the figure is the cost of when a label is given', () => {
+    const { container } = render(<LLMUsageBadge usage={usage()} label="Réponse" />);
+    // The label, then the reader's own label separator, before the figures.
+    expect(container.textContent).toMatch(/^Réponsecommon\.label_separator/);
+  });
+
+  it('draws no label by default', () => {
+    const { container } = render(<LLMUsageBadge usage={usage()} />);
+    expect(container.textContent).not.toContain('common.label_separator');
+  });
+
   it('applies an extra className when provided', () => {
     const { container } = render(<LLMUsageBadge usage={usage()} className="extra-cls" />);
     expect((container.firstChild as HTMLElement).className).toContain('extra-cls');

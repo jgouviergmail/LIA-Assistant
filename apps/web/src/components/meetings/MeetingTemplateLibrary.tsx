@@ -55,6 +55,11 @@ export interface MeetingTemplateLibraryProps {
   onBrowse: () => void;
   /** The built-ins section, for the page to scroll it into view. */
   builtinsRef?: React.Ref<HTMLElement>;
+  /**
+   * Mounted inside another surface (the meetings settings block) rather than
+   * as a page: the two section headings step down to that block's scale.
+   */
+  nested?: boolean;
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -138,6 +143,7 @@ interface TemplateSectionProps {
   /** The bar's actions for the selected refs. */
   barActions: (refs: string[], clear: () => void) => React.ReactNode;
   sectionRef?: React.Ref<HTMLElement>;
+  nested?: boolean;
 }
 
 function TemplateSection({
@@ -151,6 +157,7 @@ function TemplateSection({
   rowActions,
   barActions,
   sectionRef,
+  nested = false,
 }: TemplateSectionProps) {
   const { t } = useTranslation(lng);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
@@ -162,10 +169,17 @@ function TemplateSection({
   return (
     <section ref={sectionRef} aria-label={title} className="space-y-3 scroll-mt-20">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
-          {title}
-        </h2>
+        {nested ? (
+          <h4 className="flex items-center gap-2 text-sm font-semibold">
+            <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
+            {title}
+          </h4>
+        ) : (
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
+            {title}
+          </h2>
+        )}
         {caption && <p className="text-sm text-muted-foreground">{caption}</p>}
       </div>
       {notice && (
@@ -209,7 +223,7 @@ function TemplateSection({
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="pb-2">
-                    <ul className="divide-y divide-border/60 rounded-md border border-border/60 bg-card/60">
+                    <ul className="divide-y divide-border/60 rounded-md border border-border/60 bg-card">
                       {members.map(template => (
                         <TemplateRow
                           key={template.ref}
@@ -274,8 +288,17 @@ function mineRowActions(
 }
 
 export function MeetingTemplateLibrary(props: MeetingTemplateLibraryProps) {
-  const { lng, templates, maxUserTemplates, busy, busyRef, onPreview, onAddToMine, onBrowse } =
-    props;
+  const {
+    lng,
+    templates,
+    maxUserTemplates,
+    busy,
+    busyRef,
+    onPreview,
+    onAddToMine,
+    onBrowse,
+    nested = false,
+  } = props;
   const { t } = useTranslation(lng);
   const [capNotice, setCapNotice] = useState(false);
   const mine = templates.filter(item => !item.builtin);
@@ -296,9 +319,10 @@ export function MeetingTemplateLibrary(props: MeetingTemplateLibraryProps) {
   };
 
   return (
-    <div className="space-y-8">
+    <div className={nested ? 'space-y-6' : 'space-y-8'}>
       <TemplateSection
         lng={lng}
+        nested={nested}
         title={t('meetings.templates.mine_title')}
         icon={Sparkles}
         items={mine}
@@ -335,6 +359,7 @@ export function MeetingTemplateLibrary(props: MeetingTemplateLibraryProps) {
 
       <TemplateSection
         lng={lng}
+        nested={nested}
         sectionRef={props.builtinsRef}
         title={t('meetings.templates.builtin_title')}
         icon={LibraryBig}

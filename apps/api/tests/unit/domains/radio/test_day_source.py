@@ -108,6 +108,7 @@ def _cards() -> CardsBundle:
         for_you=empty,
         tasks=empty,
         documents=empty,
+        workboard=empty,
     )
 
 

@@ -32,6 +32,11 @@ export interface Bookmark {
   indexed_at: string | null;
   /** What indexing cost (embedding tokens, euros); present once READY only. */
   index_usage: LLMUsage | null;
+  /**
+   * What the answer cost to produce: its turn's billed total, the figure the
+   * chat bubble shows; null when the turn left no token summary.
+   */
+  answer_usage: LLMUsage | null;
 }
 
 /** One page, its EXACT total (ADR-185) and the bounds the API enforces. */

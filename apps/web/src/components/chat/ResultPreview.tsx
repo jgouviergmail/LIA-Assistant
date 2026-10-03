@@ -33,7 +33,7 @@ export function ResultPreview({
   if (hidden || !collections.length) return null;
   return (
     <aside
-      className="mb-4 ml-auto w-full max-w-2xl space-y-4 rounded-lg border bg-card/60 p-4"
+      className="mb-4 ml-auto w-full max-w-2xl space-y-4 rounded-lg border bg-card p-4"
       aria-label={t(prefix + 'title')}
     >
       <h3 className="flex items-center gap-2 text-sm font-semibold">

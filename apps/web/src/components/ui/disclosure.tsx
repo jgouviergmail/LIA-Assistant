@@ -51,6 +51,21 @@ export interface DisclosureProps {
    * it is no longer needed.
    */
   description?: string;
+  /**
+   * Richer content under the title row, visible WHILE FOLDED — a line of
+   * status badges, typically.
+   *
+   * `description` is one plain line; an index entry sometimes needs to show
+   * states (a call's status, outcome and relay verdict) as the same badges the
+   * rest of the application uses. Rendered inside the `<summary>`, so it must
+   * hold no interactive control: the whole summary is the toggle.
+   */
+  meta?: ReactNode;
+  /**
+   * Extra classes for the title icon — e.g. `animate-spin` when the icon is a
+   * spinner standing for work still in progress. The theme colour stays.
+   */
+  iconClassName?: string;
   /** Open on arrival. Default false, deliberately. */
   defaultOpen?: boolean;
   /** Notified on every state change, so a caller can enable its query. */
@@ -65,6 +80,8 @@ export function Disclosure({
   badge,
   badgeClassName,
   description,
+  meta,
+  iconClassName,
   defaultOpen = false,
   onOpenChange,
   className,
@@ -74,7 +91,7 @@ export function Disclosure({
 
   return (
     <details
-      className={cn('group rounded-lg border border-border/40 bg-card/40 px-3', className)}
+      className={cn('group rounded-lg border border-border/40 bg-card px-3', className)}
       // Fully controlled: React and the DOM always agree. Passing the
       // CONSTANT `defaultOpen` here would work only by accident — React skips
       // an unchanged prop, so the element the user opened keeps its attribute
@@ -97,11 +114,14 @@ export function Disclosure({
           'rounded-lg'
         )}
       >
-        <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+        <Icon className={cn('h-4 w-4 shrink-0 text-primary', iconClassName)} aria-hidden="true" />
         <span className="min-w-0 flex-1">
           <span className="block truncate">{title}</span>
           {description && (
             <span className="block text-xs font-normal text-muted-foreground">{description}</span>
+          )}
+          {meta !== undefined && meta !== null && (
+            <span className="mt-1.5 block font-normal">{meta}</span>
           )}
         </span>
         {badge !== undefined && badge !== null && (

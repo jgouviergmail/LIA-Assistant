@@ -1161,13 +1161,10 @@ class TestProcessDocument:
             "metrics_tokens": patch(
                 "src.domains.rag_spaces.processing.rag_embedding_tokens_total",
             ),
-            "estimate_cost": patch(
-                "src.infrastructure.llm.tracked_embeddings.estimate_embedding_cost_sync",
-                return_value=0.001,
-            ),
-            "cached_rate": patch(
-                "src.infrastructure.cache.pricing_cache.get_cached_usd_eur_rate",
-                return_value=0.92,
+            # What the embedder billed for the chunks: the document records it.
+            "billed_usage": patch(
+                "src.domains.rag_spaces.processing.billed_embedding_usage",
+                return_value=(42, 0.0063),
             ),
         }
 
@@ -1420,6 +1417,7 @@ class TestProcessDocument:
         mock_chunk_repo.bulk_create_chunks.return_value = 2
 
         mock_embeddings = AsyncMock()
+        mock_embeddings.model_name = "gemini-embedding-001"
         # Return one vector per chunk (dynamic based on input)
         mock_embeddings.aembed_documents.side_effect = lambda texts: [
             [0.1 * (i + 1)] * 10 for i in range(len(texts))
@@ -1437,8 +1435,7 @@ class TestProcessDocument:
             patches["metrics_chunks"],
             patches["metrics_size"],
             patches["metrics_tokens"],
-            patches["estimate_cost"],
-            patches["cached_rate"],
+            patches["billed_usage"] as mock_billed,
         ):
             ctx_manager = AsyncMock()
             ctx_manager.__aenter__ = AsyncMock(return_value=mock_db)
@@ -1503,6 +1500,17 @@ class TestProcessDocument:
             # A document that failed once and now succeeds must not keep its code.
             assert update_data["error_code"] is None
             assert update_data["chunk_count"] > 0
+
+            # The document's tokens and cost are what the embedder billed for
+            # exactly the chunks it embedded, priced for the client's own model.
+            embedded = [
+                text
+                for call in mock_embeddings.aembed_documents.await_args_list
+                for text in call.args[0]
+            ]
+            mock_billed.assert_called_once_with("gemini-embedding-001", embedded)
+            assert update_data["embedding_tokens"] == 42
+            assert update_data["embedding_cost_eur"] == 0.0063
 
             # Verify DB commit
             mock_db.commit.assert_awaited()

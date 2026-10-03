@@ -184,6 +184,38 @@ def _embedding_cost_usd(model_name: str, token_count: int) -> float:
     return float(cost_usd)
 
 
+def billed_embedding_usage(model_name: str, texts: list[str]) -> tuple[int, float]:
+    """The tokens and the EUR cost of embedding ``texts``, as this client bills them.
+
+    ONE reading of « what did this embedding cost »: a caller that records the
+    figure next to what it embedded (a knowledge-space document, hence a kept
+    answer) must state what the ledger was charged, never a second estimate.
+    The ingestion used to count with OpenAI's tokenizer and price from a frozen
+    OpenAI table whose fallback is 0.02 USD per million tokens — so every
+    Gemini-embedded document showed about a seventh of its tariff (measured
+    2026-10-03 on dev: 352 tokens shown at 0.000006 EUR).
+
+    Args:
+        model_name: Model id as keyed in the pricing table (no ``models/``) —
+            ``GeminiRetrievalEmbeddings.model_name``.
+        texts: Exactly the texts handed to the embedder.
+
+    Returns:
+        ``(tokens, cost_eur)`` — the cost 0.0 when no price is cached, like the
+        ledger's own reading.
+    """
+    token_count = _estimate_tokens(texts)
+    try:
+        # An embedding has no prompt cache: the explicit zero is the decision.
+        _cost_usd, cost_eur = get_cached_cost_usd_eur(
+            model_name, token_count, 0, cache_write_tokens=0
+        )
+    except Exception as e:  # pragma: no cover - defensive; the cache is in-memory
+        logger.debug("embedding_pricing_unavailable", model=model_name, error=str(e))
+        return token_count, 0.0
+    return token_count, float(cost_eur)
+
+
 class GeminiRetrievalEmbeddings(Embeddings):
     """Gemini embeddings with automatic RETRIEVAL task types and tracking.
 

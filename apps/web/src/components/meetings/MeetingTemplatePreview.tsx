@@ -85,7 +85,7 @@ export function MeetingTemplatePreview({
 
       <ol className="space-y-3">
         {template.sections.map((section, index) => (
-          <li key={section.key} className="rounded-lg border bg-card/60 p-4">
+          <li key={section.key} className="rounded-lg border bg-card p-4">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {t('meetings.settings.section_position', { position: index + 1 })}

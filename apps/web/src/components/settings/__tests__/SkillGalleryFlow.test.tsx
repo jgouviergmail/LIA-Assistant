@@ -75,7 +75,7 @@ describe('SkillsSettings gallery', () => {
   it('opens the detail modal from a card, with provenance warning for user skills', async () => {
     useSkills.mockReturnValue(hook({ skills: [skill()] }));
     const { user } = renderSkills();
-    await user.click(screen.getByRole('button', { name: /settings\.skills\.user_section_title/ }));
+    await user.click(screen.getByText('settings.skills.user_section_title'));
     await user.click(
       screen.getByRole('button', { name: /settings\.skills\.gallery\.open_details/ })
     );
@@ -89,7 +89,7 @@ describe('SkillsSettings gallery', () => {
   it('a third-party skill is marked and says it runs isolated (ADR-327)', async () => {
     useSkills.mockReturnValue(hook({ skills: [skill({ provenance: 'library', skill_id: 's1' })] }));
     const { user } = renderSkills();
-    await user.click(screen.getByRole('button', { name: /settings\.skills\.user_section_title/ }));
+    await user.click(screen.getByText('settings.skills.user_section_title'));
     expect(screen.getByText('settings.skills.gallery.origin_library')).toBeInTheDocument();
     await user.click(
       screen.getByRole('button', { name: /settings\.skills\.gallery\.open_details/ })
@@ -105,7 +105,7 @@ describe('SkillsSettings gallery', () => {
       hook({ skills: [skill({ scope: 'admin', outputs: ['text', 'frame'] })] })
     );
     const { user } = renderSkills();
-    await user.click(screen.getByRole('button', { name: /settings\.skills\.admin_section_title/ }));
+    await user.click(screen.getByText('settings.skills.admin_section_title'));
     await user.click(
       screen.getByRole('button', { name: /settings\.skills\.gallery\.open_details/ })
     );
@@ -120,7 +120,7 @@ describe('SkillsSettings gallery', () => {
       .mockResolvedValue({ skill_name: 'my-skill', enabled_for_user: false });
     useSkills.mockReturnValue(hook({ skills: [skill()], toggleSkill }));
     const { user } = renderSkills();
-    await user.click(screen.getByRole('button', { name: /settings\.skills\.user_section_title/ }));
+    await user.click(screen.getByText('settings.skills.user_section_title'));
     await user.click(screen.getByRole('switch', { name: /settings\.skills\.toggle_skill/ }));
     expect(toggleSkill).toHaveBeenCalledWith('my-skill');
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -130,7 +130,7 @@ describe('SkillsSettings gallery', () => {
     const deleteSkill = vi.fn().mockResolvedValue(undefined);
     useSkills.mockReturnValue(hook({ skills: [skill()], deleteSkill }));
     const { user } = renderSkills();
-    await user.click(screen.getByRole('button', { name: /settings\.skills\.user_section_title/ }));
+    await user.click(screen.getByText('settings.skills.user_section_title'));
     await user.click(
       screen.getByRole('button', { name: /settings\.skills\.gallery\.open_details/ })
     );

@@ -59,6 +59,7 @@ def _bundle_with_weather(weather_section: CardSection) -> CardsBundle:
         for_you=_empty_section(),
         tasks=_empty_section(),
         documents=_empty_section(),
+        workboard=_empty_section(),
     )
 
 
@@ -120,6 +121,7 @@ class TestPromptTodayIsoInjection:
             for_you=_empty_section(),
             tasks=_empty_section(),
             documents=_empty_section(),
+            workboard=_empty_section(),
         )
         captured: dict[str, str] = {}
 
@@ -177,6 +179,7 @@ def _reminders_bundle() -> CardsBundle:
         for_you=_empty_section(),
         tasks=_empty_section(),
         documents=_empty_section(),
+        workboard=_empty_section(),
     )
 
 

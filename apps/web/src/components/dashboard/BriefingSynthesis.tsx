@@ -57,7 +57,9 @@ export function BriefingSynthesis({ synthesis }: BriefingSynthesisProps) {
     <div
       className={cn(
         'relative overflow-hidden rounded-2xl border border-primary/15',
-        'bg-gradient-to-br from-primary/8 via-card/80 to-card backdrop-blur-md',
+        // Solid: the page ground is the cosmos (AppCosmos); the primary
+        // wash rides on the card colour, never on what lies behind the tile.
+        'bg-card bg-gradient-to-br from-primary/8 via-card to-card',
         'shadow-[var(--lia-shadow-lg)]',
         'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500'
       )}
@@ -87,7 +89,9 @@ export function BriefingSynthesis({ synthesis }: BriefingSynthesisProps) {
             variant="ghost"
             size="icon"
             isLoading={loading}
-            aria-label={t(playing ? 'dashboard.briefing.synthesis_stop' : 'dashboard.briefing.synthesis_listen')}
+            aria-label={t(
+              playing ? 'dashboard.briefing.synthesis_stop' : 'dashboard.briefing.synthesis_listen'
+            )}
             aria-pressed={playing}
             onClick={() => void toggle(synthesis.text, liaIsMale ? 'male' : 'female')}
           >

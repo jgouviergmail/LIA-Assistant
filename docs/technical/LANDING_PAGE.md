@@ -183,7 +183,8 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
   `FadeInOnScroll` révèle directement et les compteurs donnent leur état final.
 - **Contraste par thème** : le jeton primaire diverge entre fond sombre et fond clair ; vérifier les deux modes,
   notamment les petits libellés, les bordures de sélection et les focus visibles.
-- **Fond « attention + espace latent » (landing seule)** : `AttentionBackdrop` monte, sur un `requestIdleCallback`
+- **Fond « attention + espace latent »** (landing, et depuis le 2026-10-03 le fond des pages connectées — voir
+  ci-dessous) : `AttentionBackdrop` monte, sur un `requestIdleCallback`
   (jamais avant le premier rendu ; là où l'API manque — WebKit —, après l'événement `load`), un `<canvas>` fixe à la taille du viewport dessiné par
   `lib/landing/attention-background.ts` — un nuage d'embeddings qui se regroupe au fil du scroll, et une colonne
   de tokens à droite où chaque `main .landing-section` devient un repère `§n`, la ligne de lecture y avançant au
@@ -201,6 +202,18 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
   l'appareil est trop lent, le module dessine UNE image fixe — la formation et la ligne de lecture là où elles
   sont — et ne la redessine qu'à un changement de thème ou de mise en page, jamais au scroll ni au pointeur (un
   redessin au pointeur recalculait le graphe des voisins à 30 i/s : plus cher, figé, que l'animation elle-même).
+- **Le même fond derrière les pages connectées et les pages de connexion** (demande du propriétaire,
+  2026-10-03) : le layout du tableau de bord et celui de `(auth)` montent
+  `components/landing/cosmic/AppCosmos` — `CosmicBackdrop` + `AttentionBackdrop` dans
+  une enveloppe `.cosmos` qui ne sert qu'à porter les JETONS (ciel, lueurs, variante claire, pause et mouvement
+  réduit) : l'habillage `--color-*` de la portée n'atteint que les couches décoratives, le contenu de l'app
+  étant leur frère. La racine du shell ne peint plus de fond (sinon elle couvrirait les couches à `z-index`
+  négatif) ; l'en-tête est opaque, les panneaux et cartes des pages sont pleins (les tuiles du tableau de
+  bord partagent un seul gabarit, `components/dashboard/DashboardTile`) — le cosmos se voit autour d'eux,
+  à toutes les largeurs. Seule exception voulue : le fil du chat, en verre dépoli léger entre les bulles. Aucune `.landing-section` ici : la colonne n'a pas de repère `§n`.
+  **Limite mesurée** : le texte atténué de l'app posé directement sur ce fond (`muted-foreground`, titres de
+  page, listes des réglages) tombe sous 4,5:1 — clair 4,0:1 sous la lueur violette et 3,4:1 sous un trait du
+  canevas ; sombre 3,2:1 sous un trait. Non corrigé à ce stade (arbitrage du propriétaire en attente).
 - **Mettre les animations en pause (WCAG 2.2.2)** : la nébuleuse, les nuages de la planète et le fond animé de la
   landing démarrent seuls et durent plus de cinq secondes ; le décoratif n'est pas exempté (seul l'essentiel
   l'est) et `prefers-reduced-motion` est une préférence du système, pas un contrôle de la page. Chaque page
@@ -518,7 +531,7 @@ apps/web/src/components/landing/
   cosmic/
     CosmosHero.tsx  CosmosFinale.tsx
     CosmosDay.tsx  ScrollScrub.tsx  PinnedScene.tsx
-    AttentionBackdrop.tsx        # Fond animé (lib/landing/attention-background.ts), landing seule
+    AttentionBackdrop.tsx        # Fond animé (lib/landing/attention-background.ts), landing + pages connectées
   editorial/
     chapters-data.ts             # Ordre éditorial, scene par chapitre, contrat de contenu
     EditorialChapters.tsx        # Chapitres et scènes partagées

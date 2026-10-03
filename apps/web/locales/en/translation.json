@@ -373,6 +373,13 @@
           "title": "Documents",
           "empty": "No recent documents",
           "open_external": "Open “{{subject}}” in Drive"
+        },
+        "workboard": {
+          "title": "Workboard",
+          "empty": "No open ticket on your board",
+          "tile_open": "Open",
+          "more_one": "and {{count}} more",
+          "more_other": "and {{count}} more"
         }
       },
       "updated_hours_ago": "{{hours}} h ago",
@@ -959,7 +966,13 @@
       "reactivate_description": "Your device paused location sharing while the app was closed. Re-enable it so LIA keeps using your real position instead of your home address.",
       "reactivate_button": "Re-enable",
       "detection": {
-        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
+        "keywords": [
+          "nearby",
+          "vicinity",
+          "neighborhood",
+          "surroundings",
+          "area"
+        ],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -3777,10 +3790,7 @@
     },
     "rag_spaces": {
       "title": "Knowledge Spaces (RAG)",
-      "description": "Manage your RAG document spaces to enrich AI conversations.",
-      "no_spaces": "No knowledge spaces created yet.",
-      "create_first": "Create your first space",
-      "manage_all": "Manage all spaces →"
+      "description": "Manage your RAG document spaces to enrich AI conversations."
     },
     "portrait_shortcut": {
       "title": "What LIA understands about you",
@@ -3953,7 +3963,8 @@
         "send": "Sending",
         "chat": "Conversation",
         "list": "Listing"
-      }
+      },
+      "rows_empty": "No habit learned yet."
     },
     "security": {
       "passkeys": {
@@ -4316,7 +4327,7 @@
       "description": "Choose the look of the chat's expressive eyes."
     },
     "meetings": {
-      "title": "Meeting minutes",
+      "title": "Meetings",
       "description": "Record a meeting from the chat composer; LIA transcribes it and writes the minutes with your structure."
     },
     "workboard": {
@@ -4452,7 +4463,9 @@
         "error": "Indexing failed",
         "deferred": "Indexing deferred (usage limit)",
         "disabled": "Indexing off"
-      }
+      },
+      "usage_answer": "Answer",
+      "usage_index": "Indexing"
     },
     "live_mode": {
       "title": "Live mode",
@@ -14412,7 +14425,7 @@
       "template": "Format: {{name}}"
     },
     "settings": {
-      "preferences_title": "Preferences",
+      "preferences_title": "Settings",
       "engine_label": "Transcription engine",
       "engine_auto": "Automatic (best available)",
       "engine_remote": "Remote provider only",
@@ -14454,7 +14467,7 @@
       "add_section": "Add a section",
       "max_sections_one": "At most {{count}} section.",
       "max_sections_other": "At most {{count}} sections.",
-      "recent_title": "Recent meetings",
+      "recent_title": "Minutes",
       "no_meetings": "No meeting recorded yet.",
       "view_all_one": "All meetings ({{count}})",
       "view_all_other": "All meetings ({{count}})",
@@ -14465,11 +14478,8 @@
       "default_template_label": "Default minutes format",
       "default_template_auto": "Automatic — LIA chooses from the recording",
       "default_template_hint": "Applied to every new recording. Automatic lets LIA pick the best format from what was said; a transcript format is never chosen automatically.",
-      "templates_title": "Minutes templates",
-      "templates_description": "Built-in formats and your own. Duplicate a built-in to customize it.",
-      "templates_count_one": "{{count}} template of your own",
-      "templates_count_other": "{{count}} templates of your own",
-      "manage_templates": "Manage my templates"
+      "templates_title": "Templates",
+      "templates_description": "Built-in formats and your own. Duplicate a built-in to customize it."
     },
     "errors": {
       "audio_normalize_failed": "The audio could not be prepared.",

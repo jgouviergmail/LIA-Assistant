@@ -27,6 +27,7 @@ function bookmark(over: Partial<Bookmark> = {}): Bookmark {
     index_state: null,
     indexed_at: null,
     index_usage: null,
+    answer_usage: null,
     ...over,
   };
 }

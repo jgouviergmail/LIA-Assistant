@@ -32,6 +32,8 @@ from src.domains.briefing.constants import (
     BRIEFING_SYNTHESIS_PROMPT_NAME,
     BRIEFING_SYNTHESIS_TARGET_PREFIX,
     BRIEFING_TASK_TYPE,
+    SECTION_NAMES,
+    SECTIONS_NOT_SUMMARISED,
     TIME_OF_DAY_AFTERNOON,
     TIME_OF_DAY_EVENING,
     TIME_OF_DAY_MORNING,
@@ -377,15 +379,10 @@ async def _resolve_personality(user_id: UUID) -> str:
 
 
 def _iter_cards(cards: CardsBundle) -> Iterator[CardSection]:
-    yield cards.weather
-    yield cards.agenda
-    yield cards.mails
-    yield cards.birthdays
-    yield cards.reminders
-    yield cards.health
-    yield cards.for_you
-    yield cards.tasks
-    yield cards.documents
+    """Every card the prompts summarise, derived from the declared sections."""
+    for name in SECTION_NAMES:
+        if name not in SECTIONS_NOT_SUMMARISED:
+            yield getattr(cards, name)
 
 
 def _summarize_cards_for_llm(cards: CardsBundle, *, verbose: bool) -> str:

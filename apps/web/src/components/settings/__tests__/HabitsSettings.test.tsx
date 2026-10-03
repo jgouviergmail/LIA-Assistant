@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 import type { Habit, HabitsOverview, HabitsProfileClass } from '@/hooks/useHabits';
 import { formatWindow } from '@/hooks/useHabits';
@@ -137,6 +137,19 @@ function renderSection() {
   return render(<HabitsSettings lng="fr" />);
 }
 
+/** The `<details>` whose summary carries this title. */
+function block(title: string): HTMLDetailsElement {
+  const details = screen.getByText(title).closest('details');
+  if (details === null) throw new Error(`no disclosure titled ${title}`);
+  return details;
+}
+
+/** Open a folded block and wait for React to mount its content. */
+async function openBlock(title: string) {
+  fireEvent.click(screen.getByText(title));
+  await waitFor(() => expect(block(title).querySelector(':scope > div')).not.toBeNull());
+}
+
 describe('HabitsSettings', () => {
   it('renders nothing when the instance flag is off (gate-keeper)', () => {
     state.flagOn = false;
@@ -150,8 +163,9 @@ describe('HabitsSettings', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows the claimed windows as formatted hour badges', () => {
+  it('shows the claimed windows as formatted hour badges', async () => {
     renderSection();
+    await openBlock('settings.habits.rhythm_title');
     expect(screen.getByText('08:00–10:00')).toBeInTheDocument();
     expect(screen.getByText('21:00–23:00')).toBeInTheDocument();
     // The weekend class states its honest verdict instead of fake windows.
@@ -220,7 +234,7 @@ describe('HabitsSettings', () => {
     expect(tCalls.some(key => key.startsWith('settings.habits.intent.'))).toBe(false);
   });
 
-  it('states the sparse verdict for occasional users', () => {
+  it('states the sparse verdict for occasional users', async () => {
     state.overview = overview({
       profile: {
         computed_at: '2026-08-05T04:10:00Z',
@@ -232,6 +246,7 @@ describe('HabitsSettings', () => {
       habits: [],
     });
     renderSection();
+    await openBlock('settings.habits.rhythm_title');
     expect(screen.getAllByText('settings.habits.verdict.sparse')).toHaveLength(2);
   });
 
@@ -289,7 +304,7 @@ describe('HabitsSettings', () => {
     await waitFor(() => expect(removeAll).toHaveBeenCalled());
   });
 
-  it('the insufficient verdict shows a quantified unlock progressbar', () => {
+  it('the insufficient verdict shows a quantified unlock progressbar', async () => {
     state.overview = overview({
       profile: {
         computed_at: '2026-08-05T04:10:00Z',
@@ -301,6 +316,7 @@ describe('HabitsSettings', () => {
       habits: [],
     });
     renderSection();
+    await openBlock('settings.habits.rhythm_title');
     const bars = screen.getAllByRole('progressbar');
     expect(bars).toHaveLength(2);
     // The published threshold quantifies the unlock — never a re-declared
@@ -366,7 +382,7 @@ describe('HabitsSettings', () => {
     expect(screen.getAllByText('settings.habits.description')).toHaveLength(1);
   });
 
-  it('candidates under observation show quantified progress and a stated cap', () => {
+  it('candidates under observation show quantified progress and a stated cap', async () => {
     state.overview = overview({
       habits: [],
       candidates: [
@@ -377,6 +393,9 @@ describe('HabitsSettings', () => {
     });
     renderSection();
     expect(screen.getByText('settings.habits.observing_title')).toBeInTheDocument();
+    // Folded, the block still states the exact total: two shown + two capped.
+    expect(within(block('settings.habits.observing_title')).getByText('4')).toBeInTheDocument();
+    await openBlock('settings.habits.observing_title');
     // Domain keys read through the register's own vocabulary, never raw.
     expect(
       screen.getByText('treatments.domains.email + treatments.domains.contact')
@@ -399,7 +418,7 @@ describe('HabitsSettings', () => {
     expect(screen.queryByText('settings.habits.observing_title')).not.toBeInTheDocument();
   });
 
-  it('the none verdict publishes the enforced detection bar (C-02, ADR-184)', () => {
+  it('the none verdict publishes the enforced detection bar (C-02, ADR-184)', async () => {
     state.overview = overview({
       profile: {
         computed_at: '2026-08-05T04:10:00Z',
@@ -411,12 +430,13 @@ describe('HabitsSettings', () => {
       habits: [],
     });
     renderSection();
+    await openBlock('settings.habits.rhythm_title');
     // The i18n mock renders the raw key — presence of the key + rounded pct
     // interpolation is asserted through the t() call contract.
     expect(screen.getByText('settings.habits.effective_bar')).toBeInTheDocument();
   });
 
-  it('the heatmap shows where activity concentrates even on a none verdict', () => {
+  it('the heatmap shows where activity concentrates even on a none verdict', async () => {
     const bins = Array<number>(24).fill(0);
     bins[21] = 0.6;
     state.overview = overview({
@@ -430,6 +450,7 @@ describe('HabitsSettings', () => {
       habits: [],
     });
     renderSection();
+    await openBlock('settings.habits.rhythm_title');
     // One heatmap for the weekday class (weekend bins are all zero → none).
     const maps = screen.getAllByRole('img', { name: 'settings.habits.heatmap_aria' });
     expect(maps).toHaveLength(1);
@@ -447,7 +468,7 @@ describe('HabitsSettings', () => {
     expect(screen.getByText(/settings\.habits\.active_days_caption/)).toBeInTheDocument();
   });
 
-  it('no heatmap when there is no presence at all', () => {
+  it('no heatmap when there is no presence at all', async () => {
     state.overview = overview({
       profile: {
         computed_at: null,
@@ -459,6 +480,7 @@ describe('HabitsSettings', () => {
       habits: [],
     });
     renderSection();
+    await openBlock('settings.habits.rhythm_title');
     expect(
       screen.queryByRole('img', { name: 'settings.habits.heatmap_aria' })
     ).not.toBeInTheDocument();
@@ -469,6 +491,67 @@ describe('HabitsSettings', () => {
     renderSection();
     fireEvent.click(screen.getByRole('button', { name: /common\.retry/ }));
     expect(refetch).toHaveBeenCalled();
+  });
+});
+
+describe('HabitsSettings — layout of the blocks', () => {
+  it('folds each block under a theme-icon title, the learned habits open', () => {
+    state.overview = overview({
+      candidates: [{ key: 'email', observed_days: 1, required_days: 4, origin: 'live' }],
+    });
+    renderSection();
+    const titles = [
+      'settings.habits.rows_title',
+      'settings.habits.rhythm_title',
+      'settings.habits.observing_title',
+    ];
+    // The section's own blocks — a habit row's explanation folds too, inside.
+    const summaries = [...document.querySelectorAll('details')]
+      .filter(details => details.parentElement?.closest('details') === null)
+      .map(details => details.querySelector('summary')!);
+    expect(summaries.map(summary => summary.querySelector('span span')?.textContent)).toEqual(
+      titles
+    );
+    // Every title carries its icon in the theme colour, never grey.
+    for (const summary of summaries) {
+      expect(summary.querySelector('svg')).toHaveClass('text-primary');
+    }
+    expect(block('settings.habits.rows_title').open).toBe(true);
+    expect(block('settings.habits.rhythm_title').open).toBe(false);
+    expect(block('settings.habits.observing_title').open).toBe(false);
+    // The learned habits block states its count.
+    expect(within(block('settings.habits.rows_title')).getByText('1')).toBeInTheDocument();
+  });
+
+  it('the folded rhythm block still says when it was computed and how active the days were', () => {
+    renderSection();
+    const summary = block('settings.habits.rhythm_title').querySelector('summary')!;
+    expect(
+      within(summary).getByText('settings.habits.computed_at · settings.habits.active_days_caption')
+    ).toBeInTheDocument();
+  });
+
+  it('says honestly that nothing was computed yet on the folded rhythm block', () => {
+    state.overview = overview({
+      profile: {
+        computed_at: null,
+        weekday: profileClass({ verdict: 'insufficient' }),
+        weekend: profileClass({ verdict: 'insufficient', required_n_eff: 6 }),
+        active_days_fraction: 0,
+        sparse: false,
+      },
+      habits: [],
+    });
+    renderSection();
+    const summary = block('settings.habits.rhythm_title').querySelector('summary')!;
+    expect(within(summary).getByText('settings.habits.verdict.insufficient')).toBeInTheDocument();
+  });
+
+  it('an empty habits block says so instead of vanishing', () => {
+    state.overview = overview({ habits: [] });
+    renderSection();
+    expect(block('settings.habits.rows_title').open).toBe(true);
+    expect(screen.getByText('settings.habits.rows_empty')).toBeInTheDocument();
   });
 });
 

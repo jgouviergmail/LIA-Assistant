@@ -2,6 +2,7 @@
 
 import { useTranslation } from 'react-i18next';
 
+import { heartbeatSourceChipTone } from '@/lib/domain-tone';
 import { priorityTone } from '@/lib/status-tone';
 
 import {
@@ -103,6 +104,8 @@ export function HeartbeatHistory({
         // backend source must never surface as `heartbeat.history.source_X` in
         // the interface.
         label: KNOWN_SOURCES.has(source) ? t(`heartbeat.history.source_${source}`) : source,
+        // The domain's colour, as on the dashboard's briefing tiles.
+        tone: heartbeatSourceChipTone(source),
       })),
     ],
     feedback: item.user_feedback,

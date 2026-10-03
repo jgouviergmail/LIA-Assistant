@@ -95,6 +95,32 @@ class TestKeepingAnAnswer:
         assert bookmark.request_content == "Réserve la salle B à 14 h"
         assert bookmark.answered_at == message.created_at
 
+    async def test_it_copies_the_turn_s_run_id_so_the_answer_keeps_its_cost(
+        self, repositories: tuple[MagicMock, MagicMock]
+    ) -> None:
+        """The run id joins the turn's token summary, which outlives the conversation."""
+        bookmarks, settings = repositories
+        bookmarks.owned_assistant_message.return_value = _message(
+            message_metadata={"run_id": "run-42"}
+        )
+
+        with patch(f"{MODULE}.settings", settings):
+            bookmark, _ = await _service(repositories).keep(uuid4(), uuid4())
+
+        assert bookmark.run_id == "run-42"
+
+    async def test_a_message_without_a_run_id_keeps_none(
+        self, repositories: tuple[MagicMock, MagicMock]
+    ) -> None:
+        """No run id, no cost — never a guessed join key."""
+        bookmarks, settings = repositories
+        bookmarks.owned_assistant_message.return_value = _message(message_metadata={"run_id": 17})
+
+        with patch(f"{MODULE}.settings", settings):
+            bookmark, _ = await _service(repositories).keep(uuid4(), uuid4())
+
+        assert bookmark.run_id is None
+
     async def test_the_request_is_the_last_visible_user_message_before_the_answer(
         self, repositories: tuple[MagicMock, MagicMock]
     ) -> None:

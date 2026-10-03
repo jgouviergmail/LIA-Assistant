@@ -13,15 +13,24 @@
  * `lib/status-tone.ts` (paused/blocked are INACTIVE → grey, told apart by
  * label), bulk destruction is solid red behind an explicit confirm
  * (ADR-207). Renders nothing when the instance flag is off.
+ *
+ * Laid out like the other settings sections (owner, 2026-10-03): the master
+ * switch row, then one `Disclosure` per block, each with its theme icon and
+ * its count — the learned habits OPEN (what the reader came to correct), the
+ * rhythm and the candidates under observation folded, their caption still
+ * readable while closed.
  */
 
 import {
+  Activity,
   CircleSlash,
   Flame,
+  ListChecks,
   Pause,
   Play,
   RefreshCw,
   Repeat,
+  Telescope,
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -29,6 +38,8 @@ import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
+import { EmptyState } from '@/components/ui/empty-state';
 import { HabitExplanation } from '@/components/settings/HabitExplanation';
 import { Label } from '@/components/ui/label';
 import { RowActions } from '@/components/ui/row-actions';
@@ -229,51 +240,14 @@ function HabitsOverviewBody({
           </span>
         </div>
       )}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('settings.habits.rhythm_title')}
-        </p>
-        {overview.profile.computed_at ? (
-          <p className="text-px-11 text-muted-foreground">
-            {t('settings.habits.computed_at', {
-              date: new Intl.DateTimeFormat(i18n.language, {
-                day: '2-digit',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              }).format(new Date(overview.profile.computed_at)),
-            })}
-            {overview.profile.active_days_fraction > 0 && (
-              <>
-                {' · '}
-                {t('settings.habits.active_days_caption', {
-                  percent: Math.round(overview.profile.active_days_fraction * 100),
-                })}
-              </>
-            )}
-          </p>
-        ) : (
-          <p className="text-sm italic text-muted-foreground">
-            {t('settings.habits.verdict.insufficient')}
-          </p>
-        )}
-        <ClassRhythmLine
-          lng={lng}
-          labelKey="settings.habits.weekday_label"
-          rhythm={overview.profile.weekday}
-        />
-        <ClassRhythmLine
-          lng={lng}
-          labelKey="settings.habits.weekend_label"
-          rhythm={overview.profile.weekend}
-        />
-      </div>
-
-      {overview.habits.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('settings.habits.rows_title')}
-          </p>
+      <Disclosure
+        icon={ListChecks}
+        title={t('settings.habits.rows_title')}
+        badge={overview.habits.length}
+        badgeClassName={countTone(overview.habits.length)}
+        defaultOpen
+      >
+        {overview.habits.length > 0 ? (
           <ul className="space-y-1" role="list">
             {overview.habits.map(habit => (
               <HabitRow
@@ -285,34 +259,59 @@ function HabitsOverviewBody({
               />
             ))}
           </ul>
-        </div>
-      )}
+        ) : (
+          <EmptyState icon={Repeat} description={t('settings.habits.rows_empty')} />
+        )}
+        {/* The chat suggestion depends on an instance flag the learning does
+            not (ADR-184): say so rather than let the person wait for an
+            offer that cannot come. */}
+        {overview.chat_suggestions_enabled === false && (
+          <p className="mt-2 text-px-11 text-muted-foreground">
+            {t('settings.habits.chat_suggestions_off')}
+          </p>
+        )}
+      </Disclosure>
 
-      {/* The chat suggestion depends on an instance flag the learning does
-          not (ADR-184): say so rather than let the person wait for an
-          offer that cannot come. */}
-      {overview.chat_suggestions_enabled === false && (
-        <p className="text-px-11 text-muted-foreground">
-          {t('settings.habits.chat_suggestions_off')}
-        </p>
-      )}
+      {/* Folded: the caption under the title (when it was computed, how many
+          days were active) is what the reader scans while it is closed. */}
+      <Disclosure
+        icon={Activity}
+        title={t('settings.habits.rhythm_title')}
+        description={rhythmCaption(t, i18n.language, overview)}
+      >
+        <div className="space-y-2">
+          <ClassRhythmLine
+            lng={lng}
+            labelKey="settings.habits.weekday_label"
+            rhythm={overview.profile.weekday}
+          />
+          <ClassRhythmLine
+            lng={lng}
+            labelKey="settings.habits.weekend_label"
+            rhythm={overview.profile.weekend}
+          />
+        </div>
+      </Disclosure>
 
       {(overview.candidates.length > 0 || overview.candidates_more > 0) && (
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('settings.habits.observing_title')}
-          </p>
+        <Disclosure
+          icon={Telescope}
+          title={t('settings.habits.observing_title')}
+          // The exact total: the rows shown plus the ones the cap folded.
+          badge={overview.candidates.length + overview.candidates_more}
+          badgeClassName={countTone(overview.candidates.length + overview.candidates_more)}
+        >
           <ul className="space-y-1" role="list">
             {overview.candidates.map(candidate => (
               <CandidateRow key={candidate.key} lng={lng} candidate={candidate} />
             ))}
           </ul>
           {overview.candidates_more > 0 && (
-            <p className="text-px-11 text-muted-foreground">
+            <p className="mt-1 text-px-11 text-muted-foreground">
               {t('settings.habits.candidates_more', { count: overview.candidates_more })}
             </p>
           )}
-        </div>
+        </Disclosure>
       )}
 
       {/* Section actions on one row, same geometry (ADR-207): the themed CTA
@@ -345,6 +344,35 @@ function HabitsOverviewBody({
       </div>
     </>
   );
+}
+
+/** A count that holds something reads tinted; an empty one stays neutral. */
+function countTone(count: number): string | undefined {
+  return count > 0 ? 'bg-primary/15 text-primary' : undefined;
+}
+
+/** The rhythm block's caption: when the profile was computed and how many
+ * days were active, or the honest "still learning" before the first compute. */
+function rhythmCaption(
+  t: ReturnType<typeof useTranslation>['t'],
+  locale: string,
+  overview: HabitsOverview
+): string {
+  const { computed_at: computedAt, active_days_fraction: activeDays } = overview.profile;
+  if (!computedAt) return t('settings.habits.verdict.insufficient');
+  const computed = t('settings.habits.computed_at', {
+    date: new Intl.DateTimeFormat(locale, {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(computedAt)),
+  });
+  if (activeDays <= 0) return computed;
+  const active = t('settings.habits.active_days_caption', {
+    percent: Math.round(activeDays * 100),
+  });
+  return `${computed} · ${active}`;
 }
 
 /** A recurrence signature is one or more domain keys joined by "+"; the

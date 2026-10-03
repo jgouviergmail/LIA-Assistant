@@ -1,11 +1,14 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { AlertCircle, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { THEME_CHIP_TONE } from '@/lib/domain-tone';
 import type { BadgeTone } from '@/lib/status-tone';
+import { cn } from '@/lib/utils';
 
 /**
  * The shared card of a delivered-notification history.
@@ -42,11 +45,21 @@ export interface NotificationHistoryRow {
    * nothing checks. Density is what separates the levels — a solid fill reads
    * as more urgent than a tint even when the two hues are close.
    */
-  badge?: { label: string; tone: BadgeTone } | null;
-  /** Neutral chips: the sources used, the interest, the provider. */
-  chips: { key: string; label: string }[];
-  /** `thumbs_up` | `thumbs_down` | anything else, or null when never rated. */
-  feedback: string | null;
+  badge?: { label: string; tone: BadgeTone; icon?: ReactNode } | null;
+  /**
+   * The chips: the sources used, the interest's provider, the person a
+   * message was relayed with. `tone` is the chip's classes from
+   * `lib/domain-tone` (a domain's colour); absent, the theme's primary — an
+   * active fact is never drawn in the inactive grey.
+   */
+  chips: { key: string; label: string; tone?: string }[];
+  /**
+   * `thumbs_up` | `thumbs_down` | anything else, or null when never rated.
+   * `undefined` for a row nobody can rate (a relayed message): no mark at all.
+   */
+  feedback?: string | null;
+  /** Said instead of the content when it was not kept; absent, nothing is drawn. */
+  contentFallback?: string;
 }
 
 export interface NotificationHistoryListProps {
@@ -92,8 +105,26 @@ export function NotificationHistoryList({
     return <p className="text-sm italic text-muted-foreground">{labels.empty}</p>;
   }
 
-  // Built ONCE per render, not once per row: `Intl.DateTimeFormat` is
-  // expensive to construct and identical for every line of the list.
+  const formatDate = historyDateFormatter(locale);
+
+  return (
+    <div className="space-y-2">
+      <ul className="space-y-2" role="list" aria-busy={loading || undefined}>
+        {rows.map(row => (
+          <NotificationHistoryItem key={row.id} row={row} formatDate={formatDate} />
+        ))}
+      </ul>
+      <p className="text-xs tabular-nums text-muted-foreground">{labels.count}</p>
+    </div>
+  );
+}
+
+/**
+ * The instant formatter of a history, built ONCE per render rather than once
+ * per row: `Intl.DateTimeFormat` is expensive to construct and identical for
+ * every line of the list.
+ */
+export function historyDateFormatter(locale: string): (iso: string) => string {
   let formatter: Intl.DateTimeFormat | null = null;
   try {
     formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
@@ -102,7 +133,7 @@ export function NotificationHistoryList({
     // worse-looking and still true.
     formatter = null;
   }
-  const formatDate = (iso: string) => {
+  return (iso: string) => {
     if (!formatter) return iso;
     try {
       return formatter.format(new Date(iso));
@@ -110,50 +141,67 @@ export function NotificationHistoryList({
       return iso;
     }
   };
+}
 
+/**
+ * One line of a history — the date, the marker, the verdict, the words, the
+ * chips. Exported so every list of the notification hub draws its lines the
+ * same way (owner, 2026-10-03: the relayed messages had a layout of their own).
+ */
+export function NotificationHistoryItem({
+  row,
+  formatDate,
+}: {
+  row: NotificationHistoryRow;
+  formatDate: (iso: string) => string;
+}) {
   return (
-    <div className="space-y-2">
-      <ul className="space-y-2" role="list" aria-busy={loading || undefined}>
-        {rows.map(row => (
-          <li
-            key={row.id}
-            className="space-y-1.5 rounded-lg border border-border/40 bg-card/40 px-3 py-2"
+    <li className="space-y-1.5 rounded-lg border border-border/40 bg-card/40 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <time dateTime={row.createdAt} className="text-xs tabular-nums text-muted-foreground">
+          {formatDate(row.createdAt)}
+        </time>
+        {row.badge && (
+          <Badge
+            variant={row.badge.tone}
+            size="sm"
+            icon={row.badge.icon}
+            className="uppercase tracking-wide"
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <time dateTime={row.createdAt} className="text-xs tabular-nums text-muted-foreground">
-                {formatDate(row.createdAt)}
-              </time>
-              {row.badge && (
-                <Badge variant={row.badge.tone} size="sm" className="uppercase tracking-wide">
-                  {row.badge.label}
-                </Badge>
+            {row.badge.label}
+          </Badge>
+        )}
+        {row.feedback !== undefined && <FeedbackMark verdict={row.feedback} />}
+      </div>
+
+      {/* Plain React children: this is LLM output, or words a person wrote,
+          and may echo third-party text (an event title, a mail subject). */}
+      {row.content ? (
+        <p className="line-clamp-3 whitespace-pre-line text-sm text-foreground/90">{row.content}</p>
+      ) : (
+        row.contentFallback && (
+          // Full `muted-foreground`, never a diluted /80: at this size the
+          // faded pair measures under the 4.5:1 AA floor.
+          <p className="text-xs italic text-muted-foreground">{row.contentFallback}</p>
+        )
+      )}
+
+      {row.chips.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {row.chips.map(chip => (
+            <span
+              key={chip.key}
+              className={cn(
+                'rounded border px-1.5 py-0.5 text-px-10 font-medium',
+                chip.tone ?? THEME_CHIP_TONE
               )}
-              <FeedbackMark verdict={row.feedback} />
-            </div>
-
-            {/* Plain React children: this is LLM output and may echo
-                third-party text (an event title, a mail subject). */}
-            {row.content && (
-              <p className="line-clamp-3 text-sm text-foreground/90">{row.content}</p>
-            )}
-
-            {row.chips.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {row.chips.map(chip => (
-                  <span
-                    key={chip.key}
-                    className="rounded border border-border/40 px-1.5 py-0.5 text-px-10 text-muted-foreground"
-                  >
-                    {chip.label}
-                  </span>
-                ))}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-      <p className="text-xs tabular-nums text-muted-foreground">{labels.count}</p>
-    </div>
+            >
+              {chip.label}
+            </span>
+          ))}
+        </div>
+      )}
+    </li>
   );
 }
 

@@ -1,4 +1,5 @@
 import type { LLMUsage } from '@/types/llm-usage';
+import type { TicketStatus } from '@/types/workboard';
 
 export type { LLMUsage };
 
@@ -20,7 +21,7 @@ export type CardStatus = 'ok' | 'empty' | 'error' | 'not_configured' | 'hidden';
 // Grid preferences (UXR Lot 5, B4)
 // =============================================================================
 
-/** The 9 briefing section names — MUST mirror backend SECTION_NAMES (the
+/** The briefing section names — MUST mirror backend SECTION_NAMES (the
  *  ``BriefingSection`` union below); completeness pinned by tests. */
 export const BRIEFING_SECTION_NAMES: readonly BriefingSection[] = [
   'weather',
@@ -32,6 +33,7 @@ export const BRIEFING_SECTION_NAMES: readonly BriefingSection[] = [
   'for_you',
   'tasks',
   'documents',
+  'workboard',
 ];
 
 export interface BriefingPreferences {
@@ -245,6 +247,31 @@ export interface DocumentsData {
   items: DocumentItem[];
 }
 
+/** One ticket waiting on the person, as the workboard card lists it. */
+export interface WorkboardTicketItem {
+  id: string;
+  title: string;
+  /** The ticket's column (a workboard `TicketStatus`). */
+  status: TicketStatus;
+  /** ISO 8601 due instant (UTC), if any. */
+  due_at: string | null;
+  /** Past its due instant and still open (computed server-side). */
+  overdue: boolean;
+}
+
+/**
+ * What on the board needs the person (ADR-276). Every count is an exact
+ * aggregate over its whole set (ADR-185); `items` is a short page of the
+ * « needs me » set, never its measure.
+ */
+export interface WorkboardData {
+  needs_me: number;
+  held_by_lia: number;
+  overdue: number;
+  open_total: number;
+  items: WorkboardTicketItem[];
+}
+
 // =============================================================================
 // Generic envelopes
 // =============================================================================
@@ -259,6 +286,7 @@ export type SectionData =
   | ForYouData
   | TasksData
   | DocumentsData
+  | WorkboardData
   | null;
 
 export interface CardSection<T extends SectionData = SectionData> {
@@ -311,6 +339,7 @@ export interface CardsBundle {
   for_you: CardSection<ForYouData>;
   tasks: CardSection<TasksData>;
   documents: CardSection<DocumentsData>;
+  workboard: CardSection<WorkboardData>;
 }
 
 export interface BriefingResponse {
@@ -333,7 +362,8 @@ export type BriefingSection =
   | 'health'
   | 'for_you'
   | 'tasks'
-  | 'documents';
+  | 'documents'
+  | 'workboard';
 
 export type RefreshScope = BriefingSection | 'all';
 

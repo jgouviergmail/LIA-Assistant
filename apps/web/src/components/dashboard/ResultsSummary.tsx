@@ -4,9 +4,10 @@ import { CheckCircle2, ListTodo, Sparkles, Zap } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { Card, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import type { PersonalResults } from '@/hooks/usePersonalResults';
+
+import { DashboardTile, TILE_ICON_BADGE } from './DashboardTile';
 
 /**
  * What the assistant ACHIEVED, ahead of what it consumed.
@@ -86,25 +87,23 @@ export function ResultsSummary({ results, firstLoad, error, locale }: ResultsSum
       {/* One column on the narrowest screens, two from `sm`, four from `lg`:
           a four-up row at 320 px would leave ~70 px per tile. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Card `default`, not `elevated`: these tiles are a readout, nothing
-            here is clickable, and `elevated` lifts its shadow on hover — an
-            affordance promising an action that does not exist. */}
+        {/* The page's tile material, with no hover lift: these tiles are a
+            readout, nothing here is clickable, and a lift would promise an
+            action that does not exist. */}
         {achievements.map(({ key, value, icon: Icon }) => (
-          <Card key={key} className="border-border/50">
-            <CardContent className="flex items-center gap-3 p-4">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Icon className="h-4 w-4" aria-hidden="true" />
+          <DashboardTile key={key} contentClassName="flex items-center gap-3 p-4">
+            <span className={TILE_ICON_BADGE}>
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-2xl font-bold tabular-nums text-foreground">
+                {formatCount(value, locale)}
               </span>
-              <span className="min-w-0">
-                <span className="block text-2xl font-bold tabular-nums text-foreground">
-                  {formatCount(value, locale)}
-                </span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {t(`dashboard.results.${key}`)}
-                </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {t(`dashboard.results.${key}`)}
               </span>
-            </CardContent>
-          </Card>
+            </span>
+          </DashboardTile>
         ))}
       </div>
     </section>

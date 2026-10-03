@@ -3,37 +3,20 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { DOMAIN_ICON_TONE, type DomainTone } from '@/lib/domain-tone';
 import { cn } from '@/lib/utils';
 import { resolveErrorCtaKey, timeAgoLabel } from '@/lib/briefing-utils';
 import type { CardSection, SectionData } from '@/types/briefing';
+import { DASHBOARD_TILE_FRAME, TILE_ICON_BADGE, TileAmbience } from './DashboardTile';
 import { UpdatedAtBadge } from './UpdatedAtBadge';
 
 /**
  * Per-card icon tone — applied ONLY to the SVG icon color (not the card chrome).
  * Card backgrounds, borders, orbs, badges all use the user's theme primary color.
+ * The palette is the domains' colour code (`lib/domain-tone`), shared with the
+ * notification hub's chips.
  */
-export type CardTone =
-  | 'sky'
-  | 'violet'
-  | 'amber'
-  | 'rose'
-  | 'emerald'
-  | 'red'
-  | 'fuchsia'
-  | 'teal'
-  | 'indigo';
-
-const ICON_TONE: Record<CardTone, string> = {
-  sky: 'text-sky-600 dark:text-sky-400',
-  violet: 'text-violet-600 dark:text-violet-400',
-  amber: 'text-amber-600 dark:text-amber-400',
-  rose: 'text-rose-600 dark:text-rose-400',
-  emerald: 'text-emerald-600 dark:text-emerald-400',
-  red: 'text-red-600 dark:text-red-400',
-  fuchsia: 'text-fuchsia-600 dark:text-fuchsia-400',
-  teal: 'text-teal-600 dark:text-teal-400',
-  indigo: 'text-indigo-600 dark:text-indigo-400',
-};
+export type CardTone = DomainTone;
 
 /**
  * Freshness badge in the card header (D-04, extracted — CC discipline).
@@ -183,7 +166,7 @@ export function BriefingCard<T extends SectionData>({
   const isError = section.status === 'error';
   const ctaKey = isError ? resolveErrorCtaKey(section.error_code) : null;
   const titleLabel = t(titleKey);
-  const iconColorClass = ICON_TONE[tone];
+  const iconColorClass = DOMAIN_ICON_TONE[tone];
 
   const staggerStyle =
     staggerIndex !== undefined
@@ -205,8 +188,10 @@ export function BriefingCard<T extends SectionData>({
       tabIndex={-1}
       style={staggerStyle}
       className={cn(
-        'group relative overflow-hidden rounded-2xl border bg-card',
-        'shadow-[var(--lia-shadow-md)]',
+        // The page's tile material (DashboardTile), plus this card's
+        // interactive extras: the lift and the stronger shadow on hover.
+        'group',
+        DASHBOARD_TILE_FRAME,
         'transition-all duration-300 ease-out',
         'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500',
         'motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-2xl',
@@ -215,21 +200,8 @@ export function BriefingCard<T extends SectionData>({
         className
       )}
     >
-      {/* Primary-themed gradient overlay (top-right → transparent) */}
-      {!isError && (
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 to-transparent opacity-60 dark:opacity-50"
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Primary-themed ambient blur orb (top-right) */}
-      {!isError && (
-        <div
-          className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-primary opacity-15 blur-3xl transition-opacity duration-500 motion-safe:group-hover:opacity-25"
-          aria-hidden="true"
-        />
-      )}
+      {/* Primary-themed wash and orb — none on an error card. */}
+      {!isError && <TileAmbience />}
 
       <div className="relative flex flex-col h-[280px] p-5 sm:p-6 gap-4">
         {/* Header: icon badge (primary chrome) + title + timestamp + refresh — FIXED */}
@@ -242,7 +214,7 @@ export function BriefingCard<T extends SectionData>({
           <div className="flex items-center gap-3 min-w-0">
             <div
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20',
+                TILE_ICON_BADGE,
                 'transition-transform duration-300',
                 'motion-safe:group-hover:scale-110 motion-safe:group-hover:rotate-3',
                 iconColorClass

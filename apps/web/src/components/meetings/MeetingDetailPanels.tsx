@@ -308,7 +308,7 @@ export function MinutesPanel(props: MinutesPanelProps) {
   const { lng, meeting, report, draft, onDraftChange } = props;
   const { t } = useTranslation(lng);
   return (
-    <section className="space-y-4 rounded-lg border border-border/60 bg-card/60 p-4">
+    <section className="space-y-4 rounded-lg border border-border/60 bg-card p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -374,7 +374,7 @@ export function TranscriptPanel({
 }) {
   const { t } = useTranslation(lng);
   return (
-    <section className="space-y-3 rounded-lg border border-border/60 bg-card/60 p-4">
+    <section className="space-y-3 rounded-lg border border-border/60 bg-card p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-base font-semibold">{t('meetings.detail.transcript_title')}</h2>
         {meeting.has_transcript && (

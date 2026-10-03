@@ -37,6 +37,10 @@ import { type SettingsSectionToken } from '@/lib/settings-sections';
  *  - agenda/mails/birthdays/tasks/documents → the corresponding connector
  *  - health       → the `health-metrics` toggle (or the server-side flag)
  *  - reminders/for_you → local tables, never `not_configured`, hence `null`
+ *  - workboard    → `not_configured` only when the INSTANCE switched the
+ *                   workboard off (ADR-280): nothing the person can configure,
+ *                   hence `null` — and {@link INSTANCE_GATED_SECTIONS} keeps it
+ *                   out of the hint altogether
  *
  * `null` means "this card cannot report a missing configuration", NOT "we do
  * not know where to send the user" — the completeness test pins the difference.
@@ -53,7 +57,17 @@ export const SECTION_SETTINGS_TARGET: Readonly<
   health: 'health-metrics',
   reminders: null,
   for_you: null,
+  workboard: null,
 };
+
+/**
+ * Cards whose `not_configured` is the INSTANCE's decision, never a setting the
+ * person could change. The hint names cards waiting for the person; naming one
+ * of these would ask them to configure what only an operator can switch on.
+ */
+export const INSTANCE_GATED_SECTIONS: ReadonlySet<BriefingSection> = new Set<BriefingSection>([
+  'workboard',
+]);
 
 /** A card the user wants to see but that has no data source yet. */
 export interface UnconfiguredCard {
@@ -79,7 +93,10 @@ export function unconfiguredCards(
 ): UnconfiguredCard[] {
   if (!cards) return [];
   return visible
-    .filter(section => cards[section]?.status === 'not_configured')
+    .filter(
+      section =>
+        cards[section]?.status === 'not_configured' && !INSTANCE_GATED_SECTIONS.has(section)
+    )
     .map(section => ({ section, target: SECTION_SETTINGS_TARGET[section] }));
 }
 

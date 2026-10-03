@@ -1,13 +1,14 @@
 /**
  * The meetings settings section (ADR-258, library ADR-259): gated on the
- * instance flag, preferences saved only when dirty — the default minutes
- * format among them — the library reachable from a summary block, recent
- * meetings linked.
+ * instance flag, one page in three folded blocks (owner, 2026-10-03) —
+ * « Settings » open, « Templates » embedding the library itself, « Minutes »
+ * listing the recent meetings — preferences saved only when dirty, the
+ * default minutes format among them.
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import type { MeetingPreferences, MeetingSummary, MeetingTemplateSummary } from '@/types/meetings';
 
 const flags = vi.hoisted(() => ({ enabled: true, loading: false }));
@@ -50,6 +51,8 @@ vi.mock('@/hooks/useMeetingTemplates', () => ({
     create: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
+    bulkDuplicate: vi.fn(),
+    bulkDelete: vi.fn(),
   }),
 }));
 
@@ -75,6 +78,19 @@ vi.mock('@/hooks/useLocalizedRouter', () => ({
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { MeetingsSettings } from '../MeetingsSettings';
+
+/** The `<details>` whose summary carries this title. */
+function block(title: string): HTMLDetailsElement {
+  const details = screen.getByText(title).closest('details');
+  if (details === null) throw new Error(`no disclosure titled ${title}`);
+  return details;
+}
+
+/** Open a folded block and wait for React to mount its content. */
+async function openBlock(user: ReturnType<typeof renderWithProviders>['user'], title: string) {
+  await user.click(screen.getByText(title));
+  await waitFor(() => expect(block(title).querySelector(':scope > div')).not.toBeNull());
+}
 
 function preferences(over: Partial<MeetingPreferences> = {}): MeetingPreferences {
   return {
@@ -124,14 +140,31 @@ describe('MeetingsSettings', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows the section with its three blocks and the library summary', () => {
+  it('presents one page in three folded blocks, only the settings open', () => {
     renderWithProviders(<MeetingsSettings lng="en" />);
     expect(screen.getByRole('heading', { name: 'settings.meetings.title' })).toBeInTheDocument();
-    expect(screen.getByText('meetings.settings.preferences_title')).toBeInTheDocument();
-    expect(screen.getByText('meetings.settings.templates_title')).toBeInTheDocument();
-    // The count states the user's own templates (one here), never the built-ins.
-    expect(screen.getByText('meetings.settings.templates_count')).toBeInTheDocument();
-    expect(screen.getByText('meetings.settings.no_meetings')).toBeInTheDocument();
+    const titles = [...document.querySelectorAll('summary')].map(
+      summary => summary.querySelector('span span')?.textContent
+    );
+    expect(titles).toEqual([
+      'meetings.settings.preferences_title',
+      'meetings.settings.templates_title',
+      'meetings.settings.recent_title',
+    ]);
+    expect(block('meetings.settings.preferences_title').open).toBe(true);
+    expect(block('meetings.settings.templates_title').open).toBe(false);
+    expect(block('meetings.settings.recent_title').open).toBe(false);
+    // Folded blocks mount nothing: no library, no recent-meetings read.
+    expect(screen.queryByText('meetings.templates.mine_title')).not.toBeInTheDocument();
+    expect(screen.queryByText('meetings.settings.no_meetings')).not.toBeInTheDocument();
+  });
+
+  it('states the count of my own templates on the folded templates block', () => {
+    renderWithProviders(<MeetingsSettings lng="en" />);
+    const summary = block('meetings.settings.templates_title').querySelector('summary')!;
+    // One user template among three: the built-ins are never counted.
+    expect(within(summary).getByText('1')).toBeInTheDocument();
+    expect(within(summary).getByText('meetings.settings.templates_description')).toBeVisible();
   });
 
   it('offers the default minutes format, automatic first, and names the chosen one', () => {
@@ -171,12 +204,24 @@ describe('MeetingsSettings', () => {
     expect(hours).toHaveValue(168);
   });
 
-  it('opens the library page from the templates block', async () => {
+  it('manages the templates in place: the library is embedded, nothing navigates', async () => {
     const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
-    await user.click(screen.getByRole('button', { name: 'meetings.settings.manage_templates' }));
-    // The settings section is a DOOR: the page it opens must be able to lead
-    // back here (`lib/back-origin.ts`, owner 2026-09-10).
-    expect(push).toHaveBeenCalledWith('/dashboard/meetings/templates?from=settings');
+    await openBlock(user, 'meetings.settings.templates_title');
+    const templates = block('meetings.settings.templates_title');
+    // Under the card's own title, the library's headings step down a level.
+    expect(
+      within(templates).getByRole('heading', { level: 4, name: 'meetings.templates.mine_title' })
+    ).toBeInTheDocument();
+    expect(
+      within(templates).getByRole('heading', { name: 'meetings.templates.builtin_title' })
+    ).toBeInTheDocument();
+
+    // Creating a template opens the form inside the block, not another page.
+    await user.click(within(templates).getByRole('button', { name: 'meetings.templates.new' }));
+    expect(
+      await within(templates).findByRole('form', { name: 'meetings.templates.form.create_title' })
+    ).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
   });
 
   it('links each recent meeting to its page', async () => {
@@ -203,10 +248,19 @@ describe('MeetingsSettings', () => {
     ];
     list.total = 1;
     const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
+    await openBlock(user, 'meetings.settings.recent_title');
     await user.click(screen.getByRole('button', { name: 'Point projet' }));
     expect(push).toHaveBeenCalledWith('/dashboard/meetings/m1?from=settings');
     await user.click(screen.getByRole('button', { name: /meetings\.settings\.view_all/ }));
     expect(push).toHaveBeenCalledWith('/dashboard/meetings?from=settings');
+  });
+});
+
+describe('MeetingsSettings — the minutes block', () => {
+  it('says when no meeting was recorded yet, once opened', async () => {
+    const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
+    await openBlock(user, 'meetings.settings.recent_title');
+    expect(screen.getByText('meetings.settings.no_meetings')).toBeInTheDocument();
   });
 });
 

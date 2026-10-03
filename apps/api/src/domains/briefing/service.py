@@ -52,6 +52,8 @@ from src.domains.briefing.constants import (
     SECTION_TASKS_TTL_SECONDS,
     SECTION_WEATHER,
     SECTION_WEATHER_TTL_SECONDS,
+    SECTION_WORKBOARD,
+    SECTION_WORKBOARD_TTL_SECONDS,
 )
 from src.domains.briefing.consultations import SURFACE as BRIEFING_SURFACE
 from src.domains.briefing.consultations import SectionReadObserver
@@ -69,6 +71,7 @@ from src.domains.briefing.fetchers import (
     fetch_reminders,
     fetch_tasks,
     fetch_weather,
+    fetch_workboard,
 )
 from src.domains.briefing.llm import generate_greeting, generate_synthesis
 from src.domains.briefing.preferences import sanitize_briefing_preferences
@@ -80,6 +83,7 @@ from src.domains.briefing.schemas import (
     CardStatus,
     SynthesisResponse,
     TextSection,
+    WorkboardData,
 )
 from src.domains.shared.consultation_sink import consultation_collector
 from src.domains.shared.consultation_surfaces import record_surface_consultations
@@ -165,6 +169,11 @@ def _has_content(data: Any) -> bool:
     """Return True if the data payload has at least one displayable item."""
     if data is None:
         return False
+    # The workboard card is counts first: an open board with nothing in the
+    # « needs me » page still has something to say. Only a board with no open
+    # ticket at all is the empty state.
+    if isinstance(data, WorkboardData):
+        return data.open_total > 0 or data.needs_me > 0
     for attr in ("events", "items"):
         value = getattr(data, attr, None)
         if value is not None:
@@ -212,7 +221,7 @@ class BriefingService:
         self,
         force_refresh: set[str] | None = None,
     ) -> CardsBundle:
-        """Build the 9-card bundle (no LLM call). Fast — returns when cards are ready.
+        """Build the card bundle (no LLM call). Fast — returns when cards are ready.
 
         This is the non-blocking endpoint backbone: the frontend renders the
         dashboard grid as soon as this returns, without waiting for the LLM
@@ -406,7 +415,7 @@ class BriefingService:
             )
 
     def _build_plan(self, force: frozenset[str]) -> tuple[_SectionPlan, ...]:
-        """How each of the nine sections is obtained for this build.
+        """How each section of the grid is obtained for this build.
 
         One declaration, read by everything downstream: the gather, the
         duration histogram's cold/warm verdict and the structured log all
@@ -497,10 +506,19 @@ class BriefingService:
                 SECTION_DOCUMENTS_TTL_SECONDS,
                 forced(SECTION_DOCUMENTS),
             ),
+            _SectionPlan(
+                SECTION_WORKBOARD,
+                lambda: fetch_workboard(user_id=self.user.id),
+                SECTION_WORKBOARD_TTL_SECONDS,
+                # Always live, like the reminders: a ticket answered a moment
+                # ago must stop reading « waits on you » now.
+                True,
+                cache_eligible=False,
+            ),
         )
 
     async def _gather_cards(self, force: frozenset[str]) -> CardsBundle:
-        """Fetch the nine sections in parallel and assemble the bundle.
+        """Fetch every section in parallel and assemble the bundle.
 
         Runs inside the coalescing seam (see ``build_cards``): at most one
         execution of this method per identity is in flight at any moment, so
@@ -514,7 +532,7 @@ class BriefingService:
         """
         start = time.perf_counter()
 
-        # Fetch all 9 sections in parallel — each independently failable.
+        # Fetch every section in parallel — each independently failable.
         # Each fetcher acquires its own DB session (SQLAlchemy AsyncSession is
         # not safe for concurrent use, see fetchers.py module docstring).
         plans = self._build_plan(force)

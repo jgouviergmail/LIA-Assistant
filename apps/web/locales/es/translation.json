@@ -365,6 +365,13 @@
           "title": "Documentos",
           "empty": "Sin documentos recientes",
           "open_external": "Abrir «{{subject}}» en Drive"
+        },
+        "workboard": {
+          "title": "Workboard",
+          "empty": "Ningún ticket abierto en tu tablero",
+          "tile_open": "Abiertos",
+          "more_one": "y {{count}} más",
+          "more_other": "y {{count}} más"
         }
       },
       "updated_hours_ago": "hace {{hours}} h",
@@ -938,7 +945,14 @@
       "reactivate_description": "Tu dispositivo pausó el uso compartido de la ubicación mientras la aplicación estaba cerrada. Reactívalo para que LIA siga usando tu posición real en lugar de tu dirección personal.",
       "reactivate_button": "Reactivar",
       "detection": {
-        "keywords": ["alrededores", "cercanias", "proximidad", "vecindario", "zona", "domicilio"],
+        "keywords": [
+          "alrededores",
+          "cercanias",
+          "proximidad",
+          "vecindario",
+          "zona",
+          "domicilio"
+        ],
         "patterns": [
           "cerca de (aqu[ií]|m[ií])",
           "a mi alrededor",
@@ -3754,10 +3768,7 @@
     },
     "rag_spaces": {
       "title": "Espacios de conocimiento (RAG)",
-      "description": "Gestiona tus espacios de documentos RAG para enriquecer las conversaciones con IA.",
-      "no_spaces": "Aún no se han creado espacios de conocimiento.",
-      "create_first": "Crea tu primer espacio",
-      "manage_all": "Gestionar todos los espacios →"
+      "description": "Gestiona tus espacios de documentos RAG para enriquecer las conversaciones con IA."
     },
     "portrait_shortcut": {
       "title": "Lo que LIA entiende de ti",
@@ -3930,7 +3941,8 @@
         "send": "Envío",
         "chat": "Conversación",
         "list": "Listado"
-      }
+      },
+      "rows_empty": "Todavía no se ha aprendido ningún hábito."
     },
     "security": {
       "passkeys": {
@@ -4293,7 +4305,7 @@
       "description": "Elige la apariencia de los ojos expresivos del chat."
     },
     "meetings": {
-      "title": "Actas de reunión",
+      "title": "Reuniones",
       "description": "Graba una reunión desde el compositor del chat; LIA la transcribe y redacta el acta con tu estructura."
     },
     "workboard": {
@@ -4429,7 +4441,9 @@
         "error": "Error de indexación",
         "deferred": "Indexación aplazada (límite de uso)",
         "disabled": "Indexación desactivada"
-      }
+      },
+      "usage_answer": "Respuesta",
+      "usage_index": "Indexación"
     },
     "live_mode": {
       "title": "Modo Live",
@@ -14410,7 +14424,7 @@
       "template": "Formato: {{name}}"
     },
     "settings": {
-      "preferences_title": "Preferencias",
+      "preferences_title": "Configuración",
       "engine_label": "Motor de transcripción",
       "engine_auto": "Automático (el mejor disponible)",
       "engine_remote": "Solo proveedor remoto",
@@ -14452,7 +14466,7 @@
       "add_section": "Añadir una sección",
       "max_sections_one": "Como máximo {{count}} sección.",
       "max_sections_other": "Como máximo {{count}} secciones.",
-      "recent_title": "Reuniones recientes",
+      "recent_title": "Actas",
       "no_meetings": "Aún no hay reuniones grabadas.",
       "view_all_one": "Todas las reuniones ({{count}})",
       "view_all_other": "Todas las reuniones ({{count}})",
@@ -14463,11 +14477,8 @@
       "default_template_label": "Formato de acta por defecto",
       "default_template_auto": "Automático: LIA elige según la grabación",
       "default_template_hint": "Se aplica a cada nueva grabación. En automático, LIA elige el mejor formato según lo dicho; un formato de transcripción nunca se elige automáticamente.",
-      "templates_title": "Modelos de acta",
-      "templates_description": "Los formatos integrados y los tuyos. Duplica un formato integrado para personalizarlo.",
-      "templates_count_one": "{{count}} modelo propio",
-      "templates_count_other": "{{count}} modelos propios",
-      "manage_templates": "Gestionar mis modelos"
+      "templates_title": "Plantillas",
+      "templates_description": "Los formatos integrados y los tuyos. Duplica un formato integrado para personalizarlo."
     },
     "errors": {
       "audio_normalize_failed": "No se pudo preparar el audio.",

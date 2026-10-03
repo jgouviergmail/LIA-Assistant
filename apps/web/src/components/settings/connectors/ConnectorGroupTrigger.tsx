@@ -8,12 +8,18 @@
  * which is how the section always opens — the connected/disconnected
  * distinction relied on remembering which dialect meant what.
  *
- * The grammar is now fixed: `[state icon] [glyph?] [label] (count) … [state chip]`.
- * The chip states the group state IN WORDS: color alone would exclude
- * color-blind users and screen readers alike (the accessible name of the
- * trigger includes the chip text).
+ * The grammar is now fixed: `[group icon] [label] (count) … [state chip]`.
+ *
+ * The leading slot names WHICH group this is (a provider's brand mark, a
+ * domain icon in the theme colour) — fourteen identical state icons in a
+ * column told the reader nothing they could not read in the chip. The STATE
+ * lives in the chip, in WORDS and with its own small icon: color alone would
+ * exclude color-blind users and screen readers alike (the accessible name of
+ * the trigger includes the chip text). An error group keeps a destructive
+ * leading icon, since its identity IS the problem.
  */
 
+import type { ComponentType } from 'react';
 import { CheckCircle2, AlertTriangle, Plug } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -24,12 +30,6 @@ const STATE_ICON: Record<ConnectorGroupState, typeof CheckCircle2> = {
   connected: CheckCircle2,
   error: AlertTriangle,
   available: Plug,
-};
-
-const STATE_ICON_TONE: Record<ConnectorGroupState, string> = {
-  connected: 'text-success',
-  error: 'text-destructive',
-  available: 'text-muted-foreground',
 };
 
 const STATE_CHIP_TONE: Record<ConnectorGroupState, string> = {
@@ -50,8 +50,12 @@ export interface ConnectorGroupTriggerProps {
   label: string;
   /** Number of services in the group (shown muted, as before K01). */
   count: number;
-  /** Optional domain glyph (💡, 📞) — decorative identity, never semantic. */
-  glyph?: string;
+  /**
+   * The group's identity: a lucide icon or a brand mark. Decorative
+   * (`aria-hidden`) — the label names the group. Painted in the theme colour,
+   * or destructive for an error group; a multicolour brand mark keeps its own.
+   */
+  icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
   t: (key: string) => string;
 }
 
@@ -60,23 +64,30 @@ export function ConnectorGroupTrigger({
   state,
   label,
   count,
-  glyph,
+  icon: GroupIcon,
   t,
 }: ConnectorGroupTriggerProps) {
-  const Icon = STATE_ICON[state];
+  const StateIcon = STATE_ICON[state];
   return (
     <span className="flex flex-1 items-center gap-2 min-w-0 pr-2">
-      <Icon className={cn('h-4 w-4 shrink-0', STATE_ICON_TONE[state])} aria-hidden="true" />
-      {glyph && <span aria-hidden="true">{glyph}</span>}
+      <GroupIcon
+        className={cn('h-4 w-4 shrink-0', state === 'error' ? 'text-destructive' : 'text-primary')}
+        aria-hidden="true"
+      />
       <span className="truncate">{label}</span>
       <span className="text-muted-foreground text-sm shrink-0">({count})</span>
       <span
         className={cn(
-          'ml-auto shrink-0 rounded-full border px-2 py-0.5 text-px-11 font-medium',
+          'ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-px-11 font-medium',
           STATE_CHIP_TONE[state]
         )}
       >
-        {t(STATE_CHIP_KEY[state])}
+        <StateIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
+        {/* Below `sm` the word is for assistive technology only: on a phone the
+            chip's width truncated the group's own name (« Services Goo… »),
+            and the state stays visible through the icon's SHAPE (check, alert,
+            plug), never through colour alone. */}
+        <span className="sr-only sm:not-sr-only">{t(STATE_CHIP_KEY[state])}</span>
       </span>
     </span>
   );

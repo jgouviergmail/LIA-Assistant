@@ -761,8 +761,13 @@ export default function ChatPage() {
           it, a broken connector would push the composer below the fold — the
           constant above cannot know about a block added after it was written. */}
       <div className="flex h-[calc(100vh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px)-var(--radio-banner-h,0px))] supports-[height:100dvh]:h-[calc(100dvh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px)-var(--radio-banner-h,0px))] gap-4">
-        {/* Main Chat Area */}
-        <div className="flex flex-col flex-1 min-w-0 bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden">
+        {/* Main Chat Area: a LIGHT frosted glass over the page's cosmos
+            (AppCosmos), seen between the bubbles (owner, 2026-10-03). The
+            header, the composer and the bubbles keep their own surfaces; the
+            panel's `backdrop-filter` makes it their backdrop root, so the
+            header's and composer's glass still frost the bubbles passing
+            beneath them, as before. */}
+        <div className="flex flex-col flex-1 min-w-0 rounded-xl border border-border/50 bg-background/35 shadow-lg backdrop-blur-md overflow-hidden">
           {/* Messages area. The header + search + banner block is STICKY INSIDE
               this scroll container (2026-07-30): backdrop-blur only renders
               what actually passes behind the surface, and this chat shell is a

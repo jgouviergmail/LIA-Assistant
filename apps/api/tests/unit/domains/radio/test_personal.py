@@ -65,6 +65,7 @@ def bundle(**sections: CardSection) -> CardsBundle:
         "for_you",
         "tasks",
         "documents",
+        "workboard",
     )
     return CardsBundle(**{name: sections.get(name, empty()) for name in names})
 

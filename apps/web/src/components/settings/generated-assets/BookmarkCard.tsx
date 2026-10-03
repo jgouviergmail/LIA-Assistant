@@ -115,7 +115,18 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
             {t(`settings.bookmarks.index_state.${bookmark.index_state}`)}
           </Badge>
         )}
-        {bookmark.index_usage && <LLMUsageBadge usage={bookmark.index_usage} />}
+        {/* Two costs, each NAMED: what the answer cost to produce (its turn,
+            the chat bubble's own figure) and what keeping it cost to index.
+            Unlabelled, the second read as the first. */}
+        {bookmark.answer_usage && (
+          <LLMUsageBadge
+            usage={bookmark.answer_usage}
+            label={t('settings.bookmarks.usage_answer')}
+          />
+        )}
+        {bookmark.index_usage && (
+          <LLMUsageBadge usage={bookmark.index_usage} label={t('settings.bookmarks.usage_index')} />
+        )}
       </div>
 
       {/* The request, as a quotation: what the answer answers. A message LIA

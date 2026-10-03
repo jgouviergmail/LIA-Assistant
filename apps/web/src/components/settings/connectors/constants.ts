@@ -42,7 +42,6 @@ export const HUE_CONNECTOR_TYPES = ['philips_hue'] as const;
 
 export const TELEPHONY_CONNECTOR_TYPES = ['elevenlabs_telephony'] as const;
 
-
 // Gmail types (new + legacy) for checking if Gmail is connected
 export const GMAIL_TYPES = ['google_gmail', 'gmail'] as const;
 
@@ -156,6 +155,11 @@ export const CONNECTOR_ICONS: Record<string, ConnectorIconConfig> = {
   philips_hue: { emoji: '💡', color: 'yellow' },
   // Telephony (agentic outbound calls)
   elevenlabs_telephony: { emoji: '📞', color: 'indigo' },
+  // Live voice sessions (ADR-299/300) — one microphone for every provider,
+  // the brand being named by the row's label.
+  gemini_live: { emoji: '🎙️', color: 'indigo' },
+  gpt_live: { emoji: '🎙️', color: 'indigo' },
+  elevenlabs_live: { emoji: '🎙️', color: 'indigo' },
 };
 
 // Uniform background class for all connector icons

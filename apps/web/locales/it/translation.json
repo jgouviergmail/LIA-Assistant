@@ -365,6 +365,13 @@
           "title": "Documenti",
           "empty": "Nessun documento recente",
           "open_external": "Apri «{{subject}}» in Drive"
+        },
+        "workboard": {
+          "title": "Workboard",
+          "empty": "Nessun ticket aperto sulla tua bacheca",
+          "tile_open": "Aperti",
+          "more_one": "e {{count}} altro",
+          "more_other": "e altri {{count}}"
         }
       },
       "updated_hours_ago": "{{hours}} h fa",
@@ -938,7 +945,14 @@
       "reactivate_description": "Il tuo dispositivo ha sospeso la condivisione della posizione mentre l'app era chiusa. Riattivala perché LIA continui a usare la tua posizione reale invece del tuo indirizzo personale.",
       "reactivate_button": "Riattiva",
       "detection": {
-        "keywords": ["vicinanze", "dintorni", "zona", "quartiere", "prossimita", "domicilio"],
+        "keywords": [
+          "vicinanze",
+          "dintorni",
+          "zona",
+          "quartiere",
+          "prossimita",
+          "domicilio"
+        ],
         "patterns": [
           "(nelle|in) vicinanz[ae]",
           "intorno a me",
@@ -3756,10 +3770,7 @@
     },
     "rag_spaces": {
       "title": "Spazi di conoscenza (RAG)",
-      "description": "Gestisci i tuoi spazi documentali RAG per arricchire le conversazioni IA.",
-      "no_spaces": "Nessuno spazio di conoscenza creato.",
-      "create_first": "Crea il tuo primo spazio",
-      "manage_all": "Gestisci tutti gli spazi →"
+      "description": "Gestisci i tuoi spazi documentali RAG per arricchire le conversazioni IA."
     },
     "portrait_shortcut": {
       "title": "Ciò che LIA capisce di te",
@@ -3932,7 +3943,8 @@
         "send": "Invio",
         "chat": "Conversazione",
         "list": "Elenco"
-      }
+      },
+      "rows_empty": "Nessuna abitudine appresa per ora."
     },
     "security": {
       "passkeys": {
@@ -4295,7 +4307,7 @@
       "description": "Scegli l'aspetto degli occhi espressivi della chat."
     },
     "meetings": {
-      "title": "Verbali di riunione",
+      "title": "Riunioni",
       "description": "Registra una riunione dal compositore della chat; LIA la trascrive e redige il verbale secondo la tua struttura."
     },
     "workboard": {
@@ -4431,7 +4443,9 @@
         "error": "Indicizzazione non riuscita",
         "deferred": "Indicizzazione rinviata (limite di utilizzo)",
         "disabled": "Indicizzazione disattivata"
-      }
+      },
+      "usage_answer": "Risposta",
+      "usage_index": "Indicizzazione"
     },
     "live_mode": {
       "title": "Modalità Live",
@@ -14412,7 +14426,7 @@
       "template": "Formato: {{name}}"
     },
     "settings": {
-      "preferences_title": "Preferenze",
+      "preferences_title": "Impostazioni",
       "engine_label": "Motore di trascrizione",
       "engine_auto": "Automatico (il migliore disponibile)",
       "engine_remote": "Solo provider remoto",
@@ -14454,7 +14468,7 @@
       "add_section": "Aggiungi una sezione",
       "max_sections_one": "Al massimo {{count}} sezione.",
       "max_sections_other": "Al massimo {{count}} sezioni.",
-      "recent_title": "Riunioni recenti",
+      "recent_title": "Verbali",
       "no_meetings": "Nessuna riunione registrata per ora.",
       "view_all_one": "Tutte le riunioni ({{count}})",
       "view_all_other": "Tutte le riunioni ({{count}})",
@@ -14465,11 +14479,8 @@
       "default_template_label": "Formato di verbale predefinito",
       "default_template_auto": "Automatico: LIA sceglie in base alla registrazione",
       "default_template_hint": "Applicato a ogni nuova registrazione. In automatico LIA sceglie il formato migliore in base a quanto detto; un formato trascrizione non viene mai scelto automaticamente.",
-      "templates_title": "Modelli di verbale",
-      "templates_description": "I formati integrati e i tuoi. Duplica un formato integrato per personalizzarlo.",
-      "templates_count_one": "{{count}} modello tuo",
-      "templates_count_other": "{{count}} modelli tuoi",
-      "manage_templates": "Gestisci i miei modelli"
+      "templates_title": "Modelli",
+      "templates_description": "I formati integrati e i tuoi. Duplica un formato integrato per personalizzarlo."
     },
     "errors": {
       "audio_normalize_failed": "Impossibile preparare l'audio.",

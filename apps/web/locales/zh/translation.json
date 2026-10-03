@@ -365,6 +365,13 @@
           "title": "文档",
           "empty": "没有最近的文档",
           "open_external": "在 Drive 中打开“{{subject}}”"
+        },
+        "workboard": {
+          "title": "Workboard",
+          "empty": "工单板上没有未完成的工单",
+          "tile_open": "未完成",
+          "more_one": "还有 {{count}} 个",
+          "more_other": "还有 {{count}} 个"
         }
       },
       "updated_hours_ago": "{{hours}} 小时前",
@@ -951,7 +958,14 @@
       "reactivate_description": "应用关闭期间,你的设备暂停了位置共享。请重新启用,以便 LIA 继续使用你的真实位置而不是家庭地址。",
       "reactivate_button": "重新启用",
       "detection": {
-        "keywords": ["附近", "周围", "周边", "旁边", "邻近", "住处"],
+        "keywords": [
+          "附近",
+          "周围",
+          "周边",
+          "旁边",
+          "邻近",
+          "住处"
+        ],
         "patterns": [
           "(我|这)(附近|周围|周边)",
           "在我(附近|旁边)",
@@ -3762,10 +3776,7 @@
     },
     "rag_spaces": {
       "title": "知识空间 (RAG)",
-      "description": "管理你的RAG文档空间以丰富AI对话。",
-      "no_spaces": "尚未创建知识空间。",
-      "create_first": "创建你的第一个空间",
-      "manage_all": "管理所有空间 →"
+      "description": "管理你的RAG文档空间以丰富AI对话。"
     },
     "portrait_shortcut": {
       "title": "LIA 对你的理解",
@@ -3938,7 +3949,8 @@
         "send": "发送",
         "chat": "对话",
         "list": "列表"
-      }
+      },
+      "rows_empty": "暂未学到任何习惯。"
     },
     "security": {
       "passkeys": {
@@ -4301,7 +4313,7 @@
       "description": "选择聊天中表情眼睛的外观。"
     },
     "meetings": {
-      "title": "会议纪要",
+      "title": "会议",
       "description": "在聊天输入框中录制会议，LIA 会转写并按你的结构撰写纪要。"
     },
     "workboard": {
@@ -4437,7 +4449,9 @@
         "error": "索引失败",
         "deferred": "索引已推迟（用量限制）",
         "disabled": "索引已关闭"
-      }
+      },
+      "usage_answer": "回答",
+      "usage_index": "索引"
     },
     "live_mode": {
       "title": "实时模式",
@@ -14405,7 +14419,7 @@
       "template": "格式：{{name}}"
     },
     "settings": {
-      "preferences_title": "偏好设置",
+      "preferences_title": "设置",
       "engine_label": "转写引擎",
       "engine_auto": "自动（可用的最佳引擎）",
       "engine_remote": "仅远程服务商",
@@ -14447,7 +14461,7 @@
       "add_section": "添加章节",
       "max_sections_one": "最多 {{count}} 节。",
       "max_sections_other": "最多 {{count}} 节。",
-      "recent_title": "最近的会议",
+      "recent_title": "会议纪要",
       "no_meetings": "尚未录制任何会议。",
       "view_all_one": "全部会议（{{count}}）",
       "view_all_other": "全部会议（{{count}}）",
@@ -14458,11 +14472,8 @@
       "default_template_label": "默认纪要格式",
       "default_template_auto": "自动 — LIA 根据录音选择",
       "default_template_hint": "应用于每次新录音。自动模式下 LIA 根据谈话内容选择最合适的格式；转录格式不会被自动选择。",
-      "templates_title": "纪要模板",
-      "templates_description": "内置格式和你自己的格式。复制内置格式即可自定义。",
-      "templates_count_one": "{{count}} 个自有模板",
-      "templates_count_other": "{{count}} 个自有模板",
-      "manage_templates": "管理我的模板"
+      "templates_title": "模板",
+      "templates_description": "内置格式和你自己的格式。复制内置格式即可自定义。"
     },
     "errors": {
       "audio_normalize_failed": "无法处理音频。",

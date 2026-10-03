@@ -1,9 +1,12 @@
 'use client';
 
 /**
- * Meeting minutes settings (ADR-258, library ADR-259): engine and retention
- * preferences, the default minutes format, a door to the template library,
- * and the recent meetings.
+ * Meetings settings (ADR-258, library ADR-259), one page in three folded
+ * blocks (owner, 2026-10-03): « Settings » — engine, language, retention and
+ * the default minutes format — open on arrival; « Templates » — the template
+ * library itself, managed here through the same `MeetingTemplateManager` as
+ * the standalone page; « Minutes » — the recent meetings and the door to all
+ * of them.
  *
  * Self-gated on the instance flag `features.meetings_enabled` (the
  * OpenLoopsSection precedent): off, it renders nothing and the settings shell
@@ -17,8 +20,10 @@ import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { MeetingStatusBadge } from '@/components/meetings/MeetingStatusBadge';
+import { MeetingTemplateManager } from '@/components/meetings/MeetingTemplateManager';
 import { TemplateSelect } from '@/components/meetings/TemplateSelect';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -52,6 +57,11 @@ import type {
 const LANGUAGE_HINTS: readonly string[] = ['en', 'fr', 'de', 'es', 'it', 'zh', 'pt', 'nl'];
 const ENGINES: readonly MeetingSttEnginePreference[] = ['auto', 'remote', 'local'];
 const RECENT_LIMIT = 5;
+
+/** A count that holds something reads tinted; an empty one stays neutral. */
+function countTone(count: number): string | undefined {
+  return count > 0 ? 'bg-primary/15 text-primary' : undefined;
+}
 function preferencesDraft(preferences: MeetingPreferences): MeetingPreferencesUpdate {
   return {
     stt_engine: preferences.stt_engine,
@@ -200,18 +210,18 @@ function PreferencesForm({
               330 px from an 80 px field). Bounding the WRAPPER is what keeps
               the two together; a width on the input alone cannot. */}
           <div data-bounded-field className="w-28 shrink-0">
-          <Input
-            id="meeting-keep-audio"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={max}
-            className="w-full"
-            value={value.keep_audio_hours}
-            onChange={e =>
-              edit({ keep_audio_hours: Math.max(0, Math.min(max, Number(e.target.value) || 0)) })
-            }
-          />
+            <Input
+              id="meeting-keep-audio"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={max}
+              className="w-full"
+              value={value.keep_audio_hours}
+              onChange={e =>
+                edit({ keep_audio_hours: Math.max(0, Math.min(max, Number(e.target.value) || 0)) })
+              }
+            />
           </div>
           <span className="text-xs text-muted-foreground">
             {value.keep_audio_hours === 0
@@ -236,37 +246,8 @@ function PreferencesForm({
   );
 }
 
-/** The library in one line: how many templates the user keeps, and the door to it. */
-function TemplatesBlock({
-  lng,
-  templates,
-  isLoading,
-}: {
-  lng: Language;
-  templates: MeetingTemplateSummary[];
-  isLoading: boolean;
-}) {
-  const { t } = useTranslation(lng);
-  const router = useLocalizedRouter();
-  if (isLoading) return <Skeleton className="h-16 w-full" />;
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <p className="text-sm text-muted-foreground">
-        {t('meetings.settings.templates_count', { count: userTemplateCount(templates) })}
-      </p>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={() => router.push(withOrigin('/dashboard/meetings/templates', 'settings'))}
-      >
-        <LibraryBig className="mr-1 h-4 w-4" aria-hidden="true" />
-        {t('meetings.settings.manage_templates')}
-      </Button>
-    </div>
-  );
-}
-
+/** The recent meetings: mounted only while « Minutes » is open, so a folded
+ * block costs no request. */
 function RecentMeetings({ lng }: { lng: Language }) {
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();
@@ -283,7 +264,9 @@ function RecentMeetings({ lng }: { lng: Language }) {
               <button
                 type="button"
                 className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:underline"
-                onClick={() => router.push(withOrigin(`/dashboard/meetings/${meeting.id}`, 'settings'))}
+                onClick={() =>
+                  router.push(withOrigin(`/dashboard/meetings/${meeting.id}`, 'settings'))
+                }
               >
                 {meeting.title ?? t('meetings.list.untitled')}
               </button>
@@ -315,8 +298,9 @@ export function MeetingsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { config, loading } = useAppConfig();
   const enabled = useMemo(() => config?.features?.meetings_enabled ?? false, [config]);
-  // One library read for the section: the default-format select and the block share it.
-  const { templates, isLoading: templatesLoading } = useMeetingTemplates(enabled);
+  // One library read for the section: the default-format select and the
+  // embedded library share it, so a template created below is offered above.
+  const library = useMeetingTemplates(enabled);
   if (loading || !enabled) return null;
 
   return (
@@ -326,31 +310,22 @@ export function MeetingsSettings({ lng }: BaseSettingsProps) {
       description={t('settings.meetings.description')}
       icon={ClipboardList}
     >
-      <div className="space-y-8">
-        <section className="space-y-3">
-          <h4 className="flex items-center gap-2 text-sm font-semibold">
-            <Wand2 className="h-4 w-4 text-primary" aria-hidden="true" />
-            {t('meetings.settings.preferences_title')}
-          </h4>
-          <PreferencesForm lng={lng} templates={templates} />
-        </section>
-        <section className="space-y-3">
-          <h4 className="flex items-center gap-2 text-sm font-semibold">
-            <LibraryBig className="h-4 w-4 text-primary" aria-hidden="true" />
-            {t('meetings.settings.templates_title')}
-          </h4>
-          <p className="text-xs text-muted-foreground">
-            {t('meetings.settings.templates_description')}
-          </p>
-          <TemplatesBlock lng={lng} templates={templates} isLoading={templatesLoading} />
-        </section>
-        <section className="space-y-3">
-          <h4 className="flex items-center gap-2 text-sm font-semibold">
-            <ClipboardList className="h-4 w-4 text-primary" aria-hidden="true" />
-            {t('meetings.settings.recent_title')}
-          </h4>
+      <div className="space-y-3">
+        <Disclosure icon={Wand2} title={t('meetings.settings.preferences_title')} defaultOpen>
+          <PreferencesForm lng={lng} templates={library.templates} />
+        </Disclosure>
+        <Disclosure
+          icon={LibraryBig}
+          title={t('meetings.settings.templates_title')}
+          description={t('meetings.settings.templates_description')}
+          badge={library.isLoading ? undefined : userTemplateCount(library.templates)}
+          badgeClassName={countTone(userTemplateCount(library.templates))}
+        >
+          <MeetingTemplateManager lng={lng} library={library} nested />
+        </Disclosure>
+        <Disclosure icon={ClipboardList} title={t('meetings.settings.recent_title')}>
           <RecentMeetings lng={lng} />
-        </section>
+        </Disclosure>
       </div>
     </SettingsSection>
   );

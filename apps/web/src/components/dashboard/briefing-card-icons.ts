@@ -17,6 +17,7 @@ import {
   CloudSun,
   FileText,
   Heart,
+  LayoutGrid,
   ListTodo,
   Mail,
   Sparkles,
@@ -34,4 +35,6 @@ export const BRIEFING_CARD_ICONS: Record<BriefingSection, LucideIcon> = {
   for_you: Sparkles,
   tasks: ListTodo,
   documents: FileText,
+  // The hub's and the settings section's own workboard icon.
+  workboard: LayoutGrid,
 };

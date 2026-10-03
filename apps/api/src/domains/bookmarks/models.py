@@ -36,6 +36,10 @@ INDEX_STATE_COMMENT = (
     "NULL = never attempted. The document row is the authority while it exists."
 )
 INDEXED_AT_COMMENT = "When the projection last reached READY."
+RUN_ID_COMMENT = (
+    "The run (turn) that produced the answer, copied at the click; joins "
+    "message_token_summary for the answer's billed cost. NULL when unknown."
+)
 
 
 class BookmarkIndexState(str, Enum):
@@ -76,6 +80,11 @@ class MessageBookmark(BaseModel):
         index_state: Why there is no projection (``BookmarkIndexState``) or,
             on success, that there was one; ``None`` = never attempted.
         indexed_at: When the projection last reached READY.
+        run_id: The turn that produced the answer, copied at the click. It
+            joins that turn's ``message_token_summary`` row — the one the chat
+            bubble reads — so the answer's billed cost survives the
+            conversation (the summary outlives a reset). ``None`` when the
+            message carried none.
     """
 
     __tablename__ = "message_bookmarks"
@@ -117,6 +126,8 @@ class MessageBookmark(BaseModel):
     indexed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, comment=INDEXED_AT_COMMENT
     )
+    # --- the answer's own cost (2026-10-03) -----------------------------------
+    run_id: Mapped[str | None] = mapped_column(String(255), nullable=True, comment=RUN_ID_COMMENT)
 
     __table_args__ = (
         # The listing's own order: newest answer first, the primary key as the

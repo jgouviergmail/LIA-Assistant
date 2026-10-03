@@ -1,7 +1,10 @@
 /**
  * SandboxEgressSettings (ADR-298) — the flag gate, the two lists, the one edit
  * (with or without the turn's data), the revoke, the stated cut and the
- * capacity gauge. The i18n stub echoes keys, so controls are addressed by key.
+ * capacity gauge — and the two folds, CLOSED on arrival, the add form inside
+ * the permissions fold. The i18n stub echoes keys, so controls are addressed
+ * by key. `renderSection` opens every fold the section draws, as a reader
+ * would before acting; `renderClosed` is the section as it arrives.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -83,59 +86,70 @@ beforeEach(() => {
   state.maxPerUser = 50;
 });
 
-const renderSection = () => render(<SandboxEgressSettings lng="fr" />);
+const renderClosed = () => render(<SandboxEgressSettings lng="fr" />);
+
+/** The section with every fold it draws opened by a click on its summary. */
+async function renderSection() {
+  const view = renderClosed();
+  const folds = Array.from(view.container.querySelectorAll('details'));
+  for (const fold of folds) fireEvent.click(fold.querySelector('summary')!);
+  await waitFor(() => {
+    for (const fold of folds) expect(fold).toHaveAttribute('open');
+  });
+  return view;
+}
 
 describe('SandboxEgressSettings — gates', () => {
   it('renders nothing when the instance flag is off', () => {
     state.flagOn = false;
-    const { container } = renderSection();
+    const { container } = renderClosed();
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders nothing when the surface is unavailable', () => {
     state.unavailable = true;
-    const { container } = renderSection();
+    const { container } = renderClosed();
     expect(container).toBeEmptyDOMElement();
   });
 
   it('offers a retry on a transient failure, never a vanished section', () => {
     state.loadError = true;
-    renderSection();
+    renderClosed();
     fireEvent.click(screen.getByRole('button', { name: /common\.retry/ }));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('SandboxEgressSettings — reachable without asking', () => {
-  it('lists connector hosts with their brand name and operator hosts', () => {
-    renderSection();
+  it('lists connector hosts with their brand name and operator hosts', async () => {
+    await renderSection();
     expect(screen.getByText('api.search.brave.com')).toBeInTheDocument();
     expect(screen.getByText('api.example.org')).toBeInTheDocument();
     expect(screen.getByText('settings.sandbox_egress.source_connector')).toBeInTheDocument();
     expect(screen.getByText('settings.sandbox_egress.source_operator')).toBeInTheDocument();
   });
 
-  it('says so when nothing is reachable', () => {
+  it('says so when nothing is reachable', async () => {
     state.reachable = [];
-    renderSection();
+    await renderSection();
     expect(screen.getByText('settings.sandbox_egress.reachable_empty')).toBeInTheDocument();
   });
 
-  it('states when the instance refuses unknown hosts instead of asking', () => {
+  it('states when the instance refuses unknown hosts instead of asking', async () => {
     state.askEnabled = false;
-    renderSection();
+    await renderSection();
     expect(screen.getByText('settings.sandbox_egress.ask_disabled')).toBeInTheDocument();
   });
 
-  it('says nothing about refusal while the answer is in flight or asking is on', () => {
-    renderSection();
+  it('says nothing about refusal while the answer is in flight or asking is on', async () => {
+    await renderSection();
     expect(screen.queryByText('settings.sandbox_egress.ask_disabled')).not.toBeInTheDocument();
   });
 });
 
 describe('SandboxEgressSettings — permissions', () => {
-  it('draws each grant with its scope switch reflecting the stored decision', () => {
-    renderSection();
+  it('draws each grant with its scope switch reflecting the stored decision', async () => {
+    await renderSection();
     const switches = rowSwitches();
     expect(switches).toHaveLength(2);
     expect(switches[0]).toHaveAttribute('aria-checked', 'true');
@@ -143,13 +157,13 @@ describe('SandboxEgressSettings — permissions', () => {
   });
 
   it('changes the scope through the hook', async () => {
-    renderSection();
+    await renderSection();
     fireEvent.click(rowSwitches()[0]);
     await waitFor(() => expect(setScope).toHaveBeenCalledWith('g-1', false));
   });
 
   it('revokes a grant through the hook, from a row menu named with its host', async () => {
-    renderSection();
+    await renderSection();
     expect(
       screen.getAllByRole('button', { name: 'settings.sandbox_egress.row_menu' })
     ).toHaveLength(2);
@@ -157,39 +171,39 @@ describe('SandboxEgressSettings — permissions', () => {
     await waitFor(() => expect(revoke).toHaveBeenCalledWith('g-2'));
   });
 
-  it('shows the empty state when nothing was granted yet', () => {
+  it('shows the empty state when nothing was granted yet', async () => {
     state.grants = [];
     state.total = 0;
-    renderSection();
+    await renderSection();
     expect(screen.getByText('settings.sandbox_egress.grants_empty')).toBeInTheDocument();
   });
 
-  it('draws no permissions block where the instance never asks and none is held', () => {
+  it('draws no permissions block where the instance never asks and none is held', async () => {
     state.askEnabled = false;
     state.grants = [];
     state.total = 0;
-    renderSection();
+    await renderSection();
     expect(screen.queryByText('settings.sandbox_egress.grants_title')).not.toBeInTheDocument();
     expect(screen.queryByText('settings.sandbox_egress.grants_empty')).not.toBeInTheDocument();
   });
 
-  it('keeps the permissions held before the instance stopped asking, revocable', () => {
+  it('keeps the permissions held before the instance stopped asking, revocable', async () => {
     state.askEnabled = false;
-    renderSection();
+    await renderSection();
     expect(screen.getByText('settings.sandbox_egress.grants_title')).toBeInTheDocument();
     expect(
       screen.getAllByRole('button', { name: 'settings.sandbox_egress.row_menu' })
     ).toHaveLength(2);
   });
 
-  it('states the cut when the exact total exceeds the page', () => {
+  it('states the cut when the exact total exceeds the page', async () => {
     state.total = 5;
-    renderSection();
+    await renderSection();
     expect(screen.getByText('settings.sandbox_egress.grants_not_shown')).toBeInTheDocument();
   });
 
-  it('draws the capacity against the published cap', () => {
-    renderSection();
+  it('draws the capacity against the published cap', async () => {
+    await renderSection();
     const gauge = screen.getByRole('progressbar');
     expect(gauge).toHaveAttribute('aria-valuenow', '2');
     expect(gauge).toHaveAttribute('aria-valuemax', '50');
@@ -201,38 +215,38 @@ describe('SandboxEgressSettings — allowing a host (ADR-327 lot 3)', () => {
   const submit = () => screen.getByRole('button', { name: 'settings.sandbox_egress.add_submit' });
   const scope = () => screen.getByRole('switch', { name: 'settings.sandbox_egress.add_scope' });
 
-  it('offers no form where the instance never asks', () => {
+  it('offers no form where the instance never asks', async () => {
     state.askEnabled = false;
-    renderSection();
+    await renderSection();
     expect(
       screen.queryByRole('textbox', { name: 'settings.sandbox_egress.add_label' })
     ).not.toBeInTheDocument();
   });
 
-  it('offers no form while the instance has not said whether it asks', () => {
+  it('offers no form while the instance has not said whether it asks', async () => {
     state.askEnabled = null;
-    renderSection();
+    await renderSection();
     expect(
       screen.queryByRole('textbox', { name: 'settings.sandbox_egress.add_label' })
     ).not.toBeInTheDocument();
   });
 
-  it('offers a field typed for a hostname, with no autocorrection', () => {
-    renderSection();
+  it('offers a field typed for a hostname, with no autocorrection', async () => {
+    await renderSection();
     expect(field()).toHaveAttribute('autocapitalize', 'none');
     expect(field()).toHaveAttribute('spellcheck', 'false');
     expect(field()).toHaveAttribute('inputmode', 'url');
   });
 
   it("keeps the turn's data out unless the person switches it on", async () => {
-    renderSection();
+    await renderSection();
     fireEvent.change(field(), { target: { value: ' registry.npmjs.org ' } });
     fireEvent.click(submit());
     await waitFor(() => expect(add).toHaveBeenCalledWith('registry.npmjs.org', false));
   });
 
   it('sends the scope the person chose and clears the field once allowed', async () => {
-    renderSection();
+    await renderSection();
     fireEvent.change(field(), { target: { value: 'pypi.org' } });
     fireEvent.click(scope());
     fireEvent.click(submit());
@@ -240,8 +254,8 @@ describe('SandboxEgressSettings — allowing a host (ADR-327 lot 3)', () => {
     await waitFor(() => expect(field()).toHaveValue(''));
   });
 
-  it('sends nothing for an empty field', () => {
-    renderSection();
+  it('sends nothing for an empty field', async () => {
+    await renderSection();
     expect(submit()).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(submit());
     expect(add).not.toHaveBeenCalled();
@@ -249,7 +263,7 @@ describe('SandboxEgressSettings — allowing a host (ADR-327 lot 3)', () => {
 
   it('names the refusal beside the field and keeps what was typed', async () => {
     add.mockResolvedValueOnce({ ok: false, code: 'egress_grant_host_invalid' });
-    renderSection();
+    await renderSection();
     fireEvent.change(field(), { target: { value: 'https://pypi.org' } });
     fireEvent.click(submit());
     const message = await screen.findByText(
@@ -262,9 +276,58 @@ describe('SandboxEgressSettings — allowing a host (ADR-327 lot 3)', () => {
 
   it('falls back to the generic sentence for a refusal it cannot name', async () => {
     add.mockResolvedValueOnce({ ok: false, code: null });
-    renderSection();
+    await renderSection();
     fireEvent.change(field(), { target: { value: 'pypi.org' } });
     fireEvent.click(submit());
     expect(await screen.findByText('common.error')).toBeInTheDocument();
+  });
+});
+
+describe('SandboxEgressSettings — two folds, closed on arrival', () => {
+  const summaryOf = (title: string) => screen.getByText(title).closest('summary')!;
+
+  it('draws both lists folded, each with its description and exact count', () => {
+    state.total = 7;
+    renderClosed();
+    const reachable = summaryOf('settings.sandbox_egress.reachable_title');
+    const grants = summaryOf('settings.sandbox_egress.grants_title');
+    expect(reachable.closest('details')).not.toHaveAttribute('open');
+    expect(grants.closest('details')).not.toHaveAttribute('open');
+    // Folded, the index says what each block holds and how much.
+    expect(reachable).toHaveTextContent('settings.sandbox_egress.reachable_description');
+    expect(reachable).toHaveTextContent('2');
+    expect(grants).toHaveTextContent('settings.sandbox_egress.grants_description');
+    expect(grants).toHaveTextContent('7');
+    // Closed means unmounted: no host, no row, no form.
+    expect(screen.queryByText('api.search.brave.com')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: 'settings.sandbox_egress.add_label' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the refusal to ask visible above the folds', () => {
+    state.askEnabled = false;
+    renderClosed();
+    expect(screen.getByText('settings.sandbox_egress.ask_disabled')).toBeInTheDocument();
+  });
+
+  it('opens the reachable hosts alone on a click', async () => {
+    renderClosed();
+    fireEvent.click(summaryOf('settings.sandbox_egress.reachable_title'));
+    expect(await screen.findByText('api.search.brave.com')).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+  });
+
+  it('holds the add form inside the permissions fold', async () => {
+    renderClosed();
+    fireEvent.click(summaryOf('settings.sandbox_egress.grants_title'));
+    const field = await screen.findByRole('textbox', {
+      name: 'settings.sandbox_egress.add_label',
+    });
+    expect(summaryOf('settings.sandbox_egress.grants_title').closest('details')).toContainElement(
+      field
+    );
+    expect(screen.queryByText('api.search.brave.com')).not.toBeInTheDocument();
   });
 });

@@ -21,6 +21,7 @@ from uuid import UUID
 from sqlalchemy import Select, func, select
 
 from src.domains.workboard.board_queries import BoardFilters, needs_me_stmt
+from src.domains.workboard.constants import OPEN_STATUSES
 from src.domains.workboard.models import WorkboardTicket
 
 if TYPE_CHECKING:
@@ -56,6 +57,65 @@ class BoardSummaryFigures:
     tokens_cache: int
     google_requests: int
     cost_eur: Decimal
+
+
+@dataclass(frozen=True)
+class AttentionFigures:
+    """What on the board needs the person's attention — the dashboard card's read.
+
+    Every figure counts OPEN tickets only: a finished ticket LIA held is not
+    work LIA is doing, and the dashboard says what is in motion, where the
+    settings summary describes the whole board.
+
+    Attributes:
+        needs_me: Tickets waiting on this account, or late on its board.
+        held_by_lia: Open tickets LIA holds.
+        overdue: Open tickets past their due date.
+        open_total: Every open ticket on the visible board.
+        needs_me_first: The first « needs me » tickets, earliest due first —
+            a PAGE of the set ``needs_me`` counts, never its measure.
+    """
+
+    needs_me: int
+    held_by_lia: int
+    overdue: int
+    open_total: int
+    needs_me_first: list[WorkboardTicket]
+
+
+async def read_attention(
+    repo: WorkboardRepository, user_id: UUID, now: datetime, *, limit: int
+) -> AttentionFigures:
+    """Read what needs attention on the board, every figure an exact aggregate.
+
+    Composed from the repository's own statements — the visibility predicate,
+    the filters and the « needs me » set — so the dashboard card, the board and
+    the hub can never disagree about what a figure means (ADR-185).
+
+    Args:
+        repo: The repository.
+        user_id: Whose board.
+        now: The instant lateness is judged against.
+        limit: How many « needs me » tickets to return beside the counts.
+
+    Returns:
+        The counts and the first tickets waiting on the person.
+    """
+    db = repo.db
+    counts = await repo.counts_by_status(user_id, BoardFilters())
+    open_statuses = tuple(sorted(OPEN_STATUSES))
+    lia_stmt = repo.filtered_stmt(user_id, BoardFilters(statuses=open_statuses, assignee="lia"))
+    held_by_lia = int((await db.execute(count_over(lia_stmt))).scalar() or 0)
+    overdue_stmt = count_over(repo.filtered_stmt(user_id, BoardFilters(overdue=True)))
+    overdue = int((await db.execute(overdue_stmt)).scalar() or 0)
+    first, needs_me = await repo.needs_me(user_id, now, limit=limit)
+    return AttentionFigures(
+        needs_me=needs_me,
+        held_by_lia=held_by_lia,
+        overdue=overdue,
+        open_total=sum(counts.get(status, 0) for status in open_statuses),
+        needs_me_first=first,
+    )
 
 
 def count_over(stmt: Select[tuple[WorkboardTicket]]) -> Select[tuple[int]]:

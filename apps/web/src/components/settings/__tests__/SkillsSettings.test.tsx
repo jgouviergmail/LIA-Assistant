@@ -93,7 +93,7 @@ describe('SkillsSettings', () => {
 
 describe('SkillsSettings — plugin-owned skill lock (ADR-225 arbitrage F)', () => {
   async function openDetail(user: Awaited<ReturnType<typeof renderSkills>>['user']) {
-    await user.click(screen.getByRole('button', { name: /settings.skills.user_section_title/ }));
+    await user.click(screen.getByText('settings.skills.user_section_title'));
     await user.click(screen.getByRole('button', { name: /settings.skills.gallery.open_details/ }));
   }
 
@@ -157,5 +157,81 @@ describe('SkillsSettings — the skill library (ADR-327)', () => {
     expect(
       screen.queryByRole('button', { name: 'settings.skills.library.button' })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('SkillsSettings — the two scopes are standard folds', () => {
+  function adminSkill(over: Partial<Skill> = {}): Skill {
+    return userSkill({ name: 'beta', scope: 'admin', ...over });
+  }
+
+  it('renders both scopes as native disclosures, closed on arrival, with exact counts', () => {
+    useSkills.mockReturnValue(
+      hook({ skills: [adminSkill(), adminSkill({ name: 'gamma' }), userSkill()] })
+    );
+    const { container } = renderSkills();
+
+    const folds = container.querySelectorAll('details');
+    expect(folds).toHaveLength(2);
+    folds.forEach(fold => expect(fold.open).toBe(false));
+    // Folded, the count is what the reader chooses from.
+    const adminSummary = screen.getByText('settings.skills.admin_section_title').closest('summary');
+    const userSummary = screen.getByText('settings.skills.user_section_title').closest('summary');
+    expect(adminSummary).toHaveTextContent('2');
+    expect(userSummary).toHaveTextContent('1');
+    // Closed means unmounted: no card of either scope yet.
+    expect(
+      screen.queryByRole('button', { name: /settings\.skills\.gallery\.open_details/ })
+    ).not.toBeInTheDocument();
+  });
+
+  it('opens the person’s own scope on its summary and lists its skills', async () => {
+    useSkills.mockReturnValue(hook({ skills: [userSkill()] }));
+    const { user, container } = renderSkills();
+
+    await user.click(screen.getByText('settings.skills.user_section_title'));
+
+    expect(container.querySelector('details')?.open).toBe(true);
+    expect(
+      screen.getByRole('button', { name: /settings\.skills\.gallery\.open_details/ })
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the import actions reachable while every scope is folded', () => {
+    useSkills.mockReturnValue(hook({ skills: [userSkill()] }));
+    renderSkills();
+
+    // A fold unmounts its content: the toolbar lives above the folds.
+    expect(
+      screen.getByRole('button', { name: 'settings.skills.import_button' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'settings.skills.url_import.button' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'settings.skills.guide_button' })
+    ).toBeInTheDocument();
+  });
+
+  it('hides the admin scope when the instance ships none, and says so in the empty user one', async () => {
+    useSkills.mockReturnValue(hook({ skills: [] }));
+    const { user, container } = renderSkills();
+
+    expect(container.querySelectorAll('details')).toHaveLength(1);
+    expect(screen.queryByText('settings.skills.admin_section_title')).not.toBeInTheDocument();
+    await user.click(screen.getByText('settings.skills.user_section_title'));
+    expect(screen.getByText('settings.skills.empty')).toBeInTheDocument();
+  });
+
+  it('opens the file picker from the primary import action', async () => {
+    useSkills.mockReturnValue(hook());
+    const { user, container } = renderSkills();
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+    const pick = vi.spyOn(input as HTMLInputElement, 'click');
+
+    await user.click(screen.getByRole('button', { name: 'settings.skills.import_button' }));
+
+    expect(pick).toHaveBeenCalled();
   });
 });

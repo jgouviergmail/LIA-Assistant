@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -47,15 +48,19 @@ def _bookmark(**overrides: object) -> SimpleNamespace:
         "rag_document_id": None,
         "index_state": None,
         "indexed_at": None,
+        "run_id": None,
     }
     base.update(overrides)
     return SimpleNamespace(**base)
 
 
-def _service(service_cls: MagicMock, documents: dict | None = None) -> MagicMock:
-    """The service double: every route reads the page's documents through it."""
+def _service(
+    service_cls: MagicMock, documents: dict | None = None, summaries: dict | None = None
+) -> MagicMock:
+    """The service double: every route reads the page's documents and turns through it."""
     service = service_cls.return_value
     service.documents_of = AsyncMock(return_value=documents or {})
+    service.answer_costs_of = AsyncMock(return_value=summaries or {})
     return service
 
 
@@ -173,6 +178,38 @@ class TestListing:
         assert second["index_state"] == "deferred"
         assert second["index_usage"] is None
         service.documents_of.assert_awaited_once_with([projected, deferred])
+
+    def test_the_listing_carries_the_answer_s_own_billed_cost(self, client: TestClient) -> None:
+        """The answer's cost is its turn's summary — the row the chat bubble reads."""
+        kept = _bookmark(run_id="run-42")
+        orphan = _bookmark(run_id=None)
+        summary = SimpleNamespace(
+            total_prompt_tokens=4200,
+            total_completion_tokens=310,
+            total_cached_tokens=1800,
+            billed_cost_eur=Decimal("0.004321"),
+        )
+        with (
+            patch(f"{MODULE}.BookmarkService") as service_cls,
+            patch(f"{MODULE}.settings") as fake_settings,
+        ):
+            fake_settings.bookmarks_max_per_user = 500
+            service = _service(service_cls, summaries={"run-42": summary})
+            service.list_page = AsyncMock(return_value=([kept, orphan], 2))
+            response = client.get("/bookmarks")
+
+        first, second = response.json()["items"]
+        assert first["answer_usage"] == {
+            "tokens_in": 4200,
+            "tokens_out": 310,
+            "tokens_cache": 1800,
+            "tokens_cache_write": 0,
+            "cost_eur": 0.004321,
+            "model_name": None,
+        }
+        # No summary, no figure — never a zero nobody measured.
+        assert second["answer_usage"] is None
+        service.answer_costs_of.assert_awaited_once_with([kept, orphan])
 
     def test_limit_bounds_are_enforced(self, client: TestClient) -> None:
         assert client.get("/bookmarks?limit=0").status_code == 422

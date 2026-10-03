@@ -2,7 +2,7 @@
 
 import { Clock, Infinity } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
+import { DashboardTile, TILE_ICON_BADGE } from '@/components/dashboard/DashboardTile';
 import { UsageGauge } from '@/components/usage/UsageGauge';
 import { formatEuro } from '@/lib/format';
 import type { UserUsageLimitResponse } from '@/types/usage-limits';
@@ -44,19 +44,12 @@ export function UsageLimitsTile({ limits, isLoading }: UsageLimitsTileProps) {
     <>
       {/* Period limits tile */}
       {hasCycleLimit && (
-        <Card
-          variant="elevated"
-          className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background hover:shadow-xl transition-all"
-        >
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription className="text-xs uppercase tracking-wider font-semibold text-primary">
-                {t('usage_limits.tile.title_period')}
-              </CardDescription>
-              <Clock className="h-5 w-5 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <DashboardTile contentClassName="space-y-3 p-5 sm:p-6">
+          <TileHeading
+            icon={<Clock className="h-5 w-5" />}
+            title={t('usage_limits.tile.title_period')}
+          />
+          <div className="space-y-3">
             {limits.cycle_messages.limit !== null && (
               <UsageGauge
                 detail={limits.cycle_messages}
@@ -85,25 +78,18 @@ export function UsageLimitsTile({ limits, isLoading }: UsageLimitsTileProps) {
                 size="sm"
               />
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </DashboardTile>
       )}
 
       {/* Absolute limits tile */}
       {hasAbsoluteLimit && (
-        <Card
-          variant="elevated"
-          className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background hover:shadow-xl transition-all"
-        >
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription className="text-xs uppercase tracking-wider font-semibold text-primary">
-                {t('usage_limits.tile.title_absolute')}
-              </CardDescription>
-              <Infinity className="h-5 w-5 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <DashboardTile contentClassName="space-y-3 p-5 sm:p-6">
+          <TileHeading
+            icon={<Infinity className="h-5 w-5" />}
+            title={t('usage_limits.tile.title_absolute')}
+          />
+          <div className="space-y-3">
             {limits.absolute_messages.limit !== null && (
               <UsageGauge
                 detail={limits.absolute_messages}
@@ -132,9 +118,21 @@ export function UsageLimitsTile({ limits, isLoading }: UsageLimitsTileProps) {
                 size="sm"
               />
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </DashboardTile>
       )}
     </>
+  );
+}
+
+/** Badge + title, as at the head of every dashboard tile (DashboardTile). */
+function TileHeading({ icon, title }: { icon: React.ReactNode; title: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className={TILE_ICON_BADGE} aria-hidden="true">
+        {icon}
+      </span>
+      <h3 className="truncate text-sm font-semibold tracking-tight text-primary">{title}</h3>
+    </div>
   );
 }

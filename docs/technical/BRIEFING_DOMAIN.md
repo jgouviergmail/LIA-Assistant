@@ -9,7 +9,7 @@
 
 ## Overview
 
-The Today briefing turns the dashboard home page into a **daily ritual**: an LLM-generated greeting + contextual synthesis above a 9-card grid (weather, agenda, unread mails, upcoming birthdays, active reminders, health metrics, the « For you » card — open loops + automations digest, ADR-139/140 —, pending/overdue tasks from the active tasks provider, and the latest modified Drive documents).
+The Today briefing turns the dashboard home page into a **daily ritual**: an LLM-generated greeting + contextual synthesis above a 10-card grid (weather, agenda, unread mails, upcoming birthdays, active reminders, health metrics, the « For you » card — open loops + automations digest, ADR-139/140 —, pending/overdue tasks from the active tasks provider, the latest modified Drive documents, and the workboard — what on the person's board needs them, ADR-276).
 
 Architecture in one line: **lecture pure, asyncio.gather parallel, per-section Redis cache, two lightweight LLM calls** (greeting + synthesis), no LangGraph, no DB model, no scheduler.
 
@@ -61,6 +61,7 @@ documented in [ADR-294](../architecture/ADR-294-A-Face-That-Never-Plays-The-Same
 | `BRIEFING_MAX_REMINDERS_ITEMS` | 5 | 1–50 | Max pending reminders |
 | `BRIEFING_HEALTH_WINDOW_DAYS` | 14 | 1–90 | Rolling window (days) for the health card averages |
 | `BRIEFING_WEATHER_DAILY_FORECAST_DAYS` | 5 | 1–5 | Forecast days on the weather card (OpenWeatherMap free-tier cap) |
+| `BRIEFING_MAX_WORKBOARD_ITEMS` | 3 | 1–10 | Tickets waiting on the person listed on the workboard card, beside its exact counts |
 
 ### Per-section TTL strategy
 
@@ -72,6 +73,7 @@ documented in [ADR-294](../architecture/ADR-294-A-Face-That-Never-Plays-The-Same
 | Birthdays   | local midnight, capped at 24 h | `days_until` is pre-computed, so day N's "in 1 day" must not survive into day N+1 |
 | Reminders   | 1 min  | The CARD is always live (the plan forces it); the TTL exists so the section is WRITTEN and therefore readable by the cache-only readers |
 | Health      | 15 min | Aligned with iPhone Shortcuts ingest cadence      |
+| Workboard   | 1 min  | Always live like the reminders (a ticket answered a moment ago must stop reading « waits on you »); the TTL only makes the section readable by the cache-only readers |
 
 **Every section has a TTL above zero, and that is a rule rather than a
 coincidence** (ADR-271): a section that is never written is invisible to every
@@ -337,6 +339,28 @@ to connect a card they chose to hide is noise, not help.
 settings section. Never seven promotional cards: on mobile the grid is already
 the whole screen.
 
+The workboard card is `not_configured` for one reason only: the INSTANCE
+switched the workboard off (`PlatformCapability.WORKBOARD`, read at call time
+by `fetch_workboard`, ADR-280). Nothing the person can configure, so it is
+listed in `INSTANCE_GATED_SECTIONS` and the hint never names it.
+
+## The workboard card
+
+`fetch_workboard` reads the person's board through the workboard's own
+statements (`workboard/summary_queries.read_attention`: the visibility
+predicate, the board filters and the « needs me » set), so the card, the board
+and the notifications hub cannot disagree about a figure. Four EXACT aggregates
+over OPEN tickets (ADR-185) — waiting on the person, held by LIA, late, open —
+each a link into the board narrowed to the very set it counts
+(`?assignee=lia&status=…`, `?overdue=1`, the open columns); then the first
+`BRIEFING_MAX_WORKBOARD_ITEMS` tickets of the « needs me » set, each a link to
+`/dashboard/workboard/<id>`, with « and N more » computed from the exact count.
+A board with no open ticket is the empty state; an open board that needs
+nothing says so in one line. Its consultation reads as the `ticket` domain, as
+the heartbeat's reading of the same board does. The greeting and synthesis do
+not read it (`SECTIONS_NOT_SUMMARISED`), so it does not count toward the
+synthesis threshold either.
+
 ## Frontend layout
 
 ```
@@ -472,7 +496,8 @@ Adding a new card (e.g. "tasks") follows a 5-step recipe:
 4. **Add a `_SectionPlan`** to `BriefingService._build_plan()` — one declaration,
    read by the gather, the cold/warm verdict and the structured log alike. There
    is nothing else to wire: coverage, coalescing and the synthesis threshold all
-   derive from it. `test_page_load_single_flight.py` fails if `_build_plan`,
+   derive from it (a card the prompts do not summarise is declared in
+   `SECTIONS_NOT_SUMMARISED`, so it never counts toward that threshold). `test_page_load_single_flight.py` fails if `_build_plan`,
    `SECTION_NAMES` and `CardsBundle` stop agreeing.
 5. **Add a frontend card** under `components/dashboard/cards/TasksCard.tsx` and include it in `<TodayBriefing>` with a `staggerIndex`.
 
@@ -486,6 +511,6 @@ Tests + docs.
 
 - **Latency target** : < 1 s P95 on warm cache, < 2 s P95 on cold cache.
 - **LLM cost** : ~ 250 input + 60 output tokens per call, 2 calls per build, gpt-4.1-nano pricing → ~ 0.005 cent per build. At 100 active users × 5 builds/day = 500 builds/day → < 1 €/month total. Negligible.
-- **Cache footprint** : ~ 10 KB per section × 9 sections × N users. For 1000 users: ~ 90 MB Redis.
+- **Cache footprint** : ~ 10 KB per section × 10 sections × N users. For 1000 users: ~ 100 MB Redis.
 
 If latency creeps up at scale, the existing heartbeat scheduler can pre-compute the cache for active users without breaking the API surface.

@@ -8,6 +8,12 @@ import type { LLMUsage } from '@/types/llm-usage';
 interface LLMUsageBadgeProps {
   usage: LLMUsage;
   className?: string;
+  /**
+   * What the figure is the cost OF, already translated (« Réponse »,
+   * « Indexation »). Needed where two costs sit side by side: unlabelled, the
+   * indexing cost of a kept answer read as the answer's own.
+   */
+  label?: string;
 }
 
 /**
@@ -27,7 +33,7 @@ interface LLMUsageBadgeProps {
  * inspection aid on every turn), not the price of one artefact. Keeping the two
  * apart is what stops a reader from meeting the same figure under two rules.
  */
-export function LLMUsageBadge({ usage, className }: LLMUsageBadgeProps) {
+export function LLMUsageBadge({ usage, className, label }: LLMUsageBadgeProps) {
   const { t, i18n } = useTranslation();
   const locale = (i18n.language || 'fr') as Language;
 
@@ -53,6 +59,12 @@ export function LLMUsageBadge({ usage, className }: LLMUsageBadgeProps) {
       title={tooltip}
       className={`inline-flex items-center gap-1 text-px-10 tabular-nums text-muted-foreground ${className ?? ''}`}
     >
+      {label && (
+        <span className="font-medium">
+          {label}
+          {t('common.label_separator')}
+        </span>
+      )}
       <span>{tokensLabel}</span>
       <span aria-hidden="true">·</span>
       <span>{costLabel}</span>

@@ -373,6 +373,13 @@
           "title": "Documents",
           "empty": "Aucun document récent",
           "open_external": "Ouvrir « {{subject}} » dans Drive"
+        },
+        "workboard": {
+          "title": "Workboard",
+          "empty": "Aucun ticket ouvert sur ton tableau",
+          "tile_open": "Ouverts",
+          "more_one": "et {{count}} autre",
+          "more_other": "et {{count}} autres"
         }
       },
       "updated_hours_ago": "il y a {{hours}} h",
@@ -3788,10 +3795,7 @@
     },
     "rag_spaces": {
       "title": "Espaces de connaissances (RAG)",
-      "description": "Gère tes espaces documentaires RAG pour enrichir les conversations IA.",
-      "no_spaces": "Aucun espace de connaissances créé.",
-      "create_first": "Créer ton premier espace",
-      "manage_all": "Gérer tous les espaces →"
+      "description": "Gère tes espaces documentaires RAG pour enrichir les conversations IA."
     },
     "portrait_shortcut": {
       "title": "Ce que LIA comprend de toi",
@@ -3964,7 +3968,8 @@
         "send": "Envoi",
         "chat": "Conversation",
         "list": "Liste"
-      }
+      },
+      "rows_empty": "Aucune habitude apprise pour l'instant."
     },
     "security": {
       "passkeys": {
@@ -4327,7 +4332,7 @@
       "description": "Choisis l'apparence des yeux expressifs du chat."
     },
     "meetings": {
-      "title": "Comptes rendus de réunion",
+      "title": "Réunions",
       "description": "Enregistre une réunion depuis le composeur de chat ; LIA la transcrit et rédige le compte rendu selon ta structure."
     },
     "workboard": {
@@ -4463,7 +4468,9 @@
         "error": "Indexation en échec",
         "deferred": "Indexation reportée (limite d'usage)",
         "disabled": "Indexation désactivée"
-      }
+      },
+      "usage_answer": "Réponse",
+      "usage_index": "Indexation"
     },
     "live_mode": {
       "title": "Mode Live",
@@ -14423,7 +14430,7 @@
       "template": "Format : {{name}}"
     },
     "settings": {
-      "preferences_title": "Préférences",
+      "preferences_title": "Paramétrages",
       "engine_label": "Moteur de transcription",
       "engine_auto": "Automatique (le meilleur disponible)",
       "engine_remote": "Fournisseur distant uniquement",
@@ -14465,7 +14472,7 @@
       "add_section": "Ajouter une section",
       "max_sections_one": "Au plus {{count}} section.",
       "max_sections_other": "Au plus {{count}} sections.",
-      "recent_title": "Réunions récentes",
+      "recent_title": "Comptes rendus",
       "no_meetings": "Aucune réunion enregistrée pour l'instant.",
       "view_all_one": "Toutes les réunions ({{count}})",
       "view_all_other": "Toutes les réunions ({{count}})",
@@ -14476,11 +14483,8 @@
       "default_template_label": "Format de compte rendu par défaut",
       "default_template_auto": "Automatique — LIA choisit d'après l'enregistrement",
       "default_template_hint": "Appliqué à chaque nouvel enregistrement. En automatique, LIA choisit le meilleur format d'après ce qui a été dit ; un format transcription n'est jamais choisi automatiquement.",
-      "templates_title": "Modèles de compte rendu",
-      "templates_description": "Les formats intégrés et les tiens. Duplique un format intégré pour le personnaliser.",
-      "templates_count_one": "{{count}} modèle à toi",
-      "templates_count_other": "{{count}} modèles à toi",
-      "manage_templates": "Gérer mes modèles"
+      "templates_title": "Modèles",
+      "templates_description": "Les formats intégrés et les tiens. Duplique un format intégré pour le personnaliser."
     },
     "errors": {
       "audio_normalize_failed": "L'audio n'a pas pu être préparé.",

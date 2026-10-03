@@ -15,6 +15,12 @@
  * typed here is refused. The form exists only where the instance ASKS: the
  * operator's switch closes both doors, the card and the form.
  *
+ * Both lists fold, CLOSED on arrival (`Disclosure`): the section reads as an
+ * index — two titles, each with what it holds and its exact count — and the
+ * form lives inside the permissions fold, since adding a host creates one.
+ * What explains the feature (the section description, the instance's refusal
+ * to ask) stays above the folds.
+ *
  * Renders nothing when the instance flag is off or the surface is unavailable
  * (the OpenLoops precedent); gated in `settings-search.ts` on the same flag.
  */
@@ -25,6 +31,7 @@ import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RowActions } from '@/components/ui/row-actions';
@@ -38,6 +45,11 @@ import { haptic } from '@/lib/haptics';
 import type { Language } from '@/i18n/settings';
 import type { EgressGrant, ReachableHost } from '@/types/sandbox-egress';
 import type { BaseSettingsProps } from '@/types/settings';
+
+/** A count that holds something reads tinted; an empty one keeps the neutral pill. */
+function countTone(count: number): string | undefined {
+  return count > 0 ? 'bg-primary/10 text-primary' : undefined;
+}
 
 /** The brand name of a connector (`CONNECTOR_LABELS`), or its raw key for one the constants do not know. */
 function connectorLabel(connector: string | null): string {
@@ -72,53 +84,62 @@ export function SandboxEgressSettings({ lng }: BaseSettingsProps) {
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
-          <ReachableList hosts={egress.reachable} askEnabled={egress.askEnabled} lng={lng} />
+        <div className="space-y-3">
+          {egress.askEnabled === false && (
+            <p className="text-xs text-muted-foreground">
+              {t('settings.sandbox_egress.ask_disabled')}
+            </p>
+          )}
+          <Disclosure
+            icon={ShieldCheck}
+            title={t('settings.sandbox_egress.reachable_title')}
+            description={t('settings.sandbox_egress.reachable_description')}
+            badge={egress.reachable.length}
+            badgeClassName={countTone(egress.reachable.length)}
+          >
+            <ReachableList hosts={egress.reachable} lng={lng} />
+          </Disclosure>
           {/* An instance that never asks can hold no NEW permission: the block is
               drawn only for what was granted before it stopped asking (ADR-280:
               a switch removes the capability, never the record). */}
           {(egress.askEnabled !== false || egress.grants.length > 0) && (
-            <GrantList
-              grants={egress.grants}
-              total={egress.total}
-              maxPerUser={egress.maxPerUser}
-              lng={lng}
-              setScope={egress.setScope}
-              revoke={egress.revoke}
-            />
+            <Disclosure
+              icon={Globe}
+              title={t('settings.sandbox_egress.grants_title')}
+              description={t('settings.sandbox_egress.grants_description')}
+              badge={egress.total}
+              badgeClassName={countTone(egress.total)}
+            >
+              <div className="space-y-5">
+                <GrantList
+                  grants={egress.grants}
+                  total={egress.total}
+                  maxPerUser={egress.maxPerUser}
+                  lng={lng}
+                  setScope={egress.setScope}
+                  revoke={egress.revoke}
+                />
+                {egress.askEnabled === true && <AddHostForm lng={lng} add={egress.add} />}
+              </div>
+            </Disclosure>
           )}
-          {egress.askEnabled === true && <AddHostForm lng={lng} add={egress.add} />}
         </div>
       )}
     </SettingsSection>
   );
 }
 
-function ReachableList({
-  hosts,
-  askEnabled,
-  lng,
-}: {
-  hosts: ReachableHost[];
-  askEnabled: boolean | null;
-  lng: Language;
-}) {
+/** The fold's body: its title and description belong to the `Disclosure`. */
+function ReachableList({ hosts, lng }: { hosts: ReachableHost[]; lng: Language }) {
   const { t } = useTranslation(lng);
   return (
     <div>
-      <h4 className="flex items-center gap-2 text-sm font-semibold">
-        <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-        {t('settings.sandbox_egress.reachable_title')}
-      </h4>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {t('settings.sandbox_egress.reachable_description')}
-      </p>
       {hosts.length === 0 ? (
-        <p className="mt-2 text-sm italic text-muted-foreground">
+        <p className="text-sm italic text-muted-foreground">
           {t('settings.sandbox_egress.reachable_empty')}
         </p>
       ) : (
-        <ul className="mt-2 divide-y divide-border/60 rounded-xl border border-border/60">
+        <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
           {hosts.map(host => (
             <li key={host.host} className="flex items-center gap-3 px-3 py-2">
               {host.status === 'connector' ? (
@@ -139,11 +160,6 @@ function ReachableList({
             </li>
           ))}
         </ul>
-      )}
-      {askEnabled === false && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {t('settings.sandbox_egress.ask_disabled')}
-        </p>
       )}
     </div>
   );
@@ -186,21 +202,15 @@ function GrantList({
     } else toast.error(t('common.error'));
   };
 
+  // The fold's body: its title and description belong to the `Disclosure`.
   return (
     <div>
-      <h4 className="flex items-center gap-2 text-sm font-semibold">
-        <Globe className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-        {t('settings.sandbox_egress.grants_title')}
-      </h4>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {t('settings.sandbox_egress.grants_description')}
-      </p>
       {grants.length === 0 ? (
-        <p className="mt-2 text-sm italic text-muted-foreground">
+        <p className="text-sm italic text-muted-foreground">
           {t('settings.sandbox_egress.grants_empty')}
         </p>
       ) : (
-        <ul className="mt-2 divide-y divide-border/60 rounded-xl border border-border/60">
+        <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
           {grants.map(grant => (
             <GrantRow
               key={grant.id}

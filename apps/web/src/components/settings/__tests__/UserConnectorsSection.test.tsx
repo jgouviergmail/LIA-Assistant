@@ -118,6 +118,23 @@ describe('UserConnectorsSection — shell', () => {
     await openGoogleFamily(user);
     expect(await screen.findByRole('button', { name: DISCONNECT })).toBeInTheDocument();
   });
+
+  it('names every group trigger by its label, count and state — never by its icon', async () => {
+    render();
+    const connected = await screen.findByRole('button', { name: GOOGLE_SECTION });
+    expect(connected).toHaveAccessibleName(
+      'settings.connectors.connected_google(1)settings.connectors.group_state.connected'
+    );
+    expect(
+      screen.getByRole('button', {
+        name: 'settings.connectors.available_telephony(1)settings.connectors.group_state.available',
+      })
+    ).toBeInTheDocument();
+    // The domain emojis left the triggers: an icon names the group, decoratively.
+    for (const glyph of ['💡', '📞', '🎙️']) {
+      expect(screen.queryByText(glyph)).not.toBeInTheDocument();
+    }
+  });
 });
 
 /**

@@ -128,6 +128,30 @@ describe('Dashboard shell — active account', () => {
     expect(broadcastProviderSpy).toHaveBeenCalled();
   });
 
+  it("paints the landing's cosmos as the page ground, under an opaque header", () => {
+    useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+
+    renderLayout();
+
+    // The cosmos layers are fixed on a negative z-index of the root stacking
+    // context: any in-flow background between them and <body> would cover them.
+    const cosmos = screen.getByTestId('app-cosmos');
+    expect(cosmos).toHaveClass('cosmos');
+    for (let el = cosmos.parentElement; el && el !== document.body; el = el.parentElement) {
+      expect(el.className).not.toMatch(/(^|\s)bg-/);
+    }
+    // Nor does the shell wrap the page in a panel of its own: the pages' panels
+    // and cards are the only opaque surfaces, so the cosmos shows around them.
+    for (
+      let el = screen.getByTestId(CHILD_MARKER).parentElement;
+      el && el !== document.body;
+      el = el.parentElement
+    ) {
+      expect(el.className).not.toMatch(/(^|\s)bg-/);
+    }
+    expect(screen.getByRole('banner')).toHaveClass('bg-background');
+  });
+
   it('does not redirect an active account', () => {
     useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
 

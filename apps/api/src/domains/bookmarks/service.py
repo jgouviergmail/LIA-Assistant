@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
+from src.core.field_names import FIELD_RUN_ID
 from src.core.i18n import resolve_language
 from src.domains.bookmarks.errors import (
     raise_bookmark_limit_reached,
@@ -34,6 +35,8 @@ from src.domains.bookmarks.indexing import discard_index, index_bookmark, unlink
 from src.domains.bookmarks.models import MessageBookmark
 from src.domains.bookmarks.queries import BookmarkFilters
 from src.domains.bookmarks.repository import BookmarkRepository
+from src.domains.chat.models import MessageTokenSummary
+from src.domains.chat.repository import ChatRepository
 from src.domains.conversations.models import ConversationMessage
 from src.infrastructure.async_utils import safe_fire_and_forget
 
@@ -57,6 +60,19 @@ def _answers_no_request(message: ConversationMessage) -> bool:
     """
     kind = (message.message_metadata or {}).get("type", "")
     return isinstance(kind, str) and kind.startswith(PROACTIVE_MESSAGE_TYPE_PREFIX)
+
+
+def _run_id_of(message: ConversationMessage) -> str | None:
+    """The run id the answer was archived with — the chat's join key to its cost.
+
+    Args:
+        message: The assistant message being kept.
+
+    Returns:
+        The run id, or None when the message carries none (or not a string).
+    """
+    run_id = (message.message_metadata or {}).get(FIELD_RUN_ID)
+    return run_id if isinstance(run_id, str) and run_id else None
 
 
 class BookmarkService:
@@ -121,6 +137,9 @@ class BookmarkService:
                     content=message.content,
                     request_content=request.content if request is not None else None,
                     answered_at=message.created_at,
+                    # The turn that produced the answer: its token summary
+                    # outlives the conversation, so the answer keeps its cost.
+                    run_id=_run_id_of(message),
                 )
             )
             await self.db.commit()
@@ -169,6 +188,23 @@ class BookmarkService:
             ``document_id → rag_documents row`` for the links that resolve.
         """
         return await self.repository.documents_of(bookmarks)
+
+    async def answer_costs_of(
+        self, bookmarks: Sequence[MessageBookmark]
+    ) -> dict[str, MessageTokenSummary]:
+        """The turn summaries of a page — ONE query, keyed by run id.
+
+        Read through the chat repository's own batched lookup: the row the
+        chat bubble reads is the row the bookmark shows.
+
+        Args:
+            bookmarks: The rows a response describes.
+
+        Returns:
+            ``run_id → message_token_summary row`` for the turns that left one.
+        """
+        run_ids = sorted({row.run_id for row in bookmarks if row.run_id})
+        return await ChatRepository(self.db).get_token_summaries_by_run_ids(run_ids)
 
     async def attached_message_ids(self, user_id: UUID) -> dict[UUID, UUID]:
         """What every bubble needs to draw its toggle: ``message_id → bookmark_id``.

@@ -74,6 +74,7 @@ function bookmark(over: Partial<Bookmark> = {}): Bookmark {
     index_state: null,
     indexed_at: null,
     index_usage: null,
+    answer_usage: null,
     ...over,
   };
 }
@@ -163,6 +164,59 @@ describe('a card', () => {
     expect(screen.getByText('settings.bookmarks.index_state.indexed')).toBeInTheDocument();
     // The usage badge: total tokens · cost, the dashboard's own primitive.
     expect(screen.getByText('common.llm_usage.tokens')).toBeInTheDocument();
+  });
+
+  it('names both costs: what the answer cost to produce and what indexing it cost', () => {
+    list.items = [
+      bookmark({
+        index_state: 'indexed',
+        indexed_at: '2026-09-12T08:07:00Z',
+        index_usage: {
+          tokens_in: 812,
+          tokens_out: 0,
+          tokens_cache: 0,
+          cost_eur: 0.000123,
+          model_name: 'gemini-embedding-001',
+        },
+        answer_usage: {
+          tokens_in: 4200,
+          tokens_out: 310,
+          tokens_cache: 1800,
+          cost_eur: 0.0043,
+          model_name: null,
+        },
+      }),
+    ];
+    list.total = 1;
+
+    renderWithProviders(<BookmarkList lng="fr" />);
+
+    // Each figure says what it is the cost OF: unlabelled, the indexing cost
+    // read as the answer's own.
+    expect(screen.getByText(/settings.bookmarks.usage_answer/)).toBeInTheDocument();
+    expect(screen.getByText(/settings.bookmarks.usage_index/)).toBeInTheDocument();
+    expect(screen.getAllByText('common.llm_usage.tokens')).toHaveLength(2);
+  });
+
+  it('shows the answer cost alone before the projection is indexed', () => {
+    list.items = [
+      bookmark({
+        index_state: 'pending',
+        answer_usage: {
+          tokens_in: 4200,
+          tokens_out: 310,
+          tokens_cache: 0,
+          cost_eur: 0.0043,
+          model_name: null,
+        },
+      }),
+    ];
+    list.total = 1;
+
+    renderWithProviders(<BookmarkList lng="fr" />);
+
+    expect(screen.getByText(/settings.bookmarks.usage_answer/)).toBeInTheDocument();
+    expect(screen.queryByText(/settings.bookmarks.usage_index/)).not.toBeInTheDocument();
   });
 
   it('shows a deferred projection as such and no cost for it', () => {

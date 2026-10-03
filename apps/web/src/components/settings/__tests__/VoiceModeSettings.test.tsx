@@ -103,3 +103,19 @@ describe('VoiceModeSettings — STT picker', () => {
     expect(screen.queryByText('settings.voice_mode.wake_beta')).toBeNull();
   });
 });
+
+describe('VoiceModeSettings — titled sub-blocks', () => {
+  it('names the engine picker and the hands-free switch by their titles, each with a theme icon', () => {
+    useAuth.mockReturnValue(authed());
+    renderWithProviders(<VoiceModeSettings lng="en" />);
+    const engine = screen.getByRole('group', { name: 'settings.voice_mode.stt_mode_label' });
+    expect(engine).toContainElement(screen.getByRole('button', { name: /stt_mode_local/ }));
+    expect(screen.getByRole('switch', { name: 'settings.voice_mode.enable' })).toBeInTheDocument();
+    for (const title of ['settings.voice_mode.stt_mode_label', 'settings.voice_mode.enable']) {
+      const heading = screen.getByText(title).closest('p');
+      const icon = heading?.querySelector('svg');
+      expect(icon).toHaveAttribute('aria-hidden', 'true');
+      expect(icon).toHaveClass('text-primary');
+    }
+  });
+});

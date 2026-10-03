@@ -10,6 +10,7 @@
  */
 
 import { useState } from 'react';
+import { AudioLines } from 'lucide-react';
 
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAppConfig } from '@/hooks/useAppConfig';
@@ -60,7 +61,7 @@ export function LiveConnectorGroup({
               state="connected"
               label={t('settings.connectors.connected_live')}
               count={connected.length}
-              glyph="🎙️"
+              icon={AudioLines}
               t={t}
             />
           </AccordionTrigger>
@@ -87,7 +88,7 @@ export function LiveConnectorGroup({
               state="available"
               label={t('settings.connectors.available_live')}
               count={available.length}
-              glyph="🎙️"
+              icon={AudioLines}
               t={t}
             />
           </AccordionTrigger>

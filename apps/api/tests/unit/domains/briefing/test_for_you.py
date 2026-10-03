@@ -268,6 +268,7 @@ class TestForYouInSynthesis:
             for_you=for_you,
             tasks=empty,
             documents=empty,
+            workboard=empty,
         )
 
     def test_summarizer_renders_open_loops_and_automations(self):

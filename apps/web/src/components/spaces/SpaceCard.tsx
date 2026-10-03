@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Library, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { RowActions, type RowAction } from '@/components/ui/row-actions';
 import { SpaceActivationToggle } from './SpaceActivationToggle';
 import { formatFileSize } from '@/lib/format';
 import type { RAGSpace } from '@/types/rag-spaces';
@@ -32,6 +32,20 @@ export function SpaceCard({
   // owner would re-create it at the next projection, so deleting it is
   // refused server-side and not offered here. Rename and toggle stay.
   const managed = space.kind !== null && space.kind !== undefined;
+  const actions: RowAction[] = [
+    { key: 'edit', label: t('common.edit'), icon: Pencil, onSelect: onEdit },
+    ...(managed
+      ? []
+      : [
+          {
+            key: 'delete',
+            label: t('common.delete'),
+            icon: Trash2,
+            tone: 'destructive' as const,
+            onSelect: onDelete,
+          },
+        ]),
+  ];
 
   return (
     <Card
@@ -41,6 +55,9 @@ export function SpaceCard({
       tabIndex={0}
       onClick={onClick}
       onKeyDown={e => {
+        // Only the card's OWN keys open it: Space on the activation switch or
+        // Enter on an action bubbles up here, and must toggle or act instead.
+        if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onClick();
@@ -73,8 +90,8 @@ export function SpaceCard({
 
       <CardContent className="p-4 sm:p-6 pt-0">
         {/* Stats + Actions */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <Badge variant={lifecycleTone(space.is_active ? 'active' : 'inactive')}>
               {space.is_active ? t('common.active') : t('common.inactive')}
             </Badge>
@@ -85,34 +102,14 @@ export function SpaceCard({
             {space.total_size > 0 && <span>{formatFileSize(space.total_size)}</span>}
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={e => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              title={t('common.edit')}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            {!managed && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={e => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                title={t('common.delete')}
-              >
-                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-              </Button>
-            )}
+          {/* Actions (ADR-208): always visible, never revealed by a hover. The
+              wrapper keeps their clicks — and the menu's, which React bubbles
+              through the portal — from opening the space. */}
+          <div onClick={e => e.stopPropagation()} role="presentation">
+            <RowActions
+              actions={actions}
+              menuLabel={t('common.actions_for', { name: space.name })}
+            />
           </div>
         </div>
       </CardContent>

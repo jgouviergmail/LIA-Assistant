@@ -20,7 +20,7 @@ export function GreetingSkeleton() {
 export function SynthesisSkeleton() {
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/5 via-card/80 to-card backdrop-blur-md p-5 sm:p-6 space-y-2"
+      className="relative overflow-hidden rounded-2xl border border-primary/10 bg-card bg-gradient-to-br from-primary/5 via-card to-card p-5 sm:p-6 space-y-2"
       aria-hidden="true"
     >
       <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20" />

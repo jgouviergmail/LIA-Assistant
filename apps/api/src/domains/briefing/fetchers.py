@@ -75,6 +75,8 @@ from src.domains.briefing.schemas import (
     TaskItem,
     TasksData,
     WeatherData,
+    WorkboardData,
+    WorkboardTicketItem,
 )
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
 from src.domains.connectors.models import ConnectorType
@@ -84,6 +86,7 @@ from src.domains.connectors.weather_provider import (
     open_platform_weather_client,
     resolve_weather_client,
 )
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.heartbeat.geocoding import resolve_city_name
 from src.domains.reminders.service import ReminderService
@@ -91,6 +94,9 @@ from src.domains.users.user_location_service import (
     NoLocationAvailableError,
     UserLocationService,
 )
+from src.domains.workboard.constants import CLOSED_STATUSES
+from src.domains.workboard.repository import WorkboardRepository
+from src.domains.workboard.summary_queries import read_attention
 from src.infrastructure.database.session import get_db_context
 
 if TYPE_CHECKING:
@@ -837,4 +843,50 @@ async def fetch_for_you(
         open_loops=loops,
         recent_automations=recent,
         next_automation=next_automation,
+    )
+
+
+# =============================================================================
+# Workboard (what on the board needs the person — ADR-276)
+# =============================================================================
+
+
+async def fetch_workboard(*, user_id: UUID) -> WorkboardData:
+    """What on the person's workboard needs their attention.
+
+    Exact aggregates over the whole board (ADR-185) — waiting on them, held by
+    LIA, late, open — plus the first tickets waiting on them, read through the
+    workboard's own statements so the card, the board and the hub agree on
+    every figure. A local read: one session, closed before returning.
+
+    Raises:
+        ConnectorNotConfiguredError: when the instance switched the workboard
+            off — read AT CALL TIME, so a switch flipped after boot hides the
+            card on the next load (ADR-280).
+    """
+    if not await is_capability_enabled(PlatformCapability.WORKBOARD):
+        raise ConnectorNotConfiguredError("workboard")
+    now = now_utc()
+    async with get_db_context() as db:
+        figures = await read_attention(
+            WorkboardRepository(db), user_id, now, limit=settings.briefing_max_workboard_items
+        )
+        items = [
+            WorkboardTicketItem(
+                id=str(ticket.id),
+                title=ticket.title,
+                status=ticket.status,
+                due_at=ticket.due_at,
+                overdue=ticket.due_at is not None
+                and ticket.due_at < now
+                and ticket.status not in CLOSED_STATUSES,
+            )
+            for ticket in figures.needs_me_first
+        ]
+    return WorkboardData(
+        needs_me=figures.needs_me,
+        held_by_lia=figures.held_by_lia,
+        overdue=figures.overdue,
+        open_total=figures.open_total,
+        items=items,
     )

@@ -110,6 +110,22 @@ class TestEmbeddingCost:
         with patch(f"{_MODULE}.get_cached_cost_usd_eur", side_effect=RuntimeError("cache down")):
             assert ge._embedding_cost_usd("gemini-embedding-001", 1_000) == 0.0
 
+    def test_billed_usage_is_the_client_s_own_count_and_tariff_in_eur(self) -> None:
+        """A document records what the ledger was charged — no second estimate."""
+        texts = ["first chunk of a kept answer", "second chunk"]
+        with patch(f"{_MODULE}.get_cached_cost_usd_eur", return_value=(0.30, 0.27)) as priced:
+            tokens, cost_eur = ge.billed_embedding_usage("gemini-embedding-001", texts)
+
+        assert tokens == ge._estimate_tokens(texts)
+        assert cost_eur == 0.27
+        priced.assert_called_once_with("gemini-embedding-001", tokens, 0, cache_write_tokens=0)
+
+    def test_billed_usage_survives_a_pricing_failure_with_a_zero_cost(self) -> None:
+        with patch(f"{_MODULE}.get_cached_cost_usd_eur", side_effect=RuntimeError("cache down")):
+            tokens, cost_eur = ge.billed_embedding_usage("gemini-embedding-001", ["text"])
+        assert tokens == ge._estimate_tokens(["text"])
+        assert cost_eur == 0.0
+
     def test_no_frozen_price_constant_remains(self) -> None:
         """A hard-coded tariff next to an administered one drifts silently."""
         assert not hasattr(ge, "GEMINI_EMBEDDING_COST_PER_TOKEN_USD")

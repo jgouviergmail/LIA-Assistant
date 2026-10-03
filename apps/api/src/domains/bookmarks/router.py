@@ -75,7 +75,8 @@ async def keep_bookmark(
     if not created:
         response.status_code = status.HTTP_200_OK
     documents = await service.documents_of([bookmark])
-    return BookmarkResponse.from_row(bookmark, documents)
+    summaries = await service.answer_costs_of([bookmark])
+    return BookmarkResponse.from_row(bookmark, documents, summaries)
 
 
 @router.get(
@@ -109,8 +110,9 @@ async def list_bookmarks(
     service = BookmarkService(db)
     rows, total = await service.list_page(user.id, filters)
     documents = await service.documents_of(rows)
+    summaries = await service.answer_costs_of(rows)
     return BookmarkListResponse(
-        items=[BookmarkResponse.from_row(row, documents) for row in rows],
+        items=[BookmarkResponse.from_row(row, documents, summaries) for row in rows],
         total=total,
         limit=limit,
         offset=offset,

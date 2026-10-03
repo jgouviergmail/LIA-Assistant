@@ -600,6 +600,16 @@ capacité du compte contre le plafond de l'instance ; le coût des exécutions
 dans le vocabulaire du compteur du chat. Les comptes portent sur ce que le
 compte voit, les sommes sur ce qu'il possède.
 
+**The dashboard has a workboard card**: the `workboard` card of the
+« Mon dashboard » grid (configurable like the others: hidden and reordered
+from the grid settings). `briefing.fetch_workboard` reads
+`summary_queries.read_attention` — waiting on you, held by LIA, overdue, open,
+all EXACT aggregates over the OPEN tickets, each a link to the board narrowed
+to the same set — then the first tickets waiting on you, each a link to
+`/dashboard/workboard/<id>`. Always read live (like the reminders card), and
+hidden when the instance has switched the workboard off (the switch is read at
+call time). Details: [BRIEFING_DOMAIN.md](BRIEFING_DOMAIN.md#the-workboard-card).
+
 **Ce que le ticket a coûté** y figure aussi (lot 11), quand « jetons et coûts
 visibles » est actif dans l'en-tête de l'application : sur UNE ligne, 🟠 IN ·
 🟢 OUT · 🔵 CACHE · 🟣 GOOGLE · euros, CUMULÉS sur tous les traitements, dans le

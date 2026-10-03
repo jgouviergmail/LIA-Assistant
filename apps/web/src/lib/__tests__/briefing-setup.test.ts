@@ -14,6 +14,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  INSTANCE_GATED_SECTIONS,
   SECTION_SETTINGS_TARGET,
   assertSettingsTargetCompleteness,
   unconfiguredCards,
@@ -76,6 +77,14 @@ describe('unconfiguredCards', () => {
     ]);
   });
 
+  it('never names a card the instance switched off', () => {
+    // The workboard is `not_configured` only when an operator switched it off:
+    // naming it would ask the person to configure what they cannot.
+    expect(unconfiguredCards(bundle(['workboard', 'agenda']), ALL)).toEqual([
+      { section: 'agenda', target: 'connectors' },
+    ]);
+  });
+
   it('survives a missing payload', () => {
     // First paint, or a failed fetch: no bundle, nothing to claim.
     expect(unconfiguredCards(undefined, ALL)).toEqual([]);
@@ -113,9 +122,17 @@ describe('SECTION_SETTINGS_TARGET — the contract', () => {
     expect(SECTION_SETTINGS_TARGET.for_you).toBeNull();
   });
 
+  it('never sends the person to configure what only the instance decides', () => {
+    // The workboard is `not_configured` only when an operator switched it off
+    // (ADR-280): there is no setting the person could change.
+    expect(SECTION_SETTINGS_TARGET.workboard).toBeNull();
+    expect(INSTANCE_GATED_SECTIONS.has('workboard')).toBe(true);
+  });
+
   it('gives every other card a destination', () => {
     const configurable = BRIEFING_SECTION_NAMES.filter(
-      section => section !== 'reminders' && section !== 'for_you'
+      section =>
+        section !== 'reminders' && section !== 'for_you' && !INSTANCE_GATED_SECTIONS.has(section)
     );
     for (const section of configurable) {
       expect(

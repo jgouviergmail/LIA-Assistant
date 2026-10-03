@@ -371,7 +371,10 @@ export function NotificationsHub({ lng }: { lng: string }) {
         />
       </div>
 
-      <section aria-labelledby="hub-advanced" className="rounded-xl border border-border/40 p-4">
+      <section
+        aria-labelledby="hub-advanced"
+        className="rounded-xl border border-border/40 bg-card p-4"
+      >
         <h2 id="hub-advanced" className="text-sm font-semibold">
           {t('notifications_hub.advanced_title')}
         </h2>

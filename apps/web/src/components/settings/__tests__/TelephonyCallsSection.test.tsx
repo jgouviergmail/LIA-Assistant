@@ -14,7 +14,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 import type { TelephonyCallSummary } from '@/types/telephony';
 
 const { useTelephonyCalls } = vi.hoisted(() => ({ useTelephonyCalls: vi.fn() }));
@@ -76,11 +76,11 @@ describe('TelephonyCallsSection', () => {
     expect(useTelephonyCalls).toHaveBeenCalledWith(true, 10);
   });
 
-  it('shows what LIA was asked to do and what came of it', () => {
+  it('shows what LIA was asked to do and what came of it, once the call is opened', async () => {
     mockCalls([call()]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    const { user } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
 
-    expect(screen.getByText('Marie Dupont')).toBeInTheDocument();
+    await user.click(screen.getByText('Marie Dupont'));
     expect(screen.getByText('Demander si elle est libre mardi')).toBeInTheDocument();
     expect(screen.getByText('Marie est libre mardi après 14h.')).toBeInTheDocument();
   });
@@ -166,7 +166,7 @@ describe('TelephonyCallsSection — calls with the person (phone as a channel)',
     expect(screen.queryByText('settings.telephony.identity.call_mode.direct')).toBeNull();
   });
 
-  it('draws the cumulated bill of a call that spent, and nothing otherwise', () => {
+  it('draws the cumulated bill of a call that spent, and nothing otherwise', async () => {
     // Lot 8: live lookups, synthesis and relay under one run id — the calls
     // list reads the same summary the chat meter does.
     mockCalls([
@@ -182,7 +182,9 @@ describe('TelephonyCallsSection — calls with the person (phone as a channel)',
       }),
       call({ id: 'c-free', callee_display: 'Paul Martin' }),
     ]);
-    renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    const { user } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    await user.click(screen.getByText('Marie Dupont'));
+    await user.click(screen.getByText('Paul Martin'));
     expect(screen.getAllByText('settings.telephony.calls.usage')).toHaveLength(1);
   });
 
@@ -191,5 +193,59 @@ describe('TelephonyCallsSection — calls with the person (phone as a channel)',
     renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(screen.queryByText(/settings\.telephony\.calls\.kind\./)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings\.telephony\.calls\.relay\./)).not.toBeInTheDocument();
+  });
+});
+
+describe('TelephonyCallsSection — each call is a fold, closed by default', () => {
+  const STARTED = '2026-07-26T09:00:00Z';
+
+  it('folds every call and keeps the details unmounted until opened', () => {
+    mockCalls([call(), call({ id: 'c2', callee_display: 'Le garage' })]);
+    const { container } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+
+    const folds = container.querySelectorAll('details');
+    expect(folds).toHaveLength(2);
+    folds.forEach(fold => expect(fold.open).toBe(false));
+    expect(screen.queryByText('Demander si elle est libre mardi')).not.toBeInTheDocument();
+    expect(screen.queryByText('Marie est libre mardi après 14h.')).not.toBeInTheDocument();
+  });
+
+  it('says who, when, how long and how it went in the folded header', () => {
+    mockCalls([call({ created_at: STARTED, call_seconds: 62 })]);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
+
+    const summary = screen.getByText('Marie Dupont').closest('summary');
+    expect(summary).not.toBeNull();
+    const header = within(summary as HTMLElement);
+    const day = new Intl.DateTimeFormat('fr', { dateStyle: 'medium' }).format(new Date(STARTED));
+    const time = new Intl.DateTimeFormat('fr', { timeStyle: 'short' }).format(new Date(STARTED));
+    expect(header.getByText(`${day} · ${time} · 1 min 2 s`)).toBeInTheDocument();
+    // The badges ride the header, so the outcome reads without opening.
+    expect(header.getByText('settings.telephony.calls.status.completed')).toBeInTheDocument();
+    expect(header.getByText('settings.telephony.calls.outcome.objective_met')).toBeInTheDocument();
+  });
+
+  it('keeps an in-flight call folded with its status in the header', () => {
+    mockCalls([call({ status: 'dialing', summary: null, outcome: null, call_seconds: null })]);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
+
+    const summary = screen.getByText('Marie Dupont').closest('summary') as HTMLElement;
+    expect(
+      within(summary).getByText('settings.telephony.calls.status.dialing')
+    ).toBeInTheDocument();
+    expect(summary.closest('details')?.open).toBe(false);
+  });
+
+  it('opens one call without opening the others', async () => {
+    mockCalls([
+      call(),
+      call({ id: 'c2', callee_display: 'Le garage', objective: 'Prendre rendez-vous' }),
+    ]);
+    const { user } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
+
+    await user.click(screen.getByText('Le garage'));
+
+    expect(screen.getByText('Prendre rendez-vous')).toBeInTheDocument();
+    expect(screen.queryByText('Demander si elle est libre mardi')).not.toBeInTheDocument();
   });
 });

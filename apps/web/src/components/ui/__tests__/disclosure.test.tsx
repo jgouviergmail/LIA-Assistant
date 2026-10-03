@@ -139,3 +139,40 @@ describe('a parent re-render must not shut it under the reader', () => {
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 });
+
+describe('richer header content (meta, icon classes)', () => {
+  it('shows its meta while folded, inside the summary', () => {
+    const { container } = renderWithProviders(
+      <Disclosure icon={Bell} title="Appel" meta={<span>Terminé</span>}>
+        <p>contenu</p>
+      </Disclosure>
+    );
+
+    // An index entry: the states read without opening, the details do not.
+    expect(container.querySelector('summary')).toHaveTextContent('Terminé');
+    expect(screen.queryByText('contenu')).not.toBeInTheDocument();
+  });
+
+  it('renders exactly as before when no meta is given', () => {
+    const { container } = renderWithProviders(
+      <Disclosure icon={Bell} title="Historique" description="Dix dernières">
+        <p>contenu</p>
+      </Disclosure>
+    );
+
+    const summary = container.querySelector('summary');
+    expect(summary).toHaveTextContent('HistoriqueDix dernières');
+  });
+
+  it('adds caller classes to the title icon without losing the theme colour', () => {
+    const { container } = renderWithProviders(
+      <Disclosure icon={Bell} title="Appel" iconClassName="animate-spin">
+        <p>contenu</p>
+      </Disclosure>
+    );
+
+    const icon = container.querySelector('summary svg');
+    expect(icon).toHaveClass('animate-spin');
+    expect(icon).toHaveClass('text-primary');
+  });
+});

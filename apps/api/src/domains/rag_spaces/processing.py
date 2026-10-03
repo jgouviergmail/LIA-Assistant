@@ -20,7 +20,6 @@ from contextlib import suppress
 from pathlib import Path
 from uuid import UUID
 
-import tiktoken
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +43,7 @@ from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
     set_embedding_context,
 )
+from src.infrastructure.llm.gemini_embeddings import billed_embedding_usage
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_rag_spaces import (
     rag_document_chunks_total,
@@ -559,13 +559,6 @@ async def process_document(
                 chunk_count=len(chunk_texts),
             )
 
-            # 3. Count tokens before embedding (for cost tracking on document)
-            try:
-                encoding = tiktoken.get_encoding("cl100k_base")
-                total_embedding_tokens = sum(len(encoding.encode(t)) for t in chunk_texts if t)
-            except Exception:
-                total_embedding_tokens = sum(len(t) // 4 for t in chunk_texts if t)
-
             # 4. Generate embeddings in batches to avoid API size limits
             embeddings_model = get_rag_embeddings()
             embedding_vectors: list[list[float]] = []
@@ -625,12 +618,14 @@ async def process_document(
                 await chunk_repo.delete_by_document(document_id)
             await chunk_repo.bulk_create_chunks(chunk_objects)
 
-            # 7. Calculate embedding cost (reuse shared pricing logic)
-            from src.infrastructure.cache.pricing_cache import get_cached_usd_eur_rate
-            from src.infrastructure.llm.tracked_embeddings import estimate_embedding_cost_sync
-
-            embedding_cost_usd = estimate_embedding_cost_sync(model_name, total_embedding_tokens)
-            embedding_cost_eur = round(embedding_cost_usd * get_cached_usd_eur_rate(), 6)
+            # 7. The document's tokens and cost are what the embedder BILLED for
+            # these chunks — the client's own count and the administered tariff
+            # — never a second estimate (the OpenAI tokenizer and price table
+            # used here understated every Gemini-embedded document ~7x).
+            total_embedding_tokens, embedding_cost_eur = billed_embedding_usage(
+                embeddings_model.model_name, chunk_texts
+            )
+            embedding_cost_eur = round(embedding_cost_eur, 6)
 
             # 8. Update document status with token/cost tracking
             await doc_repo.update(

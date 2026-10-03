@@ -33,6 +33,7 @@ from src.core.constants import (
     BRIEFING_MAX_OPEN_LOOPS_ITEMS_DEFAULT,
     BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT,
     BRIEFING_MAX_TASKS_ITEMS_DEFAULT,
+    BRIEFING_MAX_WORKBOARD_ITEMS_DEFAULT,
     BRIEFING_TASKS_HORIZON_DAYS_DEFAULT,
     BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT,
 )
@@ -121,6 +122,15 @@ class BriefingSettings(BaseSettings):
         ge=1,
         le=20,
         description="Max recently-modified Drive files on the documents card.",
+    )
+    briefing_max_workboard_items: int = Field(
+        default=BRIEFING_MAX_WORKBOARD_ITEMS_DEFAULT,
+        ge=1,
+        le=10,
+        description=(
+            "Max tickets waiting on the person listed on the workboard card, "
+            "beside its exact counts."
+        ),
     )
     briefing_audio_max_chars: int = Field(
         default=BRIEFING_AUDIO_MAX_CHARS_DEFAULT,

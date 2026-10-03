@@ -365,6 +365,13 @@
           "title": "Dokumente",
           "empty": "Keine aktuellen Dokumente",
           "open_external": "„{{subject}}“ in Drive öffnen"
+        },
+        "workboard": {
+          "title": "Workboard",
+          "empty": "Kein offenes Ticket auf deinem Board",
+          "tile_open": "Offen",
+          "more_one": "und {{count}} weiteres",
+          "more_other": "und {{count}} weitere"
         }
       },
       "updated_hours_ago": "vor {{hours}} Std",
@@ -938,7 +945,14 @@
       "reactivate_description": "Dein Gerät hat die Standortfreigabe angehalten, während die App geschlossen war. Aktiviere sie erneut, damit LIA weiterhin deine echte Position statt deiner Heimatadresse verwendet.",
       "reactivate_button": "Reaktivieren",
       "detection": {
-        "keywords": ["nahe", "umgebung", "gegend", "nachbarschaft", "viertel", "zuhause"],
+        "keywords": [
+          "nahe",
+          "umgebung",
+          "gegend",
+          "nachbarschaft",
+          "viertel",
+          "zuhause"
+        ],
         "patterns": [
           "in der n[aä]he",
           "um mich herum",
@@ -3754,10 +3768,7 @@
     },
     "rag_spaces": {
       "title": "Wissensräume (RAG)",
-      "description": "Verwalte deine RAG-Dokumentenräume, um KI-Gespräche zu bereichern.",
-      "no_spaces": "Noch keine Wissensräume erstellt.",
-      "create_first": "Erstelle deinen ersten Raum",
-      "manage_all": "Alle Räume verwalten →"
+      "description": "Verwalte deine RAG-Dokumentenräume, um KI-Gespräche zu bereichern."
     },
     "portrait_shortcut": {
       "title": "Was LIA über dich versteht",
@@ -3930,7 +3941,8 @@
         "send": "Versand",
         "chat": "Unterhaltung",
         "list": "Auflistung"
-      }
+      },
+      "rows_empty": "Noch keine Gewohnheit gelernt."
     },
     "security": {
       "passkeys": {
@@ -4293,7 +4305,7 @@
       "description": "Wähle das Aussehen der ausdrucksstarken Augen im Chat."
     },
     "meetings": {
-      "title": "Besprechungsprotokolle",
+      "title": "Besprechungen",
       "description": "Nimm eine Besprechung aus dem Chat-Eingabefeld auf; LIA transkribiert sie und verfasst das Protokoll nach deinem Aufbau."
     },
     "workboard": {
@@ -4429,7 +4441,9 @@
         "error": "Indexierung fehlgeschlagen",
         "deferred": "Indexierung verschoben (Nutzungslimit)",
         "disabled": "Indexierung deaktiviert"
-      }
+      },
+      "usage_answer": "Antwort",
+      "usage_index": "Indexierung"
     },
     "live_mode": {
       "title": "Live-Modus",
@@ -14452,7 +14466,7 @@
       "add_section": "Abschnitt hinzufügen",
       "max_sections_one": "Höchstens {{count}} Abschnitt.",
       "max_sections_other": "Höchstens {{count}} Abschnitte.",
-      "recent_title": "Letzte Besprechungen",
+      "recent_title": "Protokolle",
       "no_meetings": "Noch keine Besprechung aufgenommen.",
       "view_all_one": "Alle Besprechungen ({{count}})",
       "view_all_other": "Alle Besprechungen ({{count}})",
@@ -14463,11 +14477,8 @@
       "default_template_label": "Standardformat des Protokolls",
       "default_template_auto": "Automatisch — LIA wählt anhand der Aufnahme",
       "default_template_hint": "Gilt für jede neue Aufnahme. Automatisch lässt LIA das beste Format aus dem Gesagten wählen; ein Transkript-Format wird nie automatisch gewählt.",
-      "templates_title": "Protokollvorlagen",
-      "templates_description": "Integrierte Formate und deine eigenen. Dupliziere ein integriertes Format, um es anzupassen.",
-      "templates_count_one": "{{count}} eigene Vorlage",
-      "templates_count_other": "{{count}} eigene Vorlagen",
-      "manage_templates": "Meine Vorlagen verwalten"
+      "templates_title": "Vorlagen",
+      "templates_description": "Integrierte Formate und deine eigenen. Dupliziere ein integriertes Format, um es anzupassen."
     },
     "errors": {
       "audio_normalize_failed": "Das Audio konnte nicht vorbereitet werden.",

@@ -134,6 +134,8 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "for_you": "automation",
             "tasks": "task",
             "documents": "document",
+            # The person's own board, read the way the heartbeat reads it.
+            "workboard": "ticket",
         },
     ),
     # The reader opened the card; the debrief answers that view — the same

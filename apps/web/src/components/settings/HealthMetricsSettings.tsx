@@ -7,9 +7,14 @@
  *     ├─ period selector (shared — drives charts + stats)
  *     └─ Accordion (multiple)
  *          1. Ingestion API (URL + token generation/revocation)
- *          2. Charts (HR line + steps bar, with period average overlays)
- *          3. Statistics (period-wide averages/min/max)
- *          4. Management (selective + full deletion)
+ *          2. Assistant (whether the agents may read the data)
+ *          3. Statistics (period-wide averages/min/max) — open on arrival
+ *          4. Charts (HR line + steps bar, with period average overlays) —
+ *             open on arrival
+ *          5. Management (selective + full deletion)
+ *
+ * The figures come first and unfolded: they are what the section is opened
+ * for, the setup folds are visited once.
  *
  * Phase: evolution — Health Metrics (iPhone Shortcuts integration)
  * Created: 2026-04-20
@@ -77,10 +82,12 @@ const PERIOD_VALUES: HealthMetricsPeriod[] = ['hour', 'day', 'week', 'month', 'y
 const API_PREFIX = '/api/v1';
 const INGEST_STEPS_PATH = '/api/v1/ingest/health/steps';
 const INGEST_HEART_RATE_PATH = '/api/v1/ingest/health/heart_rate';
+/** The folds open on arrival: the figures, which are what the reader came for. */
+const DEFAULT_OPEN_SECTIONS = ['stats', 'charts'];
 
 export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
-  const [openSections, setOpenSections] = useState<string[]>([]);
+  const [openSections, setOpenSections] = useState<string[]>(DEFAULT_OPEN_SECTIONS);
   const [period, setPeriod] = useState<HealthMetricsPeriod>('day');
   const [newTokenLabel, setNewTokenLabel] = useState('');
   const [justCreatedToken, setJustCreatedToken] = useState<string | null>(null);
@@ -259,7 +266,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           <AccordionItem value="ingestion" className="border rounded-lg px-3">
             <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
               <span className="flex items-center gap-2">
-                <Key className="h-4 w-4 text-muted-foreground" />
+                <Key className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 {t('healthMetrics.ingestion.title', "API d'ingestion")}
               </span>
             </AccordionTrigger>
@@ -484,12 +491,12 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           </AccordionItem>
 
           {/* =================================================================== */}
-          {/* 1b. Assistant toggle (v1.17.2) */}
+          {/* 2. Assistant toggle (v1.17.2) */}
           {/* =================================================================== */}
           <AccordionItem value="assistant" className="border rounded-lg px-3">
             <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
               <span className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-muted-foreground" />
+                <Bot className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 {t('healthMetrics.agents.title', 'Assistant')}
               </span>
             </AccordionTrigger>
@@ -530,29 +537,12 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           </AccordionItem>
 
           {/* =================================================================== */}
-          {/* 2. Charts */}
-          {/* =================================================================== */}
-          <AccordionItem value="charts" className="border rounded-lg px-3">
-            <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-              <span className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                {t('healthMetrics.charts.title', 'Graphiques')}
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="pb-2">
-                <HealthMetricsCharts lng={lng} aggregate={aggregate} period={period} />
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* =================================================================== */}
-          {/* 3. Statistics */}
+          {/* 3. Statistics (above the charts: the figures read first) */}
           {/* =================================================================== */}
           <AccordionItem value="stats" className="border rounded-lg px-3">
             <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
               <span className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-muted-foreground" />
+                <Activity className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 {t('healthMetrics.stats.title', 'Statistiques')}
               </span>
             </AccordionTrigger>
@@ -589,12 +579,29 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
           </AccordionItem>
 
           {/* =================================================================== */}
-          {/* 4. Management */}
+          {/* 4. Charts */}
+          {/* =================================================================== */}
+          <AccordionItem value="charts" className="border rounded-lg px-3">
+            <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
+              <span className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                {t('healthMetrics.charts.title', 'Graphiques')}
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="pb-2">
+                <HealthMetricsCharts lng={lng} aggregate={aggregate} period={period} />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* =================================================================== */}
+          {/* 5. Management */}
           {/* =================================================================== */}
           <AccordionItem value="management" className="border rounded-lg px-3">
             <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
               <span className="flex items-center gap-2">
-                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                <Trash2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 {t('healthMetrics.management.title', 'Gestion des données')}
               </span>
             </AccordionTrigger>

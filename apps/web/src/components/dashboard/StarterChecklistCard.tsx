@@ -222,7 +222,7 @@ function ChecklistBody({
   return (
     <section
       aria-labelledby="starter-checklist-heading"
-      className="rounded-xl border border-border/40 bg-card/70 backdrop-blur-md px-4 py-3 shadow-sm"
+      className="rounded-xl border border-border/40 bg-card px-4 py-3 shadow-sm"
     >
       <div className="flex items-center gap-2">
         <ListChecks className="h-4 w-4 shrink-0 text-primary" aria-hidden />

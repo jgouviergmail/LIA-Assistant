@@ -26,8 +26,12 @@ const emptyStateVariants = cva('flex flex-col items-center text-center', {
     variant: {
       /** Inside a card or a settings section: compact, no framing of its own. */
       section: 'gap-2 py-8',
-      /** A whole screen or list area: framed, roomier, always actionable. */
-      page: 'gap-3 rounded-lg border border-dashed p-12',
+      /**
+       * A whole screen or list area: framed, roomier, always actionable. Solid:
+       * a page's ground is the cosmos (AppCosmos), which a bare frame would
+       * let through.
+       */
+      page: 'gap-3 rounded-lg border border-dashed bg-card p-12',
     },
   },
   defaultVariants: { variant: 'section' },

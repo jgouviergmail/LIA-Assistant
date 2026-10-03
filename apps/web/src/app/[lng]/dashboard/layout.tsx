@@ -24,6 +24,7 @@ import {
   MeetingRecorderBannerSlot,
   MeetingRecorderProvider,
 } from '@/components/meetings/MeetingRecorderProvider';
+import { AppCosmos } from '@/components/landing/cosmic/AppCosmos';
 import { DashboardMobileNavMenu } from '@/components/dashboard/DashboardMobileNavMenu';
 import { MeetingRecorderControl } from '@/components/meetings/MeetingRecorderControl';
 import { RadioBannerSlot } from '@/components/radio/RadioBanner';
@@ -186,12 +187,18 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
         {/* ADR-258/259: the recorder lives ABOVE the header so a recording
           survives navigation and the header's controls can read it. */}
         <MeetingRecorderProvider lng={lng} enabled={appConfig?.features?.meetings_enabled ?? false}>
-          <div className="min-h-screen bg-background">
+          {/* No background on this root: the landing's cosmos paints the page
+            ground (`AppCosmos`, fixed layers on a negative z-index that
+            an in-flow background here would cover). The header stays opaque,
+            and so do the pages' own panels and cards (owner, 2026-10-03). */}
+          <div className="min-h-screen">
+            <AppCosmos />
+
             {/* Admin Broadcast Modal */}
             <BroadcastModal lng={lng} />
 
-            {/* Navbar - Enhanced Glassmorphism */}
-            <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm">
+            {/* Navbar — opaque: the cosmos paints the page ground, never the header. */}
+            <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background shadow-sm">
               {/* `2xl` widens the row it adds items to: the page is capped at
               `max-w-7xl`, so without this the widest screens had LESS room
               than 1280 px (measured 2026-09-26: labels + token counters

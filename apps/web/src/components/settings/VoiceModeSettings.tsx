@@ -12,8 +12,8 @@
  *    is configured by the admin.
  */
 
-import { useState, useEffect } from 'react';
-import { Mic, Cloud, Server, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useId } from 'react';
+import { Mic, Cloud, Server, AlertTriangle, AudioLines, Ear } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { InfoBox } from '@/components/ui/info-box';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -63,6 +63,10 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
   const [updating, setUpdating] = useState(false);
   const [sttRemoteAvailable, setSttRemoteAvailable] = useState<boolean | null>(null);
   const wake = wakeWordCopy(t, lng);
+  // The two sub-block titles name their controls: the engine picker is a
+  // group labelled by its title, the hands-free switch is labelled by its own.
+  const sttTitleId = useId();
+  const wakeTitleId = useId();
 
   // Sync Zustand store with server preference when server state changes.
   // Zustand ignores same-value updates, so this is safe to call on every render.
@@ -157,8 +161,15 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
       {/* STT backend picker — ALWAYS visible. Applies to both push-to-talk
           (long-press send button) AND the wake-word "voice mode" below. The
           backend resolves the right service per /voice/ticket payload. */}
-      <div className="rounded-lg border bg-card p-3 space-y-3">
-        <p className="text-sm font-medium">{t('settings.voice_mode.stt_mode_label')}</p>
+      <div
+        role="group"
+        aria-labelledby={sttTitleId}
+        className="rounded-lg border bg-card p-3 space-y-3"
+      >
+        <p id={sttTitleId} className="flex items-center gap-2 text-sm font-medium">
+          <AudioLines className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+          {t('settings.voice_mode.stt_mode_label')}
+        </p>
 
         <div className="grid gap-2 sm:grid-cols-2">
           <SttModeOption
@@ -198,11 +209,13 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
       {/* Wake-word voice mode toggle — opt-in for hands-free, uses the STT
           backend selected above. Push-to-talk works regardless of this. The
           phrase is the interface language's own (ADR-329). */}
-      <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
-        <div className="flex-1">
-          <p className="text-sm font-medium flex items-center gap-2">
-            {t('settings.voice_mode.enable')}
-            {wake.beta && <Badge variant="secondary">{t('settings.voice_mode.wake_beta')}</Badge>}
+      <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium flex flex-wrap items-center gap-2">
+            <Ear className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+            <span id={wakeTitleId}>{t('settings.voice_mode.enable')}</span>
+            {/* A trait of a working feature, not an inactive one: theme tone. */}
+            {wake.beta && <Badge variant="default">{t('settings.voice_mode.wake_beta')}</Badge>}
           </p>
           <p className="text-xs text-muted-foreground">{wake.description}</p>
           {wake.beta && (
@@ -212,6 +225,7 @@ export function VoiceModeSettings({ lng }: BaseSettingsProps) {
           )}
         </div>
         <Switch
+          aria-labelledby={wakeTitleId}
           checked={user?.voice_mode_enabled ?? false}
           onCheckedChange={handleToggleEnabled}
           disabled={updating}

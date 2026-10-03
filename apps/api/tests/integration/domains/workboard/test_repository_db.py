@@ -405,3 +405,65 @@ class TestSummary:
         assert (figures.tokens_in, figures.tokens_out, figures.tokens_cache) == (1000, 200, 50)
         assert figures.google_requests == 3
         assert figures.cost_eur == Decimal("0.42")
+
+
+class TestAttention:
+    async def test_the_dashboard_card_counts_open_work_and_pages_what_needs_me(
+        self, async_session: AsyncSession, owner: User, peer: User
+    ) -> None:
+        """The briefing card's read: every figure over OPEN tickets, the page
+        a slice of the « needs me » set and never its measure.
+
+        Lateness is judged against the real clock here, because the overdue
+        filter reads it (``filtered_stmt``) — the dates are placed around it.
+        """
+        from src.domains.workboard.summary_queries import read_attention
+
+        now = datetime.now(UTC)
+        owner_id, peer_id = owner.id, peer.id
+        async_session.add_all(
+            [
+                _ticket(owner_id, title="waits on me", status=TicketStatus.WAITING.value),
+                _ticket(
+                    owner_id,
+                    title="late",
+                    position=1,
+                    due_at=now - timedelta(days=1),
+                ),
+                _ticket(
+                    owner_id,
+                    title="LIA works on it",
+                    position=2,
+                    status=TicketStatus.IN_PROGRESS.value,
+                    assignee_kind=AssigneeKind.LIA.value,
+                    due_at=now + timedelta(days=3),
+                ),
+                # LIA finished it: on the board, not in motion.
+                _ticket(
+                    owner_id,
+                    title="LIA finished it",
+                    status=TicketStatus.DONE.value,
+                    assignee_kind=AssigneeKind.LIA.value,
+                    due_at=now - timedelta(days=5),
+                ),
+                # A peer's ticket handed to me and waiting on me.
+                _ticket(
+                    peer_id,
+                    title="the peer asks me",
+                    status=TicketStatus.CONFIRMING.value,
+                    assignee_user_id=owner_id,
+                ),
+                # A stranger's board never counts.
+                _ticket(peer_id, title="the peer's own", due_at=now - timedelta(days=1)),
+            ]
+        )
+        await async_session.commit()
+
+        figures = await read_attention(WorkboardRepository(async_session), owner_id, now, limit=2)
+
+        assert figures.open_total == 4, "five visible, one done"
+        assert figures.held_by_lia == 1, "the finished one is not work in motion"
+        assert figures.overdue == 1
+        assert figures.needs_me == 3, "two waiting on me, one late"
+        assert len(figures.needs_me_first) == 2, "a page of the set, never its size"
+        assert figures.needs_me_first[0].title == "late", "earliest due first"

@@ -283,7 +283,14 @@ class TestBundleIntegration:
             status=CardStatus.EMPTY, data=None, generated_at=datetime.now(UTC).isoformat()
         )
         bundle = CardsBundle(**dict.fromkeys(CardsBundle.model_fields, empty))
-        assert len(list(_iter_cards(bundle))) == len(CardsBundle.model_fields)
+        from src.domains.briefing.constants import SECTIONS_NOT_SUMMARISED
+
+        # Every card the prompts summarise — and only those: a card the
+        # synthesis never reads must not count toward its threshold.
+        assert len(list(_iter_cards(bundle))) == len(CardsBundle.model_fields) - len(
+            SECTIONS_NOT_SUMMARISED
+        )
+        assert set(SECTIONS_NOT_SUMMARISED) <= set(CardsBundle.model_fields)
 
     def test_has_content_on_tasks_and_documents(self):
         from src.domains.briefing.schemas import TaskItem

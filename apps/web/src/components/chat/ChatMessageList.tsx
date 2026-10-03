@@ -259,7 +259,7 @@ function EmptyConversation({
           spanClassName="text-4xl"
         />
       </div>
-      <div className="bg-card/60 backdrop-blur-md rounded-xl px-6 py-4 border border-border/20">
+      <div className="bg-card rounded-xl px-6 py-4 border border-border/20">
         <h2 className="text-xl font-semibold mb-2">{t('chat.empty_state.title')}</h2>
         <p className="text-sm text-muted-foreground max-w-md">
           {t('chat.empty_state.description')}
@@ -800,7 +800,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-destructive/20 backdrop-blur-sm">
           <MessageSquare className="h-10 w-10 text-destructive" />
         </div>
-        <div className="bg-card/60 backdrop-blur-md rounded-xl px-6 py-4 border border-destructive/20">
+        <div className="bg-card rounded-xl px-6 py-4 border border-destructive/20">
           <h2 className="text-xl font-semibold mb-2 text-destructive">{t('chat.error.title')}</h2>
           <p className="text-sm text-muted-foreground max-w-md">{t('chat.error.message')}</p>
         </div>
@@ -865,7 +865,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         {/* Typing indicator */}
         {isTyping && (
           <div className="flex gap-3 mb-4 flex-row-reverse">
-            <div className="bg-card/60 backdrop-blur-md px-4 py-3 rounded-lg rounded-tr-none border border-border/20">
+            <div className="bg-card px-4 py-3 rounded-lg rounded-tr-none border border-border/20">
               <TypingIndicator />
             </div>
           </div>
