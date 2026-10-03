@@ -54,6 +54,11 @@
     },
     "patchedDependencies": {
       "brace-expansion@5.0.12": "patches/brace-expansion@5.0.12.patch"
+    },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-vfj7-8cjw-p6xm"
+      ]
     }
   }
 }

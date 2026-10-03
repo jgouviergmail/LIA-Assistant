@@ -623,6 +623,16 @@ from the file: rows missing, pins stale).
 | `katex` | One KaTeX: `rehype-katex` rendered with 0.16 while the layout served the 0.18 stylesheet; exact because 0.18.11 is deprecated upstream | dependency lot 1 (2026-10-02) |
 | `@ungap/structured-clone` | 1.3.0 is deprecated upstream (« Potential CWE-502 »); production code through react-markdown and the rehype plugins | dependency lot 1 (2026-10-02) |
 
+**Accepted advisories** — when an advisory has NO published fix, no override can remove it:
+it is accepted by its GHSA in `pnpm.auditConfig.ignoreGhsas` (root `package.json`), never by
+a softer `--audit-level`. `pnpm audit` still prints it (« 1 ignored »), and this register says
+why it is harmless here and when it goes; `test_override_register_guard.py` holds it, like the
+overrides register, to exactly what `package.json` declares.
+
+| GHSA | Package and path | Why it is accepted | Remove when | Introduced by |
+|------|------------------|--------------------|-------------|---------------|
+| `GHSA-vfj7-8cjw-p6xm` (high, CVE-2026-93687) | `braces` ≤ 3.0.3: `eslint-config-next` → `@next/eslint-plugin-next` (pins `fast-glob` 3.3.1) → `micromatch` → `braces`, a development dependency only | A stack overflow on deeply nested brace patterns. The only caller is ESLint's Next.js plugin, globbing the repository's own page directories with patterns the repository writes; nothing reaches it at run time, and no `braces` release fixes it (3.0.3 is the latest) | A `braces` release fixes it, or `@next/eslint-plugin-next` leaves `fast-glob` 3 — review by 2026-11-30 | release v2.4.0 (2026-10-03) |
+
 ### Gardes de dependances (sans reseau)
 
 Quatre gardes du programme dependances (lot 3), dans `apps/api/tests/unit/`, tournent avec la

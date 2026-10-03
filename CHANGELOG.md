@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Décompression bornée** : un corps de réponse compressé est lu sous un plafond ; un codage non demandé (brotli) est refusé avant tout décodage, comme une panne de transport que chaque appelant sait déjà traiter.
 - **Aucun nom dans les métriques ni dans les traces** (prolonge [ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) : la jauge des requêtes en cours, étiquetée avant le routage, gardait le chemin brut — un nom sous `/relations/{name}` restait une série Prometheus pour toute la vie du processus, et chaque scan en ouvrait une ; elle prend le gabarit que le routage choisira, lu sur les expressions du routeur. Les traces exportées à Tempo portaient la cible concrète (`http.target`, `http.url` avec sa chaîne de requête) : un crochet de l'instrumentation la réécrit au gabarit.
 - **Un scan de secrets avant chaque push** (voir Added) et la correction de six constats gitleaks des lots (une fixture, un exemple, deux noms de sommes de contrôle).
+- **`braces` (GHSA-vfj7-8cjw-p6xm, élevé, aucun correctif publié)** : atteint uniquement par le greffon Next.js d'ESLint (`fast-glob` → `micromatch`), en développement, sur des motifs que le dépôt écrit ; accepté par son identifiant dans `pnpm.auditConfig.ignoreGhsas` — jamais par un niveau d'audit abaissé — et inscrit avec sa raison et sa date de revue dans `docs/technical/CI_CD.md`.
 
 ### Fixed
 

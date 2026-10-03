@@ -1699,8 +1699,10 @@ tasks:
     desc: Audit the pnpm lockfile (a high or critical advisory fails)
     dir: "{{.WEB_DIR}}"
     cmds:
-      # Fix the advisory or pin a `pnpm.overrides` entry in the root package.json
-      # (registered in docs/technical/CI_CD.md) — never a softer level.
+      # Fix the advisory or pin a `pnpm.overrides` entry in the root package.json;
+      # an advisory with NO published fix is accepted by its GHSA in
+      # `pnpm.auditConfig.ignoreGhsas` — both registered with their reason in
+      # docs/technical/CI_CD.md. Never a softer level.
       - pnpm audit --audit-level=high
 
   # The CI's Secret Scan (gitleaks-action, the `secret-scan` job of ci.yml) runs
