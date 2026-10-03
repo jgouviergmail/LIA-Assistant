@@ -26,6 +26,7 @@ from src.domains.agents.data_registry.models import RegistryItem
 from src.domains.agents.data_registry.state import merge_registry
 from src.domains.agents.utils.message_filters import remove_orphan_tool_messages
 from src.domains.agents.utils.react_budget import react_turn_reset
+from src.infrastructure.llm.message_view import model_view_content
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -36,9 +37,9 @@ logger = get_logger(__name__)
 # on the event loop, repeated several times per turn (noticeable on long
 # histories with large ToolMessages). Message content is immutable once in
 # history (HITL replacement goes through RemoveMessage + a NEW message id),
-# so counts are cached by message id, guarded by content length.
-# dict[message_id] -> (content_length, token_count)
-_token_count_cache: dict[str, tuple[int, int]] = {}
+# so counts are cached by message id, guarded by the model-content fingerprint.
+# dict[message_id] -> ((content_length, content_hash), token_count)
+_token_count_cache: dict[str, tuple[tuple[int, int], int]] = {}
 
 
 def _count_message_tokens(message: BaseMessage, encoding: tiktoken.Encoding) -> int:
@@ -52,14 +53,16 @@ def _count_message_tokens(message: BaseMessage, encoding: tiktoken.Encoding) -> 
     Returns:
         Token count for the message content.
     """
-    content = message.content
+    view = model_view_content(message)
+    content = view if view is not None else message.content
     if not isinstance(content, str):
         return 0
 
     msg_id = message.id
+    fingerprint = (len(content), hash(content))
     if msg_id is not None:
         cached = _token_count_cache.get(msg_id)
-        if cached is not None and cached[0] == len(content):
+        if cached is not None and cached[0] == fingerprint:
             return cached[1]
 
     token_count = len(encoding.encode(content))
@@ -69,7 +72,7 @@ def _count_message_tokens(message: BaseMessage, encoding: tiktoken.Encoding) -> 
         while len(_token_count_cache) >= REDUCER_TOKEN_COUNT_CACHE_MAX_SIZE:
             oldest_key = next(iter(_token_count_cache))
             del _token_count_cache[oldest_key]
-        _token_count_cache[msg_id] = (len(content), token_count)
+        _token_count_cache[msg_id] = (fingerprint, token_count)
 
     return token_count
 

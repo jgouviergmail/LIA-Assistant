@@ -169,7 +169,7 @@ get_files_catalogue_manifest = ToolManifest(
             path="files[].modifiedTime",
             type="string",
             description="Last modified",
-            semantic_type="datetime",
+            semantic_type="modification_timestamp",
         ),
         OutputFieldSchema(path="files[].owners", type="string", description="Owner names"),
         OutputFieldSchema(

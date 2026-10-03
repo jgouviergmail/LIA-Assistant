@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from src.core.card_composition import CardCompositionRequest
+
 if TYPE_CHECKING:
     from src.domains.conversations.service import ConversationService
 
@@ -76,6 +78,7 @@ async def archive_user_message_first(
     is_automated_source: bool = False,
     live_session_id: str | None = None,
     spoken_text: str | None = None,
+    card_composition: CardCompositionRequest | None = None,
 ) -> uuid.UUID | None:
     """Persist the user message BEFORE graph execution (archive-first).
 
@@ -110,6 +113,8 @@ async def archive_user_message_first(
     from src.infrastructure.database import get_db_context
 
     metadata: dict[str, Any] = {FIELD_RUN_ID: run_id, **attachment_meta}
+    if card_composition is not None:
+        metadata["card_composition"] = card_composition.model_dump(mode="json")
     if is_hitl_resumption:
         metadata["hitl_response"] = True
     if is_automated_source:

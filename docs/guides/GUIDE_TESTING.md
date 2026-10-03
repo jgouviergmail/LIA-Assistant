@@ -2058,7 +2058,7 @@ async def test_with_mocked_llm_call():
 ```toml
 # pyproject.toml
 [tool.pytest.ini_options]
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=77"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=78"
 ```
 
 **Rapports générés** :
@@ -2127,7 +2127,7 @@ Règles :
 ### Exécuter Coverage
 
 ```bash
-# Coverage complète (applique le gate --cov-fail-under=77)
+# Coverage complète (applique le gate --cov-fail-under=78)
 cd apps/api
 pytest --cov=src --cov-report=term-missing --cov-report=html
 
@@ -2173,7 +2173,7 @@ Une cible non atteinte se discute en revue ; le plancher, lui, rougit la CI.
 
 Le rapport XML est uploadé vers Codecov par le job `test-backend`
 (`codecov-action`, flag `backend`, non bloquant) ; le **gate bloquant** est le
-`--cov-fail-under=77` porté par `task test:backend:unit:coverage`, que ce job
+`--cov-fail-under=78` porté par `task test:backend:unit:coverage`, que ce job
 appelle (voir la doctrine ratchet ci-dessus). Pour le reproduire en local,
 lancer cette tâche — et non `test:backend:unit:fast`, qui troque la couverture
 contre le parallélisme.
@@ -3024,12 +3024,12 @@ pnpm test:coverage       # avec couverture + application des seuils
 
 ### Seuils de couverture (doctrine ratchet)
 
-Les seuils vivent dans `apps/web/vitest.config.ts` (`coverage.thresholds`) et suivent la même doctrine ratchet que le gate backend :
+Les seuils vivent dans `apps/web/vitest.config.mts` (`coverage.thresholds`) et suivent la même doctrine ratchet que le gate backend :
 
 - **Seuils fixés juste sous la valeur mesurée** au moment du verrouillage — jamais à l'aveugle.
 - **Ils ne montent que lorsque de nouveaux tests arrivent, et ne descendent jamais** : baisser un seuil pour faire passer la CI est une régression à corriger, pas un réglage.
 - Les zones critiques (reducers, sse-handlers, stores) sont **verrouillées à 100 %** par des seuils par glob ; un plancher global bas protège le reste.
-- **Plancher global courant** (re-mesuré 2026-07-28, 3 769 tests / 303 fichiers) : statements 64 / branches 58 / functions 58 / lines 65 (valeurs mesurées 66.64 / 60.44 / 60.81 / 67.18). À relever à chaque nouvelle vague de tests — le déclencheur inscrit dans `vitest.config.ts` est `statements ≥ 67 et lines ≥ 68`, pas encore atteint, afin de garder ≥ 2 points de marge après un relèvement.
+- **Plancher global courant** (re-mesuré 2026-07-28, 3 769 tests / 303 fichiers) : statements 64 / branches 58 / functions 58 / lines 65 (valeurs mesurées 66.64 / 60.44 / 60.81 / 67.18). À relever à chaque nouvelle vague de tests — le déclencheur inscrit dans `vitest.config.mts` est `statements ≥ 67 et lines ≥ 68`, pas encore atteint, afin de garder ≥ 2 points de marge après un relèvement.
 - Note vérifiée empiriquement (vitest 4.1) : le plancher global est calculé sur **tout** l'ensemble `include` — les fichiers matchés par un glob n'en sont pas soustraits.
 - **Mesurer le verrou sur SA population, jamais sur un sur-ensemble.** Le verrou `settings/connectors/**/*.tsx` avait été calé sur l'agrégat du répertoire entier, hooks `.ts` non couverts inclus : population mesurée ≠ population gardée, **14,7 points de jeu sur les fonctions**, soit une régression massive qui serait passée en silence. Après un lot, mesurer l'agrégat du glob lui-même (`coverage-final.json` filtré sur le glob) et vérifier que **chaque** verrou tient dans ~3 points du mesuré — au-delà, il ne garde plus rien.
 - **Un verrou dont le glob ne matche rien passe vacuellement.** Après avoir ajouté ou resserré un seuil par glob, le **falsifier une fois** : le monter au-dessus du mesuré et vérifier que vitest échoue en nommant le glob. Un glob mal orthographié valide toujours, silencieusement.
@@ -3061,7 +3061,7 @@ Le chantier de couverture des composants (≈ 280 composants, livré par lots à
 - **Règle de contrat (F057) — les builders honorent le type public.** Tout builder de props/données prend un `Partial<T>` et retourne le type réel (`T`) ; les retours de hooks mockés se typent au contrat via `Partial<ReturnType<typeof useXxx>>`. **Jamais** `as never` / `as any` / `Record<string, unknown>` en surcharge : ils rouvrent la classe de bugs que le typage doit fermer (un override typé attrape une faute de frappe ou un type faux à la compilation — c'est ainsi que la remédiation a mis au jour un `previewUrl: null` non conforme et un `error` traité en booléen au lieu d'`Error`). Un cast d'échappement n'est admis qu'à une **frontière externe non constructible** (DOM `Window`, `Response` fetch, `MediaStream`, `TFunction` i18next) ou pour injecter délibérément une valeur invalide dans un test de garde.
 - **i18n et thème sont mockés globalement** (`src/__tests__/setup.ts`) : `react-i18next` **et** `@/i18n/client` renvoient `t: key => key` (on **assertit sur la clé** de traduction, jamais sur le texte traduit) ; `next-themes` est un passthrough avec `useTheme` déterministe (`resolvedTheme: 'light'`). Un test peut surcharger l'un ou l'autre avec son propre `vi.mock` local.
 - **Barre de qualité (Definition of Done)** — interdit les tests-alibi : un test de composant **assertit un comportement observable** (matrice de variantes qui changent le rendu · états conditionnels loading/empty/error/success · interactions → callback avec les bons arguments ou changement d'état observé · a11y quand c'est une vraie feature : combobox, dialog, listbox · garde-fous : stale-response, unmount-safety — imiter `ConsumptionExportSection.autocomplete.test.tsx`). **Interdit** : un test dont la seule assertion est « ça rend sans planter ».
-- **Primitives shadcn triviales exclues de la mesure** : les re-exports Radix fins ou wrappers d'un seul élément HTML (`separator`, `slider`, `switch`, `label`, `tooltip`, `accordion`, `tabs`, `dialog`, `alert-dialog`, `dropdown-menu`, `input`, `textarea`, `skeleton`, `toaster`) sont dans `coverage.exclude` (`vitest.config.ts`) — les tester relève du théâtre de couverture. Les primitives à vraie logique/variants restent mesurées et testées.
+- **Primitives shadcn triviales exclues de la mesure** : les re-exports Radix fins ou wrappers d'un seul élément HTML (`separator`, `slider`, `switch`, `label`, `tooltip`, `accordion`, `tabs`, `dialog`, `alert-dialog`, `dropdown-menu`, `input`, `textarea`, `skeleton`, `toaster`) sont dans `coverage.exclude` (`vitest.config.mts`) — les tester relève du théâtre de couverture. Les primitives à vraie logique/variants restent mesurées et testées.
 - **Ratchet par lot** : à la fin d'un lot, mesurer (`pnpm test:coverage --coverage.reporter=json-summary`) puis **verrouiller la couverture acquise par un glob par-répertoire** (ex. `'src/components/ui/**': { statements: N, … }`) fixé juste sous la valeur mesurée. Les globs par-répertoire sont des clés additives (moins de collision avec le plancher global sous édition parallèle). Exemplars de référence : `ui/__tests__/pagination.test.tsx` (logique pure), `ui/__tests__/search-input.test.tsx` (interaction), `psyche/__tests__/PsycheLLMSummary.test.tsx` (data-driven).
 
 ### Pièges connus

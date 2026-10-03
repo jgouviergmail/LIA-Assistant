@@ -1249,16 +1249,16 @@ tasks:
         platforms: [linux, darwin]
 
   test:backend:unit:coverage:
-    # Measured 2026-09-29 after JEV lots 1-8: 79.09%.
-    # Floor 77 keeps >=2 percentage points of headroom; the same floor is
+    # Measured 2026-10-03 after card/native/preview qualification: 80.36%.
+    # Floor 78 keeps >=2 percentage points of headroom; the same floor is
     # enforced in pyproject.toml. The fast task trades coverage for xdist
     # within the pre-commit budget; this task reproduces the CI coverage gate.
     desc: Backend unit tests with coverage and the CI floor (mirrors the CI job step)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=77
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=78
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=77
+      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=78
         platforms: [linux, darwin]
 
   test:backend:agents:

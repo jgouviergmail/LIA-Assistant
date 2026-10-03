@@ -36,7 +36,7 @@ from src.core.constants import (
     STREET_VIEW_DEFAULT_WIDTH,
 )
 from src.core.exceptions import (
-    InternalServerError,
+    BaseAPIException,
     raise_configuration_missing,
     raise_external_service_connection_error,
     raise_external_service_fetch_error,
@@ -47,6 +47,8 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.connectors.media_attribution import media_spend_context
+from src.domains.usage_limits.enforcement import raise_for_blocked_verdict
+from src.domains.usage_limits.service import UsageLimitService
 from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
@@ -56,7 +58,7 @@ media_proxy_router = APIRouter()
 #: Browser cache on every proxied image: a re-render inside the day is served
 #: locally and costs nothing; past it, the fetch is billed again and counted
 #: again.
-_CACHE_HEADERS = {"Cache-Control": "public, max-age=86400"}
+_CACHE_HEADERS = {"Cache-Control": "private, max-age=86400"}
 
 
 async def serve_billed_image(
@@ -95,6 +97,10 @@ async def serve_billed_image(
     Returns:
         The image, cacheable for a day.
     """
+    verdict = await UsageLimitService.check_user_allowed(user_id)
+    if not verdict.allowed:
+        raise_for_blocked_verdict(verdict, layer="media_proxy")
+
     async with media_spend_context(run, sig, user_id), httpx.AsyncClient() as client:
         response = await client.get(url, follow_redirects=True, timeout=timeout)
         if response.status_code != 200:
@@ -264,7 +270,7 @@ async def proxy_routes_static_map(
             error_type=type(e).__name__,
         )
         raise_external_service_connection_error("google_routes")
-    except InternalServerError:
+    except BaseAPIException:
         # Re-raise API exceptions as-is
         raise
     except Exception as e:
@@ -374,7 +380,7 @@ async def proxy_location_static_map(
             error_type=type(e).__name__,
         )
         raise_external_service_connection_error("google_location")
-    except InternalServerError:
+    except BaseAPIException:
         raise
     except Exception as e:
         logger.exception(
@@ -465,7 +471,7 @@ async def proxy_street_view(
             error_type=type(e).__name__,
         )
         raise_external_service_connection_error("street_view")
-    except InternalServerError:
+    except BaseAPIException:
         raise
     except Exception as e:
         logger.exception(

@@ -258,7 +258,7 @@ class TestSteps:
         html = card.render({**self.BASE, "steps": ["Head north"]}, ctx)
         assert "Head north" in html
 
-    def test_steps_are_capped_and_a_more_indicator_is_shown(
+    def test_full_steps_remain_reachable_despite_the_model_preview_cap(
         self, card: RouteCard, ctx: RenderContext
     ) -> None:
         from src.core.config import settings
@@ -269,8 +269,7 @@ class TestSteps:
         ]
         html = card.render({**self.BASE, "steps": many}, ctx)
 
-        # The full count is shown on the trigger, but the last steps are folded away.
-        assert f"Step {settings.routes_max_steps + 4}" not in html
+        assert f"Step {settings.routes_max_steps + 4}" in html
 
     def test_step_instruction_is_escaped(self, card: RouteCard, ctx: RenderContext) -> None:
         html = card.render(
@@ -307,10 +306,10 @@ class TestTrafficAndModifiers:
         html = card.render({**self.BASE, "toll_info": {"formatted": "3,50 €"}}, ctx)
         assert "3,50" in html
 
-    def test_toll_info_is_hidden_when_avoiding_tolls(
+    def test_avoidance_preference_does_not_hide_a_received_toll_estimate(
         self, card: RouteCard, ctx: RenderContext
     ) -> None:
         html = card.render(
             {**self.BASE, "avoid_tolls": True, "toll_info": {"formatted": "3,50 €"}}, ctx
         )
-        assert "3,50" not in html
+        assert "3,50" in html

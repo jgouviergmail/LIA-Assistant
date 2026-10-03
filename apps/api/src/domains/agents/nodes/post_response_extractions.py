@@ -29,6 +29,7 @@ from src.domains.agents.services.memory_extractor import extract_memories_backgr
 from src.domains.agents.services.open_loop_extractor import extract_open_loops_background
 from src.domains.interests.services import extract_interests_background
 from src.infrastructure.async_utils import safe_fire_and_forget
+from src.infrastructure.llm.message_view import as_model_messages
 from src.infrastructure.observability.metrics_extractions import (
     post_response_extraction_scheduled_total,
 )
@@ -163,6 +164,7 @@ def _schedule_post_response_extractions(
             turn, for deferred self-evaluation (T → T+1, ADR-079).
         psyche_appraisal: Parsed self-report from the response, or None.
     """
+    model_messages = as_model_messages(state.get(STATE_KEY_MESSAGES, []))
     user_memory_enabled = (
         _c.memory_enabled if (_c := runtime_context_if_running()) is not None else True
     )
@@ -219,7 +221,7 @@ def _schedule_post_response_extractions(
                 safe_fire_and_forget(
                     extract_memories_background(
                         user_id=user_id,
-                        messages=state[STATE_KEY_MESSAGES],
+                        messages=model_messages,
                         session_id=thread_id,
                         personality_instruction=personality_instruction,
                         conversation_id=thread_id,
@@ -287,7 +289,7 @@ def _schedule_post_response_extractions(
             safe_fire_and_forget(
                 extract_interests_background(
                     user_id=user_id,
-                    messages=state[STATE_KEY_MESSAGES],
+                    messages=model_messages,
                     session_id=thread_id,
                     conversation_id=thread_id,
                     user_language=user_language,
@@ -340,7 +342,7 @@ def _schedule_post_response_extractions(
             safe_fire_and_forget(
                 extract_open_loops_background(
                     user_id=user_id,
-                    messages=state[STATE_KEY_MESSAGES],
+                    messages=model_messages,
                     session_id=thread_id,
                     run_id=run_id,
                 ),
@@ -410,7 +412,7 @@ def _schedule_post_response_extractions(
             safe_fire_and_forget(
                 extract_journal_entry_background(
                     user_id=user_id,
-                    messages=state[STATE_KEY_MESSAGES],
+                    messages=model_messages,
                     session_id=thread_id,
                     personality_instruction=personality_instruction,
                     conversation_id=thread_id,

@@ -94,6 +94,29 @@ const EVERY_CONTROL: MockRoute = {
 };
 
 test.describe('dashboard header reachability', () => {
+  for (const locale of ['fr', 'de']) {
+    test(`enlarged text keeps every header control reachable @ ${locale}`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }) => {
+      await authenticate({ language: locale });
+      await mockApi([...ROUTES, EVERY_CONTROL]);
+      await page.setViewportSize({ width: 320, height: 900 });
+      await page.goto(`/${locale}/dashboard/chat`);
+      await page.locator('header').waitFor({ state: 'visible' });
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = '20px';
+      });
+      await waitForStableControls(page, 'dashboard-header');
+      const { clipped, overlaps } = await probeControls(page, 'dashboard-header');
+      expect(clipped).toEqual([]);
+      expect(overlaps).toEqual([]);
+      await page
+        .locator('header')
+        .screenshot({ path: test.info().outputPath('header-enlarged.png') });
+    });
+  }
   for (const locale of LOCALES) {
     test(`no control is clipped or covered @ ${locale}`, async ({
       page,

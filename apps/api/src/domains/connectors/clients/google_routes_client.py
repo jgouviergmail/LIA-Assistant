@@ -511,6 +511,8 @@ class GoogleRoutesClient:
             field_mask = TRANSIT_ROUTE_FIELD_MASK
         else:
             field_mask = EXTENDED_ROUTE_FIELD_MASK
+        if body.get("optimizeWaypointOrder"):
+            field_mask += ",routes.optimizedIntermediateWaypointIndex"
         headers = self._get_headers(field_mask)
 
         url = f"{self.api_base_url}/directions/v2:computeRoutes"

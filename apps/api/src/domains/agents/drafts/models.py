@@ -695,9 +695,11 @@ class Draft(BaseModel):
 
     def mark_modified(self, new_content: dict[str, Any]) -> Draft:
         """Create a copy with updated content and MODIFIED status."""
+        from src.core.card_composition import preserve_composition_binding
+
         return self.model_copy(
             update={
-                "content": new_content,
+                "content": preserve_composition_binding(self.content, new_content),
                 "status": DraftStatus.MODIFIED,
                 "modified_at": datetime.now(UTC),
             }

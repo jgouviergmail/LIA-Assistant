@@ -1,0 +1,52 @@
+[
+  {
+    "language": "fr",
+    "html": "<div class=\"lia-card-binding\" data-card-ref=\"email_reference\"><hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-email lia-email--unread lia-email--important \"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--red\"><span style=\"font-size:var(--lia-text-sm);font-weight:600;letter-spacing:-0.02em\">CM</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__subtitle\" style=\"margin-bottom:var(--lia-space-2xs)\">18/03 à 10:30 <div class=\"lia-email__status-icons\"><span class=\"lia-email__status-icon lia-email__status-icon--urgent\" title=\"Important\"><span class=\"lia-icon lia-icon--sm\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">star</span></span></span><span class=\"lia-email__status-icon lia-email__status-icon--urgent\" title=\"Non lu\"><span class=\"lia-icon lia-icon--sm\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">mark_email_unread</span></span></span></div></div><a class=\"lia-card-top__title\" style=\"font-size:var(--lia-text-base);font-weight:400\" href=\"mailto:camille@example.test\">Camille Martin</a><div style=\"font-size:var(--lia-text-xs);color:var(--lia-text-muted)\">camille@example.test</div></div></div><div class=\"lia-chip-row\"><span class=\"lia-chip lia-chip--attach\"><span class=\"material-symbols-outlined\">attach_file</span>1</span></div><a class=\"lia-email__subject\" href=\"https://mail.google.com/mail/u/0/#all/canonical-email\" target=\"_blank\" rel=\"noopener noreferrer\">Votre voyage à Lyon est confirmé</a><p class=\"lia-email__snippet\">Retrouvez les informations utiles pour votre arrivée et votre réservation.</p><div class=\"lia-collapsible-wrapper\"><details class=\"lia-collapsible\"><summary class=\"lia-collapsible__trigger\"><span>Voir plus</span><span class=\"lia-collapsible__icon\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">expand_more</span></span></span></summary><div class=\"lia-collapsible__content\"><div class=\"lia-sec lia-sec--first\"><div class=\"lia-illus-sm lia-illus--indigo\"><span class=\"material-symbols-outlined\">person</span></div><span class=\"lia-sec__label\">Destinataires</span></div><div class=\"lia-part-list\"><div class=\"lia-part-item\"><span class=\"material-symbols-outlined\" style=\"color:#16a34a\">check_circle</span><a href=\"mailto:alex@example.test\">Alex</a><span class=\"lia-part-item__email\">alex@example.test</span></div></div><div class=\"lia-sec\"><div class=\"lia-illus-sm lia-illus--indigo\"><span class=\"material-symbols-outlined\">description</span></div><span class=\"lia-sec__label\">Contenu du mail</span></div><div class=\"lia-desc-block lia-desc-block--no-border\">Bonjour Alex,<br>Votre réservation est confirmée.<br>Arrivée à partir de 15 h.<br>Bonne journée,<br>Camille</div></div></details></div><div class=\"lia-collapsible-wrapper\"><hr class=\"lia-separator lia-separator--collapsible\" /><details class=\"lia-collapsible\"><summary class=\"lia-collapsible__trigger\"><span>Voir 1 pièce jointe</span><span class=\"lia-collapsible__icon\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">expand_more</span></span></span></summary><div class=\"lia-collapsible__content\"><div class=\"lia-attachments\"><span class=\"lia-attachment lia-attachment--pdf\" ><span class=\"lia-attachment__icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">picture_as_pdf</span></span><span class=\"lia-attachment__name\" title=\"Confirmation.pdf\">Confirmation.pdf</span><span class=\"lia-attachment__size\">(24.0KB)</span></span></div></div></details></div></div><div class=\"lia-suggested-actions\"><button type=\"button\" class=\"lia-action-btn lia-action-btn--email\" data-action=\"reply\"><span class=\"lia-action-btn__icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">reply</span></span>Rép.</button><button type=\"button\" class=\"lia-action-btn lia-action-btn--email\" data-action=\"forward\"><span class=\"lia-action-btn__icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">forward</span></span>Transf.</button></div></div><hr class=\"lia-response-separator\"></div>",
+    "metadata": {
+      "run_id": "source-run",
+      "lia_card_actions": {
+        "version": 1,
+        "run_id": "source-run",
+        "items": [
+          {
+            "registry_id": "email_reference",
+            "kind": "EMAIL",
+            "target_id": "canonical-email",
+            "provider": "google_gmail",
+            "account_binding": "00000000-0000-0000-0000-000000000004",
+            "label": "Votre voyage à Lyon est confirmé",
+            "actions": [
+              "reply",
+              "forward"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "language": "en",
+    "html": "<div class=\"lia-card-binding\" data-card-ref=\"email_reference\"><hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-email lia-email--unread lia-email--important \"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--red\"><span style=\"font-size:var(--lia-text-sm);font-weight:600;letter-spacing:-0.02em\">CM</span></div><div class=\"lia-card-top__info\"><div class=\"lia-card-top__subtitle\" style=\"margin-bottom:var(--lia-space-2xs)\">03/18 at 10:30 AM <div class=\"lia-email__status-icons\"><span class=\"lia-email__status-icon lia-email__status-icon--urgent\" title=\"Important\"><span class=\"lia-icon lia-icon--sm\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">star</span></span></span><span class=\"lia-email__status-icon lia-email__status-icon--urgent\" title=\"Unread\"><span class=\"lia-icon lia-icon--sm\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">mark_email_unread</span></span></span></div></div><a class=\"lia-card-top__title\" style=\"font-size:var(--lia-text-base);font-weight:400\" href=\"mailto:camille@example.test\">Camille Martin</a><div style=\"font-size:var(--lia-text-xs);color:var(--lia-text-muted)\">camille@example.test</div></div></div><div class=\"lia-chip-row\"><span class=\"lia-chip lia-chip--attach\"><span class=\"material-symbols-outlined\">attach_file</span>1</span></div><a class=\"lia-email__subject\" href=\"https://mail.google.com/mail/u/0/#all/canonical-email\" target=\"_blank\" rel=\"noopener noreferrer\">Votre voyage à Lyon est confirmé</a><p class=\"lia-email__snippet\">Retrouvez les informations utiles pour votre arrivée et votre réservation.</p><div class=\"lia-collapsible-wrapper\"><details class=\"lia-collapsible\"><summary class=\"lia-collapsible__trigger\"><span>See more</span><span class=\"lia-collapsible__icon\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">expand_more</span></span></span></summary><div class=\"lia-collapsible__content\"><div class=\"lia-sec lia-sec--first\"><div class=\"lia-illus-sm lia-illus--indigo\"><span class=\"material-symbols-outlined\">person</span></div><span class=\"lia-sec__label\">Recipients</span></div><div class=\"lia-part-list\"><div class=\"lia-part-item\"><span class=\"material-symbols-outlined\" style=\"color:#16a34a\">check_circle</span><a href=\"mailto:alex@example.test\">Alex</a><span class=\"lia-part-item__email\">alex@example.test</span></div></div><div class=\"lia-sec\"><div class=\"lia-illus-sm lia-illus--indigo\"><span class=\"material-symbols-outlined\">description</span></div><span class=\"lia-sec__label\">Email content</span></div><div class=\"lia-desc-block lia-desc-block--no-border\">Bonjour Alex,<br>Votre réservation est confirmée.<br>Arrivée à partir de 15 h.<br>Bonne journée,<br>Camille</div></div></details></div><div class=\"lia-collapsible-wrapper\"><hr class=\"lia-separator lia-separator--collapsible\" /><details class=\"lia-collapsible\"><summary class=\"lia-collapsible__trigger\"><span>See 1 attachment</span><span class=\"lia-collapsible__icon\"><span class=\"lia-icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">expand_more</span></span></span></summary><div class=\"lia-collapsible__content\"><div class=\"lia-attachments\"><span class=\"lia-attachment lia-attachment--pdf\" ><span class=\"lia-attachment__icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">picture_as_pdf</span></span><span class=\"lia-attachment__name\" title=\"Confirmation.pdf\">Confirmation.pdf</span><span class=\"lia-attachment__size\">(24.0KB)</span></span></div></div></details></div></div><div class=\"lia-suggested-actions\"><button type=\"button\" class=\"lia-action-btn lia-action-btn--email\" data-action=\"reply\"><span class=\"lia-action-btn__icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">reply</span></span>Reply</button><button type=\"button\" class=\"lia-action-btn lia-action-btn--email\" data-action=\"forward\"><span class=\"lia-action-btn__icon\" aria-hidden=\"true\"><span class=\"material-symbols-outlined\">forward</span></span>Fwd</button></div></div><hr class=\"lia-response-separator\"></div>",
+    "metadata": {
+      "run_id": "source-run",
+      "lia_card_actions": {
+        "version": 1,
+        "run_id": "source-run",
+        "items": [
+          {
+            "registry_id": "email_reference",
+            "kind": "EMAIL",
+            "target_id": "canonical-email",
+            "provider": "google_gmail",
+            "account_binding": "00000000-0000-0000-0000-000000000004",
+            "label": "Votre voyage à Lyon est confirmé",
+            "actions": [
+              "reply",
+              "forward"
+            ]
+          }
+        ]
+      }
+    }
+  }
+]

@@ -18,11 +18,11 @@
     },
     "src/components/chat/MarkdownContent.tsx": {
       "count": 1,
-      "max": 21
+      "max": 19
     },
     "src/components/dashboard/BriefingCard.tsx": {
       "count": 1,
-      "max": 19
+      "max": 18
     },
     "src/components/dashboard/UsageStatistics.tsx": {
       "count": 1,

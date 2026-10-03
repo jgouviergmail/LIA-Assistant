@@ -19,6 +19,7 @@ the tools': every reader of ``CONTEXT_DOMAIN_TICKETS`` finds them in one place.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 from pydantic import BaseModel
@@ -63,7 +64,10 @@ ContextTypeRegistry.register(
 
 
 def ticket_registry_items(
-    tickets: list[dict[str, Any]], *, tool_name: str
+    tickets: list[dict[str, Any]],
+    *,
+    tool_name: str,
+    display_by_id: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, RegistryItem]:
     """One registry item per ticket, keyed by the ticket's own id.
 
@@ -84,7 +88,10 @@ def ticket_registry_items(
             type=RegistryItemType.TICKET,
             payload=ticket,
             meta=RegistryItemMeta(
-                source=CONTEXT_DOMAIN_TICKETS, domain=CONTEXT_DOMAIN_TICKETS, tool_name=tool_name
+                source=CONTEXT_DOMAIN_TICKETS,
+                domain=CONTEXT_DOMAIN_TICKETS,
+                tool_name=tool_name,
+                display=deepcopy((display_by_id or {}).get(ticket["id"], {})),
             ),
         )
         for ticket in tickets

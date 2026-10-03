@@ -16,16 +16,17 @@ from typing import Any
 
 import structlog
 
-from src.core.config import settings
 from src.core.constants import (
     PLACES_BUSINESS_STATUS_OPERATIONAL,
     PLACES_FEATURE_FIELD_TO_I18N_KEY,
-    PLACES_MAX_GALLERY_PHOTOS,
 )
+from src.core.field_names import FIELD_DISPLAY_ONLY
 from src.core.i18n import resolve_language
+from src.domains.agents.tools.places_hours import normalized_hours
+from src.domains.agents.tools.places_photos import photo_fields as _photo_fields
+from src.domains.agents.tools.places_reviews import normalize_reviews
 from src.domains.agents.utils.distance import calculate_distance_sync
 from src.domains.agents.utils.i18n_location import get_price_level
-from src.domains.connectors.media_attribution import with_attribution
 
 logger = structlog.get_logger(__name__)
 
@@ -103,53 +104,35 @@ def _distance_fields(
     ).to_dict()
 
 
-def _photo_fields(place: dict[str, Any], *, include_names: bool = False) -> dict[str, Any]:
-    """Photo proxy URLs (and optionally raw resource names) for a place.
-
-    Every URL carries the turn's signed run id: the photo is BILLED when the
-    browser fetches it, and the proxy counts it then, on this turn. It used
-    to be pre-counted here — one call per place whether or not the image
-    ever loaded, and never the carousel's other photos. Carousel photos
-    follow settings.place_carousel_enabled.
-    """
-    photos = place.get("photos", [])
-    photo_names = [p.get("name") for p in photos if p.get("name")]
-    fields: dict[str, Any] = {}
-    if include_names and photos:
-        fields["photos"] = photo_names
-    if not photo_names:
-        return fields
-    fields["photo_url"] = with_attribution(
-        f"/api/v1/connectors/google-places/photo/{photo_names[0]}"
-    )
-    if settings.place_carousel_enabled:
-        fields["photo_urls"] = [
-            with_attribution(f"/api/v1/connectors/google-places/photo/{name}")
-            for name in photo_names[:PLACES_MAX_GALLERY_PHOTOS]
-        ]
-    else:
-        # Single photo mode: photo_urls contains only the thumbnail
-        fields["photo_urls"] = [fields["photo_url"]]
-    return fields
-
-
-def _review_entries(
-    reviews: list[dict[str, Any]], *, limit: int, include_author: bool
-) -> list[dict[str, Any]]:
-    """Most-recent reviews, normalized (publishTime is ISO 8601: lexicographic sort)."""
-    entries: list[dict[str, Any]] = []
-    for review in sorted(reviews, key=lambda r: r.get("publishTime", ""), reverse=True)[:limit]:
-        text = review.get("text", "")
-        entry: dict[str, Any] = {
-            "rating": review.get("rating"),
-            "text": (text.get("text", "") if isinstance(text, dict) else str(text))[:200],
-            "relative_time": review.get("relativePublishTimeDescription"),
+def _add_reviews(target: dict[str, Any], value: object, limit: int) -> None:
+    """Full reviews are display-only; the canonical model preview remains bounded."""
+    reviews = normalize_reviews(value)
+    if not reviews:
+        return
+    target["reviews"] = [
+        {
+            "rating": review["rating"],
+            "text": str(review["text"])[:200],
+            "relative_time": review["relative_time"],
+            "author_name": review["author_name"],
         }
-        if include_author:
-            author = review.get("authorAttribution", {})
-            entry["author_name"] = author.get("displayName", "") if isinstance(author, dict) else ""
-        entries.append(entry)
-    return entries
+        for review in reviews[:limit]
+    ]
+    target[FIELD_DISPLAY_ONLY] = {**target.get(FIELD_DISPLAY_ONLY, {}), "reviews": reviews}
+
+
+def _merge_place_fields(target: dict[str, object], fields: dict[str, object]) -> None:
+    """Merge pure projections without losing prior display metadata or mutating fields."""
+    for key, value in fields.items():
+        if key != FIELD_DISPLAY_ONLY:
+            target[key] = value
+    previous = target.get(FIELD_DISPLAY_ONLY)
+    incoming = fields.get(FIELD_DISPLAY_ONLY)
+    if isinstance(incoming, dict):
+        target[FIELD_DISPLAY_ONLY] = {
+            **(previous if isinstance(previous, dict) else {}),
+            **incoming,
+        }
 
 
 def _attribute_fields(place: dict[str, Any]) -> dict[str, Any]:
@@ -162,6 +145,13 @@ def _attribute_fields(place: dict[str, Any]) -> dict[str, Any]:
     ]
     if features:
         fields["features"] = features
+    states = {
+        i18n_key: place[api_field]
+        for api_field, i18n_key in PLACES_FEATURE_FIELD_TO_I18N_KEY.items()
+        if isinstance(place.get(api_field), bool)
+    }
+    if states:
+        fields["feature_states"] = states
     # Structured option groups pass through under their API names
     # (PlaceCard renders each as a dedicated collapsible section)
     for option_group in ("accessibilityOptions", "paymentOptions", "parkingOptions"):
@@ -192,9 +182,13 @@ def _format_place(
         Formatted place dict with optional distance fields
     """
     language = resolve_language(language)
-    display_name = place.get("displayName", {})
-    location = place.get("location", {})
-    hours = place.get("currentOpeningHours", {})
+    display_name = place.get("displayName") if isinstance(place.get("displayName"), dict) else {}
+    location = place.get("location") if isinstance(place.get("location"), dict) else {}
+    hours = (
+        place.get("currentOpeningHours")
+        if isinstance(place.get("currentOpeningHours"), dict)
+        else {}
+    )
 
     place_id = place.get("id")
     place_lat = location.get("latitude")
@@ -226,7 +220,7 @@ def _format_place(
         )
 
     # Optional fields
-    if place.get("rating"):
+    if place.get("rating") is not None:
         formatted["rating"] = place.get("rating")
         formatted["rating_count"] = place.get("userRatingCount", 0)
 
@@ -236,11 +230,13 @@ def _format_place(
 
     if place.get("nationalPhoneNumber"):
         formatted["phone"] = place.get("nationalPhoneNumber")
+    if place.get("internationalPhoneNumber"):
+        formatted["phone_international"] = place.get("internationalPhoneNumber")
 
     if place.get("websiteUri"):
         formatted["website"] = place.get("websiteUri")
 
-    if hours.get("openNow") is not None:
+    if isinstance(hours.get("openNow"), bool):
         formatted["open_now"] = hours.get("openNow")
 
     # Opening hours (weekday descriptions)
@@ -248,15 +244,17 @@ def _format_place(
         formatted["opening_hours"] = hours.get("weekdayDescriptions")
 
     # Editorial summary / description
-    summary = place.get("editorialSummary", {})
+    summary = (
+        place.get("editorialSummary") if isinstance(place.get("editorialSummary"), dict) else {}
+    )
     if summary.get("text"):
         formatted["description"] = summary.get("text")
 
-    formatted.update(_photo_fields(place))
+    _merge_place_fields(formatted, normalized_hours(place))
+    formatted.update(_attribute_fields(place))
+    _merge_place_fields(formatted, _photo_fields(place))
 
-    reviews = place.get("reviews", [])
-    if reviews:
-        formatted["reviews"] = _review_entries(reviews, limit=5, include_author=True)
+    _add_reviews(formatted, place.get("reviews"), 5)
 
     _surface_status_and_identity(place, formatted)
 
@@ -285,9 +283,13 @@ def format_place_details(
         Normalized details dict (snake_case derived keys; structured option
         groups pass through under their API names, consumed by PlaceCard).
     """
-    display_name = place.get("displayName", {})
-    location = place.get("location", {})
-    hours = place.get("regularOpeningHours", {})
+    display_name = place.get("displayName") if isinstance(place.get("displayName"), dict) else {}
+    location = place.get("location") if isinstance(place.get("location"), dict) else {}
+    hours = (
+        place.get("regularOpeningHours")
+        if isinstance(place.get("regularOpeningHours"), dict)
+        else {}
+    )
 
     place_lat = location.get("latitude")
     place_lon = location.get("longitude")
@@ -319,7 +321,7 @@ def format_place_details(
         details["website"] = place.get("websiteUri")
 
     # Ratings
-    if place.get("rating"):
+    if place.get("rating") is not None:
         details["rating"] = place.get("rating")
         details["rating_count"] = place.get("userRatingCount", 0)
 
@@ -336,12 +338,18 @@ def format_place_details(
     if hours.get("weekdayDescriptions"):
         details["opening_hours"] = hours.get("weekdayDescriptions")
 
-    current_hours = place.get("currentOpeningHours", {})
-    if current_hours.get("openNow") is not None:
+    current_hours = (
+        place.get("currentOpeningHours")
+        if isinstance(place.get("currentOpeningHours"), dict)
+        else {}
+    )
+    if isinstance(current_hours.get("openNow"), bool):
         details["open_now"] = current_hours.get("openNow")
 
     # Editorial summary
-    summary = place.get("editorialSummary", {})
+    summary = (
+        place.get("editorialSummary") if isinstance(place.get("editorialSummary"), dict) else {}
+    )
     if summary.get("text"):
         details["description"] = summary.get("text")
 
@@ -355,10 +363,9 @@ def format_place_details(
     # Paid attribute booleans + structured option groups (audit-added)
     details.update(_attribute_fields(place))
 
-    details.update(_photo_fields(place, include_names=True))
+    _merge_place_fields(details, normalized_hours(place))
+    _merge_place_fields(details, _photo_fields(place, include_names=True))
 
-    reviews = place.get("reviews", [])
-    if reviews:
-        details["reviews"] = _review_entries(reviews, limit=3, include_author=False)
+    _add_reviews(details, place.get("reviews"), 3)
 
     return details

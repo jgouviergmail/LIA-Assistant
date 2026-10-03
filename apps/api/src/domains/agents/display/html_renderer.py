@@ -13,8 +13,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.core.i18n import resolve_language
+from src.core.i18n_cards import CARD_SECTION_LABELS, card_label
 from src.core.i18n_v3 import V3Messages
-from src.domains.agents.display.components.article_card import ArticleCard
+from src.domains.agents.display.card_collection import fold_card_collection, render_collection_item
+from src.domains.agents.display.component_registry import build_components
 from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
@@ -22,21 +24,6 @@ from src.domains.agents.display.components.base import (
     escape_html,
     safe_url,
 )
-from src.domains.agents.display.components.contact_card import ContactCard
-from src.domains.agents.display.components.email_card import EmailCard
-from src.domains.agents.display.components.event_card import EventCard
-from src.domains.agents.display.components.file_item import FileItem
-from src.domains.agents.display.components.location_card import LocationCard
-from src.domains.agents.display.components.mcp_app_sentinel import McpAppSentinel
-from src.domains.agents.display.components.mcp_result_card import McpResultCard
-from src.domains.agents.display.components.place_card import PlaceCard
-from src.domains.agents.display.components.reminder_card import ReminderCard
-from src.domains.agents.display.components.route_card import RouteCard
-from src.domains.agents.display.components.search_result_card import SearchResultCard
-from src.domains.agents.display.components.skill_app_sentinel import SkillAppSentinel
-from src.domains.agents.display.components.task_item import TaskItem
-from src.domains.agents.display.components.weather_card import WeatherCard
-from src.domains.agents.display.components.web_search_card import WebSearchCard
 from src.domains.agents.display.config import (
     DisplayConfig,
     separator_simple,
@@ -84,71 +71,7 @@ class HtmlRenderer:
     """
 
     def __init__(self) -> None:
-        # Domain to component mapping
-        # Keys must match CONTEXT_DOMAIN_* constants (result_key pattern)
-        self._components: dict[str, BaseComponent] = {
-            "contacts": ContactCard(),
-            "emails": EmailCard(),
-            "calendar": EventCard(),
-            "calendars": EventCard(),  # CONTEXT_DOMAIN_CALENDARS (calendar list items)
-            "events": EventCard(),
-            "tasks": TaskItem(),
-            "places": PlaceCard(),
-            "locations": LocationCard(),  # CONTEXT_DOMAIN_LOCATION (GPS position)
-            "weather": WeatherCard(),
-            "weathers": WeatherCard(),  # CONTEXT_DOMAIN_WEATHER alias
-            "drive": FileItem(),
-            "files": FileItem(),
-            "wikipedia": ArticleCard(),
-            "wikipedias": ArticleCard(),  # CONTEXT_DOMAIN_WIKIPEDIA alias
-            "articles": ArticleCard(),
-            "perplexity": SearchResultCard(),
-            "perplexitys": SearchResultCard(),  # CONTEXT_DOMAIN_PERPLEXITY alias
-            "search": SearchResultCard(),
-            "braves": SearchResultCard(),  # CONTEXT_DOMAIN_BRAVE alias
-            "querys": SearchResultCard(),  # CONTEXT_DOMAIN_QUERY
-            "web_search": WebSearchCard(),
-            "web_searchs": WebSearchCard(),  # CONTEXT_DOMAIN_WEB_SEARCH alias
-            # web_fetch: No card — content is inline in the LLM response text
-            "reminders": ReminderCard(),
-            "routes": RouteCard(),
-            "mcps": McpResultCard(),  # CONTEXT_DOMAIN_MCP (evolution F2.3)
-            "mcp_apps": McpAppSentinel(),  # CONTEXT_DOMAIN_MCP_APPS (evolution F2.5)
-            "skill_apps": SkillAppSentinel(),  # CONTEXT_DOMAIN_SKILL_APPS (skill rich outputs)
-        }
-
-        # Domain to data key mapping
-        # Keys must match CONTEXT_DOMAIN_* constants (result_key pattern)
-        self._data_keys: dict[str, list[str]] = {
-            "contacts": ["contacts", "items", "results"],
-            "emails": ["emails", "messages", "items"],
-            "calendar": ["events", "items"],
-            "calendars": ["calendars", "items"],  # CONTEXT_DOMAIN_CALENDARS
-            "events": ["events", "items"],
-            "tasks": ["tasks", "items"],
-            "places": ["places", "results", "items"],
-            "locations": ["locations", "items"],  # CONTEXT_DOMAIN_LOCATION
-            "weather": ["forecasts", "weather", "items"],
-            "weathers": ["forecasts", "weather", "items"],  # CONTEXT_DOMAIN_WEATHER alias
-            "drive": ["files", "items"],
-            "files": ["files", "items"],
-            "wikipedia": ["articles", "items", "results"],
-            "wikipedias": ["articles", "items", "results"],  # CONTEXT_DOMAIN_WIKIPEDIA alias
-            "articles": ["articles", "items"],
-            "perplexity": ["results", "items"],
-            "perplexitys": ["results", "items"],  # CONTEXT_DOMAIN_PERPLEXITY alias
-            "search": ["results", "items"],
-            "braves": ["results", "items"],  # CONTEXT_DOMAIN_BRAVE alias
-            "querys": ["results", "items"],  # CONTEXT_DOMAIN_QUERY
-            "web_search": ["results", "items"],
-            "web_searchs": ["results", "items"],  # CONTEXT_DOMAIN_WEB_SEARCH alias
-            # web_fetch: No card — content is inline in the LLM response text
-            "reminders": ["reminders", "items"],
-            "routes": ["route", "routes", "items"],
-            "mcps": ["mcps", "mcp_results", "items"],
-            "mcp_apps": ["mcp_apps", "items"],
-            "skill_apps": ["skill_apps", "items"],
-        }
+        self._components, self._data_keys = build_components()
 
     def render(
         self,
@@ -523,17 +446,17 @@ class HtmlRenderer:
             Empty cards (from validation failures) are filtered out.
         """
         card_parts = []
-        for item in items[: ctx.max_items]:
+        for item in component.prepare_items(items, ctx):
             card_html = self._render_single_card_without_separator(component, item, ctx)
             # Filter out empty cards (e.g., routes with no destination)
             if card_html.strip():
                 card_parts.append(card_html)
-        return "\n".join(card_parts), len(card_parts)
+        return fold_card_collection(card_parts, ctx.max_items, ctx.language), len(card_parts)
 
     def _render_single_card_without_separator(
         self,
         component: BaseComponent,
-        payload: dict[str, Any],
+        payload: object,
         ctx: RenderContext,
     ) -> str:
         """
@@ -550,11 +473,10 @@ class HtmlRenderer:
         Returns:
             HTML string of the card without separators
         """
-        return component.render(  # type: ignore[call-arg]
+        return render_collection_item(
+            component,
             payload,
             ctx,
-            is_first_item=False,  # No card-level separators
-            is_last_item=False,
         )
 
     def _extract_items(self, domain: str, data: dict[str, Any]) -> list[dict]:
@@ -620,10 +542,18 @@ class HtmlRenderer:
             "routes": Icons.ROUTE,
             "mcps": Icons.EXTENSION,  # MCP results (evolution F2.3)
             "mcp_apps": Icons.EXTENSION,  # MCP Apps (evolution F2.5)
+            "calendars": Icons.CALENDAR,
+            "hues": Icons.INTERESTS,
+            "tickets": "view_kanban",
         }
 
         # Get translated label from i18n
-        label = V3Messages.get_domain_section_label(domain, resolve_language(language))
+        section_label = CARD_SECTION_LABELS.get(domain)
+        label = (
+            card_label(section_label, resolve_language(language))
+            if section_label
+            else V3Messages.get_domain_section_label(domain, resolve_language(language))
+        )
 
         if domain in domain_icons:
             icon_name = domain_icons[domain]

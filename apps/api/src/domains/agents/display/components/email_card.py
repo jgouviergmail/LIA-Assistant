@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.config import settings
+from src.core.i18n_cards import card_label
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.display.components.base import (
     BaseComponent,
@@ -25,8 +25,6 @@ from src.domains.agents.display.components.base import (
     compact_html,
     escape_html,
     format_date,
-    format_email_body,
-    markdown_links_to_html,
     render_attachments,
     render_chip,
     render_chip_row,
@@ -35,11 +33,16 @@ from src.domains.agents.display.components.base import (
     render_desc_block,
     render_part_list,
     render_section_header,
-    safe_url,
     truncate,
     wrap_with_response,
 )
+from src.domains.agents.display.components.card_content import (
+    render_linked_title,
+    render_text_content,
+)
+from src.domains.agents.display.components.email_body import render_email_body
 from src.domains.agents.display.icons import Icons, icon
+from src.domains.agents.display.values import scalar_text
 
 
 class EmailCard(BaseComponent):
@@ -70,7 +73,7 @@ class EmailCard(BaseComponent):
             data: Email data dict
             ctx: Render context (viewport, language, timezone)
             assistant_comment: Optional LLM comment to display above card
-            suggested_actions: Optional action buttons (defaults to reply/forward/archive)
+            suggested_actions: Optional action buttons (defaults to reply/forward)
             with_wrapper: If True, wrap with response zones
             is_first_item: If True, add top separator (for list rendering)
             is_last_item: If True, add bottom separator (for list rendering)
@@ -214,12 +217,7 @@ class EmailCard(BaseComponent):
         """)
 
         # --- Subject line ---
-        bold_class = "font-weight:700" if is_unread else "font-weight:600"
-        subject_html = (
-            f'<a href="{safe_url(url)}" class="lia-email__subject" '
-            f'target="_blank" rel="noopener" style="{bold_class}">'
-            f"{escape_html(subject)}</a>"
-        )
+        subject_html = render_linked_title(subject, url, class_name="lia-email__subject")
 
         # --- Chips row: labels + attachments + thread (all on same line) ---
         chips = []
@@ -247,7 +245,7 @@ class EmailCard(BaseComponent):
         digest_html = self._render_digest(data, ctx)
 
         # --- Collapsible body (recipients + content + attachments) ---
-        body_html = self._render_body_v4(data, url, ctx)
+        body_html = self._render_body_v4(data, ctx)
         collapsible_attachments = self._render_collapsible_details(attachments, ctx)
 
         return compact_html(f"""
@@ -292,7 +290,6 @@ class EmailCard(BaseComponent):
     def _render_body_v4(
         self,
         data: dict[str, Any],
-        url: str,
         ctx: RenderContext,
     ) -> str:
         """Render email body in collapsible with v4 components.
@@ -311,7 +308,7 @@ class EmailCard(BaseComponent):
             )
             # Build participant-like list from recipients
             part_data = self._recipients_to_part_data(to_recipients)
-            content_parts.append(render_part_list(part_data))
+            content_parts.append(render_part_list(part_data, max_shown=len(part_data)))
 
         # Cc recipients section
         cc_recipients = data.get("cc", [])
@@ -319,43 +316,25 @@ class EmailCard(BaseComponent):
             cc_label = V3Messages.get_cc(ctx.language)
             content_parts.append(render_section_header(cc_label, Icons.GROUP, "indigo"))
             part_data = self._recipients_to_part_data(cc_recipients)
-            content_parts.append(render_part_list(part_data))
+            content_parts.append(render_part_list(part_data, max_shown=len(part_data)))
 
         # Body content
-        body = data.get("body") or data.get("bodyPreview", "")
+        body = scalar_text(data.get("body") or data.get("bodyPreview"))
         if body:
-            body_text, is_truncated = format_email_body(
-                body,
-                max_length=settings.emails_body_max_length,
-                preserve_links=True,
-            )
-
-            # Read more link
-            read_more_html = ""
-            if is_truncated and url:
-                provider = data.get("_provider", "")
-                read_more_label = V3Messages.get_read_more(ctx.language, provider)
-                read_more_html = (
-                    f'<a href="{safe_url(url)}" class="lia-email__read-more" '
-                    f'target="_blank" rel="noopener">{escape_html(read_more_label)} '
-                    f"{icon(Icons.OPEN_IN_NEW)}</a>"
-                )
-
-            # Format body
-            url_threshold = settings.emails_url_shorten_threshold
-            link_label = V3Messages.get_link(ctx.language)
-            body_lines = body_text.split("\n")
-            body_formatted = "<br>".join(
-                markdown_links_to_html(line, url_threshold, link_label) for line in body_lines
-            )
-
             email_content_label = V3Messages.get_email_content(ctx.language)
             content_parts.append(
                 render_section_header(email_content_label, Icons.DESCRIPTION, "indigo")
             )
-            content_parts.append(render_desc_block(body_formatted, with_border=False))
-            if read_more_html:
-                content_parts.append(read_more_html)
+            content_parts.append(render_email_body(body, ctx))
+        else:
+            snippet = scalar_text(data.get("snippet"))
+            if len(snippet) > 200:
+                content_parts.append(
+                    render_section_header(
+                        card_label("excerpt", ctx.language), Icons.DESCRIPTION, "indigo"
+                    )
+                )
+                content_parts.append(render_text_content(snippet))
 
         if content_parts:
             return render_collapsible(
@@ -478,7 +457,7 @@ class EmailCard(BaseComponent):
             label.replace("/", " › ")
             for label in label_ids
             if label not in system_labels and not label.startswith("CATEGORY_")
-        ][:3]
+        ]
 
         if not user_labels:
             return ""
@@ -511,7 +490,7 @@ class EmailCard(BaseComponent):
             label.replace("/", " › ")
             for label in label_ids
             if label not in system_labels and not label.startswith("CATEGORY_")
-        ][:3]
+        ]
 
     def _render_collapsible_details(
         self,
@@ -522,7 +501,7 @@ class EmailCard(BaseComponent):
         if not attachments:
             return ""
 
-        content_html = render_attachments(attachments, max_attachments=5)
+        content_html = render_attachments(attachments, max_attachments=len(attachments))
         trigger_text = V3Messages.get_see_attachments(ctx.language, len(attachments))
 
         return render_collapsible(
@@ -552,7 +531,6 @@ class EmailCard(BaseComponent):
         return [
             {"icon": Icons.REPLY, "label": V3Messages.get_reply(language), "action": "reply"},
             {"icon": Icons.FORWARD, "label": V3Messages.get_forward(language), "action": "forward"},
-            {"icon": Icons.ARCHIVE, "label": V3Messages.get_archive(language), "action": "archive"},
         ]
 
     # =========================================================================

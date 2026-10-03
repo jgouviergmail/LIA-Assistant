@@ -23,7 +23,7 @@ from src.core.constants import MICROSOFT_GRAPH_BASE_URL
 from src.domains.connectors.clients.apple_email_client import AppleEmailClient
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.clients.microsoft_outlook_client import MicrosoftOutlookClient
-from src.domains.connectors.schemas import AppleCredentials
+from src.domains.connectors.schemas import AppleCredentials, ConnectorCredentials
 
 pytestmark = [pytest.mark.unit]
 
@@ -37,7 +37,9 @@ APPLE_MODULE = "src.domains.connectors.clients.apple_email_client"
 
 @pytest.fixture
 def gmail() -> GoogleGmailClient:
-    return GoogleGmailClient.__new__(GoogleGmailClient)  # no network, no token refresh
+    client = GoogleGmailClient.__new__(GoogleGmailClient)  # no network, no token refresh
+    client.credentials = ConnectorCredentials(access_token="test")
+    return client
 
 
 def _no_cache() -> AsyncMock:

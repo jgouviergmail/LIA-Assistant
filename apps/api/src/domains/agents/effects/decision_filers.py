@@ -70,6 +70,10 @@ DECISION_FILERS: Final[dict[str, tuple[str, ...]]] = {
 
 #: Modules opening an accounting whose run is no turn, and why.
 NOT_A_TURN: Final[dict[str, str]] = {
+    "domains/connectors/map_load_metering.py": (
+        "Records browser-observed Maps JavaScript construction under an idempotent "
+        "account-owned run: provider display spend, with no model or decision."
+    ),
     "domains/users/geocoding.py": (
         "Geocodes the address the person saved in their profile: a billed Maps "
         "lookup with no model in it, whose euros are traced under a run of their "

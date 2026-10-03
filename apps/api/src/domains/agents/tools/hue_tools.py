@@ -38,6 +38,7 @@ from src.domains.agents.data_registry.models import (
     RegistryItemType,
     generate_registry_id,
 )
+from src.domains.agents.display.components.light_details import hue_display_fields
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.clients.philips_hue_client import (
@@ -160,7 +161,7 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
         for light in lights:
             item_id = light.get("id", "")
             name = light.get("metadata", {}).get("name", "")
-            is_on = light.get("on", {}).get("on", False)
+            is_on = light.get("on", {}).get("on")
             brightness = light.get("dimming", {}).get("brightness")
 
             registry_updates[item_id] = RegistryItem(
@@ -177,6 +178,7 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
                     source=AGENT_HUE,
                     domain=CONTEXT_DOMAIN_HUE,
                     tool_name="list_hue_lights",
+                    display=hue_display_fields(light),
                 ),
             )
 

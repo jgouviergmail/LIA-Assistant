@@ -9,7 +9,11 @@
  * API serves application/pdf inline) — and that the link is keyboard
  * reachable.
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
+import AxeBuilder from '@axe-core/playwright';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 const assistantMessage = {
   id: '00000000-0000-4000-8000-00000000m001',
@@ -81,7 +85,7 @@ test.describe('chat generated document cards', () => {
     await authenticate();
     await mockApi(chatData);
 
-    await page.goto('/en/dashboard/chat');
+    await page.goto('/en/dashboard/chat', { waitUntil: 'domcontentloaded' });
 
     // Both cards render with their filenames visible.
     await expect(page.getByText('modeles-llm.csv')).toBeVisible();
@@ -124,3 +128,130 @@ test.describe('chat generated document cards', () => {
     await expect(download).toBeFocused();
   });
 });
+
+for (const sample of [
+  { width: 1280, theme: 'light' },
+  { width: 390, theme: 'dark' },
+  { width: 320, theme: 'oled' },
+]) {
+  test(`document previews ${sample.width} ${sample.theme}`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width: sample.width, height: 1100 });
+    await authenticate();
+    const extraDocuments = ['md', 'txt', 'docx', 'xlsx', 'pptx'].map((type, index) => ({
+      url: `/api/v1/attachments/00000000-0000-4000-8000-00000000d00${index + 3}`,
+      filename: `source.${type}`,
+      doc_type: type,
+      size_bytes: 2000,
+      expires_at: null,
+    }));
+    const allDocuments = {
+      ...assistantMessage,
+      message_metadata: {
+        generated_documents: [
+          ...assistantMessage.message_metadata.generated_documents,
+          ...extraDocuments,
+        ],
+      },
+    };
+    await mockApi([
+      ...chatData,
+      {
+        url: '**/api/v1/conversations/me/messages*',
+        json: {
+          messages: [allDocuments],
+          conversation_id: '00000000-0000-4000-8000-00000000c001',
+          total_count: 1,
+          has_more: false,
+          next_cursor: null,
+        },
+      },
+      {
+        url: '**/api/v1/attachments/*/preview',
+        handler: route =>
+          route.fulfill({
+            contentType: 'text/plain',
+            body: route.request().url().includes('d006')
+              ? 'Office column,Value\nReceived workbook,0'
+              : 'Received Office or text excerpt',
+          }),
+      },
+      {
+        url: '**/api/v1/attachments/*d001/preview',
+        handler: route =>
+          route.fulfill({
+            contentType: 'text/plain',
+            body: 'Model,Detail\nSource A,"comma, retained"\nSource B,second',
+          }),
+      },
+      {
+        url: '**/api/v1/attachments/*d002/preview',
+        handler: route =>
+          route.fulfill({
+            contentType: 'image/png',
+            body: readFileSync(path.join(__dirname, '../fixtures/media/document-preview.png')),
+          }),
+      },
+    ]);
+    await page.goto('/en/dashboard/chat', { waitUntil: 'domcontentloaded' });
+    await waitForHydration(page);
+    await awaitStyledPage(page, 'source document previews');
+    await page.evaluate(theme => {
+      document.documentElement.classList.toggle('dark', theme !== 'light');
+      document.documentElement.toggleAttribute('data-oled', theme === 'oled');
+    }, sample.theme);
+    await page.mouse.move(sample.width / 2, 500);
+    await page.mouse.wheel(0, -3000);
+    await page.getByTestId('generated-document-card').first().scrollIntoViewIfNeeded();
+    await expect(page.getByRole('cell', { name: 'comma, retained' })).toBeVisible();
+    const expand = page.getByRole('button', { name: 'First page of rapport.pdf' });
+    const preview = expand.getByRole('img', { name: 'First page of rapport.pdf' });
+    await preview.scrollIntoViewIfNeeded();
+    await expect(preview).toBeVisible();
+    expect(
+      await preview.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)
+    ).toBe(true);
+    await expand.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    // The lazy thumbnail can fail after the reader has already opened the dialog.
+    await preview.evaluate(image => image.dispatchEvent(new Event('error')));
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const retry = page.getByRole('button', { name: 'Retry', exact: true });
+    await expect(retry).toBeFocused();
+    await retry.click();
+    await expect(preview).toBeVisible();
+    await expect
+      .poll(() =>
+        preview.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)
+      )
+      .toBe(true);
+    for (const card of await page.getByTestId('generated-document-card').all()) {
+      await card.scrollIntoViewIfNeeded();
+      const height = await card
+        .locator('.lia-document-preview')
+        .evaluate(node => node.getBoundingClientRect().height);
+      expect(height).toBeLessThanOrEqual(220);
+      for (const action of await card.getByRole('link').all()) {
+        const box = await action.boundingBox();
+        expect(box?.height).toBeGreaterThanOrEqual(44);
+      }
+    }
+    await expect(page.getByRole('cell', { name: 'Received workbook' })).toBeAttached();
+    await expectNoOverflow(page, 'bounded document previews');
+    const accessibility = await new AxeBuilder({ page })
+      .include('[data-testid=generated-document-card]')
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+      .analyze();
+    expect(accessibility.violations).toEqual([]);
+    await page
+      .getByTestId('generated-document-card')
+      .first()
+      .screenshot({ path: test.info().outputPath(`document-${sample.theme}.png`) });
+  });
+}

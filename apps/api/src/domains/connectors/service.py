@@ -731,12 +731,18 @@ class ConnectorService:
             return None
 
         if connector.oauth_grant_id:
-            return await OAuthGrantRuntime(self.db).credentials_for(connector)
+            from src.core.card_composition import ensure_composition_account
+
+            credentials = await OAuthGrantRuntime(self.db).credentials_for(connector)
+            ensure_composition_account(user_id, connector_type.value, credentials.account_binding)
+            return credentials
 
         # Decrypt credentials
         try:
             decrypted_json = decrypt_data(connector.credentials_encrypted)
-            credentials = ConnectorCredentials.model_validate_json(decrypted_json)
+            credentials = ConnectorCredentials.model_validate_json(decrypted_json).model_copy(
+                update={"account_binding": None}
+            )
         except Exception as e:
             logger.error(
                 "connector_credentials_decryption_failed",
@@ -759,6 +765,9 @@ class ConnectorService:
             if credentials.expires_at < refresh_threshold:
                 credentials = await self._refresh_oauth_token(connector, credentials)
 
+        from src.core.card_composition import ensure_composition_account
+
+        ensure_composition_account(user_id, connector_type.value, credentials.account_binding)
         return credentials
 
     # =========================================================================

@@ -46,7 +46,7 @@ describe('MarkdownContent contact photos', () => {
     expect(slot?.querySelector('button')).toBeNull();
   });
 
-  it('proxies and preloads a structured Google photo with the same authenticated source', () => {
+  it('loads a structured Google photo lazily through its authenticated DOM source', () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://api.example.test:8000');
     const preloads: HTMLImageElement[] = [];
     vi.stubGlobal(
@@ -69,10 +69,12 @@ describe('MarkdownContent contact photos', () => {
       `https://api.example.test:8000/api/v1/auth/profile-image-proxy?url=${encodeURIComponent(url)}`
     );
     expect(image).toHaveAttribute('crossorigin', 'use-credentials');
-    expect(preloads).toHaveLength(1);
-    expect(preloads[0].getAttribute('src')).toBe(image?.getAttribute('src'));
-    expect(preloads[0].crossOrigin).toBe('use-credentials');
-    expect(preloads[0].referrerPolicy).toBe('no-referrer');
+    expect(image).toHaveAttribute('loading', 'lazy');
+    expect(image).toHaveAttribute('referrerpolicy', 'no-referrer');
+    expect(preloads).toHaveLength(0);
+    expect(image).toHaveStyle({ opacity: 0 });
+    fireEvent.load(image!);
+    expect(image).toHaveStyle({ opacity: 1 });
   });
 
   it('keeps standalone Google profile photos expandable', () => {

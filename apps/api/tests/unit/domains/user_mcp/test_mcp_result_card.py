@@ -57,8 +57,8 @@ class TestMcpResultCardRender:
 
         assert "lia-raw-block" in html
 
-    def test_render_long_text_truncated(self, card: McpResultCard, ctx: RenderContext) -> None:
-        """Should truncate plain text exceeding 2000 chars."""
+    def test_render_long_text_is_reachable(self, card: McpResultCard, ctx: RenderContext) -> None:
+        """Long received prose remains available behind a native disclosure."""
         long_text = "A" * 3000
         data = {
             "tool_name": "get_log",
@@ -67,9 +67,8 @@ class TestMcpResultCardRender:
         }
         html = card.render(data, ctx)
 
-        # truncate(text, 2000) adds "…" at end
-        assert len(html) < len(long_text) + 500  # Card overhead
-        assert "A" * 2000 not in html  # Should be truncated
+        assert "<details" in html
+        assert long_text in html
 
     def test_render_html_escaped(self, card: McpResultCard, ctx: RenderContext) -> None:
         """Should escape HTML in result to prevent XSS."""
@@ -140,7 +139,7 @@ class TestMcpResultCardRender:
         }
         html = card.render(data, ctx)
 
-        assert "line1<br>line2<br>line3" in html
+        assert "line1\nline2\nline3" in html
 
 
 class TestMcpResultCardRenderList:
@@ -237,7 +236,7 @@ class TestMcpResultCardStructuredRendering:
     def test_render_structured_excludes_internal_fields(
         self, card: McpResultCard, ctx: RenderContext
     ) -> None:
-        """Should not render internal fields like _mcp_structured, url, node_id."""
+        """Only renderer-private fields are excluded; public IDs and links survive."""
         data = {
             "tool_name": "search_repos",
             "server_name": "GitHub",
@@ -256,8 +255,8 @@ class TestMcpResultCardStructuredRendering:
         assert "_mcp_structured" not in html
         assert "_registry_id" not in html
         assert "node_id" not in html.lower().replace("node id", "")
-        # url should be excluded from details
-        assert "https://github.com" not in html
+        assert 'href="https://github.com/user/repo"' in html
+        assert "MDEwOlJlcG9zaXRvcnkxMjM=" in html
 
     def test_render_raw_unchanged(self, card: McpResultCard, ctx: RenderContext) -> None:
         """Should use raw rendering when _mcp_structured is absent."""

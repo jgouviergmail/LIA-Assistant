@@ -85,3 +85,50 @@ async def test_char_debug_metrics_not_emitted_when_panel_disabled():
     chunks = await _collect(service.stream_sse_chunks(graph_stream(), uuid.uuid4(), "run-z"))
 
     assert not [c for c, _ in chunks if c.type == "debug_metrics"]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source_run", ["current", "previous"])
+async def test_card_projection_is_captured_from_final_stream_state(source_run):
+    from src.domains.agents.display.card_actions import with_card_actions
+
+    service = StreamingService()
+    answer = with_card_actions(
+        AIMessage(content="Final card"),
+        {
+            "email_a": {
+                "type": "EMAIL",
+                "payload": {"id": "canonical"},
+                "meta": {
+                    "source": "gmail",
+                    "display": {"_lia_email_account": "00000000-0000-0000-0000-000000000004"},
+                },
+            }
+        },
+        run_id=source_run,
+        enabled=True,
+    )
+
+    async def graph_stream():
+        yield (
+            "values",
+            {"messages": [AIMessage(content="Previous answer")], "routing_history": []},
+        )
+        yield ("messages", (AIMessage(content="stream"), {"langgraph_node": "response"}))
+        yield (
+            "values",
+            {
+                "messages": [answer],
+                "routing_history": [],
+                "content_final_replacement": "Final card",
+            },
+        )
+
+    await _collect(service.stream_sse_chunks(graph_stream(), uuid.uuid4(), "current"))
+    expected = (
+        {"run_id": "current", "lia_card_actions": answer.additional_kwargs["lia_card_actions"]}
+        if source_run == "current"
+        else {}
+    )
+    assert service.card_action_metadata == expected

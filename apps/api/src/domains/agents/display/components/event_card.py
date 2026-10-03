@@ -21,9 +21,11 @@ from urllib.parse import urlparse
 import structlog
 
 from src.core.i18n import resolve_language
+from src.core.i18n_cards import card_label
 from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
-from src.core.text_clip import clip_on_word, one_line
+from src.core.text_clip import one_line
+from src.core.time_utils import parse_provider_datetime
 from src.domains.agents.constants import CONTEXT_DOMAIN_EVENTS
 from src.domains.agents.display.components.base import (
     BaseComponent,
@@ -46,12 +48,15 @@ from src.domains.agents.display.components.base import (
     safe_url,
     wrap_with_response,
 )
+from src.domains.agents.display.components.calendar_details import render_reminder_settings
+from src.domains.agents.display.components.card_content import render_linked_title
+from src.domains.agents.display.components.conference_details import render_conference_details
+from src.domains.agents.display.components.source_details import event_native_details
+from src.domains.agents.display.components.source_recurrence import render_source_recurrence
 from src.domains.agents.display.icons import Icons, icon
+from src.domains.agents.display.values import list_values
 
 logger = structlog.get_logger(__name__)
-
-#: The longest an event's description may be on its card, ellipsis included.
-_DESCRIPTION_MAX_CHARS = 300
 
 #: Where a block no reader wrote opens: a style, a script, the document's head
 #: and its title (the ``display/components/base.py`` stripper's own set), or a
@@ -286,10 +291,10 @@ class EventCard(BaseComponent):
             )
 
         # Join Meet if available
-        if conference:
-            entry_points = conference.get("entryPoints", [])
+        if isinstance(conference, dict):
+            entry_points = list_values(conference.get("entryPoints"))
             for ep in entry_points:
-                if ep.get("entryPointType") == "video":
+                if isinstance(ep, dict) and ep.get("entryPointType") == "video":
                     meet_url = ep.get("uri", "")
                     if meet_url:
                         actions.append(
@@ -336,7 +341,7 @@ class EventCard(BaseComponent):
 
         # --- Card top: illustration + title + participant count ---
         illus_icon, illus_color = self._get_illus_for_status(data)
-        title_html = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(title)}</a>'
+        title_html = render_linked_title(title, url)
 
         # Only status badge in card-top (participant count shown with avatars below)
         badges_parts = []
@@ -437,18 +442,16 @@ class EventCard(BaseComponent):
     ) -> str:
         """Render collapsible section with extended details using v4 components."""
         detail_sections: list[str] = []
+        detail_sections.extend(event_native_details(data, ctx))
 
         # Description block: a third party's HTML, read as text — its style and
-        # script blocks dropped and its tags removed BEFORE the cut (a cut inside
-        # a tag left its half on the card), its entities decoded AFTER them (so
-        # « &lt;b&gt; » stays text), its layout runs of spaces folded, then one
-        # line cut on a word.
+        # script blocks dropped and its tags removed, entities decoded AFTER
+        # them (so « &lt;b&gt; » stays text), and layout runs folded. The native
+        # details retain the complete supplied description.
         description = data.get("description", "")
         if description:
             text = unescape(_TAG_RE.sub(" ", _without_invisible_blocks(description)))
-            desc_clean = clip_on_word(
-                one_line(_SPACE_RUN_RE.sub(_one_space, text)), _DESCRIPTION_MAX_CHARS
-            )
+            desc_clean = one_line(_SPACE_RUN_RE.sub(_one_space, text))
             if desc_clean:
                 detail_sections.append(render_desc_block(escape_html(desc_clean)))
 
@@ -490,60 +493,33 @@ class EventCard(BaseComponent):
                     )
                 )
 
-        # Conference link
-        conference = data.get("conferenceData", {})
-        if conference:
-            entry_points = conference.get("entryPoints", [])
-            for ep in entry_points:
-                if ep.get("entryPointType") == "video":
-                    meet_url = ep.get("uri", "")
-                    if meet_url:
-                        join_meet_label = V3Messages.get_join_meet(ctx.language)
-                        detail_sections.append(
-                            render_d_item(
-                                Icons.VIDEO_CALL,
-                                f'<a href="{safe_url(meet_url)}" target="_blank">'
-                                f"{join_meet_label}</a>",
-                            )
-                        )
-                        break
+        detail_sections.append(render_conference_details(data.get("conferenceData"), ctx))
 
         # Recurrence info
-        recurrence = data.get("recurrence", [])
-        if recurrence:
-            recurring_label = V3Messages.get_recurring_event(ctx.language)
-            detail_sections.append(render_d_item(Icons.DATE_RANGE, recurring_label))
+        detail_sections.append(
+            render_source_recurrence(
+                data.get("source_recurrence")
+                or data.get("recurrence_pattern")
+                or data.get("recurrence"),
+                data.get("start"),
+                ctx,
+            )
+        )
 
-        # Reminders
-        reminders = data.get("reminders", {})
-        if reminders:
-            reminder_items: list[str] = []
-            overrides = reminders.get("overrides", [])
-            if overrides:
-                for r in overrides[:3]:
-                    if isinstance(r, dict):
-                        minutes = r.get("minutes", 0)
-                        method = r.get("method", "popup")
-                        reminder_items.append(
-                            self._format_reminder_time(minutes, method, ctx.language)
-                        )
-            elif reminders.get("useDefault"):
-                reminder_items.append(V3Messages.get_default_reminder(ctx.language))
-            if reminder_items:
-                detail_sections.append(render_d_item(Icons.REMINDER, ", ".join(reminder_items)))
+        detail_sections.append(render_reminder_settings(data.get("reminders"), ctx))
 
         # Participants section with status + name + email
-        if attendees and len(attendees) <= 10:
+        if attendees:
             participants_label = V3Messages.get_participants(ctx.language)
             detail_sections.append(render_section_header(participants_label, Icons.GROUP, "indigo"))
-            detail_sections.append(render_part_list(attendees))
+            detail_sections.append(render_part_list(attendees, max_shown=len(attendees)))
 
         # Attachments
         attachments = data.get("attachments", [])
         if attachments:
             att_items = []
             attachment_fallback = V3Messages.get_attachment(ctx.language)
-            for att in attachments[:5]:
+            for att in attachments:
                 if isinstance(att, dict):
                     att_title = att.get("title", "") or att.get("name", attachment_fallback)
                     file_url = att.get("fileUrl", "") or att.get("url", "")
@@ -577,7 +553,9 @@ class EventCard(BaseComponent):
 
     def _is_all_day(self, start: dict) -> bool:
         """Check if event is all-day."""
-        return "date" in start and "dateTime" not in start
+        # The registry can add a synthetic clock for cross-domain binding;
+        # the provider's civil date still defines the presentation.
+        return isinstance(start.get("date"), str) and bool(start["date"])
 
     def _format_event_time(
         self, start: dict, is_all_day: bool, language: str, timezone: str
@@ -596,12 +574,26 @@ class EventCard(BaseComponent):
                 return date_str  # type: ignore[no-any-return]
         else:
             dt_str = start.get("dateTime", "")
-            return format_time(dt_str, language, timezone)
+            if not dt_str:
+                return ""
+            parsed = parse_provider_datetime(start)
+            return (
+                format_time(parsed, language, timezone)
+                if parsed
+                else card_label("unavailable", language)
+            )
 
     def _get_duration(self, start: dict, end: dict, language: str) -> str:
         """Calculate event duration with localized labels."""
-        start_str = start.get("dateTime") or start.get("date", "")
-        end_str = end.get("dateTime") or end.get("date", "")
+        if "dateTime" in start or "dateTime" in end:
+            start_dt, end_dt = parse_provider_datetime(start), parse_provider_datetime(end)
+            return (
+                format_duration(start_dt.isoformat(), end_dt.isoformat(), language)
+                if start_dt and end_dt
+                else ""
+            )
+        start_str = start.get("date", "")
+        end_str = end.get("date", "")
         return format_duration(start_str, end_str, language)
 
     def _format_event_date(
@@ -620,11 +612,14 @@ class EventCard(BaseComponent):
         if not date_str:
             return ""
 
-        full = format_full_date(date_str, language, timezone)
+        parsed = date_str if is_all_day else parse_provider_datetime(start)
+        if parsed is None:
+            return card_label("unavailable", language)
+        full = format_full_date(parsed, language, "UTC" if is_all_day else timezone)
         # Strip year from event date (e.g., "samedi 29 mars 2026" -> "samedi 29 mars")
         import re
 
-        return re.sub(r"\s*\d{4}\s*$", "", full)
+        return re.sub(r"\s*\d{4}\s*$", "", full).rstrip(" ,")
 
     def _format_reminder_time(
         self, minutes: int, method: str = "popup", language: str | None = None

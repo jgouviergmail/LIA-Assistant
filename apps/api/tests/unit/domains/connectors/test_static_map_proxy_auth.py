@@ -26,9 +26,10 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.connectors.media_proxy_router import (
     proxy_location_static_map,
     proxy_routes_static_map,
+    proxy_street_view,
     rate_limit_static_map,
 )
-from src.domains.connectors.router import router
+from src.domains.connectors.router import proxy_places_photo, router
 from tests._routes import served_routes
 
 _STATIC_MAP_PATHS = {
@@ -58,8 +59,8 @@ class TestStaticMapProxiesRequireAuthentication:
 
     @pytest.mark.parametrize(
         "endpoint",
-        [proxy_routes_static_map, proxy_location_static_map],
-        ids=["routes", "location"],
+        [proxy_routes_static_map, proxy_location_static_map, proxy_street_view, proxy_places_photo],
+        ids=["routes", "location", "street", "photo"],
     )
     def test_endpoint_declares_session_dependency(self, endpoint):
         """An anonymous caller cannot reach the billed Google request."""
@@ -70,8 +71,8 @@ class TestStaticMapProxiesRequireAuthentication:
 
     @pytest.mark.parametrize(
         "endpoint",
-        [proxy_routes_static_map, proxy_location_static_map],
-        ids=["routes", "location"],
+        [proxy_routes_static_map, proxy_location_static_map, proxy_street_view, proxy_places_photo],
+        ids=["routes", "location", "street", "photo"],
     )
     def test_endpoint_declares_rate_limit(self, endpoint):
         """Defence in depth: a compromised session cannot loop unbounded."""

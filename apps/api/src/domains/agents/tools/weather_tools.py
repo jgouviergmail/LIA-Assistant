@@ -25,7 +25,6 @@ from uuid import UUID
 import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
-from pydantic import BaseModel
 
 from src.core.config import settings
 from src.core.date_contract import UnreadableDateError
@@ -50,6 +49,7 @@ from src.domains.agents.tools.weather_environment_enrichment import (
     attach_environment_extras,
     environment_payload_fields,
 )
+from src.domains.agents.tools.weather_fields import weather_source
 from src.domains.agents.tools.weather_formatting import (
     _entry_local_date,
     _extract_location_from_geocode,
@@ -57,6 +57,7 @@ from src.domains.agents.tools.weather_formatting import (
     _format_forecast_response,
     _format_hourly_response,
 )
+from src.domains.agents.tools.weather_schemas import WeatherForecastItem as WeatherForecastItem
 from src.domains.agents.weather.catalogue_manifests import FORECAST_DATE_DESCRIPTION
 from src.domains.connectors.clients.google_geocoding_helpers import forward_geocode
 from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
@@ -114,29 +115,6 @@ async def _geocode_with_city_fallback(
 # ============================================================================
 # WEATHER CONTEXT TYPE REGISTRATION
 # ============================================================================
-
-
-class WeatherForecastItem(BaseModel):
-    """Schema for weather data in context registry."""
-
-    location: Any  # Location name or dict
-    date: str | None = None  # Forecast date
-    description: str | None = None  # Weather description
-    temperature: str | None = None  # Current temp
-    temp_min: str | None = None  # Minimum temperature
-    temp_max: str | None = None  # Maximum temperature
-    humidity: str | None = None  # Humidity percentage
-    wind_speed: str | None = None  # Wind speed
-    wind_direction: str | None = None  # Wind direction
-    pressure: str | None = None  # Pressure
-    visibility: str | None = None  # Visibility
-    clouds: str | None = None  # Cloud coverage
-    sunrise: str | None = None  # Sunrise time
-    sunset: str | None = None  # Sunset time
-    feels_like: str | None = None  # Feels like temp
-    type: str | None = None  # 'current', 'forecast', 'hourly'
-    temp: Any | None = None  # Forecast temp dict
-    hourly: list[Any] | None = None  # Hourly forecast list
 
 
 # Register weather context type for Data Registry support
@@ -345,11 +323,28 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 "temp_min": weather_info.get("temp_min"),
                 "temp_max": weather_info.get("temp_max"),
                 "feels_like": weather_info.get("feels_like"),
+                **{
+                    key: weather_info[key]
+                    for key in (
+                        "wind_gust",
+                        "uv_index",
+                        "precipitation_probability",
+                        "rain_amount",
+                        "snow_amount",
+                        "dew_point",
+                        "heat_index",
+                        "wind_chill",
+                        "observation_time",
+                    )
+                    if key in weather_info
+                },
                 "type": "current",
+                "source": weather_source(data),
+                "icon": weather_info.get("icon"),
                 **environment_payload_fields(data),
             },
             meta=RegistryItemMeta(
-                source="openweathermap",
+                source=weather_source(data),
                 domain=CONTEXT_DOMAIN_WEATHER,
                 tool_name="get_current_weather",
             ),
@@ -548,6 +543,12 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         formatted = _format_forecast_response(
             daily_data, resolved_name, country, days, units, target_date
         )
+        formatted["data"]["source"] = (
+            "google_weather"
+            if forecast_result.get("source") == "google_weather"
+            else "openweathermap"
+        )
+        formatted["data"]["timezone"] = user_timezone
         formatted[self._LANGUAGE_RESULT_KEY] = language
         # Same enrichment as current weather: "can I run tomorrow?" is decided
         # by air quality and pollen. Cached per point, so asking weather then
@@ -601,13 +602,15 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                     "humidity": day.get("humidity", "N/A"),
                     "wind_speed": day.get("wind_speed", "N/A"),
                     "type": "forecast",
+                    "source": weather_source(data),
+                    "timezone": data.get("timezone"),
                     # Today's air quality / pollen ride on the FIRST day only:
                     # both are same-day signals, and repeating them on every
                     # day would state a measurement the API never made.
                     **(environment_payload_fields(data) if idx == 0 else {}),
                 },
                 meta=RegistryItemMeta(
-                    source="openweathermap",
+                    source=weather_source(data),
                     domain=CONTEXT_DOMAIN_WEATHER,
                     tool_name="get_weather_forecast",
                 ),
@@ -881,11 +884,13 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 "location": location_info,
                 "date": covered_date,
                 "interval": data.get("interval", "3 hours"),
+                "timezone": data.get("timezone", "UTC"),
                 "hourly": hourly_forecasts,
                 "type": "hourly",
+                "source": weather_source(data),
             },
             meta=RegistryItemMeta(
-                source="openweathermap",
+                source=weather_source(data),
                 domain=CONTEXT_DOMAIN_WEATHER,
                 tool_name="get_hourly_forecast",
             ),

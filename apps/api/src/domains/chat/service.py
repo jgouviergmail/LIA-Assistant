@@ -940,9 +940,12 @@ class TrackingContext:
             "message": 0 if self._message_count_committed else self._message_count,
         }
 
-    async def commit(self) -> None:
+    async def commit(self, *, strict: bool = False) -> None:
         """
         Manually commit tracking data to database.
+
+        ``strict=True`` lets a metering endpoint withhold its acknowledgement
+        when persistence fails. Existing chat callers retain best-effort commits.
 
         Supports incremental commits: records are cleared after each commit,
         allowing new records (e.g., TTS costs) to be added and committed later.
@@ -982,6 +985,8 @@ class TrackingContext:
                 error=str(e),
                 exc_info=True,
             )
+            if strict:
+                raise
 
     async def _persist_to_database(self) -> None:
         """

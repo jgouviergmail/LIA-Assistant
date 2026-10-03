@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-25 23:33+0000\n"
-"PO-Revision-Date: 2026-09-25 23:33+0000\n"
+"POT-Creation-Date: 2026-10-03 16:10+0000\n"
+"PO-Revision-Date: 2026-10-03 16:11+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: French\n"
 "Language: fr\n"
@@ -229,11 +229,14 @@ msgstr "Règles et directives"
 msgid "Standing instructions on how LIA should work for you"
 msgstr "Consignes durables sur la manière dont LIA doit travailler pour toi"
 
-msgid "Please specify a starting point or enable geolocation."
-msgstr "Précise un point de départ ou active la géolocalisation."
-
 msgid "No route found between these locations."
 msgstr "Aucun itinéraire trouvé entre ces lieux."
+
+msgid "Route measurements are unavailable."
+msgstr "Les mesures de l’itinéraire sont indisponibles."
+
+msgid "Please specify a starting point or enable geolocation."
+msgstr "Précise un point de départ ou active la géolocalisation."
 
 msgid "Google Routes API is not configured."
 msgstr "L'API Google Routes n'est pas configurée."

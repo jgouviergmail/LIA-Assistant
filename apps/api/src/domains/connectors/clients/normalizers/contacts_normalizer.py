@@ -28,9 +28,13 @@ def normalize_vcard(vcard_str: str, resource_name: str = "") -> dict[str, Any]:
         vcard = vobject.readOne(vcard_str)
     except Exception as e:
         logger.warning("vcard_parse_error", error=str(e), resource_name=resource_name)
-        return {"resourceName": resource_name, "names": [{"displayName": "Unknown"}]}
+        return {
+            "resourceName": resource_name,
+            "names": [{"displayName": "Unknown"}],
+            "_provider": "apple",
+        }
 
-    result: dict[str, Any] = {"resourceName": resource_name}
+    result: dict[str, Any] = {"resourceName": resource_name, "_provider": "apple"}
 
     # Names
     names = _extract_names(vcard)

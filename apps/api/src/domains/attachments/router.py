@@ -16,9 +16,11 @@ Created: 2026-03-09
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +30,7 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.attachments.knowledge_copy import copy_knowledge_document
 from src.domains.attachments.schemas import AttachmentUploadResponse
 from src.domains.attachments.service import AttachmentService
+from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.users.models import User
@@ -40,6 +43,7 @@ router = APIRouter(prefix="/attachments", tags=["Attachments"])
 # legitimately keep, open and remove. A switch that removes an ability must not
 # remove access to what that ability already produced.
 _UPLOAD_GUARD = capability_dependencies(PlatformCapability.ATTACHMENTS)
+_PREVIEW_RATE_LIMIT = create_user_rate_limiter("attachment_preview", max_calls=30)
 
 
 @router.post(
@@ -148,6 +152,42 @@ async def get_attachment(
         media_type=attachment.mime_type,
         filename=attachment.original_filename,
         content_disposition_type="inline" if is_inline else "attachment",
+    )
+
+
+@router.get("/{attachment_id}/preview", dependencies=[Depends(_PREVIEW_RATE_LIMIT)])
+async def get_attachment_preview(
+    attachment_id: uuid.UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Small source preview: owner/status/expiry checked before any file read."""
+    from src.core.exceptions import BaseAPIException
+    from src.domains.attachments.preview import PreviewUnavailable, build_preview
+    from src.domains.attachments.service import raise_attachment_not_found
+
+    attachment = await AttachmentService(db).get_for_user(
+        attachment_id=attachment_id, user_id=user.id
+    )
+    if attachment.expires_at is not None and attachment.expires_at <= datetime.now(UTC):
+        raise_attachment_not_found(attachment_id)
+    try:
+        preview = await build_preview(attachment, Path(get_settings().attachments_storage_path))
+    except PreviewUnavailable as exc:
+        raise BaseAPIException(
+            status_code=422,
+            detail="Preview unavailable",
+            log_event="attachment_preview_unavailable",
+            attachment_id=str(attachment_id),
+        ) from exc
+    return Response(
+        content=preview.content,
+        media_type=preview.media_type,
+        headers={
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+            "X-Preview-Truncated": str(preview.truncated).lower(),
+        },
     )
 
 

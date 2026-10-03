@@ -8,7 +8,9 @@ OpenWeatherMap and Google Weather share one implementation.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from collections import Counter
+from datetime import UTC, datetime, tzinfo
+from math import isfinite
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -89,68 +91,71 @@ def canonical_weather_main(value: str) -> str:
     return _GOOGLE_TO_OWM_MAIN.get(value, "Unknown")
 
 
+def _samples(entries: list[dict[str, object]], block: str, field: str) -> list[float]:
+    values = [entry.get(block) for entry in entries]
+    candidates = [value.get(field) for value in values if isinstance(value, dict)]
+    return [
+        float(value)
+        for value in candidates
+        if isinstance(value, int | float) and not isinstance(value, bool) and isfinite(value)
+    ]
+
+
+def _average(values: list[float], digits: int) -> float | None:
+    if not values:
+        return None
+    mean = sum(values) / len(values)
+    return round(mean, digits) if isfinite(mean) else None
+
+
+def _day_summary(date: str, entries: list[dict[str, object]]) -> dict[str, object]:
+    temps = _samples(entries, "main", "temp")
+    weather_blocks = [entry.get("weather") for entry in entries]
+    descriptions = [
+        text
+        for block in weather_blocks
+        if isinstance(block, list)
+        for value in block
+        if isinstance(value, dict) and isinstance(text := value.get("description"), str) and text
+    ]
+    return {
+        "date": date,
+        "temp_min": round(min(temps), 1) if temps else None,
+        "temp_max": round(max(temps), 1) if temps else None,
+        "temp_avg": _average(temps, 1),
+        "condition": Counter(descriptions).most_common(1)[0][0] if descriptions else "",
+        "humidity_avg": _average(_samples(entries, "main", "humidity"), 0),
+        "wind_speed_avg": _average(_samples(entries, "wind", "speed"), 1),
+    }
+
+
+def _slot_date(entry: dict[str, object], tz: tzinfo) -> str:
+    value = entry.get("dt")
+    if not isinstance(value, int | float) or isinstance(value, bool) or not isfinite(value):
+        return ""
+    try:
+        return datetime.fromtimestamp(value, UTC).astimezone(tz).date().isoformat()
+    except ValueError, OverflowError, OSError:
+        return ""
+
+
 def aggregate_daily_forecast(
     forecast: dict[str, Any], days: int, user_timezone: str
 ) -> dict[str, Any]:
-    """Aggregate an OWM-shaped 3-hourly forecast into daily summaries.
-
-    Days are grouped in the USER'S timezone so "tomorrow" matches the user's
-    local midnight (extracted verbatim from OpenWeatherMapClient, 2026-08).
-
-    Args:
-        forecast: OWM-shaped forecast ({"list": [...], "city": {...}}).
-        days: Number of daily summaries to return.
-        user_timezone: IANA timezone for the day grouping.
-
-    Returns:
-        Dict with "daily" summaries (date, temp_min/max/avg, condition,
-        humidity_avg, wind_speed_avg) and the pass-through "city" info.
-    """
+    """Group received slots on the user's calendar; missing samples never become zero."""
     try:
-        tz: Any = ZoneInfo(user_timezone)
+        tz: tzinfo = ZoneInfo(user_timezone)
     except KeyError, ValueError:
         logger.warning("invalid_user_timezone", timezone=user_timezone, fallback="UTC")
         tz = UTC
-
-    daily_data: dict[str, dict[str, Any]] = {}
-    for entry in forecast.get("list", []):
-        dt_utc = datetime.fromtimestamp(entry["dt"], tz=UTC)
-        date_key = dt_utc.astimezone(tz).strftime("%Y-%m-%d")
-
-        if date_key not in daily_data:
-            daily_data[date_key] = {
-                "date": date_key,
-                "temps": [],
-                "conditions": [],
-                "humidity": [],
-                "wind_speed": [],
-            }
-
-        main = entry.get("main", {})
-        weather = entry.get("weather", [{}])[0]
-        wind = entry.get("wind", {})
-
-        daily_data[date_key]["temps"].append(main.get("temp", 0))
-        daily_data[date_key]["conditions"].append(weather.get("description", ""))
-        daily_data[date_key]["humidity"].append(main.get("humidity", 0))
-        daily_data[date_key]["wind_speed"].append(wind.get("speed", 0))
-
-    daily_list = []
-    for _date_key, data in sorted(daily_data.items())[:days]:
-        temps = data["temps"]
-        daily_list.append(
-            {
-                "date": data["date"],
-                "temp_min": round(min(temps), 1),
-                "temp_max": round(max(temps), 1),
-                "temp_avg": round(sum(temps) / len(temps), 1),
-                "condition": max(set(data["conditions"]), key=data["conditions"].count),
-                "humidity_avg": round(sum(data["humidity"]) / len(data["humidity"])),
-                "wind_speed_avg": round(sum(data["wind_speed"]) / len(data["wind_speed"]), 1),
-            }
-        )
-
+    groups: dict[str, list[dict[str, object]]] = {}
+    slots = forecast.get("list")
+    for entry in slots if isinstance(slots, list) else []:
+        if isinstance(entry, dict) and (date := _slot_date(entry, tz)):
+            groups.setdefault(date, []).append(entry)
+    city = forecast.get("city")
     return {
-        "daily": daily_list,
-        "city": forecast.get("city", {}),
+        "daily": [_day_summary(date, entries) for date, entries in sorted(groups.items())[:days]],
+        "city": city if isinstance(city, dict) else {},
+        "source": forecast.get("source", "openweathermap"),
     }

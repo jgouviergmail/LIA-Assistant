@@ -27,6 +27,8 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { CHAT_DRAFT_STORAGE_KEY_PREFIX, CHAT_INPUT_MAX_LENGTH } from '@/lib/constants';
+import { decodeCompositionDraft, encodeCompositionDraft } from '@/lib/card-composition-draft';
+import type { CardCompositionDraft } from '@/types/card-actions';
 
 /** Debounce window between keystrokes and the localStorage write. */
 const DRAFT_SAVE_DEBOUNCE_MS = 500;
@@ -63,8 +65,9 @@ function writeStoredDraft(userId: string, value: string): void {
 export interface UseInputDraftReturn {
   /** Draft read once at mount — feeds ChatInput's `initialMessage`. */
   initialDraft: string | undefined;
+  initialComposition?: CardCompositionDraft;
   /** Debounced persist; empty/whitespace clears immediately. */
-  saveDraft: (value: string) => void;
+  saveDraft: (value: string, composition?: CardCompositionDraft) => void;
 }
 
 export function useInputDraft(
@@ -77,8 +80,8 @@ export function useInputDraft(
   const userId = user?.id;
   const active = enabled && !!userId;
 
-  const initialDraft = useMemo(
-    () => (active && userId ? readStoredDraft(userId) : undefined),
+  const initial = useMemo(
+    () => decodeCompositionDraft(active && userId ? readStoredDraft(userId) : undefined),
     [active, userId]
   );
 
@@ -86,7 +89,7 @@ export function useInputDraft(
   const pendingRef = useRef<string | null>(null);
 
   const saveDraft = useCallback(
-    (value: string) => {
+    (value: string, composition?: CardCompositionDraft) => {
       if (!active || !userId) return;
       if (value.trim() === '') {
         if (timerRef.current !== null) {
@@ -97,7 +100,10 @@ export function useInputDraft(
         clearInputDraft(userId);
         return;
       }
-      pendingRef.current = value.slice(0, CHAT_INPUT_MAX_LENGTH);
+      pendingRef.current = encodeCompositionDraft(
+        value.slice(0, CHAT_INPUT_MAX_LENGTH),
+        composition
+      );
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(() => {
         timerRef.current = null;
@@ -125,5 +131,5 @@ export function useInputDraft(
     };
   }, [active, userId]);
 
-  return { initialDraft, saveDraft };
+  return { initialDraft: initial.text, initialComposition: initial.composition, saveDraft };
 }

@@ -31,6 +31,7 @@ from src.core.turn_verdicts import note_verdict
 from src.domains.agents.display.plain_text import strip_html_if_markup
 from src.domains.shared.markdown_literal import read_as_markdown
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.llm.message_view import model_view_content
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_langgraph import langgraph_history_repairs_total
 
@@ -651,6 +652,23 @@ def enforce_tool_message_pairing(messages: list[BaseMessage]) -> list[BaseMessag
     return validated
 
 
+def _assistant_for_llm_context(msg: AIMessage, neutralize_formatting: bool) -> AIMessage | None:
+    """One final assistant answer, with its existing legacy or semantic policy."""
+    if msg.tool_calls:
+        return None
+    view = model_view_content(msg)
+    if view is not None:
+        return msg.model_copy(update={"content": view})
+    content = coerce_content_to_text(msg.content)
+    if neutralize_formatting:
+        return AIMessage(content=_neutralize_assistant_formatting(content))
+    if 'class="lia-' in content or "class='lia-" in content:
+        prose = _prose_of_html_answer(content)
+        return AIMessage(content=prose or CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER)
+    read = read_as_markdown(content)
+    return msg if read == content else AIMessage(content=read)
+
+
 def filter_for_llm_context(
     messages: list[BaseMessage],
     *,
@@ -715,32 +733,8 @@ def filter_for_llm_context(
             # Keep tool results (JSON data)
             filtered.append(msg)
         elif isinstance(msg, AIMessage):
-            # Exclude AI messages with tool_calls (internal reasoning)
-            if hasattr(msg, "tool_calls") and msg.tool_calls:
-                continue
-            # Handle AI messages containing HTML formatting. Gemini 3.x content is
-            # list[dict] blocks; coerce to text so the HTML-card check works.
-            content = coerce_content_to_text(getattr(msg, "content", ""))
-            if neutralize_formatting:
-                # html display mode: strip every style signal (HTML + Markdown) and
-                # tag the prior answer so it cannot act as a style precedent.
-                filtered.append(AIMessage(content=_neutralize_assistant_formatting(content)))
-                continue
-            if 'class="lia-' in content or "class='lia-" in content:
-                # Extract text before HTML, or use placeholder to indicate response was given
-                # This prevents LLM from thinking previous query is unanswered
-                text_before_html = _prose_of_html_answer(content)
-                if text_before_html:
-                    filtered.append(AIMessage(content=text_before_html))
-                else:
-                    # Placeholder so LLM knows query was handled
-                    filtered.append(AIMessage(content=CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER))
-                continue
-            # Keep simple chat responses — their character references read as
-            # the person saw them (a PLAIN card's values), the message kept
-            # whole when there was nothing to read.
-            read = read_as_markdown(content)
-            filtered.append(msg if read == content else AIMessage(content=read))
+            if (answer := _assistant_for_llm_context(msg, neutralize_formatting)) is not None:
+                filtered.append(answer)
         elif isinstance(msg, SystemMessage):
             # Keep ONLY the compaction summary. It carries the compacted conversation
             # history and is the response LLM's sole source for it (the `compaction_summary`

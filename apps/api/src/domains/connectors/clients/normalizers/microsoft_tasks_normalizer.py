@@ -10,6 +10,10 @@ from typing import Any
 
 import structlog
 
+from src.core.field_names import FIELD_DISPLAY_ONLY
+from src.core.time_utils import parse_provider_datetime
+from src.domains.connectors.clients.normalizers.html_text import html_to_text
+
 logger = structlog.get_logger(__name__)
 
 # Microsoft To Do status → Google Tasks status mapping
@@ -46,9 +50,7 @@ def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
     notes = body_data.get("content", "")
     # Strip HTML if body is HTML
     if body_data.get("contentType") == "html" and notes:
-        import re
-
-        notes = re.sub(r"<[^<>]+>", "", notes).strip()
+        notes = html_to_text(notes)
 
     # Status mapping
     ms_status = task.get("status", "notStarted")
@@ -61,7 +63,7 @@ def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
         dt_str = due_data.get("dateTime", "")
         if dt_str:
             # Normalize to RFC 3339 format (Google Tasks expects this)
-            due = _normalize_due_date(dt_str)
+            due = _normalize_due_date(dt_str, due_data.get("timeZone", "UTC"))
 
     # Completed date
     completed = None
@@ -69,7 +71,7 @@ def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
     if completed_data:
         dt_str = completed_data.get("dateTime", "")
         if dt_str:
-            completed = _normalize_due_date(dt_str)
+            completed = _normalize_due_date(dt_str, completed_data.get("timeZone", "UTC"))
 
     # Updated timestamp
     updated = task.get("lastModifiedDateTime", "")
@@ -91,25 +93,41 @@ def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
         # Extra metadata
         "importance": importance,
         "_provider": "microsoft",
+        FIELD_DISPLAY_ONLY: {
+            "native_task": {
+                key: task[key]
+                for key in (
+                    "status",
+                    "categories",
+                    "createdDateTime",
+                    "lastModifiedDateTime",
+                    "startDateTime",
+                    "dueDateTime",
+                    "completedDateTime",
+                    "reminderDateTime",
+                    "isReminderOn",
+                    "hasAttachments",
+                    "recurrence",
+                )
+                if key in task
+            },
+        },
     }
 
 
-def _normalize_due_date(dt_str: str) -> str:
+def _normalize_due_date(dt_str: str, time_zone: str = "UTC") -> str | None:
     """
     Normalize a datetime string to RFC 3339 format.
 
     Microsoft returns: "2025-01-15T00:00:00.0000000"
     Google expects:    "2025-01-15T00:00:00.000Z"
     """
-    try:
-        # Strip fractional seconds and parse
-        clean = dt_str.split(".")[0] if "." in dt_str else dt_str
-        if clean.endswith("Z"):
-            clean = clean[:-1]
-        dt = datetime.fromisoformat(clean)
-        return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    except ValueError, AttributeError:
-        return dt_str
+    parsed = parse_provider_datetime({"dateTime": dt_str, "timeZone": time_zone})
+    return (
+        parsed.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        if parsed
+        else None
+    )
 
 
 def normalize_graph_task_list(task_list: dict[str, Any]) -> dict[str, Any]:

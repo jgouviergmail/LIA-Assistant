@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.field_names import FIELD_DISPLAY_ONLY
+from src.domains.agents.data_registry.mcp_metadata import authoritative_mcp_source
 
 __all__ = ["card_payload", "display_fields", "restore_display_fields", "take_display_fields"]
 
@@ -82,4 +83,6 @@ def card_payload(item: object) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         return None
     display = display_fields(item)
+    if source := authoritative_mcp_source(item, display):
+        return {**payload, **display, "_mcp_source": source}
     return {**payload, **display} if display else payload

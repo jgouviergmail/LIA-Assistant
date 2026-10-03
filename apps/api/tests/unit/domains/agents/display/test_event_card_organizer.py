@@ -71,28 +71,25 @@ def test_the_card_draws_the_organizer_line_braces_and_all(language: str, line: s
     assert "> o{0}@example.com</span>" in html
 
 
-def test_the_description_loses_its_tags_before_its_cut() -> None:
-    """Cut first, a tag straddling the bound left its opening half on the card."""
+def test_the_complete_description_loses_its_tags_before_display() -> None:
+    """The details retain the tail, without exposing any provider HTML tag."""
     description = "mot " * 74 + '<a href="https://example.com/a/long/path">lien</a> et la suite'
 
     html = EventCard().render(_event(description=description), RenderContext(language="fr"))
 
     assert "&lt;a" not in html
     assert "mot mot" in html
-    assert "la suite" not in html and "…" in html
+    assert "lien et la suite" in html
 
 
 def _description(description: str) -> str:
     return EventCard().render(_event(description=description), RenderContext(language="fr"))
 
 
-def test_a_long_description_is_one_line_cut_on_a_word_within_its_bound() -> None:
-    """« longword » straddles the bound: cut on the word before it, the
-    ellipsis counted in the 300 characters, the line breaks folded."""
+def test_a_long_description_is_complete_and_layout_runs_are_folded() -> None:
     html = _description("abcd\n" * 59 + "longword")
 
-    assert "abcd " * 58 + "abcd…" in html
-    assert "longword" not in html
+    assert "abcd " * 59 + "longword" in html
 
 
 def test_a_description_reads_its_entities_and_drops_its_style() -> None:

@@ -52,6 +52,7 @@ from src.domains.agents.utils.message_filters import (
     filter_for_llm_context,
 )
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.llm.message_view import model_view_content
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -95,10 +96,11 @@ def format_conversation_history(
     for msg in messages:
         # Gemini 3.x stores content as list[dict] blocks; normalize to text so
         # the .strip()/slicing below stay str-safe (otherwise AttributeError).
-        content = coerce_content_to_text(getattr(msg, "content", ""))
+        view = model_view_content(msg)
+        content = view if view is not None else coerce_content_to_text(getattr(msg, "content", ""))
 
         # Truncate long content
-        if len(content) > max_content_length:
+        if view is None and len(content) > max_content_length:
             content = content[:max_content_length] + "..."
 
         # Skip empty content

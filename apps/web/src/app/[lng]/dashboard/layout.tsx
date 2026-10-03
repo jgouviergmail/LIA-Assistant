@@ -191,7 +191,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
             <BroadcastModal lng={lng} />
 
             {/* Navbar - Enhanced Glassmorphism */}
-            <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm">
+            <header className="lia-dashboard-header sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm">
               {/* `2xl` widens the row it adds items to: the page is capped at
               `max-w-7xl`, so without this the widest screens had LESS room
               than 1280 px (measured 2026-09-26: labels + token counters

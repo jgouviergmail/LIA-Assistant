@@ -51,6 +51,19 @@ def _make_tracker(auto_commit: bool = True) -> TrackingContext:
     return tracker
 
 
+@pytest.mark.asyncio
+async def test_strict_commit_retains_pending_records_and_propagates_persistence_failure(
+    monkeypatch,
+):
+    tracker = TrackingContext("map_test", uuid.uuid4(), "interactive_map", None, auto_commit=False)
+    tracker._google_api_records.append(MagicMock(cached=False))
+    failure = RuntimeError("database unavailable")
+    monkeypatch.setattr(tracker, "_persist_to_database", AsyncMock(side_effect=failure))
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        await tracker.commit(strict=True)
+    assert tracker.pending_families()["google_api"] == 1
+
+
 @pytest.mark.unit
 class TestTrackingContextExitPersistence:
     async def test_persists_on_normal_exit(self):

@@ -423,7 +423,10 @@ async def build_setup_blocks(
     # read from the bundle the router prefetched — where the search is decided.
     knowledge_block = await build_knowledge_block(state, config)
     skills_catalog = build_skills_catalog_block() or ""
+    from src.domains.agents.services.card_composition_prompt import build_card_composition_block
+
     ordered = [
+        build_card_composition_block(),
         memory_block,
         build_reference_resolution_block(state, intelligence),
         await build_user_model_block(),

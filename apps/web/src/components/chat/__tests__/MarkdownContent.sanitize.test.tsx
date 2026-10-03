@@ -80,6 +80,19 @@ describe('MarkdownContent — XSS vectors stripped', () => {
 });
 
 describe('MarkdownContent — legitimate markup survives', () => {
+  it('keeps named native task progress while stripping its handlers', () => {
+    const { getByRole } = render(
+      <MarkdownContent
+        content={
+          '<progress class="lia-task__completion" value="13" max="20" aria-label="Subtasks" onmouseover="alert(1)">13/20</progress>'
+        }
+      />
+    );
+    const progress = getByRole('progressbar', { name: 'Subtasks' });
+    expect(progress).toHaveAttribute('value', '13');
+    expect(progress).toHaveAttribute('max', '20');
+    expect(progress).not.toHaveAttribute('onmouseover');
+  });
   it('keeps rich-HTML response structure with classes', () => {
     const { container } = render(
       <MarkdownContent

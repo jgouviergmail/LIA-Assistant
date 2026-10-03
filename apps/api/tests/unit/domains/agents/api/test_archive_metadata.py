@@ -202,3 +202,37 @@ class TestArchivedMessageIds:
         produced = with_archived_message_ids(base, user_message_id=None, assistant_message_id=None)
 
         assert produced is base
+
+
+def test_completed_archive_and_done_share_the_delivered_card_snapshot_without_changing_costs():
+    from src.domains.agents.services.streaming.done_metadata import with_done_enrichments
+
+    card = {
+        "run_id": "current",
+        "lia_card_actions": {"version": 1, "run_id": "current", "items": []},
+    }
+    base = {"tokens_in": 12, "cost_eur": 0.23}
+    archived = build_assistant_metadata(
+        base,
+        widgets=None,
+        trace_capture=_Capture([]),
+        duration_ms=1,
+        run_id="current",
+        followup_suggestions=None,
+        initiative_motivation=None,
+        effects=None,
+        card_metadata=card,
+    )
+    done = with_done_enrichments(
+        base,
+        user_message_id=None,
+        assistant_message_id=None,
+        followup_suggestions=None,
+        effects=None,
+        card_metadata=card,
+        initiative_motivation=None,
+    )
+    assert archived["lia_card_actions"] == done["lia_card_actions"] == card["lia_card_actions"]
+    assert archived["run_id"] == done["run_id"] == "current"
+    assert archived["cost_eur"] == done["cost_eur"] == 0.23
+    assert base == {"tokens_in": 12, "cost_eur": 0.23}

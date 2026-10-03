@@ -244,6 +244,32 @@ class TestBuildFilesOutput:
         assert output.structured_data["folder_id"] == "folder-1"
         assert output.structured_data["query"] == "report"
 
+    def test_modification_timestamp_annotation_reads_the_real_canonical_source(self) -> None:
+        from datetime import UTC, datetime
+
+        from src.domains.agents.data_registry.models import RegistryItem
+        from src.domains.agents.drive.catalogue_manifests import get_files_catalogue_manifest
+        from src.domains.agents.semantic.expansion_service import get_expansion_service
+
+        output = _HelperAccessor().build_files_output(
+            files=[{"id": "f1", "name": "source.pdf", "modifiedTime": "2026-10-03T09:30:00Z"}],
+            user_timezone="UTC",
+            locale="en",
+        )
+        field = next(
+            field
+            for field in get_files_catalogue_manifest.outputs
+            if field.path == "files[].modifiedTime"
+        )
+        assert field.semantic_type == "modification_timestamp"
+        definition = get_expansion_service().registry.get(field.semantic_type)
+        assert definition is not None and definition.parent == "DateTime"
+        source = next(iter(output.registry_updates.values()))
+        restored = RegistryItem.model_validate(source.model_dump(mode="json"))
+        value = output.structured_data["files"][0]["modifiedTime"]
+        assert value == restored.payload["modifiedTime"]
+        assert datetime.fromisoformat(value) == datetime(2026, 10, 3, 9, 30, tzinfo=UTC)
+
 
 class TestBuildPlacesOutput:
     """Tests for :meth:`ToolOutputMixin.build_places_output`."""

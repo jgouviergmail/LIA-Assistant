@@ -22,30 +22,32 @@ from src.domains.agents.constants import CONTEXT_DOMAIN_PLACES
 from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
-    build_directions_url,
-    build_place_url,
     escape_html,
     format_phone,
     phone_for_tel,
-    render_card_hero,
     render_card_top,
     render_chip,
     render_chip_row,
     render_chip_stars,
-    render_collapsible,
-    render_d_item,
     render_d_row,
-    render_kv_rows,
-    render_review,
-    render_section_header,
     safe_url,
     wrap_with_response,
 )
-from src.domains.agents.display.components.environment_row import air_quality_text
+from src.domains.agents.display.components.place_details import render_place_details
+from src.domains.agents.display.components.place_hours import open_status, transition_time
+from src.domains.agents.display.components.place_photo import (
+    place_source_without_photo,
+    render_place_photo,
+)
 from src.domains.agents.display.icons import Icons
-from src.infrastructure.observability.logging import get_logger
-
-logger = get_logger(__name__)
+from src.domains.agents.display.urls import build_directions_url, build_place_url
+from src.domains.agents.display.values import (
+    first_present,
+    list_values,
+    nonnegative_integer,
+    rating_value,
+    scalar_text,
+)
 
 
 class PlaceCard(BaseComponent):
@@ -94,20 +96,24 @@ class PlaceCard(BaseComponent):
         display_name = data.get("displayName")
         if isinstance(display_name, dict):
             display_name = display_name.get("text", "")
-        name = data.get("name") or display_name or ""
-        address = data.get("formattedAddress") or data.get("address", "")
-        phone = data.get("internationalPhoneNumber") or data.get("phone", "")
-        website = data.get("websiteUri") or data.get("website", "")
-        rating = data.get("rating")
+        name = scalar_text(data.get("name")) or scalar_text(display_name) or ""
+        address = scalar_text(first_present(data, "formattedAddress", "address"))
+        phone = scalar_text(
+            first_present(data, "internationalPhoneNumber", "phone_international", "phone")
+        )
+        website = scalar_text(first_present(data, "websiteUri", "website"))
+        rating = rating_value(data.get("rating"))
         reviews_count = (
-            data.get("userRatingCount") or data.get("rating_count") or data.get("reviews_count", 0)
+            nonnegative_integer(
+                first_present(data, "userRatingCount", "rating_count", "reviews_count")
+            )
+            or 0
         )
         price_level = data.get("priceLevel") or data.get("price_level", "")
         is_open = self._get_open_status(data)
-        distance = data.get("distance", "")
-        photo_url = data.get("photo_url", "")
-        types = data.get("types", [])
-        place_id = data.get("place_id") or data.get("id", "")
+        distance = scalar_text(data.get("distance"))
+        types = [value for value in list_values(data.get("types")) if isinstance(value, str)]
+        place_id = scalar_text(first_present(data, "place_id", "id"))
 
         # Build place URL for name link (opens Google Maps place page, not directions)
         query = f"{name}, {address}" if name and address else (name or address)
@@ -129,7 +135,6 @@ class PlaceCard(BaseComponent):
             price_level,
             is_open,
             distance,
-            photo_url,
             types,
             ctx,
             data,
@@ -198,17 +203,6 @@ class PlaceCard(BaseComponent):
             return ""
         return V3Messages.get_business_status(ctx.language, str(business_status))
 
-    def _parking_labels(self, parking: Any, language: str) -> list[str]:
-        """Localized labels of the available (True) parking options."""
-        if not isinstance(parking, dict) or not parking:
-            return []
-        labels = [
-            V3Messages.get_parking_option(language, option)
-            for option, available in parking.items()
-            if available is True
-        ]
-        return [label for label in labels if label]
-
     def _open_status_class(self, is_open: bool | None) -> str:
         """Return CSS class for open/closed status."""
         if is_open is True:
@@ -226,11 +220,10 @@ class PlaceCard(BaseComponent):
         website: str,
         rating: float | None,
         reviews_count: int,
-        price_level: str,
+        price_level: object,
         is_open: bool | None,
         distance: str,
-        photo_url: str,
-        types: list,
+        types: list[str],
         ctx: RenderContext,
         data: dict[str, Any],
     ) -> str:
@@ -246,12 +239,12 @@ class PlaceCard(BaseComponent):
         open_class = self._open_status_class(is_open)
 
         # --- Hero photo ---
-        hero_html = render_card_hero(photo_url, name) if photo_url else ""
+        hero_html = render_place_photo(data, name, ctx.language)
 
         # --- Card top: illustration + name ---
         illus_color = "green" if is_open else ("red" if is_open is False else "gray")
         # Google's own localized primary type beats the hand-rolled mapping
-        type_tag = data.get("primary_type") or self._get_type_tag(types, ctx.language)
+        type_tag = scalar_text(data.get("primary_type")) or self._get_type_tag(types, ctx.language)
         illus_icon = self._get_place_icon(types)
         title_html = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(name)}</a>'
         card_top_html = render_card_top(illus_icon, illus_color, title_html)
@@ -271,7 +264,7 @@ class PlaceCard(BaseComponent):
             )
         if distance:
             chips_row1.append(render_chip(distance, "", Icons.DIRECTIONS))
-        if rating:
+        if rating is not None:
             chips_row1.append(render_chip_stars(rating, reviews_count))
         chip_row_1 = render_chip_row(" ".join(chips_row1)) if chips_row1 else ""
 
@@ -326,10 +319,12 @@ class PlaceCard(BaseComponent):
         editorial = data.get("editorialSummary", {})
         if editorial:
             summary_text = (
-                editorial.get("text", "") if isinstance(editorial, dict) else str(editorial)
+                scalar_text(editorial.get("text"))
+                if isinstance(editorial, dict)
+                else scalar_text(editorial)
             )
         if not summary_text:
-            summary_text = data.get("description", "")
+            summary_text = scalar_text(data.get("description"))
         if summary_text:
             editorial_html = f'<p class="lia-place__summary" style="font-size:var(--lia-text-sm);color:var(--lia-text-secondary);margin-top:var(--lia-space-xs);font-style:italic">{escape_html(summary_text)}</p>'
 
@@ -345,9 +340,10 @@ class PlaceCard(BaseComponent):
 {phone_html}
 {editorial_html}
 {collapsible_html}
+{place_source_without_photo(hero_html)}
 </div>"""
 
-    def _get_place_icon(self, types: list) -> str:
+    def _get_place_icon(self, types: list[str]) -> str:
         """Get Material Symbols icon name for place type."""
         type_icons = {
             "restaurant": "restaurant",
@@ -372,252 +368,15 @@ class PlaceCard(BaseComponent):
         return "location_on"
 
     def _render_collapsible_details_v4(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render collapsible details using v4 components with section headers."""
-        detail_sections: list[str] = []
-        is_first = True
-
-        # 1. Opening hours as KV rows
-        weekday_text = None
-        opening_hours = data.get("currentOpeningHours", {}) or data.get("openingHours", {})
-        if opening_hours and isinstance(opening_hours, dict):
-            weekday_text = opening_hours.get("weekdayDescriptions", []) or opening_hours.get(
-                "weekday_text", []
-            )
-        if not weekday_text:
-            weekday_text = data.get("opening_hours", [])
-        if weekday_text and isinstance(weekday_text, list) and len(weekday_text) > 0:
-            hours_label = V3Messages.get_opening_hours(ctx.language)
-            detail_sections.append(
-                render_section_header(hours_label, Icons.SCHEDULE, "amber", first=is_first)
-            )
-            is_first = False
-            # Parse hours into key-value pairs
-            pairs = []
-            for h in weekday_text[:7]:
-                h_str = str(h)
-                if ":" in h_str:
-                    parts = h_str.split(":", 1)
-                    day = parts[0].strip()
-                    time_range = parts[1].strip() if len(parts) > 1 else ""
-                    pairs.append((day, time_range))
-                else:
-                    pairs.append((h_str, ""))
-            detail_sections.append(render_kv_rows(pairs))
-
-        # 2. Services & features
-        features = data.get("features", [])
-        if features:
-            feature_items = self._format_features(features, ctx.language)
-            if feature_items:
-                services_label = V3Messages.get_services_amenities(ctx.language)
-                detail_sections.append(
-                    render_section_header(services_label, Icons.STAR, "purple", first=is_first)
-                )
-                is_first = False
-                detail_sections.append(
-                    f'<div style="display:flex;flex-wrap:wrap;gap:var(--lia-space-xs)">'
-                    f'{" ".join(feature_items)}</div>'
-                )
-
-        # 3. Reviews
-        reviews = data.get("reviews", [])
-        if reviews and isinstance(reviews, list):
-            review_items = []
-            for rev in reviews[:5]:
-                if isinstance(rev, dict):
-                    author = ""
-                    author_attr = rev.get("authorAttribution", {})
-                    if isinstance(author_attr, dict):
-                        author = author_attr.get("displayName", "")
-                    if not author:
-                        author = rev.get("author_name", "") or rev.get("author", "")
-
-                    text = ""
-                    text_obj = rev.get("text", "")
-                    if isinstance(text_obj, dict):
-                        text = text_obj.get("text", "")
-                    elif isinstance(text_obj, str):
-                        text = text_obj
-
-                    review_rating = int(rev.get("rating", 0))
-                    relative_time = rev.get("relative_time", "") or rev.get(
-                        "relativePublishTimeDescription", ""
-                    )
-
-                    if text and author:
-                        text_preview = text[:100] + "..." if len(text) > 100 else text
-                        review_items.append(
-                            render_review(author, relative_time, review_rating, text_preview)
-                        )
-            if review_items:
-                reviews_title = V3Messages.get_reviews(ctx.language).capitalize()
-                detail_sections.append(
-                    render_section_header(reviews_title, Icons.CHAT, "indigo", first=is_first)
-                )
-                is_first = False
-                detail_sections.extend(review_items)
-
-        # 4. Accessibility
-        accessibility = data.get("accessibilityOptions", {})
-        if accessibility:
-            acc_features = []
-            if accessibility.get("wheelchairAccessibleEntrance"):
-                acc_features.append(V3Messages.get_accessibility(ctx.language, "entrance"))
-            if accessibility.get("wheelchairAccessibleParking"):
-                acc_features.append(V3Messages.get_accessibility(ctx.language, "parking"))
-            if accessibility.get("wheelchairAccessibleSeating"):
-                acc_features.append(V3Messages.get_accessibility(ctx.language, "seating"))
-            if accessibility.get("wheelchairAccessibleRestroom"):
-                acc_features.append(V3Messages.get_accessibility(ctx.language, "restroom"))
-            if acc_features:
-                detail_sections.append(
-                    render_section_header(
-                        V3Messages.get_accessibility_title(ctx.language),
-                        Icons.ACCESSIBLE,
-                        "blue",
-                        first=is_first,
-                    )
-                )
-                is_first = False
-                detail_sections.append(
-                    render_d_item(
-                        "check_circle", ", ".join(acc_features), icon_style="color:#10b981"
-                    )
-                )
-
-        # 5. Parking options (audit 2026-08: paid data, previously dropped)
-        parking_labels = self._parking_labels(data.get("parkingOptions", {}), ctx.language)
-        if parking_labels:
-            detail_sections.append(
-                render_section_header(
-                    V3Messages.get_parking_title(ctx.language),
-                    "local_parking",
-                    "orange",
-                    first=is_first,
-                )
-            )
-            is_first = False
-            detail_sections.append(
-                render_d_item("check_circle", ", ".join(parking_labels), icon_style="color:#10b981")
-            )
-
-        # 6. Air quality AT THE PLACE (2026-08) — the signal that decides an
-        # outdoor plan. Same shared renderer as the weather card, so the
-        # honesty rules (provider category, no borrowed number) hold here too.
-        air_quality = air_quality_text(data, ctx.language)
-        if air_quality:
-            detail_sections.append(
-                render_section_header(
-                    V3Messages.get_air_quality(ctx.language),
-                    Icons.WIND,
-                    "teal",
-                    first=is_first,
-                )
-            )
-            is_first = False
-            detail_sections.append(render_d_item("check_circle", air_quality))
-
-        # 7. Payment options
-        payment = data.get("paymentOptions", {})
-        if payment:
-            pay_methods = []
-            if payment.get("acceptsCreditCards"):
-                pay_methods.append(V3Messages.get_payment(ctx.language, "credit_cards"))
-            if payment.get("acceptsCashOnly"):
-                pay_methods.append(V3Messages.get_payment(ctx.language, "cash_only"))
-            if payment.get("acceptsNfc"):
-                pay_methods.append(V3Messages.get_payment(ctx.language, "contactless"))
-            if pay_methods:
-                detail_sections.append(
-                    render_section_header(
-                        V3Messages.get_payment_title(ctx.language),
-                        Icons.CREDIT_CARD,
-                        "teal",
-                        first=is_first,
-                    )
-                )
-                detail_sections.append(
-                    render_d_item(
-                        "check_circle", ", ".join(pay_methods), icon_style="color:#10b981"
-                    )
-                )
-
-        if detail_sections:
-            content_html = "\n".join(detail_sections)
-            return render_collapsible(
-                trigger_text=V3Messages.get_see_more(ctx.language),
-                content_html=content_html,
-                initially_open=False,
-                with_separator=False,
-            )
-
-        return ""
+        return render_place_details(data, ctx)
 
     def _get_next_open_time(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Get next opening time if place is closed."""
-        # Try to extract next opening from opening hours
-        weekday_text = None
-        opening_hours = data.get("currentOpeningHours", {}) or data.get("openingHours", {})
-        if opening_hours and isinstance(opening_hours, dict):
-            weekday_text = opening_hours.get("weekdayDescriptions", []) or opening_hours.get(
-                "weekday_text", []
-            )
-        if not weekday_text:
-            weekday_text = data.get("opening_hours", [])
-
-        if weekday_text and isinstance(weekday_text, list) and len(weekday_text) > 0:
-            # Return the first opening time from today or tomorrow
-            from src.core.time_utils import now_in_timezone
-
-            try:
-                # "Today" in the USER's timezone (F16: the server runs in UTC,
-                # so between local and UTC midnight the naive weekday() pointed
-                # at the wrong day's opening hours)
-                today_idx = now_in_timezone(ctx.timezone).weekday()
-                if today_idx < len(weekday_text):
-                    today_hours = weekday_text[today_idx]
-                    # Extract opening time (format: "Lundi: 09:00 – 18:00" or similar)
-                    if ":" in today_hours and "–" in today_hours:
-                        parts = today_hours.split(":", 1)
-                        if len(parts) > 1:
-                            time_part = parts[1].strip()
-                            if "–" in time_part:
-                                open_time = time_part.split("–")[0].strip()
-                                return open_time  # type: ignore[no-any-return]
-            except ValueError, IndexError, TypeError:
-                logger.debug("place_card_opening_hours_parse_error")
-        return ""
+        return transition_time(data, ctx, opening=True)
 
     def _get_closing_time(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Get closing time for today (user's timezone) if place is open."""
-        weekday_text = None
-        opening_hours = data.get("currentOpeningHours", {}) or data.get("openingHours", {})
-        if opening_hours and isinstance(opening_hours, dict):
-            weekday_text = opening_hours.get("weekdayDescriptions", []) or opening_hours.get(
-                "weekday_text", []
-            )
-        if not weekday_text:
-            weekday_text = data.get("opening_hours", [])
+        return transition_time(data, ctx, opening=False)
 
-        if weekday_text and isinstance(weekday_text, list) and len(weekday_text) > 0:
-            from src.core.time_utils import now_in_timezone
-
-            try:
-                today_idx = now_in_timezone(ctx.timezone).weekday()
-                if today_idx < len(weekday_text):
-                    today_hours = str(weekday_text[today_idx])
-                    if ":" in today_hours and "–" in today_hours:
-                        parts = today_hours.split(":", 1)
-                        if len(parts) > 1:
-                            time_part = parts[1].strip()
-                            if "–" in time_part:
-                                close_time = time_part.split("–")[1].strip()
-                                return close_time
-            except ValueError, IndexError, TypeError:
-                logger.debug("place_card_closing_time_parse_error")
-        return ""
-
-    def _format_price_range(self, price_range: Any) -> str:
+    def _format_price_range(self, price_range: object) -> str:
         """Format the normalized price range ({start, end, currency}) as a chip.
 
         Returns "" when the payload is absent or unusable, so callers can fall
@@ -626,19 +385,19 @@ class PlaceCard(BaseComponent):
         """
         if not isinstance(price_range, dict):
             return ""
-        start = price_range.get("start")
-        end = price_range.get("end")
-        if start is None and end is None:
+        start = scalar_text(price_range.get("start"))
+        end = scalar_text(price_range.get("end"))
+        if not start and not end:
             return ""
-        currency = price_range.get("currency") or ""
+        currency = scalar_text(price_range.get("currency"))
         symbol = CURRENCY_DISPLAY_SYMBOLS.get(currency, currency)
-        if start is not None and end is not None:
+        if start and end:
             amount = f"{start}–{end}"
         else:
-            amount = str(start if start is not None else end)
+            amount = start or end
         return f"{amount} {symbol}".strip()
 
-    def _format_price(self, price_level: str, language: str | None = None) -> str:
+    def _format_price(self, price_level: object, language: str | None = None) -> str:
         """Convert price level to € symbols."""
         if isinstance(price_level, str):
             if price_level.startswith("PRICE_LEVEL_"):
@@ -653,40 +412,16 @@ class PlaceCard(BaseComponent):
                 }
                 return mapping.get(level, price_level)
             return price_level
-        return "€" * int(price_level) if price_level else ""
+        level_number = nonnegative_integer(price_level)
+        return "€" * level_number if level_number is not None and level_number <= 4 else ""
 
-    def _get_open_status(self, data: dict) -> bool | None:
-        """Get open/closed status."""
-        # Tool normalized format: open_now directly at root level
-        if "open_now" in data:
-            return data["open_now"]  # type: ignore[no-any-return]
-        # API raw format: currentOpeningHours.openNow
-        if "currentOpeningHours" in data:
-            return data["currentOpeningHours"].get("openNow")  # type: ignore[no-any-return]
-        # Legacy format: opening_hours.open_now
-        if "opening_hours" in data and isinstance(data["opening_hours"], dict):
-            return data["opening_hours"].get("open_now")
-        # Fallback: is_open
-        if "is_open" in data:
-            return data["is_open"]  # type: ignore[no-any-return]
-        return None
+    def _get_open_status(self, data: dict[str, Any]) -> bool | None:
+        return open_status(data)
 
-    def _get_type_tag(self, types: list, language: str | None = None) -> str:
+    def _get_type_tag(self, types: list[str], language: str | None = None) -> str:
         """Get display type from types list."""
         for t in types:
             type_label = V3Messages.get_place_type(resolve_language(language), t)
             if type_label:
                 return type_label
         return ""
-
-    def _format_features(self, features: list, language: str | None = None) -> list[str]:
-        """Format place features/services as badges."""
-        result = []
-        for feature in features:
-            if isinstance(feature, str):
-                feature_label = V3Messages.get_place_feature(resolve_language(language), feature)
-                if feature_label:
-                    result.append(
-                        f'<span class="lia-badge lia-badge--subtle">{feature_label}</span>'
-                    )
-        return result

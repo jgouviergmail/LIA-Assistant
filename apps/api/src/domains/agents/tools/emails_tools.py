@@ -475,6 +475,9 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 page_token=kwargs.get("page_token"),
             )
         await self._shape_for_detail(result["emails"], user_id, detail, part, locale)
+        from src.domains.agents.tools.email_card_binding import bind_email_card_accounts
+
+        result["emails"] = bind_email_card_accounts(client, result["emails"])
         result["detail"] = detail.value
         return result
 
@@ -1704,16 +1707,17 @@ async def execute_email_reply_draft(
 
     Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
     """
+    from src.domains.agents.services.card_composition_service import draft_composition_scope
     from src.domains.connectors.provider_resolver import resolve_client_for_category
 
-    client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
-
-    result = await client.reply_email(
-        message_id=draft_content["message_id"],
-        body=draft_content["body"],
-        reply_all=draft_content.get("reply_all", False),
-        to=draft_content.get("to"),
-    )
+    async with draft_composition_scope(draft_content, user_id, deps, "reply"):
+        client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
+        result = await client.reply_email(
+            message_id=draft_content["message_id"],
+            body=draft_content["body"],
+            reply_all=draft_content.get("reply_all", False),
+            to=draft_content.get("to"),
+        )
 
     logger.info(
         "email_reply_draft_executed",
@@ -1742,16 +1746,17 @@ async def execute_email_forward_draft(
 
     Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
     """
+    from src.domains.agents.services.card_composition_service import draft_composition_scope
     from src.domains.connectors.provider_resolver import resolve_client_for_category
 
-    client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
-
-    result = await client.forward_email(
-        message_id=draft_content["message_id"],
-        to=draft_content["to"],
-        body=draft_content.get("body"),
-        cc=draft_content.get("cc"),
-    )
+    async with draft_composition_scope(draft_content, user_id, deps, "forward"):
+        client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
+        result = await client.forward_email(
+            message_id=draft_content["message_id"],
+            to=draft_content["to"],
+            body=draft_content.get("body"),
+            cc=draft_content.get("cc"),
+        )
 
     logger.info(
         "email_forward_draft_executed",

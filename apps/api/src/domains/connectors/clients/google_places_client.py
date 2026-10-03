@@ -63,6 +63,8 @@ _SEARCH_LITE_FIELDS: tuple[str, ...] = (
     "businessStatus",
     "primaryTypeDisplayName",
     "photos",
+    "timeZone",
+    "utcOffsetMinutes",
 )
 _SEARCH_FULL_EXTRA_FIELDS: tuple[str, ...] = (
     "rating",
@@ -70,6 +72,7 @@ _SEARCH_FULL_EXTRA_FIELDS: tuple[str, ...] = (
     "priceLevel",
     "websiteUri",
     "nationalPhoneNumber",
+    "internationalPhoneNumber",
     "currentOpeningHours",
     "editorialSummary",
     "reviews",
@@ -633,6 +636,8 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                 "internationalPhoneNumber",
                 "currentOpeningHours",
                 "regularOpeningHours",
+                "timeZone",
+                "utcOffsetMinutes",
                 "googleMapsUri",
                 "reviews",
                 "editorialSummary",

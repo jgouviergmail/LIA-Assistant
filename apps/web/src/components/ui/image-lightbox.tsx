@@ -35,6 +35,8 @@ interface ImageLightboxProps {
   onNext?: () => void;
   /** 1-based position, announced and displayed when navigating. */
   position?: { current: number; total: number };
+  /** Visible attribution or caption belonging to the current image. */
+  caption?: React.ReactNode;
 }
 
 /** Focusable descendants, in DOM order. The dialog itself carries `tabIndex=-1`
@@ -69,9 +71,8 @@ function trapTab(e: KeyboardEvent, dialog: HTMLElement | null): void {
   const last = focusables[focusables.length - 1];
   const active = document.activeElement;
 
-  // Focus can sit outside the ring legitimately: on the dialog itself right
-  // after opening, or on `body` after the download button disabled itself
-  // under the user's fingers. Either way the next Tab belongs inside.
+  // Focus can sit outside the ring on opening or after a browser moves it.
+  // The next Tab still belongs inside; pending controls keep their tab stop.
   if (!(active instanceof HTMLElement) || !dialog.contains(active) || active === dialog) {
     e.preventDefault();
     (e.shiftKey ? last : first).focus();
@@ -109,9 +110,13 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   onPrev,
   onNext,
   position,
+  caption,
 }) => {
   const { t } = useTranslation();
   const [isDownloading, setIsDownloading] = useState(false);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const imageFailed = failedSource === src;
+  const downloadPending = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Keyboard contract: Escape closes, Tab stays inside. Split from the focus
@@ -153,6 +158,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     // Whoever had focus when the overlay opened — focus goes back there on
     // close, otherwise a keyboard user is dropped at the top of the document
@@ -164,19 +170,22 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     dialogRef.current?.focus();
 
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus();
     };
   }, [isOpen]);
 
   const handleDownload = useCallback(async () => {
+    if (downloadPending.current || imageFailed) return;
+    downloadPending.current = true;
     setIsDownloading(true);
     try {
       await downloadImage(src, alt);
     } finally {
+      downloadPending.current = false;
       setIsDownloading(false);
     }
-  }, [src, alt]);
+  }, [src, alt, imageFailed]);
 
   if (!isOpen) return null;
 
@@ -193,7 +202,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         className={cn(
           'absolute inset-0',
           'bg-background/95 backdrop-blur-md',
-          'animate-in fade-in duration-300'
+          'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300'
         )}
         onClick={onClose}
       />
@@ -212,7 +221,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         className={cn(
           'absolute inset-0 flex items-center justify-center',
           'pointer-events-none focus:outline-none',
-          'animate-in fade-in duration-300'
+          'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300'
         )}
       >
         {/* Gallery navigation — rendered only when the caller provides it,
@@ -225,7 +234,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
                 type="button"
                 onClick={onPrev}
                 aria-label={t('common.previous')}
-                className="pointer-events-auto absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border/50 bg-background/80 p-3 transition-all hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="pointer-events-auto absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border/50 lia-overlay-surface lia-overlay-surface--compact p-3 motion-safe:transition-all hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <ChevronLeft className="h-6 w-6 text-foreground" aria-hidden="true" />
               </button>
@@ -235,7 +244,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
                 type="button"
                 onClick={onNext}
                 aria-label={t('common.next')}
-                className="pointer-events-auto absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border/50 bg-background/80 p-3 transition-all hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="pointer-events-auto absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border/50 lia-overlay-surface lia-overlay-surface--compact p-3 motion-safe:transition-all hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <ChevronRight className="h-6 w-6 text-foreground" aria-hidden="true" />
               </button>
@@ -244,7 +253,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         )}
         {position && (
           <>
-            <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-background/80 px-3 py-1 text-xs tabular-nums text-foreground/80">
+            <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full lia-overlay-surface lia-overlay-surface--compact px-3 py-1 text-xs tabular-nums text-foreground/80">
               {position.current} / {position.total}
             </div>
             {/* Spoken, not merely drawn: a screen-reader user moving through
@@ -263,19 +272,19 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           {/* Download button */}
           <button
             onClick={handleDownload}
-            disabled={isDownloading}
+            aria-disabled={isDownloading || imageFailed}
             className={cn(
-              'p-2 rounded-full',
-              'bg-background/80 hover:bg-background',
+              'inline-flex items-center justify-center p-2 min-h-11 min-w-11 rounded-full',
+              'lia-overlay-surface lia-overlay-surface--compact hover:bg-background',
               'border border-border/50',
-              'transition-all duration-200',
-              'hover:scale-110',
-              'disabled:opacity-50 disabled:cursor-not-allowed'
+              'motion-safe:transition-all motion-safe:duration-200',
+              'motion-safe:hover:scale-110',
+              'aria-disabled:opacity-60 aria-disabled:cursor-not-allowed'
             )}
             aria-label={t('common.download')}
           >
             {isDownloading ? (
-              <Loader2 className="w-6 h-6 text-foreground animate-spin" />
+              <Loader2 className="w-6 h-6 text-foreground motion-safe:animate-spin" />
             ) : (
               <Download className="w-6 h-6 text-foreground" />
             )}
@@ -285,11 +294,11 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           <button
             onClick={onClose}
             className={cn(
-              'p-2 rounded-full',
-              'bg-background/80 hover:bg-background',
+              'inline-flex items-center justify-center p-2 min-h-11 min-w-11 rounded-full',
+              'lia-overlay-surface lia-overlay-surface--compact hover:bg-background',
               'border border-border/50',
-              'transition-all duration-200',
-              'hover:scale-110'
+              'motion-safe:transition-all motion-safe:duration-200',
+              'motion-safe:hover:scale-110'
             )}
             aria-label={t('common.close')}
           >
@@ -302,32 +311,78 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           cannot reach it. */}
         <div
           className={cn(
-            'pointer-events-auto relative max-w-7xl max-h-[90dvh] p-4',
-            'animate-in zoom-in-95 duration-300'
+            'pointer-events-auto relative max-w-7xl max-h-[90dvh] p-4 flex flex-col items-center gap-2',
+            'motion-safe:animate-in motion-safe:zoom-in-95 motion-safe:duration-300'
           )}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <LightboxImage
             src={src}
             crossOrigin={crossOrigin}
             alt={alt}
-            referrerPolicy="no-referrer"
-            className={cn(
-              'max-w-full max-h-[90dvh] w-auto h-auto',
-              'rounded-lg shadow-2xl',
-              'border-2 border-border/30'
-            )}
-            style={{
-              // Ensure minimum width for zoom effect (2x original display size)
-              minWidth: minWidth ? `${minWidth}px` : undefined,
-              width: 'auto',
-              height: 'auto',
-              maxWidth: '100%',
-              maxHeight: '90dvh',
-            }}
+            minWidth={minWidth}
+            hasCaption={Boolean(caption)}
+            failed={imageFailed}
+            onError={() => setFailedSource(src)}
+            onLoad={() => setFailedSource(null)}
           />
+          <ImageCaption>{caption}</ImageCaption>
         </div>
       </div>
     </div>
   );
 };
+
+function ImageCaption({ children }: { children?: React.ReactNode }) {
+  if (!children) return null;
+  return (
+    <div className="lia-lightbox-caption pointer-events-auto max-h-[15dvh] overflow-y-auto mx-auto max-w-xl rounded-md bg-background/95 px-3 py-2 text-center text-sm text-foreground">
+      {children}
+    </div>
+  );
+}
+
+function LightboxImage({
+  src,
+  alt,
+  crossOrigin,
+  minWidth,
+  hasCaption,
+  failed,
+  onLoad,
+  onError,
+}: {
+  src: string;
+  alt: string;
+  crossOrigin?: 'use-credentials';
+  minWidth?: number;
+  hasCaption: boolean;
+  failed: boolean;
+  onLoad: () => void;
+  onError: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        crossOrigin={crossOrigin}
+        alt={alt}
+        referrerPolicy="no-referrer"
+        onLoad={onLoad}
+        onError={onError}
+        className="max-w-full w-auto h-auto rounded-lg shadow-2xl border-2 border-border/30"
+        style={{
+          minWidth: minWidth ? `${minWidth}px` : undefined,
+          maxHeight: hasCaption ? '70dvh' : '90dvh',
+          display: failed ? 'none' : undefined,
+        }}
+      />
+      {failed && (
+        <p role="status" className="p-8 text-foreground">
+          {t('gallery.photo_unavailable')}
+        </p>
+      )}
+    </>
+  );
+}

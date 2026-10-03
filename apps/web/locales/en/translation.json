@@ -863,7 +863,11 @@
     },
     "document_card": {
       "download": "Download {{name}}",
-      "open": "Open {{name}}"
+      "open": "Open {{name}}",
+      "preview": "Document preview",
+      "excerpt": "Document excerpt",
+      "first_page": "First page of {{name}}",
+      "preview_unavailable": "Preview unavailable. You can open the document."
     },
     "skill_proposal": {
       "badge_new": "New skill",
@@ -1234,6 +1238,36 @@
         "observedResult": "Existing extractor proposal (before validation)"
       },
       "resize": "Resize the debug panel"
+    },
+    "card_actions": {
+      "reply": "Reply",
+      "forward": "Forward",
+      "cancel_reminder": "Cancel reminder",
+      "unavailable": "This action is unavailable for this saved response.",
+      "editable": "Opens an editable message. Nothing is sent automatically.",
+      "compose_reply": "Prepare a reply to this email.",
+      "compose_forward": "Prepare a forward of this email.",
+      "compose_cancel_reminder": "Cancel this reminder.",
+      "replace_title": "Replace the current draft?",
+      "replace_description": "Your current text will be replaced by a new editable draft for this card.",
+      "replace_confirm": "Replace draft",
+      "selected_context": "Selected card",
+      "selected_item": "Selected item",
+      "remove_context": "Remove selected card"
+    },
+    "route_map": {
+      "map": "Interactive route map",
+      "activate": "Explore map",
+      "primary": "Primary",
+      "alternative": "Alternative {{number}}",
+      "choose": "Choose a route",
+      "recenter": "Recenter on selection",
+      "cost": "About {{cost}} per opening",
+      "error": "The map is unavailable. Preview and details remain available. Retry or open Google Maps.",
+      "primary_details": "The details below describe the primary route; other journeys are listed under alternatives.",
+      "omitted_one": "{{count}} incomplete route cannot be displayed.",
+      "omitted_other": "{{count}} incomplete routes cannot be displayed.",
+      "report_error": "Load reporting failed. Retry without reopening the map."
     }
   },
   "skill_apps": {
@@ -4913,7 +4947,11 @@
   "gallery": {
     "photo_counter": "Photo {{current}} of {{total}}",
     "place_photo": "Place photo",
-    "expand_photo": "Open the photo full screen"
+    "expand_photo": "Open the photo full screen",
+    "photo_loading": "Loading photo…",
+    "photo_unavailable": "Photo unavailable",
+    "image_unavailable": "Image unavailable",
+    "view_source": "View on Google Maps"
   },
   "hitl": {
     "default": "Do you confirm this action?",

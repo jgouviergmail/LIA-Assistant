@@ -318,7 +318,7 @@ class TestRobustnessContract:
 
 
 class TestRenderListSemantics:
-    """``render_list`` bounds volume and drops cards that validated to nothing."""
+    """``render_list`` bounds the initial view and drops empty validated cards."""
 
     class _Counting(BaseComponent):
         def __init__(self) -> None:
@@ -332,12 +332,16 @@ class TestRenderListSemantics:
         def render(self, data: dict[str, Any], ctx: RenderContext, **_kwargs: Any) -> str:
             return "" if data["n"] % 2 else f"<div>{data['n']}</div>"
 
-    def test_max_items_caps_the_number_of_rendered_cards(self) -> None:
+    def test_max_items_folds_extra_cards_without_removing_selected_results(self) -> None:
         component = self._Counting()
 
-        component.render_list([{"n": i} for i in range(10)], RenderContext(max_items=3))
+        html = component.render_list([{"n": i} for i in range(10)], RenderContext(max_items=3))
 
-        assert [call["n"] for call in component.calls] == [0, 1, 2]
+        assert [call["n"] for call in component.calls] == list(range(10))
+        initial, folded = html.split("<details", 1)
+        assert "<div>2</div>" in initial
+        assert "<div>3</div>" not in initial
+        assert "<div>9</div>" in folded
 
     def test_position_flags_are_passed_to_each_card(self) -> None:
         seen: list[tuple[bool, bool]] = []

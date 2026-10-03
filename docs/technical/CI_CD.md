@@ -212,7 +212,7 @@ Services containers : PostgreSQL (pgvector) + Redis, sur les images exactes de l
 | Suite agents | `task test:backend:agents` |
 | Gate de couverture par markers (F006) | `task test:markers` |
 
-Le seuil de couverture est **77 %** (`--cov-fail-under`), et il a **une seule
+Le seuil de couverture est **78 %** (`--cov-fail-under`), et il a **une seule
 source de verite** : `apps/api/pyproject.toml`, dont le `Taskfile.yml` reprend
 la valeur pour la commande que la CI appelle. Deux gardes la tiennent, chacune
 sur son versant :
@@ -302,7 +302,7 @@ La tache appelle le script dedie `pnpm test:coverage`, jamais
 `pnpm test -- --coverage` : pnpm transmet le `--` litteral a vitest, qui ignore
 silencieusement le flag — aucun rapport n'est produit (piege corrige en
 v1.21.26, ADR-116). Elle applique les **seuils de couverture ratchet** de
-`apps/web/vitest.config.ts` (reducers/sse-handlers/stores verrouilles a 100 %,
+`apps/web/vitest.config.mts` (reducers/sse-handlers/stores verrouilles a 100 %,
 hooks aux valeurs mesurees, plancher global) et uploade
 `coverage/coverage-final.json` vers Codecov.
 

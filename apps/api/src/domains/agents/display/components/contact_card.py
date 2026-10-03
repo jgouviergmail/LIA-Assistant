@@ -12,6 +12,7 @@ Renders contact information with:
 
 from __future__ import annotations
 
+import re
 from contextlib import suppress
 from datetime import datetime
 from typing import Any
@@ -34,7 +35,15 @@ from src.domains.agents.display.components.base import (
     safe_url,
     wrap_with_response,
 )
+from src.domains.agents.display.components.card_content import (
+    render_linked_title,
+)
+from src.domains.agents.display.components.contact_details import (
+    alternate_name_rows,
+    organization_rows,
+)
 from src.domains.agents.display.icons import Icons, get_relation_icon, icon
+from src.domains.agents.display.values import list_values, scalar_text
 
 
 class ContactCard(BaseComponent):
@@ -78,9 +87,9 @@ class ContactCard(BaseComponent):
         # Extract data
         name = self._get_name(data, ctx.language)
         url = self._build_contact_url(data)
-        emails = data.get("emailAddresses") or data.get("emails", [])
-        phones = data.get("phoneNumbers") or data.get("phones", [])
-        organizations = data.get("organizations", [])
+        emails = list_values(data.get("emailAddresses") or data.get("emails"))
+        phones = list_values(data.get("phoneNumbers") or data.get("phones"))
+        organizations = list_values(data.get("organizations"))
         photo_url = self._get_photo_url(data)
 
         # Get primary email/phone
@@ -167,7 +176,7 @@ class ContactCard(BaseComponent):
         nested_class = self._nested_class(ctx)
 
         # --- Card top: avatar (photo or initials) + name + subtitle ---
-        name_link = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(name)}</a>'
+        name_link = render_linked_title(name, url)
         subtitle_parts = []
         if company:
             subtitle_parts.append(escape_html(company))
@@ -203,8 +212,8 @@ class ContactCard(BaseComponent):
         )
 
         # --- Details: emails, phones, address, birthday (all left-aligned) ---
-        email_html = self._render_email_list_v4(emails, ctx)
-        phone_html = self._render_phone_list_v4(phones, ctx)
+        email_html = self._render_email_list_v4(emails[:3], ctx)
+        phone_html = self._render_phone_list_v4(phones[:3], ctx)
         address_html = self._render_primary_address_v4(data, ctx)
         birthday_html = self._render_birthday_v4(data, ctx)
 
@@ -225,8 +234,10 @@ class ContactCard(BaseComponent):
         if not emails:
             return ""
         items = []
-        for e in emails[:3]:
-            val = e.get("value") if isinstance(e, dict) else str(e)
+        for e in emails:
+            val = scalar_text(e.get("value") if isinstance(e, dict) else e)
+            if not val:
+                continue
             etype = e.get("type", "") if isinstance(e, dict) else ""
             type_label = V3Messages.get_data_type(ctx.language, etype) if etype else ""
             link = f'<a href="mailto:{escape_html(val)}">{escape_html(val)}</a>'
@@ -241,8 +252,10 @@ class ContactCard(BaseComponent):
         if not phones:
             return ""
         items = []
-        for p in phones[:3]:
-            val = p.get("value") if isinstance(p, dict) else str(p)
+        for p in phones:
+            val = scalar_text(p.get("value") if isinstance(p, dict) else p)
+            if not val:
+                continue
             ptype = p.get("type", "") if isinstance(p, dict) else ""
             formatted = format_phone(val)
             type_label = V3Messages.get_data_type(ctx.language, ptype) if ptype else ""
@@ -255,7 +268,7 @@ class ContactCard(BaseComponent):
 
     def _render_primary_address_v4(self, data: dict[str, Any], ctx: RenderContext) -> str:
         """Render primary address using v4 d-row."""
-        addresses = data.get("addresses", [])
+        addresses = list_values(data.get("addresses"))
         if not addresses:
             return ""
         addr = addresses[0]
@@ -279,7 +292,7 @@ class ContactCard(BaseComponent):
 
     def _render_birthday_v4(self, data: dict[str, Any], ctx: RenderContext) -> str:
         """Render birthday using v4 d-row."""
-        birthdays = data.get("birthdays", [])
+        birthdays = list_values(data.get("birthdays"))
         if not birthdays:
             return ""
         bday_str, age = self._format_birthday(
@@ -288,7 +301,7 @@ class ContactCard(BaseComponent):
         if not bday_str:
             return ""
         years_old_label = V3Messages.get_years_old(ctx.language)
-        age_str = f" ({age} {years_old_label})" if age else ""
+        age_str = f" ({age} {years_old_label})" if age is not None and age >= 0 else ""
         return render_d_row(
             Icons.BIRTHDAY,
             f"{escape_html(bday_str)}{age_str}",
@@ -314,7 +327,14 @@ class ContactCard(BaseComponent):
         d-rows; the section order below IS the rendered order and must be preserved.
         """
         detail_sections: list[str] = []
+        detail_sections.extend(alternate_name_rows(data, ctx))
+        detail_sections.extend(organization_rows(data, ctx))
+        for birthday in list_values(data.get("birthdays"))[1:]:
+            row = self._render_birthday_v4({"birthdays": [birthday]}, ctx)
+            if row:
+                detail_sections.append(row)
         for section in (
+            self._detail_extra_contact_values,
             self._detail_extra_addresses,
             self._detail_nicknames,
             self._detail_relations,
@@ -340,11 +360,11 @@ class ContactCard(BaseComponent):
         return ""
 
     @staticmethod
-    def _collect_escaped_values(items: list, cap: int) -> list[str]:
-        """Escaped non-empty ``value`` (dict) / str of the first ``cap`` items."""
+    def _collect_escaped_values(items: object) -> list[str]:
+        """All supplied scalar values, excluding missing and raw tree values."""
         values: list[str] = []
-        for item in items[:cap]:
-            val = item.get("value", "") if isinstance(item, dict) else str(item)
+        for item in list_values(items):
+            val = scalar_text(item.get("value", "") if isinstance(item, dict) else item)
             if val:
                 values.append(escape_html(val))
         return values
@@ -353,24 +373,23 @@ class ContactCard(BaseComponent):
         self,
         data: dict[str, Any],
         key: str,
-        cap: int,
         icon: str,
         label: str,
         *,
         language: str,
     ) -> list[str]:
         """Comma-joined ``label: v1, v2`` d-row (nicknames/skills/interests/occupations)."""
-        values = self._collect_escaped_values(data.get(key, []), cap)
+        values = self._collect_escaped_values(data.get(key, []))
         if not values:
             return []
         return [render_d_row(icon, f"{label}{label_separator(language)}{', '.join(values)}")]
 
     def _detail_extra_addresses(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
-        """Addresses beyond the first (rendered on the main card): addresses[1:3]."""
-        addresses = data.get("addresses", [])
+        """All addresses beyond the first, which is on the main card."""
+        addresses = list_values(data.get("addresses"))
         rows: list[str] = []
         if len(addresses) > 1:
-            for addr in addresses[1:3]:
+            for addr in addresses[1:]:
                 if isinstance(addr, dict):
                     formatted = addr.get("formattedValue") or addr.get("formatted", "")
                     atype = addr.get("type", "")
@@ -391,7 +410,6 @@ class ContactCard(BaseComponent):
         return self._detail_labeled_values(
             data,
             "nicknames",
-            3,
             Icons.MOOD,
             V3Messages.get_nicknames(ctx.language),
             language=ctx.language,
@@ -400,12 +418,12 @@ class ContactCard(BaseComponent):
     def _detail_relations(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
         """Relations — same d-row + type badge pattern as the main card."""
         rows: list[str] = []
-        for rel in data.get("relations", [])[:5]:
+        for rel in list_values(data.get("relations")):
             if isinstance(rel, dict):
-                person = rel.get("person", "")
-                rtype = rel.get("type", "")
+                person = scalar_text(rel.get("person"))
+                rtype = scalar_text(rel.get("type"))
             else:
-                person = str(rel)
+                person = scalar_text(rel)
                 rtype = ""
             if person:
                 relation_icon = get_relation_icon(rtype)
@@ -418,19 +436,13 @@ class ContactCard(BaseComponent):
         biographies = data.get("biographies", [])
         if not biographies:
             return []
-        bio = biographies[0] if biographies else {}
-        bio_text = bio.get("value", "") if isinstance(bio, dict) else str(bio)
-        if not bio_text:
-            return []
-        if len(bio_text) > 150:
-            bio_text = bio_text[:147] + "..."
-        return [render_d_row(Icons.NOTE, escape_html(bio_text))]
+        values = self._collect_escaped_values(biographies)
+        return [f'<div class="lia-card-text">{value}</div>' for value in values]
 
     def _detail_skills(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
         return self._detail_labeled_values(
             data,
             "skills",
-            5,
             Icons.SKILLS,
             V3Messages.get_skills(ctx.language),
             language=ctx.language,
@@ -440,7 +452,6 @@ class ContactCard(BaseComponent):
         return self._detail_labeled_values(
             data,
             "interests",
-            5,
             Icons.INTERESTS,
             V3Messages.get_interests(ctx.language),
             language=ctx.language,
@@ -450,7 +461,6 @@ class ContactCard(BaseComponent):
         return self._detail_labeled_values(
             data,
             "occupations",
-            3,
             Icons.WORK,
             V3Messages.get_occupation(ctx.language),
             language=ctx.language,
@@ -460,7 +470,7 @@ class ContactCard(BaseComponent):
         im_clients = data.get("imClients", []) or data.get("im_clients", [])
         im_items: list[str] = []
         separator = label_separator(ctx.language)
-        for im in im_clients[:3]:
+        for im in list_values(im_clients):
             if isinstance(im, dict):
                 protocol = im.get("protocol", "") or im.get("type", "")
                 username = im.get("username", "") or im.get("value", "")
@@ -472,7 +482,7 @@ class ContactCard(BaseComponent):
         """Personal events (anniversaries, etc.)."""
         event_items: list[str] = []
         separator = label_separator(ctx.language)
-        for event in data.get("events", [])[:3]:
+        for event in list_values(data.get("events")):
             if isinstance(event, dict):
                 etype = event.get("type", "")
                 date_obj = event.get("date", {})
@@ -492,7 +502,7 @@ class ContactCard(BaseComponent):
     def _detail_locations(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
         loc_items: list[str] = []
         separator = label_separator(ctx.language)
-        for loc in data.get("locations", [])[:2]:
+        for loc in list_values(data.get("locations")):
             if isinstance(loc, dict):
                 ltype = loc.get("type", "")
                 value = loc.get("value", "")
@@ -508,7 +518,7 @@ class ContactCard(BaseComponent):
         calendar_urls = data.get("calendarUrls", []) or data.get("calendar_urls", [])
         cal_items: list[str] = []
         calendar_label = V3Messages.get_calendar(ctx.language)
-        for cal in calendar_urls[:2]:
+        for cal in list_values(calendar_urls):
             if isinstance(cal, dict):
                 label = cal.get("label", "") or cal.get("type", calendar_label)
                 cal_url = cal.get("url", "")
@@ -519,6 +529,18 @@ class ContactCard(BaseComponent):
                     )
         return [render_d_row(Icons.DATE_RANGE, "; ".join(cal_items))] if cal_items else []
 
+    def _detail_extra_contact_values(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        emails = list_values(data.get("emailAddresses") or data.get("emails"))
+        phones = list_values(data.get("phoneNumbers") or data.get("phones"))
+        return [
+            block
+            for block in (
+                self._render_email_list_v4(emails[3:], ctx),
+                self._render_phone_list_v4(phones[3:], ctx),
+            )
+            if block
+        ]
+
     def _get_name(self, data: dict, language: str | None = None) -> str:
         """Extract display name from various formats.
 
@@ -527,15 +549,19 @@ class ContactCard(BaseComponent):
         MCP results are not schema-checked) and the caller then does
         ``name.split()``.
         """
-        names = data.get("names")
-        if names and isinstance(names, list) and names:
-            first = names[0]
+        for first in list_values(data.get("names")):
             if isinstance(first, dict):
-                display = first.get("displayName") or first.get("givenName", "")
+                display = scalar_text(first.get("displayName")) or scalar_text(
+                    first.get("givenName")
+                )
                 if display:
-                    return str(display)
+                    return display
         no_name_fallback = V3Messages.get_no_name(resolve_language(language))
-        return str(data.get("name") or data.get("displayName") or no_name_fallback)
+        return (
+            scalar_text(data.get("name"))
+            or scalar_text(data.get("displayName"))
+            or no_name_fallback
+        )
 
     def _get_primary_value(self, items: list) -> str:
         """Get first/primary value from list.
@@ -549,8 +575,8 @@ class ContactCard(BaseComponent):
             return ""
         first = items[0]
         if isinstance(first, dict):
-            return first.get("value") or first.get("email") or first.get("number", "")  # type: ignore[no-any-return]
-        return str(first)
+            return scalar_text(first.get("value") or first.get("email") or first.get("number"))
+        return scalar_text(first)
 
     def _get_org_info(self, organizations: list) -> tuple[str, str]:
         """Extract company and title."""
@@ -558,23 +584,20 @@ class ContactCard(BaseComponent):
             return "", ""
         org = organizations[0]
         if isinstance(org, dict):
-            return org.get("name", ""), org.get("title", "")
+            return scalar_text(org.get("name")), scalar_text(org.get("title"))
         return "", ""
 
     def _build_contact_url(self, data: dict) -> str:
         """Build a valid Google Contacts URL from contact data."""
-        url = data.get("url")
-        if url and url.startswith("http"):
-            return url  # type: ignore[no-any-return]
+        url = safe_url(scalar_text(data.get("url")))
+        if url:
+            return url
 
-        resource_name = data.get("resourceName", "")
-        if resource_name:
-            if resource_name.startswith("people/"):
-                person_id = resource_name[7:]
-                return f"https://contacts.google.com/person/{person_id}"
-            return f"https://contacts.google.com/person/{resource_name}"
+        if data.get("_provider") not in (None, "google"):
+            return ""
 
-        return ""
+        match = re.fullmatch(r"(?:people/)?([A-Za-z0-9_-]+)", scalar_text(data.get("resourceName")))
+        return f"https://contacts.google.com/person/{match[1]}" if match else ""
 
     def _get_photo_url(self, data: dict) -> str:
         """
@@ -630,7 +653,7 @@ class ContactCard(BaseComponent):
             return "", None
 
         date_obj = bday.get("date", {})
-        if not date_obj:
+        if not isinstance(date_obj, dict) or not date_obj:
             return "", None
 
         day = date_obj.get("day")

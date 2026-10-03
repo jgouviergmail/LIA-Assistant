@@ -54,6 +54,7 @@ from src.domains.agents.services.token_counter_service import (
 )
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+from src.infrastructure.llm.message_view import content_for_model, model_view_content
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_compaction import (
     compaction_chunk_timeouts_total,
@@ -262,7 +263,7 @@ class CompactionService:
         """Extract unique identifiers from messages for preservation tracking."""
         identifiers: set[str] = set()
         for msg in messages:
-            content = msg.text
+            content = content_for_model(msg)
             identifiers.update(_IDENTIFIER_PATTERN.findall(content))
         return sorted(identifiers)
 
@@ -281,7 +282,7 @@ class CompactionService:
         Returns:
             True when at least one message contains third-party text.
         """
-        return any(EXTERNAL_CONTENT_OPEN_TAG in msg.text for msg in messages)
+        return any(EXTERNAL_CONTENT_OPEN_TAG in content_for_model(msg) for msg in messages)
 
     def _extract_identifiers_by_provenance(
         self, messages: list[BaseMessage]
@@ -307,7 +308,7 @@ class CompactionService:
         trusted: set[str] = set()
         external: set[str] = set()
         for msg in messages:
-            content = msg.text
+            content = content_for_model(msg)
             if EXTERNAL_CONTENT_OPEN_TAG not in content:
                 trusted.update(_IDENTIFIER_PATTERN.findall(content))
                 continue
@@ -364,7 +365,10 @@ class CompactionService:
         lines: list[str] = []
         for msg in messages:
             role = msg.type  # human / ai / system / tool
-            if isinstance(msg.content, str):
+            view = model_view_content(msg)
+            if view is not None:
+                content = view
+            elif isinstance(msg.content, str):
                 content = msg.content
             else:
                 content = json.dumps(msg.content, ensure_ascii=False)

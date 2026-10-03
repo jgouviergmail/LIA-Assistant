@@ -40,6 +40,7 @@ from src.domains.agents.constants import (
 from src.domains.agents.context.access import get_tcm_session
 from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.data_registry.card_payload import display_fields
+from src.domains.agents.data_registry.mcp_metadata import authoritative_mcp_source
 from src.domains.agents.models import MessagesState
 from src.domains.agents.services.reference_resolver import ResolvedContext
 from src.domains.agents.utils.type_domain_mapping import TOOL_PATTERN_TO_DOMAIN_MAP
@@ -95,7 +96,10 @@ def _resolved_payload(item_id: str, payload: dict[str, Any], item: object) -> di
         A new dict.
     """
     resolved = {**payload, FIELD_REGISTRY_ID: item_id}
-    if display := display_fields(item):
+    display = display_fields(item)
+    if source := authoritative_mcp_source(item, display):
+        display = {**display, "_mcp_source": source}
+    if display:
         resolved[FIELD_DISPLAY_ONLY] = display
     return resolved
 

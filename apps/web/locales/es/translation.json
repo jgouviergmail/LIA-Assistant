@@ -842,7 +842,11 @@
     },
     "document_card": {
       "download": "Descargar {{name}}",
-      "open": "Abrir {{name}}"
+      "open": "Abrir {{name}}",
+      "preview": "Vista previa del documento",
+      "excerpt": "Extracto del documento",
+      "first_page": "Primera página de {{name}}",
+      "preview_unavailable": "Vista previa no disponible. Puedes abrir el documento."
     },
     "skill_proposal": {
       "badge_new": "Nueva skill",
@@ -1211,6 +1215,36 @@
         "observedResult": "Propuesta del extractor existente (antes de validar)"
       },
       "resize": "Cambiar el tamaño del panel de depuración"
+    },
+    "card_actions": {
+      "reply": "Responder",
+      "forward": "Reenviar",
+      "cancel_reminder": "Cancelar recordatorio",
+      "unavailable": "Esta acción no está disponible para esta respuesta guardada.",
+      "editable": "Abre un mensaje editable. No se envía nada automáticamente.",
+      "compose_reply": "Prepara una respuesta a este correo.",
+      "compose_forward": "Prepara el reenvío de este correo.",
+      "compose_cancel_reminder": "Cancela este recordatorio.",
+      "replace_title": "¿Reemplazar el borrador actual?",
+      "replace_description": "Tu texto actual se reemplazará por un nuevo borrador editable para esta tarjeta.",
+      "replace_confirm": "Reemplazar borrador",
+      "selected_context": "Tarjeta seleccionada",
+      "selected_item": "Elemento seleccionado",
+      "remove_context": "Quitar tarjeta seleccionada"
+    },
+    "route_map": {
+      "map": "Mapa interactivo de rutas",
+      "activate": "Explorar el mapa",
+      "primary": "Principal",
+      "alternative": "Alternativa {{number}}",
+      "choose": "Elegir una ruta",
+      "recenter": "Centrar la selección",
+      "cost": "Aproximadamente {{cost}} por apertura",
+      "error": "El mapa no está disponible. La vista previa y los detalles siguen accesibles. Reintenta o abre Google Maps.",
+      "primary_details": "Los detalles siguientes describen la ruta principal; los demás trayectos aparecen en las alternativas.",
+      "omitted_one": "No se puede mostrar {{count}} ruta incompleta.",
+      "omitted_other": "No se pueden mostrar {{count}} rutas incompletas.",
+      "report_error": "Falló el registro de la carga. Reintenta sin volver a abrir el mapa."
     }
   },
   "skill_apps": {
@@ -4890,7 +4924,11 @@
   "gallery": {
     "photo_counter": "Foto {{current}} de {{total}}",
     "place_photo": "Foto del lugar",
-    "expand_photo": "Abrir la foto en pantalla completa"
+    "expand_photo": "Abrir la foto en pantalla completa",
+    "photo_loading": "Cargando foto…",
+    "photo_unavailable": "Foto no disponible",
+    "image_unavailable": "Imagen no disponible",
+    "view_source": "Ver en Google Maps"
   },
   "hitl": {
     "default": "¿Confirmas esta acción?",

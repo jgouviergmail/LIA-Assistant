@@ -84,13 +84,15 @@ class TestParkingSection:
         )
         assert "Parking gratuit" in html
         assert "Stationnement payant dans la rue" in html
-        assert "voiturier" not in html.lower()
+        assert "voiturier" in html.lower()
+        assert 'data-availability="false"' in html
 
-    def test_all_false_parking_options_render_nothing(
+    def test_known_false_parking_option_is_explicitly_shown(
         self, card: PlaceCard, ctx: RenderContext
     ) -> None:
         html = _render(card, ctx, parkingOptions={"valetParking": False})
-        assert "Parking" not in html
+        assert "Parking" in html
+        assert 'data-availability="false"' in html
 
 
 class TestPriceRangeChip:

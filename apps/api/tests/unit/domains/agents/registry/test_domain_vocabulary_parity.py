@@ -58,6 +58,8 @@ AUXILIARY_TYPES: frozenset[str] = frozenset(
     {
         "calendar",
         "calendars",  # list_calendars_tool — calendar containers (not events)
+        "note",
+        "notes",  # Authorized RAG excerpts, not an independently routable domain
         "location",
         "locations",  # get_current_location_tool — GPS position (not a place)
         "mcp_app",

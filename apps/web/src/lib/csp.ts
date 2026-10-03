@@ -128,6 +128,7 @@ export function buildConnectSrc(isDev: boolean, apiUrl: string | undefined): str
   // Push enrolment — required in dev too, or the feature cannot be tested
   sources.push(...FIREBASE_MESSAGING_CONNECT_SRC);
   sources.push(...LIVE_PROVIDER_CONNECT_SRC);
+  sources.push('https://maps.googleapis.com', 'https://maps.gstatic.com');
   if (isDev) {
     sources.push('ws:', 'wss:', 'http://localhost:8000', 'http://127.0.0.1:8000');
   }
@@ -149,7 +150,7 @@ export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string 
     // static.cloudflareinsights.com → the analytics beacon Cloudflare injects
     // at the edge in production; without the allowance it dies as a console
     // CSP error on every public page
-    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com${isDev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://static.cloudflareinsights.com https://maps.googleapis.com https://maps.gstatic.com${isDev ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     // https: for user-facing remote images (chat markdown, connector data);

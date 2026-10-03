@@ -202,7 +202,7 @@ def html_to_text(html_content: str | None, preserve_links: bool = False) -> str:
 
 def format_email_body(
     body: str | None,
-    max_length: int = 500,
+    max_length: int | None = 500,
     preserve_links: bool = False,
 ) -> tuple[str, bool]:
     """
@@ -210,7 +210,7 @@ def format_email_body(
 
     Args:
         body: Raw email body (HTML or plain text)
-        max_length: Maximum characters to display
+        max_length: Maximum characters to display; None retains all supplied text
         preserve_links: If True, format links as [text](url)
 
     Returns:
@@ -223,8 +223,8 @@ def format_email_body(
     text = html_to_text(body, preserve_links=preserve_links)
 
     # Truncate if needed
-    is_truncated = len(text) > max_length
-    if is_truncated:
+    is_truncated = max_length is not None and len(text) > max_length
+    if is_truncated and max_length is not None:
         # Try to truncate at word boundary
         truncated = text[:max_length]
         last_space = truncated.rfind(" ")

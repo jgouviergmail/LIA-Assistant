@@ -23,7 +23,14 @@ from src.domains.agents.display.components.base import (
     safe_url,
     wrap_with_response,
 )
+from src.domains.agents.display.components.card_content import (
+    render_details,
+    render_linked_title,
+    render_text_content,
+)
+from src.domains.agents.display.components.file_details import file_metadata_rows, person_label
 from src.domains.agents.display.icons import Icons, icon
+from src.domains.agents.display.values import list_values
 
 
 class FileItem(BaseComponent):
@@ -176,11 +183,10 @@ class FileItem(BaseComponent):
         )
         if not content or not isinstance(content, str):
             return ""
-        content_preview = content[:200] + "..." if len(content) > 200 else content
         return (
             f'<div class="lia-file__content-preview">'
             f"{icon(Icons.FILE)}"
-            f"<span>{escape_html(content_preview)}</span>"
+            f"{render_text_content(content)}"
             f"</div>"
         )
 
@@ -202,15 +208,16 @@ class FileItem(BaseComponent):
         """Unified file card - CSS handles responsive adaptation."""
         nested_class = self._nested_class(ctx)
 
-        # Thumbnail for images
+        # Reuse an actually supplied preview for every file type.
         thumb_html = ""
-        if thumbnail and "image" in file_class:
-            thumb_html = (
-                f'<img src="{safe_url(thumbnail)}" alt="" class="lia-file__thumb" loading="lazy">'
-            )
+        thumbnail_url = safe_url(thumbnail) if isinstance(thumbnail, str) else ""
+        if thumbnail_url and thumbnail_url != "#":
+            thumb_html = f'<img src="{thumbnail_url}" alt="{escape_html(title)}" class="lia-file__thumb" loading="lazy">'
 
         # Size formatting
-        size_str = self._format_size_i18n(size, ctx.language) if size else ""
+        size_str = (
+            self._format_size_i18n(size, ctx.language) if size is not None and size != "" else ""
+        )
 
         # Starred (from SEARCH_FIELDS)
         is_starred = data.get("starred", False) if data else False
@@ -231,11 +238,10 @@ class FileItem(BaseComponent):
             # Description
             description = data.get("description", "")
             if description:
-                desc_preview = description[:150] + "..." if len(description) > 150 else description
                 detail_sections.append(
                     f'<div class="lia-file__detail-item">'
                     f"{icon(Icons.NOTE)}"
-                    f"<span>{escape_html(desc_preview)}</span>"
+                    f"{render_text_content(description)}"
                     f"</div>"
                 )
 
@@ -244,27 +250,23 @@ class FileItem(BaseComponent):
             if content_html:
                 detail_sections.append(content_html)
 
-            # Sharing info
-            permissions = data.get("permissions", [])
-            if permissions and len(permissions) > 1:  # More than just owner
-                shared_count = len(permissions) - 1
-                shared_with_label = V3Messages.get_shared_with(ctx.language, shared_count)
-                detail_sections.append(
-                    f'<div class="lia-file__detail-item">'
-                    f"{icon(Icons.GROUP)}"
-                    f"<span>{escape_html(shared_with_label)}</span>"
-                    f"</div>"
-                )
+            detail_sections.extend(file_metadata_rows(data, ctx))
 
             if detail_sections:
-                detail_html = (
-                    f'<div class="lia-file__extended">\n{"".join(detail_sections)}\n</div>'
+                detail_html = render_details(
+                    f'<div class="lia-file__extended">{"".join(detail_sections)}</div>', ctx
                 )
 
-        # Only show thumbnail for images, no icon (badge type is sufficient)
+        # A real preview opens the same source as the card title.
         thumb_section = ""
         if thumb_html:
-            thumb_section = f'<div class="lia-file__thumb-wrap">{thumb_html}</div>'
+            source_url = safe_url(url) if isinstance(url, str) else ""
+            thumb_section = (
+                f'<a class="lia-file__preview" href="{source_url}" target="_blank" rel="noopener noreferrer" '
+                f'aria-label="{escape_html(title)}">{thumb_html}</a>'
+                if source_url and source_url != "#"
+                else f'<div class="lia-file__preview">{thumb_html}</div>'
+            )
 
         # --- v4: card-top (icon + title) + chip row + file meta lines ---
         # Determine illus color from file type
@@ -288,7 +290,7 @@ class FileItem(BaseComponent):
             "archive": "gray",
         }
         illus_color = file_color_map.get(file_class, "gray")
-        title_html = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">{escape_html(title)}</a>'
+        title_html = render_linked_title(title, url)
         card_top_html = render_card_top(icon_name, illus_color, title_html)
 
         # Chip row: type + shared? + starred? (separator both)
@@ -305,12 +307,13 @@ class FileItem(BaseComponent):
         separator = label_separator(ctx.language)
         if data and data.get("parentPath"):
             meta_parts.append(render_file_meta(Icons.FOLDER, data["parentPath"]))
-        if size_str:
-            size_owner_text = size_str
-            if owner:
-                size_owner_text += f" · {owner}"
+        size_owner_text = " · ".join(value for value in (size_str, owner) if value)
+        if size_owner_text:
             meta_parts.append(render_file_meta("straighten", size_owner_text))
-        meta_parts.append(render_file_meta(Icons.EDIT, f"{modified_label}{separator}{modified}"))
+        if modified:
+            meta_parts.append(
+                render_file_meta(Icons.EDIT, f"{modified_label}{separator}{modified}")
+            )
         if data:
             created = data.get("createdTime", "")
             if created:
@@ -349,12 +352,9 @@ class FileItem(BaseComponent):
 
     def _get_owner(self, data: dict) -> str:
         """Extract owner name."""
-        owners = data.get("owners", [])
-        if owners and isinstance(owners, list):
-            owner = owners[0]
-            if isinstance(owner, dict):
-                return owner.get("displayName") or owner.get("emailAddress", "")  # type: ignore[no-any-return]
-        return ""
+        return ", ".join(
+            label for owner in list_values(data.get("owners")) if (label := person_label(owner))
+        )
 
     def _format_size_i18n(self, size: str | int, language: str) -> str:
         """Format file size with i18n support."""

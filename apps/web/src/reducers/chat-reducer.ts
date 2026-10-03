@@ -24,6 +24,7 @@
 import { ChatState, ChatAction, initialChatState } from '@/types/chat-state';
 import { initialHitlCardState } from '@/types/hitl';
 import { performedEffectsFromMetadata } from '@/lib/performed-effects-hydration';
+import { withCardActionDoneMetadata, retryCompositionMetadata } from '@/lib/card-actions';
 import { capTraceSteps } from '@/types/execution-trace';
 import { Message } from '@/types/chat';
 import { mergeServerPage } from '@/lib/chat-merge';
@@ -126,7 +127,9 @@ function applyDoneToMessages(
 ): Message[] {
   const existingIndex = messages.findIndex(m => m.id === messageId);
   if (existingIndex >= 0) {
-    return messages.map(m => (m.id === messageId ? applyDoneMetadata(m, metadata) : m));
+    return messages.map(m =>
+      m.id === messageId ? withCardActionDoneMetadata(applyDoneMetadata(m, metadata), metadata) : m
+    );
   }
 
   // Message doesn't exist - find last assistant message and update it.
@@ -238,10 +241,8 @@ function hitlAfterSend(hitl: ChatState['hitl']): ChatState['hitl'] {
  * with no preceding question (a proactive turn), or an empty one.
  */
 function errorBubble(messages: Message[], error: string): Message {
-  const lastUserText = [...messages]
-    .reverse()
-    .find(m => m.role === 'user')
-    ?.content?.trim();
+  const lastUser = [...messages].reverse().find(m => m.role === 'user');
+  const lastUserText = lastUser?.content?.trim();
   return {
     id: generateUUID(),
     content: error,
@@ -250,6 +251,7 @@ function errorBubble(messages: Message[], error: string): Message {
     metadata: {
       type: 'error',
       ...(lastUserText ? { retryPrompt: lastUserText } : {}),
+      ...retryCompositionMetadata(lastUser),
     },
   };
 }

@@ -1210,6 +1210,9 @@ class SmartPlannerService:
         # F6: Sub-agents delegation section (empty if disabled)
         sub_agents_section = self._build_sub_agents_section()
 
+        from src.domains.agents.services.card_composition_prompt import build_card_composition_block
+
+        context = "\n\n".join(part for part in (context, build_card_composition_block()) if part)
         return get_smart_planner_prompt(
             user_goal=intelligence.user_goal.value,
             intent=intelligence.immediate_intent,

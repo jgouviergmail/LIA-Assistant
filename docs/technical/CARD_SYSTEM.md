@@ -6,6 +6,8 @@
 
 ## 1. Overview
 
+For the current deterministic assistant-card pipeline, domain details, model-context boundaries and regression strategy, see [HTML_CARDS.md](HTML_CARDS.md). The sections below also retain the general React card and historical CSS vocabulary.
+
 The LIA card system unifies two previously separate implementations:
 
 1. **React Card Component** (`apps/web/src/components/ui/card.tsx`) - Used in settings, auth, admin pages

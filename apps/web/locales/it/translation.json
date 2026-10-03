@@ -842,7 +842,11 @@
     },
     "document_card": {
       "download": "Scarica {{name}}",
-      "open": "Apri {{name}}"
+      "open": "Apri {{name}}",
+      "preview": "Anteprima del documento",
+      "excerpt": "Estratto del documento",
+      "first_page": "Prima pagina di {{name}}",
+      "preview_unavailable": "Anteprima non disponibile. Puoi aprire il documento."
     },
     "skill_proposal": {
       "badge_new": "Nuova skill",
@@ -1213,6 +1217,36 @@
         "observedResult": "Proposta dell’estrattore esistente (prima della validazione)"
       },
       "resize": "Ridimensiona il pannello di debug"
+    },
+    "card_actions": {
+      "reply": "Rispondi",
+      "forward": "Inoltra",
+      "cancel_reminder": "Annulla promemoria",
+      "unavailable": "Questa azione non è disponibile per questa risposta salvata.",
+      "editable": "Apre un messaggio modificabile. Nessun invio automatico.",
+      "compose_reply": "Prepara una risposta a questa e-mail.",
+      "compose_forward": "Prepara l’inoltro di questa e-mail.",
+      "compose_cancel_reminder": "Annulla questo promemoria.",
+      "replace_title": "Sostituire la bozza attuale?",
+      "replace_description": "Il testo attuale verrà sostituito da una nuova bozza modificabile per questa scheda.",
+      "replace_confirm": "Sostituisci bozza",
+      "selected_context": "Scheda selezionata",
+      "selected_item": "Elemento selezionato",
+      "remove_context": "Rimuovi scheda selezionata"
+    },
+    "route_map": {
+      "map": "Mappa interattiva degli itinerari",
+      "activate": "Esplora la mappa",
+      "primary": "Principale",
+      "alternative": "Alternativa {{number}}",
+      "choose": "Scegli un itinerario",
+      "recenter": "Centra la selezione",
+      "cost": "Circa {{cost}} per apertura",
+      "error": "La mappa non è disponibile. Anteprima e dettagli restano accessibili. Riprova o apri Google Maps.",
+      "primary_details": "I dettagli seguenti descrivono l’itinerario principale; gli altri percorsi sono nelle alternative.",
+      "omitted_one": "Impossibile mostrare {{count}} itinerario incompleto.",
+      "omitted_other": "Impossibile mostrare {{count}} itinerari incompleti.",
+      "report_error": "Registrazione del caricamento non riuscita. Riprova senza riaprire la mappa."
     }
   },
   "skill_apps": {
@@ -4892,7 +4926,11 @@
   "gallery": {
     "photo_counter": "Foto {{current}} di {{total}}",
     "place_photo": "Foto del luogo",
-    "expand_photo": "Aprire la foto a schermo intero"
+    "expand_photo": "Aprire la foto a schermo intero",
+    "photo_loading": "Caricamento della foto…",
+    "photo_unavailable": "Foto non disponibile",
+    "image_unavailable": "Immagine non disponibile",
+    "view_source": "Visualizza su Google Maps"
   },
   "hitl": {
     "default": "Confermi questa azione?",

@@ -24,6 +24,7 @@ import {
 import { HitlCardState, NormalizedHitlPayload, initialHitlCardState } from './hitl';
 import type { SkillProposalCard } from '@/lib/skill-proposals/types';
 import type { ExecutionTrace } from './execution-trace';
+import type { CardActionsProjection } from './card-actions';
 
 // ============================================================================
 // Chat State Machine
@@ -262,6 +263,8 @@ export type ChatAction =
           // the same fields). This copy silently lagged behind `expires_at`.
           generated_images?: GeneratedImage[];
           generated_documents?: GeneratedDocument[];
+          run_id?: string;
+          lia_card_actions?: CardActionsProjection;
           skill_proposals?: SkillProposalCard[];
           browser_screenshot?: { url: string; alt: string };
           /** Expressivity (ADR-253): the register the answering model declared

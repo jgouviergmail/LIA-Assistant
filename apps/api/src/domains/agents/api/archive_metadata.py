@@ -165,6 +165,7 @@ def build_assistant_metadata(
     effects: list[dict[str, Any]] | None,
     expressivity: object = None,
     activity: ActivitySnapshot | None = None,
+    card_metadata: dict[str, object] | None = None,
 ) -> dict[str, Any]:
     """Apply every metadata enricher, in the order the archive path used.
 
@@ -189,6 +190,7 @@ def build_assistant_metadata(
     metadata = with_initiative_motivation(metadata, initiative_motivation)
     metadata = with_performed_effects(metadata, effects)
     metadata = with_companion_metadata(metadata, expressivity, activity)
+    metadata = {**metadata, **(card_metadata or {})}
     # ADR-276: an out-of-turn run archives its rows exactly like any turn — the
     # decision register points at them — and it is the READ that keeps them out
     # of the chat. Branch-free like every enricher beside it: the stamp decides

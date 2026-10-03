@@ -115,7 +115,9 @@ class OAuthGrantRuntime:
 
     @staticmethod
     def _decrypt(grant: OAuthGrant) -> ConnectorCredentials:
-        return ConnectorCredentials.model_validate_json(decrypt_data(grant.credentials_encrypted))
+        return ConnectorCredentials.model_validate_json(
+            decrypt_data(grant.credentials_encrypted)
+        ).model_copy(update={"account_binding": str(grant.id)})
 
     @staticmethod
     def _needs_refresh(
@@ -192,7 +194,7 @@ class OAuthGrantRuntime:
         await self.db.commit()
         await invalidate_oauth_connector_cache(grant.user_id)
         logger.info("oauth_grant_refreshed", grant_id=str(grant.id), provider=grant.provider)
-        return new_credentials
+        return new_credentials.model_copy(update={"account_binding": str(grant.id)})
 
     @staticmethod
     def _error_code(response: httpx.Response) -> str:

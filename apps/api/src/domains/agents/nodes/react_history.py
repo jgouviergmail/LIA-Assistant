@@ -15,6 +15,7 @@ import structlog
 from langchain_core.messages import AIMessage, BaseMessage
 
 from src.core.config import settings
+from src.infrastructure.llm.message_view import as_model_messages
 
 logger = structlog.get_logger(__name__)
 
@@ -160,7 +161,7 @@ def window_messages_for_react(
         if not isinstance(message, SM) or str(message.content).startswith(COMPACTION_SUMMARY_MARKER)
     ]
 
-    windowed = neutralize_widget_sentinels(windowed_history) + current_turn
+    windowed = neutralize_widget_sentinels(as_model_messages(windowed_history)) + current_turn
 
     if len(windowed) < len(messages):
         logger.debug(

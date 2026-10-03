@@ -1,0 +1,1033 @@
+/* Deterministic data cards. Historical markup and HITL/widget surfaces keep
+   their established styles. New cards inherit the app's theme and font. */
+.lia-response-wrapper[data-card-version='2'] {
+  --lia-surface: var(--color-card);
+  --lia-surface-elevated: var(--color-card);
+  --lia-surface-hover: color-mix(in oklch, var(--color-foreground) 3%, var(--color-card));
+  --lia-surface-active: color-mix(in oklch, var(--color-foreground) 6%, var(--color-card));
+  --lia-text: var(--color-card-foreground);
+  --lia-text-secondary: var(--color-muted-foreground);
+  --lia-text-muted: var(--color-muted-foreground);
+  --lia-border: var(--color-border);
+  --lia-border-light: color-mix(in oklch, var(--color-border) 80%, var(--color-card));
+  --lia-font-sans: var(--font-sans);
+
+  .lia-card {
+    min-width: 0;
+    margin: 0;
+    padding: var(--lia-space-lg);
+    box-shadow: var(--lia-shadow-sm);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    transition: none;
+  }
+  .lia-card img {
+    transition: opacity var(--lia-transition-fast);
+  }
+
+  .lia-action-btn {
+    min-height: 44px;
+    white-space: normal;
+    text-align: start;
+    transition:
+      color var(--lia-transition-fast),
+      background-color var(--lia-transition-fast),
+      border-color var(--lia-transition-fast);
+  }
+
+  .lia-action-btn:disabled {
+    cursor: default;
+    color: var(--lia-text-muted);
+    background: var(--lia-surface);
+    border-color: var(--lia-border);
+    box-shadow: none;
+    transform: none;
+    opacity: 0.65;
+  }
+
+  .lia-action-btn:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 3px;
+  }
+
+  .lia-card-top {
+    align-items: center;
+    gap: var(--lia-space-md);
+    padding-bottom: var(--lia-space-md);
+    margin-bottom: var(--lia-space-md);
+    border-color: var(--lia-border-light);
+  }
+
+  .lia-card-top > .lia-illus {
+    align-self: center;
+    margin-block: 0;
+  }
+
+  .lia-card-top__info {
+    min-width: 0;
+  }
+
+  .lia-card-top__title {
+    line-height: 1.35;
+    text-wrap: pretty;
+  }
+
+  .lia-card-top__subtitle {
+    flex-wrap: wrap;
+    line-height: 1.45;
+  }
+
+  .lia-illus {
+    border-radius: var(--lia-radius-md);
+  }
+
+  .lia-chip-row {
+    flex-wrap: wrap;
+    gap: var(--lia-space-sm);
+    border-color: var(--lia-border-light);
+  }
+
+  .lia-chip {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+  }
+
+  .lia-d-row,
+  .lia-d-item {
+    align-items: center;
+    line-height: 1.5;
+    gap: var(--lia-space-sm);
+  }
+
+  .lia-d-row > .material-symbols-outlined,
+  .lia-d-item > .material-symbols-outlined {
+    margin-top: 0;
+  }
+
+  .lia-desc-block {
+    line-height: 1.6;
+    border-radius: var(--lia-radius-md);
+  }
+
+  .lia-collapsible-wrapper {
+    margin-top: var(--lia-space-md);
+  }
+
+  .lia-separator--collapsible {
+    display: none;
+  }
+
+  .lia-collapsible {
+    background: var(--lia-surface-hover);
+    border: 1px solid var(--lia-border-light);
+    border-radius: var(--lia-radius-md);
+  }
+
+  .lia-collapsible__trigger {
+    min-height: 44px;
+    padding: var(--lia-space-sm) var(--lia-space-md);
+    gap: var(--lia-space-md);
+    color: var(--lia-text);
+    font-weight: 500;
+  }
+
+  .lia-collapsible__trigger:hover {
+    background: var(--lia-surface-active);
+  }
+
+  .lia-collapsible__content {
+    padding: var(--lia-space-md);
+    border-top: 1px solid var(--lia-border-light);
+  }
+
+  .lia-collapsible__icon {
+    transition: transform var(--lia-transition-fast);
+  }
+
+  .lia-collapsible[open] > .lia-collapsible__content {
+    animation: lia-card-detail-reveal 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 3px;
+    border-radius: var(--lia-radius-xs);
+  }
+
+  .lia-email__subject {
+    font-size: var(--lia-text-xl);
+    line-height: 1.35;
+    margin-block: var(--lia-space-md) var(--lia-space-sm);
+    text-wrap: pretty;
+  }
+
+  .lia-email__snippet {
+    color: var(--lia-text-secondary);
+    line-height: 1.5;
+  }
+
+  .lia-card-hero {
+    border-bottom: 1px solid var(--lia-border-light);
+    margin-bottom: var(--lia-space-lg);
+  }
+
+  .lia-card-hero img {
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    max-height: 260px;
+  }
+
+  .lia-place__photo.lia-card-hero {
+    height: auto;
+    margin: 0 0 var(--lia-space-lg);
+  }
+
+  .lia-place__photo::after {
+    display: none;
+  }
+  .lia-availability-list {
+    margin: 0;
+  }
+
+  .lia-light-level {
+    display: block;
+    inline-size: 100%;
+    block-size: 0.65rem;
+    margin-block: var(--lia-space-md);
+  }
+  .lia-light-level::-webkit-meter-bar {
+    background: var(--lia-border-light);
+    border: 0;
+    border-radius: var(--lia-radius-lg);
+  }
+  .lia-light-level::-webkit-meter-optimum-value {
+    background: var(--color-primary);
+  }
+  .lia-light-level::-moz-meter-bar {
+    background: var(--color-primary);
+  }
+  .lia-availability-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--lia-space-md);
+    align-items: center;
+    padding-block: var(--lia-space-xs);
+    font-size: var(--lia-text-sm);
+  }
+  .lia-availability-row dd {
+    margin: 0;
+  }
+  .lia-availability-row dt {
+    color: var(--lia-text-secondary);
+  }
+  .lia-availability {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--lia-space-xs);
+    font-size: var(--lia-text-xs);
+    color: var(--lia-text-secondary);
+  }
+  .lia-availability[data-availability='true'] {
+    color: var(--lia-text);
+  }
+  .lia-availability[data-availability='true'] > .material-symbols-outlined {
+    color: var(--lia-success);
+  }
+  .lia-review__hdr {
+    flex-wrap: wrap;
+    gap: var(--lia-space-xs);
+  }
+  .lia-review__hdr strong {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--lia-space-xs);
+    min-width: 0;
+  }
+  .lia-review__avatar {
+    width: 24px;
+    height: 24px;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  .lia-review__stars {
+    display: inline-flex;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .lia-review__text {
+    white-space: pre-wrap;
+    line-height: 1.6;
+  }
+  .lia-review__source,
+  .lia-place-hours__timezone {
+    margin-block: var(--lia-space-xs);
+    font-size: var(--lia-text-xs);
+    color: var(--lia-text-secondary);
+  }
+  .lia-review__source {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lia-space-xs) var(--lia-space-md);
+  }
+  .lia-review__score {
+    font-variant-numeric: tabular-nums;
+  }
+  .lia-place-hours__heading {
+    font-size: var(--lia-text-sm);
+    font-weight: 600;
+    margin-block: var(--lia-space-md) var(--lia-space-xs);
+  }
+  .lia-route__steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .lia-route-leg__map {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    max-width: 100%;
+    color: var(--lia-text);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    overflow-wrap: anywhere;
+    border-radius: var(--lia-radius-sm);
+  }
+
+  .lia-route-leg__map:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .lia-route-links {
+    padding-inline-start: var(--lia-space-md);
+  }
+
+  .lia-route-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lia-space-lg);
+    margin-block: var(--lia-space-md);
+  }
+  .lia-route-summary dt {
+    font-size: var(--lia-text-xs);
+    color: var(--lia-text-secondary);
+  }
+  .lia-route-summary dd {
+    margin: 0;
+    font-size: clamp(1.1rem, 5cqi, 1.75rem);
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.25;
+  }
+  .lia-route__step {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: var(--lia-space-sm);
+    align-items: start;
+    padding: 0 0 var(--lia-space-md);
+    border: 0;
+    position: relative;
+  }
+  .lia-route__step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: 13px;
+    top: 28px;
+    bottom: 0;
+    border-inline-start: 2px solid var(--lia-border);
+  }
+  .lia-route__step-number {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    margin-top: var(--lia-space-sm);
+    display: grid;
+    place-items: center;
+    background: var(--lia-surface);
+    border: 1px solid var(--lia-border);
+    color: var(--lia-text);
+    font-variant-numeric: tabular-nums;
+  }
+  .lia-route-step {
+    min-width: 0;
+    border: 1px solid var(--lia-border-light);
+    border-radius: var(--lia-radius-md);
+    background: var(--lia-surface);
+  }
+  .lia-route-step > summary {
+    display: flex;
+    align-items: center;
+    gap: var(--lia-space-sm);
+    min-height: 44px;
+    padding: var(--lia-space-sm);
+    cursor: pointer;
+    list-style: none;
+    border-radius: inherit;
+  }
+  .lia-route-step > summary::-webkit-details-marker {
+    display: none;
+  }
+  .lia-route-step > summary::after {
+    content: '+';
+    margin-inline-start: auto;
+    flex-shrink: 0;
+    color: var(--lia-text-secondary);
+  }
+  .lia-route-step[open] > summary::after {
+    content: '−';
+  }
+  .lia-route-step[open] {
+    border-color: var(--lia-primary);
+    background: var(--lia-surface-active);
+  }
+  .lia-route-step > summary:hover {
+    background: var(--lia-surface-hover);
+  }
+  .lia-route-step[open] > .lia-route-step__detail {
+    animation: lia-card-detail-reveal 150ms ease-out;
+  }
+  .lia-card-image-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 64px;
+    padding: var(--lia-space-md);
+    background: var(--lia-surface-hover);
+    color: var(--lia-text-secondary);
+    border: 1px solid var(--lia-border-light);
+    border-radius: var(--lia-radius-md);
+    opacity: 1;
+  }
+  .lia-route-step > summary:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+  .lia-route-step__detail {
+    padding: 0 var(--lia-space-md) var(--lia-space-md);
+    font-size: var(--lia-text-sm);
+  }
+  .lia-route-step__detail > p {
+    margin-block: var(--lia-space-xs);
+  }
+  .lia-route__transit-badge {
+    background: var(--lia-surface);
+    color: var(--lia-text);
+    border: 1px solid var(--lia-border-light);
+    border-inline-start: 5px solid var(--lia-border);
+    font-weight: 600;
+  }
+  .lia-route-leg__heading {
+    font-weight: 600;
+    font-size: var(--lia-text-sm);
+    margin-block: var(--lia-space-md);
+  }
+  .lia-route__endpoints {
+    background: var(--lia-surface-hover);
+    border: 1px solid var(--lia-border-light);
+    border-radius: var(--lia-radius-md);
+    margin-block: var(--lia-space-md);
+    padding: var(--lia-space-md);
+  }
+  .lia-place-carousel {
+    height: auto;
+    padding-bottom: 0;
+    touch-action: pan-y pinch-zoom;
+  }
+  .lia-place-carousel__image {
+    height: auto;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    display: block;
+    max-height: none;
+  }
+  .lia-place-carousel:has(.lia-place-carousel__dots) {
+    padding-bottom: 48px;
+  }
+  .lia-place-carousel__nav {
+    width: 44px;
+    height: 44px;
+    opacity: 1;
+    transition: background var(--lia-transition-fast);
+  }
+  .lia-place-carousel__nav--prev,
+  .lia-place-carousel__nav--next {
+    top: auto;
+    bottom: 0;
+    transform: none;
+  }
+  .lia-place-carousel__nav--prev:hover,
+  .lia-place-carousel__nav--next:hover {
+    transform: none;
+  }
+  .lia-place-carousel__counter {
+    left: var(--lia-space-sm);
+    right: auto;
+  }
+  .lia-place-carousel__dots {
+    bottom: 0;
+    padding-block: 0;
+    background: transparent;
+    border: none;
+    backdrop-filter: none;
+    max-width: calc(100% - 24px);
+    overflow-x: auto;
+  }
+  .lia-place-carousel__dot {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    flex: 0 0 44px;
+  }
+  .lia-place-carousel__dot::before {
+    background: var(--lia-text-secondary);
+    border-color: transparent;
+  }
+  .lia-place-carousel__dot--active::before {
+    background: var(--color-primary);
+    box-shadow: none;
+  }
+  .lia-place-carousel__state {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 48px;
+    text-align: center;
+    color: var(--lia-text-secondary);
+    background: var(--lia-surface-hover);
+    pointer-events: none;
+  }
+  .lia-place-carousel:has(.lia-place-carousel__dots) .lia-place-carousel__state {
+    bottom: 48px;
+  }
+
+  @container card (max-width: 280px) {
+    .lia-place-carousel__dots {
+      display: none;
+    }
+    .lia-place-carousel__counter {
+      top: auto;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      display: grid;
+      place-items: center;
+      height: 44px;
+      color: var(--lia-text);
+      background: transparent;
+    }
+  }
+
+  .lia-photo-attribution {
+    padding: var(--lia-space-xs) var(--lia-space-sm);
+    font-size: var(--lia-text-xs);
+    color: var(--lia-text-secondary);
+    overflow-wrap: anywhere;
+  }
+  .lia-photo-attribution a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .lia-photo-author__avatar {
+    width: 20px;
+    height: 20px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    object-fit: cover;
+    vertical-align: middle;
+    display: inline-block;
+    margin-inline-end: var(--lia-space-xs);
+  }
+
+  .lia-weather-series {
+    display: grid;
+    gap: var(--lia-space-xs);
+    margin-block: var(--lia-space-sm);
+  }
+
+  .lia-card__source {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lia-space-sm);
+    margin-top: var(--lia-space-sm);
+    font-size: var(--lia-text-sm);
+    color: var(--lia-text-muted);
+  }
+
+  .lia-weather-slot {
+    min-width: 0;
+    border: 1px solid var(--lia-border);
+    border-radius: var(--lia-radius-md);
+    overflow: clip;
+  }
+
+  .lia-weather-slot > summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 32px auto;
+    align-items: center;
+    gap: var(--lia-space-xs);
+    min-height: 64px;
+    padding: var(--lia-space-sm);
+    cursor: pointer;
+    list-style: none;
+    border-inline-start: 3px solid transparent;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease;
+  }
+
+  .lia-weather-slot > summary::-webkit-details-marker {
+    display: none;
+  }
+  .lia-weather-slot > summary:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
+  .lia-weather-slot[open] > summary {
+    background: var(--lia-surface-hover);
+    border-inline-start-color: var(--color-primary);
+  }
+  .lia-weather-slot__time {
+    font-size: var(--lia-text-sm);
+    font-weight: 600;
+  }
+  .lia-weather-slot__temp {
+    font-size: var(--lia-text-base);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .lia-weather-slot__description {
+    grid-column: 1 / -1;
+    color: var(--lia-text-muted);
+    font-size: var(--lia-text-sm);
+  }
+  .lia-weather-slot__detail > .lia-weather-reading {
+    padding: var(--lia-space-md);
+  }
+  .lia-weather-comparison {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .lia-weather-comparison table {
+    min-width: 100%;
+    font-variant-numeric: tabular-nums;
+  }
+  .lia-weather-comparison th,
+  .lia-weather-comparison td {
+    padding: var(--lia-space-sm);
+    text-align: start;
+  }
+  .lia-weather-comparison caption {
+    text-align: start;
+    font-weight: 600;
+    padding-block: var(--lia-space-xs);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lia-weather-slot > summary {
+      transition: none;
+    }
+  }
+
+  .lia-weather__stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--lia-space-sm);
+    margin-block: var(--lia-space-lg);
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+
+  .lia-weather__stat {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--lia-space-xs);
+    padding: var(--lia-space-md) var(--lia-space-sm);
+    background: var(--lia-surface-hover);
+    border: 1px solid var(--lia-border-light);
+    border-radius: var(--lia-radius-md);
+  }
+
+  .lia-weather__stat-label {
+    display: block;
+    white-space: normal;
+    color: var(--lia-text-secondary);
+    line-height: 1.35;
+  }
+
+  .lia-research-list {
+    list-style: decimal;
+    margin: var(--lia-space-sm) 0;
+    padding-left: var(--lia-space-lg);
+  }
+
+  .lia-research-list > li {
+    padding-left: var(--lia-space-xs);
+    margin: var(--lia-space-xs) 0;
+  }
+
+  .lia-research-source {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 44px;
+    gap: var(--lia-space-2xs);
+    padding: var(--lia-space-xs);
+    border-radius: var(--lia-radius-sm);
+    overflow-wrap: anywhere;
+  }
+
+  .lia-research-source:hover,
+  .lia-research-source:focus-visible {
+    background: var(--lia-surface-hover);
+  }
+
+  .lia-citation {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    font-weight: 600;
+    vertical-align: middle;
+    border-radius: var(--lia-radius-sm);
+    background: var(--lia-surface-hover);
+  }
+
+  .lia-article__categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-article__thumb {
+    display: block;
+    float: none;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    margin: var(--lia-space-md) 0;
+  }
+
+  .lia-weather__stat-value {
+    color: var(--lia-text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lia-route__endpoints {
+    background: var(--lia-surface-hover);
+    border: 1px solid var(--lia-border-light);
+    border-radius: var(--lia-radius-md);
+    padding: var(--lia-space-md);
+  }
+
+  .lia-route__endpoint {
+    align-items: center;
+  }
+
+  .lia-route__endpoint-content {
+    min-width: 0;
+  }
+
+  .lia-route__endpoint-value {
+    line-height: 1.5;
+  }
+
+  .lia-card--unavailable {
+    border-style: dashed;
+  }
+
+  .lia-file__preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 120px;
+    max-height: 220px;
+    padding: var(--lia-space-sm);
+    margin-block: var(--lia-space-md);
+    border: 1px solid var(--lia-border-light);
+    border-radius: var(--lia-radius-md);
+    background: var(--lia-surface-hover);
+  }
+
+  .lia-file__preview .lia-file__thumb {
+    width: 100%;
+    height: 180px;
+    max-height: 100%;
+    object-fit: contain;
+    border: 0;
+    border-radius: var(--lia-radius-sm);
+  }
+
+  .lia-file__preview:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 3px;
+  }
+
+  @container card (max-width: 350px) {
+    .lia-contact .lia-d-row:has(> .lia-tbadge) {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr);
+      gap: var(--lia-space-2xs) var(--lia-space-sm);
+
+      > .material-symbols-outlined {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        align-self: center;
+      }
+
+      > a {
+        grid-column: 2;
+        grid-row: 1;
+        min-width: 0;
+      }
+
+      > .lia-tbadge {
+        grid-column: 2;
+        grid-row: 2;
+        justify-self: start;
+        margin-inline: 0;
+      }
+    }
+
+    .lia-card-top {
+      gap: var(--lia-space-sm);
+    }
+
+    .lia-weather__stats {
+      grid-template-columns: 1fr;
+    }
+
+    .lia-weather__stat {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      text-align: start;
+    }
+  }
+}
+
+.lia-document-preview {
+  min-width: 0;
+  max-height: 220px;
+  overflow: hidden;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-card);
+}
+
+.lia-document-preview > [role='region']:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: -2px;
+}
+
+.lia-card-collection[data-card-version='2'] {
+  margin-top: var(--lia-space-md);
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--lia-radius-lg);
+  overflow-wrap: anywhere;
+
+  > summary {
+    cursor: pointer;
+    min-height: 44px;
+    padding: var(--lia-space-md);
+    color: var(--color-foreground);
+    font-size: var(--lia-text-sm);
+    font-weight: 500;
+  }
+
+  > summary:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 3px;
+  }
+
+  > summary > span {
+    color: var(--color-muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  > .lia-card-collection__content {
+    display: grid;
+    gap: var(--lia-space-md);
+    padding: var(--lia-space-md);
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+@keyframes lia-card-detail-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lia-response-wrapper[data-card-version='2'] {
+  .lia-card-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+  }
+
+  .lia-mcp-fields {
+    margin: var(--lia-space-md) 0 0;
+    min-width: 0;
+
+    > div {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+      gap: var(--lia-space-md);
+      padding-block: var(--lia-space-sm);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    dt {
+      color: var(--color-muted-foreground);
+      overflow-wrap: anywhere;
+    }
+
+    dd {
+      min-width: 0;
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .lia-mcp .lia-raw-block {
+    min-width: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: var(--lia-text-sm);
+  }
+
+  @media (max-width: 480px) {
+    .lia-mcp-fields > div {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--lia-space-xs);
+    }
+  }
+
+  .lia-task--completed .lia-card-top__title {
+    color: var(--color-muted-foreground);
+    text-decoration: line-through;
+  }
+
+  .lia-task__subtasks-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-task__completion {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 6px;
+    accent-color: var(--color-primary);
+  }
+
+  .lia-task__subtasks-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lia-response-wrapper[data-card-version='2'] .lia-action-btn {
+    transition: none;
+  }
+  .lia-response-wrapper[data-card-version='2'] .lia-card img {
+    transition: none;
+  }
+  .lia-response-wrapper[data-card-version='2'] .lia-place-carousel__image {
+    transition: none;
+  }
+  .lia-response-wrapper[data-card-version='2'] .lia-place-carousel__nav,
+  .lia-response-wrapper[data-card-version='2'] .lia-place-carousel__dot::before {
+    transition: none;
+  }
+  .lia-response-wrapper[data-card-version='2'] .lia-collapsible__content,
+  .lia-response-wrapper[data-card-version='2'] .lia-route-step__detail {
+    animation: none;
+  }
+
+  .lia-response-wrapper[data-card-version='2'] .lia-collapsible__icon {
+    transition: none;
+  }
+}
+
+.lia-google-attribution {
+  font-family: Roboto, sans-serif;
+  font-size: clamp(12px, 0.8125rem, 16px);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: normal;
+  white-space: nowrap;
+  color: #5e5e5e;
+}
+
+.lia-place-source {
+  margin-top: var(--lia-space-md);
+}
+
+.dark .lia-google-attribution {
+  color: white;
+}
+
+/* A portaled caption retains the same attribution treatment as its source card. */
+.lia-lightbox-caption {
+  overflow-wrap: anywhere;
+
+  .lia-photo-attribution a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .lia-photo-author__avatar {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    vertical-align: middle;
+    margin-inline-end: var(--lia-space-xs);
+  }
+}
+
+.lia-response-wrapper[data-card-version='2'] .lia-conference-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+.lia-response-wrapper[data-card-version='2'] .lia-conference-point {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.lia-response-wrapper[data-card-version='2'] .lia-conference-codes {
+  color: var(--lia-text-secondary);
+  overflow-wrap: anywhere;
+}
+.lia-response-wrapper[data-card-version='2'] .lia-ticket-items {
+  margin: var(--lia-space-sm) 0;
+  padding-inline-start: 1.5rem;
+}
+.lia-response-wrapper[data-card-version='2'] .lia-ticket-items > li + li {
+  margin-top: var(--lia-space-md);
+}

@@ -863,7 +863,11 @@
     },
     "document_card": {
       "download": "Télécharger {{name}}",
-      "open": "Ouvrir {{name}}"
+      "open": "Ouvrir {{name}}",
+      "preview": "Aperçu du document",
+      "excerpt": "Extrait du document",
+      "first_page": "Première page de {{name}}",
+      "preview_unavailable": "Aperçu indisponible. Le document peut être ouvert."
     },
     "skill_proposal": {
       "badge_new": "Nouvelle skill",
@@ -1245,6 +1249,36 @@
         "observedResult": "Proposition de l’extracteur existant (avant validation)"
       },
       "resize": "Redimensionner le panneau de debug"
+    },
+    "card_actions": {
+      "reply": "Répondre",
+      "forward": "Transférer",
+      "cancel_reminder": "Annuler le rappel",
+      "unavailable": "Cette action est indisponible pour cette réponse enregistrée.",
+      "editable": "Ouvre un message modifiable. Aucun envoi automatique.",
+      "compose_reply": "Prépare une réponse à cet e-mail.",
+      "compose_forward": "Prépare le transfert de cet e-mail.",
+      "compose_cancel_reminder": "Annule ce rappel.",
+      "replace_title": "Remplacer le brouillon actuel ?",
+      "replace_description": "Ton texte actuel sera remplacé par un nouveau brouillon modifiable pour cette carte.",
+      "replace_confirm": "Remplacer le brouillon",
+      "selected_context": "Carte sélectionnée",
+      "selected_item": "Élément sélectionné",
+      "remove_context": "Retirer la carte sélectionnée"
+    },
+    "route_map": {
+      "map": "Carte interactive des itinéraires",
+      "activate": "Explorer la carte",
+      "primary": "Principal",
+      "alternative": "Alternative {{number}}",
+      "choose": "Choisir un itinéraire",
+      "recenter": "Recentrer sur la sélection",
+      "cost": "Environ {{cost}} par ouverture",
+      "error": "La carte est indisponible. L’aperçu et les détails restent accessibles. Réessayez ou ouvrez Google Maps.",
+      "primary_details": "Les détails ci-dessous décrivent le principal ; les autres trajets figurent dans les alternatives.",
+      "omitted_one": "{{count}} tracé incomplet ne peut pas être affiché.",
+      "omitted_other": "{{count}} tracés incomplets ne peuvent pas être affichés.",
+      "report_error": "Le suivi du chargement a échoué. Réessayez sans rouvrir la carte."
     }
   },
   "skill_apps": {
@@ -4924,7 +4958,11 @@
   "gallery": {
     "photo_counter": "Photo {{current}} sur {{total}}",
     "place_photo": "Photo du lieu",
-    "expand_photo": "Ouvrir la photo en plein écran"
+    "expand_photo": "Ouvrir la photo en plein écran",
+    "photo_loading": "Chargement de la photo…",
+    "photo_unavailable": "Photo indisponible",
+    "image_unavailable": "Image indisponible",
+    "view_source": "Voir sur Google Maps"
   },
   "hitl": {
     "default": "Confirmes-tu cette action ?",

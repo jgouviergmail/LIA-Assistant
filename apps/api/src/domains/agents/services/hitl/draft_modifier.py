@@ -235,8 +235,11 @@ class DraftModificationService:
                 )
 
             # Merge with preserved fields from original
-            modified_draft = original_draft.copy()
-            modified_draft.update(modified_content)
+            from src.core.card_composition import preserve_composition_binding
+
+            modified_draft = preserve_composition_binding(
+                original_draft, {**original_draft, **modified_content}
+            )
 
             # Log actual changes for debugging
             actual_changes = {

@@ -58,7 +58,7 @@ def normalize_graph_contact(contact: dict[str, Any]) -> dict[str, Any]:
     company = contact.get("companyName", "")
     job_title = contact.get("jobTitle", "")
     department = contact.get("department", "")
-    if company or job_title:
+    if company or job_title or department:
         organizations.append(
             {
                 "name": company,

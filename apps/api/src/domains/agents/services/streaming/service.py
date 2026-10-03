@@ -33,6 +33,7 @@ from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.data_registry.message_widgets import (
     extract_persistable_widgets,
 )
+from src.domains.agents.display.card_actions import with_card_action_metadata
 from src.domains.agents.services.hitl.interactions.text_tokens import text_tokens
 from src.domains.agents.services.streaming.trace_capture import TraceCapture
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -273,6 +274,7 @@ class StreamingService:
         # node returns to the ``messages`` channel; emitting it after the deltas duplicates
         # the whole reply on screen. We skip that complete message only once deltas were
         # seen — preserving the non-streaming path where the complete message is all we get.
+        self.card_action_metadata: dict[str, object] = {}
         self._response_deltas_streamed = False
         # Store the generated HITL question for archiving by service.py
         # This ensures the question appears in conversation history on reload
@@ -367,6 +369,7 @@ class StreamingService:
             ...     yield sse_chunk  # Send to client
             ...     response_content += content  # Track for archiving
         """
+        self.card_action_metadata = {}
         start_time = time.time()
         first_token_time = None
         token_count = 0
@@ -666,6 +669,7 @@ class StreamingService:
                     yield (fallback_chunk, content_fragment)
 
             # Track total duration and tokens
+            self.card_action_metadata = with_card_action_metadata({}, state, run_id)
             duration = time.time() - start_time
             sse_streaming_duration_seconds.labels(intention=intention_label).observe(duration)
             sse_tokens_generated_total.labels(intention=intention_label, node_name="response").inc(

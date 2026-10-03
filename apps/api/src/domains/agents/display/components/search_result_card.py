@@ -1,135 +1,59 @@
-"""
-SearchResultCard Component - Modern Search Result Display.
-
-Renders Perplexity/web search results with sources.
-"""
-
-from __future__ import annotations
-
-from typing import Any
-from urllib.parse import urlparse
+"""Research answer and individual result cards share full, safe details."""
 
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
-    escape_html,
     render_card_top,
     render_chip,
-    render_section_header,
-    render_src_link,
-    safe_url,
-    truncate,
+    wrap_with_response,
+)
+from src.domains.agents.display.components.card_content import (
+    render_folded_text,
+    render_linked_title,
 )
 from src.domains.agents.display.components.folded_synthesis import render_folded_synthesis
+from src.domains.agents.display.components.research_content import (
+    research_identity,
+    research_questions,
+    research_sources,
+)
 from src.domains.agents.display.icons import Icons
+from src.domains.agents.display.values import first_present, list_values, scalar_text
 
 
 class SearchResultCard(BaseComponent):
-    """
-    Modern search result card.
-
-    Design:
-    - Answer text (main content)
-    - Sources as compact links
-    - Related questions (expandable)
-    - Perplexity branding
-    """
-
     def render(
         self,
-        data: dict[str, Any],
+        data: dict[str, object],
         ctx: RenderContext,
         is_first_item: bool = True,
         is_last_item: bool = True,
     ) -> str:
-        """Render search result as modern card."""
-        # Check if it's an answer result or standard result
         if "answer" in data:
-            return self._render_answer(data, ctx)
-        else:
-            return self._render_result(data, ctx)
-
-    def _render_answer(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render Perplexity-style answer with sources using v4 components."""
-        answer = data.get("answer", "")
-        citations = data.get("citations", [])
-        related_questions = data.get("related_questions", [])
-        query = data.get("query", "") or data.get("search_term", "")
-
-        nested_class = self._nested_class(ctx)
-
-        # v4 card-top
-        internet_label = V3Messages.get_internet(ctx.language)
-        title_html = (
-            f'<span class="lia-card-top__title">{escape_html(query)}</span>' if query else ""
-        )
-        internet_badge = render_chip(internet_label, "indigo", Icons.SEARCH)
-        card_top_html = render_card_top("search", "blue", title_html, badges_html=internet_badge)
-
-        # Sources using v4 src-link (same format as WebSearchCard)
-        sources_html = ""
-        if citations:
-            sources_label = V3Messages.get_sources(ctx.language)
-            links_html = "".join(render_src_link(url) for url in citations[:5])
-            sources_html = render_section_header(sources_label, Icons.LINK, "indigo") + links_html
-
-        # Related questions
-        related_html = ""
-        if related_questions:
-            q_items = [
-                f'<li style="font-size:var(--lia-text-sm);color:var(--lia-text-secondary)">{escape_html(q)}</li>'
-                for q in related_questions[:3]
-            ]
-            related_questions_label = V3Messages.get_related_questions(ctx.language)
-            related_html = (
-                render_section_header(related_questions_label, "help_outline", "indigo")
-                + '<ul style="margin:var(--lia-space-xs) 0 0 var(--lia-space-lg);line-height:1.8">'
-                + "".join(q_items)
-                + "</ul>"
+            title = first_present(data, "query", "search_term", "question")
+            badge = render_chip(V3Messages.get_internet(ctx.language), "indigo", Icons.SEARCH)
+            body = render_folded_synthesis(
+                scalar_text(data.get("answer")), ctx, citations=list_values(data.get("citations"))
             )
-
-        # The answer: a lead, the rest folded behind « see more »
-        answer_html = render_folded_synthesis(answer, ctx)
-
-        return f"""<div class="lia-card lia-search lia-search--answer {nested_class}">
-{card_top_html}
-<div class="lia-search__answer">
-{answer_html}
-</div>
-{sources_html}
-{related_html}
-</div>"""
-
-    def _render_result(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render standard search result using v4 card-top."""
-        title = data.get("title", "")
-        url = data.get("url", "")
-        snippet = data.get("snippet") or data.get("description", "")
-
-        nested_class = self._nested_class(ctx)
-        domain = self._extract_domain(url)
-
-        title_html = (
-            f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank">'
-            f"{escape_html(title)}</a>"
+            body += research_sources(data.get("citations"), ctx) + research_questions(
+                data.get("related_questions"), ctx
+            )
+            variant = "lia-search--answer"
+        else:
+            title = data.get("title")
+            badge = ""
+            body = render_folded_text(
+                first_present(data, "snippet", "description"), ctx, preview_chars=180
+            )
+            variant = ""
+        top = render_card_top(
+            "search", "blue", render_linked_title(title, data.get("url")), badges_html=badge
         )
-        card_top_html = render_card_top("search", "blue", title_html)
-
-        return f"""<div class="lia-card lia-search {nested_class}">
-{card_top_html}
-<span style="font-size:var(--lia-text-xs);color:var(--lia-text-muted)">{escape_html(domain)}</span>
-<p class="lia-search__snippet">{escape_html(truncate(snippet, 150))}</p>
-</div>"""
-
-    def _extract_domain(self, url: str) -> str:
-        """Extract domain from URL."""
-        try:
-            parsed = urlparse(url)
-            domain = parsed.netloc
-            # Remove www.
-            if domain.startswith("www."):
-                domain = domain[4:]
-            return domain
-        except Exception:
-            return url[:30] if url else ""
+        card = f'<div class="lia-card lia-search {variant} {self._nested_class(ctx)}">{top}{research_identity(data)}<div class="lia-search__answer">{body}</div></div>'
+        return wrap_with_response(
+            card_html=card,
+            domain="search",
+            with_top_separator=is_first_item,
+            with_bottom_separator=is_last_item,
+        )

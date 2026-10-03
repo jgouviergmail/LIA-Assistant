@@ -1,262 +1,195 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
-import { cn } from '@/lib/utils';
+import { useState, type FC } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { isImageLoaded, markImageLoaded } from '@/lib/image-cache';
-import { CAROUSEL_SWIPE_THRESHOLD_PX } from '@/lib/constants';
-import { ImageLightbox } from '@/components/ui/image-lightbox';
+import { cn, proxyGoogleImageUrl } from '@/lib/utils';
+import { apiImageProps } from '@/lib/utils/api-resource-url';
+import type { PhotoAuthor } from '@/lib/place-photos';
+import { ImageLightbox } from './image-lightbox';
+import { PhotoAttribution } from './photo-attribution';
+import { usePlaceGallery } from './use-place-gallery';
 
 interface InlinePlaceCarouselProps {
-  /** Array of image URLs */
   images: string[];
-  /** Alt text for images */
   alt?: string;
-  /** Initial image index (default: 0) */
   initialIndex?: number;
-  /** Optional class name for the container */
   className?: string;
+  photoAuthors?: readonly (readonly PhotoAuthor[])[];
+  sourceUrls?: readonly (string | undefined)[];
 }
 
-/**
- * InlinePlaceCarousel - Inline carousel for place photos
- *
- * Displays directly within the Place card with the same dimensions
- * as the original photo.
- *
- * Features:
- * - Navigation via left/right arrows
- * - Swipe left/right on mobile
- * - Position indicators (dots)
- * - Keyboard: ArrowLeft, ArrowRight
- * - Fade transition between images
- * - Loading state with global cache
- */
-export const InlinePlaceCarousel: React.FC<InlinePlaceCarouselProps> = ({
+/** Manual, instance-scoped gallery. Only the current image is mounted/fetched. */
+export const InlinePlaceCarousel: FC<InlinePlaceCarouselProps> = ({
   images,
   alt,
   initialIndex = 0,
   className,
+  photoAuthors,
+  sourceUrls,
 }) => {
   const { t } = useTranslation();
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-
-  // Touch/swipe state
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
-
-  // Loading state per image
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(() => {
-    // Initialize with already cached images
-    return new Set(images.filter(src => isImageLoaded(src)));
-  });
-
-  const currentImage = images[currentIndex];
-  const isCurrentLoaded = loadedImages.has(currentImage);
-
-  // Handle image load
-  const handleImageLoad = useCallback((src: string) => {
-    markImageLoaded(src);
-    setLoadedImages(prev => new Set(prev).add(src));
-  }, []);
-
-  // Navigation logic (DRY - used by click handlers, keyboard, and swipe)
-  const navigatePrevious = useCallback(() => {
-    setCurrentIndex(prev => (prev > 0 ? prev - 1 : images.length - 1));
-  }, [images.length]);
-
-  const navigateNext = useCallback(() => {
-    setCurrentIndex(prev => (prev < images.length - 1 ? prev + 1 : 0));
-  }, [images.length]);
-
-  // Click handlers (with stopPropagation)
-  const handlePreviousClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      navigatePrevious();
-    },
-    [navigatePrevious]
+  const imageProps = images.map(url => apiImageProps(proxyGoogleImageUrl(url) || url));
+  const gallery = usePlaceGallery(
+    imageProps.map(image => image.src),
+    initialIndex
   );
-
-  const handleNextClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      navigateNext();
-    },
-    [navigateNext]
-  );
-
-  // Touch handlers for swipe
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchEndX.current = null;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (touchStartX.current === null || touchEndX.current === null) return;
-
-    const deltaX = touchStartX.current - touchEndX.current;
-
-    if (Math.abs(deltaX) > CAROUSEL_SWIPE_THRESHOLD_PX) {
-      if (deltaX > 0) {
-        // Swipe left → next image
-        navigateNext();
-      } else {
-        // Swipe right → previous image
-        navigatePrevious();
-      }
-    }
-
-    // Reset
-    touchStartX.current = null;
-    touchEndX.current = null;
-  }, [navigateNext, navigatePrevious]);
-
-  // Keyboard navigation — scoped to THIS carousel instance (audit F045).
-  // A document-level listener made every mounted carousel react to every
-  // arrow key anywhere on the page (cross-instance navigation). The handler
-  // now lives on the container and only fires while focus is inside the
-  // instance (the focusable group itself, its arrows or its dots).
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        navigatePrevious();
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        navigateNext();
-      } else if (e.key === 'Home') {
-        // Arrowing to the far end of a long gallery is a chore the platform
-        // already answers; both keys are part of the WAI-ARIA carousel pattern.
-        e.preventDefault();
-        setCurrentIndex(0);
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        setCurrentIndex(images.length - 1);
-      }
-    },
-    [navigatePrevious, navigateNext, images.length]
-  );
-
-  if (images.length === 0) return null;
-
-  const showNavigation = images.length > 1;
-
+  if (!images.length) return null;
+  const navigation = images.length > 1;
+  const imageAlt = alt || t('gallery.place_photo');
+  const authors = photoAuthors?.[gallery.currentIndex];
   return (
-    <div
-      className={cn('lia-place-carousel', className)}
-      role="group"
-      aria-roledescription="carousel"
-      aria-label={alt || t('gallery.place_photo')}
-      // Focusable only when there is something to navigate (WAI-ARIA carousel
-      // pattern): arrow keys work on the group itself and on its buttons.
-      tabIndex={showNavigation ? 0 : undefined}
-      onKeyDown={handleKeyDown}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Current image */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={currentImage}
-        alt={alt || t('gallery.place_photo')}
-        className="lia-place-carousel__image"
-        style={{ opacity: isCurrentLoaded ? 1 : 0 }}
-        onLoad={() => handleImageLoad(currentImage)}
-        draggable={false}
-      />
-
-      {/* Navigation arrows */}
-      {showNavigation && (
-        <>
-          <button
-            onClick={handlePreviousClick}
-            className="lia-place-carousel__nav lia-place-carousel__nav--prev"
-            aria-label={t('common.previous')}
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={handleNextClick}
-            className="lia-place-carousel__nav lia-place-carousel__nav--next"
-            aria-label={t('common.next')}
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </>
-      )}
-
-      {/* Dots indicator */}
-      {showNavigation && (
-        <div className="lia-place-carousel__dots">
-          {images.map((_, idx) => (
+    <>
+      <div
+        className={cn('lia-place-carousel', className)}
+        role="group"
+        aria-roledescription="carousel"
+        aria-label={imageAlt}
+        tabIndex={navigation ? 0 : undefined}
+        onKeyDown={gallery.onKeyDown}
+        onTouchStart={gallery.onTouchStart}
+        onTouchMove={gallery.onTouchMove}
+        onTouchEnd={gallery.onTouchEnd}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          {...imageProps[gallery.currentIndex]}
+          alt={imageAlt}
+          className="lia-place-carousel__image"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          style={{ opacity: gallery.isLoaded ? 1 : 0 }}
+          onLoad={() => gallery.onLoad(gallery.currentImage)}
+          onError={() => gallery.onError(gallery.currentImage)}
+          draggable={false}
+        />
+        <PhotoState failed={gallery.isFailed} loaded={gallery.isLoaded} />
+        {navigation && (
+          <>
             <button
-              key={idx}
-              onClick={e => {
-                e.stopPropagation();
-                setCurrentIndex(idx);
-              }}
-              className={cn(
-                'lia-place-carousel__dot',
-                idx === currentIndex && 'lia-place-carousel__dot--active'
-              )}
-              aria-label={t('gallery.photo_counter', { current: idx + 1, total: images.length })}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Full-screen entry. A gallery of small inline photos is exactly where
-          a reader wants a closer look, and the lightbox carries the same
-          navigation so they do not have to close it to move on. */}
-      {showNavigation && (
+              type="button"
+              onClick={gallery.previous}
+              className="lia-place-carousel__nav lia-place-carousel__nav--prev"
+              aria-label={t('common.previous')}
+            >
+              <ChevronLeft className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={gallery.next}
+              className="lia-place-carousel__nav lia-place-carousel__nav--next"
+              aria-label={t('common.next')}
+            >
+              <ChevronRight className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <div className="lia-place-carousel__dots">
+              {images.map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => gallery.select(index)}
+                  className={cn(
+                    'lia-place-carousel__dot',
+                    index === gallery.currentIndex && 'lia-place-carousel__dot--active'
+                  )}
+                  aria-current={index === gallery.currentIndex ? 'true' : undefined}
+                  aria-label={t('gallery.photo_counter', {
+                    current: index + 1,
+                    total: images.length,
+                  })}
+                />
+              ))}
+            </div>
+            <div className="lia-place-carousel__counter">
+              {gallery.currentIndex + 1} / {images.length}
+            </div>
+            <span role="status" aria-live="polite" className="sr-only">
+              {t('gallery.photo_counter', {
+                current: gallery.currentIndex + 1,
+                total: images.length,
+              })}
+            </span>
+          </>
+        )}
         <button
           type="button"
-          onClick={e => {
-            e.stopPropagation();
-            setLightboxOpen(true);
-          }}
+          onClick={() => setLightboxOpen(true)}
+          disabled={gallery.isFailed}
           aria-label={t('gallery.expand_photo')}
           className="lia-place-carousel__nav lia-place-carousel__nav--expand"
         >
           <Maximize2 className="w-4 h-4" aria-hidden="true" />
         </button>
-      )}
-
-      {lightboxOpen && (
-        <ImageLightbox
-          src={currentImage}
-          alt={alt || t('gallery.place_photo')}
-          isOpen
-          onClose={() => setLightboxOpen(false)}
-          onPrev={navigatePrevious}
-          onNext={navigateNext}
-          position={{ current: currentIndex + 1, total: images.length }}
-        />
-      )}
-
-      {/* Counter badge */}
-      {showNavigation && (
-        <div className="lia-place-carousel__counter">
-          {currentIndex + 1} / {images.length}
-        </div>
-      )}
-
-      {/* The badge above is text on screen and nothing else: a screen-reader
-          user moving through the gallery would hear the image change with no
-          idea where they are. `polite` so it never interrupts. */}
-      {showNavigation && (
-        <span role="status" aria-live="polite" className="sr-only">
-          {t('gallery.photo_counter', { current: currentIndex + 1, total: images.length })}
-        </span>
-      )}
-    </div>
+      </div>
+      <PhotoAttribution authors={authors} sourceUrl={sourceUrls?.[gallery.currentIndex]} />
+      {/* The dialog is outside the keyboard group: arrows must not navigate twice. */}
+      <GalleryLightbox
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        gallery={gallery}
+        imageAlt={imageAlt}
+        navigation={navigation}
+        count={images.length}
+        crossOrigin={imageProps[gallery.currentIndex]?.crossOrigin}
+        authors={authors}
+        sourceUrl={sourceUrls?.[gallery.currentIndex]}
+      />
+    </>
   );
 };
+
+function PhotoState({ failed, loaded }: { failed: boolean; loaded: boolean }) {
+  const { t } = useTranslation();
+  if (failed)
+    return (
+      <p className="lia-place-carousel__state" role="status">
+        {t('gallery.photo_unavailable')}
+      </p>
+    );
+  if (loaded) return null;
+  return (
+    <p className="lia-place-carousel__state lia-place-carousel__state--loading">
+      {t('gallery.photo_loading')}
+    </p>
+  );
+}
+
+function GalleryLightbox({
+  open,
+  onClose,
+  gallery,
+  imageAlt,
+  navigation,
+  crossOrigin,
+  authors,
+  sourceUrl,
+  count,
+}: {
+  open: boolean;
+  onClose: () => void;
+  gallery: ReturnType<typeof usePlaceGallery>;
+  imageAlt: string;
+  navigation: boolean;
+  count: number;
+  crossOrigin?: 'use-credentials';
+  authors?: readonly PhotoAuthor[];
+  sourceUrl?: string;
+}) {
+  if (!open || typeof document === 'undefined') return null;
+  return createPortal(
+    <ImageLightbox
+      src={gallery.currentImage}
+      crossOrigin={crossOrigin}
+      alt={imageAlt}
+      isOpen
+      onClose={onClose}
+      onPrev={navigation ? gallery.previous : undefined}
+      onNext={navigation ? gallery.next : undefined}
+      position={navigation ? { current: gallery.currentIndex + 1, total: count } : undefined}
+      caption={<PhotoAttribution authors={authors} sourceUrl={sourceUrl} />}
+    />,
+    document.body
+  );
+}

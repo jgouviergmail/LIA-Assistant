@@ -7,7 +7,7 @@
  * only asserting on the returned value.
  *
  * Not a test file: imported by test files only, and excluded from coverage
- * by the vitest.config.ts exclusion on double-underscore test directories.
+ * by the vitest.config.mts exclusion on double-underscore test directories.
  */
 
 export function deepFreeze<T>(value: T): T {
