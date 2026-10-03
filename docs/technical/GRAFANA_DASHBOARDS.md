@@ -560,4 +560,4 @@ docker compose restart grafana
 **Version** : 4.5
 **Date** : 2026-07-29
 **Auteur** : Equipe LIA
-**Statut** : Production (30 dashboards, 787 panels)
+**Statut** : Production (31 dashboards ; panels comptés dans l'en-tête)

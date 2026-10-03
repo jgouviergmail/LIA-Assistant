@@ -161,12 +161,21 @@ async function scrollToEndAndFindSentinel(page: import('@playwright/test').Page)
   }, SENTINEL);
 }
 
+/**
+ * `highlighted`: the block names a language the highlighter knows, so it is
+ * drawn twice — a plain <pre> while the highlighter loads, then the
+ * highlighter's own <pre>, a NEW element (CodeBlock's documented fallback).
+ * A scroll position or a measurement taken on the first one is lost with it:
+ * measured 2026-10-03, 7 of 16 rich-HTML runs under parallel load scrolled or
+ * measured the plain <pre> just before the swap. Its Prism tokens say the
+ * block is final.
+ */
 const CASES = [
-  { label: 'markdown fence without a language', answer: MARKDOWN_ANSWER },
-  { label: 'rich-HTML pre>code', answer: HTML_ANSWER },
+  { label: 'markdown fence without a language', answer: MARKDOWN_ANSWER, highlighted: false },
+  { label: 'rich-HTML pre>code', answer: HTML_ANSWER, highlighted: true },
 ] as const;
 
-for (const { label, answer } of CASES) {
+for (const { label, answer, highlighted } of CASES) {
   for (const width of [1280, 390]) {
     test(`${label} at ${width}px scrolls, shows its scrollbar, keeps the page inside the viewport`, async ({
       page,
@@ -183,6 +192,12 @@ for (const { label, answer } of CASES) {
 
       await page.locator('textarea').fill('Montre-moi le code');
       await page.keyboard.press('Enter');
+
+      if (highlighted) {
+        await expect(
+          page.locator('.message-bubble-assistant .code-scroll .token').first()
+        ).toBeVisible({ timeout: 15_000 });
+      }
 
       // The announce is an effect after commit — awaited, never read once.
       const frame = page.locator('.message-bubble-assistant .code-scroll-frame').first();

@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { MotionToggle } from '@/components/landing/cosmic/MotionToggle';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { cn } from '@/lib/utils';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
@@ -202,6 +203,9 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
             <div className="hidden sm:block">
               <LanguageSelector currentLocale={lng as Language} />
             </div>
+            {/* From `xl` only: below it the link row is saturated (measured,
+                see MotionToggle) — the mobile menu and the footer carry it. */}
+            <MotionToggle className="hidden xl:inline-flex" />
             <ThemeToggle />
             <Button asChild variant="ghost" size="sm" className="hidden mobile:inline-flex">
               <Link href={loginHref}>{t('landing.nav.login')}</Link>
@@ -255,6 +259,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
             ))}
             <div className="border-t border-border/50 mt-3 pt-3 flex items-center gap-2 px-4">
               <LanguageSelector currentLocale={lng as Language} />
+              <MotionToggle />
               <Link
                 href={loginHref}
                 onClick={handleNavClick}

@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 2.2
-**Data**: 2026-10-02
-**Applicazione**: LIA v2.3.0
+**Data**: 2026-10-03
+**Applicazione**: LIA v2.4.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Righe di codice sorgente (esclusi i test) — 54 domini funzionali | **800.000+** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **48.000+** |
 | Decisioni di architettura documentate (ADR) | **330** |
-| Versioni rilasciate a ritmo regolare | **274** |
+| Versioni rilasciate a ritmo regolare | **275** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -64,8 +64,9 @@ Tre decisioni strutturanti, tra le 330 documentate:
 
 Un sistema che si pilota con gli strumenti:
 
-- **Osservabilità**: trentuno dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 600 metriche; log strutturati centralizzati che conservano fatti, mai le parole delle persone; tracciamento distribuito end-to-end. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino. E l'assistente legge da sé questa telemetria: autocontrollo periodico, una memoria di incidenti diagnosticati proprio su quelle procedure, risposte che aggirano un guasto noto. E una diagnosi mostra le prove da cui è nata. E gli strumenti arrivano fino ai processi: ogni worker dell'API pubblica ciò che trattiene in memoria, così un totale di container si legge processo per processo.
+- **Osservabilità**: trentuno dashboard — salute applicativa, impegni di servizio, costi IA, comportamento degli agenti, infrastruttura. Più di 600 metriche; log strutturati centralizzati; tracciamento distribuito end-to-end — log, metriche e tracce conservano solo fatti, mai le parole né i nomi delle persone. Una quarantina di procedure operative scritte — diagnosi, rimediazione, ripristino. E l'assistente legge da sé questa telemetria: autocontrollo periodico, una memoria di incidenti diagnosticati proprio su quelle procedure, risposte che aggirano un guasto noto. E una diagnosi mostra le prove da cui è nata. E gli strumenti arrivano fino ai processi: ogni worker dell'API pubblica ciò che trattiene in memoria, così un totale di container si legge processo per processo.
 - **Consegna**: deployment containerizzato, migrazioni di schema automatizzate, immagini pubblicate per due architetture hardware (amd64/arm64).
+- **Catena di fornitura**: ogni componente del server fissato dalla sua impronta e inventariato a ogni versione; una sorveglianza settimanale legge gli avvisi di sicurezza che ogni dipendenza pubblica — compresi quelli che nessuna banca dati pubblica riprende — e un aggiornamento attende un periodo di prudenza, senza mai tornare indietro; ogni versione viene installata su macchine vergini prima di essere pubblicata.
 - **Costi**: infrastruttura frugale per scelta — circa 150 € di hardware, zero licenze, componenti open source dimensionati sul bisogno reale.
 - **Conformità**: sicurezza rivista punto di accesso per punto di accesso; cifratura dei dati personali; ciclo di vita degli account allineato al GDPR.
 
@@ -93,7 +94,7 @@ Il piano d'azione è organizzato in ondate, ciascuna con criteri di uscita misur
 
 Questa esigenza ha una conseguenza che il progetto ha imparato a proprie spese: **una suite di test verde non dimostra che una funzionalità funzioni**. Dimostra che ciò che è stato testato si comporta come è scritto. I difetti che sopravvivono ai controlli sono esattamente quelli su cui non sono mai stati interrogati — una capacità che nessuno invoca, una cifra che nessuno somma, una guardia che riconosce un nome anziché un meccanismo. Non sono quasi mai errori di codice: sono domande che non erano mai state poste.
 
-Da qui una regola di lavoro: **nulla è creduto prima di aver girato**, su dati reali e lungo il percorso che l'utente compie. Un componente può essere corretto e la sua pagina vuota; un contatore può essere esatto e la sua domanda sbagliata. Ogni rilascio termina perciò con una rilettura avversariale, condotta a freddo, il cui scopo non è eseguire i test ma cercare ciò che non coprono.
+Da qui una regola di lavoro: **nulla è creduto prima di aver girato**, su dati reali e lungo il percorso che l'utente compie. Un componente può essere corretto e la sua pagina vuota; un contatore può essere esatto e la sua domanda sbagliata. Ogni rilascio termina perciò con una rilettura avversariale, condotta a freddo, il cui scopo non è eseguire i test ma cercare ciò che non coprono. E i percorsi dell'interfaccia girano su Chromium a ogni rilascio, poi ogni settimana su Firefox e WebKit, con un controllo automatico di accessibilità: un motore di browser in più vede ciò che gli altri lasciano passare.
 
 Ciò che quella rilettura produce non si ferma alla correzione. Ogni difetto trovato lascia dietro di sé una **guardia strutturale** — un controllo all'avvio, un invariante verificato di continuo, un test che fallisce se l'intera classe del problema riappare. È l'unica forma di progresso che sopravvive a chi l'ha scritta: una correzione protegge una riga, una guardia protegge la regola.
 

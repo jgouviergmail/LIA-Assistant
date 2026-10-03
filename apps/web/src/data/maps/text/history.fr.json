@@ -1393,7 +1393,7 @@
     },
     "329": {
       "title": "Un mot de réveil entraîné, entendu dans le navigateur, et une veille Live qui ne facture rien",
-      "summary": "LIA se réveille sur une phrase reconnue entièrement dans le navigateur par un petit modèle entraîné pour sa langue, sans la condition technique qui privait l'iPhone et les applications natives de l'ancien mot anglais « OK Guy » ; « Stop » coupe sa voix. Le premier modèle, « Dis LIA » en français, est livré en bêta parce que son banc n'atteint pas encore les seuils publiés, et les autres langues gardent le toucher. En mode Live, un silence met l'assistante en veille : la connexion au fournisseur se ferme, plus rien n'est facturé, et un toucher ou la phrase la réveille sans perdre la conversation."
+      "summary": "LIA se réveille sur une phrase reconnue entièrement dans le navigateur par un petit modèle entraîné pour sa langue, sans la condition technique qui privait l'iPhone et les applications natives de l'ancien mot anglais « OK Guy » ; « LIA, stop » coupe sa voix. Le premier modèle, « Dis LIA » en français, est livré en bêta parce que son banc n'atteint pas encore les seuils publiés, et les autres langues gardent le toucher. En mode Live, un silence met l'assistante en veille : la connexion au fournisseur se ferme, plus rien n'est facturé, et un toucher ou la phrase la réveille sans perdre la conversation."
     },
     "330": {
       "title": "Des médias servis sans travail à l'exécution : illustrations prégénérées, vidéo déclarée par l'opérateur",

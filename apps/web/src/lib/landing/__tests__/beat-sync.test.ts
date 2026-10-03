@@ -13,6 +13,7 @@ import {
   BEAT_DECAY_MS,
   BEAT_HUE_CYCLE_BARS,
   BEAT_HUE_DEGREES,
+  BEAT_TURNS,
   BEAT_WEIGHT_FLOOR,
   createBeatTrack,
   startBeatDriver,
@@ -121,6 +122,35 @@ describe('createBeatTrack', () => {
     expect(createBeatTrack({ version: 1, beats: [[1000, 1, false]] }).progressAt(5)).toBe(0);
   });
 
+  it('hands each beat to the next line in turn, every line keeping its own release', () => {
+    expect(BEAT_TURNS).toBe(3);
+    const peak = (index: number) => MAP.beats[index][0] / 1000 + BEAT_ATTACK_MS / 1000;
+    // Before the first beat no line moves.
+    for (let turn = 0; turn < BEAT_TURNS; turn++) expect(track.turnIntensityAt(0.5, turn)).toBe(0);
+    // Beat 0 (a bar) is line 0's; lines 1 and 2 have not had their turn yet.
+    expect(track.turnIntensityAt(peak(0), 0)).toBeCloseTo(track.intensityAt(peak(0)), 5);
+    expect(track.turnIntensityAt(peak(0), 1)).toBe(0);
+    expect(track.turnIntensityAt(peak(0), 2)).toBe(0);
+    // Beat 1 is line 1's at full strength while line 0 is still releasing beat 0.
+    expect(track.turnIntensityAt(peak(1), 1)).toBeCloseTo(pulse(0.6), 5);
+    const release = track.turnIntensityAt(peak(1), 0);
+    expect(release).toBeGreaterThan(0);
+    expect(release).toBeLessThan(track.turnIntensityAt(peak(0), 0));
+    // Beats 3 and 4 wrap around: line 0 then line 1 again.
+    expect(track.turnIntensityAt(peak(3), 0)).toBeCloseTo(pulse(0.8), 5);
+    expect(track.turnIntensityAt(peak(4), 1)).toBeCloseTo(
+      Math.min(1, pulse(0.8) * BEAT_BAR_GAIN),
+      5
+    );
+    // Whatever the instant, the line whose turn it is carries the overall pulse.
+    for (let index = 0; index < MAP.beats.length; index++) {
+      expect(track.turnIntensityAt(peak(index), index % BEAT_TURNS)).toBeCloseTo(
+        track.intensityAt(peak(index)),
+        5
+      );
+    }
+  });
+
   it('finds the governing beat by binary search exactly as a linear scan would', () => {
     const times = [1.0, 1.2, 1.463, 1.464, 1.5, 2.0, 2.4, 2.9, 10, 60];
     for (const t of times) {
@@ -188,6 +218,13 @@ describe('startBeatDriver', () => {
     expect(host.style.getPropertyValue('--beat-bar')).toBe(track.barIntensityAt(at).toFixed(3));
     expect(host.style.getPropertyValue('--beat-hue')).toBe(`${track.hueAt(at).toFixed(2)}deg`);
     expect(host.style.getPropertyValue('--beat-progress')).toBe(track.progressAt(at).toFixed(3));
+    for (let turn = 0; turn < BEAT_TURNS; turn++) {
+      expect(host.style.getPropertyValue(`--beat-turn-${turn}`)).toBe(
+        track.turnIntensityAt(at, turn).toFixed(3)
+      );
+    }
+    // The beat at 1.464 s is the map's second: line 1's turn.
+    expect(host.style.getPropertyValue('--beat-turn-1')).toBe(pulse(0.6).toFixed(3));
 
     stop();
     expect(host.hasAttribute('data-beat')).toBe(false);
@@ -195,6 +232,9 @@ describe('startBeatDriver', () => {
     expect(host.style.getPropertyValue('--beat-bar')).toBe('');
     expect(host.style.getPropertyValue('--beat-hue')).toBe('');
     expect(host.style.getPropertyValue('--beat-progress')).toBe('');
+    for (let turn = 0; turn < BEAT_TURNS; turn++) {
+      expect(host.style.getPropertyValue(`--beat-turn-${turn}`)).toBe('');
+    }
     expect(cancelled).toHaveLength(1);
   });
 

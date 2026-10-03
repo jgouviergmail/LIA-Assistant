@@ -364,9 +364,9 @@
     },
     "t.metrics": {
       "name": "Metriken",
-      "role": "Jede im Code definierte Metrik wird von einem Panel, einer Regel oder einem Alarm gelesen — eine Metrik, die niemand sieht, ist verboten.",
+      "role": "Jede im Code definierte Metrik wird von einem Panel, einer Regel oder einem Alarm gelesen — eine Metrik, die niemand sieht, ist verboten; ihre Labels nennen die Route, nie eine Person oder eine Suche.",
       "stack": ["Prometheus", "Recording Rules", "Exporter"],
-      "src": "b61a7510e414"
+      "src": "bb26e75da82a"
     },
     "t.dashboards": {
       "name": "Dashboards",
@@ -388,9 +388,9 @@
     },
     "t.tracing": {
       "name": "Traces",
-      "role": "Eine Anfrage durch die Schichten verfolgen, und jeden Modellaufruf mit seinen Tokens.",
+      "role": "Eine Anfrage durch die Schichten verfolgen, und jeden Modellaufruf mit seinen Tokens; ein Trace trägt die Routenvorlage, nie die konkrete Adresse.",
       "stack": ["Tempo", "OpenTelemetry", "Langfuse (optional)"],
-      "src": "7eb8e8c66818"
+      "src": "ece7456bef46"
     },
     "t.docker": {
       "name": "Images und Compose",

@@ -27,7 +27,7 @@ Le Voice Mode de LIA est un système complet de saisie vocale avec :
 
 | Fonctionnalité | Description | Technologie |
 |----------------|-------------|-------------|
-| **Wake Word** | Activation par « Dis LIA » — français seul pour l'instant, en **bêta** ; « Stop » coupe la lecture | Classifieur openWakeWord par langue, ONNX Runtime Web dans un worker ([ADR-329](../architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md)) |
+| **Wake Word** | Activation par « Dis LIA » — français seul pour l'instant, en **bêta** ; « LIA, stop » coupe la lecture | Classifieur openWakeWord par langue, ONNX Runtime Web dans un worker ([ADR-329](../architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md)) |
 | **Push-to-Talk** | Activation manuelle par clic/tap | Web Audio API |
 | **VAD** | Détection fin de parole automatique | Energy-based detection |
 | **STT** | Transcription multilingue | Sherpa-onnx Whisper Small (backend) |
@@ -388,11 +388,11 @@ autre langue d'interface, `wakeLanguageOf` répond `null` : l'écouteur reste
 badge offre l'appui pour parler, et les réglages disent que la phrase n'existe
 pas encore dans cette langue (jamais un « {{phrase}} » vide). `beta` signifie
 que le banc n'atteint pas encore ses seuils publiés (verdict `no-go` du
-manifeste — mesures du modèle français : rappel 88 % au propre, 50 % à 10 dB,
-0,5 faux déclenchement par heure sur la parole française) ; les réglages
+manifeste — mesures du modèle français : rappel 87,8 % au propre, 49,5 % à 10 dB,
+0,333 faux déclenchement par heure sur la parole française) ; les réglages
 affichent un badge « Bêta » et une note. La garde `shipped-models.test.ts` tient
 le statut au verdict dans les deux sens : `stable` exige `go` pour la phrase
-ET le mot « Stop », un modèle `beta` dont le banc dit `go` doit passer
+ET la commande « LIA, stop », un modèle `beta` dont le banc dit `go` doit passer
 `stable`, et aucun manifeste n'est livré pour une langue non déclarée.
 
 ### Moteur (`apps/web/src/lib/audio/wake-word/`)
@@ -451,10 +451,15 @@ du chat, le même arrêt qu'un clic). Sans cela, sa voix continuait par-dessus l
 personne jusqu'à l'envoi de la transcription. Si rien n'est dit ensuite, la
 transcription est vide et aucun message ne part.
 
-**Le mot « stop »** coupe aussi sa voix, sans rien d'autre : ni enregistrement, ni
-transcription, ni message. Chaque langue a le sien (« Stop » en français, anglais et
-italien, « Stopp » en allemand, « 停下 » en chinois, « Detente » en espagnol),
-nommé par `STOP_WORDS` (`phrases.ts`) et par l'indice du badge. C'est un second
+**La commande « LIA, stop »** coupe aussi sa voix, sans rien d'autre : ni
+enregistrement, ni transcription, ni message. Chaque langue a la sienne, le nom puis le
+mot (« LIA, stop » en français, anglais et italien, « LIA, stopp » en allemand,
+« LIA, detente » en espagnol, « LIA，停下 » en chinois — décision du propriétaire du
+2026-10-02 : « Stop » seul, une syllabe, n'était reconnu qu'une fois sur deux et se
+déclenchait sur des chansons), nommée par `STOP_WORDS` (`phrases.ts`) et par l'indice
+du badge. Chaque phrase de réveil apprend à l'ignorer : dire « LIA, stop » n'ouvre
+presque jamais le micro (2 fois sur 34 au banc ; l'enregistrement qui s'ouvre alors
+reste vide et n'envoie rien). C'est un second
 classifieur sur les mêmes plongements, déclaré dans le manifeste de la langue sous
 `commands`, posté par le worker comme `command` et relayé par l'écouteur sous la même
 garde que la phrase (`useWakeWord.onCommand` → `useVoiceMode.onInterrupt`). Il n'est pas

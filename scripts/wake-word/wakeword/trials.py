@@ -10,6 +10,7 @@ falls between the start of the phrase and one second after its end.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import numpy as np
@@ -54,6 +55,16 @@ def stream(
 
 
 Trial = tuple[np.ndarray, float, float]
+
+
+#: Punctuation that changes a clip's prosody, not its form: « Dis Lia ! » and
+#: « Dis Lia. » are one form; a comma (a pause) and a space stay.
+_PROSODY_MARKS = re.compile(r"[!?.¡¿。！？]")
+
+
+def form_of(text: str) -> str:
+    """The written form of a clip's text: its words and pauses, without its prosody marks."""
+    return " ".join(_PROSODY_MARKS.sub("", text).split())
 
 
 def hit_latency(trial: Trial, policy: Policy) -> tuple[float | None, int]:

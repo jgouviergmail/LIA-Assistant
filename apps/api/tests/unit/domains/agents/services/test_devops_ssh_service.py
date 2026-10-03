@@ -7,7 +7,12 @@ for both local (subprocess) and SSH execution modes.
 from __future__ import annotations
 
 import json
+from typing import Any
 
+import pytest
+
+from src.core.config import get_settings
+from src.core.constants import DEVOPS_CLAUDE_STREAM_OUTPUT_FORMAT
 from src.domains.agents.services.devops_ssh_service import (
     DEVOPS_LOCAL_HOST,
     DevOpsService,
@@ -118,6 +123,78 @@ class TestBuildClaudeArgs:
         assert "--output-format" in args
         assert "--resume" in args
         assert "--append-system-prompt" in args
+
+
+class TestModelAndEffort:
+    """Every run names its model and effort from settings, in both modes."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = DevOpsService()
+        self.config: dict = {"name": "prod", "host": "local"}
+
+    def test_model_and_effort_come_from_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """--model and --effort carry the configured values, not the CLI default."""
+        settings = get_settings()
+        monkeypatch.setattr(settings, "devops_claude_model", "some-model")
+        monkeypatch.setattr(settings, "devops_claude_effort", "high")
+
+        args = self.service._build_claude_args(task="t", server_config=self.config)
+
+        assert args[args.index("--model") + 1] == "some-model"
+        assert args[args.index("--effort") + 1] == "high"
+
+    def test_default_output_format_is_not_verbose(self) -> None:
+        """The buffered JSON format runs without --verbose."""
+        args = self.service._build_claude_args(task="t", server_config=self.config)
+
+        assert "--verbose" not in args
+
+    def test_stream_format_adds_verbose(self) -> None:
+        """The CLI refuses stream-json in print mode without --verbose."""
+        args = self.service._build_claude_args(
+            task="t",
+            server_config=self.config,
+            output_format=DEVOPS_CLAUDE_STREAM_OUTPUT_FORMAT,
+        )
+
+        assert args[args.index("--output-format") + 1] == DEVOPS_CLAUDE_STREAM_OUTPUT_FORMAT
+        assert "--verbose" in args
+
+    def test_ssh_command_carries_model_and_effort(self) -> None:
+        """The SSH shell command is built from the same argument list."""
+        settings = get_settings()
+        command = self.service._build_shell_command(
+            task="t", server_config={**self.config, "host": "10.0.0.1"}
+        )
+
+        assert f"--model {settings.devops_claude_model}" in command
+        assert f"--effort {settings.devops_claude_effort}" in command
+
+    async def test_local_mode_launches_the_shared_arguments(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The local subprocess receives the shared builder's streaming arguments."""
+        launched: list[tuple[Any, ...]] = []
+
+        async def _fake_exec(*argv: Any, **_kwargs: Any) -> None:
+            launched.append(argv)
+            raise FileNotFoundError
+
+        monkeypatch.setattr(
+            "src.domains.agents.services.devops_ssh_service.asyncio.create_subprocess_exec",
+            _fake_exec,
+        )
+
+        result = await self.service.execute_claude_task(
+            server_config=self.config, task="t", context="c", resume_session="s"
+        )
+
+        expected = self.service._build_claude_args(
+            "t", self.config, "c", "s", output_format=DEVOPS_CLAUDE_STREAM_OUTPUT_FORMAT
+        )
+        assert launched == [("claude", *expected)]
+        assert result.success is False
 
 
 class TestBuildShellCommand:

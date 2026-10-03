@@ -633,7 +633,7 @@ const WAKE_PHRASE_STEPS: readonly TimelineStep<WakePhrasePhase>[] = [
 
 /**
  * The wake word (ADR-329): the badge listens for the phrase, the phrase opens
- * the recording, and while LIA reads her answer aloud « Stop » cuts her voice.
+ * the recording, and while LIA reads her answer aloud « LIA, stop » cuts her voice.
  * The badge carries its « beta » mark. Resting frame: the voice cut.
  */
 function WakePhraseScene({ active, labels }: SceneProps) {

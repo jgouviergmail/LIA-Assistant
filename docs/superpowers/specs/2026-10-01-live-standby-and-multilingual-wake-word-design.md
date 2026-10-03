@@ -244,7 +244,7 @@ one core on the phones; and no written form of the phrase — separated (« Dis 
 (« Dilia »), with a pause (« Dis, Lia ») — under 85 % clean, since a person says it either way
 (owner on dev, 2026-10-01: « dis … Lia » woke LIA, « dilia » did not). Every language's banks
 say each form, and its natural voices are told it plainly, fused and once with a pause. The
-stop word (amendment 2026-10-01, `--keyword stop`) has its own grid: the same recalls and
+stop command (amendment 2026-10-01; « LIA, stop » since 2026-10-02, `--keyword stop`) has its own grid: the same recalls and
 per-form floor, latency ≤ 300 ms, ≤ 2 false accepts/hour on speech and ≤ 1 on music — a false
 stop only cuts a reading, where a false wake opens the microphone. The thresholds are published
 in the spec of lot 0 and never lowered to pass.

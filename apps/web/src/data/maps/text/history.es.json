@@ -1740,8 +1740,8 @@
     },
     "329": {
       "title": "Una palabra de activación entrenada, oída en el navegador, y una espera Live que no factura nada",
-      "summary": "LIA despierta con una frase reconocida íntegramente en el navegador por un pequeño modelo entrenado para su idioma, sin la condición técnica que privaba al iPhone y a las aplicaciones nativas del antiguo «OK Guy» en inglés; «Stop» corta su voz. El primer modelo, «Dis LIA» en francés, se entrega en beta porque su banco aún no alcanza los umbrales publicados, y los demás idiomas conservan el toque. En modo Live, un silencio pone a la asistente en espera: la conexión con el proveedor se cierra, ya no se factura nada, y un toque o la frase la despierta sin perder la conversación.",
-      "src": "c2b699b7c2d6"
+      "summary": "LIA despierta con una frase reconocida íntegramente en el navegador por un pequeño modelo entrenado para su idioma, sin la condición técnica que privaba al iPhone y a las aplicaciones nativas del antiguo «OK Guy» en inglés; «LIA, stop» corta su voz. El primer modelo, «Dis LIA» en francés, se entrega en beta porque su banco aún no alcanza los umbrales publicados, y los demás idiomas conservan el toque. En modo Live, un silencio pone a la asistente en espera: la conexión con el proveedor se cierra, ya no se factura nada, y un toque o la frase la despierta sin perder la conversación.",
+      "src": "79e44bd43109"
     },
     "330": {
       "title": "Medios servidos sin trabajo en ejecución: ilustraciones pregeneradas, un vídeo declarado por el operador",

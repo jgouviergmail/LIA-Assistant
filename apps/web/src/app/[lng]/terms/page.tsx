@@ -6,6 +6,7 @@ import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { MotionToggle } from '@/components/landing/cosmic/MotionToggle';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { TermsContent } from '@/components/legal/TermsContent';
@@ -14,7 +15,6 @@ import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
-
 
 function buildLangUrl(path: string, lng: Language): string {
   return localizedUrl(getSiteOrigin(), path, lng);
@@ -54,7 +54,9 @@ export async function generateMetadata({ params }: TermsPageProps): Promise<Meta
       locale: LOCALE_MAP[lng],
       alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
       type: 'website',
-      images: socialImage ? [{ url: socialImage, width: 2125, height: 1193, alt: title }] : undefined,
+      images: socialImage
+        ? [{ url: socialImage, width: 2125, height: 1193, alt: title }]
+        : undefined,
     },
     twitter: {
       card: 'summary_large_image',
@@ -102,6 +104,7 @@ export default async function TermsPage({ params }: TermsPageProps) {
             </Link>
             <div className="flex items-center gap-2">
               <LanguageSelector currentLocale={lng} />
+              <MotionToggle />
               <ThemeToggle />
               <Link
                 href={loginPath}

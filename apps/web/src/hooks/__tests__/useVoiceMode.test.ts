@@ -360,11 +360,11 @@ describe('useVoiceMode — wake word → recording', () => {
     expect(order).toEqual(['voice cut', 'handOff']);
   });
 
-  it("a spoken « Stop » cuts LIA's voice and nothing else: no recording, no message", async () => {
+  it("a spoken « LIA, stop » cuts LIA's voice and nothing else: no recording, no message", async () => {
     const onInterrupt = vi.fn();
     const onTranscription = vi.fn();
     const { result } = await renderEnabled({ onInterrupt, onTranscription });
-    expect(result.current.stopWord).toBe('Stop');
+    expect(result.current.stopWord).toBe('LIA, stop');
 
     act(() => h.wakeOptions!.onCommand?.('stop'));
 

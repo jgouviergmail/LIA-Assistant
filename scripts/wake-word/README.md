@@ -53,8 +53,10 @@ immutable address and verified against `sources.lock.json`.
   description (age, gender, timbre, pace, mood, accent) or cloned from a
   recording of FLEURS or MLS. Training voices come from the TRAIN splits and one
   half of the descriptions; test voices from the TEST splits and the other half.
-  It decodes one clip at a time; a pool of processes can share the GPU, one by
-  default (each commits about 8.6 GB on a Windows host under WSL).
+  It runs as ONE process: alone it keeps the GPU busy (0.48 s a clip on an RTX
+  4090), and a second process only time-slices it — measured, 0.66 s a clip for
+  the two together. A process needs 11 GB of RAM while it loads, then 2.6 GB,
+  and 6 GB of GPU memory.
 
 Each language trains its phrase plainly, fused and once with a pause (« Dis
 Lia », « Dilia », « Dis, Lia »): a person says it quickly as often as slowly.
@@ -72,7 +74,7 @@ task wake:run -- prepare --lang fr  # download and decode the corpora
 task wake:clone -- fr               # natural voices on the GPU (after prepare)
 task wake:train -- fr               # prepare, synth, train, measure, export
 task wake:run:gpu -- train --lang fr  # the same training on CUDA (an NVIDIA GPU)
-task wake:run -- synth --lang fr --keyword stop    # the stop word: every step takes --keyword
+task wake:run -- synth --lang fr --keyword stop    # the stop command: every step takes --keyword
 task wake:selfcheck                 # features vs openWakeWord, batch vs streaming
 task wake:deps:lock                 # recompile both hashed locks
 ```
@@ -82,12 +84,15 @@ stages use ONNX Runtime's CUDA provider and the classifier trains on CUDA. The
 measurement and the golden fixture run in the CPU image, whose arithmetic is
 the browser's.
 
-A language also ships its STOP WORD (`--keyword stop`: the language's voices and
-corpora, its own words in `STOP_WORDS`, banks and work directory named `<lang>-stop`).
+A language also ships its STOP COMMAND — LIA's name, then the word (« LIA, stop »;
+`--keyword stop`: the language's voices and corpora, its own words in `STOP_WORDS`,
+banks and work directory named `<lang>-stop`).
 Its `export` writes the classifier into the language's manifest under `commands`,
 so the phrase is exported first. Measured on an RTX 4090 for one language: Piper
-30-40 min on the CPU, VoxCPM2 about 0.6 s a clip alone, training 7 min, the
-measurement 25 min on the CPU.
+30-45 min on the CPU, VoxCPM2 0.5-0.65 s a clip on one process, training about
+30 min on the GPU, the measurement 4 min on the GPU and 25 min on the CPU (which
+certifies what ships). `measure --threshold` certifies an operating point other
+than the dev's; the export ships the measured row.
 
 Corpora, voices and features live in the Docker volume `lia-wake-data`
 (several tens of GB for a language with MLS: the training speech alone is a
@@ -97,15 +102,19 @@ it.
 ## How a model is judged
 
 `train` keeps the checkpoint with the best recall on held-out training clips,
-played as streams, at the threshold that holds the DEV false accepts under the
-keyword's target (0.25 per hour for the phrase, 1 for the stop word).
+played as streams — clean, at 10 dB, and for the weakest written form — at the
+threshold that holds the DEV false accepts under the keyword's target (0.25 per
+hour for the phrase, 1 for the stop command). The dev is 74 hours for French:
+FLEURS and MLS dev, one MLS training speaker in four (by volume, at most two
+hours each — the others are the negatives, at most fifteen hours each), MUSAN
+music and the English speech no training uses.
 `measure` then reads only TEST data, listened to continuously under the
 browser's policy (threshold, patience, a 2-second refractory period, a 2-second
 warm-up): recall at four signal-to-noise ratios and per written form, latency,
 near-miss accepts, false accepts per hour on speech, music and noise. The
 acceptance thresholds (for the phrase: recall ≥ 90 % clean and ≥ 80 % at 10 dB,
 no written form under 85 % clean, ≤ 0.5 false accept per hour of speech, ≤ 0.2
-per hour of music, median latency ≤ 300 ms; the stop word allows 2 and 1) are
+per hour of music, median latency ≤ 300 ms; the stop command allows 2 and 1) are
 written in `wakeword/measure.py` and are never lowered to pass.
 
 ## Adding a language

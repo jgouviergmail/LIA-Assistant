@@ -17,13 +17,21 @@ import { CHAPTERS } from './chapters-data';
  * 1.4.3 failure axe only sees when the rail happens to fly over an opaque
  * section (2026-08-01). The active link stays `text-primary`, which is what
  * carries the state.
+ *
+ * It steps aside when the footer comes into view: the footer's glass band is
+ * drawn above it (globals.css), so at the end of the page its links would sit
+ * under the band, blurred and unclickable (measured 2026-10-03: 4 to 7 links of
+ * 7 covered). Hidden with `visibility`, it also leaves the focus order; the
+ * header carries the navigation there.
  */
 
 const TRANSPARENCY_ANCHOR = 'transparency';
+const FOOTER_SELECTOR = 'footer.landing-footer';
 
 export function ChapterRail() {
   const { t } = useTranslation();
   const [active, setActive] = useState<string>('');
+  const [footerInView, setFooterInView] = useState(false);
 
   useEffect(() => {
     const ids = [...CHAPTERS.map(c => c.anchor), TRANSPARENCY_ANCHOR];
@@ -42,10 +50,25 @@ export function ChapterRail() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const footer = document.querySelector(FOOTER_SELECTOR);
+    if (!footer) return;
+    const observer = new IntersectionObserver(entries => {
+      const entry = entries[entries.length - 1];
+      if (entry) setFooterInView(entry.isIntersecting);
+    });
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <nav
       aria-label={t('landing.rail.aria')}
-      className="cosmos-chapter-rail fixed left-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center gap-3 xl:flex"
+      data-footer-in-view={footerInView ? 'true' : undefined}
+      className={cn(
+        'cosmos-chapter-rail fixed left-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center gap-3 transition-[opacity,visibility] duration-300 xl:flex',
+        footerInView && 'pointer-events-none invisible opacity-0'
+      )}
     >
       {CHAPTERS.map(chapter => (
         <a

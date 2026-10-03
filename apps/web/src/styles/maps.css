@@ -201,18 +201,52 @@ html:not(.dark) .lia-maps {
 .lm-hero::before {
   content: '';
   position: absolute;
-  inset: -40px calc(-1 * clamp(16px, 3.5vw, 40px)) 0;
+  /* Within the hero's own box: the section clips (`.cosmos section`), so a
+     pseudo-element overhanging it was cut before its mask reached zero — the
+     cut drew the box once the cosmos backdrop showed behind it (2026-10-02). */
+  inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* The glows fade out on every edge: under the section tabs a hard-edged box
-     showed where the pseudo-element begins (measured on a screenshot). */
-  -webkit-mask-image:
-    linear-gradient(to bottom, transparent, #000 32%, #000 72%, transparent),
-    linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+  /* The glows fade out on every edge, along a smoothstep (a short linear ramp
+     reads as a line): under the section tabs a hard-edged box showed where the
+     pseudo-element begins (measured on a screenshot). */
+  --lm-hero-fade-y: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.074) 5.333%,
+    rgba(0, 0, 0, 0.259) 10.667%,
+    rgba(0, 0, 0, 0.5) 16%,
+    rgba(0, 0, 0, 0.741) 21.333%,
+    rgba(0, 0, 0, 0.926) 26.667%,
+    rgba(0, 0, 0, 1) 32%,
+    rgba(0, 0, 0, 1) 72%,
+    rgba(0, 0, 0, 0.926) 76.667%,
+    rgba(0, 0, 0, 0.741) 81.333%,
+    rgba(0, 0, 0, 0.5) 86%,
+    rgba(0, 0, 0, 0.259) 90.667%,
+    rgba(0, 0, 0, 0.074) 95.333%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --lm-hero-fade-x: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.074) 1.667%,
+    rgba(0, 0, 0, 0.259) 3.333%,
+    rgba(0, 0, 0, 0.5) 5%,
+    rgba(0, 0, 0, 0.741) 6.667%,
+    rgba(0, 0, 0, 0.926) 8.333%,
+    rgba(0, 0, 0, 1) 10%,
+    rgba(0, 0, 0, 1) 90%,
+    rgba(0, 0, 0, 0.926) 91.667%,
+    rgba(0, 0, 0, 0.741) 93.333%,
+    rgba(0, 0, 0, 0.5) 95%,
+    rgba(0, 0, 0, 0.259) 96.667%,
+    rgba(0, 0, 0, 0.074) 98.333%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  -webkit-mask-image: var(--lm-hero-fade-y), var(--lm-hero-fade-x);
   -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to bottom, transparent, #000 32%, #000 72%, transparent),
-    linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+  mask-image: var(--lm-hero-fade-y), var(--lm-hero-fade-x);
   mask-composite: intersect;
   background:
     radial-gradient(42rem 22rem at 8% 0%, var(--lm-glow-a), transparent 64%),

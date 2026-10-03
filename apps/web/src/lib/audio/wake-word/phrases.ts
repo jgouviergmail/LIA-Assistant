@@ -1,6 +1,6 @@
 /**
- * The wake phrase and the stop word of each interface language (ADR-329, spec
- * A6 and the amendment of 2026-10-01).
+ * The wake phrase and the stop command of each interface language (ADR-329,
+ * spec A6 and the amendments of 2026-10-01 and 2026-10-02).
  *
  * A phrase is a TRAINED model, never a free entry: these are the phrases the
  * toolbox trains (`scripts/wake-word/wakeword/languages.py`), and every
@@ -21,14 +21,18 @@ export const WAKE_PHRASES: Record<Language, string> = {
   zh: '嗨 LIA',
 };
 
-/** The word that cuts LIA's voice while she reads an answer aloud (owner choice, 2026-10-01). */
+/**
+ * What cuts LIA's voice while she reads an answer aloud: her name, then the word
+ * (owner decision, 2026-10-02) — a bare « stop », one syllable, was found one
+ * time in two and fired on songs.
+ */
 export const STOP_WORDS: Record<Language, string> = {
-  fr: 'Stop',
-  en: 'Stop',
-  de: 'Stopp',
-  es: 'Detente',
-  it: 'Stop',
-  zh: '停下',
+  fr: 'LIA, stop',
+  en: 'LIA, stop',
+  de: 'LIA, stopp',
+  es: 'LIA, detente',
+  it: 'LIA, stop',
+  zh: 'LIA，停下',
 };
 
 /** The phrase of an interface language (any regional variant), or null without a model. */
@@ -37,7 +41,7 @@ export function wakePhraseOf(language: string | null | undefined): string | null
   return wakeLanguage ? WAKE_PHRASES[wakeLanguage] : null;
 }
 
-/** The stop word of an interface language (any regional variant), or null without a model. */
+/** The stop command of an interface language (any regional variant), or null without a model. */
 export function stopWordOf(language: string | null | undefined): string | null {
   const wakeLanguage = wakeLanguageOf(language);
   return wakeLanguage ? STOP_WORDS[wakeLanguage] : null;

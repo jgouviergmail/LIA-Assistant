@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from src.core.config import get_settings
 from src.core.constants import (
     DEVOPS_CLAUDE_OUTPUT_FORMAT,
+    DEVOPS_CLAUDE_STREAM_OUTPUT_FORMAT,
     DEVOPS_DEFAULT_ALLOWED_TOOLS,
     DEVOPS_DEFAULT_SSH_PORT,
 )
@@ -68,29 +69,43 @@ class DevOpsService:
         server_config: dict[str, Any],
         context: str | None = None,
         resume_session: str | None = None,
+        output_format: str = DEVOPS_CLAUDE_OUTPUT_FORMAT,
     ) -> list[str]:
-        """Build the claude CLI argument list.
+        """Build the claude CLI argument list, shared by the local and SSH modes.
+
+        Every run names its model and effort from settings, so what answers does
+        not depend on the CLI account's own default.
 
         Args:
             task: Natural language task description.
             server_config: Server configuration dict.
             context: Optional additional context for system prompt.
             resume_session: Optional session ID to resume.
+            output_format: CLI ``--output-format``; the streaming format also
+                needs ``--verbose``, which is added with it.
 
         Returns:
             List of CLI arguments for claude command.
         """
+        settings = get_settings()
         allowed_tools = server_config.get("allowed_claude_tools", DEVOPS_DEFAULT_ALLOWED_TOOLS)
         disallowed_tools = server_config.get("disallowed_claude_tools", [])
 
         args = [
             "-p",
             task,
+            "--model",
+            settings.devops_claude_model,
+            "--effort",
+            settings.devops_claude_effort,
             "--allowedTools",
             ",".join(allowed_tools),
             "--output-format",
-            DEVOPS_CLAUDE_OUTPUT_FORMAT,
+            output_format,
         ]
+
+        if output_format == DEVOPS_CLAUDE_STREAM_OUTPUT_FORMAT:
+            args.append("--verbose")
 
         if disallowed_tools:
             args.extend(["--disallowedTools", ",".join(disallowed_tools)])
@@ -295,28 +310,14 @@ class DevOpsService:
         max_output_chars = max_output_chars or settings.devops_max_output_chars
         working_dir = server_config.get("working_directory", "/opt/claude-workspace")
 
-        # Build args with stream-json format for real-time progress
-        allowed_tools = server_config.get("allowed_claude_tools", DEVOPS_DEFAULT_ALLOWED_TOOLS)
-        disallowed_tools = server_config.get("disallowed_claude_tools", [])
-
-        stream_args = [
-            "-p",
+        # Stream-json format for real-time progress
+        stream_args = self._build_claude_args(
             task,
-            "--allowedTools",
-            ",".join(allowed_tools),
-            "--output-format",
-            "stream-json",
-            "--verbose",
-        ]
-
-        if disallowed_tools:
-            stream_args.extend(["--disallowedTools", ",".join(disallowed_tools)])
-
-        if resume_session:
-            stream_args.extend(["--resume", resume_session])
-
-        if context:
-            stream_args.extend(["--append-system-prompt", context])
+            server_config,
+            context,
+            resume_session,
+            output_format=DEVOPS_CLAUDE_STREAM_OUTPUT_FORMAT,
+        )
 
         start_time = time.monotonic()
 
@@ -326,6 +327,8 @@ class DevOpsService:
                 working_directory=working_dir,
                 task_length=len(task),
                 streaming=side_channel_queue is not None,
+                model=settings.devops_claude_model,
+                effort=settings.devops_claude_effort,
             )
 
             self._emit_progress(side_channel_queue, "🚀 Investigation started", task[:100])
@@ -469,6 +472,8 @@ class DevOpsService:
                 port=port,
                 username=username,
                 task_length=len(task),
+                model=settings.devops_claude_model,
+                effort=settings.devops_claude_effort,
             )
 
             async with asyncssh.connect(**connect_kwargs) as conn:

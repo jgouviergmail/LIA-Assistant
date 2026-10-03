@@ -42,6 +42,10 @@ wheels/
 .tmp-codex/
 apps/api/DeveloppementLIA.tmp-codexpytest-cache/
 .pytest_cache/
+# A run given its own `-o cache_dir=.pytest_cache_<name>` (a parallel session's
+# isolation); one such directory left without read access made every
+# `git status` warn « could not open directory » (2026-10-03).
+.pytest_cache_*/
 .coverage
 htmlcov/
 *.cover

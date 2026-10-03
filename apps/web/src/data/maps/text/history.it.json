@@ -1740,8 +1740,8 @@
     },
     "329": {
       "title": "Una parola di attivazione addestrata, sentita nel browser, e uno standby Live che non fattura nulla",
-      "summary": "LIA si risveglia con una frase riconosciuta interamente nel browser da un piccolo modello addestrato per la sua lingua, senza la condizione tecnica che teneva il vecchio «OK Guy» inglese lontano dall'iPhone e dalle app native; «Stop» interrompe la sua voce. Il primo modello, «Dis LIA» in francese, è distribuito in beta perché il suo banco non raggiunge ancora le soglie pubblicate, e le altre lingue mantengono il tocco. In modalità Live, un silenzio mette l'assistente in standby: la connessione con il fornitore si chiude, non viene più fatturato nulla, e un tocco o la frase la riattiva senza perdere la conversazione.",
-      "src": "c2b699b7c2d6"
+      "summary": "LIA si risveglia con una frase riconosciuta interamente nel browser da un piccolo modello addestrato per la sua lingua, senza la condizione tecnica che teneva il vecchio «OK Guy» inglese lontano dall'iPhone e dalle app native; «LIA, stop» interrompe la sua voce. Il primo modello, «Dis LIA» in francese, è distribuito in beta perché il suo banco non raggiunge ancora le soglie pubblicate, e le altre lingue mantengono il tocco. In modalità Live, un silenzio mette l'assistente in standby: la connessione con il fornitore si chiude, non viene più fatturato nulla, e un tocco o la frase la riattiva senza perdere la conversazione.",
+      "src": "79e44bd43109"
     },
     "330": {
       "title": "Media serviti senza lavoro a runtime: illustrazioni pregenerate, un video dichiarato dall'operatore",

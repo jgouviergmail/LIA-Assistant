@@ -19,6 +19,7 @@ import { BlogPreviewSection } from '@/components/landing/BlogPreviewSection';
 import { ChangelogSection } from '@/components/landing/ChangelogSection';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 import { LandingEyes } from '@/components/landing/LandingEyes';
+import { AttentionBackdrop } from '@/components/landing/cosmic/AttentionBackdrop';
 import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosDay } from '@/components/landing/cosmic/CosmosDay';
@@ -123,9 +124,11 @@ export default async function HomePage({ params }: HomePageProps) {
       {/* Product funnel (ADR-178 Phase 4, anonymous allowed) — inert unless enabled */}
       <TrackView event="landing_view" />
 
-      <div className="landing-page cosmos">
+      <div className="landing-page cosmos cosmos-attention cosmos-home">
         <CosmosDarkFirst />
         <CosmicBackdrop />
+        {/* Animated « attention + latent space » layer, landing only. */}
+        <AttentionBackdrop />
         <CosmosThemeDefault />
 
         {/* Skip to content */}

@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 2.2
-**Date** : 2026-10-02
-**Application** : LIA v2.3.0
+**Date** : 2026-10-03
+**Application** : LIA v2.4.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Lignes de source (hors tests) — 54 domaines fonctionnels | **800 000+** |
 | Tests automatisés, exécutés à chaque commit et livraison | **48 000+** |
 | Décisions d'architecture documentées (ADR) | **330** |
-| Versions livrées à rythme régulier | **274** |
+| Versions livrées à rythme régulier | **275** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -64,8 +64,9 @@ Trois décisions structurantes, parmi les 330 documentées :
 
 Un système qu'on pilote aux instruments :
 
-- **Observabilité** : trente et un tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 600 métriques ; journaux structurés centralisés qui ne gardent que des faits, jamais les mots des personnes ; traçage distribué de bout en bout. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration. Et l'assistant lit lui-même cette télémétrie : auto-contrôle périodique, mémoire d'incidents diagnostiqués sur la base de ces procédures, réponses qui contournent une panne connue. Et un diagnostic montre les preuves dont il est issu. Et les instruments descendent jusqu'aux processus : chaque worker de l'API publie ce qu'il tient en mémoire, si bien qu'un total de conteneur se lit processus par processus.
+- **Observabilité** : trente et un tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 600 métriques ; journaux structurés centralisés ; traçage distribué de bout en bout — journaux, métriques et traces ne gardent que des faits, jamais les mots ni les noms des personnes. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration. Et l'assistant lit lui-même cette télémétrie : auto-contrôle périodique, mémoire d'incidents diagnostiqués sur la base de ces procédures, réponses qui contournent une panne connue. Et un diagnostic montre les preuves dont il est issu. Et les instruments descendent jusqu'aux processus : chaque worker de l'API publie ce qu'il tient en mémoire, si bien qu'un total de conteneur se lit processus par processus.
 - **Livraison** : déploiement conteneurisé, migrations de schéma automatisées, images publiées pour deux architectures matérielles (amd64/arm64).
+- **Chaîne logicielle** : chaque brique du serveur épinglée par son empreinte et inventoriée à chaque version ; une veille hebdomadaire lit les alertes de sécurité que publie chacune des dépendances — y compris celles qu'aucune base publique ne relaie — et une mise à jour attend un délai de prudence, sans jamais revenir en arrière ; chaque version s'installe sur des machines vierges avant d'être publiée.
 - **Coûts** : infrastructure frugale par choix — environ 150 € de matériel, zéro licence, briques open-source dimensionnées au besoin réel.
 - **Conformité** : sécurité revue point d'accès par point d'accès ; chiffrement des données personnelles ; cycle de vie des comptes aligné sur le RGPD.
 
@@ -93,7 +94,7 @@ Le plan d'action est organisé en vagues, chacune avec des critères de sortie m
 
 Cette exigence a une conséquence que le projet a apprise à ses dépens : **une suite de tests verte ne prouve pas qu'une fonctionnalité marche**. Elle prouve que ce qui a été testé se comporte comme écrit. Les défauts qui survivent aux portes sont précisément ceux qu'on ne leur a jamais demandé de voir — une capacité que personne n'appelle, un chiffre que personne n'additionne, une garde qui reconnaît un nom plutôt qu'un mécanisme. Ce ne sont presque jamais des fautes de code : ce sont des questions qui n'avaient jamais été posées.
 
-D'où une règle de travail : **rien n'est cru avant d'avoir tourné**, sur des données réelles et par le chemin que l'utilisateur emprunte. Un composant peut être juste et sa page vide ; un compteur peut être exact et sa question fausse. Chaque livraison se termine donc par une relecture adverse, menée à froid, dont le but n'est pas de dérouler les tests mais de chercher ce qu'ils ne couvrent pas.
+D'où une règle de travail : **rien n'est cru avant d'avoir tourné**, sur des données réelles et par le chemin que l'utilisateur emprunte. Un composant peut être juste et sa page vide ; un compteur peut être exact et sa question fausse. Chaque livraison se termine donc par une relecture adverse, menée à froid, dont le but n'est pas de dérouler les tests mais de chercher ce qu'ils ne couvrent pas. Et les parcours de l'interface tournent à chaque livraison sous Chromium, puis chaque semaine sous Firefox et WebKit, avec un contrôle d'accessibilité automatique : un moteur de navigateur de plus voit ce que les autres laissent passer.
 
 Ce que cette relecture produit ne s'arrête pas au correctif. Chaque défaut trouvé laisse derrière lui une **garde structurelle** — un contrôle au démarrage, un invariant vérifié en continu, un test qui échoue si la classe entière du problème réapparaît. C'est la seule forme de progrès qui survive à celui qui l'a écrite : le correctif protège une ligne, la garde protège la règle.
 

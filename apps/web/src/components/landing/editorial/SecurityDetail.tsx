@@ -1,5 +1,13 @@
 import Link from 'next/link';
-import { BadgeCheck, Database, Landmark, Lock, ShieldCheck } from 'lucide-react';
+import {
+  Activity,
+  BadgeCheck,
+  Database,
+  Landmark,
+  Lock,
+  PackageCheck,
+  ShieldCheck,
+} from 'lucide-react';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
 import type { Translate } from './FeatureCatalog';
@@ -9,6 +17,11 @@ import type { Translate } from './FeatureCatalog';
  * 04's catalog (reusing the localized `landing.security.*` copy ×6). Chapter
  * 04 carries the trust narrative; this block keeps every detail one click
  * away — and crawlable, since the disclosure keeps its content in the DOM.
+ *
+ * The blocks run from design to operation: what the account controls, how the
+ * architecture and the encryption protect it, what privacy rules hold, how a
+ * version is built and verified, and how production is watched. An even count,
+ * so the two-column grid closes on a full row.
  */
 
 const SECURITY_BLOCKS = [
@@ -16,6 +29,8 @@ const SECURITY_BLOCKS = [
   { key: 'bff', icon: Landmark },
   { key: 'encryption', icon: Lock },
   { key: 'gdpr', icon: ShieldCheck },
+  { key: 'supply_chain', icon: PackageCheck },
+  { key: 'operations', icon: Activity },
 ] as const;
 
 /**
@@ -38,8 +53,11 @@ const STANDARDS = [
   'OAuth 2.1 + PKCE',
   'OpenTelemetry',
   'Prometheus / OpenMetrics',
+  'CycloneDX SBOM',
+  'ISO/IEC 25010',
   'Keep a Changelog',
   'SemVer 2.0',
+  'Conventional Commits',
   'WCAG 2.2 AA',
 ] as const;
 

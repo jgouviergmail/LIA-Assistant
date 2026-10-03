@@ -580,6 +580,57 @@ Describe "deploy-prod.ps1 -DryRun" {
 }
 
 # ============================================================================
+# DevOps Claude CLI authentication (2026-10-02) -- the CLI runs on its OWN
+# token from .env.prod. The deploy used to scp the developer's
+# ~/.claude/.credentials.json: one OAuth session on two machines, dead on the
+# server at the first refresh on the workstation, while `claude auth status`
+# still read loggedIn.
+# ============================================================================
+Describe "deploy-prod.ps1 DevOps CLI token" {
+    It "never copies a developer's Claude session file (static)" {
+        $src = Get-Content (Join-Path $RepoDeployDir "deploy-prod.ps1") -Raw
+        $src | Should -Not -Match 'scp[^\r\n]*\.credentials\.json' `
+            -Because "a copied session dies at the first refresh on either machine"
+    }
+
+    It "warns when DevOps is on without CLAUDE_CODE_OAUTH_TOKEN" {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "devops-no-token")
+        $bin = New-ShimSet (Join-Path $TestDrive "devops-no-token")
+        Add-Content (Join-Path $proj ".env.prod") "`nDEVOPS_ENABLED=true"
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-DryRun") `
+            -EnvOverrides @{ SSH_MODE = "ok" }
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -Match "CLAUDE_CODE_OAUTH_TOKEN"
+    }
+
+    It "stays silent when the token is set" {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "devops-token")
+        $bin = New-ShimSet (Join-Path $TestDrive "devops-token")
+        Add-Content (Join-Path $proj ".env.prod") "`nDEVOPS_ENABLED=true`nCLAUDE_CODE_OAUTH_TOKEN=sk-test-token"
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-DryRun") `
+            -EnvOverrides @{ SSH_MODE = "ok" }
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -Not -Match "CLAUDE_CODE_OAUTH_TOKEN"
+    }
+
+    It "stays silent when DevOps is off, and a commented token is no token" {
+        $proj = New-DeploySandbox (Join-Path $TestDrive "devops-off")
+        $bin = New-ShimSet (Join-Path $TestDrive "devops-off")
+        Add-Content (Join-Path $proj ".env.prod") "`nDEVOPS_ENABLED=false`n# CLAUDE_CODE_OAUTH_TOKEN="
+        $r = Invoke-DeployProd -Proj $proj -ShimBin $bin -Arguments @("-DryRun") `
+            -EnvOverrides @{ SSH_MODE = "ok" }
+        $r.Output | Should -Not -Match "DEVOPS_ENABLED sans"
+
+        $proj2 = New-DeploySandbox (Join-Path $TestDrive "devops-commented")
+        $bin2 = New-ShimSet (Join-Path $TestDrive "devops-commented")
+        Add-Content (Join-Path $proj2 ".env.prod") "`nDEVOPS_ENABLED=true`n# CLAUDE_CODE_OAUTH_TOKEN=sk-test-token"
+        $r2 = Invoke-DeployProd -Proj $proj2 -ShimBin $bin2 -Arguments @("-DryRun") `
+            -EnvOverrides @{ SSH_MODE = "ok" }
+        $r2.Output | Should -Match "DEVOPS_ENABLED sans"
+    }
+}
+
+# ============================================================================
 # Hermetic real run, stopped at the remote-deploy step — the local bundle and
 # the ssh/scp/rsync sequence are then inspectable (PROD not yet deleted)
 # ============================================================================

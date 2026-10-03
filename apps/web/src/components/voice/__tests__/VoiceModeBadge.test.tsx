@@ -141,8 +141,8 @@ describe('VoiceModeBadge', () => {
     expect(startRecording).toHaveBeenCalledTimes(1);
   });
 
-  it('names the stop word beside the phrase when the model ships it', () => {
-    useVoiceMode.mockReturnValue(vm({ stopWord: 'Stop' }));
+  it('names the stop command beside the phrase when the model ships it', () => {
+    useVoiceMode.mockReturnValue(vm({ stopWord: 'LIA, stop' }));
     renderWithProviders(<VoiceModeBadge onTranscription={vi.fn()} />);
     expect(
       screen.getByRole('button', { name: 'chat.voice_mode.hint_listening_stop' })

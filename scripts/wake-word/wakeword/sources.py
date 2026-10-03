@@ -38,12 +38,31 @@ VOXCPM_REVISION = "32279effe8c19989596f05d353d1447f51d9e915"
 #: ``speech_embedding``, Apache-2.0): pinned to the release the 0.6.0 package names.
 _OWW_RELEASE = "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1"
 _MUSAN = "https://openslr.elda.org/resources/17/musan.tar.gz"
-#: How many training shards of a Multilingual LibriSpeech language are used:
-#: evenly spaced in name order (speakers spread, reproducible from the revision).
-#: Measured 2026-10-01 on French: 20 shards (~49 h) left the dev false accepts
-#: RISING through training, to 14/h at the strictest threshold — the classifier
-#: memorised too few negatives; 120 (~290 h) is the next measurement.
-_MLS_TRAIN_SHARDS = 120
+#: A Multilingual LibriSpeech language's TRAINING split is shared speaker by
+#: speaker (shard names start with the speaker id), each speaker capped so no
+#: voice dominates. Measured 2026-10-02 on French: 120 evenly spaced shards held
+#: 60 of its 142 speakers, and the five largest voices were 66 % of their 222 h
+#: — the classifier learnt five people's speech more than the language (20
+#: shards, ~49 h, had left the dev false accepts RISING to 14/h: the amount
+#: matters too). Speakers are ranked by how much they recorded and one in
+#: ``_MLS_DEV_EVERY``, the largest first, goes to the DEV ("devx": voices no
+#: training shard holds, so the dev false accepts are counted on voices the
+#: model never heard, like the test's); every other speaker is trained on.
+#: Ranked, not taken in name order: 91 of the 142 recorded less than half an
+#: hour, and one in four by name gave five voices 61 % of the dev's hours.
+_MLS_DEV_EVERY = 4
+#: About how many bytes of MLS shards hold an hour of speech — the caps are
+#: counted in bytes, the only size the Hub states (measured 2026-10-02 on
+#: French: 12.89 GB of shards decoded to 217.9 h of 16 kHz audio).
+_MLS_BYTES_PER_HOUR = 58_000_000
+#: What one speaker gives at most: fifteen hours to the training (French: 106
+#: speakers, about 233 h, the five largest 29 %), two to the dev (36 speakers,
+#: about 22 h, beside the official dev's 10). Five hours (121 h) was measured
+#: 2026-10-02: fewer false accepts on music and English, but the dev's rose
+#: earlier in training and the test recall fell at the same false accepts
+#: (clean 74 % against 80 %) — the amount of speech matters as much as its voices.
+_MLS_TRAIN_BYTES_PER_SPEAKER = 15 * _MLS_BYTES_PER_HOUR
+_MLS_DEV_BYTES_PER_SPEAKER = 2 * _MLS_BYTES_PER_HOUR
 _CHUNK = 1 << 20
 
 
@@ -131,9 +150,15 @@ def _next_page(link: str) -> str | None:
     return None
 
 
-def _mls_remote(directory: str, path: str) -> Remote:
+def _mls_speaker(path: str) -> str:
+    """The speaker of an MLS shard: its file name starts with the speaker id."""
+    return path.rsplit("/", 1)[-1].split("_", 1)[0]
+
+
+def _mls_remote(directory: str, path: str, role: str | None = None) -> Remote:
+    """A shard of the hub, named in the lock by the role it serves (its split by default)."""
     shard = path.rsplit("/", 1)[-1]
-    split = path.split("/")[2]
+    split = role or path.split("/")[2]
     return Remote(
         f"mls/{directory}/{split}/{shard}",
         f"{_HF}/datasets/facebook/multilingual_librispeech/resolve/{MLS_REVISION}/{path}",
@@ -142,24 +167,67 @@ def _mls_remote(directory: str, path: str) -> Remote:
     )
 
 
+def _capped(shards: list[tuple[str, int]], cap: int) -> list[str]:
+    """A speaker's shards, smallest first, while they fit in ``cap`` bytes (one at least).
+
+    Smallest first: more of the speaker's books for the same hours, and the cap
+    holds — in name order, a first shard of nearly four hours overran a cap of
+    one and a half.
+    """
+    taken: list[str] = []
+    total = 0
+    for path, size in sorted(shards, key=lambda shard: (shard[1], shard[0])):
+        if taken and total + size > cap:
+            break
+        taken.append(path)
+        total += size
+    return taken
+
+
+def mls_balanced(shards: list[tuple[str, int]]) -> tuple[list[str], list[str]]:
+    """The training split's ``(path, bytes)`` shards shared out: ``(trained, dev)``.
+
+    Speakers ranked by how much they recorded (then by id); one in
+    ``_MLS_DEV_EVERY``, the largest first, gives the dev its shards, every
+    other one the training — each under its cap.
+    """
+    by_speaker: dict[str, list[tuple[str, int]]] = {}
+    for path, size in shards:
+        by_speaker.setdefault(_mls_speaker(path), []).append((path, size))
+    ranked = sorted(
+        by_speaker, key=lambda speaker: (-sum(size for _, size in by_speaker[speaker]), speaker)
+    )
+    trained: list[str] = []
+    held: list[str] = []
+    for rank, speaker in enumerate(ranked):
+        if rank % _MLS_DEV_EVERY == 0:
+            held.extend(_capped(by_speaker[speaker], _MLS_DEV_BYTES_PER_SPEAKER))
+        else:
+            trained.extend(_capped(by_speaker[speaker], _MLS_TRAIN_BYTES_PER_SPEAKER))
+    return sorted(trained), sorted(held)
+
+
 def mls_remotes_from_hub(directory: str) -> dict[str, list[Remote]]:
     """The MLS shards a language uses, listed at the pinned revision (lock time only).
 
-    Every dev and test shard (the held-out measurement), and a spread subset of
-    the training shards: one in every N, in name order, so the speakers vary
-    and the choice is reproducible from the revision alone.
+    Every dev and test shard (the held-out measurement), and the training split
+    shared speaker by speaker (``mls_balanced``): the trained speakers' shards,
+    and ``devx`` — dev shards of the speakers no training shard holds. The
+    choice is reproducible from the revision alone.
     """
     chosen: dict[str, list[Remote]] = {}
     repo = "datasets/facebook/multilingual_librispeech"
     for split in ("train", "dev", "test"):
         files = sorted(
-            item["path"]
+            (str(item["path"]), int(item["size"]))
             for item in _hub_listing(repo, MLS_REVISION, f"data/{directory}/{split}/audio")
         )
-        if split == "train":
-            stride = max(1, len(files) // _MLS_TRAIN_SHARDS)
-            files = files[::stride][:_MLS_TRAIN_SHARDS]
-        chosen[split] = [_mls_remote(directory, path) for path in files]
+        if split != "train":
+            chosen[split] = [_mls_remote(directory, path) for path, _ in files]
+            continue
+        trained, held = mls_balanced(files)
+        chosen["train"] = [_mls_remote(directory, path) for path in trained]
+        chosen["devx"] = [_mls_remote(directory, path, "devx") for path in held]
     return chosen
 
 
@@ -184,6 +252,20 @@ def read_lock() -> dict[str, Any]:
         return {"remotes": {}}
     lock: dict[str, Any] = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
     return lock
+
+
+def forget_unselected(lock: dict[str, Any], prefix: str, selected: set[str]) -> list[str]:
+    """Drop the lock's entries under ``prefix`` the code no longer selects; their names.
+
+    ``prepare`` reads the lock, not the selection: a shard left in it after the
+    selection moved would still be decoded and trained on.
+    """
+    stale = sorted(
+        name for name in lock["remotes"] if name.startswith(prefix) and name not in selected
+    )
+    for name in stale:
+        del lock["remotes"][name]
+    return stale
 
 
 def write_lock(lock: dict[str, Any]) -> None:

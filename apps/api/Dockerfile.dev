@@ -151,7 +151,7 @@ RUN set -eux; \
 # Auth is persisted via Docker volume (~/.claude/)
 # CLAUDE.md workspace is mounted via docker-compose
 # The version of Dockerfile.prod (see why it is pinned there).
-ARG CLAUDE_CODE_VERSION=2.1.285
+ARG CLAUDE_CODE_VERSION=2.1.287
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
     && mkdir -p /opt/claude-workspace
 

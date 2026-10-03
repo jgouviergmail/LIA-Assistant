@@ -24,16 +24,16 @@ describe('wake phrases', () => {
   });
 });
 
-describe('stop words', () => {
-  it('names one word per interface language, never the phrase itself', () => {
+describe('stop commands', () => {
+  it('names one command per interface language: LIA, then the word — never the wake phrase', () => {
     expect(Object.keys(STOP_WORDS).sort()).toEqual([...languages].sort());
     for (const language of languages) {
-      expect(STOP_WORDS[language].trim()).not.toBe('');
-      expect(STOP_WORDS[language]).not.toContain('LIA');
+      expect(STOP_WORDS[language]).toMatch(/^LIA[,，] ?\S/);
+      expect(STOP_WORDS[language]).not.toBe(WAKE_PHRASES[language]);
     }
   });
 
-  it('reads the word of a regional variant, and none for a language without a shipped model', () => {
+  it('reads the command of a regional variant, and none for a language without a shipped model', () => {
     expect(stopWordOf('fr-CH')).toBe(STOP_WORDS.fr);
     expect(stopWordOf('pt')).toBeNull();
     for (const language of languages) {

@@ -250,7 +250,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |----------|-------------|--------|
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack Prometheus/Grafana/Loki/Tempo | ✅ |
 | [METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) | 500+ métriques documentées | ✅ |
-| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 30 dashboards Grafana | ✅ |
+| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 31 dashboards Grafana | ✅ |
 | [GUIDE_OBSERVABILITY.md](./guides/GUIDE_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
 | [GRAFANA_LANGFUSE_DASHBOARD.md](./technical/GRAFANA_LANGFUSE_DASHBOARD.md) | Intégration Grafana + Langfuse | ✅ |
 | [ALERTING.md](./technical/ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
@@ -574,7 +574,7 @@ section ne référence.
 | Technologie | Usage |
 |-------------|-------|
 | Prometheus | 500+ métriques |
-| Grafana | 30 dashboards |
+| Grafana | 31 dashboards |
 | Loki | Logs agrégés |
 | Tempo | Traces distribuées |
 | Langfuse | LLM observability |

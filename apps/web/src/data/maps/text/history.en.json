@@ -1740,8 +1740,8 @@
     },
     "329": {
       "title": "A trained wake word heard in the browser, and a Live standby that bills nothing",
-      "summary": "LIA wakes on a phrase recognised entirely in the browser by a small model trained for its language, without the technical condition that kept the old English \"OK Guy\" off the iPhone and the native apps; \"Stop\" cuts her voice. The first model, \"Dis LIA\" in French, ships in beta because its bench does not yet reach the published thresholds, and the other languages keep the tap. In a Live session, silence puts the assistant on standby: the connection to the provider closes, nothing more is billed, and a tap or the phrase wakes it without losing the conversation.",
-      "src": "c2b699b7c2d6"
+      "summary": "LIA wakes on a phrase recognised entirely in the browser by a small model trained for its language, without the technical condition that kept the old English \"OK Guy\" off the iPhone and the native apps; \"LIA, stop\" cuts her voice. The first model, \"Dis LIA\" in French, ships in beta because its bench does not yet reach the published thresholds, and the other languages keep the tap. In a Live session, silence puts the assistant on standby: the connection to the provider closes, nothing more is billed, and a tap or the phrase wakes it without losing the conversation.",
+      "src": "79e44bd43109"
     },
     "330": {
       "title": "Media served without runtime work: pre-generated illustrations, a video the operator declares",

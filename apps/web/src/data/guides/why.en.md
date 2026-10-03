@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.1
-**Date**: 2026-10-02
-**Application**: LIA v2.3.0
+**Date**: 2026-10-03
+**Application**: LIA v2.4.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -148,7 +148,7 @@ Wikipedia, page browsing, places, weather and air quality ask nothing of you: yo
 LIA offers a complete voice mode:
 
 - **Push-to-Talk**: hold the microphone button to speak, optimized for mobile
-- **"Dis LIA", heard in your browser**: hands-free detection runs **entirely on your device** — no audio is transmitted until the phrase is heard — and "Stop" cuts LIA's voice while it reads an answer. This wake word exists in French for now, in beta: its recognition is still improving; in the other languages, a tap is enough
+- **"Dis LIA", heard in your browser**: hands-free detection runs **entirely on your device** — no audio is transmitted until the phrase is heard — and "LIA, stop" cuts LIA's voice while it reads an answer. This wake word exists in French for now, in beta: its recognition is still improving; in the other languages, a tap is enough
 - **Voice synthesis**: three admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), or ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Telegram voice messages**: send audio messages, LIA transcribes and responds
 - **Live mode**: a real-time, voice-to-voice conversation on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and hands every request to LIA, which runs it as an ordinary chat turn while you speak; a direct session lets the voice read your data itself and act on nothing. What the provider bills is shown to you, never recorded. A silence no longer closes a session: it puts it on standby — connection closed, nothing billed — until a tap wakes it with LIA's context; ending it is always yours.
@@ -181,7 +181,7 @@ A browsing agent (Playwright/Chromium headless) can navigate websites, click, fi
 
 ### 3.8. Server administration (DevOps)
 
-By installing Claude CLI (Claude Code) directly on the server, administrators can diagnose their infrastructure in natural language from LIA's chat: check Docker logs, verify container health, monitor disk space, analyze errors. This feature is restricted to administrator accounts.
+By installing Claude CLI (Claude Code) directly on the server, administrators can diagnose their infrastructure in natural language from LIA's chat: check Docker logs, verify container health, monitor disk space, analyze errors. This feature is restricted to administrator accounts. The CLI runs on the model and effort the administrator chooses, with its own access token.
 
 And LIA also watches **itself**: it reads its own telemetry, keeps a history of incidents diagnosed automatically from its operations runbooks, notifies administrators when something critical opens, and gives them a "Platform health" panel in the settings. When an outage is known, it factors it into its answers instead of letting you wait for a timeout.
 
@@ -479,11 +479,11 @@ LIA ships with production-grade observability:
 | **Prometheus** | System and business metrics |
 | **Grafana** | Real-time monitoring dashboards |
 | **Tempo** | End-to-end distributed tracing |
-| **Loki** | Structured log aggregation |
+| **Loki** | Structured log aggregation, collected by Grafana Alloy |
 | **Langfuse** | Specialized LLM call tracing |
 | **Alertmanager** | Email alerts on vital signals, linked runbooks |
 
-Every request is traced end-to-end, every LLM call is measured, every error is contextualized. This isn't monitoring bolted on as an afterthought — it's a **foundational architectural decision** documented across the project's Architecture Decision Records.
+Every request is traced end-to-end, every LLM call is measured, every error is contextualized. This isn't monitoring bolted on as an afterthought — it's a **foundational architectural decision** documented across the project's Architecture Decision Records. And measurement names no one: a metric or a trace designates the route taken by its pattern, never the name or the search an address contains — the logging rule, applied to the instruments. The whole monitoring stack runs on supported versions, pinned by digest.
 
 That demand reaches down to the machine. A server is several processes, and "the container uses five gigabytes" does not say which one holds what: every LIA process therefore publishes what it holds in memory itself, a dashboard draws it process by process, an alert names the one that overflows — and what a process loads was measured on the target machine before being touched, never assumed.
 
@@ -523,7 +523,7 @@ LIA does not ask to be trusted on its word. The frameworks it follows are writte
 
 ### 9.1. What regulation requires
 
-**Privacy is designed into the architecture, not certified by a slogan.** Your account data lives in the database of the LIA instance you use; if you self-host, you control that server. You can export it as readable Markdown, structured JSON and files, or request its deletion; secret material is deliberately not exported. Credentials are encrypted, sessions are isolated, and the server's technical logs keep only facts — counts, codes, identifiers — never your words: a test reads every logging line in the code to make sure of it. Whether a particular deployment meets every GDPR duty still depends on how it is operated and which providers it uses.
+**Privacy is designed into the architecture, not certified by a slogan.** Your account data lives in the database of the LIA instance you use; if you self-host, you control that server. You can export it as readable Markdown, structured JSON and files, or request its deletion; secret material is deliberately not exported. Credentials are encrypted, sessions are isolated, and the server's technical logs keep only facts — counts, codes, identifiers — never your words: a test reads every logging line in the code to make sure of it, and the metrics and traces name no one either. Whether a particular deployment meets every GDPR duty still depends on how it is operated and which providers it uses.
 
 **LIA keeps records even where a law does not require this personal use case to do so.** Article 12 of the EU AI Act addresses high-risk systems; LIA's action, consultation, decision, model-parameter and integrity records are a deliberate transparency choice, not a claim of high-risk certification. They can be exported and are removed with the account, subject to the documented limits of what each record captures.
 
@@ -543,13 +543,15 @@ LIA does not ask to be trusted on its word. The frameworks it follows are writte
 | **Prometheus / OpenMetrics** | Metrics exposed in an open format, not locked inside a dashboard |
 | **WCAG 2.2 AA** | The accessibility level targeted, and checked automatically |
 | **SemVer 2.0** and **Keep a Changelog** | Version numbers that mean something, and a changelog you can read |
+| **CycloneDX** (SBOM) | The exact inventory of what every version contains, published with it |
+| **Conventional Commits** | A change history readable by a person as well as a machine |
 | **AGPL-3.0** | The complete source, auditable, modifiable — and required to stay that way |
 
 Open standards rather than a house protocol: what LIA speaks, another tool can speak — and what it promises can be checked against a text somebody else wrote.
 
 ### 9.3. What makes those guarantees checkable
 
-A guarantee you cannot check is not one. The project's technical audit is public — scoring grid, method, strengths and owned weaknesses, and the protocol to replay it. Every architecture decision is written down and indexed. Every protection is backed by a test that fails if the protection disappears. And the nightly database backup comes with a restore procedure that has actually been run, not merely written. When code scanning reports a weakness, the answer targets its whole class rather than the alert: the fix arrives with a guard that fails if the same class reappears elsewhere, and the scanning also covers the deployed scripts, the infrastructure and the workflows.
+A guarantee you cannot check is not one. The project's technical audit is public — a scoring grid aligned on ISO/IEC 25010, method, strengths and owned weaknesses, and the protocol to replay it. Every architecture decision is written down and indexed. Every protection is backed by a test that fails if the protection disappears. And the nightly database backup comes with a restore procedure that has actually been run, not merely written. What enters the software is watched the same way: every building block of the server is pinned by its digest, a weekly watch reads the security advisories each dependency publishes — including those no public database relays —, an update waits out a cooling-off period and never moves backwards, and every version, inventoried, is installed on blank machines before it is published. When code scanning reports a weakness, the answer targets its whole class rather than the alert: the fix arrives with a guard that fails if the same class reappears elsewhere, and the scanning also covers the deployed scripts, the infrastructure and the workflows.
 
 ## 10. Radical openness
 

@@ -7,6 +7,12 @@ room (no impulse-response corpus is needed, so none has to be licensed), mixed
 with a real background (music, noise, babble) or coloured noise at a random
 signal-to-noise ratio, lightly distorted, and brought to a random level.
 
+Competing speech is part of the backgrounds (the language's and English
+speech), never a step of its own: one to three summed voices at 0-15 dB, mixed
+into 30 % of every window and added to the negatives, made the model timid —
+measured 2026-10-02, 9.6 points of clean recall lost on the dev for no gain at
+10 dB, the same on the stop command.
+
 Everything draws from the generator it is handed, so a set is reproducible.
 """
 

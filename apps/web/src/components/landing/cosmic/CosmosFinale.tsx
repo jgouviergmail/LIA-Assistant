@@ -22,7 +22,7 @@ export function CosmosFinale({ lng }: { lng: string }) {
   return (
     <section
       aria-labelledby="cosmos-cta-title"
-      className="landing-section relative overflow-clip pt-24 text-center"
+      className="cosmos-finale landing-section relative overflow-clip pt-24 text-center"
     >
       <GhostWord wordKey="landing.cosmos.ghost.cta" direction={1} className="cosmos-ghost-high" />
       <div className="relative z-10 max-w-3xl mx-auto px-4">

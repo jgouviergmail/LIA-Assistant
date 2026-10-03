@@ -1181,7 +1181,7 @@ Run it after any Capacitor upgrade or any CSP change.
 - A live session sleeps instead of ending, and the wake word speaks the person's language (ADR-329): `docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md` — asleep, no provider connection and nothing billed, only the person ends it;
   a wake re-renders the setup and opens a NEW connection; one trained phrase per interface language, run by ONNX Runtime Web
   in a worker without isolation (`lib/audio/wake-word/`), every model file held to its manifest; Sherpa's wake word is gone.
-  A stop word per language cuts LIA's voice (a second classifier, `commands` in the manifest); training: `docs/technical/WAKE_WORD_TRAINING.md`.
+  A stop command per language (« LIA, stop ») cuts LIA's voice (a second classifier, `commands` in the manifest); training: `docs/technical/WAKE_WORD_TRAINING.md`.
 - Landing media served without runtime work (ADR-330): blog illustrations are pre-generated static variants
   (`scripts/build-article-images.mjs`, one guard per slug), never the image optimizer; the landing video is the
   OPERATOR's — `LANDING_MEDIA_BASE_URL` names a `manifest.json` directory read at request time, no section without

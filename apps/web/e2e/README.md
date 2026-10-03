@@ -68,12 +68,17 @@ the official Playwright image sharing that container's network namespace, so
 
 ```bash
 docker run --rm --network container:lia-web-dev \
-  -v "//d/Developpement/LIA/apps/web/e2e:/e2e" -w /e2e \
+  -v "//d/Developpement/LIA:/repo" -w /repo/apps/web/e2e \
   mcr.microsoft.com/playwright:v1.63.0-noble \
   sh -c "npm ci --no-audit --no-fund && npx playwright test --reporter=list"
 ```
 
 (On Git Bash, prefix with `MSYS_NO_PATHCONV=1` so the mount path is not rewritten.)
+
+The WHOLE repository is mounted, not `e2e/` alone: some specs read their fixtures
+outside the package (`smoke/chat-contact-photos.spec.ts` the API's contact-card
+corpus, `smoke/dashboard-radio.spec.ts` the station's music under `public/`), and
+with `e2e/` alone they fail to load (`ENOENT`, measured 2026-10-03).
 
 The default `baseURL` is `https://localhost:3000` with `ignoreHTTPSErrors` (the
 dev cert is self-signed). Override with `E2E_BASE_URL` to target another server.
@@ -103,12 +108,12 @@ docker exec -u node lia-web-dev sh -c "cd /monorepo/apps/web \
   && rm -rf .next-e2e/standalone/apps/web/.next-e2e/static .next-e2e/standalone/apps/web/public \
   && cp -r .next-e2e/static .next-e2e/standalone/apps/web/.next-e2e/static \
   && cp -r public .next-e2e/standalone/apps/web/public"
-docker exec -d -u node -e NODE_ENV=production lia-web-dev sh -c \
+docker exec -d -u node -e NODE_ENV=production -e LANDING_MEDIA_BASE_URL= lia-web-dev sh -c \
   "cd /monorepo/apps/web && PORT=3100 HOSTNAME=0.0.0.0 node .next-e2e/standalone/apps/web/server.js \
   > /tmp/e2e-standalone.log 2>&1 & echo \$! > /tmp/e2e-standalone.pid; wait"
 
 docker run --rm --network container:lia-web-dev -e E2E_BASE_URL=http://127.0.0.1:3100 \
-  -v "//d/Developpement/LIA/apps/web/e2e:/e2e" -w /e2e \
+  -v "//d/Developpement/LIA:/repo" -w /repo/apps/web/e2e \
   mcr.microsoft.com/playwright:v1.63.0-noble \
   sh -c "npm ci --no-audit --no-fund && npx playwright test --reporter=list"
 ```
@@ -121,6 +126,13 @@ refused — the recurring IPv6-first trap on this codebase).
 `NEXT_PUBLIC_*` value is baked into the bundle, and the dev container exports
 an absolute API host — measured 2026-09-20, ten chunks carried it, so browser
 traffic would leave the origin the suite intercepts on.
+
+`LANDING_MEDIA_BASE_URL=` (blank) on the SERVER, as `task test:e2e` sets it:
+the server reads it at request time, and a dev container may export the
+operator's real media host — measured 2026-10-03, every desktop landing load
+then streamed the real clip for 15 s before `networkidle`, and the six-locale
+header journey ran past its 90 s budget. The specs that need a video declare
+their own (`smoke/landing-video.spec.ts`).
 
 If the build dies while generating static pages on `ENOMEM: not enough memory,
 write` — with memory and disk to spare — the Windows bind mount is giving way
@@ -179,7 +191,7 @@ docker exec -u node -e NODE_ENV=production -e NEXT_DIST_DIR=.next-e2e \
 # then the static/public copy + PORT=3100 server start, as above, and:
 MSYS_NO_PATHCONV=1 docker run --rm --network container:lia-web-dev \
   -e E2E_BASE_URL=http://127.0.0.1:3100 -e E2E_SHOWROOM=1 \
-  -v "//d/Developpement/LIA/apps/web/e2e:/e2e" -w /e2e \
+  -v "//d/Developpement/LIA:/repo" -w /repo/apps/web/e2e \
   mcr.microsoft.com/playwright:v1.63.0-noble \
   sh -c "npm ci --no-audit --no-fund && npx playwright test \
     smoke/public-demo-showroom.spec.ts a11y/axe-public-demo-showroom.spec.ts --reporter=list"

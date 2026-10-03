@@ -17,9 +17,9 @@ Each server entry supports:
   - description: str — server description for the LLM planner
 
 Not implemented: a ``max_turns`` entry is accepted by the JSON parser but is
-NEVER forwarded to the CLI — neither ``_build_claude_args`` nor the streaming
-variant emits ``--max-turns``, so the CLI applies its own internal default and
-setting this key bounds nothing. It is documented here as absent rather than
+NEVER forwarded to the CLI — ``_build_claude_args``, which builds the arguments
+of both execution modes, does not emit ``--max-turns``, so the CLI applies its
+own internal default and setting this key bounds nothing. It is documented here as absent rather than
 silently ignored: an operator reading the previous version of this docstring
 could reasonably believe iterations were capped by configuration.
 """
@@ -30,12 +30,15 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    DEVOPS_CLAUDE_EFFORT_DEFAULT,
+    DEVOPS_CLAUDE_MODEL_DEFAULT,
     DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS_DEFAULT,
     DEVOPS_DEFAULT_COMMAND_TIMEOUT,
     DEVOPS_DEFAULT_MAX_OUTPUT_CHARS,
     DEVOPS_DEFAULT_SSH_TIMEOUT,
     DEVOPS_RATE_LIMIT_CALLS_DEFAULT,
     DEVOPS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    DevOpsClaudeEffort,
 )
 
 
@@ -49,6 +52,22 @@ class DevOpsSettings(BaseSettings):
     devops_servers: str = Field(
         default="[]",
         description="JSON array of server configurations.",
+    )
+    devops_claude_model: str = Field(
+        default=DEVOPS_CLAUDE_MODEL_DEFAULT,
+        min_length=1,
+        description=(
+            "Model every Claude CLI run is started with (`--model`): a full model "
+            "name or a CLI alias. Sent explicitly so the run does not depend on "
+            "the CLI account's own default."
+        ),
+    )
+    devops_claude_effort: DevOpsClaudeEffort = Field(
+        default=DEVOPS_CLAUDE_EFFORT_DEFAULT,
+        description=(
+            "Reasoning effort every Claude CLI run is started with (`--effort`), "
+            "on the CLI's own ladder."
+        ),
     )
     devops_ssh_timeout: int = Field(
         default=DEVOPS_DEFAULT_SSH_TIMEOUT,

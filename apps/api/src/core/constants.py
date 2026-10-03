@@ -6090,6 +6090,12 @@ DEVOPS_DEFAULT_SSH_TIMEOUT: int = 30
 DEVOPS_DEFAULT_COMMAND_TIMEOUT: int = 300
 DEVOPS_DEFAULT_MAX_OUTPUT_CHARS: int = 50000
 DEVOPS_CLAUDE_OUTPUT_FORMAT: str = "json"
+DEVOPS_CLAUDE_STREAM_OUTPUT_FORMAT: str = "stream-json"
+# Model and effort every DevOps CLI run is started with (`--model`, `--effort`).
+# Without them the CLI runs whatever its own account default is that day.
+DEVOPS_CLAUDE_MODEL_DEFAULT: str = "claude-opus-5-5"
+DevOpsClaudeEffort = Literal["low", "medium", "high", "xhigh", "max"]  # the CLI's `--effort` ladder
+DEVOPS_CLAUDE_EFFORT_DEFAULT: DevOpsClaudeEffort = "low"
 DEVOPS_DEFAULT_ALLOWED_TOOLS: tuple[str, ...] = ("Read", "Grep", "Glob", "Bash")
 
 # Tool-level rate limiting (per-user sliding window, @rate_limit decorator).

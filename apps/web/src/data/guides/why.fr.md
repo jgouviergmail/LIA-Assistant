@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 6.1
-**Date** : 2026-10-02
-**Application** : LIA v2.3.0
+**Date** : 2026-10-03
+**Application** : LIA v2.4.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -148,7 +148,7 @@ Wikipédia, la navigation de pages, les lieux, la météo et la qualité de l'ai
 LIA propose un mode vocal complet :
 
 - **Push-to-Talk** : maintiens le bouton microphone pour parler, optimisé pour le mobile
-- **« Dis LIA », entendu dans ton navigateur** : la détection mains libres tourne **entièrement sur ton appareil** — aucun son n'est transmis tant que la phrase n'est pas entendue — et « Stop » coupe la voix de LIA quand elle lit une réponse. Ce mot d'activation existe pour l'instant en français, en bêta : sa reconnaissance s'améliore encore ; dans les autres langues, un toucher suffit
+- **« Dis LIA », entendu dans ton navigateur** : la détection mains libres tourne **entièrement sur ton appareil** — aucun son n'est transmis tant que la phrase n'est pas entendue — et « LIA, stop » coupe la voix de LIA quand elle lit une réponse. Ce mot d'activation existe pour l'instant en français, en bêta : sa reconnaissance s'améliore encore ; dans les autres langues, un toucher suffit
 - **Synthèse vocale** : trois providers configurables côté admin — Edge TTS (gratuit), OpenAI TTS (`tts-1` / `tts-1-hd`) ou ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Messages vocaux Telegram** : envoie des messages audio, LIA les transcrit et répond
 - **Mode Live** : une conversation en temps réel, de vive voix, sur un modèle live que tu connectes avec **ta propre clé** — Gemini Live, GPT-Live ou un agent ElevenLabs. La voix tient la conversation et confie chaque demande à LIA, qui la traite comme un tour de chat ordinaire pendant que tu parles ; une session directe laisse la voix lire tes données elle-même sans agir sur rien. Ce que le fournisseur facture t'est montré, jamais enregistré. Un silence ne clôt plus une session : il la met en veille — connexion fermée, rien de facturé — jusqu'à ce qu'un toucher la réveille avec le contexte de LIA ; c'est toujours toi qui la termines.
@@ -181,7 +181,7 @@ Un agent de navigation (Playwright/Chromium headless) peut naviguer sur des site
 
 ### 3.8. Administration serveur (DevOps)
 
-En installant Claude CLI (Claude Code) directement sur le serveur, les administrateurs peuvent diagnostiquer leur infrastructure en langage naturel depuis le chat de LIA : consulter les logs Docker, vérifier la santé des conteneurs, surveiller l'espace disque, analyser les erreurs. Cette fonctionnalité est réservée aux comptes administrateurs.
+En installant Claude CLI (Claude Code) directement sur le serveur, les administrateurs peuvent diagnostiquer leur infrastructure en langage naturel depuis le chat de LIA : consulter les logs Docker, vérifier la santé des conteneurs, surveiller l'espace disque, analyser les erreurs. Cette fonctionnalité est réservée aux comptes administrateurs. Le CLI tourne sur le modèle et l'effort que l'administrateur choisit, avec son propre jeton d'accès.
 
 Et LIA se surveille aussi **elle-même** : elle lit sa propre télémétrie, tient un historique d'incidents diagnostiqués automatiquement à partir de ses runbooks d'exploitation, notifie les administrateurs quand quelque chose de critique s'ouvre, et leur offre un panneau « Santé de la plateforme » dans les réglages. Quand une panne est connue, elle en tient compte dans ses réponses au lieu de te laisser attendre un délai d'expiration.
 
@@ -479,11 +479,11 @@ LIA embarque une observabilité de grade production :
 | **Prometheus** | Métriques système et métier |
 | **Grafana** | Dashboards de monitoring temps réel |
 | **Tempo** | Traces distribuées de bout en bout |
-| **Loki** | Agrégation de logs structurés |
+| **Loki** | Agrégation de logs structurés, collectés par Grafana Alloy |
 | **Langfuse** | Tracing spécialisé des appels LLM |
 | **Alertmanager** | Alertes e-mail sur les signaux vitaux, runbooks liés |
 
-Chaque requête est tracée de bout en bout, chaque appel LLM est mesuré, chaque erreur est contextualisée. Ce n'est pas du monitoring ajouté après coup — c'est une **décision architecturale fondamentale** documentée dans les Architecture Decision Records du projet.
+Chaque requête est tracée de bout en bout, chaque appel LLM est mesuré, chaque erreur est contextualisée. Ce n'est pas du monitoring ajouté après coup — c'est une **décision architecturale fondamentale** documentée dans les Architecture Decision Records du projet. Et la mesure ne nomme personne : une métrique ou une trace désigne la route empruntée par son modèle, jamais le nom ou la recherche qu'une adresse contient — la règle des journaux, appliquée aux instruments. Toute la pile de supervision tourne sur des versions maintenues, épinglées par empreinte.
 
 Cette exigence descend jusqu'à la machine. Un serveur est plusieurs processus, et « le conteneur consomme cinq gigaoctets » ne dit pas lequel tient quoi : chaque processus de LIA publie donc lui-même ce qu'il tient en mémoire, un tableau de bord le trace processus par processus, une alerte nomme celui qui déborde — et ce qu'un processus charge a été mesuré sur la machine cible avant d'être touché, jamais supposé.
 
@@ -523,7 +523,7 @@ LIA ne demande pas qu'on lui fasse confiance sur parole. Les cadres qu'elle suit
 
 ### 9.1. Ce que la réglementation exige
 
-**La protection des données se conçoit dans l'architecture, elle ne se certifie pas par une formule.** Les données de ton compte vivent dans la base de l'instance LIA que tu utilises ; si tu l'auto-héberges, tu maîtrises ce serveur. Tu peux les exporter en Markdown, JSON et fichiers, ou demander leur suppression ; les secrets ne sont volontairement pas exportés. Les identifiants sont chiffrés, les sessions isolées, et les journaux techniques du serveur ne gardent que des faits — nombres, codes, identifiants —, jamais tes mots : un test lit chaque ligne de journal du code pour le garantir. Le respect de chaque obligation du RGPD dépend aussi de l'exploitation de l'instance et des fournisseurs choisis.
+**La protection des données se conçoit dans l'architecture, elle ne se certifie pas par une formule.** Les données de ton compte vivent dans la base de l'instance LIA que tu utilises ; si tu l'auto-héberges, tu maîtrises ce serveur. Tu peux les exporter en Markdown, JSON et fichiers, ou demander leur suppression ; les secrets ne sont volontairement pas exportés. Les identifiants sont chiffrés, les sessions isolées, et les journaux techniques du serveur ne gardent que des faits — nombres, codes, identifiants —, jamais tes mots : un test lit chaque ligne de journal du code pour le garantir, et les métriques comme les traces ne nomment personne. Le respect de chaque obligation du RGPD dépend aussi de l'exploitation de l'instance et des fournisseurs choisis.
 
 **LIA conserve des traces même quand la loi ne l'impose pas à cet usage personnel.** L'article 12 du règlement européen sur l'IA vise les systèmes à haut risque ; les registres des actions, consultations, décisions, paramètres des modèles et lacunes sont un choix de transparence, pas une certification. Ils sont exportables et supprimés avec le compte, dans les limites documentées de ce que chaque registre couvre.
 
@@ -543,13 +543,15 @@ LIA ne demande pas qu'on lui fasse confiance sur parole. Les cadres qu'elle suit
 | **Prometheus / OpenMetrics** | Des métriques exposées dans un format ouvert, pas enfermées dans un tableau de bord |
 | **WCAG 2.2 AA** | Le niveau d'accessibilité visé, et vérifié automatiquement |
 | **SemVer 2.0** et **Keep a Changelog** | Des numéros de version qui veulent dire quelque chose, et un journal des changements lisible |
+| **CycloneDX** (SBOM) | L'inventaire exact de ce que contient chaque version, publié avec elle |
+| **Conventional Commits** | Un historique des changements lisible par un humain comme par une machine |
 | **AGPL-3.0** | Le code source complet, auditable, modifiable — et qui doit le rester |
 
 Des standards ouverts plutôt qu'un protocole maison : ce que LIA parle, un autre outil peut le parler — et ce qu'elle promet se vérifie contre un texte écrit par d'autres.
 
 ### 9.3. Ce qui rend ces garanties vérifiables
 
-Une garantie qu'on ne peut pas contrôler n'en est pas une. L'audit technique du projet est public — grille de notation, méthode, points forts et faiblesses assumées, et le protocole pour le rejouer. Chaque décision d'architecture est écrite et indexée. Chaque protection est adossée à un test qui échoue si la protection disparaît. Et la sauvegarde nocturne de la base s'accompagne d'une procédure de restauration réellement exécutée, pas seulement rédigée. Quand l'analyse de code signale une faiblesse, la réponse vise sa classe entière plutôt que l'alerte : la correction arrive avec une garde qui échoue si la même classe réapparaît ailleurs, et l'analyse couvre aussi les scripts déployés, l'infrastructure et les workflows.
+Une garantie qu'on ne peut pas contrôler n'en est pas une. L'audit technique du projet est public — grille de notation alignée sur l'ISO/IEC 25010, méthode, points forts et faiblesses assumées, et le protocole pour le rejouer. Chaque décision d'architecture est écrite et indexée. Chaque protection est adossée à un test qui échoue si la protection disparaît. Et la sauvegarde nocturne de la base s'accompagne d'une procédure de restauration réellement exécutée, pas seulement rédigée. Ce qui entre dans le logiciel est surveillé de la même façon : chaque brique du serveur est épinglée par son empreinte, une veille hebdomadaire lit les alertes de sécurité que publie chacune des dépendances — y compris celles qu'aucune base publique ne relaie —, une mise à jour attend un délai de prudence sans jamais revenir en arrière, et chaque version, inventoriée, s'installe sur des machines vierges avant d'être publiée. Quand l'analyse de code signale une faiblesse, la réponse vise sa classe entière plutôt que l'alerte : la correction arrive avec une garde qui échoue si la même classe réapparaît ailleurs, et l'analyse couvre aussi les scripts déployés, l'infrastructure et les workflows.
 
 ## 10. Ouverture radicale
 

@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 2.2
-**Date**: 2026-10-02
-**Application**: LIA v2.3.0
+**Date**: 2026-10-03
+**Application**: LIA v2.4.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Source lines (excluding tests) — 54 functional domains | **800,000+** |
 | Automated tests, run on every commit and release | **48,000+** |
 | Documented architecture decisions (ADR) | **330** |
-| Versions shipped at a steady pace | **274** |
+| Versions shipped at a steady pace | **275** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -64,8 +64,9 @@ Three structural decisions, among the 330 documented:
 
 A system flown on instruments:
 
-- **Observability**: thirty-one dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 600 metrics; centralized structured logs that keep facts, never people's words; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration. And the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage. And a diagnosis shows the evidence it was written from. And the instruments reach the processes themselves: each API worker publishes what it holds in memory, so a container total can be read process by process.
+- **Observability**: thirty-one dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 600 metrics; centralized structured logs; end-to-end distributed tracing — logs, metrics and traces keep facts only, never people's words or names. Some forty written operating procedures — diagnosis, remediation, restoration. And the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage. And a diagnosis shows the evidence it was written from. And the instruments reach the processes themselves: each API worker publishes what it holds in memory, so a container total can be read process by process.
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
+- **Supply chain**: every building block of the server pinned by its digest and inventoried with every version; a weekly watch reads the security advisories each dependency publishes — including those no public database relays — and an update waits out a cooling-off period, never moving backwards; every version is installed on blank machines before it is published.
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
 - **Compliance**: security reviewed endpoint by endpoint; personal data encrypted; account lifecycle aligned with the GDPR.
 
@@ -93,7 +94,7 @@ The action plan is organized in waves, each with measurable exit criteria. That 
 
 That requirement carries a consequence the project learned the hard way: **a green test suite does not prove a feature works**. It proves that what was tested behaves as written. The defects that survive the gates are exactly the ones the gates were never asked about — a capability nobody calls, a figure nobody adds up, a guard that recognises a name rather than a mechanism. These are almost never coding mistakes: they are questions that had never been asked.
 
-Hence a working rule: **nothing is believed until it has run**, against real data and along the path a user takes. A component can be correct and its page empty; a counter can be exact and its question wrong. Every release therefore ends with an adversarial review, conducted cold, whose purpose is not to run the tests but to look for what they do not cover.
+Hence a working rule: **nothing is believed until it has run**, against real data and along the path a user takes. A component can be correct and its page empty; a counter can be exact and its question wrong. Every release therefore ends with an adversarial review, conducted cold, whose purpose is not to run the tests but to look for what they do not cover. And the interface journeys run on Chromium with every release, then every week on Firefox and WebKit, with an automated accessibility check: one more browser engine sees what the others let through.
 
 What that review produces does not stop at the fix. Every defect found leaves behind a **structural guard** — a start-up check, a continuously verified invariant, a test that fails if the whole class of problem reappears. It is the only kind of progress that outlives the person who wrote it: a fix protects one line, a guard protects the rule.
 

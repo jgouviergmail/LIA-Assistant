@@ -98,11 +98,13 @@ export async function CosmosHero({
             >
               {/* dark:text-red-300: the badge base variant paints an OPAQUE
                   dark:bg-red-900 pill — red-400 on it is 3.48:1 (fails AA),
-                  red-300 measures ≈5.3:1. */}
+                  red-300 measures ≈5.3:1. Light: red-800, because the pill is
+                  only a 10 % tint over the nebula's glow — red-700 measured
+                  4.18:1 there (2026-10-03), red-800 computes to ≈5.2:1. */}
               <Badge
                 pulse
                 variant="destructive"
-                className="bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30"
+                className="bg-red-500/10 text-red-800 dark:text-red-300 border-red-500/30"
               >
                 {t('landing.hero.badge_beta')}
               </Badge>
@@ -122,7 +124,7 @@ export async function CosmosHero({
 
             <h1
               {...rise(RISE_DELAYS.title)}
-              className="cosmos-rise text-4xl sm:text-5xl mobile:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6"
+              className="cosmos-rise cosmos-hero-title text-4xl sm:text-5xl mobile:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] mb-6"
             >
               <span className="block">{t('landing.hero.title_line1')}</span>
               <span className="block">
@@ -195,7 +197,15 @@ export async function CosmosHero({
           <div {...rise(RISE_DELAYS.mockup)} className="cosmos-rise w-full min-w-0">
             <div className={planetarium ? 'cosmos-orbit-zone' : 'grid place-items-center'}>
               {planetarium && <Planetarium />}
-              <div className="relative z-10 w-full min-w-0 rounded-2xl bg-background">
+              {/* The backing hides the orbits behind the mockup; with no planetarium
+                  there is nothing to hide, so nothing is drawn. */}
+              <div
+                className={
+                  planetarium
+                    ? 'cosmos-hero-demo relative z-10 w-full min-w-0'
+                    : 'relative z-10 w-full min-w-0'
+                }
+              >
                 <InteractiveChatMockup lng={lng} withCta={false} />
               </div>
             </div>

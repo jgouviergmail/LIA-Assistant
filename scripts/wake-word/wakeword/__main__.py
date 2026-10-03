@@ -7,13 +7,14 @@ Commands, in the order a language is built:
 - ``synth``     synthesise the phrase and its near misses with Piper (CPU);
 - ``clone``     the same in natural voices with VoxCPM2 (GPU image only);
 - ``train``     compute the features and train the classifier;
-- ``measure``   measure recall and false accepts on held-out audio;
+- ``measure``   measure recall and false accepts on held-out audio (``--threshold``
+                certifies another operating point than the dev's);
 - ``export``    write the model, the shared stages and the manifest to ``/out``;
 - ``golden``    write the web engine's parity fixture (the exported model) to ``/fixtures``;
 - ``selfcheck`` hold the feature code to openWakeWord, the reference;
 - ``all``       every step above but ``lock``, in order.
 
-``--keyword stop`` builds the language's stop word instead of its phrase (the
+``--keyword stop`` builds the language's stop command instead of its phrase (the
 same voices and corpora, so ``lock`` and ``prepare`` serve both); ``golden``
 covers the phrase alone.
 """
@@ -37,8 +38,15 @@ def _lock(language: str, _keyword: Keyword) -> None:
         remotes.extend(sources.voice_remotes(voice))
     remotes.extend(sources.fleurs_remotes(spec.fleurs).values())
     if spec.mls:
-        for shards in sources.mls_remotes_from_hub(spec.mls).values():
-            remotes.extend(shards)
+        selected = [
+            shard for shards in sources.mls_remotes_from_hub(spec.mls).values() for shard in shards
+        ]
+        remotes.extend(selected)
+        forgotten = sources.forget_unselected(
+            lock, f"mls/{spec.mls}/", {shard.name for shard in selected}
+        )
+        if forgotten:
+            print(f"lock: {len(forgotten)} MLS shards no longer selected, forgotten")
     for remote in remotes:
         sources.lock_remote(remote, lock)
         sources.write_lock(lock)
@@ -81,10 +89,10 @@ def _train(language: str, keyword: Keyword) -> None:
     train.train(spec_of(language, keyword))
 
 
-def _measure(language: str, keyword: Keyword) -> None:
+def _measure(language: str, keyword: Keyword, threshold: float | None = None) -> None:
     from wakeword import measure
 
-    measure.measure(spec_of(language, keyword))
+    measure.measure(spec_of(language, keyword), threshold)
 
 
 def _export(language: str, keyword: Keyword) -> None:
@@ -126,10 +134,18 @@ def main() -> None:
     parser.add_argument("command", choices=[*_COMMANDS, "all"])
     parser.add_argument("--lang", default="fr")
     parser.add_argument("--keyword", choices=KEYWORDS, default="wake")
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        help="measure: certify this operating point instead of the dev's choice",
+    )
     args = parser.parse_args()
     if args.command == "all":
         for step in ("prepare", "synth", "train", "measure", "export"):
             _COMMANDS[step](args.lang, args.keyword)
+        return
+    if args.command == "measure":
+        _measure(args.lang, args.keyword, args.threshold)
         return
     _COMMANDS[args.command](args.lang, args.keyword)
 

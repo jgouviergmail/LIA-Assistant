@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { GithubIcon } from '@/components/icons/GithubIcon';
+import { MotionToggle } from '@/components/landing/cosmic/MotionToggle';
 import { initI18next } from '@/i18n';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
@@ -39,7 +40,7 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
   ];
 
   return (
-    <footer className="border-t border-border/40 py-8 mt-12">
+    <footer className="border-t border-border/40 bg-background py-8 mt-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex justify-center mb-6">
@@ -87,6 +88,12 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
             <GithubIcon className="w-3.5 h-3.5" />
             GitHub
           </a>
+        </div>
+
+        {/* The page's pause control (WCAG 2.2.2), at every width: the header
+            only has room for it from `xl`. */}
+        <div className="mt-4 flex justify-center">
+          <MotionToggle withLabel />
         </div>
       </div>
     </footer>

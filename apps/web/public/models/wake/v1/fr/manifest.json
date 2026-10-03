@@ -4,7 +4,7 @@
   "phrase": "Dis LIA",
   "sample_rate": 16000,
   "chunk_samples": 1280,
-  "threshold": 0.998,
+  "threshold": 0.995,
   "patience": 1,
   "refractory_chunks": 25,
   "warmup_chunks": 25,
@@ -20,27 +20,27 @@
       "bytes": 1326578
     },
     "classifier": {
-      "url": "/models/wake/v1/fr/classifier-5c05cbdd76cd.onnx",
-      "sha256": "5c05cbdd76cdc99d296a11e50c6dc4e94a11d901be946444836146fa638fde46",
+      "url": "/models/wake/v1/fr/classifier-0f3de8e183c9.onnx",
+      "sha256": "0f3de8e183c98609064ddc19e8cb7b069af947be7ba99183fcefdad557811b05",
       "bytes": 871612
     }
   },
   "measured": {
-    "recall_clean": 0.8826979472140762,
-    "recall_10db": 0.5002932551319648,
-    "recall_5db": 0.3853372434017595,
+    "recall_clean": 0.8780058651026393,
+    "recall_10db": 0.4950146627565982,
+    "recall_5db": 0.39706744868035193,
     "recall_by_form_clean": {
-      "Dilia": 0.8739,
-      "Dis Lia": 0.8738,
-      "Dis [[ liˈa ]]": 0.9476,
-      "Dis [[ lˈia ]]": 0.906,
-      "Dis, Lia": 0.8292
+      "Dilia": 0.8829,
+      "Dis Lia": 0.859,
+      "Dis [[ liˈa ]]": 0.9355,
+      "Dis [[ lˈia ]]": 0.8932,
+      "Dis, Lia": 0.8375
     },
-    "median_latency_ms": -26,
-    "near_miss_accepts": 0.089,
+    "median_latency_ms": -24,
+    "near_miss_accepts": 0.0845,
     "false_accepts_per_hour": {
-      "speech (language)": 0.499,
-      "speech (English)": 0.817,
+      "speech (language)": 0.333,
+      "speech (English)": 0.726,
       "music": 0.405,
       "noise": 1.52
     },
@@ -54,10 +54,53 @@
       "recall_each_form": false
     }
   },
+  "commands": {
+    "stop": {
+      "phrase": "LIA, stop",
+      "threshold": 0.995,
+      "patience": 1,
+      "refractory_chunks": 25,
+      "warmup_chunks": 25,
+      "classifier": {
+        "url": "/models/wake/v1/fr/stop-classifier-11f5ecf6d557.onnx",
+        "sha256": "11f5ecf6d5570f33444dd8748a30454d5432b82510f3d488f521ec64b426999a",
+        "bytes": 871612
+      },
+      "measured": {
+        "recall_clean": 0.8595912986156888,
+        "recall_10db": 0.5906394199077126,
+        "recall_5db": 0.4396835860250494,
+        "recall_by_form_clean": {
+          "Lia stop": 0.8246,
+          "Lia, stop": 0.802,
+          "Lia, stop stop": 0.9764,
+          "[[ liˈa ]], stop": 0.8242
+        },
+        "median_latency_ms": 10,
+        "near_miss_accepts": 0.2193,
+        "false_accepts_per_hour": {
+          "speech (language)": 0.832,
+          "speech (English)": 1.543,
+          "music": 0.676,
+          "noise": 5.32
+        },
+        "verdict": "no-go",
+        "checks": {
+          "recall_clean": false,
+          "recall_10db": false,
+          "fa_speech": true,
+          "fa_music": true,
+          "latency": true,
+          "recall_each_form": false
+        }
+      },
+      "trained_at": "2026-10-02T22:50:17+00:00"
+    }
+  },
   "provenance": {
     "generator": "scripts/wake-word",
-    "trained_at": "2026-10-01T14:42:45+00:00",
-    "sources_lock_sha256": "789c792dbca3149acc8e63f37e037a48a646f118836a6a39701011c0fc26bbb6",
+    "trained_at": "2026-10-02T22:50:14+00:00",
+    "sources_lock_sha256": "9822308025dd29f9a4218067f4dfd333bd9a7337cddd9261e55e0a5f2a968a8c",
     "voices": [
       "fr_FR-gilles-low (CC0-1.0)",
       "fr_FR-mls-medium (CC-BY-4.0)",
@@ -74,47 +117,5 @@
       "MUSAN (CC-BY-4.0)"
     ],
     "feature_models": "openWakeWord v0.5.1 (Apache-2.0; embedding: Google speech_embedding)"
-  },
-  "commands": {
-    "stop": {
-      "phrase": "Stop",
-      "threshold": 0.95,
-      "patience": 1,
-      "refractory_chunks": 25,
-      "warmup_chunks": 25,
-      "classifier": {
-        "url": "/models/wake/v1/fr/stop-classifier-8ac842cbcde4.onnx",
-        "sha256": "8ac842cbcde47599f46632c03b412ff7113d82b9d3f9ceacb8355083ee7530ad",
-        "bytes": 871612
-      },
-      "measured": {
-        "recall_clean": 0.8277703604806409,
-        "recall_10db": 0.5180240320427236,
-        "recall_5db": 0.417890520694259,
-        "recall_by_form_clean": {
-          "Stop": 0.5842,
-          "Stop stop": 0.9628,
-          "Stop, stop": 0.9717
-        },
-        "median_latency_ms": -6,
-        "near_miss_accepts": 0.0702,
-        "false_accepts_per_hour": {
-          "speech (language)": 2.33,
-          "speech (English)": 3.176,
-          "music": 3.109,
-          "noise": 4.56
-        },
-        "verdict": "no-go",
-        "checks": {
-          "recall_clean": false,
-          "recall_10db": false,
-          "fa_speech": false,
-          "fa_music": false,
-          "latency": true,
-          "recall_each_form": false
-        }
-      },
-      "trained_at": "2026-10-01T17:15:25+00:00"
-    }
   }
 }

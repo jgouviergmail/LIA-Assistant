@@ -72,6 +72,14 @@
     "review_by": "2026-12-31"
   },
   {
+    "kind": "advisory",
+    "subject": "pip:cbor2@6.1.4",
+    "ref": "GHSA-r668-x5f9-3qp8",
+    "reason": "Native recursion in cbor2.dumps() on a deeply nested object. LIA never calls cbor2; its only path is py_webauthn re-encoding what parse_cbor (cbor2.loads) just decoded from a client's authenticator data. Measured on 6.1.4 (2026-10-03, Windows, whose thread stack is smaller than Linux's): loads refuses container nesting past 400, the deepest structure it accepts (arrays 400, maps and tags 399) re-encodes fine, and a cycle built with value-sharing tags 28/29 is detected by dumps (CBOREncodeValueError, turned into InvalidCBORData by py_webauthn). No release patches it yet: take the fix when it ships.",
+    "owner": "maintainer",
+    "review_by": "2026-11-30"
+  },
+  {
     "kind": "end-of-life",
     "subject": "eslint 9",
     "reason": "ESLint 10 is still refused by plugins eslint-config-next depends on (three shrink-only ratchets read them; the workaround of vercel/next.js#89764 was rejected). Lifted when eslint-config-next's plugin chain accepts ESLint 10.",

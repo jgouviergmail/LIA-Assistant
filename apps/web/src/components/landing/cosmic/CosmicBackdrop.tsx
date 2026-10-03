@@ -5,9 +5,15 @@
  * canvas drawn ONCE (no continuous cost), and a film-grain overlay. All layers
  * are decorative (`aria-hidden`) and sit on negative z-index so the page
  * content scrolls over one continuous cosmos.
+ *
+ * Every cosmos page renders it, so it is also where a page load picks up the
+ * viewer's « pause the animations » choice (lib/landing/motion-pause): the
+ * control lives in each page's header, the choice applies to every page.
  */
 
 import { useEffect, useRef } from 'react';
+
+import { restoreMotionPreference } from '@/lib/landing/motion-pause';
 
 const MAX_STARS = 180;
 const STAR_DENSITY_PX_PER_STAR = 8;
@@ -40,6 +46,10 @@ function drawStars(canvas: HTMLCanvasElement): void {
 
 export function CosmicBackdrop() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    restoreMotionPreference();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;

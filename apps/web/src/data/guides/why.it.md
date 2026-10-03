@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione**: 6.1
-**Data**: 2026-10-02
-**Applicazione**: LIA v2.3.0
+**Data**: 2026-10-03
+**Applicazione**: LIA v2.4.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -148,7 +148,7 @@ Wikipedia, la navigazione di pagine, i luoghi, il meteo e la qualità dell'aria 
 LIA offre una modalità vocale completa:
 
 - **Push-to-Talk**: tieni premuto il pulsante microfono per parlare, ottimizzato per il mobile
-- **«Dis LIA», sentito nel tuo browser**: il rilevamento a mani libere gira **interamente sul tuo dispositivo** — nessun audio viene trasmesso finché la frase non viene sentita — e «Stop» interrompe la voce di LIA quando legge una risposta. Questa parola di attivazione esiste per ora in francese, in beta: il suo riconoscimento sta ancora migliorando; nelle altre lingue basta un tocco
+- **«Dis LIA», sentito nel tuo browser**: il rilevamento a mani libere gira **interamente sul tuo dispositivo** — nessun audio viene trasmesso finché la frase non viene sentita — e «LIA, stop» interrompe la voce di LIA quando legge una risposta. Questa parola di attivazione esiste per ora in francese, in beta: il suo riconoscimento sta ancora migliorando; nelle altre lingue basta un tocco
 - **Sintesi vocale**: tre provider configurabili da admin — Edge TTS (gratuito), OpenAI TTS (`tts-1` / `tts-1-hd`) o ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Messaggi vocali Telegram**: invia messaggi audio, LIA li trascrive e risponde
 - **Modalità Live**: una conversazione in tempo reale, a viva voce, su un modello live che colleghi con **la tua chiave** — Gemini Live, GPT-Live o un agente ElevenLabs. La voce tiene la conversazione e affida ogni richiesta a LIA, che la esegue come un normale turno di chat mentre parli; una sessione diretta lascia che la voce legga i tuoi dati da sola senza agire su nulla. Ciò che il fornitore fattura ti è mostrato, mai registrato. Un silenzio non chiude più una sessione: la mette in standby — connessione chiusa, nulla fatturato — finché un tocco non la riattiva con il contesto di LIA; terminarla spetta sempre a te.
@@ -181,7 +181,7 @@ Un agente di navigazione (Playwright/Chromium headless) può navigare su siti we
 
 ### 3.8. Amministrazione server (DevOps)
 
-Installando Claude CLI (Claude Code) direttamente sul server, gli amministratori possono diagnosticare la propria infrastruttura in linguaggio naturale dalla chat di LIA: consultare i log Docker, verificare lo stato dei container, monitorare lo spazio su disco, analizzare gli errori. Questa funzionalità è riservata agli account amministratore.
+Installando Claude CLI (Claude Code) direttamente sul server, gli amministratori possono diagnosticare la propria infrastruttura in linguaggio naturale dalla chat di LIA: consultare i log Docker, verificare lo stato dei container, monitorare lo spazio su disco, analizzare gli errori. Questa funzionalità è riservata agli account amministratore. La CLI gira sul modello e sullo sforzo scelti dall'amministratore, con un proprio token di accesso.
 
 E LIA sorveglia anche **se stessa**: legge la propria telemetria, tiene una cronologia di incidenti diagnosticati automaticamente dai suoi runbook operativi, avvisa gli amministratori quando si apre qualcosa di critico e offre loro un pannello «Salute della piattaforma» nelle impostazioni. Quando un guasto è noto, ne tiene conto nelle risposte invece di lasciarti attendere un timeout.
 
@@ -479,11 +479,11 @@ LIA integra un'osservabilità di grado produzione:
 | **Prometheus** | Metriche di sistema e di business |
 | **Grafana** | Dashboard di monitoraggio in tempo reale |
 | **Tempo** | Tracce distribuite end-to-end |
-| **Loki** | Aggregazione di log strutturati |
+| **Loki** | Aggregazione di log strutturati, raccolti da Grafana Alloy |
 | **Langfuse** | Tracing specializzato delle chiamate LLM |
 | **Alertmanager** | Alert e-mail sui segnali vitali, runbook collegati |
 
-Ogni richiesta viene tracciata end-to-end, ogni chiamata LLM viene misurata, ogni errore è contestualizzato. Non è un monitoraggio aggiunto dopo — è una **decisione architetturale fondamentale** documentata negli Architecture Decision Records del progetto.
+Ogni richiesta viene tracciata end-to-end, ogni chiamata LLM viene misurata, ogni errore è contestualizzato. Non è un monitoraggio aggiunto dopo — è una **decisione architetturale fondamentale** documentata negli Architecture Decision Records del progetto. E la misura non nomina nessuno: una metrica o una traccia indica il percorso seguito dal suo modello, mai il nome o la ricerca che un indirizzo contiene — la regola dei log, applicata agli strumenti. L'intero stack di supervisione gira su versioni mantenute, fissate per impronta.
 
 Questa esigenza scende fino alla macchina. Un server è più processi, e «il container consuma cinque gigabyte» non dice quale trattiene cosa: ogni processo di LIA pubblica quindi da sé ciò che trattiene in memoria, un pannello lo traccia processo per processo, un allarme nomina quello che trabocca — e ciò che un processo carica è stato misurato sulla macchina di destinazione prima di essere toccato, mai supposto.
 
@@ -523,7 +523,7 @@ LIA non chiede di essere creduta sulla parola. I quadri normativi che segue sono
 
 ### 9.1. Ciò che la normativa richiede
 
-**La privacy si progetta nell'architettura, non si certifica con uno slogan.** I dati del tuo account risiedono nel database dell'istanza LIA che usi; se scegli l'auto-hosting, controlli tu quel server. Puoi esportarli o chiederne la cancellazione; i segreti non vengono esportati per scelta. Le credenziali sono cifrate, le sessioni isolate, e i log tecnici del server conservano solo fatti — numeri, codici, identificativi —, mai le tue parole: un test legge ogni riga di log del codice per garantirlo. Il rispetto di tutti gli obblighi del GDPR in una specifica installazione dipende anche dalla gestione e dai fornitori scelti.
+**La privacy si progetta nell'architettura, non si certifica con uno slogan.** I dati del tuo account risiedono nel database dell'istanza LIA che usi; se scegli l'auto-hosting, controlli tu quel server. Puoi esportarli o chiederne la cancellazione; i segreti non vengono esportati per scelta. Le credenziali sono cifrate, le sessioni isolate, e i log tecnici del server conservano solo fatti — numeri, codici, identificativi —, mai le tue parole: un test legge ogni riga di log del codice per garantirlo, e nemmeno le metriche e le tracce nominano qualcuno. Il rispetto di tutti gli obblighi del GDPR in una specifica installazione dipende anche dalla gestione e dai fornitori scelti.
 
 **LIA conserva registri anche quando la legge non li impone a questo uso personale.** L'articolo 12 del regolamento europeo sull'IA riguarda i sistemi ad alto rischio. Registri di azioni, consultazioni, decisioni, parametri dei modelli e lacune sono una scelta di trasparenza, non una certificazione. Si possono esportare e vengono rimossi con l'account, entro i limiti documentati di ciascun registro.
 
@@ -543,13 +543,15 @@ LIA non chiede di essere creduta sulla parola. I quadri normativi che segue sono
 | **Prometheus / OpenMetrics** | Metriche esposte in un formato aperto, non chiuse dentro un cruscotto |
 | **WCAG 2.2 AA** | Il livello di accessibilità perseguito, e verificato automaticamente |
 | **SemVer 2.0** e **Keep a Changelog** | Numeri di versione che significano qualcosa, e un registro delle modifiche leggibile |
+| **CycloneDX** (SBOM) | L'inventario esatto di ciò che contiene ogni versione, pubblicato insieme a essa |
+| **Conventional Commits** | Una cronologia delle modifiche leggibile da una persona come da una macchina |
 | **AGPL-3.0** | Il codice sorgente completo, verificabile, modificabile — e tenuto a restarlo |
 
 Standard aperti anziché un protocollo proprietario: ciò che LIA parla, un altro strumento può parlarlo — e ciò che promette si verifica contro un testo scritto da altri.
 
 ### 9.3. Ciò che rende verificabili queste garanzie
 
-Una garanzia che non si può controllare non è una garanzia. L'audit tecnico del progetto è pubblico — griglia di punteggio, metodo, punti di forza e debolezze assunte, e il protocollo per rieseguirlo. Ogni decisione di architettura è scritta e indicizzata. Ogni protezione è sostenuta da un test che fallisce se la protezione scompare. E al backup notturno del database si accompagna una procedura di ripristino realmente eseguita, non soltanto redatta. Quando l'analisi del codice segnala una debolezza, la risposta punta all'intera classe e non alla sola segnalazione: la correzione arriva con una verifica che fallisce se la stessa classe ricompare altrove, e l'analisi copre anche gli script distribuiti, l'infrastruttura e i workflow.
+Una garanzia che non si può controllare non è una garanzia. L'audit tecnico del progetto è pubblico — griglia di punteggio allineata alla ISO/IEC 25010, metodo, punti di forza e debolezze assunte, e il protocollo per rieseguirlo. Ogni decisione di architettura è scritta e indicizzata. Ogni protezione è sostenuta da un test che fallisce se la protezione scompare. E al backup notturno del database si accompagna una procedura di ripristino realmente eseguita, non soltanto redatta. Ciò che entra nel software è sorvegliato allo stesso modo: ogni componente del server è fissato dalla sua impronta, una sorveglianza settimanale legge gli avvisi di sicurezza che ogni dipendenza pubblica — compresi quelli che nessuna banca dati pubblica riprende —, un aggiornamento attende un periodo di prudenza e non torna mai indietro, e ogni versione, inventariata, viene installata su macchine vergini prima di essere pubblicata. Quando l'analisi del codice segnala una debolezza, la risposta punta all'intera classe e non alla sola segnalazione: la correzione arriva con una verifica che fallisce se la stessa classe ricompare altrove, e l'analisi copre anche gli script distribuiti, l'infrastruttura e i workflow.
 
 ## 10. Apertura radicale
 

@@ -217,3 +217,34 @@ not lowered. The other five languages have no model yet.
 - The stop word ships with the phrase, beta too (its own bench: 83 % clean, `no-go`).
 - The phrases of the five other languages stay declared in `phrases.ts` — they are what the
   toolbox trains next — but nothing names them to a person until their model ships.
+
+## Amendment — 2026-10-03: « LIA, stop », and a phrase tuned to hear
+
+- **The stop command is LIA's name, then the word** (owner decision): « LIA, stop » in French,
+  English and Italian, « LIA, stopp » in German, « LIA, detente » in Spanish, « LIA，停下 » in
+  Chinese. « Stop » alone, one syllable, was found one time in two at best and woke on songs. Each
+  wake phrase learns to ignore its language's command, the command ignores a bare « stop », another
+  name and « Lia, top »; every public text says « LIA, stop », and `shipped-models.test.ts` still
+  holds `STOP_WORDS` equal to the shipped manifest. Its French model: clean 86.0 %, 10 dB 59.1 %
+  at 0.995, its weakest form « Lia, stop » 80.2 %, 0.832 false accepts per hour of French speech
+  — `no-go`, shipped beta with the phrase.
+- **The phrase is tuned to hear, not to stay silent** (owner decision, the « Dis Siri » habit). In
+  use, the model of 2026-10-01 woke on nothing and missed a quick « dilia »: the bench — synthetic
+  voices, unfiltered audio — is pessimistic on false accepts (the browser's noise suppression, echo
+  cancellation and gain control filter the microphone) and optimistic on fast speech. The dev now
+  judges the phrase at the published speech limit itself, not half of it, and the shipped operating
+  point is the production model's sensitivity, certified by the bench (`measure --threshold`):
+  0.995, clean 87.8 %, 10 dB 49.5 % (the previous model: 88.3 % and 50.0 % at 0.998), false
+  accepts per hour 0.333 on French speech, 0.726 on English, 0.405 on music (0.50, 0.82 and
+  0.41 before); it wakes on « Lia, stop » 2 times in 34 (the previous model 3). Judged at the same
+  false-accept limits the two hear alike: what changed is what the phrase does not wake on.
+- **What the training learnt, one measured change at a time**
+  ([WAKE_WORD_TRAINING.md](../technical/WAKE_WORD_TRAINING.md) § 8): the MLS negatives taken speaker
+  by speaker (fifteen hours each at most — 230 h from 106 voices, where five voices were two thirds
+  of 222 h), a dev of 74 h on voices the training never hears, thresholds up to 0.9999, natural
+  voices cloned from training speakers only. A bank or a cache built from other inputs is rebuilt,
+  never read: a bank records the recipe of its plan, a cache the fingerprints of its banks.
+- **VoxCPM2 stays one process**: a second one on the same GPU only time-slices it (0.66 s a clip for
+  two together, 0.48 s alone). The lever is the number of clips.
+- Still open: fast speech by a real voice — the bench's voices are synthetic, and only recordings
+  of real people (measurement only, never training) can measure what the owner meets in use.

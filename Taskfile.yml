@@ -747,6 +747,12 @@ tasks:
       E2E_MANAGED_SERVER: "1"
       E2E_BASE_URL: http://127.0.0.1:3000
       NEXT_PUBLIC_API_URL: ""
+      # The landing's video is the operator's (ADR-330), read by the server at
+      # request time: the `.env` this Taskfile loads may name a real media
+      # host, and the landing then streamed the operator's clip off the
+      # intercepted origin, 15 s per load (measured 2026-10-03). Blank, as in
+      # CI: the specs that need a video declare their own.
+      LANDING_MEDIA_BASE_URL: ""
       E2E_ALL_BROWSERS: "{{.E2E_ALL_BROWSERS}}"
     cmds:
       - npm run typecheck

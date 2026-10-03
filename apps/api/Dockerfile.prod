@@ -336,11 +336,12 @@ RUN mkdir -p /app/data/attachments /app/data/skills/users /app/data/tool_cache /
 # CLAUDE.md workspace is mounted via docker-compose
 # Refresh Node's bundled npm first: its vendored dependencies lag the fixed
 # brace-expansion, ip-address and tar releases even in the newest Node 24 tarball.
-# The CLI is the version Anthropic's `stable` channel named on 2026-10-02 (npm
-# dist-tag `stable`), pinned: installed by root for a non-root runtime, it can
-# never update itself, so an unversioned install only meant a different CLI at
-# each build — 2.1.287, the `latest` of the day, in the image built 2026-10-02.
-ARG CLAUDE_CODE_VERSION=2.1.285
+# The CLI is pinned: installed by root for a non-root runtime, it can never
+# update itself, so an unversioned install only meant a different CLI at each
+# build. 2.1.287 is npm's `latest` of 2026-10-01 and what production already
+# ran (the image built 2026-10-02); the `stable` channel's 2.1.285 would have
+# moved it BACK (ADR-331: a refresh never goes back).
+ARG CLAUDE_CODE_VERSION=2.1.287
 RUN npm install -g npm@12.1.0 \
     && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
     && rm -rf /root/.npm \

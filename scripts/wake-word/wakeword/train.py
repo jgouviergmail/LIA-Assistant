@@ -1,6 +1,8 @@
 """Train one language's classifier on openWakeWord's features (ADR-329).
 
-The data, all computed once and cached under the language's work directory:
+The data, all computed once and cached under the language's work directory
+with the fingerprints of the banks it came from — a bank rebuilt since (other
+shards, other clips) makes a cache stale, and it is computed again:
 
 - **positives** — every training clip of the phrase, augmented three times,
   in a 2-second window it ENDS in (0-200 ms before the end): exactly the 16
@@ -22,8 +24,10 @@ the DEV split: the lowest threshold that holds the dev false accepts under
 held-out training clips PLAYED AS STREAMS (``trials``: clean and at 10 dB), the
 very number the measurement certifies on the test clips — a single window at a
 fixed offset under-read it by a factor of three (measured 2026-10-01: 27 % for
-75 % in a stream). The best checkpoint is kept. The test split is never read
-here.
+75 % in a stream) — together with the recall of the WEAKEST written form, since
+the acceptance holds every form (measured 2026-10-02: « Stop » said once at 58 %
+behind 96 % doubled, while the average looked fine). The best checkpoint is
+kept. The test split is never read here.
 """
 
 from __future__ import annotations
@@ -32,6 +36,7 @@ import copy
 import json
 import logging
 import time
+from collections.abc import Sequence
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Any
@@ -42,8 +47,8 @@ import torch
 from torch import nn
 
 from wakeword import augment as aug
-from wakeword.banks import Bank, Int16Array, bank_exists, open_bank
-from wakeword.corpora import language_bank_names, musan_bank_names
+from wakeword.banks import Bank, Int16Array, bank_exists, bank_fingerprint, open_bank
+from wakeword.corpora import MUSAN_DEV_BANKS, language_bank_names, musan_bank_names
 from wakeword.features import (
     CHUNK,
     EMBEDDING_DIM,
@@ -55,7 +60,7 @@ from wakeword.features import (
 from wakeword.languages import Keyword, LanguageSpec
 from wakeword.paths import CORPORA, language_dir
 from wakeword.sources import feature_models, fetch, read_lock
-from wakeword.trials import Trial, recall, stream
+from wakeword.trials import Trial, form_of, recall, stream
 
 TOTAL_SAMPLES = 32_000
 _COPIES = {"positive": 3, "near_miss": 4}
@@ -78,10 +83,21 @@ _VALIDATE_EVERY = 1_000
 #: The conditions a checkpoint is selected on: the clean phrase and the phrase at
 #: 10 dB, the two recalls the acceptance names.
 _VALIDATION_SNRS: dict[str, float | None] = {"clean": None, "10 dB": 10.0}
-#: The dev false-accept rate the checkpoint is judged at, per keyword: half the
-#: published target (``measure.ACCEPTANCE``), since the test split must hold it too.
-FA_TARGET_PER_HOUR: dict[Keyword, float] = {"wake": 0.25, "stop": 1.0}
-THRESHOLDS = (0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.93, 0.95, 0.97, 0.98, 0.99, 0.995, 0.998, 0.999)
+#: The dev false-accept rate the checkpoint is judged at, per keyword. The phrase
+#: is judged at the published speech limit itself (``measure.ACCEPTANCE``): a
+#: missed « Dis LIA » costs more than a rare false wake (owner decision 2026-10-02,
+#: the « Dis Siri » habit — in use, the shipped model woke on nothing and missed a
+#: quick « dilia », while judged at half the limit a model chose 0.9999 and heard
+#: 74 % of the test clips). The stop command keeps half its limit.
+FA_TARGET_PER_HOUR: dict[Keyword, float] = {"wake": 0.5, "stop": 1.0}
+#: The thresholds a checkpoint is judged at, finer toward the strict end: late
+#: in training the scores saturate, and a checkpoint recalling 93 % of the clips
+#: clean at 0.999 was thrown away for its 1.2 false accepts per dev hour there —
+#: no stricter step existed (measured 2026-10-02, French phrase, step 36 000).
+THRESHOLDS = (
+    *(0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.93, 0.95, 0.97, 0.98, 0.99, 0.995, 0.998, 0.999),
+    *(0.9995, 0.9998, 0.9999),
+)
 _SECONDS_PER_EMBEDDING = CHUNK / 16_000
 _WORKERS = 12
 
@@ -147,11 +163,32 @@ def _embed_batches(fx: FeatureExtractor, batches: Any) -> F16:
     return np.concatenate(out) if out else np.zeros((0, EMBEDDINGS, EMBEDDING_DIM), np.float16)
 
 
-def _cached(path: Path, build: Any) -> Any:
-    if path.exists():
-        return np.load(path, mmap_mode="r")
-    array = build()
-    np.save(path, array)
+def _stamp_of(path: Path) -> Path:
+    return path.with_name(path.name + ".inputs.json")
+
+
+def _inputs(banks: Sequence[str]) -> dict[str, str]:
+    return {name: bank_fingerprint(CORPORA, name) for name in banks}
+
+
+def _current(path: Path, banks: Sequence[str]) -> bool:
+    """A cache is current when it exists and its banks are the ones it was computed from."""
+    stamp = _stamp_of(path)
+    if not (path.exists() and stamp.exists()):
+        return False
+    recorded: dict[str, str] = json.loads(stamp.read_text(encoding="utf-8"))
+    return recorded == _inputs(banks)
+
+
+def _stamp(path: Path, banks: Sequence[str]) -> None:
+    _stamp_of(path).write_text(json.dumps(_inputs(banks), sort_keys=True), encoding="utf-8")
+
+
+def _cached(path: Path, build: Any, banks: Sequence[str]) -> Any:
+    """``build()``'s array, kept in ``path`` while the ``banks`` it reads are unchanged."""
+    if not _current(path, banks):
+        np.save(path, build())
+        _stamp(path, banks)
     return np.load(path, mmap_mode="r")
 
 
@@ -179,38 +216,62 @@ def background_features(fx: FeatureExtractor, backgrounds: list[str], seed: int)
         return _embed_batches(fx, pool.imap(_background, payloads))
 
 
+Forms = npt.NDArray[np.str_]
+#: Per condition: the stream embeddings, each clip's span, and its written form.
+ValidationTrials = dict[str, tuple[F16, F32, F32, Forms]]
+
+
 def validation_trials(
     fx: FeatureExtractor, banks: list[str], backgrounds: list[str], work: Path, seed: int
-) -> dict[str, tuple[F16, F32, F32]]:
+) -> ValidationTrials:
     """The held-out training clips played as streams, embedded once per condition.
 
-    Returns, per condition, the stacked stream embeddings and each clip's span:
-    a checkpoint is then scored on them without touching the audio again.
+    Returns, per condition, the stacked stream embeddings, each clip's span and
+    its written form: a checkpoint is then scored on them without touching the
+    audio again.
     """
     noise = [open_bank(CORPORA, name) for name in backgrounds]
-    out: dict[str, tuple[F16, F32, F32]] = {}
+    out: ValidationTrials = {}
+    inputs = [*banks, *backgrounds]
     for condition, snr in _VALIDATION_SNRS.items():
         path = work / f"trials-{condition.replace(' ', '')}.npz"
-        if not path.exists():
+        if not _current(path, inputs):
             rng = np.random.default_rng(seed + 101)
             frames: list[F16] = []
             starts: list[float] = []
             ends: list[float] = []
+            forms: list[str] = []
             for bank_name in banks:
                 bank = open_bank(CORPORA, bank_name)
                 _, held = _split(bank)
                 for first in range(0, len(held), 128):
-                    streams = [
-                        stream(bank.segment(i), snr, noise, rng) for i in held[first : first + 128]
-                    ]
+                    chunk = held[first : first + 128]
+                    streams = [stream(bank.segment(i), snr, noise, rng) for i in chunk]
                     embedded = fx.embed(np.stack([audio for audio, _, _ in streams]))
                     frames.extend(embedded.astype(np.float16))
                     starts.extend(start for _, start, _ in streams)
                     ends.extend(end for _, _, end in streams)
-            np.savez(path, frames=np.stack(frames), starts=np.array(starts), ends=np.array(ends))
+                    forms.extend(form_of(str(bank.meta[i]["text"])) for i in chunk)
+            np.savez(
+                path,
+                frames=np.stack(frames),
+                starts=np.array(starts),
+                ends=np.array(ends),
+                forms=np.array(forms),
+            )
+            _stamp(path, inputs)
         with np.load(path) as stored:
-            out[condition] = (stored["frames"], stored["starts"], stored["ends"])
+            out[condition] = (stored["frames"], stored["starts"], stored["ends"], stored["forms"])
     return out
+
+
+def _weakest_form(trials: list[Trial], forms: Forms, policy: Policy) -> tuple[str, float]:
+    """The written form the policy finds least often, and its recall."""
+    by_form: dict[str, list[Trial]] = {}
+    for trial, form in zip(trials, forms, strict=True):
+        by_form.setdefault(str(form), []).append(trial)
+    found = [(form, float(recall(items, policy)["recall"])) for form, items in by_form.items()]
+    return min(found, key=lambda pair: pair[1])
 
 
 def trial_scores(net: Net, frames: F16, starts: F32, ends: F32) -> list[Trial]:
@@ -235,7 +296,7 @@ def stream_frames(fx: FeatureExtractor, bank_name: str) -> F16:
         print(f"embedded {bank_name}: {frames.shape[0]} frames in {time.time() - started:.0f}s")
         return frames
 
-    frames: F16 = _cached(path, build)
+    frames: F16 = _cached(path, build, [bank_name])
     return frames
 
 
@@ -381,12 +442,16 @@ def _lr(step: int) -> float:
 def _validate(
     fa_target: float,
     net: Net,
-    trials: dict[str, tuple[F16, F32, F32]],
+    trials: ValidationTrials,
     val_near: F16,
     dev_frames: list[F16],
 ) -> dict[str, Any]:
     dev_scores = [stream_scores(net, frames) for frames in dev_frames]
-    scored = {condition: trial_scores(net, *data) for condition, data in trials.items()}
+    scored = {
+        condition: trial_scores(net, frames, starts, ends)
+        for condition, (frames, starts, ends, _) in trials.items()
+    }
+    forms = trials["clean"][3]
     near = scores_of(net, val_near)
     # Where the strictest threshold stands, whatever holds: a run that will fail
     # shows it from its first validations, on both sides of the trade-off.
@@ -409,11 +474,15 @@ def _validate(
                 condition: round(recall(items, policy)["recall"], 4)
                 for condition, items in scored.items()
             }
+            weakest, weakest_recall = _weakest_form(scored["clean"], forms, policy)
             best = {
                 "threshold": threshold,
-                # The two recalls the acceptance names, weighed alike.
-                "score": round(sum(recalls.values()) / len(recalls), 4),
+                # The recalls the acceptance names, weighed alike: clean, at
+                # 10 dB, and the weakest written form clean.
+                "score": round((sum(recalls.values()) + weakest_recall) / (len(recalls) + 1), 4),
                 **{f"recall {condition}": value for condition, value in recalls.items()},
+                "weakest form": weakest,
+                "recall weakest form": round(weakest_recall, 4),
                 "near_miss_accepts": float(np.mean(near >= threshold)),
                 "dev_false_accepts": detections,
                 "dev_hours": round(hours, 2),
@@ -454,6 +523,7 @@ def train(spec: LanguageSpec, seed: int = 0) -> Path:
                         lambda b=bank_name, i=indices, s=salt: clip_features(
                             fx, b, kind, i, background_banks, s
                         ),
+                        [bank_name, *background_banks],
                     )
                 )
         return np.concatenate(train_parts), np.concatenate(val_parts)
@@ -464,19 +534,24 @@ def train(spec: LanguageSpec, seed: int = 0) -> Path:
         fx, clip_bank_names(spec, "positive", "train"), background_banks, work, seed
     )
     x_background = _cached(
-        work / "x_background.npy", lambda: background_features(fx, background_banks, seed + 5)
+        work / "x_background.npy",
+        lambda: background_features(fx, background_banks, seed + 5),
+        background_banks,
     )
     negative_streams = [
         stream_frames(fx, name)
         for name in [*banks["train"], *(n for n in musan_bank_names() if n.endswith("-train"))]
     ]
-    dev_frames = [stream_frames(fx, name) for name in banks["dev"]]
+    # The dev the checkpoint is chosen on: the language's speech, its music and English.
+    dev_frames = [stream_frames(fx, name) for name in [*banks["dev"], *MUSAN_DEV_BANKS]]
     pool = NegativePool(negative_streams, x_background)
     hours = pool.frames.shape[0] * _SECONDS_PER_EMBEDDING / 3600
+    dev_hours = sum(frames.shape[0] for frames in dev_frames) * _SECONDS_PER_EMBEDDING / 3600
     print(
         f"positives {x_pos.shape[0]} ({trials['clean'][0].shape[0]} validation streams), "
         f"near misses {x_near.shape[0]}, "
-        f"backgrounds {x_background.shape[0]}, negative streams {hours:.1f} h, on {device}"
+        f"backgrounds {x_background.shape[0]}, negative streams {hours:.1f} h, "
+        f"dev {dev_hours:.1f} h, on {device}"
     )
 
     net = Net().to(device)

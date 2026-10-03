@@ -61,9 +61,12 @@ function LandingVideoSlot({
       data-testid="landing-video"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* The slot only reserves the clip's room: the player framed over it
+            draws everything, edges faded and haloed (globals.css, effect C) —
+            a box of its own here would show the rectangle the fade erases. */}
         <div
           ref={frameRef}
-          className="landing-video-slot relative overflow-hidden rounded-2xl border border-border/70 bg-background/80 shadow-sm"
+          className="landing-video-slot relative"
           style={{ aspectRatio: `${ratioW} / ${ratioH}` }}
         />
         <LandingVideoCaption video={video} labels={labels} />

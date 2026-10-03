@@ -299,7 +299,7 @@
     },
     "t.metrics": {
       "name": "Métriques",
-      "role": "Chaque métrique définie dans le code est lue par un panneau, une règle ou une alerte — une métrique que personne ne voit est interdite.",
+      "role": "Chaque métrique définie dans le code est lue par un panneau, une règle ou une alerte — une métrique que personne ne voit est interdite ; ses libellés nomment la route, jamais une personne ni une recherche.",
       "stack": ["Prometheus", "Règles d'enregistrement", "Exporters"]
     },
     "t.dashboards": {
@@ -319,7 +319,7 @@
     },
     "t.tracing": {
       "name": "Traces",
-      "role": "Suivre une requête à travers les couches, et chaque appel de modèle avec ses jetons.",
+      "role": "Suivre une requête à travers les couches, et chaque appel de modèle avec ses jetons ; une trace porte le gabarit de la route, jamais l'adresse concrète.",
       "stack": ["Tempo", "OpenTelemetry", "Langfuse (option)"]
     },
     "t.docker": {

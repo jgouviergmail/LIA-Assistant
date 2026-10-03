@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 5.1
-**Date** : 2026-10-02
-**Application** : LIA v2.3.0
+**Date** : 2026-10-03
+**Application** : LIA v2.4.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -94,7 +94,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Documents de documentation | 716 |
 | ADRs (Architecture Decision Records) | 330 |
 | Métriques Prometheus | 616 définitions |
-| Dashboards Grafana | 30 |
+| Dashboards Grafana | 31 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -866,7 +866,7 @@ La même ouverture s'étend du protocole de communication au **format de paquet*
 
 ### 14.2. Sécurité MCP
 
-HTTPS obligatoire, prévention SSRF (résolution DNS + blocklist IP), chiffrement Fernet des credentials, OAuth 2.1 (DCR + PKCE S256), rate limiting Redis par serveur/outil, API guard 403 sur endpoints proxy pour serveurs désactivés (ADR-061 Layer 3).
+HTTPS obligatoire, prévention SSRF (résolution DNS + blocklist IP), chiffrement Fernet des credentials, OAuth 2.1 (DCR + PKCE S256), rate limiting Redis par serveur/outil, API guard 403 sur endpoints proxy pour serveurs désactivés (ADR-061 Layer 3). Un serveur ajouté ne choisit jamais ce que l'API va chercher : une référence `$ref` distante dans le schéma de résultat d'un outil n'est pas téléchargée, et une redirection n'est suivie que sur l'origine du serveur — quatre tests contre de vrais serveurs locaux tiennent le SDK à cette propriété.
 
 Le flux OAuth applique les exigences d'autorisation 2026-07-28 : le paramètre `iss` (RFC 9207) est validé contre l'issuer enregistré avant l'échange du code d'autorisation, les identifiants client sont liés au serveur d'autorisation émetteur (un changement détecté les écarte et ré-enregistre au lieu d'envoyer des secrets au mauvais interlocuteur), et l'enregistrement dynamique déclare son `application_type`. Chaque règle porte une tolérance explicite pour les enregistrements existants, et refuser l'écran de consentement ramène l'utilisateur à ses réglages avec un message d'information dédié au lieu d'un 422 brut.
 
@@ -884,7 +884,7 @@ Deux faits voyagent avec chaque serveur comme des données, jamais comme de la p
 
 ### 15.1. STT
 
-Wake word « Dis LIA » : l'architecture openWakeWord — un melspectrogramme et un plongement partagés, plus un petit classifieur par phrase — entraînée hors ligne sur voix de synthèse et corpus sous licence permissive, exécutée par ONNX Runtime Web dans un worker (WASM monothread : ni `SharedArrayBuffer` ni isolation, donc aussi sur iOS et dans les coques natives ; zéro envoi externe). Chaque fichier est nommé par son SHA-256 et vérifié avant de tourner ; un second classifieur sur les mêmes plongements entend « Stop » et coupe la lecture. Un banc publie ses seuils avant l'entraînement et ne les abaisse jamais : le modèle français, seul livré, est déclaré **bêta** parce qu'il ne les atteint pas encore, et une garde tient ce statut au verdict du banc dans les deux sens (ADR-329). Transcription Whisper Small (99+ langues, offline) côté backend via ThreadPoolExecutor. Langue STT par utilisateur ; par worker, un cache LRU borné d'`OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, un par défaut) — rien n'est chargé à la construction, la première transcription paie le chargement de sa langue, une éviction rend la mémoire au système, et le nombre résident est publié par worker (`voice_stt_recognizers_loaded`).
+Wake word « Dis LIA » : l'architecture openWakeWord — un melspectrogramme et un plongement partagés, plus un petit classifieur par phrase — entraînée hors ligne sur voix de synthèse et corpus sous licence permissive, exécutée par ONNX Runtime Web dans un worker (WASM monothread : ni `SharedArrayBuffer` ni isolation, donc aussi sur iOS et dans les coques natives ; zéro envoi externe). Chaque fichier est nommé par son SHA-256 et vérifié avant de tourner ; un second classifieur sur les mêmes plongements entend « LIA, stop » et coupe la lecture. Un banc publie ses seuils avant l'entraînement et ne les abaisse jamais : le modèle français, seul livré, est déclaré **bêta** parce qu'il ne les atteint pas encore, et une garde tient ce statut au verdict du banc dans les deux sens (ADR-329). Transcription Whisper Small (99+ langues, offline) côté backend via ThreadPoolExecutor. Langue STT par utilisateur ; par worker, un cache LRU borné d'`OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, un par défaut) — rien n'est chargé à la construction, la première transcription paie le chargement de sa langue, une éviction rend la mémoire au système, et le nombre résident est publié par worker (`voice_stt_recognizers_loaded`).
 
 **Optimisations latence** : réutilisation du flux micro KWS → enregistrement (~200-800 ms économisé), pré-connexion WebSocket, `getUserMedia` + WS parallélisés via `Promise.allSettled`, cache Worklet AudioWorklet.
 
@@ -1017,7 +1017,7 @@ URL → validation SSRF (DNS + IP blocklist) → connexion épinglée sur l'adre
 
 ### 18.2. Browser Control (ADR-059)
 
-Agent ReAct autonome (Playwright Chromium headless). Session pool Redis-backed avec recovery cross-worker. CDP accessibility tree pour interaction par éléments. Anti-détection (Chrome UA, webdriver flag remove, locale/timezone dynamiques). Cookie banner auto-dismiss (20+ sélecteurs multilingues). Rate limiting séparé read/write (40 chacun par session).
+Agent ReAct autonome (Playwright pilotant le Chromium de la distribution, mis à jour avec elle ; un lancement raté est compté). Session pool Redis-backed avec recovery cross-worker. CDP accessibility tree pour interaction par éléments. Anti-détection (Chrome UA, webdriver flag remove, locale/timezone dynamiques). Cookie banner auto-dismiss (20+ sélecteurs multilingues). Rate limiting séparé read/write (40 chacun par session).
 
 ---
 
@@ -1051,10 +1051,11 @@ Design **fail-open** : les échecs d'infrastructure ne bloquent pas les utilisat
 | CSRF | SameSite=Lax |
 | SQL Injection | SQLAlchemy ORM (requêtes paramétrées) |
 | SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser) ; l'installation de skills par URL réutilise le même validateur avec des termes plus stricts : https uniquement, redirections refusées, plafond streamé, deadline totale de transfert, rate limit par utilisateur Le navigateur va plus loin : **chaque requête émise par une page** — redirection, sous-ressource, iframe, XHR — résout sa propre destination derrière un cache de verdicts borné, et un échec interrompt au lieu de laisser passer. Une URL validée part par `pinned_stream` seul : la connexion vise l'adresse que la vérification a résolue (anti *DNS rebinding*), jamais un client qui suit les redirections (ADR-326). |
+| Bombe de décompression | Un corps compressé est décodé par LIA elle-même sous le plafond de lecture (gzip, deflate, zstd) ; un codage qu'elle ne sait pas borner et un flux tronqué sont refusés (ADR-326) |
 | Prompt Injection | Provenance portée par la donnée : 24 types classés (défaut fermé, assert au démarrage), marquage sur les trois surfaces atteignant le LLM, 7 familles de motifs détectées en 6 langues sans jamais réécrire le contenu (ADR-167) ; marqueurs `<external_content>` conservés côté outils |
 | Rate Limiting / spoofing IP | Redis sliding window distribué (Lua atomique) ; chaîne proxy de confiance — ports API bindés loopback (cloudflared = seule entrée), uvicorn `--proxy-headers`, `request.client.host` validé comme unique source d'IP (aucun bucket global partagé, XFF brut jamais lu) Un plafond global précède chaque route sous forme de véritable middleware ASGI adossé à ce même limiteur partagé, de sorte qu'un client seul ne peut consommer toute l'API ; les sondes en sont exemptées pour ne jamais brider la supervision. |
 | Texte hostile (ReDoS) | Les aplatisseurs Markdown/HTML — push, voix, commentaires de ticket, radio, cartes e-mail — s'exécutent sur la boucle d'événements : chaque portée appariée est bornée (`MARKDOWN_SPAN_MAX_CHARS`) et aucun caractère n'appartient à deux classes voisines ; des tests de croissance (n puis 4n) et d'équivalence exhaustive, côté API et navigateur, tiennent la linéarité (ADR-326) |
-| Supply Chain | SHA-pinned GitHub Actions, Dependabot weekly |
+| Supply Chain | Chaque entrée du build épinglée par empreinte (actions GitHub, images, langages, outils) ; veille hebdomadaire des avis publiés par chaque dépendance et des fins de vie, chaque constat corrigé ou accepté par écrit ; rafraîchissement sous délai de prudence, sans retour en arrière, un correctif de sécurité devenant un plancher (ADR-331) ; scan de secrets avant chaque push ; SBOM CycloneDX à chaque release |
 
 ### 19.4. Durabilité des données : sauvegardes automatisées (ADR-109)
 
@@ -1084,7 +1085,7 @@ La provenance est donc une propriété de la **donnée** : chaque type du regist
 
 ### 19.7. Un journal porte des faits, jamais des mots (ADR-317)
 
-Au-dessus du niveau debug, une ligne de journal porte des **faits** — nombres, longueurs, identifiants, codes, l'hôte d'une URL — et jamais le texte qu'une personne a écrit ou qu'un modèle a écrit à son sujet : requêtes, centres d'intérêt, noms de fichiers, de libellés ou d'espaces, pages consultées. La règle est gardée **par la valeur**, pas par le nom du champ : un test lit chaque appel de journal du code et refuse un aperçu (`x[:n]` de ce qui n'est pas un identifiant) ou une valeur dérivée d'un contenu, quel que soit son nom, chaque exception portant sa raison écrite. Ce qu'un texte d'erreur **cite** est retiré par le filtre — le `DETAIL` et le `CONTEXT` de PostgreSQL, les paramètres de SQLAlchemy, l'`input_value` de Pydantic, dans les tracebacks aussi —, une erreur de base est décrite par ses faits (SQLSTATE, contrainte, table), et les clés des fournisseurs sont masquées dans toute URL journalisée, à tous les niveaux. Deux limites sont dites telles quelles : le message d'erreur d'un service externe dans un format inconnu peut encore citer une donnée, et le niveau debug — coupé en production — garde davantage.
+Au-dessus du niveau debug, une ligne de journal porte des **faits** — nombres, longueurs, identifiants, codes, l'hôte d'une URL — et jamais le texte qu'une personne a écrit ou qu'un modèle a écrit à son sujet : requêtes, centres d'intérêt, noms de fichiers, de libellés ou d'espaces, pages consultées. La règle est gardée **par la valeur**, pas par le nom du champ : un test lit chaque appel de journal du code et refuse un aperçu (`x[:n]` de ce qui n'est pas un identifiant) ou une valeur dérivée d'un contenu, quel que soit son nom, chaque exception portant sa raison écrite. Ce qu'un texte d'erreur **cite** est retiré par le filtre — le `DETAIL` et le `CONTEXT` de PostgreSQL, les paramètres de SQLAlchemy, l'`input_value` de Pydantic, dans les tracebacks aussi —, une erreur de base est décrite par ses faits (SQLSTATE, contrainte, table), et les clés des fournisseurs sont masquées dans toute URL journalisée, à tous les niveaux. Deux limites sont dites telles quelles : le message d'erreur d'un service externe dans un format inconnu peut encore citer une donnée, et le niveau debug — coupé en production — garde davantage. Les métriques et les traces suivent la même règle : un libellé de métrique et le nom d'une trace portent le gabarit de la route, jamais l'adresse concrète — un nom dans `/relations/{name}` ne devient ni une série Prometheus ni un attribut exporté à Tempo.
 
 ---
 
@@ -1101,9 +1102,9 @@ L'échéance d'un fichier généré peut être absente : la personne le garde so
 | Technologie | Rôle |
 |-------------|------|
 | Prometheus | 616 métriques custom (RED pattern) |
-| Grafana | 30 dashboards production-ready |
-| Loki | Logs structurés JSON agrégés |
-| Tempo | Traces distribuées cross-service (OTLP gRPC) |
+| Grafana | 31 dashboards production-ready |
+| Loki | Logs structurés JSON agrégés, collectés par Grafana Alloy (même masquage à la collecte) |
+| Tempo | Traces distribuées cross-service (OTLP gRPC), nommées par le gabarit de la route |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
 | Alertmanager | Noyau de 29 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
@@ -1120,7 +1121,7 @@ Les métriques debug persistent dans `sessionStorage` (50 entrées max).
 
 ### 20.3. DevOps Claude CLI (admin uniquement)
 
-Les administrateurs peuvent interagir avec Claude Code CLI directement depuis la conversation LIA pour diagnostiquer les problèmes serveur en langage naturel : *"Regarde les logs pour voir si tout fonctionne"*, *"Vérifie l'espace disque"*, *"Quel container utilise le plus de RAM ?"*. Claude CLI est installé dans le container Docker API et exécuté localement via subprocess, avec accès au Docker socket pour inspecter tous les containers. Les permissions sont configurables par environnement (`--allowedTools`/`--disallowedTools`) et l'accès est restreint aux superusers via un check DB direct. Les sessions sont persistantes pour permettre des investigations multi-tours.
+Les administrateurs peuvent interagir avec Claude Code CLI directement depuis la conversation LIA pour diagnostiquer les problèmes serveur en langage naturel : *"Regarde les logs pour voir si tout fonctionne"*, *"Vérifie l'espace disque"*, *"Quel container utilise le plus de RAM ?"*. Claude CLI est installé dans le container Docker API et exécuté localement via subprocess, avec accès au Docker socket pour inspecter tous les containers. Les permissions sont configurables par environnement (`--allowedTools`/`--disallowedTools`) et l'accès est restreint aux superusers via un check DB direct. Les sessions sont persistantes pour permettre des investigations multi-tours. Chaque exécution part sur le modèle et l'effort fixés par l'administrateur (`DEVOPS_CLAUDE_MODEL`, `DEVOPS_CLAUDE_EFFORT`), par une seule construction des arguments en local comme en SSH, et le CLI s'authentifie avec son propre jeton longue durée (`CLAUDE_CODE_OAUTH_TOKEN`) — jamais avec la copie d'une session de développeur, qu'un rafraîchissement sur l'autre machine invaliderait.
 
 ### 20.4. Un label est un multiplicateur de flux, pas un champ de recherche
 
@@ -1210,12 +1211,14 @@ Sync clés i18n                    Rejeu des migrations (depuis zéro)
 Conflits migration Alembic        Tests frontend + seuils de couverture
 Complétude .env.example           E2E + a11y (Playwright + axe)
 ESLint + TypeScript check         Build Docker · plancher de l'installateur
-                                  ─────────────────────────
+Pre-push : scan de secrets        ─────────────────────────
                                   Security workflow (push, PR, hebdomadaire)
                                     CodeQL (Python + JS)
                                     pip-audit + npm audit
                                     Trivy filesystem scan
                                     SBOM generation
+                                  Veille des dépendances (hebdomadaire, ADR-331)
+                                  Matrice E2E + a11y : Chromium · Firefox · WebKit (hebdomadaire)
 ```
 
 ### 22.2. Standards
@@ -1227,7 +1230,7 @@ ESLint + TypeScript check         Build Docker · plancher de l'installateur
 | Type checking | MyPy | strict mode |
 | Commits | Conventional Commits | `feat(scope):`, `fix(scope):` |
 | Tests | pytest | `asyncio_mode = "auto"` |
-| Coverage | 62 % minimum (ratchet, jamais abaissé) | Imposé en CI |
+| Coverage | Plancher verrouillé (ratchet : relevé après chaque gain, jamais abaissé) | Imposé en CI |
 
 ### 22.3. Builds de dépendances reproductibles
 
@@ -1242,6 +1245,8 @@ même commit produit donc toujours la même image, vérifiable octet par octet.
 Un garde CI fait échouer toute édition de manifeste sans régénération du lock,
 et `pip-audit` ainsi que le SBOM de release lisent le lockfile — l'arbre
 transitif complet est audité et inventorié, pas seulement les paquets déclarés.
+
+Le verrou dit ce qui est installé ; reste à décider **quand une version a le droit d'entrer** (ADR-331). Aucune porte de CI ne voit tout : les avis de sécurité qu'un projet publie dans son propre dépôt n'atteignent pas toujours les bases publiques — la revue en a trouvé vingt —, et une fin de vie ne fait échouer aucun test. Une veille hebdomadaire les lit, avec les registres et le moteur du navigateur, contre une liste d'acceptations datées et motivées : un constat se corrige ou s'accepte par écrit, jamais en silence. Le rafraîchissement attend un délai de prudence compté depuis la version en place — quelques jours pour un correctif, deux semaines pour une mineure, deux mois pour une majeure — et refuse tout recul ; un correctif de sécurité transitif devient un plancher de manifeste. Chaque autre entrée du build de production — images de base, Python, Node, outils globaux, modèle de transcription — est épinglée par version et par empreinte, et une garde sans réseau vérifie qu'une image n'a qu'une référence dans tous les fichiers compose et tous les workflows.
 
 ---
 
@@ -1882,4 +1887,4 @@ Les 330 ADRs documentent non seulement les décisions prises mais aussi les alte
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 330 ADRs, et du changelog (v1.0 à v2.3.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 330 ADRs, et du changelog (v1.0 à v2.4.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

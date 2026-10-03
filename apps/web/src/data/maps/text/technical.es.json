@@ -355,9 +355,9 @@
     },
     "t.metrics": {
       "name": "Métricas",
-      "role": "Cada métrica definida en el código la lee un panel, una regla o una alerta — una métrica que nadie ve está prohibida.",
+      "role": "Cada métrica definida en el código la lee un panel, una regla o una alerta — una métrica que nadie ve está prohibida; sus etiquetas nombran la ruta, nunca a una persona ni una búsqueda.",
       "stack": ["Prometheus", "Reglas de registro", "Exporters"],
-      "src": "b61a7510e414"
+      "src": "bb26e75da82a"
     },
     "t.dashboards": {
       "name": "Dashboards",
@@ -379,9 +379,9 @@
     },
     "t.tracing": {
       "name": "Trazas",
-      "role": "Seguir una petición a través de las capas, y cada llamada a un modelo con sus tokens.",
+      "role": "Seguir una petición a través de las capas, y cada llamada a un modelo con sus tokens; una traza lleva la plantilla de la ruta, nunca la dirección concreta.",
       "stack": ["Tempo", "OpenTelemetry", "Langfuse (opcional)"],
-      "src": "7eb8e8c66818"
+      "src": "ece7456bef46"
     },
     "t.docker": {
       "name": "Imágenes y composición",

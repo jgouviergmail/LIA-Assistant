@@ -121,21 +121,30 @@ docker exec lia-api-dev bash -c "claude auth status"
 docker exec lia-api-prod bash -c "claude auth status"
 ```
 
-Expected output: `"loggedIn": true`
-
-### Token renewal
-
-Claude CLI OAuth tokens expire periodically. When you re-authenticate locally (`claude auth login`), the fresh credentials need to be propagated to the containers.
-
-**Dev**: Automatic — the `~/.claude/` directory is bind-mounted from the host, so the container always reads the latest credentials.
-
-**Prod**: Requires copying the fresh credentials to the remote host:
+Expected output: `"loggedIn": true` — **which proves nothing about prod**: on 2026-10-02 it read
+`loggedIn: true` while every run failed with `OAuth session expired and could not be refreshed`.
+Only a run proves the CLI works:
 ```bash
-scp -P <SSH_PORT> ~/.claude/.credentials.json <USER>@<HOST>:~/.claude/.credentials.json
+docker exec -w /opt/claude-workspace lia-api-prod claude -p "Reply OK" --max-turns 1 --output-format json
 ```
-The container picks them up immediately (bind-mounted, no restart needed).
 
-This copy is also done automatically at each `task deploy:prod` run. Between deployments, use the `scp` command above if you re-authenticate.
+### Authentication per environment
+
+**Dev**: the `~/.claude/` directory is bind-mounted from the host, so the container shares the
+developer's own session — the same file, refreshed in one place.
+
+**Prod**: the CLI has its **own** long-lived subscription token. Run `claude setup-token` (any
+machine, a browser opens), then put the token in `.env.prod`:
+```bash
+CLAUDE_CODE_OAUTH_TOKEN=<token>
+```
+The CLI reads it from the environment and it takes precedence over any
+`~/.claude/.credentials.json` (`claude auth status` then reads `"authMethod": "oauth_token"`).
+`task deploy:prod` warns when `DEVOPS_ENABLED` is on without it.
+
+**Never copy a developer's `.credentials.json` to the server** (the deploy did so until
+2026-10-02): that is one OAuth session on two machines, and each refresh rotates the refresh
+token — whichever side refreshes second is dead.
 
 ---
 
@@ -148,6 +157,8 @@ This copy is also done automatically at each `task deploy:prod` run. Between dep
 | `DEVOPS_ENABLED` | `false` | Enable the DevOps feature |
 | `DEVOPS_SSH_TIMEOUT` | `30` | SSH connection timeout (for SSH mode only) |
 | `DEVOPS_COMMAND_TIMEOUT` | `300` | Claude CLI execution timeout in seconds |
+| `DEVOPS_CLAUDE_MODEL` | `claude-opus-5-5` | Model every CLI run is started with (`--model`, full name or CLI alias) — sent explicitly so a run never depends on the CLI account's own default |
+| `DEVOPS_CLAUDE_EFFORT` | `low` | Reasoning effort every CLI run is started with (`--effort`: `low`, `medium`, `high`, `xhigh`, `max`) |
 | `DEVOPS_MAX_OUTPUT_CHARS` | `50000` | Max output chars before truncation |
 | `DEVOPS_RATE_LIMIT_CALLS` | `5` | Max `claude_server_task_tool` calls per user per window (anti-runaway: each call is a paid Claude CLI run + real server actions) |
 | `DEVOPS_RATE_LIMIT_WINDOW` | `600` | Rate limit window in seconds |
@@ -250,13 +261,14 @@ Claude CLI runs on a remote server via SSH (`asyncssh`). Useful if Claude CLI is
 
 - **`--allowedTools`**: Configurable per server. ⚠️ The default is `("Read", "Grep", "Glob", "Bash")` (`DEVOPS_DEFAULT_ALLOWED_TOOLS`), so a server entry that omits `allowed_claude_tools` **inherits `Bash`**.
 - **`--disallowedTools`**: Passed after `--allowedTools`. It is a deny list of patterns, not an allowlist — treat it as defence in depth, not as a boundary.
-- **`--max-turns`**: ⚠️ **not passed**. Neither `_build_claude_args` nor the streaming variant emits this flag, so a `max_turns` key in `DEVOPS_SERVERS` bounds nothing and the CLI applies its own default.
+- **`--model` / `--effort`**: always passed, from `DEVOPS_CLAUDE_MODEL` / `DEVOPS_CLAUDE_EFFORT`. Both execution modes build their arguments through the one `_build_claude_args` (the local mode asks it for `stream-json`, which adds `--verbose`).
+- **`--max-turns`**: ⚠️ **not passed**. `_build_claude_args` does not emit this flag, so a `max_turns` key in `DEVOPS_SERVERS` bounds nothing and the CLI applies its own default.
 - **`--append-system-prompt`**: receives the tool's `context` parameter, which is produced by the model. Content reaching the agent from an untrusted source (email, web page, MCP result) can therefore influence the remote CLI's system prompt.
 
 ### Layer 3 — Infrastructure
 
 - **Docker socket**: Mounted read-write for container management
-- **Credentials**: Mounted read-only from host
+- **Credentials**: dev mounts the developer's ~/.claude; prod reads its own CLAUDE_CODE_OAUTH_TOKEN from the environment
 - **CLAUDE.md**: Contains security rules (never expose secrets, prefer read-only)
 
 ---
@@ -266,8 +278,8 @@ Claude CLI runs on a remote server via SSH (`asyncssh`). Useful if Claude CLI is
 ### First-time setup (per environment)
 
 1. [ ] Install Claude CLI on the host: `npm install -g @anthropic-ai/claude-code`
-2. [ ] Authenticate: `claude auth login` (creates `~/.claude/.credentials.json`)
-3. [ ] Verify: `claude auth status` shows `loggedIn: true`
+2. [ ] Authenticate: dev — `claude auth login` on the host; prod — `claude setup-token`, then `CLAUDE_CODE_OAUTH_TOKEN` in `.env.prod`
+3. [ ] Verify with a real run (see *Step 4: Verify inside the container*): `loggedIn: true` alone proves nothing
 4. [ ] Configure `DEVOPS_ENABLED=true` in `.env` / `.env.prod`
 5. [ ] Configure `DEVOPS_SERVERS=[...]` with appropriate permissions
 6. [ ] Deploy (rebuild Docker images): `task deploy:prod` (le script `scripts/deploy.sh` n'existe pas — le déploiement prod passe par cette tâche)
@@ -275,13 +287,12 @@ Claude CLI runs on a remote server via SSH (`asyncssh`). Useful if Claude CLI is
 
 ### Subsequent deployments
 
-No action needed — credentials are mounted from host, Claude CLI is in the Docker image.
+No action needed — the token travels in `.env.prod`, Claude CLI is in the Docker image.
 
-### Token refresh
+### Token renewal
 
-Claude CLI OAuth tokens auto-refresh. If auth expires:
-1. Re-run `claude auth login` on the host
-2. Container picks up new credentials automatically (read-only mount)
+The `claude setup-token` token is long-lived but not eternal. When it expires, run
+`claude setup-token` again, replace `CLAUDE_CODE_OAUTH_TOKEN` in `.env.prod` and redeploy.
 
 ---
 
@@ -341,10 +352,10 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate api
 
 The deploy scripts (`deploy.sh` and `deploy-prod.ps1`) handle all DevOps setup automatically:
 1. **DOCKER_GID**: Auto-detected from host Docker socket and injected into `.env`
-2. **Claude CLI credentials**: Copied from local `~/.claude/.credentials.json` to remote host
+2. **Claude CLI authentication**: `CLAUDE_CODE_OAUTH_TOKEN` travels in `.env.prod` (a warning when DevOps is on without it); no session file is copied
 3. **CLAUDE.server.md**: Copied to `infrastructure/claude-cli/` on remote host
 4. **Docker image**: Claude CLI + Docker CLI + Node.js baked in (Dockerfile.dev/prod)
 
-No manual steps required after initial `claude auth login` on the host.
+The one manual step is `claude setup-token`, once per token lifetime.
 
 If permission denied, the socket permissions may need adjustment on the host.

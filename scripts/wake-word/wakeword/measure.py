@@ -6,20 +6,23 @@
   detection counts when it falls between the start of the phrase and one
   second after its end; the latency is its distance to the end.
 - **Near misses**: the same streams with the TEST near misses — how often a
-  phrase that must not wake LIA does.
+  phrase that must not wake LIA does, overall and text by text (the phrase
+  must ignore its language's stop command, the command a bare « stop »).
 - **False accepts per hour**: the policy run over the held-out streams —
   FLEURS and MLS ``test`` in the language, MUSAN's held-out English speech,
   music and noise, each listened to continuously.
 
 The scores are computed in batch on the streaming grid, which the selfcheck
 holds equal to the browser's streaming arithmetic. The threshold is the one
-the dev split chose; the table around it shows the trade-off.
+the dev split chose, unless the operator certifies another operating point
+(``--threshold``): the export ships the measured row, so the manifest's figures
+are always those of the threshold it carries. The table around it shows the
+trade-off.
 """
 
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +38,7 @@ from wakeword.trials import (
     SNR_CONDITIONS,
     Trial,
     accept_rate,
+    form_of,
     hit_latency,
     recall,
     stream,
@@ -42,7 +46,7 @@ from wakeword.trials import (
 
 _HISS_DBFS = -70.0
 #: Published acceptance thresholds per keyword (spec 2026-10-01, section 4.2). Never
-#: lowered to pass. The stop word tolerates more false accepts: it acts only while
+#: lowered to pass. The stop command tolerates more false accepts: it acts only while
 #: LIA speaks and a false one only cuts her voice, where a false wake opens the
 #: microphone for a request.
 ACCEPTANCE: dict[Keyword, dict[str, float]] = {
@@ -99,16 +103,6 @@ def _recall_by_voice(trials: list[Trial], bank: Bank, policy: Policy) -> dict[st
     return {key: round(sum(hits) / len(hits), 4) for key, hits in sorted(groups.items())}
 
 
-#: Punctuation that changes a clip's prosody, not its form: « Dis Lia ! » and
-#: « Dis Lia. » are one form; a comma (a pause) and a space stay.
-_PROSODY_MARKS = re.compile(r"[!?.¡¿。！？]")
-
-
-def form_of(text: str) -> str:
-    """The written form of a clip's text: its words and pauses, without its prosody marks."""
-    return " ".join(_PROSODY_MARKS.sub("", text).split())
-
-
 def _recall_by_form(trials: list[Trial], bank: Bank, policy: Policy) -> dict[str, float]:
     """Recall per written form of the phrase, to find a pronunciation the model misses."""
     groups: dict[str, list[bool]] = {}
@@ -117,6 +111,15 @@ def _recall_by_form(trials: list[Trial], bank: Bank, policy: Policy) -> dict[str
             hit_latency(trial, policy)[0] is not None
         )
     return {key: round(sum(hits) / len(hits), 4) for key, hits in sorted(groups.items())}
+
+
+def _accepts_by_text(trials: list[Trial], bank: Bank, policy: Policy) -> dict[str, float]:
+    """How often each near miss fires, most often first: the ones the model confuses."""
+    groups: dict[str, list[Trial]] = {}
+    for trial, meta in zip(trials, bank.meta, strict=True):
+        groups.setdefault(str(meta["text"]), []).append(trial)
+    rates = {text: round(accept_rate(items, policy), 4) for text, items in groups.items()}
+    return dict(sorted(rates.items(), key=lambda pair: (-pair[1], pair[0])))
 
 
 def _merged(banks: list[Bank]) -> Bank:
@@ -133,12 +136,23 @@ def _merged(banks: list[Bank]) -> Bank:
     return Bank("+".join(bank.name for bank in banks), samples, np.asarray(offsets), meta)
 
 
-def measure(spec: LanguageSpec) -> dict[str, Any]:
-    """Measure the trained classifier of a language; writes ``bench.json`` beside it."""
+def measure(spec: LanguageSpec, threshold: float | None = None) -> dict[str, Any]:
+    """Measure the trained classifier of a language; writes ``bench.json`` beside it.
+
+    Args:
+        spec: The language and keyword.
+        threshold: The operating point to certify; the dev's choice when None.
+
+    Raises:
+        SystemExit: The threshold is outside (0, 1).
+    """
     work = language_dir(spec.slug)
     classifier = Classifier(work / "classifier.onnx")
     selected = json.loads((work / "train_report.json").read_text(encoding="utf-8"))["selected"]
-    threshold = float(selected["threshold"])
+    source = "dev" if threshold is None else "operator"
+    threshold = float(selected["threshold"]) if threshold is None else threshold
+    if not 0.0 < threshold < 1.0:
+        raise SystemExit(f"threshold {threshold} is outside (0, 1)")
     test_backgrounds = [
         open_bank(CORPORA, name)
         for name in ("musan-noise-test", "musan-music-test", "musan-speech-test")
@@ -195,6 +209,9 @@ def measure(spec: LanguageSpec) -> dict[str, Any]:
         chosen[f"recall by form, {condition}"] = _recall_by_form(
             positive_trials[condition], positives, Policy(threshold)
         )
+    chosen["near-miss accepts by text, clean"] = _accepts_by_text(
+        near_trials["clean"], near, Policy(threshold)
+    )
     table = [row(Policy(value)) for value in THRESHOLDS if value >= 0.8]
     table += [row(Policy(value, patience=2)) for value in (0.8, 0.9, threshold)]
     acceptance = ACCEPTANCE[spec.keyword]
@@ -203,6 +220,7 @@ def measure(spec: LanguageSpec) -> dict[str, Any]:
         "language": spec.code,
         "keyword": spec.keyword,
         "phrase": spec.phrase,
+        "threshold_source": source,
         "selected": chosen,
         "verdict": verdict,
         "acceptance": acceptance,

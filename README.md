@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.3.0</strong> — <strong>A Live session that sleeps instead of ending, and a wake word heard in the browser.</strong> A silence puts a Live session on standby — the provider connection closes and nothing is billed until a tap or the phrase wakes it with LIA's own context; "Dis LIA" is a small trained model running in a browser worker, in French and in beta for now, and "Stop" cuts LIA's voice; the heartbeat evaluates every pass of its window with no daily quota; "Send by e-mail" suggests your contacts as you type a recipient — 2 October 2026.
+  <strong>Version 2.4.0</strong> — <strong>Updates that never go backwards, telemetry that names no one.</strong> A weekly watch reads the security advisories each dependency publishes, a refresh waits out a cooling-off period and never moves a version backwards, and every production build input is pinned by digest; metrics and traces name the route template, never a name or a search; the monitoring stack moves to supported versions, Grafana Alloy shipping the logs; "Dis LIA" is retrained to miss less and "LIA, stop" now cuts LIA's voice; and every public page can pause its animations — 3 October 2026.
 </p>
 
 ---
@@ -113,7 +113,7 @@ The result is measured, not proclaimed:
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
 | **54** functional domains | **800,000+** source lines (excl. tests) | **48,000+** automated tests | **330** ADRs                                                            |
-| **274** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **275** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 Source-line figure: 802,541 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-02). The published technical audit does not score security.
 
@@ -516,8 +516,8 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### Observability
 
-- **Prometheus**: 616 custom metrics (agents, LLM, infrastructure). A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
-- **Grafana**: 31 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing · **Langfuse**: LLM tracing with prompt versions.
+- **Prometheus**: 616 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
+- **Grafana**: 31 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
 - **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
 - **Per-process memory**: every API worker publishes what it holds (`lia_worker_memory_bytes`, one series per live worker), drawn on the infrastructure dashboard and watched by an alert that names the process; what a process loads is declared, measured on the target host and bounded where it multiplies — the supervisor never imports the application, heavy libraries load where they are used, and the speech engine keeps one resident model per worker ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
@@ -772,8 +772,8 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                                            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Backend tests           | 37,003 collected over `tests/` (`task test:markers`, 2026-09-29)                                                                                |
-| Frontend tests (vitest) | 9,729 passed across 788 files (`task test:frontend:coverage`, 2026-09-29), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Backend tests           | 38,452 collected over `tests/` (`task test:markers`, 2026-10-03)                                                                                |
+| Frontend tests (vitest) | 10,521 passed across 841 files (`task test:frontend:coverage`, 2026-10-03), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 77% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                           |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                    |
 
@@ -795,17 +795,19 @@ i18n keys sync                  Code hygiene (i18n, Alembic, lockfiles, patterns
 Alembic migration conflicts     Docker build smoke test
 .env.example completeness       Secret scan (Gitleaks)
 ESLint + TypeScript check       ──────────────────────
-                                Security workflow (weekly)
+Pre-push: secret scan           Security workflow (weekly)
                                   CodeQL (Python, JS/TS, Actions)
                                   Dependency audit (pip-audit + pnpm audit)
                                   Trivy filesystem scan
                                   SBOM generation
+                                Dependency watch (weekly, ADR-331)
+                                E2E + a11y matrix: Chromium · Firefox · WebKit (weekly)
 ```
 
 | Practice                 | Implementation                                                                                                                                                                                                            |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Reproducible builds**  | Universal Python lockfiles (linux/amd64, arm64, Windows), hash-verified installs everywhere, a guard failing manifest edits without lock regeneration ([ADR-112](docs/architecture/ADR-112-Python-Dependency-Locking.md)) |
-| **Supply chain**         | Every GitHub Action pinned by commit SHA, `permissions: contents: read`, Dependabot weekly with grouped minor/patch updates, SBOM per release                                                                             |
+| **Supply chain**         | Every GitHub Action pinned by commit SHA and every production build input by version and digest, `permissions: contents: read`; a weekly watch of the advisories each dependency publishes, a refresh under a cooling-off period that never moves backwards, Dependabot on the same cooldowns ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)); the CI's secret scan before every push; SBOM per release |
 | **Shrink-only ratchets** | Coverage, file size, cyclomatic complexity, MyPy debt, React hooks, accessibility and metric visibility can only improve — a baseline is lowered after the work, never raised to absorb a regression                      |
 | **Documentation gate**   | Every version, count and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; broken links, stale code paths and unreachable documents too                                |
 | **Release pipeline**     | A tag builds candidates; a release is promoted only from a qualified, disposable-machine installer run ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md)); multi-arch images on ghcr.io                        |
@@ -823,7 +825,7 @@ ESLint + TypeScript check       ────────────────
 | SSRF & hostile text                                                                    | Every fetched URL is validated, then fetched on the very address the check resolved, one redirect hop at a time; text flatteners run in linear time on hostile input, held by growth and equivalence tests ([ADR-326](docs/architecture/ADR-326-Linear-Flatteners-And-Pinned-Fetches.md)) |
 | OAuth / PKCE                                                                           | PKCE S256, single-use state and issuer/identity checks; grouped Google/Microsoft consent shares grants only within the verified provider account ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)); linking a federated identity never changes an account's status ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md)) |
 | [MCP](https://modelcontextprotocol.io/) / plugins                                      | Model Context Protocol servers and apps, agentskills.io skills and Agent Plugins v1 packages use documented open interfaces, with separately reviewed trust and sandbox boundaries ([MCP](docs/technical/MCP_INTEGRATION.md), [plugins](docs/technical/PLUGINS_INTEGRATION.md))                                                                                                               |
-| Supply chain                                                                           | Hash-verified universal lockfiles, pip-audit on the full transitive tree, SBOM per release                                                                                                                                                                                                                                                                                                    |
+| Supply chain                                                                           | Hash-verified universal lockfiles and every build input pinned by digest, pip-audit on the full transitive tree, a weekly watch of each dependency's own advisories and end-of-life dates, a refresh that never moves a version backwards ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)), a CycloneDX SBOM per release |
 | Untrusted code                                                                         | Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)) |
 
 These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public 8.3/10 audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.

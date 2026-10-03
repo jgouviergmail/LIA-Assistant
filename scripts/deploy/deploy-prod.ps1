@@ -733,30 +733,33 @@ if (-not $DryRun) {
     $gidCmd = "grep -q DOCKER_GID ~/${StagingDir}/.env 2>/dev/null || { printf 'DOCKER_GID=' >> ~/${StagingDir}/.env; stat -c '%g' /var/run/docker.sock >> ~/${StagingDir}/.env; } && echo DOCKER_GID set"
     Invoke-WithRetry -OperationName "Set DOCKER_GID" -Command "ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} `"$gidCmd`""
 
-    # Deploy Claude CLI credentials (same auth as dev — same Anthropic account)
-    # $env:USERPROFILE is Windows-only: fall back to $HOME so the pwsh/Unix
-    # branch (audit F008 hermetic tests) does not crash Join-Path on an empty
-    # path. The Windows behavior is byte-identical (USERPROFILE always set).
-    $userHome = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { $null }
-    # Nested Join-Path on purpose: the 3-argument form (-AdditionalChildPath)
-    # requires PowerShell 6+, and `task deploy:prod` runs under Windows
-    # PowerShell 5.1 where it is a positional-parameter error.
-    $LocalCreds = if ($userHome) { Join-Path (Join-Path $userHome ".claude") ".credentials.json" } else { $null }
-    if ($LocalCreds -and (Test-Path $LocalCreds)) {
-        Invoke-WithRetry -OperationName "Create remote .claude directory" -Command @"
+    # The DevOps Claude CLI authenticates with its OWN long-lived token
+    # (`claude setup-token` -> CLAUDE_CODE_OAUTH_TOKEN in .env.prod), never with
+    # a copy of the developer's ~/.claude/.credentials.json. A copied session is
+    # one OAuth session on two machines: whichever refreshes first rotates the
+    # refresh token and the other is dead (production 2026-10-02: "OAuth session
+    # expired and could not be refreshed" while `claude auth status` still read
+    # loggedIn). ~/.claude still exists: compose bind-mounts it (CLI state).
+    Invoke-WithRetry -OperationName "Create remote .claude directory" -Command @"
 ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "mkdir -p ~/.claude"
 "@
-
-        Invoke-WithRetry -OperationName "Copy Claude CLI credentials" -Command @"
-scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.credentials.json
-"@
-
-        Write-Success "Claude CLI credentials deployed"
-    } else {
-        Write-Warning "No local Claude CLI credentials. Run 'claude auth login' locally first."
-    }
 } else {
-    Write-Info "[DRY RUN] ssh set DOCKER_GID in remote .env; ssh mkdir ~/.claude; scp Claude CLI credentials"
+    Write-Info "[DRY RUN] ssh set DOCKER_GID in remote .env; ssh mkdir ~/.claude"
+}
+
+# Not fatal (DevOps is optional), but said: without its token the CLI falls back
+# to whatever session file the host holds, and every OPS action fails on it.
+$envProdLocal = Join-Path $ProjectRoot ".env.prod"
+if (Test-Path $envProdLocal) {
+    $devopsOn = $true
+    $hasCliToken = $false
+    foreach ($line in Get-Content $envProdLocal) {
+        if ($line -match '^\s*DEVOPS_ENABLED\s*=\s*(0|off|f|false|n|no)\b') { $devopsOn = $false }
+        if ($line -match '^\s*CLAUDE_CODE_OAUTH_TOKEN\s*=\s*[^#\s]') { $hasCliToken = $true }
+    }
+    if ($devopsOn -and -not $hasCliToken) {
+        Write-Warning "DEVOPS_ENABLED sans CLAUDE_CODE_OAUTH_TOKEN dans .env.prod : les actions OPS echoueront (lancer 'claude setup-token')."
+    }
 }
 
 # ============================================================================

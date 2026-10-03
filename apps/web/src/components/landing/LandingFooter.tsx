@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import Image from 'next/image';
 import { GithubIcon } from '@/components/icons/GithubIcon';
+import { MotionToggle } from '@/components/landing/cosmic/MotionToggle';
 import { APP_VERSION } from '@/lib/version';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
@@ -52,10 +53,10 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
   ];
 
   return (
-    <footer className="border-t border-border py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Columns */}
-        <div className="grid grid-cols-2 mobile:grid-cols-4 gap-8 mb-10">
+    <footer className="landing-footer border-t border-border pb-12">
+      {/* Columns, on a full-width band; the bottom bar stays below it. */}
+      <div className="landing-footer-band pt-12 pb-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 mobile:grid-cols-4 gap-8">
           {columns.map(({ title, links }) => (
             <div key={title}>
               <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
@@ -108,7 +109,9 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
             </div>
           ))}
         </div>
+      </div>
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Bottom bar */}
         <div className="border-t border-border pt-6 flex flex-col mobile:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -123,6 +126,9 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
               {t('landing.footer.copyright', { year })} · v{APP_VERSION}
             </span>
           </div>
+          {/* The page's pause control (WCAG 2.2.2), at every width: the header
+              only has room for it from `xl`. */}
+          <MotionToggle withLabel />
         </div>
       </div>
     </footer>

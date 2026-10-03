@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.1
-**Datum**: 2026-10-02
-**Anwendung**: LIA v2.3.0
+**Datum**: 2026-10-03
+**Anwendung**: LIA v2.4.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -148,7 +148,7 @@ Wikipedia, das Seiten-Browsing, Orte, Wetter und Luftqualität verlangen nichts 
 LIA bietet einen vollständigen Sprachmodus:
 
 - **Push-to-Talk**: Halte die Mikrofon-Schaltfläche gedrückt, um zu sprechen — optimiert für Mobilgeräte
-- **„Dis LIA“, in deinem Browser gehört**: Die freihändige Erkennung läuft **vollständig auf deinem Gerät** — kein Ton wird übertragen, bevor die Phrase gehört wurde — und „Stop“ unterbricht LIAs Stimme, wenn sie eine Antwort vorliest. Dieses Aktivierungswort gibt es vorerst auf Französisch, in der Beta: die Erkennung wird noch verbessert; in den anderen Sprachen genügt ein Tippen
+- **„Dis LIA“, in deinem Browser gehört**: Die freihändige Erkennung läuft **vollständig auf deinem Gerät** — kein Ton wird übertragen, bevor die Phrase gehört wurde — und „LIA, stop“ unterbricht LIAs Stimme, wenn sie eine Antwort vorliest. Dieses Aktivierungswort gibt es vorerst auf Französisch, in der Beta: die Erkennung wird noch verbessert; in den anderen Sprachen genügt ein Tippen
 - **Sprachsynthese**: drei admin-konfigurierbare Provider — Edge TTS (kostenlos), OpenAI TTS (`tts-1` / `tts-1-hd`) oder ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Telegram-Sprachnachrichten**: Sende Audiobotschaften, LIA transkribiert sie und antwortet
 - **Live-Modus**: ein Echtzeitgespräch von Stimme zu Stimme auf einem Live-Modell, das du mit **deinem eigenen Schlüssel** verbindest – Gemini Live, GPT-Live oder ein ElevenLabs-Agent. Die Stimme führt das Gespräch und reicht jede Bitte an LIA weiter, die sie als gewöhnlichen Chat-Zug ausführt, während du sprichst; eine direkte Sitzung lässt die Stimme deine Daten selbst lesen, ohne zu handeln. Was der Anbieter berechnet, wird dir gezeigt, nie aufgezeichnet. Eine Stille beendet keine Sitzung mehr: sie versetzt sie in den Standby — Verbindung geschlossen, nichts berechnet —, bis ein Tippen sie mit LIAs Kontext weckt; beenden tust immer du sie.
@@ -181,7 +181,7 @@ Ein Browser-Agent (Playwright/Chromium headless) kann Webseiten besuchen, klicke
 
 ### 3.8. Server-Administration (DevOps)
 
-Durch die Installation von Claude CLI (Claude Code) direkt auf dem Server können Administratoren ihre Infrastruktur in natürlicher Sprache über den LIA-Chat diagnostizieren: Docker-Logs einsehen, Container-Gesundheit prüfen, Festplattenspeicher überwachen, Fehler analysieren. Diese Funktion ist auf Administratorkonten beschränkt.
+Durch die Installation von Claude CLI (Claude Code) direkt auf dem Server können Administratoren ihre Infrastruktur in natürlicher Sprache über den LIA-Chat diagnostizieren: Docker-Logs einsehen, Container-Gesundheit prüfen, Festplattenspeicher überwachen, Fehler analysieren. Diese Funktion ist auf Administratorkonten beschränkt. Das CLI läuft mit dem Modell und dem Aufwand, die die Administration wählt, und mit einem eigenen Zugriffstoken.
 
 Und LIA überwacht auch **sich selbst**: Sie liest die eigene Telemetrie, führt eine Historie automatisch aus ihren Runbooks diagnostizierter Vorfälle, benachrichtigt Administratoren, wenn sich etwas Kritisches öffnet, und bietet ihnen ein Panel „Plattformzustand“ in den Einstellungen. Ist ein Ausfall bekannt, fließt er in ihre Antworten ein, statt dich auf einen Timeout warten zu lassen.
 
@@ -479,11 +479,11 @@ LIA bietet produktionsreife Observability:
 | **Prometheus** | System- und Business-Metriken |
 | **Grafana** | Echtzeit-Monitoring-Dashboards |
 | **Tempo** | Verteilte End-to-End-Traces |
-| **Loki** | Aggregation strukturierter Logs |
+| **Loki** | Aggregation strukturierter Logs, von Grafana Alloy gesammelt |
 | **Langfuse** | Spezialisiertes Tracing von LLM-Aufrufen |
 | **Alertmanager** | E-Mail-Alerts bei vitalen Signalen, verknüpfte Runbooks |
 
-Jede Anfrage wird von Anfang bis Ende nachverfolgt, jeder LLM-Aufruf gemessen, jeder Fehler kontextualisiert. Das ist kein nachträglich hinzugefügtes Monitoring — es ist eine **grundlegende Architekturentscheidung**, die in den Architecture Decision Records des Projekts dokumentiert ist.
+Jede Anfrage wird von Anfang bis Ende nachverfolgt, jeder LLM-Aufruf gemessen, jeder Fehler kontextualisiert. Das ist kein nachträglich hinzugefügtes Monitoring — es ist eine **grundlegende Architekturentscheidung**, die in den Architecture Decision Records des Projekts dokumentiert ist. Und die Messung nennt niemanden: Eine Metrik oder ein Trace bezeichnet die genommene Route nach ihrem Muster, nie den Namen oder die Suche, die eine Adresse enthält — die Regel der Logs, angewandt auf die Instrumente. Der gesamte Überwachungs-Stack läuft auf gepflegten, per Digest fixierten Versionen.
 
 Dieser Anspruch reicht bis auf die Maschine hinunter. Ein Server besteht aus mehreren Prozessen, und „der Container belegt fünf Gigabyte“ sagt nicht, welcher was hält: jeder Prozess von LIA veröffentlicht deshalb selbst, was er im Speicher hält, ein Dashboard zeichnet es Prozess für Prozess, ein Alarm benennt den, der überläuft — und was ein Prozess lädt, wurde auf der Zielmaschine gemessen, bevor es angefasst wurde, nie angenommen.
 
@@ -523,7 +523,7 @@ LIA verlangt nicht, dass man ihr aufs Wort glaubt. Die Rahmenwerke, denen sie fo
 
 ### 9.1. Was die Regulierung verlangt
 
-**Datenschutz ist eine Entwurfsentscheidung, kein Zertifikat durch Behauptung.** Deine Kontodaten liegen in der Datenbank der LIA-Instanz, die du nutzt; bei Selbsthosting kontrollierst du diesen Server. Du kannst sie exportieren oder ihre Löschung verlangen; Geheimnisse werden bewusst nicht exportiert. Zugangsdaten sind verschlüsselt, Sitzungen isoliert, und die technischen Protokolle des Servers behalten nur Fakten — Zahlen, Codes, Kennungen —, nie deine Worte: Ein Test liest jede Protokollzeile des Codes, um das sicherzustellen. Ob ein konkreter Betrieb alle Pflichten der DSGVO erfüllt, hängt auch von seiner Konfiguration und den gewählten Anbietern ab.
+**Datenschutz ist eine Entwurfsentscheidung, kein Zertifikat durch Behauptung.** Deine Kontodaten liegen in der Datenbank der LIA-Instanz, die du nutzt; bei Selbsthosting kontrollierst du diesen Server. Du kannst sie exportieren oder ihre Löschung verlangen; Geheimnisse werden bewusst nicht exportiert. Zugangsdaten sind verschlüsselt, Sitzungen isoliert, und die technischen Protokolle des Servers behalten nur Fakten — Zahlen, Codes, Kennungen —, nie deine Worte: Ein Test liest jede Protokollzeile des Codes, um das sicherzustellen, und auch Metriken und Traces nennen niemanden. Ob ein konkreter Betrieb alle Pflichten der DSGVO erfüllt, hängt auch von seiner Konfiguration und den gewählten Anbietern ab.
 
 **LIA führt Aufzeichnungen auch dort, wo das Gesetz sie für diesen persönlichen Anwendungsfall nicht verlangt.** Artikel 12 der EU-KI-Verordnung gilt für Hochrisikosysteme. Aktions-, Lese-, Entscheidungs-, Modellparameter- und Integritätsregister sind eine bewusste Transparenzentscheidung, keine Zertifizierung. Sie sind exportierbar und werden mit dem Konto entfernt, innerhalb der dokumentierten Grenzen ihres Inhalts.
 
@@ -543,13 +543,15 @@ LIA verlangt nicht, dass man ihr aufs Wort glaubt. Die Rahmenwerke, denen sie fo
 | **Prometheus / OpenMetrics** | Metriken in einem offenen Format, nicht in einem Dashboard eingeschlossen |
 | **WCAG 2.2 AA** | Die angestrebte Stufe der Barrierefreiheit, automatisch geprüft |
 | **SemVer 2.0** und **Keep a Changelog** | Versionsnummern, die etwas bedeuten, und ein lesbares Änderungsprotokoll |
+| **CycloneDX** (SBOM) | Das genaue Verzeichnis dessen, was jede Version enthält, mit ihr veröffentlicht |
+| **Conventional Commits** | Eine Änderungshistorie, lesbar für Mensch und Maschine |
 | **AGPL-3.0** | Der vollständige Quellcode, prüfbar, veränderbar — und verpflichtet, es zu bleiben |
 
 Offene Standards statt eines Hausprotokolls: Was LIA spricht, kann ein anderes Werkzeug auch sprechen — und was sie verspricht, lässt sich an einem Text prüfen, den andere geschrieben haben.
 
 ### 9.3. Was diese Garantien überprüfbar macht
 
-Eine Garantie, die man nicht prüfen kann, ist keine. Das technische Audit des Projekts ist öffentlich — Bewertungsraster, Methode, Stärken und eingestandene Schwächen sowie das Protokoll, um es zu wiederholen. Jede Architekturentscheidung ist aufgeschrieben und indexiert. Jede Schutzmaßnahme ist durch einen Test abgesichert, der fehlschlägt, sobald der Schutz verschwindet. Und zur nächtlichen Datenbanksicherung gehört eine Wiederherstellungsprozedur, die tatsächlich ausgeführt wurde, nicht nur verfasst. Meldet die Code-Analyse eine Schwäche, zielt die Antwort auf ihre ganze Klasse statt auf die Warnung: Die Korrektur kommt mit einer Prüfung, die fehlschlägt, wenn dieselbe Klasse anderswo wieder auftaucht, und die Analyse umfasst auch die ausgelieferten Skripte, die Infrastruktur und die Workflows.
+Eine Garantie, die man nicht prüfen kann, ist keine. Das technische Audit des Projekts ist öffentlich — ein an ISO/IEC 25010 ausgerichtetes Bewertungsraster, Methode, Stärken und eingestandene Schwächen sowie das Protokoll, um es zu wiederholen. Jede Architekturentscheidung ist aufgeschrieben und indexiert. Jede Schutzmaßnahme ist durch einen Test abgesichert, der fehlschlägt, sobald der Schutz verschwindet. Und zur nächtlichen Datenbanksicherung gehört eine Wiederherstellungsprozedur, die tatsächlich ausgeführt wurde, nicht nur verfasst. Was in die Software hineinkommt, wird ebenso überwacht: Jeder Baustein des Servers ist per Digest fixiert, eine wöchentliche Prüfung liest die Sicherheitshinweise, die jede Abhängigkeit veröffentlicht — auch jene, die keine öffentliche Datenbank weitergibt —, ein Update wartet eine Karenzzeit ab und geht nie zurück, und jede Version wird inventarisiert und vor ihrer Veröffentlichung auf leeren Maschinen installiert. Meldet die Code-Analyse eine Schwäche, zielt die Antwort auf ihre ganze Klasse statt auf die Warnung: Die Korrektur kommt mit einer Prüfung, die fehlschlägt, wenn dieselbe Klasse anderswo wieder auftaucht, und die Analyse umfasst auch die ausgelieferten Skripte, die Infrastruktur und die Workflows.
 
 ## 10. Radikale Offenheit
 

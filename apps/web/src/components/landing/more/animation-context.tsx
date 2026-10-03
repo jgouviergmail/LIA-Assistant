@@ -7,6 +7,10 @@
  * AnimationPauseToggle is that mechanism; every scene consumes the context
  * through its card and stops scheduling timers while paused.
  *
+ * The paused state is the cosmos pages' own (lib/landing/motion-pause): this
+ * toggle and the header's pause control are one switch, so pausing either
+ * stops the scenes AND the page's background, and the choice is remembered.
+ *
  * The default context value keeps `playing: true` so a scene rendered
  * outside the provider (tests, future reuse) animates rather than dying
  * silently.
@@ -14,9 +18,17 @@
 
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause, Play } from 'lucide-react';
+import { isMotionPaused, setMotionPaused, subscribeMotion } from '@/lib/landing/motion-pause';
 
 interface MoreAnimationState {
   playing: boolean;
@@ -32,10 +44,13 @@ export function useMoreAnimation(): MoreAnimationState {
   return useContext(MoreAnimationContext);
 }
 
+/** Before hydration nothing is paused: the server renders the scenes playing. */
+const serverSnapshot = (): boolean => false;
+
 export function MoreAnimationProvider({ children }: { children: ReactNode }) {
-  const [playing, setPlaying] = useState(true);
-  const toggle = useCallback(() => setPlaying(p => !p), []);
-  const value = useMemo(() => ({ playing, toggle }), [playing, toggle]);
+  const paused = useSyncExternalStore(subscribeMotion, isMotionPaused, serverSnapshot);
+  const toggle = useCallback(() => setMotionPaused(!isMotionPaused()), []);
+  const value = useMemo(() => ({ playing: !paused, toggle }), [paused, toggle]);
 
   return <MoreAnimationContext.Provider value={value}>{children}</MoreAnimationContext.Provider>;
 }

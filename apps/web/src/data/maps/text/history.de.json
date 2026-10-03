@@ -1740,8 +1740,8 @@
     },
     "329": {
       "title": "Ein trainiertes Aktivierungswort, im Browser gehört, und ein Live-Standby, der nichts berechnet",
-      "summary": "LIA wacht bei einer Phrase auf, die vollständig im Browser von einem kleinen, für ihre Sprache trainierten Modell erkannt wird, ohne die technische Bedingung, die das alte englische „OK Guy“ vom iPhone und den nativen Apps fernhielt; „Stop“ unterbricht ihre Stimme. Das erste Modell, „Dis LIA“ auf Französisch, erscheint als Beta, weil sein Prüfstand die veröffentlichten Schwellen noch nicht erreicht, und die anderen Sprachen behalten das Tippen. Im Live-Modus versetzt eine Stille die Assistentin in den Standby: die Verbindung zum Anbieter schließt, nichts wird mehr berechnet, und ein Tippen oder die Phrase weckt sie, ohne das Gespräch zu verlieren.",
-      "src": "c2b699b7c2d6"
+      "summary": "LIA wacht bei einer Phrase auf, die vollständig im Browser von einem kleinen, für ihre Sprache trainierten Modell erkannt wird, ohne die technische Bedingung, die das alte englische „OK Guy“ vom iPhone und den nativen Apps fernhielt; „LIA, stop“ unterbricht ihre Stimme. Das erste Modell, „Dis LIA“ auf Französisch, erscheint als Beta, weil sein Prüfstand die veröffentlichten Schwellen noch nicht erreicht, und die anderen Sprachen behalten das Tippen. Im Live-Modus versetzt eine Stille die Assistentin in den Standby: die Verbindung zum Anbieter schließt, nichts wird mehr berechnet, und ein Tippen oder die Phrase weckt sie, ohne das Gespräch zu verlieren.",
+      "src": "79e44bd43109"
     },
     "330": {
       "title": "Medien ohne Arbeit zur Laufzeit: vorab erzeugte Illustrationen, ein vom Betreiber erklärtes Video",

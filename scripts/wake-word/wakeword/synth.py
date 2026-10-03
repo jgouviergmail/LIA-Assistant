@@ -23,11 +23,15 @@ the voice model, so two runs are alike in distribution, not byte for byte.
 
 Four banks per language: ``clips-<lang>-{positive,near_miss}-{train,test}``.
 The TEST banks are synthesised from voices and speakers the model never hears
-in training, so the measurement is of generalisation, not of memory.
+in training, so the measurement is of generalisation, not of memory. A bank
+records the recipe of its plan (``recipe``): drawn from another plan — a near
+miss added, a budget changed — it is synthesised again, never trained on as it
+was.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import re
@@ -46,8 +50,8 @@ from piper.patch_voice_with_alignment import add_alignment_output
 from piper.phonemize_espeak import EspeakPhonemizer
 
 from wakeword.audio import FloatArray, faded, peak_int16, to_16k
-from wakeword.banks import BankWriter, Int16Array, bank_exists
-from wakeword.languages import LanguageSpec, Voice
+from wakeword.banks import BankWriter, Int16Array, bank_exists, bank_recipe, drop_bank
+from wakeword.languages import PIPER_REVISION, LanguageSpec, Voice
 from wakeword.paths import CORPORA
 from wakeword.sources import fetch, voice_remotes
 
@@ -308,20 +312,51 @@ def plan(spec: LanguageSpec, kind: Kind, split: Split, seed: int) -> list[Job]:
     return jobs
 
 
+def recipe(jobs: list[Job]) -> str:
+    """A plan's digest: every clip it draws, the bands a cut is kept in, the voices' revision."""
+    clips = [
+        [
+            job.voice.key,
+            job.voice.reads_as,
+            job.speaker,
+            job.text,
+            job.lead,
+            job.carrier,
+            job.rate,
+            job.noise_scale,
+            job.noise_w_scale,
+            job.target_seconds,
+            job.kind,
+            list(job.calibration),
+        ]
+        for job in jobs
+    ]
+    payload = {
+        "piper": PIPER_REVISION,
+        "bands": [_POSITIVE_BAND, _NEAR_MISS_SECONDS],
+        "clips": clips,
+    }
+    return hashlib.sha1(json.dumps(payload).encode(), usedforsecurity=False).hexdigest()
+
+
 def synthesise_bank(
     spec: LanguageSpec, kind: Kind, split: Split, lock: dict[str, Any], seed: int = 0
 ) -> str:
-    """Write one clip bank; returns its name (kept when already complete)."""
+    """Write one clip bank; returns its name (kept when complete under the same plan)."""
     name = f"clips-{spec.slug}-{kind}-{split}"
-    if bank_exists(CORPORA, name):
-        return name
     jobs = plan(spec, kind, split, seed)
+    digest = recipe(jobs)
+    if bank_exists(CORPORA, name):
+        if bank_recipe(CORPORA, name) == digest:
+            return name
+        print(f"bank {name}: drawn from another plan, synthesised again")
+        drop_bank(CORPORA, name)
     for voice in {job.voice for job in jobs}:
         for remote in voice_remotes(voice):
             fetch(remote, lock)
     dropped: dict[str, int] = {}
     with (
-        BankWriter(CORPORA, name) as bank,
+        BankWriter(CORPORA, name, recipe=digest) as bank,
         Pool(_WORKERS, initializer=_init_worker, initargs=(lock,)) as pool,
     ):
         for job, audio in pool.imap(_run, jobs, chunksize=16):

@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 2.2
-**Datum**: 2026-10-02
-**Anwendung**: LIA v2.3.0
+**Datum**: 2026-10-03
+**Anwendung**: LIA v2.4.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Quellcodezeilen (ohne Tests) — 54 Fachdomänen | **800.000+** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **48.000+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **330** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **274** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **275** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -64,8 +64,9 @@ Drei strukturelle Entscheidungen, unter den 330 dokumentierten:
 
 Ein System, das nach Instrumenten geflogen wird:
 
-- **Observability**: einunddreißig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 600 Metriken; zentralisierte strukturierte Logs, die Fakten behalten, nie die Worte der Menschen; durchgängiges verteiltes Tracing. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung. Und der Assistent liest diese Telemetrie selbst: periodische Selbstprüfung, ein anhand eben dieser Prozeduren diagnostiziertes Vorfallgedächtnis, Antworten, die einen bekannten Ausfall umfahren. Und eine Diagnose zeigt die Beweise, aus denen sie geschrieben wurde. Und die Instrumente reichen bis zu den Prozessen: jeder API-Worker veröffentlicht, was er im Speicher hält, sodass sich eine Container-Summe Prozess für Prozess lesen lässt.
+- **Observability**: einunddreißig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 600 Metriken; zentralisierte strukturierte Logs; durchgängiges verteiltes Tracing — Logs, Metriken und Traces behalten nur Fakten, nie die Worte oder Namen der Menschen. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung. Und der Assistent liest diese Telemetrie selbst: periodische Selbstprüfung, ein anhand eben dieser Prozeduren diagnostiziertes Vorfallgedächtnis, Antworten, die einen bekannten Ausfall umfahren. Und eine Diagnose zeigt die Beweise, aus denen sie geschrieben wurde. Und die Instrumente reichen bis zu den Prozessen: jeder API-Worker veröffentlicht, was er im Speicher hält, sodass sich eine Container-Summe Prozess für Prozess lesen lässt.
 - **Lieferung**: containerisiertes Deployment, automatisierte Schemamigrationen, Images für zwei Hardwarearchitekturen (amd64/arm64) veröffentlicht.
+- **Lieferkette**: jeder Baustein des Servers per Digest fixiert und mit jeder Version inventarisiert; eine wöchentliche Prüfung liest die Sicherheitshinweise, die jede Abhängigkeit veröffentlicht — auch jene, die keine öffentliche Datenbank weitergibt —, und ein Update wartet eine Karenzzeit ab, ohne je zurückzugehen; jede Version wird vor ihrer Veröffentlichung auf leeren Maschinen installiert.
 - **Kosten**: bewusst frugale Infrastruktur — etwa 150 € Hardware, null Lizenzen, Open-Source-Bausteine, dimensioniert nach dem realen Bedarf.
 - **Compliance**: Sicherheit Endpunkt für Endpunkt überprüft; personenbezogene Daten verschlüsselt; Konto-Lebenszyklus an der DSGVO ausgerichtet.
 
@@ -93,7 +94,7 @@ Der Maßnahmenplan ist in Wellen organisiert, jede mit messbaren Abschlusskriter
 
 Dieser Anspruch hat eine Folge, die das Projekt auf die harte Tour gelernt hat: **Eine grüne Testsuite beweist nicht, dass eine Funktion funktioniert.** Sie beweist, dass sich das Getestete so verhält, wie es geschrieben wurde. Die Fehler, die die Prüfungen überleben, sind genau jene, nach denen nie gefragt wurde — eine Fähigkeit, die niemand aufruft, eine Zahl, die niemand zusammenzählt, eine Wache, die einen Namen erkennt statt eines Mechanismus. Das sind fast nie Programmierfehler: Es sind Fragen, die nie gestellt worden waren.
 
-Daher eine Arbeitsregel: **Nichts gilt, bevor es gelaufen ist** — an echten Daten und auf dem Weg, den eine Nutzerin nimmt. Eine Komponente kann korrekt und ihre Seite leer sein; ein Zähler kann exakt und seine Frage falsch sein. Jede Auslieferung endet deshalb mit einer kalt geführten Gegenprüfung, deren Zweck nicht das Durchlaufen der Tests ist, sondern die Suche nach dem, was sie nicht abdecken.
+Daher eine Arbeitsregel: **Nichts gilt, bevor es gelaufen ist** — an echten Daten und auf dem Weg, den eine Nutzerin nimmt. Eine Komponente kann korrekt und ihre Seite leer sein; ein Zähler kann exakt und seine Frage falsch sein. Jede Auslieferung endet deshalb mit einer kalt geführten Gegenprüfung, deren Zweck nicht das Durchlaufen der Tests ist, sondern die Suche nach dem, was sie nicht abdecken. Und die Abläufe der Oberfläche laufen bei jeder Auslieferung unter Chromium, dann jede Woche unter Firefox und WebKit, mit automatischer Barrierefreiheitsprüfung: Eine Browser-Engine mehr sieht, was die anderen durchlassen.
 
 Was diese Prüfung hervorbringt, endet nicht bei der Korrektur. Jeder gefundene Fehler hinterlässt eine **strukturelle Wache** — eine Prüfung beim Start, eine fortlaufend verifizierte Invariante, einen Test, der fehlschlägt, sobald die ganze Fehlerklasse wiederkehrt. Das ist die einzige Art Fortschritt, die den überlebt, der sie geschrieben hat: Eine Korrektur schützt eine Zeile, eine Wache schützt die Regel.
 

@@ -4,10 +4,17 @@
 names and per-segment metadata. A bank is written once, through a writer that
 streams to disk (MUSAN's music alone is forty hours: never held in memory), and
 read through ``numpy.memmap`` by every later step.
+
+A synthesised bank also records its RECIPE — a digest of the plan it was drawn
+from — so a spec that changed (another near miss, another plan size) finds the
+bank stale instead of training on the old clips; and anything computed from a
+bank records the bank's FINGERPRINT, so a bank rebuilt since is never read
+through a cache of the old one.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -56,6 +63,29 @@ def bank_exists(directory: Path, name: str) -> bool:
     return bank_paths(directory, name)[1].exists()
 
 
+def bank_recipe(directory: Path, name: str) -> str | None:
+    """The recipe a complete bank was written under, or None (a corpus, or written before)."""
+    info = json.loads(bank_paths(directory, name)[1].read_text(encoding="utf-8"))
+    recipe = info.get("recipe")
+    return str(recipe) if recipe is not None else None
+
+
+def bank_fingerprint(directory: Path, name: str) -> str:
+    """What a complete bank holds, in one word: the SHA-1 of its index.
+
+    The index lists every segment's length and metadata (and the recipe): two
+    builds of a bank from other audio never share it.
+    """
+    index = bank_paths(directory, name)[1].read_bytes()
+    return hashlib.sha1(index, usedforsecurity=False).hexdigest()
+
+
+def drop_bank(directory: Path, name: str) -> None:
+    """Delete a bank's two files (a stale bank, before it is written again)."""
+    for path in bank_paths(directory, name):
+        path.unlink(missing_ok=True)
+
+
 def open_bank(directory: Path, name: str) -> Bank:
     """Read a complete bank."""
     pcm, index = bank_paths(directory, name)
@@ -71,15 +101,19 @@ def open_bank(directory: Path, name: str) -> Bank:
 
 
 class BankWriter:
-    """Append segments to a new bank; the index is written on a clean exit only."""
+    """Append segments to a new bank; the index is written on a clean exit only.
 
-    def __init__(self, directory: Path, name: str) -> None:
+    ``recipe`` is recorded in the index (see ``bank_recipe``).
+    """
+
+    def __init__(self, directory: Path, name: str, recipe: str | None = None) -> None:
         directory.mkdir(parents=True, exist_ok=True)
         self._pcm, self._index = bank_paths(directory, name)
         self._index.unlink(missing_ok=True)
         self._handle = self._pcm.open("wb")
         self._offsets = [0]
         self._meta: list[dict[str, Any]] = []
+        self._recipe = recipe
 
     def add(self, samples: Int16Array, meta: dict[str, Any]) -> None:
         """Append one segment (an empty one is skipped)."""
@@ -103,7 +137,9 @@ class BankWriter:
             # A half-written bank must never pass for a complete one.
             self._pcm.unlink(missing_ok=True)
             return
-        payload = {"offsets": self._offsets, "meta": self._meta}
+        payload: dict[str, Any] = {"offsets": self._offsets, "meta": self._meta}
+        if self._recipe is not None:
+            payload["recipe"] = self._recipe
         self._index.write_text(json.dumps(payload), encoding="utf-8")
 
 

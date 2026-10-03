@@ -7,7 +7,7 @@
  * nothing left behind when the browser cannot play any rendition.
  */
 
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { LandingVideoDescriptor } from '@/lib/landing/media';
@@ -224,6 +224,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Unmount while the media stubs still exist: the player pauses its video on
+  // the way out, and jsdom's own `pause()` only reports « Not implemented ».
+  cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

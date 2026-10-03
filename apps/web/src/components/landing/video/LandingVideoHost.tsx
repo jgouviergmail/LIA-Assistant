@@ -67,13 +67,17 @@ export function LandingVideoHost({
     <LandingVideoProvider value={registry}>
       {children}
       {video !== null && onPublicRoute && !failed && (
-        <LandingVideoPlayer
-          lng={lng}
-          video={video}
-          slot={slot}
-          labels={labels}
-          onFailed={onFailed}
-        />
+        // The stage clips the framed player's halo at the page's edges
+        // (`.landing-video-stage` in globals.css).
+        <div className="landing-video-stage">
+          <LandingVideoPlayer
+            lng={lng}
+            video={video}
+            slot={slot}
+            labels={labels}
+            onFailed={onFailed}
+          />
+        </div>
       )}
     </LandingVideoProvider>
   );

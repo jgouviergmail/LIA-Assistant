@@ -41,6 +41,10 @@ describe('MoreAnimationProvider + AnimationPauseToggle', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    // The paused state is the page's (an attribute on <html>, remembered in
+    // localStorage): one test's pause must not start the next one paused.
+    delete document.documentElement.dataset.motion;
+    window.localStorage.clear();
   });
 
   function setup() {
@@ -89,6 +93,24 @@ describe('MoreAnimationProvider + AnimationPauseToggle', () => {
 
     act(() => button.focus());
     await user.keyboard('{Enter}');
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('is the page-wide switch: it pauses the cosmos background and remembers it', () => {
+    const button = setup();
+
+    fireEvent.click(button);
+    expect(document.documentElement.dataset.motion).toBe('paused');
+    expect(window.localStorage.getItem('lia_cosmos_motion_paused')).toBe('1');
+
+    fireEvent.click(button);
+    expect(document.documentElement.dataset.motion).toBeUndefined();
+    expect(window.localStorage.getItem('lia_cosmos_motion_paused')).toBeNull();
+  });
+
+  it('starts paused when the header already paused the page', () => {
+    document.documentElement.dataset.motion = 'paused';
+    const button = setup();
     expect(button).toHaveAttribute('aria-pressed', 'true');
   });
 

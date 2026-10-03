@@ -183,6 +183,59 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
   `FadeInOnScroll` révèle directement et les compteurs donnent leur état final.
 - **Contraste par thème** : le jeton primaire diverge entre fond sombre et fond clair ; vérifier les deux modes,
   notamment les petits libellés, les bordures de sélection et les focus visibles.
+- **Fond « attention + espace latent » (landing seule)** : `AttentionBackdrop` monte, sur un `requestIdleCallback`
+  (jamais avant le premier rendu ; là où l'API manque — WebKit —, après l'événement `load`), un `<canvas>` fixe à la taille du viewport dessiné par
+  `lib/landing/attention-background.ts` — un nuage d'embeddings qui se regroupe au fil du scroll, et une colonne
+  de tokens à droite où chaque `main .landing-section` devient un repère `§n`, la ligne de lecture y avançant au
+  fil du scroll (le module sait tracer les courbes de quatre têtes d'attention ; la landing les désactive,
+  `attentionHeads: false`, et garde la barre seule — demande du propriétaire, 2026-10-02) ; `destroy()` au démontage (aucun canvas, écouteur ni frame après une navigation). Il rejoint les
+  couches de `CosmicBackdrop` en `z-index: -1` (au-dessus du grain, sous tout le contenu, aucun contexte
+  d'empilement ajouté) ; sous la portée `.cosmos-attention`, les bandes de section deviennent transparentes, les
+  cartes gardent leur fond. Libellés dessinés traduits (`landing.cosmos.attention.*`) ; thème lu sur la classe
+  `dark` de `<html>` à chaque frame ; sous 768 px, **pas de colonne d'attention** (pas la place), la couche
+  latente reste. **Le fond ne bouge que là où il coûte peu** (règle du propriétaire, 2026-10-02) : le module
+  chronomètre ses frames animées et, si la médiane de trente frames (après cinq de mise en route) dépasse 5 ms
+  (15 % du fil principal à 30 i/s), il se fige pour la session. Mesuré le 2026-10-02 : 0,97 ms sur un i9 de
+  bureau (barre seule ; 2,7 ms avec les courbes), 3,6 ms sur un téléphone émulé à CPU ×4 (couche latente seule).
+  **Figé veut dire immobile** : sous `prefers-reduced-motion`, quand le visiteur met la page en pause, ou quand
+  l'appareil est trop lent, le module dessine UNE image fixe — la formation et la ligne de lecture là où elles
+  sont — et ne la redessine qu'à un changement de thème ou de mise en page, jamais au scroll ni au pointeur (un
+  redessin au pointeur recalculait le graphe des voisins à 30 i/s : plus cher, figé, que l'animation elle-même).
+- **Mettre les animations en pause (WCAG 2.2.2)** : la nébuleuse, les nuages de la planète et le fond animé de la
+  landing démarrent seuls et durent plus de cinq secondes ; le décoratif n'est pas exempté (seul l'essentiel
+  l'est) et `prefers-reduced-motion` est une préférence du système, pas un contrôle de la page. Chaque page
+  cosmos porte donc un bouton de pause (`MotionToggle`, `aria-pressed`, nom stable `landing.motion.pause`) dans
+  son en-tête — dans le menu mobile sous `sm`, seul dans un coin sur `/demo` qui n'a pas d'en-tête. L'état tient
+  en UN attribut, `data-motion="paused"` sur `<html>` (`lib/landing/motion-pause.ts`) : la feuille de style met
+  en pause toutes les animations de la portée `.cosmos`, le canvas le lit à chaque frame, les scènes de `/more`
+  le partagent (leur bouton et celui de l'en-tête sont un seul interrupteur). Le choix est mémorisé pour le
+  visiteur (localStorage, chaque accès protégé) et réappliqué par `CosmicBackdrop` au chargement de chaque page.
+- **Couches fixes du cosmos** : `.cosmos` ne porte **pas** de fond — il n'est pas un contexte d'empilement, donc un
+  fond posé sur lui se peint au-dessus des couches en `z-index` négatif de `CosmicBackdrop` (nébuleuse, étoiles,
+  grain), qui ont ainsi été invisibles sur toutes les pages cosmos jusqu'au 2026-10-02. La nébuleuse fixe peint
+  le ciel (`--cosmos-sky`) sur tout le viewport. `isolation: isolate` les aurait révélées aussi, mais aurait fait passer le
+  lecteur vidéo (hors de la portée, z 10/40) au-dessus du header (z 50, dedans).
+  `PublicFooter` porte donc le fond de la page (`bg-background`). Celui de la landing (`.landing-footer`) est
+  transparent et **posé sur la planète du final, qui continue réellement dessous** : le globe dépasse la section
+  (`.cosmos-finale`, rognée sur les côtés seulement) d'une portée que le footer, remonté par-dessus, recouvre, et
+  le conteneur de la landing (`.landing-page.cosmos-home`, une classe et non `:has()`, absent de certains moteurs
+  encore en usage) rogne ce qui dépasse la fin de la page. Une copie de la surface sous le footer a été essayée et
+  abandonnée : les nuages animés et la lueur du globe ne se recopient pas, la jonction se voyait. Sous le pied du
+  globe (téléphone, où 220vw est plus court que le footer), le fond cosmos prend le relais, de la même teinte.
+  Les colonnes de liens reposent sur un **bandeau en verre dépoli** un peu plus sombre (`.landing-footer-band`,
+  `--cosmos-footer-veil`, `--cosmos-footer-blur`) qui naît 6rem au-dessus du footer et s'éteint juste avant la
+  ligne de copyright ; son masque efface la teinte ET le flou le long d'une rampe smoothstep (une rampe linéaire
+  courte se lit comme un trait). Le footer est au plan z 30, après le rail des chapitres et avant les yeux de LIA
+  (qui restent devant) ; le rail s'efface quand le footer entre à l'écran (sous le verre, ses liens n'étaient plus
+  cliquables). Le fondu est vérifié par mesure, pas seulement à l'œil : profil de luminance ligne à ligne sur des
+  bandes sans texte, en clair et sombre, à 1920 et 390 px — aucun saut au-delà de 1,6 niveau hors en-tête et filet
+  du copyright. Le **contraste** l'est aussi : en clair, le ciel de la nébuleuse (`--cosmos-sky`) est un cran plus
+  soutenu que `--cosmos-bg` (visible, il rendait la page trop lumineuse), ce qui a fait tomber l'encre atténuée à
+  4,4:1 sur le verre du footer et 3,5:1 sous un trait du canvas (mesuré le 2026-10-03) ; `--cosmos-mut` a été
+  réaccordé dans les deux thèmes, et `styles/__tests__/cosmos-contrast.guard.test.ts` compose le sol, le ciel, la
+  lueur, le verre et le trait du canvas pour tenir les deux encres à 4,5:1. Le fond qui masquait les orbites derrière la
+  démo du hero n'est dessiné qu'avec le planétarium (`.cosmos-hero-demo`, bords fondus) : éteint, la démo repose
+  sur le ciel comme les autres cartes.
 
 ---
 
@@ -201,6 +254,8 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 | **Overflow mobile**        | `e2e/smoke/landing-mobile-overflow.spec.ts`                                | Débordement horizontal sur mobile : rendu initial, progression de la démonstration, sections et catalogues ouverts, balayage des locales et reflow à 320 px. Une capture statique seule ne couvre pas les états révélés.                                                                                                                                                                |
 | **Contenu FAQ groupee**    | `src/lib/__tests__/faq-answer-groups.test.ts`                              | La perte d'un mot lors du regroupement visuel de la reponse « Que puis-je demander ? » : egalite mot-a-mot prouvee sur les 6 locales reelles + repli tel-quel (zh a une q4 differente).                                                                                                                                                                                                 |
 | **Axe pages publiques**    | `e2e/a11y/axe-public-pages.spec.ts`                                        | Violations critical/serious (contraste inclus) sur `/faq` (reponse groupee ouverte), `/demo` et `/more` (scanne animee PUIS en pause via le bouton WCAG 2.2.2), en clair ET en sombre — le theme etant pilote par localStorage (`defaultTheme="light"`), emuler le scheme OS ne suffit pas.                                                                                             |
+| **Pause des animations**   | `landing/cosmic/__tests__/MotionToggle.test.tsx` + `lib/landing/__tests__/motion-pause.test.ts` | Le mécanisme WCAG 2.2.2 des pages cosmos : bouton natif au nom stable, `aria-pressed` porteur de l'état, clavier, toutes les instances sur l'unique état de `<html>`, choix retenu (et tenu quand le stockage refuse), scènes de `/more` sur le même interrupteur ; le canvas ne redessine plus en pause ni pour le pointeur ou le défilement. |
+| **Contraste cosmos**       | `styles/__tests__/cosmos-contrast.guard.test.ts` | Les encres du cosmos (corps et atténuée) à 4,5:1 sur le sol, le ciel, la lueur de la nébuleuse, le verre du pied de page et le trait du canvas, dans les deux thèmes — composés comme le navigateur les empile, depuis les valeurs de `globals.css`. |
 | **Contrat /more**          | `landing/more/__tests__/more-content-coverage.test.ts` + `scenes.test.tsx` | La perte silencieuse d'une attention : toutes les cartes des 6 sections, disjointes des fiches majeures (`REQUIRED_FEATURE_KEYS`), chacune avec icone + scene + cles i18n non vides ×6 locales ; apostrophe U+2019 en fr ; **aucun chiffre dans la copie des cartes** (regle anti-derive) ; registre de scenes = partition exacte des cartes.                                           |
 | **Overflow mobile /more**  | `e2e/smoke/more-overflow.spec.ts`                                          | Le debordement horizontal pendant les cycles de toutes les scenes : 375 px par battement d'horloge Playwright section par section, balayage statique des 6 locales, plancher reflow 320 px (helper partage `overflow-report.ts`).                                                                                                                                                       |
 
@@ -375,21 +430,37 @@ servi immuable un an) ; la page la charge par `/api/landing-media/beats` dès qu
 quand le son est seulement voulu) et `lib/landing/beat-sync.ts` lit l'horloge de l'image présentée
 (`requestVideoFrameCallback`, `mediaTime` ancré sur `expectedDisplayTime` quand le navigateur le donne, repli
 `currentTime`), calcule la valeur une image d'écran en avance (`BEAT_PAINT_LEAD_MS`, 16 ms : ce qu'un rappel écrit
-n'est peint qu'au vsync suivant) et écrit TROIS propriétés sur le document (`:root`, `data-beat` pendant la
+n'est peint qu'au vsync suivant) et écrit ses propriétés sur le document (`:root`, `data-beat` pendant la
 lecture) : `--beat` (chaque temps), `--beat-bar` (les temps forts seuls), `--beat-hue` (±8° sur un cycle de
-quatre mesures) ; les lignes du `h1` du hero (son animation d'entrée `cosmos-rise`, figée en `forwards`, possède
-le `transform` du `h1` lui-même) et chaque `h2` de **toute page cosmos visitée** les lisent en `transform` seul —
+quatre mesures), `--beat-progress` et `--beat-turn-0..2` (l'enveloppe du dernier temps de chaque « tour » : le
+temps n de la carte revient à la ligne n mod 3, `BEAT_TURNS`) ; les lignes du `h1` du hero (son animation
+d'entrée `cosmos-rise`, figée en `forwards`, possède le `transform` du `h1` lui-même) **battent chacune leur
+tour** (`.cosmos-hero-title`, `--beat-turn-<n>`, chaque ligne gardant sa propre relâche — demande du
+propriétaire, 2026-10-02) et chaque `h2` de **toute page cosmos visitée** lit `--beat`, en `transform` seul —
 6 px et 4,5 % sur un temps fort (`--beat-lift`, `--beat-scale`, un seul endroit à régler), plancher 60 % de
 l'amplitude pour le temps le plus faible (`BEAT_WEIGHT_FLOOR`), attaque 12 ms, relâche 180 ms, origine selon
 l'alignement du titre. **Six effets** s'y ajoutent, son actif seulement, `transform`/`opacity` seuls, rien en
-mouvement réduit (choix du propriétaire, 2026-10-01) : le halo du cadre vidéo (anneau pré-peint, opacité au
-temps et à la mesure), le battement du logo du header (`.landing-logo`), la respiration des mots fantômes (sur
+mouvement réduit (choix du propriétaire, 2026-10-01) : le halo de la vidéo (une lueur radiale sans forme,
+légère au repos, qui s'intensifie et s'élargit au temps et à la mesure — elle remplace un anneau qui lisait
+`--cosmos-glow-violet` hors de `.cosmos` et ne s'est jamais dessiné), le battement du logo du header (`.landing-logo`), la respiration des mots fantômes (sur
 leur cadre, le mot gardant la dérive du scroll), le point d'étape actif de la maquette de chat
 (`.cosmos-demo-step-dot`), le numéro actif du rail des chapitres (`.cosmos-chapter-rail`), la dérive de
 teinte du dégradé signature (`hue-rotate(var(--beat-hue))` sur `.cosmos-grad-text`) et **les yeux de LIA qui
 sautent entre deux temps et retombent, écrasés, sur le suivant** (quatrième propriété du pilote,
 `--beat-progress` : arc en `sin(π·progress)`, squash depuis les pieds sur l'enveloppe du temps, saut plus haut
-après une mesure — sur la racine `.lia-eyes`, que ni le déplacement ni le rig ne transforment).
+après une mesure — sur la racine `.lia-eyes`, que ni le déplacement ni le rig ne transforment). Cadrée, la
+vidéo **se fond dans la page** (demande du propriétaire, 2026-10-02) : son cadre est masqué sur ses quatre bords
+le long d'une smoothstep (`--edge`, `clamp(0.75rem, 2vw, 1.5rem)` : une fine bande intérieure — plus large, il rognait l'image ; c'est
+le halo, dehors, qui fait la transition), le halo l'entoure en permanence
+(plus ample en clair, où un fond lumineux avale une lueur — ses couleurs y sont un peu plus légères) sans
+jamais élargir la page — placé en coordonnées document, au-dessus du `body` qui rogne l'axe horizontal, il
+faisait défiler un écran de 375 px sur 407 (mesuré par les parcours e2e) : le lecteur vit donc dans une
+**scène** (`.landing-video-stage`) posée à l'origine du document, qui rogne l'axe horizontal seul
+(`overflow-x: clip`, aucun conteneur de défilement) ; amarré, il est fixe et rien ne le rogne —, et l'emplacement
+de la section ne dessine plus de boîte (bordure, fond, ombre) — il ne fait que réserver la place, sans quoi le
+rectangle effacé par le fondu réapparaissait dessous ; amarrée, la vignette garde ses bords nets. Le fond
+« attention + espace latent » (§4) s'éclaire aussi sur le temps : il lit `--beat` sur `<html>` et relève
+l'intensité de ses deux couches d'au plus 52,5 %, jamais quand il est figé.
 
 Le même script écrit les quatre renditions (AV1 et H.264, 1080p pour ≥ 900 px, 720p pour les téléphones), l'affiche,
 le manifeste et `PROVENANCE.json`, avec l'empreinte du master dans chaque nom — un cache immuable d'un an est alors
@@ -431,6 +502,7 @@ apps/web/src/components/landing/
   cosmic/
     CosmosHero.tsx  CosmosFinale.tsx
     CosmosDay.tsx  ScrollScrub.tsx  PinnedScene.tsx
+    AttentionBackdrop.tsx        # Fond animé (lib/landing/attention-background.ts), landing seule
   editorial/
     chapters-data.ts             # Ordre éditorial, scene par chapitre, contrat de contenu
     EditorialChapters.tsx        # Chapitres et scènes partagées

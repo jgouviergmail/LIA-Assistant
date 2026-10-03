@@ -7,27 +7,31 @@ a description — age, gender, timbre, pace, mood, accent — or CLONED from a r
 recording: here the speech of the language's own corpora, so the phrase is
 said in the timbres the negatives are spoken in. Measured 2026-10-01 on an RTX
 4090: 2.4 times real time, a short phrase at its natural duration (no babble,
-unlike Piper on two words). ``_GPU_WORKERS`` processes each hold the model,
-for every bank of the language. Measured 2026-10-01 for one process: 0.4 s a
-short clip, 5.6 GB of GPU memory, 2.6 GB of RAM once loaded but 11.3 GB while it
-loads — so workers load ONE AT A TIME (three at once froze the WSL machine) —
-and about 8.6 GB committed on a Windows host under WSL, which three workers took
-to the host's commit limit beside the dev stack: one worker is the default.
+unlike Piper on two words). ONE process holds the model, for every bank of the
+language — measured 2026-10-02 on an RTX 4090: it alone keeps the GPU busy,
+0.48 s a clip, and a second process only time-slices it (no MPS under Windows
+or WSL): 0.66 s a clip for the two together. A process takes 6 GB of GPU
+memory and 2.6 GB of RAM once loaded, 11 GB of RAM while it loads — the
+library builds the model in full precision in RAM; three loading at once froze
+the WSL machine (2026-10-01).
 
 Banks: ``vox-<lang>-{positive,near_miss}-{train,test}``. Training voices are
 cloned from the TRAIN split of FLEURS and MLS and designed from one half of the
 descriptions; test voices are cloned from the TEST split (MLS speakers are
-disjoint across splits) and designed from the other half.
+disjoint across splits) and designed from the other half. A bank records the
+recipe of its plan, the recordings it cloned included (``recipe``): drawn from
+another plan — a near miss added, a budget changed, the training speakers
+chosen anew — it is generated again.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import random
 import tempfile
 import time
 import wave
-from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import product
 from multiprocessing import get_context
@@ -42,7 +46,16 @@ from huggingface_hub import snapshot_download
 from voxcpm import VoxCPM
 
 from wakeword.audio import faded, peak_int16, to_16k, trim
-from wakeword.banks import SAMPLE_RATE, Bank, BankWriter, bank_exists, open_bank
+from wakeword.banks import (
+    SAMPLE_RATE,
+    Bank,
+    BankWriter,
+    bank_exists,
+    bank_fingerprint,
+    bank_recipe,
+    drop_bank,
+    open_bank,
+)
 from wakeword.corpora import language_bank_names
 from wakeword.languages import LanguageSpec
 from wakeword.paths import CORPORA
@@ -50,6 +63,8 @@ from wakeword.sources import VOXCPM_REPOSITORY, VOXCPM_REVISION
 
 Kind = Literal["positive", "near_miss"]
 Split = Literal["train", "test"]
+_KINDS: tuple[Kind, ...] = ("positive", "near_miss")
+_SPLITS: tuple[Split, ...] = ("train", "test")
 
 _OUTPUT_RATE = 48_000
 #: Clips per bank: ``(designed, cloned)``.
@@ -59,7 +74,7 @@ _PLAN: dict[tuple[Kind, Split], tuple[int, int]] = {
     ("near_miss", "train"): (1_500, 1_500),
     ("near_miss", "test"): (200, 200),
 }
-#: Processes decoding at once on the one GPU, each holding the model (see above).
+#: Processes decoding at once on the one GPU (see above): one.
 _GPU_WORKERS = 1
 #: A long bank says how far it is every so many clips.
 _PROGRESS_EVERY = 500
@@ -151,6 +166,34 @@ def plan(
     return jobs
 
 
+def recipe(jobs: list[Job], references: dict[str, str]) -> str:
+    """A plan's digest: its clips, the fingerprints of the banks it clones, the model."""
+    payload = {
+        "voxcpm": VOXCPM_REVISION,
+        "timesteps": _INFERENCE_TIMESTEPS,
+        "bands": [_POSITIVE_BAND, _NEAR_MISS_SECONDS],
+        "references": references,
+        "clips": [[job.text, job.description, job.reference, job.cfg, job.seed] for job in jobs],
+    }
+    return hashlib.sha1(json.dumps(payload).encode(), usedforsecurity=False).hexdigest()
+
+
+Plans = dict[tuple[Kind, Split], tuple[list[Job], str]]
+
+
+def plans(spec: LanguageSpec) -> Plans:
+    """Every bank's plan and recipe (the reference banks read once per split)."""
+    out: Plans = {}
+    for split in _SPLITS:
+        names = reference_banks(spec, split)
+        banks = {name: open_bank(CORPORA, name) for name in names}
+        fingerprints = {name: bank_fingerprint(CORPORA, name) for name in names}
+        for kind in _KINDS:
+            jobs = plan(spec, kind, split, banks)
+            out[(kind, split)] = (jobs, recipe(jobs, fingerprints))
+    return out
+
+
 def _model() -> VoxCPM:
     """The pinned model, WITHOUT its denoiser: a reference's room and microphone are part
     of the voice a cloned clip should carry (the augmentation adds the rest)."""
@@ -202,18 +245,24 @@ def _generate(job: Job) -> tuple[Job, Any]:
     return job, trim(to_16k(np.asarray(wav, dtype=np.float32).reshape(-1), _OUTPUT_RATE))
 
 
-def _clips(spec: LanguageSpec, kind: Kind, split: Split, pool: Pool) -> Iterator[tuple[Job, Any]]:
-    """Every clip of a bank, in plan order, decoded by the pool's workers."""
-    names = reference_banks(spec, split)
-    jobs = plan(spec, kind, split, {name: open_bank(CORPORA, name) for name in names})
-    yield from pool.imap(_generate, jobs)
+def _bank_name(spec: LanguageSpec, kind: Kind, split: Split) -> str:
+    return f"vox-{spec.slug}-{kind}-{split}"
 
 
-def clone_bank(spec: LanguageSpec, kind: Kind, split: Split, pool: Pool) -> str:
-    """Write one natural-voice bank; returns its name (kept when already complete)."""
-    name = f"vox-{spec.slug}-{kind}-{split}"
-    if bank_exists(CORPORA, name):
+def _current(name: str, digest: str) -> bool:
+    return bank_exists(CORPORA, name) and bank_recipe(CORPORA, name) == digest
+
+
+def clone_bank(
+    spec: LanguageSpec, kind: Kind, split: Split, jobs: list[Job], digest: str, pool: Pool
+) -> str:
+    """Write one natural-voice bank from its plan; returns its name (kept when current)."""
+    name = _bank_name(spec, kind, split)
+    if _current(name, digest):
         return name
+    if bank_exists(CORPORA, name):
+        print(f"bank {name}: drawn from another plan, generated again")
+        drop_bank(CORPORA, name)
     low, high = (
         tuple(factor * spec.phrase_seconds for factor in _POSITIVE_BAND)
         if kind == "positive"
@@ -221,8 +270,8 @@ def clone_bank(spec: LanguageSpec, kind: Kind, split: Split, pool: Pool) -> str:
     )
     kept = dropped = 0
     began = time.monotonic()
-    with BankWriter(CORPORA, name) as bank:
-        for job, audio in _clips(spec, kind, split, pool):
+    with BankWriter(CORPORA, name, recipe=digest) as bank:
+        for job, audio in pool.imap(_generate, jobs):
             if (kept + dropped) % _PROGRESS_EVERY == 0:
                 print(
                     f"{name}: {kept + dropped} clips, {time.monotonic() - began:.0f} s", flush=True
@@ -238,20 +287,17 @@ def clone_bank(spec: LanguageSpec, kind: Kind, split: Split, pool: Pool) -> str:
 
 
 def clone_language(spec: LanguageSpec) -> None:
-    """Every natural-voice bank of a language, on one pool of workers."""
-    kinds: tuple[Kind, ...] = ("positive", "near_miss")
-    splits: tuple[Split, ...] = ("train", "test")
-    missing = [
-        (kind, split)
-        for kind in kinds
-        for split in splits
-        if not bank_exists(CORPORA, f"vox-{spec.slug}-{kind}-{split}")
+    """Every natural-voice bank of a language that is missing or stale, on one pool."""
+    every = plans(spec)
+    due = [
+        key for key, (_, digest) in every.items() if not _current(_bank_name(spec, *key), digest)
     ]
-    if not missing:
+    if not due:
         return
-    names = sorted({name for split in splits for name in reference_banks(spec, split)})
-    # CUDA survives no fork: every worker starts afresh and loads its own model.
+    names = sorted({name for split in _SPLITS for name in reference_banks(spec, split)})
+    # CUDA survives no fork: the worker starts afresh and loads its own model.
     context = get_context("spawn")
     with context.Pool(_GPU_WORKERS, _init_worker, (names, context.Lock())) as pool:
-        for kind, split in missing:
-            clone_bank(spec, kind, split, pool)
+        for kind, split in due:
+            jobs, digest = every[(kind, split)]
+            clone_bank(spec, kind, split, jobs, digest, pool)

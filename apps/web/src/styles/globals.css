@@ -1778,7 +1778,10 @@
   --cosmos-bg: #06070f;
   --cosmos-bg-2: #0a0e1d;
   --cosmos-ink: #eef1fb;
-  --cosmos-mut: #98a0bd;
+  /* Muted ink: #98a0bd computes to 3.7:1 under the attention canvas's resting
+     link over the nebula's glow (2026-10-03); this one to 4.6:1 there and
+     9.5:1 on the ground. `cosmos-contrast.guard.test.ts` keeps it. */
+  --cosmos-mut: #aab2ce;
   --cosmos-blue: #4f8dfd;
   /* Light-theme functional primary (buttons, filled CTAs, text-primary): a
      deeper cut of the brand blue — #4f8dfd under white text is 3.2:1, below
@@ -1826,7 +1829,12 @@
   --color-popover-foreground: var(--cosmos-ink);
   --color-ring: var(--cosmos-cyan);
 
-  background: var(--cosmos-bg);
+  /* No background here: `.cosmos` is not a stacking context, so a background
+     on it paints ABOVE the backdrop's negative z-index layers and hid the
+     nebula, the stars and the grain on every cosmos page. The fixed nebula
+     paints the sky (`--cosmos-sky`, below) over the whole viewport instead. (`isolation` would
+     have revealed them too, but it would lift the landing video player —
+     outside the scope, z 10/40 — above the header, z 50 inside it.) */
   color: var(--cosmos-ink);
 }
 
@@ -1835,7 +1843,13 @@ html:not(.dark) .cosmos {
   --cosmos-bg: #f5f6fc;
   --cosmos-bg-2: #eceef9;
   --cosmos-ink: #1b2140;
-  --cosmos-mut: #525a7c;
+  /* Muted ink, re-tuned for the deeper sky (#e9ecf6), the footer's darker
+     glass and the attention canvas's strokes behind the copy: #525a7c was
+     measured at 4.4:1 on the footer band and 3.5:1 under a stroke
+     (2026-10-03); this one computes to 8.3:1 on the ground, 5.2:1 on the
+     darkest glass and 5.2:1 under the canvas's resting link.
+     `cosmos-contrast.guard.test.ts` keeps it. */
+  --cosmos-mut: #414868;
   --cosmos-line: rgba(27, 33, 64, 0.12);
   --cosmos-glass: rgba(255, 255, 255, 0.78);
   --cosmos-ghost-stroke: rgba(27, 33, 64, 0.17);
@@ -1875,8 +1889,17 @@ html:not(.dark) .cosmos .cosmos-stars {
     radial-gradient(50rem 34rem at 12% -6%, var(--cosmos-glow-blue), transparent 62%),
     radial-gradient(44rem 30rem at 88% 22%, var(--cosmos-glow-violet), transparent 64%),
     radial-gradient(40rem 28rem at 30% 105%, var(--cosmos-glow-cyan), transparent 60%),
-    var(--cosmos-bg);
+    var(--cosmos-sky);
   transition: background 400ms ease;
+}
+/* The sky behind everything. Dark: the cosmos ground itself. Light: a shade
+   deeper than the ground — once the nebula became visible, the light page
+   read too bright (owner, 2026-10-02); cards and text keep their tokens. */
+.cosmos {
+  --cosmos-sky: var(--cosmos-bg);
+}
+html:not(.dark) .cosmos {
+  --cosmos-sky: #e9ecf6;
 }
 .cosmos-nebula::before,
 .cosmos-nebula::after {
@@ -1922,6 +1945,34 @@ html:not(.dark) .cosmos .cosmos-stars {
 html:not(.dark) .cosmos .cosmos-grain {
   opacity: 0.03;
 }
+/* Landing « attention + latent space » canvas (AttentionBackdrop): the
+   section bands go transparent so the pattern reads through them; their
+   borders stay, and cards keep their own background. */
+.cosmos.cosmos-attention main .landing-section {
+  background: transparent;
+}
+
+/* The hero demo's backing, drawn only with the planetarium (CosmosHero): the
+   page ground behind the mockup hides the orbits, its edges faded into the sky
+   in both themes rather than a box with hard edges (owner, 2026-10-02). On a
+   pseudo-element so the mockup itself stays sharp; the box's z-10 makes it
+   the stacking context. */
+.cosmos .cosmos-hero-demo::before {
+  --fade: 4rem;
+  --fade-ramp: transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent;
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--fade));
+  z-index: -1;
+  pointer-events: none;
+  background: var(--color-background);
+  -webkit-mask-image:
+    linear-gradient(to right, var(--fade-ramp)), linear-gradient(to bottom, var(--fade-ramp));
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, var(--fade-ramp)), linear-gradient(to bottom, var(--fade-ramp));
+  mask-composite: intersect;
+}
 
 /* --- Shared identity pieces --- */
 /* Static frame: keeps the edge fade aligned to the screen while the word
@@ -1962,10 +2013,11 @@ html:not(.dark) .cosmos .cosmos-grain {
 }
 
 /* Beat-synced titles and effects (ADR-330, amended). While the landing video
-   plays with its sound on, its driver (lib/landing/beat-sync.ts) writes THREE
+   plays with its sound on, its driver (lib/landing/beat-sync.ts) writes its
    custom properties on the DOCUMENT — `--beat` (every beat), `--beat-bar`
    (the bar beats alone), `--beat-hue` (a drift in degrees on a cycle of
-   bars) — and marks it `data-beat`; every cosmos page reads them, since the
+   bars), `--beat-progress` (the position in the track) and `--beat-turn-0..2`
+   (the hero lines' turns) — and marks it `data-beat`; every cosmos page reads them, since the
    element lives in the layout and the music goes on across the pages.
    Transform and opacity only — nothing in the page moves but the box of the
    thing that beats. A left-aligned title scales from its left edge: scaling it
@@ -1982,8 +2034,20 @@ html:not(.dark) .cosmos .cosmos-grain {
 :root[data-beat] .cosmos main h2 {
   will-change: transform;
   transform-origin: 0 60%;
-  transform: translateY(calc(var(--beat, 0) * var(--beat-lift) * -1))
-    scale(calc(1 + var(--beat, 0) * var(--beat-scale)));
+  transform: translateY(calc(var(--beat-line, var(--beat, 0)) * var(--beat-lift) * -1))
+    scale(calc(1 + var(--beat-line, var(--beat, 0)) * var(--beat-scale)));
+}
+/* The hero's three lines beat IN TURN (beat n → line n mod 3), each on its
+   own envelope (`--beat-turn-<n>`, lib/landing/beat-sync.ts); every other
+   title keeps the shared `--beat`. */
+:root[data-beat] .cosmos main .cosmos-hero-title > span:nth-child(1) {
+  --beat-line: var(--beat-turn-0, 0);
+}
+:root[data-beat] .cosmos main .cosmos-hero-title > span:nth-child(2) {
+  --beat-line: var(--beat-turn-1, 0);
+}
+:root[data-beat] .cosmos main .cosmos-hero-title > span:nth-child(3) {
+  --beat-line: var(--beat-turn-2, 0);
 }
 :root[data-beat] .cosmos main .text-center h1 > span,
 :root[data-beat] .cosmos main .text-center h2 {
@@ -1999,21 +2063,77 @@ html:not(.dark) .cosmos .cosmos-grain {
     transform-origin: 0 60%;
   }
 }
-/* C — the video frame's glow: a ring painted once, its opacity on the beat,
-   stronger on the bar. Opacity on a promoted layer, never a shadow repainted
-   at 60 Hz on a frame the size of the viewport. */
-.landing-video-player::after {
+/* C — the framed video melts into the page (owner, 2026-10-02): its edges
+   fade out along a smoothstep, and a diffuse halo — a radial glow with no
+   shape, never a ring that would redraw the rectangle the fade just erased —
+   rests faintly around it and swells on the beat, more on the bar. Opacity and
+   transform on a promoted layer, nothing repainted at 60 Hz. The player lives
+   in the layout, OUTSIDE `.cosmos`, so it states its own glow colours (the
+   cosmos glows, both themes): the ring it replaces read `--cosmos-glow-violet`
+   there, found nothing, and never drew. */
+.landing-video-player {
+  --video-halo-a: rgba(139, 92, 246, 0.38);
+  --video-halo-b: rgba(79, 141, 253, 0.28);
+  /* How much a full beat swells the halo; a light ground swallows a glow, so
+     the light theme gets a wider swell (owner, 2026-10-02) — its colours are
+     a touch lighter, not deeper. */
+  --video-halo-swell: 0.08;
+}
+html:not(.dark) .landing-video-player {
+  --video-halo-a: rgba(139, 92, 246, 0.34);
+  --video-halo-b: rgba(79, 141, 253, 0.26);
+  --video-halo-swell: 0.11;
+}
+.landing-video-player[data-mode='framed'] .landing-video-player-frame {
+  /* A thin inner band only: the image stays whole, the halo outside carries
+     the transition into the sky (owner, 2026-10-02 — a wider fade cropped it). */
+  --edge: clamp(0.75rem, 2vw, 1.5rem);
+  --edge-ramp:
+    rgba(0, 0, 0, 0) calc(var(--edge) * 0), rgba(0, 0, 0, 0.043) calc(var(--edge) * 0.125),
+    rgba(0, 0, 0, 0.156) calc(var(--edge) * 0.25), rgba(0, 0, 0, 0.316) calc(var(--edge) * 0.375),
+    rgba(0, 0, 0, 0.5) calc(var(--edge) * 0.5), rgba(0, 0, 0, 0.684) calc(var(--edge) * 0.625),
+    rgba(0, 0, 0, 0.844) calc(var(--edge) * 0.75), rgba(0, 0, 0, 0.957) calc(var(--edge) * 0.875),
+    rgba(0, 0, 0, 1) calc(var(--edge) * 1), rgba(0, 0, 0, 1) calc(100% - var(--edge) * 1),
+    rgba(0, 0, 0, 0.957) calc(100% - var(--edge) * 0.875),
+    rgba(0, 0, 0, 0.844) calc(100% - var(--edge) * 0.75),
+    rgba(0, 0, 0, 0.684) calc(100% - var(--edge) * 0.625),
+    rgba(0, 0, 0, 0.5) calc(100% - var(--edge) * 0.5),
+    rgba(0, 0, 0, 0.316) calc(100% - var(--edge) * 0.375),
+    rgba(0, 0, 0, 0.156) calc(100% - var(--edge) * 0.25),
+    rgba(0, 0, 0, 0.043) calc(100% - var(--edge) * 0.125),
+    rgba(0, 0, 0, 0) calc(100% - var(--edge) * 0);
+  -webkit-mask-image:
+    linear-gradient(to right, var(--edge-ramp)), linear-gradient(to bottom, var(--edge-ramp));
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, var(--edge-ramp)), linear-gradient(to bottom, var(--edge-ramp));
+  mask-composite: intersect;
+}
+.landing-video-player[data-mode='framed']::before {
   content: '';
   position: absolute;
-  inset: -2px;
-  border-radius: 1.125rem;
-  box-shadow: 0 0 36px 10px var(--cosmos-glow-violet);
-  opacity: 0;
+  inset: -22% -14%;
+  z-index: -1;
   pointer-events: none;
-  will-change: opacity;
+  background: radial-gradient(
+    closest-side,
+    var(--video-halo-a) 0%,
+    var(--video-halo-b) 35%,
+    color-mix(in srgb, var(--video-halo-b) 95.703%, transparent) 43.125%,
+    color-mix(in srgb, var(--video-halo-b) 84.375%, transparent) 51.25%,
+    color-mix(in srgb, var(--video-halo-b) 68.359%, transparent) 59.375%,
+    color-mix(in srgb, var(--video-halo-b) 50%, transparent) 67.5%,
+    color-mix(in srgb, var(--video-halo-b) 31.641%, transparent) 75.625%,
+    color-mix(in srgb, var(--video-halo-b) 15.625%, transparent) 83.75%,
+    color-mix(in srgb, var(--video-halo-b) 4.297%, transparent) 91.875%,
+    color-mix(in srgb, var(--video-halo-b) 0%, transparent) 100%
+  );
+  opacity: 0.5;
+  will-change: opacity, transform;
 }
-:root[data-beat] .landing-video-player[data-mode='framed']::after {
-  opacity: calc(0.35 * var(--beat, 0) + 0.45 * var(--beat-bar, 0));
+:root[data-beat] .landing-video-player[data-mode='framed']::before {
+  opacity: calc(0.5 + 0.5 * var(--beat, 0) + 0.35 * var(--beat-bar, 0));
+  transform: scale(calc(1 + var(--video-halo-swell) * var(--beat, 0) + 0.04 * var(--beat-bar, 0)));
 }
 /* D — the header logo's heartbeat. */
 :root[data-beat] .cosmos .landing-logo {
@@ -2066,8 +2186,9 @@ html:not(.dark) .cosmos .cosmos-grain {
   :root[data-beat] .cosmos .cosmos-ghost-frame {
     transform: translateY(-50%);
   }
-  :root[data-beat] .landing-video-player[data-mode='framed']::after {
-    opacity: 0;
+  :root[data-beat] .landing-video-player[data-mode='framed']::before {
+    opacity: 0.5;
+    transform: none;
   }
   :root[data-beat] .cosmos .cosmos-grad-text {
     filter: none;
@@ -2082,6 +2203,22 @@ html:not(.dark) .cosmos .cosmos-grain {
 .landing-video-player {
   position: absolute;
   z-index: 10;
+}
+/* The framed player's halo (C above) reaches past the frame by design, and on
+   a narrow screen past the page's edges, where nobody can see it — yet a box
+   positioned on the document still widens the document: measured, a 375 px
+   page scrolled to 407 px. `body` clips the x axis, but not for this player,
+   whose containing block is the initial one, above `body`. The stage becomes
+   that containing block, at the document's origin so the placement hook's
+   document coordinates hold, and clips the x axis alone (`clip`, not `hidden`:
+   no scroll container, `overflow-y` stays `visible`). The docked player is
+   fixed: the viewport stays its containing block and nothing clips it. */
+.landing-video-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  overflow-x: clip;
 }
 .landing-video-player[data-mode='docked'] {
   position: fixed;
@@ -2418,6 +2555,31 @@ html:not(.dark) .cosmos .cosmos-grain {
   height: 36dvh;
   pointer-events: none;
 }
+/* On the landing the planet does not stop at the finale: it goes on UNDER the
+   footer (owner, 2026-10-02). A footer painting its own copy of the ground met
+   the finale on a visible line — the globe's drifting clouds and inner glow
+   cannot be copied — so the globe itself is extended: the cap the finale
+   shows, plus a reach that the footer, pulled up over it, covers. The section
+   keeps clipping sideways only; the page clips what reaches past its end.
+   Nothing clips the planet box itself: the globe's violet glow spills ABOVE
+   it, and a clip there cuts the glow along a straight line. Below the globe's
+   foot (narrow screens, where 220vw is shorter than the footer) the ground it
+   fades into fills in. */
+.cosmos .cosmos-finale {
+  overflow: clip visible;
+}
+.cosmos .cosmos-finale .cosmos-planet {
+  --planet-reach: 120rem;
+  height: calc(36dvh + var(--planet-reach));
+  margin-bottom: calc(-1 * var(--planet-reach));
+  background: linear-gradient(to bottom, transparent 150vw, var(--cosmos-bg) 150vw);
+}
+/* The landing wrapper names itself (`cosmos-home`): a `:has(.cosmos-finale)`
+   selector left the planet's 120rem reach unclipped wherever `:has()` is
+   missing — 2,378px of empty planet below the footer. */
+.landing-page.cosmos-home {
+  overflow: clip;
+}
 .cosmos-globe {
   position: absolute;
   left: 50%;
@@ -2438,6 +2600,71 @@ html:not(.dark) .cosmos .cosmos-globe {
   background:
     radial-gradient(140vw 40vw at 50% 0, rgba(79, 141, 253, 0.12), transparent 55%),
     radial-gradient(circle at 50% 5%, #dce3f8, #e9edfb 30%, var(--cosmos-bg) 58%);
+}
+/* The landing footer stands on that planet, which shows through it. Same
+   layer as the fixed chapter rail (z 30, earlier in the DOM), later in the
+   tree, so it passes over the rail while LIA's eyes (z 30, later still), the
+   docked video (z 40) and the header (z 50) stay above it. */
+.cosmos .landing-footer {
+  position: relative;
+  z-index: 30;
+  border-top-color: transparent;
+}
+/* The link columns sit on a full-width band of frosted glass, a shade darker
+   in both themes, so the footer stands apart from the finale; the copyright bar
+   stays below it, on the planet (owner, 2026-10-02). The glass must melt in,
+   never draw an edge: it starts 6rem above the footer — its blur takes in the
+   planet's uneven ground and the chapter rail passing under it — and the mask
+   fades the tint AND the blur in
+   over 14rem, out over the band's last 7rem, along a smoothstep (a short
+   linear ramp reads as a line: Mach bands). */
+.cosmos .landing-footer-band {
+  position: relative;
+}
+.cosmos .landing-footer-band::before {
+  content: '';
+  position: absolute;
+  inset: -6rem 0 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--cosmos-footer-veil);
+  -webkit-backdrop-filter: blur(var(--cosmos-footer-blur));
+  backdrop-filter: blur(var(--cosmos-footer-blur));
+  -webkit-mask-image: var(--cosmos-footer-band-mask);
+  mask-image: var(--cosmos-footer-band-mask);
+}
+.cosmos {
+  --cosmos-footer-blur: 18px;
+  --cosmos-footer-veil: rgba(4, 6, 16, 0.38);
+  --cosmos-footer-band-mask: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0rem,
+    rgba(0, 0, 0, 0.015) 1rem,
+    rgba(0, 0, 0, 0.055) 2rem,
+    rgba(0, 0, 0, 0.118) 3rem,
+    rgba(0, 0, 0, 0.198) 4rem,
+    rgba(0, 0, 0, 0.292) 5rem,
+    rgba(0, 0, 0, 0.394) 6rem,
+    rgba(0, 0, 0, 0.5) 7rem,
+    rgba(0, 0, 0, 0.606) 8rem,
+    rgba(0, 0, 0, 0.708) 9rem,
+    rgba(0, 0, 0, 0.802) 10rem,
+    rgba(0, 0, 0, 0.882) 11rem,
+    rgba(0, 0, 0, 0.945) 12rem,
+    rgba(0, 0, 0, 0.985) 13rem,
+    rgba(0, 0, 0, 1) 14rem,
+    rgba(0, 0, 0, 1) calc(100% - 7rem),
+    rgba(0, 0, 0, 0.945) calc(100% - 6rem),
+    rgba(0, 0, 0, 0.802) calc(100% - 5rem),
+    rgba(0, 0, 0, 0.606) calc(100% - 4rem),
+    rgba(0, 0, 0, 0.394) calc(100% - 3rem),
+    rgba(0, 0, 0, 0.198) calc(100% - 2rem),
+    rgba(0, 0, 0, 0.055) calc(100% - 1rem),
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+html:not(.dark) .cosmos {
+  --cosmos-footer-veil: rgba(27, 33, 64, 0.1);
 }
 .cosmos-cloud {
   position: absolute;
@@ -2580,6 +2807,23 @@ html:not(.dark) .cosmos.cosmos-calm {
 }
 .cosmos.cosmos-calm .cosmos-ghost-frame {
   display: none;
+}
+
+/* --- Paused by the visitor (WCAG 2.2.2): the header's pause control writes
+   `data-motion="paused"` on <html> (lib/landing/motion-pause). Every
+   decorative animation of the scope holds still where it stands; the
+   attention canvas reads the same attribute and draws one still frame. --- */
+:root[data-motion='paused'] .cosmos *,
+:root[data-motion='paused'] .cosmos *::before,
+:root[data-motion='paused'] .cosmos *::after {
+  animation-play-state: paused !important;
+}
+
+/* The attention canvas is a screen ornament: never on paper. */
+@media print {
+  .lia-bg {
+    display: none !important;
+  }
 }
 
 /* --- Reduced motion: final states, zero movement (durations AND delays) --- */

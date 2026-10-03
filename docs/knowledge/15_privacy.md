@@ -319,4 +319,13 @@ Behind this, every record of « who is calling » — the administration audit, 
 
 **Even when something fails:** a database that refuses a value usually quotes it in its error message; LIA removes that quotation before writing the line and describes the error by its facts — which constraint, which table. Service access keys are masked in every logged address.
 
+**Measurements too:** the metrics and traces used to monitor the server name the page requested by its pattern — "a relationship's card" — never by its content: a name or a search sitting in an address does not get into them.
+
 **Checked continuously:** an automated test reads every log line in the code and refuses one that would write a person's text. Two limits remain, stated as they are: an external service's error message in an unknown format can still quote a value, and the debug level — off in production — keeps more detail.
+
+## How does LIA stay protected against flaws in its dependencies?
+Through a **watch** and **rules that cannot be forgotten**. Every week, an automated check reads the security advisories each of LIA's dependencies publishes — including those no public database relays —, the announced end-of-life dates and the state of the browser engine. Every finding is fixed, or accepted in writing with a reason and a review date: never ignored in silence.
+
+**Careful updates:** a new version comes in only after a cooling-off period — from a few days for a fix to two months for a major version — long enough for a possible defect to become known. An update never moves a dependency backwards, and a security fix becomes a floor nothing can go below.
+
+**A verifiable build:** every building block of the server — images, languages, tools — is pinned by its digest, every version publishes the exact inventory of what it contains (a CycloneDX SBOM), and the code goes through the secret detector before every push. Before it is published, every version is installed on blank machines.

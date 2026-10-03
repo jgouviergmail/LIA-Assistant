@@ -9,6 +9,7 @@ import { TrackView } from '@/components/telemetry/TelemetryBootstrap';
 import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
+import { MotionToggle } from '@/components/landing/cosmic/MotionToggle';
 import { Planetarium } from '@/components/landing/cosmic/Planetarium';
 import { LANDING_PLANETARIUM_ENABLED } from '@/components/landing/constants';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
@@ -80,6 +81,11 @@ export default async function DemoPage({ params }: DemoPageProps) {
       <CosmosDarkFirst />
       <CosmicBackdrop />
       <CosmosThemeDefault />
+      {/* The page has no header: the background's pause control (WCAG 2.2.2)
+          stands alone in the corner, above the content. */}
+      <div className="fixed right-3 top-3 z-50">
+        <MotionToggle />
+      </div>
       <main className="relative flex min-h-screen items-center justify-center overflow-clip px-4 py-10">
         {variant === 'guided' ? (
           /* Guided missions (public-web-showroom program). No TrackView on

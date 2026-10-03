@@ -56,6 +56,14 @@ export const BEAT_HUE_DEGREES = 8;
 export const BEAT_HUE_CYCLE_BARS = 4;
 /** A hue change smaller than this (degrees) is not written to the DOM. */
 export const BEAT_HUE_WRITE_EPSILON = 0.05;
+/**
+ * The hero title's three lines beat IN TURN rather than together (owner
+ * request, 2026-10-02): beat n of the map lifts line n mod `BEAT_TURNS`, and
+ * each line keeps its OWN release — the envelope of the last beat that was
+ * its turn — so a line handing over to the next never snaps back to rest.
+ * Counted on the map's index, so a seek lands on the same line every time.
+ */
+export const BEAT_TURNS = 3;
 
 export interface BeatTrack {
   /** The number of beats of the map. */
@@ -71,6 +79,11 @@ export interface BeatTrack {
    * before the next — the arc of a jump that lands on the drum.
    */
   progressAt(seconds: number): number;
+  /**
+   * The envelope of the last beat whose turn is `turn` (index mod
+   * `BEAT_TURNS`), in [0, 1] — silent until that turn has come once.
+   */
+  turnIntensityAt(seconds: number, turn: number): number;
 }
 
 type Beat = BeatMap['beats'][number];
@@ -156,6 +169,15 @@ export function createBeatTrack(map: BeatMap): BeatTrack {
             : 0;
       return length > 0 ? Math.min(1, (ms - start) / length) : 0;
     },
+    turnIntensityAt(seconds: number, turn: number): number {
+      const ms = seconds * 1000;
+      const index = lastAtOrBefore(times, ms);
+      if (index < 0) return 0;
+      // Walk back to the latest beat of this turn: at most BEAT_TURNS - 1 steps.
+      const back = (((index - turn) % BEAT_TURNS) + BEAT_TURNS) % BEAT_TURNS;
+      const own = index - back;
+      return own < 0 ? 0 : pulseOf(beats[own], ms);
+    },
   };
 }
 
@@ -180,8 +202,9 @@ export interface BeatDriverOptions {
 }
 
 /**
- * Drive `--beat`, `--beat-bar`, `--beat-hue` and `--beat-progress` on `host`
- * from `video`'s playback until the returned function is called. `host`
+ * Drive `--beat`, `--beat-bar`, `--beat-hue`, `--beat-progress` and the
+ * per-turn `--beat-turn-<n>` (n < `BEAT_TURNS`) on `host` from `video`'s
+ * playback until the returned function is called. `host`
  * carries `data-beat` while the driver runs, so a stylesheet can scope the
  * choreography to that state alone.
  */
@@ -204,6 +227,7 @@ export function startBeatDriver(
   let writtenBar = -1;
   let writtenHue = Number.NaN;
   let writtenProgress = -1;
+  const writtenTurns = Array.from({ length: BEAT_TURNS }, () => -1);
 
   const onFrame = (now: DOMHighResTimeStamp, metadata: VideoFrameMetadataLike): void => {
     anchorMediaTime = metadata.mediaTime;
@@ -242,6 +266,13 @@ export function startBeatDriver(
       host.style.setProperty('--beat-progress', progress.toFixed(3));
       writtenProgress = progress;
     }
+    for (let turn = 0; turn < BEAT_TURNS; turn++) {
+      const value = track.turnIntensityAt(at, turn);
+      if (Math.abs(value - writtenTurns[turn]) > BEAT_WRITE_EPSILON) {
+        host.style.setProperty(`--beat-turn-${turn}`, value.toFixed(3));
+        writtenTurns[turn] = value;
+      }
+    }
     rafHandle = requestAnimationFrame(tick);
   };
 
@@ -262,6 +293,9 @@ export function startBeatDriver(
     host.style.removeProperty('--beat-bar');
     host.style.removeProperty('--beat-hue');
     host.style.removeProperty('--beat-progress');
+    for (let turn = 0; turn < BEAT_TURNS; turn++) {
+      host.style.removeProperty(`--beat-turn-${turn}`);
+    }
     host.removeAttribute('data-beat');
   };
 }

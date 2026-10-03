@@ -19,7 +19,7 @@ Once linked, Telegram becomes a **full communication channel** with LIA:
 **💬 Chat:**
 • Send text messages to LIA, just like in the web interface
 • LIA responds with the same quality and tools (emails, calendar, web search, etc.)
-• Voice messages are supported — LIA automatically transcribes them
+• Voice messages are supported — LIA automatically transcribes them. A note longer than the transcription accepts is refused with its maximum duration, in seconds
 
 **🔔 Notifications:**
 • Receive proactive notifications (heartbeat, interests) directly on Telegram
