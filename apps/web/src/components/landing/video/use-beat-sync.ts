@@ -3,7 +3,9 @@
  * loaded once the video plays with its sound on, and the driver runs while
  * that holds and the reader did not ask for less motion. It writes on the
  * DOCUMENT (`:root`), so the titles of whatever page the visitor is on read
- * it — the element lives in the layout, not in the landing.
+ * it — the element lives in the layout, not in the landing. Each video of a
+ * playlist has its own map: the one loaded is the playing video's, and the
+ * driver never runs one video's map against another's clock.
  */
 
 import { useEffect, useState, type RefObject } from 'react';
@@ -13,6 +15,8 @@ import type { BeatTrack } from '@/lib/landing/beat-sync';
 import { loadBeatTrack } from './use-landing-video';
 
 export interface BeatSyncInputs {
+  /** The playing video's rank in playing order. */
+  rank: number;
   hasBeats: boolean;
   muted: boolean;
   playing: boolean;
@@ -21,18 +25,19 @@ export interface BeatSyncInputs {
 
 export function useBeatSync(
   videoRef: RefObject<HTMLVideoElement | null>,
-  { hasBeats, muted, playing, reducedMotion }: BeatSyncInputs
+  { rank, hasBeats, muted, playing, reducedMotion }: BeatSyncInputs
 ): void {
-  const [beatTrack, setBeatTrack] = useState<BeatTrack | null>(null);
+  const [loaded, setLoaded] = useState<{ rank: number; track: BeatTrack } | null>(null);
+  const beatTrack = loaded !== null && loaded.rank === rank ? loaded.track : null;
 
   // Loaded once the sound is actually heard — playing AND unmuted — not when
   // it is merely wanted: a start the browser turns muted never fetches it.
   useEffect(() => {
     if (muted || !playing || beatTrack !== null || !hasBeats) return;
     let cancelled = false;
-    loadBeatTrack()
+    loadBeatTrack(rank)
       .then(track => {
-        if (!cancelled && track) setBeatTrack(track);
+        if (!cancelled && track) setLoaded({ rank, track });
       })
       .catch(() => {
         // No beat map: the video plays, the titles stay still.
@@ -40,7 +45,7 @@ export function useBeatSync(
     return () => {
       cancelled = true;
     };
-  }, [muted, playing, beatTrack, hasBeats]);
+  }, [rank, muted, playing, beatTrack, hasBeats]);
 
   useEffect(() => {
     const element = videoRef.current;

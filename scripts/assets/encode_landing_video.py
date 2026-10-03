@@ -22,7 +22,20 @@ The CRF values were chosen on the first video shipped (dithered, high-
 frequency content: VMAF 83 at 3.9 Mbit/s for AV1 1080p against the master,
 85 at 5.8 Mbit/s for H.264; 720p loses the dither whatever the bitrate, so
 it is offered to phones only, under ``minWidth``). Re-measure before changing
-them for another video.
+them for another video. The second video (``stopshipping``, a 720p H.264
+master at 1.04 Mbit/s, measured 2026-10-03 on a 60 s excerpt): AV1 720p at
+CRF 42 is 0.78 Mbit/s for VMAF 94.0, while re-encoding the H.264 lost seven
+points at the same rate (CRF 27: 1.00 Mbit/s, VMAF 93.2) — so its H.264 is
+the master itself, remuxed (``--copy-h264``).
+
+No rendition is taller than the master: upscaling adds bytes, not detail.
+When only the 720p pair remains, it is offered to every viewport.
+
+A landing may play SEVERAL videos, one after the other (``next`` in the
+manifest). ``--append`` adds the encoded video after the ones the manifest in
+``--out`` already names — replacing an earlier encoding of the same
+``--name`` — and records its provenance beside theirs; without it the video
+becomes the first, and the ones that follow are kept.
 
 Usage (from the repository root, ffmpeg and ffprobe on PATH, numpy in the API
 venv):
@@ -31,6 +44,11 @@ venv):
         --source exports/Underclass.mp4 --out exports/landing-media \\
         --name underclass --credit-label @anabology \\
         --credit-url https://x.com/anabology --ai-generated
+
+    apps/api/.venv/Scripts/python scripts/assets/encode_landing_video.py \\
+        --source exports/StopShipping.mp4 --out exports/landing-media \\
+        --name stopshipping --credit-label @vikktorrrre \\
+        --credit-url https://x.com/vikktorrrre --ai-generated --copy-h264 --append
 
 ``--skip-renditions`` writes everything but the four videos (to iterate on the
 beat map); an existing rendition of the same hash is kept unless ``--force``.
@@ -191,6 +209,75 @@ def codecs_string(path: Path, codec: str) -> str:
         level = av1_level(int(stream["width"]), int(stream["height"]), int(num) / int(den))
     depth = 10 if "10" in stream["pix_fmt"] else 8
     return f'video/mp4; codecs="av01.0.{level:02d}M.{depth:02d}"'
+
+
+def renditions_for(source_height: int) -> list[Rendition]:
+    """The renditions a master can feed: none taller than it.
+
+    When the tallest one left is the 720p pair, ``minWidth`` would leave wide
+    screens with nothing to choose: the pair is then offered to every viewport.
+    """
+    kept = [r for r in RENDITIONS if r.height <= source_height]
+    if not kept:
+        raise ValueError(f"a {source_height}p master is smaller than every rendition")
+    if all(r.min_width is not None for r in kept):
+        kept = [Rendition(r.label, r.codec, r.height, None, r.video_args) for r in kept]
+    return kept
+
+
+def copied_rendition(renditions: list[Rendition], source_codec: str, source_height: int) -> Rendition:
+    """The H.264 rendition the master itself can stand for, remuxed (``--copy-h264``).
+
+    Raises ValueError when the master is not H.264 or no H.264 rendition has its height.
+    """
+    if source_codec != "h264":
+        raise ValueError(f"--copy-h264 needs an H.264 master, not {source_codec}")
+    for rendition in renditions:
+        if rendition.codec == "h264" and rendition.height == source_height:
+            return rendition
+    raise ValueError(f"no H.264 rendition is {source_height}p tall: nothing to remux the master into")
+
+
+def owns(entry: dict, name: str) -> bool:
+    """An encoded video's entry, recognised by the file name stem it was written under."""
+    return str(entry.get("poster", "")).startswith(f"{name}-")
+
+
+def merge_playlist(existing: dict | None, video: dict, name: str, append: bool) -> dict:
+    """The manifest (or the provenance record) once ``video`` is written into it.
+
+    ``append`` puts it after the videos already named, replacing an earlier
+    encoding of the same ``name``; otherwise it becomes the first and the
+    videos that follow are kept. Raises ValueError on ``append`` with nothing
+    to append to, or onto a manifest whose first video is this one.
+    """
+    following = list((existing or {}).get("next", []))
+    if not append:
+        merged = {**video}
+        if following:
+            merged["next"] = following
+        return merged
+    if existing is None:
+        raise ValueError("--append needs a manifest to append to: encode the first video without it")
+    if owns(existing, name):
+        raise ValueError(f"{name} is the first video: re-encode it without --append")
+    return {**existing, "next": [*(e for e in following if not owns(e, name)), video]}
+
+
+def remux_master(source: Path, out: Path) -> None:
+    """The master as it is, its moov atom first: a web H.264 is served without a generation loss."""
+    run(
+        [
+            "ffmpeg", "-v", "error", "-y", "-i", str(source),
+            "-map", "0:v:0", "-map", "0:a:0?", "-c", "copy",
+            "-movflags", "+faststart",
+            str(out),
+        ]
+    )
+
+
+def read_json(path: Path) -> dict | None:
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
 def encode_rendition(source: Path, out: Path, rendition: Rendition) -> None:
@@ -462,6 +549,14 @@ def main() -> int:
     parser.add_argument("--ai-generated", action="store_true")
     parser.add_argument("--skip-renditions", action="store_true")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument(
+        "--copy-h264", action="store_true",
+        help="serve the master itself, remuxed, as the H.264 rendition of its height",
+    )
+    parser.add_argument(
+        "--append", action="store_true",
+        help="add this video after the ones the manifest in --out already names",
+    )
     args = parser.parse_args()
 
     if bool(args.credit_label) != bool(args.credit_url):
@@ -476,15 +571,28 @@ def main() -> int:
     digest = sha256_of(source)
     short = digest[:12]
     print(f"source {source.name}: {facts['width']}x{facts['height']} {facts['fps']:.3g} fps, {facts['duration']:.1f} s, sha256 {short}...")
+    manifest_path = out / "manifest.json"
+    provenance_path = out / "PROVENANCE.json"
+    try:
+        renditions = renditions_for(facts["height"])
+        copied = copied_rendition(renditions, facts["codec"], facts["height"]) if args.copy_h264 else None
+        # Checked before an hour of encoding, not after it.
+        merge_playlist(read_json(manifest_path), {"poster": f"{args.name}-"}, args.name, args.append)
+    except ValueError as error:
+        parser.error(str(error))
 
     provenance_renditions = []
     manifest_renditions = []
-    for rendition in RENDITIONS:
+    for rendition in renditions:
         file_name = rendition.file_name(args.name, short)
         target = out / file_name
+        is_copy = rendition is copied
         if not args.skip_renditions:
             if target.exists() and target.stat().st_size > 0 and not args.force:
                 print(f"keep   {file_name}")
+            elif is_copy:
+                print(f"remux  {file_name} (the master itself)", flush=True)
+                remux_master(source, target)
             else:
                 print(f"encode {file_name} …", flush=True)
                 encode_rendition(source, target, rendition)
@@ -498,7 +606,7 @@ def main() -> int:
             manifest_renditions.append(entry)
             provenance_renditions.append({
                 "file": file_name, "bytes": size, "mbit_s": round(size * 8 / facts["duration"] / 1e6, 2),
-                "ffmpeg_video_args": list(rendition.video_args), "codecs": codecs,
+                "ffmpeg_video_args": ["-c", "copy"] if is_copy else list(rendition.video_args), "codecs": codecs,
             })
 
     poster_name = f"{args.name}-{short}-poster.webp"
@@ -514,8 +622,7 @@ def main() -> int:
         f"{summary['onset_hit_rate']:.0%}, tempo windows {sorted({w['bpm'] for w in summary['tempo_windows']})}"
     )
 
-    manifest = {
-        "version": 1,
+    video = {
         "poster": poster_name,
         "renditions": manifest_renditions,
         "aspectRatio": aspect_ratio(facts["width"], facts["height"]),
@@ -524,7 +631,11 @@ def main() -> int:
         "credit": {"label": args.credit_label, "url": args.credit_url} if args.credit_label else None,
         "aiGenerated": bool(args.ai_generated),
     }
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    existing = read_json(manifest_path)
+    if existing is not None:
+        existing = {k: v for k, v in existing.items() if k != "version"}
+    manifest = {"version": 1, **merge_playlist(existing, video, args.name, args.append)}
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     ffmpeg_version = run(["ffmpeg", "-version"], capture=True).splitlines()[0]
     provenance = {
@@ -535,11 +646,13 @@ def main() -> int:
         "renditions": provenance_renditions,
         "poster": poster_name,
         "beats": {"file": beats_name, "analysis_version": BEAT_ANALYSIS_VERSION, "onset_lead_ms": ONSET_LEAD_MS, **summary},
-        "credit": manifest["credit"],
-        "ai_generated": manifest["aiGenerated"],
+        "credit": video["credit"],
+        "ai_generated": video["aiGenerated"],
     }
-    (out / "PROVENANCE.json").write_text(json.dumps(provenance, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"wrote {out / 'manifest.json'} and PROVENANCE.json")
+    provenance = merge_playlist(read_json(provenance_path), provenance, args.name, args.append)
+    provenance_path.write_text(json.dumps(provenance, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    playing = [manifest["poster"], *(entry["poster"] for entry in manifest.get("next", []))]
+    print(f"wrote {manifest_path} and PROVENANCE.json — playing order: {', '.join(playing)}")
     return 0
 
 

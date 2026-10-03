@@ -462,6 +462,22 @@ rectangle effacé par le fondu réapparaissait dessous ; amarrée, la vignette g
 « attention + espace latent » (§4) s'éclaire aussi sur le temps : il lit `--beat` sur `<html>` et relève
 l'intensité de ses deux couches d'au plus 52,5 %, jamais quand il est figé.
 
+**Plusieurs vidéos, l'une après l'autre** (amendement ADR-330 du 2026-10-03) : le manifeste reste en version 1 et
+gagne `next`, la liste des vidéos qui suivent la première dans l'ordre de lecture (au plus `LANDING_MEDIA_MAX_NEXT`),
+chacune soumise aux règles de la première. Une version 2 a été écartée : le fichier est lu à l'exécution par le build
+que tourne chaque déploiement, et un lecteur antérieur ignore la clé inconnue — il continue de jouer la première vidéo
+seule, en boucle —, si bien qu'un même répertoire sert l'ancien et le nouveau code. `/api/landing-media` répond
+`{ video, next }` et la carte des temps se demande par rang (`/api/landing-media/beats?video=N`). L'hôte tient le
+RANG de la vidéo que porte le lecteur : une vidéo seule boucle, l'une de plusieurs se termine et `ended` passe à la
+suivante (puis revient à la première) sur le même élément, qui continue avec le son qu'il avait ; la légende crédite
+la vidéo en cours, la carte des temps est la sienne, la reprise de session note `{ video, time, sound }` et ne
+s'applique qu'une fois par montage. Une liste re-téléchargée identique est celle déjà tenue : revenir sur la landing
+ne recharge plus ce qui joue. Encodage d'une vidéo suivante : `--append` (ajoutée après celles du manifeste de
+`--out`, ses provenances à côté des leurs), jamais de variante plus haute que le master (un master 720p n'alimente
+que la paire 720p, offerte à toutes les largeurs) et `--copy-h264` quand le master est déjà un H.264 web — mesuré
+sur `StopShipping` (1,04 Mbit/s) : le réencoder perdait 7 points de VMAF à débit égal, l'AV1 CRF 42 garde 94,0 à
+0,78 Mbit/s.
+
 Le même script écrit les quatre renditions (AV1 et H.264, 1080p pour ≥ 900 px, 720p pour les téléphones), l'affiche,
 le manifeste et `PROVENANCE.json`, avec l'empreinte du master dans chaque nom — un cache immuable d'un an est alors
 sûr. En dev, un répertoire de fixtures sous `apps/web/public/landing-media-dev/` (ignoré par git) tient lieu

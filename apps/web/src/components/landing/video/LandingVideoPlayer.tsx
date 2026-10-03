@@ -11,18 +11,21 @@
  * `useVideoPlayback` reads « no slot » as « out of view ».
  *
  * A language switch or a full reload remounts the player: it records where it
- * was in the session and a fresh mount resumes from there (`player-session`).
+ * was in the session — which video of the playlist, the time in it — and a
+ * fresh mount resumes from there (`player-session`). With several videos the
+ * element does not loop: it ends, the host hands it the next one, and it
+ * carries on from the first frame with the sound it had.
  */
 
 import Link from 'next/link';
 import { Pause, Play, Volume2, VolumeX, X } from 'lucide-react';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 
 import { Button } from '@/components/ui/button';
 import type { Language } from '@/i18n/settings';
 import { placementFor } from '@/lib/landing/frame-placement';
 import type { LandingVideoDescriptor } from '@/lib/landing/media';
-import { readResume, writeResume, type ResumeRecord } from '@/lib/landing/player-session';
+import { sessionStorageOrNull, writeResume, type ResumeRecord } from '@/lib/landing/player-session';
 import { cn } from '@/lib/utils';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
@@ -50,15 +53,6 @@ export function playerModeFor(
 ): PlayerMode {
   if (hasSlot) return soundOn && inView === false ? 'docked' : 'framed';
   return soundOn ? 'docked' : 'hidden';
-}
-
-function sessionStorageOrNull(): Storage | null {
-  try {
-    return window.sessionStorage;
-  } catch {
-    // A private window or blocked site data: no record, no resume.
-    return null;
-  }
 }
 
 /**
@@ -104,31 +98,39 @@ function useFramePlacement(
 }
 
 /**
- * Apply the resume record once the metadata is there; write a record when the
- * player unmounts (a language switch, a stop route) and on `pagehide` (a full
- * reload); pause on unmount, so a stop route silences before it removes.
+ * Apply the resume record ONCE, when the first metadata is there — the next
+ * video of a playlist loads metadata too, and must start at its first frame;
+ * write a record when the player unmounts (a language switch, a stop route)
+ * and on `pagehide` (a full reload); pause on unmount, so a stop route
+ * silences before it removes.
  */
 function useResumeRecord(
   videoRef: RefObject<HTMLVideoElement | null>,
   resume: ResumeRecord | null,
-  soundOn: boolean
+  soundOn: boolean,
+  rank: number
 ): void {
   const soundOnRef = useRef(soundOn);
+  const rankRef = useRef(rank);
+  const applied = useRef(false);
   useEffect(() => {
     soundOnRef.current = soundOn;
-  }, [soundOn]);
+    rankRef.current = rank;
+  }, [soundOn, rank]);
 
   useEffect(() => {
     const element = videoRef.current;
     if (!element) return;
     const apply = () => {
+      if (applied.current) return;
+      applied.current = true;
       const duration = element.duration || Number.POSITIVE_INFINITY;
       if (resume && resume.time > 0 && resume.time < duration) element.currentTime = resume.time;
     };
     const record = () =>
       writeResume(
         sessionStorageOrNull(),
-        { time: element.currentTime, sound: soundOnRef.current },
+        { video: rankRef.current, time: element.currentTime, sound: soundOnRef.current },
         Date.now()
       );
     element.addEventListener('loadedmetadata', apply);
@@ -210,36 +212,51 @@ function PlayerControls({
   );
 }
 
+export interface LandingVideoPlayerProps {
+  lng: string;
+  /** The video the element holds now. */
+  video: LandingVideoDescriptor;
+  /** Its rank in playing order — whose beat map the titles follow. */
+  rank: number;
+  /** A single video loops; one of several ends, and `onEnded` hands over the next. */
+  loop: boolean;
+  /** Where the previous mount was in THIS video, applied once; `null` starts at the beginning. */
+  resume: ResumeRecord | null;
+  /** The previous mount left the sound off. */
+  startMuted: boolean;
+  slot: LandingVideoSlot | null;
+  labels: LandingVideoHostLabels;
+  onEnded: () => void;
+  onFailed: () => void;
+}
+
 export function LandingVideoPlayer({
   lng,
   video,
+  rank,
+  loop,
+  resume,
+  startMuted,
   slot,
   labels,
+  onEnded,
   onFailed,
-}: {
-  lng: string;
-  video: LandingVideoDescriptor;
-  slot: LandingVideoSlot | null;
-  labels: LandingVideoHostLabels;
-  onFailed: () => void;
-}) {
+}: LandingVideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [resume] = useState(() => readResume(sessionStorageOrNull(), Date.now()));
   const slotElement = slot?.element ?? null;
-  const playback = useVideoPlayback(video, slotElement, videoRef, {
-    startMuted: resume !== null && !resume.sound,
-  });
+  const playback = useVideoPlayback(video, slotElement, videoRef, { startMuted });
   const soundOn = playback.playing && !playback.muted;
   const mode = playerModeFor(slotElement !== null, soundOn, playback.inView);
   useBeatSync(videoRef, {
+    rank,
     hasBeats: video.hasBeats,
     muted: playback.muted,
     playing: playback.playing,
     reducedMotion: playback.reducedMotion,
   });
   useFramePlacement(containerRef, mode === 'framed' ? slotElement : null);
-  useResumeRecord(videoRef, resume, soundOn);
+  useResumeRecord(videoRef, resume, soundOn, rank);
 
   if (playback.failed) return null;
 
@@ -248,6 +265,10 @@ export function LandingVideoPlayer({
   const onError = () => {
     playback.handleError();
     onFailed();
+  };
+  const handleEnded = () => {
+    playback.handleEnded();
+    onEnded();
   };
 
   return (
@@ -272,12 +293,13 @@ export function LandingVideoPlayer({
           className="size-full object-cover"
           poster={video.poster}
           preload="none"
-          loop
+          loop={loop}
           playsInline
           muted={playback.muted}
           aria-label={labels.ariaLabel}
           onPlay={playback.handlePlay}
           onPause={playback.handlePause}
+          onEnded={handleEnded}
           onError={onError}
         >
           {playback.sources?.map(rendition => (

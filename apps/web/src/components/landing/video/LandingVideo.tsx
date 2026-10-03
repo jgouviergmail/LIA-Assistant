@@ -7,7 +7,8 @@
  * before the browser asks — and it holds no `<video>` of its own: it draws an
  * EMPTY frame at the clip's aspect ratio, the caption under it, and hands the
  * frame to the host the layout mounts (`LandingVideoHost`), which keeps the
- * one element of the visit and positions it over the frame.
+ * one element of the visit and positions it over the frame. When the
+ * manifest names several videos, the caption credits the one playing.
  */
 
 import { useEffect, useRef } from 'react';
@@ -30,15 +31,15 @@ export function LandingVideo({ labels }: { labels: LandingVideoSlotLabels }) {
   const media = useLandingMedia();
   const registry = useLandingVideoRegistry();
   if (media.status !== 'ready' || registry?.failed) return null;
-  return <LandingVideoSlot video={media.video} labels={labels} registry={registry} />;
+  return <LandingVideoSlot playlist={media.playlist} labels={labels} registry={registry} />;
 }
 
 function LandingVideoSlot({
-  video,
+  playlist,
   labels,
   registry,
 }: {
-  video: LandingVideoDescriptor;
+  playlist: LandingVideoDescriptor[];
   labels: LandingVideoSlotLabels;
   registry: LandingVideoRegistry | null;
 }) {
@@ -48,10 +49,13 @@ function LandingVideoSlot({
   useEffect(() => {
     const element = frameRef.current;
     if (!element || !registerSlot) return;
-    return registerSlot({ element, video });
-  }, [registerSlot, video]);
+    return registerSlot({ element, playlist });
+  }, [registerSlot, playlist]);
 
-  const [ratioW, ratioH] = video.aspectRatio;
+  // The frame keeps the first video's proportions (the player covers it);
+  // the caption is the playing video's.
+  const [ratioW, ratioH] = playlist[0].aspectRatio;
+  const playing = playlist[registry?.current ?? 0] ?? playlist[0];
 
   return (
     <section
@@ -69,7 +73,7 @@ function LandingVideoSlot({
           className="landing-video-slot relative"
           style={{ aspectRatio: `${ratioW} / ${ratioH}` }}
         />
-        <LandingVideoCaption video={video} labels={labels} />
+        <LandingVideoCaption video={playing} labels={labels} />
       </div>
     </section>
   );

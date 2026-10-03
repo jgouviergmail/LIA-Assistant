@@ -272,6 +272,51 @@ planetarium switched off (`LANDING_PLANETARIUM_ENABLED`, the component kept).
    was; a caption track; the native shells measure nothing new (the WebView
    loads the same pages).
 
+## Amendment 2026-10-03 — several videos, one after the other
+
+Owner request: a second video (`StopShipping`, by @vikktorrrre, AI-generated —
+the clip announces its generator itself), the two playing in turn, for ever.
+
+1. **The manifest stays version 1 and gains `next`** (`lib/landing/media.ts`):
+   the top level is the first video, `next` the ones that follow in playing
+   order (at most `LANDING_MEDIA_MAX_NEXT`), every entry under the first one's
+   rules (bare file names, https credit). Version 2 was rejected: the manifest
+   is read at RUN time by whatever build a deployment runs, and a reader that
+   predates `next` drops the unknown key (Zod strips it) and keeps playing the
+   first video alone — so one directory serves the old build and the new one,
+   and publishing the second video required no coordinated deployment.
+   `/api/landing-media` answers `{ video, next }`; the page reads an answer with
+   no `next` (cached before) as a single video. The beat map is asked by rank,
+   `/api/landing-media/beats?video=N`, the first when absent.
+2. **One element still, handed the next video** (`LandingVideoHost`): the host
+   keeps the RANK of the video the player holds and the list it received; a
+   single video loops as before, one of several ends, and `ended` moves the
+   rank (back to the first after the last). The new sources load on the same
+   element, which carries on from the first frame with the sound it had — the
+   end of a non-looping element fires `pause` then `ended`, so nothing reads it
+   as the visitor's pause. The caption under the frame credits the video
+   playing (the registry publishes the rank); the beat map is the playing
+   video's, and the driver never runs one video's map against another's clock.
+   A re-fetched list equal to the one held is the one held: returning to the
+   landing no longer hands the player new descriptors that reloaded what played.
+3. **The resume record names the video** (`{ video, time, sound }`; a record
+   from before reads as the first video, a rank the list does not hold as the
+   first video at its first frame), and the position is applied ONCE per mount
+   — the next video loads metadata too, and must start at its beginning.
+4. **The encoder appends** (`scripts/assets/encode_landing_video.py`):
+   `--append` adds the video after the ones the manifest in `--out` names
+   (replacing an earlier encoding of the same `--name`), and its provenance
+   beside theirs in `PROVENANCE.json`; no rendition is taller than the master
+   (a 720p master feeds the 720p pair, offered to every viewport); and
+   `--copy-h264` serves a web H.264 master itself, remuxed, as its own
+   rendition — measured on this one (1.04 Mbit/s): re-encoding lost seven VMAF
+   points at the same rate (CRF 27, 93.2), AV1 at CRF 42 kept 94.0 at 0.78
+   Mbit/s.
+5. Effect C is no longer the ring this ADR first described: since v2.4.0 the
+   framed video's edges fade and a shapeless radial halo swells on the beat
+   (`docs/technical/LANDING_PAGE.md` § 4 and § 10). Not done: a transition
+   between two videos (the cut is the clip's own).
+
 ## Alternatives rejected
 
 - **Committing the renditions.** 150–220 MB per 1080p file, past GitHub's
@@ -299,6 +344,6 @@ planetarium switched off (`LANDING_PLANETARIUM_ENABLED`, the component kept).
 - `apps/web/src/components/landing/video/LandingVideo.tsx`, `use-landing-video.ts`,
   `LandingVideoSection.tsx`; the choreography in `apps/web/src/styles/globals.css`
 - `apps/web/src/lib/csp.ts` (`media-src`), `apps/web/e2e/smoke/landing-video.spec.ts`
-- `scripts/assets/encode_landing_video.py`
+- `scripts/assets/encode_landing_video.py`, `apps/api/tests/unit/scripts/test_encode_landing_video_*.py`
 - `LANDING_MEDIA_BASE_URL` in `.env.example`, `.env.prod.example`, the demonstrator's
   env files, `docker-compose.prod.yml`, `docker-compose.demo-instance.yml`

@@ -6,8 +6,9 @@
  * while the reader scrolls on (docked) and while they move to another public
  * page (the titles there beating too), stops on the sign-in page, reports no
  * blocking a11y violation, and stays still for a reader who asked for less
- * motion. The clip is a two-second generated fixture served from
- * `fixtures/media/`.
+ * motion; and two videos play one after the other, each with its credit and
+ * its beat map. The clip is a two-second generated fixture served from
+ * `fixtures/media/` — the second video is the same file under another name.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -32,13 +33,25 @@ const DESCRIPTOR = {
   aiGenerated: true,
 };
 
+/** The video that follows DESCRIPTOR: the same clip, served under its own names. */
+const SECOND = {
+  ...DESCRIPTOR,
+  poster: `${MEDIA_PREFIX}clip-second-poster.webp`,
+  renditions: [{ src: `${MEDIA_PREFIX}clip-second.mp4`, type: 'video/mp4; codecs="avc1.42E01E"' }],
+  credit: { label: '@second', url: 'https://example.org/second' },
+};
+
+/** A beat map, whichever video it is asked for (`?video=N`). */
+const BEATS_URL = /\/api\/landing-media\/beats(\?|$)/;
+
 /**
  * Serve a fixture the way a media host does: Chromium's media pipeline asks
  * for byte ranges and stalls on a mock that answers every request with the
  * whole file and no `Accept-Ranges` (measured: `paused` never turned false).
  */
 function fulfillMedia(route: Route, name: string): Promise<void> {
-  const body = readFileSync(join(FIXTURES, name));
+  // The second video's files are the first one's.
+  const body = readFileSync(join(FIXTURES, name.replace('-second', '')));
   const contentType = name.endsWith('.mp4') ? 'video/mp4' : 'image/webp';
   const range = /^bytes=(\d*)-(\d*)$/.exec(route.request().headers()['range'] ?? '');
   if (!range) {
@@ -61,9 +74,13 @@ function fulfillMedia(route: Route, name: string): Promise<void> {
   });
 }
 
-async function mockMedia(page: Page, video: typeof DESCRIPTOR | null): Promise<void> {
-  await page.route('**/api/landing-media', route => route.fulfill({ json: { video } }));
-  await page.route('**/api/landing-media/beats', route =>
+async function mockMedia(
+  page: Page,
+  video: typeof DESCRIPTOR | null,
+  next: (typeof DESCRIPTOR)[] = []
+): Promise<void> {
+  await page.route('**/api/landing-media', route => route.fulfill({ json: { video, next } }));
+  await page.route(BEATS_URL, route =>
     route.fulfill({ path: join(FIXTURES, 'clip-beats.json'), contentType: 'application/json' })
   );
   await page.route(`**${MEDIA_PREFIX}*`, route =>
@@ -76,6 +93,9 @@ const player = (page: Page) => page.getByTestId('landing-video-player');
 const video = (page: Page) => page.locator('video');
 const isPaused = (page: Page) => video(page).evaluate(v => (v as HTMLVideoElement).paused);
 const isMuted = (page: Page) => video(page).evaluate(v => (v as HTMLVideoElement).muted);
+/** The file the element is playing, by its name. */
+const playingFile = (page: Page) =>
+  video(page).evaluate(v => (v as HTMLVideoElement).currentSrc.split('/').pop() ?? '');
 /** Marks the element and counts its reloads (`emptied`): the element is what
  *  must survive a navigation, never its clock — see the test leaving the landing. */
 const markVideo = (page: Page) =>
@@ -211,7 +231,7 @@ test.describe('landing video — configured, motion allowed, the browser wants a
 
     const sound = page.getByTestId('landing-video-sound');
     await expect(sound).toHaveAttribute('aria-pressed', 'false');
-    const beats = page.waitForRequest('**/api/landing-media/beats');
+    const beats = page.waitForRequest(BEATS_URL);
     await sound.click();
     await beats;
     expect(await isMuted(page)).toBe(false);
@@ -249,7 +269,7 @@ test.describe('landing video — configured, motion allowed, the browser allows 
     page,
   }) => {
     await mockMedia(page, DESCRIPTOR);
-    const beats = page.waitForRequest('**/api/landing-media/beats');
+    const beats = page.waitForRequest(BEATS_URL);
     await page.goto('/fr');
     await awaitStyledPage(page, 'landing with video, sound allowed');
     await section(page).scrollIntoViewIfNeeded();
@@ -335,5 +355,42 @@ test.describe('landing video — configured, reduced motion', () => {
 
     await page.getByTestId('landing-video-play').click();
     await expect.poll(() => isPaused(page), { timeout: 10_000 }).toBe(false);
+  });
+});
+
+test.describe('landing video — a playlist of two', () => {
+  test.use({ contextOptions: { reducedMotion: 'no-preference' }, locale: 'fr-FR' });
+
+  test('plays the second video when the first ends, with its credit and its beats, then the first again', async ({
+    page,
+  }) => {
+    await mockMedia(page, DESCRIPTOR, [SECOND]);
+    const secondBeats = page.waitForRequest(request => request.url().endsWith('/beats?video=1'));
+    await page.goto('/fr');
+    await awaitStyledPage(page, 'landing with a playlist');
+    await section(page).scrollIntoViewIfNeeded();
+
+    await expect.poll(() => isPaused(page), { timeout: 10_000 }).toBe(false);
+    // One of several videos ends: no loop on the element.
+    await expect(video(page)).not.toHaveAttribute('loop');
+    expect(await playingFile(page)).toBe('clip.mp4');
+    await expect(section(page).getByRole('link', { name: /@fixture/ })).toBeVisible();
+
+    // The 2 s clip ends: the same element takes the second video and plays on, sound kept.
+    await expect.poll(() => playingFile(page), { timeout: 10_000 }).toBe('clip-second.mp4');
+    await expect.poll(() => isPaused(page), { timeout: 10_000 }).toBe(false);
+    expect(await isMuted(page)).toBe(false);
+    await expect(section(page).getByRole('link', { name: /@second/ })).toHaveAttribute(
+      'href',
+      'https://example.org/second'
+    );
+    await expect(section(page).getByRole('link', { name: /@fixture/ })).toHaveCount(0);
+    await secondBeats;
+    await expect.poll(() => beating(page)).not.toBeNull();
+
+    // After the last one, the first comes back.
+    await expect.poll(() => playingFile(page), { timeout: 10_000 }).toBe('clip.mp4');
+    await expect.poll(() => isPaused(page), { timeout: 10_000 }).toBe(false);
+    await expect(section(page).getByRole('link', { name: /@fixture/ })).toBeVisible();
   });
 });

@@ -4,12 +4,20 @@
  * framed over the landing's slot, docked while its music plays with no slot
  * on the page, hidden when muted or paused with no slot, gone on a stop
  * route; sound and beats on a click or by default where the browser allows;
- * nothing left behind when the browser cannot play any rendition.
+ * nothing left behind when the browser cannot play any rendition; several
+ * videos played one after the other, each with its own credit and beats.
  */
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// The player loads these two with `import()` once the sound plays. Imported
+// here first, they are transformed while the file is collected, so the hook's
+// `import()` resolves from the module cache: cold, under a full parallel run,
+// the first transform outlasted `waitFor`'s second and the beat assertions
+// failed now and then (measured 2026-10-02 and 2026-10-03, green alone).
+import '@/lib/landing/beat-sync';
+import '@/lib/landing/beats-schema';
 import type { LandingVideoDescriptor } from '@/lib/landing/media';
 import { PLAYER_RESUME_KEY } from '@/lib/landing/player-session';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
@@ -70,6 +78,36 @@ const BEATS = {
   ],
 };
 
+/** The video that follows DESCRIPTOR in a playlist. */
+const SECOND: LandingVideoDescriptor = {
+  poster: 'https://m.example.org/lia/second-poster.webp',
+  renditions: [
+    {
+      src: 'https://m.example.org/lia/second-720.av1.mp4',
+      type: 'video/mp4; codecs="av01.0.05M.10"',
+    },
+    {
+      src: 'https://m.example.org/lia/second-720.h264.mp4',
+      type: 'video/mp4; codecs="avc1.64001f"',
+    },
+  ],
+  aspectRatio: [16, 9],
+  durationSeconds: 251.4,
+  hasBeats: true,
+  credit: { label: '@other', url: 'https://x.com/other' },
+  aiGenerated: true,
+};
+
+const SECOND_BEATS = {
+  version: 1,
+  beats: [
+    [100, 0.9, true],
+    [580, 0.5, false],
+  ],
+};
+
+const BEATS_OF = (rank: number) => `/api/landing-media/beats?video=${rank}`;
+
 interface ObserverStub {
   options: IntersectionObserverInit | undefined;
   callback: IntersectionObserverCallback;
@@ -87,10 +125,11 @@ function jsonResponse(body: unknown, status = 200) {
   return { ok: status < 300, status, json: async () => body };
 }
 
-function stubFetch(video: LandingVideoDescriptor | null) {
+function stubFetch(video: LandingVideoDescriptor | null, next: LandingVideoDescriptor[] = []) {
   fetchMock = vi.fn(async (url: string) => {
-    if (url === '/api/landing-media') return jsonResponse({ video });
-    if (url === '/api/landing-media/beats') return jsonResponse(BEATS);
+    if (url === '/api/landing-media') return jsonResponse({ video, next });
+    if (url === BEATS_OF(0)) return jsonResponse(BEATS);
+    if (url === BEATS_OF(1) && next.length > 0) return jsonResponse(SECOND_BEATS);
     return jsonResponse({ error: 'not found' }, 404);
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -131,8 +170,11 @@ function Tree({ slot }: { slot: boolean }) {
   );
 }
 
-async function renderMounted(video: LandingVideoDescriptor | null = DESCRIPTOR) {
-  stubFetch(video);
+async function renderMounted(
+  video: LandingVideoDescriptor | null = DESCRIPTOR,
+  next: LandingVideoDescriptor[] = []
+) {
+  stubFetch(video, next);
   const utils = render(<Tree slot />);
   await waitFor(() =>
     expect(fetchMock).toHaveBeenCalledWith('/api/landing-media', expect.anything())
@@ -166,8 +208,8 @@ async function findMounted() {
 }
 
 /** Near and in view, started with the sound: the common opening of the playing scenarios. */
-async function startedInView() {
-  const utils = await renderMounted();
+async function startedInView(next: LandingVideoDescriptor[] = []) {
+  const utils = await renderMounted(DESCRIPTOR, next);
   await findMounted();
   intersect(nearObserver(), true);
   intersect(viewObserver(), true);
@@ -286,11 +328,9 @@ describe('LandingVideo — with a video, on the landing', () => {
     await waitFor(() => expect(play).toHaveBeenCalledTimes(1));
     expect(video.muted).toBe(false);
     // The beat map follows the sound actually playing, not the intent.
-    expect(fetchMock).not.toHaveBeenCalledWith('/api/landing-media/beats', expect.anything());
+    expect(fetchMock).not.toHaveBeenCalledWith(BEATS_OF(0), expect.anything());
     fireEvent.play(video);
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith('/api/landing-media/beats', expect.anything())
-    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(BEATS_OF(0), expect.anything()));
     // The driver writes on the document, so every page's titles can read it.
     await waitFor(() => expect(document.documentElement.hasAttribute('data-beat')).toBe(true));
   });
@@ -309,7 +349,7 @@ describe('LandingVideo — with a video, on the landing', () => {
       'aria-pressed',
       'false'
     );
-    expect(fetchMock).not.toHaveBeenCalledWith('/api/landing-media/beats', expect.anything());
+    expect(fetchMock).not.toHaveBeenCalledWith(BEATS_OF(0), expect.anything());
   });
 
   it('offers only the unrestricted renditions to a narrow viewport', async () => {
@@ -382,9 +422,7 @@ describe('LandingVideo — with a video, on the landing', () => {
       'aria-pressed',
       'true'
     );
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith('/api/landing-media/beats', expect.anything())
-    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(BEATS_OF(0), expect.anything()));
 
     intersect(viewObserver(), false);
     expect(pause).not.toHaveBeenCalled();
@@ -563,5 +601,133 @@ describe('LandingVideo — across the pages', () => {
     fireEvent.loadedMetadata(fresh);
     expect(fresh.currentTime).toBe(0);
     expect(fresh.muted).toBe(false);
+  });
+});
+
+/** The `src` of every `<source>` the element holds. */
+const sourceUrls = () =>
+  Array.from(videoElement().querySelectorAll('source')).map(s => s.getAttribute('src'));
+
+/** What the end of a non-looping element fires: a pause, then `ended`. */
+function endCurrent(video: HTMLVideoElement) {
+  fireEvent.pause(video);
+  fireEvent.ended(video);
+}
+
+describe('LandingVideo — a playlist', () => {
+  it('loops a single video, and lets one of several end', async () => {
+    await renderMounted();
+    await findMounted();
+    expect(videoElement()).toHaveAttribute('loop');
+    cleanup();
+
+    observers = [];
+    await renderMounted(DESCRIPTOR, [SECOND]);
+    await findMounted();
+    expect(videoElement()).not.toHaveAttribute('loop');
+  });
+
+  it('hands the SAME element the next video when one ends: its sources, its poster, its credit, its beats, the sound kept', async () => {
+    await startedInView([SECOND]);
+    const video = videoElement();
+    const section = screen.getByRole('region', { name: SLOT_LABELS.ariaLabel });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(BEATS_OF(0), expect.anything()));
+    await waitFor(() => expect(document.documentElement.hasAttribute('data-beat')).toBe(true));
+    const loads = load.mock.calls.length;
+
+    endCurrent(video);
+
+    await waitFor(() => expect(sourceUrls()).toEqual(SECOND.renditions.map(r => r.src)));
+    expect(videoElement()).toBe(video);
+    expect(video.getAttribute('poster')).toBe(SECOND.poster);
+    expect(load.mock.calls.length).toBe(loads + 1);
+    // It plays on by itself, with the sound it had: the visitor clicked nothing.
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    expect(video.muted).toBe(false);
+    expect(within(section).getByRole('link', { name: /@other/ })).toHaveAttribute(
+      'href',
+      'https://x.com/other'
+    );
+    expect(within(section).queryByRole('link', { name: /@someone/ })).toBeNull();
+    // The titles stop with the first video and follow the second's map once it plays.
+    expect(document.documentElement.hasAttribute('data-beat')).toBe(false);
+    fireEvent.play(video);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(BEATS_OF(1), expect.anything()));
+    await waitFor(() => expect(document.documentElement.hasAttribute('data-beat')).toBe(true));
+  });
+
+  it('comes back to the first video after the last, and starts over', async () => {
+    await startedInView([SECOND]);
+    const video = videoElement();
+    endCurrent(video);
+    await waitFor(() => expect(sourceUrls()).toEqual(SECOND.renditions.map(r => r.src)));
+    fireEvent.play(video);
+
+    endCurrent(video);
+    await waitFor(() => expect(sourceUrls()).toEqual(DESCRIPTOR.renditions.map(r => r.src)));
+    expect(video.getAttribute('poster')).toBe(DESCRIPTOR.poster);
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(3));
+    expect(screen.getByRole('link', { name: /@someone/ })).toBeInTheDocument();
+  });
+
+  it('resumes a fresh mount in the video it left, at its time, ONCE: the next video starts at its first frame', async () => {
+    const { unmount } = await startedInView([SECOND]);
+    const video = videoElement();
+    endCurrent(video);
+    await waitFor(() => expect(sourceUrls()).toEqual(SECOND.renditions.map(r => r.src)));
+    fireEvent.play(video);
+    Object.defineProperty(video, 'currentTime', { value: 12, configurable: true, writable: true });
+    unmount();
+    const stored = JSON.parse(window.sessionStorage.getItem(PLAYER_RESUME_KEY) ?? 'null');
+    expect(stored).toMatchObject({ video: 1, time: 12, sound: true });
+
+    observers = [];
+    play.mockClear();
+    await renderMounted(DESCRIPTOR, [SECOND]);
+    await findMounted();
+    const fresh = videoElement();
+    expect(fresh.getAttribute('poster')).toBe(SECOND.poster);
+    expect(screen.getByRole('link', { name: /@other/ })).toBeInTheDocument();
+    intersect(nearObserver(), true);
+    expect(sourceUrls()).toEqual(SECOND.renditions.map(r => r.src));
+    Object.defineProperty(fresh, 'currentTime', { value: 0, configurable: true, writable: true });
+    fireEvent.loadedMetadata(fresh);
+    expect(fresh.currentTime).toBe(12);
+
+    intersect(viewObserver(), true);
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(1));
+    fireEvent.play(fresh);
+    endCurrent(fresh);
+    await waitFor(() => expect(sourceUrls()).toEqual(DESCRIPTOR.renditions.map(r => r.src)));
+    fresh.currentTime = 0;
+    fireEvent.loadedMetadata(fresh);
+    expect(fresh.currentTime).toBe(0);
+  });
+
+  it('starts at the first video when a resume record names a rank the list does not hold', async () => {
+    window.sessionStorage.setItem(
+      PLAYER_RESUME_KEY,
+      JSON.stringify({ video: 3, time: 42.5, sound: true, at: Date.now() })
+    );
+    await renderMounted(DESCRIPTOR, [SECOND]);
+    await findMounted();
+    const fresh = videoElement();
+    expect(fresh.getAttribute('poster')).toBe(DESCRIPTOR.poster);
+    intersect(nearObserver(), true);
+    Object.defineProperty(fresh, 'currentTime', { value: 0, configurable: true, writable: true });
+    fireEvent.loadedMetadata(fresh);
+    expect(fresh.currentTime).toBe(0);
+  });
+
+  it('reads an answer cached before playlists (the video alone) as one looping video', async () => {
+    fetchMock = vi.fn(async (url: string) =>
+      url === '/api/landing-media'
+        ? jsonResponse({ video: DESCRIPTOR })
+        : jsonResponse({ error: 'not found' }, 404)
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Tree slot />);
+    await findMounted();
+    expect(videoElement()).toHaveAttribute('loop');
   });
 });

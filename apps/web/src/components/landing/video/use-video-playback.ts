@@ -8,7 +8,9 @@
  * playing, its music is what the visitor chose; a pause the visitor asked for
  * is kept across the scroll. No slot on the page — another page, or the
  * landing scrolled past the frame — reads as out of view, and the sources,
- * once attached, stay attached whatever slot comes next.
+ * once attached, stay attached whatever slot comes next. When a video of a
+ * playlist ends and the next one's sources arrive, playback carries on from
+ * its first frame with the sound it had.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
@@ -36,6 +38,8 @@ export interface VideoPlayback {
   toggleSound: () => void;
   handlePlay: () => void;
   handlePause: () => void;
+  /** The video ended (a playlist's, never a looping one): the next one plays on. */
+  handleEnded: () => void;
   handleError: () => void;
 }
 
@@ -98,6 +102,8 @@ export function useVideoPlayback(
   // they drive no rendering and must not re-run the effects that set them.
   const pausedByPage = useRef(false);
   const startedForEntry = useRef(false);
+  // A playlist video ended while playing: the next sources start as they load.
+  const continueAfterSwitch = useRef(false);
 
   const autoplayAllowed = !reducedMotion && !savesData();
 
@@ -129,7 +135,11 @@ export function useVideoPlayback(
     if (sources === null || !element) return;
     element.preload = 'auto';
     element.load();
-  }, [sources, videoRef]);
+    if (continueAfterSwitch.current) {
+      continueAfterSwitch.current = false;
+      startPlayback();
+    }
+  }, [sources, videoRef, startPlayback]);
 
   // In view: start (autoplay, or resume what the page paused). Out of view:
   // a muted video pauses — a video with sound keeps playing.
@@ -201,6 +211,11 @@ export function useVideoPlayback(
 
   const handlePlay = useCallback(() => setPlaying(true), []);
   const handlePause = useCallback(() => setPlaying(false), []);
+  // `ended` follows the `pause` the end of a non-looping element fires, so
+  // nothing here says "the visitor paused": the next video simply plays on.
+  const handleEnded = useCallback(() => {
+    continueAfterSwitch.current = !userPaused;
+  }, [userPaused]);
   const handleError = useCallback(() => setFailed(true), []);
 
   return {
@@ -214,6 +229,7 @@ export function useVideoPlayback(
     toggleSound,
     handlePlay,
     handlePause,
+    handleEnded,
     handleError,
   };
 }

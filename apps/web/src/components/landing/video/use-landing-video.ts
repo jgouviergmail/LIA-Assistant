@@ -19,9 +19,16 @@ export const LANDING_VIDEO_NEAR_MARGIN_PX = 600;
 export type LandingMediaState =
   | { status: 'loading' }
   | { status: 'none' }
-  | { status: 'ready'; video: LandingVideoDescriptor };
+  /** The videos in playing order, never empty. */
+  | { status: 'ready'; playlist: LandingVideoDescriptor[] };
 
-/** Ask the server, once, whether this deployment shows a video. */
+interface LandingMediaBody {
+  video: LandingVideoDescriptor | null;
+  /** Absent from an answer cached before the server knew of more than one video. */
+  next?: LandingVideoDescriptor[];
+}
+
+/** Ask the server, once, whether this deployment shows a video — or several, one after the other. */
 export function useLandingMedia(): LandingMediaState {
   const [state, setState] = useState<LandingMediaState>({ status: 'loading' });
 
@@ -29,9 +36,13 @@ export function useLandingMedia(): LandingMediaState {
     let cancelled = false;
     fetch(LANDING_MEDIA_ENDPOINT, { headers: { accept: 'application/json' } })
       .then(async response => (response.ok ? response.json() : { video: null }))
-      .then((body: { video: LandingVideoDescriptor | null }) => {
+      .then((body: LandingMediaBody) => {
         if (cancelled) return;
-        setState(body.video ? { status: 'ready', video: body.video } : { status: 'none' });
+        setState(
+          body.video
+            ? { status: 'ready', playlist: [body.video, ...(body.next ?? [])] }
+            : { status: 'none' }
+        );
       })
       .catch(() => {
         if (!cancelled) setState({ status: 'none' });
@@ -65,14 +76,16 @@ export function usePrefersReducedMotion(): boolean {
 }
 
 /**
- * The beat map, as a track, when the sound goes on — the engine and the
- * schema are imported then too, so a visitor who never unmutes loads neither.
- * `null` when there is no map or it does not validate: the video plays, the
- * titles stay still.
+ * The beat map of the video at `rank` in playing order, as a track, when the
+ * sound goes on — the engine and the schema are imported then too, so a
+ * visitor who never unmutes loads neither. `null` when there is no map or it
+ * does not validate: the video plays, the titles stay still.
  */
-export async function loadBeatTrack(): Promise<BeatTrack | null> {
+export async function loadBeatTrack(rank: number): Promise<BeatTrack | null> {
   const [response, engine, schema] = await Promise.all([
-    fetch(LANDING_MEDIA_BEATS_ENDPOINT, { headers: { accept: 'application/json' } }),
+    fetch(`${LANDING_MEDIA_BEATS_ENDPOINT}?video=${rank}`, {
+      headers: { accept: 'application/json' },
+    }),
     import('@/lib/landing/beat-sync'),
     import('@/lib/landing/beats-schema'),
   ]);

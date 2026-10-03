@@ -7,7 +7,18 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveLandingMedia, resolveMediaFile } from '../media';
+import {
+  beatsFileAt,
+  LANDING_MEDIA_MAX_NEXT,
+  landingMediaManifestSchema,
+  resolveLandingPlaylist,
+  resolveMediaFile,
+} from '../media';
+
+/** The first video of a manifest, as the page receives it. */
+function resolveFirst(manifest: unknown, base: string) {
+  return resolveLandingPlaylist(manifest, base)[0];
+}
 
 const BASE = 'https://media.example.org/lia/landing';
 
@@ -45,9 +56,9 @@ describe('resolveMediaFile', () => {
   });
 });
 
-describe('resolveLandingMedia', () => {
+describe('resolveLandingPlaylist — the first video', () => {
   it('turns a valid manifest into absolute URLs and keeps the credit', () => {
-    const video = resolveLandingMedia(MANIFEST, BASE);
+    const video = resolveFirst(MANIFEST, BASE);
     expect(video.poster).toBe(`${BASE}/clip-abc123-poster.webp`);
     expect(video.renditions).toEqual([
       {
@@ -70,7 +81,7 @@ describe('resolveLandingMedia', () => {
   });
 
   it('defaults what the manifest leaves out', () => {
-    const video = resolveLandingMedia(
+    const video = resolveFirst(
       { version: 1, poster: 'p.webp', renditions: [{ src: 'v.mp4', type: 'video/mp4' }] },
       BASE
     );
@@ -83,28 +94,88 @@ describe('resolveLandingMedia', () => {
 
   it('refuses a credit that is not an https link', () => {
     expect(() =>
-      resolveLandingMedia({ ...MANIFEST, credit: { label: 'x', url: 'javascript:alert(1)' } }, BASE)
+      resolveFirst({ ...MANIFEST, credit: { label: 'x', url: 'javascript:alert(1)' } }, BASE)
     ).toThrow();
     expect(() =>
-      resolveLandingMedia({ ...MANIFEST, credit: { label: 'x', url: 'http://x.com/a' } }, BASE)
+      resolveFirst({ ...MANIFEST, credit: { label: 'x', url: 'http://x.com/a' } }, BASE)
     ).toThrow();
   });
 
   it('refuses a file name that leaves the directory, wherever it appears', () => {
-    expect(() => resolveLandingMedia({ ...MANIFEST, poster: '../p.webp' }, BASE)).toThrow();
+    expect(() => resolveFirst({ ...MANIFEST, poster: '../p.webp' }, BASE)).toThrow();
     expect(() =>
-      resolveLandingMedia(
+      resolveFirst(
         { ...MANIFEST, renditions: [{ src: 'https://evil.example/v.mp4', type: 'video/mp4' }] },
         BASE
       )
     ).toThrow();
-    expect(() => resolveLandingMedia({ ...MANIFEST, beats: '/etc/passwd' }, BASE)).toThrow();
+    expect(() => resolveFirst({ ...MANIFEST, beats: '/etc/passwd' }, BASE)).toThrow();
   });
 
   it('refuses an unknown version, an empty rendition list and a non-object', () => {
-    expect(() => resolveLandingMedia({ ...MANIFEST, version: 2 }, BASE)).toThrow();
-    expect(() => resolveLandingMedia({ ...MANIFEST, renditions: [] }, BASE)).toThrow();
-    expect(() => resolveLandingMedia('nope', BASE)).toThrow();
-    expect(() => resolveLandingMedia(null, BASE)).toThrow();
+    expect(() => resolveFirst({ ...MANIFEST, version: 2 }, BASE)).toThrow();
+    expect(() => resolveFirst({ ...MANIFEST, renditions: [] }, BASE)).toThrow();
+    expect(() => resolveFirst('nope', BASE)).toThrow();
+    expect(() => resolveFirst(null, BASE)).toThrow();
+  });
+});
+
+describe('resolveLandingPlaylist — the videos that follow', () => {
+  const SECOND = {
+    poster: 'second-poster.webp',
+    renditions: [{ src: 'second-720p.av1.mp4', type: 'video/mp4; codecs="av01.0.05M.10"' }],
+    beats: 'second-beats.json',
+    credit: { label: '@other', url: 'https://x.com/other' },
+  };
+
+  it('is the first video alone when the manifest names no other', () => {
+    expect(resolveLandingPlaylist(MANIFEST, BASE)).toHaveLength(1);
+  });
+
+  it('lists every video in playing order, each resolved and defaulted like the first', () => {
+    const playlist = resolveLandingPlaylist({ ...MANIFEST, next: [SECOND] }, BASE);
+    expect(playlist.map(video => video.poster)).toEqual([
+      `${BASE}/clip-abc123-poster.webp`,
+      `${BASE}/second-poster.webp`,
+    ]);
+    expect(playlist[1]).toEqual({
+      poster: `${BASE}/second-poster.webp`,
+      renditions: [
+        { src: `${BASE}/second-720p.av1.mp4`, type: 'video/mp4; codecs="av01.0.05M.10"' },
+      ],
+      aspectRatio: [16, 9],
+      durationSeconds: null,
+      hasBeats: true,
+      credit: { label: '@other', url: 'https://x.com/other' },
+      aiGenerated: false,
+    });
+  });
+
+  it('holds the next videos to the same rules as the first, and bounds their number', () => {
+    expect(() =>
+      resolveLandingPlaylist({ ...MANIFEST, next: [{ ...SECOND, poster: '../p.webp' }] }, BASE)
+    ).toThrow();
+    expect(() =>
+      resolveLandingPlaylist(
+        { ...MANIFEST, next: [{ ...SECOND, credit: { label: 'x', url: 'http://x.com' } }] },
+        BASE
+      )
+    ).toThrow();
+    expect(() =>
+      resolveLandingPlaylist({ ...MANIFEST, next: [{ ...SECOND, renditions: [] }] }, BASE)
+    ).toThrow();
+    const tooMany = Array.from({ length: LANDING_MEDIA_MAX_NEXT + 1 }, () => SECOND);
+    expect(() => resolveLandingPlaylist({ ...MANIFEST, next: tooMany }, BASE)).toThrow();
+  });
+
+  it('names the beat map of a video by its rank, and none past the list', () => {
+    const manifest = landingMediaManifestSchema.parse({
+      ...MANIFEST,
+      next: [SECOND, { ...SECOND, beats: null }],
+    });
+    expect(beatsFileAt(manifest, 0)).toBe('clip-abc123-beats.json');
+    expect(beatsFileAt(manifest, 1)).toBe('second-beats.json');
+    expect(beatsFileAt(manifest, 2)).toBeNull();
+    expect(beatsFileAt(manifest, 3)).toBeNull();
   });
 });
