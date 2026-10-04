@@ -565,9 +565,23 @@ describe('ChatMessage — bubble action row (PERSO)', () => {
 });
 
 describe('ChatMessage — user bubble', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it('shows the account picture when there is one', () => {
     renderMessage(makeMessage({ role: 'user', avatar: 'https://cdn/me.png' }), true);
     expect(screen.getByAltText('chat.avatar_alt.user')).toBeInTheDocument();
+  });
+
+  it('loads a Google account picture through the proxy on the API origin', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://api.example.test:8000');
+    const picture = 'https://lh3.googleusercontent.com/a/me=s96-c';
+    renderMessage(makeMessage({ role: 'user', avatar: picture }), true);
+    const image = screen.getByAltText('chat.avatar_alt.user');
+    expect(image).toHaveAttribute(
+      'src',
+      `https://api.example.test:8000/api/v1/auth/profile-image-proxy?url=${encodeURIComponent(picture)}`
+    );
+    expect(image).toHaveAttribute('crossorigin', 'use-credentials');
   });
 
   it('falls back to the generic icon without a picture', () => {

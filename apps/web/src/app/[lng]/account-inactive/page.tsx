@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Info, MailWarning } from 'lucide-react';
-import { proxyGoogleImageUrl } from '@/lib/utils';
+import { proxiedImageProps } from '@/lib/utils/api-resource-url';
 
 /**
  * Page displayed when a user logs in with a deactivated account.
@@ -112,7 +112,7 @@ export default function AccountInactivePage() {
             {user.picture_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={proxyGoogleImageUrl(user.picture_url) || user.picture_url}
+                {...proxiedImageProps(user.picture_url)}
                 alt={user.full_name || user.email}
                 className="h-12 w-12 md:h-16 md:w-16 rounded-full object-cover ring-2 ring-border"
                 referrerPolicy="no-referrer"

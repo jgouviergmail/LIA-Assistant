@@ -5,6 +5,8 @@ trust. The account ``id`` IS the identity: stable, Google's own, matched as-is.
 The ``email`` is a CLAIM about an address, and it decides whether the sign-in
 reaches an account somebody else registered — so it is trusted only when Google
 vouches for it, and even then it grants nothing the account had not been granted.
+The ``picture`` is neither: a snapshot of the profile, taken anew at every
+sign-in.
 """
 
 from collections.abc import Mapping
@@ -32,6 +34,28 @@ def google_email_is_verified(userinfo: Mapping[str, object]) -> bool:
         True when the address may be trusted.
     """
     return userinfo.get("verified_email", True) is True
+
+
+def google_picture_after_sign_in(stored: str | None, sent: str | None) -> str | None:
+    """The profile picture an account carries once a Google sign-in completes.
+
+    Google's ``picture`` URL is a snapshot: kept from an earlier sign-in, it can
+    serve Google's ``default-user`` placeholder instead of the photo. Measured
+    2026-10-03 on the URLs two deployments stored at an account's first sign-in:
+    both answered a body byte-identical to the public placeholder, and no later
+    sign-in had replaced them. So the URL this sign-in sends wins — and it is a
+    new URL at EVERY sign-in, the photo unchanged (three in a row, measured the
+    same day), so its replacement is routine, not an event. A sign-in that
+    sends none says nothing about the picture, and the stored one stays.
+
+    Args:
+        stored: The URL the account carries.
+        sent: The ``picture`` claim of this sign-in, if any.
+
+    Returns:
+        The URL the account carries from now on.
+    """
+    return sent or stored
 
 
 class GoogleSignInRefusedError(Exception):

@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn, proxyGoogleImageUrl } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { proxiedImageProps } from '@/lib/utils/api-resource-url';
 import { Skeleton } from './skeleton';
 
 /**
@@ -262,7 +263,7 @@ function AvatarImage({
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={proxyGoogleImageUrl(src) || src}
+        {...proxiedImageProps(src)}
         alt={alt || name || 'Avatar'}
         className={cn(
           'h-full w-full object-cover transition-opacity duration-300',

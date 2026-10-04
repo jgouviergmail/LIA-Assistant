@@ -9,7 +9,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { apiImageProps, apiResourceUrl } from '../api-resource-url';
+import { apiImageProps, apiResourceUrl, proxiedImageProps } from '../api-resource-url';
 
 const WIRE = '/api/v1/attachments/386e6a36-d880-4854-bfe8-c5518dd0dd51';
 const ORIGIN = 'https://api.example.test:8000';
@@ -58,6 +58,37 @@ describe('apiImageProps', () => {
       'blob:https://lia.example/9f1c',
     ]) {
       expect(apiImageProps(foreign)).toEqual({ src: foreign });
+    }
+  });
+});
+
+describe('proxiedImageProps', () => {
+  const GOOGLE = 'https://lh3.googleusercontent.com/a/photo=s96-c';
+  const PROXY = `/api/v1/auth/profile-image-proxy?url=${encodeURIComponent(GOOGLE)}`;
+
+  /**
+   * Measured on the dev stack 2026-10-03: the chat's own account picture was
+   * written `proxyGoogleImageUrl(url) || url` — a RELATIVE proxy path, so the
+   * Next rewrite answered 500 (`socket hang up`) while the contact photos,
+   * which went on through `apiImageProps`, rendered.
+   */
+  it('sends a Google picture through the proxy on the API origin, with credentials', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', ORIGIN);
+    expect(proxiedImageProps(GOOGLE)).toEqual({
+      src: `${ORIGIN}${PROXY}`,
+      crossOrigin: 'use-credentials',
+    });
+  });
+
+  it('keeps the proxy path relative where the reverse proxy serves the API', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', '');
+    expect(proxiedImageProps(GOOGLE)).toEqual({ src: PROXY });
+  });
+
+  it('treats any other image exactly as apiImageProps does', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', ORIGIN);
+    for (const other of [WIRE, 'https://upload.wikimedia.org/thumb.png', '/photo.jpg']) {
+      expect(proxiedImageProps(other)).toEqual(apiImageProps(other));
     }
   });
 });

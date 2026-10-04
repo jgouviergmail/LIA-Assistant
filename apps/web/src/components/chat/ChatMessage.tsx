@@ -20,10 +20,10 @@ import {
   X,
 } from 'lucide-react';
 import { formatNumber, formatEuro } from '@/lib/format';
-import { cn, proxyGoogleImageUrl } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { classifyImageExpiry } from '@/lib/image-expiry';
 import { copyMessageToClipboard } from '@/lib/message-clipboard';
-import { apiImageProps, apiResourceUrl } from '@/lib/utils/api-resource-url';
+import { apiImageProps, apiResourceUrl, proxiedImageProps } from '@/lib/utils/api-resource-url';
 import { MarkdownContent } from './MarkdownContent';
 import { GeneratedDocumentPreview } from './GeneratedDocumentPreview';
 import { MessageCardActionsProvider } from './markdown-card-actions';
@@ -1313,7 +1313,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
         {message.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={proxyGoogleImageUrl(message.avatar) || message.avatar}
+            {...proxiedImageProps(message.avatar)}
             alt={t('chat.avatar_alt.user')}
             className="w-9 h-9 rounded-full object-cover ring-2 ring-primary/20 shadow-sm"
             referrerPolicy="no-referrer"

@@ -17,6 +17,7 @@
  */
 
 import { apiEndpointUrl } from '@/lib/api-client';
+import { proxyGoogleImageUrl } from '@/lib/utils';
 
 /** The prefix the API puts in front of every wire URL it emits. */
 const API_PREFIX = '/api/v1';
@@ -69,4 +70,23 @@ export function apiImageProps(wireUrl: string): {
   const src = apiResourceUrl(wireUrl);
   if (src === wireUrl) return { src };
   return { src, crossOrigin: 'use-credentials' };
+}
+
+/**
+ * The props an `<img>` needs to display an image that may be a Google one.
+ *
+ * Google's user-content hosts send no CORS headers, so their images go through
+ * the API's proxy ({@link proxyGoogleImageUrl}) — which makes them API
+ * resources like any other, to be resolved by {@link apiImageProps}. Written
+ * by hand as `proxyGoogleImageUrl(url) || url` alone, the account picture
+ * stayed relative: on the dev stack every chat avatar answered 500 (measured
+ * 2026-10-03, the rewrite's `socket hang up`) while the contact photos, which
+ * took the second step, rendered.
+ *
+ * @param url - Any image source; one that is not Google's is treated exactly
+ *   as {@link apiImageProps} treats it.
+ * @returns Spreadable props: always `src`, plus `crossOrigin` when needed.
+ */
+export function proxiedImageProps(url: string): ReturnType<typeof apiImageProps> {
+  return apiImageProps(proxyGoogleImageUrl(url) || url);
 }

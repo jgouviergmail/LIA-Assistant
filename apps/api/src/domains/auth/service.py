@@ -35,7 +35,11 @@ from src.core.security import (
     verify_single_use_token,
 )
 from src.domains.auth.demo_signup_ceiling import reserve_demo_signup
-from src.domains.auth.google_identity import GoogleSignInRefusedError, google_email_is_verified
+from src.domains.auth.google_identity import (
+    GoogleSignInRefusedError,
+    google_email_is_verified,
+    google_picture_after_sign_in,
+)
 from src.domains.auth.repository import AuthRepository
 from src.domains.auth.schemas import (
     # Removed: AuthResponse, TokenResponse (BFF Pattern migration v0.3.0)
@@ -617,6 +621,7 @@ class AuthService:
         if user:
             # User already exists with this OAuth account - track login
             user.last_login = datetime.now(UTC)
+            user.picture_url = google_picture_after_sign_in(user.picture_url, picture_url)
             oauth_user_login_total.labels(provider="google").inc()
             logger.debug(
                 "oauth_user_login",
@@ -727,7 +732,7 @@ class AuthService:
         updates: dict[str, Any] = {
             "oauth_provider": "google",
             "oauth_provider_id": google_id,
-            "picture_url": picture_url,
+            "picture_url": google_picture_after_sign_in(user.picture_url, picture_url),
             "is_verified": True,
             "last_login": datetime.now(UTC),
         }

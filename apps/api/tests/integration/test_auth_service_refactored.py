@@ -268,6 +268,10 @@ class TestFetchGoogleUserinfo:
             assert exc_info.value.status_code == 400
 
 
+# The picture an account kept from an earlier sign-in.
+_STORED_PICTURE = "https://lh3.googleusercontent.com/a/stored"
+
+
 class TestFindOrCreateGoogleUser:
     """Test AuthService._find_or_create_google_user() private method."""
 
@@ -290,6 +294,66 @@ class TestFindOrCreateGoogleUser:
         # Assert - Found existing user
         assert user.id == existing_user.id
         assert user.oauth_provider_id == existing_user.oauth_provider_id
+
+    @pytest.mark.parametrize(
+        ("sent", "expected"),
+        [
+            pytest.param(
+                "https://lh3.googleusercontent.com/a/today",
+                "https://lh3.googleusercontent.com/a/today",
+                id="google-sends-another-picture",
+            ),
+            pytest.param(_STORED_PICTURE, _STORED_PICTURE, id="google-sends-the-same-picture"),
+            pytest.param(None, _STORED_PICTURE, id="google-sends-no-picture"),
+        ],
+    )
+    async def test_a_returning_user_carries_the_picture_google_sends_today(
+        self, auth_service, async_session, sent, expected
+    ):
+        """Every sign-in refreshes the picture: Google's URL is a snapshot.
+
+        Measured 2026-10-03: the URL stored at the account's first sign-in served
+        Google's ``default-user`` placeholder, and no later sign-in replaced it.
+        A sign-in that carries no picture says nothing about it, so the stored
+        one stays.
+        """
+        existing_user = UserFactory.create_oauth_user(provider="google")
+        existing_user.picture_url = _STORED_PICTURE
+        async_session.add(existing_user)
+        await async_session.commit()
+
+        userinfo = {"id": existing_user.oauth_provider_id, "email": existing_user.email}
+        if sent is not None:
+            userinfo["picture"] = sent
+
+        user = await auth_service._find_or_create_google_user(userinfo)
+        await async_session.commit()
+        await async_session.refresh(user)
+
+        assert user.id == existing_user.id
+        assert user.picture_url == expected
+
+    async def test_linking_keeps_the_stored_picture_when_google_sends_none(
+        self, auth_service, async_session
+    ):
+        """The link door follows the same rule: no picture sent erases nothing."""
+        existing_user = UserFactory.create(
+            email="pictured@example.com",
+            oauth_provider=None,
+            oauth_provider_id=None,
+        )
+        existing_user.picture_url = _STORED_PICTURE
+        async_session.add(existing_user)
+        await async_session.commit()
+
+        user = await auth_service._find_or_create_google_user(
+            {"id": "google-link-no-picture", "email": "pictured@example.com"}
+        )
+        await async_session.commit()
+        await async_session.refresh(user)
+
+        assert user.oauth_provider_id == "google-link-no-picture"
+        assert user.picture_url == _STORED_PICTURE
 
     async def test_finds_existing_user_by_email(self, auth_service, async_session):
         """Test finding existing user by email and linking OAuth."""

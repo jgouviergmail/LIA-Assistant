@@ -8,10 +8,12 @@
  * stay green, unmodified, after the refactor.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 
 import { Avatar, AvatarGroup, getInitials, stringToColor } from '../avatar';
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe('getInitials / stringToColor (pure utils)', () => {
   it('derives initials: single word, multi word, empty', () => {
@@ -35,6 +37,17 @@ describe('Avatar — content variants', () => {
     expect(img!.getAttribute('alt')).toBe('Jane Doe'); // alt ?? name ?? 'Avatar'
     // No initials while the image is healthy.
     expect(container.textContent).not.toContain('JD');
+  });
+
+  it('loads a Google picture through the proxy on the API origin, with credentials', () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://api.example.test:8000');
+    const picture = 'https://lh3.googleusercontent.com/a/jane=s96-c';
+    const { container } = render(<Avatar src={picture} name="Jane Doe" />);
+    const img = container.querySelector('img');
+    expect(img!.getAttribute('src')).toBe(
+      `https://api.example.test:8000/api/v1/auth/profile-image-proxy?url=${encodeURIComponent(picture)}`
+    );
+    expect(img!.getAttribute('crossorigin')).toBe('use-credentials');
   });
 
   it('prefers explicit alt over name', () => {
