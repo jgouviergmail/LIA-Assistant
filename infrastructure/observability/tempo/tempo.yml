@@ -1,15 +1,15 @@
-# Configuration Tempo pour LIA
-# Tempo est un système de tracing distribué backend pour OpenTelemetry
+# Tempo configuration for LIA
+# Tempo is the distributed tracing backend behind OpenTelemetry (single binary).
 
-# Configuration du serveur
+# Server
 server:
   http_listen_port: 3200
   log_level: info
 
-# Configuration du distributeur (réception des traces)
+# Distributor (trace reception)
 distributor:
   receivers:
-    # Récepteur OTLP gRPC
+    # OTLP gRPC receiver
     otlp:
       protocols:
         grpc:
@@ -17,7 +17,7 @@ distributor:
         http:
           endpoint: 0.0.0.0:4318
 
-    # Récepteur Jaeger (optionnel, pour compatibilité)
+    # Jaeger receiver (optional, for compatibility)
     jaeger:
       protocols:
         thrift_http:
@@ -25,45 +25,58 @@ distributor:
         grpc:
           endpoint: 0.0.0.0:14250
 
-    # Récepteur Zipkin (optionnel, pour compatibilité)
+    # Zipkin receiver (optional, for compatibility)
     zipkin:
       endpoint: 0.0.0.0:9411
 
-# Configuration de l'ingestion
+# Ingestion
 ingester:
   trace_idle_period: 10s
   max_block_bytes: 1_000_000
   max_block_duration: 5m
   complete_block_timeout: 15m
 
-# Configuration du storage local
+# Querier: in single-binary mode the worker reaches the query frontend on the
+# gRPC port of this same process. Tempo guesses that address when it is left
+# empty, and warns on every boot that it guessed.
+querier:
+  frontend_worker:
+    frontend_address: 127.0.0.1:9095
+
+# Local storage. Blocks are vParquet4 (the default), so no v2-only setting
+# belongs here: Tempo warned on every boot that one was set and ignored.
 storage:
   trace:
     backend: local
+    # The retention loop ticks on the poll period too, started at the same
+    # instant, so a deletion lands DURING the poll's directory walk, and the
+    # local backend's walk fails on a block that vanished under it (measured
+    # 2026-10-03: 30 failed polls a day, each 0-5 ms from a deletion). A retry
+    # lists the right set — the block is gone. A deletion burst lasts 21 ms at
+    # most against a 7 ms walk, so six attempts outlast it; the default (two)
+    # did not, and every failure kept the previous blocklist until the next poll.
+    blocklist_poll_tolerate_consecutive_errors: 5
     block:
       bloom_filter_false_positive: 0.05
-      v2_index_downsample_bytes: 1000
-      v2_encoding: zstd
     wal:
       path: /var/tempo/wal
-      v2_encoding: snappy
     local:
       path: /var/tempo/blocks
     pool:
       max_workers: 100
       queue_depth: 10000
 
-# Configuration de la rétention
+# Retention
 compactor:
   compaction:
-    block_retention: 168h  # 7 jours
+    block_retention: 168h  # 7 days
     compacted_block_retention: 1h
     compaction_window: 1h
     max_compaction_objects: 1000000
     max_block_bytes: 100_000_000_000
     retention_concurrency: 10
 
-# Configuration des métriques de span
+# Span metrics, remote-written to Prometheus (dashboard 06 reads them)
 metrics_generator:
   registry:
     external_labels:
@@ -77,7 +90,7 @@ metrics_generator:
   traces_storage:
     path: /var/tempo/generator/traces
 
-# Configuration de la recherche de traces
+# Trace search
 query_frontend:
   search:
     duration_slo: 5s
@@ -85,24 +98,24 @@ query_frontend:
   trace_by_id:
     duration_slo: 5s
 
-# Configuration des limites par tenant
+# Per-tenant limits, in the scoped format (the inline one is deprecated and
+# refused from Tempo 3.0 on)
 overrides:
-  # Limites d'ingestion
-  ingestion_rate_strategy: local
-  ingestion_rate_limit_bytes: 15000000
-  ingestion_burst_size_bytes: 20000000
-  max_traces_per_user: 10000
+  defaults:
+    ingestion:
+      rate_strategy: local
+      rate_limit_bytes: 15000000
+      burst_size_bytes: 20000000
+      max_traces_per_user: 10000
+    global:
+      max_bytes_per_trace: 5000000
+    read:
+      max_search_duration: 168h
+      max_bytes_per_tag_values_query: 5000000
+    metrics_generator:
+      processors:
+        - service-graphs
+        - span-metrics
 
-  # Limites de recherche
-  max_bytes_per_trace: 5000000
-  max_search_duration: 168h
-  max_bytes_per_tag_values_query: 5000000
-
-  # Configuration du générateur de métriques
-  metrics_generator_processors:
-    - service-graphs
-    - span-metrics
-
-# Utilisation de la mémoire limitée
 usage_report:
   reporting_enabled: false

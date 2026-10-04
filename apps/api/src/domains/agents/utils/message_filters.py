@@ -513,9 +513,11 @@ def remove_orphan_tool_messages(messages: list[BaseMessage]) -> list[BaseMessage
             tool_call_id = getattr(msg, "tool_call_id", None)
 
             if tool_call_id not in available_tool_call_ids:
-                # Orphan ToolMessage - remove it
+                # Orphan ToolMessage - remove it. The ordinary by-product of the
+                # head truncation this filter repairs (about a hundred a day in
+                # production, 2026-10-03): DEBUG per message, INFO summary below.
                 orphan_count += 1
-                logger.warning(
+                logger.debug(
                     "orphan_tool_message_removed",
                     tool_call_id=tool_call_id,
                     # Counts only: a tool result carries mail, calendar and contact text.

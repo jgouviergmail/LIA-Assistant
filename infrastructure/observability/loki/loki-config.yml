@@ -1,14 +1,14 @@
-# Configuration Loki pour LIA
-# Optimisé pour Raspberry Pi avec SSD NVMe (réduction I/O)
+# Loki configuration for LIA
+# Tuned for a Raspberry Pi on an NVMe SSD (fewer writes)
 auth_enabled: false
 
-# Configuration du serveur HTTP
+# HTTP server
 server:
   http_listen_port: 3100
   grpc_listen_port: 9096
-  log_level: warn  # Réduit les logs internes
+  log_level: warn  # Fewer internal logs
 
-# Configuration de l'ingestion des logs
+# Log ingestion
 ingester:
   lifecycler:
     address: 127.0.0.1
@@ -17,17 +17,20 @@ ingester:
         store: inmemory
       replication_factor: 1
     final_sleep: 0s
-  # SSD-friendly: chunks plus gros, moins d'écritures
-  chunk_idle_period: 2h        # 1h -> 2h (moins de flush)
+  # Where /ingester/prepare_shutdown leaves its marker; unset, Loki warned
+  # at every boot that the endpoint would not work.
+  shutdown_marker_path: /loki
+  # SSD-friendly: bigger chunks, fewer writes
+  chunk_idle_period: 2h        # 1h -> 2h (fewer flushes)
   max_chunk_age: 2h            # 1h -> 2h
-  chunk_target_size: 2097152   # 1MB -> 2MB (chunks plus gros)
+  chunk_target_size: 2097152   # 1MB -> 2MB (bigger chunks)
   chunk_retain_period: 1m      # 30s -> 1m
-  # WAL désactivé pour réduire les écritures (acceptable en single-node)
+  # WAL off to reduce writes (acceptable on a single node)
   wal:
     enabled: false
     dir: /loki/wal
 
-# Configuration du stockage des index
+# Index schema
 schema_config:
   configs:
     # Keep v11 for historical data (before schema upgrade)
@@ -47,7 +50,7 @@ schema_config:
         prefix: index_
         period: 24h
 
-# Configuration du stockage
+# Storage
 storage_config:
   # Legacy boltdb-shipper for v11 schema (historical data)
   boltdb_shipper:
@@ -61,28 +64,28 @@ storage_config:
   filesystem:
     directory: /loki/chunks
 
-# Configuration des limites
+# Limits
 limits_config:
-  # Rétention des logs: 7 jours
+  # Log retention: 7 days
   retention_period: 168h
 
   # Enable structured metadata for better log correlation (requires Loki 2.8+)
   allow_structured_metadata: true
 
-  # Limites d'ingestion (augmentées pour dev avec Promtail)
+  # Ingestion limits (raised for dev with Promtail)
   ingestion_rate_mb: 16
   ingestion_burst_size_mb: 32
   max_streams_per_user: 10000
   max_global_streams_per_user: 10000
 
-  # Limites de requête
+  # Query limits
   max_query_length: 721h
   max_query_parallelism: 32
   max_entries_limit_per_query: 5000
   max_streams_matchers_per_query: 1000
   max_concurrent_tail_requests: 10
 
-  # Limites de chunks
+  # Chunk limits
   max_chunks_per_query: 2000000
   max_query_series: 500
 
@@ -97,22 +100,35 @@ limits_config:
   per_stream_rate_limit: 3MB
   per_stream_rate_limit_burst: 15MB
 
-# Configuration du compacteur (nettoyage automatique)
-# SSD-friendly: compaction moins fréquente
+# Query results cache: a dashboard refreshed every five minutes over seven days
+# recomputes the split that moved, not the week. Nothing was cached before
+# (measured 2026-10-03: one 7-day panel query reads up to 300 MB of logs).
+# Results younger than max_cache_freshness_per_query (10m) are never cached.
+query_range:
+  cache_results: true
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 64
+        ttl: 24h
+
+# Compactor (automatic clean-up)
+# SSD-friendly: less frequent compaction
 compactor:
   working_directory: /loki/boltdb-shipper-compactor
-  compaction_interval: 30m    # 10m -> 30m (moins d'I/O)
+  compaction_interval: 30m    # 10m -> 30m (less I/O)
   retention_enabled: true
-  retention_delete_delay: 4h  # 2h -> 4h (batch les suppressions)
-  retention_delete_worker_count: 50  # 150 -> 50 (moins agressif)
+  retention_delete_delay: 4h  # 2h -> 4h (batched deletions)
+  retention_delete_worker_count: 50  # 150 -> 50 (less aggressive)
   delete_request_store: filesystem
 
-# Configuration de la table manager (gestion des index)
+# Table manager (index tables)
 table_manager:
   retention_deletes_enabled: true
   retention_period: 168h
 
-# Configuration du ruler (pour les alertes basées sur les logs)
+# Ruler (log-based alerts)
 ruler:
   storage:
     type: local
@@ -126,11 +142,11 @@ ruler:
   enable_api: true
   enable_alertmanager_v2: true
 
-# Configuration des analytics
+# Analytics
 analytics:
   reporting_enabled: false
 
-# Configuration des membres du cluster
+# Cluster members
 memberlist:
   join_members:
     - loki:7946

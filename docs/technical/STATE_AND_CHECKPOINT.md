@@ -897,8 +897,8 @@ def remove_orphan_tool_messages(messages: list[BaseMessage]) -> list[BaseMessage
                 validated.append(msg)
             else:
                 orphan_count += 1
-                logger.warning("orphan_tool_message_removed",
-                              tool_call_id=msg.tool_call_id)
+                logger.debug("orphan_tool_message_removed",
+                             tool_call_id=msg.tool_call_id)
         else:
             validated.append(msg)
 

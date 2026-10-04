@@ -83,6 +83,9 @@ def instrument_fastapi(app: FastAPI, tracer_provider: TracerProvider | None = No
         excluded_urls=excluded,
         server_request_hook=_redact_request_target,
         tracer_provider=tracer_provider,
+        # One span per request, never one per ASGI message: every SSE chunk left
+        # an internal `http send` span — 88 % of the API's spans, read by nobody.
+        exclude_spans=["receive", "send"],
     )
 
 

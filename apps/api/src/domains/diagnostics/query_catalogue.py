@@ -36,6 +36,13 @@ EXTERNAL_METRICS_ALLOWLIST: dict[str, str] = {
         "Produced by the blackbox exporter for every probed target — the egress "
         "proxy's liveness (ADR-298), which exposes no series of its own."
     ),
+    "loki_write_dropped_entries_total": (
+        "Produced by Grafana Alloy (the log shipper): lines it gave up on once "
+        "its retries to Loki ran out."
+    ),
+    "loki_discarded_samples_total": (
+        "Produced by Loki: lines it refused, by reason (rate limit, stream limit, " "age, size)."
+    ),
 }
 
 #: Tokens that look metric-shaped inside templates but are PromQL functions,
@@ -298,6 +305,23 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             unit="count",
             lia_metrics=("python_sandbox_egress_runs_total",),
             external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="log_delivery_losses",
+            title="Log lines lost on the way to Loki, by stage and reason",
+            promql_template=(
+                "label_replace(sum by (reason) (increase("
+                'loki_write_dropped_entries_total{job="alloy"}[{window_minutes}m])),'
+                ' "stage", "dropped", "", "")'
+                " or "
+                "label_replace(sum by (reason) (increase("
+                'loki_discarded_samples_total{job="loki"}[{window_minutes}m])),'
+                ' "stage", "refused", "", "")'
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=(),
+            external_metrics=("loki_write_dropped_entries_total", "loki_discarded_samples_total"),
         ),
         NamedQuery(
             query_id="push_wakes_queued_and_served",

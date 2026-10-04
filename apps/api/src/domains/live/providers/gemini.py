@@ -222,6 +222,9 @@ class GeminiLiveProvider:
                         prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
                     )
                 ),
+                # No tool here for the SDK to run: said, it neither logs that
+                # AFC is on nor warns against using it (gemini_chat.py).
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             ),
         )
         for candidate in response.candidates or []:

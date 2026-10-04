@@ -736,16 +736,17 @@ class TestRemoveOrphanToolMessages:
         assert len(tool_msgs) == 1
         assert tool_msgs[0].content == "valid"
 
-    def test_logs_orphan_removal_warning(self, orphan_tool_message):
-        """Test that orphan removal is logged with warning."""
+    def test_logs_each_orphan_at_debug_never_as_a_warning(self, orphan_tool_message):
+        """An orphan is the ordinary by-product of the head truncation this filter
+        repairs: about a hundred a day in production (2026-10-03), each already
+        counted by the INFO summary — a warning per message announced no defect."""
         messages = [orphan_tool_message]
 
         with patch("src.domains.agents.utils.message_filters.logger") as mock_logger:
             remove_orphan_tool_messages(messages)
 
-        mock_logger.warning.assert_called()
-        # Check the event name
-        assert mock_logger.warning.call_args[0][0] == "orphan_tool_message_removed"
+        mock_logger.warning.assert_not_called()
+        assert mock_logger.debug.call_args[0][0] == "orphan_tool_message_removed"
 
     def test_logs_summary_when_orphans_found(self, orphan_tool_message):
         """Test that summary is logged when orphans are found."""

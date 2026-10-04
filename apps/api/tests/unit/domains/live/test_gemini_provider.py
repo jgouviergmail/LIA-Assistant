@@ -174,6 +174,7 @@ async def test_sample_voice_asks_the_tts_model_for_the_voice_and_returns_its_pcm
     assert kwargs["model"] == "tts-model" and kwargs["contents"] == "Hello."
     assert kwargs["config"].response_modalities == ["AUDIO"]
     assert kwargs["config"].speech_config.voice_config.prebuilt_voice_config.voice_name == "Kore"
+    assert kwargs["config"].automatic_function_calling.disable is True
 
 
 async def test_sample_voice_without_audio_is_an_error_not_silence() -> None:

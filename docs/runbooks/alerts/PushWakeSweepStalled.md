@@ -32,6 +32,13 @@ servi lit `or vector(0)` parce qu'un compteur qui n'a jamais tiré n'expose
 aucune série — et « rien servi depuis le démarrage » était exactement
 l'incident d'origine.
 
+Chaque paire fournisseur × issue existe à zéro dès le démarrage
+(`WAKE_OUTCOMES`, `infrastructure/scheduler/heartbeat_wake_sweep.py`) : sans
+cela, le PREMIER incrément d'une paire jamais vue dans la fenêtre échappe à
+`increase()` (la série naît à 1), et un réveil bel et bien servi se lisait
+« aucun servi » — l'alerte est passée en attente le 2026-10-03 alors que 18
+réveils sur 18 avaient été servis.
+
 ---
 
 ## Diagnostic

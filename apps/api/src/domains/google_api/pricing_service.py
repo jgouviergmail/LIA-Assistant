@@ -107,18 +107,20 @@ class GoogleApiPricingService:
 
         Returns:
             Tuple of (cost_usd, cost_eur, usd_to_eur_rate)
-            Returns (0, 0, rate) if pricing not found in cache.
+            Returns (0, 0, rate) if pricing not found in cache. A SKU the table
+            prices at zero is free, not missing, and is not reported.
         """
         key = f"{api_name}:{endpoint}"
-        cost_per_1000 = cls._pricing_cache.get(key, Decimal("0"))
+        cost_per_1000 = cls._pricing_cache.get(key)
 
-        if cost_per_1000 == Decimal("0"):
+        if cost_per_1000 is None:
             logger.warning(
                 "google_api_pricing_not_found",
                 api_name=api_name,
                 endpoint=endpoint,
                 cache_keys=list(cls._pricing_cache.keys()),
             )
+            cost_per_1000 = Decimal("0")
 
         cost_usd = cost_per_1000 / Decimal("1000")
         cost_eur = cost_usd * cls._usd_eur_rate

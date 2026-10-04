@@ -282,6 +282,13 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
         # ---- observability tier -----------------------------------------
         EvidenceRecipe("AlertmanagerDown", prom_queries=("dependency_up",)),
         EvidenceRecipe("ObservabilityScrapeTargetMissing", prom_queries=("dependency_up",)),
+        EvidenceRecipe(
+            "LogsNotDelivered",
+            prom_queries=("log_delivery_losses", "dependency_up"),
+            # Alloy logs why a batch failed (its own logfmt lines: no level label,
+            # so every line of the window is read).
+            logs=LogRecipe(service=DiagService.PROMTAIL),
+        ),
         # ---- transparency registers (ADR-263) ---------------------------
         EvidenceRecipe(
             "EffectLedgerClaimedOrphans", prom_queries=("effect_register_gaps",), logs=_LEDGER_LOGS

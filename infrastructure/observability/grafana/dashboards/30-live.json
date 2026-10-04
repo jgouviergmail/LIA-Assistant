@@ -9,19 +9,29 @@
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
-  "refresh": "1m",
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
   "links": [
     {
-      "title": "LIA",
+      "title": "LIA dashboards",
       "type": "dashboards",
       "tags": [
         "lia"
       ],
-      "targetBlank": false
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
     }
   ],
   "templating": {
@@ -37,10 +47,6 @@
   },
   "annotations": {
     "list": []
-  },
-  "time": {
-    "from": "now-24h",
-    "to": "now"
   },
   "panels": [
     {

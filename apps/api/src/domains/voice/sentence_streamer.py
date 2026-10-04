@@ -47,6 +47,7 @@ from typing import Any
 import structlog
 
 from src.core.constants import VOICE_TTS_MS_PER_CHAR_HEURISTIC
+from src.domains.voice.exceptions import tts_failure_facts
 from src.domains.voice.schemas import (
     AUDIO_MIME_TYPES,
     DEFAULT_AUDIO_MIME_TYPE,
@@ -54,6 +55,28 @@ from src.domains.voice.schemas import (
 )
 
 logger = structlog.get_logger(__name__)
+
+_MARKUP_TAG_RE = re.compile(r"<[^>]*>")
+_BRACKETED_RE = re.compile(r"\[[^\]]*\]")
+
+
+def is_speakable(sentence: str) -> bool:
+    """Whether a sentence holds anything a voice can pronounce.
+
+    A letter or a digit, in any script, outside markup and bracketed tags —
+    which TTS engines read as directions, not words. Emojis, punctuation and
+    decorations alone are nothing to say: sent, such a sentence was billed and
+    refused (measured 2026-10-03, « empty text after removing speaker tags and
+    emojis », HTTP 400). Every path that sends sentences to a TTS engine asks.
+
+    Args:
+        sentence: One sentence about to be synthesised.
+
+    Returns:
+        True when the sentence holds a letter or a digit outside tags.
+    """
+    bare = _BRACKETED_RE.sub(" ", _MARKUP_TAG_RE.sub(" ", sentence))
+    return any(character.isalnum() for character in bare)
 
 
 def _build_sentence_end_regex(delimiters: str) -> re.Pattern[str]:
@@ -292,7 +315,14 @@ class ProgressiveSentenceStreamer:
                 self._dispatch(sentence)
 
     def _dispatch(self, sentence: str) -> None:
-        """Spawn a TTS task for the given sentence."""
+        """Spawn a TTS task for the given sentence, if it holds anything to say.
+
+        A sentence with nothing to pronounce (:func:`is_speakable`) takes no
+        slot and no call.
+        """
+        if not is_speakable(sentence):
+            logger.debug("progressive_sentence_unspeakable_skipped", sentence_length=len(sentence))
+            return
         idx = self._dispatched
         self._dispatched += 1
         task = asyncio.create_task(self._synth_and_queue(sentence, idx))
@@ -325,8 +355,7 @@ class ProgressiveSentenceStreamer:
                 "progressive_sentence_synth_error",
                 phrase_index=idx,
                 sentence_length=len(sentence),
-                error=str(exc),
-                error_type=type(exc).__name__,
+                **tts_failure_facts(exc),
             )
             chunk = None  # mark as failed so the slot is skipped in-order
 

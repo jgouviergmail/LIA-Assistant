@@ -33,6 +33,7 @@ from src.core.constants import VOICE_TTS_MS_PER_CHAR_HEURISTIC
 from src.core.i18n import get_language_name, resolve_language
 from src.core.time_utils import now_in_timezone
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.voice.exceptions import tts_failure_facts
 from src.domains.voice.factory import TTSConfig, get_tts_client, get_tts_config
 from src.domains.voice.protocol import TTSClient
 from src.domains.voice.schemas import (
@@ -41,7 +42,7 @@ from src.domains.voice.schemas import (
     VoiceAudioChunk,
     VoiceCommentRequest,
 )
-from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
+from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer, is_speakable
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -319,6 +320,9 @@ class VoiceCommentService:
         Yields:
             VoiceAudioChunk for each synthesized sentence.
         """
+        # Nothing to pronounce is nothing to send (is_speakable); filtered
+        # first, so the last chunk sent is the one marked last.
+        sentences = [sentence for sentence in sentences if is_speakable(sentence)]
         if not sentences:
             logger.debug(f"{mode}_no_sentences_to_synthesize")
             return
@@ -400,8 +404,7 @@ class VoiceCommentService:
                 logger.error(
                     f"{mode}_chunk_error",
                     phrase_index=idx,
-                    error=str(e),
-                    error_type=type(e).__name__,
+                    **tts_failure_facts(e),
                 )
                 voice_fallback_total.labels(reason="tts_error").inc()
                 # Continue with next sentence on error

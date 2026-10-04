@@ -100,7 +100,9 @@ def _constructor_kwargs(provider: str, model: str, **passed: Any) -> dict[str, A
             "src.infrastructure.llm.providers._deepseek_patched.ChatDeepSeekPatched",
             return_value=mock_llm,
         ) as deepseek,
-        patch("langchain_google_genai.ChatGoogleGenerativeAI", return_value=mock_llm) as gemini,
+        patch(
+            "src.infrastructure.llm.providers.gemini_chat.ChatGeminiNoAfc", return_value=mock_llm
+        ) as gemini,
         patch(
             "src.infrastructure.llm.providers.ollama_chat.ChatOllamaTraced",
             return_value=mock_llm,

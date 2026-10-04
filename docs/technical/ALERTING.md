@@ -15,11 +15,15 @@ Related docs:
 thresholds/{env}.env ──prepare_config.sh──► alerts-core.yml   (the core rules, committed)
                                                  │ rule_files
 Prometheus ◄── scrape: api, postgres, redis, node, cadvisor,
-    │                  alertmanager, blackbox(-backup/-public)
+    │                  alertmanager, blackbox(-backup/-public),
+    │                  and the pipeline itself: loki, alloy, tempo, grafana
+    │                  (`up` + a keep-list each — ObservabilityScrapeTargetMissing,
+    │                  LogsNotDelivered, dashboard 16)
     │ alerting: alertmanager:9093
     ▼
 Alertmanager ──SMTP──► ALERTMANAGER_BACKEND_TEAM_EMAIL
-    ▲
+    ▲  └──► read by Grafana (`alertmanager` datasource): alerts and silences
+    │       in its Alerting pages — Grafana evaluates no rule of its own
     └─ entrypoint renders config from ALERTMANAGER_* env vars at startup
 
 blackbox-exporter ── probes ──► postgres-backup:8080 (BackupFailed)
@@ -43,7 +47,7 @@ infrastructure/observability/
     ├── prometheus.yml                       # alerting block + scrape jobs
     ├── alerts-core.yml(.template)           # THE loaded rules (ADR-119)
     ├── thresholds/{env}.env                 # ALERT_CORE_* live values
-    └── tests/alerts_core_test.yml           # promtool unit tests (17 cases)
+    └── tests/alerts_core_test.yml           # promtool unit tests
 ```
 
 ### Startup mode selection (entrypoint)

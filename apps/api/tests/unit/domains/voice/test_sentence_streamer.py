@@ -18,12 +18,16 @@ Covers the invariants of :class:`ProgressiveSentenceStreamer`:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
 
 import pytest
+from structlog.testing import capture_logs
 
+from src.domains.voice import sentence_streamer
+from src.domains.voice.exceptions import TTSProviderError
 from src.domains.voice.schemas import VoiceAudioChunk
 from src.domains.voice.sentence_streamer import ProgressiveSentenceStreamer
+from tests.support.structlog_capture import fresh_module_logger
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
@@ -415,3 +419,129 @@ async def test_unknown_audio_format_falls_back_to_default_mime() -> None:
     chunks = await _collect(streamer)
 
     assert chunks[0].mime_type == "audio/mpeg"
+
+
+# ---------------------------------------------------------------------------
+# Nothing to say
+# ---------------------------------------------------------------------------
+
+
+def _recording_synth(sent: list[str]) -> Callable[[str], Awaitable[str]]:
+    async def _synth(sentence: str) -> str:
+        sent.append(sentence)
+        return f"ok:{sentence}"
+
+    return _synth
+
+
+@pytest.mark.unit
+async def test_a_sentence_with_nothing_to_say_is_neither_sent_nor_billed() -> None:
+    """Emojis, bracketed tags and markup alone leave nothing to pronounce.
+
+    Measured in production 2026-10-03: such a sentence was sent, refused by the
+    provider (« empty text after removing speaker tags and emojis », HTTP 400)
+    and logged as an ERROR — a call for a silence nobody could have heard.
+    """
+    sent: list[str] = []
+    counts: list[int] = []
+    streamer = ProgressiveSentenceStreamer(
+        synth=_recording_synth(sent),
+        max_sentences=5,
+        audio_format="mp3",
+        on_chars_synthesized=counts.append,
+    )
+    streamer.feed("Bonjour. 🎉🎉 [laughs] ✨. <br/> *** ! Au revoir. 🙂")
+    streamer.close_input()
+    chunks = await _collect(streamer)
+
+    assert sent == ["Bonjour.", "Au revoir."]
+    assert [(c.phrase_index, c.phrase_text) for c in chunks] == [
+        (0, "Bonjour."),
+        (1, "Au revoir."),
+    ]
+    assert counts == [len("Bonjour."), len("Au revoir.")]
+    assert streamer.dispatched_sentences == 2
+
+
+@pytest.mark.unit
+async def test_digits_and_any_script_are_something_to_say() -> None:
+    sent: list[str] = []
+    streamer = ProgressiveSentenceStreamer(
+        synth=_recording_synth(sent), max_sentences=5, audio_format="mp3"
+    )
+    streamer.feed("42. 你好")
+    streamer.close_input()
+    await _collect(streamer)
+
+    assert sent == ["42.", "你好"]
+
+
+@pytest.mark.unit
+async def test_a_stream_with_nothing_to_say_still_closes() -> None:
+    streamer = ProgressiveSentenceStreamer(
+        synth=_recording_synth([]), max_sentences=5, audio_format="mp3"
+    )
+    streamer.feed("🎉 [music]. ✨")
+    streamer.close_input()
+
+    assert await asyncio.wait_for(_collect(streamer), timeout=1) == []
+    assert streamer.dispatched_sentences == 0
+
+
+# ---------------------------------------------------------------------------
+# What a refusal leaves in the logs
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def fresh_streamer_logger() -> Iterator[None]:
+    """Keep `capture_logs` reliable under xdist — see `tests/support`."""
+    yield from fresh_module_logger(sentence_streamer)
+
+
+@pytest.mark.unit
+@pytest.mark.usefixtures("fresh_streamer_logger")
+async def test_a_provider_refusal_is_logged_by_its_code_never_its_message() -> None:
+    """ADR-303: a code is bounded; a provider's message may quote what it refused."""
+
+    async def _refuse(_: str) -> str:
+        raise TTSProviderError(
+            code="provider_http_error",
+            message="HTTP 400: refused « the words of the answer »",
+            details={"status_code": 400},
+        )
+
+    streamer = ProgressiveSentenceStreamer(synth=_refuse, max_sentences=5, audio_format="mp3")
+    with capture_logs() as logs:
+        streamer.feed("Une phrase.")
+        streamer.close_input()
+        await _collect(streamer)
+
+    errors = [entry for entry in logs if entry["event"] == "progressive_sentence_synth_error"]
+    assert len(errors) == 1
+    assert {
+        key: errors[0].get(key) for key in ("error_code", "status_code", "transient", "error_type")
+    } == {
+        "error_code": "provider_http_error",
+        "status_code": 400,
+        "transient": False,
+        "error_type": "TTSProviderError",
+    }
+    assert "the words of the answer" not in repr(logs)
+
+
+@pytest.mark.unit
+@pytest.mark.usefixtures("fresh_streamer_logger")
+async def test_an_unclassified_failure_is_logged_by_its_type_alone() -> None:
+    async def _crash(_: str) -> str:
+        raise RuntimeError("the words of the answer")
+
+    streamer = ProgressiveSentenceStreamer(synth=_crash, max_sentences=5, audio_format="mp3")
+    with capture_logs() as logs:
+        streamer.feed("Une phrase.")
+        streamer.close_input()
+        await _collect(streamer)
+
+    errors = [entry for entry in logs if entry["event"] == "progressive_sentence_synth_error"]
+    assert [(e["error_type"], e.get("error_code")) for e in errors] == [("RuntimeError", None)]
+    assert "the words of the answer" not in repr(logs)

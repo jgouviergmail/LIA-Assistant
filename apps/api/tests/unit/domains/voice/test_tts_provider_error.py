@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.domains.voice.exceptions import TTSProviderError
+from src.domains.voice.exceptions import TTSProviderError, tts_failure_facts
 
 pytestmark = pytest.mark.unit
 
@@ -51,3 +51,25 @@ def test_a_rate_limit_is_read_from_the_code_and_the_status(
 ) -> None:
     """A quota answer asks for a longer wait than a blip: it is told apart structurally."""
     assert TTSProviderError(code, details=details).rate_limited is rate_limited
+
+
+def test_a_failure_log_carries_the_facts_never_the_message() -> None:
+    """ADR-303: what a provider says may quote the text it refused."""
+    error = TTSProviderError(
+        "provider_http_error",
+        "HTTP 400: refused « the words of the answer »",
+        details={"status_code": 400},
+    )
+
+    assert tts_failure_facts(error) == {
+        "error_type": "TTSProviderError",
+        "error_code": "provider_http_error",
+        "status_code": 400,
+        "transient": False,
+    }
+
+
+def test_an_unclassified_failure_is_named_by_its_type_alone() -> None:
+    assert tts_failure_facts(RuntimeError("the words of the answer")) == {
+        "error_type": "RuntimeError"
+    }

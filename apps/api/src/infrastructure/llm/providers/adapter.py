@@ -731,15 +731,14 @@ class ProviderAdapter:
             **kwargs: Additional parameters
 
         Returns:
-            ChatGoogleGenerativeAI: Configured Gemini LLM instance
+            ChatGeminiNoAfc: Configured Gemini LLM instance (the SDK's automatic
+            function calling off — LangGraph runs every tool)
 
         Raises:
             ImportError: If langchain-google-genai is not installed
         """
         try:
-            from langchain_google_genai import (  # type: ignore[import-not-found]
-                ChatGoogleGenerativeAI,
-            )
+            from src.infrastructure.llm.providers.gemini_chat import ChatGeminiNoAfc
         except ImportError as e:
             logger.error(
                 "gemini_import_failed",
@@ -778,7 +777,7 @@ class ProviderAdapter:
         if top_p is not None:
             optional_kwargs["top_p"] = top_p
 
-        return ChatGoogleGenerativeAI(
+        return ChatGeminiNoAfc(
             model=model,
             temperature=temperature,
             max_output_tokens=max_tokens,

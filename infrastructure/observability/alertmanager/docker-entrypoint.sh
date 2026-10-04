@@ -115,9 +115,11 @@ sed -e "s|\${ALERTMANAGER_SMTP_SMARTHOST}|${ALERTMANAGER_SMTP_SMARTHOST}|g" \
 
 inject_lia_webhook /etc/alertmanager/alertmanager.yml
 
+# The addresses are configured, never printed: this banner reaches Loki like
+# every other log line (ADR-317).
 echo "SMTP: ${ALERTMANAGER_SMTP_SMARTHOST}"
-echo "From: ${ALERTMANAGER_SMTP_FROM}"
-echo "To:   ${ALERTMANAGER_BACKEND_TEAM_EMAIL}"
+echo "From: CONFIGURED"
+echo "To:   CONFIGURED"
 [ -n "$HAS_SLACK" ] && echo "Slack: CONFIGURED" || echo "Slack: NOT CONFIGURED"
 [ -n "$HAS_PD" ] && echo "PagerDuty: CONFIGURED" || echo "PagerDuty: NOT CONFIGURED"
 echo ""

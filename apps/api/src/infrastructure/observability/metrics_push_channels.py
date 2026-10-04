@@ -37,9 +37,8 @@ push_wakes_total = Counter(
     "push_wakes_total",
     "Push-driven heartbeat wakes served by the sweep, per provider and outcome.",
     ["provider", "outcome"],
-    # outcome: cooldown | source_disabled | stale | no_signal | ineligible
-    #          | no_target | notified | reindexed | locked | rebased
-    #          | no_linked_folder | timeout | error
+    # outcome: WAKE_OUTCOMES (infrastructure/scheduler/heartbeat_wake_sweep.py),
+    # every provider × outcome pair exported at zero from import.
 )
 
 # ADR-304 — what the webhook path QUEUED, beside what the sweep SERVED

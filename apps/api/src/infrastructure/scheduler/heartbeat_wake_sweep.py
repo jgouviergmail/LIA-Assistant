@@ -67,8 +67,38 @@ logger = structlog.get_logger(__name__)
 MailDelta = tuple[list[dict[str, Any]], str | None]
 
 _PROVIDERS: tuple[str, ...] = tuple(p.value for p in PushChannelProvider)
+#: Every outcome a wake is counted under (``push_wakes_total``), the Drive
+#: reindex's included. Each provider × outcome series is exported from import at
+#: zero: a pair's FIRST increment is invisible to ``increase()`` when the pair had
+#: no sample in the window, and PushWakeSweepStalled read such a wake as « none
+#: served » (pending in production on 2026-10-03, all 18 wakes served).
+WAKE_OUTCOMES: tuple[str, ...] = (
+    "cooldown",
+    "source_disabled",
+    "stale",
+    "no_signal",
+    "ineligible",
+    "no_target",
+    "notified",
+    "reindexed",
+    "locked",
+    "rebased",
+    "no_linked_folder",
+    "timeout",
+    "error",
+)
 #: The wake outcomes that produced something; every other one is a skip.
 _SERVED_OUTCOMES: frozenset[str] = frozenset({"notified", "reindexed", "rebased"})
+
+
+def _export_every_wake_series() -> None:
+    """Export each provider × outcome series at zero (see ``WAKE_OUTCOMES``)."""
+    for provider in _PROVIDERS:
+        for outcome in WAKE_OUTCOMES:
+            push_wakes_total.labels(provider=provider, outcome=outcome)
+
+
+_export_every_wake_series()
 _SOURCE_OF_PROVIDER: dict[str, str] = {
     PushChannelProvider.GOOGLE_GMAIL.value: "emails",
     PushChannelProvider.GOOGLE_CALENDAR.value: "calendar",
@@ -395,11 +425,11 @@ async def _serve_counted(redis: Any, payload: WakePayload) -> bool:
         )
     except Exception as exc:  # noqa: BLE001 — one wake must not kill the sweep
         outcome = "error"
+        # The type, never the message: it may quote what the provider read (ADR-303).
         logger.warning(
             "push_wake_failed",
             provider=payload.provider,
             user_id=str(payload.user_id),
-            error=str(exc),
             error_type=type(exc).__name__,
         )
     push_wakes_total.labels(provider=payload.provider, outcome=outcome).inc()

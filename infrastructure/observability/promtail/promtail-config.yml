@@ -97,15 +97,13 @@ scrape_configs:
           # The one promoted payload field: 4 values, a closed set.
           level: level
 
-      # Stage 5: static labels.
-      - static_labels:
-          job: api
-
-      # Stage 5bis: a URL's search text is withheld above DEBUG, like the API's own
-      # lines (`_CONTENT_QUERY_PARAMS`: `?q=`, `$search=`…). A line with no level
-      # (Next.js, every non-structlog container) is treated as above DEBUG.
+      # Stage 5: a URL's search text is withheld above DEBUG, like the API's own
+      # lines (`_CONTENT_QUERY_PARAMS`: `?q=`, `$search=`…), in EVERY container: the
+      # `project` label is on every line this job ships (the discovery keeps that
+      # compose project alone). A line with no level (Next.js, every non-structlog
+      # container) is treated as above DEBUG.
       - match:
-          selector: '{job="api", level!="debug"}'
+          selector: '{project="lia", level!="debug"}'
           stages:
             - replace:
                 expression: '(?i)[?&](?:q|query|search|search_query|srsearch|\$search|\$filter|input|text|textquery|keyword|keywords|term|terms|titles|name|address|prompt|question|subject|body)=([^&\s#"''\\]+)'
@@ -136,9 +134,14 @@ scrape_configs:
         target_label: 'environment'
         replacement: 'development'
 
-      # The Docker Compose service and project.
+      # The Docker Compose service and project. `job` names the service too, so
+      # `{job="api"}` selects the API's lines alone: it used to be a static label
+      # set on every line, and the dashboards reading `{job="api"}` read Tempo,
+      # Redis, Grafana and Postgres as well (measured 2026-10-03).
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         target_label: 'service'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'job'
       - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
         target_label: 'project'
 

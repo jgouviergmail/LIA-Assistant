@@ -2,11 +2,18 @@
 Alembic environment configuration.
 """
 
-from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
+
+# Logging is configured by this import, before any application module: the
+# container's entrypoint runs the migrations, so what `import_all_models()`
+# logs reaches the container log — and before this import it did so under
+# structlog's defaults (console rendering, DEBUG lines at LOG_LEVEL=INFO, no
+# PII filter; measured in production 2026-10-03). Alembic's own `fileConfig`
+# is gone with it: it would replace the root handler this configuration
+# installed, and disable every logger created before it.
+from src.infrastructure.observability import logging_bootstrap  # noqa: F401
 from src.core.config import settings
 
 # CRITICAL: Import ALL domain models so they are registered in Base.metadata
@@ -19,10 +26,6 @@ import_all_models()
 
 # this is the Alembic Config object
 config = context.config
-
-# Interpret the config file for Python logging.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
 
 # Get database URL from settings
 config.set_main_option("sqlalchemy.url", settings.database_url_sync)

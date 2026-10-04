@@ -11,18 +11,28 @@
   "schemaVersion": 38,
   "version": 1,
   "refresh": "30s",
+  "time": {
+    "from": "now-4h",
+    "to": "now"
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
   "links": [
     {
-      "title": "LIA",
+      "title": "LIA dashboards",
       "type": "dashboards",
       "tags": [
         "lia"
       ],
-      "targetBlank": false
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
     }
   ],
   "templating": {
@@ -367,10 +377,10 @@
         {
           "id": 7,
           "type": "timeseries",
-          "title": "Trace Duration P50/P95/P99",
+          "title": "API server span duration P50/P95/P99",
           "datasource": {
-            "type": "tempo",
-            "uid": "$datasource_tempo"
+            "type": "prometheus",
+            "uid": "$datasource"
           },
           "gridPos": {
             "h": 8,
@@ -382,37 +392,37 @@
             {
               "refId": "A",
               "datasource": {
-                "type": "tempo",
-                "uid": "$datasource_tempo"
+                "type": "prometheus",
+                "uid": "$datasource"
               },
-              "queryType": "traceql",
-              "query": "{name=~\"router.*|response.*\"} | quantile_over_time(duration, 0.5) by (name)",
-              "legendFormat": "{{name}} P50"
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"lia-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
+              "legendFormat": "P50",
+              "exemplar": true
             },
             {
               "refId": "B",
               "datasource": {
-                "type": "tempo",
-                "uid": "$datasource_tempo"
+                "type": "prometheus",
+                "uid": "$datasource"
               },
-              "queryType": "traceql",
-              "query": "{name=~\"router.*|response.*\"} | quantile_over_time(duration, 0.95) by (name)",
-              "legendFormat": "{{name}} P95"
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"lia-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
+              "legendFormat": "P95",
+              "exemplar": true
             },
             {
               "refId": "C",
               "datasource": {
-                "type": "tempo",
-                "uid": "$datasource_tempo"
+                "type": "prometheus",
+                "uid": "$datasource"
               },
-              "queryType": "traceql",
-              "query": "{name=~\"router.*|response.*\"} | quantile_over_time(duration, 0.99) by (name)",
-              "legendFormat": "{{name}} P99"
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"lia-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
+              "legendFormat": "P99",
+              "exemplar": true
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "ms",
+              "unit": "s",
               "custom": {
                 "drawStyle": "line",
                 "lineInterpolation": "linear",
@@ -434,15 +444,16 @@
               "displayMode": "list",
               "placement": "bottom"
             }
-          }
+          },
+          "description": "Server spans of the API, from the span metrics Tempo's metrics generator writes to Prometheus (traces_spanmetrics_latency). The dots are exemplars: each opens the trace it came from."
         },
         {
           "id": 8,
-          "type": "barchart",
-          "title": "Trace Spans per Operation",
+          "type": "bargauge",
+          "title": "API server spans per route (window)",
           "datasource": {
-            "type": "tempo",
-            "uid": "$datasource_tempo"
+            "type": "prometheus",
+            "uid": "$datasource"
           },
           "gridPos": {
             "h": 8,
@@ -454,34 +465,42 @@
             {
               "refId": "A",
               "datasource": {
-                "type": "tempo",
-                "uid": "$datasource_tempo"
+                "type": "prometheus",
+                "uid": "$datasource"
               },
-              "queryType": "traceql",
-              "query": "{name=~\"router.*|response.*\"} | count() by (name)",
-              "legendFormat": "{{name}}"
+              "expr": "topk(15, sum by (span_name) (increase(traces_spanmetrics_calls_total{service=\"lia-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__range])))",
+              "legendFormat": "{{span_name}}",
+              "instant": true
             }
           ],
           "options": {
             "orientation": "horizontal",
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
+            "displayMode": "basic",
+            "showUnfilled": true,
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
             }
           },
           "fieldConfig": {
             "defaults": {
               "color": {
                 "mode": "palette-classic"
-              }
+              },
+              "unit": "short",
+              "min": 0
             },
             "overrides": []
-          }
+          },
+          "description": "Server spans of the API over the dashboard's range, by route, from Tempo's span metrics (traces_spanmetrics_calls_total)."
         },
         {
           "id": 9,
-          "type": "traces",
-          "title": "Traces Search (Recent 100)",
+          "type": "table",
+          "title": "API server traces (latest 100)",
           "datasource": {
             "type": "tempo",
             "uid": "$datasource_tempo"
@@ -500,14 +519,15 @@
                 "uid": "$datasource_tempo"
               },
               "queryType": "traceql",
-              "query": "{name=~\"router.*|response.*\"}",
-              "limit": 100
+              "query": "{ resource.service.name = \"lia-api\" && kind = server }",
+              "limit": 100,
+              "tableType": "traces"
             }
           ],
           "options": {
-            "sortBy": "startTime",
-            "sortOrder": "desc"
-          }
+            "showHeader": true
+          },
+          "description": "The API's server traces in the dashboard's range; a trace ID opens the trace view."
         }
       ]
     },

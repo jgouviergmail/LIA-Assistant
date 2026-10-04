@@ -411,7 +411,8 @@ services:
           --storage.tsdb.retention.size=2GB \
           --web.console.libraries=/usr/share/prometheus/console_libraries \
           --web.console.templates=/usr/share/prometheus/consoles \
-          --web.enable-remote-write-receiver
+          --web.enable-remote-write-receiver \
+          --enable-feature=exemplar-storage
     tmpfs:
       - /etc/prometheus/file_sd:mode=0777,size=1m
     ports:
@@ -434,7 +435,10 @@ services:
           # ~21k head series on the dev stack with no traffic at all.
           # Cost of the headroom: 256M of ceiling on a 16GB host (ADR-033) whose
           # reservations total ~3.3G — 1.6%.
-          memory: 512M
+          # 768M since 2026-10-03: the working set reached 504M of the 512M over
+          # seven days (425M at a 30-minute resolution), and the exemplar ring
+          # buffer and the observability pipeline's own targets come on top.
+          memory: 768M
         reservations:
           cpus: '0.1'
           memory: 128M
@@ -580,7 +584,9 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 256M  # Was 512M — actual usage ~66M
+          # 384M since 2026-10-03: 125M at its 7-day peak, plus the 64 MB query
+          # results cache (loki-config.yml) under seven-day dashboards.
+          memory: 384M
         reservations:
           cpus: '0.1'
           memory: 128M
@@ -606,6 +612,9 @@ services:
       - --config.format=promtail
       - --disable-reporting
       - --storage.path=/tmp/alloy
+      # On the compose network only (no published port): Prometheus scrapes
+      # what Alloy shipped and dropped. Alloy listens on loopback by default.
+      - --server.http.listen-addr=0.0.0.0:12345
       - /etc/promtail/promtail-config.yml
     volumes:
       - ./infrastructure/observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro

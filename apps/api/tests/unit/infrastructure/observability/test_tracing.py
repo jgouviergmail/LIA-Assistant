@@ -19,10 +19,12 @@ OpenTelemetry Integration:
 - OTLP gRPC exporter
 """
 
+from collections.abc import AsyncIterator
 from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import APIRouter, FastAPI
+from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 from opentelemetry.sdk.trace import Tracer
 from opentelemetry.sdk.trace import TracerProvider as SdkTracerProvider
@@ -483,6 +485,14 @@ def _instrumented_nested_client(exporter: InMemorySpanExporter) -> TestClient:
     async def favorite(name: str) -> dict[str, str]:
         return {"name": name}
 
+    @domain.get("/stream")
+    async def stream() -> StreamingResponse:
+        async def chunks() -> AsyncIterator[bytes]:
+            for index in range(5):
+                yield f"data: {index}\n\n".encode()
+
+        return StreamingResponse(chunks(), media_type="text/event-stream")
+
     api_router = APIRouter()
     api_router.include_router(domain)
     app = FastAPI()
@@ -541,3 +551,19 @@ class TestNestedRouteSpans:
         assert servers[200]["http.url"] == "http://testserver/api/v1/relations/favorites/{name}"
         assert servers[404]["http.target"] == "unmatched"
         assert servers[404]["http.url"] == "http://testserver"
+
+    def test_a_streamed_response_is_one_span_not_one_per_chunk(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Every SSE chunk used to leave an internal `http send` span: measured
+        # 2026-10-03 in production, 54 371 a day — 88 % of the API's spans, 36 %
+        # of everything Tempo stored, none of them read by anybody.
+        monkeypatch.setenv("OTEL_SDK_DISABLED", "false")
+        exporter = InMemorySpanExporter()
+
+        response = _instrumented_nested_client(exporter).get("/api/v1/relations/stream")
+
+        assert response.text.count("data: ") == 5
+        assert [(s.kind, s.name) for s in exporter.get_finished_spans()] == [
+            (SpanKind.SERVER, "GET /api/v1/relations/stream")
+        ]

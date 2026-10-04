@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.8** | 2026-09-26 | 31 dashboards, 811 panels (rows excluded)
+> **Version 4.9** | 2026-10-03 | 31 dashboards, 831 panels (rows excluded)
 
 ---
 
@@ -66,6 +66,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | postgres_exporter | 9187 | Metriques PostgreSQL (pool, requetes) |
 | redis_exporter | 9121 | Metriques Redis (memoire, commandes) |
 | node_exporter | 9100 | Metriques systeme hote (disque, CPU, RAM) |
+| Loki, Alloy, Tempo, Grafana | 3100, 12345, 3200, 3000 | La pile elle-meme : `up`, plus les seules series que lisent l'alerte `LogsNotDelivered` et la ligne « Observability pipeline » du 16 (listes `keep` de `prometheus.yml` ; leurs `/metrics` complets pesaient ~9 000 series) |
 
 > **Important** : Prometheus scrape le port 9091 (HTTP-only), pas le port 8000 (HTTPS principal de l'API). Cela evite les problemes de certificats SSL lors du scraping.
 
@@ -73,16 +74,33 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 
 | Datasource | UID | Type | Dashboards |
 |------------|-----|------|------------|
-| Prometheus | `prometheus` | Metriques + recording rules | Tous (01-26) |
+| Prometheus | `prometheus` | Metriques + recording rules | Tous |
 | Loki | `loki` | Logs structures | 05, 06, 07, 17 |
 | Tempo | `tempo` | Traces distribuees | 06 |
+| Alertmanager | `alertmanager` | Alertes en cours, silences, recepteurs | pages Alerting de Grafana |
+
+### Les signaux se renvoient les uns aux autres
+
+| Depuis | Vers | Mecanisme |
+|---|---|---|
+| une ligne de log de l'API | sa trace | champ derive Loki sur `"trace_id": "…"` (les lignes sont du JSON : l'ancien motif `trace_id=` ne trouvait rien, 0 ligne sur 200 mesure le 2026-10-03) |
+| une trace | ses lignes de log | requete `{service="api"} \|= "<trace id>"`, ±5 min autour du span |
+| une trace | le debit et la latence de ses operations | span metrics `traces_spanmetrics_*` filtrees sur `service` |
+| un point de latence (06) | la trace dont il vient | exemplars de Tempo (label `traceID`), stockes par Prometheus sous `--enable-feature=exemplar-storage` — sans ce drapeau Prometheus les acceptait et les jetait (19 045 en un jour) |
+
+Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` etait remplace par une variable d'environnement vide).
+
+**Les labels Loki** : `job` et `service` nomment le service compose (`{job="api"}` = les lignes de l'API seules ; avant le 2026-10-03, `job="api"` etait pose sur toutes les lignes de tous les conteneurs), `container` le conteneur, `project` le projet compose (le masquage du contenu des URL s'applique a toute ligne `{project="lia"}` sauf DEBUG), `level` le niveau des lignes structlog.
+
+**Cache de resultats Loki** : 64 Mo en memoire (`query_range` de `loki-config.yml`) — un tableau sur 7 jours rafraichi toutes les 5 minutes ne recalcule que le morceau qui a bouge (mesure : 169 morceaux sur 169 servis par le cache au second passage).
 
 ### Retention et fenetre interrogeable
 
 | Source | Retention | Ou c'est configure |
 |--------|-----------|--------------------|
 | Loki (logs) | **168 h (7 jours)** | `infrastructure/observability/loki/loki-config.yml` (`limits_config.retention_period`, `compactor.retention_enabled`, `table_manager.retention_period`) |
-| Prometheus (metriques) | **15 j** ou **2 Go**, la premiere limite atteinte | `--storage.tsdb.retention.time` / `.size` (cf. `infrastructure/observability/prometheus/prometheus.yml` et `alerts-core.yml`) |
+| Prometheus (metriques) | **7 j** ou **2 Go** en production (15 j / 10 Go en dev), la premiere limite atteinte | drapeaux `--storage.tsdb.retention.time` / `.size` du service `prometheus` de `docker-compose.prod.yml` (et `.dev.yml`) |
+| Tempo (traces) | **168 h (7 jours)** | `compactor.compaction.block_retention` de `infrastructure/observability/tempo/tempo.yml` |
 
 > **PIEGE — un zero hors retention ne veut pas dire « aucun evenement ».** Une
 > requete Loki portant sur une fenetre plus ancienne que 7 jours renvoie
@@ -107,8 +125,8 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 |---------|---------|
 | `infrastructure/observability/prometheus/prometheus.yml` | Configuration scrape Prometheus |
 | `infrastructure/observability/prometheus/recording_rules.yml` | 86 recording rules |
-| `infrastructure/observability/grafana/dashboards/*.json` | 26 fichiers JSON de dashboards |
-| `infrastructure/observability/grafana/provisioning/` | Provisioning datasources et dashboards |
+| `infrastructure/observability/grafana/dashboards/*.json` | Un fichier JSON par dashboard (catalogue ci-dessous) |
+| `infrastructure/observability/grafana/provisioning/` | Provisioning datasources et dashboards ; `plugins/` et `alerting/` ne provisionnent rien mais doivent exister, car Grafana lit ces repertoires a chaque demarrage (absent : une ERROR ; un fichier sans suffixe `.yaml`/`.yml`/`.json` : un WARNING) |
 
 ---
 
@@ -131,7 +149,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat || 38 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261), moments anticipes (ADR-281), ce que le job nocturne des habitudes a appris (ADR-214 c), reveils push mis en file ET servis (ADR-304) |
 | 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints || 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
 | 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework || 35 | Execution graphe, gestion d'etat, latence par etage (TTFT), integration Langfuse (repliee, requiert LANGFUSE_ENABLED) |
-| 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational || 33 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils, auto-diagnostic (verdicts, incidents, duree du tick, cout LLM, sources de preuves lues) |
+| 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational || 40 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils, auto-diagnostic (verdicts, incidents, duree du tick, cout LLM, sources de preuves lues), pipeline d'observabilite (Alloy, Loki, Tempo, Prometheus) |
 | 17 | User Analytics & Geo | `17-user-analytics-geo` | lia, users, analytics, geo || 27 | Vue geographique (Geomap), engagement utilisateur, patterns d'activite, usage outils et agents, qualite et cout conversations, logs geo detailles |
 | 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge || 37 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation, recuperation de jobs, reindexation Drive ciblee et source libelle Gmail (ADR-261/262), drainages bornes du flux Drive pousse par issue (ADR-304) |
 | 19 | Sub-agents & Skills | `19-subagents-skills` | lia, subagents, skills || 13 | Executions de sous-agents ReAct (spawns, duree, tokens, erreurs), skills |
@@ -204,6 +222,8 @@ Dashboard le plus riche en panels avec le 07. Headlines de couts (jour, mois, pr
 
 Observabilite unifiee. Volume de logs par niveau, recherche par `run_id` ou `user_id`, vue traces distribuees via Tempo, correlation metrique-vers-log et trace-vers-log. Section jobs background (scheduler). Aides a la recherche (templates LogQL et TraceQL).
 
+Les traces : la duree des spans serveur de l'API (P50/P95/P99) et leur volume par route lisent les **span metrics** que le metrics generator de Tempo ecrit dans Prometheus (`traces_spanmetrics_latency_bucket`, `traces_spanmetrics_calls_total`) — toute plage, sans la limite de 3 h des metriques TraceQL, que l'instance ne calcule d'ailleurs pas (pas de processeur `local-blocks`) ; le tableau liste les 100 dernieres traces serveur de l'API (TraceQL `{ resource.service.name = "lia-api" && kind = server }`). Les trois panels d'avant interrogeaient des spans `router*`/`response*` que rien n'emet et une syntaxe que Tempo refuse (2026-10-03). Une requete HTTP est UN span serveur : l'API n'emet plus de span par message ASGI (`http send`, un par morceau de flux SSE, 88 % de ses spans), et Grafana ne se trace plus lui-meme (59 % de tout ce que Tempo stockait).
+
 **Datasources** : Prometheus + Loki + Tempo.
 
 ### 07 - Agent Orchestration Pipeline (63 panels)
@@ -242,9 +262,11 @@ Data registry (items par type, taille, operations CRUD), moteur de requetes (lat
 
 Metriques bas niveau LangGraph : execution de graphe (duree totale, nombre de noeuds traverses), gestion d'etat (taille, serialisation), latence par etage du tour de chat (`langgraph_stage_duration_seconds`, l'instrument du chantier TTFT — voir LATENCY_PLAN), erreurs de graphe, appels d'outils par subgraph, garde double-appel du reasoning streaming. La section Langfuse est repliee et marquee : elle reste vide tant que `LANGFUSE_ENABLED=false`.
 
-### 16 - Recording Rules & Alerts Health (33 panels)
+### 16 - Recording Rules & Alerts Health (40 panels)
 
-Dashboard meta/operationnel. Sante des 86 recording rules Prometheus (evaluation, erreurs, duree), validation de la configuration et securite de la stack d'observabilite, integrite du registre d'outils (`tool_module_import_failures_total` : toute valeur > 0 signifie qu'une famille entiere d'outils manque silencieusement du registre). (L'alerting Prometheus est reactive depuis ADR-119 — le noyau de 14 alertes actives se consulte dans Prometheus `/alerts` et Alertmanager, voir README_ALERTING.md.)
+Dashboard meta/operationnel. Sante des 86 recording rules Prometheus (evaluation, erreurs, duree), validation de la configuration et securite de la stack d'observabilite, integrite du registre d'outils (`tool_module_import_failures_total` : toute valeur > 0 signifie qu'une famille entiere d'outils manque silencieusement du registre). (L'alerting Prometheus est reactive depuis ADR-119 — le noyau d'alertes actives se consulte dans Prometheus `/alerts`, Alertmanager et les pages Alerting de Grafana, voir README_ALERTING.md.)
+
+Derniere ligne, **Observability pipeline** : les composants de la pile sont-ils joignables (`up`), les lignes expediees par Alloy et recues par Loki, les lignes perdues (abandonnees par Alloy, refusees par Loki — ce que lit l'alerte `LogsNotDelivered`), les spans recus et refuses par Tempo, ses span metrics et exemplars ecrits dans Prometheus, les series et exemplars de Prometheus, les flux Loki en memoire (la cardinalite qui avait fait tomber Loki en aout 2026). Un composant injoignable 10 minutes declenche `ObservabilityScrapeTargetMissing`.
 
 ### 17 - User Analytics & Geo (27 panels)
 
@@ -419,6 +441,7 @@ Verifier que :
 1. L'export OTLP est configure dans l'API (variable d'environnement `OTEL_EXPORTER_OTLP_ENDPOINT`)
 2. Tempo est en cours d'execution et accessible
 3. La datasource Tempo est configuree dans Grafana avec l'UID `tempo`
+4. Pour les panels de duree et de volume : le metrics generator de Tempo ecrit bien dans Prometheus (`traces_spanmetrics_calls_total` doit exister ; `remote_write` vers `prometheus:9090` dans `tempo.yml`)
 
 ### Probleme 6 : Geomap sans donnees (dashboard 17)
 
@@ -433,38 +456,7 @@ Le panel Geomap utilise le compteur `http_requests_by_country_total` alimente pa
 
 ### Emplacement des fichiers
 
-Les dashboards sont provisionnes depuis les fichiers JSON :
-```
-infrastructure/observability/grafana/dashboards/
-  01-app-overview.json
-  02-slo-tracking.json
-  03-infra-resources.json
-  04-http-api.json
-  05-llm-tokens-cost.json
-  06-logs-traces.json
-  07-agents-pipeline.json
-  08-hitl.json
-  09-conversations-users.json
-  10-oauth-connectors-mcp.json
-  11-voice-websocket.json
-  12-channels.json
-  13-proactive-heartbeat.json
-  14-registry-checkpoints.json
-  15-langgraph-deep.json
-  16-meta-health.json
-  17-user-analytics-geo.json
-  18-rag-spaces.json
-  19-subagents-skills.json
-  20-react-browser.json
-  21-health-metrics.json
-  22-compaction.json
-  23-journals-user-model.json
-  24-telephony.json
-  25-briefing.json
-  26-product-value.json
-  27-meetings.json
-  28-effect-ledger.json
-```
+Les dashboards sont provisionnes depuis les fichiers JSON de `infrastructure/observability/grafana/dashboards/`, un par dashboard, nommes `<uid>.json` (catalogue ci-dessus).
 
 ### Ajouter un panel
 
@@ -481,11 +473,15 @@ infrastructure/observability/grafana/dashboards/
 2. Nommer le fichier : `<numero>-<slug>.json` (ex: `18-new-domain.json`)
 3. Respecter les conventions :
    - `schemaVersion: 38`
-   - Tag `lia` obligatoire + tags specifiques
+   - Tag `lia` obligatoire + tags specifiques (c'est lui qui inscrit le dashboard dans le menu commun)
+   - Plage par defaut `now-7d` et rafraichissement `5m` ; seul `06-logs-traces` s'ouvre sur `now-4h` (et garde le sien)
+   - `links` : exactement le lien commun « LIA dashboards » (menu deroulant des dashboards tagues `lia`), identique partout
    - Variable `$datasource` (Prometheus) obligatoire
    - `graphTooltip: 1` (shared crosshair)
    - UID unique au format `<numero>-<slug>`
 4. Ajouter le dashboard dans le tableau catalogue de cette documentation
+
+Plage, rafraichissement, lien et tag sont tenus par `apps/api/tests/unit/test_grafana_dashboard_conventions_guard.py` (choix du proprietaire, 2026-10-03) : avant, vingt-huit dashboards dessinaient une rangee de trente boutons, un seul un menu, deux aucun lien, et la plupart s'ouvraient sur 6 h rafraichies toutes les 30 s.
 
 ### Conventions de rendu des panels (audit 2026-07)
 
@@ -494,6 +490,7 @@ Trois conventions garantissent des panels lisibles sur une instance a faible tra
 1. **`noValue` nuance** : les panels stat de compteurs d'evenements rares (erreurs, violations, timeouts, recoveries...) declarent `noValue: "0"` — l'absence de serie pour un counter signifie reellement zero evenement. Les ratios dont le denominateur peut etre vide declarent `noValue: "n/a"` (un 0 affirmerait un 0 % jamais calcule). Les metriques de debit coeur (http_requests, llm_api_calls, tokens...) ne declarent JAMAIS de noValue : leur absence doit rester visible, c'est le signal d'une panne d'instrumentation.
 2. **Fenetres adaptees a la cadence** : les `histogram_quantile` sur des familles a evenements rares (rag, voice, compaction, oauth, hitl for-each, subagents, browser...) utilisent une fenetre `[1h]` ; `user_daily_conversations_total` (observe ~1x/jour) utilise `increase(...[1d])`. Les requetes Loki utilisent `[$__auto]`, jamais une fenetre fixe.
 3. **Descriptions systematiques** : chaque panel porte une description issue du help string Prometheus de sa metrique (ou du commentaire de sa recording rule), avec la mention « Empty panel = zero events in the window (healthy) » sur les timeseries d'evenements rares.
+4. **Un quantile Loki est groupe** : sans `by (...)`, `quantile_over_time` garde les labels qu'a extraits `| json`, donc chaque ligne de log devient sa propre serie et le « p95 de la fenetre » n'est que la valeur d'une ligne (mesure 2026-10-03 sur le 07 : 222 series pour un panel stat). Grouper toujours : `by (node_name)`, ou `by ()` pour un quantile global.
 
 ### Conventions de nommage des metriques
 
@@ -536,7 +533,7 @@ docker compose restart grafana
 
 ### Code source
 
-**Dashboards** : `infrastructure/observability/grafana/dashboards/*.json` (26 fichiers)
+**Dashboards** : `infrastructure/observability/grafana/dashboards/*.json` (un par dashboard)
 
 **Metriques** :
 - `apps/api/src/infrastructure/observability/metrics_agents.py`
@@ -557,7 +554,7 @@ docker compose restart grafana
 
 ---
 
-**Version** : 4.5
-**Date** : 2026-07-29
+**Version** : 4.9
+**Date** : 2026-10-03
 **Auteur** : Equipe LIA
 **Statut** : Production (31 dashboards ; panels comptés dans l'en-tête)

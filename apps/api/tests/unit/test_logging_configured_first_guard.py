@@ -11,6 +11,12 @@ logs, tool parameters included.
 
 The configuration is therefore a side effect of the FIRST application import
 of ``main.py`` (``logging_bootstrap``), and this guard holds that order.
+
+The container runs a second process before the API: the migrations. Its
+``alembic/env.py`` imports every model, and measured 2026-10-03 the lines those
+imports log reached the container log under the same defaults (DEBUG lines at
+``LOG_LEVEL=INFO``, console rendering). It holds the same rule, and calls no
+``fileConfig``, which would replace the configured root handler.
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ from pathlib import Path
 import pytest
 
 SRC = Path(__file__).resolve().parents[2] / "src"
+ALEMBIC_ENV = SRC.parent / "alembic" / "env.py"
 BOOTSTRAP_MODULE = "src.infrastructure.observability.logging_bootstrap"
 
 
@@ -36,16 +43,32 @@ def _application_imports(tree: ast.Module) -> list[str]:
 
 
 @pytest.mark.unit
-def test_main_imports_the_logging_bootstrap_before_any_application_module() -> None:
-    tree = ast.parse((SRC / "main.py").read_text(encoding="utf-8"))
+@pytest.mark.parametrize("entry_point", [SRC / "main.py", ALEMBIC_ENV], ids=["main", "alembic"])
+def test_an_entry_point_imports_the_logging_bootstrap_before_any_application_module(
+    entry_point: Path,
+) -> None:
+    tree = ast.parse(entry_point.read_text(encoding="utf-8"))
 
     imports = _application_imports(tree)
 
-    assert imports, "main.py imports no application module — the guard reads the wrong file"
+    assert imports, f"{entry_point.name} imports no application module — wrong file read"
     assert imports[0] == BOOTSTRAP_MODULE, (
-        f"main.py imports {imports[0]} before {BOOTSTRAP_MODULE}: anything that "
-        "module logs at import time escapes the logging configuration"
+        f"{entry_point.name} imports {imports[0]} before {BOOTSTRAP_MODULE}: anything "
+        "that module logs at import time escapes the logging configuration"
     )
+
+
+@pytest.mark.unit
+def test_the_migrations_do_not_reconfigure_logging() -> None:
+    tree = ast.parse(ALEMBIC_ENV.read_text(encoding="utf-8"))
+
+    called = {
+        node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    }
+
+    assert not called & {"fileConfig", "dictConfig", "basicConfig"}
 
 
 @pytest.mark.unit

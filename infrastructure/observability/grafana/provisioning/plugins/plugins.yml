@@ -1,0 +1,5 @@
+# Grafana scans /etc/grafana/provisioning/plugins at every boot and logs an
+# ERROR when the directory is absent (once per boot, 2026-10-03). LIA
+# provisions no plugin app: this file only makes the directory exist.
+apiVersion: 1
+apps: []

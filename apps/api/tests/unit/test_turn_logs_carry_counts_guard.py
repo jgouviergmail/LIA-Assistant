@@ -30,7 +30,8 @@ FIXED_EVENTS: dict[str, set[str]] = {
         "hitl_resume_command_adding_user_message",
     },
     "domains/agents/nodes/router_node_v3.py": {"router_v3_start"},
-    "domains/agents/utils/message_filters.py": {"orphan_tool_message_removed"},
+    # The per-message event went to DEBUG (2026-10-03): its INFO summary stays above.
+    "domains/agents/utils/message_filters.py": {"orphan_tool_messages_removed"},
     # Moved with the content generation out of emails_tools.py (ADR-314).
     "domains/agents/emails/content_generation.py": {
         "email_content_instruction_fallback_to_user_message"

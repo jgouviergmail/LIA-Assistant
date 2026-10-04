@@ -99,3 +99,25 @@ class TTSProviderError(Exception):
     def _status(self) -> int | None:
         status = self.details.get("status_code") if isinstance(self.details, dict) else None
         return status if isinstance(status, int) else None
+
+
+def tts_failure_facts(exc: BaseException) -> dict[str, object]:
+    """What a log line may say about a failed synthesis: facts, never the message.
+
+    A provider's message may quote the text it refused, and a code is bounded
+    (ADR-303). A failure no client classified is named by its type alone.
+
+    Args:
+        exc: The exception a synthesis raised.
+
+    Returns:
+        Keyword arguments for the failure's log line.
+    """
+    if not isinstance(exc, TTSProviderError):
+        return {"error_type": type(exc).__name__}
+    return {
+        "error_type": type(exc).__name__,
+        "error_code": exc.code,
+        "status_code": exc._status(),
+        "transient": exc.transient,
+    }

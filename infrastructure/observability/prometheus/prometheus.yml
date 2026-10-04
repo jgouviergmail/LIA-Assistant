@@ -1,17 +1,20 @@
-# Configuration Prometheus pour LIA
-# Optimisé pour Raspberry Pi avec SSD NVMe (réduction I/O)
+# Prometheus configuration for LIA
+# Tuned for a Raspberry Pi on an NVMe SSD (fewer writes)
 global:
-  scrape_interval: 30s       # 15s -> 30s (2x moins de données)
+  scrape_interval: 30s       # 15s -> 30s (half the samples)
   evaluation_interval: 30s   # 15s -> 30s
   external_labels:
     cluster: 'lia'
     environment: 'production'
 
-# Configuration des Exemplars pour corrélation avec Tempo
-# Permet de lier les métriques Prometheus aux traces distribuées
+# Exemplars link a metric's point to the trace it came from: Tempo's span
+# metrics carry them. Read only under --enable-feature=exemplar-storage (the
+# compose files): without it Prometheus accepted them and dropped them — 19,045
+# in one day, measured 2026-10-03. A ring buffer for the whole instance, not
+# per series.
 storage:
   exemplars:
-    max_exemplars: 100000  # Max exemplars stored per series
+    max_exemplars: 100000
 
 # Alerting re-enabled 2026-07-10 (ADR-119) after the 2026-01-16 shutdown.
 # Only the 14-alert core is loaded; the legacy alerts.yml (60 alerts) stays
@@ -29,18 +32,18 @@ rule_files:
   # - "alerts.yml"                # DISABLED - legacy, recalibrate before enabling (ADR-119)
   # - "rules/*.yml"               # DISABLED - legacy custom alert rules
 
-# Configuration du scraping des métriques
+# Scrape targets
 scrape_configs:
-  # Monitoring de Prometheus lui-même
+  # Prometheus itself
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  # Monitoring de l'API LIA
+  # The LIA API
   # Uses dedicated HTTP-only metrics server (port 9091) to avoid TLS
   # handshake issues between Docker containers (uvicorn serves HTTPS on 8000)
   - job_name: 'lia-api'
-    scrape_interval: 30s    # 15s -> 30s
+    scrape_interval: 30s
     scrape_timeout: 10s
     metrics_path: '/metrics'
     static_configs:
@@ -49,32 +52,32 @@ scrape_configs:
           service: 'api'
           app: 'lia'
     metric_relabel_configs:
-      # Ajout de labels pour mieux identifier les métriques
+      # Tag the HTTP families
       - source_labels: [__name__]
         regex: 'http_.*'
         target_label: 'metric_type'
         replacement: 'http'
 
-  # Monitoring des conteneurs Docker via cAdvisor
+  # Docker containers, through cAdvisor
   - job_name: 'cadvisor'
-    scrape_interval: 60s    # 15s -> 60s (métriques containers moins critiques)
+    scrape_interval: 60s    # container metrics are less urgent
     static_configs:
       - targets: ['cadvisor:8080']
         labels:
           service: 'cadvisor'
 
-  # Monitoring de PostgreSQL via postgres_exporter
+  # PostgreSQL, through postgres_exporter
   - job_name: 'postgresql'
-    scrape_interval: 30s    # 15s -> 30s
+    scrape_interval: 30s
     static_configs:
       - targets: ['postgres-exporter:9187']
         labels:
           service: 'postgresql'
           database: 'lia'
 
-  # Monitoring de Redis via redis_exporter
+  # Redis, through redis_exporter
   - job_name: 'redis'
-    scrape_interval: 30s    # 15s -> 30s
+    scrape_interval: 30s
     static_configs:
       - targets: ['redis-exporter:9121']
         labels:
@@ -83,7 +86,7 @@ scrape_configs:
   # Monitoring host/system metrics via node_exporter
   # Provides disk space, filesystem, CPU, memory, network metrics
   - job_name: 'node'
-    scrape_interval: 60s    # 15s -> 60s (métriques host moins urgentes)
+    scrape_interval: 60s    # host metrics are less urgent
     static_configs:
       - targets: ['node-exporter:9100']
         labels:
@@ -107,6 +110,58 @@ scrape_configs:
       - targets: ['blackbox-exporter:9115']
         labels:
           service: 'blackbox'
+
+  # ===== The observability pipeline watches itself =====
+  # Each component is scraped for `up` (ObservabilityScrapeTargetMissing) and
+  # for the few series LogsNotDelivered and the meta-health dashboard (16)
+  # read — nothing else is kept: their own /metrics hold thousands of series
+  # nobody reads (measured 2026-10-03: Grafana 4,110, Loki 3,608, Tempo 1,321,
+  # against 28,000 for the whole instance). A series added to a panel or an
+  # alert is added to its keep-list.
+
+  # Loki: lines received, lines refused, streams held in memory.
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+        labels:
+          service: 'loki'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'loki_distributor_lines_received_total|loki_discarded_samples_total|loki_ingester_memory_streams'
+        action: keep
+
+  # Alloy (the `promtail` compose service): lines shipped, lines dropped.
+  - job_name: 'alloy'
+    static_configs:
+      - targets: ['promtail:12345']
+        labels:
+          service: 'promtail'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'loki_write_sent_entries_total|loki_write_dropped_entries_total'
+        action: keep
+
+  # Tempo: spans received and refused, and its span-metrics remote write.
+  - job_name: 'tempo'
+    static_configs:
+      - targets: ['tempo:3200']
+        labels:
+          service: 'tempo'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'tempo_distributor_spans_received_total|tempo_discarded_spans_total|prometheus_remote_storage_(samples|exemplars)_(total|failed_total)'
+        action: keep
+
+  # Grafana: whether it is up, nothing more.
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          service: 'grafana'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '.+'
+        action: drop
 
   # Backup sidecar health probe — feeds the BackupFailed alert.
   # The postgres-backup image bakes a healthcheck webhook on HEALTHCHECK_PORT
@@ -172,6 +227,4 @@ scrape_configs:
       - target_label: __address__
         replacement: 'blackbox-exporter:9115'
 
-# Note: storage retention is configured via command-line flags in docker-compose
-# --storage.tsdb.retention.time=15d
-# --storage.tsdb.retention.size=10GB
+# Retention is set by the --storage.tsdb.retention.* flags of the compose files.

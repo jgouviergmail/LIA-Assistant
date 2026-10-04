@@ -1,9 +1,18 @@
-# Configuration des datasources Grafana pour LIA
+# Grafana datasources for LIA
+#
+# The four signals link to each other: a log line opens its trace (Loki derived
+# field), a trace opens its logs and its metrics (Tempo), a latency point opens
+# the trace behind it (Prometheus exemplars). Each link names what the other
+# side actually holds — checked against production on 2026-10-03, when three of
+# them pointed at nothing (a logfmt pattern over JSON lines, a `service` label
+# Loki did not carry, a `tempo_spanmetrics_*` family Tempo does not write).
+#
+# In this file a literal `$` is written `$$`: provisioning expands `$NAME` from
+# the environment, and an unescaped `$__tags` was replaced by nothing.
 apiVersion: 1
 
-# Liste des datasources à provisionner automatiquement
 datasources:
-  # Prometheus - Métriques
+  # Prometheus — metrics
   - name: Prometheus
     type: prometheus
     access: proxy
@@ -13,15 +22,21 @@ datasources:
     editable: true
     jsonData:
       httpMethod: POST
-      timeInterval: "15s"
+      # The scrape interval Prometheus actually uses (prometheus.yml, global):
+      # $__rate_interval is built on it, and declared at 15s it gave a rate
+      # window holding a single sample of a series scraped every 60s — an
+      # empty panel on any range under a few hours.
+      timeInterval: "30s"
       queryTimeout: "60s"
-      # Configuration des exemplars pour lier métriques et traces
+      # A latency point opens the trace it came from: Tempo's span metrics carry
+      # their exemplars under `traceID` (its default trace_id_label_name), and
+      # Prometheus stores them under --enable-feature=exemplar-storage.
       exemplarTraceIdDestinations:
-        - name: trace_id
+        - name: traceID
           datasourceUid: tempo
     version: 1
 
-  # Loki - Logs
+  # Loki — logs
   - name: Loki
     type: loki
     access: proxy
@@ -30,23 +45,24 @@ datasources:
     editable: true
     jsonData:
       maxLines: 1000
-      # Lien avec Tempo pour naviguer des logs aux traces
+      # A log line opens its trace. The API's lines are JSON (`"trace_id": "…"`);
+      # the logfmt form covers a line written by hand.
       derivedFields:
         - datasourceUid: tempo
-          matcherRegex: "trace_id=(\\w+)"
+          matcherRegex: '"trace_id":\s*"(\w+)"'
           name: TraceID
           url: "$${__value.raw}"
         - datasourceUid: tempo
-          matcherRegex: "traceID=(\\w+)"
+          matcherRegex: 'trace_id=(\w+)'
           name: TraceID
           url: "$${__value.raw}"
     version: 1
 
-  # Product analytics — PostgreSQL en lecture seule (ADR-178, dashboard 26).
-  # Le rôle grafana_product_reader n'a de SELECT que sur les vues produit
-  # (jamais les tables de base) et porte un statement_timeout — créé par
-  # `task db:create-grafana-reader`. Les variables sont interpolées depuis
-  # l'environnement du conteneur Grafana (compose dev + prod).
+  # Product analytics — read-only PostgreSQL (ADR-178, dashboard 26). The
+  # grafana_product_reader role may SELECT the product views only (never a base
+  # table) and carries a statement_timeout — created by
+  # `task db:create-grafana-reader`. Variables are expanded from the Grafana
+  # container's environment (dev and prod compose files).
   - name: Product PostgreSQL
     type: postgres
     access: proxy
@@ -66,7 +82,7 @@ datasources:
     editable: false
     version: 1
 
-  # Tempo - Traces distribuées
+  # Tempo — distributed traces
   - name: Tempo
     type: tempo
     access: proxy
@@ -75,23 +91,27 @@ datasources:
     editable: true
     jsonData:
       httpMethod: GET
-      # Configuration des recherches de traces
-      tracesToLogs:
+      # A trace opens the API's lines that carry its id, around the span.
+      tracesToLogsV2:
         datasourceUid: loki
-        tags: ['job', 'instance', 'pod', 'namespace']
-        mappedTags: [{ key: 'service.name', value: 'service' }]
-        mapTagNamesEnabled: false
-        spanStartTimeShift: '1h'
-        spanEndTimeShift: '1h'
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
         filterByTraceID: false
         filterBySpanID: false
-      # Lien avec Prometheus pour les métriques
+        customQuery: true
+        query: '{service="api"} |= "$${__trace.traceId}"'
+      # A trace opens the rate and latency of its service's operations, from the
+      # span metrics Tempo writes (`service` holds the span's service.name).
       tracesToMetrics:
         datasourceUid: prometheus
-        tags: [{ key: 'service.name', value: 'service' }, { key: 'job' }]
+        spanStartTimeShift: '-30m'
+        spanEndTimeShift: '30m'
+        tags: [{ key: 'service.name', value: 'service' }]
         queries:
-          - name: 'Sample query'
-            query: 'sum(rate(tempo_spanmetrics_latency_bucket{$__tags}[5m]))'
+          - name: 'Request rate by operation'
+            query: 'sum by (span_name) (rate(traces_spanmetrics_calls_total{$$__tags}[5m]))'
+          - name: 'P95 duration by operation'
+            query: 'histogram_quantile(0.95, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{$$__tags}[5m])))'
       serviceMap:
         datasourceUid: prometheus
       search:
@@ -100,4 +120,18 @@ datasources:
         enabled: true
       lokiSearch:
         datasourceUid: loki
+    version: 1
+
+  # Alertmanager — the alerts Prometheus fires, their silences and receivers,
+  # read in Grafana's Alerting pages. Rules stay in Prometheus (ADR-119):
+  # Grafana evaluates nothing of its own.
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    uid: alertmanager
+    editable: false
+    jsonData:
+      implementation: prometheus
+      handleGrafanaManagedAlerts: false
     version: 1

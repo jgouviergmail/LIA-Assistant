@@ -5,16 +5,17 @@
   "id": null,
   "links": [
     {
+      "title": "LIA dashboards",
       "type": "dashboards",
       "tags": [
         "lia"
       ],
       "asDropdown": true,
-      "title": "LIA technical dashboards",
       "includeVars": false,
-      "keepTime": true,
-      "icon": "external link",
+      "keepTime": false,
       "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
       "url": ""
     }
   ],
@@ -1943,6 +1944,10 @@
     }
   ],
   "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "schemaVersion": 38,
   "tags": [
     "lia",
@@ -1961,10 +1966,6 @@
         "hide": 0
       }
     ]
-  },
-  "time": {
-    "from": "now-30d",
-    "to": "now"
   },
   "timezone": "browser",
   "title": "26 - Product Value, Activation & Retention",

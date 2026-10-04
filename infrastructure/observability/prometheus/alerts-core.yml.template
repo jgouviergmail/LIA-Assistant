@@ -379,8 +379,10 @@ groups:
           description: "Prometheus cannot scrape Alertmanager for 5 minutes. Alerts still evaluate but no email leaves the box. Visible in Prometheus UI and the logwatch daily digest only."
           runbook: "docs/runbooks/alerts/AlertmanagerDown.md"
 
+      # The pipeline components joined on 2026-10-03: nothing told that Alloy,
+      # Loki, Tempo or Grafana had stopped — and the self-diagnosis reads Loki.
       - alert: ObservabilityScrapeTargetMissing
-        expr: up{job=~"node|cadvisor|blackbox"} == 0
+        expr: up{job=~"node|cadvisor|blackbox|loki|alloy|tempo|grafana"} == 0
         for: 10m
         labels:
           severity: warning
@@ -388,8 +390,27 @@ groups:
           tier: core
         annotations:
           summary: "Scrape target {{ $labels.job }} is down"
-          description: "The {{ $labels.job }} exporter has been unreachable for 10 minutes. Resource and probe alerts relying on it are blind while it is down."
+          description: "{{ $labels.job }} has been unreachable for 10 minutes. What reads it is blind meanwhile: resource and probe alerts (node, cadvisor, blackbox), the logs every search and diagnosis reads (alloy, loki), the traces (tempo), the dashboards (grafana)."
           runbook: "docs/runbooks/alerts/ContainerDown.md"
+
+      # Log lines lost on their way to Loki: dropped by Alloy once its retries
+      # ran out, or refused by Loki. A line older than Loki accepts is not
+      # counted — Alloy re-reads a container's old log after its positions are
+      # reset, and those lines were stored the first time.
+      - alert: LogsNotDelivered
+        expr: |
+          (
+            (sum(increase(loki_write_dropped_entries_total{job="alloy"}[15m])) or vector(0))
+            + (sum(increase(loki_discarded_samples_total{job="loki", reason!="greater_than_max_sample_age"}[15m])) or vector(0))
+          ) > 0
+        labels:
+          severity: warning
+          component: observability
+          tier: core
+        annotations:
+          summary: "Log lines are lost before Loki stores them"
+          description: "{{ $value | humanize }} log line(s) were dropped by Alloy or refused by Loki over 15 minutes. Those lines are gone: every Loki search, the dashboards and the self-diagnosis evidence miss them."
+          runbook: "docs/runbooks/alerts/LogsNotDelivered.md"
 
   # ===== EXECUTION LEDGER (ADR-263) — is the register telling the truth? =====
   # Both alerts answer the same question from two sides: an effect the system

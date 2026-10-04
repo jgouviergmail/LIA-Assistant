@@ -13,7 +13,7 @@
 
 **PromQL Query**:
 ```promql
-up{job="api"} == 0
+up{job="lia-api"} == 0
 ```
 
 **Thresholds**: Binary (0 = down, 1 = up)
@@ -43,7 +43,7 @@ description: "LIA API has been unreachable for more than 1 minute"
 - "Cannot connect to server" errors
 
 ### What Ops See
-- `up{job="api"}` = 0 in Prometheus
+- `up{job="lia-api"}` = 0 in Prometheus
 - API container status: `Exited` or `Restarting`
 - Load balancer health checks failing
 - No response on port 8000
@@ -59,7 +59,7 @@ Canonical reference (contract: ADR-115, implementation: `apps/api/src/api/health
 | `GET /health` | **Liveness** | Always `200` while the process serves requests — even when PostgreSQL/Redis are down (payload: `status: healthy\|degraded` + per-dependency `checks`) | Docker healthchecks (`docker-compose.{dev,prod}.yml`, `Dockerfile.prod`). Never wire a restart-on-failure to a dependency outage. |
 | `GET /ready` | **Readiness** | `200` + `status: ready` only when PostgreSQL **and** Redis answer; `503` + `status: not_ready` otherwise | Deploy verification, uptime/user-impact monitoring, post-incident checks |
 | `GET /api/v1/health` | Static process check | `200` + service name/version, no dependency probing | OpenAPI-documented smoke checks |
-| `up{job="api"}` (port 9091) | Prometheus scrape | `0`/`1` | This alert (`ServiceDown`) |
+| `up{job="lia-api"}` (port 9091) | Prometheus scrape | `0`/`1` | This alert (`ServiceDown`) |
 
 Neither probe covers the LangGraph subsystems (checkpointer, agent registry):
 they can fail at startup while both probes stay green — after any API
@@ -138,7 +138,7 @@ docker-compose up -d api
 
 **API uptime**:
 ```promql
-up{job="api"}
+up{job="lia-api"}
 ```
 
 **API restart count**:

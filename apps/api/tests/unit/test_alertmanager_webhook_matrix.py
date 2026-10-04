@@ -120,3 +120,25 @@ class TestWebhookInjectionMatrix:
         assert entrypoint.count("lia-webhook-route.fragment") >= 1
         assert entrypoint.count("lia-webhook-receiver.fragment") >= 1
         assert "inject_lia_webhook" in entrypoint
+
+
+#: What the entrypoint may name but never print (ADR-317): an address, a
+#: credential, a webhook, a routing key. Its log lines reach Loki like any other.
+_UNPRINTABLE_VARIABLE = re.compile(
+    r"_(?:EMAIL|FROM|USERNAME|PASSWORD|SECRET|ROUTING_KEY)$|_SLACK_WEBHOOK_"
+)
+
+
+def test_the_entrypoint_prints_no_address_and_no_credential() -> None:
+    # Measured 2026-10-03: the boot banner printed the alert sender and the
+    # recipient team's address on every start, and Alloy shipped both to Loki.
+    entrypoint = (_ALERTMANAGER_DIR / "docker-entrypoint.sh").read_text(encoding="utf-8")
+    printed = [
+        (number, name)
+        for number, line in enumerate(entrypoint.splitlines(), start=1)
+        if re.search(r"(?:^|&&|\|\|)\s*echo\b", line)
+        for name in re.findall(r"\$\{?([A-Z][A-Z0-9_]*)", line)
+        if _UNPRINTABLE_VARIABLE.search(name)
+    ]
+
+    assert printed == []

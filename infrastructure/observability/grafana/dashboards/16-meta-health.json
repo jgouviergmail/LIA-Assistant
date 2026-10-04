@@ -9,19 +9,29 @@
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
-  "refresh": "1m",
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
   "links": [
     {
-      "title": "LIA",
+      "title": "LIA dashboards",
       "type": "dashboards",
       "tags": [
         "lia"
       ],
-      "targetBlank": false
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
     }
   ],
   "templating": {
@@ -1559,7 +1569,9 @@
             "graphMode": "area",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -1594,7 +1606,9 @@
             "graphMode": "none",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -1621,6 +1635,301 @@
             "defaults": {
               "unit": "short",
               "noValue": "0",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 45,
+      "title": "Observability pipeline (Alloy, Loki, Tempo, Prometheus)",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 89
+      },
+      "panels": [
+        {
+          "id": 46,
+          "title": "Pipeline components up",
+          "type": "stat",
+          "datasource": "$datasource",
+          "description": "Whether Prometheus scrapes each component of the observability pipeline. Alloy, Loki, Tempo and Grafana down for 10 minutes fire ObservabilityScrapeTargetMissing; Alertmanager down fires AlertmanagerDown.",
+          "gridPos": {
+            "h": 4,
+            "w": 24,
+            "x": 0,
+            "y": 90
+          },
+          "targets": [
+            {
+              "expr": "up{job=~\"prometheus|alertmanager|alloy|loki|tempo|grafana\"}",
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "DOWN",
+                      "color": "red"
+                    },
+                    "1": {
+                      "text": "UP",
+                      "color": "green"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value_and_name"
+          }
+        },
+        {
+          "id": 47,
+          "title": "Log lines shipped and stored",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Lines Alloy sent and lines Loki received, per second. The two follow each other; a gap is lines lost on the way (next panel).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 94
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(loki_write_sent_entries_total{job=\"alloy\"}[$__rate_interval]))",
+              "legendFormat": "shipped (Alloy)",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(loki_distributor_lines_received_total{job=\"loki\"}[$__rate_interval]))",
+              "legendFormat": "received (Loki)",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cps",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 48,
+          "title": "Log lines lost",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Lines Alloy dropped once its retries ran out, and lines Loki refused, by reason — what LogsNotDelivered fires on (a refusal for age is not a loss: Alloy re-reads old lines after a positions reset). Empty panel = zero events in the window (healthy).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 94
+          },
+          "targets": [
+            {
+              "expr": "sum by (reason) (increase(loki_write_dropped_entries_total{job=\"alloy\"}[$__rate_interval])) or vector(0)",
+              "legendFormat": "dropped by Alloy {{reason}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (reason) (increase(loki_discarded_samples_total{job=\"loki\"}[$__rate_interval])) or vector(0)",
+              "legendFormat": "refused by Loki {{reason}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              },
+              "noValue": "0"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 49,
+          "title": "Spans received and refused",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Spans Tempo received from the API and spans it refused, by reason, per second.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 102
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(tempo_distributor_spans_received_total{job=\"tempo\"}[$__rate_interval]))",
+              "legendFormat": "received",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (reason) (rate(tempo_discarded_spans_total{job=\"tempo\"}[$__rate_interval])) or vector(0)",
+              "legendFormat": "refused {{reason}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cps",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 50,
+          "title": "Span metrics written to Prometheus",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Samples and exemplars Tempo's metrics generator remote-writes to Prometheus (dashboard 06's trace panels read them), and the ones that failed.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 102
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(prometheus_remote_storage_samples_total{job=\"tempo\"}[$__rate_interval]))",
+              "legendFormat": "samples sent",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(prometheus_remote_storage_samples_failed_total{job=\"tempo\"}[$__rate_interval]))",
+              "legendFormat": "samples failed",
+              "refId": "B"
+            },
+            {
+              "expr": "sum(rate(prometheus_remote_storage_exemplars_total{job=\"tempo\"}[$__rate_interval]))",
+              "legendFormat": "exemplars sent",
+              "refId": "C"
+            },
+            {
+              "expr": "sum(rate(prometheus_remote_storage_exemplars_failed_total{job=\"tempo\"}[$__rate_interval]))",
+              "legendFormat": "exemplars failed",
+              "refId": "D"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cps",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 51,
+          "title": "Prometheus series and exemplars",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Series in Prometheus's head block, and exemplars held in its ring buffer (storage.exemplars.max_exemplars). Memory follows the series count.",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 110
+          },
+          "targets": [
+            {
+              "expr": "prometheus_tsdb_head_series{job=\"prometheus\"}",
+              "legendFormat": "head series",
+              "refId": "A"
+            },
+            {
+              "expr": "prometheus_tsdb_exemplar_exemplars_in_storage{job=\"prometheus\"}",
+              "legendFormat": "exemplars stored",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 52,
+          "title": "Loki streams in memory",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "description": "Streams Loki's ingester holds. Every label value is a stream: a climbing count is a label with open values (the cause of Loki's OOM kills in August 2026, held off by test_promtail_label_cardinality_guard.py).",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 110
+          },
+          "targets": [
+            {
+              "expr": "loki_ingester_memory_streams{job=\"loki\"}",
+              "legendFormat": "streams",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
               "custom": {
                 "drawStyle": "line",
                 "fillOpacity": 10

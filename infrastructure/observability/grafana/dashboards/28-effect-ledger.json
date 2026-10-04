@@ -10,11 +10,30 @@
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
-  "refresh": "1m",
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "links": [],
+  "links": [
+    {
+      "title": "LIA dashboards",
+      "type": "dashboards",
+      "tags": [
+        "lia"
+      ],
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    }
+  ],
   "templating": {
     "list": [
       {

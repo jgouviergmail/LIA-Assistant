@@ -408,8 +408,77 @@ tests:
               tier: core
             exp_annotations:
               summary: "Scrape target node is down"
-              description: "The node exporter has been unreachable for 10 minutes. Resource and probe alerts relying on it are blind while it is down."
+              description: "node has been unreachable for 10 minutes. What reads it is blind meanwhile: resource and probe alerts (node, cadvisor, blackbox), the logs every search and diagnosis reads (alloy, loki), the traces (tempo), the dashboards (grafana)."
               runbook: "docs/runbooks/alerts/ContainerDown.md"
+
+  # ===== ObservabilityScrapeTargetMissing (meta): the log shipper gone =====
+  - interval: 1m
+    input_series:
+      - series: 'up{job="alloy"}'
+        values: '0x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: ObservabilityScrapeTargetMissing
+        exp_alerts:
+          - exp_labels:
+              job: alloy
+              severity: warning
+              component: observability
+              tier: core
+            exp_annotations:
+              summary: "Scrape target alloy is down"
+              description: "alloy has been unreachable for 10 minutes. What reads it is blind meanwhile: resource and probe alerts (node, cadvisor, blackbox), the logs every search and diagnosis reads (alloy, loki), the traces (tempo), the dashboards (grafana)."
+              runbook: "docs/runbooks/alerts/ContainerDown.md"
+
+  # ===== LogsNotDelivered: Alloy dropped lines its retries could not deliver =====
+  - interval: 1m
+    input_series:
+      - series: 'loki_write_dropped_entries_total{job="alloy", reason="rate_limited"}'
+        values: '0x20 7x20'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: LogsNotDelivered
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: observability
+              tier: core
+            exp_annotations:
+              summary: "Log lines are lost before Loki stores them"
+              description: "7 log line(s) were dropped by Alloy or refused by Loki over 15 minutes. Those lines are gone: every Loki search, the dashboards and the self-diagnosis evidence miss them."
+              runbook: "docs/runbooks/alerts/LogsNotDelivered.md"
+
+  # ===== LogsNotDelivered: Loki refused fresh lines =====
+  - interval: 1m
+    input_series:
+      - series: 'loki_discarded_samples_total{job="loki", reason="rate_limited", tenant="fake"}'
+        values: '0x20 3x20'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: LogsNotDelivered
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: observability
+              tier: core
+            exp_annotations:
+              summary: "Log lines are lost before Loki stores them"
+              description: "3 log line(s) were dropped by Alloy or refused by Loki over 15 minutes. Those lines are gone: every Loki search, the dashboards and the self-diagnosis evidence miss them."
+              runbook: "docs/runbooks/alerts/LogsNotDelivered.md"
+
+  # ===== LogsNotDelivered: lines older than Loki accepts are no loss =====
+  # Alloy re-reads a container's old log after its positions are reset; those
+  # lines were stored the first time, and Loki refusing them again loses nothing.
+  - interval: 1m
+    input_series:
+      - series: 'loki_discarded_samples_total{job="loki", reason="greater_than_max_sample_age", tenant="fake"}'
+        values: '0x20 500x20'
+      - series: 'loki_write_dropped_entries_total{job="alloy", reason="rate_limited"}'
+        values: '0x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: LogsNotDelivered
+        exp_alerts: []
 
   # ===== LLMCallsWithoutUsage: a paid call completed unaccounted (ADR-220) =====
   # Two usage-less completions on the response node inside the hour must fire.

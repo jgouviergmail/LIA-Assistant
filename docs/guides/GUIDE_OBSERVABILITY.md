@@ -1182,7 +1182,7 @@ storage:
   trace:
     backend: local
     local:
-      path: /var/tempo/traces
+      path: /var/tempo/blocks
     wal:
       path: /var/tempo/wal
     pool:
@@ -1203,9 +1203,11 @@ metrics_generator:
     path: /var/tempo/generator/traces
 
 overrides:
-  metrics_generator_processors:
-    - service-graphs
-    - span-metrics
+  defaults:
+    metrics_generator:
+      processors:
+        - service-graphs
+        - span-metrics
 ```
 
 **Key Features**:
@@ -1222,7 +1224,7 @@ overrides:
 - `http.method`: `GET`, `POST`, etc.
 - `http.route`: `/api/v1/agents/chat`
 - `http.status_code`: `200`, `500`, etc.
-- `http.target`: Full URL path
+- `http.target`: the route template (`/api/v1/relations/favorites/{name}`), never the concrete path nor the query (`unmatched` for a request no route matched)
 - `db.system`: `postgresql`
 - `db.statement`: SQL query (sanitized)
 

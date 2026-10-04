@@ -41,21 +41,26 @@ PROMTAIL_CONFIG = (
 )
 
 #: The selector under which the content stage runs: every line but a DEBUG one. The
-#: static ``job`` label is set on every scraped line; a line with no level (any
-#: container but the API) is therefore above DEBUG.
-CONTENT_SELECTOR = '{job="api", level!="debug"}'
+#: ``project`` label is on every shipped line (a target label, and the discovery
+#: keeps that compose project alone); a line with no level (any container but the
+#: API) is therefore above DEBUG.
+CONTENT_SELECTOR = '{project="lia", level!="debug"}'
 
 REDACTED = "[REDACTED]"
 
 _ALTERNATION = re.compile(r"\(\?:([^)]*)\)=")
 
 
-def _docker_stages() -> list[dict[str, Any]]:
+def _docker_scrape() -> dict[str, Any]:
     config = yaml.safe_load(PROMTAIL_CONFIG.read_text(encoding="utf-8"))
     for scrape in config.get("scrape_configs") or []:
         if scrape.get("job_name") == "docker":
-            return list(scrape.get("pipeline_stages") or [])
-    return []
+            return dict(scrape)
+    return {}
+
+
+def _docker_stages() -> list[dict[str, Any]]:
+    return list(_docker_scrape().get("pipeline_stages") or [])
 
 
 def _credential_stage() -> dict[str, Any]:
@@ -128,13 +133,26 @@ def test_only_the_value_is_captured(stage: str) -> None:
 
 
 def test_the_content_stage_spares_debug_lines_only() -> None:
-    """The selector reads labels the pipeline has set BEFORE the match runs."""
+    """The selector reads labels set BEFORE the match runs, and every line carries them.
+
+    ``project`` is a target label (relabelled before any stage runs) and the
+    discovery keeps that compose project alone, so the selector covers every
+    shipped line; ``level`` is promoted by an earlier stage. It used to read a
+    static ``job`` label set on every line, which made ``{job="api"}`` select
+    every container on the dashboards too.
+    """
+    scrape = _docker_scrape()
     stages = _docker_stages()
     position = next(i for i, stage in enumerate(stages) if "match" in stage)
-    earlier = stages[:position]
     assert _content_match()["selector"] == CONTENT_SELECTOR
-    assert any(stage.get("labels", {}).get("level") == "level" for stage in earlier)
-    assert any(stage.get("static_labels", {}).get("job") == "api" for stage in earlier)
+    assert any(stage.get("labels", {}).get("level") == "level" for stage in stages[:position])
+    project = "__meta_docker_container_label_com_docker_compose_project"
+    assert any(
+        rule.get("target_label") == "project" and rule.get("source_labels") == [project]
+        for rule in scrape.get("relabel_configs") or []
+    )
+    filters = [f for sd in scrape.get("docker_sd_configs") or [] for f in sd.get("filters") or []]
+    assert {"name": "label", "values": ["com.docker.compose.project=lia"]} in filters
 
 
 _CORPUS = [
