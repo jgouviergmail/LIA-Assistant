@@ -353,7 +353,7 @@ services:
     pids_limit: 128
 
   demo-instance-prometheus:
-    image: prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
     restart: unless-stopped
     volumes:
       - ./infrastructure/demo-instance/prometheus.yml:/etc/prometheus/prometheus.yml:ro
