@@ -86,6 +86,12 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
     # Each hit is read at format=full unless headers_only (search_emails).
     SEARCH_HITS_ARE_WHOLE = True
 
+    @property
+    def _cache_account(self) -> str:
+        """A grouped OAuth grant identifies the mailbox; legacy keys remain readable."""
+        binding = self.credentials.account_binding
+        return f"{self.user_id}:grant:{binding}" if binding else str(self.user_id)
+
     def __init__(
         self,
         user_id: UUID,
@@ -434,7 +440,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
         page_part = f":{page_token}" if page_token else ""
         hit_format = GMAIL_FORMAT_METADATA if headers_only else GMAIL_FORMAT_FULL
         cache_key = (
-            f"{REDIS_KEY_GMAIL_SEARCH_PREFIX}{self.user_id}:"
+            f"{REDIS_KEY_GMAIL_SEARCH_PREFIX}{self._cache_account}:"
             f"{hashlib.md5(query.encode()).hexdigest()}:{max_results}:{hit_format}{page_part}"
         )
 
@@ -551,7 +557,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
             >>> print(message["payload"]["headers"])
         """
         # Generate cache key
-        cache_key = f"{REDIS_KEY_GMAIL_MESSAGE_PREFIX}{self.user_id}:{message_id}:{format}"
+        cache_key = f"{REDIS_KEY_GMAIL_MESSAGE_PREFIX}{self._cache_account}:{message_id}:{format}"
 
         # Try cache first
         if use_cache:
@@ -1042,7 +1048,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
             >>> print(labels.get("Label_12345678"))
             "Mon projet"
         """
-        cache_key = f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{self.user_id}"
+        cache_key = f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{self._cache_account}"
 
         # Try cache first
         if use_cache:
@@ -1325,7 +1331,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
                 {"id": "Label_123", "name": "pro/capge", "type": "user"},
             ]
         """
-        cache_key = f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{self.user_id}:full"
+        cache_key = f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{self._cache_account}:full"
 
         # Try cache first
         if use_cache:
@@ -1721,8 +1727,8 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
         """Invalidate all labels caches after modification."""
         redis_client = await get_redis_cache()
         keys_to_delete = [
-            f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{self.user_id}",
-            f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{self.user_id}:full",
+            f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{self._cache_account}",
+            f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{self._cache_account}:full",
         ]
         for key in keys_to_delete:
             await redis_client.delete(key)

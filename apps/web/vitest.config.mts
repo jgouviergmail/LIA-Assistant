@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   plugins: [react()],
@@ -397,10 +397,13 @@ export default defineConfig({
         // (floor(measured - 2)); `branches` and `lines` do not cross a step.
         // Re-measured 2026-09-28 with the JEV administration and cost paths:
         // 82.75 / 77.76 / 80.44 / 83.62. Functions advances with >=2 pt margin.
-        statements: 81,
-        branches: 76,
-        functions: 78,
-        lines: 82,
+        // Re-measured 2026-10-03 after the card display, source previews and
+        // shared HTTP reader qualification: 85.14 / 79.54 / 82.66 / 86.26.
+        // Raise each axis to floor(measured - 2), retaining the same margin rule.
+        statements: 83,
+        branches: 77,
+        functions: 80,
+        lines: 84,
         // Hot JEV switches: confirmed writes, failures, refresh and OFF recovery.
         // Measured 93.94 / 85.19 / 100 / 93.94; preserve a margin per axis.
         'src/components/settings/AdminJevSection.tsx': {
@@ -649,7 +652,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
 });

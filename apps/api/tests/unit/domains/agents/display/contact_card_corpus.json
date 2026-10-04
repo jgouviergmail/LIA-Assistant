@@ -9,7 +9,7 @@
         }
       ]
     },
-    "html": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\" style=\"overflow:hidden;padding:0\"><img class=\"lia-illus__image\" src=\"https://lh3.googleusercontent.com/contact-photo\" alt=\"\"></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"\" target=\"_blank\">Camille Martin</a></div></div>\n\n\n\n\n\n</div>",
+    "html": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\" style=\"overflow:hidden;padding:0\"><img class=\"lia-illus__image\" src=\"https://lh3.googleusercontent.com/contact-photo\" alt=\"\"></div><div class=\"lia-card-top__info\"><span class=\"lia-card-top__title\">Camille Martin</span></div></div>\n\n\n\n\n\n</div>",
     "legacyHtml": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\" style=\"overflow:hidden;padding:0\"><img src=\"https://lh3.googleusercontent.com/contact-photo\" alt=\"\" style=\"width:100%;height:100%;object-fit:cover;border-radius:inherit\"></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"\" target=\"_blank\">Camille Martin</a></div></div>\n\n\n\n\n\n</div>"
   },
   {
@@ -18,7 +18,7 @@
       "name": "Alex Bernard",
       "photo": "/api/v1/connectors/microsoft/contacts/photo/contact-a"
     },
-    "html": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\" style=\"overflow:hidden;padding:0\"><img class=\"lia-illus__image\" src=\"/api/v1/connectors/microsoft/contacts/photo/contact-a\" alt=\"\"></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"\" target=\"_blank\">Alex Bernard</a></div></div>\n\n\n\n\n\n</div>",
+    "html": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\" style=\"overflow:hidden;padding:0\"><img class=\"lia-illus__image\" src=\"/api/v1/connectors/microsoft/contacts/photo/contact-a\" alt=\"\"></div><div class=\"lia-card-top__info\"><span class=\"lia-card-top__title\">Alex Bernard</span></div></div>\n\n\n\n\n\n</div>",
     "legacyHtml": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\" style=\"overflow:hidden;padding:0\"><img src=\"/api/v1/connectors/microsoft/contacts/photo/contact-a\" alt=\"\" style=\"width:100%;height:100%;object-fit:cover;border-radius:inherit\"></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"\" target=\"_blank\">Alex Bernard</a></div></div>\n\n\n\n\n\n</div>"
   },
   {
@@ -27,7 +27,7 @@
       "name": "Sam Dupont",
       "photoUrl": "https://contacts.example.test/photo.png"
     },
-    "html": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\" style=\"overflow:hidden;padding:0\"><img class=\"lia-illus__image\" src=\"https://contacts.example.test/photo.png\" alt=\"\"></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"\" target=\"_blank\">Sam Dupont</a></div></div>\n\n\n\n\n\n</div>",
+    "html": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\" style=\"overflow:hidden;padding:0\"><img class=\"lia-illus__image\" src=\"https://contacts.example.test/photo.png\" alt=\"\"></div><div class=\"lia-card-top__info\"><span class=\"lia-card-top__title\">Sam Dupont</span></div></div>\n\n\n\n\n\n</div>",
     "legacyHtml": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\" style=\"overflow:hidden;padding:0\"><img src=\"https://contacts.example.test/photo.png\" alt=\"\" style=\"width:100%;height:100%;object-fit:cover;border-radius:inherit\"></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"\" target=\"_blank\">Sam Dupont</a></div></div>\n\n\n\n\n\n</div>"
   },
   {
@@ -35,7 +35,7 @@
     "data": {
       "name": "Lou Durand"
     },
-    "html": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-base);font-weight:600\">LD</span></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"\" target=\"_blank\">Lou Durand</a></div></div>\n\n\n\n\n\n</div>",
+    "html": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-base);font-weight:600\">LD</span></div><div class=\"lia-card-top__info\"><span class=\"lia-card-top__title\">Lou Durand</span></div></div>\n\n\n\n\n\n</div>",
     "legacyHtml": "<div class=\"lia-card lia-contact \">\n<div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--indigo\"><span style=\"font-size:var(--lia-text-base);font-weight:600\">LD</span></div><div class=\"lia-card-top__info\"><a class=\"lia-card-top__title\" href=\"\" target=\"_blank\">Lou Durand</a></div></div>\n\n\n\n\n\n</div>"
   }
 ]

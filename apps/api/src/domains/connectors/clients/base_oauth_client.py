@@ -27,6 +27,7 @@ from uuid import UUID
 import httpx
 import structlog
 
+from src.core.card_composition import ensure_composition_account
 from src.core.config import settings
 from src.core.constants import (
     DEFAULT_RATE_LIMIT_PER_SECOND,
@@ -571,7 +572,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     headers={"Retry-After": str(int(e.retry_after))} if e.retry_after else None,
                 ) from e
 
+        self._check_composition_account()
         access_token = await self._ensure_valid_token()
+        self._check_composition_account()
 
         request_headers = {"Authorization": f"Bearer {access_token}"}
         if headers:
@@ -689,6 +692,11 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         """
         return f"{self.api_base_url if base_url is None else base_url}{endpoint}"
 
+    def _check_composition_account(self) -> None:
+        ensure_composition_account(
+            self.user_id, self.connector_type, self.credentials.account_binding
+        )
+
     async def _make_request(
         self,
         method: str,
@@ -730,6 +738,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         """
         import time as _time
 
+        self._check_composition_account()
         await self._rate_limit()
 
         # Hook: enrich params before sending
@@ -775,7 +784,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
 
         for attempt in range(max_retries):
             # Fetch a fresh token on each attempt (token may expire between retries)
+            self._check_composition_account()
             access_token = await self._ensure_valid_token()
+            self._check_composition_account()
             headers: dict[str, str] = {"Authorization": f"Bearer {access_token}"}
             if extra_headers:
                 headers.update(extra_headers)

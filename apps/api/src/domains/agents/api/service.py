@@ -25,7 +25,6 @@ from src.core.constants import (
 )
 from src.core.field_names import (
     FIELD_ERROR_TYPE,
-    FIELD_FOLLOWUP_SUGGESTIONS,
     FIELD_INJECTED_JOURNAL_IDS,
     FIELD_RUN_ID,
 )
@@ -39,14 +38,12 @@ from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
     build_hitl_question_metadata,
     persist_psyche_snapshot,
-    with_archived_message_ids,
-    with_performed_effects,
 )
 from src.domains.agents.api.attachments_injection import inject_attachments_into_state
 from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.hitl_pending import extract_decision_type, hitl_stale_chunks
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
-from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
+from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk, composition_request
 from src.domains.agents.dependencies import ToolDependencies
 from src.domains.agents.effects.decision_recorder import decision_recorder
 from src.domains.agents.effects.decisions import (
@@ -58,14 +55,15 @@ from src.domains.agents.effects.treatment_recorder import treatment_recorder
 from src.domains.agents.effects.turn_summary import performed_effects
 from src.domains.agents.expressivity.activity_summary import ActivitySummary
 from src.domains.agents.expressivity.turn import attach_tone_to_done
+from src.domains.agents.services.card_composition_service import composition_scope
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
 )
 from src.domains.agents.services.streaming.deferred_debug import deferred_debug_chunks
+from src.domains.agents.services.streaming.done_metadata import with_done_enrichments
 from src.domains.agents.services.streaming.followup_metadata import (
     pop_followups,
     pop_motivation,
-    with_initiative_motivation,
 )
 from src.domains.agents.services.streaming.journey_timing import JourneyTiming
 from src.domains.agents.services.streaming.voice_coordinator import (
@@ -743,6 +741,13 @@ class AgentService(
                 # path, on an exception and on a cancellation, so a turn that
                 # stops mid-flight still closes its books (ADR-263, lot 4).
                 async with (
+                    composition_scope(
+                        db,
+                        user_id,
+                        conversation_id,
+                        composition_request(browser_context),
+                        tool_deps,
+                    ),
                     tracker,
                     treatment_recorder(run_id=run_id),
                     decision_recorder(turn),
@@ -842,6 +847,7 @@ class AgentService(
                             is_automated_source=is_automated_source,
                             live_session_id=live_session_id,
                             spoken_text=spoken_text,
+                            card_composition=composition_request(browser_context),
                         )
                         # POINT at what was asked; never copy it (ADR-263, lot 6).
                         note_request_message(archived_user_msg_id)
@@ -1244,6 +1250,7 @@ class AgentService(
                             assistant_metadata = build_assistant_metadata(
                                 assistant_metadata,
                                 widgets=streaming_service.persistable_widgets,
+                                card_metadata=streaming_service.card_action_metadata,
                                 trace_capture=streaming_service.trace_capture,
                                 duration_ms=int(duration * 1000),
                                 run_id=run_id,
@@ -1515,21 +1522,15 @@ class AgentService(
                     # turn archived — the answer, so the live bubble can target
                     # the feedback endpoint at once, and the question, so a
                     # later sync recognises both live bubbles as those rows.
-                    done_metadata = with_archived_message_ids(
+                    done_metadata = with_done_enrichments(
                         done_metadata,
                         user_message_id=archived_user_msg_id,
                         assistant_message_id=archived_assistant_msg_id,
+                        followup_suggestions=followup_suggestions,
+                        effects=turn_effects,
+                        card_metadata=streaming_service.card_action_metadata,
+                        initiative_motivation=initiative_motivation,
                     )
-                    # UXR Lot 4 (A2): follow-up chips of this run (ADR-117:
-                    # mirrored in BOTH frontend DoneMetadata types).
-                    if followup_suggestions:
-                        done_metadata[FIELD_FOLLOWUP_SUGGESTIONS] = followup_suggestions
-                    # ADR-263: the same list the archived message carries, so
-                    # the live bubble and a reload state exactly the same facts.
-                    # Branch-free enricher (new dict), like the three above.
-                    done_metadata = with_performed_effects(done_metadata, turn_effects)
-                    # Lot 1-A3: branch-free by design — the enricher no-ops on None.
-                    done_metadata = with_initiative_motivation(done_metadata, initiative_motivation)
                     # Resolve includes the Route 3 fallback (activate_skill_tool
                     # called directly by the response LLM, no planner involved)
                     resolved_skill_name = streaming_service.resolve_activated_skill_name()
@@ -1595,7 +1596,9 @@ class AgentService(
                     attach_tone_to_done(done_metadata, run_id)
                     done_metadata["companion_activity"] = activity_summary.snapshot()
 
-                    journey_timing.log_completed(run_id, done_metadata["cost_eur"])
+                    journey_timing.log_completed(
+                        run_id, final_summary_dto.to_metadata()["cost_eur"]
+                    )
                     yield ChatStreamChunk(
                         type="done",
                         content="",

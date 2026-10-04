@@ -21,6 +21,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 
 /** Shape of the backend `/api/v1/config` response. */
 export interface AppConfig {
+  route_maps?: { enabled: boolean; estimated_cost_eur?: string };
   sse: {
     heartbeat_interval_seconds: number;
   };
@@ -34,6 +35,7 @@ export interface AppConfig {
     default_language: string;
   };
   features: {
+    interactive_route_maps_enabled?: boolean;
     tool_approval_enabled: boolean;
     attachments_enabled: boolean;
     rag_spaces_enabled: boolean;

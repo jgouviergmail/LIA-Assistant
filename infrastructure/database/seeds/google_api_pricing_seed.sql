@@ -1,4 +1,7 @@
 -- Google API Pricing Seed Data
+-- Updated: 2026-10-04: Dynamic Maps catalogue entry for browser map construction.
+--   Base price verified against the official global price list; free tiers and
+--   volume discounts are account-specific and are not the configured estimate.
 -- Updated: 2026-08-21 (Places SKU-tier correction, lot P0)
 -- Updated: 2026-09-23 (price audit, migration d5f8b2a6c9e3): Static Street View
 --   is $7 per 1000, not $2; the Routes API bills three SKU tiers, and the
@@ -47,6 +50,7 @@ INSERT INTO google_api_pricing (
     (gen_random_uuid(), 'routes', '/distanceMatrix/v2:computeRouteMatrix:pro', 'Compute Route Matrix Pro', 10.0000, '2026-09-23T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'routes', '/distanceMatrix/v2:computeRouteMatrix:enterprise', 'Compute Route Matrix Enterprise', 15.0000, '2026-09-23T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'static_maps', '/staticmap', 'Static Maps', 2.0000, '2026-02-04T15:12:22.027282+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'maps_javascript', '/dynamicmap', 'Dynamic Maps', 7.0000, '2026-10-03T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'street_view', '/streetview', 'Street View Static', 7.0000, '2026-09-23T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'street_view', '/streetview/metadata', 'Street View Metadata (free)', 0.0000, '2026-08-21T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'weather', '/v1/currentConditions:lookup', 'Weather Current Conditions', 0.1500, '2026-08-21T00:00:00+00:00', true, NOW(), NOW()),

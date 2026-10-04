@@ -14,6 +14,7 @@ no model call: the response node already writes the answer above the card.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from src.core.config import settings
 from src.core.i18n_v3 import V3Messages
@@ -22,6 +23,8 @@ from src.domains.agents.display.components.base import (
     escape_html,
     render_collapsible,
 )
+from src.domains.agents.display.urls import safe_image_url
+from src.domains.agents.display.values import scalar_text
 
 _PARAGRAPH_SEPARATOR = "\n\n"
 #: A sentence ends on terminal punctuation followed by whitespace.
@@ -64,6 +67,10 @@ def split_lead(text: str, *, preview_chars: int) -> tuple[str, str]:
         if len(text) <= preview_chars:
             return text, ""
         return _cut_at_sentence(text, preview_chars)
+    if len(paragraphs[0]) > preview_chars:
+        first, remaining = _cut_at_sentence(paragraphs[0], preview_chars)
+        if remaining:
+            return first, _PARAGRAPH_SEPARATOR.join([remaining, *paragraphs[1:]])
     lead: list[str] = [paragraphs[0]]
     used = len(paragraphs[0])
     index = 1
@@ -77,7 +84,7 @@ def split_lead(text: str, *, preview_chars: int) -> tuple[str, str]:
     return _PARAGRAPH_SEPARATOR.join(lead), _PARAGRAPH_SEPARATOR.join(paragraphs[index:])
 
 
-def format_synthesis_html(text: str) -> str:
+def format_synthesis_html(text: str, *, preserve_references: bool = False) -> str:
     """Format a synthesis: markers stripped, HTML escaped, emphasis, paragraphs.
 
     Args:
@@ -89,7 +96,8 @@ def format_synthesis_html(text: str) -> str:
     if not text:
         return ""
     # Strip reference markers [x] before HTML escaping
-    text = re.sub(r"\s*\[\d+\]", "", text)
+    if not preserve_references:
+        text = re.sub(r"\[\d+\]", "", text)
     text = escape_html(text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
     text = re.sub(r"\*(.+?)\*", r"<em>\1</em>", text)
@@ -100,7 +108,11 @@ def format_synthesis_html(text: str) -> str:
 
 
 def render_folded_synthesis(
-    text: str, ctx: RenderContext, *, preview_chars: int | None = None
+    text: str,
+    ctx: RenderContext,
+    *,
+    preview_chars: int | None = None,
+    citations: Sequence[object] = (),
 ) -> str:
     """The synthesis as a card draws it: the lead, then the rest behind « see more ».
 
@@ -114,15 +126,33 @@ def render_folded_synthesis(
     """
     budget = preview_chars or settings.web_search_synthesis_preview_chars
     lead, rest = split_lead(text, preview_chars=budget)
-    html = format_synthesis_html(lead)
+    html = referenced_synthesis_html(lead, citations)
     if not rest:
         return html
     return html + render_collapsible(
         trigger_text=V3Messages.get_see_more(ctx.language),
-        content_html=format_synthesis_html(rest),
+        content_html=referenced_synthesis_html(rest, citations),
         initially_open=False,
         with_separator=False,
     )
+
+
+def referenced_synthesis_html(text: str, citations: Sequence[object]) -> str:
+    """Each supplied numeric marker links only to its own validated source."""
+    formatted = format_synthesis_html(text, preserve_references=bool(citations))
+
+    def link(match: re.Match[str]) -> str:
+        index = int(match[1]) - 1
+        if index < 0 or index >= len(citations):
+            return match[0]
+        target = safe_image_url(scalar_text(citations[index]))
+        return (
+            f'<a class="lia-citation" href="{target}" target="_blank" rel="noopener noreferrer">{match[0]}</a>'
+            if target
+            else match[0]
+        )
+
+    return re.sub(r"\[(\d{1,6})\]", link, formatted) if citations else formatted
 
 
 __all__ = ["format_synthesis_html", "render_folded_synthesis", "split_lead"]

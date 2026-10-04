@@ -17,6 +17,19 @@ beforeEach(() => {
   downloadImage.mockResolvedValue(undefined);
 });
 
+it.each(['', 'auto', 'hidden'])('restores the existing page scroll policy %j', previous => {
+  const original = document.body.style.overflow;
+  try {
+    document.body.style.overflow = previous;
+    const { unmount } = open();
+    expect(document.body.style.overflow).toBe('hidden');
+    unmount();
+    expect(document.body.style.overflow).toBe(previous);
+  } finally {
+    document.body.style.overflow = original;
+  }
+});
+
 function open(overrides: Partial<Parameters<typeof ImageLightbox>[0]> = {}) {
   const onClose = vi.fn();
   const result = renderWithProviders(
@@ -26,6 +39,24 @@ function open(overrides: Partial<Parameters<typeof ImageLightbox>[0]> = {}) {
 }
 
 describe('ImageLightbox — visibility', () => {
+  it('keeps a named failure and caption when the current image fails', () => {
+    renderWithProviders(
+      <ImageLightbox
+        src="/unavailable.png"
+        alt="A"
+        isOpen
+        onClose={vi.fn()}
+        caption={<a href="https://example.test/source">Source</a>}
+      />
+    );
+    fireEvent.error(screen.getByRole('img', { name: 'A' }));
+    expect(screen.getByRole('status')).toHaveTextContent('gallery.photo_unavailable');
+    expect(screen.getByRole('link', { name: 'Source' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'common.download' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+  });
   it('renders nothing while closed', () => {
     renderWithProviders(
       <ImageLightbox src="/img.png" alt="A cat" isOpen={false} onClose={vi.fn()} />
@@ -72,6 +103,37 @@ describe('ImageLightbox — closing', () => {
 });
 
 describe('ImageLightbox — download', () => {
+  it('keeps a pending control reachable and refuses repeated keyboard activation', async () => {
+    let finish: (() => void) | undefined;
+    downloadImage.mockReturnValue(
+      new Promise<void>(resolve => {
+        finish = resolve;
+      })
+    );
+    const { user } = open();
+    const control = screen.getByRole('button', { name: 'common.download' });
+    control.focus();
+    await user.keyboard('{Enter}');
+    expect(control).toBeEnabled();
+    expect(control).toHaveAttribute('aria-disabled', 'true');
+    expect(control).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(downloadImage).toHaveBeenCalledOnce();
+    finish?.();
+    await waitFor(() => expect(control).toHaveAttribute('aria-disabled', 'false'));
+    expect(control).toHaveFocus();
+  });
+  it('keeps focus on a failed source and rejects download without losing the tab stop', async () => {
+    const { user } = open();
+    const control = screen.getByRole('button', { name: 'common.download' });
+    control.focus();
+    fireEvent.error(screen.getByRole('img', { name: 'A cat' }));
+    expect(control).toBeEnabled();
+    expect(control).toHaveAttribute('aria-disabled', 'true');
+    expect(control).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(downloadImage).not.toHaveBeenCalled();
+  });
   it('downloads the image without closing the lightbox', async () => {
     const { onClose, user } = open();
     await user.click(screen.getByRole('button', { name: 'common.download' }));

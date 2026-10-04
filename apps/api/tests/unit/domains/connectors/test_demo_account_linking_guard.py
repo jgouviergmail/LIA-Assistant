@@ -123,6 +123,9 @@ def test_the_guard_is_wired_on_the_connectors_router() -> None:
 #: `/link` or `/connect` would slip past unnoticed — the edge would still
 #: refuse it, but this second layer has to hold on its own.
 READ_ONLY_ROUTES: dict[str, str] = {
+    # Maps uses an instance browser key, never links a visitor's provider account.
+    "/connectors/google-maps/load-admissions": "admits a priced display load under existing account limits",
+    "/connectors/google-maps/load-reports": "records one's admitted display load, no connector or OAuth grant",
     # Seeing what exists, and that it is unconfigured, IS the demonstration.
     "/connectors": "lists the visitor's connectors — empty on a demonstrator",
     "/connectors/types": "the catalogue of connector types, no credential involved",

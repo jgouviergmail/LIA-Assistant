@@ -785,7 +785,12 @@ Generate the review question:"""
                 ]
             return value
 
-        return {k: _convert_value(k, v) for k, v in draft_content.items()}
+        from src.core.card_composition import preserve_composition_binding
+
+        return {
+            k: _convert_value(k, v)
+            for k, v in preserve_composition_binding({}, draft_content).items()
+        }
 
     def build_metadata_chunk(
         self,

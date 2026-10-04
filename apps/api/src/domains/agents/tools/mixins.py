@@ -36,6 +36,7 @@ from src.core.time_utils import (
     convert_file_dates_in_payload,
     convert_task_dates_in_payload,
     convert_weather_dates_in_payload,
+    parse_provider_datetime,
 )
 from src.domains.agents.constants import (
     CONTEXT_DOMAIN_CONTACTS,
@@ -57,6 +58,12 @@ from src.domains.agents.data_registry.models import (
 from src.domains.agents.tools.output import REGISTRY_TYPE_TO_KEY, UnifiedToolOutput
 
 logger = structlog.get_logger(__name__)
+
+
+def _bind_event_date(event: dict[str, Any], start: dict[str, Any]) -> None:
+    """A cross-domain date alias is an instant only when its source clock is known."""
+    if start.get("dateTime") and parse_provider_datetime(start) is not None:
+        event["date"] = start["dateTime"]
 
 
 class ToolOutputMixin:
@@ -759,8 +766,7 @@ class ToolOutputMixin:
             # LLM does name-based binding: $item.date is easier than $item.start.dateTime
             # MUST be set AFTER convert_event_dates_in_payload so it contains the
             # user-timezone-aware ISO string, not the raw UTC value from Google API.
-            if start.get("dateTime"):
-                event["date"] = start["dateTime"]
+            _bind_event_date(event, start)
 
             # Log after conversion for debugging
             start_after = event.get("start", {}).get("formatted", "")

@@ -463,6 +463,16 @@ async def get_ticket_tool(
             bundle = await service.get(actor, row.id)
         except (ValidationError, ResourceNotFoundError) as refused:
             return _refusal(refused)
+        last_run: dict[str, str | float | None] = {
+            "outcome": bundle.ticket.last_run_outcome,
+            "at": (bundle.ticket.last_run_at.isoformat() if bundle.ticket.last_run_at else None),
+            "error": bundle.ticket.last_run_error,
+            "cost_eur": (
+                float(bundle.ticket.last_run_cost_eur)
+                if bundle.ticket.last_run_cost_eur is not None
+                else None
+            ),
+        }
         payload = {
             "ticket": {
                 **_ticket_summary(bundle.ticket),
@@ -472,18 +482,7 @@ async def get_ticket_tool(
             "comments": [
                 {"author": comment.author_kind, "body": comment.body} for comment in bundle.comments
             ],
-            "last_run": {
-                "outcome": bundle.ticket.last_run_outcome,
-                "at": (
-                    bundle.ticket.last_run_at.isoformat() if bundle.ticket.last_run_at else None
-                ),
-                "error": bundle.ticket.last_run_error,
-                "cost_eur": (
-                    float(bundle.ticket.last_run_cost_eur)
-                    if bundle.ticket.last_run_cost_eur is not None
-                    else None
-                ),
-            },
+            "last_run": last_run,
         }
 
     # The ticket read becomes the CURRENT one (« that one ») and the list from
@@ -492,7 +491,20 @@ async def get_ticket_tool(
     output = UnifiedToolOutput.data_success(
         message=f"{payload['ticket']['title']} — {payload['ticket']['status']}.",
         registry_updates=ticket_registry_items(
-            [_ticket_summary(bundle.ticket)], tool_name="get_ticket_tool"
+            [_ticket_summary(bundle.ticket)],
+            tool_name="get_ticket_tool",
+            display_by_id={
+                str(bundle.ticket.id): {
+                    "description": payload["ticket"]["description"],
+                    "children": payload["children"],
+                    "comments": payload["comments"],
+                    "last_run": {
+                        **last_run,
+                        "tokens_in": getattr(bundle.ticket, "last_run_tokens_in", None),
+                        "tokens_out": getattr(bundle.ticket, "last_run_tokens_out", None),
+                    },
+                }
+            },
         ),
         structured_data=payload,
     )

@@ -84,6 +84,8 @@ from src.domains.agents.context.runtime_context import (
     runtime_voice_enabled,
 )
 from src.domains.agents.data_registry.card_payload import card_payload
+from src.domains.agents.display.binding_filter import strip_card_bindings
+from src.domains.agents.display.card_actions import with_card_actions
 
 # V3 Display Architecture imports
 from src.domains.agents.display.collection_preview import CollectionPreview
@@ -91,6 +93,7 @@ from src.domains.agents.display.config import config_for_viewport
 
 # ResponseFormatter removed - pure HTML mode only
 from src.domains.agents.display.html_renderer import NestedData, get_html_renderer
+from src.domains.agents.display.model_history import with_model_view
 from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
 from src.domains.agents.drafts.card_html import card_surface
 from src.domains.agents.drafts.models import DraftAction
@@ -153,6 +156,7 @@ from src.domains.attachments.urls import ATTACHMENT_PATH_PREFIX
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.llm.message_view import content_for_model
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import graph_exceptions_total
@@ -676,7 +680,7 @@ def _extract_payloads_from_registry(
             domain_payloads[domain] = []
 
         if payload is not None:
-            domain_payloads[domain].append(payload)
+            domain_payloads[domain].append({**payload, "_lia_card_ref": _item_id})
 
     return domain_payloads
 
@@ -1536,6 +1540,7 @@ def _render_response_html(
     mounted), and sometimes a lone sentinel pointing at a STALE id the backend
     never injected — see ``display/sentinel_filter``.
     """
+    final_content = strip_card_bindings(final_content)
     stripped_content, llm_sentinels = strip_widget_sentinels(final_content)
     if llm_sentinels:
         final_content = stripped_content
@@ -3466,6 +3471,18 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             run_id=run_id,
             require_selection=user_display_mode in RESPONSE_DISPLAY_MODES_WITH_CARDS,
         )
+        result = with_model_view(
+            result,
+            final_content,
+            current_turn_registry,
+            enabled=user_display_mode in RESPONSE_DISPLAY_MODES_WITH_CARDS,
+        )
+        result = with_card_actions(
+            result,
+            current_turn_registry,
+            run_id=run_id,
+            enabled=user_display_mode in RESPONSE_DISPLAY_MODES_WITH_CARDS,
+        )
 
         # Debug: Log injection preconditions
         logger.info(
@@ -3493,7 +3510,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # Update result content if modified
         content_was_modified = final_content != original_content
         if content_was_modified:
-            result = AIMessage(content=final_content)
+            result = result.model_copy(update={"content": final_content})
 
         state_update: dict[str, Any] = {STATE_KEY_MESSAGES: [result]}
         # STREAMING FIX: Signal content replacement to frontend when post-processing occurred
@@ -3544,7 +3561,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             personality_instruction=personality_instruction,
             user_message_embedding=context_bundle.user_message_embedding,
             user_language=user_language,
-            final_content=final_content,
+            final_content=content_for_model(result),
             previous_journal_injected_ids=previous_journal_injected_ids,
             psyche_appraisal=psyche_appraisal,
         )

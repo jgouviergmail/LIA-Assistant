@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import { createPortal } from 'react-dom';
 import { Message, BrowserScreenshotData } from '@/types/chat';
 import type { StreamPhase } from '@/types/chat-state';
+import type { CardCompositionDraft } from '@/types/card-actions';
 import { ChatMessage } from './ChatMessage';
 import { BrowserScreenshotOverlay } from './BrowserScreenshotOverlay';
 import { ResultPreview } from './ResultPreview';
@@ -50,9 +51,13 @@ export interface ChatMessageListProps {
    * re-running an older failure would drop it into a conversation that has
    * since moved on.
    */
-  onRetry?: (prompt: string) => void;
+  onRetry?: (
+    prompt: string,
+    selection?: import('@/types/card-actions').CardCompositionWire
+  ) => void;
   /** Peers Lot 7: composer prefill for the peer Reply quick-action. */
   onPrefillComposer?: (text: string) => void;
+  onCardCompose?: (draft: CardCompositionDraft) => void;
   /**
    * Prefill the composer from an empty-chat starter (W8). Shares the
    * follow-up chips' rail: it fills the input, it never sends.
@@ -399,6 +404,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   searchHighlight,
   onRetry,
   onPrefillComposer,
+  onCardCompose,
   onStarterPick,
   historyView = false,
   onReturnToPresent,
@@ -854,6 +860,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               searchHighlight={searchHighlight}
               onRetry={message.id === lastErrorId ? onRetry : undefined}
               onPrefillComposer={onPrefillComposer}
+              onCardCompose={onCardCompose}
             />
           </div>
         ))}

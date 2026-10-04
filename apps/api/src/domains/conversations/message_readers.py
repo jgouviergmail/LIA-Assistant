@@ -42,6 +42,11 @@ class ReadScope(str, Enum):
 #: Module path → (scope, reason). Every reader outside the repository, and
 #: nothing else: the guard refuses an omission AND a stale entry.
 MESSAGE_READERS: Final[dict[str, tuple[ReadScope, str]]] = {
+    "src.domains.agents.services.card_composition_service": (
+        ReadScope.VISIBLE_ONLY,
+        "validates a message-owned composition target from an owned visible assistant answer; "
+        "a hidden run is never a browser selection",
+    ),
     "src.domains.voice_sessions.summary": (
         ReadScope.WHOLE_RECORD,
         "narrows to rows stamped with a voice session key (ADR-299, ADR-301 — a browser "

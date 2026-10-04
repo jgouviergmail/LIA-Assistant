@@ -774,7 +774,7 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Backend tests           | 38,452 collected over `tests/` (`task test:markers`, 2026-10-03)                                                                                |
 | Frontend tests (vitest) | 10,521 passed across 841 files (`task test:frontend:coverage`, 2026-10-03), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
-| Coverage floor          | 77% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                           |
+| Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                           |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                    |
 
 Tests are risk-driven and behavioural: a module never disables itself on a missing provider key, a test double that receives a coroutine owns it, and an unawaited coroutine or a post-summary warning is a failure ([GUIDE_TESTING](docs/guides/GUIDE_TESTING.md)).

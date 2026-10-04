@@ -40,6 +40,8 @@ TYPE_TO_DOMAIN_MAP: dict[str, tuple[str, str]] = {
     # Internal domain types (no OAuth)
     "REMINDER": ("reminder", "reminders"),  # User reminders (internal)
     "TICKET": ("ticket", "tickets"),  # Workboard tickets (ADR-276, internal)
+    "HUE_LIGHT": ("hue", "hues"),
+    "NOTE": ("note", "notes"),  # Authorized RAG excerpts declare their scope in the payload
     "WEB_PAGE": ("web_fetch", "web_fetchs"),  # Fetched web page content (evolution F1)
     "MCP_RESULT": ("mcp", "mcps"),  # MCP tool results (evolution F2.3)
     "MCP_APP": ("mcp_app", "mcp_apps"),  # MCP Apps interactive widgets (evolution F2.5)

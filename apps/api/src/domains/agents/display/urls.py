@@ -110,6 +110,10 @@ def safe_url(url: str | None) -> str:
         return ""
 
     candidate = str(url).strip()
+    # WHATWG's special URL parser treats backslashes as path/authority separators.
+    # In particular, /\host is cross-origin despite looking site-relative here.
+    if "\\" in candidate:
+        return ""
     normalised = _URL_IGNORABLE_CHARS_RE.sub("", candidate).lower()
 
     if normalised.startswith(_SAFE_URL_SCHEMES):
@@ -121,6 +125,59 @@ def safe_url(url: str | None) -> str:
         return _escape(candidate)
 
     return ""
+
+
+def safe_image_url(url: str | None) -> str:
+    """HTTP(S) or same-origin media only, including in static card fallbacks."""
+    if not url or "\\" in url or _URL_IGNORABLE_CHARS_RE.search(url):
+        return ""
+    if not url.lower().startswith(("https://", "http://", "/")):
+        return ""
+    return safe_url(url)
+
+
+def build_route_url(
+    origin: str,
+    destination: str,
+    travel_mode: str,
+    waypoints: list[str] | None = None,
+    *,
+    avoid_tolls: bool = False,
+    avoid_highways: bool = False,
+    avoid_ferries: bool = False,
+) -> str:
+    """Build a universal Maps URL; refuse mobile-unsupported or oversized routes."""
+    if len(waypoints or []) > 3:
+        return ""
+    modes = {
+        "DRIVE": "driving",
+        "WALK": "walking",
+        "BICYCLE": "bicycling",
+        "TRANSIT": "transit",
+        "TWO_WHEELER": "two-wheeler",
+    }
+    params = [
+        "api=1",
+        f"destination={quote(destination, safe='')}",
+        f"travelmode={modes.get(travel_mode.upper(), 'driving')}",
+    ]
+    if origin:
+        params.append(f"origin={quote(origin, safe='')}")
+    if waypoints:
+        params.append("waypoints=" + "%7C".join(quote(value, safe="") for value in waypoints))
+    avoid = [
+        name
+        for name, enabled in (
+            ("tolls", avoid_tolls),
+            ("highways", avoid_highways),
+            ("ferries", avoid_ferries),
+        )
+        if enabled
+    ]
+    if avoid:
+        params.append("avoid=" + "%2C".join(avoid))
+    url = "https://www.google.com/maps/dir/?" + "&".join(params)
+    return url if len(url) <= 2048 else ""
 
 
 def build_directions_url(destination: str) -> str:

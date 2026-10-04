@@ -44,6 +44,8 @@ import { EmailShareAvailabilityProvider } from '@/lib/email-share/availability-c
 import { emailShareAvailable } from '@/lib/email-share/share';
 import { peersAvailable } from '@/lib/peers/image-share';
 import { useInputDraft } from '@/hooks/useInputDraft';
+import { useCardComposition, cardCompositionDisabled } from '@/hooks/useCardComposition';
+import { CardCompositionChip } from '@/components/chat/CardCompositionChip';
 import { useSkills } from '@/hooks/useSkills';
 import {
   buildStaticSlashCommands,
@@ -159,7 +161,7 @@ export default function ChatPage() {
 
   // UXR Lot 2 (A7): per-user persisted input draft. The layout mounts this
   // page only once the user is resolved, so the one-shot read is reliable.
-  const { initialDraft, saveDraft } = useInputDraft(user);
+  const { initialDraft, initialComposition, saveDraft } = useInputDraft(user);
 
   // QW-9 / UXR Lot 2 (A7) / N-13 / QW-24 (ADR-173) / ADR-210: the one-shot
   // deep links, read live and cleared through the History API. The four rules
@@ -259,7 +261,15 @@ export default function ChatPage() {
   const lng = shortLang(i18n.language);
   const [isResetting, setIsResetting] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [currentMessage, setCurrentMessage] = useState('');
+  const initialComposerMessage = resolveInitialMessage(searchParams, initialDraft, replayedIntent);
+  const cardComposition = useCardComposition({
+    initialMessage: initialComposerMessage,
+    initialComposition,
+    saveDraft,
+    disabled: cardCompositionDisabled(locks, hitlAwaitsUser(hitl.status)),
+  });
+  const { onTextChange } = cardComposition;
+  const [currentMessage, setCurrentMessage] = useState(() => initialComposerMessage ?? '');
 
   // Debug Panel: Get validated metrics for current request
   // SIMPLIFIED (v3.2): Direct storage without messageId indexing
@@ -289,10 +299,10 @@ export default function ChatPage() {
   const handleMessageChange = useCallback(
     (message: string) => {
       setCurrentMessage(message);
-      saveDraft(message);
+      onTextChange(message);
       eyesWiring.onTyping(message);
     },
-    [saveDraft, eyesWiring]
+    [onTextChange, eyesWiring]
   );
 
   // Totals from API (loaded at startup from message_token_summary)
@@ -408,6 +418,21 @@ export default function ChatPage() {
     [ensurePresent, sendMessage]
   );
 
+  const sendComposerMessage = useCallback(
+    (...args: Parameters<typeof sendMessage>) =>
+      sendMessageFromPresent(
+        args[0],
+        args[1],
+        args[2],
+        args[3],
+        args[4],
+        args[5],
+        args[6],
+        cardComposition.composition?.selection
+      ),
+    [sendMessageFromPresent, cardComposition.composition]
+  );
+
   // Widgets persisted on their message (ADR-137) are merged UNDER the live
   // registry, so a conversation reopened from history renders its skill frames
   // and MCP apps instead of an "unavailable" box. The live stream wins on
@@ -426,8 +451,17 @@ export default function ChatPage() {
   // different send route (history view, own-send tick, HITL resolution all
   // depend on it).
   const handleRetry = useCallback(
-    (prompt: string) => {
-      void sendMessageFromPresent(prompt);
+    (prompt: string, selection?: import('@/types/card-actions').CardCompositionWire) => {
+      void sendMessageFromPresent(
+        prompt,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        selection
+      );
     },
     [sendMessageFromPresent]
   );
@@ -547,10 +581,8 @@ export default function ChatPage() {
       }),
     [isUsageBlocked, hitl.status, connectorNotices.length, followupSuggestions.length]
   );
-  const [chipPrefill, setChipPrefill] = useState({ text: '', nonce: 0 });
-  const handleFollowupPick = useCallback((text: string) => {
-    setChipPrefill(prev => ({ text, nonce: prev.nonce + 1 }));
-  }, []);
+  const chipPrefill = cardComposition.prefill;
+  const handleFollowupPick = cardComposition.prefillText;
 
   // ``setMessages`` accepts only ``Message[]`` (the underlying reducer doesn't
   // support a functional updater). To prepend without staleness we read the
@@ -1016,6 +1048,7 @@ export default function ChatPage() {
                         scrollUiSlot={scrollUiSlot}
                         onRetry={handleRetry}
                         onPrefillComposer={handleFollowupPick}
+                        onCardCompose={cardComposition.onAvailableCompose}
                         // W8: an empty chat offers three ways in. Same rail as the
                         // follow-up chips — it prefills the composer, never sends.
                         onStarterPick={handleFollowupPick}
@@ -1062,13 +1095,19 @@ export default function ChatPage() {
                   at this level). This wrapper is positioning only. */}
               <div className="shadow-sm">
                 <ChatInput
-                  initialMessage={resolveInitialMessage(searchParams, initialDraft, replayedIntent)}
+                  initialMessage={initialComposerMessage}
+                  compositionContext={
+                    <CardCompositionChip
+                      composition={cardComposition.composition}
+                      onRemove={cardComposition.removeComposition}
+                    />
+                  }
                   sentHistory={sentHistory}
                   prefill={chipPrefill}
                   slashCommands={slashCommands}
                   onLocalCommand={handleLocalCommand}
                   spotlightVoice={spotlightVoice}
-                  onSendMessage={sendMessageFromPresent}
+                  onSendMessage={sendComposerMessage}
                   disabled={locks.input}
                   disabledReasonKey={locks.reasonKey}
                   isConnected={isConnected}
@@ -1088,6 +1127,7 @@ export default function ChatPage() {
           onOpenChange={setResetConfirmOpen}
           onConfirm={handleResetConversation}
         />
+        {cardComposition.confirmDialog}
 
         {/* Expressive eyes — floating, draggable, hideable (restore dot). */}
         <EyesWidget

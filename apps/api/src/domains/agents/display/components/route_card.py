@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.config import settings
 from src.core.i18n import resolve_language
 from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
@@ -28,16 +27,30 @@ from src.domains.agents.display.components.base import (
     render_card_top,
     render_chip,
     render_chip_row,
-    render_collapsible,
     render_d_row,
-    safe_css_color,
     wrap_with_response,
 )
 from src.domains.agents.display.components.map_hero import render_map_hero
+from src.domains.agents.display.components.route_journey import (
+    render_route_alternatives,
+    render_route_details,
+    render_route_steps,
+    render_route_tolls,
+    render_waypoint_links,
+    route_summary,
+)
+from src.domains.agents.display.components.route_map import render_route_map
 from src.domains.agents.display.icons import (
     Icons,
     get_travel_mode_icon,
     icon,
+)
+from src.domains.agents.display.urls import build_route_url
+from src.domains.agents.display.values import (
+    list_values,
+    nonnegative_integer,
+    nonnegative_number,
+    scalar_text,
 )
 
 
@@ -88,48 +101,61 @@ class RouteCard(BaseComponent):
             HTML string for the route card
         """
         # Extract route data (support both nested and flat structures)
-        route = data.get("route", data)
+        nested = data.get("route")
+        route = nested if isinstance(nested, dict) else data
 
         # Validation: don't render if destination is missing
         # This handles multi-domain cases where route depends on another domain
         # that couldn't provide an address
-        destination = route.get("destination", "")
+        destination = scalar_text(route.get("destination"))
         if not destination:
             return ""
 
-        origin = route.get("origin", "")
-        travel_mode = route.get("travel_mode", "DRIVE")
-        distance_km = route.get("distance_km", 0)
-        duration_minutes = route.get("duration_minutes", 0)
-        duration_formatted = route.get("duration_formatted", "")
-        duration_in_traffic = route.get("duration_in_traffic_minutes")
-        traffic_conditions = route.get("traffic_conditions", "")
-        steps = route.get("steps", [])
-        maps_url = route.get("maps_url", "")
-        waypoints = route.get("waypoints", [])
+        origin = scalar_text(route.get("origin"))
+        travel_mode = scalar_text(route.get("travel_mode", "DRIVE"))
+        distance_km = nonnegative_number(route.get("distance_km"))
+        duration_minutes = nonnegative_integer(route.get("duration_minutes"))
+        duration_formatted = scalar_text(route.get("duration_formatted"))
+        duration_in_traffic = nonnegative_integer(route.get("duration_in_traffic_minutes"))
+        traffic_conditions = scalar_text(route.get("traffic_conditions"))
+        steps = list_values(route.get("steps"))
+        maps_url = scalar_text(route.get("maps_url"))
+        waypoints = [
+            value for value in list_values(route.get("waypoints")) if isinstance(value, str)
+        ]
 
         # Route modifiers
-        avoid_tolls = route.get("avoid_tolls", False)
-        avoid_highways = route.get("avoid_highways", False)
-        avoid_ferries = route.get("avoid_ferries", False)
+        avoid_tolls = route.get("avoid_tolls") is True
+        avoid_highways = route.get("avoid_highways") is True
+        avoid_ferries = route.get("avoid_ferries") is True
 
         # New features: static map, toll info, ETA
-        static_map_url = route.get("static_map_url", "")
-        toll_info = route.get("toll_info")
-        eta_formatted = route.get("eta_formatted", "")
+        static_map_url = scalar_text(route.get("static_map_url"))
+        toll_info = route.get("toll_info") if isinstance(route.get("toll_info"), dict) else None
+        eta_formatted = scalar_text(route.get("eta_formatted"))
 
         # Arrival-based route fields (for calendar event routing)
-        is_arrival_based = route.get("is_arrival_based", False)
-        target_arrival_formatted = route.get("target_arrival_formatted", "")
-        suggested_departure_formatted = route.get("suggested_departure_formatted", "")
+        is_arrival_based = route.get("is_arrival_based") is True
+        target_arrival_formatted = scalar_text(route.get("target_arrival_formatted"))
+        suggested_departure_formatted = scalar_text(route.get("suggested_departure_formatted"))
 
         # Format duration if not provided
-        if not duration_formatted and duration_minutes:
+        if not duration_formatted and duration_minutes is not None:
             duration_formatted = self._format_duration(duration_minutes, ctx.language)
 
         # Build maps URL if not provided
         if not maps_url and destination:
-            maps_url = self._build_route_url(origin, destination, travel_mode, waypoints)
+            maps_url = build_route_url(
+                origin,
+                destination,
+                travel_mode,
+                waypoints,
+                avoid_tolls=avoid_tolls,
+                avoid_highways=avoid_highways,
+                avoid_ferries=avoid_ferries,
+            )
+        if len(waypoints) > 3:
+            maps_url = ""
 
         # Build default actions if not provided
         if suggested_actions is None:
@@ -158,6 +184,7 @@ class RouteCard(BaseComponent):
             target_arrival_formatted,
             suggested_departure_formatted,
             ctx,
+            route,
         )
 
         # Wrap with response zones if requested
@@ -192,24 +219,25 @@ class RouteCard(BaseComponent):
         origin: str,
         destination: str,
         travel_mode: str,
-        distance_km: float,
-        duration_minutes: int,
+        distance_km: float | None,
+        duration_minutes: int | None,
         duration_formatted: str,
         duration_in_traffic: int | None,
         traffic_conditions: str,
-        steps: list,
-        waypoints: list,
+        steps: list[object],
+        waypoints: list[str],
         avoid_tolls: bool,
         avoid_highways: bool,
         avoid_ferries: bool,
         maps_url: str,
         static_map_url: str,
-        toll_info: dict | None,
+        toll_info: dict[str, object] | None,
         eta_formatted: str,
         is_arrival_based: bool,
         target_arrival_formatted: str,
         suggested_departure_formatted: str,
         ctx: RenderContext,
+        data: dict[str, Any],
     ) -> str:
         """Unified route card using Design System v4 components."""
         nested_class = self._nested_class(ctx)
@@ -223,6 +251,7 @@ class RouteCard(BaseComponent):
                 linked_alt=V3Messages.get_open_in_maps(ctx.language),
                 plain_alt=V3Messages.get_route_label(ctx.language),
             )
+        hero_html = render_route_map(data.get("route_map"), hero_html)
 
         # --- Card top: travel mode icon + "Origin → Destination" ---
         mode_icon = get_travel_mode_icon(travel_mode)
@@ -246,10 +275,7 @@ class RouteCard(BaseComponent):
             chips_row1.append(render_chip(f"{eta_label} {eta_formatted}", "indigo", Icons.SCHEDULE))
         if is_arrival_based and suggested_departure_formatted:
             departure_label = V3Messages.get_suggested_departure(ctx.language)
-            import re as _re
-
-            time_match = _re.search(r"\d{1,2}:\d{2}", suggested_departure_formatted)
-            departure_time = time_match.group(0) if time_match else suggested_departure_formatted
+            departure_time = suggested_departure_formatted
             chips_row1.append(
                 render_chip(f"{departure_label} {departure_time}", "amber", Icons.SCHEDULE)
             )
@@ -266,13 +292,6 @@ class RouteCard(BaseComponent):
                 "HEAVY": "red",
             }.get(traffic_conditions, "")
             chips_row2.append(render_chip(traffic_label, traffic_variant, "traffic"))
-        if duration_formatted:
-            chips_row2.append(render_chip(duration_formatted, "green", "timer"))
-        if distance_km:
-            distance_str = (
-                f"{distance_km:.1f} km" if distance_km >= 1 else f"{int(distance_km * 1000)} m"
-            )
-            chips_row2.append(render_chip(distance_str, "", "straighten"))
         if avoid_tolls:
             chips_row2.append(
                 render_chip(V3Messages.get_route_avoidance(ctx.language, "tolls"), "", Icons.TOLL)
@@ -293,8 +312,8 @@ class RouteCard(BaseComponent):
 
         # --- Toll info ---
         extra_rows = []
-        if toll_info and not avoid_tolls:
-            toll_formatted = toll_info.get("formatted", "")
+        if toll_info and not list_values(data.get("toll_estimates")):
+            toll_formatted = scalar_text(toll_info.get("formatted"))
             if toll_formatted:
                 toll_label = V3Messages.get_toll_label(ctx.language)
                 extra_rows.append(
@@ -313,20 +332,23 @@ class RouteCard(BaseComponent):
         if waypoints:
             via_label = V3Messages.get_via(ctx.language)
             waypoint_items = [
-                f'<span class="lia-route__waypoint">{escape_html(wp)}</span>'
-                for wp in waypoints[:5]
+                f'<span class="lia-route__waypoint">{escape_html(wp)}</span>' for wp in waypoints
             ]
             waypoints_html = f'<div class="lia-route__waypoints">{icon(Icons.FLAG_START, size="sm")} {via_label}{label_separator(ctx.language)}{", ".join(waypoint_items)}</div>'
 
         # Collapsible steps (preserved existing format)
-        collapsible_html = self._render_collapsible_steps(steps, ctx)
+        collapsible_html = render_route_details(data, ctx) + render_route_alternatives(
+            data.get("alternatives"), ctx
+        )
 
         return f"""<div class="lia-card lia-route {nested_class}">
 {hero_html}
 {card_top_html}
+{route_summary(data, duration_formatted, ctx)}
 {chip_row_1}
 {chip_row_2}
 {extra_html}
+{render_route_tolls(data.get("toll_estimates"), ctx)}
 <div class="lia-route__endpoints">
 <div class="lia-route__endpoint">
 <span class="lia-route__endpoint-icon">{icon(Icons.FLAG_START, size="sm", domain="route")}</span>
@@ -336,6 +358,7 @@ class RouteCard(BaseComponent):
 </div>
 </div>
 {waypoints_html}
+{render_waypoint_links(data, ctx) if len(waypoints) > 3 else ""}
 <div class="lia-route__endpoint">
 <span class="lia-route__endpoint-icon">{icon(Icons.FLAG_END, size="sm", domain="route")}</span>
 <div class="lia-route__endpoint-content">
@@ -347,184 +370,8 @@ class RouteCard(BaseComponent):
 {collapsible_html}
 </div>"""
 
-    def _render_collapsible_steps(self, steps: list, ctx: RenderContext) -> str:
-        """Render collapsible turn-by-turn steps section."""
-        if not steps:
-            return ""
-
-        # Limit steps for readability (configurable via settings.routes_max_steps env var)
-        steps_to_show = steps[: settings.routes_max_steps]
-
-        step_items = []
-        for i, step in enumerate(steps_to_show, 1):
-            if isinstance(step, dict):
-                instruction = step.get(
-                    "instruction", step.get("navigationInstruction", {}).get("instructions", "")
-                )
-                distance = step.get("distance_meters", step.get("distanceMeters", 0))
-                transit = step.get("transit")
-                step_mode = step.get("travel_mode", "")
-
-                if distance:
-                    distance_km = distance / 1000
-                    distance_str = (
-                        f"{distance_km:.1f} km" if distance_km >= 1 else f"{int(distance)} m"
-                    )
-                else:
-                    distance_str = ""
-
-                # Build step content based on type
-                if transit:
-                    # Transit step: show colored line badge
-                    step_html = self._render_transit_step(
-                        i, transit, instruction, distance_str, ctx
-                    )
-                elif step_mode == "WALK":
-                    # Walking step
-                    step_html = self._render_walk_step(i, instruction, distance_str)
-                else:
-                    # Regular step
-                    step_html = self._render_regular_step(i, instruction, distance_str)
-            else:
-                instruction = str(step)
-                step_html = self._render_regular_step(i, instruction, "")
-
-            step_items.append(step_html)
-
-        # Add "more steps" indicator if truncated
-        if len(steps) > settings.routes_max_steps:
-            remaining = len(steps) - settings.routes_max_steps
-            more_steps_label = V3Messages.get_more_steps(ctx.language, remaining)
-            step_items.append(
-                f'<div class="lia-route__step lia-route__step--more">'
-                f'<span class="lia-route__step-more">{more_steps_label}</span>'
-                f"</div>"
-            )
-
-        steps_label = V3Messages.get_route_steps(ctx.language)
-        content_html = f'<div class="lia-route__steps">{"".join(step_items)}</div>'
-
-        return render_collapsible(
-            trigger_text=f"{steps_label} ({len(steps)})",
-            content_html=content_html,
-            initially_open=False,
-        )
-
-    def _render_transit_step(
-        self, step_num: int, transit: dict, instruction: str, distance_str: str, ctx: RenderContext
-    ) -> str:
-        """Render a transit step with colored line badge."""
-        line_name = transit.get("line_name", "")
-        line_color = transit.get("line_color", "")
-        line_text_color = transit.get("line_text_color", "")
-        vehicle_type = transit.get("vehicle_type", "")
-        headsign = transit.get("headsign", "")
-        departure_stop = transit.get("departure_stop", "")
-        arrival_stop = transit.get("arrival_stop", "")
-        stop_count = transit.get("stop_count", 0)
-
-        # Get vehicle icon based on type
-        vehicle_icon = self._get_transit_vehicle_icon(vehicle_type)
-
-        # Build line badge with actual line color. Both colors come straight
-        # from the Google Routes API and are interpolated into an inline style
-        # attribute, so they MUST pass the CSS-color allow-list: an unescaped
-        # value like '#fff" onmouseover="alert(1)' otherwise ends the attribute
-        # and injects an event handler.
-        style = ""
-        bg_color = safe_css_color(line_color)
-        if bg_color:
-            text_color = safe_css_color(line_text_color, default="#FFFFFF")
-            style = f'style="background-color: {bg_color}; color: {text_color};"'
-
-        line_badge = (
-            (
-                f'<span class="lia-route__transit-badge" {style}>'
-                f'{icon(vehicle_icon, size="xs", color="inherit")} {escape_html(line_name)}'
-                f"</span>"
-            )
-            if line_name
-            else ""
-        )
-
-        # Build stops info
-        stops_info = ""
-        if departure_stop and arrival_stop:
-            stops_info = f'<span class="lia-route__transit-stops">{escape_html(departure_stop)} → {escape_html(arrival_stop)}</span>'
-
-        # Stop count (localized with singular/plural handling)
-        stop_count_html = ""
-        if stop_count:
-            stops_label = V3Messages.get_transit_stops(ctx.language, stop_count)
-            stop_count_html = f'<span class="lia-route__transit-count">{stops_label}</span>'
-
-        # Headsign (direction)
-        headsign_html = ""
-        if headsign:
-            headsign_html = (
-                f'<span class="lia-route__transit-headsign">→ {escape_html(headsign)}</span>'
-            )
-
-        return f"""<div class="lia-route__step lia-route__step--transit">
-<span class="lia-route__step-number">{step_num}</span>
-<div class="lia-route__step-content">
-<div class="lia-route__transit-header">{line_badge}{headsign_html}</div>
-{stops_info}
-{stop_count_html}
-</div>
-</div>"""
-
-    def _render_walk_step(self, step_num: int, instruction: str, distance_str: str) -> str:
-        """Render a walking step."""
-        distance_html = (
-            f'<span class="lia-route__step-distance">{distance_str}</span>' if distance_str else ""
-        )
-        return f"""<div class="lia-route__step lia-route__step--walk">
-<span class="lia-route__step-number">{step_num}</span>
-<div class="lia-route__step-content">
-<span class="lia-route__step-icon">{icon(Icons.WALK, size="xs")}</span>
-<span class="lia-route__step-instruction">{escape_html(instruction)}</span>
-{distance_html}
-</div>
-</div>"""
-
-    def _render_regular_step(self, step_num: int, instruction: str, distance_str: str) -> str:
-        """Render a regular navigation step."""
-        distance_html = (
-            f'<span class="lia-route__step-distance">{distance_str}</span>' if distance_str else ""
-        )
-        return f"""<div class="lia-route__step">
-<span class="lia-route__step-number">{step_num}</span>
-<span class="lia-route__step-instruction">{escape_html(instruction)}</span>
-{distance_html}
-</div>"""
-
-    def _get_transit_vehicle_icon(self, vehicle_type: str) -> str:
-        """Get the appropriate icon for a transit vehicle type."""
-        vehicle_icons = {
-            "BUS": Icons.TRANSIT,
-            "SUBWAY": Icons.TRANSIT,
-            "RAIL": Icons.TRANSIT,
-            "HEAVY_RAIL": Icons.TRANSIT,
-            "COMMUTER_TRAIN": Icons.TRANSIT,
-            "HIGH_SPEED_TRAIN": Icons.TRANSIT,
-            "LONG_DISTANCE_TRAIN": Icons.TRANSIT,
-            "LIGHT_RAIL": Icons.TRANSIT,
-            "METRO_RAIL": Icons.TRANSIT,
-            "MONORAIL": Icons.TRANSIT,
-            "TRAM": Icons.TRANSIT,
-            "TROLLEYBUS": Icons.TRANSIT,
-            "CABLE_CAR": Icons.TRANSIT,
-            "FUNICULAR": Icons.TRANSIT,
-            "FERRY": Icons.FERRY,
-            "SHARE_TAXI": Icons.CAR,
-            "OTHER": Icons.TRANSIT,
-        }
-        return (
-            vehicle_icons.get(vehicle_type.upper(), Icons.TRANSIT)
-            if vehicle_type
-            else Icons.TRANSIT
-        )
+    def _render_collapsible_steps(self, steps: object, ctx: RenderContext) -> str:
+        return render_route_steps(steps, ctx)
 
     def _format_duration(self, minutes: int, language: str | None = None) -> str:
         """Format duration in minutes to human-readable string."""
@@ -561,37 +408,6 @@ class RouteCard(BaseComponent):
             return f"{hours}h"
 
     def _build_route_url(
-        self,
-        origin: str,
-        destination: str,
-        travel_mode: str,
-        waypoints: list | None = None,
+        self, origin: str, destination: str, travel_mode: str, waypoints: list[str] | None = None
     ) -> str:
-        """Build Google Maps directions URL."""
-        from urllib.parse import quote
-
-        # Travel mode mapping for Google Maps
-        mode_map = {
-            "DRIVE": "driving",
-            "WALK": "walking",
-            "BICYCLE": "bicycling",
-            "TRANSIT": "transit",
-            "TWO_WHEELER": "driving",  # No specific mode, use driving
-        }
-        gm_mode = mode_map.get(travel_mode.upper(), "driving")
-
-        # Build URL
-        params = [
-            "api=1",
-            f"destination={quote(destination, safe='')}",
-            f"travelmode={gm_mode}",
-        ]
-
-        if origin:
-            params.append(f"origin={quote(origin, safe='')}")
-
-        if waypoints:
-            waypoints_str = "|".join(quote(wp, safe="") for wp in waypoints[:5])
-            params.append(f"waypoints={waypoints_str}")
-
-        return f"https://www.google.com/maps/dir/?{'&'.join(params)}"
+        return build_route_url(origin, destination, travel_mode, waypoints)

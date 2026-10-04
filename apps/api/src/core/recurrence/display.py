@@ -284,6 +284,11 @@ def join_clauses(clauses: list[str], language: str) -> str:
     return get_recurrence_part("clause_join", language).join(clause for clause in clauses if clause)
 
 
+def describe_calendar(spec: RecurrenceSpec, language: str) -> str:
+    """The calendar and end clauses only, for provider events on a whole civil day."""
+    return join_clauses([_calendar_clause(spec, language), _end_clause(spec, language)], language)
+
+
 def describe(spec: RecurrenceSpec, language: str) -> str:
     """The recurrence as one sentence, in the reader's language.
 

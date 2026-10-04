@@ -1,11 +1,7 @@
-"""Characterization net for ContactCard._render_collapsible_details (audit F015).
+"""Contact detail contract, extended from the original F015 characterization.
 
-Pins the exact behavior of the CC-72 collapsible-details renderer BEFORE it is
-decomposed into per-section helpers, so the cut can be proven behavior-preserving
-(method precedent: ADR-125 / ADR-122 characterization-first extraction). Each
-section is independent (``if data.get(field): ... append(render_d_row(...))``), so
-the tests assert per-section presence, caps, truncation, dict-vs-str handling,
-badge rendering, and the empty/wrapper contract.
+Modernized details retain every supplied value beyond the initial preview.
+Section order, escaping, labels and the empty/wrapper contract remain guarded.
 """
 
 from __future__ import annotations
@@ -52,7 +48,7 @@ def test_any_section_wraps_in_a_collapsible(card, ctx):
 # --------------------------------------------------------------------------- #
 
 
-def test_addresses_render_only_second_and_third(card, ctx):
+def test_all_extra_addresses_remain_reachable(card, ctx):
     data = {
         "addresses": [
             {"formattedValue": "1 First St", "type": "home"},
@@ -65,7 +61,7 @@ def test_addresses_render_only_second_and_third(card, ctx):
     assert "1 First St" not in out  # first address never in details
     assert "2 Second Ave" in out
     assert "3 Third Rd" in out
-    assert "4 Fourth" not in out  # sliced off ([1:3])
+    assert "4 Fourth" in out
 
 
 def test_single_address_renders_nothing(card, ctx):
@@ -82,11 +78,11 @@ def test_address_string_item_is_supported(card, ctx):
 # --------------------------------------------------------------------------- #
 
 
-def test_nicknames_joined_capped_and_skip_empty(card, ctx):
+def test_nicknames_joined_complete_and_skip_empty(card, ctx):
     data = {"nicknames": [{"value": "Bobby"}, "Rob", {"value": ""}, {"value": "Fourth"}]}
     out = _render(card, ctx, data)
     assert "Bobby, Rob" in out  # empty skipped
-    assert "Fourth" not in out  # capped at 3 (Bobby, Rob, then empty consumed slot? see cap[:3])
+    assert "Fourth" in out
 
 
 def test_skills_interests_occupations_render_values(card, ctx):
@@ -109,7 +105,7 @@ def test_skills_interests_occupations_render_values(card, ctx):
 # --------------------------------------------------------------------------- #
 
 
-def test_relations_dict_and_string_capped(card, ctx):
+def test_relations_dict_and_string_complete(card, ctx):
     data = {
         "relations": [
             {"person": "Alice", "type": "spouse"},
@@ -123,7 +119,7 @@ def test_relations_dict_and_string_capped(card, ctx):
     }
     out = _render(card, ctx, data)
     assert "Alice" in out and "Bob" in out and "Carol" in out
-    assert "SixthCappedOut" not in out  # >5 relations (empty person consumes a slot)
+    assert "SixthCappedOut" in out
 
 
 # --------------------------------------------------------------------------- #
@@ -131,10 +127,9 @@ def test_relations_dict_and_string_capped(card, ctx):
 # --------------------------------------------------------------------------- #
 
 
-def test_biography_truncated_at_150(card, ctx):
+def test_biography_remains_complete_in_details(card, ctx):
     out = _render(card, ctx, {"biographies": [{"value": "y" * 200}]})
-    assert ("y" * 147 + "...") in out
-    assert "y" * 148 not in out
+    assert "y" * 200 in out
 
 
 def test_short_biography_not_truncated(card, ctx):
@@ -228,7 +223,7 @@ def test_maximal_output_is_nonempty_and_covers_all_sections(card, ctx):
         "2 Second Ave",
         "Bobby, Rob",
         "Alice",
-        ("x" * 147 + "..."),
+        ("x" * 200),
         "Python",
         "Chess",
         "Engineer",
@@ -240,13 +235,9 @@ def test_maximal_output_is_nonempty_and_covers_all_sections(card, ctx):
         assert needle in out, f"section missing from maximal render: {needle!r}"
 
 
-# SHA256 of the maximal render captured against the pre-decomposition code. The
-# decomposition must be pure code-motion, so this hash MUST stay identical — a
-# byte-level guard the per-section behavior tests above complement.
-# Re-captured 2026-09-26 when a label and its value became joined by the reader's
-# punctuation (ADR-323): the nine French separators put back to ": " give the
-# previous digest (2749fa88…c5484b5) exactly — nothing else moved.
-_GOLDEN_MAXIMAL_SHA256 = "f1d4a9d894bb359912bd97ef1bb046064ec016b50fc43d30b7bacc1be9eba7d4"
+# Re-captured for the authorized full-detail presentation, 2026-10-03.
+# The semantic reachability/escaping assertions complement this byte contract.
+_GOLDEN_MAXIMAL_SHA256 = "fec2bead2ce2c6be6c7d39f3f03eb89f2dbcc5d10fbdd54a92cac766b71905a3"
 
 
 def test_maximal_output_is_byte_identical_to_golden(card, ctx):
@@ -254,7 +245,6 @@ def test_maximal_output_is_byte_identical_to_golden(card, ctx):
 
     out = _render(card, ctx, _maximal_data())
     digest = hashlib.sha256(out.encode("utf-8")).hexdigest()
-    assert digest == _GOLDEN_MAXIMAL_SHA256, (
-        "collapsible-details output changed vs the pre-decomposition golden — the "
-        "F015 extraction must be behavior-preserving (byte-identical)."
-    )
+    assert (
+        digest == _GOLDEN_MAXIMAL_SHA256
+    ), "collapsible-details output changed vs the full-detail presentation contract"

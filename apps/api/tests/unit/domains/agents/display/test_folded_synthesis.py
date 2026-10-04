@@ -72,6 +72,13 @@ def test_split_is_lossless() -> None:
     assert (lead + "\n\n" + rest) == text
 
 
+def test_large_first_paragraph_uses_sentence_preview_when_other_paragraphs_follow():
+    text = "First paragraph sentence. " * 80 + "\n\nLast paragraph fact."
+    lead, rest = split_lead(text, preview_chars=100)
+    assert len(lead) <= 100
+    assert lead + " " + rest == text
+
+
 # ============================================================================
 # format_synthesis_html — one formatter for both cards
 # ============================================================================

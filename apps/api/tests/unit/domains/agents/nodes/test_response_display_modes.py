@@ -107,6 +107,14 @@ async def test_mode_reaches_prompt_history_selection_rendering_and_sse(
     assert "<relevant_ids>" not in content
     assert ("Selected email" in content) is (data_cards and bool(selection))
     assert "Discarded email" not in content
+    view = result["messages"][0].additional_kwargs.get("lia_model_view")
+    assert bool(view) is data_cards
+    if data_cards:
+        assert view["version"] == 1
+        assert "Result." in view["content"]
+        assert "lia-card" not in view["content"]
+        assert ("Selected email" in view["content"]) is bool(selection)
+        assert "Discarded email" not in view["content"]
 
     service = StreamingService.__new__(StreamingService)
     service.persistable_widgets = {}

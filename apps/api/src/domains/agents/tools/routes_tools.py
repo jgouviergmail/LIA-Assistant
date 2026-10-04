@@ -22,8 +22,6 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
-from urllib.parse import quote
-from zoneinfo import ZoneInfo
 
 import structlog
 from langchain.tools import ToolRuntime
@@ -34,10 +32,10 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, ROUTES_INVALID_DESTINATION_VALUES
 from src.core.i18n import _, resolve_language
 from src.core.i18n_v3 import V3Messages
-from src.core.time_utils import format_time_with_date_context, parse_datetime
 from src.domains.agents.constants import AGENT_ROUTE, CONTEXT_DOMAIN_ROUTES
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.data_registry.card_payload import take_display_fields
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -50,6 +48,21 @@ from src.domains.agents.tools.location_resolution import (
     resolve_location,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.routes_formatting import (
+    TRANSIT_PRIORITY_SCORES as TRANSIT_PRIORITY_SCORES,
+)
+from src.domains.agents.tools.routes_formatting import (
+    _condense_route_steps as _condense_route_steps,
+)
+from src.domains.agents.tools.routes_formatting import (
+    _format_route_response as _format_route_response,
+)
+from src.domains.agents.tools.routes_formatting import (
+    _score_route_transit_priority as _score_route_transit_priority,
+)
+from src.domains.agents.tools.routes_formatting import (
+    _select_best_transit_route as _select_best_transit_route,
+)
 from src.domains.agents.tools.runtime_helpers import (
     extract_coordinates,
     get_original_user_message,
@@ -57,7 +70,6 @@ from src.domains.agents.tools.runtime_helpers import (
     handle_tool_exception,
 )
 from src.domains.agents.utils.distance import calculate_distance_sync
-from src.domains.agents.utils.polyline import simplify_polyline_for_static_map
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.connectors.clients.google_geocoding_helpers import reverse_geocode
 from src.domains.connectors.clients.google_routes_client import (
@@ -65,7 +77,6 @@ from src.domains.connectors.clients.google_routes_client import (
     RoutingPreference,
     TravelMode,
 )
-from src.domains.connectors.media_attribution import with_attribution
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.cache.routes_cache import RoutesCache
 from src.infrastructure.observability.decorators import track_tool_metrics
@@ -593,615 +604,9 @@ async def _resolve_destination(
 # TRANSIT PRIORITY SCORING
 # =============================================================================
 
+
 # Transit vehicle type priority scores (higher = better)
 # Priority: RER/Train > Metro > Tram > Bus
-TRANSIT_PRIORITY_SCORES: dict[str, int] = {
-    "HIGH_SPEED_TRAIN": 100,  # TGV
-    "RAIL": 95,  # RER, TER, regional trains
-    "TRAIN": 95,  # Same as RAIL
-    "SUBWAY": 90,  # Metro
-    "METRO_RAIL": 90,  # Metro variant
-    "MONORAIL": 85,  # Monorail
-    "HEAVY_RAIL": 85,  # Heavy rail
-    "COMMUTER_TRAIN": 85,  # Commuter trains
-    "LIGHT_RAIL": 80,  # Light rail
-    "TRAM": 75,  # Tramway
-    "CABLE_CAR": 70,  # Cable car
-    "FUNICULAR": 70,  # Funicular
-    "FERRY": 60,  # Ferry
-    "BUS": 40,  # Bus (lowest priority for rail preference)
-    "SHARE_TAXI": 30,  # Shared taxi
-    "INTERCITY_BUS": 35,  # Intercity bus
-    "TROLLEYBUS": 45,  # Electric bus (slightly better than bus)
-    "OTHER": 50,  # Unknown/other
-}
-
-
-def _score_route_transit_priority(route: dict[str, Any]) -> tuple[int, int, int]:
-    """
-    Score a route based on transit type priority.
-
-    Returns a tuple for sorting: (avg_priority, total_rail_steps, -total_bus_steps)
-    Higher scores = better route (more rail/metro, less bus).
-
-    This enables selecting routes that prioritize RER/Metro over Bus
-    when multiple alternatives are available.
-
-    Args:
-        route: Route dict from Google Routes API response
-
-    Returns:
-        Tuple (avg_priority_score, rail_step_count, -bus_step_count) for sorting
-    """
-    transit_scores = []
-    rail_steps = 0
-    bus_steps = 0
-
-    for leg in route.get("legs", []):
-        for step in leg.get("steps", []):
-            transit_details = step.get("transitDetails")
-            if transit_details:
-                vehicle = transit_details.get("transitLine", {}).get("vehicle", {})
-                vehicle_type = vehicle.get("type", "OTHER")
-
-                score = TRANSIT_PRIORITY_SCORES.get(vehicle_type, 50)
-                transit_scores.append(score)
-
-                # Count rail vs bus steps
-                if vehicle_type in (
-                    "RAIL",
-                    "TRAIN",
-                    "SUBWAY",
-                    "METRO_RAIL",
-                    "HIGH_SPEED_TRAIN",
-                    "COMMUTER_TRAIN",
-                    "HEAVY_RAIL",
-                    "LIGHT_RAIL",
-                    "TRAM",
-                ):
-                    rail_steps += 1
-                elif vehicle_type in ("BUS", "INTERCITY_BUS", "TROLLEYBUS"):
-                    bus_steps += 1
-
-    # Calculate average priority score (default 50 if no transit steps)
-    avg_score = sum(transit_scores) // len(transit_scores) if transit_scores else 50
-
-    # Return tuple: (avg_priority, rail_count, -bus_count)
-    # Negative bus_count so fewer buses = higher sort value
-    return (avg_score, rail_steps, -bus_steps)
-
-
-def _select_best_transit_route(routes: list[dict[str, Any]]) -> dict[str, Any]:
-    """
-    Select the best transit route from alternatives based on transit type priority.
-
-    Prioritizes routes using more rail (RER, Metro, Tram) over bus.
-    When scores are equal, prefers routes with more rail steps and fewer bus steps.
-
-    Args:
-        routes: List of route alternatives from Google Routes API
-
-    Returns:
-        Best route based on transit priority scoring
-    """
-    if len(routes) == 1:
-        return routes[0]
-
-    # Score each route and sort by priority
-    scored_routes = [(route, _score_route_transit_priority(route)) for route in routes]
-
-    # Sort by (avg_priority DESC, rail_steps DESC, bus_steps ASC)
-    scored_routes.sort(key=lambda x: x[1], reverse=True)
-
-    best_route = scored_routes[0][0]
-    best_score = scored_routes[0][1]
-
-    logger.info(
-        "transit_route_selected",
-        routes_count=len(routes),
-        best_priority_score=best_score[0],
-        best_rail_steps=best_score[1],
-        best_bus_steps=-best_score[2],  # Negate back to positive
-    )
-
-    return best_route
-
-
-def _condense_route_steps(steps: list[dict[str, Any]], max_steps: int) -> list[dict[str, Any]]:
-    """
-    Condense route steps intelligently to fit within max_steps limit.
-
-    Condensation strategy (applied progressively only if needed):
-    1. If steps fit within limit, return as-is
-    2. First, merge only consecutive WALK steps (between transit legs)
-    3. If still over limit, select evenly spaced steps preserving first/last
-
-    Transit steps (bus, metro, etc.) are always preserved as-is.
-
-    Args:
-        steps: Full list of route steps
-        max_steps: Maximum number of steps to return
-
-    Returns:
-        Condensed list of steps fitting within max_steps limit
-    """
-    if not steps or len(steps) <= max_steps:
-        return steps
-
-    # Phase 1: Only merge consecutive WALK steps (common in transit routes)
-    # This preserves navigation steps individually
-    merged_steps: list[dict[str, Any]] = []
-    i = 0
-
-    while i < len(steps):
-        current_step = steps[i]
-        current_mode = current_step.get("travel_mode", "")
-
-        # Merge consecutive WALK steps only
-        if current_mode == "WALK" and not current_step.get("transit"):
-            merged_distance = current_step.get("distance_meters", 0)
-
-            j = i + 1
-            while j < len(steps):
-                next_step = steps[j]
-                if next_step.get("travel_mode") == "WALK" and not next_step.get("transit"):
-                    merged_distance += next_step.get("distance_meters", 0)
-                    j += 1
-                else:
-                    break
-
-            # Create merged WALK step only if multiple were merged
-            if j > i + 1:
-                distance_str = (
-                    f"{merged_distance / 1000:.1f} km"
-                    if merged_distance >= 1000
-                    else f"{merged_distance} m"
-                )
-                merged_step = {
-                    "instruction": f"Marcher ({distance_str})",
-                    "maneuver": "WALK",
-                    "distance_meters": merged_distance,
-                    "travel_mode": "WALK",
-                    "is_condensed": True,
-                    "condensed_count": j - i,
-                }
-                merged_steps.append(merged_step)
-            else:
-                merged_steps.append(current_step)
-
-            i = j
-        else:
-            # Keep all other steps as-is (transit, drive, etc.)
-            merged_steps.append(current_step)
-            i += 1
-
-    # Check if we're within limit after WALK merging
-    if len(merged_steps) <= max_steps:
-        return merged_steps
-
-    # Phase 2: Select steps evenly while preserving transit and boundaries
-    # Separate transit and non-transit steps
-    transit_indices = [idx for idx, step in enumerate(merged_steps) if step.get("transit")]
-    non_transit_indices = [idx for idx, step in enumerate(merged_steps) if not step.get("transit")]
-
-    # Calculate how many non-transit steps we can keep
-    remaining_slots = max_steps - len(transit_indices)
-
-    if remaining_slots <= 0:
-        # Only keep transit steps (truncate if needed)
-        return [merged_steps[idx] for idx in transit_indices[:max_steps]]
-
-    if remaining_slots >= len(non_transit_indices):
-        # All steps fit after transit reservation
-        return merged_steps
-
-    # Select non-transit steps: always keep first and last, distribute middle evenly
-    selected_non_transit: list[int] = []
-
-    if len(non_transit_indices) >= 2 and remaining_slots >= 2:
-        # Always keep first and last
-        selected_non_transit.append(non_transit_indices[0])
-        selected_non_transit.append(non_transit_indices[-1])
-
-        # Distribute remaining slots evenly among middle steps
-        middle_indices = non_transit_indices[1:-1]
-        middle_slots = remaining_slots - 2
-
-        if middle_slots > 0 and middle_indices:
-            if len(middle_indices) <= middle_slots:
-                selected_non_transit.extend(middle_indices)
-            else:
-                # Select evenly spaced indices
-                for k in range(middle_slots):
-                    idx = (
-                        int(k * (len(middle_indices) - 1) / (middle_slots - 1))
-                        if middle_slots > 1
-                        else 0
-                    )
-                    selected_non_transit.append(middle_indices[idx])
-    elif non_transit_indices:
-        selected_non_transit = non_transit_indices[:remaining_slots]
-
-    # Combine transit and selected non-transit, sort by original order
-    all_selected = set(transit_indices) | set(selected_non_transit)
-    result = [merged_steps[idx] for idx in sorted(all_selected)]
-
-    return result
-
-
-def _format_route_response(
-    route_data: dict[str, Any],
-    origin_display: str,
-    destination_display: str,
-    travel_mode: TravelMode,
-    language: str,
-    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
-    departure_time: str | None = None,
-    arrival_time_target: str | None = None,
-    is_arrival_based: bool = False,
-    origin_coords: tuple[float, float] | None = None,
-    dest_coords: tuple[float, float] | None = None,
-) -> dict[str, Any]:
-    """
-    Format Google Routes API response for user consumption.
-
-    Args:
-        route_data: Raw response from Google Routes API
-        origin_display: Human-readable origin
-        destination_display: Human-readable destination
-        travel_mode: Travel mode used
-        language: Language code for formatting
-        user_timezone: User's timezone for ETA calculation (default: DEFAULT_USER_DISPLAY_TIMEZONE)
-        departure_time: Optional departure time in ISO 8601 format for ETA calculation
-        arrival_time_target: Target arrival time (for calendar event routing)
-        is_arrival_based: Whether this is an arrival-based route calculation
-        origin_coords: Optional (lat, lng) tuple for origin marker on static map
-        dest_coords: Optional (lat, lng) tuple for destination marker on static map
-
-    Returns:
-        Formatted route data dict with suggested_departure_time if arrival-based
-    """
-    routes = route_data.get("routes", [])
-    if not routes:
-        return {
-            "success": False,
-            "error": "no_route_found",
-            "message": _("No route found between these locations."),
-        }
-
-    # For TRANSIT mode with alternatives, select route prioritizing rail over bus
-    if travel_mode == TravelMode.TRANSIT and len(routes) > 1:
-        primary_route = _select_best_transit_route(routes)
-    else:
-        primary_route = routes[0]
-
-    # Parse duration and distance
-    duration_str = primary_route.get("duration", "0s")
-    duration_seconds = GoogleRoutesClient.parse_duration(duration_str)
-    duration_minutes = duration_seconds // 60
-
-    distance_meters = primary_route.get("distanceMeters", 0)
-    distance_km = GoogleRoutesClient.meters_to_km(distance_meters)
-
-    # Format duration for display
-    duration_formatted = GoogleRoutesClient.format_duration(duration_seconds, language)
-
-    # Get traffic duration if available
-    static_duration_str = primary_route.get("staticDuration")
-    duration_in_traffic_minutes = None
-    traffic_conditions = None
-
-    if static_duration_str:
-        static_seconds = GoogleRoutesClient.parse_duration(static_duration_str)
-        if static_seconds != duration_seconds:
-            duration_in_traffic_minutes = duration_minutes
-            # Determine traffic conditions based on ratio
-            ratio = duration_seconds / static_seconds if static_seconds > 0 else 1.0
-            if ratio <= 1.1:
-                traffic_conditions = "NORMAL"
-            elif ratio <= 1.3:
-                traffic_conditions = "LIGHT"
-            elif ratio <= 1.5:
-                traffic_conditions = "MODERATE"
-            else:
-                traffic_conditions = "HEAVY"
-
-    # Get polyline for map display
-    polyline = primary_route.get("polyline", {}).get("encodedPolyline", "")
-
-    # Extract start/end coordinates directly from polyline (first and last decoded points)
-    # This ensures markers are EXACTLY at polyline endpoints for visual consistency
-    # Douglas-Peucker preserves first/last points, so simplified polyline will match markers
-    from src.domains.agents.utils.polyline import decode_polyline
-
-    polyline_origin_coords: tuple[float, float] | None = None
-    polyline_dest_coords: tuple[float, float] | None = None
-
-    if polyline:
-        try:
-            decoded_points = decode_polyline(polyline)
-            if decoded_points:
-                polyline_origin_coords = decoded_points[0]  # First point = origin
-                polyline_dest_coords = decoded_points[-1]  # Last point = destination
-                logger.debug(
-                    "polyline_endpoints_extracted",
-                    origin=polyline_origin_coords,
-                    destination=polyline_dest_coords,
-                    total_points=len(decoded_points),
-                )
-        except (ValueError, IndexError) as e:
-            logger.warning("polyline_decode_failed_for_markers", error=str(e))
-
-    # Use polyline coords (ensures visual alignment with route trace), fallback to passed-in coords
-    final_origin_coords = polyline_origin_coords or origin_coords
-    final_dest_coords = polyline_dest_coords or dest_coords
-
-    # Format steps if available (with transit details for TRANSIT mode)
-    steps = []
-    for leg in primary_route.get("legs", []):
-        for step in leg.get("steps", []):
-            nav_instruction = step.get("navigationInstruction", {})
-            step_travel_mode = step.get("travelMode", "")
-
-            step_info: dict[str, Any] = {
-                "instruction": nav_instruction.get("instructions", ""),
-                "maneuver": nav_instruction.get("maneuver", ""),
-                "distance_meters": step.get("distanceMeters", 0),
-                "travel_mode": step_travel_mode,
-            }
-
-            # Extract transit details if present (TRANSIT mode steps)
-            transit_details = step.get("transitDetails")
-            if transit_details:
-                transit_line = transit_details.get("transitLine", {})
-                stop_details = transit_details.get("stopDetails", {})
-                vehicle = transit_line.get("vehicle", {})
-
-                # Line info (prefer short name like "M1", "RER A")
-                line_name = transit_line.get("nameShort") or transit_line.get("name", "")
-                line_color = transit_line.get("color", "")
-                line_text_color = transit_line.get("textColor", "")
-
-                # Vehicle type (BUS, SUBWAY, RAIL, TRAM, etc.)
-                vehicle_type = vehicle.get("type", "")
-                vehicle_name = vehicle.get("name", {}).get("text", "")
-
-                # Headsign (direction/terminus) - headsign is a direct string
-                headsign = transit_details.get("headsign", "")
-
-                # Stops
-                departure_stop = stop_details.get("departureStop", {}).get("name", "")
-                arrival_stop = stop_details.get("arrivalStop", {}).get("name", "")
-                stop_count = transit_details.get("stopCount", 0)
-
-                step_info["transit"] = {
-                    "line_name": line_name,
-                    "line_color": line_color,
-                    "line_text_color": line_text_color,
-                    "vehicle_type": vehicle_type,
-                    "vehicle_name": vehicle_name,
-                    "headsign": headsign,
-                    "departure_stop": departure_stop,
-                    "arrival_stop": arrival_stop,
-                    "stop_count": stop_count,
-                }
-
-                # Build a better instruction for transit steps
-                if line_name:
-                    transit_instruction = f"{vehicle_type or vehicle_name} {line_name}"
-                    if headsign:
-                        transit_instruction += f" → {headsign}"
-                    if departure_stop and arrival_stop:
-                        transit_instruction += f" ({departure_stop} → {arrival_stop})"
-                    if stop_count:
-                        stops_label = V3Messages.get_transit_stops(language, stop_count)
-                        transit_instruction += f" [{stops_label}]"
-                    step_info["instruction"] = transit_instruction
-
-            if step_info["instruction"]:
-                steps.append(step_info)
-
-    # Build Google Maps URL
-    maps_url = (
-        f"https://www.google.com/maps/dir/?api=1"
-        f"&origin={origin_display}&destination={destination_display}"
-        f"&travelmode={travel_mode.value.lower()}"
-    )
-
-    # Build Static Map URL using proxy (API key hidden server-side)
-    # Simplify polyline if needed to fit within URL length limits (Google allows 16384 chars)
-    static_map_url = None
-    if polyline:
-        # Simplify polyline using defaults (max_url_length=14000, base_url_length=400)
-        simplified_polyline = simplify_polyline_for_static_map(polyline)
-
-        if simplified_polyline:
-            # URL-encode the polyline for safe transmission via proxy
-            encoded_polyline = quote(simplified_polyline, safe="")
-            # Use proxy endpoint to avoid exposing API key to client
-            # Add origin/destination coords for accurate markers (even with simplified polyline)
-            static_map_url = (
-                f"/api/v1/connectors/google-routes/static-map?polyline={encoded_polyline}"
-            )
-            # Add origin coords for green marker (accurate starting point)
-            if final_origin_coords:
-                static_map_url += f"&origin={final_origin_coords[0]},{final_origin_coords[1]}"
-            # Add destination coords for red marker (accurate ending point)
-            if final_dest_coords:
-                static_map_url += f"&dest={final_dest_coords[0]},{final_dest_coords[1]}"
-
-            # The map is BILLED when the browser fetches it, and the proxy counts
-            # it then, on this turn: the URL carries the signed run id.
-            static_map_url = with_attribution(static_map_url)
-
-            logger.debug(
-                "static_map_url_generated",
-                original_polyline_length=len(polyline),
-                simplified_polyline_length=len(simplified_polyline),
-                url_length=len(static_map_url),
-                has_origin_marker=bool(final_origin_coords),
-                has_dest_marker=bool(final_dest_coords),
-            )
-        else:
-            logger.warning(
-                "static_map_url_skipped",
-                reason="polyline_too_complex_to_simplify",
-                polyline_length=len(polyline),
-            )
-    else:
-        logger.warning("static_map_url_not_generated", reason="polyline_empty")
-
-    # Extract toll info from travelAdvisory
-    toll_info = None
-    travel_advisory = primary_route.get("travelAdvisory", {})
-    toll_data = travel_advisory.get("tollInfo", {})
-    estimated_prices = toll_data.get("estimatedPrice", [])
-    if estimated_prices:
-        # Sum all toll prices (may have multiple currencies, usually just one)
-        total_tolls = {}
-        for price in estimated_prices:
-            currency = price.get("currencyCode", "EUR")
-            # Google returns units and nanos separately
-            units = int(price.get("units", 0))
-            nanos = int(price.get("nanos", 0))
-            amount = units + (nanos / 1_000_000_000)
-            if currency in total_tolls:
-                total_tolls[currency] += amount
-            else:
-                total_tolls[currency] = amount
-
-        if total_tolls:
-            # Format toll info (prefer EUR if available)
-            primary_currency = "EUR" if "EUR" in total_tolls else list(total_tolls.keys())[0]
-            toll_amount = total_tolls[primary_currency]
-            toll_info = {
-                "amount": round(toll_amount, 2),
-                "currency": primary_currency,
-                "formatted": f"{toll_amount:.2f} {primary_currency}",
-            }
-
-    # Calculate ETA (estimated time of arrival) in user's timezone
-    eta = None
-    eta_formatted = None
-    # New fields for arrival-based routing
-    target_arrival_time_iso = None
-    target_arrival_formatted = None
-    suggested_departure_time_iso = None
-    suggested_departure_formatted = None
-
-    if duration_minutes:
-        try:
-            tz = ZoneInfo(user_timezone)
-        except KeyError, ValueError:
-            tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
-
-        now = datetime.now(tz)
-
-        if is_arrival_based and arrival_time_target:
-            # Arrival-based calculation: user wants to ARRIVE at a specific time
-            # Calculate suggested departure time = arrival_time - duration
-            # Note: UTC-to-local conversion is done in get_route_tool BEFORE API call
-            parsed_arrival = parse_datetime(arrival_time_target)
-            if parsed_arrival is not None:
-                target_arrival_dt = parsed_arrival.astimezone(tz)
-            else:
-                target_arrival_dt = None
-
-            if target_arrival_dt is not None:
-
-                # Calculate suggested departure
-                suggested_departure_dt = target_arrival_dt - timedelta(minutes=duration_minutes)
-
-                # Store ISO formats
-                target_arrival_time_iso = target_arrival_dt.isoformat()
-                suggested_departure_time_iso = suggested_departure_dt.isoformat()
-
-                # Format times using centralized helper (handles today/tomorrow/date context)
-                target_arrival_formatted = format_time_with_date_context(
-                    target_arrival_dt, now, language
-                )
-                suggested_departure_formatted = format_time_with_date_context(
-                    suggested_departure_dt, now, language
-                )
-
-                # For arrival-based, ETA is the target arrival time
-                eta = target_arrival_time_iso
-                eta_formatted = target_arrival_formatted
-
-                logger.info(
-                    "route_arrival_based_calculation",
-                    target_arrival=target_arrival_time_iso,
-                    suggested_departure=suggested_departure_time_iso,
-                    duration_minutes=duration_minutes,
-                )
-            else:
-                logger.warning(
-                    "arrival_time_parse_failed",
-                    arrival_time_target=arrival_time_target,
-                )
-                # Fall back to standard ETA calculation
-                is_arrival_based = False
-
-        if not is_arrival_based:
-            # Standard ETA calculation (departure-based)
-            if departure_time:
-                parsed_departure = parse_datetime(departure_time)
-                if parsed_departure is not None:
-                    # Convert to user's timezone for display
-                    base_time = parsed_departure.astimezone(tz)
-                    logger.debug(
-                        "eta_using_departure_time",
-                        departure_time=departure_time,
-                        base_time=base_time.isoformat(),
-                        user_timezone=user_timezone,
-                    )
-                else:
-                    logger.warning(
-                        "departure_time_parse_failed",
-                        departure_time=departure_time,
-                    )
-                    base_time = now
-            else:
-                base_time = now
-
-            calculated_eta = base_time + timedelta(minutes=duration_minutes)
-            eta = calculated_eta.isoformat()
-
-            # Format ETA using centralized helper (handles today/tomorrow/date context)
-            eta_formatted = format_time_with_date_context(calculated_eta, now, language)
-
-    return {
-        "success": True,
-        "data": {
-            "route": {
-                "origin": origin_display,
-                "destination": destination_display,
-                "travel_mode": travel_mode.value,
-                "distance_km": distance_km,
-                "distance_meters": distance_meters,
-                "duration_minutes": duration_minutes,
-                "duration_formatted": duration_formatted,
-                "duration_in_traffic_minutes": duration_in_traffic_minutes,
-                "traffic_conditions": traffic_conditions,
-                "polyline": polyline,
-                "steps": _condense_route_steps(steps, settings.routes_max_steps) if steps else [],
-                "maps_url": maps_url,
-                "static_map_url": static_map_url,
-                "toll_info": toll_info,
-                "eta": eta,
-                "eta_formatted": eta_formatted,
-                # Arrival-based route fields
-                "is_arrival_based": is_arrival_based,
-                "target_arrival_time": target_arrival_time_iso,
-                "target_arrival_formatted": target_arrival_formatted,
-                "suggested_departure_time": suggested_departure_time_iso,
-                "suggested_departure_formatted": suggested_departure_formatted,
-            },
-            "alternatives_count": len(routes) - 1,
-        },
-    }
-
-
 def _create_route_registry_item(
     route_data: dict[str, Any],
     origin: str,
@@ -1221,6 +626,10 @@ def _create_route_registry_item(
         Tuple of (item_id, RegistryItem)
     """
     route_info = route_data.get("data", {}).get("route", {})
+    display = take_display_fields(route_info)
+    for key in ("polyline", "static_map_url"):
+        if key in route_info:
+            display[key] = route_info.pop(key)
 
     item_id = generate_registry_id(
         RegistryItemType.ROUTE,
@@ -1231,29 +640,13 @@ def _create_route_registry_item(
         id=item_id,
         type=RegistryItemType.ROUTE,
         payload={
-            "origin": route_info.get("origin"),
-            "destination": route_info.get("destination"),
-            "travel_mode": route_info.get("travel_mode"),
-            "distance_km": route_info.get("distance_km"),
-            "duration_minutes": route_info.get("duration_minutes"),
-            "duration_formatted": route_info.get("duration_formatted"),
-            "duration_in_traffic_minutes": route_info.get("duration_in_traffic_minutes"),
-            "traffic_conditions": route_info.get("traffic_conditions"),
-            "polyline": route_info.get("polyline"),
-            "steps": route_info.get("steps"),
-            "maps_url": route_info.get("maps_url"),
-            "static_map_url": route_info.get("static_map_url"),
-            "toll_info": route_info.get("toll_info"),
-            "eta": route_info.get("eta"),
-            "eta_formatted": route_info.get("eta_formatted"),
-            # Arrival-based route fields
-            "is_arrival_based": route_info.get("is_arrival_based", False),
-            "target_arrival_time": route_info.get("target_arrival_time"),
-            "target_arrival_formatted": route_info.get("target_arrival_formatted"),
-            "suggested_departure_time": route_info.get("suggested_departure_time"),
-            "suggested_departure_formatted": route_info.get("suggested_departure_formatted"),
+            **route_info,
+            "origin": origin,
+            "destination": destination,
+            "travel_mode": travel_mode.value,
         },
         meta=RegistryItemMeta(
+            display=display,
             source="google_routes",
             domain=CONTEXT_DOMAIN_ROUTES,
             tool_name="get_route",
@@ -1697,6 +1090,10 @@ async def get_route_tool(
             is_arrival_based=is_arrival_based,
             origin_coords=origin_coords,
             dest_coords=dest_coords,
+            waypoints=waypoints,
+            avoid_tolls=avoid_tolls,
+            avoid_highways=avoid_highways,
+            avoid_ferries=avoid_ferries,
         )
 
         if not formatted.get("success"):

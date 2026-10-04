@@ -25,17 +25,19 @@ Usage:
 
 import re
 from datetime import datetime, timedelta
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
+from pydantic import ValidationError
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RECURRENCE_REMINDER_LIMITS
 from src.core.i18n import resolve_language
 from src.core.i18n_api_messages import APIMessages
+from src.core.i18n_cards import card_label
 from src.core.recurrence import RecurrenceError, describe, recurrence_from_parameters
 from src.core.time_utils import format_datetime_for_display, now_utc
 from src.domains.agents.constants import (
@@ -58,7 +60,21 @@ from src.domains.agents.tools.runtime_helpers import (
 )
 from src.domains.reminders.schemas import ReminderCreate
 
+if TYPE_CHECKING:
+    from src.domains.reminders.models import Reminder
+
 logger = structlog.get_logger(__name__)
+
+
+def _reminder_schedule(reminder: Reminder, language: str) -> dict[str, str]:
+    """One malformed stored schedule must not remove the other pending items."""
+    try:
+        schedule = describe(reminder.recurrence_spec, language)
+    except ValidationError, RecurrenceError:
+        logger.warning("reminder_card_schedule_invalid", reminder_id=str(reminder.id))
+        schedule = card_label("unavailable", language)
+    return {"schedule_human": schedule, "schedule_timezone": reminder.user_timezone}
+
 
 # =============================================================================
 # Constants
@@ -480,7 +496,7 @@ async def list_reminders_tool(
                     locale=locale,
                 )
 
-                item_id = f"reminder_{str(reminder.id)[:8]}"
+                item_id = f"reminder_{reminder.id}"
                 registry_updates[item_id] = RegistryItem(
                     id=item_id,
                     type=RegistryItemType.REMINDER,
@@ -491,6 +507,8 @@ async def list_reminders_tool(
                         "trigger_at_formatted": formatted_trigger,
                         "created_at": reminder.created_at.isoformat(),
                         "created_at_formatted": formatted_created,
+                        **_reminder_schedule(reminder, locale),
+                        "status": reminder.status,
                     },
                     meta=RegistryItemMeta(
                         source=CONTEXT_DOMAIN_REMINDERS,
@@ -645,13 +663,17 @@ async def execute_reminder_delete_draft(
     Returns:
         Result dict with success status and message.
     """
+    from src.domains.agents.services.card_composition_service import draft_composition_scope
     from src.domains.reminders.service import ReminderService
     from src.infrastructure.database.session import get_db_context
 
     reminder_id_str = draft_content["reminder_id"]
     content = draft_content.get("content", "")
 
-    async with get_db_context() as db:
+    async with (
+        draft_composition_scope(draft_content, user_id, deps, "cancel_reminder"),
+        get_db_context() as db,
+    ):
         service = ReminderService(db)
         await service.cancel_reminder(
             user_id=user_id,

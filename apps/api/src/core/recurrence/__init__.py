@@ -13,7 +13,7 @@ from src.core.recurrence.dictation import (
     REPEAT_VALUES,
     recurrence_from_parameters,
 )
-from src.core.recurrence.display import describe, describe_until, join_clauses
+from src.core.recurrence.display import describe, describe_calendar, describe_until, join_clauses
 from src.core.recurrence.engine import (
     next_occurrence,
     occurrences,
@@ -39,6 +39,7 @@ from src.core.recurrence.spec import (
 )
 
 __all__ = [
+    "describe_calendar",
     "CLOCK_PATTERN",
     "DATE_PATTERN",
     "MAX_DAY_IN_MONTH",

@@ -111,6 +111,7 @@ class ConnectorCredentials(BaseModel):
     """Internal schema for decrypted connector credentials (not exposed via API)."""
 
     access_token: str
+    account_binding: str | None = Field(default=None, exclude=True)
     refresh_token: str | None = None
     token_type: str = "Bearer"
     expires_at: datetime | None = None
@@ -626,7 +627,7 @@ class CalendarListItem(BaseModel):
 
     name: str = Field(..., description="Calendar display name")
     is_default: bool = Field(False, description="Whether this is the default/primary calendar")
-    access_role: str = Field("owner", description="Access role: owner or reader")
+    access_role: str = Field("owner", description="Provider-reported calendar access role")
 
 
 class CalendarListResponse(BaseModel):

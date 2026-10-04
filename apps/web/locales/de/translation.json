@@ -849,7 +849,11 @@
     },
     "document_card": {
       "download": "{{name}} herunterladen",
-      "open": "{{name}} öffnen"
+      "open": "{{name}} öffnen",
+      "preview": "Dokumentvorschau",
+      "excerpt": "Dokumentauszug",
+      "first_page": "Erste Seite von {{name}}",
+      "preview_unavailable": "Vorschau nicht verfügbar. Du kannst das Dokument öffnen."
     },
     "skill_proposal": {
       "badge_new": "Neuer Skill",
@@ -1225,6 +1229,36 @@
         "observedResult": "Vorschlag des bisherigen Extraktors (vor Validierung)"
       },
       "resize": "Debug-Bereich in der Breite anpassen"
+    },
+    "card_actions": {
+      "reply": "Antworten",
+      "forward": "Weiterleiten",
+      "cancel_reminder": "Erinnerung abbrechen",
+      "unavailable": "Diese Aktion ist für diese gespeicherte Antwort nicht verfügbar.",
+      "editable": "Öffnet eine bearbeitbare Nachricht. Es wird nichts automatisch gesendet.",
+      "compose_reply": "Bereite eine Antwort auf diese E-Mail vor.",
+      "compose_forward": "Bereite die Weiterleitung dieser E-Mail vor.",
+      "compose_cancel_reminder": "Storniere diese Erinnerung.",
+      "replace_title": "Aktuellen Entwurf ersetzen?",
+      "replace_description": "Dein aktueller Text wird durch einen neuen bearbeitbaren Entwurf für diese Karte ersetzt.",
+      "replace_confirm": "Entwurf ersetzen",
+      "selected_context": "Ausgewählte Karte",
+      "selected_item": "Ausgewähltes Element",
+      "remove_context": "Ausgewählte Karte entfernen"
+    },
+    "route_map": {
+      "map": "Interaktive Routenkarte",
+      "activate": "Karte erkunden",
+      "primary": "Hauptroute",
+      "alternative": "Alternative {{number}}",
+      "choose": "Route auswählen",
+      "recenter": "Auswahl zentrieren",
+      "cost": "Etwa {{cost}} pro Öffnung",
+      "error": "Die Karte ist nicht verfügbar. Vorschau und Details bleiben zugänglich. Erneut versuchen oder Google Maps öffnen.",
+      "primary_details": "Die Details unten beschreiben die Hauptroute; weitere Fahrten stehen unter Alternativen.",
+      "omitted_one": "{{count}} unvollständige Route kann nicht angezeigt werden.",
+      "omitted_other": "{{count}} unvollständige Routen können nicht angezeigt werden.",
+      "report_error": "Das Laden konnte nicht erfasst werden. Erneut versuchen, ohne die Karte neu zu öffnen."
     }
   },
   "skill_apps": {
@@ -4904,7 +4938,11 @@
   "gallery": {
     "photo_counter": "Foto {{current}} von {{total}}",
     "place_photo": "Ortsfoto",
-    "expand_photo": "Foto im Vollbild öffnen"
+    "expand_photo": "Foto im Vollbild öffnen",
+    "photo_loading": "Foto wird geladen…",
+    "photo_unavailable": "Foto nicht verfügbar",
+    "image_unavailable": "Bild nicht verfügbar",
+    "view_source": "Auf Google Maps ansehen"
   },
   "hitl": {
     "default": "Bestätigst du diese Aktion?",

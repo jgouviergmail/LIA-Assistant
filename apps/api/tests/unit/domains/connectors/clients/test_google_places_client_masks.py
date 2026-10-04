@@ -66,6 +66,8 @@ class TestSearchTextMasks:
         mask = _mask_of(request_spy)
         assert "places.businessStatus" in mask
         assert "places.primaryTypeDisplayName" in mask
+        assert "places.timeZone" in mask
+        assert "places.utcOffsetMinutes" in mask
 
     async def test_full_mode_tracks_base_endpoint(
         self, client: GooglePlacesClient, request_spy: AsyncMock
@@ -130,6 +132,8 @@ class TestPlaceDetailsMask:
         await client.get_place_details("place-id-1", use_cache=False)
         mask = _mask_of(spy)
         for field in (
+            "timeZone",
+            "utcOffsetMinutes",
             "businessStatus",
             "priceRange",
             "primaryTypeDisplayName",

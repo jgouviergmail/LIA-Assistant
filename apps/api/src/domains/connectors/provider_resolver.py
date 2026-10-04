@@ -9,11 +9,12 @@ Created: 2026-03-10
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 import structlog
 
+from src.core.card_composition import ensure_composition_provider
 from src.domains.connectors.models import (
     CATEGORY_DISPLAY_NAMES,
     CONNECTOR_FUNCTIONAL_CATEGORIES,
@@ -24,8 +25,16 @@ from src.domains.connectors.models import (
 if TYPE_CHECKING:
     from src.domains.agents.dependencies import ToolDependencies
     from src.domains.agents.tools.exceptions import ConnectorNotEnabledError
+    from src.domains.connectors.schemas import ConnectorListResponse
 
 logger = structlog.get_logger(__name__)
+
+
+class ConnectorCatalogue(Protocol):
+    async def get_user_connectors(self, user_id: UUID) -> ConnectorListResponse: ...
+
+    async def is_connector_active(self, user_id: UUID, connector_type: ConnectorType) -> bool: ...
+
 
 # Legacy connector type aliases.
 # GMAIL (deprecated) is functionally equivalent to GOOGLE_GMAIL.
@@ -36,10 +45,10 @@ _LEGACY_CONNECTOR_ALIASES: dict[ConnectorType, ConnectorType] = {
 }
 
 
-async def resolve_active_connector(
+async def _resolve_active_connector(
     user_id: UUID,
     functional_category: str,
-    connector_service: Any,
+    connector_service: ConnectorCatalogue,
 ) -> ConnectorType | None:
     """
     Resolve the active connector type for a functional category.
@@ -100,10 +109,18 @@ async def resolve_active_connector(
     return ConnectorType(active_connectors[0].connector_type)
 
 
+async def resolve_active_connector(
+    user_id: UUID, functional_category: str, connector_service: ConnectorCatalogue
+) -> ConnectorType | None:
+    resolved = await _resolve_active_connector(user_id, functional_category, connector_service)
+    ensure_composition_provider(user_id, functional_category, resolved.value if resolved else None)
+    return resolved
+
+
 async def _instance_default(
     user_id: UUID,
     category_types: frozenset[ConnectorType],
-    connector_service: Any,
+    connector_service: ConnectorCatalogue,
 ) -> ConnectorType | None:
     """The category's keyless member the instance provides, if any (ADR-307).
 

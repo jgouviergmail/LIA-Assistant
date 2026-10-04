@@ -49,8 +49,7 @@ MAIN FUNCTIONS:
 
 import datetime as dt
 import re
-from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -64,6 +63,9 @@ from src.core.i18n_dates import (
     get_month_name,
     get_time_connector,
 )
+from src.core.time_parsing import parse_datetime as parse_datetime
+from src.core.time_parsing import parse_provider_datetime as parse_provider_datetime
+from src.core.time_parsing import parse_rfc3339 as parse_rfc3339
 
 logger = structlog.get_logger(__name__)
 
@@ -363,98 +365,6 @@ def normalize_user_datetime(dt_str: str | None, user_timezone: str) -> str | Non
 # =============================================================================
 
 
-def parse_datetime(dt_input: str | int | datetime | None) -> datetime | None:
-    """
-    Parse various datetime formats into a timezone-aware datetime object.
-
-    Handles:
-    - ISO 8601 strings: "2025-12-02T14:30:00+01:00", "2025-12-02T14:30:00Z"
-    - Unix timestamps in milliseconds (Gmail internalDate format)
-    - Unix timestamps in seconds
-    - datetime objects (returned as-is if timezone-aware)
-
-    Args:
-        dt_input: Datetime in various formats
-
-    Returns:
-        Timezone-aware datetime object, or None if parsing fails
-
-    Examples:
-        >>> parse_datetime("2025-12-02T14:30:00+01:00")
-        datetime(2025, 12, 2, 14, 30, tzinfo=...)
-
-        >>> parse_datetime(1733142600000)  # milliseconds
-        datetime(2025, 12, 2, 13, 30, tzinfo=UTC)
-
-        >>> parse_datetime("2025-12-02")  # date only
-        datetime(2025, 12, 2, 0, 0, tzinfo=UTC)
-    """
-    if dt_input is None:
-        return None
-
-    try:
-        if isinstance(dt_input, datetime):
-            if dt_input.tzinfo is None:
-                return dt_input.replace(tzinfo=UTC)
-            return dt_input
-
-        if isinstance(dt_input, int):
-            # Distinguish between seconds and milliseconds
-            # Timestamps after year 2001 in seconds: > 1_000_000_000
-            # Timestamps after year 2001 in milliseconds: > 1_000_000_000_000
-            if dt_input > 1_000_000_000_000:
-                # Milliseconds (Gmail internalDate format)
-                return datetime.fromtimestamp(dt_input / 1000, tz=UTC)
-            else:
-                # Seconds
-                return datetime.fromtimestamp(dt_input, tz=UTC)
-
-        if isinstance(dt_input, str):
-            # Handle 'Z' suffix (UTC)
-            normalized = dt_input.replace("Z", "+00:00")
-
-            # Try ISO 8601 format first
-            with suppress(ValueError):
-                dt = datetime.fromisoformat(normalized)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=UTC)
-                return dt
-
-            # Try RFC 2822 format (Gmail date header): "Sat, 03 Jan 2026 10:45:00 +0100"
-            # Also handles: "03 Jan 2026 10:45:00 +0100" (without day name)
-            import email.utils
-
-            with suppress(TypeError, ValueError, OverflowError):
-                parsed_tuple = email.utils.parsedate_tz(dt_input)
-                if parsed_tuple:
-                    # parsedate_tz returns (y, m, d, H, M, S, weekday, yearday, dst, tz_offset_seconds)
-                    # tz_offset_seconds is the offset from UTC in seconds (can be None)
-                    timestamp = email.utils.mktime_tz(parsed_tuple)
-                    return datetime.fromtimestamp(timestamp, tz=UTC)
-
-            # Try date-only format (e.g., "2025-12-02")
-            if len(dt_input) == 10 and dt_input.count("-") == 2:
-                dt = datetime.strptime(dt_input, "%Y-%m-%d")
-                return dt.replace(tzinfo=UTC)
-
-            # Try as numeric string (milliseconds)
-            if dt_input.isdigit():
-                ts = int(dt_input)
-                if ts > 1_000_000_000_000:
-                    return datetime.fromtimestamp(ts / 1000, tz=UTC)
-                else:
-                    return datetime.fromtimestamp(ts, tz=UTC)
-
-    except Exception as e:
-        logger.warning(
-            "datetime_parse_failed",
-            input_length=len(str(dt_input)),
-            error=str(e),
-        )
-
-    return None
-
-
 def _validate_date_range(
     dt: datetime | None,
     original_input: str | int | datetime | None,
@@ -493,14 +403,15 @@ def _validate_date_range(
 
 def convert_to_user_timezone(
     dt_input: str | int | datetime | None,
-    user_timezone: str = "UTC",
+    user_timezone: str | tzinfo = "UTC",
 ) -> datetime | None:
     """
     Convert a datetime to the user's timezone.
 
     Args:
         dt_input: Datetime in various formats (ISO string, timestamp, datetime)
-        user_timezone: User's IANA timezone (e.g., "Europe/Paris")
+        user_timezone: User's IANA timezone, or an explicit provider timezone
+            for labelled place-local hours (never an inferred server offset).
 
     Returns:
         Datetime object in user's timezone, or None if parsing fails
@@ -514,7 +425,7 @@ def convert_to_user_timezone(
         return None
 
     try:
-        user_tz = ZoneInfo(user_timezone)
+        user_tz = ZoneInfo(user_timezone) if isinstance(user_timezone, str) else user_timezone
         return dt.astimezone(user_tz)
     except Exception as e:
         logger.warning(
@@ -1122,54 +1033,8 @@ def convert_event_dates_in_payload(
         All-day events (start.date instead of start.dateTime) are left unchanged
         as they represent calendar dates, not moments in time.
     """
-    # Convert start datetime
-    start = event.get("start", {})
-    if start.get("dateTime"):
-        original_dt = start["dateTime"]
-        iso_converted = format_datetime_iso(start["dateTime"], user_timezone)
-        if iso_converted:
-            start["dateTime"] = iso_converted
-        start["formatted"] = format_datetime_for_display(
-            original_dt,  # Use ORIGINAL datetime, not the converted one
-            user_timezone,
-            locale,
-            include_time=True,
-        )
-        logger.debug(
-            "convert_event_start_date",
-            original=original_dt,
-            iso_converted=iso_converted,
-            formatted=start["formatted"],
-            user_timezone=user_timezone,
-            locale=locale,
-        )
-    elif start.get("date"):
-        # All-day event: format date only
-        start["formatted"] = format_date_only(start["date"], user_timezone, locale)
-
-    # Convert end datetime
-    end = event.get("end", {})
-    if end.get("dateTime"):
-        original_end_dt = end["dateTime"]  # Keep original before modification
-        iso_converted = format_datetime_iso(end["dateTime"], user_timezone)
-        if iso_converted:
-            end["dateTime"] = iso_converted
-        end["formatted"] = format_datetime_for_display(
-            original_end_dt,  # Use ORIGINAL datetime, not the converted one
-            user_timezone,
-            locale,
-            include_time=True,
-        )
-        logger.debug(
-            "convert_event_end_date",
-            original=original_end_dt,
-            iso_converted=iso_converted,
-            formatted=end["formatted"],
-            user_timezone=user_timezone,
-            locale=locale,
-        )
-    elif end.get("date"):
-        end["formatted"] = format_date_only(end["date"], user_timezone, locale)
+    for field in ("start", "end"):
+        _convert_event_edge(event.get(field), user_timezone, locale)
 
     # Convert metadata dates if present
     for field in ("created", "updated"):
@@ -1179,6 +1044,23 @@ def convert_event_dates_in_payload(
                 event[field] = iso_converted
 
     return event
+
+
+def _convert_event_edge(edge: object, user_timezone: str, locale: str | None) -> None:
+    """A civil date wins over synthetic binding clocks; an instant uses its source zone."""
+    if not isinstance(edge, dict):
+        return
+    if isinstance(edge.get("date"), str):
+        edge["formatted"] = format_date_only(edge["date"], "UTC", locale)
+        return
+    instant = parse_provider_datetime(edge)
+    if instant is None:
+        edge.pop("formatted", None)
+        return
+    converted = format_datetime_iso(instant, user_timezone)
+    if converted:
+        edge["dateTime"] = converted
+    edge["formatted"] = format_datetime_for_display(instant, user_timezone, locale)
 
 
 def convert_email_dates_in_payload(

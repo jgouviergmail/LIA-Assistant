@@ -55,12 +55,7 @@ export class ApiError extends Error {
  * dropped, so a caller can spread an optional filter without building the
  * object twice.
  */
-export type QueryParamValue =
-  | string
-  | number
-  | boolean
-  | readonly (string | number)[]
-  | undefined;
+export type QueryParamValue = string | number | boolean | readonly (string | number)[] | undefined;
 
 export interface RequestConfig extends RequestInit {
   /** Query parameters to append to URL */
@@ -477,14 +472,20 @@ class ApiClient {
     return this.request<T>('GET', endpoint, config);
   }
 
+  /** Keep a bounded/streamed body unread, with the shared request and error contract. */
+  async getResponse(endpoint: string, config?: RequestConfig): Promise<Response> {
+    const response = await this.send('GET', endpoint, config);
+    if (!response.ok) return handleResponse<never>(response);
+    return response;
+  }
+
   /**
    * GET a binary body (an audio segment) as a Blob, through the same cookie,
    * header, timeout and 401/403 handling as every JSON call. An error answer
    * still raises `ApiError` with the server's detail.
    */
   async getBlob(endpoint: string, config?: RequestConfig): Promise<Blob> {
-    const response = await this.send('GET', endpoint, config);
-    if (!response.ok) return handleResponse<never>(response);
+    const response = await this.getResponse(endpoint, config);
     return response.blob();
   }
 

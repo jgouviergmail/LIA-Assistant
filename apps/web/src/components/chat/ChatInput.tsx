@@ -106,6 +106,7 @@ export interface ChatInputProps {
    * mounted). Never auto-sent.
    */
   initialMessage?: string;
+  compositionContext?: React.ReactNode;
   /**
    * Past sent messages, NEWEST FIRST (UXR Lot 2 A7, extended per QA feedback
    * 2026-07-23): ArrowUp in an EMPTY input starts walking the history;
@@ -544,6 +545,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isGenerating = false,
   onStopGeneration,
   initialMessage,
+  compositionContext,
   sentHistory,
   prefill,
   slashCommands,
@@ -1010,6 +1012,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       )}
       <div className="max-w-4xl mx-auto">
+        {compositionContext}
         {/* Attachment preview strip */}
         {attachmentsEnabled && (
           <AttachmentPreview attachments={attachments} onRemove={removeFile} />

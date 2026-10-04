@@ -25,9 +25,11 @@ from src.domains.agents.display.components.base import (
     RenderContext,
     escape_html,
     render_chip,
+    render_d_item,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
+from src.domains.agents.display.values import scalar_text
 
 
 class ReminderCard(BaseComponent):
@@ -85,6 +87,8 @@ class ReminderCard(BaseComponent):
             trigger_at_formatted=trigger_at_formatted,
             is_imminent=is_imminent,
             ctx=ctx,
+            schedule=scalar_text(data.get("schedule_human")),
+            schedule_timezone=scalar_text(data.get("schedule_timezone")),
         )
 
         # Wrap with response zones if requested
@@ -128,6 +132,8 @@ class ReminderCard(BaseComponent):
         trigger_at_formatted: str,
         is_imminent: bool,
         ctx: RenderContext,
+        schedule: str = "",
+        schedule_timezone: str = "",
     ) -> str:
         """
         Render unified reminder card with responsive structure.
@@ -171,6 +177,10 @@ class ReminderCard(BaseComponent):
                 f"{icon(Icons.CALENDAR)} {created_label}{separator}{escape_html(created_at_formatted)}</div>"
             )
 
+        schedule_html = render_d_item(Icons.DATE_RANGE, escape_html(schedule)) if schedule else ""
+        if schedule_html and schedule_timezone:
+            schedule_html += render_d_item(Icons.SCHEDULE, escape_html(schedule_timezone))
+
         return f"""<div class="lia-card lia-reminder {imminent_class} {nested_class}" data-reminder-id="{escape_html(reminder_id)}">
 <div style="display:flex;gap:var(--lia-space-md);align-items:flex-start">
 <div class="lia-illus lia-illus--{illus_color}" style="width:36px;height:36px;border-radius:10px">
@@ -182,6 +192,7 @@ class ReminderCard(BaseComponent):
 <span class="lia-reminder__label">{escape_html(content)}</span>
 </div>
 {created_html}
+{schedule_html}
 </div>
 </div>
 </div>"""

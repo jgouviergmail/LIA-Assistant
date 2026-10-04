@@ -96,6 +96,45 @@ describe('MarkdownContent — sentinel dispatch', () => {
 });
 
 describe('MarkdownContent — place photos', () => {
+  it.each([JSON.stringify([null, 4, {}]), JSON.stringify('not an array')])(
+    'keeps the fallback for invalid photo lists %s',
+    urls => {
+      const { container } = render(
+        `<div class="lia-place__photo" data-photo-urls='${urls}'><img src="${PLACE_PHOTO}" alt="Kept photo"></div>`
+      );
+      expect(container.querySelector('img[alt="Kept photo"]')).not.toBeNull();
+    }
+  );
+
+  it('keeps the author beside the current photo and in the full-screen view', () => {
+    const data = JSON.stringify([
+      { url: PLACE_PHOTO, authors: [{ name: 'Author one', url: 'https://example.test/one' }] },
+      { url: `${PLACE_PHOTO}&i=2`, authors: [{ name: 'Author two', url: 'javascript:alert(1)' }] },
+    ]);
+    const { container } = render(
+      `<div class="lia-place__photo lia-card-hero" data-place-photos='${data}'><img src="${PLACE_PHOTO}"></div>`
+    );
+    expect(container.querySelector('.lia-place__photo')).toHaveClass('lia-card-hero');
+    expect(screen.getByText('Author one')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'common.next' }));
+    expect(screen.getByText('Author two')).toBeVisible();
+    expect(screen.queryByText('Author one')).not.toBeInTheDocument();
+    expect(container.querySelector('a[href^="javascript:"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'gallery.expand_photo' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Author two');
+  });
+  it('keeps lazy card avatars local to the visible detail, without a JavaScript prefetch', () => {
+    const constructor = vi.spyOn(globalThis, 'Image');
+    try {
+      const { container } = render(
+        '<details><summary>Reviews</summary><img class="lia-review__avatar" src="/avatar.jpg" loading="lazy" alt=""></details>'
+      );
+      expect(constructor).not.toHaveBeenCalled();
+      expect(container.querySelector('img')).toHaveAttribute('loading', 'lazy');
+    } finally {
+      constructor.mockRestore();
+    }
+  });
   it('turns several photos into a carousel', () => {
     const urls = JSON.stringify([PLACE_PHOTO, `${PLACE_PHOTO}&i=2`]);
     render(
@@ -137,6 +176,15 @@ describe('MarkdownContent — place photos', () => {
 });
 
 describe('MarkdownContent — standalone images', () => {
+  it('replaces an unavailable card image with a named fallback without retrying', () => {
+    const { container } = render(
+      '<img src="/missing-map.png" class="lia-route__map-image" alt="Carte">'
+    );
+    fireEvent.error(screen.getByRole('img', { name: 'Carte' }));
+    expect(screen.getByRole('img', { name: /Carte/ })).toHaveTextContent(/image/i);
+    expect(container.querySelector('img[src="/missing-map.png"]')).toBeNull();
+    expect(markImageLoaded).not.toHaveBeenCalled();
+  });
   it('renders a LIA component image untouched, keeping its class', () => {
     const { container } = render(
       '<img src="https://cdn.example.com/c.png" class="lia-card__image" alt="Carte">'

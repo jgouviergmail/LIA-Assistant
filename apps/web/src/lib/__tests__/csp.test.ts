@@ -59,10 +59,12 @@ describe('buildAppCsp (strict app policy)', () => {
     expect(prod.get('worker-src')).toEqual(["'self'", 'blob:']);
   });
 
-  it('allows exactly one external script host — the Cloudflare Insights beacon injected at the edge', () => {
+  it('allows only the beacon and exact Maps SDK hosts, never general Google scripts', () => {
     const scriptSrc = prod.get('script-src') ?? [];
     expect(scriptSrc.filter(s => s.startsWith('https://'))).toEqual([
       'https://static.cloudflareinsights.com',
+      'https://maps.googleapis.com',
+      'https://maps.gstatic.com',
     ]);
   });
 
@@ -100,16 +102,17 @@ describe('buildConnectSrc', () => {
   // Provider signaling hosts, including ElevenLabs' WebRTC LiveKit signaling.
   const LIVE_HOSTS =
     'wss://generativelanguage.googleapis.com wss://api.elevenlabs.io wss://livekit.rtc.elevenlabs.io';
+  const MAPS_HOSTS = 'https://maps.googleapis.com https://maps.gstatic.com';
 
   it('includes the API origin and its websocket variant in prod', () => {
     expect(buildConnectSrc(false, 'https://api.example.com')).toBe(
-      `'self' https://api.example.com wss://api.example.com ${FIREBASE_HOSTS} ${LIVE_HOSTS}`
+      `'self' https://api.example.com wss://api.example.com ${FIREBASE_HOSTS} ${LIVE_HOSTS} ${MAPS_HOSTS}`
     );
   });
 
   it('falls back to self (plus push enrolment and the live provider) on malformed API URL', () => {
     const value = buildConnectSrc(false, 'not a url');
-    expect(value).toBe(`'self' ${FIREBASE_HOSTS} ${LIVE_HOSTS}`);
+    expect(value).toBe(`'self' ${FIREBASE_HOSTS} ${LIVE_HOSTS} ${MAPS_HOSTS}`);
     expect(value).not.toContain('not a url');
   });
 
@@ -156,6 +159,7 @@ describe('buildConnectSrc', () => {
       'https://firebaseinstallations.googleapis.com',
       'https://fcmregistrations.googleapis.com',
       'wss://generativelanguage.googleapis.com',
+      'https://maps.googleapis.com',
     ]);
     expect(sources).not.toContain('https:');
     expect(sources).not.toContain('*');

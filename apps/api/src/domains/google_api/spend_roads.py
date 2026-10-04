@@ -78,6 +78,7 @@ GOOGLE_SPEND_ROADS: Final[dict[str, SpendRoad]] = {
     # spend is counted where Google bills it and attributed to the turn that
     # built the URL when its signed run id is presented (``media_attribution``).
     "domains/connectors/media_proxy_router.py": SpendRoad.ACCOUNTED,
+    "domains/connectors/map_load_metering.py": SpendRoad.ACCOUNTED,
     # A meeting's place name, reverse-geocoded in the processing job.
     "domains/meetings/enrichment.py": SpendRoad.ACCOUNTED,
     # The person's own address, geocoded when they save it.
@@ -122,6 +123,10 @@ ACCOUNTING_DOORS: Final[frozenset[str]] = frozenset(
 #: Modules that import a paid Google entry and make NO paid call. Each entry is
 #: an argument, never a convenience: it must say what the module does with it.
 NOT_A_PAID_CALL: Final[dict[str, str]] = {
+    "domains/agents/tools/routes_formatting.py": (
+        "Uses the Routes client's static distance/duration formatters on an already received "
+        "payload and builds an authorized proxy URL; it makes no provider call."
+    ),
     "domains/connectors/clients/__init__.py": (
         "Re-exports the client classes for the connector layer; builds nothing."
     ),

@@ -18,6 +18,11 @@
 /* V3 Display Architecture: Modern HTML components */
 /* Note: Material Symbols font is loaded via <link> in layout.tsx for better reliability */
 @import './lia-components.css';
+@import './lia-cards.css';
+@import './lia-route-map.css';
+@import './lia-overlays.css';
+@import './lia-overlays.css';
+@import './dashboard-header.css';
 /* Expressive-eyes widget animation system (self-contained reduced-motion block) */
 @import './eyes.css';
 

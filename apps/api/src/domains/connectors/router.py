@@ -124,10 +124,15 @@ async def list_connector_types() -> list[str]:
 # before /{connector_id} and inherit the demo-mode guard dependency.
 from src.domains.connectors.media_proxy_router import (  # noqa: E402
     media_proxy_router,
+    rate_limit_static_map,
     serve_billed_image,
 )
 
 router.include_router(media_proxy_router)
+
+from src.domains.connectors.map_load_router import map_load_router  # noqa: E402
+
+router.include_router(map_load_router)
 
 from src.domains.connectors.oauth_bulk_router import bulk_oauth_router  # noqa: E402
 
@@ -1249,6 +1254,7 @@ async def proxy_drive_thumbnail(
         200: {"content": {"image/jpeg": {}}, "description": "Photo image"},
         403: {"description": "Places connector not enabled for user"},
         404: {"description": "Photo not found"},
+        429: {"description": "Per-user media quota exceeded"},
     },
 )
 async def proxy_places_photo(
@@ -1259,6 +1265,7 @@ async def proxy_places_photo(
     sig: str | None = None,
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(rate_limit_static_map),
 ) -> StreamingResponse:
     """
     Proxy Google Places photo with global API key.

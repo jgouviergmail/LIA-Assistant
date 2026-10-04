@@ -13,6 +13,7 @@ Best Practices:
 - Error codes for programmatic handling
 """
 
+from src.core.card_composition import CardCompositionUnavailable
 from src.core.i18n import resolve_language
 from src.core.i18n_types import SupportedLanguage
 
@@ -44,6 +45,15 @@ class SSEErrorMessages:
             User-friendly error message for stream errors
         """
         language = resolve_language(language)
+        if isinstance(exception, CardCompositionUnavailable):
+            return {
+                "fr": "Cette carte ne peut plus être utilisée pour cette action. Recherche à nouveau l’élément, puis sélectionne une carte actuelle.",
+                "en": "This card can no longer be used for this action. Find the item again and select a current card.",
+                "de": "Diese Karte kann für diese Aktion nicht mehr verwendet werden. Suche das Element erneut und wähle eine aktuelle Karte.",
+                "es": "Esta tarjeta ya no se puede usar para esta acción. Busca de nuevo el elemento y selecciona una tarjeta actual.",
+                "it": "Questa scheda non può più essere usata per questa azione. Cerca di nuovo l’elemento e seleziona una scheda attuale.",
+                "zh-CN": "此卡片已无法用于此操作。请重新查找该项目并选择当前卡片。",
+            }[language]
         categorized = SSEErrorMessages._categorized_message(
             SSEErrorMessages._classify_error(exception), language
         )

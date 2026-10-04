@@ -11,6 +11,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent, within } from '@testing-library/react';
 
 import { InlinePlaceCarousel } from '../inline-place-carousel';
+import { apiImageProps } from '@/lib/utils/api-resource-url';
+import { proxyGoogleImageUrl } from '@/lib/utils';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -156,9 +158,94 @@ describe('InlinePlaceCarousel — opening a photo full screen', () => {
     expect(within(dialog).getByRole('img')).toHaveAttribute('src', IMAGES[1]);
   });
 
-  it('offers no full-screen entry for a single photo', () => {
+  it('handles an arrow pressed inside the dialog exactly once', async () => {
+    const { getByRole } = render(<InlinePlaceCarousel images={IMAGES} alt="Lieu" />);
+    fireEvent.click(getByRole('button', { name: 'gallery.expand_photo' }));
+    const dialog = getByRole('dialog');
+    fireEvent.keyDown(within(dialog).getByRole('button', { name: 'common.next' }), {
+      key: 'ArrowRight',
+    });
+    expect(within(dialog).getByRole('img')).toHaveAttribute('src', IMAGES[1]);
+  });
+
+  it('offers a full-screen entry for a single photo', () => {
     const { queryByRole } = render(<InlinePlaceCarousel images={['only.png']} alt="Lieu" />);
 
-    expect(queryByRole('button', { name: 'gallery.expand_photo' })).not.toBeInTheDocument();
+    expect(queryByRole('button', { name: 'gallery.expand_photo' })).toBeInTheDocument();
+  });
+});
+
+describe('InlinePlaceCarousel — degraded data and touch scrolling', () => {
+  it('uses the canonical authenticated API-image request for Google photos', () => {
+    const source = 'https://lh3.googleusercontent.com/example-photo';
+    const expected = apiImageProps(proxyGoogleImageUrl(source) || source);
+    const { getByRole } = render(<InlinePlaceCarousel images={[source]} />);
+    expect(getByRole('img')).toHaveAttribute('src', expected.src);
+    if (expected.crossOrigin)
+      expect(getByRole('img')).toHaveAttribute('crossorigin', expected.crossOrigin);
+  });
+  it.each([
+    { index: 99, source: '/b.jpg' },
+    { index: -1, source: '/a.jpg' },
+    { index: Number.NaN, source: '/a.jpg' },
+  ])('clamps the initial index $index', ({ index, source }) => {
+    const { getByRole } = render(
+      <InlinePlaceCarousel images={['/a.jpg', '/b.jpg']} initialIndex={index} />
+    );
+    expect(getByRole('img')).toHaveAttribute('src', source);
+  });
+
+  it('keeps distinct photo positions when the supplied URLs repeat', () => {
+    const { getByText } = render(
+      <InlinePlaceCarousel images={['/a.jpg', '/a.jpg', '/b.jpg']} initialIndex={1} />
+    );
+    expect(getByText('2 / 3')).toBeVisible();
+  });
+
+  it('keeps a valid photo when the gallery shrinks during rendering', () => {
+    const { rerender, getByRole } = render(
+      <InlinePlaceCarousel images={['/a.jpg', '/b.jpg']} initialIndex={1} />
+    );
+    rerender(<InlinePlaceCarousel images={['/new.jpg']} />);
+    expect(getByRole('img')).toHaveAttribute('src', '/new.jpg');
+  });
+
+  it('preserves the selected photo when images are reordered', () => {
+    const { rerender, getByRole } = render(
+      <InlinePlaceCarousel images={['/a.jpg', '/b.jpg']} initialIndex={1} />
+    );
+    rerender(<InlinePlaceCarousel images={['/b.jpg', '/a.jpg']} />);
+    expect(getByRole('img')).toHaveAttribute('src', '/b.jpg');
+  });
+
+  it('lets a mostly vertical gesture scroll the page without changing photos', () => {
+    const { getByRole } = render(<InlinePlaceCarousel images={['/a.jpg', '/b.jpg']} />);
+    const group = getByRole('group');
+    fireEvent.touchStart(group, { touches: [{ clientX: 200, clientY: 10 }] });
+    fireEvent.touchMove(group, { touches: [{ clientX: 140, clientY: 210 }] });
+    fireEvent.touchEnd(group);
+    expect(getByRole('img')).toHaveAttribute('src', '/a.jpg');
+  });
+
+  it('replaces an image failure with a named state and keeps navigation available', () => {
+    const { getByRole, getByText, queryByText } = render(
+      <InlinePlaceCarousel images={['/a.jpg', '/b.jpg']} />
+    );
+    fireEvent.error(getByRole('img'));
+    expect(getByText('gallery.photo_unavailable')).toBeVisible();
+    fireEvent.click(getByRole('button', { name: 'common.next' }));
+    expect(queryByText('gallery.photo_unavailable')).not.toBeInTheDocument();
+    expect(getByRole('img')).toHaveAttribute('src', '/b.jpg');
+  });
+  it('clears a previous error when an explicitly revisited photo loads successfully', () => {
+    const { getByRole, queryByText } = render(
+      <InlinePlaceCarousel images={['/a.jpg', '/b.jpg']} />
+    );
+    fireEvent.error(getByRole('img'));
+    fireEvent.click(getByRole('button', { name: 'common.next' }));
+    fireEvent.click(getByRole('button', { name: 'common.previous' }));
+    fireEvent.load(getByRole('img'));
+    expect(queryByText('gallery.photo_unavailable')).not.toBeInTheDocument();
+    expect(getByRole('button', { name: 'gallery.expand_photo' })).toBeEnabled();
   });
 });

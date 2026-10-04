@@ -25,6 +25,7 @@ import pytest
 
 from src.domains.agents.display import plain_text
 from src.domains.agents.display.components import base as display_base
+from src.domains.agents.display.components.folded_synthesis import format_synthesis_html
 from src.domains.agents.display.components.html_flatten import format_email_body, html_to_text
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.domains.shared.markdown_literal import read_as_markdown, untrusted_markdown
@@ -49,6 +50,7 @@ CEILING_SECONDS = 1.5
 Flattener = Callable[[str], object]
 
 FLATTENERS: dict[str, Flattener] = {
+    "format_synthesis_html": format_synthesis_html,
     "html_to_text(links=False)": lambda s: html_to_text(s, preserve_links=False),
     "html_to_text(links=True)": lambda s: html_to_text(s, preserve_links=True),
     "format_email_body(links=True)": lambda s: format_email_body(

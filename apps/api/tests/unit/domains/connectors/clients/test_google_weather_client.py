@@ -24,6 +24,7 @@ from src.domains.connectors.clients.google_weather_client import (
 pytestmark = pytest.mark.unit
 
 _CURRENT_PAYLOAD: dict[str, Any] = {
+    "currentTime": "2026-08-22T12:00:00Z",
     "temperature": {"degrees": 20.4, "unit": "CELSIUS"},
     "feelsLikeTemperature": {"degrees": 24.5, "unit": "CELSIUS"},
     "relativeHumidity": 65,

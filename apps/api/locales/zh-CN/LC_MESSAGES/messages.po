@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-25 23:33+0000\n"
-"PO-Revision-Date: 2026-09-26 04:40+0000\n"
+"POT-Creation-Date: 2026-10-03 16:10+0000\n"
+"PO-Revision-Date: 2026-10-03 16:11+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: Simplified Chinese\n"
 "Language: zh-CN\n"
@@ -216,11 +216,14 @@ msgstr "规则与指令"
 msgid "Standing instructions on how LIA should work for you"
 msgstr "关于 LIA 应如何为你工作的长期指示"
 
-msgid "Please specify a starting point or enable geolocation."
-msgstr "请指定出发地或启用地理定位。"
-
 msgid "No route found between these locations."
 msgstr "未找到这些地点之间的路线。"
+
+msgid "Route measurements are unavailable."
+msgstr "路线测量数据不可用。"
+
+msgid "Please specify a starting point or enable geolocation."
+msgstr "请指定出发地或启用地理定位。"
 
 msgid "Google Routes API is not configured."
 msgstr "Google Routes API 未配置。"

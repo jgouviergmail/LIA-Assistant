@@ -49,28 +49,12 @@ import hashlib
 import re
 from typing import Any
 
-from src.core.field_names import FIELD_SESSION_ID
+from src.core.credential_fields import CREDENTIAL_FIELD_NAMES
 from src.infrastructure.observability.quoted_content import redact_quoted_content
 
 # Sensitive field names to always redact (exact match, case-insensitive)
-SENSITIVE_FIELD_NAMES = {
-    "password",
-    "hashed_password",
-    "secret",
-    "api_key",
-    "apikey",
-    "token",
-    "access_token",
-    "refresh_token",
-    "auth_token",
-    "id_token",
-    "bearer",
-    "authorization",
-    "cookie",
+SENSITIVE_FIELD_NAMES = set(CREDENTIAL_FIELD_NAMES) | {
     "session",
-    FIELD_SESSION_ID,
-    "csrf",
-    "private_key",
     "credit_card",
     "card_number",
     "cvv",
@@ -80,12 +64,6 @@ SENSITIVE_FIELD_NAMES = {
     # as sensitive as long-lived tokens. `oauth_state`/`state` are handled
     # separately (fingerprinted, not redacted) so init↔callback correlation
     # survives — see `_STATE_FIELD_NAMES` and `fingerprint_secret`.
-    "code_verifier",
-    "code_challenge",
-    "client_secret",
-    "authorization_code",
-    "auth_code",
-    "oauth_state",
 }
 
 # Field names carrying an opaque OAuth state / CSRF token. Unlike the fields

@@ -149,9 +149,11 @@ class DraftService:
         """
         user_language = resolve_language(user_language)
         # Create the Draft object
+        from src.core.card_composition import bind_composition_draft
+
         draft = Draft(
             type=draft_type,
-            content=content,
+            content=bind_composition_draft(content, draft_type.value),
             related_registry_ids=related_registry_ids or [],
             source_tool=source_tool,
             source_step_id=source_step_id,

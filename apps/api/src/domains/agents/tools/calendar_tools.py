@@ -67,6 +67,8 @@ from src.domains.agents.context.runtime_context import (
     tool_user_id_str,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.data_registry.card_payload import take_display_fields
+from src.domains.agents.display.components.calendar_details import calendar_display_fields
 from src.domains.agents.tools.base import ConnectorTool
 
 # Draft execution callbacks live in calendar_draft_execution (extracted
@@ -1687,7 +1689,7 @@ class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
 
         for cal in calendars:
             cal_id = cal.get("id", "")
-            summary = cal.get("summary", "")
+            summary = cal.get("summaryOverride") or cal.get("summary", "")
             access_role = cal.get("accessRole", "reader")
             primary = cal.get("primary", False)
             background_color = cal.get("backgroundColor", "#4285f4")
@@ -1712,6 +1714,7 @@ class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
                     source="google_calendar",
                     domain=CONTEXT_DOMAIN_CALENDARS,
                     tool_name="list_calendars_tool",
+                    display={**take_display_fields(cal), **calendar_display_fields(cal)},
                 ),
             )
 

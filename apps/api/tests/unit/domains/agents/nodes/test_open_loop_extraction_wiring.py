@@ -10,7 +10,7 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from src.domains.agents.nodes.post_response_extractions import (
     _schedule_post_response_extractions,
@@ -80,6 +80,19 @@ def _call(state, context, *, flag_on: bool = True):
 
 @pytest.mark.unit
 class TestOpenLoopExtractionWiring:
+    def test_extraction_receives_semantics_without_mutating_stored_cards(self):
+        answer = AIMessage(
+            content='<div class="lia-card">UI-only</div>',
+            additional_kwargs={"lia_model_view": {"version": 1, "content": "Authorized fact"}},
+        )
+        state = {"messages": [HumanMessage(content="Remember this"), answer]}
+        with patch(
+            "src.domains.agents.nodes.post_response_extractions.extract_open_loops_background"
+        ) as extraction:
+            _call(state, _context())
+        assert extraction.call_args.kwargs["messages"][1].content == "Authorized fact"
+        assert state["messages"][1].content == '<div class="lia-card">UI-only</div>'
+
     def test_scheduled_when_flag_on_and_message_meaningful(self):
         captured = _call(_state(), _context(), flag_on=True)
         names = [name for name, _ in captured]

@@ -25,6 +25,32 @@ from src.core.middleware import (
 )
 
 
+@pytest.mark.unit
+def test_cross_origin_document_preview_exposes_truncation_without_extra_metadata() -> None:
+    from fastapi.responses import Response
+
+    app = FastAPI()
+
+    @app.get("/test")
+    async def preview() -> Response:
+        return Response("received", headers={"X-Preview-Truncated": "true"})
+
+    with (
+        patch("src.core.middleware.settings.cors_origins", ["https://web.test"]),
+        patch("src.core.middleware.settings.rate_limit_enabled", False),
+    ):
+        setup_middleware(app)
+        response = TestClient(app).get("/test", headers={"Origin": "https://web.test"})
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://web.test"
+    assert response.headers["access-control-allow-credentials"] == "true"
+    exposed = {
+        value.strip().lower()
+        for value in response.headers["access-control-expose-headers"].split(",")
+    }
+    assert exposed == {"x-request-id", "x-preview-truncated"}
+
+
 def _make_app(*middleware_classes: type) -> FastAPI:
     """FastAPI app with test routes and the given middleware (only)."""
     app = FastAPI()

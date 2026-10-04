@@ -352,7 +352,13 @@ def _process_draft_action(
             draft_type=pending_draft.draft_type,
             updated_fields=list(updated_content.keys()),
         )
-        return "edit", updated_content, None
+        from src.core.card_composition import preserve_composition_binding
+
+        return (
+            "edit",
+            preserve_composition_binding(pending_draft.draft_content, updated_content),
+            None,
+        )
 
     elif action == "cancel":
         logger.info(

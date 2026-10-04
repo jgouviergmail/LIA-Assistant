@@ -26,6 +26,7 @@ from src.core.config import settings
 from src.core.constants import MCP_USER_TOOL_NAME_PREFIX
 from src.core.field_names import FIELD_REGISTRY_ID
 from src.domains.agents.constants import CONTEXT_DOMAIN_MCP
+from src.domains.agents.data_registry.mcp_metadata import mcp_item_payload, mcp_source_display
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -274,12 +275,9 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                     registry_updates[rid] = RegistryItem(
                         id=rid,
                         type=RegistryItemType.MCP_RESULT,
-                        payload={
-                            "tool_name": self.mcp_tool_name,
-                            "server_name": self.server_display_name,
-                            "_mcp_structured": True,
-                            **item_data,
-                        },
+                        payload=mcp_item_payload(
+                            item_data, self.server_display_name, self.mcp_tool_name
+                        ),
                         meta=RegistryItemMeta(
                             source=f"mcp_{self.server_name_label}",
                             domain=CONTEXT_DOMAIN_MCP,
@@ -320,6 +318,7 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                     source=f"mcp_{self.server_name_label}",
                     domain=CONTEXT_DOMAIN_MCP,
                     tool_name=self.name,
+                    display=mcp_source_display(self.server_display_name, self.mcp_tool_name),
                 ),
             )
 

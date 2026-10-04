@@ -5,6 +5,7 @@
 import type { SkillProposalCard } from '@/lib/skill-proposals/types';
 import type { PerformedEffect } from '@/types/performed-effects';
 import type { ExecutionTrace } from './execution-trace';
+import type { CardActionsProjection } from './card-actions';
 
 export type MessageRole = 'user' | 'assistant' | 'system';
 
@@ -180,6 +181,8 @@ export interface ChatStreamChunk {
 }
 
 export interface DoneMetadata {
+  run_id?: string;
+  lia_card_actions?: CardActionsProjection;
   duration_ms?: number;
   total_tokens?: number;
   // ADR-117 Lot 3: synthesized done of a user-cancelled run — the partial
@@ -372,6 +375,7 @@ export interface BrowserGeolocation {
  * Contains optional browser-side information that enriches the request.
  */
 export interface BrowserContext {
+  card_composition?: import('@/types/card-actions').CardCompositionWire;
   geolocation?: BrowserGeolocation | null;
   /** LIA avatar gender preference: 'male' or 'female' (affects TTS voice) */
   lia_gender?: 'male' | 'female' | null;

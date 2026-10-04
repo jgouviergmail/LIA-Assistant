@@ -7,14 +7,13 @@ Renders tasks with:
 - Due date with overdue warning
 - Priority indicator
 - Collapsible details (notes, subtasks, parent, links)
-- Action buttons (View, Complete)
+- Provider link when available; complete supplied notes and subtask progress
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from src.core.i18n_drafts import label_separator
 from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import is_past
 from src.domains.agents.constants import CONTEXT_DOMAIN_TASKS
@@ -27,12 +26,14 @@ from src.domains.agents.display.components.base import (
     render_card_top,
     render_chip,
     render_chip_row,
-    render_collapsible,
     render_d_item,
-    safe_url,
     wrap_with_response,
 )
-from src.domains.agents.display.icons import Icons, icon
+from src.domains.agents.display.components.card_content import render_linked_title
+from src.domains.agents.display.components.source_details import task_native_chip
+from src.domains.agents.display.components.task_details import render_task_details
+from src.domains.agents.display.icons import Icons
+from src.domains.agents.display.values import scalar_text
 
 
 class TaskItem(BaseComponent):
@@ -41,12 +42,12 @@ class TaskItem(BaseComponent):
 
     Design:
     - Response wrapper with assistant comment zone + actions zone
-    - Checkbox visual (completed/pending) with animation
+    - Status visual (completed/pending)
     - Title with strike-through if done
-    - Due date with overdue warning (pulsing)
+    - Due date with overdue warning
     - Priority indicator
     - Collapsible details (notes, subtasks, parent, links)
-    - Action buttons (View, Complete)
+    - Provider link when available
     """
 
     def render(
@@ -77,8 +78,10 @@ class TaskItem(BaseComponent):
         url = data.get("url") or data.get("link") or data.get("selfLink", "")
         due = data.get("due", "")
         status = data.get("status", "needsAction")
-        notes = data.get("notes", "")
-        priority = data.get("priority", "")
+        notes = scalar_text(data.get("notes"))
+        priority = data.get("priority") or data.get("importance", "")
+        if priority == "normal":
+            priority = "medium"
         task_list_name = data.get("taskListName", "")
         completed_date = data.get("completed", "")
 
@@ -165,34 +168,20 @@ class TaskItem(BaseComponent):
             illus_icon, illus_color = "radio_button_unchecked", "amber"
 
         # --- Card top: illus + title ---
-        title_style = (
-            ' style="text-decoration:line-through;color:var(--lia-text-muted)"'
-            if is_completed
-            else ""
-        )
-        title_html = f'<a class="lia-card-top__title" href="{safe_url(url)}" target="_blank"{title_style}>{escape_html(title)}</a>'
+        title_html = render_linked_title(title, url)
         card_top_html = render_card_top(illus_icon, illus_color, title_html)
 
         # --- Chips: status/date + task list name ---
-        chips = []
-        if is_completed and completed_date:
-            completed_str = format_full_date(
-                completed_date, ctx.language, ctx.timezone, include_time=True
-            )
-            chips.append(render_chip(completed_str, "green", "event_available"))
-        elif due:
-            due_str = format_relative_date(due, ctx.language, ctx.timezone)
-            if is_overdue and not is_completed:
-                chips.append(render_chip(due_str, "red", "warning"))
-            elif not is_completed:
-                chips.append(render_chip(due_str, "amber", Icons.CALENDAR))
-
-        # Task list badge
-        if task_list_name:
-            display_name = task_list_name if task_list_name != "@default" else "Tasks"
-            chips.append(render_chip(display_name, "", Icons.CHECKLIST))
-
-        chip_row_html = render_chip_row(" ".join(chips)) if chips else ""
+        chip_row_html = self._render_task_chips(
+            priority,
+            is_completed,
+            is_overdue,
+            due,
+            completed_date,
+            task_list_name,
+            ctx,
+            task_native_chip(data, ctx),
+        )
 
         # --- Notes shown directly (no "Voir plus" for short notes) ---
         notes_html = ""
@@ -200,7 +189,7 @@ class TaskItem(BaseComponent):
             notes_html = render_d_item(Icons.NOTE, escape_html(notes))
 
         # --- Collapsible for long notes + subtasks + parent + links ---
-        collapsible_html = self._render_collapsible_details(data, is_completed, ctx)
+        collapsible_html = render_task_details(data, ctx)
 
         return f"""<div class="lia-card lia-task {status_class} {overdue_class} {nested_class}">
 {card_top_html}
@@ -209,165 +198,46 @@ class TaskItem(BaseComponent):
 {collapsible_html}
 </div>"""
 
-    def _render_priority_badge(
-        self, priority: str, is_completed: bool, ctx: RenderContext, compact: bool = False
+    def _render_task_chips(
+        self,
+        priority: str,
+        is_completed: bool,
+        is_overdue: bool,
+        due: str,
+        completed_date: str,
+        task_list_name: str,
+        ctx: RenderContext,
+        native_chip: str = "",
     ) -> str:
-        """Render priority badge."""
-        if not priority or is_completed:
-            return ""
-
-        priority_lower = priority.lower()
-        if compact:
-            priority_map = {
-                "high": ("lia-badge--danger", "!"),
-                "medium": ("lia-badge--warning", "·"),
-                "low": ("lia-badge--subtle", ""),
-            }
-            badge_class, badge_icon = priority_map.get(priority_lower, ("", ""))
-            if badge_class and badge_icon:
-                return f'<span class="lia-badge {badge_class}">{badge_icon}</span>'
-        else:
-            priority_map = {
-                "high": "lia-badge--danger",  # type: ignore
-                "medium": "lia-badge--warning",  # type: ignore
-                "low": "lia-badge--subtle",  # type: ignore
-            }
-            badge_class = priority_map.get(priority_lower, "")  # type: ignore
-            if badge_class:
-                priority_label = V3Messages.get_priority(ctx.language, priority)
-                return f'<span class="lia-badge {badge_class}">{escape_html(priority_label)}</span>'
-
-        return ""
-
-    def _render_list_badge(self, task_list_name: str, compact: bool = False) -> str:
-        """Render task list name badge (always visible to avoid confusion)."""
-        if not task_list_name:
-            return ""
-
-        # Clean up default list name
-        display_name = task_list_name
-        if task_list_name == "@default":
-            display_name = "Tasks"
-
-        if compact:
-            # Mobile/tablet: icon + short name
-            return f'<span class="lia-badge lia-badge--info">{icon(Icons.CHECKLIST)} {escape_html(display_name)}</span>'
-        else:
-            # Desktop: icon + full name
-            return f'<span class="lia-badge lia-badge--info">{icon(Icons.CHECKLIST)} {escape_html(display_name)}</span>'
-
-    def _render_collapsible_details(
-        self, data: dict[str, Any], is_completed: bool, ctx: RenderContext
-    ) -> str:
-        """Render collapsible section with extended details."""
-        detail_sections = []
-
-        # Full notes (longer than 100 chars)
-        full_notes = data.get("notes", "")
-        if full_notes and len(full_notes) > 100:
-            notes_preview = full_notes[:300] + "..." if len(full_notes) > 300 else full_notes
-            detail_sections.append(
-                f'<div class="lia-task__full-notes">'
-                f"{icon(Icons.NOTE)}"
-                f"<span>{escape_html(notes_preview)}</span>"
-                f"</div>"
+        """A task's actual priority, civil due date and source list."""
+        chips: list[str] = []
+        if native_chip:
+            chips.append(native_chip)
+        if priority in {"high", "medium", "low"} and not is_completed:
+            color = {"high": "red", "medium": "amber", "low": "blue"}[priority]
+            chips.append(
+                render_chip(V3Messages.get_priority(ctx.language, priority), color, "flag")
             )
-
-        # Parent task
-        parent_title = data.get("parentTitle", "")
-        if parent_title:
-            subtask_of_label = V3Messages.get_subtask_of(ctx.language)
-            detail_sections.append(
-                f'<div class="lia-task__detail-item">'
-                f"{icon(Icons.REPLY)}"
-                f"<span>{escape_html(subtask_of_label)}{label_separator(ctx.language)}{escape_html(parent_title)}</span>"
-                f"</div>"
+        if is_completed and completed_date:
+            date = format_full_date(completed_date, ctx.language, ctx.timezone, include_time=True)
+            chips.append(render_chip(date, "green", "event_available"))
+        elif due and not is_completed:
+            date = format_relative_date(due, ctx.language, ctx.timezone)
+            chips.append(
+                render_chip(
+                    date,
+                    "red" if is_overdue else "amber",
+                    "warning" if is_overdue else Icons.CALENDAR,
+                )
             )
-
-        # Links
-        links = data.get("links", [])
-        if links:
-            link_items = []
-            link_default_label = V3Messages.get_link(ctx.language)
-            for link in links[:3]:
-                if isinstance(link, dict):
-                    link_desc = link.get("description", link_default_label)
-                    link_url = link.get("link", "")
-                    if link_url:
-                        link_items.append(
-                            f'<a href="{safe_url(link_url)}" target="_blank">{escape_html(link_desc)}</a>'
-                        )
-            if link_items:
-                links_label = V3Messages.get_links(ctx.language)
-                detail_sections.append(
-                    f'<div class="lia-task__detail-item">'
-                    f"{icon(Icons.LINK)}"
-                    f'<span>{escape_html(links_label)}{label_separator(ctx.language)}{", ".join(link_items)}</span>'
-                    f"</div>"
-                )
-
-        # Note: Completion date is now displayed directly on the card header (with full date/time)
-        # Note: Task list name is now always displayed in header badge, no need to repeat here
-
-        # Subtasks with progress
-        subtasks = data.get("subtasks", [])
-        if subtasks:
-            subtask_items = []
-            completed_count = 0
-            for subtask in subtasks[:10]:
-                if isinstance(subtask, dict):
-                    st_title = subtask.get("title", "")
-                    st_status = subtask.get("status", "needsAction")
-                    if st_title:
-                        if st_status == "completed":
-                            completed_count += 1
-                            subtask_items.append(
-                                f'<div class="lia-task__subtask lia-task__subtask--done">'
-                                f"{icon(Icons.TASK)}"
-                                f"<span><s>{escape_html(st_title)}</s></span>"
-                                f"</div>"
-                            )
-                        else:
-                            subtask_items.append(
-                                f'<div class="lia-task__subtask">'
-                                f"{icon(Icons.CHECKBOX_BLANK)}"
-                                f"<span>{escape_html(st_title)}</span>"
-                                f"</div>"
-                            )
-
-            if subtask_items:
-                total_count = len(subtasks)
-                progress_pct = (completed_count / total_count) * 100 if total_count > 0 else 0
-                subtasks_label = V3Messages.get_subtasks(ctx.language)
-
-                # Progress bar
-                progress_html = (
-                    f'<div class="lia-task__progress">'
-                    f'<div class="lia-task__progress-bar" style="width: {progress_pct:.0f}%"></div>'
-                    f"</div>"
-                )
-
-                detail_sections.append(
-                    f'<div class="lia-task__subtasks">'
-                    f'<div class="lia-task__subtasks-header">'
-                    f"{icon(Icons.CHECKLIST)}"
-                    f"<span>{escape_html(subtasks_label)} ({completed_count}/{total_count})</span>"
-                    f"{progress_html}"
-                    f"</div>"
-                    f'<div class="lia-task__subtasks-list">{"".join(subtask_items)}</div>'
-                    f"</div>"
-                )
-
-        # If we have details, wrap in collapsible
-        if detail_sections:
-            content_html = "\n".join(detail_sections)
-            return render_collapsible(
-                trigger_text=V3Messages.get_see_more(ctx.language),
-                content_html=f'<div class="lia-task__extended">{content_html}</div>',
-                initially_open=False,
+        if task_list_name:
+            name = (
+                task_list_name
+                if task_list_name != "@default"
+                else V3Messages.get_domain_section_label("tasks", ctx.language)
             )
-
-        return ""
+            chips.append(render_chip(name, "", Icons.CHECKLIST))
+        return render_chip_row(" ".join(chips)) if chips else ""
 
     def _is_overdue(self, due: str | None) -> bool:
         """Check if task is overdue using timezone-safe comparison."""

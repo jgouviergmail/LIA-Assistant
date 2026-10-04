@@ -150,6 +150,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [HEALTH_METRICS.md](./technical/HEALTH_METRICS.md) | Health Metrics — iPhone Shortcuts ingestion, per-user tokens, charts, aggregation; assistant integrations (agents + Heartbeat + journal + memory) + `HEALTH_KINDS` registry (v1.17.2) | ✅ |
 | [LANDING_PAGE.md](./technical/LANDING_PAGE.md) | Architecture Landing Page — composants React, SEO, OpenGraph | ✅ |
 | [CARD_SYSTEM.md](./technical/CARD_SYSTEM.md) | Système de cartes HTML riches dans le chat (Design System v4) | ✅ |
+| [HTML_CARDS.md](./technical/HTML_CARDS.md) | Cartes déterministes du chat : données, interactions, mémoire, sécurité et validation | ✅ |
 | [PERSONALITIES.md](./technical/PERSONALITIES.md) | Système de personnalités (seeds, traductions, sélection utilisateur) | ✅ |
 | [NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md) | Flux de notifications de bout en bout (SSE, FCM, Telegram) ; le signal de synchronisation de la discussion après chaque validation et la fusion côté client (ADR-320) | ✅ |
 | [NANOBOT_INTEGRATION_ROADMAP.md](./technical/NANOBOT_INTEGRATION_ROADMAP.md) | Roadmap d'intégration (document de planification — chemins prévisionnels) | 📦 |

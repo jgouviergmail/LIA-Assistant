@@ -2,7 +2,7 @@
 
 **Status**: ✅ IMPLEMENTED (2026-07-09)
 **Author**: Claude Code (Fable 5)
-**Related**: `apps/web/vitest.config.ts`, `apps/web/src/lib/sse-handlers/__tests__/sse-symmetry.test.ts`, [GUIDE_TESTING.md](../guides/GUIDE_TESTING.md) §Tests Frontend, `apps/api/src/domains/agents/api/schemas.py`
+**Related**: `apps/web/vitest.config.mts`, `apps/web/src/lib/sse-handlers/__tests__/sse-symmetry.test.ts`, [GUIDE_TESTING.md](../guides/GUIDE_TESTING.md) §Tests Frontend, `apps/api/src/domains/agents/api/schemas.py`
 
 ## Context
 
@@ -39,7 +39,7 @@ into a debug log as "unknown event type" for months.
      (including the full HITL interrupt→resume cycle), `useVoiceMode`
      driven through fake `AudioContext`/`AudioWorkletNode`/`getUserMedia`
      and captured KWS/VAD/WebSocket callbacks — no real audio, no MSW.
-   - *Ratcheted thresholds* in `vitest.config.ts`: the fully-covered
+   - *Ratcheted thresholds* in `vitest.config.mts`: the fully-covered
      directories are locked at 100 via per-glob thresholds, the three hooks
      at their measured values, plus a low global floor. Thresholds are set
      just under the measured value, only ever go up, and never down —

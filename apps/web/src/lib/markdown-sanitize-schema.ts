@@ -78,6 +78,8 @@ export const markdownSanitizeSchema: Options = {
     'time',
     'figure',
     'figcaption',
+    'progress',
+    'meter',
   ],
   strip: ['script', 'style'],
   attributes: {
@@ -87,9 +89,23 @@ export const markdownSanitizeSchema: Options = {
     ...Object.fromEntries(CONSTRAINED_CLASSNAME_TAGS.map(t => [t, withFreeClassName(t)])),
     // `a` also needs target/rel for card links opening in a new tab:
     a: withFreeClassName('a', ['target', 'rel']),
+    ol: withFreeClassName('ol', ['start']),
+    li: withFreeClassName('li', ['value']),
     img: [...(defaultSchema.attributes?.img ?? []), 'loading'],
     details: [...(defaultSchema.attributes?.details ?? []), 'open'],
+    div: [
+      ...(defaultSchema.attributes?.div ?? []),
+      'className',
+      'style',
+      'data*',
+      'tabIndex',
+      ['role', 'region'],
+      'ariaLabel',
+    ],
     button: ['type', 'disabled', 'className', 'style', 'data*'],
+    progress: ['value', 'max', 'ariaLabel', 'className'],
+    meter: ['value', 'min', 'max', 'ariaLabel', 'className'],
+    span: [...(defaultSchema.attributes?.span ?? []), ['translate', 'no'], ['ariaHidden', 'true']],
   },
   protocols: {
     ...defaultSchema.protocols,

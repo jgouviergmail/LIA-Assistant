@@ -5,9 +5,15 @@ Converts Microsoft Graph API calendar event objects to the dict structure
 expected by calendar_tools.py (same format as GoogleCalendarClient).
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 import structlog
+
+from src.core.field_names import FIELD_DISPLAY_ONLY
+from src.domains.connectors.clients.normalizers.microsoft_recurrence import (
+    graph_recurrence_snapshot,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -78,14 +84,6 @@ def normalize_graph_event(event: dict[str, Any]) -> dict[str, Any]:
             "displayName": organizer_data.get("name", ""),
         }
 
-    # Recurrence
-    recurrence = []
-    if event.get("recurrence"):
-        pattern = event["recurrence"].get("pattern", {})
-        recurrence_type = pattern.get("type", "")
-        if recurrence_type:
-            recurrence.append(f"RRULE:FREQ={recurrence_type.upper()}")
-
     # Status mapping (Microsoft → Google)
     show_as = event.get("showAs", "busy")
     transparency = "transparent" if show_as == "free" else "opaque"
@@ -99,7 +97,9 @@ def normalize_graph_event(event: dict[str, Any]) -> dict[str, Any]:
         "end": end or {},
         "attendees": attendees,
         "organizer": organizer,
-        "recurrence": recurrence,
+        # Graph's native pattern is not an RFC 5545 FREQ. Keep the supplied
+        # schedule for semantic readers; no write/scheduling adapter consumes it.
+        "recurrence": [],
         "status": "confirmed" if not event.get("isCancelled", False) else "cancelled",
         "transparency": transparency,
         "htmlLink": event.get("webLink", ""),
@@ -107,11 +107,25 @@ def normalize_graph_event(event: dict[str, Any]) -> dict[str, Any]:
         "updated": event.get("lastModifiedDateTime", ""),
         "iCalUID": event.get("iCalUId", ""),
         "_provider": "microsoft",
+        FIELD_DISPLAY_ONLY: _event_display_fields(event),
     }
 
+    if schedule := graph_recurrence_snapshot(event.get("recurrence")):
+        normalized["recurrence_pattern"] = schedule
     normalized.update(_teams_conference_fields(event))
 
     return normalized
+
+
+def _event_display_fields(event: Mapping[str, object]) -> dict[str, object]:
+    return {
+        "source_recurrence": event.get("recurrence"),
+        "native_event": {
+            key: event[key]
+            for key in ("showAs", "createdDateTime", "lastModifiedDateTime")
+            if key in event
+        },
+    }
 
 
 def _teams_conference_fields(event: dict[str, Any]) -> dict[str, Any]:
@@ -146,10 +160,6 @@ def _normalize_datetime(dt_data: dict[str, Any] | None) -> dict[str, str] | None
     dt_str = dt_data.get("dateTime", "")
     timezone = dt_data.get("timeZone", "")
 
-    # Microsoft sometimes returns fractional seconds — strip them for consistency
-    if "." in dt_str:
-        dt_str = dt_str.split(".")[0]
-
     return {
         "dateTime": dt_str,
         "timeZone": timezone,
@@ -171,10 +181,17 @@ def normalize_graph_calendar(cal: dict[str, Any]) -> dict[str, Any]:
         "summary": cal.get("name", ""),
         "description": "",
         "primary": cal.get("isDefaultCalendar", False),
-        "accessRole": "owner" if cal.get("canEdit", False) else "reader",
+        "accessRole": "writer" if cal.get("canEdit", False) else "reader",
         "backgroundColor": _color_name_to_hex(cal.get("color", "")),
         "selected": True,
         "_provider": "microsoft",
+        FIELD_DISPLAY_ONLY: {
+            "access_role": (
+                "writer"
+                if cal.get("canEdit") is True
+                else "reader" if cal.get("canEdit") is False else None
+            )
+        },
     }
 
 

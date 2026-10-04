@@ -8,12 +8,22 @@ runtime/session state — and therefore unit-testable in isolation.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.time_utils import format_time_only
+from src.core.time_utils import format_time_only, parse_rfc3339
+from src.domains.agents.display.values import list_values, scalar_text
+from src.domains.agents.tools.weather_fields import (
+    extra_fields,
+    finite_number,
+    mapping,
+    measurement,
+    observation,
+    probability,
+    weather_timezone,
+)
 
 
 def _extract_location_from_geocode(
@@ -63,18 +73,32 @@ def _format_current_weather_response(
     temp_unit = "°C" if units == "metric" else "°F"
     speed_unit = "m/s" if units == "metric" else "mph"
 
-    main = weather.get("main", {})
-    wind = weather.get("wind", {})
-    weather_info = weather.get("weather", [{}])[0]
-    clouds = weather.get("clouds", {})
-    visibility = weather.get("visibility", 0)
+    main = mapping(weather.get("main"))
+    wind = mapping(weather.get("wind"))
+    weather_info = next(
+        (
+            mapping(value)
+            for value in list_values(weather.get("weather"))
+            if isinstance(value, dict)
+        ),
+        {},
+    )
+    visibility = finite_number(weather.get("visibility"))
 
     # Format sunrise/sunset in user's timezone
-    sys_info = weather.get("sys", {})
-    sunrise_ts = sys_info.get("sunrise")
-    sunset_ts = sys_info.get("sunset")
-    sunrise_str = format_time_only(sunrise_ts, user_timezone) if sunrise_ts else "N/A"
-    sunset_str = format_time_only(sunset_ts, user_timezone) if sunset_ts else "N/A"
+    sys_info = mapping(weather.get("sys"))
+    sunrise_ts = finite_number(sys_info.get("sunrise"))
+    sunset_ts = finite_number(sys_info.get("sunset"))
+    sunrise_str = (
+        format_time_only(observation(sunrise_ts), weather_timezone(user_timezone))
+        if observation(sunrise_ts)
+        else ""
+    )
+    sunset_str = (
+        format_time_only(observation(sunset_ts), weather_timezone(user_timezone))
+        if observation(sunset_ts)
+        else ""
+    )
 
     # Use city name from API if resolved_name is empty (auto-resolved without address)
     location_name = resolved_name
@@ -87,6 +111,9 @@ def _format_current_weather_response(
     return {
         "success": True,
         "data": {
+            "source": (
+                "google_weather" if weather.get("source") == "google_weather" else "openweathermap"
+            ),
             "location": {
                 "name": location_name,
                 "country": country or sys_info.get("country", ""),
@@ -94,23 +121,27 @@ def _format_current_weather_response(
                 "lon": lon,
             },
             "weather": {
-                "temperature": f"{main.get('temp', 'N/A')}{temp_unit}",
-                "feels_like": f"{main.get('feels_like', 'N/A')}{temp_unit}",
-                "temp_min": f"{main.get('temp_min', 'N/A')}{temp_unit}",
-                "temp_max": f"{main.get('temp_max', 'N/A')}{temp_unit}",
-                "description": weather_info.get("description", "N/A"),
-                "icon": weather_info.get("icon", ""),
-                "humidity": f"{main.get('humidity', 'N/A')}%",
-                "pressure": f"{main.get('pressure', 'N/A')} hPa",
-                "visibility": f"{visibility / 1000:.1f} km" if visibility else "N/A",
+                "temperature": measurement(main.get("temp"), temp_unit),
+                "feels_like": measurement(main.get("feels_like"), temp_unit),
+                "temp_min": measurement(main.get("temp_min"), temp_unit),
+                "temp_max": measurement(main.get("temp_max"), temp_unit),
+                "description": scalar_text(weather_info.get("description")),
+                "icon": scalar_text(weather_info.get("icon")),
+                "humidity": measurement(main.get("humidity"), "%"),
+                "pressure": measurement(main.get("pressure"), " hPa"),
+                "visibility": (
+                    f"{visibility / 1000:.1f} km"
+                    if visibility is not None and visibility >= 0
+                    else ""
+                ),
                 "wind": {
-                    "speed": f"{wind.get('speed', 'N/A')} {speed_unit}",
-                    "direction": f"{wind.get('deg', 'N/A')}°",
-                    "gust": f"{wind.get('gust', 'N/A')} {speed_unit}" if wind.get("gust") else None,
+                    "speed": measurement(wind.get("speed"), f" {speed_unit}"),
+                    "direction": measurement(wind.get("deg"), "°"),
+                    "gust": measurement(wind.get("gust"), f" {speed_unit}"),
                 },
-                "clouds": clouds.get("all", "N/A"),
                 "sunrise": sunrise_str,
                 "sunset": sunset_str,
+                **extra_fields(weather, temp_unit, speed_unit),
             },
         },
     }
@@ -150,13 +181,13 @@ def _format_forecast_response(
             {
                 "date": day.get("date"),
                 "temp": {
-                    "min": f"{day.get('temp_min', 'N/A')}{temp_unit}",
-                    "max": f"{day.get('temp_max', 'N/A')}{temp_unit}",
-                    "avg": f"{day.get('temp_avg', 'N/A')}{temp_unit}",
+                    "min": measurement(day.get("temp_min"), temp_unit),
+                    "max": measurement(day.get("temp_max"), temp_unit),
+                    "avg": measurement(day.get("temp_avg"), temp_unit),
                 },
                 "description": day.get("condition", "N/A"),
-                "humidity": f"{day.get('humidity_avg', 'N/A')}%",
-                "wind_speed": f"{day.get('wind_speed_avg', 'N/A')} {speed_unit}",
+                "humidity": measurement(day.get("humidity_avg"), "%"),
+                "wind_speed": measurement(day.get("wind_speed_avg"), f" {speed_unit}"),
             }
         )
 
@@ -188,14 +219,16 @@ def _entry_local_datetime(entry: dict[str, Any], user_timezone: str) -> datetime
     Returns:
         The timezone-aware local datetime, or None when ``dt`` is absent.
     """
-    ts = entry.get("dt")
+    ts = finite_number(entry.get("dt"))
+    tz = ZoneInfo(weather_timezone(user_timezone))
     if ts is None:
-        return None
+        raw = scalar_text(entry.get("dt_txt"))
+        parsed = parse_rfc3339(raw.replace(" ", "T") + "Z")
+        return parsed.astimezone(tz) if parsed else None
     try:
-        tz: Any = ZoneInfo(user_timezone)
-    except KeyError, ValueError:
-        tz = UTC
-    return datetime.fromtimestamp(ts, tz=tz)
+        return datetime.fromtimestamp(ts, tz=tz)
+    except ValueError, OverflowError, OSError:
+        return None
 
 
 def _entry_local_date(entry: dict[str, Any], user_timezone: str) -> str:
@@ -213,9 +246,32 @@ def _entry_local_date(entry: dict[str, Any], user_timezone: str) -> str:
     """
     local = _entry_local_datetime(entry, user_timezone)
     if local is None:
-        # Fallback: the UTC "dt_txt" date part (best effort when dt is absent).
-        return str(entry.get("dt_txt", ""))[:10]
+        return ""
     return local.date().isoformat()
+
+
+def _hourly_reading(
+    entry: dict[str, object], temp_unit: str, speed_unit: str, user_timezone: str
+) -> dict[str, object]:
+    main = mapping(entry.get("main"))
+    wind = mapping(entry.get("wind"))
+    weather_info = next(
+        (mapping(value) for value in list_values(entry.get("weather")) if isinstance(value, dict)),
+        {},
+    )
+    local_dt = _entry_local_datetime(entry, user_timezone)
+    return {
+        "datetime": entry.get("dt"),
+        "datetime_text": local_dt.strftime("%Y-%m-%d %H:%M:%S") if local_dt is not None else "",
+        "temp": measurement(main.get("temp"), temp_unit),
+        "feels_like": measurement(main.get("feels_like"), temp_unit),
+        "description": scalar_text(weather_info.get("description")),
+        "icon": scalar_text(weather_info.get("icon")),
+        "humidity": measurement(main.get("humidity"), "%"),
+        "precipitation_probability": probability(entry.get("pop")),
+        "wind_speed": measurement(wind.get("speed"), f" {speed_unit}"),
+        **extra_fields(entry, temp_unit, speed_unit),
+    }
 
 
 def _format_hourly_response(
@@ -255,8 +311,9 @@ def _format_hourly_response(
         if not country:
             country = city_data.get("country", "")
 
-    hourly_forecasts = []
-    forecast_list = forecast_data.get("list", [])
+    forecast_list = [
+        entry for entry in list_values(forecast_data.get("list")) if isinstance(entry, dict)
+    ]
 
     # Specific-day request: keep that day's slots (projected to the user's local
     # date). Otherwise: rolling near-term window of the first ``entries_needed``.
@@ -267,37 +324,9 @@ def _format_hourly_response(
     else:
         selected_entries = forecast_list[:entries_needed]
 
-    for entry in selected_entries:
-        main = entry.get("main", {})
-        wind = entry.get("wind", {})
-        weather_info = entry.get("weather", [{}])[0]
-        pop = entry.get("pop", 0)  # Probability of precipitation (0-1)
-
-        # Format datetime ON THE USER'S WALL CLOCK. `dt` stays the raw UTC epoch
-        # (unambiguous, consumed programmatically); `datetime_text` is what the
-        # response LLM quotes and the weather card renders, so it must be local —
-        # OpenWeatherMap's own `dt_txt` is UTC and shifted the whole strip.
-        dt = entry.get("dt")
-        local_dt = _entry_local_datetime(entry, user_timezone)
-        dt_txt = (
-            local_dt.strftime("%Y-%m-%d %H:%M:%S")
-            if local_dt is not None
-            else str(entry.get("dt_txt", ""))
-        )
-
-        hourly_forecasts.append(
-            {
-                "datetime": dt,
-                "datetime_text": dt_txt,
-                "temp": f"{main.get('temp', 'N/A')}{temp_unit}",
-                "feels_like": f"{main.get('feels_like', 'N/A')}{temp_unit}",
-                "description": weather_info.get("description", "N/A"),
-                "icon": weather_info.get("icon", ""),
-                "humidity": f"{main.get('humidity', 'N/A')}%",
-                "precipitation_probability": f"{pop * 100:.0f}",
-                "wind_speed": f"{wind.get('speed', 'N/A')} {speed_unit}",
-            }
-        )
+    hourly_forecasts = [
+        _hourly_reading(entry, temp_unit, speed_unit, user_timezone) for entry in selected_entries
+    ]
 
     return {
         "success": True,
@@ -308,6 +337,12 @@ def _format_hourly_response(
             },
             "interval": "3 hours",  # Free tier gives 3-hour intervals
             "forecast_entries": len(hourly_forecasts),
+            "timezone": weather_timezone(user_timezone),
             "hourly": hourly_forecasts,
+            "source": (
+                "google_weather"
+                if forecast_data.get("source") == "google_weather"
+                else "openweathermap"
+            ),
         },
     }

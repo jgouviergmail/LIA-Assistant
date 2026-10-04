@@ -18,6 +18,7 @@ import {
   StreamPhase,
 } from '@/types/chat-state';
 import { normalizeHitlPayload } from '@/lib/hitl-payload';
+import { withCardCompositionContext, withCompositionUserMetadata } from '@/lib/card-actions';
 import type { HitlDecisionWire } from '@/types/hitl';
 import type { CapabilityDirectiveWire } from '@/types/directive';
 import type { LiveSpokenMeta } from '@/lib/live/session-controller';
@@ -110,7 +111,8 @@ export interface UseChatReturn {
      * stamped with the session and keeps the person's spoken words beside the
      * request the voice model wrote.
      */
-    liveMeta?: LiveSpokenMeta
+    liveMeta?: LiveSpokenMeta,
+    cardComposition?: import('@/types/card-actions').CardCompositionWire
   ) => Promise<void>;
   clearMessages: () => void;
   setMessages: (messages: Message[]) => void;
@@ -510,7 +512,8 @@ export const useChat = ({
       },
       hitlDecision?: HitlDecisionWire,
       directive?: CapabilityDirectiveWire,
-      liveMeta?: LiveSpokenMeta
+      liveMeta?: LiveSpokenMeta,
+      cardComposition?: import('@/types/card-actions').CardCompositionWire
     ) => {
       // ✅ CRITICAL: Cancel any pending stream before starting new one
       // Prevents double token counting and ensures clean state
@@ -589,7 +592,10 @@ export const useChat = ({
 
       // Dispatch user message (state: idle → sending)
       // Note: Removed console.log to avoid logging user message content (PII)
-      dispatch({ type: 'SEND_MESSAGE', payload: { message: userMessage } });
+      dispatch({
+        type: 'SEND_MESSAGE',
+        payload: { message: withCompositionUserMetadata(userMessage, cardComposition) },
+      });
 
       // Generate message ID for assistant response
       const assistantMessageId = generateUUID();
@@ -646,7 +652,7 @@ export const useChat = ({
         content,
         userId: user.id,
         sessionId,
-        browserContext,
+        browserContext: withCardCompositionContext(browserContext, cardComposition),
         attachmentIds,
         sttMeta,
         hitlDecision,

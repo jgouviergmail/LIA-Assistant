@@ -6,18 +6,19 @@ Provides the foundation for all domain-specific components.
 
 from __future__ import annotations
 
-import html
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import quote
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, MARKDOWN_SPAN_MAX_CHARS
 from src.core.i18n import resolve_language
+from src.domains.agents.display.card_collection import fold_card_collection, render_collection_item
 
 if TYPE_CHECKING:
     pass
@@ -26,11 +27,21 @@ if TYPE_CHECKING:
 # HTML → plain text lives in its own module (ADR-326: linear by construction,
 # and this file is frozen at its audited size); re-exported so the e-mail card,
 # the components package and the plain-text door keep one import surface.
+from src.domains.agents.display.components.card_chips import (
+    render_chip as render_chip,
+)
+from src.domains.agents.display.components.card_chips import (
+    render_chip_row as render_chip_row,
+)
+from src.domains.agents.display.components.card_chips import (
+    render_chip_stars as render_chip_stars,
+)
 from src.domains.agents.display.components.html_flatten import (  # noqa: F401  (re-export)
     format_email_body,
     html_to_text,
 )
 from src.domains.agents.display.config import separator_bold
+from src.domains.agents.display.escaping import escape_html as escape_html
 
 # Import from icons module for Material Symbols support
 from src.domains.agents.display.icons import (
@@ -46,7 +57,9 @@ from src.domains.agents.display.urls import (  # noqa: F401  (re-export)
     build_directions_url,
     build_place_url,
     safe_css_color,
-    safe_url,
+)
+from src.domains.agents.display.urls import (
+    safe_url as safe_url,
 )
 
 # =============================================================================
@@ -115,7 +128,14 @@ class BaseComponent(ABC):
     """
 
     @abstractmethod
-    def render(self, data: dict[str, Any], ctx: RenderContext) -> str:
+    def render(
+        self,
+        data: dict[str, Any],
+        ctx: RenderContext,
+        *,
+        is_first_item: bool = True,
+        is_last_item: bool = True,
+    ) -> str:
         """
         Render the component to HTML.
 
@@ -127,6 +147,10 @@ class BaseComponent(ABC):
             HTML string with appropriate CSS classes
         """
         pass
+
+    def prepare_items(self, items: Sequence[object], ctx: RenderContext) -> list[object]:
+        """Presentation grouping only, shared by every collection rendering path."""
+        return list(items)
 
     def render_list(
         self,
@@ -153,28 +177,27 @@ class BaseComponent(ABC):
         if not items:
             return ""
 
-        # Limit items
-        items = items[: ctx.max_items]
-
         # Render each item with position-aware separator flags
         # Note: We render with tentative flags, then filter empty cards
         # Empty cards (e.g., routes with no destination) are excluded
         html_parts: list[str] = []
-        total = len(items)
-        for idx, item in enumerate(items):
+        prepared = self.prepare_items(items, ctx)
+        total = len(prepared)
+        for idx, item in enumerate(prepared):
             is_first = idx == 0
             is_last = idx == total - 1
             # Pass position flags - components should use these for separators
-            rendered = self.render(  # type: ignore[call-arg]
+            rendered = render_collection_item(
+                self,
                 item,
                 ctx,
-                is_first_item=is_first,
-                is_last_item=is_last,
+                first=is_first,
+                last=is_last,
             )
             # Filter out empty cards (validation failures return "")
             if rendered.strip():
                 html_parts.append(compact_html(rendered))
-        return "\n".join(html_parts)
+        return fold_card_collection(html_parts, ctx.max_items, ctx.language)
 
     @staticmethod
     def _nested_class(ctx: RenderContext) -> str:
@@ -194,28 +217,6 @@ class BaseComponent(ABC):
 #: a backslash opens LaTeX delimiters; a reader of Markdown
 #: (``shared.markdown_literal.read_as_markdown``) takes backticks for a code span
 #: where HTML has none. Referenced, each is only its character.
-_CHAT_TEXT_MARKS = str.maketrans({"$": "&#36;", "\\": "&#92;", "`": "&#96;"})
-
-
-def escape_html(text: str | None) -> str:
-    """Escape a text for an HTML card of the chat.
-
-    ``html.escape`` makes it text for an HTML parser; the chat then reads math
-    in that DECODED text, so a dollar, a backslash and a backtick are
-    referenced too — measured through the chat's pipeline (review 14): a card
-    value « rm -rf $BACKUP_DIR/$OLD » drew a formula, and so did one holding a
-    backslash before a bracket. The chat takes a referenced dollar as a
-    literal one (``lib/markdown-dollars.ts``).
-
-    Args:
-        text: A text a card shows (None or empty gives an empty string).
-
-    Returns:
-        The text, safe inside an element or a quoted attribute.
-    """
-    if not text:
-        return ""
-    return html.escape(str(text)).translate(_CHAT_TEXT_MARKS)
 
 
 def compact_html(html_string: str) -> str:
@@ -302,7 +303,7 @@ def format_phone(phone: str | None) -> str:
 def format_date(
     dt: datetime | str | int | None,
     language: str | None = None,
-    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+    timezone: str | tzinfo = DEFAULT_USER_DISPLAY_TIMEZONE,
     format_type: DateFormatType = "full",
     include_time: bool = False,
 ) -> str:
@@ -402,7 +403,7 @@ def format_date(
         try:
             from zoneinfo import ZoneInfo
 
-            now = datetime.now(ZoneInfo(timezone))
+            now = datetime.now(ZoneInfo(timezone) if isinstance(timezone, str) else timezone)
         except Exception:
             # parsed_dt is always aware (convert_to_user_timezone guarantees it);
             # UTC is a pure defensive fallback that keeps `now` aware regardless.
@@ -754,7 +755,7 @@ def wrap_with_response(
     if show_top:
         parts.append(separator_bold())
 
-    parts.append('<div class="lia-response-wrapper">')
+    parts.append('<div class="lia-response-wrapper" data-card-version="2">')
 
     # Zone 1: Assistant comment
     if assistant_comment:
@@ -1335,78 +1336,6 @@ def render_card_hero(image_url: str, alt_text: str = "") -> str:
     """)
 
 
-def render_chip(
-    text: str,
-    variant: str = "",
-    icon_name: str = "",
-) -> str:
-    """Render a single chip (inline metadata tag with optional icon).
-
-    Args:
-        text: Chip text content
-        variant: Color variant (green, amber, red, indigo, time, stars, thread, attach, allday)
-        icon_name: Optional Material Symbols icon name
-
-    Returns:
-        HTML for a lia-chip span
-    """
-    variant_class = f" lia-chip--{variant}" if variant else ""
-    icon_html = (
-        f'<span class="material-symbols-outlined">{escape_html(icon_name)}</span>'
-        if icon_name
-        else ""
-    )
-    return f'<span class="lia-chip{variant_class}">{icon_html}{escape_html(text)}</span>'
-
-
-def render_chip_stars(rating: float, count: int = 0) -> str:
-    """Render a star-rating chip with filled/empty stars.
-
-    Args:
-        rating: Rating value (0-5). Accepts the numeric STRING form too — JSON
-            providers and MCP results commonly send ``"4.5"`` — because
-            ``int("4.5")`` raises and the caller's exception boundary would then
-            drop every card of the answer, not just this chip.
-        count: Number of reviews (0 to hide count)
-
-    Returns:
-        HTML for a lia-chip--stars chip
-    """
-    try:
-        numeric_rating = float(rating)
-    except TypeError, ValueError:
-        return ""
-
-    full = max(0, min(5, int(numeric_rating)))
-    stars_html = "".join('<span class="material-symbols-outlined">star</span>' for _ in range(full))
-    empty_html = "".join(
-        '<span class="material-symbols-outlined lia-chip__star-empty">star</span>'
-        for _ in range(5 - full)
-    )
-    count_text = f" {rating}"
-    if count:
-        count_text += f" ({count})"
-    return f'<span class="lia-chip lia-chip--stars">{stars_html}{empty_html}{escape_html(count_text)}</span>'
-
-
-def render_chip_row(
-    chips_html: str,
-    separator_pos: str = "",
-) -> str:
-    """Render a row of chips with optional separators.
-
-    Args:
-        chips_html: Pre-built HTML of lia-chip elements
-        separator_pos: Where to add border separators:
-            "" = no separator, "top", "bottom", "both"
-
-    Returns:
-        HTML for a lia-chip-row div
-    """
-    sep_class = f" lia-chip-row--sep-{separator_pos}" if separator_pos else ""
-    return f'<div class="lia-chip-row{sep_class}">{chips_html}</div>'
-
-
 def render_section_header(
     label: str,
     icon_name: str,
@@ -1687,6 +1616,9 @@ def render_review(
     time_text: str,
     rating: int,
     text: str,
+    *,
+    author_html: str = "",
+    footer_html: str = "",
 ) -> str:
     """Render a review item with author, time, stars, and text.
 
@@ -1713,11 +1645,12 @@ def render_review(
     return compact_html(f"""
         <div class="lia-review">
             <div class="lia-review__hdr">
-                <strong>{escape_html(author)}</strong>
+                <strong>{author_html or escape_html(author)}</strong>
                 {time_html}
-                {stars_html}{empty_html}
+                <span class="lia-review__stars" aria-hidden="true">{stars_html}{empty_html}</span>
             </div>
             <div class="lia-review__text">{escape_html(text)}</div>
+            {footer_html}
         </div>
     """)
 

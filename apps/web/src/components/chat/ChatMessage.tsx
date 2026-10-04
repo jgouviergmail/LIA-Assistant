@@ -25,6 +25,10 @@ import { classifyImageExpiry } from '@/lib/image-expiry';
 import { copyMessageToClipboard } from '@/lib/message-clipboard';
 import { apiImageProps, apiResourceUrl } from '@/lib/utils/api-resource-url';
 import { MarkdownContent } from './MarkdownContent';
+import { GeneratedDocumentPreview } from './GeneratedDocumentPreview';
+import { MessageCardActionsProvider } from './markdown-card-actions';
+import { cardSourceMessageId, retryFromCardMessage } from '@/lib/card-actions';
+import type { CardCompositionDraft } from '@/types/card-actions';
 import { documentTypeIcon } from './document-card-icon';
 import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
 import { ShareImageButton } from '@/components/peers/ShareImageButton';
@@ -86,9 +90,13 @@ export interface ChatMessageProps {
    * Only wired for the LATEST error: replaying an old failure would send it
    * into a conversation that has moved on. Absent → no retry is offered.
    */
-  onRetry?: (prompt: string) => void;
+  onRetry?: (
+    prompt: string,
+    selection?: import('@/types/card-actions').CardCompositionWire
+  ) => void;
   /** Peers Lot 7: composer prefill for the peer Reply quick-action. */
   onPrefillComposer?: (text: string) => void;
+  onCardCompose?: (draft: CardCompositionDraft) => void;
 }
 
 /** Window (ms) within which a proactive notification counts as "just arrived". */
@@ -376,7 +384,10 @@ function AssistantActionRow({
   /** The bubble being decorated — read for its pinned retry prompt. */
   message: Message;
   /** W3: wired only on the latest error bubble (the list decides). */
-  onRetry?: (prompt: string) => void;
+  onRetry?: (
+    prompt: string,
+    selection?: import('@/types/card-actions').CardCompositionWire
+  ) => void;
   /** Peers Lot 7: composer prefill for the Reply quick-action (never sends). */
   onPrefillComposer?: (text: string) => void;
 }) {
@@ -411,7 +422,7 @@ function AssistantActionRow({
       {retryPrompt && onRetry && (
         <button
           type="button"
-          onClick={() => onRetry(retryPrompt)}
+          onClick={() => retryFromCardMessage(onRetry, retryPrompt, message)}
           className="inline-flex items-center gap-1.5 rounded-md border border-border/30 bg-background/80 px-2 py-1 text-xs font-medium text-foreground/90 hover:bg-background transition-colors"
         >
           <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
@@ -548,7 +559,7 @@ const IMAGE_OVERLAY_ACTION =
 
 /** An icon action at the end of a document card (download, send by e-mail). */
 const DOCUMENT_CARD_ACTION =
-  'p-2 shrink-0 rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  'inline-flex items-center justify-center min-w-11 min-h-11 p-2 shrink-0 rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 /**
  * AI-generated image cards — rendered outside markdown to avoid
@@ -690,48 +701,55 @@ function GeneratedDocumentCards({ documents }: { documents?: GeneratedDocument[]
           <div
             key={i}
             data-testid="generated-document-card"
-            className="flex items-center gap-3 rounded-lg border bg-card p-3 w-full max-w-[512px] mx-auto hover:shadow-md transition-shadow"
+            className="overflow-hidden rounded-lg border bg-card w-full max-w-[512px] mx-auto"
           >
-            <a
-              href={documentOpenHref(doc, i18n.language)}
-              target="_blank"
-              rel="noopener"
-              className="flex items-center gap-3 min-w-0 flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={t('chat.document_card.open', { name: doc.filename })}
-            >
-              <Icon className="w-8 h-8 shrink-0 text-primary" aria-hidden="true" />
-              {/* divs, not spans: the expiry notice renders a <p>, which is
+            <div className="flex items-center gap-2 p-3">
+              <a
+                href={documentOpenHref(doc, i18n.language)}
+                target="_blank"
+                rel="noopener"
+                className="flex items-center gap-3 min-h-11 min-w-0 flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={t('chat.document_card.open', { name: doc.filename })}
+              >
+                <Icon className="w-8 h-8 shrink-0 text-primary" aria-hidden="true" />
+                {/* divs, not spans: the expiry notice renders a <p>, which is
                   valid flow content inside <a>/<div> but not inside <span> */}
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium text-sm">{doc.filename}</div>
-                <div className="text-xs text-muted-foreground">
-                  {doc.doc_type.toUpperCase()} · {formatFileSize(doc.size_bytes)}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium text-sm">{doc.filename}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {doc.doc_type.toUpperCase()} · {formatFileSize(doc.size_bytes)}
+                  </div>
+                  <ImageExpiryNotice expiresAt={doc.expires_at} kept={doc.kept} family="document" />
                 </div>
-                <ImageExpiryNotice expiresAt={doc.expires_at} kept={doc.kept} family="document" />
-              </div>
-            </a>
-            <FileEmailShareButton
+              </a>
+              <FileEmailShareButton
+                url={doc.url}
+                name={doc.filename}
+                sizeBytes={doc.size_bytes}
+                expiresAt={doc.expires_at}
+                variant="overlay"
+                className={DOCUMENT_CARD_ACTION}
+                labelName={doc.filename}
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href={apiResourceUrl(doc.url)}
+                    download={doc.filename}
+                    className={DOCUMENT_CARD_ACTION}
+                    aria-label={t('chat.document_card.download', { name: doc.filename })}
+                  >
+                    <Download className="w-4 h-4" aria-hidden="true" />
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent>{t('common.download')}</TooltipContent>
+              </Tooltip>
+            </div>
+            <GeneratedDocumentPreview
               url={doc.url}
-              name={doc.filename}
-              sizeBytes={doc.size_bytes}
-              expiresAt={doc.expires_at}
-              variant="overlay"
-              className={DOCUMENT_CARD_ACTION}
-              labelName={doc.filename}
+              filename={doc.filename}
+              docType={doc.doc_type}
             />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href={apiResourceUrl(doc.url)}
-                  download={doc.filename}
-                  className={DOCUMENT_CARD_ACTION}
-                  aria-label={t('chat.document_card.download', { name: doc.filename })}
-                >
-                  <Download className="w-4 h-4" aria-hidden="true" />
-                </a>
-              </TooltipTrigger>
-              <TooltipContent>{t('common.download')}</TooltipContent>
-            </Tooltip>
           </div>
         );
       })}
@@ -1179,11 +1197,17 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 different scopes and is refused (quoting across answers would
                 stitch unrelated sentences). */}
             <div key={markdownKey} className={phaseFadeClass} data-selection-scope="assistant">
-              <MarkdownContent
-                content={assistantBody(message)}
-                isUser={false}
-                searchHighlight={props.searchHighlight}
-              />
+              <MessageCardActionsProvider
+                metadata={message.metadata}
+                messageId={cardSourceMessageId(message)}
+                onCompose={props.onCardCompose}
+              >
+                <MarkdownContent
+                  content={assistantBody(message)}
+                  isUser={false}
+                  searchHighlight={props.searchHighlight}
+                />
+              </MessageCardActionsProvider>
             </div>
             {/* ADR-299: the live session's closing card (renders nothing on
                 every other row — the card owns its check). */}

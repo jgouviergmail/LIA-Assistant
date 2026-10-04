@@ -12,11 +12,11 @@ Renders weather data with:
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from functools import partial
 from typing import Any
 
-from src.core.config import settings
 from src.core.geo_utils import WIND_CARDINAL_CODES, wind_deg_to_cardinal
 from src.core.i18n import resolve_language
 from src.core.i18n_drafts import label_separator
@@ -27,7 +27,6 @@ from src.domains.agents.display.components.base import (
     RenderContext,
     escape_html,
     format_full_date,
-    format_time,
     render_collapsible,
     render_d_item,
     wrap_with_response,
@@ -36,7 +35,15 @@ from src.domains.agents.display.components.environment_row import (
     air_quality_text,
     pollen_text,
 )
+from src.domains.agents.display.components.source_attribution import weather_attribution
+from src.domains.agents.display.components.weather_collection import prepare_weather_items
+from src.domains.agents.display.components.weather_details import (
+    weather_extra_rows,
+    weather_sun_rows,
+)
+from src.domains.agents.display.components.weather_series import render_weather_series
 from src.domains.agents.display.icons import Icons, icon
+from src.domains.agents.display.values import first_present, nonnegative_number, scalar_text
 
 
 def _add_labelled_row(
@@ -149,6 +156,9 @@ class WeatherCard(BaseComponent):
         "tropical storm": (Icons.STORMY, "tropical-storm"),
     }
 
+    def prepare_items(self, items: Sequence[object], ctx: RenderContext) -> list[object]:
+        return prepare_weather_items(items)
+
     def render(
         self,
         data: dict[str, Any],
@@ -224,26 +234,25 @@ class WeatherCard(BaseComponent):
 
         return actions
 
-    def _render_current(self, data: dict[str, Any], ctx: RenderContext) -> str:
+    def _render_current(
+        self, data: dict[str, Any], ctx: RenderContext, *, panel: bool = False
+    ) -> str:
         """Render current weather with all details."""
         location = self._get_location(data)
         # Support both current weather (temperature/temp) and forecast items (temp_day/temp_max)
         temp = self._format_temperature(
-            data.get("temperature")
-            or data.get("temp")
-            or data.get("temp_day")
-            or data.get("temp_max", "")
+            first_present(data, "temperature", "temp", "temp_day", "temp_max")
         )
         feels_like = self._format_temperature(data.get("feels_like", ""))
-        description = data.get("description", "")
-        humidity = data.get("humidity", "")
-        wind = data.get("wind_speed", "")
+        description = scalar_text(data.get("description"))
+        humidity = scalar_text(data.get("humidity"))
+        wind = scalar_text(data.get("wind_speed"))
         wind_dir = self._format_wind_direction(data.get("wind_direction", ""), ctx.language)
 
         # Extract and format date
         date_str = self._get_date(data, ctx)
 
-        icon_name, weather_class = self._get_weather_visual(description)
+        icon_name, weather_class = self._visual_for_reading(data)
         nested_class = self._nested_class(ctx)
 
         # Detect forecast vs current weather for stat display
@@ -282,7 +291,8 @@ class WeatherCard(BaseComponent):
             f"{escape_html(wind)} {escape_html(wind_dir)}" if wind_dir else escape_html(wind)
         )
 
-        return f"""<div class="lia-card lia-weather lia-weather--{weather_class} {nested_class}">
+        card_class = "lia-weather-reading" if panel else "lia-card"
+        return f"""<div class="{card_class} lia-weather lia-weather--{weather_class} {nested_class}">
 <div class="lia-weather__layout">
 <div class="lia-weather__left">
 <span class="lia-weather__icon">{icon(icon_name)}</span>
@@ -312,11 +322,12 @@ class WeatherCard(BaseComponent):
 </div>
 </div>
 {collapsible_html}
+{weather_attribution(data)}
 </div>"""
 
     def _render_extended_details(self, data: dict[str, Any], ctx: RenderContext) -> str:
         """Render collapsible section with extended weather details using v4 d-item."""
-        detail_sections: list[str] = []
+        detail_sections: list[str] = weather_extra_rows(data, ctx)
 
         # i18n labels
         uv_index_label = V3Messages.get_uv_index(ctx.language)
@@ -337,38 +348,24 @@ class WeatherCard(BaseComponent):
                 labelled(Icons.TEMPERATURE, V3Messages.get_temp_range(ctx.language), temp_range)
 
         # UV Index
-        uv_index = data.get("uv_index") or data.get("uv", "")
-        if uv_index:
-            uv_level_label = self._get_uv_label(uv_index, ctx.language)
+        uv_index = scalar_text(first_present(data, "uv_index", "uv"))
+        if uv_index != "" and (uv_level_label := self._get_uv_label(uv_index, ctx.language)):
             labelled(
                 Icons.SUNNY, uv_index_label, f"{escape_html(str(uv_index))} ({uv_level_label})"
             )
 
         # Pressure, visibility, cloud cover
-        pressure = data.get("pressure", "")
+        pressure = scalar_text(data.get("pressure"))
         if pressure:
             labelled(Icons.PRESSURE, pressure_label, escape_html(str(pressure)))
-        visibility = data.get("visibility", "")
+        visibility = scalar_text(data.get("visibility"))
         if visibility:
             labelled(Icons.VISIBILITY, visibility_label, escape_html(str(visibility)))
-        clouds = data.get("clouds") or data.get("cloud_cover", "")
-        if clouds:
+        clouds = scalar_text(first_present(data, "clouds", "cloud_cover"))
+        if clouds != "":
             labelled(Icons.CLOUD_COVER, cloud_cover_label, f"{escape_html(str(clouds))}%")
 
-        # Sunrise/Sunset (locale-aware time formatting)
-        sunrise = data.get("sunrise", "")
-        sunset = data.get("sunset", "")
-        if sunrise or sunset:
-            sun_parts = []
-            if sunrise:
-                sunrise_fmt = format_time(sunrise, ctx.language, ctx.timezone)
-                sun_parts.append(escape_html(sunrise_fmt))
-            if sunset:
-                sunset_fmt = format_time(sunset, ctx.language, ctx.timezone)
-                # Use raw material-symbols-outlined (same size as d-item icon) for alignment
-                sunset_icon = f'<span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">{Icons.SUNSET}</span>'
-                sun_parts.append(f"{sunset_icon} {escape_html(sunset_fmt)}")
-            detail_sections.append(render_d_item(Icons.SUNRISE, " · ".join(sun_parts)))
+        detail_sections.extend(weather_sun_rows(data, ctx))
 
         # Air quality. Two shapes coexist:
         #  - environment enrichment (2026-08): the API's own localized
@@ -388,8 +385,8 @@ class WeatherCard(BaseComponent):
             detail_sections.append(render_d_item("allergy", pollen_row))
 
         # Precipitation probability
-        precip = data.get("precipitation_probability") or data.get("pop", "")
-        if precip:
+        precip = scalar_text(first_present(data, "precipitation_probability", "pop"))
+        if precip != "":
             labelled(Icons.RAINY, precipitation_label, f"{escape_html(str(precip))}%")
 
         # Wrap in collapsible using v4 component
@@ -405,110 +402,31 @@ class WeatherCard(BaseComponent):
         return ""
 
     def _render_forecast(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render multi-day forecast as consolidated card."""
-        forecasts = data.get("forecasts", [])
-        if not forecasts:
-            return ""
-
-        nested_class = self._nested_class(ctx)
-        # Get location from parent data, fallback to first forecast item
-        location = self._get_location(data) or self._get_location(forecasts[0])
-        # Get date from first forecast item
-        # Date removed from forecast header (multi-day, date not meaningful)
-
-        days_html = []
-        # Limit days (configurable via WEATHER_FORECAST_MAX_DAYS env var)
-        max_days = settings.weather_forecast_max_days
-        for day in forecasts[:max_days]:
-            date_iso = day.get("date", "")
-            # Format date in user's language; extract day name for compact display
-            full_date = format_full_date(date_iso, ctx.language, ctx.timezone) if date_iso else ""
-            day_name = full_date.split(" ")[0] if full_date else str(date_iso)[:3]
-
-            # Handle temp as dict or direct values
-            temp = day.get("temp", {})
-            if isinstance(temp, dict):
-                temp_max = self._format_temperature(temp.get("max", ""))
-                temp_min = self._format_temperature(temp.get("min", ""))
-            else:
-                # Direct temp value (could be string or number)
-                temp_max = self._format_temperature(
-                    day.get("temp_max") or day.get("temperature_max") or temp
-                )
-                temp_min = self._format_temperature(
-                    day.get("temp_min") or day.get("temperature_min", "")
-                )
-
-            desc = day.get("description", "")
-            icon_name, weather_class = self._get_weather_visual(desc)
-
-            days_html.append(f"""<div class="lia-weather__day lia-weather--{weather_class}">
-<span class="lia-weather__day-name">{escape_html(day_name)}</span>
-<span class="lia-weather__day-icon lia-weather__day-icon--color">{icon(icon_name, size="lg")}</span>
-<div class="lia-weather__day-temps">
-<span class="lia-weather__day-temp">{escape_html(temp_max)}</span>
-<span class="lia-weather__day-temp-min">{escape_html(temp_min)}</span>
-</div>
-</div>""")
-
-        V3Messages.get_forecast(ctx.language)
-
-        # Forecast header: just city (no date — it's a multi-day forecast)
-        location_html = (
-            f'<span class="lia-weather__city">{escape_html(location)}</span>' if location else ""
+        """Render every supplied slot with local details and comparison."""
+        return render_weather_series(
+            data,
+            ctx,
+            hourly=False,
+            location=self._get_location(data),
+            nested_class=self._nested_class(ctx),
+            format_temperature=self._format_temperature,
+            visual=self._visual_for_reading,
+            render_detail=partial(self._render_current, panel=True),
+            environment_html=self._environment_strip(data, ctx),
         )
-
-        return f"""<div class="lia-card lia-weather lia-weather--forecast {nested_class}">
-<div class="lia-weather__header-row">
-{location_html}
-</div>
-<div class="lia-weather__forecast-days">
-{chr(10).join(days_html)}
-</div>
-{self._environment_strip(data, ctx)}
-</div>"""
 
     def _render_hourly(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render hourly forecast with colored icons and responsive design."""
-        hourly = data.get("hourly", [])
-        if not hourly:
-            return ""
-
-        location = self._get_location(data)
-        date_str = self._get_date(data, ctx)
-        nested_class = self._nested_class(ctx)
-
-        hours_html = []
-        # Show all hours, CSS handles layout (horizontal scroll on mobile, grid on desktop)
-
-        for hour in hourly:
-            time = hour.get("datetime_text", "")
-            if " " in time:
-                time = time.split(" ")[1][:5]
-            temp = self._format_temperature(hour.get("temp", ""))
-            desc = hour.get("description", "")
-            icon_name, weather_class = self._get_weather_visual(desc)
-
-            hours_html.append(f"""<div class="lia-weather__hour lia-weather--{weather_class}">
-<span class="lia-weather__hour-time">{escape_html(time)}</span>
-<span class="lia-weather__hour-icon lia-weather__hour-icon--color">{icon(icon_name)}</span>
-<span class="lia-weather__hour-temp">{escape_html(temp)}</span>
-</div>""")
-
-        # City + date stacked vertically
-        city_html = (
-            f'<span class="lia-weather__city">{escape_html(location)}</span>' if location else ""
+        """Render every supplied slot with local details and comparison."""
+        return render_weather_series(
+            data,
+            ctx,
+            hourly=True,
+            location=self._get_location(data),
+            nested_class=self._nested_class(ctx),
+            format_temperature=self._format_temperature,
+            visual=self._visual_for_reading,
+            render_detail=partial(self._render_current, panel=True),
         )
-
-        return f"""<div class="lia-card lia-weather lia-weather--hourly {nested_class}">
-<div style="margin-bottom:var(--lia-space-sm)">
-{city_html}
-<div style="font-size:var(--lia-text-sm);color:var(--lia-text-muted);margin-top:var(--lia-space-2xs)">{escape_html(date_str)}</div>
-</div>
-<div class="lia-weather__hourly-strip">
-{chr(10).join(hours_html)}
-</div>
-</div>"""
 
     # Generic location names to filter out (not useful to display)
     GENERIC_LOCATIONS: frozenset[str] = frozenset(
@@ -525,22 +443,22 @@ class WeatherCard(BaseComponent):
         }
     )
 
-    def _get_location(self, data: dict) -> str:
+    def _get_location(self, data: Mapping[str, object]) -> str:
         """Extract location name from weather data, filtering generic names."""
         loc = data.get("location", {})
         if isinstance(loc, dict):
             # Prefer city/name
-            city = loc.get("city") or loc.get("name") or loc.get("locality", "")
+            city = scalar_text(first_present(loc, "city", "name", "locality"))
             if city and city.lower() not in self.GENERIC_LOCATIONS:
-                return city  # type: ignore[no-any-return]
+                return city
             # Fall back to address components
-            region = loc.get("region", "") or loc.get("country", "")
+            region = scalar_text(first_present(loc, "region", "country"))
             if region and region.lower() not in self.GENERIC_LOCATIONS:
-                return region  # type: ignore[no-any-return]
+                return region
             return ""
         # Handle string location
-        if loc and str(loc).lower() not in self.GENERIC_LOCATIONS:
-            return str(loc)
+        if isinstance(loc, str) and loc.lower() not in self.GENERIC_LOCATIONS:
+            return loc
         return ""
 
     def _get_date(self, data: dict, ctx: RenderContext) -> str:
@@ -564,30 +482,11 @@ class WeatherCard(BaseComponent):
 
     def _format_temperature(self, temp: Any) -> str:
         """Format temperature as rounded integer."""
-        if not temp:
-            return ""
-
-        # Handle dict temperatures (e.g., {'min': '-0.7°C', 'max': '1.2°C', 'avg': '-0.2°C'})
         if isinstance(temp, dict):
-            # Prefer avg, then compute from min/max
-            if "avg" in temp:
-                return self._format_temperature(temp["avg"])
-            elif "min" in temp and "max" in temp:
-                # Compute average from min/max
-                min_val = self._extract_numeric_temp(temp["min"])
-                max_val = self._extract_numeric_temp(temp["max"])
-                if min_val is not None and max_val is not None:
-                    avg = (min_val + max_val) / 2
-                    return f"{round(avg)}°C"
-                # Fallback to max
-                return self._format_temperature(temp["max"])
-            elif "max" in temp:
-                return self._format_temperature(temp["max"])
-            elif "min" in temp:
-                return self._format_temperature(temp["min"])
+            return self._format_temperature_dict(temp)
+        temp_str = scalar_text(temp)
+        if not temp_str:
             return ""
-
-        temp_str = str(temp)
         # Extract numeric part and round
         with suppress(ValueError, TypeError):
             # Remove unit suffix if present (e.g., "12.5°C" -> "12.5")
@@ -601,6 +500,20 @@ class WeatherCard(BaseComponent):
                 unit = temp_str[len(match.group(0)) :].strip()
                 return f"{rounded}{unit}" if unit else f"{rounded}°C"
         return temp_str
+
+    def _format_temperature_dict(self, temp: dict[str, Any]) -> str:
+        """Resolve a temperature range independently of scalar rounding."""
+        if "avg" in temp:
+            return self._format_temperature(temp["avg"])
+        if "min" in temp and "max" in temp:
+            low = self._extract_numeric_temp(temp["min"])
+            high = self._extract_numeric_temp(temp["max"])
+            if low is not None and high is not None:
+                low_unit = "°F" if scalar_text(temp["min"]).endswith("°F") else "°C"
+                high_unit = "°F" if scalar_text(temp["max"]).endswith("°F") else "°C"
+                if low_unit == high_unit:
+                    return f"{round((low + high) / 2)}{low_unit}"
+        return self._format_temperature(first_present(temp, "max", "min"))
 
     def _extract_numeric_temp(self, temp_str: str) -> float | None:
         """Extract numeric value from temperature string."""
@@ -632,7 +545,7 @@ class WeatherCard(BaseComponent):
             Localized compass abbreviation, or ``""`` when unreadable.
         """
         language = resolve_language(language)
-        if not direction:
+        if not scalar_text(direction):
             return ""
         dir_str = str(direction).strip()
 
@@ -652,6 +565,12 @@ class WeatherCard(BaseComponent):
         """Convert a bearing in degrees to its localized compass abbreviation."""
         code = wind_deg_to_cardinal(angle)
         return V3Messages.get_wind_cardinal(code, resolve_language(language)) if code else ""
+
+    def _visual_for_reading(self, data: Mapping[str, object]) -> tuple[str, str]:
+        """Use the provider's night observation, independent of the viewer's clock."""
+        if data.get("icon") == "01n":
+            return "dark_mode", "clear-night"
+        return self._get_weather_visual(scalar_text(data.get("description")))
 
     def _get_weather_visual(self, description: str) -> tuple[str, str]:
         """Get icon name and CSS class for weather description."""
@@ -674,6 +593,8 @@ class WeatherCard(BaseComponent):
 
     def _get_uv_label(self, uv_index: Any, language: str) -> str:
         """Get human-readable UV index label."""
+        if nonnegative_number(uv_index) is None:
+            return ""
         try:
             uv = float(uv_index)
             if uv <= 2:

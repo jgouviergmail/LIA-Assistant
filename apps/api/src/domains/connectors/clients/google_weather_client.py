@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -34,10 +33,15 @@ from src.core.constants import (
 )
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.core.i18n import resolve_language
+from src.core.time_utils import parse_rfc3339
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.connectors.clients.google_geocoding_helpers import (
     forward_geocode,
     google_reverse_city,
+)
+from src.domains.connectors.clients.google_weather_projection import (
+    convert_owm_units,
+    google_weather_fields,
 )
 from src.domains.connectors.clients.weather_normalization import (
     aggregate_daily_forecast,
@@ -129,6 +133,9 @@ def _wind_entry(payload: dict[str, Any]) -> dict[str, Any]:
     entry: dict[str, Any] = {}
     if speed is not None:
         entry["speed"] = speed
+    gust = _kmh_to_ms((wind.get("gust") or {}).get("value"))
+    if gust is not None:
+        entry["gust"] = gust
     degrees = (wind.get("direction") or {}).get("degrees")
     if degrees is not None:
         entry["deg"] = degrees
@@ -151,29 +158,32 @@ def _main_block(payload: dict[str, Any]) -> dict[str, Any]:
         main["temp_min"] = history["minTemperature"]["degrees"]
     if (history.get("maxTemperature") or {}).get("degrees") is not None:
         main["temp_max"] = history["maxTemperature"]["degrees"]
+    for key, target in (
+        ("dewPoint", "dew_point"),
+        ("heatIndex", "heat_index"),
+        ("windChill", "wind_chill"),
+    ):
+        if (payload.get(key) or {}).get("degrees") is not None:
+            main[target] = payload[key]["degrees"]
     return main
 
 
 def _epoch(iso_time: str | None) -> int:
-    """Epoch seconds from an RFC3339 timestamp (now when absent)."""
-    if iso_time:
-        try:
-            return int(datetime.fromisoformat(iso_time.replace("Z", "+00:00")).timestamp())
-        except ValueError:
-            logger.debug("google_weather_bad_timestamp")
-    return int(datetime.now(UTC).timestamp())
+    """A source instant is mandatory; never turn missing data into the current hour."""
+    parsed = parse_rfc3339(iso_time)
+    if parsed is None:
+        raise ValueError("Weather provider timestamp is unavailable or invalid")
+    return int(parsed.timestamp())
 
 
 def _forecast_entry(hour_entry: dict[str, Any]) -> dict[str, Any]:
     """One OWM forecast entry (``dt``, ``main``, ``weather``, ``wind``, ``pop``) from a Google hour."""
     entry: dict[str, Any] = {
         "dt": _epoch((hour_entry.get("interval") or {}).get("startTime")),
-        "main": {
-            "temp": (hour_entry.get("temperature") or {}).get("degrees"),
-            "humidity": hour_entry.get("relativeHumidity"),
-        },
+        "main": _main_block(hour_entry),
         "weather": [_condition_entry(hour_entry)],
         "wind": _wind_entry(hour_entry),
+        **google_weather_fields(hour_entry),
     }
     percent = ((hour_entry.get("precipitation") or {}).get("probability") or {}).get("percent")
     if percent is not None:
@@ -311,6 +321,8 @@ class GoogleWeatherClient:
             "dt": _epoch(payload.get("currentTime") or None),
             "sys": {"country": resolved_country},
             "name": name,
+            "source": "google_weather",
+            **google_weather_fields(payload),
         }
         if payload.get("cloudCover") is not None:
             weather["clouds"] = {"all": payload["cloudCover"]}
@@ -319,7 +331,7 @@ class GoogleWeatherClient:
             weather["visibility"] = int(visibility_km * 1000)
 
         logger.info("google_weather_current_retrieved", user_id=str(self.user_id))
-        return weather
+        return convert_owm_units(weather, units)
 
     async def get_hourly_forecast(
         self,
@@ -378,6 +390,7 @@ class GoogleWeatherClient:
         )
         return {
             "list": entries,
+            "source": "google_weather",
             "city": {
                 "name": name,
                 "country": resolved_country,
@@ -399,7 +412,11 @@ class GoogleWeatherClient:
         hourly = await self.get_hourly_forecast(
             lat=lat, lon=lon, city=city, country=country, lang=lang, hours=max(cnt, 1) * 3
         )
-        return {"list": hourly["list"][::3][:cnt], "city": hourly["city"]}
+        return {
+            "list": [convert_owm_units(entry, units) for entry in hourly["list"][::3][:cnt]],
+            "city": hourly["city"],
+            "source": "google_weather",
+        }
 
     async def get_daily_forecast(
         self,

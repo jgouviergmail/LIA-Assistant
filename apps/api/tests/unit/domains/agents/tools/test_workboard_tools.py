@@ -384,6 +384,15 @@ class TestReading:
         assert result.structured_data["last_run"]["outcome"] == "success"
         assert result.structured_data["children"][0]["title"] == "Step one"
         assert result.structured_data["comments"][0]["author"] == "lia"
+        from src.domains.agents.data_registry.card_payload import card_payload
+        from src.domains.agents.display.components.base import RenderContext
+        from src.domains.agents.display.components.snapshot_cards import TicketCard
+
+        item = next(iter(result.registry_updates.values()))
+        markup = TicketCard().render(card_payload(item), RenderContext(language="en"))
+        for fact in ("Twelve people", "Step one", "Done."):
+            assert fact in markup
+        assert "description" not in item.payload
 
 
 class TestTheContextSystemKnowsATicket:

@@ -862,7 +862,11 @@
     },
     "document_card": {
       "download": "下载 {{name}}",
-      "open": "打开 {{name}}"
+      "open": "打开 {{name}}",
+      "preview": "文档预览",
+      "excerpt": "文档摘录",
+      "first_page": "{{name}} 的第一页",
+      "preview_unavailable": "预览不可用。你仍可打开文档。"
     },
     "skill_proposal": {
       "badge_new": "新技能",
@@ -1233,6 +1237,36 @@
         "observedResult": "原有提取器的建议（验证前）"
       },
       "resize": "调整调试面板宽度"
+    },
+    "card_actions": {
+      "reply": "回复",
+      "forward": "转发",
+      "cancel_reminder": "取消提醒",
+      "unavailable": "此操作不适用于这条已保存的回复。",
+      "editable": "打开可编辑的消息，不会自动发送。",
+      "compose_reply": "准备回复这封邮件。",
+      "compose_forward": "准备转发这封邮件。",
+      "compose_cancel_reminder": "取消此提醒。",
+      "replace_title": "替换当前草稿？",
+      "replace_description": "当前文本将被此卡片的新可编辑草稿替换。",
+      "replace_confirm": "替换草稿",
+      "selected_context": "已选择的卡片",
+      "selected_item": "已选择的项目",
+      "remove_context": "移除所选卡片"
+    },
+    "route_map": {
+      "map": "交互式路线地图",
+      "activate": "浏览地图",
+      "primary": "主要路线",
+      "alternative": "备选路线 {{number}}",
+      "choose": "选择路线",
+      "recenter": "居中显示所选路线",
+      "cost": "每次打开约 {{cost}}",
+      "error": "地图暂不可用。预览和详细信息仍可查看。请重试或打开 Google 地图。",
+      "primary_details": "以下详细信息描述主要路线；其他路线列在备选路线中。",
+      "omitted_one": "{{count}} 条不完整路线无法显示。",
+      "omitted_other": "{{count}} 条不完整路线无法显示。",
+      "report_error": "未能记录地图加载。请重试，无需重新打开地图。"
     }
   },
   "skill_apps": {
@@ -4912,7 +4946,11 @@
   "gallery": {
     "photo_counter": "照片 {{current}}/{{total}}",
     "place_photo": "地点照片",
-    "expand_photo": "全屏打开照片"
+    "expand_photo": "全屏打开照片",
+    "photo_loading": "正在加载照片…",
+    "photo_unavailable": "照片不可用",
+    "image_unavailable": "图片不可用",
+    "view_source": "在 Google Maps 上查看"
   },
   "hitl": {
     "default": "你确认此操作吗？",

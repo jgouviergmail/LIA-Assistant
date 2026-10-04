@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from src.core.card_composition import CardCompositionRequest
 from src.core.constants import CHAT_MESSAGE_MAX_LENGTH
 from src.domains.agents.capability_directives import DirectiveCapability
 
@@ -41,6 +42,7 @@ class BrowserContext(BaseModel):
     - viewport: Device viewport type (affects response formatting)
     """
 
+    card_composition: CardCompositionRequest | None = None
     geolocation: BrowserGeolocation | None = Field(
         default=None, description="Browser geolocation (if permission granted)"
     )
@@ -59,6 +61,10 @@ class BrowserContext(BaseModel):
         description="Screen width in pixels. If provided, server uses env breakpoints to determine viewport. "
         "Takes precedence over 'viewport' string if both are provided.",
     )
+
+
+def composition_request(context: BrowserContext | None) -> CardCompositionRequest | None:
+    return context.card_composition if context else None
 
 
 class HitlDecisionRequest(BaseModel):

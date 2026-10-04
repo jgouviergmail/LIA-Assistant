@@ -142,6 +142,11 @@ from src.core.constants import (
 class ConnectorsSettings(BaseSettings):
     """External connectors and integrations settings."""
 
+    google_maps_browser_api_key: str = Field(
+        default="",
+        description="Optional Maps JavaScript key override; empty reuses GOOGLE_API_KEY",
+    )
+
     # ========================================================================
     # Cache TTL Configuration - Calendar (granular)
     # ========================================================================
@@ -711,12 +716,12 @@ class ConnectorsSettings(BaseSettings):
     # ========================================================================
     # Emails Configuration
     # ========================================================================
-    # Emails body truncation (for LLM token optimization)
+    # Card reading preview; model detail pagination uses its own token budget.
     emails_body_max_length: int = Field(
         default=EMAILS_BODY_MAX_LENGTH_DEFAULT,
         gt=0,
         description=(
-            "Maximum email body length in characters before truncation "
+            "Initial email card body preview length in characters; full supplied content expands locally "
             f"(default: {EMAILS_BODY_MAX_LENGTH_DEFAULT})"
         ),
     )

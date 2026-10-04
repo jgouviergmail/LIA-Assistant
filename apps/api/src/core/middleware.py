@@ -691,7 +691,8 @@ def setup_middleware(app: FastAPI) -> None:
             # list of OAuth paths in the web client, and a path allowlist rots.
             NATIVE_CLIENT_HEADER,
         ],
-        expose_headers=["X-Request-ID"],
+        # A bounded CSV preview must withhold a cut record across API origins.
+        expose_headers=["X-Request-ID", "X-Preview-Truncated"],
     )
 
     # Custom middleware (order matters - applied in reverse: the LAST added runs

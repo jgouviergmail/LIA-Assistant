@@ -58,6 +58,9 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         # capability guard (ATTACHMENTS_ENABLED=false here): forwarded by the
         # edge, refused by the application, which is the honest shape.
         "GET /api/v1/attachments/{attachment_id}",
+        # A bounded preview reads that same owned generated document, with
+        # ready/expiry checks and no upload, generation or provider operation.
+        "GET /api/v1/attachments/{attachment_id}/preview",
         "DELETE /api/v1/attachments/{attachment_id}",
         "POST /api/v1/attachments/upload",
         # The second door that puts a file in (ADR-295): forwarded like the

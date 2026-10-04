@@ -1,0 +1,12 @@
+/* Narrow icon controls have a fixed footprint: growing rem geometry on a
+   320px screen covered the navigation menu when the browser text was enlarged.
+   Keep the established single-row header and its sticky banner offsets. */
+@media (max-width: 380px) {
+  .lia-dashboard-header button {
+    width: 36px;
+    min-width: 36px;
+    height: 44px;
+    padding-inline: 0;
+    flex-shrink: 0;
+  }
+}

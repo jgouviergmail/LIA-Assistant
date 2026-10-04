@@ -400,7 +400,11 @@ async def get_client_config() -> dict:
 
     This endpoint is public and does not require authentication.
     """
+    from src.domains.connectors.map_load_metering import map_load_config
+
+    maps_config = map_load_config()
     return {
+        "route_maps": maps_config,
         "sse": {
             "heartbeat_interval_seconds": settings.sse_heartbeat_interval,
         },
@@ -414,6 +418,7 @@ async def get_client_config() -> dict:
             "default_language": settings.default_language,
         },
         "features": {
+            "interactive_route_maps_enabled": maps_config["enabled"],
             "tool_approval_enabled": True,  # NOTE: Tool approval is always enabled
             "attachments_enabled": getattr(settings, "attachments_enabled", False),
             "rag_spaces_enabled": getattr(settings, "rag_spaces_enabled", False),

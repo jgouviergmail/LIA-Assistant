@@ -1,4 +1,4 @@
-import React, { useState, useMemo, memo, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useMemo, memo, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,13 +15,16 @@ import rehypeContactPhotos from '@/lib/rehype-contact-photos';
 import { useTranslation } from 'react-i18next';
 import { cn, GOOGLE_IMAGE_DOMAINS, proxyGoogleImageUrl } from '@/lib/utils';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
-import { InlinePlaceCarousel } from '@/components/ui/inline-place-carousel';
+import { PlacePhotoWrapper } from './markdown-place-photo';
+import { MarkdownCardImage } from './markdown-card-image';
+import { MarkdownCardDetails } from './markdown-card-details';
 import { ReasoningScroll } from '@/components/chat/ReasoningScroll';
 import { formatPhonesInText } from '@/lib/format';
-import { isImageLoaded, markImageLoaded } from '@/lib/image-cache';
+import { useMarkdownImageLoad } from './use-markdown-image-load';
 import { apiImageProps } from '@/lib/utils/api-resource-url';
-import { logger } from '@/lib/logger';
 import { codeBlockOf } from '@/lib/markdown-code-block';
+import { MarkdownCardButton } from './markdown-card-actions';
+import { cardDivComponent } from './markdown-presentation-div';
 import {
   MarkdownTable,
   MarkdownTableBody,
@@ -61,55 +64,6 @@ const CodeBlock = lazy(() =>
  */
 
 /**
- * PlacePhotoWrapper - Wrapper for place photos with inline carousel
- *
- * When multiple photos are available (data-photo-urls attribute), displays
- * an inline carousel directly within the place card photo area.
- * The carousel has the same dimensions as the original photo.
- *
- * Fallback: If no data-photo-urls attribute is present (e.g., cached messages),
- * renders the original photo as-is.
- */
-const PlacePhotoWrapper = ({
-  children,
-  ...props
-}: {
-  children?: React.ReactNode;
-  [key: string]: unknown;
-}) => {
-  const { t } = useTranslation();
-
-  // Parse data-photo-urls (JSON array of URLs)
-  const photoUrlsJson = props['data-photo-urls'] as string | undefined;
-  const photoUrls = useMemo(() => {
-    if (!photoUrlsJson) return [];
-    try {
-      return JSON.parse(photoUrlsJson) as string[];
-    } catch (error) {
-      logger.warn('place_photo_urls_parse_failed', {
-        component: 'PlacePhotoWrapper',
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return [];
-    }
-  }, [photoUrlsJson]);
-
-  const hasMultiplePhotos = photoUrls.length > 1;
-
-  // If multiple photos available, show inline carousel
-  if (hasMultiplePhotos) {
-    return (
-      <div className="lia-place__photo">
-        <InlinePlaceCarousel images={photoUrls} alt={t('gallery.place_photo')} />
-      </div>
-    );
-  }
-
-  // Single photo or no gallery data - render original content
-  return <div className="lia-place__photo">{children}</div>;
-};
-
-/**
  * Resolve a markdown image source: where it lives, and what it needs to load.
  *
  * A markdown image can be an API resource (`/api/v1/connectors/...` for a place
@@ -132,32 +86,6 @@ function resolveMarkdownImage(srcProp: React.ImgHTMLAttributes<HTMLImageElement>
 }
 
 /**
- * Warm the browser cache with the request the rendered `<img>` will make.
- *
- * It must be the SAME request: a preload that omits the credentials 401s,
- * never marks the image loaded, and leaves the rendered image behind its
- * placeholder for good.
- *
- * @param src - The resolved source.
- * @param crossOrigin - What {@link resolveMarkdownImage} asked for.
- * @param onLoaded - Called once the image is in cache.
- */
-function preloadImage(
-  src: string,
-  crossOrigin: 'use-credentials' | undefined,
-  onLoaded: () => void
-): void {
-  const img = new Image();
-  img.onload = onLoaded;
-  // SEC-027: this preload is a real network request and leaks the same
-  // Referer as the rendered <img>. Set BEFORE `src` — assigning the
-  // source is what starts the fetch.
-  img.referrerPolicy = 'no-referrer';
-  if (crossOrigin) img.crossOrigin = crossOrigin;
-  img.src = src;
-}
-
-/**
  * MarkdownImage - Renders images in markdown with smart detection
  *
  * Detects profile photos (Google Contacts) and uses Avatar component
@@ -175,30 +103,17 @@ function preloadImage(
  * Issue #64: Uses global image cache to prevent scintillation during streaming.
  */
 const MarkdownImage = memo(
-  ({ src: srcProp, alt, className }: React.ImgHTMLAttributes<HTMLImageElement>) => {
+  ({ src: srcProp, alt, className, loading }: React.ImgHTMLAttributes<HTMLImageElement>) => {
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const { t } = useTranslation();
     const { src, crossOrigin } = resolveMarkdownImage(srcProp);
-    // Use global cache to check if image already loaded
-    const alreadyLoaded = src ? isImageLoaded(src) : false;
-    const [loaded, setLoaded] = useState(alreadyLoaded);
-
-    // For Avatar component (no onLoad prop), preload image in background
-    useEffect(() => {
-      if (src && !alreadyLoaded) {
-        preloadImage(src, crossOrigin, () => {
-          markImageLoaded(src);
-          setLoaded(true);
-        });
-      }
-    }, [src, alreadyLoaded, crossOrigin]);
-
-    const handleLoad = () => {
-      if (src) {
-        markImageLoaded(src);
-      }
-      setLoaded(true);
-    };
+    const isLiaComponent = className?.startsWith('lia-');
+    const {
+      loaded,
+      failed,
+      onError,
+      onLoad: handleLoad,
+    } = useMarkdownImageLoad(src ?? '', crossOrigin, !isLiaComponent);
 
     if (!src) return null;
 
@@ -214,21 +129,18 @@ const MarkdownImage = memo(
     // Without this check, transformations below would wrap LIA images in
     // full-width blocks, breaking flexbox layouts and changing CSS classes.
     // =========================================================================
-    const isLiaComponent = className?.startsWith('lia-');
     if (isLiaComponent) {
       return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <MarkdownCardImage
           src={src}
           crossOrigin={crossOrigin}
-          alt={alt || ''}
+          alt={alt}
           className={className}
-          referrerPolicy="no-referrer"
-          style={{
-            opacity: loaded ? 1 : 0,
-            transition: 'opacity 0.15s ease-in',
-          }}
+          loading={loading}
+          loaded={loaded}
+          failed={failed}
           onLoad={handleLoad}
+          onError={onError}
         />
       );
     }
@@ -576,6 +488,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             return url;
           }}
           components={{
+            button: MarkdownCardButton,
             // Headings
             h1: ({ children }) => (
               <h1 className="text-2xl font-bold mt-6 mb-4 first:mt-0 border-b border-border pb-2">
@@ -603,7 +516,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             ),
 
             // Paragraphs - preserve LIA component classes
-            p: ({ className, children, ...props }) => {
+            p: ({ className, children, node: _node, ...props }) => {
               // LIA components (e.g., lia-email__snippet) need their original class preserved
               const isLiaComponent = className?.startsWith('lia-');
               return (
@@ -629,7 +542,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             em: ({ children }) => <em className="italic text-foreground">{children}</em>,
 
             // Links
-            a: ({ href, className, children, ...props }) => {
+            a: ({ href, className, children, node: _node, ...props }) => {
               // LIA components (e.g., lia-event__title) need their original class preserved
               const isLiaComponent = className?.startsWith('lia-');
 
@@ -680,10 +593,11 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             // rich content). `lia-steps` (ADR-177 styled counters) must keep
             // its class: the stylesheet resets list-style and draws numbered
             // bullets itself, so the default decimal classes would fight it.
-            ol: ({ className, children }) => {
+            ol: ({ className, children, start }) => {
               const isLiaComponent = className?.startsWith('lia-');
               return (
                 <ol
+                  start={start}
                   className={
                     isLiaComponent
                       ? className
@@ -696,7 +610,11 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             },
 
             // List items - normal leading for readability
-            li: ({ children }) => <li className="pl-1 leading-normal">{children}</li>,
+            li: ({ children, value }) => (
+              <li value={value} className="pl-1 leading-normal">
+                {children}
+              </li>
+            ),
 
             // Blockquotes
             blockquote: ({ children }) => (
@@ -782,9 +700,18 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
 
             // Images - using separate component to comply with React hooks rules
             img: MarkdownImage,
+            details: MarkdownCardDetails,
 
             // Divs - intercept photo galleries and MCP Apps for enhanced interactivity
-            div: ({ className, children, ...props }) => {
+            div: ({ className, children, node: _node, ...props }) => {
+              const Presentation = cardDivComponent(className);
+              if (Presentation) {
+                return (
+                  <Presentation {...props} className={className} node={_node}>
+                    {children}
+                  </Presentation>
+                );
+              }
               // Live reasoning block (💭) — emitted by the SSE reasoning handler
               // as <div class="lia-reasoning">. Wrap in a fixed-height, auto-
               // scrolling container so the streamed thoughts scroll smoothly
@@ -839,8 +766,12 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
 
               // Place photo gallery (generated by place_card.py)
               // Uses PlacePhotoWrapper for multi-image gallery lightbox
-              if (className?.includes('lia-place__photo')) {
-                return <PlacePhotoWrapper {...props}>{children}</PlacePhotoWrapper>;
+              if (className?.split(/\s+/).includes('lia-place__photo')) {
+                return (
+                  <PlacePhotoWrapper className={className} {...props}>
+                    {children}
+                  </PlacePhotoWrapper>
+                );
               }
 
               // Default div rendering

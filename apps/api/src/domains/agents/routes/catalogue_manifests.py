@@ -52,7 +52,7 @@ _get_route_desc = (
     "- 'Go to work avoiding tolls' → get_route_tool(destination='work', avoid_tolls=True)\n"
     "- 'Travel time to Nice' → get_route_tool(destination='Nice')\n"
     "\n"
-    "**RETURNS**: Distance, duration, traffic conditions, turn-by-turn steps, polyline for map, Google Maps link."
+    "**RETURNS**: Distance, duration, traffic conditions, turn-by-turn steps, Google Maps link and display-only map preview."
 )
 
 get_route_catalogue_manifest = ToolManifest(
@@ -216,12 +216,7 @@ get_route_catalogue_manifest = ToolManifest(
             description="Traffic level: NORMAL, LIGHT, MODERATE, HEAVY",
             semantic_type="traffic_condition",
         ),
-        OutputFieldSchema(
-            path="route.polyline",
-            type="string",
-            description="Encoded polyline for map display",
-            semantic_type="polyline",
-        ),
+        # Polyline is display-only registry metadata, not a planner binding output.
         OutputFieldSchema(
             path="route.steps",
             type="array",
