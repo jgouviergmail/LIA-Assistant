@@ -1136,7 +1136,105 @@ function RecipientSuggestScene({ active, labels }: SceneProps) {
   );
 }
 
+type CardDetailsPhase = 'card' | 'open' | 'free';
+const CARD_DETAILS_STEPS: readonly TimelineStep<CardDetailsPhase>[] = [
+  { at: 0, state: 'card' },
+  { at: 1100, state: 'open' },
+  { at: 2000, state: 'free' },
+];
+
+/** A data card shows the first facts, then unfolds everything the source supplied. */
+function CardDetailsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(CARD_DETAILS_STEPS, { active });
+  const open = phase !== 'card';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center')}>
+      <div className="w-full space-y-1.5 rounded-xl border border-border bg-background px-3 py-2 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Mail className="h-3 w-3 shrink-0 text-primary" />
+          <SkeletonLine w="w-1/2" className="bg-foreground/25" />
+        </div>
+        <SkeletonLine w="w-4/5" />
+        <div className="flex items-center gap-1 text-px-10 text-muted-foreground">
+          {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {labels.more}
+        </div>
+        <div
+          className={cn(
+            'space-y-1.5 overflow-hidden transition-all duration-500',
+            open ? 'max-h-16 opacity-100' : 'max-h-0 opacity-0'
+          )}
+        >
+          <SkeletonLine w="w-full" />
+          <SkeletonLine w="w-11/12" />
+          <SkeletonLine w="w-2/3" />
+        </div>
+      </div>
+      <MiniToast
+        icon={Check}
+        tone="success"
+        className={cn(
+          'absolute bottom-2 right-4 transition-all duration-300',
+          phase === 'free' ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.free}
+      </MiniToast>
+    </div>
+  );
+}
+
+type CardComposePhase = 'card' | 'press' | 'composer' | 'ready';
+const CARD_COMPOSE_STEPS: readonly TimelineStep<CardComposePhase>[] = [
+  { at: 0, state: 'card' },
+  { at: 900, state: 'press' },
+  { at: 1300, state: 'composer' },
+  { at: 2300, state: 'ready' },
+];
+
+/** Reply from a card: the request is prepared in the composer, never sent by the click. */
+function CardComposeScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(CARD_COMPOSE_STEPS, { active });
+  const composing = phase === 'composer' || phase === 'ready';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <div className="flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 shadow-sm">
+        <Mail className="h-3 w-3 shrink-0 text-primary" />
+        <SkeletonLine w="w-1/2" />
+        <MiniChip pressed={phase === 'press'} className="ml-auto">
+          <Reply className="h-3 w-3" />
+          {labels.reply}
+        </MiniChip>
+      </div>
+      <MiniComposer
+        className={cn('transition-opacity duration-500', composing ? 'opacity-100' : 'opacity-40')}
+        trailing={<Send className="h-3 w-3 text-primary" />}
+      >
+        <div className="flex items-center gap-1.5">
+          <MiniChip
+            className={cn('transition-opacity duration-300', composing ? 'opacity-100' : 'opacity-0')}
+          >
+            <Mail className="h-3 w-3" />
+            {labels.context}
+          </MiniChip>
+          {phase === 'ready' && <SkeletonLine w="w-1/3" />}
+        </div>
+      </MiniComposer>
+      <span
+        className={cn(
+          'self-end pr-1 text-px-10 text-muted-foreground transition-opacity duration-500',
+          phase === 'ready' ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        {labels.draft}
+      </span>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
+  card_details: CardDetailsScene,
+  card_compose: CardComposeScene,
   provenance_why: ProvenanceWhyScene,
   expressive_eyes: ExpressiveEyesScene,
   living_face: LivingFaceScene,

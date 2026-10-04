@@ -39,6 +39,19 @@ async function expectAccessible(page: Page, selector: string) {
   expect(result.violations).toEqual([]);
 }
 
+// The glass is drawn only where nobody asked for less transparency, and
+// Chromium reads that preference from the HOST: on a Windows workstation with
+// transparency effects off, every surface is rightly opaque and the baseline
+// assertions measured the machine instead of the product (measured 2026-10-04).
+// The baseline is pinned; the preference test below asks for `reduce` itself.
+test.beforeEach(async ({ page, browserName }) => {
+  if (browserName !== 'chromium') return;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setEmulatedMedia', {
+    features: [{ name: 'prefers-reduced-transparency', value: 'no-preference' }],
+  });
+});
+
 for (const sample of [
   { width: 1280, theme: 'light' },
   { width: 390, theme: 'dark' },
@@ -193,6 +206,11 @@ for (const sample of [
     await page.keyboard.press('ArrowDown');
     const list = page.getByRole('listbox');
     await expectMaterial(list, sample.width);
+    // The list is still being placed when the key press returns: measured at
+    // y = -650 on a slower host while the failure screenshot showed it on
+    // screen. The geometry is asserted once it settles, not on whichever frame
+    // the measurement happened to land on.
+    await expect.poll(async () => (await list.boundingBox())?.y ?? -1).toBeGreaterThanOrEqual(0);
     const box = await list.boundingBox();
     expect(box?.y).toBeGreaterThanOrEqual(0);
     expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(581);

@@ -114,7 +114,10 @@ Le hook lance `task security:secrets` — le meme gitleaks que la CI, sa configu
 (`.gitleaks.toml`, `.gitleaksignore`) — sur les commits que le push envoie, reference par
 reference : `distant..local` pour une reference existante, tout ce qu'aucun distant n'a pour une
 nouvelle, rien pour une suppression. Un constat, l'absence de Docker ou de Task refusent le push
-(`test_pre_push_hook.py`).
+(`test_pre_push_hook.py`). Le parcours suit TOUS les parents entrants (`--diff-merges=first-parent`,
+plus `--first-parent`) : les commits d'une branche fusionnée et le contenu ecrit en resolvant un
+conflit sont scannes eux aussi — mesure au merge des cartes HTML du 2026-10-04, ou l'ancien
+parcours ne voyait que le commit de fusion (`test_secret_scan_merge_lineage.py`).
 
 ### Cross-platform
 

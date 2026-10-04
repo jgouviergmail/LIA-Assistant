@@ -1752,6 +1752,16 @@
       "title": "What the gates cannot see is read every week",
       "summary": "The checks on every change read a single advisory database: the September 2026 review found twenty advisories published by the dependencies' own repositories that no tool saw. A weekly watch now reads those advisories, end-of-life dates, the registries and the browser engine, and every finding is fixed or accepted in writing, with a review date. Python versions move through a single command, after a cooldown, never backwards.",
       "src": "1fdde3db9932"
+    },
+    "332": {
+      "title": "Cards that show everything received, and actions tied to the message that displays them",
+      "summary": "Answers that carry data — e-mails, appointments, contacts, places, routes, weather — are shown as cards that display everything the source supplied, never inventing a missing value, with the complete detail kept behind a disclosure. The model never reads the card itself, only the authorised facts, so the conversation does not grow heavier. Replying to an e-mail or adjusting a reminder from a card prepares a request tied to the original message and checked again at the click, and a route can open as an interactive map whose cost is announced, then counted.",
+      "src": "0ad1e9554067"
+    },
+    "333": {
+      "title": "Logs, traces and metrics answer each other, and the observation pipeline watches itself",
+      "summary": "A log line opens its request's trace, a trace opens its logs and metrics, a latency point opens the example that produced it: links measured broken in production now work. The pipeline carrying these signals is watched in turn, with an alert when logs go missing, and every dashboard follows one convention: a week of history and a shared menu.",
+      "src": "9180ad307663"
     }
   }
 }

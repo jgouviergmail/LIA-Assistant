@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 5.1
-**Date**: 2026-10-03
-**Application**: LIA v2.4.0
+**Version**: 5.2
+**Date**: 2026-10-04
+**Application**: LIA v2.5.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,8 @@
 41. [The workboard: one row, two sides, and an assistant that asks](#41-the-workboard-one-row-two-sides-and-an-assistant-that-asks)
 42. [The anatomy of a process: what it loads is declared, measured and bounded](#42-the-anatomy-of-a-process-what-it-loads-is-declared-measured-and-bounded)
 43. [The live mode: two intelligences, one seam — and one policy per mode](#43-the-live-mode-two-intelligences-one-seam--and-one-policy-per-mode)
-44. [Conclusion](#44-conclusion)
+44. [Cards that show what was received, and actions that belong to their message](#44-cards-that-show-what-was-received-and-actions-that-belong-to-their-message)
+45. [Conclusion](#45-conclusion)
 ---
 
 ## 1. Context and founding choices
@@ -71,7 +72,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 616 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 330 ADRs, 48,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Production reliability | 332 ADRs, 50,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -89,10 +90,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 48,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
+| Tests | 50,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 330 |
+| ADRs (Architecture Decision Records) | 332 |
 | Prometheus metrics | 616 definitions |
 | Grafana dashboards | 31 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1156,6 +1157,10 @@ carries. Replacing the line with the content of a single field would
 deprive analysis of the structured JSON the application
 emits.
 
+### 20.5. Signals that answer each other, a pipeline that watches itself
+
+A metric, a log line and a trace tell the story of the same request — provided you can move from one to the other (ADR-333). Every link was measured in production before it was repaired: the log → trace derived field looked for `trace_id=` in JSON lines (not one line in 200 matched), the trace → metrics link had lost its labels in provisioning, and Prometheus received 19,045 exemplars a day without keeping a single one. Now a line opens its trace, a trace its logs and metrics, a latency point its example, and the `job` label names the service instead of reading `api` on every container. The pipeline itself — Loki, Alloy, Tempo, Grafana — is scraped on a closed list of about twenty series rather than nine thousand, an alert warns when lines go missing, and a guard holds every series a panel reads to its list. Every dashboard opens on seven days (logs and traces on four hours) with a shared menu: a convention held by a test, not by memory.
+
 ---
 
 ## 21. Performance: optimizations and metrics
@@ -1521,7 +1526,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-330 ADRs in MADR format document the major architectural decisions. Some representative examples:
+332 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1864,14 +1869,28 @@ The same two modes hold for the phone (ADR-301): relaying the conversation at it
 
 **A session sleeps, it does not die** (ADR-329). The model's silence, a hidden page or the person's button put the session to sleep: the browser closes the connection to the provider — nothing runs or bills — then says so; the record stays claimed, lives to a long standby bound instead of its cap, and moves from the instance's active sessions to its standby set. Only the person ends a session. A wake opens a **new** connection: the API refuses in order (awake already, cap, mint rate, instance cap), **re-renders the setup** at the instant of the wake through the start's own function — the spoken clock, the inner state, the current switches —, mints the credential, and only then writes the record awake: a refusal leaves the session asleep exactly as it was. The memory is the application's, never the provider's; the cap is shifted by the length of the sleep, so every figure — card, decision row, histogram, meter — counts time awake, and a direct session relays its words at each standby. In the browser, a policy (`LiveStandby`) borrows the controller's wire, listens for "Dis LIA" on a capture of its own while the page is visible, and checks after every wait that the session is still the one the store holds.
 
+## 44. Cards that show what was received, and actions that belong to their message
+
+An answer that carries data is rendered by the server as HTML cards, archived with the message, then read back by the chat through a strict sanitiser. Rendering stays **deterministic and server-side** (ADR-332): one renderer, independent of the model and of the execution mode. Typed adapters per family turn providers' aliases, units and optional values into shared primitives — title, full text, facts, native disclosures — and the browser only adds what HTML cannot do: gallery, viewer, time-slot selection, composition. An archived answer opened again goes through the same path; without JavaScript it stays readable.
+
+**A received fact is shown whole, and never invented.** Missing, zero and false are three distinct states: a card does not fabricate a default time, erase a zero cost or use a technical identifier as a name. The source's clock goes through one parser — an explicit offset is authoritative, an unknown zone is never read as UTC, an all-day date stays a civil date — and Microsoft's native recurrence stays a native fact rather than an invented rule. This is a policy for what was **received**: no list requests more fields, and opening a detail calls no provider, no model, no tool.
+
+**The model reads a view, never the card.** The assistant message carries a versioned semantic view of what the person saw; the history, compaction and every later call read it in place of the HTML. A probe had shown it: an e-mail body withheld by the "metadata" mode came back on the next turn through its card's HTML. The "display only" boundary is now guaranteed by construction, and a presentation change buys no extra call and no heavier prompt.
+
+**An action belongs to the message that showed its source.** Replying, forwarding or adjusting a reminder from a card prepares a request, never a send: at the click, the server re-reads the answer — the account's, in the current conversation, from its run — the canonical source and the account's grant; approval, modification and resumption re-check the same binding, and a source with no structural binding to an account offers no action. An HTML class or an attribute written by external text never authorises anything.
+
+**A map in the browser is a counted expense.** A route can open as an interactive Google map on the provider's exact geometry; picking an alternative recomputes nothing. Activation is explicit and announces its estimated cost; the key is released only after authenticated admission, under the account and instance ceilings, bound by a short-lived signed grant, and every construction is recorded in the existing registers under one durable run — with no new table. What LIA counts is the construction the browser observed, not Google's invoice: the key still has to be restricted and capped at the provider.
+
+Overlays — dialogs, menus, lists, tooltips, viewers, notifications — share one glass built on the theme tokens; a preference for reduced transparency or forced colours makes a surface opaque, reduced motion removes decorative transitions, and a dialog returns focus to the control that opened it. Every renderer is tested from its real producer through registry serialisation, with explicit zeros, falses, absences and hostile inputs.
+
 ---
 
-## 44. Conclusion
+## 45. Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 330 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 48,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 332 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 50,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 330 ADRs, and the changelog (v1.0 to v2.4.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 332 ADRs, and the changelog (v1.0 to v2.5.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

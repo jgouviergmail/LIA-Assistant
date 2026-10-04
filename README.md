@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.4.0</strong> — <strong>Updates that never go backwards, telemetry that names no one.</strong> A weekly watch reads the security advisories each dependency publishes, a refresh waits out a cooling-off period and never moves a version backwards, and every production build input is pinned by digest; metrics and traces name the route template, never a name or a search; the monitoring stack moves to supported versions, Grafana Alloy shipping the logs; "Dis LIA" is retrained to miss less and "LIA, stop" now cuts LIA's voice; and every public page can pause its animations — 3 October 2026.
+  <strong>Version 2.5.0</strong> — <strong>Cards that show everything, an app in the colours of the cosmos.</strong> Data-bearing answers become deterministic cards that show everything the source supplied and invent nothing, keep the complete detail behind accessible disclosures, add photo galleries, weather comparison, document previews and interactive Google routes whose cost is announced and counted, and let you reply, forward or adjust a reminder from the card itself; the model reads a semantic view, never the HTML. The landing's animated background extends to the app, overlays turn to frosted glass, the dashboard gains a Workboard card and a kept answer shows its two costs; in Grafana, logs, traces and metrics open each other and the observation pipeline watches itself; and the landing plays two videos in turn — 4 October 2026.
 </p>
 
 ---
@@ -112,8 +112,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **54** functional domains | **800,000+** source lines (excl. tests) | **48,000+** automated tests | **330** ADRs                                                            |
-| **275** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **54** functional domains | **800,000+** source lines (excl. tests) | **50,000+** automated tests | **332** ADRs                                                            |
+| **276** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 Source-line figure: 802,541 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-02). The published technical audit does not score security.
 
@@ -209,6 +209,8 @@ Every capability below is documented in an architecture decision record (ADR) or
 #### A chat that streams
 
 - Answers arrive over SSE with rich HTML cards, interactive widgets and a per-message cost badge.
+- A data card shows everything the source supplied and never invents a missing value — an e-mail's body, every organisation of a contact, conference join points, subtasks, a place's photos (full-screen gallery), reviews and opening hours, a route's alternatives, weather slots, generated-document previews — the detail behind native disclosures; opening one calls nothing. The model reads a versioned semantic view of the answer, never the card's HTML ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md), [HTML_CARDS](docs/technical/HTML_CARDS.md)).
+- Reply, forward or adjust a reminder from its card: the request is prepared in the composer — never sent — and the server re-checks the original message, source and account grant; a route opens as an interactive Google map whose estimated cost is announced first and every construction counted ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md)).
 - In the rich HTML mode every data-bearing answer is a composed page — a lead sentence, one section per facet in the component that fits it, a closing callout — laid out on conversational turns too unless a voice is reading them ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
 - Images and PDFs can be attached (vision analysis, text extraction, strict per-user isolation).
 - Long conversations are compacted by an LLM summary that preserves identifiers, the history scrolls back page by page without limit, and each answer is shared — to the device's sheet, or to a connection through an ordinary confirmed message — or downloaded as a dated Markdown file in one click. A formatted answer keeps its headings, lists, tables, links and code in that file, its cards summed up as a heading and a few bullets; copying stays plain text ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
@@ -386,7 +388,7 @@ A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR
 
 #### A daily briefing
 
-The home page aggregates your sources in parallel with a per-section cache and an LLM synthesis, served by a read-only domain outside the agent graph ([BRIEFING_DOMAIN](docs/technical/BRIEFING_DOMAIN.md)).
+The home page aggregates your sources in parallel with a per-section cache and an LLM synthesis — including a Workboard card with exact counts of what waits on you, what LIA holds and what is overdue — served by a read-only domain outside the agent graph ([BRIEFING_DOMAIN](docs/technical/BRIEFING_DOMAIN.md)).
 
 ### Remember
 
@@ -429,7 +431,7 @@ The home page aggregates your sources in parallel with a per-section cache and a
 
 - A bookmark on every answer copies it with the request that produced it and the answer's date, so it outlives the conversation.
 - A Bookmarks tab beside the galleries lists them newest first, with search, an exact total against the account's cap, sharing, a Markdown export and deletion.
-- Every kept answer is also indexed in a knowledge space of your own, so LIA cites it weeks later when a question concerns it, and the card shows the indexing state and its cost ([ADR-282](docs/architecture/ADR-282-Message-Bookmarks.md), [ADR-291](docs/architecture/ADR-291-Kept-Answers-Knowledge-Space.md), [BOOKMARKS](docs/technical/BOOKMARKS.md)).
+- Every kept answer is also indexed in a knowledge space of your own, so LIA cites it weeks later when a question concerns it, and the card shows the indexing state and two named costs — what the answer cost to produce and what indexing it cost, as billed ([ADR-282](docs/architecture/ADR-282-Message-Bookmarks.md), [ADR-291](docs/architecture/ADR-291-Kept-Answers-Knowledge-Space.md), [BOOKMARKS](docs/technical/BOOKMARKS.md)).
 
 ### Trust it
 
@@ -518,6 +520,7 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 - **Prometheus**: 616 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
 - **Grafana**: 31 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
+- **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
 - **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
 - **Per-process memory**: every API worker publishes what it holds (`lia_worker_memory_bytes`, one series per live worker), drawn on the infrastructure dashboard and watched by an alert that names the process; what a process loads is declared, measured on the target host and bounded where it multiplies — the supervisor never imports the application, heavy libraries load where they are used, and the speech engine keeps one resident model per worker ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
@@ -772,8 +775,8 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                                            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Backend tests           | 38,452 collected over `tests/` (`task test:markers`, 2026-10-03)                                                                                |
-| Frontend tests (vitest) | 10,521 passed across 841 files (`task test:frontend:coverage`, 2026-10-03), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Backend tests           | 39,144 collected over `tests/` (`task test:markers`, 2026-10-04)                                                                                |
+| Frontend tests (vitest) | 10,860 passed across 864 files (`task test:frontend:coverage`, 2026-10-04), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                           |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                    |
 
@@ -872,7 +875,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-330 ADR files (ADR-001 through ADR-331 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+332 ADR files (ADR-001 through ADR-333 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

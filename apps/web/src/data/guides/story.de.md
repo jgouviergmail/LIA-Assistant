@@ -2,9 +2,9 @@
 
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
-**Version**: 2.2
-**Datum**: 2026-10-03
-**Anwendung**: LIA v2.4.0
+**Version**: 2.3
+**Datum**: 2026-10-04
+**Anwendung**: LIA v2.5.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Quellcodezeilen (ohne Tests) — 54 Fachdomänen | **800.000+** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **48.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **330** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **275** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **50.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **332** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **276** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,9 +50,11 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 > Die Geschwindigkeit kommt von der KI. Die Qualität kommt vom Rahmen. Und der Rahmen ist Führungsarbeit.
 
+Mehrere Agenten können gleichzeitig am selben Repository arbeiten — zwei verschiedene Werkzeugfamilien, jede in ihrem eigenen Arbeitsbaum. Die Regel ist dieselbe wie für den Code: Nichts wird auf die bloße Zusicherung einer Zusammenfassung hin zusammengeführt. Jede Datei wird ihrem Urheber über ihren Fingerabdruck und das Protokoll des Agenten zugeordnet, jeder Merge wird in einem isolierten Baum nachgespielt und dann von allen Prüfungen verifiziert, und vor jedem Umschalten steht eine Sicherung.
+
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 330 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 332 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 

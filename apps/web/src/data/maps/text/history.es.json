@@ -1752,6 +1752,16 @@
       "title": "Lo que los controles no ven se lee cada semana",
       "summary": "Los controles de cada cambio leían una sola base de avisos de seguridad: la revisión de septiembre de 2026 encontró veinte avisos publicados por los propios repositorios de las dependencias que ninguna herramienta veía. Una vigilancia semanal lee ahora esos avisos, los fines de soporte, los registros y el motor del navegador, y cada hallazgo se corrige o se acepta por escrito, con una fecha de revisión. Las versiones de Python avanzan con un solo comando, tras un periodo de espera, sin retroceder nunca.",
       "src": "1fdde3db9932"
+    },
+    "332": {
+      "title": "Tarjetas que muestran todo lo recibido, y acciones ligadas al mensaje que las muestra",
+      "summary": "Las respuestas que contienen datos — correos, citas, contactos, lugares, rutas, tiempo — se muestran como tarjetas que enseñan todo lo que la fuente proporcionó, sin inventar nunca un valor ausente, y conservan el detalle completo tras un desplegable. El modelo nunca relee la tarjeta, solo los hechos autorizados, así que la conversación no se vuelve más pesada. Responder a un correo o ajustar un recordatorio desde una tarjeta prepara una petición ligada al mensaje de origen y verificada de nuevo al hacer clic, y una ruta puede abrirse como mapa interactivo cuyo coste se anuncia y luego se contabiliza.",
+      "src": "0ad1e9554067"
+    },
+    "333": {
+      "title": "Registros, trazas y métricas se responden, y la cadena de observación se vigila a sí misma",
+      "summary": "Una línea de registro abre la traza de su petición, una traza abre sus registros y métricas, un punto de latencia abre el ejemplo que lo produjo: enlaces medidos como rotos en producción ahora funcionan. La cadena que transporta estas señales se vigila a su vez, con una alerta cuando se pierden registros, y todos los paneles siguen una misma convención: una semana de historial y un menú común.",
+      "src": "9180ad307663"
     }
   }
 }

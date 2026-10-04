@@ -2,9 +2,9 @@
 
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
-**Versione**: 2.2
-**Data**: 2026-10-03
-**Applicazione**: LIA v2.4.0
+**Versione**: 2.3
+**Data**: 2026-10-04
+**Applicazione**: LIA v2.5.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
 | Righe di codice sorgente (esclusi i test) — 54 domini funzionali | **800.000+** |
-| Test automatizzati, eseguiti a ogni commit e rilascio | **48.000+** |
-| Decisioni di architettura documentate (ADR) | **330** |
-| Versioni rilasciate a ritmo regolare | **275** |
+| Test automatizzati, eseguiti a ogni commit e rilascio | **50.000+** |
+| Decisioni di architettura documentate (ADR) | **332** |
+| Versioni rilasciate a ritmo regolare | **276** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,9 +50,11 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 > La velocità viene dall'IA. La qualità viene dal quadro. E il quadro è un lavoro di direzione.
 
+Più agenti possono lavorare contemporaneamente sullo stesso repository — due famiglie di strumenti diverse, ciascuna nel proprio albero di lavoro. La regola è la stessa del codice: nulla viene consolidato sulla fiducia di un riassunto. Ogni file è attribuito al suo autore tramite la sua impronta e il registro dell'agente, ogni fusione è rieseguita in un albero isolato e poi verificata da tutti i controlli, e un backup precede ogni passaggio.
+
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 330 documentate:
+Tre decisioni strutturanti, tra le 332 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 

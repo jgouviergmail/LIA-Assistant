@@ -78,7 +78,7 @@ Start by connecting your Google services (one authorization for all). Weather al
 **📊 Information provided:**
 • Total distance in kilometers/miles
 • Estimated duration (with and without traffic)
-• Interactive map with route
+• Interactive map with every alternative: pick a route, switch the background (roadmap, satellite, hybrid, terrain) — the estimated cost is announced before it opens, then counted in your usage
 • Turn-by-turn directions
 • Real-time traffic conditions
 

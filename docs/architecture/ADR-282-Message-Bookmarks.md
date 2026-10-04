@@ -113,3 +113,23 @@ fichier).
   une conversation (« réutiliser dans le chat »), pas de dossiers ni
   d'étiquettes, pas de bookmark de message utilisateur. Chacun serait une
   décision, pas une omission.
+
+## Amendement 2026-10-03 — une réponse gardée dit ses deux coûts
+
+Une réponse gardée affiche désormais **deux coûts, chacun nommé** sur sa carte, et
+aucun chiffre que personne n'a mesuré (ADR-185) :
+
+- **`answer_usage`** — ce que la réponse a coûté à PRODUIRE : la ligne
+  `message_token_summary` de son tour (le chiffre de la bulle du chat, total facturé),
+  retrouvée par le `run_id` copié au clic (colonne `message_bookmarks.run_id`,
+  migration `b6e2d8f4a1c7`) et lue en une requête groupée par page
+  (`bookmarks/answer_cost.py`, `service.answer_costs_of`). Pas de ligne de synthèse,
+  pas de chiffre — jamais un zéro inventé ; un bookmark antérieur à la colonne n'en a
+  pas.
+- **`index_usage`** — ce qu'a coûté son indexation dans l'espace de connaissances
+  (ADR-291) : ce que l'embedder a FACTURÉ pour ces morceaux
+  (`gemini_embeddings.billed_embedding_usage` : le décompte du client et le tarif
+  administré), jamais une seconde estimation. Mesuré : le tokenizer et la table de prix
+  OpenAI qu'utilisait l'ingestion sous-estimaient d'environ 7× chaque document indexé
+  par Gemini — c'est aussi le coût d'indexation de TOUS les documents des espaces, qui
+  suit la même règle.

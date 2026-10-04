@@ -1,7 +1,7 @@
 {
-  "version": "2.4.0",
-  "releaseDate": "2026-10-03",
-  "releases": 275,
+  "version": "2.5.0",
+  "releaseDate": "2026-10-04",
+  "releases": 276,
   "milestones": [
     {
       "version": "1.0.0",
@@ -214,6 +214,10 @@
     {
       "version": "2.4.0",
       "date": "2026-10-03"
+    },
+    {
+      "version": "2.5.0",
+      "date": "2026-10-04"
     }
   ],
   "domains": 54,
@@ -548,6 +552,8 @@
     "328": "ADR-328-Heartbeat-Without-A-Daily-Quota.md",
     "329": "ADR-329-Live-Standby-And-Multilingual-Wake-Word.md",
     "330": "ADR-330-Landing-Media-Served-Without-Runtime-Work.md",
-    "331": "ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md"
+    "331": "ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md",
+    "332": "ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md",
+    "333": "ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md"
   }
 }

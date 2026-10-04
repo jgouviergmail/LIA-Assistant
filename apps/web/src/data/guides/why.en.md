@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 6.1
-**Date**: 2026-10-03
-**Application**: LIA v2.4.0
+**Version**: 6.2
+**Date**: 2026-10-04
+**Application**: LIA v2.5.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -122,6 +122,8 @@ You choose how LIA reasons, via a simple toggle (⚡) in the chat header:
 ### 3.1. Natural conversation
 
 Talk to LIA as you would to a human assistant — no commands to memorize, no syntax to follow. LIA understands and responds in 99+ languages, with an interface available in 6 languages (French, English, German, Spanish, Italian, Chinese). Responses are rendered as interactive HTML visual cards, direct HTML, or Markdown based on your preferences. In rich HTML, an answer that carries data arrives as a composed page — a lead sentence, one section per facet in the component that fits it, a closing callout — never as tagged text.
+
+When an answer carries data, it is shown as cards that display everything the source supplied — inventing nothing — and keep the detail behind a disclosure: a place's photos in a gallery, the weather compared slot by slot, a document's preview, an interactive route. Replying to an e-mail or adjusting a reminder from its card prepares the request; nothing goes out without you.
 
 ### 3.2. Personal connected services
 
@@ -330,6 +332,8 @@ The rule has no exception by path. Everything the platform pays for you with its
 
 And the figure shown is the one the provider really bills: tariffs are re-read on its pages, a write to a model's cache counts at its own price, an off-peak hour knows its days (weekends, when the provider does it), a route is counted at the tier its request triggers — and a price the administrator edits reaches every server at once.
 
+Even an interactive map announces its cost before it opens, and an answer you keep shows what it cost to produce and to index — the amount actually billed, never an estimate.
+
 ### 6.4. Trust through evidence
 
 Transparency is not a technical gimmick. It changes your relationship with your assistant: you **understand** its decisions, you **control** your costs, you **detect** problems. You trust because you can verify — not because you're asked to believe.
@@ -486,6 +490,8 @@ LIA ships with production-grade observability:
 Every request is traced end-to-end, every LLM call is measured, every error is contextualized. This isn't monitoring bolted on as an afterthought — it's a **foundational architectural decision** documented across the project's Architecture Decision Records. And measurement names no one: a metric or a trace designates the route taken by its pattern, never the name or the search an address contains — the logging rule, applied to the instruments. The whole monitoring stack runs on supported versions, pinned by digest.
 
 That demand reaches down to the machine. A server is several processes, and "the container uses five gigabytes" does not say which one holds what: every LIA process therefore publishes what it holds in memory itself, a dashboard draws it process by process, an alert names the one that overflows — and what a process loads was measured on the target machine before being touched, never assumed.
+
+These signals answer each other: a log line opens its request's trace, a trace its logs and metrics, a latency point the example that produced it. And the pipeline that carries them watches itself: if logs get lost on the way, an alert says so.
 
 ### 8.3. An anti-hallucination pipeline
 

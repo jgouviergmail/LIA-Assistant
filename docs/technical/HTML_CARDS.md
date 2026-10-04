@@ -2,7 +2,7 @@
 
 The assistant renders received data as domain cards in the HTML-card and rich-HTML-with-cards display modes. The shared presentation makes the first useful facts easy to scan and keeps complete supplied detail reachable through native disclosures. Existing action approvals, source ownership and provider capabilities remain authoritative.
 
-This guide describes the current chat contract. [CARD_SYSTEM.md](CARD_SYSTEM.md) also documents the general React cards and historical CSS vocabulary.
+This guide describes the current chat contract; the decisions behind it are recorded in [ADR-332](../architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md). [CARD_SYSTEM.md](CARD_SYSTEM.md) also documents the general React cards and historical CSS vocabulary.
 
 ## Architecture and extension points
 
@@ -172,7 +172,7 @@ The shared [reference fixtures](../../apps/api/tests/helpers/card_reference_case
 
 Run the repository's Taskfile gates, including lint, i18n, shrink-only complexity/file-size checks, marker coverage, backend/frontend coverage and documentation preview for unindexed files. Do not raise a threshold to clear a regression. Preserve independent working-tree changes when qualifying the branch. Browser suites use mocked API/SSE/media boundaries and do not authorize paid calls or writes to the owner's data. Database integration requires an explicitly disposable test database.
 
-Automated checks support the delivery; they do not replace the owner's visual acceptance on Docker dev. The branch must remain unmerged until that approval is given.
+Automated checks support the delivery; they do not replace the owner's visual acceptance on Docker dev.
 
 ## Provider references
 

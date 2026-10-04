@@ -2458,6 +2458,20 @@
       "theme": "platform",
       "functional": [],
       "technical": ["t.cicd", "t.release", "t.docker"]
+    },
+    {
+      "adr": 332,
+      "date": "2026-10-04",
+      "theme": "experience",
+      "functional": ["f.chat", "f.mail", "f.calendar", "f.places"],
+      "technical": ["t.response", "t.dataregistry", "t.web", "t.pricing"]
+    },
+    {
+      "adr": 333,
+      "date": "2026-10-03",
+      "theme": "reliability",
+      "functional": [],
+      "technical": ["t.dashboards", "t.logs", "t.tracing", "t.metrics", "t.alerts"]
     }
   ]
 }

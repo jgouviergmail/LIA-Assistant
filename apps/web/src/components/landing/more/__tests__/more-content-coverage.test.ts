@@ -1,7 +1,7 @@
 /**
  * ANTI-REGRESSION GUARDS for the "/more" small-attentions page.
  *
- * 1. Structural contract: exactly 88 unique cards across 6 sections, every
+ * 1. Structural contract: exactly 90 unique cards across 6 sections, every
  *    card mapped to one icon and one scene-label list — a card cannot be
  *    added or dropped as a silent side effect of an edit.
  * 2. Level contract: the page presents craft, one level below capabilities —
@@ -57,11 +57,11 @@ const STATIC_KEYS = [
 ] as const;
 
 describe('more-data structural contract', () => {
-  it('has 88 unique cards across 6 sections', () => {
+  it('has 90 unique cards across 6 sections', () => {
     expect(MORE_SECTIONS).toHaveLength(6);
-    expect(MORE_CARD_KEYS).toHaveLength(88);
-    expect(new Set(MORE_CARD_KEYS).size).toBe(88);
-    expect(MORE_SECTIONS.map(s => s.cards.length)).toEqual([5, 18, 11, 16, 15, 23]);
+    expect(MORE_CARD_KEYS).toHaveLength(90);
+    expect(new Set(MORE_CARD_KEYS).size).toBe(90);
+    expect(MORE_SECTIONS.map(s => s.cards.length)).toEqual([5, 20, 11, 16, 15, 23]);
   });
 
   it('presents the exchange-rhythm preference among the everyday attentions', () => {

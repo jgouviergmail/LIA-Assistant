@@ -2,9 +2,9 @@
 
 > Retour d'expérience — un système complet, de la conception à la production.
 
-**Version** : 2.2
-**Date** : 2026-10-03
-**Application** : LIA v2.4.0
+**Version** : 2.3
+**Date** : 2026-10-04
+**Application** : LIA v2.5.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de source (hors tests) — 54 domaines fonctionnels | **800 000+** |
-| Tests automatisés, exécutés à chaque commit et livraison | **48 000+** |
-| Décisions d'architecture documentées (ADR) | **330** |
-| Versions livrées à rythme régulier | **275** |
+| Tests automatisés, exécutés à chaque commit et livraison | **50 000+** |
+| Décisions d'architecture documentées (ADR) | **332** |
+| Versions livrées à rythme régulier | **276** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,9 +50,11 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 > La vitesse vient de l'IA. La qualité vient du cadre. Et le cadre est un travail de direction.
 
+Plusieurs agents peuvent travailler en même temps sur le même dépôt — deux familles d'outils différentes, chacune dans son arbre de travail. La règle est la même que pour le code : rien n'est consolidé sur la foi d'un résumé. Chaque fichier est attribué à son auteur par son empreinte et par le journal de l'agent, chaque fusion est rejouée dans un arbre isolé puis vérifiée par toutes les barrières, et une sauvegarde précède chaque bascule.
+
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 330 documentées :
+Trois décisions structurantes, parmi les 332 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 

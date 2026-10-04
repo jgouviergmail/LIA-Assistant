@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 5.1
-**Date** : 2026-10-03
-**Application** : LIA v2.4.0
+**Version** : 5.2
+**Date** : 2026-10-04
+**Application** : LIA v2.5.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -56,7 +56,8 @@
 41. [Le tableau de tickets : une ligne, deux côtés, et une assistante qui demande](#41-le-tableau-de-tickets--une-ligne-deux-côtés-et-une-assistante-qui-demande)
 42. [L'anatomie d'un processus : ce qu'il charge est déclaré, mesuré et borné](#42-lanatomie-dun-processus--ce-quil-charge-est-déclaré-mesuré-et-borné)
 43. [Le mode Live : deux intelligences, une couture — et une politique par mode](#43-le-mode-live--deux-intelligences-une-couture--et-une-politique-par-mode)
-44. [Conclusion](#44-conclusion)
+44. [Des cartes qui montrent ce qui a été reçu, et des actions qui appartiennent à leur message](#44-des-cartes-qui-montrent-ce-qui-a-été-reçu-et-des-actions-qui-appartiennent-à-leur-message)
+45. [Conclusion](#45-conclusion)
 ---
 
 ## 1. Contexte et choix fondateurs
@@ -71,7 +72,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 616 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 330 ADRs, plus de 48 000 tests automatisés côté backend et frontend, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 332 ADRs, plus de 50 000 tests automatisés côté backend et frontend, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -89,10 +90,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | Plus de 48 000 tests automatisés avec pytest et Vitest (seuils de couverture verrouillés, ADR-116) |
+| Tests | Plus de 50 000 tests automatisés avec pytest et Vitest (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 1 082, dont 48 partagées via conftest |
 | Documents de documentation | 716 |
-| ADRs (Architecture Decision Records) | 330 |
+| ADRs (Architecture Decision Records) | 332 |
 | Métriques Prometheus | 616 définitions |
 | Dashboards Grafana | 31 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -1158,6 +1159,10 @@ utile qu'il achemine. Remplacer la ligne par le contenu d'un seul
 champ priverait l'analyse du JSON structuré que
 l'application émet.
 
+### 20.5. Des signaux qui se répondent, une chaîne qui se surveille
+
+Une métrique, une ligne de journal et une trace racontent la même requête ; encore faut-il passer de l'une à l'autre (ADR-333). Chaque lien a été mesuré en production avant d'être réparé : le champ dérivé journal → trace cherchait `trace_id=` dans des lignes JSON (aucune ligne reconnue sur 200), le lien trace → métriques avait perdu ses étiquettes au provisioning, et Prometheus recevait 19 045 exemplars par jour sans en garder un seul. Désormais une ligne ouvre sa trace, une trace ses journaux et ses métriques, un point de latence son exemple, et l'étiquette `job` nomme le service au lieu de valoir `api` pour tous les conteneurs. La chaîne elle-même — Loki, Alloy, Tempo, Grafana — est scrutée sur une liste fermée d'une vingtaine de séries plutôt que neuf mille, une alerte prévient quand des lignes se perdent, et une garde tient chaque série lue à sa liste. Tous les tableaux s'ouvrent sur sept jours (journaux et traces sur quatre heures) avec un menu commun : une convention tenue par un test, pas par la mémoire.
+
 ---
 
 ## 21. Performance : optimisations et métriques
@@ -1534,7 +1539,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-330 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+332 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1877,14 +1882,28 @@ Les deux mêmes modes valent pour le téléphone (ADR-301) : relayer la conversa
 
 **Une session dort, elle ne meurt pas** (ADR-329). Le silence du modèle, une page masquée ou le bouton de la personne endorment la session : le navigateur ferme la connexion au fournisseur — rien ne tourne ni ne se facture — puis le déclare ; l'enregistrement reste réclamé, vit jusqu'à une borne de veille longue au lieu de son plafond, et passe des sessions actives de l'instance à son ensemble de veille. Seule la personne termine une session. Un réveil ouvre une **nouvelle** connexion : l'API refuse dans l'ordre (déjà éveillée, plafond, cadence, plafond d'instance), **re-rend le setup** à l'instant du réveil par la fonction même du démarrage — l'horloge parlée, l'état intérieur, les interrupteurs du moment —, crée la clé, et seulement alors écrit l'enregistrement éveillé : un refus laisse la session endormie telle qu'elle était. La mémoire est celle de l'application, jamais celle du fournisseur ; le plafond est décalé de la durée du sommeil, si bien que toutes les figures — carte, ligne de décision, histogramme, compteur — comptent le temps éveillé, et une session directe relaie ses mots à chaque mise en veille. Côté navigateur, une politique (`LiveStandby`) emprunte au contrôleur son fil, écoute « Dis LIA » sur une capture à elle tant que la page est visible, et vérifie après chaque attente que la session est toujours celle que le store détient.
 
+## 44. Des cartes qui montrent ce qui a été reçu, et des actions qui appartiennent à leur message
+
+Une réponse porteuse de données est rendue par le serveur en cartes HTML, archivée avec le message, puis relue par le chat à travers un nettoyage strict. Le rendu reste **déterministe et côté serveur** (ADR-332) : un seul moteur, indépendant du modèle et du mode d'exécution. Des adaptateurs typés par famille traduisent les alias des fournisseurs, les unités et les valeurs optionnelles en primitives communes — titre, texte complet, faits, dépliants natifs —, et le navigateur n'ajoute que ce que le HTML ne sait pas faire : galerie, visionneuse, choix d'un créneau, composition. Une réponse archivée rouverte passe par le même chemin ; sans JavaScript, elle reste lisible.
+
+**Un fait reçu est montré en entier, et jamais inventé.** Absent, zéro et faux sont trois états distincts : une carte ne fabrique pas d'heure par défaut, n'efface pas un coût nul, n'emploie pas un identifiant technique comme nom. L'horloge de la source passe par un seul analyseur — un décalage explicite fait foi, une zone inconnue n'est jamais lue comme UTC, un jour entier reste une date civile — et la récurrence native de Microsoft reste un fait natif plutôt qu'une règle inventée. C'est une politique de ce qui a été **reçu** : aucune liste ne demande davantage de champs, et ouvrir un détail n'appelle ni fournisseur, ni modèle, ni outil.
+
+**Le modèle lit une vue, jamais la carte.** Le message de l'assistant porte une vue sémantique versionnée de ce que la personne a vu ; l'historique, la compaction et chaque appel suivant la lisent à la place du HTML. Une sonde l'avait montré : le corps d'un e-mail retenu par le mode « métadonnées » revenait au tour suivant par le HTML de sa carte. La frontière « affichage seulement » est désormais garantie par construction, et une évolution de présentation n'achète ni appel ni prompt plus lourd.
+
+**Une action appartient au message qui a montré sa source.** Répondre, transférer ou ajuster un rappel depuis une carte prépare une demande, jamais un envoi : au clic, le serveur relit la réponse — du compte, de la conversation en cours, de son exécution —, la source canonique et le droit du compte ; la confirmation, la modification et la reprise revérifient la même liaison, et une source sans liaison structurelle à un compte n'offre aucune action. Une classe HTML ou un attribut écrit par un texte externe n'autorise jamais rien.
+
+**Une carte dans le navigateur est une dépense comptée.** Un trajet peut s'ouvrir en carte Google interactive sur la géométrie exacte du fournisseur ; choisir une alternative ne recalcule rien. L'activation est explicite et annonce son coût estimé ; la clé n'est libérée qu'après une admission authentifiée, sous les plafonds du compte et de l'instance, liée par une autorisation signée de courte durée, et chaque construction est enregistrée dans les registres existants sous une exécution durable — sans nouvelle table. Ce que LIA compte est la construction observée par le navigateur, pas la facture de Google : la clé reste à restreindre et à plafonner chez le fournisseur.
+
+Les surcouches — fenêtres, menus, listes, info-bulles, visionneuses, notifications — partagent un même verre construit sur les jetons du thème ; une préférence de transparence réduite ou de couleurs forcées rend une surface opaque, le mouvement réduit retire les transitions décoratives, et une fenêtre rend le focus au contrôle qui l'a ouverte. Chaque rendu est testé depuis son vrai producteur jusqu'à la sérialisation du registre, avec des zéros, des faux, des absences et des entrées hostiles explicites.
+
 ---
 
-## 44. Conclusion
+## 45. Conclusion
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 330 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Plus de 48 000 tests automatisés, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 332 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Plus de 50 000 tests automatisés, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 330 ADRs, et du changelog (v1.0 à v2.4.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (700+ documents), des 332 ADRs, et du changelog (v1.0 à v2.5.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

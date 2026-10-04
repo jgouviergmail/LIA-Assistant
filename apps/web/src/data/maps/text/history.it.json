@@ -1752,6 +1752,16 @@
       "title": "Ciò che i controlli non vedono viene letto ogni settimana",
       "summary": "I controlli di ogni modifica leggevano un solo database di avvisi di sicurezza: la revisione di settembre 2026 ha trovato venti avvisi pubblicati dai repository stessi delle dipendenze, che nessuno strumento vedeva. Una sorveglianza settimanale legge ora questi avvisi, le fini del supporto, i registri e il motore del browser, e ogni rilievo viene corretto o accettato per iscritto, con una data di revisione. Le versioni di Python avanzano con un solo comando, dopo un periodo di attesa, senza mai tornare indietro.",
       "src": "1fdde3db9932"
+    },
+    "332": {
+      "title": "Schede che mostrano tutto ciò che è stato ricevuto, e azioni legate al messaggio che le mostra",
+      "summary": "Le risposte che contengono dati — e-mail, appuntamenti, contatti, luoghi, percorsi, meteo — appaiono come schede che mostrano tutto ciò che la fonte ha fornito, senza mai inventare un valore assente, con il dettaglio completo dietro un pannello apribile. Il modello non rilegge mai la scheda, solo i fatti autorizzati, così la conversazione non si appesantisce. Rispondere a un'e-mail o regolare un promemoria da una scheda prepara una richiesta legata al messaggio d'origine e ricontrollata al clic, e un percorso può aprirsi come mappa interattiva il cui costo viene annunciato e poi contabilizzato.",
+      "src": "0ad1e9554067"
+    },
+    "333": {
+      "title": "Log, tracce e metriche si richiamano a vicenda, e la catena di osservazione sorveglia sé stessa",
+      "summary": "Una riga di log apre la traccia della sua richiesta, una traccia apre i suoi log e le sue metriche, un punto di latenza apre l'esempio che l'ha prodotto: collegamenti misurati come interrotti in produzione ora funzionano. La catena che trasporta questi segnali è a sua volta sorvegliata, con un avviso quando dei log vanno persi, e tutte le dashboard seguono una stessa convenzione: una settimana di storico e un menu comune.",
+      "src": "9180ad307663"
     }
   }
 }

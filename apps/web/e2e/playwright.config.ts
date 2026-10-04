@@ -41,9 +41,7 @@ export default defineConfig({
   // failures whose page snapshot showed the legacy mockup, unreproducible
   // locally because a manual run passes E2E_SHOWROOM=1 and skips the trap.
   testIgnore:
-    process.env.E2E_SHOWROOM === '1'
-      ? []
-      : ['**/*public-demo-showroom*', '**/capture/**'],
+    process.env.E2E_SHOWROOM === '1' ? [] : ['**/*public-demo-showroom*', '**/capture/**'],
   // Foundation is a PR smoke: keep it fast and deterministic. Firefox/WebKit
   // and the full zoom/reflow matrix are a documented periodic extension.
   fullyParallel: true,
@@ -115,7 +113,12 @@ export default defineConfig({
           'rm -rf ../.next/standalone/apps/web/.next/static ../.next/standalone/apps/web/public && ' +
           'cp -r ../.next/static ../.next/standalone/apps/web/.next/static && ' +
           'cp -r ../public ../.next/standalone/apps/web/public && ' +
-          'PORT=3000 HOSTNAME=0.0.0.0 node ../.next/standalone/apps/web/server.js',
+          'node ../.next/standalone/apps/web/server.js',
+        // Through `env`, never a `VAR=value cmd` prefix: Playwright runs the
+        // command in the platform's shell, and `cmd.exe` on a Windows host
+        // reads that prefix as a program name — the build passed and the
+        // server never started. Playwright merges this over `process.env`.
+        env: { PORT: '3000', HOSTNAME: '0.0.0.0' },
         url: baseURL,
         reuseExistingServer: !process.env.CI && process.env.E2E_FORCE_FRESH !== '1',
         timeout: 300_000,

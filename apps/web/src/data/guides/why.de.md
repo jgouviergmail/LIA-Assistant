@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 6.1
-**Datum**: 2026-10-03
-**Anwendung**: LIA v2.4.0
+**Version**: 6.2
+**Datum**: 2026-10-04
+**Anwendung**: LIA v2.5.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -122,6 +122,8 @@ Du wählst, wie LIA denkt, über einen einfachen Toggle (⚡) im Chat-Header:
 ### 3.1. Natürliche Unterhaltung
 
 Sprich mit LIA wie mit einem menschlichen Assistenten — keine Befehle auswendig lernen, keine Syntax einhalten. LIA versteht und antwortet in 99+ Sprachen, mit einer Oberfläche in 6 Sprachen (Französisch, Englisch, Deutsch, Spanisch, Italienisch, Chinesisch). Antworten werden als interaktive HTML-Karten, als reines HTML oder als Markdown gerendert — je nach deinen Vorlieben. In angereichertem HTML kommt eine Antwort mit Daten als komponierte Seite an — ein einleitender Satz, ein Abschnitt pro Facette in der passenden Komponente, ein abschließender Kasten — nie als Text mit Tags.
+
+Trägt eine Antwort Daten, erscheint sie als Karten, die alles zeigen, was die Quelle geliefert hat — ohne etwas zu erfinden — und das Detail in einem aufklappbaren Bereich bereithalten: die Fotos eines Ortes als Galerie, das Wetter Zeitfenster für Zeitfenster verglichen, die Vorschau eines Dokuments, eine interaktive Route. Aus ihrer Karte auf eine E-Mail zu antworten oder eine Erinnerung anzupassen bereitet die Anfrage vor; nichts geht ohne dich hinaus.
 
 ### 3.2. Persönliche verbundene Dienste
 
@@ -330,6 +332,8 @@ Die Regel kennt keine Ausnahme nach Pfad. Alles, was die Plattform mit ihren eig
 
 Und die angezeigte Zahl ist die, die der Anbieter wirklich berechnet: Die Tarife werden auf seinen Seiten nachgelesen, ein Schreibvorgang in den Cache eines Modells zählt zu seinem eigenen Preis, eine Nebenzeit kennt ihre Tage (das Wochenende, wenn der Anbieter es so hält), eine Route wird auf der Stufe gezählt, die ihre Anfrage auslöst – und ein von der Administration geänderter Preis erreicht sofort jeden Server.
 
+Selbst eine interaktive Karte kündigt ihre Kosten an, bevor sie sich öffnet, und eine Antwort, die du behältst, zeigt, was ihre Erzeugung und ihre Indexierung gekostet haben — den tatsächlich berechneten Betrag, nie eine Schätzung.
+
 ### 6.4. Vertrauen durch Beweis
 
 Transparenz ist kein technisches Gadget. Sie verändert die Beziehung zu deinem Assistenten: Du **verstehst** seine Entscheidungen, du **beherrschst** deine Kosten, du **erkennst** Probleme. Du vertraust, weil du überprüfen kannst — nicht weil man dich bittet zu glauben.
@@ -486,6 +490,8 @@ LIA bietet produktionsreife Observability:
 Jede Anfrage wird von Anfang bis Ende nachverfolgt, jeder LLM-Aufruf gemessen, jeder Fehler kontextualisiert. Das ist kein nachträglich hinzugefügtes Monitoring — es ist eine **grundlegende Architekturentscheidung**, die in den Architecture Decision Records des Projekts dokumentiert ist. Und die Messung nennt niemanden: Eine Metrik oder ein Trace bezeichnet die genommene Route nach ihrem Muster, nie den Namen oder die Suche, die eine Adresse enthält — die Regel der Logs, angewandt auf die Instrumente. Der gesamte Überwachungs-Stack läuft auf gepflegten, per Digest fixierten Versionen.
 
 Dieser Anspruch reicht bis auf die Maschine hinunter. Ein Server besteht aus mehreren Prozessen, und „der Container belegt fünf Gigabyte“ sagt nicht, welcher was hält: jeder Prozess von LIA veröffentlicht deshalb selbst, was er im Speicher hält, ein Dashboard zeichnet es Prozess für Prozess, ein Alarm benennt den, der überläuft — und was ein Prozess lädt, wurde auf der Zielmaschine gemessen, bevor es angefasst wurde, nie angenommen.
+
+Diese Signale verweisen aufeinander: Eine Logzeile öffnet den Trace ihrer Anfrage, ein Trace seine Logs und Metriken, ein Latenzpunkt das Beispiel, das ihn erzeugt hat. Und die Kette, die sie transportiert, überwacht sich selbst: Gehen unterwegs Logs verloren, meldet es ein Alarm.
 
 ### 8.3. Eine Anti-Halluzinations-Pipeline
 

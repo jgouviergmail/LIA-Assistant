@@ -185,6 +185,8 @@ LIA understands **references to previous items** in the conversation:
 • You: "*Reply to confirm my attendance*"
 • LIA: Creates a reply draft
 
+**🃏 From an e-mail card:** the card's *Reply* and *Forward* buttons prepare the request in your message box, with a chip naming the e-mail. Complete or edit it, then send: you still approve the draft before it goes out, and LIA checks again that the account and the original e-mail are yours. (Not offered for Apple Mail.)
+
 This fluidity makes conversation natural and efficient!
 
 ## What do the colors on email cards mean?

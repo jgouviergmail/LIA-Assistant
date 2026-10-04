@@ -1752,6 +1752,16 @@
       "title": "Was die Prüfungen nicht sehen, wird jede Woche gelesen",
       "summary": "Die Prüfungen jeder Änderung lasen eine einzige Datenbank für Sicherheitshinweise: Die Überprüfung vom September 2026 fand zwanzig Hinweise, die die Repositories der Abhängigkeiten selbst veröffentlicht hatten und die kein Werkzeug sah. Eine wöchentliche Überwachung liest nun diese Hinweise, die Support-Enden, die Registries und die Browser-Engine, und jeder Befund wird behoben oder schriftlich akzeptiert, mit einem Datum für die erneute Prüfung. Python-Versionen rücken über einen einzigen Befehl vor, nach einer Wartezeit und nie rückwärts.",
       "src": "1fdde3db9932"
+    },
+    "332": {
+      "title": "Karten, die alles Empfangene zeigen, und Aktionen, die an die anzeigende Nachricht gebunden sind",
+      "summary": "Antworten mit Daten — E-Mails, Termine, Kontakte, Orte, Routen, Wetter — erscheinen als Karten, die alles zeigen, was die Quelle geliefert hat, ohne je einen fehlenden Wert zu erfinden; das vollständige Detail bleibt hinter einem Aufklapper erreichbar. Das Modell liest nie die Karte selbst, nur die freigegebenen Fakten, sodass das Gespräch nicht schwerer wird. Eine E-Mail beantworten oder eine Erinnerung anpassen bereitet von der Karte aus eine Anfrage vor, die an die ursprüngliche Nachricht gebunden ist und beim Klick erneut geprüft wird; eine Route lässt sich als interaktive Karte öffnen, deren Kosten vorher genannt und dann gezählt werden.",
+      "src": "0ad1e9554067"
+    },
+    "333": {
+      "title": "Logs, Traces und Metriken verweisen aufeinander, und die Beobachtungskette überwacht sich selbst",
+      "summary": "Eine Logzeile öffnet den Trace ihrer Anfrage, ein Trace öffnet seine Logs und Metriken, ein Latenzpunkt öffnet das Beispiel, das ihn erzeugt hat: In der Produktion als defekt gemessene Verknüpfungen funktionieren jetzt. Die Kette, die diese Signale transportiert, wird ihrerseits überwacht, mit einem Alarm, wenn Logs verloren gehen, und alle Dashboards folgen einer Konvention: eine Woche Verlauf und ein gemeinsames Menü.",
+      "src": "9180ad307663"
     }
   }
 }

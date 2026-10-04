@@ -484,3 +484,10 @@ Yes. When a message lands in your conversation from elsewhere — another tab or
 
 ## Can I send an answer by e-mail?
 Yes. Under each answer, « Send by e-mail » attaches the answer as the very Markdown file « Download » gives you, with the subject and the words you choose — LIA writes nothing in your place. It leaves from your connected mailbox, or, without one, goes to your own verified address. While you type a recipient, the contacts of your contacts connector (Google, Apple or Microsoft) are suggested by last name or first name — accents and punctuation ignored — or by phone number; picking one puts its address in the field. Without a contacts connector, the field stays a plain address field. The answers you kept (« Bookmarks ») can be sent the same way.
+
+## What do the cards in answers show?
+When an answer carries data — e-mails, appointments, contacts, tasks, files, places, routes, weather, research, lights, tickets or results from an MCP server — LIA shows them as **cards** that display everything the source supplied. A missing value stays missing: a card never guesses a time, a cost or a status.
+
+The first useful facts are visible at once; the rest (an e-mail's full body, every organisation of a contact, conference links, subtasks, a place's reviews and opening hours) unfolds with a click or from the keyboard. A place's photos open in a full-screen gallery, the weather can be compared slot by slot, a generated document previews in place (a PDF's first page, the first rows of a spreadsheet or Word document, a presentation's cover), and a route can open as an interactive map — its estimated cost is announced before it opens.
+
+Opening a detail triggers **no call and no cost**, and the model never reads the card itself, only the authorised facts: the display does not weigh the conversation down. Replying to or forwarding an e-mail, or adjusting a reminder, from its card prepares the request in your message box; nothing is sent without you.

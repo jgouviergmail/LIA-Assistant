@@ -1402,6 +1402,14 @@
     "331": {
       "title": "Ce que les barrières ne voient pas est lu chaque semaine",
       "summary": "Les contrôles des modifications ne lisaient qu'une base d'avis de sécurité : la revue de septembre 2026 a trouvé vingt avis publiés par les dépôts des dépendances elles-mêmes, qu'aucun outil ne voyait. Une veille hebdomadaire lit désormais ces avis, les fins de vie, les registres et le moteur du navigateur, et chaque constat est corrigé ou accepté par écrit, avec une date de révision. Les versions Python avancent par une seule commande, après un délai de carence, sans jamais reculer."
+    },
+    "332": {
+      "title": "Des cartes qui montrent tout ce qui a été reçu, et des actions liées au message qui les affiche",
+      "summary": "Les réponses qui portent des données — e-mails, rendez-vous, contacts, lieux, trajets, météo — s'affichent en cartes qui montrent tout ce que la source a fourni, sans jamais inventer une valeur absente, et gardent le détail complet derrière un dépliant. Le modèle ne relit jamais la carte elle-même, seulement les faits autorisés, si bien que la conversation ne s'alourdit pas. Répondre à un e-mail ou ajuster un rappel depuis une carte prépare une demande liée au message d'origine et revérifiée au clic, et un trajet peut s'ouvrir en carte interactive dont le coût est annoncé puis compté."
+    },
+    "333": {
+      "title": "Journaux, traces et métriques se répondent, et la chaîne d'observation se surveille elle-même",
+      "summary": "Une ligne de journal ouvre la trace de sa requête, une trace ouvre ses journaux et ses métriques, un point de latence ouvre l'exemple qui l'a produit : des liens mesurés hors service en production fonctionnent désormais. La chaîne qui transporte ces signaux est surveillée à son tour, avec une alerte quand des journaux se perdent, et tous les tableaux de bord suivent une même convention : une semaine d'historique et un menu commun."
     }
   }
 }

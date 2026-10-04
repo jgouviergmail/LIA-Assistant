@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 83 cards in
+ * Single source of truth for the "/more" small-attentions page: 90 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (83 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (90 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -79,6 +79,7 @@ import {
   Puzzle,
   Radio,
   RefreshCw,
+  Reply,
   RotateCcw,
   ScrollText,
   Search,
@@ -133,6 +134,8 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'expressive_eyes',
       'living_face',
       'composed_page',
+      'card_details',
+      'card_compose',
       'code_scroll',
       'followup_chips',
       'scroll_return',
@@ -274,6 +277,8 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   recipient_suggest: AtSign,
   image_share: Send,
   keep_answer: Bookmark,
+  card_details: ChevronsDownUp,
+  card_compose: Reply,
   draft_sequence: ListOrdered,
   network_question: Globe,
   skill_proposal: PackageCheck,
@@ -370,6 +375,8 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   recipient_suggest: ['query', 'contact', 'address'],
   image_share: ['peer', 'comment', 'received'],
   keep_answer: ['kept', 'gone'],
+  card_details: ['more', 'free'],
+  card_compose: ['reply', 'context', 'draft'],
   draft_sequence: ['summary', 'first', 'second', 'report'],
   network_question: ['host', 'question', 'with_data', 'without_data', 'refuse', 'resumed'],
   skill_proposal: ['name', 'install', 'installed'],

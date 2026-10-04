@@ -42,6 +42,10 @@ default, outside the space and document caps, yours to rename or switch off.
 Weeks later, LIA cites it when a question concerns it, in both execution modes.
 The bookmark card shows the indexing state (indexed, pending, deferred while a
 spend ceiling refuses, disabled while a capability is off, or in error) and,
-once indexed, what the projection cost. Deleting the bookmark removes the
+once indexed, what the projection cost. It also shows what the answer cost to
+produce — the same figure as under the chat bubble — each cost named; an answer
+kept before v2.5.0 only has the indexing cost. Both are the amounts actually
+billed: since v2.5.0 a knowledge-space document's indexing cost is what the
+embedder billed (it used to be underestimated about sevenfold). Deleting the bookmark removes the
 document; the document itself cannot be moved or deleted from the space, and
 the space cannot be deleted by hand.

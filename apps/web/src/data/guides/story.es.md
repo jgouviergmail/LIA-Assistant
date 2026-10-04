@@ -2,9 +2,9 @@
 
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
-**Versión**: 2.2
-**Fecha**: 2026-10-03
-**Aplicación**: LIA v2.4.0
+**Versión**: 2.3
+**Fecha**: 2026-10-04
+**Aplicación**: LIA v2.5.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código fuente (sin tests) — 54 dominios funcionales | **800.000+** |
-| Tests automatizados, ejecutados en cada commit y entrega | **48.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **330** |
-| Versiones entregadas a ritmo regular | **275** |
+| Tests automatizados, ejecutados en cada commit y entrega | **50.000+** |
+| Decisiones de arquitectura documentadas (ADR) | **332** |
+| Versiones entregadas a ritmo regular | **276** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,9 +50,11 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 > La velocidad viene de la IA. La calidad viene del marco. Y el marco es un trabajo de dirección.
 
+Varios agentes pueden trabajar a la vez en el mismo repositorio — dos familias distintas de herramientas, cada una en su propio árbol de trabajo. La regla es la misma que para el código: nada se consolida sobre la base de un resumen. Cada archivo se atribuye a su autor por su huella y por el registro del agente, cada fusión se reproduce en un árbol aislado y luego pasa por todos los controles, y una copia de seguridad precede a cada cambio.
+
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 330 documentadas:
+Tres decisiones estructurantes, entre las 332 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 

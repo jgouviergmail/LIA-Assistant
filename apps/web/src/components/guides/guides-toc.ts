@@ -28,6 +28,7 @@ import {
   Heart,
   HeartPulse,
   Layers,
+  LayoutTemplate,
   Lightbulb,
   Mic,
   MousePointerClick,
@@ -122,6 +123,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'workboard', icon: SquareKanban },
   { id: 'process_anatomy', icon: MemoryStick },
   { id: 'live_mode', icon: AudioLines },
+  { id: 'cards', icon: LayoutTemplate },
   { id: 'conclusion', icon: Flag },
 ] as const;
 

@@ -5327,7 +5327,7 @@
         },
         "richResponses": {
           "title": "🎨 富回复与显示模式",
-          "description": "三种渲染模式：按领域分的 HTML 卡片、富 HTML，或 Markdown。在富 HTML 中，凡是承载数据的回答都是一页经过编排的页面——导语、每个侧面各占一节并使用相应组件（数字磁贴、徽章、步骤、分栏、键值列表、可折叠区块）、收尾提示块——对话轮次也一样，除非有语音在朗读。代码高亮，支持 LaTeX 与斑马纹表格；每一个标签都要穿过严格的净化边界，复制出来永远是干净文本。"
+          "description": "三种渲染模式：按领域分的 HTML 卡片、富 HTML，或 Markdown。卡片展示来源提供的一切，从不编造缺失的值，并把完整细节收在折叠区里；图库、天气对比、文档预览和交互式路线在此之上叠加，无需调用模型。从卡片回复或转发，会准备一个与原始消息绑定的请求。模型只读取获准的事实，绝不读取卡片本身；每一个标签都要穿过严格的净化边界。"
         },
         "llm": {
           "title": "🤖 多供应商 LLM 与模式学习",
@@ -5363,7 +5363,7 @@
         },
         "observability": {
           "title": "📊 生产级可观测性",
-          "description": "完整的技术栈：Prometheus 指标（token、延迟、错误、成本）、31 个 Grafana 仪表盘、Tempo 追踪、由 Alloy 收集的 Loki 日志，以及每条告警都指向其运维手册的邮件告警——全部运行在仍受维护、按摘要固定的版本上。指标或追踪只记录所走的路由，绝不记录人名或搜索内容。第 26 个仪表盘是产品驾驶舱：已验证的成果——你明确的 👍，或一整天未被更改的操作——以及每个有用成果的成本，由只能看到聚合数据的角色读取。"
+          "description": "完整的技术栈：Prometheus 指标（token、延迟、错误、成本）、31 个 Grafana 仪表盘、Tempo 追踪、由 Alloy 收集的 Loki 日志，以及每条告警都指向其运维手册的邮件告警——全部运行在仍受维护、按摘要固定的版本上。各类信号互相关联：一行日志打开它的追踪，一条追踪打开它的日志和指标，一个延迟点打开它的样例。观测链路会自我监控，度量只记录所走的路由，绝不记录人名或搜索内容。"
         },
         "tools": {
           "title": "🔧 124 个类型化工具",
@@ -8178,6 +8178,23 @@
             "i5": "<b>💶 平台为你支付的每一欧元都被计入——无论经由何路径</b> — 通话或 Live 会话中的一次地图查询、早间简报的天气、一次地理编码、LIA 给你看的一张照片：现在每一项都像聊天消息一样进入你的用量和费用磁贴，电话账单和 Live 卡片也显示以前只算作请求次数的 Maps 欧元。语音合成只对真正送达的句子计费。",
             "i6": "<b>🔧 同时修复</b> — 工具选择和 ReAct 排序曾因维度写错的嵌入缓存而失明；语义验证器自九月的一次改动起跳过了每一回合；对确认的含糊回答被当作修改；无人接听的 Live 来电没有留下任何通知；一个打开的标签页在整个生命周期内占用一条数据库连接；开发证书按年龄而非到期时间续期。"
           }
+        },
+        "v2_5_0": {
+          "title": "v2.5.0 — 展示一切的卡片，披上宇宙色彩的应用",
+          "date": "2026 年 10 月 4 日 · 04:23 CEST",
+          "count": "10",
+          "items": {
+            "i1": "<b>🗂️ 卡片展示来源提供的一切</b> — 邮件、日程、联系人、任务、文件、地点、路线、天气、调研、灯光、工单和 MCP 结果：每张卡片都显示收到的内容，从不编造缺失的值，并把完整细节——邮件正文、联系人的所有组织、视频会议链接、子任务、地点的评价和营业时间——收在一个可用键盘操作的折叠区里。展开详情不会触发任何调用，也不产生任何费用。",
+            "i2": "<b>🖼️ 图库、预览和时段</b> — 地点的照片在全屏图库中打开并附有署名，天气可以逐个时段比较，生成的文档可以就地预览：PDF 的第一页、电子表格或 Word 文档的前几行、演示文稿的封面。",
+            "i3": "<b>🗺️ 交互式路线</b> — 路线卡片可以打开为交互式 Google 地图：绘出所有备选路线，突出显示你选中的那条，底图可选地图、卫星、混合或地形。打开前会告知预估费用，随后计入你的用量。（管理员：需要配置 Maps JavaScript 密钥及其价格。）",
+            "i4": "<b>✍️ 从卡片直接回复</b> — 回复邮件、转发邮件或调整提醒，会在你的输入框中准备好请求，并带有一个标签提示它涉及的内容。没有你，什么都不会发出；LIA 还会在恰当的时刻再次核实账户和原始消息确实属于你。",
+            "i5": "<b>✨ 披上宇宙色彩的应用</b> — 首页的动态背景延伸到登录后的页面和登录页；页眉和面板保持不透明，以确保可读。对话框、菜单、列表、提示框和通知都采用磨砂玻璃，如果你的系统要求降低透明度，它们会重新变为不透明。",
+            "i6": "<b>📋 重新整理的仪表盘和设置</b> — 新的 Workboard 卡片显示等你处理的事、LIA 正在跟进的事和已逾期的事，每个数字都通向筛选后的工单板。设置新增了图标和可折叠分区：连接器、健康、沙箱、MCP 服务器、通话、技能、知识空间、习惯和会议。",
+            "i7": "<b>🔖 保存的回答会说明自己的花费</b> — 每条保存的回答显示两项费用：生成它的费用和为它建立索引的费用。你知识空间中文档的索引费用现在就是实际计费的金额：此前低估了大约七倍。",
+            "i8": "<b>🎬 首页上的两个视频</b> — 首页现在轮流循环播放两个视频，各自附有署名，「播放下一个视频」按钮可以从一个切换到另一个。",
+            "i9": "<b>📈 一切互相关联的监控（管理员）</b> — 在 Grafana 中，一行日志可以打开它的追踪，一条追踪可以打开它的日志和指标，一个延迟点可以打开产生它的样例。所有仪表盘默认显示七天（日志和追踪为四小时），并共用一个菜单；如果日志在传输途中丢失，会有告警提醒。",
+            "i10": "<b>🩹 修复</b> — 你的 Google 账户照片重新显示在聊天中。没有任何可朗读内容的句子不再发送给语音合成——此前它会被计费，然后被拒绝。"
+          }
         }
       }
     },
@@ -8232,7 +8249,7 @@
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "32",
+        "count": "33",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
@@ -8336,7 +8353,7 @@
           },
           "q26": {
             "question": "如何保存一条回答，让它在对话之外留存？",
-            "answer": "助手的每条气泡在「复制」旁都有一个<strong>书签</strong>。点一下就保存这条回答——在那一刻取一份副本，连同产生它的请求和日期——这样它就能在对话重置后留存。回答保存后图标会填满；再点一次即可移除。<br><br>保存的回答位于<strong>设置 > 我的生成文件 > 书签</strong>，最新的排在最前，可按回答和请求搜索。每张卡片按原有格式呈现回答，并提供三个操作：分享（当你的设备有分享面板时）、下载为 Markdown（你的请求引用在回答上方）、确认后删除。<br><br>一个账户可保存的书签数量有限；标签页会显示上限。书签会随账户导出一起带走，并随账户一起删除——绝不会因对话重置而消失。"
+            "answer": "助手的每条气泡在「复制」旁都有一个<strong>书签</strong>。点一下就保存这条回答——在那一刻取一份副本，连同产生它的请求和日期——这样它就能在对话重置后留存。回答保存后图标会填满；再点一次即可移除。<br><br>保存的回答位于<strong>设置 > 我的生成文件 > 书签</strong>，最新的排在最前，可按回答和请求搜索。每张卡片按原有格式呈现回答，并提供三个操作：分享（当你的设备有分享面板时）、下载为 Markdown（你的请求引用在回答上方）、确认后删除。<br><br>一个账户可保存的书签数量有限；标签页会显示上限。书签会随账户导出一起带走，并随账户一起删除——绝不会因对话重置而消失。<p><strong>它花了多少：</strong>保存的回答的卡片会显示两项注明名称的费用——生成它的费用（与聊天气泡下方显示的数字相同）以及在你的知识空间中为它建立索引的费用，按实际计费。在此版本之前保存的回答只有后一项。</p>"
           },
           "q27": {
             "question": "在增强 HTML 模式下，回答长什么样？",
@@ -8361,6 +8378,10 @@
           "q32": {
             "question": "如何通过邮件发送文件或回答？",
             "answer": "在文件或回答上选择“通过邮件发送”，填写主题，也可添加留言。连接邮箱时可选择收件人；否则 LIA 只能发往账户中已验证的地址。表单会显示可用通道和文件大小上限。连接联系人连接器后，输入姓名或电话号码时，收件人栏会推荐你的联系人，并填入其邮箱地址。"
+          },
+          "q33": {
+            "question": "回答中的卡片会显示什么？",
+            "answer": "<p>当回答承载数据——邮件、日程、联系人、任务、文件、地点、路线、天气、调研、灯光、工单或 MCP 服务器的结果——时，LIA 会把它们显示为<strong>卡片</strong>，展示来源提供的一切。缺失的值就保持缺失：卡片从不猜测时间、费用或状态。</p><p>最有用的信息一眼可见；其余部分（邮件的完整正文、联系人的所有组织、视频会议链接、子任务、地点的评价和营业时间）点一下或用键盘即可展开。地点的照片在全屏图库中打开，天气可以逐个时段比较，生成的文档可以就地预览，路线可以打开为交互式地图（打开前会告知费用）。</p><p>展开详情<strong>不会触发任何调用，也不产生任何费用</strong>，模型也从不读取卡片本身，只读取获准的事实：显示方式不会加重对话的负担。</p>"
           }
         }
       },
@@ -8435,7 +8456,7 @@
           },
           "q17": {
             "question": "可以自定义仪表盘卡片吗？(v1.25.16)",
-            "answer": "<p>可以 — 最快的方式：网格上方「全部刷新」旁边的<strong>「自定义」</strong>按钮，直达对应设置分区。也可以通过 设置 →「我的仪表盘」。隐藏 9 张简报卡片中的任意一张，或重新排序（↑/↓ 按钮或拖拽）。隐藏的卡片<strong>甚至不再发起请求</strong>：更少的 API 调用，更快的仪表盘。仪表盘上的入门清单还会展示实例的能力，直到你将其关闭。</p>"
+            "answer": "<p>可以 — 最快的方式：网格上方「全部刷新」旁边的<strong>「自定义」</strong>按钮，直达对应设置分区。也可以通过 设置 →「我的仪表盘」。隐藏 10 张简报卡片中的任意一张——包括 Workboard 卡片，它显示等你处理的事、LIA 正在跟进的事和已逾期的事——或重新排序（↑/↓ 按钮或拖拽）。隐藏的卡片<strong>甚至不再发起请求</strong>：更少的 API 调用，更快的仪表盘。仪表盘上的入门清单还会展示实例的能力，直到你将其关闭。</p>"
           },
           "q18": {
             "question": "「承诺」是什么？(v1.25.16)",
@@ -8778,7 +8799,7 @@
           },
           "q6": {
             "question": "如何回复或转发邮件？",
-            "answer": "<strong>Gmail</strong> - 回复和转发：<br><br><strong>↩️ 回复：</strong><br>• \"<em>回复李明最新的一封邮件：谢谢，收到！</em>\"<br>• \"<em>回复关于发票的邮件，确认已付款</em>\"<br>• \"<em>回复张伟那封邮件的所有收件人</em>\"<br><br><strong>↪️ 转发：</strong><br>• \"<em>把亚马逊的邮件转发给 caiwu@company.com</em>\"<br>• \"<em>把第二封邮件转发给王芳，附言：供参考</em>\"<br><br><strong>📋 发送前预览：</strong><br>• 你会看到完整的草稿<br>• 邮件会话会被保留<br>• 附件会一并附上（转发时）<br><br><strong>💡 提示：</strong><br>搜索之后，可以用\"<em>第一封</em>\"、\"<em>张伟的那封</em>\"之类的指代来指定邮件。"
+            "answer": "<strong>Gmail</strong> - 回复和转发：<br><br><strong>↩️ 回复：</strong><br>• \"<em>回复李明最新的一封邮件：谢谢，收到！</em>\"<br>• \"<em>回复关于发票的邮件，确认已付款</em>\"<br>• \"<em>回复张伟那封邮件的所有收件人</em>\"<br><br><strong>↪️ 转发：</strong><br>• \"<em>把亚马逊的邮件转发给 caiwu@company.com</em>\"<br>• \"<em>把第二封邮件转发给王芳，附言：供参考</em>\"<br><br><strong>📋 发送前预览：</strong><br>• 你会看到完整的草稿<br>• 邮件会话会被保留<br>• 附件会一并附上（转发时）<br><br><strong>💡 提示：</strong><br>搜索之后，可以用\"<em>第一封</em>\"、\"<em>张伟的那封</em>\"之类的指代来指定邮件。<br><br><strong>🃏 从邮件卡片操作：</strong><br>卡片上的<em>回复</em>和<em>转发</em>按钮会在你的输入框中准备好请求，并带有一个标签提示所涉及的邮件。补充或修改文字后发送：草稿发出前始终由你确认，LIA 还会再次核实账户和原始邮件确实属于你。（Apple Mail 不提供此功能。）"
           },
           "q7": {
             "question": "如何删除邮件？",
@@ -8885,7 +8906,7 @@
           },
           "q11": {
             "question": "如何获取路线导航？",
-            "answer": "<strong>Google Routes</strong> - 获取路线导航：<br><br>• \"<em>从巴黎到里昂怎么走？</em>\"<br>• \"<em>如何去市中心？</em>\"<br>• \"<em>到最近的机场需要多长时间？</em>\"<br>• \"<em>从办公室到火车站的路线</em>\"<br><br><strong>📊 显示的信息：</strong><br>• 距离（公里）<br>• 预计时间<br>• 实时交通状况<br>• 互动地图和路线<br><br><strong>🗺️ 打开地图：</strong><br>每条路线都有一个\"<em>在Google地图中打开</em>\"按钮。"
+            "answer": "<strong>Google Routes</strong> - 获取路线导航：<br><br>• \"<em>从巴黎到里昂怎么走？</em>\"<br>• \"<em>如何去市中心？</em>\"<br>• \"<em>到最近的机场需要多长时间？</em>\"<br>• \"<em>从办公室到火车站的路线</em>\"<br><br><strong>📊 显示的信息：</strong><br>• 距离（公里）<br>• 预计时间<br>• 实时交通状况<br>• 包含所有备选路线的互动地图：选择一条路线、切换底图（地图、卫星、混合、地形）——打开前会告知预估费用<br><br><strong>🗺️ 打开地图：</strong><br>每条路线都有一个\"<em>在Google地图中打开</em>\"按钮。"
           },
           "q12": {
             "question": "如何选择出行方式？",
@@ -10039,7 +10060,7 @@
       },
       "frosted_glass": {
         "title": "真正的玻璃质感",
-        "desc": "聊天顶栏、对话框、菜单和通知都是磨砂玻璃 — 而且模糊是真实的：滚动时你的消息确实从玻璃下方滑过，浅色与深色模式皆然。"
+        "desc": "聊天顶栏、对话框、菜单和通知都是磨砂玻璃 — 而且模糊是真实的：滚动时你的消息确实从玻璃下方滑过，浅色与深色模式皆然。LIA 的动态背景隐约可见；如果你的系统要求降低透明度或使用强制颜色，每块玻璃都会恢复为不透明。"
       },
       "narrow_screens": {
         "title": "窄屏不是意外",
@@ -10208,6 +10229,14 @@
       "text_size": {
         "title": "文字更大，页面不动",
         "desc": "文字大小可逐像素调整，并带预览。只有文字会变化：面板、间距和图标保持原有尺寸，聊天、设置和调试面板的布局一如既往。你的选择随账户同步到所有设备。"
+      },
+      "card_details": {
+        "title": "完整细节，一键展开",
+        "desc": "回答卡片先展示要点，并把来源提供的全部信息收在可展开的区域里：邮件的完整正文、联系人的所有机构、地点的评价。不臆造任何内容，也不悄悄截断，展开时不会发起任何调用。"
+      },
+      "card_compose": {
+        "title": "直接从卡片回复",
+        "desc": "邮件卡片上的“回复”“转发”按钮，或调整提醒，会在你的输入框中准备好请求，并附上一枚说明其来源的标签。没有你的操作，什么都不会发出；LIA 还会再次核实账户和原始消息确实属于你。"
       }
     },
     "scenes": {
@@ -10459,6 +10488,15 @@
         "day": "你的一天",
         "source": "查看来源",
         "timer": "睡眠定时"
+      },
+      "card_details": {
+        "more": "完整细节",
+        "free": "无调用，无费用"
+      },
+      "card_compose": {
+        "reply": "回复",
+        "context": "原始邮件",
+        "draft": "已就绪——由你发送"
       }
     },
     "craft": {
@@ -11549,7 +11587,7 @@
       },
       "rich_responses": {
         "title": "丰富的可视化回答",
-        "description": "选择你的显示模式：交互式 HTML 卡片、富 HTML 或 Markdown 文本。在富模式下，每个承载数据的回答都是一页经过编排的页面——一句导语、每个侧面各占一节并使用相应组件（数字用磁贴、状态用标签、步骤、分栏、键值列表）、一个收尾提示框——对话轮次也是如此。代码高亮，公式渲染（LaTeX），复制消息得到的永远是干净的文本。"
+        "description": "选择你的显示模式：交互式 HTML 卡片、增强 HTML 或 Markdown 文本。每张卡片都展示来源提供的全部信息——不臆造任何内容——并把完整细节收在可展开的区域里：地点的照片图库、按时段对比的天气、文档预览、交互式路线。从卡片回复或转发会准备好你的请求，而不会发送任何内容。在增强模式下，每个包含数据的回答都是一页排版好的内容；代码高亮，公式渲染（LaTeX），复制得到的始终是干净的文本。"
       },
       "multichannel": {
         "title": "网页、Telegram 与推送",
@@ -11669,7 +11707,7 @@
       },
       "briefing": {
         "title": "每日简报",
-        "description": "每天早晨，你的一天一目了然：综述、天气、日程、生日、提醒、健康、未读邮件、跟进的承诺、逾期任务、改动过的文档——不等你开口。每张卡片都能操作——就地总结文档、起草回复、完成或推迟任务——并说明新鲜度：多久前更新、来自缓存、一键重试。一个收听按钮用自然语音朗读整份简报，每次加载只打开你的数据源一次。"
+        "description": "每天早晨，你的一天一目了然：综述、天气、日程、生日、提醒、健康、未读邮件、跟进的承诺、逾期任务、改动过的文档、等你处理的 Workboard 工单——不等你开口。每张卡片都能操作——就地总结文档、起草回复、完成或推迟任务——并说明新鲜度：多久前更新、来自缓存、一键重试。一个收听按钮用自然语音朗读整份简报，每次加载只打开你的数据源一次。"
       },
       "peers": {
         "title": "你的圈子，助理对助理",
@@ -12897,7 +12935,7 @@
       "google-workspace": {
         "title": "Google Workspace集成：Gmail、Calendar、Contacts、Drive、Tasks",
         "excerpt": "LIA通过OAuth 2.0连接你的Google Workspace，用自然语言管理邮件、日历、联系人、Drive和任务。",
-        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。Places 与天气、空气质量一样使用实例自己的密钥：无需绑定，也无需启用：该服务属于实例，服务于每个账户，既没有按账户的记录，也没有设置里的开关。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>在助手眼中一封邮件是什么样的</h2><p>邮件以<strong>干净的文本</strong>到达助手：HTML 只转换一次，引用的历史和签名在客户端边界就被移除，提供商的原始树结构从不随行。在此基础上，工具按问题的需要提供<strong>三种详细程度</strong>：<em>metadata</em> 用于列举（发件人、主题、日期、预览），<em>full</em> 用于读一封邮件——长正文分段到达，在段落边界切分，绝不在句子中间——<em>summary</em> 用于对许多封进行推理。摘要是每封邮件一段简短的<strong>浓缩</strong>（要点、关键信息、待办、类别、重要性），由一个小模型只计算一次，缓存三十天，并计入这个人的用量；无法生成时，邮件会按原样读取而不是编造。没有其他说明时，最近的邮件指收件箱；有针对性的搜索也会检索归档，从最新的开始，并用一个不透明的分页令牌继续。</p><h2>附件不只是被列出，还会被读取</h2><p>列出一封邮件的附件是元数据读取；打开一个附件是下载，三个供应商都把它放在同一个方法之后——同样按标识符或名称选择，同样的错误——因为 Gmail 的附件标识符可能在同一封邮件的两次读取之间失效，过期的标识符必须按名称解析，而不是失败。文档（PDF、Word、表格、EPUB…）按<strong>文本</strong>读取，并像正文一样分段送达；图片，或没有文字层的扫描版 PDF，被渲染为数量受限的页面交给<strong>视觉模型</strong>，并在只看到前几页时被告知。大小上限在下载任何字节<em>之前</em>就按列表信息生效，拒绝会说明原因（太大、不支持、找不到、有歧义），视觉调用计入你的用量，返回的内容被包裹为陌生人发来的东西——数据，绝不是指令。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p><h2>一次授权，服务由你掌控</h2><p>同一 Google 账户的服务现在可以集中授权。LIA 在回调时核验账户身份，每项服务仍可单独启用，并续期共享授权，无需为每个工具重复同意。</p>"
+        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。Places 与天气、空气质量一样使用实例自己的密钥：无需绑定，也无需启用：该服务属于实例，服务于每个账户，既没有按账户的记录，也没有设置里的开关。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>在助手眼中一封邮件是什么样的</h2><p>邮件以<strong>干净的文本</strong>到达助手：HTML 只转换一次，引用的历史和签名在客户端边界就被移除，提供商的原始树结构从不随行。在此基础上，工具按问题的需要提供<strong>三种详细程度</strong>：<em>metadata</em> 用于列举（发件人、主题、日期、预览），<em>full</em> 用于读一封邮件——长正文分段到达，在段落边界切分，绝不在句子中间——<em>summary</em> 用于对许多封进行推理。摘要是每封邮件一段简短的<strong>浓缩</strong>（要点、关键信息、待办、类别、重要性），由一个小模型只计算一次，缓存三十天，并计入这个人的用量；无法生成时，邮件会按原样读取而不是编造。没有其他说明时，最近的邮件指收件箱；有针对性的搜索也会检索归档，从最新的开始，并用一个不透明的分页令牌继续。</p><h2>附件不只是被列出，还会被读取</h2><p>列出一封邮件的附件是元数据读取；打开一个附件是下载，三个供应商都把它放在同一个方法之后——同样按标识符或名称选择，同样的错误——因为 Gmail 的附件标识符可能在同一封邮件的两次读取之间失效，过期的标识符必须按名称解析，而不是失败。文档（PDF、Word、表格、EPUB…）按<strong>文本</strong>读取，并像正文一样分段送达；图片，或没有文字层的扫描版 PDF，被渲染为数量受限的页面交给<strong>视觉模型</strong>，并在只看到前几页时被告知。大小上限在下载任何字节<em>之前</em>就按列表信息生效，拒绝会说明原因（太大、不支持、找不到、有歧义），视觉调用计入你的用量，返回的内容被包裹为陌生人发来的东西——数据，绝不是指令。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p><h2>一次授权，服务由你掌控</h2><p>同一 Google 账户的服务现在可以集中授权。LIA 在回调时核验账户身份，每项服务仍可单独启用，并续期共享授权，无需为每个工具重复同意。</p><h2>展示全部信息的卡片</h2><p>邮件、日程或联系人以卡片呈现，展示 Google 提供的全部信息——邮件的完整正文、联系人的所有机构、日程的每个视频会议链接——从不臆造缺失的值。在邮件卡片上，“回复”或“转发”会在你的输入框中准备好请求：草稿始终由你确认，LIA 还会再次核实账户和原始消息属于你。</p>"
       },
       "apple-microsoft": {
         "title": "Apple iCloud和Microsoft 365：多平台连接器",
@@ -12957,7 +12995,7 @@
       "observability": {
         "title": "616个Prometheus指标、31个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：616 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 616个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能，按路由模板打标签：绝不出现名字或搜索词</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，由Grafana Alloy收集并集中在Loki中：只记事实，绝不记人们的原话</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪，按路由模板命名，绝不使用具体地址；以及通过Langfuse的LLM追踪</li></ul><h2>43个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。43个模块覆盖的领域包括：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、Live 模式、电台、RAG空间、OAuth、MCP、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话、会议、workboard、效果登记册和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31个Grafana仪表板</h2><p>LIA提供31个编号01至31的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard、live 和 radio。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 616个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能，按路由模板打标签：绝不出现名字或搜索词</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，由Grafana Alloy收集并集中在Loki中：只记事实，绝不记人们的原话</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪，按路由模板命名，绝不使用具体地址；以及通过Langfuse的LLM追踪</li></ul><h2>43个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。43个模块覆盖的领域包括：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、Live 模式、电台、RAG空间、OAuth、MCP、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话、会议、workboard、效果登记册和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>31个Grafana仪表板</h2><p>LIA提供31个编号01至31的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard、live 和 radio。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 29 项关键告警组成的核心——其中包括 API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成追踪每次LLM调用——消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文——另有七个自有的Prometheus指标，跟踪提示版本、评估分数、A/B 变体、追踪深度以及智能体之间的交接。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p><h2>互相关联的信号</h2><p>一个指标、一行日志和一条追踪讲述的是同一个请求——前提是你能从一个跳到另一个。在 LIA 中，一行日志可以打开其请求的追踪，一条追踪可以打开它的日志和指标，一个延迟点可以打开产生它的那个具体样例。每一个链接在修复之前都先在生产环境中测量过。承载这些信号的链路本身也受到监控——如果日志在途中丢失，会有告警提醒——所有仪表盘都遵循同一个约定：一周的历史，一个共用菜单。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：155个提示作为代码管理",
@@ -13185,6 +13223,7 @@
       "relation_debrief": "每段关系一份小结",
       "workboard": "工单板",
       "process_anatomy": "进程的解剖",
+      "cards": "展示所收内容的卡片",
       "conclusion": "结论",
       "live_mode": "Live 模式：一道接缝，按模式的一套规则"
     }

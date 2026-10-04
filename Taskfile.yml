@@ -753,6 +753,12 @@ tasks:
       # intercepted origin, 15 s per load (measured 2026-10-03). Blank, as in
       # CI: the specs that need a video declare their own.
       LANDING_MEDIA_BASE_URL: ""
+      # The same `.env` declares `NODE_ENV=development` for the dev stack, and
+      # `next build` under it mixes React's development and production bundles:
+      # prerendering died on « reading 'useContext' » of a random blog page, on
+      # this host only, for a month (measured 2026-10-04). Blank, as in CI: Next
+      # then sets `production` itself, and the standalone server.js does too.
+      NODE_ENV: ""
       E2E_ALL_BROWSERS: "{{.E2E_ALL_BROWSERS}}"
     cmds:
       - npm run typecheck
@@ -784,6 +790,7 @@ tasks:
       NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT: guided
       NEXT_PUBLIC_PRODUCT_TELEMETRY: "false"
       NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE: "0"
+      NODE_ENV: ""  # the managed build, see test:e2e
     cmds:
       - npx playwright test smoke/public-demo-showroom.spec.ts smoke/public-demo-showroom-invitation.spec.ts a11y/axe-public-demo-showroom.spec.ts
 
@@ -799,6 +806,7 @@ tasks:
       NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT: guided
       NEXT_PUBLIC_PRODUCT_TELEMETRY: "true"
       NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE: "0"
+      NODE_ENV: ""  # the managed build, see test:e2e
     cmds:
       - npx playwright test smoke/public-demo-showroom-telemetry.spec.ts
 
@@ -814,6 +822,7 @@ tasks:
       NEXT_PUBLIC_PUBLIC_SHOWROOM_VARIANT: guided
       NEXT_PUBLIC_PRODUCT_TELEMETRY: "false"
       NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE: "0"
+      NODE_ENV: ""  # the managed build, see test:e2e
     cmds:
       - npx playwright test capture/public-demo-showroom.spec.ts
 
