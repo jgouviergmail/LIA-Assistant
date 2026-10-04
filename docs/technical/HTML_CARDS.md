@@ -86,10 +86,12 @@ SDK request; it is released only through authenticated, budget-gated admission,
 never in public configuration or a `NEXT_PUBLIC_*` variable. Enable Maps JavaScript
 API on its Google project and use restrictions compatible with the selected key.
 The pricing catalogue must also contain the active `maps_javascript` / `/dynamicmap`
-entry. The pricing seed declares it; existing installations can use the existing
-admin Google API pricing manager. After creating the entry, its Reload Cache
-action invalidates all worker caches; creating a price alone does not reload them.
-Until both are configured, the public configuration offers no activation.
+entry. The pricing seed declares it for a fresh install; migration `ef46f93d7745`
+adds it to an existing installation where the endpoint has no active price, and
+never over one an administrator set. An administrator edits it in the Google API
+pricing manager, whose Reload Cache action invalidates all worker caches; saving a
+price alone does not reload them. Until the key and the price are both present, the
+public configuration offers no activation.
 
 Admission uses the authenticated account, existing instance/account budget checks
 and a per-user rate limit. A short-lived signed grant binds the report to that

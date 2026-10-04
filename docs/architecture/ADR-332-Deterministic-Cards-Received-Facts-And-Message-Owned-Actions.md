@@ -85,7 +85,9 @@ estimated unit cost first. The SDK key (`GOOGLE_API_KEY`, or the optional
 the account and instance ceilings and a per-user rate limit, then bound by a
 short-lived signed grant; each construction is recorded on the existing ledgers under
 one durable run, with no schema change. The feature stays off until the
-`maps_javascript` price exists in the catalogue. What this records is the
+`maps_javascript` price exists in the catalogue: the seed declares it for a fresh
+install, and migration `ef46f93d7745` adds it to an upgraded one, which never replays
+the seed (it was missing there until 2026-10-04). What this records is the
 browser-observed map construction, not Google's invoice: the key must also be
 restricted and quota-capped in the Cloud console.
 

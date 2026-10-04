@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`PushWakeSweepStalled`** passait en attente avec 18 réveils servis sur 18 : chaque série fournisseur × issue est exportée à zéro dès l'import.
 - **Un SKU Google tarifé à zéro est gratuit**, pas manquant ; les requêtes Gemini désactivent l'appel de fonctions automatique de google-genai (`ChatGeminiNoAfc`).
 - **Les migrations** configurent la journalisation avant d'importer les modèles et n'appellent plus `fileConfig` ; un `ToolMessage` orphelin est journalisé en DEBUG.
+- **La carte interactive atteint une instance mise à jour** : le tarif `maps_javascript` n'était que dans le seed, qu'une instance existante ne rejoue jamais — la carte y restait désactivée (mesuré sur la production) ; la migration `ef46f93d7745` l'ajoute là où aucun prix actif n'existe, sans toucher un prix saisi par un administrateur, et une garde exige qu'un tarif Google daté après l'audit du 23 septembre voyage par une migration.
+- **`task test:e2e` tourne sur un poste Windows** : le `NODE_ENV=development` du `.env` chargé par le Taskfile faisait mourir le build géré au prérendu, le préfixe `PORT=` du serveur était un nom de programme pour `cmd.exe`, et le parcours du verre lisait la préférence de transparence du système hôte ; `lia-overlays.css` n'est plus importé deux fois.
 
 ### Tests
 

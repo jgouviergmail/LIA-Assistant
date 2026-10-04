@@ -775,7 +775,7 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                                            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Backend tests           | 39,144 collected over `tests/` (`task test:markers`, 2026-10-04)                                                                                |
+| Backend tests           | 39,146 collected over `tests/` (`task test:markers`, 2026-10-04)                                                                                |
 | Frontend tests (vitest) | 10,860 passed across 864 files (`task test:frontend:coverage`, 2026-10-04), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                           |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                    |
