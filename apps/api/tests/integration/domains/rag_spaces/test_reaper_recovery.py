@@ -26,6 +26,9 @@ _DIM = settings.rag_spaces_embedding_dimensions
 
 
 class _FakeEmbeddings:
+    def __init__(self) -> None:
+        self.model_name = settings.rag_spaces_embedding_model.removeprefix("models/")
+
     async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
         return [[0.001] * _DIM for _ in texts]
 

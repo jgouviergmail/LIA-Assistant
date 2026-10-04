@@ -35,7 +35,7 @@ const empty = {
 };
 
 /**
- * All NINE sections, because `CardsBundle` declares all nine as required — the
+ * Every section, because `CardsBundle` declares each as required — the
  * backend cannot omit one. A partial bundle is not a lighter fixture, it is an
  * impossible payload: `visibleOrderedSections` keeps every name the
  * preferences do not hide, and `BriefingCard` then reads `section.status` off
@@ -58,6 +58,7 @@ const dashboardData: MockRoute[] = [
         documents: empty,
         reminders: empty,
         for_you: empty,
+        workboard: empty,
       },
     },
   },
@@ -94,9 +95,7 @@ test.describe('hero avatar picker', () => {
     // The full-surface toggle carries the `group` the reveal keys off; hovering
     // the hero is what a reader actually does before reaching for the picker.
     await page.getByRole('button', { name: "Switch LIA's avatar" }).hover();
-    await expect
-      .poll(async () => await opacityOf(group), { timeout: 3_000 })
-      .toBeGreaterThan(0.95);
+    await expect.poll(async () => await opacityOf(group), { timeout: 3_000 }).toBeGreaterThan(0.95);
   });
 
   test('is revealed by the keyboard, not only by the mouse', async ({
@@ -118,9 +117,7 @@ test.describe('hero avatar picker', () => {
     // both worlds.
     await page.getByRole('button', { name: 'Feminine portrait' }).focus();
 
-    await expect
-      .poll(async () => await opacityOf(group), { timeout: 3_000 })
-      .toBeGreaterThan(0.95);
+    await expect.poll(async () => await opacityOf(group), { timeout: 3_000 }).toBeGreaterThan(0.95);
   });
 
   test('is always visible and a full 44 px target on touch', async ({

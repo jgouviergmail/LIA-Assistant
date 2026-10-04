@@ -11,6 +11,7 @@ Compliance: LangGraph v1.0 best practices
 """
 
 import time
+from unittest.mock import patch
 
 import pytest
 from langchain_core.messages import (
@@ -390,12 +391,13 @@ class TestTokenCountMemoization:
         message = HumanMessage(content="Bonjour, peux-tu lister mes contacts ?", id="msg-1")
 
         fresh = len(encoding.encode(message.content))
-        first = models_module._count_message_tokens(message, encoding)
-        second = models_module._count_message_tokens(message, encoding)
+        with patch.object(encoding, "encode", wraps=encoding.encode) as encode:
+            first = models_module._count_message_tokens(message, encoding)
+            second = models_module._count_message_tokens(message, encoding)
+        encode.assert_called_once_with(message.content)
 
         assert first == fresh
         assert second == fresh
-        assert models_module._token_count_cache["msg-1"] == (len(message.content), fresh)
 
     def test_reducer_result_identical_across_repeated_invocations(self):
         """Running the reducer twice on the same history yields the same result

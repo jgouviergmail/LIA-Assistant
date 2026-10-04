@@ -808,13 +808,20 @@ ${scan.summary}`
     await expect(page.getByRole('button', { name: "Switch LIA's avatar" })).toBeVisible();
     await assertNoHorizontalScroll(page);
 
-    // Then OPEN the Consumption disclosure — it is closed by default, so a
-    // check that stopped here would never look at the widest numbers on the
-    // page (token totals, which do not wrap).
+    // Consumption arrives OPEN: measure the widest figures before folding,
+    // then exercise both states so the reflow scan cannot miss those figures.
     // The <summary> element itself: `getByText` could land on an inner node,
     // and `getByRole('button')` depends on how the engine maps a disclosure
     // triangle — neither is a stable handle on the thing that toggles.
-    await page.locator('summary', { hasText: 'Consumption' }).click();
+    const consumption = page.locator('details').filter({
+      has: page.locator('summary', { hasText: 'Consumption' }),
+    });
+    await expect(consumption).toHaveAttribute('open', '');
+    await consumption.locator('summary').click();
+    await expect(consumption).not.toHaveAttribute('open');
+    await assertNoHorizontalScroll(page);
+    await consumption.locator('summary').click();
+    await expect(consumption).toHaveAttribute('open', '');
     await assertNoHorizontalScroll(page);
 
     const { blocking, summary } = await scanPage(page, testInfo, '/dashboard@320');

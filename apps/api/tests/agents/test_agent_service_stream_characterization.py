@@ -206,6 +206,8 @@ class FakeStreamingService:
         # initializes it empty and fills it per turn — the fake must carry it
         # or `_archive_assistant_message` dies on AttributeError.
         self.persistable_widgets: dict[str, dict[str, Any]] = {}
+        # Archive card actions use the same per-turn snapshot as the real service.
+        self.card_action_metadata: dict[str, object] = {}
         # Production contract (ADR-133 V2): the archive path snapshots the
         # execution-trace capture from this attribute — same rationale as
         # persistable_widgets above. A real (cheap, dependency-free)

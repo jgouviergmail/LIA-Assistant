@@ -32,6 +32,7 @@ function cards(withLoop: boolean) {
       tasks: empty,
       documents: empty,
       reminders: empty,
+      workboard: empty,
       for_you: withLoop
         ? {
             status: 'ok',
@@ -81,9 +82,7 @@ test('a closed commitment leaves the card instead of 404-ing on the next click',
   ];
   await authenticate({ language: 'fr' });
   await mockApi(routes);
-  await page.route('**/api/v1/briefing/cards**', route =>
-    route.fulfill({ json: cards(!closed) })
-  );
+  await page.route('**/api/v1/briefing/cards**', route => route.fulfill({ json: cards(!closed) }));
   // `onRefresh` force-refreshes the section through POST /briefing/refresh-cards,
   // not by re-reading /briefing/cards — mocking only the latter left the card
   // showing its first payload forever.

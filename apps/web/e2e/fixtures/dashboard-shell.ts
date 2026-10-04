@@ -159,9 +159,9 @@ export const dashboardShellMocks: MockRoute[] = [
 ];
 
 /**
- * A briefing bundle with all NINE sections resolved and empty.
+ * A briefing bundle with every required section resolved and empty.
  *
- * `CardsBundle` (apps/api → domains/briefing/schemas.py) declares all nine as
+ * `CardsBundle` (apps/api → domains/briefing/schemas.py) declares every section as
  * REQUIRED, so the backend cannot omit one. A partial `{ cards: {} }` is not a
  * lighter fixture, it is an impossible payload — and an actively harmful one:
  * `visibleOrderedSections` keeps every section the preferences do not hide, so
@@ -205,6 +205,7 @@ export const briefingCardsMock: MockRoute = {
         'documents',
         'reminders',
         'for_you',
+        'workboard',
       ].map(name => [
         name,
         {

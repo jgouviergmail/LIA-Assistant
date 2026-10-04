@@ -33,7 +33,7 @@ for (const sample of [
       page,
       authenticate,
       mockApi,
-    }) => {
+    }, testInfo) => {
       const reference = references.find(item => item.language === sample.language);
       if (!reference) throw new Error('Missing backend composition reference');
       const bodies: unknown[] = [];
@@ -136,7 +136,7 @@ for (const sample of [
         .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
         .analyze();
       expect(accessibility.violations).toEqual([]);
-      await page.screenshot({ path: `/repo/.tmp/analysis/card-composition-${sample.theme}.png` });
+      await page.screenshot({ path: testInfo.outputPath(`card-composition-${sample.theme}.png`) });
       await input.press('Enter');
       await expect.poll(() => bodies.length).toBe(1);
       expect(bodies[0]).toMatchObject({

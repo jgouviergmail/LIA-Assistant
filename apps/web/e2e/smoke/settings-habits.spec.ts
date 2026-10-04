@@ -105,6 +105,11 @@ test.describe('habits settings panel', () => {
 
     await expect(page.getByRole('heading', { name: 'Habits' })).toBeVisible({ timeout: 20_000 });
 
+    // The rhythm and candidates are folded; opening them is the reader's path.
+    await expect(page.getByText('08:00–10:00')).toHaveCount(0);
+    await page.locator('summary', { hasText: 'Activity rhythm' }).click();
+    await page.locator('summary', { hasText: 'Under observation' }).click();
+
     // The rhythm: a learned weekday window is a chip; a weekend without one
     // says so AND publishes the bar it failed (ADR-184), never a blank.
     await expect(page.getByText('08:00–10:00')).toBeVisible();
@@ -176,6 +181,8 @@ test.describe('habits settings panel', () => {
     await awaitStyledPage(page, '/dashboard/settings?section=habits @320px');
 
     await expect(page.getByText(/Emails \+ Contacts/)).toBeVisible({ timeout: 20_000 });
+    await page.locator('summary', { hasText: 'Activity rhythm' }).click();
+    await page.locator('summary', { hasText: 'Under observation' }).click();
     await expect(page.getByText('2/4 distinct days')).toBeVisible();
 
     await expectNoOverflow(page, 'habits section at 320px');

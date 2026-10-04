@@ -189,7 +189,8 @@ test.describe('skill library', () => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto('/en/dashboard/settings?section=skills');
     await awaitStyledPage(page, '/dashboard/settings?section=skills @320px');
-    await page.getByRole('button', { name: 'Find skills' }).click({ timeout: 20_000 });
+    await page.getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('menuitem', { name: 'Find skills' }).click();
     await page.getByRole('searchbox').fill('pdf');
     await page.getByRole('button', { name: 'Read pdf-tools' }).click({ timeout: 10_000 });
     await expect(page.getByText('Extracts tables and text from PDF files.')).toBeVisible();

@@ -1715,6 +1715,8 @@ tasks:
   # exactly what a push sends. RANGE is a `git log` range.
   security:secrets:
     desc: "Scan commits with the CI's gitleaks (Docker) — RANGE=<git log range>, default origin/main..HEAD"
+    # Traverse every incoming parent; first-parent traversal hides merged
+    # branches. Emit each merge's diff too, including its own conflict resolution.
     vars:
       RANGE: '{{.RANGE | default "origin/main..HEAD"}}'
     cmds:
@@ -1722,7 +1724,7 @@ tasks:
           docker run --rm -v "{{.ROOT_DIR}}:/repo" -w /repo
           zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055
           detect --source /repo --redact --no-banner --exit-code=2
-          --log-opts="--no-merges --first-parent {{.RANGE}}"
+          --log-opts="--diff-merges=first-parent {{.RANGE}}"
 
   security:sbom:backend:
     desc: CycloneDX SBOM of the runtime lockfile (apps/api/sbom-backend.json, gitignored)

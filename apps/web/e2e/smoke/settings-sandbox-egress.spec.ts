@@ -88,6 +88,9 @@ test.describe('sandbox network settings panel', () => {
     await expect(page.getByRole('heading', { name: 'Sandbox network' })).toBeVisible({
       timeout: 20_000,
     });
+    await expect(page.getByText('api.search.brave.com')).toHaveCount(0);
+    await page.locator('summary', { hasText: 'Reachable without asking' }).click();
+    await page.locator('summary', { hasText: 'Your permissions' }).click();
 
     // A connector host names the brand and the token's origin; an operator
     // host names the instance. The raw connector key never reaches the screen.
@@ -147,6 +150,7 @@ test.describe('sandbox network settings panel', () => {
       },
     ]);
     await page.goto('/en/dashboard/settings?section=sandbox-egress');
+    await page.locator('summary', { hasText: 'Your permissions' }).click();
     await expect(page.getByText('feeds.example.net')).toBeVisible({ timeout: 20_000 });
 
     await page.getByRole('switch').nth(0).click();
@@ -176,6 +180,9 @@ test.describe('sandbox network settings panel', () => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto('/en/dashboard/settings?section=sandbox-egress');
     await awaitStyledPage(page, '/dashboard/settings?section=sandbox-egress @320px');
+
+    await page.locator('summary', { hasText: 'Reachable without asking' }).click();
+    await page.locator('summary', { hasText: 'Your permissions' }).click();
 
     await expect(page.getByText('feeds.example.net')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText('3 / 50 permissions')).toBeVisible();

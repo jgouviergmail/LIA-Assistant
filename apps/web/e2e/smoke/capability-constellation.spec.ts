@@ -44,6 +44,7 @@ const ROUTES: MockRoute[] = [
         documents: EMPTY_SECTION,
         reminders: EMPTY_SECTION,
         for_you: EMPTY_SECTION,
+        workboard: EMPTY_SECTION,
       },
     },
   },
@@ -90,11 +91,7 @@ const ROUTES: MockRoute[] = [
 ];
 
 test.describe('capability constellation', () => {
-  test('the dashboard offers a permanent door to it', async ({
-    page,
-    authenticate,
-    mockApi,
-  }) => {
+  test('the dashboard offers a permanent door to it', async ({ page, authenticate, mockApi }) => {
     await authenticate({ language: 'fr' });
     await mockApi(ROUTES);
     await page.setViewportSize({ width: 1280, height: 900 });
