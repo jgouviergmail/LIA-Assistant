@@ -14,11 +14,13 @@
  * was in the session — which video of the playlist, the time in it — and a
  * fresh mount resumes from there (`player-session`). With several videos the
  * element does not loop: it ends, the host hands it the next one, and it
- * carries on from the first frame with the sound it had.
+ * carries on from the first frame with the sound it had — and a skip button
+ * makes that same move on request, playing the next video whatever the
+ * current one was doing.
  */
 
 import Link from 'next/link';
-import { Pause, Play, Volume2, VolumeX, X } from 'lucide-react';
+import { Pause, Play, SkipForward, Volume2, VolumeX, X } from 'lucide-react';
 import { useEffect, useRef, type RefObject } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -36,9 +38,11 @@ import { useVideoPlayback, type VideoPlayback } from './use-video-playback';
 
 export type PlayerMode = 'framed' | 'docked' | 'hidden';
 
+// `shrink-0`: four controls and a link share the dock's 16rem — a squeezed
+// button loses its round shape and its round focus ring (measured: 30 px wide).
 const FRAME_CONTROL_CLASS =
-  'size-11 rounded-full bg-black/55 text-white backdrop-blur-sm hover:bg-black/70 hover:text-white focus-visible:ring-white';
-const DOCK_CONTROL_CLASS = 'size-9 rounded-full';
+  'size-11 shrink-0 rounded-full bg-black/55 text-white backdrop-blur-sm hover:bg-black/70 hover:text-white focus-visible:ring-white';
+const DOCK_CONTROL_CLASS = 'size-9 shrink-0 rounded-full';
 
 /**
  * Where the element goes: framed over a slot that is in view (or not
@@ -144,24 +148,29 @@ function useResumeRecord(
   }, [videoRef, resume]);
 }
 
-/** Play/pause and sound; docked, the way back to the video and the close too. */
+/**
+ * Play/pause, the next video when there are several, and sound; docked, the
+ * way back to the video and the close too.
+ */
 function PlayerControls({
   playback,
   labels,
   docked,
   lng,
+  onNext,
 }: {
   playback: VideoPlayback;
   labels: LandingVideoHostLabels;
   docked: boolean;
   lng: string;
+  onNext: (() => void) | undefined;
 }) {
   const controlClass = docked ? DOCK_CONTROL_CLASS : FRAME_CONTROL_CLASS;
   return (
     <div
       className={cn(
-        'flex items-center gap-2',
-        docked ? 'landing-video-dock-bar' : 'absolute bottom-3 right-3'
+        'flex items-center',
+        docked ? 'landing-video-dock-bar gap-1' : 'absolute bottom-3 right-3 gap-2'
       )}
     >
       <Button
@@ -175,6 +184,19 @@ function PlayerControls({
       >
         {playback.playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
       </Button>
+      {onNext && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={controlClass}
+          aria-label={labels.next}
+          onClick={onNext}
+          data-testid="landing-video-next"
+        >
+          <SkipForward aria-hidden="true" />
+        </Button>
+      )}
       <Button
         type="button"
         variant="ghost"
@@ -191,7 +213,7 @@ function PlayerControls({
         <>
           <Link
             href={`${buildLocalizedPath('/', lng as Language)}#video`}
-            className="ml-1 text-xs font-medium text-foreground hover:underline"
+            className="ml-1 min-w-0 text-xs font-medium leading-tight text-foreground hover:underline"
           >
             {labels.backToVideo}
           </Link>
@@ -227,6 +249,8 @@ export interface LandingVideoPlayerProps {
   slot: LandingVideoSlot | null;
   labels: LandingVideoHostLabels;
   onEnded: () => void;
+  /** The skip button's move; absent with a single video, and the button with it. */
+  onNext?: () => void;
   onFailed: () => void;
 }
 
@@ -240,6 +264,7 @@ export function LandingVideoPlayer({
   slot,
   labels,
   onEnded,
+  onNext,
   onFailed,
 }: LandingVideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -270,6 +295,12 @@ export function LandingVideoPlayer({
     playback.handleEnded();
     onEnded();
   };
+  const handleNext = onNext
+    ? () => {
+        playback.continueWithNext();
+        onNext();
+      }
+    : undefined;
 
   return (
     <div
@@ -300,6 +331,8 @@ export function LandingVideoPlayer({
           onPlay={playback.handlePlay}
           onPause={playback.handlePause}
           onEnded={handleEnded}
+          // New sources reset the element without a `pause` event: it is paused all the same.
+          onEmptied={playback.handlePause}
           onError={onError}
         >
           {playback.sources?.map(rendition => (
@@ -307,7 +340,13 @@ export function LandingVideoPlayer({
           ))}
         </video>
       </div>
-      <PlayerControls playback={playback} labels={labels} docked={docked} lng={lng} />
+      <PlayerControls
+        playback={playback}
+        labels={labels}
+        docked={docked}
+        lng={lng}
+        onNext={handleNext}
+      />
     </div>
   );
 }

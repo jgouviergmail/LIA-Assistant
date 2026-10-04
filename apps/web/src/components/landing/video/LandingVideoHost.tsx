@@ -15,7 +15,8 @@
  * one the player holds, moves to the next when it ends and back to the first
  * after the last — a single video simply loops. A new section mount answers
  * the same list with new objects; the host keeps the list it holds then, so
- * returning to the landing never reloads what is playing.
+ * returning to the landing never reloads what is playing. With several videos
+ * the visitor may also skip to the next one: the same move, asked for.
  */
 
 import { usePathname } from 'next/navigation';
@@ -36,6 +37,8 @@ export interface LandingVideoHostLabels {
   ariaLabel: string;
   play: string;
   pause: string;
+  /** The skip button, offered only when there are several videos. */
+  next: string;
   unmute: string;
   mute: string;
   nowPlaying: string;
@@ -72,7 +75,8 @@ export function LandingVideoHost({
   );
   const onFailed = useCallback(() => setFailed(true), []);
   const length = playlist?.length ?? 1;
-  const onEnded = useCallback(() => setRank((current + 1) % length), [current, length]);
+  // The end of a video and the skip button make the same move: the next one, the first after the last.
+  const toNext = useCallback(() => setRank((current + 1) % length), [current, length]);
 
   const pathname = usePathname();
   const onPublicRoute = playerRouteKind(pathname ?? '') === 'public';
@@ -94,7 +98,8 @@ export function LandingVideoHost({
             startMuted={resume !== null && !resume.sound}
             slot={slot}
             labels={labels}
-            onEnded={onEnded}
+            onEnded={toNext}
+            onNext={playlist.length > 1 ? toNext : undefined}
             onFailed={onFailed}
           />
         </div>

@@ -11356,6 +11356,7 @@
       "aria_label": "Video illustrativo",
       "play": "Riproduci il video",
       "pause": "Metti in pausa il video",
+      "next": "Riproduci il video successivo",
       "unmute": "Attiva l'audio",
       "mute": "Disattiva l'audio",
       "ai_disclosure": "Video generato dall'IA",

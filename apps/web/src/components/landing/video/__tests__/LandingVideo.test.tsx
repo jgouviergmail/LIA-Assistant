@@ -5,10 +5,12 @@
  * on the page, hidden when muted or paused with no slot, gone on a stop
  * route; sound and beats on a click or by default where the browser allows;
  * nothing left behind when the browser cannot play any rendition; several
- * videos played one after the other, each with its own credit and beats.
+ * videos played one after the other, each with its own credit and beats, and
+ * a skip button that plays the next one on request.
  */
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The player loads these two with `import()` once the sound plays. Imported
@@ -34,6 +36,7 @@ const HOST_LABELS: LandingVideoHostLabels = {
   ariaLabel: 'Illustration video',
   play: 'Play',
   pause: 'Pause',
+  next: 'Next video',
   unmute: 'Sound on',
   mute: 'Sound off',
   nowPlaying: 'Video playing',
@@ -729,5 +732,103 @@ describe('LandingVideo — a playlist', () => {
     render(<Tree slot />);
     await findMounted();
     expect(videoElement()).toHaveAttribute('loop');
+  });
+});
+
+describe('LandingVideo — the next-video button', () => {
+  const nextButton = () => screen.queryByRole('button', { name: HOST_LABELS.next });
+
+  it('is offered only when there are several videos, as a native button', async () => {
+    await renderMounted();
+    await findMounted();
+    expect(nextButton()).toBeNull();
+    cleanup();
+
+    observers = [];
+    await renderMounted(DESCRIPTOR, [SECOND]);
+    await findMounted();
+    const button = nextButton();
+    expect(button).not.toBeNull();
+    expect(button?.tagName).toBe('BUTTON');
+    expect(button).toHaveAttribute('type', 'button');
+  });
+
+  it('skips while playing: the SAME element takes the next video and plays on with the sound, its credit and its beats', async () => {
+    await startedInView([SECOND]);
+    const video = videoElement();
+    const section = screen.getByRole('region', { name: SLOT_LABELS.ariaLabel });
+    const loads = load.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: HOST_LABELS.next }));
+
+    await waitFor(() => expect(sourceUrls()).toEqual(SECOND.renditions.map(r => r.src)));
+    expect(videoElement()).toBe(video);
+    expect(video.getAttribute('poster')).toBe(SECOND.poster);
+    expect(load.mock.calls.length).toBe(loads + 1);
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    expect(video.muted).toBe(false);
+    expect(within(section).getByRole('link', { name: /@other/ })).toBeInTheDocument();
+    expect(within(section).queryByRole('link', { name: /@someone/ })).toBeNull();
+    fireEvent.play(video);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(BEATS_OF(1), expect.anything()));
+  });
+
+  it('tells the truth while the next sources load: the reset element reads as paused until it plays', async () => {
+    await startedInView([SECOND]);
+    const video = videoElement();
+    expect(screen.getByRole('button', { name: HOST_LABELS.pause })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: HOST_LABELS.next }));
+    await waitFor(() => expect(sourceUrls()).toEqual(SECOND.renditions.map(r => r.src)));
+    // `load()` resets a playing element without a `pause` event; it fires `emptied`.
+    fireEvent.emptied(video);
+    expect(screen.getByRole('button', { name: HOST_LABELS.play })).toBeInTheDocument();
+    fireEvent.play(video);
+    expect(screen.getByRole('button', { name: HOST_LABELS.pause })).toBeInTheDocument();
+  });
+
+  it('plays the next video after a pause the visitor asked for, and comes back to the first after the last', async () => {
+    await startedInView([SECOND]);
+    const video = videoElement();
+    fireEvent.click(screen.getByRole('button', { name: HOST_LABELS.pause }));
+    fireEvent.pause(video);
+    expect(play).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: HOST_LABELS.next }));
+    await waitFor(() => expect(sourceUrls()).toEqual(SECOND.renditions.map(r => r.src)));
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    fireEvent.play(video);
+
+    fireEvent.click(screen.getByRole('button', { name: HOST_LABELS.next }));
+    await waitFor(() => expect(sourceUrls()).toEqual(DESCRIPTOR.renditions.map(r => r.src)));
+    expect(video.getAttribute('poster')).toBe(DESCRIPTOR.poster);
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(3));
+    expect(screen.getByRole('link', { name: /@someone/ })).toBeInTheDocument();
+  });
+
+  it('answers the keyboard like a click, and keeps the focus on itself', async () => {
+    await startedInView([SECOND]);
+    const user = userEvent.setup();
+    const button = screen.getByRole('button', { name: HOST_LABELS.next });
+    button.focus();
+
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(sourceUrls()).toEqual(SECOND.renditions.map(r => r.src)));
+    await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: HOST_LABELS.next }));
+  });
+
+  it('is in the dock too, and a skip there remembers the video it plays', async () => {
+    const { unmount } = await startedInView([SECOND]);
+    intersect(viewObserver(), false);
+    const docked = await screen.findByRole('group', { name: HOST_LABELS.nowPlaying });
+
+    fireEvent.click(within(docked).getByRole('button', { name: HOST_LABELS.next }));
+    await waitFor(() => expect(sourceUrls()).toEqual(SECOND.renditions.map(r => r.src)));
+    fireEvent.play(videoElement());
+    unmount();
+    const stored = JSON.parse(window.sessionStorage.getItem(PLAYER_RESUME_KEY) ?? 'null');
+    expect(stored).toMatchObject({ video: 1, sound: true });
   });
 });

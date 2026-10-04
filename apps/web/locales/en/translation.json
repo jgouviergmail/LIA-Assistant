@@ -11434,6 +11434,7 @@
       "aria_label": "Illustration video",
       "play": "Play the video",
       "pause": "Pause the video",
+      "next": "Play the next video",
       "unmute": "Turn the sound on",
       "mute": "Turn the sound off",
       "ai_disclosure": "AI-generated video",

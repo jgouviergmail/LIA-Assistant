@@ -7,7 +7,7 @@
  * page (the titles there beating too), stops on the sign-in page, reports no
  * blocking a11y violation, and stays still for a reader who asked for less
  * motion; and two videos play one after the other, each with its credit and
- * its beat map. The clip is a two-second generated fixture served from
+ * its beat map, a skip button moving to the next one on request. The clip is a two-second generated fixture served from
  * `fixtures/media/` — the second video is the same file under another name.
  */
 import { readFileSync } from 'node:fs';
@@ -391,6 +391,46 @@ test.describe('landing video — a playlist of two', () => {
     // After the last one, the first comes back.
     await expect.poll(() => playingFile(page), { timeout: 10_000 }).toBe('clip.mp4');
     await expect.poll(() => isPaused(page), { timeout: 10_000 }).toBe(false);
+    await expect(section(page).getByRole('link', { name: /@fixture/ })).toBeVisible();
+  });
+
+  test('the next-video button skips at once, from a pause and from the keyboard, then back to the first', async ({
+    page,
+  }) => {
+    await mockMedia(page, DESCRIPTOR, [SECOND]);
+    await page.goto('/fr');
+    await awaitStyledPage(page, 'landing with a playlist, skipping');
+    await expect(video(page)).toHaveCount(1);
+    // The 2 s clips are slowed down BEFORE their sources load (`load()` restores the
+    // default rate), so no video ends by itself during the journey: every switch
+    // seen here is the button's.
+    await video(page).evaluate(v => {
+      const element = v as HTMLVideoElement;
+      element.defaultPlaybackRate = 0.1;
+      element.playbackRate = 0.1;
+    });
+    await section(page).scrollIntoViewIfNeeded();
+    await expect.poll(() => isPaused(page), { timeout: 10_000 }).toBe(false);
+    expect(await playingFile(page)).toBe('clip.mp4');
+
+    // From a pause the visitor asked for: a skip is a request to watch, it plays.
+    await page.getByTestId('landing-video-play').click();
+    await expect.poll(() => isPaused(page)).toBe(true);
+    const next = page.getByRole('button', { name: 'Lire la vidéo suivante' });
+    await next.click();
+    await expect.poll(() => playingFile(page), { timeout: 10_000 }).toBe('clip-second.mp4');
+    await expect.poll(() => isPaused(page), { timeout: 10_000 }).toBe(false);
+    await expect(section(page).getByRole('link', { name: /@second/ })).toBeVisible();
+    await expect(page.getByTestId('landing-video-play')).toHaveAccessibleName(
+      'Mettre la vidéo en pause'
+    );
+
+    // From the keyboard, while playing: after the last video, the first comes back.
+    await next.focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => playingFile(page), { timeout: 10_000 }).toBe('clip.mp4');
+    await expect.poll(() => isPaused(page), { timeout: 10_000 }).toBe(false);
+    await expect(next).toBeFocused();
     await expect(section(page).getByRole('link', { name: /@fixture/ })).toBeVisible();
   });
 });

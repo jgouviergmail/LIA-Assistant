@@ -11349,6 +11349,7 @@
       "aria_label": "示意视频",
       "play": "播放视频",
       "pause": "暂停视频",
+      "next": "播放下一个视频",
       "unmute": "开启声音",
       "mute": "关闭声音",
       "ai_disclosure": "AI 生成的视频",

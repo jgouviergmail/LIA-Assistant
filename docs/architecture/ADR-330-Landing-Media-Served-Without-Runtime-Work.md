@@ -316,6 +316,17 @@ the clip announces its generator itself), the two playing in turn, for ever.
    framed video's edges fade and a shapeless radial halo swells on the beat
    (`docs/technical/LANDING_PAGE.md` § 4 and § 10). Not done: a transition
    between two videos (the cut is the clip's own).
+6. **A skip button, the same move on request** (owner request, same day): with
+   several videos the player offers « play the next video » (`SkipForward`,
+   `landing.video.next` in the six languages) in the frame and in the dock; a
+   single video offers nothing. It is the host's end-of-video move — the next
+   rank, the first after the last — and a skip is a request to WATCH: the next
+   video plays even after a pause the visitor asked for
+   (`useVideoPlayback.continueWithNext`). Measured on the way: a source change
+   resets a PLAYING element without a `pause` event (the media load algorithm
+   rejects the pending play and fires `emptied`), so the player reads `emptied`
+   as paused — otherwise the button said « pause » over a stopped element until
+   the next video started.
 
 ## Alternatives rejected
 

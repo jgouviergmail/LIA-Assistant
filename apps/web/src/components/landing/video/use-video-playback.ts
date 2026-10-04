@@ -10,7 +10,8 @@
  * landing scrolled past the frame — reads as out of view, and the sources,
  * once attached, stay attached whatever slot comes next. When a video of a
  * playlist ends and the next one's sources arrive, playback carries on from
- * its first frame with the sound it had.
+ * its first frame with the sound it had; when the visitor skips to it, it plays
+ * whatever the current one was doing — a skip is a request to watch.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
@@ -40,6 +41,8 @@ export interface VideoPlayback {
   handlePause: () => void;
   /** The video ended (a playlist's, never a looping one): the next one plays on. */
   handleEnded: () => void;
+  /** The visitor skips to the next video: it plays as soon as its sources load. */
+  continueWithNext: () => void;
   handleError: () => void;
 }
 
@@ -216,6 +219,13 @@ export function useVideoPlayback(
   const handleEnded = useCallback(() => {
     continueAfterSwitch.current = !userPaused;
   }, [userPaused]);
+  // A skip is a gesture asking for the next video: it plays even after a pause.
+  const continueWithNext = useCallback(() => {
+    setUserPaused(false);
+    pausedByPage.current = false;
+    startedForEntry.current = true;
+    continueAfterSwitch.current = true;
+  }, []);
   const handleError = useCallback(() => setFailed(true), []);
 
   return {
@@ -230,6 +240,7 @@ export function useVideoPlayback(
     handlePlay,
     handlePause,
     handleEnded,
+    continueWithNext,
     handleError,
   };
 }

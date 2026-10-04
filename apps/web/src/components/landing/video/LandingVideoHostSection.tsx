@@ -25,6 +25,7 @@ export async function LandingVideoHostSection({
         ariaLabel: t('landing.video.aria_label'),
         play: t('landing.video.play'),
         pause: t('landing.video.pause'),
+        next: t('landing.video.next'),
         unmute: t('landing.video.unmute'),
         mute: t('landing.video.mute'),
         nowPlaying: t('landing.video.now_playing'),

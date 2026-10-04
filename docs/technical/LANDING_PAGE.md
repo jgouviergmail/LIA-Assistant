@@ -484,7 +484,10 @@ seule, en boucle —, si bien qu'un même répertoire sert l'ancien et le nouvea
 RANG de la vidéo que porte le lecteur : une vidéo seule boucle, l'une de plusieurs se termine et `ended` passe à la
 suivante (puis revient à la première) sur le même élément, qui continue avec le son qu'il avait ; la légende crédite
 la vidéo en cours, la carte des temps est la sienne, la reprise de session note `{ video, time, sound }` et ne
-s'applique qu'une fois par montage. Une liste re-téléchargée identique est celle déjà tenue : revenir sur la landing
+s'applique qu'une fois par montage. Un bouton « Lire la vidéo suivante » (`landing.video.next`, dans le cadre et dans le
+lecteur ancré, absent avec une seule vidéo) fait le même pas sur demande et lance la suivante même après une pause : un
+saut est une demande de regarder. Un changement de sources remet à zéro un élément qui jouait SANS événement `pause`
+(il émet `emptied`), que le lecteur lit donc comme une pause. Une liste re-téléchargée identique est celle déjà tenue : revenir sur la landing
 ne recharge plus ce qui joue. Encodage d'une vidéo suivante : `--append` (ajoutée après celles du manifeste de
 `--out`, ses provenances à côté des leurs), jamais de variante plus haute que le master (un master 720p n'alimente
 que la paire 720p, offerte à toutes les largeurs) et `--copy-h264` quand le master est déjà un H.264 web — mesuré
