@@ -116,6 +116,19 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
   };
 }
 
+/** A fallback may restore actions only to this run's own archived answer. */
+function applyFallbackDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
+  const sameRun = typeof m.metadata?.run_id === 'string' && m.metadata.run_id === metadata.run_id;
+  const existingRow = m.metadata?.message_db_id;
+  const sameRow = existingRow === undefined || existingRow === metadata.archived_message_id;
+  if (!sameRun || !sameRow) {
+    // An ambiguous fallback cannot name another answer's archived row: the
+    // history merge and feedback target that identity as well as card actions.
+    return applyDoneMetadata(m, { ...metadata, archived_message_id: undefined });
+  }
+  return withCardActionDoneMetadata(applyDoneMetadata(m, metadata), metadata);
+}
+
 /** Apply the done metadata to the target message: the one matching
  * ``messageId``, or — when a ``done`` lands without prior streaming — the last
  * assistant bubble, UNLESS it is an ephemeral HITL prompt (id prefix
@@ -142,7 +155,7 @@ function applyDoneToMessages(
   if (messages[lastAssistantIndex].id.startsWith('hitl_')) return messages;
 
   return messages.map((m, index) =>
-    index === lastAssistantIndex ? applyDoneMetadata(m, metadata) : m
+    index === lastAssistantIndex ? applyFallbackDoneMetadata(m, metadata) : m
   );
 }
 

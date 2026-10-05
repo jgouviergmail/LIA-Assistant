@@ -12,8 +12,9 @@ a replacement), editing one in place, and the person deleting their own. The
 rule is therefore not "this row is frozen" but **"it never leaves the active
 set without a successor"**.
 
-Pinning was considered and rejected by the owner: pinned means user-LOCKED,
-which would also block the corrections that keep a directive true.
+New directives are pinned at creation (owner request, 2026-10-05). The
+category protections below also cover older and explicitly unpinned rules;
+automated supersession remains available only while a memory is unpinned.
 """
 
 from __future__ import annotations

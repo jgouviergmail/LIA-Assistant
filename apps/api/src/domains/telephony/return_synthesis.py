@@ -44,6 +44,7 @@ from src.domains.telephony.payload import (
 from src.domains.telephony.prompts.loader import load_telephony_prompt
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.telephony.schemas import ReturnProposal, StructuredCallData
+from src.domains.telephony.spend import phone_call_run_id
 from src.domains.telephony.synthesis_usage import (
     SynthUsage,
     capture_to_usage,
@@ -54,11 +55,13 @@ from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output_with_retry
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.usage_metadata import model_name_of
 from src.infrastructure.observability.metrics_telephony import (
     telephony_call_duration_seconds,
     telephony_calls_total,
 )
 from src.infrastructure.proactive.notification import NotificationDispatcher
+from src.infrastructure.proactive.tracking import bill_captured_usage, capture_spend_on_failure
 
 logger = structlog.get_logger(__name__)
 
@@ -141,6 +144,7 @@ async def synthesize_return(
     user_language: str,
     user_timezone: str,
     user_id: UUID | None = None,
+    call_id: UUID | None = None,
 ) -> tuple[ReturnProposal, SynthUsage | None]:
     """Single tool-less LLM call → factual ``summary`` + first-person ``proposal_text``.
 
@@ -173,18 +177,39 @@ async def synthesize_return(
     )
     llm = get_llm(_LLM_TYPE)
     provider = get_llm_config_for_agent(settings, _LLM_TYPE).provider
-    token_capture = TokenCaptureHandler()
-    proposal = await get_structured_output_with_retry(
-        llm=llm,
-        messages=[SystemMessage(content=system), HumanMessage(content=context)],
-        schema=ReturnProposal,
-        provider=provider,
-        node_name=_LLM_TYPE,
-        config=RunnableConfig(callbacks=[token_capture]),
-        # Named so the account's ceiling applies: this door carried no usage
-        # check at all until 2026-09-07.
+    model = model_name_of(llm) or get_llm_config_for_agent(settings, _LLM_TYPE).model
+    token_capture = TokenCaptureHandler(model)
+    target_id = str(call_id) if call_id is not None else "synthesis"
+    run_id = phone_call_run_id(call_id) if call_id is not None else None
+    async with capture_spend_on_failure(
+        token_capture,
         user_id=user_id,
-    )
+        task_type=_TASK_TYPE,
+        target_id=target_id,
+        model_name=model,
+        source="user",
+        run_id=run_id,
+        llm_type=_LLM_TYPE,
+    ):
+        proposal = await get_structured_output_with_retry(
+            llm=llm,
+            messages=[SystemMessage(content=system), HumanMessage(content=context)],
+            schema=ReturnProposal,
+            provider=provider,
+            node_name=_LLM_TYPE,
+            config=RunnableConfig(callbacks=[token_capture]),
+            user_id=user_id,
+        )
+        await bill_captured_usage(
+            token_capture,
+            user_id=user_id,
+            task_type=_TASK_TYPE,
+            target_id=target_id,
+            model_name=model,
+            source="user",
+            run_id=run_id,
+            llm_type=_LLM_TYPE,
+        )
     return proposal, capture_to_usage(token_capture)
 
 
@@ -320,6 +345,7 @@ async def _synthesize_with_fallback(
             user_language=language,
             user_timezone=user_timezone,
             user_id=user_id,
+            call_id=call_id,
         )
     except Exception as exc:  # noqa: BLE001 — synthesis must not lose the call
         logger.warning("telephony_synthesis_failed", call_id=str(call_id), error=str(exc))

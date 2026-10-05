@@ -21,6 +21,7 @@ covered by ``test_active_uniqueness_migration.py``.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
@@ -93,9 +94,19 @@ class TestBuildPriceIndex:
         index = build_price_index([_pricing_row("scribe_v2", "0.22", unit="per_audio_hour")])
         assert index["scribe_v2"].pricing_unit == "per_audio_hour"
 
-    def test_absent_cached_price_becomes_zero(self) -> None:
+    def test_absent_cached_price_uses_input_in_the_legacy_numeric_blob(self) -> None:
+        import json
+
         index = build_price_index([_pricing_row("gpt-5.2", "1.0")])
-        assert index["gpt-5.2"].cached_input_unit_price == 0.0
+        assert index["gpt-5.2"].cached_input_unit_price == 1.0
+        # Old workers multiply this value without a nullable-rate guard.
+        payload = json.loads(index["gpt-5.2"].to_json())
+        assert payload["cached_input_unit_price"] * 1_000_000 == 1_000_000
+
+    def test_explicitly_free_cached_price_remains_zero(self) -> None:
+        row = _pricing_row("model", "2.0")
+        row.cached_input_unit_price = Decimal("0")
+        assert build_price_index([row])["model"].cached_input_unit_price == 0.0
 
     def test_empty_input_yields_an_empty_index(self) -> None:
         assert build_price_index([]) == {}
@@ -127,6 +138,73 @@ class TestAsyncPricingServiceResolution:
         assert price is not None
         assert price.input_price == Decimal("5")
         assert price.output_price == Decimal("15")
+
+        # Exercise the public calculator too: pre-normalising at this door
+        # used to discard the exact tariff despite the correct lookup above.
+        from unittest.mock import patch
+
+        from src.core.config import settings
+
+        with patch.object(settings, "default_currency", "USD"):
+            usd, _ = await service.calculate_token_cost("gpt-4o-2024-05-13", 1_000_000, 0)
+        assert usd == 5
+
+    async def test_historical_exact_tariff_wins_only_after_it_became_effective(
+        self,
+        async_session: AsyncSession,
+    ) -> None:
+        base = await create_llm_pricing_async(
+            async_session,
+            "gpt-4o",
+            Decimal("2.5"),
+            Decimal("10"),
+        )
+        base.effective_from = datetime(2026, 1, 1, tzinfo=UTC)
+        exact = await create_llm_pricing_async(
+            async_session,
+            "gpt-4o-2024-05-13",
+            Decimal("5"),
+            Decimal("15"),
+        )
+        exact.effective_from = datetime(2026, 2, 1, tzinfo=UTC)
+        exact.time_slots = [
+            {
+                "start_utc": "01:00",
+                "end_utc": "04:00",
+                "weekdays": [1],
+                "input_unit_price": 7,
+                "cached_input_unit_price": 0.7,
+                "output_unit_price": 21,
+            }
+        ]
+        await async_session.flush()
+        service = AsyncPricingService(async_session)
+
+        inherited = await service.get_model_price_at_date(
+            "gpt-4o-2024-05-13",
+            datetime(2026, 1, 15, tzinfo=UTC),
+        )
+        owned = await service.get_model_price_at_date(
+            "gpt-4o-2024-05-13",
+            datetime(2026, 2, 1, tzinfo=UTC),
+        )
+        assert inherited is not None and inherited.model_name == "gpt-4o"
+        assert owned is not None and owned.input_price == 5
+        assert owned.time_slots == exact.time_slots
+
+        from unittest.mock import patch
+
+        from src.core.config import settings
+
+        with patch.object(settings, "default_currency", "USD"):
+            cost = await service.calculate_token_cost_at_date(
+                "gpt-4o-2024-05-13",
+                1_000_000,
+                0,
+                0,
+                datetime(2026, 2, 2, 2, tzinfo=UTC),
+            )
+        assert cost == 7
 
     async def test_dated_model_inherits_the_base_tariff_when_it_owns_none(
         self,

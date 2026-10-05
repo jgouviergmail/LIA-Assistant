@@ -24,7 +24,10 @@ async def _translate_description_all_langs(
     invoke_config: Any,
 ) -> dict[str, str]:
     """Call LLM to translate a skill description into all 6 supported languages."""
+    from time import time
+
     from langchain_core.messages import HumanMessage, SystemMessage
+    from langchain_core.runnables.config import merge_configs
 
     from src.core.exceptions_domains import raise_usage_limit_exceeded
     from src.domains.agents.prompts import load_prompt
@@ -33,7 +36,9 @@ async def _translate_description_all_langs(
         is_instance_spend_blocked,
         record_instance_llm_call,
     )
+    from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
     from src.infrastructure.llm.factory import get_llm
+    from src.infrastructure.llm.token_capture import TokenCaptureHandler
     from src.infrastructure.llm.usage_metadata import model_name_of
 
     # A description is translated once, for every future reader in every
@@ -47,15 +52,24 @@ async def _translate_description_all_langs(
 
     system_prompt = load_prompt("skill_description_translation_prompt", version="v1")
     llm = get_llm("skill_description_translator")
-    response = await llm.ainvoke(
-        [SystemMessage(content=system_prompt), HumanMessage(content=description)],
-        config=invoke_config,
-    )
-    await record_instance_llm_call(
-        surface="skill_description_translator",
-        model_name=model_name_of(llm),
-        response=response,
-    )
+    started_at = time()
+    pricing_snapshot = capture_pricing_snapshot()
+    capture = TokenCaptureHandler(model_name_of(llm))
+    response = None
+    try:
+        response = await llm.ainvoke(
+            [SystemMessage(content=system_prompt), HumanMessage(content=description)],
+            config=merge_configs(invoke_config, {"callbacks": [capture]}),
+        )
+    finally:
+        await record_instance_llm_call(
+            surface="skill_description_translator",
+            model_name=model_name_of(llm),
+            response=response,
+            started_at=started_at,
+            pricing_snapshot=pricing_snapshot,
+            capture=capture,
+        )
     content = response.content if hasattr(response, "content") else str(response)
     # Central parser handles fences, trailing commas and // comments. Callers
     # catch (json.JSONDecodeError, ValueError) together, so raising ValueError

@@ -11,6 +11,7 @@ from src.core.field_names import FIELD_REGISTRY_ID
 from src.domains.agents.constants import CONTEXT_DOMAIN_MCP
 from src.domains.agents.data_registry.models import RegistryItemType
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.infrastructure.mcp.rate_limit import MCPRateLimitError, MCPToolExecutionError
 from src.infrastructure.mcp.user_tool_adapter import (
     UserMCPToolAdapter,
     _derive_collection_key,
@@ -112,6 +113,64 @@ class TestUserMCPToolAdapterCreation:
 
 class TestUserMCPToolAdapterExecution:
     """Tests for tool execution via pool."""
+
+    @pytest.mark.asyncio
+    async def test_quota_is_a_structured_refusal_without_connection_error(self) -> None:
+        adapter = UserMCPToolAdapter.from_discovered_tool(
+            server_id=uuid4(),
+            user_id=uuid4(),
+            server_name="Firecrawl",
+            tool_name="firecrawl_scrape",
+            description="Scrape",
+            input_schema={},
+        )
+        pool = AsyncMock()
+        pool.call_tool.side_effect = MCPRateLimitError(52)
+        with (
+            patch("src.infrastructure.mcp.user_pool.get_user_mcp_pool", return_value=pool),
+            patch("src.infrastructure.mcp.user_tool_adapter.mcp_connection_errors_total") as errors,
+            patch("src.infrastructure.mcp.user_tool_adapter.mcp_tool_invocations_total") as calls,
+            patch("src.infrastructure.mcp.user_tool_adapter.logger") as log,
+        ):
+            result = await adapter._arun()
+        assert not result.success
+        assert result.error_code == "RATE_LIMIT_EXCEEDED"
+        assert result.metadata["retry_after"] == 52
+        assert "other methods" in result.message
+        assert not result.registry_updates
+        errors.labels.assert_not_called()
+        calls.labels.assert_called_once_with(
+            server_name=adapter.server_name_label, tool_name="firecrawl_scrape", status="error"
+        )
+        log.warning.assert_not_called()
+        log.info.assert_called_once_with(
+            "user_mcp_tool_rate_limited",
+            server_id=str(adapter.server_id),
+            tool_name="firecrawl_scrape",
+            retry_after=52,
+        )
+
+    @pytest.mark.asyncio
+    async def test_server_tool_error_is_not_counted_as_a_transport_error(self) -> None:
+        adapter = UserMCPToolAdapter.from_discovered_tool(
+            server_id=uuid4(),
+            user_id=uuid4(),
+            server_name="Test",
+            tool_name="search",
+            description="Search",
+            input_schema={},
+        )
+        pool = AsyncMock()
+        pool.call_tool.side_effect = MCPToolExecutionError("Invalid argument")
+        with (
+            patch("src.infrastructure.mcp.user_pool.get_user_mcp_pool", return_value=pool),
+            patch("src.infrastructure.mcp.user_tool_adapter.mcp_connection_errors_total") as errors,
+            patch("src.infrastructure.mcp.user_tool_adapter.logger") as log,
+            pytest.raises(MCPToolExecutionError, match="Invalid argument"),
+        ):
+            await adapter._arun()
+        errors.labels.assert_not_called()
+        assert log.warning.call_args.kwargs["exc_info"] is False
 
     @pytest.mark.asyncio
     async def test_arun_calls_pool(self) -> None:

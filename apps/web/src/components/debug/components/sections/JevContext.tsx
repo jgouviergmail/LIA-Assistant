@@ -63,12 +63,15 @@ export function JevContext({
         )}
       </div>
       {context.omitted_characters > 0 && (
-        <p className="text-muted-foreground">
-          {t('chat.debug_panel.jev.truncated', {
-            omitted: context.omitted_characters,
-            total: context.original_characters,
-          })}
-        </p>
+        <div className="space-y-1 text-muted-foreground">
+          <p>
+            {t('chat.debug_panel.jev.truncated', {
+              omitted: context.omitted_characters,
+              total: context.original_characters,
+            })}
+          </p>
+          {labelKey === 'context' && <p>{t('chat.debug_panel.jev.contextDisplayHelp')}</p>}
+        </div>
       )}
     </details>
   );

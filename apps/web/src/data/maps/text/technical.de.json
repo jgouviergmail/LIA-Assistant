@@ -159,9 +159,9 @@
     },
     "t.response": {
       "name": "Antwortsynthese",
-      "role": "Setzt die Antwort aus den Ergebnissen und den deklarierten Kontexten zusammen, benennt Fehlschläge so, wie sie sind, und deklariert das Register, das das Gesicht belebt.",
+      "role": "Baut die Antwort aus deklarierten Ergebnissen und Kontexten, benennt Fehler und rendert deterministische Karten aus empfangenen Fakten. Auswahl und Zeitfilter verlangen Belege; Aktionen prüfen die genaue Bindung an Nachricht und Quelle. Sie deklariert auch den Ton, der den Begleiter animiert.",
       "stack": ["Deklarierte Kontexte", "Ehrlichkeitsdirektiven", "Emotionales Register"],
-      "src": "efc7fbacd058"
+      "src": "1a9d36a94c1d"
     },
     "t.hitl": {
       "name": "Freigabe und Entwürfe",
@@ -229,14 +229,14 @@
     },
     "t.pricing": {
       "name": "Abrechnung und Limits",
-      "role": "Jeder bezahlte Aufruf wird vorher begrenzt (Konto und Instanz), zum Preis seines Zeitpunkts berechnet und dann im richtigen Hauptbuch verbucht; jedes Modul deklariert, wo seine Ausgaben gezählt werden.",
+      "role": "Jeder bezahlte Versuch fixiert Modell, Tarif, Startzeit und Wechselkurs; bekannter Verbrauch bei Fehler oder Abbruch wird ebenfalls verbucht. Cache-Lesen und -Schreiben bleiben getrennt, unter Konto- und Instanzgrenzen.",
       "stack": [
         "Zeitabhängige Tarife",
         "Preis-Cache",
         "Limits Konto + Instanz",
         "Deklarierte Ausgabenwege"
       ],
-      "src": "939e9074aad7"
+      "src": "8135113ee487"
     },
     "t.connclients": {
       "name": "Konnektor-Clients",
@@ -246,9 +246,9 @@
     },
     "t.mcp": {
       "name": "MCP-Client",
-      "role": "Ein Pool von MCP-Clients pro Person, Werkzeugschemas buchstabengetreu nach dem Standard gelesen, Werkzeuge, die wie die nativen abgesichert sind.",
+      "role": "Ein Client-Pool pro Person, Standardschemata und dieselben Schutzregeln wie für native Werkzeuge; Quelle und Methode begleiten jede Ausgabeform. Serverseitige Wartefristen werden über Redis geteilt.",
       "stack": ["Model Context Protocol", "Zwei Protokollrevisionen", "OAuth pro Aussteller"],
-      "src": "c11c5620d9c1"
+      "src": "7d42a9fb7ca7"
     },
     "t.skills": {
       "name": "Skills und Plugins",
@@ -334,9 +334,9 @@
     },
     "t.radio": {
       "name": "Radio: Redaktion und Antenne",
-      "role": "Eine Redaktion der Instanz liest öffentliche Feeds ohne Modell; eine Antenne pro Hörer entscheidet über ein deterministisches Raster, lässt jedes Segment schreiben und prüfen, sprechen und mischen — nur solange jemand zuhört.",
+      "role": "Eine Instanzredaktion filtert öffentliche Feeds; ein Sender pro Hörer schreibt und prüft begrenzte Abschnitte während des Hörens. Rohes PCM/u-law erhält vor lokalem Mix die deklarierten Audiometadaten in WAV; kodiertes Audio bleibt unverändert. Ein deterministischer Plan wählt das Programm.",
       "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"],
-      "src": "3779500de599"
+      "src": "6dfaa30a9b4b"
     },
     "t.postgres": {
       "name": "PostgreSQL und pgvector",
@@ -420,6 +420,12 @@
       "role": "Eine öffentliche Demo-Instanz, bei der jede Schutzmaßnahme aus der Quelle der Wahrheit neu berechnet und bei jedem Deployment geprüft wird.",
       "stack": ["Isolierte Instanz", "Aus der Quelle neu berechnete Schutzmaßnahmen"],
       "src": "949e4004a9a1"
+    },
+    "t.avatar": {
+      "name": "Avatar: Sitzung und Wiedergabe",
+      "role": "Eine persönliche Sitzung unter Redis-Lease; der Browser sendet die vorhandene Stimme als PCM und wählt Simli-Medien als einzige hörbare Ausgabe. Live-Standby schließt sie. Experimentell: Medien- und Geräteabnahme stehen aus.",
+      "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
+      "src": "b302c6788952"
     }
   },
   "flows": {
@@ -471,8 +477,8 @@
       "src": "0b2fe48e5758"
     },
     "tflow.live": {
-      "name": "Eine Live-Sitzung",
-      "summary": "Der Browser spricht direkt mit dem Anbieter; jede Anfrage kehrt zum Graphen zurück.",
+      "name": "Eine delegierte Live-Sitzung",
+      "summary": "Der delegierte Ablauf: Der Browser spricht mit dem Anbieter, und jede Anfrage kehrt zum Graphen zurück.",
       "steps": [
         "Die Person öffnet eine Live-Sitzung.",
         "Die API stellt eine Einmal-Kennung aus und erstellt das Mandat der Stimme.",
@@ -482,7 +488,7 @@
         "Die Antwort, begrenzt und geglättet, wird an die Stimme zurückgegeben.",
         "Am Ende archiviert, beziffert und leitet ein einziger Abschluss weiter."
       ],
-      "src": "0f169cd6c55b"
+      "src": "47835695935a"
     },
     "tflow.delivery": {
       "name": "Vom Commit in die Produktion",

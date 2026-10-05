@@ -72,6 +72,7 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_TELEPHONY_ENABLED = "capability_telephony_enabled"
     CAPABILITY_MEETINGS_ENABLED = "capability_meetings_enabled"
     CAPABILITY_LIVE_ENABLED = "capability_live_enabled"
+    CAPABILITY_AVATAR_ENABLED = "capability_avatar_enabled"
     # B7 — thirteen features an operator could neither see nor switch off.
     CAPABILITY_WORKBOARD_ENABLED = "capability_workboard_enabled"
     CAPABILITY_JOURNALS_ENABLED = "capability_journals_enabled"
@@ -125,6 +126,8 @@ class SystemSettingKey(str, enum.Enum):
     JEV_FILTER_DOCUMENT_ENABLED = "jev_filter_document_enabled"
 
     JEV_INITIATIVE_UTILITY_ENABLED = "jev_initiative_utility_enabled"
+    JEV_MEMORY_REFERENCE_PRESENCE_ENABLED = "jev_memory_reference_presence_enabled"
+    JEV_HITL_REJECTION_ENABLED = "jev_hitl_rejection_enabled"
 
     # Future settings can be added here:
     # MAINTENANCE_MODE = "maintenance_mode"

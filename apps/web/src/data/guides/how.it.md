@@ -6,7 +6,7 @@
 
 **Versione**: 5.2
 **Data**: 2026-10-04
-**Applicazione**: LIA v2.5.0
+**Applicazione**: LIA v2.6.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,10 +69,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Vincolo | Conseguenza architetturale |
 |---------|--------------------------|
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
-| Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
+| Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), credenziali cifrate con Fernet, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
 | Trasparenza totale | 616 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 332 ADRs, oltre 50.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
+| Affidabilità in produzione | 333 ADRs, oltre 51.000 test automatizzati per backend e frontend, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -90,10 +90,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | Oltre 50.000 test automatizzati con pytest e Vitest (soglie di copertura bloccate, ADR-116) |
+| Test | Oltre 51.000 test automatizzati con pytest e Vitest (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 1.082, di cui 48 condivise tramite conftest |
 | Documenti di documentazione | 716 |
-| ADR (Architecture Decision Record) | 332 |
+| ADR (Architecture Decision Record) | 333 |
 | Metriche Prometheus | 616 definizioni |
 | Dashboard Grafana | 31 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -696,6 +696,8 @@ Ogni ricordo è un documento strutturato con:
 
 **Perché un peso emotivo?** Un assistente che sa che tua madre è malata ma tratta questo fatto come un qualsiasi dato è nel migliore dei casi maldestro, nel peggiore offensivo. Il peso emotivo consente di attivare la `DANGER_DIRECTIVE` (divieto di scherzare, minimizzare, confrontare, banalizzare) quando viene toccato un argomento sensibile.
 
+Le istruzioni durature vengono **fissate alla creazione**: la manutenzione automatica non può riscriverle finché restano fissate. Puoi modificarle, sbloccarle o eliminarle tu stesso. Anche se sbloccata, un’istruzione procedurale non può essere ritirata automaticamente senza una sostituta.
+
 ### 11.3. Estrazione e iniezione
 
 **Estrazione**: dopo ogni conversazione, un processo in background analizza l'ultimo messaggio dell'utente, adattato alla personalità attiva. Costo tracciato tramite `TrackingContext`.
@@ -754,9 +756,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 Il `get_llm()` risolve la configurazione effettiva tramite `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), istanzia il modello e applica gli adattatori specifici.
 
-### 12.2. 67 tipi di configurazione LLM
+### 12.2. 86 tipi di configurazione LLM
 
-Ogni nodo della pipeline è configurabile indipendentemente tramite l'Admin UI — senza ridistribuzione:
+Il registro effettivo espone **86 configurazioni**: **62 di conversazione**, **20 decisioni native** e **4 per generazione di immagini, trascrizione o sintesi vocale**. Le decisioni native comprendono la scelta del modello di verbale della riunione e altri 19 usi JEV. Ogni slot si configura indipendentemente nell’interfaccia di amministrazione, senza ridistribuzione:
 
 | Categoria | Tipi configurabili |
 |-----------|-------------------|
@@ -764,8 +766,12 @@ Ogni nodo della pipeline è configurabile indipendentemente tramite l'Admin UI �
 | Risposta | response, hitl_question_generator |
 | Background | memory_extraction, interest_extraction, journal_extraction, journal_consolidation |
 | Agenti | contacts_agent, emails_agent, calendar_agent, browser_agent, ecc. |
+| Decisioni native (JEV) | meeting_template_selection, jev_memory_reference_presence, jev_hitl_rejection, ecc. |
+| Immagine e voce | image_generation, voice_transcription, voice_tts, radio_voice |
 
 Alcuni compiti usano una decisione nativa anziché una chiamata di chat generativa. Il registro JEV lega ogni uso al proprio interruttore e slot di modello; un interruttore generale li sospende. Ogni operazione fissa il percorso, presenta candidati circoscritti, verifica la risposta completa e ripiega in caso di dubbio. Il runtime comune contabilizza separatamente tentativo a pagamento e ripiego; permessi e HITL restano nel codice ordinario.
+
+Due usi facoltativi, disattivati per impostazione predefinita, chiedono soltanto se una domanda non contiene riferimenti personali da estrarre e se una risposta rifiuta tutte le azioni in attesa. Non producono nomi né permessi di agire. L’incertezza conserva l’estrattore o il classificatore di approvazione esistente; il rifiuto parziale di un gruppo segue sempre la conferma ordinaria.
 
 ### 12.3. Token Tracking
 
@@ -776,6 +782,8 @@ Il conteggio stesso è **contrattuale, non accidentale**: un fornitore compatibi
 La tariffazione stessa segue l'orologio del fornitore: alcuni fornitori fatturano i modelli di testo secondo l'ora UTC, con fasce di punta a un multiplo della tariffa fuori punta. Ogni riga di prezzo può quindi portare fasce orarie UTC opzionali e senza sovrapposizioni — attraversamento della mezzanotte incluso — che sostituiscono i prezzi unitari mentre sono attive, con le colonne di base come tariffa predefinita. Una fascia può anche indicare i propri giorni — quelli del giorno UTC in cui si apre, così che una fascia che attraversa la mezzanotte appartiene al suo giorno di partenza —, perché la punta può riguardare solo i giorni feriali: DeepSeek fattura i suoi fine settimana a tariffa fuori punta per tutto il giorno. Un'unica implementazione risolve la fascia attiva per i due punti di valorizzazione: ogni chiamata è valorizzata al proprio istante — quello che il fornitore fattura — e un messaggio storico ricalcolato conserva la tariffa della sua ora d'origine. Le fasce viaggiano con le righe di prezzo versionate temporalmente, si amministrano nel dialogo delle tariffe LLM, e i dati di riferimento includono la tariffa a fasce ufficiale di DeepSeek (ADR-223).
 
 Una tariffa vale solo se è **quella che il fornitore fattura**. Una scrittura nella cache del prompt è fatturata al suo prezzo — 1,25 volte l'input presso Anthropic e presso OpenAI per le generazioni che la segnalano —, contata come quarta grandezza dell'unico lettore d'uso, e una guardia AST rifiuta qualsiasi porta di tariffazione che la dimentichi (ADR-306). I prezzi stessi sono riletti sulle pagine dei fornitori, e una migrazione di correzione sostituisce solo un valore che LIA aveva distribuito, mai uno inserito da un amministratore; una chiamata Google Maps è classificata nello SKU che la sua richiesta attiva — un percorso con traffico o pedaggi non è un percorso semplice, una matrice si fattura per elemento. E la cache dei prezzi è una tabella **condivisa da tutti i worker**: ciascuno la ricostruisce dal database all'avvio — mai da un blob anteriore all'ultima migrazione — e ogni scrittore, tariffa o tasso di cambio, pubblica l'invalidazione dopo il suo commit, così un prezzo modificato raggiunge subito ogni worker, non solo quello che lo ha scritto (ADR-063).
+
+**Ogni tentativo del fornitore conserva la propria fotografia tariffaria**, il modello, l’ora d’inizio e il tasso di cambio. Un nuovo tentativo non può ricalcolare il prezzo del precedente. L’uso noto di un tentativo fallito o annullato resta contabilizzato, mentre letture e scritture della cache sono valorizzate separatamente senza contare due volte gli stessi token. L’uso mancante resta segnalato invece di diventare uno zero inventato.
 
 ### 12.4. Catalogo admin DB-source-of-truth
 
@@ -895,9 +903,15 @@ Factory **catalogue-driven** (ADR-081): `factory.get_tts_client()` legge l'overr
 
 ---
 
+### 15.3. Un volto facoltativo per la voce
+
+L’avatar parlante sperimentale utilizza **la tua chiave Simli personale**, dopo un’attivazione esplicita. Accompagna i commenti vocali e Live, diretto o delegato, in una finestra flottante con tre dimensioni, spostabile con puntatore o tastiera. Il browser invia la voce esistente a Simli e usa il contenuto restituito come unica uscita udibile. La connessione resta aperta tra le risposte: **anche il silenzio consuma il tuo piano Simli**. La sospensione Live la chiude; il risveglio apre una nuova connessione. Radio conserva il proprio lettore. Il movimento delle labbra e il comportamento su Android/iOS devono ancora essere qualificati su dispositivi reali; la funzione resta in beta.
+
 ### Una stazione che esiste mentre qualcuno ascolta
 
 La radio ha due livelli: una redazione comune raccoglie feed pubblici; l'antenna personale sceglie il programma con un palinsesto deterministico e le fonti consentite. I modelli scrivono e leggono segmenti limitati; la verifica controlla fonti, cifre e ruoli prima della messa in onda. Il lettore mostra fonti e spesa dell'account. L'antenna produce solo durante una sessione attiva, con timer e controllo dell'istanza, senza repliche.
+
+Il filtro editoriale rimuove pubblicità, sponsorizzazioni, sconti e inviti all’acquisto, conservando notizie utili, fatture, prenotazioni e appuntamenti. Il mix rispetta il formato di sintesi: PCM grezzo o u-law riceve un contenitore WAV con codifica e frequenza dichiarate; l’audio già codificato passa invariato prima dell’assemblaggio locale con FFmpeg.
 
 ---
 
@@ -1450,13 +1464,13 @@ LIA accetta ingestioni di eventi esterni (misurazioni iPhone Apple Health, paylo
 
 **Dedupe intra-batch con arbitraggio per kind**: PostgreSQL rifiuta che un `ON CONFLICT DO UPDATE` tocchi due volte la stessa riga target (`CardinalityViolationError`). Tuttavia iOS emette legittimamente campioni sovrapposti (Apple Watch + iPhone che riportano lo stesso intervallo). Un helper fonde i duplicati **prima** dell'UPSERT con una strategia scelta per kind: **MAX** per i passi (il Watch e l'iPhone contano sottoinsiemi complementari del movimento — MAX approssima meglio la verità sul campo rispetto al doppio conteggio SUM o al sottoconteggio AVG), **AVG** arrotondato per la frequenza cardiaca (fusione di due sensori che puntano allo stesso segnale). I duplicati collassati sono contabilizzati come `updated` nella risposta e tracciati tramite `health_samples_batch_duplicates_total{kind}`.
 
-**Validazione mista per campione**: ogni campione viene accettato o respinto individualmente con il suo indice 0-based e una motivazione limitata (`out_of_range | malformed | missing_field | invalid_date`). I vicini validi dello stesso batch vengono persistiti — un glitch puntuale del sensore non fa perdere la giornata. I valori grezzi non vengono mai loggati (GDPR-friendly), solo contatori per motivazione.
+**Validazione mista per campione**: ogni campione viene accettato o respinto individualmente con il suo indice 0-based e una motivazione limitata (`out_of_range | malformed | missing_field | invalid_date`). I vicini validi dello stesso batch vengono persistiti — un glitch puntuale del sensore non fa perdere la giornata. I log conservano solo contatori per motivazione, senza valori grezzi; questa misura di privacy non dimostra la conformità al GDPR di ogni installazione.
 
 **Sicurezza**: rate limit Redis sliding window per token (60 req/h di default, configurabile), header `WWW-Authenticate: Bearer` (RFC 7235) sui 401, `Retry-After` sui 429, tetto di campioni per richiesta con `HTTP 413` oltre. La cancellazione dell'account è gestita dal servizio di eliminazione account, che purga esplicitamente ogni tabella sulla salute (il modello di account con soft-delete mantiene la riga `users`, quindi la cascata della FK non si attiva mai); il dispositivo di un account eliminato non può più effettuare l'ingestione.
 
 **Visualizzazione**: un aggregator polimorfico Python percorre i campioni ordinati per `date_start` in una finestra e emette un punto per bucket (ora/giorno/settimana/mese/anno), con `AVG/MIN/MAX` sui campioni `heart_rate` e `SUM` sui campioni `steps`. I bucket vuoti sono emessi con `has_data=False` affinché il frontend (`recharts`, `connectNulls={false}`) mostri lacune oneste invece di interpolazione. Il componente Settings riutilizza il pattern `SettingsSection` + Accordion (4 sotto-sezioni: API + token, Grafici, Statistiche, Gestione dati) e mostra la **finestra di aggregazione effettiva** per disinnescare la confusione «le stat non si muovono quando cambio periodo» (la FC è invariante quando tutti i dati entrano nella finestra più piccola).
 
-**Esposizione ai loop centrali**: un **unico toggle utente opt-in** governa quattro consumatori in un colpo solo — conversazione (tool assistant), Heartbeat (sorgente `health_signals`), estrazione memoria (placeholder `{health_context}` + blob opzionale `context_biometric` JSONB su memorie con alta emotività) e diario (estrazione + consolidazione). Tutti e quattro ricevono la stessa **proiezione fattuale non grezza**: delta vs baseline, trend direzionali, eventi strutturali (streak di inattività, ecc.) — mai valori grezzi. La baseline mobile a 28 giorni seleziona automaticamente `bootstrap` (mediana semplice finché meno di 7 giorni di storico sono disponibili — trasmesso all'LLM per qualificare le sue affermazioni) e poi passa a `rolling`. L'erasure GDPR ha un unico bersaglio: la tabella `health_samples`.
+**Esposizione ai loop centrali**: un **unico toggle utente opt-in** governa quattro consumatori in un colpo solo — conversazione (tool assistant), Heartbeat (sorgente `health_signals`), estrazione memoria (placeholder `{health_context}` + blob opzionale `context_biometric` JSONB su memorie con alta emotività) e diario (estrazione + consolidazione). Tutti e quattro ricevono la stessa **proiezione fattuale non grezza**: delta vs baseline, trend direzionali, eventi strutturali (streak di inattività, ecc.) — mai valori grezzi. La baseline mobile a 28 giorni seleziona automaticamente `bootstrap` (mediana semplice finché meno di 7 giorni di storico sono disponibili — trasmesso all'LLM per qualificare le sue affermazioni) e poi passa a `rolling`. La cancellazione delle misurazioni grezze riguarda la tabella `health_samples`; i ricordi derivati e gli altri record hanno controlli propri di cancellazione.
 
 ### 23.13. Applicazione installabile (PWA)
 
@@ -1534,7 +1548,7 @@ Una regola CSS governa le spaziature del design system: i margini verticali di u
 
 ## 24. Architettura delle decisioni (ADR)
 
-332 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+333 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1867,7 +1881,7 @@ Il budget di connessioni ha un pavimento, non solo un tetto. Limitare il picco �
 
 ## 43. La modalità Live: due intelligenze, una cucitura — e una politica per modalità
 
-Una sessione da voce a voce gira su un modello live che la persona collega con **la propria chiave** — una categoria di connettore a sé, `live`, additiva: più chiavi possono essere attive, le sessioni si aprono su quella scelta, e scegliere un modello *è* scegliere il suo fornitore. Nulla di ciò che il fornitore fattura è contato, memorizzato o mostrato dalla piattaforma. L'API conia una credenziale monouso e genera la configurazione; il browser la ripete tale e quale e apre da solo la connessione, così che **l'audio non transita mai dall'API**. Quattro comportamenti del fornitore, verificati sulla sua vera API, fissano ciascuno una regola: il vincolo di una credenziale non blocca l'istruzione di sistema; una credenziale monouso consumata non può riconnettersi (ogni riconnessione ne conia una fresca per lo stesso record); il fornitore accetta in silenzio un nome di voce sconosciuto (la voce è validata contro una lista incorporata e datata); un WebSocket grezzo del browser è accettato da un solo metodo.
+Una sessione da voce a voce gira su un modello live che la persona collega con **la propria chiave** — una categoria di connettore a sé, `live`, additiva: più chiavi possono essere attive, le sessioni si aprono su quella scelta, e scegliere un modello *è* scegliere il suo fornitore. Il fornitore fattura la tua chiave personale; il registro della piattaforma non contabilizza questa spesa. Il browser mostra separatamente uso e costo disponibili. L'API conia una credenziale monouso e genera la configurazione; il browser la ripete tale e quale e apre da solo la connessione, così che **l'audio non transita mai dall'API**. Quattro comportamenti del fornitore, verificati sulla sua vera API, fissano ciascuno una regola: il vincolo di una credenziale non blocca l'istruzione di sistema; una credenziale monouso consumata non può riconnettersi (ogni riconnessione ne conia una fresca per lo stesso record); il fornitore accetta in silenzio un nome di voce sconosciuto (la voce è validata contro una lista incorporata e datata); un WebSocket grezzo del browser è accettato da un solo metodo.
 
 Il design è **una cucitura tra due intelligenze** (ADR-299). Il modello vocale possiede la conversazione — ascoltare, parlare, interrompere, riempire un'attesa — e delega ogni richiesta di dati o di azione al motore della chat tramite una sola funzione `NON_BLOCKING` dichiarata, `send_to_lia`. Il browser trasforma quella chiamata in un `POST /chat/stream` ordinario sotto il cookie della persona: il turno delegato gira nel grafo (HITL, registri, quote, archivio, apprendimento), si disegna nel filo timbrato con la sessione, e il ponte consegna alla voce una risposta appiattita e limitata — o la domanda in sospeso di LIA, che *è* la risposta. La voce non tiene mai uno strumento, una credenziale o una riga propria. Una sessione è una riga di decisione; ogni turno delegato è la propria esecuzione; la scheda di chiusura somma le righe di riepilogo di quelle esecuzioni. Un secondo fornitore si è unito senza che una riga del ponte si muovesse (ADR-300): un fornitore **dichiara il suo filo** — `connection` (`token`: il browser apre il socket con la credenziale del fornitore; `offer`: l'API conia il proprio nonce e scambia l'SDP del browser sulla chiave della persona) e `delegation_wire` (`tool`; o `native`, dove il fornitore emette un id e uno scostamento, nessun testo, e la richiesta è composta nel browser dalla trascrizione) — e la cucitura non si ramifica mai sul suo nome. Il terzo, ElevenLabs Agents, ha messo l'*agente* della persona dove sta un modello: tutto tranne il prompt e gli strumenti di LIA resta sul suo portale, i suoi strumenti sono attaccati all'agente per impronta prima del conio, e la sua fatturazione è dichiarata `vendor` — la piattaforma non tariffa nulla, il contatore mostra solo l'orologio, e la fattura del fornitore è letta una volta alla fine, dopo la stretta di chiusura su cui la regola.
 
@@ -1893,14 +1907,16 @@ Una risposta che porta dati viene resa dal server in schede HTML, archiviata con
 
 Le sovrapposizioni — finestre, menu, elenchi, suggerimenti, visualizzatori, notifiche — condividono uno stesso vetro costruito sui token del tema; una preferenza per la trasparenza ridotta o i colori forzati rende opaca una superficie, il movimento ridotto toglie le transizioni decorative, e una finestra restituisce il focus al controllo che l'ha aperta. Ogni resa è testata dal suo vero produttore fino alla serializzazione del registro, con zeri, falsi, assenze e input ostili espliciti.
 
+Una selezione viene dichiarata solo se le prove stabiliscono quali elementi e date copre; un filtro temporale incerto conserva i risultati canonici. Le schede MCP indicano server, origine pubblica e metodo chiamato per uscite strutturate, elenchi e testo; una pausa dichiarata è condivisa tra worker. I simboli meteo seguono le condizioni ricevute. Eliminare un’e-mail dalla sua scheda verifica l’esatta casella collegata e richiede sempre conferma.
+
 ---
 
 ## 45. Conclusione
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 332 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 50.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 333 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. Gli oltre 51.000 test automatizzati, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 332 ADRs e del changelog (da v1.0 a v2.5.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (700+ documenti), dei 333 ADRs e del changelog (da v1.0 a v2.6.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

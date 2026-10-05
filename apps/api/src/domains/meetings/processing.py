@@ -44,7 +44,15 @@ from src.domains.meetings.audio_store import (
     normalized_mime_type,
     pcm_duration_seconds,
 )
-from src.domains.meetings.costs import cost_metadata as _cost_metadata
+from src.domains.meetings.costs import (
+    cost_metadata as _cost_metadata,
+)
+from src.domains.meetings.costs import (
+    synthesis_cost_eur as synthesis_cost_eur,
+)
+from src.domains.meetings.costs import (
+    track_legacy_synthesis_usage,
+)
 from src.domains.meetings.engine import ResolvedEngine, resolve_engine
 from src.domains.meetings.enrichment import CalendarMatch, enrich_meeting
 from src.domains.meetings.error_codes import (
@@ -71,7 +79,6 @@ from src.domains.meetings.schemas import MeetingReport, SectionKind, TemplateSec
 from src.domains.meetings.synthesis import (
     SynthesisContext,
     SynthesisResult,
-    SynthesisUsage,
     synthesize_minutes,
 )
 from src.domains.meetings.template_resolution import TemplateDecision, decide_template
@@ -83,7 +90,6 @@ from src.domains.meetings.transcription import (
     transcribe_with_fallback,
 )
 from src.infrastructure.async_utils import safe_fire_and_forget
-from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
@@ -97,7 +103,7 @@ from src.infrastructure.observability.metrics_meetings import (
     meeting_stt_audio_seconds_total,
     meetings_total,
 )
-from src.infrastructure.proactive.tracking import generate_proactive_run_id
+from src.infrastructure.proactive.tracking import bill_captured_usage, generate_proactive_run_id
 
 logger = structlog.get_logger(__name__)
 
@@ -157,26 +163,6 @@ def _keep_audio_until(preference: MeetingPreference | None, now: datetime) -> da
     return now + timedelta(hours=hours) if hours > 0 else None
 
 
-def synthesis_cost_eur(usage: SynthesisUsage) -> float | None:
-    """EUR cost of one synthesis pass from the administered price, or None.
-
-    The pricing cache answers (0, 0) for a model it does not know: with tokens
-    actually spent that is an unknown price, never a free one (ADR-185). A pass
-    that spent no token costs an exact 0.0.
-    """
-    spent = usage.tokens_in + usage.tokens_out
-    if spent == 0:
-        return 0.0
-    _usd, eur = get_cached_cost_usd_eur(
-        model=usage.model_name,
-        prompt_tokens=usage.tokens_in,
-        completion_tokens=usage.tokens_out,
-        cached_tokens=usage.tokens_cache,
-        cache_write_tokens=usage.tokens_cache_write,
-    )
-    return eur if eur > 0 else None
-
-
 def _language_hint(preference: MeetingPreference | None, meeting: Meeting) -> str | None:
     hint = meeting.stt_language_hint or (preference.language if preference else None)
     return None if not hint or hint == "auto" else hint
@@ -193,6 +179,7 @@ class _Job:
         self.stage: MeetingStage = MeetingStage.NORMALIZING
         self.run_id: str | None = None
         self.outcome = DecisionOutcome.FAILED
+        self.capture: TokenCaptureHandler | None = None
 
     async def heartbeat(
         self, repo: MeetingRepository, values: Mapping[str, Any] | None = None
@@ -429,24 +416,9 @@ async def _notify_ready(
     exchange cost.
     """
     from src.infrastructure.proactive.notification import NotificationDispatcher
-    from src.infrastructure.proactive.tracking import track_proactive_tokens
 
     report, usage = synthesis.report, synthesis.usage
-    if usage.tokens_in or usage.tokens_out:
-        await track_proactive_tokens(
-            user_id=meeting.user_id,
-            task_type=MEETINGS_PROACTIVE_TASK_TYPE,
-            target_id=str(meeting.id),
-            conversation_id=None,
-            tokens_in=usage.tokens_in,
-            tokens_out=usage.tokens_out,
-            tokens_cache=usage.tokens_cache,
-            tokens_cache_write=usage.tokens_cache_write,
-            model_name=usage.model_name,
-            db=db,
-            run_id=run_id,
-            source="user",
-        )
+    await track_legacy_synthesis_usage(db, meeting, usage, run_id=run_id)
     await NotificationDispatcher().dispatch(
         user,
         content=f"**{report.title}**\n\n{_summary_text(report, language)}".strip(),
@@ -635,6 +607,7 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     # One capture for the whole meeting: the template choice (ADR-259), the
     # condense passes and the synthesis add up to what the minutes cost.
     capture = TokenCaptureHandler()
+    job.capture = capture
 
     # 1. normalizing — reused from the checkpoint when its file is still there
     acquired = await _acquire_audio(job, repo, meeting)
@@ -685,6 +658,15 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     )
     await job.heartbeat(repo)
     job.close_stage()
+    await bill_captured_usage(
+        capture,
+        user_id=meeting.user_id,
+        task_type=MEETINGS_PROACTIVE_TASK_TYPE,
+        target_id=str(meeting.id),
+        model_name=synthesis.usage.model_name,
+        source="user",
+        run_id=run_id,
+    )
 
     completed = await repo.complete(
         job.meeting_id,
@@ -789,4 +771,15 @@ async def process_meeting(meeting_id: UUID) -> None:
             await _fail_guarded(repo, job, code=ERROR_UNEXPECTED, message=str(exc), transient=True)
         finally:
             if job.run_id is not None:
+                if job.capture is not None:
+                    await bill_captured_usage(
+                        job.capture,
+                        user_id=meeting.user_id,
+                        task_type=MEETINGS_PROACTIVE_TASK_TYPE,
+                        target_id=str(meeting.id),
+                        model_name="unknown",
+                        source="user",
+                        run_id=job.run_id,
+                        failed=job.outcome is not DecisionOutcome.ANSWERED,
+                    )
                 await finalize_native_meeting_run(meeting.user_id, job.run_id, job.outcome)

@@ -4,7 +4,7 @@
 
 **Version**: 2.3
 **Date**: 2026-10-04
-**Application**: LIA v2.5.0
+**Application**: LIA v2.6.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 54 functional domains | **800,000+** |
-| Automated tests, run on every commit and release | **50,000+** |
-| Documented architecture decisions (ADR) | **332** |
-| Versions shipped at a steady pace | **276** |
+| Source lines (excluding tests) — 55 functional domains | **820,000+** |
+| Automated tests, run on every commit and release | **51,000+** |
+| Documented architecture decisions (ADR) | **333** |
+| Versions shipped at a steady pace | **277** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -54,9 +54,9 @@ Several agents can work on the same repository at once — two different familie
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 332 documented:
+Three structural decisions, among the 333 documented:
 
-**Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
+**Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
 
 **AI economics — cost per request is a design criterion.** Two execution modes coexist: a deterministic, economical pipeline for everyday requests, and an autonomous agent mode for exploratory ones — the measured consumption gap ranges from 1 to 4-8×, for equivalent service on standard cases. Every call is counted per token, valued in euros, aggregated per user and per model, governed by quotas. Even a two-sentence notification is asked for without reasoning, because a model that thinks by default bills its thinking inside the answer budget. And the agent mode takes along only the tools the question calls for — chosen by relevance, never by order of arrival — because eighty tool schemas weighed most of a first call without being counted. And the count comes out right: every call is valued at the price the provider really bills — tariffs re-read on its pages, a cache write at its own price, off-peak hours with their days.
 
@@ -70,11 +70,13 @@ A system flown on instruments:
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
 - **Supply chain**: every building block of the server pinned by its digest and inventoried with every version; a weekly watch reads the security advisories each dependency publishes — including those no public database relays — and an update waits out a cooling-off period, never moving backwards; every version is installed on blank machines before it is published.
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
-- **Compliance**: security reviewed endpoint by endpoint; personal data encrypted; account lifecycle aligned with the GDPR.
+- **Data protection**: security reviewed endpoint by endpoint; connector credentials and provider keys encrypted; account export and deletion. GDPR obligations also depend on how the instance is operated and which providers it uses.
 
 The product makes its engineering choices visible at a human scale. A conversation follows a person across devices without disturbing what they are reading; a radio starts when they choose to listen and names the news it draws upon and what it costs. A generated file has a lifetime the person can extend deliberately. Scheduled work and condition checks have separate clocks. These are small, observable promises, backed by source records, limits and tests, rather than a claim that an assistant simply knows what the person wants.
 
 The same rule holds for what is not yet up to standard. The wake word "Dis LIA" is a small model trained offline and measured on a bench whose thresholds are published before training: the French model does not reach them yet, so it ships marked **beta**, and the product says so, rather than lowering the bar to be able to write "done". A voice session that falls asleep on a silence costs nothing, and only the person ends it.
+
+That discipline also applies to a visible presence. An experimental Simli face is an explicit choice on the person’s own key, connected to the existing voice with one audible output. An open session consumes the personal plan during silence; Live standby closes it. The presentation keeps media and mobile qualification pending until real trials establish it. The same precision governs spending: each paid provider attempt keeps its own tariff, and known usage survives failure, cancellation or retry.
 
 ## 6. The proof
 
@@ -111,4 +113,4 @@ What this experience changes in a management practice:
 - **Between blanket prohibition and blind trust, there is a governable path.** Graded human control can be specified, tested and audited; it is the approach regulatory requirements are converging on, and it is operational today.
 - **A leader who practices arbitrates better.** Build or buy, acceptable debt or not, credible vendor promise or not — these decisions gain accuracy when you have worked the material yourself. This project is a way of maintaining that proximity to the field.
 
-*Personal project, carried out outside any professional activity. Figures from the July 2026 technical audit — tests executed, measurements taken on the code, findings cross-checked. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-05. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

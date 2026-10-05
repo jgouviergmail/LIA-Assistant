@@ -80,6 +80,36 @@ def test_reminder_selection_cannot_create_a_draft_for_another_reminder():
         card_composition_ctx.reset(token)
 
 
+@pytest.mark.asyncio
+async def test_card_deletion_prepares_a_bound_confirmation_without_mutation():
+    from src.domains.agents.tools.emails_tools import DeleteEmailDraftTool
+
+    request = REQUEST.model_copy(update={"action": "delete_email"})
+    token = card_composition_ctx.set(
+        CardComposition(
+            USER, "EMAIL", "target", "delete_email", "google_gmail", str(UUID(int=4)), request
+        )
+    )
+    client = AsyncMock()
+    client.get_message.return_value = {
+        "payload": {"headers": [{"name": "Subject", "value": "Selected email"}]}
+    }
+    try:
+        tool = DeleteEmailDraftTool()
+        prepared = await tool.execute_api_call(client, USER, message_id="target")
+        output = tool.format_registry_response(prepared)
+        assert output.metadata["requires_confirmation"] is True
+        draft = next(iter(output.registry_updates.values())).payload
+        assert draft["draft_type"] == "email_delete"
+        assert draft["content"]["message_id"] == "target"
+        assert draft["content"][CARD_COMPOSITION_DRAFT_KEY] == request.model_dump(mode="json")
+        with pytest.raises(CardCompositionUnavailable):
+            tool.format_registry_response({**prepared, "message_id": "another"})
+        client.trash_email.assert_not_awaited()
+    finally:
+        card_composition_ctx.reset(token)
+
+
 def test_hitl_display_content_does_not_expose_host_selection_to_the_model():
     from src.domains.agents.services.hitl.interactions.draft_critique import (
         DraftCritiqueInteraction,

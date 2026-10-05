@@ -30,6 +30,7 @@ from src.core.i18n import SUPPORTED_LANGUAGES
 from src.domains.briefing.constants import BRIEFING_CACHE_PREFIX
 
 _LAST_GOOD = "lastgood"
+EDITORIAL_MAILS_SECTION = "mails:editorial-v1"
 
 # Completeness raised, not asserted, so it survives -O — the same shape
 # ``push_channels/cache_invalidation`` already uses for its provider table
@@ -79,7 +80,7 @@ def section_keys_every_language(*, user_id: UUID | str, section: str) -> list[st
 
     For callers that know a source changed but not which language the person
     reads in — the push invalidation above all. Enumerating the supported
-    languages costs one DELETE of six keys; matching them with a SCAN would
+    languages and the section's editorial variants costs one DELETE; a SCAN would
     walk the keyspace on a path that runs on every push notification.
 
     The bounded gap that buys: an account whose stored language is no longer
@@ -92,12 +93,31 @@ def section_keys_every_language(*, user_id: UUID | str, section: str) -> list[st
         section: Section name.
 
     Returns:
-        One key per supported language.
+        Normal keys per language, plus the editorial mails payload and last-good
+        variants. The dashboard's existing last-good semantics stay unchanged.
     """
-    return [
+    keys = [
         section_cache_key(user_id=user_id, language=language, section=section)
         for language in SUPPORTED_LANGUAGES
     ]
+    if section == "mails":
+        for language in SUPPORTED_LANGUAGES:
+            keys.extend(
+                [
+                    section_cache_key(
+                        user_id=user_id, language=language, section=EDITORIAL_MAILS_SECTION
+                    ),
+                    last_good_key(
+                        user_id=user_id, language=language, section=EDITORIAL_MAILS_SECTION
+                    ),
+                ]
+            )
+    return keys
 
 
-__all__ = ["last_good_key", "section_cache_key", "section_keys_every_language"]
+__all__ = [
+    "EDITORIAL_MAILS_SECTION",
+    "last_good_key",
+    "section_cache_key",
+    "section_keys_every_language",
+]

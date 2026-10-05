@@ -2,12 +2,15 @@
 
 from collections.abc import Mapping
 
+from src.core.i18n_cards import card_label
 from src.domains.agents.data_registry.mcp_metadata import source_identity
 from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
+    escape_html,
     render_card_top,
     render_chip,
+    render_collapsible,
     wrap_with_response,
 )
 from src.domains.agents.display.components.card_content import render_linked_title
@@ -36,6 +39,23 @@ def _identity(data: Mapping[str, object]) -> tuple[str, str]:
     if source := source_identity(data.get("_mcp_source")):
         return source["server_name"], source["tool_name"]
     return scalar_text(data.get("server_name")) or "MCP", scalar_text(data.get("tool_name"))
+
+
+def _call_metadata(
+    data: Mapping[str, object], tool: str, snapshot: MCPDisplaySnapshot, ctx: RenderContext
+) -> str:
+    """Application metadata stays visible before the folded server response."""
+    rows = []
+    if source := source_identity(data.get("_mcp_source")):
+        if url := source.get("server_url"):
+            label = escape_html(card_label("mcp_server", ctx.language))
+            link = render_linked_title(url, url, class_name="lia-mcp__server-url")
+            rows.append(f"<div><dt>{label}</dt><dd>{link}</dd></div>")
+    if tool:
+        label = escape_html(card_label("mcp_method", ctx.language))
+        method = escape_html(snapshot.text(tool))
+        rows.append(f"<div><dt>{label}</dt><dd><code>{method}</code></dd></div>")
+    return f'<dl class="lia-mcp__metadata">{"".join(rows)}</dl>' if rows else ""
 
 
 def _structured_body(
@@ -77,13 +97,21 @@ class McpResultCard(BaseComponent):
         server, tool = _identity(data)
         # Identity consumes the same budget as content, including historical data.
         badge = render_chip(snapshot.text(server), "", Icons.EXTENSION)
+        metadata = _call_metadata(data, tool, snapshot, ctx)
         if data.get("_mcp_structured") is True:
             title, content = _structured_body(data, snapshot, ctx, server, tool)
         else:
             title = render_linked_title(snapshot.text(tool.replace("_", " ").title() or "MCP"), "")
             content = mcp_raw(data.get("result", ""), snapshot, ctx)
         top = render_card_top("extension", "teal", title, badges_html=badge)
-        html = f'<div class="lia-card lia-mcp {self._nested_class(ctx)}">{top}{content}{snapshot.notice()}</div>'
+        result = render_collapsible(
+            trigger_text=card_label("mcp_result", ctx.language),
+            content_html=content + snapshot.notice(),
+            with_separator=False,
+        )
+        html = (
+            f'<div class="lia-card lia-mcp {self._nested_class(ctx)}">{top}{metadata}{result}</div>'
+        )
         return (
             wrap_with_response(
                 card_html=html,

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import threading
+import wave
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -11,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from src.domains.radio import audio as audio_module
 from src.domains.radio import production as production_module
 from src.domains.radio.audio import AssembledAudio, AudioAssemblyError
 from src.domains.radio.cast import Cast
@@ -37,6 +40,7 @@ from src.domains.radio.script import (
 from src.domains.radio.verification import Refusal, VerifiedLine, Violation
 from src.domains.voice.billing import SynthesisResult
 from src.domains.voice.exceptions import TTSProviderError
+from src.domains.voice.protocol import RawAudioSpec
 
 pytestmark = pytest.mark.unit
 
@@ -166,6 +170,25 @@ class FakeTokenClient(FakeClient):
         return SynthesisResult(audio, len(text), input_tokens=9, output_tokens=350)
 
 
+class FakePcmClient(FakeClient):
+    def __init__(self, rate: int, audio: bytes = b"\x00\x01" * 20) -> None:
+        super().__init__("elevenlabs")
+        self.rate = rate
+        self.audio = audio
+
+    @property
+    def audio_format(self) -> str:
+        return "pcm"
+
+    @property
+    def raw_audio_spec(self) -> RawAudioSpec:
+        return RawAudioSpec(self.rate)
+
+    async def synthesize(self, text: str, voice_name: str | None = None, **kwargs: object) -> bytes:
+        self.calls.append((text, voice_name, kwargs))
+        return self.audio
+
+
 class Ledger:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, int, int | None, int | None]] = []
@@ -266,6 +289,59 @@ async def produce(
 
 
 class TestProduced:
+    async def test_cancelled_mix_cleans_raw_lines_and_partial_without_touching_old_destination(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def probe(path: Path, *, timeout_s: float) -> float:
+            return 1.0
+
+        async def mix(args: tuple[str, ...], *, timeout_s: float) -> bytes:
+            Path(args[-1]).write_bytes(b"unfinished mix")
+            raise asyncio.CancelledError
+
+        monkeypatch.setattr(audio_module, "probe_duration", probe)
+        monkeypatch.setattr(audio_module, "run_ffmpeg", mix)
+        out = tmp_path / "0003.mp3"
+        out.write_bytes(b"previous completed programme")
+        client = FakePcmClient(22050)
+
+        with pytest.raises(asyncio.CancelledError):
+            await produce(tmp_path, client)
+
+        assert list(tmp_path.iterdir()) == [out]
+        assert out.read_bytes() == b"previous completed programme"
+        assert len(client.calls) == len(DRAFT.lines)
+
+    @pytest.mark.parametrize("rate", [16000, 22050, 24000, 44100])
+    async def test_raw_pcm_is_wrapped_at_its_rate_after_one_billed_synthesis_per_line(
+        self, tmp_path: Path, mixer: FakeMixer, rate: int
+    ) -> None:
+        client = FakePcmClient(rate)
+        result, ledger = await produce(tmp_path, client)
+
+        assert result.outcome is ProductionOutcome.PRODUCED
+        assert len(client.calls) == len(ledger.calls) == len(DRAFT.lines)
+        for _, audio in mixer.received:
+            with wave.open(io.BytesIO(audio), "rb") as reader:
+                assert reader.getframerate() == rate
+                assert reader.readframes(reader.getnframes()) == b"\x00\x01" * 20
+        assert list(tmp_path.iterdir()) == [tmp_path / "0003.mp3"]
+
+    @pytest.mark.parametrize("audio", [b"", b"\x01"])
+    async def test_malformed_paid_pcm_is_accounted_and_never_resynthesized(
+        self, tmp_path: Path, mixer: FakeMixer, audio: bytes
+    ) -> None:
+        client = FakePcmClient(22050, audio)
+
+        result, ledger = await produce(tmp_path, client)
+
+        assert result.outcome is ProductionOutcome.VOICE_FAILED
+        assert result.error_code == "provider_invalid_response"
+        assert len(client.calls) == len(ledger.calls) > 0
+        assert len({text for text, _, _ in client.calls}) == len(client.calls)
+        assert mixer.received == []
+        assert list(tmp_path.iterdir()) == []
+
     @pytest.mark.parametrize(
         "fmt",
         [

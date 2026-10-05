@@ -24,7 +24,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.memories.models import Memory
+from src.domains.memories.models import Memory, MemoryCategory
 from src.domains.memories.protection import is_protected_from_deletion
 from src.domains.memories.repository import MemoryRepository
 from src.infrastructure.observability.logging import get_logger
@@ -137,6 +137,9 @@ class MemoryService:
     ) -> Memory:
         """Create a new memory with auto-generated embedding.
 
+        Standing instructions are pinned at creation, including successors
+        reclassified as procedural. Other categories start unpinned.
+
         Args:
             user_id: Owner user UUID.
             content: Memory text (first-person, max 500 chars).
@@ -162,6 +165,7 @@ class MemoryService:
             user_id=user_id,
             content=content,
             category=category,
+            pinned=category == MemoryCategory.PROCEDURAL.value,
             emotional_weight=emotional_weight,
             trigger_topic=trigger_topic,
             usage_nuance=usage_nuance,
@@ -180,6 +184,7 @@ class MemoryService:
             memory_id=str(created.id),
             category=category,
             char_count=char_count,
+            pinned=created.pinned,
             has_embedding=embedding is not None,
         )
 

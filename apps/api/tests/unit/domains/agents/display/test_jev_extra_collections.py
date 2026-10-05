@@ -9,8 +9,11 @@ from src.domains.agents.data_registry.models import RegistryItem, RegistryItemMe
 from src.domains.agents.display import jev_qualification as module
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from tests.unit.domains.agents.display.test_jev_qualification import answer
+from tests.unit.domains.agents.display.test_jev_qualification import (
+    ready_snapshot as ready_snapshot,
+)
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("ready_snapshot")]
 
 
 @pytest.mark.parametrize(
@@ -48,8 +51,8 @@ async def test_each_source_owns_switch_and_keeps_its_full_payload(kind, usage):
         )
     assert result is not None and result.items[0].verdict == "match"
     assert native.call_args.kwargs["usage"] == usage
-    assert "False" in native.call_args.kwargs["state"]["items"]["q0"]
-    assert "Full source " * 60 in native.call_args.kwargs["state"]["items"]["q0"]
+    assert native.call_args.kwargs["state"]["items"]["q0"]["completed"] is False
+    assert "Full source " * 60 in native.call_args.kwargs["state"]["items"]["q0"]["description"]
     assert item.model_dump() == original
 
 
@@ -102,15 +105,22 @@ def test_document_projection_is_ephemeral_and_cannot_claim_a_whole_document():
 
 
 async def test_mcp_arbitrary_schema_keeps_metadata_and_raw_fields_as_evidence():
+    from src.core.field_names import FIELD_DISPLAY_ONLY
+    from src.domains.agents.data_registry.mcp_metadata import mcp_item_payload
+
     item = RegistryItem(
         id="m",
         type=RegistryItemType.MCP_RESULT,
-        payload={
-            "_mcp_structured": True,
-            "title": "Sample",
-            "metadata": {"owner": "Lina"},
-            "raw_material": "steel",
-        },
+        payload=mcp_item_payload(
+            {
+                "title": "Sample",
+                "metadata": {"owner": "Lina", FIELD_DISPLAY_ONLY: {"body": "card-only"}},
+                "raw_material": "steel",
+            },
+            "Synthetic MCP",
+            "list_samples",
+            "https://mcp.test",
+        ),
         meta=RegistryItemMeta(source="mcp_sample"),
     )
     with patch.object(
@@ -120,7 +130,11 @@ async def test_mcp_arbitrary_schema_keeps_metadata_and_raw_fields_as_evidence():
             user_id=uuid4(), run_id="r", query="Steel samples owned by Lina", items=[item]
         )
     evidence = native.call_args.kwargs["state"]["items"]["q0"]
-    assert "Lina" in evidence and "steel" in evidence
+    assert evidence["metadata"]["owner"] == "Lina" and evidence["raw_material"] == "steel"
+    assert FIELD_DISPLAY_ONLY not in evidence and FIELD_DISPLAY_ONLY not in evidence["metadata"]
+    assert "_mcp_source" not in evidence
+    assert item.meta.display["_mcp_source"]["server_url"] == "https://mcp.test"
+    assert item.payload["metadata"][FIELD_DISPLAY_ONLY] == {"body": "card-only"}
 
 
 async def test_document_preview_reuses_authorized_fetch_and_preserves_prompt_when_projection_fails():

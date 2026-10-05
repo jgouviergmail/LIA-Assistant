@@ -40,3 +40,4 @@ class WeatherForecastItem(BaseModel):
     timezone: str | None = None
     source: Literal["google_weather", "openweathermap"] | None = None
     icon: str | None = None
+    weather_main: str | None = None

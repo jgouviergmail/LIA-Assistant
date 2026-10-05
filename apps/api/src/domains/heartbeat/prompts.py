@@ -11,6 +11,7 @@ from __future__ import annotations
 from contextlib import suppress
 from datetime import UTC, datetime
 from functools import lru_cache
+from time import time
 from uuid import UUID, uuid4
 
 import structlog
@@ -18,11 +19,13 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import get_settings
 from src.core.i18n import get_language_name
+from src.core.llm_usage import LLMBillingRecord
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts import load_prompt
 from src.domains.heartbeat.schemas import HeartbeatContext, HeartbeatDecision
+from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
-from src.infrastructure.llm.usage_metadata import tokens_from_response
+from src.infrastructure.llm.usage_metadata import model_name_of
 
 logger = structlog.get_logger(__name__)
 
@@ -69,7 +72,9 @@ def _heartbeat_lines() -> dict[str, str]:
 async def get_heartbeat_decision(
     context: HeartbeatContext,
     user_language: str,
-) -> tuple[HeartbeatDecision, int, int, int, int]:
+    *,
+    user_id: UUID | None = None,
+) -> tuple[HeartbeatDecision, int, int, int, int, tuple[LLMBillingRecord, ...]]:
     """Execute the LLM decision phase (structured output).
 
     Uses a cheap/fast model to evaluate context and decide skip/notify.
@@ -107,17 +112,29 @@ async def get_heartbeat_decision(
     ]
 
     # Use callback to capture tokens (get_structured_output returns only the model)
-    token_capture = TokenCaptureHandler()
+    model_name = model_name_of(llm) or config.model
+    token_capture = TokenCaptureHandler(model_name)
     runnable_config = RunnableConfig(callbacks=[token_capture])
 
-    decision = await get_structured_output(
-        llm=llm,
-        messages=messages,
-        schema=HeartbeatDecision,
-        provider=config.provider,
-        node_name="heartbeat_decision",
-        config=runnable_config,
-    )
+    from src.infrastructure.proactive.tracking import ambient_run_id, capture_spend_on_failure
+
+    async with capture_spend_on_failure(
+        token_capture,
+        user_id=user_id,
+        task_type="heartbeat",
+        target_id="heartbeat_decision",
+        model_name=model_name,
+        source="proactive",
+        run_id=ambient_run_id(),
+    ):
+        decision = await get_structured_output(
+            llm=llm,
+            messages=messages,
+            schema=HeartbeatDecision,
+            provider=config.provider,
+            node_name="heartbeat_decision",
+            config=runnable_config,
+        )
 
     tokens_in = token_capture.tokens_in
     tokens_out = token_capture.tokens_out
@@ -134,7 +151,14 @@ async def get_heartbeat_decision(
         tokens_out=tokens_out,
     )
 
-    return decision, tokens_in, tokens_out, tokens_cache, tokens_cache_write
+    return (
+        decision,
+        tokens_in,
+        tokens_out,
+        tokens_cache,
+        tokens_cache_write,
+        token_capture.get_billing_records(model_name),
+    )
 
 
 def message_clock(context: HeartbeatContext) -> tuple[str, str | None]:
@@ -166,7 +190,7 @@ async def generate_heartbeat_message(
     personality_instruction: str | None = None,
     user_id: str | UUID | None = None,
     facts_block: str | None = None,
-) -> tuple[str, int, int, int, int]:
+) -> tuple[str, int, int, int, int, tuple[LLMBillingRecord, ...]]:
     """Generate the final notification message (Phase 2).
 
     Rewrites the decision's message_draft with the user's personality
@@ -187,9 +211,12 @@ async def generate_heartbeat_message(
         tokens_cache_write) — the last the part of ``tokens_in`` Claude wrote
         to its prompt cache (ADR-306).
     """
+    from langchain_core.runnables import RunnableConfig
+
     from src.domains.personalities.constants import default_personality_prompt
     from src.infrastructure.llm import get_llm
     from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+    from src.infrastructure.proactive.tracking import ambient_run_id, capture_spend_on_failure
 
     language_name = get_language_name(user_language)
     current_dt, user_timezone = message_clock(context)
@@ -232,31 +259,51 @@ async def generate_heartbeat_message(
         system_prompt += "\n\n" + render_verified_facts(facts_block)
 
     llm = get_llm("heartbeat_message")
+    model_name = model_name_of(llm) or "unknown"
+    started_at = time()
+    pricing_snapshot = capture_pricing_snapshot()
+    capture = TokenCaptureHandler(model_name)
+    try:
+        owner = UUID(str(user_id)) if user_id is not None else None
+    except ValueError, TypeError:
+        owner = None
 
-    result = await invoke_with_instrumentation(
-        llm=llm,
-        llm_type="heartbeat_message_generation",
-        messages=[
-            SystemMessage(content=system_prompt),
-            HumanMessage(content="Generate the notification message."),
-        ],
-        session_id=f"heartbeat_msg_{uuid4().hex[:8]}",
-        user_id="system",
-    )
-
-    message = result.text
-
-    # ONE reader for every provider's spelling (ADR-272 corollary): the prompt
-    # count excludes what was read from cache, which the tracker prices apart.
-    tokens = tokens_from_response(result)
-    tokens_in, tokens_out, tokens_cache = tokens.prompt, tokens.completion, tokens.cached
-
-    logger.info(
-        "heartbeat_message_generated",
-        language=user_language,
-        length=len(message),
-        tokens_in=tokens_in,
-        tokens_out=tokens_out,
-    )
-
-    return message.strip(), tokens_in, tokens_out, tokens_cache, tokens.cache_write
+    async with capture_spend_on_failure(
+        capture,
+        user_id=owner,
+        task_type="heartbeat",
+        target_id="heartbeat_message",
+        model_name=model_name,
+        source="proactive",
+        run_id=ambient_run_id(),
+    ):
+        result = await invoke_with_instrumentation(
+            llm=llm,
+            llm_type="heartbeat_message_generation",
+            messages=[
+                SystemMessage(content=system_prompt),
+                HumanMessage(content="Generate the notification message."),
+            ],
+            session_id=f"heartbeat_msg_{uuid4().hex[:8]}",
+            user_id=str(owner) if owner is not None else "system",
+            config=RunnableConfig(callbacks=[capture]),
+        )
+        capture.ensure_response_record(
+            result, model_name=model_name, started_at=started_at, snapshot=pricing_snapshot
+        )
+        message = result.text
+        logger.info(
+            "heartbeat_message_generated",
+            language=user_language,
+            length=len(message),
+            tokens_in=capture.tokens_in,
+            tokens_out=capture.tokens_out,
+        )
+        return (
+            message.strip(),
+            capture.tokens_in,
+            capture.tokens_out,
+            capture.tokens_cache,
+            capture.tokens_cache_write,
+            capture.get_billing_records(model_name),
+        )

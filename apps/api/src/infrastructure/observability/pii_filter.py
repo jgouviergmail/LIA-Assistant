@@ -12,11 +12,11 @@ Features:
 - Generic token/secret detection
 - OAuth state fingerprinting (correlatable, non-reversible) and PKCE/code
   redaction (SEC-012)
-- URL query-string credential stripping — verification/reset/OAuth links
-  (SEC-012), provider keys (`key=`, `appid=`)
+- URL credential stripping — verification/reset/OAuth query strings
+  (SEC-012), provider keys (`key=`, `appid=`), userinfo and Firecrawl path keys
 - Above DEBUG: content field names and suffixes redacted (a count, a flag or
-  an absence kept, except under a coordinate name), a URL's search
-  parameters withheld, and what an error text QUOTES of a row or an input
+  an absence kept, except under a coordinate name), URLs reduced to their
+  origin, and what an error text QUOTES of a row or an input
   (PostgreSQL DETAIL, Pydantic input_value, tracebacks included) withheld —
   `quoted_content.py` (ADR-317)
 - Configurable field-based filtering
@@ -438,6 +438,16 @@ _URL_QUERY_CONTENT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# HTTP clients put whole URLs in free-text log messages, including an MCP
+# credential inside the PATH (Firecrawl) and names inside article/file paths.
+# Query-only filtering cannot see either. Match locations independently of
+# field names, including stdlib records carried by ``event``.
+_URL_LOCATION_PATTERN = re.compile(
+    r"\b(?P<scheme>https?|wss?)://(?P<authority>[^/?#\s\"'<>]+)" r"(?P<location>[/?#][^\s\"'<>]*)?",
+    re.IGNORECASE,
+)
+_FIRECRAWL_PATH_CREDENTIAL_PATTERN = re.compile(r"^/fc-[A-Za-z0-9_-]+(?=/|[?#]|$)")
+
 # Opaque-token shape (SEC-012): a single URL-safe-base64 / hex run of >= 20 chars
 # with no separators. Matches OAuth state (`secrets.token_urlsafe(32)` → 43
 # chars) and similar high-entropy secrets, while sparing short application state
@@ -614,6 +624,8 @@ def sanitize_string(text: str, *, redact_content: bool = False) -> str:
         >>> sanitize_string("Contact user@example.com or call +1-555-123-4567")
         "Contact email_hash_a1b2c3d4e5f6g7h8 or call ***-***-4567"
     """
+    text = _sanitize_url_locations(text, redact_content=redact_content)
+
     # Strip single-use credentials embedded in URL query strings (SEC-012):
     # verification/reset links and OAuth redirects carry `?token=`/`?code=`.
     text = sanitize_url_query(text, redact_content=redact_content)
@@ -636,13 +648,39 @@ def sanitize_string(text: str, *, redact_content: bool = False) -> str:
     return text
 
 
+def _sanitize_url_locations(text: str, *, redact_content: bool) -> str:
+    """Keep URL origins above DEBUG; credentials never survive at any level.
+
+    Args:
+        text: A structured value or a foreign logger's free-text message.
+        redact_content: Whether paths, queries and fragments must be withheld.
+
+    Returns:
+        Text with locations reduced to origins, or safe DEBUG locations.
+    """
+    if "://" not in text:
+        return text
+
+    def _replace(match: re.Match[str]) -> str:
+        authority = match.group("authority").rsplit("@", 1)[-1]
+        origin = f"{match.group('scheme')}://{authority}"
+        if redact_content:
+            return origin
+        location = match.group("location") or ""
+        if authority.lower().split(":", 1)[0] == "mcp.firecrawl.dev":
+            location = _FIRECRAWL_PATH_CREDENTIAL_PATTERN.sub("/[REDACTED]", location)
+        return origin + location
+
+    return _URL_LOCATION_PATTERN.sub(_replace, text)
+
+
 def _sanitize_event_text(text: str, *, redact_content: bool) -> str:
     """Sanitize the structlog ``event`` field without mangling event names.
 
     Deliberately NOT ``sanitize_string``: that one also applies
     ``TOKEN_PATTERN``, which would rewrite legitimate snake_case event names
     that happen to look like opaque tokens. Only the patterns that cannot match
-    an event name are applied — a URL query string, an email address, and
+    an event name are applied — a URL location/query string, an email address, and
     (above DEBUG) an error text's quotation, whose layouts all need spaces or
     punctuation a snake_case name never has.
 
@@ -653,6 +691,7 @@ def _sanitize_event_text(text: str, *, redact_content: bool) -> str:
     Returns:
         The text with URL secrets redacted and addresses pseudonymized.
     """
+    text = _sanitize_url_locations(text, redact_content=redact_content)
     text = sanitize_url_query(text, redact_content=redact_content)
     if redact_content:
         text = redact_quoted_content(text)
@@ -727,7 +766,7 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
         # user data — so they MUST bypass sanitization to avoid false-positive
         # redactions on event names that resemble token patterns.
         #
-        # `event` gets TWO narrow exceptions (FN-4): it is the only meta field
+        # `event` gets narrow transformations (FN-4): it is the only meta field
         # that can carry free text rather than an identifier. A stdlib record
         # routed into structlog puts the whole log MESSAGE here — an access line
         # such as `GET /auth/google/callback?code=..&state=..`, or an SMTP error
@@ -735,13 +774,10 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
         # exactly what this bypass exists to prevent: `TOKEN_PATTERN` would
         # mangle legitimate event names).
         #
-        # Both exceptions are safe for the same reason: they rewrite shapes a
-        # snake_case event name cannot contain. `sanitize_url_query` only
-        # rewrites `?param=value` on a `?`/`&` boundary; `EMAIL_PATTERN`
-        # requires an `@` followed by a dotted domain. An event name has
-        # neither, so no identifier can be corrupted — while an address that
-        # reaches a log survives shipping, retention and backups long after the
-        # account it belongs to is gone (SEC-012).
+        # The transformations only rewrite shapes a snake_case event name
+        # cannot contain: URL locations/queries, quoted error content and
+        # addresses with an `@` followed by a dotted domain. Identifiers stay
+        # intact; user data and credentials do not reach retained logs.
         if key_lower in STRUCTLOG_META_FIELDS:
             sanitized[key] = (
                 _sanitize_event_text(value, redact_content=redact_content)

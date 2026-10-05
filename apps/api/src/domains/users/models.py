@@ -208,6 +208,13 @@ class User(
     # execution_mode and exchange_rhythm: TurnPreferencesColumns (turn_preferences_columns.py)
 
     # Voice comments (TTS) preference
+    speaking_avatar_enabled: Mapped[bool] = mapped_column(
+        default=False,
+        nullable=False,
+        server_default="false",
+        comment="Opt-in for a persistent speaking avatar on the person's Simli key.",
+    )
+
     voice_enabled: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,

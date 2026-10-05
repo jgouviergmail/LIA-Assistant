@@ -45,7 +45,7 @@ class TestHeartbeatMessage:
                 return_value="{personality_instruction}{language}{current_datetime}{message_draft}{psyche_context}",
             ),
         ):
-            _text, tokens_in, tokens_out, tokens_cache, _written = (
+            _text, tokens_in, tokens_out, tokens_cache, _written, _records = (
                 await heartbeat_prompts.generate_heartbeat_message("draft", context, "fr")
             )
         assert (tokens_in, tokens_out, tokens_cache) == (476, 40, 1024)
@@ -71,7 +71,7 @@ class TestPeerDelivery:
             ),
         ):
             # The real versioned prompt: the test must never skip on its shape (ADR-155).
-            _text, usage, _model = await delivery._generate_delivery_text(
+            _text, usage, _model, _records = await delivery._generate_delivery_text(
                 message, sender, recipient, 0
             )
         assert (usage.prompt, usage.completion, usage.cached) == (476, 40, 1024)

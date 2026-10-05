@@ -59,7 +59,7 @@ class FakeWeb:
         # A registry answers the same URL differently once a token is presented.
         authorized = url + "#authorized"
         answer = self.answers[
-            authorized if "Authorization" in headers and authorized in self.answers else url
+            (authorized if "Authorization" in headers and authorized in self.answers else url)
         ]
         if isinstance(answer, Exception):
             raise answer
@@ -244,7 +244,13 @@ def test_a_repository_is_read_from_the_registry_metadata() -> None:
 
 
 def test_a_yanked_or_deprecated_release_is_a_finding() -> None:
-    yanked = {"info": {**PYPI_MULTIDICT["info"], "yanked": True, "yanked_reason": "broken wheel"}}
+    yanked = {
+        "info": {
+            **PYPI_MULTIDICT["info"],
+            "yanked": True,
+            "yanked_reason": "broken wheel",
+        }
+    }
 
     assert watch.pypi_facts(yanked) == ("aio-libs/multidict", "broken wheel")
     assert watch.npm_facts(NPM_KATEX_DEPRECATED) == (
@@ -362,8 +368,18 @@ GRAFANA_EOL = {  # https://endoflife.date/api/v1/products/grafana/, trimmed
 DEBIAN_EOL = {
     "result": {
         "releases": [
-            {"name": "13", "codename": "Trixie", "eolFrom": "2030-06-30", "isEol": False},
-            {"name": "11", "codename": "Bullseye", "eolFrom": "2026-08-31", "isEol": True},
+            {
+                "name": "13",
+                "codename": "Trixie",
+                "eolFrom": "2030-06-30",
+                "isEol": False,
+            },
+            {
+                "name": "11",
+                "codename": "Bullseye",
+                "eolFrom": "2026-08-31",
+                "isEol": True,
+            },
         ]
     }
 }
@@ -375,7 +391,9 @@ def test_an_end_of_life_line_is_a_finding_and_an_unknown_cycle_is_unread() -> No
     debian = watch.Line("debian", "trixie", "apps/api/Dockerfile.prod")
 
     assert watch.eol_finding(old, GRAFANA_EOL, TODAY) == watch.Finding(
-        "end-of-life", "grafana 11.3", "end of life since 2025-07-22 (docker-compose.prod.yml)"
+        "end-of-life",
+        "grafana 11.3",
+        "end of life since 2025-07-22 (docker-compose.prod.yml)",
     )
     assert watch.eol_finding(current, GRAFANA_EOL, TODAY) is None
     assert watch.eol_finding(debian, DEBIAN_EOL, TODAY) is None  # a codename reads as its cycle
@@ -436,20 +454,71 @@ def test_a_registry_that_gives_no_token_is_unread_never_a_missing_image() -> Non
         watch.image_findings("redis:7.4-alpine", web)
 
 
-def test_a_credential_never_follows_a_redirect() -> None:
+def test_github_request_starts_are_spaced_and_idle_time_is_not_recharged() -> None:
+    now = [10.0]
+    waits: list[float] = []
+
+    def sleep(delay: float) -> None:
+        waits.append(delay)
+        now[0] += delay
+
+    pacer = watch.RequestPacer(1.0, lambda: now[0], sleep)
+    pacer.wait()
+    pacer.wait()
+    now[0] += 5.0
+    pacer.wait()
+    pacer.wait()
+
+    assert waits == [1.0, 1.0]
+    assert now[0] == 17.0
+
+
+def test_http_retry_is_paced_only_on_github(monkeypatch: pytest.MonkeyPatch) -> None:
+    import urllib.error
+    from unittest.mock import MagicMock
+
+    pacer = MagicMock()
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.status = 200
+    response.read.return_value = b"{}"
+    response.headers = {}
+    monkeypatch.setattr(watch, "_GITHUB_PACER", pacer)
+    opener = MagicMock()
+    monkeypatch.setattr(watch.urllib.request, "build_opener", MagicMock(return_value=opener))
+
+    for error in (urllib.error.URLError("network"), ConnectionResetError("connection closed")):
+        pacer.reset_mock()
+        opener.open = MagicMock(side_effect=[error, response, error, response])
+        assert (
+            watch.http_get("https://api.github.com/repos/a/b/security-advisories", {}).status == 200
+        )
+        assert pacer.wait.call_count == 2
+        assert watch.http_get("https://pypi.org/pypi/example/json", {}).status == 200
+        assert pacer.wait.call_count == 2
+        opener.open = MagicMock(side_effect=[error, error])
+        with pytest.raises(type(error)):
+            watch.http_get("https://pypi.org/pypi/example/json", {})
+        assert opener.open.call_count == 2
+
+
+@pytest.mark.parametrize("same_origin", [True, False])
+def test_a_credential_follows_only_a_redirect_on_the_same_origin(same_origin: bool) -> None:
     """GitHub's token and a registry's token are sent to the host asked, never to a
-    host a redirect names (a registry sends its blobs to a CDN)."""
+    origin a redirect names (a registry sends its blobs to a CDN). A moved
+    GitHub repository keeps its authenticated quota on its canonical path."""
     import threading
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
     seen: dict[str, str | None] = {}
+    target_url = ""
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802 - the stdlib's name
             seen[self.path] = self.headers.get("Authorization")
             if self.path == "/first":
                 self.send_response(302)
-                self.send_header("Location", "/second")
+                self.send_header("Location", target_url)
                 self.end_headers()
                 return
             body = b"{}"
@@ -463,8 +532,14 @@ def test_a_credential_never_follows_a_redirect() -> None:
             return
 
     server = HTTPServer(("127.0.0.1", 0), Handler)
+    target = server if same_origin else HTTPServer(("127.0.0.1", 0), Handler)
+    target_url = f"http://127.0.0.1:{target.server_port}/second"
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
+    target_thread = None
+    if target is not server:
+        target_thread = threading.Thread(target=target.serve_forever, daemon=True)
+        target_thread.start()
     try:
         url = f"http://127.0.0.1:{server.server_port}/first"
         answer = watch.http_get(url, {"Authorization": "Bearer secret", "Accept": "x"})
@@ -472,9 +547,39 @@ def test_a_credential_never_follows_a_redirect() -> None:
         server.shutdown()
         server.server_close()
         thread.join()
+        if target_thread is not None:
+            target.shutdown()
+            target.server_close()
+            target_thread.join()
 
     assert answer.status == 200
-    assert seen == {"/first": "Bearer secret", "/second": None}
+    assert seen == {"/first": "Bearer secret", "/second": "Bearer secret" if same_origin else None}
+
+
+@pytest.mark.parametrize(
+    ("destination", "keeps_authorization"),
+    [
+        ("https://api.github.com/repos/canonical/repo", True),
+        ("https://api.github.com:443/repos/canonical/repo", True),
+        ("https://api.github.com:444/repos/canonical/repo", False),
+        ("http://api.github.com/repos/canonical/repo", False),
+        ("https://cdn.example/repos/canonical/repo", False),
+    ],
+)
+def test_redirect_credential_boundary_includes_scheme_host_and_port(
+    destination: str, keeps_authorization: bool
+) -> None:
+    from io import BytesIO
+
+    request = watch.urllib.request.Request("https://api.github.com/repos/old/repo")
+    request.add_unredirected_header("Authorization", "Bearer test-only")
+    redirected = watch.OriginRedirectHandler().redirect_request(
+        request, BytesIO(), 301, "Moved", watch.HTTPMessage(), destination
+    )
+    assert redirected is not None
+    assert redirected.get_header("Authorization") == (
+        "Bearer test-only" if keeps_authorization else None
+    )
 
 
 def test_an_image_reference_names_its_registry() -> None:
@@ -546,7 +651,9 @@ def test_the_browser_engine_has_the_days_debian_takes_to_follow_chrome() -> None
 def test_every_finding_is_accepted_in_writing_and_every_acceptance_is_dated() -> None:
     findings = [
         watch.Finding(
-            "end-of-life", "eslint 9", "end of life since 2026-08-06 (apps/web/package.json)"
+            "end-of-life",
+            "eslint 9",
+            "end of life since 2026-08-06 (apps/web/package.json)",
         ),
         watch.Finding("advisory", "npm:x@1.0.0", "high: …", "GHSA-aaaa-bbbb-cccc"),
         watch.Finding("image-missing", "minio/minio:latest", "the registry answers 401"),

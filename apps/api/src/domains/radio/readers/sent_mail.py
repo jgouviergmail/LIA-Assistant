@@ -25,6 +25,7 @@ from src.domains.briefing.exceptions import ConnectorAccessError
 from src.domains.connectors.active_client import ActiveClient, ClientUnavailable, open_active_client
 from src.domains.radio.facts import FactKind, Sensitivity, local_time_text
 from src.domains.radio.personal import MAX_PER_SOURCE, JournalPart, PersonalDraft, PersonalSource
+from src.domains.shared.commercial_content import is_commercial_content
 
 #: How many sent messages are listed for the day (the bound is applied after the filter).
 _SCAN_MESSAGES: Final[int] = 20
@@ -89,6 +90,8 @@ def sent_mail_drafts(
     today = now.astimezone(tz).date()
     drafts: list[PersonalDraft] = []
     for line in lines:
+        if is_commercial_content(line.subject, email=True):
+            continue
         sent = line.sent_at.astimezone(tz) if line.sent_at is not None else None
         if sent is not None and sent.date() != today:
             continue

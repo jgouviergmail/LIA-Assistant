@@ -24,6 +24,7 @@ import type { Language } from '@/i18n/settings';
 import type { SettingsSectionToken } from '@/lib/settings-sections';
 
 import AdminBroadcastSection from './AdminBroadcastSection';
+import { AvatarSettings } from './AvatarSettings';
 import AdminCapabilitiesSection from './AdminCapabilitiesSection';
 import AdminRegistersSection from './AdminRegistersSection';
 import AdminConnectorsSection from './AdminConnectorsSection';
@@ -124,6 +125,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   // ---- Preferences / Voice & Media
   'voice-mode': { render: lng => <VoiceModeSettings lng={lng} /> },
   'live-mode': { feature: 'live-mode', render: lng => <LiveModeSettings lng={lng} /> },
+  avatar: { feature: 'avatar', render: lng => <AvatarSettings lng={lng} /> },
   radio: { feature: 'radio', render: lng => <RadioSettings lng={lng} /> },
   'image-generation': {
     feature: 'image-generation',

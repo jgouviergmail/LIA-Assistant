@@ -109,7 +109,7 @@ class CachedModelPrice:
 
     input_unit_price: float
     output_unit_price: float
-    cached_input_unit_price: float  # 0.0 if caching not supported by model
+    cached_input_unit_price: float  # Input rate when no separate cache rate is declared
     pricing_unit: str = _PER_1M_TOKENS
     time_slots: list[dict[str, Any]] | None = None
     #: The audio pair of a speech-to-speech model (ADR-300), None when the
@@ -178,6 +178,16 @@ class PricingCacheData:
 _local_cache: PricingCacheData | None = None
 
 
+def capture_pricing_snapshot() -> PricingCacheData:
+    """Retain one published tariff/FX generation before provider execution.
+
+    Refreshes replace the complete cache object; published generations are
+    never mutated. Keeping this reference also preserves prices for a model
+    alias the provider only reports when its response arrives.
+    """
+    return _local_cache or PricingCacheData({}, settings.default_usd_eur_rate, 0)
+
+
 def build_price_index(rows: Iterable[LLMModelPricing]) -> dict[str, CachedModelPrice]:
     """Index active pricing rows by their model's exact name.
 
@@ -205,7 +215,11 @@ def build_price_index(rows: Iterable[LLMModelPricing]) -> dict[str, CachedModelP
             CachedModelPrice(
                 input_unit_price=float(pricing.input_unit_price),
                 output_unit_price=float(pricing.output_unit_price),
-                cached_input_unit_price=float(pricing.cached_input_unit_price or 0),
+                cached_input_unit_price=(
+                    float(pricing.input_unit_price)
+                    if pricing.cached_input_unit_price is None
+                    else float(pricing.cached_input_unit_price)
+                ),
                 pricing_unit=pricing.pricing_unit.value,
                 time_slots=pricing.time_slots or None,
                 audio_input_unit_price=(
@@ -439,6 +453,7 @@ def get_cached_cost_usd_eur(
     at: datetime | None = None,
     *,
     cache_write_tokens: int = 0,
+    snapshot: PricingCacheData | None = None,
 ) -> tuple[float, float]:
     """
     Estimate cost in both USD and EUR using cached prices (sync-safe for callbacks).
@@ -472,13 +487,14 @@ def get_cached_cost_usd_eur(
         Returns (0.0, 0.0) if cache not initialized, model not found, or
         the model uses a non-token pricing unit.
     """
-    if _local_cache is None:
+    cache = snapshot if snapshot is not None else _local_cache
+    if cache is None:
         logger.debug("pricing_cache_not_initialized", model=model)
         pricing_cache_fallback_total.labels(reason="cache_not_initialized").inc()
         return (0.0, 0.0)
 
-    priced_name = resolve_priced_name(model, _local_cache.models.__contains__)
-    prices = _local_cache.models.get(priced_name) if priced_name else None
+    priced_name = resolve_priced_name(model, cache.models.__contains__)
+    prices = cache.models.get(priced_name) if priced_name else None
 
     if not prices:
         # Name the fallback that was attempted: an operator investigating a
@@ -488,7 +504,7 @@ def get_cached_cost_usd_eur(
             "pricing_cache_model_not_found",
             model=model,
             normalized_candidate=normalize_model_name(model),
-            available_models=len(_local_cache.models),
+            available_models=len(cache.models),
         )
         pricing_cache_fallback_total.labels(reason="model_not_found").inc()
         return (0.0, 0.0)
@@ -509,7 +525,7 @@ def get_cached_cost_usd_eur(
         at,
         cache_write_tokens=cache_write_tokens,
     )
-    return (total_usd, total_usd * _local_cache.usd_eur_rate)
+    return (total_usd, total_usd * cache.usd_eur_rate)
 
 
 def quote_cached_cost_usd(
@@ -590,8 +606,8 @@ def _tariff_cost_usd(
     if slot is not None:
         input_price = float(slot["input_unit_price"])
         output_price = float(slot["output_unit_price"])
-        # None keeps the base-column semantic: no separate cache billing.
-        cached_price = float(slot.get("cached_input_unit_price") or 0.0)
+        raw_cached = slot.get("cached_input_unit_price")
+        cached_price = input_price if raw_cached is None else float(raw_cached)
     else:
         input_price = prices.input_unit_price
         output_price = prices.output_unit_price
@@ -674,8 +690,10 @@ def get_cached_cost(
     prompt_tokens: int,
     completion_tokens: int,
     cached_tokens: int = 0,
+    at: datetime | None = None,
     *,
     cache_write_tokens: int = 0,
+    snapshot: PricingCacheData | None = None,
 ) -> float:
     """
     Estimate cost using cached prices (sync-safe for callbacks).
@@ -688,6 +706,7 @@ def get_cached_cost(
         prompt_tokens: Number of prompt/input tokens
         completion_tokens: Number of completion/output tokens
         cached_tokens: Number of cached input tokens (default: 0)
+        at: Call-start instant for UTC time-slot resolution; defaults to now.
         cache_write_tokens: The part of ``prompt_tokens`` written to the prompt
             cache (see :func:`get_cached_cost_usd_eur`).
 
@@ -700,7 +719,9 @@ def get_cached_cost(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         cached_tokens=cached_tokens,
+        at=at,
         cache_write_tokens=cache_write_tokens,
+        snapshot=snapshot,
     )
 
     # Return cost in configured currency
@@ -715,7 +736,7 @@ def is_cache_initialized() -> bool:
     return _local_cache is not None
 
 
-def get_cached_usd_eur_rate() -> float:
+def get_cached_usd_eur_rate(snapshot: PricingCacheData | None = None) -> float:
     """
     Get USD/EUR exchange rate from cache (sync-safe).
 
@@ -725,10 +746,11 @@ def get_cached_usd_eur_rate() -> float:
     Returns:
         USD to EUR exchange rate (e.g., 0.93 means 1 USD = 0.93 EUR)
     """
-    if _local_cache is None:
+    cache = snapshot if snapshot is not None else _local_cache
+    if cache is None:
         return settings.default_usd_eur_rate
 
-    return _local_cache.usd_eur_rate
+    return cache.usd_eur_rate
 
 
 def get_cache_stats() -> dict:

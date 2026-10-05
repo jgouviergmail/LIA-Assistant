@@ -36,6 +36,7 @@ from src.core.i18n import get_language_name
 from src.core.i18n_drafts import label_separator
 from src.core.i18n_meetings import get_header_label
 from src.core.llm_config_helper import get_effective_context_window, get_llm_config_for_agent
+from src.core.llm_usage import LLMBillingRecord
 from src.domains.meetings.prompts import build_messages, load_meeting_prompt
 from src.domains.meetings.render import format_duration
 from src.domains.meetings.schemas import (
@@ -161,6 +162,7 @@ class SynthesisUsage:
     model_name: str
     #: The part of ``tokens_in`` Claude wrote to its prompt cache (ADR-306).
     tokens_cache_write: int = 0
+    billing_records: tuple[LLMBillingRecord, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -507,12 +509,14 @@ async def synthesize_minutes(
         language=context.language,
         rewritten=rewritten,
     )
+    records = capture.get_billing_records(model)
     usage = SynthesisUsage(
         tokens_in=capture.tokens_in,
         tokens_out=capture.tokens_out,
         tokens_cache=capture.tokens_cache,
-        model_name=model,
+        model_name=records[-1].model_name if records else model,
         tokens_cache_write=capture.tokens_cache_write,
+        billing_records=records,
     )
     logger.info(
         "meeting_synthesis_done",

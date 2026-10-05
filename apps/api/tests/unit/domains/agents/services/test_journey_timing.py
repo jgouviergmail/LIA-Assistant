@@ -7,7 +7,7 @@ from src.domains.agents.services.streaming.journey_timing import JourneyTiming
 pytestmark = pytest.mark.unit
 
 
-def test_records_preview_before_text_without_overwriting_or_counting_status() -> None:
+def test_hidden_legacy_preview_never_counts_as_a_useful_result() -> None:
     timing = JourneyTiming(started=10.0)
     timing.observe("status", "Searching", {}, now=11)
     timing.observe("result_preview", "", {"collection": {"items": []}}, now=12)
@@ -18,12 +18,14 @@ def test_records_preview_before_text_without_overwriting_or_counting_status() ->
     timing.observe(
         "result_preview", "", {"collection": {"items": [{"verdict": "unknown"}]}}, now=14
     )
+    assert timing.first_useful_ms is None
+    assert timing.first_preview_ms is None
     timing.observe("token", " ", {}, now=15)
     assert timing.first_token_ms is None
     timing.observe("token", "Answer", {}, now=16)
     timing.observe("token", "continues", {}, now=17)
-    assert timing.first_useful_ms == 4000
-    assert timing.first_preview_ms == 4000
+    assert timing.first_useful_ms == 6000
+    assert timing.first_preview_ms is None
     assert timing.first_token_ms == 6000
 
 

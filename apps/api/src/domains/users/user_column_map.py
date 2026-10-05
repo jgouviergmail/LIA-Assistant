@@ -84,6 +84,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "execution_mode": _PREFERENCE,
     "exchange_rhythm": _PREFERENCE,
     "voice_enabled": _PREFERENCE,
+    "speaking_avatar_enabled": _PREFERENCE,
     "voice_mode_enabled": _PREFERENCE,
     "voice_stt_mode": _PREFERENCE,
     "tokens_display_enabled": _PREFERENCE,

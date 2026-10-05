@@ -196,6 +196,25 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
 
 **Fichier** : `apps/api/src/infrastructure/observability/callbacks.py`
 
+Runtime accounting freezes each physical attempt's UTC start and tariff/FX
+generation before invocation. Its provider-reported model, usage and outcome are
+carried to the ledger in
+[LLMBillingRecord](../../apps/api/src/core/llm_usage.py); a delayed write or retry
+does not reprice earlier usage. Duplicate callback deliveries do not create
+another attempt. A provider success, an accepted typed decision and successful
+delivery are distinct outcomes: usable paid counters remain accounted after
+output validation or background delivery failure.
+
+[TokenCaptureHandler](../../apps/api/src/infrastructure/llm/token_capture.py) and
+[proactive settlement](../../apps/api/src/infrastructure/proactive/tracking.py)
+close known spend through bounded cancellation cleanup. A failure without usable
+counters produces no invented cost. Inspect both operation status and spend when
+diagnosing retries or cancelled background work; an unsuccessful operation can
+still have a recorded bill. See
+[TOKEN_TRACKING_AND_COUNTING.md](TOKEN_TRACKING_AND_COUNTING.md#service-implementation)
+for current contracts and the limits of settlement. The code illustrations below
+explain instrumentation layering; the linked runtime modules own the implementation.
+
 ```python
 class MetricsCallbackHandler(AsyncCallbackHandler):
     """

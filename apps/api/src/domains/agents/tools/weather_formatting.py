@@ -127,6 +127,7 @@ def _format_current_weather_response(
                 "temp_max": measurement(main.get("temp_max"), temp_unit),
                 "description": scalar_text(weather_info.get("description")),
                 "icon": scalar_text(weather_info.get("icon")),
+                "weather_main": scalar_text(weather_info.get("main")),
                 "humidity": measurement(main.get("humidity"), "%"),
                 "pressure": measurement(main.get("pressure"), " hPa"),
                 "visibility": (
@@ -186,6 +187,8 @@ def _format_forecast_response(
                     "avg": measurement(day.get("temp_avg"), temp_unit),
                 },
                 "description": day.get("condition", "N/A"),
+                "icon": scalar_text(day.get("icon")),
+                "weather_main": scalar_text(day.get("weather_main")),
                 "humidity": measurement(day.get("humidity_avg"), "%"),
                 "wind_speed": measurement(day.get("wind_speed_avg"), f" {speed_unit}"),
             }
@@ -267,6 +270,7 @@ def _hourly_reading(
         "feels_like": measurement(main.get("feels_like"), temp_unit),
         "description": scalar_text(weather_info.get("description")),
         "icon": scalar_text(weather_info.get("icon")),
+        "weather_main": scalar_text(weather_info.get("main")),
         "humidity": measurement(main.get("humidity"), "%"),
         "precipitation_probability": probability(entry.get("pop")),
         "wind_speed": measurement(wind.get("speed"), f" {speed_unit}"),

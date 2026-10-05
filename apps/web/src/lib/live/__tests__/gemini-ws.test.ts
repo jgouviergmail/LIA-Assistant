@@ -91,6 +91,7 @@ type EventMocks = { [K in keyof LiveTransportEvents]-?: Mock<Handler<K>> };
 function events(): EventMocks {
   return {
     onReady: vi.fn<Handler<'onReady'>>(),
+    onRemoteStream: vi.fn<Handler<'onRemoteStream'>>(),
     onUsage: vi.fn<Handler<'onUsage'>>(),
     onAudio: vi.fn<Handler<'onAudio'>>(),
     onSpeakingChange: vi.fn<Handler<'onSpeakingChange'>>(),

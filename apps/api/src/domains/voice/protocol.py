@@ -7,7 +7,30 @@ Follows the same pattern as LLM providers for consistency.
 Created: 2026-01-15
 """
 
-from typing import Protocol, runtime_checkable
+from dataclasses import dataclass
+from typing import Literal, Protocol, runtime_checkable
+
+
+@dataclass(frozen=True, slots=True)
+class RawAudioSpec:
+    """The mono samples of a headerless TTS response.
+
+    PCM is signed 16-bit little-endian; u-law has one byte per sample. A
+    consumer needs the client's rate to put either in a readable container.
+    """
+
+    sample_rate: int
+    encoding: Literal["pcm_s16le", "ulaw"] = "pcm_s16le"
+
+
+@runtime_checkable
+class RawAudioTTSClient(Protocol):
+    """Optional metadata supplied by a client which can return raw samples."""
+
+    @property
+    def raw_audio_spec(self) -> RawAudioSpec | None:
+        """Describe the configured raw response; None for an encoded container."""
+        ...
 
 
 @runtime_checkable

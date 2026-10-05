@@ -7,7 +7,7 @@ reads removed from the input, ADR-306), so nothing is subtracted here.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final, Literal
 from uuid import UUID
 
@@ -15,6 +15,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.llm_usage import LLMBillingRecord
 from src.domains.telephony.spend import phone_call_run_id
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.proactive.tracking import track_proactive_tokens
@@ -35,6 +36,8 @@ class SynthUsage:
     model_name: str
     #: The part of ``tokens_in`` Claude wrote to its prompt cache (ADR-306).
     tokens_cache_write: int = 0
+    billing_records: tuple[LLMBillingRecord, ...] = field(default=(), compare=False, repr=False)
+    accounting_handled: bool = field(default=False, compare=False, repr=False)
 
 
 def capture_to_usage(capture: TokenCaptureHandler) -> SynthUsage | None:
@@ -45,12 +48,16 @@ def capture_to_usage(capture: TokenCaptureHandler) -> SynthUsage | None:
     """
     if not capture.has_usage:
         return None
+    model = get_llm_config_for_agent(settings, _LLM_TYPE).model
+    records = capture.get_billing_records(model)
     return SynthUsage(
         tokens_in=capture.tokens_in,
         tokens_out=capture.tokens_out,
         tokens_cache=capture.tokens_cache,
-        model_name=get_llm_config_for_agent(settings, _LLM_TYPE).model,
+        model_name=records[-1].model_name if records else model,
         tokens_cache_write=capture.tokens_cache_write,
+        billing_records=records,
+        accounting_handled=capture.accounting_handled,
     )
 
 
@@ -83,7 +90,7 @@ async def track_voice_synthesis_usage(
         run_id: The run the euros are filed under — the carrier's own, so the
             session's card and the calls listing read one row.
     """
-    if usage is None:
+    if usage is None or usage.accounting_handled:
         return
     try:
         await track_proactive_tokens(
@@ -95,6 +102,7 @@ async def track_voice_synthesis_usage(
             tokens_out=usage.tokens_out,
             tokens_cache=usage.tokens_cache,
             tokens_cache_write=usage.tokens_cache_write,
+            billing_records=usage.billing_records,
             model_name=usage.model_name,
             source="user",
             run_id=run_id,

@@ -129,7 +129,6 @@ export interface UseChatReturn {
   debugMetricsHistory: DebugMetricsEntry[];
   // Browser Screenshots: Current overlay data
   browserScreenshot: BrowserScreenshotData | null;
-  resultPreviews: import('@/types/result-preview').QualifiedCollection[];
   clearBrowserScreenshot: () => void;
   // Context-usage pill (2026-05): current conversation token footprint vs the
   // dynamic compaction threshold. `null` until the first turn completes. The
@@ -258,7 +257,8 @@ export const useChat = ({
   } = useGeolocation();
 
   // Voice playback for TTS audio streaming
-  const { handleVoiceChunk, stopPlayback, warmupAudio, recordUserInteraction } = useVoicePlayback();
+  const { handleVoiceChunk, beginVoiceRun, endVoiceRun, stopPlayback, warmupAudio, recordUserInteraction } =
+    useVoicePlayback();
 
   // LIA gender preference (for TTS voice selection)
   const { isMale: liaIsMale } = useLiaGender();
@@ -406,6 +406,8 @@ export const useChat = ({
               t,
               withContext,
               handleVoiceChunk,
+              beginVoiceRun,
+              endVoiceRun,
               hitlQuestionBuffer,
               executionStepsRef,
               emittedStepKeysRef,
@@ -454,7 +456,7 @@ export const useChat = ({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, withContext, stopPlayback, handleVoiceChunk, resolveStreamErrorMessage] // dispatch excluded: stable from useReducer
+    [t, withContext, stopPlayback, handleVoiceChunk, beginVoiceRun, endVoiceRun, resolveStreamErrorMessage] // dispatch excluded: stable from useReducer
   );
 
   /**
@@ -675,6 +677,8 @@ export const useChat = ({
               t,
               withContext,
               handleVoiceChunk,
+              beginVoiceRun,
+              endVoiceRun,
               hitlQuestionBuffer,
               executionStepsRef,
               emittedStepKeysRef,
@@ -796,6 +800,8 @@ export const useChat = ({
       checkAndResumeActiveRun,
       stopPlayback,
       handleVoiceChunk,
+      beginVoiceRun,
+      endVoiceRun,
       warmupAudio,
       recordUserInteraction,
       debugPanelVisible,
@@ -1038,7 +1044,6 @@ export const useChat = ({
     debugMetricsHistory: state.debugMetricsHistory,
     // Browser Screenshots: Current overlay data
     browserScreenshot: state.browserScreenshot,
-    resultPreviews: state.resultPreviews,
     clearBrowserScreenshot,
     // Context-usage pill: tokens vs compaction threshold (null on first load)
     contextUsage: state.contextUsage,

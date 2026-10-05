@@ -12,16 +12,19 @@ import hashlib
 import json
 from collections.abc import Iterator
 from datetime import datetime
+from time import time
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 import structlog
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings as app_settings
 from src.core.i18n import get_language_name, resolve_language
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.llm_usage import LLMBillingRecord
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.briefing.constants import (
@@ -41,15 +44,16 @@ from src.domains.briefing.constants import (
 )
 from src.domains.briefing.schemas import CardsBundle, CardSection, CardStatus, LLMUsage
 from src.domains.personalities.service import PersonalityService
-from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
+from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
-from src.infrastructure.llm.usage_metadata import tokens_from_response
+from src.infrastructure.llm.token_capture import TokenCaptureHandler, priced_call
+from src.infrastructure.llm.usage_metadata import model_name_of_response, tokens_from_response
 from src.infrastructure.observability.metrics_briefing import (
     briefing_llm_invocations_total,
 )
-from src.infrastructure.proactive.tracking import track_proactive_tokens
+from src.infrastructure.proactive.tracking import capture_spend_on_failure, track_proactive_tokens
 
 if TYPE_CHECKING:
     from src.domains.users.models import User
@@ -221,78 +225,106 @@ async def _invoke_and_track(
     llm = get_llm(BRIEFING_LLM_TYPE)
     model_name = get_llm_config_for_agent(app_settings, BRIEFING_LLM_TYPE).model
 
-    response = await llm.ainvoke([HumanMessage(content=rendered)])
-    # LangChain may return content as str or list[str | dict] (Gemini 3.x blocks);
-    # coerce to plain text for the greeting / synthesis.
-    text = coerce_content_to_text(response.content).strip()
-
-    # Token usage extraction. LangChain v1 surfaces .usage_metadata as a
-    # standard dict on the AIMessage; defensive .get() to tolerate provider
-    # variants that omit cache fields. OpenAI's input_tokens already includes
-    # cached tokens — subtract to expose the "billable non-cached" count
-    # consistently with the rest of the tracking pipeline.
-    # Presence, not magnitude: the previous code keyed on the raw dict being
-    # non-empty, and a provider reporting a zero-token call still reported one.
-    reported_usage = getattr(response, "usage_metadata", None)
-    measured = tokens_from_response(response)
-    tokens_in, tokens_out, tokens_cache = measured.prompt, measured.completion, measured.cached
-
-    # EUR cost via the sync in-memory pricing cache (already populated at startup).
-    cost_eur = 0.0
-    try:
-        _, cost_eur = get_cached_cost_usd_eur(
-            model=model_name,
-            prompt_tokens=tokens_in,
-            completion_tokens=tokens_out,
-            cached_tokens=tokens_cache,
-            cache_write_tokens=measured.cache_write,
+    started_at = time()
+    snapshot = capture_pricing_snapshot()
+    capture = TokenCaptureHandler(model_name)
+    async with capture_spend_on_failure(
+        capture,
+        user_id=user.id,
+        task_type=BRIEFING_TASK_TYPE,
+        target_id=target_prefix,
+        model_name=model_name,
+        source="user",
+    ):
+        response = await llm.ainvoke(
+            [HumanMessage(content=rendered)], config=RunnableConfig(callbacks=[capture])
         )
-    except Exception as exc:
-        logger.debug(
-            "briefing_cost_estimation_failed",
-            kind=kind,
-            model=model_name,
-            error=str(exc),
-        )
-
-    # Deterministic-ish target_id for analytics dedup (truncate to keep run_id stable).
-    text_signature = hashlib.md5((text[:60] or uuid4().hex).encode("utf-8")).hexdigest()[:8]
-    target_id = f"{target_prefix}_{text_signature}"
-
-    try:
-        await track_proactive_tokens(
-            user_id=user.id,
-            task_type=BRIEFING_TASK_TYPE,
-            target_id=target_id,
-            conversation_id=None,
-            tokens_in=tokens_in,
-            tokens_out=tokens_out,
-            tokens_cache=tokens_cache,
-            tokens_cache_write=measured.cache_write,
+        capture.ensure_response_record(
+            response,
             model_name=model_name,
-            source="user",
+            started_at=started_at,
+            snapshot=snapshot,
         )
-    except Exception as exc:
-        logger.warning(
-            "briefing_token_tracking_failed",
-            user_id=str(user.id),
-            kind=kind,
-            error=str(exc),
-        )
+        model_name = model_name_of_response(response) or model_name
+        # LangChain may return content as str or list[str | dict] (Gemini 3.x blocks);
+        # coerce to plain text for the greeting / synthesis.
+        text = coerce_content_to_text(response.content).strip()
 
-    briefing_llm_invocations_total.labels(kind=kind, outcome="success").inc()
+        # Token usage extraction. LangChain v1 surfaces .usage_metadata as a
+        # standard dict on the AIMessage; defensive .get() to tolerate provider
+        # variants that omit cache fields. OpenAI's input_tokens already includes
+        # cached tokens — subtract to expose the "billable non-cached" count
+        # consistently with the rest of the tracking pipeline.
+        # Presence, not magnitude: the previous code keyed on the raw dict being
+        # non-empty, and a provider reporting a zero-token call still reported one.
+        reported_usage = getattr(response, "usage_metadata", None)
+        measured = tokens_from_response(response)
+        tokens_in, tokens_out, tokens_cache = measured.prompt, measured.completion, measured.cached
+        if capture.has_usage:
+            tokens_in, tokens_out, tokens_cache = (
+                capture.tokens_in,
+                capture.tokens_out,
+                capture.tokens_cache,
+            )
 
-    usage: LLMUsage | None = None
-    if reported_usage:
-        usage = LLMUsage(
-            tokens_in=tokens_in,
-            tokens_out=tokens_out,
-            tokens_cache=tokens_cache,
-            tokens_cache_write=measured.cache_write,
-            cost_eur=cost_eur,
-            model_name=model_name,
-        )
-    return text, usage
+        # EUR cost via the sync in-memory pricing cache (already populated at startup).
+        cost_eur = 0.0
+        billing_records: tuple[LLMBillingRecord, ...] = ()
+        try:
+            billing_records = capture.get_billing_records(model_name) or (
+                priced_call(measured, model_name, started_at, snapshot=snapshot),
+            )
+            cost_eur = sum(record.cost_eur for record in billing_records)
+        except Exception as exc:
+            logger.debug(
+                "briefing_cost_estimation_failed",
+                kind=kind,
+                model=model_name,
+                error=str(exc),
+            )
+
+        # Deterministic-ish target_id for analytics dedup (truncate to keep run_id stable).
+        text_signature = hashlib.md5((text[:60] or uuid4().hex).encode("utf-8")).hexdigest()[:8]
+        target_id = f"{target_prefix}_{text_signature}"
+
+        try:
+            capture.claim_billing_records(model_name)
+            await track_proactive_tokens(
+                user_id=user.id,
+                task_type=BRIEFING_TASK_TYPE,
+                target_id=target_id,
+                conversation_id=None,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                tokens_cache=tokens_cache,
+                tokens_cache_write=capture.tokens_cache_write,
+                model_name=model_name,
+                source="user",
+                started_at=started_at,
+                billing_records=billing_records,
+            )
+        except Exception as exc:
+            logger.warning(
+                "briefing_token_tracking_failed",
+                user_id=str(user.id),
+                kind=kind,
+                error=str(exc),
+            )
+
+        briefing_llm_invocations_total.labels(kind=kind, outcome="success").inc()
+
+        usage: LLMUsage | None = None
+        if reported_usage:
+            usage = LLMUsage(
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                tokens_cache=tokens_cache,
+                tokens_cache_write=capture.tokens_cache_write,
+                cost_eur=cost_eur,
+                model_name=model_name,
+                billing_records=billing_records,
+            )
+        return text, usage
 
 
 def _resolve_display_name(user: User) -> str:

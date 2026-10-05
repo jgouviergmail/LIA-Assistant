@@ -97,9 +97,9 @@
     },
     "f.memory": {
       "name": "Langzeitgedächtnis",
-      "role": "Fakten, Vorlieben und Arbeitsanweisungen, im Hintergrund aus deinen Gesprächen gewonnen und gezielt nachgeschlagen, wenn unterwegs ein Thema auftaucht; jede Erinnerung ist sichtbar, korrigierbar und behält ihren Verlauf, wenn sie sich ändert.",
+      "role": "Fakten, Vorlieben und Arbeitsanweisungen aus deinen Gesprächen, sichtbar und bearbeitbar samt Verlauf. Neue dauerhafte Anweisungen sind standardmäßig angeheftet; die automatische Pflege lässt sie unverändert. LIA sucht auch gezielt darin, wenn unterwegs ein Thema auftaucht.",
       "goal": "Nicht wiederholen müssen, was LIA schon über dich weiß.",
-      "src": "a6453a53542e"
+      "src": "c36f79b09890"
     },
     "f.journals": {
       "name": "Tagebücher und Porträt",
@@ -211,9 +211,9 @@
     },
     "f.mcp": {
       "name": "MCP-Server",
-      "role": "Werkzeuge von Drittanbietern nach dem MCP-Standard anbinden — alte und neue Protokollrevisionen, OAuth inklusive.",
+      "role": "Fremde MCP-Werkzeuge anbinden, einschließlich OAuth; Ergebniskarten nennen Server und Methode. Eine vom Server erklärte Wartefrist pausiert Aufrufe über alle Worker hinweg.",
       "goal": "LIA erweitern, ohne auf eine native Integration zu warten.",
-      "src": "af65afc24b06"
+      "src": "1409a780080c"
     },
     "f.skills": {
       "name": "Skills und Plugins",
@@ -307,9 +307,9 @@
     },
     "f.live": {
       "name": "Live-Modus",
-      "role": "Ein Sprachgespräch in Echtzeit auf deinem eigenen Schlüssel; jede Anfrage nach Daten oder einer Aktion wird an LIAs Engine delegiert, mit denselben Regeln wie im Chat.",
+      "role": "Echtzeitstimme mit deinem eigenen Schlüssel: Der direkte Modus liest Daten, ohne zu handeln; der delegierte Modus übergibt jede Anfrage an den Chat und seine Bestätigungen. Standby schließt die Anbieter-Verbindung.",
       "goal": "Natürlich sprechen, ohne Freigabe oder Nachvollziehbarkeit zu verlieren.",
-      "src": "95d27bb242b3"
+      "src": "30523d5b1ff6"
     },
     "f.telephony": {
       "name": "Telefon",
@@ -319,9 +319,9 @@
     },
     "f.radio": {
       "name": "Persönliches Radio",
-      "role": "Ein Sender auf Abruf in deiner Sprache: dein Tag und die Nachrichten der Welt, für dich geschrieben, geprüft und gesprochen, während du zuhörst, jeder Satz mit seiner Quelle.",
+      "role": "Ein Sender auf Abruf in deiner Sprache: dein Tag und belegte Nachrichten, während des Hörens geschrieben, geprüft und gesprochen. Der redaktionelle Filter entfernt Kaufaufforderungen und bewahrt nützliche Informationen.",
       "goal": "Den eigenen Tag und die Welt hören, ohne zu lesen, und wissen, was es kostet.",
-      "src": "3518a88aef30"
+      "src": "25415e642ab3"
     },
     "f.security": {
       "name": "Konten und Sicherheit",
@@ -337,9 +337,9 @@
     },
     "f.costs": {
       "name": "Kosten und Kontingente",
-      "role": "Jeder Euro, den die Plattform bezahlt, wird nachverfolgt, angezeigt und der richtigen Person zugeordnet; ein Limit pro Konto und ein Tagesbudget für die Instanz.",
+      "role": "Von der Plattform bezahlter Verbrauch wird der Person zugeordnet, zum Tarif jedes Versuchs bewertet und auch bei bekanntem Verbrauch mit Fehler oder Abbruch gezeigt; Konto- und Instanzgrenzen begrenzen Ausgaben.",
       "goal": "Keine unsichtbare Ausgabe, keine Ausgabe ohne Grenze.",
-      "src": "3b9c91f76ee2"
+      "src": "e0172dd83455"
     },
     "f.llmconfig": {
       "name": "Modelle und Reasoning",
@@ -364,6 +364,12 @@
       "role": "Die öffentliche Demo, das Feedback zu den Antworten und die Produktmessungen, die die Weiterentwicklung lenken.",
       "goal": "LIA ohne Risiko zeigen und sie auf Grundlage von Fakten verbessern.",
       "src": "2566c38f3406"
+    },
+    "f.avatar": {
+      "name": "Sprechender Avatar",
+      "role": "Eine experimentelle Simli-Präsenz, mit deinem eigenen Schlüssel gewählt, für Sprachkommentare und direktes oder delegiertes Live; ein verschiebbares Fenster und eine im Standby geschlossene Verbindung. Radio behält seinen Player.",
+      "goal": "Ein Gesicht wählen und seinen Verbrauch kennen, auch während der Stille.",
+      "src": "50707626b06b"
     }
   },
   "flows": {
@@ -410,8 +416,8 @@
       "src": "d9d438a62218"
     },
     "flow.live": {
-      "name": "Ein Sprachgespräch in Echtzeit",
-      "summary": "Zwei Intelligenzen und eine Naht: Die Stimme unterhält sich, LIAs Engine handelt.",
+      "name": "Ein delegiertes Live-Gespräch",
+      "summary": "Im delegierten Modus führt die Stimme das Gespräch, und die LIA-Engine handelt mit ihren Bestätigungen.",
       "steps": [
         "Du öffnest eine Live-Sitzung auf deinem eigenen Schlüssel.",
         "Das Sprachmodell hört zu und antwortet im selben Atemzug.",
@@ -421,7 +427,7 @@
         "Eine Stille? Die Sitzung geht in den Standby — nichts wird mehr berechnet — und ein Tippen weckt sie.",
         "Am Ende fasst eine Karte die Sitzung zusammen und was sie gekostet hat."
       ],
-      "src": "6f5ca4ae4284"
+      "src": "397fd2f1a1d4"
     },
     "flow.learn": {
       "name": "LIA lernt dich kennen",

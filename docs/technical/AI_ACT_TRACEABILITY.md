@@ -34,20 +34,25 @@ capabilities.
 
 ## 2. What LIA is, under the AI Act
 
-LIA is not a high-risk system under Annex III: it is a general personal
-assistant, self-hosted by the person it serves, deciding nothing about
-employment, credit, education, law enforcement or essential services. Article 12
-(record-keeping) is therefore **not legally binding on it**.
+LIA's documented purpose is a general personal assistant. That description does
+not establish the legal classification of every deployment. The applicable
+requirements depend on the intended purpose, context of use and the roles of
+the parties involved, assessed against Article 6 and the relevant annexes of the
+[EU AI Act](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02024R1689-20260727).
+Adapting or deploying LIA for employment, credit, education, law enforcement or
+essential services requires a separate assessment; self-hosting alone does not
+resolve that assessment.
 
-It is implemented anyway, and the reason is not compliance theatre. An assistant
-that acts on someone's accounts owes that person an account of its actions
-whatever the regulation says — and the discipline Article 12 imposes (automatic
-recording, over the lifetime, of what the system did and on what basis) is
-exactly the discipline that makes an assistant trustworthy.
+Article 12 requires high-risk AI systems to allow automatic event recording over
+their lifetime. LIA's registers and bounded integrity mechanisms are deliberate
+technical measures for transparency, whether or not that obligation applies to
+a particular deployment. An assistant that acts on someone's accounts owes that
+person an account of its actions.
 
-Two consequences follow. LIA claims **conformance with the shape** of Article 12,
-never a legal status it does not have. And where a lot is not built, this
-document says so rather than describing an intention as a capability.
+This document describes those implemented measures and their limits. It does
+not certify compliance with Article 12, provide a legal opinion on a deployment
+or claim that every regulatory requirement is satisfied. Where a capability is
+not built, the document says so rather than describing an intention as a fact.
 
 ---
 

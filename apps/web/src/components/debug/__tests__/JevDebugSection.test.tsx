@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import apiClient from '@/lib/api-client';
 import type { JevCallTrace } from '@/types/jev';
 import { DebugPanel } from '../DebugPanel';
@@ -40,6 +40,111 @@ beforeEach(() => vi.restoreAllMocks());
 afterEach(() => vi.useRealTimers());
 
 describe('JEV debug feed independent of chat turns', () => {
+  it('keeps native Choice separate from an empty proposal for new memory writes', async () => {
+    vi.spyOn(apiClient, 'get').mockResolvedValue({
+      ...page,
+      calls: [
+        {
+          ...trace,
+          action: 'observed',
+          usage: 'observe_memory',
+          observed_result: { text: ' [] ', original_characters: 4, omitted_characters: 0 },
+        },
+      ],
+    });
+    const { user } = renderWithProviders(<DebugPanel metrics={null} />);
+    await user.click(screen.getByRole('button', { name: key('title') }));
+    expect(await screen.findByText(key('memoryEmptyProposal'))).toBeVisible();
+    expect(screen.getByText(key('memoryObservationHelp'))).toBeVisible();
+    expect(screen.getByText(key('observedResultHelp'))).toBeVisible();
+    expect(screen.getByText('Medical consultation')).toBeVisible();
+    const native = screen.getByRole('heading', { name: key('response') });
+    expect(native.compareDocumentPosition(screen.getByText(key('observedResult')))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    await user.click(screen.getByText(key('observedResult')));
+    expect(screen.getByRole('region', { name: key('observedResult') })).toHaveTextContent('[]');
+    expect(screen.queryByText(key('noResponse'))).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { text: '[]', omitted: 1, usage: 'observe_memory' },
+    { text: '"[]"', omitted: 0, usage: 'observe_memory' },
+    { text: '[', omitted: 0, usage: 'observe_memory' },
+    { text: '[{"fact":"Synthetic fact"}]', omitted: 0, usage: 'observe_memory' },
+    { text: '[]', omitted: 0, usage: 'observe_interests' },
+  ])('does not infer an empty memory proposal from $usage / $text / $omitted', async item => {
+    vi.spyOn(apiClient, 'get').mockResolvedValue({
+      ...page,
+      calls: [
+        {
+          ...trace,
+          action: 'observed',
+          usage: item.usage,
+          observed_result: {
+            text: item.text,
+            original_characters: item.text.length + item.omitted,
+            omitted_characters: item.omitted,
+          },
+        },
+      ],
+    });
+    const { user } = renderWithProviders(<DebugPanel metrics={null} />);
+    await user.click(screen.getByRole('button', { name: key('title') }));
+    expect(await screen.findByText(key('observedResultHelp'))).toBeVisible();
+    expect(screen.queryByText(key('memoryEmptyProposal'))).not.toBeInTheDocument();
+    await user.click(screen.getByText(key('observedResult')));
+    expect(screen.getByRole('region', { name: key('observedResult') })).toHaveTextContent(item.text);
+  });
+
+  it('shows global collection coverage without treating unsubmitted candidates as unknown', async () => {
+    const coverage = {
+      candidate_count: 75,
+      evaluated_count: 14,
+      unevaluated_count: 61,
+      unknown_count: 14,
+      omitted_count: 0,
+      batch_count: 2,
+    };
+    vi.spyOn(apiClient, 'get').mockResolvedValue({
+      ...page,
+      calls: [1, 2].map(index => ({
+        ...trace,
+        id: `batch-${index}`,
+        usage: 'filter_event',
+        action: 'preview',
+        collection_coverage: { ...coverage, batch_index: index },
+      })),
+    });
+    const { user } = renderWithProviders(<DebugPanel metrics={null} />);
+    await user.click(screen.getByRole('button', { name: key('title') }));
+    await screen.findAllByRole('heading', { name: key('coverageTitle') });
+    for (const article of screen.getAllByRole('article')) {
+      const query = within(article);
+      expect(query.getByText(key('coverageCandidates')).nextElementSibling).toHaveTextContent('75');
+      expect(query.getByText(key('coverageEvaluated')).nextElementSibling).toHaveTextContent('14');
+      expect(query.getByText(key('coverageUnevaluated')).nextElementSibling).toHaveTextContent('61');
+      expect(query.getByText(key('coverageUnknown')).nextElementSibling).toHaveTextContent('14');
+      expect(query.getByText(key('coverageOmitted')).nextElementSibling).toHaveTextContent('0');
+      expect(query.getByText(key('coverageBatch'))).toBeVisible();
+      expect(query.getByText(key('coverageSharedHelp'))).toBeVisible();
+    }
+    expect(screen.queryByText(key('coverageUnavailable'))).not.toBeInTheDocument();
+  });
+
+  it('keeps absent historical coverage unavailable rather than counting displayed answers', async () => {
+    vi.spyOn(apiClient, 'get').mockResolvedValue({
+      ...page,
+      calls: [{ ...trace, usage: 'filter_email', action: 'preview' }],
+    });
+    const { user } = renderWithProviders(<DebugPanel metrics={null} />);
+    await user.click(screen.getByRole('button', { name: key('title') }));
+    expect(await screen.findByText(key('coverageUnavailable'))).toBeVisible();
+    expect(screen.queryByText(key('coverageCandidates'))).not.toBeInTheDocument();
+    expect(screen.queryByText(key('observedResultHelp'))).not.toBeInTheDocument();
+    expect(screen.queryByText(key('memoryEmptyProposal'))).not.toBeInTheDocument();
+  });
+
   it('distinguishes observation from action and exposes the bounded baseline proposal safely', async () => {
     vi.spyOn(apiClient, 'get').mockResolvedValue({
       ...page,
@@ -63,6 +168,7 @@ describe('JEV debug feed independent of chat turns', () => {
     expect(screen.getByText(/original proposal/)).toBeVisible();
     expect(container.querySelector('img')).toBeNull();
     expect(screen.getAllByText(key('truncated')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(key('contextDisplayHelp'))).toHaveLength(1);
     expect(screen.queryByText(key('actions.selected'))).not.toBeInTheDocument();
   });
   it('names the source object and distinguishes JEV suggestion from LIA applied verdict', async () => {
@@ -183,6 +289,30 @@ describe('JEV debug feed independent of chat turns', () => {
     expect(screen.getByText('provider_error · HTTP 503')).toBeInTheDocument();
     expect(screen.getByText(key('unknownCost'))).toBeVisible();
     expect(screen.queryByText(key('truncated'))).not.toBeInTheDocument();
+  });
+
+  it('shows a bounded validation reason in technical details and preserves the paid fallback', async () => {
+    vi.spyOn(apiClient, 'get').mockResolvedValue({
+      ...page,
+      calls: [
+        {
+          ...trace,
+          response: null,
+          action: 'fallback',
+          outcome: 'invalid_response',
+          invalid_response_reason: 'probability_sum',
+          action_target: 'meeting_synthesis',
+        },
+      ],
+    });
+    const { user } = renderWithProviders(<DebugPanel metrics={null} />);
+    await user.click(screen.getByRole('button', { name: key('title') }));
+    expect(await screen.findByText(key('actions.fallback'))).toBeVisible();
+    expect(screen.getByText(key('noResponse'))).toBeVisible();
+    await user.click(screen.getByText(key('technical')));
+    expect(screen.getByText('invalid_response · probability_sum')).toBeVisible();
+    expect(screen.getByText('300 / 2')).toBeVisible();
+    expect(screen.queryByText(key('unknownCost'))).not.toBeInTheDocument();
   });
 
   it('retains opened details while a refresh updates the same call action', async () => {

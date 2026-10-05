@@ -4,7 +4,7 @@
 
 **Version**: 6.2
 **Datum**: 2026-10-04
-**Anwendung**: LIA v2.5.0
+**Anwendung**: LIA v2.6.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -125,6 +125,8 @@ Sprich mit LIA wie mit einem menschlichen Assistenten — keine Befehle auswendi
 
 Trägt eine Antwort Daten, erscheint sie als Karten, die alles zeigen, was die Quelle geliefert hat — ohne etwas zu erfinden — und das Detail in einem aufklappbaren Bereich bereithalten: die Fotos eines Ortes als Galerie, das Wetter Zeitfenster für Zeitfenster verglichen, die Vorschau eines Dokuments, eine interaktive Route. Aus ihrer Karte auf eine E-Mail zu antworten oder eine Erinnerung anzupassen bereitet die Anfrage vor; nichts geht ohne dich hinaus.
 
+Die Karten zeigen außerdem, woher ein fremdes MCP-Ergebnis stammt und welche Methode es erzeugt hat. Daten und ausgewählte Elemente folgen den vorhandenen Belegen; Wettersymbole spiegeln die gelieferten Bedingungen. Eine E-Mail-Löschung bleibt an ihr genaues verbundenes Postfach gebunden und wartet auf deine Bestätigung.
+
 ### 3.2. Persönliche verbundene Dienste
 
 - **E-Mail**: Lesen, Suchen, Verfassen, Senden, Antworten, Weiterleiten — via Gmail, Outlook oder Apple Mail; eine Nachricht kommt als sauberer Text an, und viele werden Nachricht für Nachricht zusammengefasst („fasse meine ungelesenen Mails zusammen“, „eine Synthese der Newsletter dieser Woche“); ein Anhang wird auf Wunsch gelesen — ein Dokument als Text, ein Foto oder ein Scan über das Vision-Modell
@@ -154,6 +156,8 @@ LIA bietet einen vollständigen Sprachmodus:
 - **Sprachsynthese**: drei admin-konfigurierbare Provider — Edge TTS (kostenlos), OpenAI TTS (`tts-1` / `tts-1-hd`) oder ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Telegram-Sprachnachrichten**: Sende Audiobotschaften, LIA transkribiert sie und antwortet
 - **Live-Modus**: ein Echtzeitgespräch von Stimme zu Stimme auf einem Live-Modell, das du mit **deinem eigenen Schlüssel** verbindest – Gemini Live, GPT-Live oder ein ElevenLabs-Agent. Die Stimme führt das Gespräch und reicht jede Bitte an LIA weiter, die sie als gewöhnlichen Chat-Zug ausführt, während du sprichst; eine direkte Sitzung lässt die Stimme deine Daten selbst lesen, ohne zu handeln. Was der Anbieter berechnet, wird dir gezeigt, nie aufgezeichnet. Eine Stille beendet keine Sitzung mehr: sie versetzt sie in den Standby — Verbindung geschlossen, nichts berechnet —, bis ein Tippen sie mit LIAs Kontext weckt; beenden tust immer du sie.
+
+- **Sprechender Avatar, experimentell**: Wenn deine Instanz ihn anbietet, verbinde deinen persönlichen Simli-Schlüssel und aktiviere ein Gesicht für Sprachkommentare sowie direktes oder delegiertes Live. Verschiebe das schwebende Fenster und wähle zwischen drei Größen, auch per Tastatur. Eine offene Verbindung verbraucht deinen Simli-Tarif selbst während der Stille; Live-Standby schließt sie, Aufwecken verbindet erneut. Radio bleibt getrennt. Die Medien- und Mobilqualifizierung läuft noch.
 
 ### 3.5. Erstellung und Medien
 
@@ -193,7 +197,7 @@ Wenn sie einen dieser Vorfälle diagnostiziert, arbeitet sie nicht mehr von eine
 
 LIA empfängt deine Herzfrequenz- und Schrittzahl-Messungen aus **beliebigen Quellen** — die einfachste Integration ist eine iPhone-Kurzbefehl-Automation, die Apple Health überträgt, aber jedes System, das eine API aufrufen kann (Android-Automation, eigenes Skript, vernetztes Gerät), kann sie senden. Dieselben Daten zweimal zu senden ist folgenlos, und wenn zwei Geräte denselben Zeitraum abdecken, führt LIA sie zusammen, ohne je doppelt zu zählen.
 
-Die Daten verbleiben in deiner LIA-Instanz — kein Drittanbieterdienst hat Zugriff — und werden in einem eigenen Bereich der Einstellungen visualisiert, als Liniendiagramm (HF) und Balkendiagramm (Schritte), mit einem Periodenselektor (Stunde, Tag, Woche, Monat, Jahr) und einer gestrichelten Linie für den Durchschnitt über die Periode.
+Rohmesswerte werden in deiner LIA-Instanz gespeichert und in einem eigenen Einstellungsbereich angezeigt: als Linie für die Herzfrequenz und Balken für Schritte, mit Zeitraumwahl (Stunde, Tag, Woche, Monat, Jahr) und gestricheltem Durchschnitt. Wenn du ihre Nutzung durch den Assistenten aktivierst, erhalten die gewählten Modelle eine sachliche Projektion statt Rohwerten.
 
 Die Übertragung wird durch ein **dediziertes Token** authentifiziert, das du in der Anwendung erzeugst und jederzeit widerrufen kannst. Das Token erlaubt ausschließlich das Senden von Gesundheitsdaten — nie den Zugriff auf den Rest deines Kontos. Du kannst mehrere erzeugen, eines pro Gerät, und sie getrennt verwalten.
 
@@ -270,7 +274,7 @@ Der Administrator behält die Kontrolle über den Verbrauch:
 
 ### 4.3. Deine Familien-KI
 
-Stelle dich vor: ein Raspberry Pi im Wohnzimmer, und die ganze Familie profitiert von einem intelligenten KI-Assistenten — jeder mit seiner personalisierten Erfahrung, seinen Erinnerungen, seinem Gesprächsstil und einem Assistenten, der mit ihm eine ganz eigene emotionale Beziehung entwickelt. Das alles unter deiner Kontrolle, ohne Cloud-Abonnement, ohne Daten, die an Dritte weitergegeben werden.
+Stelle dich vor: ein Raspberry Pi im Wohnzimmer, und die ganze Familie profitiert von einem intelligenten KI-Assistenten — jeder mit seiner personalisierten Erfahrung, seinen Erinnerungen, seinem Gesprächsstil und einem Assistenten, der mit ihm eine ganz eigene emotionale Beziehung entwickelt. Die Instanz bleibt unter deiner Kontrolle; verwendete externe Modelle oder Dienste erhalten die Daten, die sie für ihren Teil einer Anfrage benötigen.
 
 ---
 
@@ -414,6 +418,8 @@ Diese Erinnerungen müssen allerdings erst ankommen. Ein Gedächtnis ist nur so 
 
 Und sie bleibt nicht bei dem, was deine Nachricht anspricht: Taucht unterwegs ein Name oder ein Thema auf — der Absender einer E-Mail, ein Ort in einem Dokument —, schlägt sie in ihrem Gedächtnis nach; auch am Telefon findet sie, was deine Frage beantwortet, statt ihrer neuesten Erinnerungen.
 
+Dauerhafte Anweisungen werden **beim Anlegen angeheftet**: Solange sie angeheftet sind, darf die automatische Pflege sie nicht umschreiben. Du kannst sie selbst bearbeiten, lösen oder löschen. Auch eine gelöste Verfahrensanweisung darf automatisch nur mit einem Nachfolger außer Kraft gesetzt werden.
+
 ### 7.2. Die Psyche Engine: eine lebendige Persönlichkeit
 
 Das ist der tiefgreifendste Unterschied von LIA. ChatGPT, Gemini, Claude — alle haben eine feste Persönlichkeit. Jede Nachricht ist ein emotionaler Neuanfang. LIA ist anders.
@@ -487,7 +493,7 @@ LIA bietet produktionsreife Observability:
 | **Langfuse** | Spezialisiertes Tracing von LLM-Aufrufen |
 | **Alertmanager** | E-Mail-Alerts bei vitalen Signalen, verknüpfte Runbooks |
 
-Jede Anfrage wird von Anfang bis Ende nachverfolgt, jeder LLM-Aufruf gemessen, jeder Fehler kontextualisiert. Das ist kein nachträglich hinzugefügtes Monitoring — es ist eine **grundlegende Architekturentscheidung**, die in den Architecture Decision Records des Projekts dokumentiert ist. Und die Messung nennt niemanden: Eine Metrik oder ein Trace bezeichnet die genommene Route nach ihrem Muster, nie den Namen oder die Suche, die eine Adresse enthält — die Regel der Logs, angewandt auf die Instrumente. Der gesamte Überwachungs-Stack läuft auf gepflegten, per Digest fixierten Versionen.
+Jede Anfrage wird von Anfang bis Ende nachverfolgt, jeder LLM-Aufruf gemessen, jeder Fehler kontextualisiert. Das ist kein nachträglich hinzugefügtes Monitoring — es ist eine **grundlegende Architekturentscheidung**, die in den Architecture Decision Records des Projekts dokumentiert ist. HTTP-Metriken und Routenattribute in HTTP-Traces verwenden das Routenmuster ohne Namen oder Suchbegriffe aus einer Adresse. Optionale LLM-Traces können Gesprächskontext speichern und benötigen eigene Zugriffs- und Aufbewahrungskontrollen. Der gesamte Überwachungs-Stack läuft auf gepflegten, per Digest fixierten Versionen.
 
 Dieser Anspruch reicht bis auf die Maschine hinunter. Ein Server besteht aus mehreren Prozessen, und „der Container belegt fünf Gigabyte“ sagt nicht, welcher was hält: jeder Prozess von LIA veröffentlicht deshalb selbst, was er im Speicher hält, ein Dashboard zeichnet es Prozess für Prozess, ein Alarm benennt den, der überläuft — und was ein Prozess lädt, wurde auf der Zielmaschine gemessen, bevor es angefasst wurde, nie angenommen.
 
@@ -529,7 +535,7 @@ LIA verlangt nicht, dass man ihr aufs Wort glaubt. Die Rahmenwerke, denen sie fo
 
 ### 9.1. Was die Regulierung verlangt
 
-**Datenschutz ist eine Entwurfsentscheidung, kein Zertifikat durch Behauptung.** Deine Kontodaten liegen in der Datenbank der LIA-Instanz, die du nutzt; bei Selbsthosting kontrollierst du diesen Server. Du kannst sie exportieren oder ihre Löschung verlangen; Geheimnisse werden bewusst nicht exportiert. Zugangsdaten sind verschlüsselt, Sitzungen isoliert, und die technischen Protokolle des Servers behalten nur Fakten — Zahlen, Codes, Kennungen —, nie deine Worte: Ein Test liest jede Protokollzeile des Codes, um das sicherzustellen, und auch Metriken und Traces nennen niemanden. Ob ein konkreter Betrieb alle Pflichten der DSGVO erfüllt, hängt auch von seiner Konfiguration und den gewählten Anbietern ab.
+**Datenschutz ist eine Entwurfsentscheidung, kein Zertifikat durch Behauptung.** Deine Kontodaten liegen in der Datenbank der LIA-Instanz, die du nutzt; bei Selbsthosting kontrollierst du diesen Server. Du kannst sie exportieren oder ihre Löschung verlangen; Geheimnisse werden bewusst nicht exportiert. Zugangsdaten sind verschlüsselt und Sitzungen isoliert. Die technischen Serverprotokolle bevorzugen Zahlen, Codes und Kennungen; Kontrollen und Tests halten persönliche Inhalte daraus fern. Optionale LLM-Diagnosetraces haben einen anderen Umfang: Sie können Modellkontext und kontobezogene Metadaten speichern, weshalb Zugriff und Aufbewahrung bewusst konfiguriert werden müssen. Ob ein konkreter Betrieb alle Pflichten der DSGVO erfüllt, hängt auch von seiner Konfiguration und den gewählten Anbietern ab.
 
 **LIA führt Aufzeichnungen auch dort, wo das Gesetz sie für diesen persönlichen Anwendungsfall nicht verlangt.** Artikel 12 der EU-KI-Verordnung gilt für Hochrisikosysteme. Aktions-, Lese-, Entscheidungs-, Modellparameter- und Integritätsregister sind eine bewusste Transparenzentscheidung, keine Zertifizierung. Sie sind exportierbar und werden mit dem Konto entfernt, innerhalb der dokumentierten Grenzen ihres Inhalts.
 
@@ -542,7 +548,7 @@ LIA verlangt nicht, dass man ihr aufs Wort glaubt. Die Rahmenwerke, denen sie fo
 | **MCP** (Model Context Protocol) | Externe Werkzeuge anbinden, deine eigenen wie die eines Anbieters, ohne eine Zeile Code |
 | **Agent Plugins** (agent-plugins.org) | Ein portables Paket in einem Schritt installieren — Skills und MCP-Server zusammen — und ebenso sauber wieder entfernen |
 | **agentskills.io** | Expertenfähigkeiten hinzufügen, in natürlicher Sprache geschrieben |
-| **OAuth 2.1 + PKCE** | Deine Google-, Microsoft- oder Apple-Konten verbinden, ohne dass LIA je dein Passwort besitzt |
+| **OAuth 2.1 + PKCE** | Deine Google- oder Microsoft-Konten verbinden, ohne ihr Kontopasswort an LIA weiterzugeben |
 | **WebAuthn / FIDO2** | Mit einem Passkey anmelden, ganz ohne Passwort |
 | **OWASP Top 10** | Das Referenzraster der Web-Schwachstellen, Endpunkt für Endpunkt durchgegangen |
 | **OpenTelemetry** | Eine Observability, die jedes gängige Werkzeug wieder lesen kann |

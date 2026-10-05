@@ -13,7 +13,6 @@ import { BasicsBand } from '@/components/landing/editorial/BasicsBand';
 import { TransparencySection } from '@/components/landing/editorial/TransparencySection';
 import { GallerySection } from '@/components/landing/editorial/GallerySection';
 import { ChapterRail } from '@/components/landing/editorial/ChapterRail';
-import { UseCasesSection } from '@/components/landing/UseCasesSection';
 import { TechSection } from '@/components/landing/TechSection';
 import { BlogPreviewSection } from '@/components/landing/BlogPreviewSection';
 import { ChangelogSection } from '@/components/landing/ChangelogSection';
@@ -151,7 +150,6 @@ export default async function HomePage({ params }: HomePageProps) {
               server names a media directory — nothing of it is in the build. */}
           <LandingVideoSection lng={lng} />
           <PromiseSection lng={lng} />
-          <UseCasesSection lng={lng} />
           <EditorialChapters lng={lng} ghosts />
           <BasicsBand lng={lng} />
           <TransparencySection

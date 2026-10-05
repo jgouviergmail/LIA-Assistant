@@ -3318,7 +3318,10 @@ apps/api/src/domains/voice/
 ├── client.py                  # EdgeTTSClient (free)
 ├── openai_tts_client.py       # OpenAITTSClient (paid)
 ├── elevenlabs_tts_client.py   # ElevenLabsTTSClient (paid, persistent httpx)
-├── voices_catalog.py          # Edge / OpenAI static lists + ElevenLabs live API
+├── gemini_tts_client.py       # GeminiTTSClient (reported token usage)
+├── families.py                # Provider billing units and delivery controls
+├── billing.py                 # Billed synthesis seam
+├── voices_catalog.py          # Curated lists + ElevenLabs live API
 ├── protocol.py                # TTSClient runtime protocol
 ├── schemas.py                 # VoiceAudioChunk + AUDIO_MIME_TYPES
 └── stt/
@@ -3331,9 +3334,13 @@ apps/api/src/domains/voice/
 
 TTS provider/model/voice/tuning is admin-driven through Configuration LLM
 (LLM type `voice_tts`) — settings live on `llm_config_overrides.voice_tts`
-(`provider_config` JSONB). Three providers seeded: Edge (free), OpenAI
-`tts-1` / `tts-1-hd`, ElevenLabs `eleven_multilingual_v2` /
-`eleven_turbo_v2_5` / `eleven_flash_v2_5`. STT mode is per-user
+(`provider_config` JSONB). Provider families are declared in
+`domains/voice/families.py`: Edge is free, OpenAI and ElevenLabs bill characters,
+and Gemini bills reported tokens. A caller must declare token accounting to use
+Gemini; Radio does, while voice comments use character-billed/free clients.
+The factory rejects an unservable configuration for strict callers and otherwise
+falls back to Edge. The runtime catalogue owns available models and prices.
+STT mode is per-user
 (`users.voice_stt_mode`: `local` for Sherpa-onnx, `remote` for ElevenLabs
 Scribe).
 
@@ -3351,6 +3358,24 @@ VOICE_CHAT_MODE_MAX_SENTENCES=3   # 1..50 cap on sentence streaming
 ```
 
 > Voir [VOICE.md](./technical/VOICE.md) (TTS) et [VOICE_MODE.md](./technical/VOICE_MODE.md) (STT/wake word). ADRs : [ADR-080](./architecture/ADR-080-Voice-STT-Remote-Pricing-Unit.md), [ADR-081](./architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](./architecture/ADR-082-Progressive-Sentence-Streaming.md).
+
+### Personal speaking avatar
+
+The authenticated dashboard owns one optional Simli engine and floating window.
+`AvatarSettings` supplies a deployment ceiling, disabled by default, and finite
+session/admission bounds; the person separately connects their own key and opts
+in. The `avatars` domain owns preferences, temporary session credentials and
+protected leases. It introduces no agent, tool, LangGraph state, prompt or TTS
+request, and requires no new Compose service or runtime dependency.
+
+The browser's shared voice-output port consumes existing comments or Live audio
+and chooses one audible destination per production. A muted video element presents
+the avatar while a gesture-resumed Web Audio context plays remote sound. Live
+standby closes the avatar, wake requests a fresh connection, and failure after a
+potentially heard prefix never replays it locally. Radio remains outside this
+integration. [SPEAKING_AVATAR.md](technical/SPEAKING_AVATAR.md) documents the
+resource and personal-credit boundaries. [ADR-334](architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md)
+is Proposed pending real provider and physical Android/iOS media trials.
 
 ### Interest Learning System
 

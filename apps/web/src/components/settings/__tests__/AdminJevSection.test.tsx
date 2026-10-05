@@ -29,6 +29,36 @@ beforeEach(() => {
 });
 
 describe('Jev administration', () => {
+  it.each(['memory_reference_presence', 'hitl_rejection'] as const)(
+    'shows %s off while preserving existing preferences and toggles it alone',
+    async usage => {
+      const memoryLabel = `settings.admin.jev.usages.${usage}`;
+      const initial = settings({ enabled: true });
+      initial.usages.push({
+        usage,
+        label_key: memoryLabel,
+        llm_type: `jev_${usage}`,
+        enabled: false,
+        effective: false,
+        readiness: 'ready',
+      });
+      const saved = structuredClone(initial);
+      saved.usages[1].enabled = true;
+      saved.usages[1].effective = true;
+      vi.spyOn(apiClient, 'get').mockResolvedValue(initial);
+      const save = vi.spyOn(apiClient, 'patch').mockResolvedValue(saved);
+      const { user } = renderWithProviders(<AdminJevSection lng="en" />);
+      const control = await screen.findByRole('switch', { name: memoryLabel });
+      expect(control).not.toBeChecked();
+      expect(screen.getByRole('switch', { name: localLabel })).toBeChecked();
+      expect(screen.getByRole('switch', { name: globalLabel })).toBeChecked();
+      await user.click(control);
+      await waitFor(() => expect(control).toBeChecked());
+      expect(save).toHaveBeenCalledWith(endpoint, { usage, enabled: true }, undefined);
+      expect(screen.getByRole('switch', { name: localLabel })).toBeChecked();
+    }
+  );
+
   it('recovers from an initial failed read without guessing a switch state', async () => {
     const get = vi
       .spyOn(apiClient, 'get')

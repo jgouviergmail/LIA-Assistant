@@ -14,10 +14,7 @@ Key design decisions:
 
 from __future__ import annotations
 
-import uuid
 from contextlib import suppress
-from datetime import UTC, datetime
-from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -37,6 +34,10 @@ from src.domains.agents.services.jev_extraction_observer import (
     start_extraction_observation,
 )
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
+from src.domains.journals.billing import (
+    _persist_journal_tokens,
+    _update_user_last_cost,
+)
 from src.domains.journals.constants import (
     JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
     JOURNAL_EXTRACTION_CONTEXT_MESSAGES,
@@ -64,11 +65,16 @@ from src.domains.shared.extraction_targets import (
 from src.domains.shared.provenance_capture import record_origin
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
-from src.infrastructure.llm.usage_metadata import tokens_from_response, tokens_from_usage_metadata
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.usage_metadata import (
+    model_name_of,
+    model_name_of_response,
+)
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import (
     journal_extraction_duration_seconds,
 )
+from src.infrastructure.proactive.tracking import settle_known_billing
 
 logger = get_logger(__name__)
 
@@ -445,157 +451,6 @@ def _parse_journal_extraction_result(result_text: str) -> list[ExtractedJournalE
 
 
 # =============================================================================
-# Token Persistence (same pattern as _persist_memory_tokens)
-# =============================================================================
-
-
-async def _persist_journal_tokens(
-    user_id: str,
-    session_id: str,
-    conversation_id: str | None,
-    result: AIMessage,
-    model_name: str,
-    parent_run_id: str | None = None,
-    node_name: str = "journal_extraction",
-    duration_ms: float = 0.0,
-) -> None:
-    """Persist token usage from journal LLM call to database.
-
-    Uses TrackingContext for real cost calculation and dashboard integration.
-    Same pattern as memory_extractor._persist_memory_tokens().
-
-    Args:
-        user_id: User ID for statistics
-        session_id: Session/thread ID
-        conversation_id: Conversation UUID (optional)
-        result: AIMessage with usage_metadata
-        model_name: LLM model used
-        parent_run_id: UPSERT into parent message's summary if provided
-        node_name: Node name for cost attribution
-    """
-    from src.domains.chat.service import TrackingContext
-
-    try:
-        usage_metadata = getattr(result, "usage_metadata", None)
-        if not usage_metadata:
-            return
-
-        usage = tokens_from_usage_metadata(usage_metadata)
-        input_tokens, output_tokens = usage.prompt, usage.completion
-        if usage.is_empty:
-            return
-
-        run_id = parent_run_id or f"journal_{uuid.uuid4().hex[:12]}"
-
-        conv_uuid: UUID | None = None
-        if conversation_id:
-            try:
-                conv_uuid = UUID(conversation_id)
-            except ValueError:
-                logger.debug(
-                    "journal_invalid_conversation_id",
-                    conversation_id=conversation_id,
-                )
-
-        async with TrackingContext(
-            run_id=run_id,
-            user_id=UUID(user_id),
-            session_id=session_id,
-            conversation_id=conv_uuid,
-            auto_commit=False,
-        ) as tracker:
-            await tracker.record_node_tokens(
-                node_name=node_name,
-                model_name=model_name,
-                prompt_tokens=input_tokens,
-                completion_tokens=output_tokens,
-                cached_tokens=usage.cached,
-                cache_write_tokens=usage.cache_write,
-                duration_ms=duration_ms,
-            )
-            await tracker.commit()
-
-        logger.info(
-            "journal_tokens_persisted",
-            user_id=user_id,
-            node_name=node_name,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            model_name=model_name,
-        )
-
-    except Exception as e:
-        logger.error(
-            "journal_tokens_persistence_failed",
-            user_id=user_id,
-            error=str(e),
-            exc_info=True,
-        )
-
-
-# =============================================================================
-# User Cost Update
-# =============================================================================
-
-
-async def _update_user_last_cost(
-    user_id: str,
-    result: AIMessage,
-    model_name: str,
-    source: str = "extraction",
-) -> None:
-    """Update user's journal_last_cost_* fields for Settings UI display.
-
-    Args:
-        user_id: User ID
-        result: AIMessage with usage_metadata
-        model_name: LLM model used
-        source: 'extraction' or 'consolidation'
-    """
-    from src.infrastructure.database import get_db_context
-
-    try:
-        if not getattr(result, "usage_metadata", None):
-            return
-        # ONE reader for every provider's spelling (ADR-272 corollary): cached
-        # tokens used to be priced at zero here — and at full input rate.
-        tokens = tokens_from_response(result)
-
-        # Calculate real cost
-        from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
-
-        _, cost_eur = get_cached_cost_usd_eur(
-            model=model_name,
-            prompt_tokens=tokens.prompt,
-            completion_tokens=tokens.completion,
-            cached_tokens=tokens.cached,
-            cache_write_tokens=tokens.cache_write,
-        )
-
-        from src.domains.users.models import User
-
-        async with get_db_context() as db:
-            from sqlalchemy import select
-
-            result_user = await db.execute(select(User).where(User.id == UUID(user_id)))
-            user = result_user.scalar_one_or_none()
-            if user:
-                user.journal_last_cost_tokens_in = tokens.prompt + tokens.cached  # what was sent
-                user.journal_last_cost_tokens_out = tokens.completion
-                user.journal_last_cost_eur = Decimal(str(cost_eur))
-                user.journal_last_cost_at = datetime.now(UTC)
-                user.journal_last_cost_source = source
-                await db.commit()
-
-    except Exception as e:
-        logger.warning(
-            "journal_user_cost_update_failed",
-            user_id=user_id,
-            error=str(e),
-        )
-
-
-# =============================================================================
 # Main Extraction Function
 # =============================================================================
 
@@ -805,8 +660,15 @@ async def extract_journal_entry_background(
         # Call LLM
         import time as _time
 
+        requested_model = get_llm_config_for_agent(settings, "journal_extraction").model
         llm = get_llm("journal_extraction")
+        configured_model = model_name_of(llm) or requested_model
         _llm_start = _time.time()
+        from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
+
+        pricing_snapshot = capture_pricing_snapshot()
+        capture = TokenCaptureHandler(configured_model)
+        result = None
         observation = start_extraction_observation(prompt)
         try:
             result = await invoke_with_instrumentation(
@@ -817,6 +679,7 @@ async def extract_journal_entry_background(
                 messages=single_call_messages(prompt),
                 session_id=session_id,
                 user_id=user_id,
+                config={"callbacks": [capture]},
             )
         except Exception:
             with suppress(Exception):
@@ -824,6 +687,27 @@ async def extract_journal_entry_background(
                     _time.time() - _llm_start
                 )
             raise
+        finally:
+            model_name = model_name_of_response(result) or configured_model
+            if result is not None:
+                capture.ensure_response_record(
+                    result, model_name=model_name, started_at=_llm_start, snapshot=pricing_snapshot
+                )
+            await settle_known_billing(
+                _persist_journal_tokens(
+                    user_id=user_id,
+                    session_id=session_id,
+                    conversation_id=conversation_id,
+                    result=result,
+                    model_name=model_name,
+                    parent_run_id=parent_run_id,
+                    duration_ms=(_time.time() - _llm_start) * 1000,
+                    started_at=_llm_start,
+                    requested_model=requested_model,
+                    capture=capture,
+                    failed=result is None,
+                )
+            )
         _llm_duration_ms = (_time.time() - _llm_start) * 1000
         observation.set_output(result.text)
         with suppress(Exception):
@@ -832,20 +716,10 @@ async def extract_journal_entry_background(
             )
         result_content = result.text
 
-        # Persist token usage (use effective config, not defaults — admin overrides matter)
-        model_name = get_llm_config_for_agent(settings, "journal_extraction").model
-        await _persist_journal_tokens(
-            user_id=user_id,
-            session_id=session_id,
-            conversation_id=conversation_id,
-            result=result,
-            model_name=model_name,
-            parent_run_id=parent_run_id,
-            duration_ms=_llm_duration_ms,
-        )
-
         # Update user's last cost for Settings UI
-        await _update_user_last_cost(user_id, result, model_name, source="extraction")
+        await _update_user_last_cost(
+            user_id, result, model_name, source="extraction", started_at=_llm_start, capture=capture
+        )
 
         # Parse result
         actions = _parse_journal_extraction_result(result_content)

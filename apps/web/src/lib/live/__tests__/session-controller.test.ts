@@ -311,6 +311,14 @@ class FakeWakeListener implements LiveWakeListener {
 }
 
 describe('LiveSessionController', () => {
+  it('declares activation before audio warmup and prevents another start during the pending mint', async () => {
+    const h = build(); let complete = () => {};
+    h.player.warmup.mockImplementationOnce(() => new Promise<void>(resolve => { complete = resolve; }));
+    const starting = h.controller.start('direct');
+    expect(useLiveStore.getState()).toMatchObject({ status: 'minting', sessionId: null, mode: 'direct' });
+    await h.controller.start(); expect(h.player.warmup).toHaveBeenCalledOnce();
+    complete(); await starting; await h.controller.end();
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     useLiveStore.getState().reset();
@@ -1423,6 +1431,8 @@ describe('LiveSessionController', () => {
       h.transport.events.onResumption?.('h1', true);
       await h.controller.standby();
       await h.controller.wake();
+      const wakePost = h.post.mock.calls.findIndex(([url]) => url.endsWith('/wake'));
+      expect(h.player.warmup.mock.invocationCallOrder[1]).toBeLessThan(h.post.mock.invocationCallOrder[wakePost]);
       expect(h.wakeWord()?.pauses).toBe(1);
       expect(h.post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/wake`, { reason: 'manual' });
       expect(h.deps.startMic).toHaveBeenCalledTimes(2);
@@ -1542,5 +1552,39 @@ describe('LiveSessionController', () => {
       await vi.advanceTimersByTimeAsync(1_000);
       expect(useLiveStore.getState()).toMatchObject({ status: 'ended', outcome: 'budget_reached' });
     });
+  });
+});
+
+describe('the speaking avatar precedes the voice', () => {
+  const flush = async () => {
+    for (let n = 0; n < 40; n++) await Promise.resolve();
+  };
+  it('connects the provider only once the avatar wait settles, and not at all for an ended session', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const h = build({ awaitAvatar: () => gate });
+    const starting = h.controller.start();
+    await flush();
+    expect(h.player.warmup).toHaveBeenCalledOnce();
+    expect(h.transport.connects).toHaveLength(0);
+    release();
+    await starting;
+    expect(h.transport.connects).toHaveLength(1);
+    expect(useLiveStore.getState().status).toBe('live');
+    await h.controller.end('ended');
+
+    let releaseEnded: () => void = () => {};
+    const ended = new Promise<void>(resolve => {
+      releaseEnded = resolve;
+    });
+    const g = build({ awaitAvatar: () => ended });
+    const startingEnded = g.controller.start();
+    await flush();
+    await g.controller.end('ended');
+    releaseEnded();
+    await startingEnded;
+    expect(g.transport.connects).toHaveLength(0);
   });
 });

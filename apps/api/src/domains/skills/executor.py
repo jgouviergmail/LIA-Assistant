@@ -8,9 +8,9 @@ Two modes, selected by ``SKILLS_SCRIPT_SANDBOX``:
 
 **container** (default, SEC-001) — one throwaway sibling container per run:
 no Docker socket, ``--network none``, read-only rootfs + a small tmpfs,
-uid 65534, all capabilities dropped, memory/pids/CPU/fsize bounded. The
-script SOURCE is passed inline (``python -c``) so nothing from the API
-filesystem is mounted and stdin stays free for the JSON payload. An
+uid 65534, all capabilities dropped, memory/pids/CPU/fsize bounded. A fixed
+Python launcher receives the script SOURCE as an argument, so nothing from the
+API filesystem is mounted and stdin stays free for the JSON payload. An
 unreachable daemon fails the execution — never a silent downgrade.
 
 **subprocess** (legacy) — in-process execution, kept for environments with
@@ -61,6 +61,18 @@ if TYPE_CHECKING:
     from src.core.config import Settings
 
 logger = get_logger(__name__)
+
+# Docker's startup exit codes overlap with valid Python sys.exit values. A
+# fixed launcher acknowledges dispatch before compiling the untrusted source;
+# the source cannot undo bytes already written to the parent's stderr pipe.
+_SCRIPT_STARTED_MARKER = "__LIA_SANDBOX_SCRIPT_STARTED__\n"
+_SCRIPT_LAUNCHER = (
+    "import os, sys\n"
+    "source = sys.argv.pop()\n"
+    f"os.write(2, {_SCRIPT_STARTED_MARKER.encode('ascii')!r})\n"
+    "exec(compile(source, '<string>', 'exec'))\n"
+)
+_DOCKER_STARTUP_EXIT_CODES = frozenset({SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE, 126, 127})
 
 
 def _build_rlimit_preexec(
@@ -165,6 +177,9 @@ class ScriptResult(BaseModel):
     error: str | None = None
     exit_code: int = 0
     execution_time_ms: int = 0
+    # Preflight and known Docker startup refusals cost no script run. Once
+    # dispatched, a timeout is charged conservatively like a running script.
+    execution_started: bool = False
 
 
 def isolation_flags(
@@ -380,6 +395,7 @@ class SkillScriptExecutor:
             "python",
             settings.skills_script_sandbox_image,
             "-c",
+            _SCRIPT_LAUNCHER,
             source,
         ]
 
@@ -554,6 +570,7 @@ class SkillScriptExecutor:
                 error=f"Timeout after {timeout}s",
                 exit_code=-1,
                 execution_time_ms=elapsed_ms,
+                execution_started=True,
             )
         except FileNotFoundError:
             # No Docker client reachable. Refuse rather than fall back to the
@@ -569,19 +586,43 @@ class SkillScriptExecutor:
                 output="",
                 error="Script sandbox unavailable",
             )
+        except Exception as exc:
+            # Dispatch happened, but its output may be undecodable or otherwise
+            # unavailable. Charge conservatively: a script must not bypass its
+            # budget by making result collection fail.
+            logger.error(
+                "skill_script_result_unavailable",
+                skill_name=skill_name,
+                script=script_name,
+                error_type=type(exc).__name__,
+                user_id=user_id,
+            )
+            return ScriptResult(
+                success=False,
+                output="",
+                error="Script execution result unavailable",
+                exit_code=-1,
+                execution_started=True,
+            )
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
         output = result.stdout[:max_output] if result.stdout else ""
+        stderr = result.stderr or ""
+        execution_started = _SCRIPT_STARTED_MARKER in stderr
+        if execution_started:
+            # Drop Docker's possible pull preamble as well as the handshake;
+            # neither is the script's stderr or data for the model.
+            stderr = stderr.partition(_SCRIPT_STARTED_MARKER)[2]
 
-        if result.returncode == SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE:
-            # 125 is the daemon/CLI refusing to start the container (missing
-            # image, bad flag, daemon down) — not a script failure. Surfacing
-            # its stderr would hand the LLM our image names and daemon state.
+        if result.returncode in _DOCKER_STARTUP_EXIT_CODES and not execution_started:
+            # No acknowledgement: Docker or the entrypoint refused to start.
+            # A script that exits with the SAME code already acknowledged its
+            # dispatch and must consume a run like every other script failure.
             logger.error(
                 "skill_script_sandbox_unavailable",
                 skill_name=skill_name,
                 script=script_name,
-                stderr_length=len(result.stderr or ""),
+                stderr_length=len(stderr),
                 user_id=user_id,
             )
             return ScriptResult(
@@ -598,7 +639,7 @@ class SkillScriptExecutor:
                 skill_name=skill_name,
                 script=script_name,
                 exit_code=result.returncode,
-                stderr_length=len(result.stderr or ""),
+                stderr_length=len(stderr),
                 stdout_length=len(result.stdout or ""),
                 user_id=user_id,
                 sandbox="container",
@@ -606,9 +647,10 @@ class SkillScriptExecutor:
             return ScriptResult(
                 success=False,
                 output=output,
-                error=result.stderr[:1000] if result.stderr else "Script failed",
+                error=stderr[:1000] if stderr else "Script failed",
                 exit_code=result.returncode,
                 execution_time_ms=elapsed_ms,
+                execution_started=True,
             )
 
         logger.info(
@@ -620,7 +662,9 @@ class SkillScriptExecutor:
             elapsed_ms=elapsed_ms,
             sandbox="container",
         )
-        return ScriptResult(success=True, output=output, execution_time_ms=elapsed_ms)
+        return ScriptResult(
+            success=True, output=output, execution_time_ms=elapsed_ms, execution_started=True
+        )
 
     @classmethod
     async def execute_source(
@@ -833,6 +877,7 @@ class SkillScriptExecutor:
         )
 
         start_time = time.monotonic()
+        execution_dispatched = False
 
         try:
             with tempfile.TemporaryDirectory(prefix="skill_") as tmp_dir:
@@ -846,6 +891,7 @@ class SkillScriptExecutor:
                 if drop_uid is not None:
                     os.chown(tmp_dir, drop_uid, -1)
                     os.chmod(tmp_dir, 0o700)
+                execution_dispatched = True
                 result = await asyncio.to_thread(
                     subprocess.run,
                     cmd,
@@ -877,6 +923,7 @@ class SkillScriptExecutor:
                     error=result.stderr[:1000] if result.stderr else "Script failed",
                     exit_code=result.returncode,
                     execution_time_ms=elapsed_ms,
+                    execution_started=True,
                 )
 
             logger.info(
@@ -887,7 +934,9 @@ class SkillScriptExecutor:
                 output_length=len(output),
                 elapsed_ms=elapsed_ms,
             )
-            return ScriptResult(success=True, output=output, execution_time_ms=elapsed_ms)
+            return ScriptResult(
+                success=True, output=output, execution_time_ms=elapsed_ms, execution_started=True
+            )
 
         except subprocess.TimeoutExpired:
             elapsed_ms = int((time.monotonic() - start_time) * 1000)
@@ -897,7 +946,14 @@ class SkillScriptExecutor:
                 error=f"Timeout after {timeout}s",
                 exit_code=-1,
                 execution_time_ms=elapsed_ms,
+                execution_started=True,
             )
         except Exception as exc:
             logger.error("skill_script_error", skill_name=skill_name, error=str(exc))
-            return ScriptResult(success=False, output="", error=str(exc), exit_code=-1)
+            return ScriptResult(
+                success=False,
+                output="",
+                error=str(exc),
+                exit_code=-1,
+                execution_started=execution_dispatched,
+            )

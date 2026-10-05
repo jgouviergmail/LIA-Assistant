@@ -80,7 +80,9 @@ def test_completion_values_carry_every_derived_fact_and_encrypt_the_transcript(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(processing, "encrypt_data", lambda text: f"enc:{text}")
-    monkeypatch.setattr(processing, "get_cached_cost_usd_eur", lambda **kwargs: (0.0023, 0.0021))
+    monkeypatch.setattr(
+        "src.domains.meetings.costs.get_cached_cost_usd_eur", lambda **kwargs: (0.0023, 0.0021)
+    )
     monkeypatch.setattr(processing.settings, "rag_spaces_enabled", True)
     turns = [TranscriptTurn(speaker="S1", start=0, end=1, text="Bonjour")]
     outcome = TranscriptionOutcome(
@@ -208,7 +210,7 @@ class TestSynthesisCost:
             seen.update(kwargs)
             return (0.011, 0.0094)
 
-        monkeypatch.setattr(processing, "get_cached_cost_usd_eur", _cost)
+        monkeypatch.setattr("src.domains.meetings.costs.get_cached_cost_usd_eur", _cost)
         usage = SynthesisUsage(1200, 300, 100, "gpt-4.1", tokens_cache_write=800)
         assert processing.synthesis_cost_eur(usage) == 0.0094
         assert seen == {
@@ -220,11 +222,15 @@ class TestSynthesisCost:
         }
 
     def test_an_unpriced_model_gives_none_not_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(processing, "get_cached_cost_usd_eur", lambda **kwargs: (0.0, 0.0))
+        monkeypatch.setattr(
+            "src.domains.meetings.costs.get_cached_cost_usd_eur", lambda **kwargs: (0.0, 0.0)
+        )
         assert processing.synthesis_cost_eur(SynthesisUsage(10, 5, 0, "unknown-model")) is None
 
     def test_a_pass_without_tokens_is_an_exact_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(processing, "get_cached_cost_usd_eur", lambda **kwargs: (0.0, 0.0))
+        monkeypatch.setattr(
+            "src.domains.meetings.costs.get_cached_cost_usd_eur", lambda **kwargs: (0.0, 0.0)
+        )
         assert processing.synthesis_cost_eur(SynthesisUsage(0, 0, 0, "gpt-4.1")) == 0.0
 
 

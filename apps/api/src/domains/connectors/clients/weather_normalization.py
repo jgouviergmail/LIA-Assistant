@@ -110,22 +110,75 @@ def _average(values: list[float], digits: int) -> float | None:
 
 def _day_summary(date: str, entries: list[dict[str, object]]) -> dict[str, object]:
     temps = _samples(entries, "main", "temp")
-    weather_blocks = [entry.get("weather") for entry in entries]
-    descriptions = [
-        text
-        for block in weather_blocks
-        if isinstance(block, list)
-        for value in block
-        if isinstance(value, dict) and isinstance(text := value.get("description"), str) and text
-    ]
     return {
         "date": date,
         "temp_min": round(min(temps), 1) if temps else None,
         "temp_max": round(max(temps), 1) if temps else None,
         "temp_avg": _average(temps, 1),
-        "condition": Counter(descriptions).most_common(1)[0][0] if descriptions else "",
+        **_daily_condition(entries),
         "humidity_avg": _average(_samples(entries, "main", "humidity"), 0),
         "wind_speed_avg": _average(_samples(entries, "wind", "speed"), 1),
+    }
+
+
+def _primary_conditions(entries: list[dict[str, object]]) -> list[dict[str, object]]:
+    """OWM's first weather object is the primary condition for each slot."""
+    conditions: list[dict[str, object]] = []
+    for entry in entries:
+        block = entry.get("weather")
+        if isinstance(block, list) and block and isinstance(block[0], dict):
+            conditions.append(block[0])
+    return conditions
+
+
+def _condition_text(condition: dict[str, object], field: str) -> str:
+    value = condition.get(field)
+    return value if isinstance(value, str) else ""
+
+
+def _most_common(values: list[str]) -> str:
+    supplied = [value for value in values if value]
+    return Counter(supplied).most_common(1)[0][0] if supplied else ""
+
+
+def _daily_icon(icons: list[str]) -> str:
+    """Select the dominant icon family, keeping any supplied daylight variant."""
+    # Day/night variants of the same condition count together. A full-day
+    # summary prefers a supplied daytime glyph; a remaining nighttime-only
+    # forecast retains the provider's actual night observation.
+    family = _most_common([code[:2] for code in icons])
+    codes = [code for code in icons if code and code[:2] == family]
+    return next((code for code in codes if code.endswith("d")), codes[0] if codes else "")
+
+
+def _daily_condition(entries: list[dict[str, object]]) -> dict[str, object]:
+    """Represent the available daytime hours, keeping condition and glyph paired."""
+    conditions = _primary_conditions(entries)
+    # A daily card describes daytime weather. Google may call CLEAR "Sunny"
+    # by day and "Clear" at night, so selecting the most frequent description
+    # first can discard every daylight observation. Both providers' normalized
+    # icon suffix already carries their actual sunrise/sunset classification.
+    # If the remaining forecast contains only night, retain that observation.
+    daytime = [
+        condition for condition in conditions if _condition_text(condition, "icon").endswith("d")
+    ]
+    conditions = daytime or conditions
+    description = _most_common(
+        [_condition_text(condition, "description") for condition in conditions]
+    )
+    matching = [
+        condition
+        for condition in conditions
+        if _condition_text(condition, "description") == description
+    ]
+    selected = _daily_icon([_condition_text(condition, "icon") for condition in matching])
+    representative = next(
+        (condition for condition in matching if condition.get("icon") == selected), {}
+    )
+    return {
+        "condition": description,
+        "icon": selected,
+        "weather_main": representative.get("main", ""),
     }
 
 

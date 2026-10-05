@@ -20,6 +20,7 @@ vi.mock('@/lib/audio-queue', () => ({
     setOnPlaybackComplete() {}
     setOnError() {}
     setOnStateChange() {}
+    setDecodedOutput() {}
     enqueue = queue.enqueue;
     dispose() {}
     stop() {}

@@ -200,16 +200,11 @@ class HitlResponseClassifier:
     async def classify(
         self, user_response: str, action_context: list[dict], tracker: Any | None = None
     ) -> ClassificationResult:
-        """Classify user response using full LLM classification.
+        """Classify the complete reply against the proposed actions.
 
-        DESIGN DECISION: Full LLM (no fast-path regex) to handle nuanced responses.
-
-        Rationale:
-        - Fast-path regex can miss context: "non recherche plutot jean" → REJECT instead of EDIT
-        - gpt-4.1-mini-mini is fast (~200-300ms) and cheap (~$0.000015/call)
-        - LLM understands full context: negation + correction, approval + modification, etc.
-
-        Trade-off: +200ms latency vs. avoiding false negatives on EDIT patterns.
+        An optional native decision can recognize a total unconditional withdrawal.
+        Every other reply retains the generative classifier: a negation followed
+        by a correction must not become a rejection through a keyword shortcut.
 
         Args:
             user_response: Natural language response from user.
@@ -231,7 +226,20 @@ class HitlResponseClassifier:
 
         classification_start = time.time()
 
-        # Full LLM classification for all responses (no fast-path)
+        # Optional semantic shortcut has only one authority: total withdrawal.
+        from src.domains.agents.services.hitl.jev_rejection import try_reject_all
+
+        rejection = await try_reject_all(user_response, action_context)
+        if rejection is not None:
+            hitl_classification_method_total.labels(method="jev", decision="REJECT").inc()
+            hitl_classification_duration_seconds.labels(method="jev").observe(
+                time.time() - classification_start
+            )
+            return ClassificationResult(
+                decision="REJECT", confidence=rejection.confidence, reasoning=""
+            )
+
+        # Every other reply retains the full classifier and its parameter parsing.
         prompt = self._build_prompt(user_response, action_context)
 
         try:

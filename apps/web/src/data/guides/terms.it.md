@@ -104,19 +104,19 @@ I contributi al codice sorgente (pull request, segnalazioni) sono benvenuti e so
 
 Il Gestore si impegna a proteggere i dati personali dell'Utente in conformità al Regolamento generale sulla protezione dei dati (GDPR) e alla normativa francese applicabile in materia di protezione dei dati (Loi Informatique et Libertés).
 
-**Dati raccolti**: indirizzo email, nome utente, preferenze linguistiche, cronologia delle conversazioni, dati di connessione (token OAuth cifrati) per i servizi terzi (Google, Apple, Microsoft) e dati di utilizzo (log di attività, metriche di prestazione).
+**Dati raccolti**: indirizzo email, nome utente, preferenze linguistiche, cronologia delle conversazioni, credenziali cifrate dei servizi terzi (token OAuth o password specifiche per applicazione) e dati di utilizzo (log di attività, metriche di prestazione). Le funzioni facoltative possono anche trattare posizione, voce, documenti o misurazioni di salute quando l'Utente sceglie di usarle, come descritto nell'Informativa sulla privacy.
 
 **Finalità del trattamento**: erogazione del Servizio, miglioramento dell'esperienza d'uso, sicurezza e prevenzione degli abusi, analisi statistica anonimizzata.
 
 **Base giuridica**: il trattamento si fonda sul consenso dell'Utente (art. 6.1.a GDPR) e sull'esecuzione del contratto (art. 6.1.b GDPR).
 
-**Hosting e archiviazione**: i dati sono ospitati su server situati in Francia e/o nell'Unione europea. I token di accesso ai servizi terzi sono cifrati a riposo (AES-256). Le conversazioni possono essere trattate da fornitori di LLM situati fuori dall'UE (OpenAI, Anthropic, Google, DeepSeek); in tal caso i trasferimenti sono assistiti da garanzie adeguate (clausole contrattuali tipo, decisioni di adeguatezza).
+**Hosting e archiviazione**: i dati sono ospitati su server situati in Francia e/o nell'Unione europea. Le credenziali dei connettori e le chiavi dei fornitori archiviate sono cifrate con [Fernet](https://cryptography.io/en/latest/fernet/) (AES-128-CBC con autenticazione HMAC-SHA256). Questa protezione copre quei segreti; le conversazioni non sono cifrate da un'estremità all'altra e i backup richiedono una protezione propria. I dati necessari a una richiesta possono essere trattati da fornitori fuori dall'UE, secondo i servizi e la configurazione scelti. Il Gestore deve valutare le regole di trasferimento applicabili e assicurare le garanzie richieste, come clausole contrattuali tipo o una decisione di adeguatezza applicabile.
 
-**Periodo di conservazione**: i dati sono conservati per tutta la durata dell'account ed eliminati entro 30 giorni dalla sua cancellazione da parte dell'Utente.
+**Periodo di conservazione**: la cancellazione da parte dell'amministratore rimuove i contenuti personali, ma conserva la riga dell'account, con nome ed email, e i dati di fatturazione. Il successivo passaggio di cancellazione definitiva rimuove la riga dell'account. Audit, diagnosi e backup seguono procedure proprie di conservazione e cancellazione.
 
-**Diritti dell'Utente**: ai sensi del GDPR, l'Utente dispone dei diritti di accesso, rettifica, cancellazione, portabilità, limitazione del trattamento e opposizione. Tali diritti possono essere esercitati via email all'indirizzo indicato nell'applicazione o direttamente dalle impostazioni dell'account. L'Utente ha inoltre il diritto di proporre reclamo alla CNIL, l'autorità francese per la protezione dei dati.
+**Diritti dell'Utente**: ai sensi del GDPR, l'Utente ha diritti di accesso, rettifica, cancellazione, portabilità, limitazione e opposizione. Le richieste possono essere inviate al contatto indicato nell'applicazione o all'amministratore dell'istanza; le impostazioni offrono i controlli disponibili in autonomia, inclusa l'esportazione. L'Utente può inoltre presentare un reclamo alla CNIL, l'autorità francese di protezione dei dati.
 
-**Tracciabilità degli LLM**: il Servizio utilizza Langfuse per il tracciamento delle chiamate agli LLM, a fini di debug e miglioramento del servizio. Tali tracce non contengono dati identificativi personali e sono conservate per una durata limitata.
+**Tracciabilità degli LLM**: quando attivo, Langfuse registra le chiamate agli LLM per diagnosi e miglioramento del Servizio. Questi dati diagnostici possono contenere input e output dei modelli e metadati collegati all'account; il filtraggio dei log tecnici non li anonimizza automaticamente. Il Gestore deve configurarne accesso, hosting e conservazione.
 
 Per ulteriori dettagli, si rimanda alla nostra Informativa sulla privacy.
 
@@ -144,7 +144,7 @@ Poiché il Servizio è gratuito durante la fase beta, la responsabilità del Ges
 
 ## 10. Risoluzione e sospensione
 
-L'Utente può eliminare il proprio account in qualsiasi momento dalle impostazioni dell'applicazione. L'eliminazione comporta la cancellazione di tutti i suoi dati personali entro 30 giorni, fatti salvi eventuali obblighi legali di conservazione.
+L'Utente può chiedere la cancellazione dell'account all'amministratore in qualsiasi momento. Questa rimuove i contenuti personali, ma conserva nome, email e dati di fatturazione; il successivo passaggio di cancellazione definitiva rimuove la riga dell'account. Audit, diagnosi separate, backup e dati detenuti dai fornitori seguono le procedure descritte nell'Informativa sulla privacy.
 
 Il Gestore si riserva il diritto di sospendere o eliminare un account utente nei seguenti casi:
 

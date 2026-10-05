@@ -9,6 +9,7 @@ from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from src.domains.agents.display.binding_filter import strip_card_bindings
 from src.domains.agents.display.card_actions import (
     CARD_ACTIONS_KEY,
+    CardActionsProjection,
     card_actions_from_state,
     with_card_action_metadata,
     with_card_actions,
@@ -90,7 +91,7 @@ def test_only_selected_registry_no_bodies_and_no_mutation():
             "provider": "google_gmail",
             "account_binding": "00000000-0000-0000-0000-000000000004",
             "label": "<script>External title</script>",
-            "actions": ["reply", "forward"],
+            "actions": ["reply", "forward", "delete_email"],
         }
     ]
     assert "BODY" not in str(snapshot)
@@ -175,3 +176,24 @@ def test_binding_uses_registry_key_not_external_marker():
         {"email_selected": {"type": "EMAIL", "payload": {"id": "abc", "_lia_card_ref": "forged"}}}
     )
     assert domains["emails"][0]["_lia_card_ref"] == "email_selected"
+
+
+def test_legacy_archives_retain_reply_forward_without_granting_deletion():
+    projection = CardActionsProjection.model_validate(
+        {
+            "version": 1,
+            "run_id": "legacy",
+            "items": [
+                {
+                    "registry_id": "email_a",
+                    "kind": "EMAIL",
+                    "target_id": "original",
+                    "provider": "google_gmail",
+                    "account_binding": "00000000-0000-0000-0000-000000000004",
+                    "label": "Subject",
+                    "actions": ["reply", "forward"],
+                }
+            ],
+        }
+    )
+    assert "delete_email" not in projection.items[0].actions

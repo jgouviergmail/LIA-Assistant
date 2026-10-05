@@ -9,6 +9,7 @@ that fills them has no business owning their shape.
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, NamedTuple
 
@@ -61,6 +62,8 @@ class TokenUsageRecord(NamedTuple):
     # when a provider resolves an alias or answers under a dated snapshot.
     # Shown by the debug panel, not a column of token_usage_logs.
     requested_model: str | None = None
+    # The UTC billing instant (call start), kept through delayed persistence.
+    created_at: datetime | None = None
 
 
 class ImageGenerationRecord(NamedTuple):

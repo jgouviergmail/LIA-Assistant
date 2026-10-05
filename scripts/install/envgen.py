@@ -128,6 +128,14 @@ def derive_environment(
         # Radio has no companion Compose service: the API's on-demand antenna
         # and newsroom run inside its existing workers (ADR-324).
         "RADIO_ENABLED": "true" if public.personal_radio else "false",
+        # Personal Simli connector: no instance key or additional service.
+        # Finite bounds mirror AvatarSettings; backend alignment checks them.
+        "AVATAR_ENABLED": "true" if public.speaking_avatar else "false",
+        "AVATAR_MINTS_PER_HOUR": "6",
+        "AVATAR_SESSION_LENGTH_SECONDS": "3600",
+        "AVATAR_IDLE_SECONDS": "3600",
+        "AVATAR_HTTP_TIMEOUT_SECONDS": "10",
+        "AVATAR_CONNECT_TIMEOUT_SECONDS": "15",
         # Shared across workers and voice surfaces. A self-hoster using
         # ElevenLabs can lower this to the allowance of their own account.
         "ELEVENLABS_TTS_MAX_CONCURRENCY": "5",

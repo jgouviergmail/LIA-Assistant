@@ -483,6 +483,8 @@ export interface LiveTransportEvents {
   onUsage?: (report: LiveUsageReport) => void;
   /** Raw PCM 16-bit LE at the transport's `outputRate` (pcm ownership only). */
   onAudio?: (pcm16: ArrayBuffer) => void;
+  /** Own playback/capture of a borrowed remote stream; release must never stop its tracks. */
+  onRemoteStream?: (stream: MediaStream) => () => void;
   /** The provider's voice started or stopped (native ownership only). */
   onSpeakingChange?: (speaking: boolean) => void;
   onTranscript?: (role: LiveTranscriptRole, text: string) => void;

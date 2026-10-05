@@ -7,7 +7,7 @@
 > **Dernière mise à jour**: v1.19.0 — Catalogue DB-source-of-truth ([ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md))
 > **Statut**: ✅ Complète
 
-> **🆕 v1.19.0 — Catalogue DB-driven** : la table `llm_model_pricing` n'est plus indexée par une colonne `model_name` libre, mais par une **FK `model_id` sur la nouvelle table `llm_models`** qui porte les capacités (provider + 8 flags : tools, structured output, strict mode, streaming, vision, reasoning, max input/output tokens). `AsyncPricingService._query_model_pricing` joint via `LLMModel.model_name == normalized` puis `selectinload(LLMModelPricing.model)` pour exposer `pricing.model.model_name` à l'appelant. Les capacités sont consommées via le singleton `ModelCapabilitiesCache` (`infrastructure/llm/model_capabilities_cache.py`), invalidé cross-worker via Redis Pub/Sub (ADR-063). Les exemples ci-dessous montrent la structure logique du système ; pour le code de référence à jour, voir [`apps/api/src/domains/llm/pricing_service.py`](../../apps/api/src/domains/llm/pricing_service.py).
+> **🆕 v1.19.0 — Catalogue DB-driven** : la table `llm_model_pricing` n'est plus indexée par une colonne `model_name` libre, mais par une **FK `model_id` sur la nouvelle table `llm_models`** qui porte les capacités (provider + 8 flags : tools, structured output, strict mode, streaming, vision, reasoning, max input/output tokens). `AsyncPricingService._query_model_pricing` recherche d'abord le modèle exact, puis son repli normalisé, via `LLMModel.model_name` et `selectinload(LLMModelPricing.model)`. Les capacités sont consommées via le singleton `ModelCapabilitiesCache` (`infrastructure/llm/model_capabilities_cache.py`), invalidé cross-worker via Redis Pub/Sub (ADR-063). Les exemples historiques ci-dessous illustrent la structure logique ; le contrat de comptabilité actuel est décrit dans la section des créneaux. Pour le code de référence, voir [`apps/api/src/domains/llm/pricing_service.py`](../../apps/api/src/domains/llm/pricing_service.py).
 
 ---
 
@@ -68,9 +68,14 @@ graph TB
 
 ## 🔧 AsyncPricingService
 
-### Code Complet
+### Illustration historique du service
 
 **Fichier source**: [apps/api/src/domains/llm/pricing_service.py](../../apps/api/src/domains/llm/pricing_service.py)
+
+Cette illustration précède la FK catalogue, les créneaux et les snapshots par
+tentative. Elle ne doit pas être copiée comme calculateur de coûts : les fonctions
+actuelles `calculate_token_cost` et `calculate_token_cost_at_date`, ainsi que le
+cache de pricing, possèdent ces règles et les tests associés.
 
 ```python
 from decimal import Decimal
@@ -634,8 +639,10 @@ the single implementation (module `src.domains.llm.pricing_time_slots`):
 
 - `get_cached_cost_usd_eur(..., at=None)` (sync, hot path) and
   `AsyncPricingService.calculate_token_cost(..., at=None)` default to
-  now (UTC) — the call instant, which is also the instant persisted with
-  `TokenUsageLog`, so the ledger matches the provider invoice;
+  now (UTC) when called directly. Runtime accounting passes the provider
+  attempt's **start** instant and retains the tariff/FX generation captured
+  before invocation. That start is persisted with `TokenUsageLog`; completion,
+  retries or a delayed write do not move the attempt into another window;
 - `calculate_token_cost_at_date` resolves at the historical `at_date`
   with the pricing row effective at that date — a peak-hour message keeps
   its peak cost when recomputed later.
@@ -645,6 +652,25 @@ columns apply. Admins manage the windows in the LLM pricing dialog
 (toggle « time-based pricing (UTC) », visible for `per_1m_tokens` rows
 only); on update, an omitted `time_slots` field inherits the current
 row's windows onto the new temporal version and `[]` clears them.
+
+A missing cache-read unit price uses the input unit price of the selected
+window or base tariff; an explicit zero remains zero. Callback usage excludes
+cache reads from the ordinary input bucket, so a missing separate cache tariff
+must never make those consumed tokens disappear. Each captured provider attempt
+keeps its actual model, start, usage and price/FX before costs are summed. A paid
+attempt followed by structured-output failure or a retry remains accounted;
+provider failures without usable counters do not create an invented charge.
+
+The immutable [LLMBillingRecord](../../apps/api/src/core/llm_usage.py) carries
+this captured tariff, FX rate, start, model, token buckets and attempt outcome to
+the ledgers. Aggregation consumes those records instead of repricing the total
+at completion. [Token tracking](TOKEN_TRACKING_AND_COUNTING.md#service-implementation)
+also describes settlement of known paid work after structured-output failure,
+background delivery failure or cancellation. This closes books for usage the
+provider reported; it does not estimate absent counters or promise settlement
+through a hard process kill or unavailable database.
+The [value and billing review](../superpowers/plans/2026-10-04-jev-value-and-text-billing.md)
+describes the reproduced defects, the per-attempt record and the UTC/day checks.
 
 **A window may apply on some days only** (ADR-223 amendment, 2026-09-23):
 DeepSeek bills its peak windows Monday to Friday, weekends being off-peak

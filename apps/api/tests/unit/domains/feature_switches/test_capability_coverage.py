@@ -94,6 +94,8 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         # their repositories, so an operator must be able to close the door
         # while the skills already installed stay.
         "skill_library",
+        # A personal avatar owns provider sessions independently of Live/TTS.
+        "avatar",
     }
 )
 

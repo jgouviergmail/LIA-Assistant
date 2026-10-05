@@ -17,7 +17,9 @@ export type JevUsage =
   | 'filter_ticket'
   | 'filter_mcp'
   | 'filter_document'
-  | 'initiative_utility';
+  | 'initiative_utility'
+  | 'memory_reference_presence'
+  | 'hitl_rejection';
 export type JevReadiness =
   | 'ready'
   | 'missing_key'
@@ -50,6 +52,28 @@ export interface JevChoicePreview {
   omitted_candidates: number;
 }
 
+/** Closed native validation codes; historical traces omit this field. */
+export type JevInvalidResponseReason =
+  | 'envelope_schema'
+  | 'answer_set'
+  | 'answer_schema'
+  | 'option_set'
+  | 'unknown_choice'
+  | 'probability_sum'
+  | 'winning_choice'
+  | 'ambiguous_choice';
+
+/** Global collection counts shared by all its native batch traces; never add them. */
+export interface JevCollectionCoverage {
+  candidate_count: number;
+  evaluated_count: number;
+  unevaluated_count: number;
+  omitted_count: number;
+  unknown_count: number;
+  batch_index?: number | null;
+  batch_count?: number | null;
+}
+
 export interface JevCallTrace {
   id: string;
   run_id: string;
@@ -61,9 +85,11 @@ export interface JevCallTrace {
   duration_ms: number;
   context: { text: string; original_characters: number; omitted_characters: number };
   observed_result?: JevCallTrace['context'] | null;
+  collection_coverage?: JevCollectionCoverage | null;
   response: JevChoicePreview | null;
   responses?: Record<string, JevChoicePreview>;
   outcome: string;
+  invalid_response_reason?: JevInvalidResponseReason | null;
   status_code: number | null;
   action: 'pending' | 'selected' | 'preview' | 'observed' | 'fallback' | 'aborted' | 'cancelled';
   applied_decisions?: Record<string, 'match' | 'non_match' | 'unknown'>;

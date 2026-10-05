@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Reply, Forward, BellOff } from 'lucide-react';
+import { X, Reply, Forward, BellOff, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { CardCompositionDraft } from '@/types/card-actions';
 
@@ -13,7 +13,7 @@ export function CardCompositionChip({
 }) {
   const { t } = useTranslation();
   if (!composition) return null;
-  const Icon = { reply: Reply, forward: Forward, cancel_reminder: BellOff }[
+  const Icon = { reply: Reply, forward: Forward, delete_email: Trash2, cancel_reminder: BellOff }[
     composition.selection.action
   ];
   return (

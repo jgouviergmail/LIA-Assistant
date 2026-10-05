@@ -18,6 +18,7 @@ export interface TestUser {
   /** Effective exchange rhythm the API publishes (ADR-311). */
   exchange_rhythm: 'frequent' | 'occasional';
   voice_enabled: boolean;
+  speaking_avatar_enabled: boolean;
   voice_mode_enabled: boolean;
   voice_stt_mode: 'local' | 'remote';
   tokens_display_enabled: boolean;
@@ -44,6 +45,7 @@ export function makeTestUser(overrides: Partial<TestUser> = {}): TestUser {
     execution_mode: 'pipeline',
     exchange_rhythm: 'occasional',
     voice_enabled: false,
+    speaking_avatar_enabled: false,
     voice_mode_enabled: false,
     voice_stt_mode: 'remote',
     tokens_display_enabled: true,

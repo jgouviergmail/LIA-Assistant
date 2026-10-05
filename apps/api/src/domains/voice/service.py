@@ -33,6 +33,7 @@ from src.core.constants import VOICE_TTS_MS_PER_CHAR_HEURISTIC
 from src.core.i18n import get_language_name, resolve_language
 from src.core.time_utils import now_in_timezone
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.voice.audio_output import mix_audio_format, synthesize_playable_base64
 from src.domains.voice.exceptions import tts_failure_facts
 from src.domains.voice.factory import TTSConfig, get_tts_client, get_tts_config
 from src.domains.voice.protocol import TTSClient
@@ -347,7 +348,8 @@ class VoiceCommentService:
 
             try:
                 # Synthesize sentence
-                audio_base64 = await tts_client.synthesize_base64(
+                audio_base64 = await synthesize_playable_base64(
+                    tts_client,
                     text=sentence,
                     voice_name=voice_name,
                     voice_settings=prosody_settings,
@@ -378,7 +380,9 @@ class VoiceCommentService:
                 duration_ms = len(sentence) * VOICE_TTS_MS_PER_CHAR_HEURISTIC
 
                 # Determine MIME type based on audio format (shared map).
-                mime_type = AUDIO_MIME_TYPES.get(tts_client.audio_format, DEFAULT_AUDIO_MIME_TYPE)
+                mime_type = AUDIO_MIME_TYPES.get(
+                    mix_audio_format(tts_client), DEFAULT_AUDIO_MIME_TYPE
+                )
 
                 yield VoiceAudioChunk(
                     audio_base64=audio_base64,
@@ -596,7 +600,8 @@ class VoiceCommentService:
             chars_total += chars
 
         async def _synth(sentence: str) -> str:
-            return await tts_client.synthesize_base64(
+            return await synthesize_playable_base64(
+                tts_client,
                 text=sentence,
                 voice_name=voice_name,
             )
@@ -604,7 +609,7 @@ class VoiceCommentService:
         streamer = ProgressiveSentenceStreamer(
             synth=_synth,
             max_sentences=settings.voice_max_sentences,
-            audio_format=tts_client.audio_format,
+            audio_format=mix_audio_format(tts_client),
             sentence_delimiters=settings.voice_sentence_delimiters,
             on_chars_synthesized=_on_chars,
         )
@@ -889,7 +894,8 @@ class VoiceCommentService:
             chars_total += chars
 
         async def _synth(sentence: str) -> str:
-            return await tts_client.synthesize_base64(
+            return await synthesize_playable_base64(
+                tts_client,
                 text=sentence,
                 voice_name=voice_name,
             )
@@ -897,7 +903,7 @@ class VoiceCommentService:
         streamer = ProgressiveSentenceStreamer(
             synth=_synth,
             max_sentences=max_sentences,
-            audio_format=tts_client.audio_format,
+            audio_format=mix_audio_format(tts_client),
             sentence_delimiters=settings.voice_sentence_delimiters,
             on_chars_synthesized=_on_chars,
         )

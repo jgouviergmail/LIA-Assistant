@@ -8,6 +8,8 @@
 
 # testing
 /coverage
+# Named local coverage reports; also excluded inside the web-only bind mount.
+/coverage-*/
 
 # next.js
 /.next/

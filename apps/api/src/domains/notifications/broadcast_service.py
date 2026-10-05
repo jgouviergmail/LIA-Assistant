@@ -345,18 +345,32 @@ class BroadcastService:
         from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
         invoke_config = enrich_config_with_node_metadata(None, "broadcast_translation")
-        response = await llm.ainvoke(
-            [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=message),
-            ],
-            config=invoke_config,
-        )
-        await record_instance_llm_call(
-            surface="broadcast_translator",
-            model_name=model_name_of(llm),
-            response=response,
-        )
+        from time import time
+
+        from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
+
+        started_at = time()
+        pricing_snapshot = capture_pricing_snapshot()
+        from langchain_core.runnables.config import merge_configs
+
+        from src.infrastructure.llm.token_capture import TokenCaptureHandler
+
+        capture = TokenCaptureHandler(model_name_of(llm))
+        response = None
+        try:
+            response = await llm.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=message)],
+                config=merge_configs(invoke_config, {"callbacks": [capture]}),
+            )
+        finally:
+            await record_instance_llm_call(
+                surface="broadcast_translator",
+                model_name=model_name_of(llm),
+                response=response,
+                started_at=started_at,
+                pricing_snapshot=pricing_snapshot,
+                capture=capture,
+            )
 
         translated = response.text.strip()
 

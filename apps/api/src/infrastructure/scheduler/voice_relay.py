@@ -58,6 +58,7 @@ from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output_with_retry
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.proactive.tracking import bill_captured_usage, capture_spend_on_failure
 from src.infrastructure.scheduler.out_of_turn_run import (
     RunContext,
     RunOutcome,
@@ -224,6 +225,9 @@ async def synthesize_relay(
     user_language: str,
     user_timezone: str,
     user_id: UUID | None,
+    task_type: str = "voice_session",
+    target_id: str = "synthesis",
+    run_id: str | None = None,
 ) -> tuple[SelfCallRelay, SynthUsage | None]:
     """One structured call: the transcript in, the relay message out.
 
@@ -260,16 +264,39 @@ async def synthesize_relay(
     system = load_telephony_prompt("telephony_self_call_relay_prompt", "v1")
     llm = get_llm(_LLM_TYPE)
     provider = get_llm_config_for_agent(settings, _LLM_TYPE).provider
-    token_capture = TokenCaptureHandler()
-    relay = await get_structured_output_with_retry(
-        llm=llm,
-        messages=[SystemMessage(content=system), HumanMessage(content=context)],
-        schema=SelfCallRelay,
-        provider=provider,
-        node_name=_LLM_TYPE,
-        config=RunnableConfig(callbacks=[token_capture]),
+    from src.infrastructure.llm.usage_metadata import model_name_of
+
+    model = model_name_of(llm) or get_llm_config_for_agent(settings, _LLM_TYPE).model
+    token_capture = TokenCaptureHandler(model)
+    async with capture_spend_on_failure(
+        token_capture,
         user_id=user_id,
-    )
+        task_type=task_type,
+        target_id=target_id,
+        model_name=model,
+        source="user",
+        run_id=run_id,
+        llm_type=_LLM_TYPE,
+    ):
+        relay = await get_structured_output_with_retry(
+            llm=llm,
+            messages=[SystemMessage(content=system), HumanMessage(content=context)],
+            schema=SelfCallRelay,
+            provider=provider,
+            node_name=_LLM_TYPE,
+            config=RunnableConfig(callbacks=[token_capture]),
+            user_id=user_id,
+        )
+        await bill_captured_usage(
+            token_capture,
+            user_id=user_id,
+            task_type=task_type,
+            target_id=target_id,
+            model_name=model,
+            source="user",
+            run_id=run_id,
+            llm_type=_LLM_TYPE,
+        )
     return relay, capture_to_usage(token_capture)
 
 

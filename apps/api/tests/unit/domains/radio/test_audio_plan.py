@@ -93,6 +93,32 @@ class TestGraph:
 
 
 class TestAssembly:
+    @pytest.mark.parametrize("destination_exists", [False, True])
+    async def test_cancelled_mix_removes_only_its_partial_and_propagates_cancellation(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, destination_exists: bool
+    ) -> None:
+        async def probe(path: Path, *, timeout_s: float) -> float:
+            return 1.0
+
+        async def mix(args: tuple[str, ...], *, timeout_s: float) -> bytes:
+            Path(args[-1]).write_bytes(b"incomplete mp3")
+            raise asyncio.CancelledError
+
+        monkeypatch.setattr(audio_module, "probe_duration", probe)
+        monkeypatch.setattr(audio_module, "run_ffmpeg", mix)
+        out = tmp_path / "segment.mp3"
+        if destination_exists:
+            out.write_bytes(b"previous complete mp3")
+
+        with pytest.raises(asyncio.CancelledError):
+            await assemble_segment([(ScriptPart.BODY, tmp_path / "voice.wav")], out, timeout_s=5)
+
+        assert not (tmp_path / "segment.part.mp3").exists()
+        if destination_exists:
+            assert out.read_bytes() == b"previous complete mp3"
+        else:
+            assert not out.exists()
+
     async def test_a_failed_probe_cancels_its_siblings_and_leaves_no_file(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:

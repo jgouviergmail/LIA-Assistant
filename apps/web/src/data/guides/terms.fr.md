@@ -104,19 +104,19 @@ Les contributions au code source (pull requests, issues) sont les bienvenues et 
 
 L'Editeur s'engage a proteger les donnees personnelles de l'Utilisateur conformement au Reglement General sur la Protection des Donnees (RGPD) et a la loi Informatique et Libertes.
 
-**Donnees collectees** : adresse email, nom d'utilisateur, preferences linguistiques, historique des conversations, donnees de connexion (tokens OAuth chiffres) aux services tiers (Google, Apple, Microsoft), et donnees d'utilisation (journaux d'activite, metriques de performance).
+**Données collectées** : adresse email, nom d'utilisateur, préférences linguistiques, historique des conversations, identifiants chiffrés de connexion aux services tiers (jetons OAuth ou mots de passe d'application), et données d'utilisation (journaux d'activité, métriques de performance). Les fonctions facultatives peuvent aussi traiter localisation, voix, documents ou mesures de santé lorsque l'Utilisateur choisit de les utiliser, selon la Politique de confidentialité.
 
 **Finalites du traitement** : fourniture du Service, amelioration de l'experience utilisateur, securite et prevention des abus, et analyse statistique anonymisee.
 
 **Base legale** : le traitement repose sur le consentement de l'Utilisateur (article 6.1.a du RGPD) et sur l'execution du contrat (article 6.1.b du RGPD).
 
-**Hebergement et stockage** : les donnees sont hebergees sur des serveurs situes en France et/ou dans l'Union europeenne. Les tokens d'acces aux services tiers sont chiffres au repos (AES-256). Les conversations peuvent etre traitees par des fournisseurs de LLM situes hors UE (OpenAI, Anthropic, Google, DeepSeek) ; dans ce cas, les transferts sont encadres par les garanties appropriees (clauses contractuelles types, decisions d'adequation).
+**Hébergement et stockage** : les données sont hébergées sur des serveurs situés en France et/ou dans l'Union européenne. Les identifiants des connecteurs et les clés fournisseurs stockés en base sont chiffrés par [Fernet](https://cryptography.io/en/latest/fernet/) (AES-128-CBC avec authentification HMAC-SHA256). Cette protection couvre ces secrets ; les conversations ne sont pas chiffrées de bout en bout et les sauvegardes demandent leur propre protection. Les données utiles à une demande peuvent être traitées par des fournisseurs hors UE, selon les services et la configuration choisis. L'Opérateur doit évaluer les règles de transfert applicables et assurer les garanties requises, telles que des clauses contractuelles types ou une décision d'adéquation applicable.
 
-**Duree de conservation** : les donnees sont conservees pendant la duree de vie du compte, puis supprimees dans un delai de 30 jours suivant la suppression du compte par l'Utilisateur.
+**Durée de conservation** : l'étape de suppression par l'administrateur purge les contenus personnels mais conserve la ligne du compte, notamment le nom et l'email, et les relevés de facturation. L'étape d'effacement suivante retire la ligne du compte. Audits, diagnostics et sauvegardes suivent leurs propres procédures de conservation et d'effacement.
 
-**Droits de l'Utilisateur** : conformement au RGPD, l'Utilisateur dispose d'un droit d'acces, de rectification, d'effacement, de portabilite, de limitation du traitement et d'opposition. Ces droits peuvent etre exerces par email a l'adresse indiquee dans l'application, ou directement depuis les parametres du compte. L'Utilisateur dispose egalement du droit d'introduire une reclamation aupres de la CNIL (Commission Nationale de l'Informatique et des Libertes).
+**Droits de l'Utilisateur** : au titre du RGPD, l'Utilisateur dispose des droits d'accès, de rectification, d'effacement, de portabilité, de limitation et d'opposition. Les demandes peuvent être adressées au contact indiqué dans l'application ou à l'administrateur de l'instance ; les réglages fournissent les contrôles en libre-service disponibles, notamment l'export. L'Utilisateur peut également saisir la CNIL.
 
-**Tracabilite LLM** : le Service utilise Langfuse pour la tracabilite des appels aux modeles de langage, a des fins de debug et d'amelioration du Service. Ces traces ne contiennent pas de donnees personnelles identifiantes et sont conservees pour une duree limitee.
+**Traçabilité LLM** : lorsqu'il est activé, Langfuse trace les appels aux modèles à des fins de diagnostic et d'amélioration du Service. Ces diagnostics peuvent contenir les entrées et sorties des modèles et des métadonnées rattachées au compte ; le masquage des journaux techniques ne les anonymise pas automatiquement. L'Opérateur doit configurer leur accès, leur hébergement et leur conservation.
 
 Pour plus de details, consultez notre Politique de Confidentialite.
 
@@ -144,7 +144,7 @@ Le Service etant gratuit pendant la phase beta, la responsabilite de l'Editeur e
 
 ## 10. Resiliation et suspension
 
-L'Utilisateur peut a tout moment supprimer son compte depuis les parametres de l'application. La suppression entraine l'effacement de l'ensemble de ses donnees personnelles dans un delai de 30 jours, conformement aux obligations legales de conservation.
+L'Utilisateur peut à tout moment demander la suppression de son compte à l'administrateur. La suppression purge les contenus personnels mais conserve nom, email et relevés de facturation ; l'étape d'effacement suivante retire la ligne du compte. Les journaux d'audit, diagnostics distincts, sauvegardes et données détenues par les fournisseurs suivent les procédures décrites dans la Politique de confidentialité.
 
 L'Editeur se reserve le droit de suspendre ou supprimer un compte utilisateur dans les cas suivants :
 

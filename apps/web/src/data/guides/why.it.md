@@ -4,7 +4,7 @@
 
 **Versione**: 6.2
 **Data**: 2026-10-04
-**Applicazione**: LIA v2.5.0
+**Applicazione**: LIA v2.6.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -125,6 +125,8 @@ Parla a LIA come faresti con un assistente umano — niente comandi da memorizza
 
 Quando una risposta porta dei dati, viene mostrata in schede che presentano tutto ciò che la fonte ha fornito — senza inventare nulla — e conservano il dettaglio dietro una sezione espandibile: le foto di un luogo in galleria, il meteo confrontato fascia per fascia, l'anteprima di un documento, un percorso interattivo. Rispondere a un'e-mail o modificare un promemoria dalla sua scheda prepara la richiesta; nulla parte senza di te.
 
+Le schede mostrano anche da dove proviene un risultato MCP esterno e quale metodo lo ha prodotto. Date ed elementi selezionati seguono le prove disponibili; i simboli meteo riflettono le condizioni ricevute. L’eliminazione di un’e-mail resta legata alla sua esatta casella collegata e attende la tua conferma.
+
 ### 3.2. Servizi connessi personali
 
 - **Email**: leggere, cercare, redigere, inviare, rispondere, inoltrare — via Gmail, Outlook o Apple Mail; un messaggio arriva come testo pulito, e molti si riassumono messaggio per messaggio («riassumi le mie non lette», «una sintesi delle newsletter della settimana»); un allegato si legge su richiesta — un documento come testo, una foto o una scansione tramite il modello di visione
@@ -154,6 +156,8 @@ LIA offre una modalità vocale completa:
 - **Sintesi vocale**: tre provider configurabili da admin — Edge TTS (gratuito), OpenAI TTS (`tts-1` / `tts-1-hd`) o ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Messaggi vocali Telegram**: invia messaggi audio, LIA li trascrive e risponde
 - **Modalità Live**: una conversazione in tempo reale, a viva voce, su un modello live che colleghi con **la tua chiave** — Gemini Live, GPT-Live o un agente ElevenLabs. La voce tiene la conversazione e affida ogni richiesta a LIA, che la esegue come un normale turno di chat mentre parli; una sessione diretta lascia che la voce legga i tuoi dati da sola senza agire su nulla. Ciò che il fornitore fattura ti è mostrato, mai registrato. Un silenzio non chiude più una sessione: la mette in standby — connessione chiusa, nulla fatturato — finché un tocco non la riattiva con il contesto di LIA; terminarla spetta sempre a te.
+
+- **Avatar parlante, sperimentale**: se la tua istanza lo offre, collega la tua chiave Simli personale e attiva un volto per i commenti vocali e Live, diretto o delegato. Sposta la finestra flottante e scegli tra tre dimensioni, anche con la tastiera. Una connessione aperta consuma il tuo piano Simli anche durante i silenzi; la sospensione Live la chiude e il risveglio la riapre. Radio resta separata. La qualifica dei media e dei dispositivi mobili prosegue.
 
 ### 3.5. Creazione e media
 
@@ -193,7 +197,7 @@ Quando diagnostica uno di quegli incidenti, non parte più da un numero solo: pr
 
 LIA accoglie le tue misurazioni di frequenza cardiaca e numero di passi da **qualsiasi fonte** — l'integrazione più semplice è un'automazione Comandi Rapidi su iPhone che invia Apple Salute, ma qualsiasi sistema in grado di chiamare un'API (automazione Android, script personale, oggetto connesso) può inviarle. Inviare due volte gli stessi dati è ininfluente, e quando due dispositivi coprono lo stesso periodo LIA li unisce senza mai contare due volte.
 
-I dati restano all'interno della tua istanza LIA — nessun servizio di terzi vi ha accesso — e sono visualizzati in una sezione dedicata delle Impostazioni, sotto forma di grafico a linee (FC) e a barre (passi), con un selettore di periodo (ora, giorno, settimana, mese, anno) e una linea tratteggiata per la media del periodo.
+Le misurazioni grezze sono archiviate nella tua istanza LIA e visualizzate in una sezione dedicata delle Impostazioni, con una curva per la frequenza cardiaca, barre per i passi, un selettore del periodo (ora, giorno, settimana, mese, anno) e la media tratteggiata. Se ne attivi l'uso da parte dell'assistente, i modelli scelti ricevono una proiezione fattuale invece dei valori grezzi.
 
 L'invio è autenticato da un **token dedicato** che generi dall'applicazione e che puoi revocare in qualsiasi momento. Il token dà accesso solo all'invio di dati sanitari — mai al resto del tuo account. Puoi generarne diversi, uno per dispositivo, e gestirli separatamente.
 
@@ -270,7 +274,7 @@ L'amministratore mantiene il controllo sui consumi:
 
 ### 4.3. La tua IA di famiglia
 
-Immagina: un Raspberry Pi nel tuo salotto, e tutta la famiglia che gode di un assistente IA intelligente — ognuno con la propria esperienza personalizzata, i propri ricordi, il proprio stile di conversazione, e un assistente che sviluppa con lui la propria relazione emotiva. Il tutto sotto il tuo controllo, senza abbonamento cloud, senza dati che finiscono da terzi.
+Immagina: un Raspberry Pi nel tuo salotto, e tutta la famiglia che gode di un assistente IA intelligente — ognuno con la propria esperienza personalizzata, i propri ricordi, il proprio stile di conversazione, e un assistente che sviluppa con lui la propria relazione emotiva. L'istanza resta sotto il tuo controllo; i modelli o servizi remoti utilizzati ricevono i dati necessari per la loro parte della richiesta.
 
 ---
 
@@ -414,6 +418,8 @@ Bisogna però che questi ricordi arrivino. Una memoria vale solo per ciò che ca
 
 E non si ferma a ciò che il tuo messaggio evoca: quando strada facendo emerge un nome o un argomento — il mittente di un'e-mail, un luogo in un documento —, lo cerca nella sua memoria; anche al telefono ritrova ciò che risponde alla tua domanda invece dei suoi ultimi ricordi.
 
+Le istruzioni durature vengono **fissate alla creazione**: la manutenzione automatica non può riscriverle finché restano fissate. Puoi modificarle, sbloccarle o eliminarle tu stesso. Anche se sbloccata, un’istruzione procedurale non può essere ritirata automaticamente senza una sostituta.
+
 ### 7.2. Il Psyche Engine: una personalità viva
 
 È il differenziatore più profondo di LIA. ChatGPT, Gemini, Claude — tutti hanno una personalità fissa. Ogni messaggio è una pagina bianca emotiva. LIA è diversa.
@@ -487,7 +493,7 @@ LIA integra un'osservabilità di grado produzione:
 | **Langfuse** | Tracing specializzato delle chiamate LLM |
 | **Alertmanager** | Alert e-mail sui segnali vitali, runbook collegati |
 
-Ogni richiesta viene tracciata end-to-end, ogni chiamata LLM viene misurata, ogni errore è contestualizzato. Non è un monitoraggio aggiunto dopo — è una **decisione architetturale fondamentale** documentata negli Architecture Decision Records del progetto. E la misura non nomina nessuno: una metrica o una traccia indica il percorso seguito dal suo modello, mai il nome o la ricerca che un indirizzo contiene — la regola dei log, applicata agli strumenti. L'intero stack di supervisione gira su versioni mantenute, fissate per impronta.
+Ogni richiesta viene tracciata end-to-end, ogni chiamata LLM viene misurata, ogni errore è contestualizzato. Non è un monitoraggio aggiunto dopo — è una **decisione architetturale fondamentale** documentata negli Architecture Decision Records del progetto. Le metriche HTTP e gli attributi di percorso delle tracce HTTP usano il modello del percorso, senza nomi o ricerche contenuti in un indirizzo. Le tracce LLM facoltative possono conservare contesto conversazionale e richiedono controlli propri di accesso e conservazione. L'intero stack di supervisione gira su versioni mantenute, fissate per impronta.
 
 Questa esigenza scende fino alla macchina. Un server è più processi, e «il container consuma cinque gigabyte» non dice quale trattiene cosa: ogni processo di LIA pubblica quindi da sé ciò che trattiene in memoria, un pannello lo traccia processo per processo, un allarme nomina quello che trabocca — e ciò che un processo carica è stato misurato sulla macchina di destinazione prima di essere toccato, mai supposto.
 
@@ -529,7 +535,7 @@ LIA non chiede di essere creduta sulla parola. I quadri normativi che segue sono
 
 ### 9.1. Ciò che la normativa richiede
 
-**La privacy si progetta nell'architettura, non si certifica con uno slogan.** I dati del tuo account risiedono nel database dell'istanza LIA che usi; se scegli l'auto-hosting, controlli tu quel server. Puoi esportarli o chiederne la cancellazione; i segreti non vengono esportati per scelta. Le credenziali sono cifrate, le sessioni isolate, e i log tecnici del server conservano solo fatti — numeri, codici, identificativi —, mai le tue parole: un test legge ogni riga di log del codice per garantirlo, e nemmeno le metriche e le tracce nominano qualcuno. Il rispetto di tutti gli obblighi del GDPR in una specifica installazione dipende anche dalla gestione e dai fornitori scelti.
+**La privacy si progetta nell'architettura, non si certifica con uno slogan.** I dati del tuo account risiedono nel database dell'istanza LIA che usi; se scegli l'auto-hosting, controlli tu quel server. Puoi esportarli o chiederne la cancellazione; i segreti non vengono esportati per scelta. Le credenziali sono cifrate e le sessioni isolate. I log tecnici del server privilegiano numeri, codici e identificativi, con controlli e test per escludere i contenuti personali. Le tracce diagnostiche LLM facoltative hanno un altro ambito: possono conservare contesto dei modelli e metadati collegati all'account, quindi accesso e conservazione richiedono una configurazione consapevole. Il rispetto di tutti gli obblighi del GDPR in una specifica installazione dipende anche dalla gestione e dai fornitori scelti.
 
 **LIA conserva registri anche quando la legge non li impone a questo uso personale.** L'articolo 12 del regolamento europeo sull'IA riguarda i sistemi ad alto rischio. Registri di azioni, consultazioni, decisioni, parametri dei modelli e lacune sono una scelta di trasparenza, non una certificazione. Si possono esportare e vengono rimossi con l'account, entro i limiti documentati di ciascun registro.
 
@@ -542,7 +548,7 @@ LIA non chiede di essere creduta sulla parola. I quadri normativi che segue sono
 | **MCP** (Model Context Protocol) | Collegare strumenti esterni, i tuoi come quelli di un fornitore, senza scrivere una riga di codice |
 | **Agent Plugins** (agent-plugins.org) | Installare in un passo un pacchetto portatile — competenze e server MCP insieme — e disinstallarlo con la stessa pulizia |
 | **agentskills.io** | Aggiungere competenze esperte scritte in linguaggio naturale |
-| **OAuth 2.1 + PKCE** | Collegare i tuoi account Google, Microsoft o Apple senza che LIA detenga mai la tua password |
+| **OAuth 2.1 + PKCE** | Collegare i tuoi account Google o Microsoft senza comunicare la loro password a LIA |
 | **WebAuthn / FIDO2** | Accedere con una passkey, senza alcuna password |
 | **OWASP Top 10** | La griglia di riferimento delle vulnerabilità web, percorsa endpoint per endpoint |
 | **OpenTelemetry** | Un'osservabilità che qualsiasi strumento sul mercato sa rileggere |

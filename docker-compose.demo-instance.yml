@@ -116,6 +116,11 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile.prod
+      # The deployed bundle supplies these; a local envelope has explicit dev identity.
+      args:
+        APP_VERSION: ${APP_VERSION:-0.0.0-dev}
+        GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
     restart: unless-stopped
     # The production image stops like production: uvicorn's bounded
     # connection wait, then the ADR-117 drains, in sequence. Docker's 10 s
@@ -126,6 +131,10 @@ services:
     env_file:
       - ${DEMO_INSTANCE_ENV_FILE:-.env.demo-instance}
     environment:
+      # env_file must not override the identity baked into this API image.
+      - APP_VERSION=${APP_VERSION:-0.0.0-dev}
+      - GIT_COMMIT_SHA=${GIT_COMMIT_SHA:-unknown}
+      - BUILD_DATE=${BUILD_DATE:-unknown}
       # The three protections, stated here so a reader of the envelope sees
       # what makes it a demonstrator. Values live in the env file.
       - DEMO_MODE_ENABLED=true

@@ -9,16 +9,6 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-def _visible_preview(metadata: Mapping[str, object]) -> bool:
-    collection = metadata.get("collection")
-    if not isinstance(collection, dict):
-        return False
-    items = collection.get("items")
-    return isinstance(items, list) and any(
-        isinstance(item, dict) and item.get("verdict") in ("match", "unknown") for item in items
-    )
-
-
 @dataclass
 class JourneyTiming:
     """One stream invocation, including preparation; never persisted across turns."""
@@ -42,10 +32,8 @@ class JourneyTiming:
             if self.first_token_ms is None:
                 self.first_token_ms = elapsed
             useful = True
-        elif kind == "result_preview" and _visible_preview(metadata):
-            if self.first_preview_ms is None:
-                self.first_preview_ms = elapsed
-            useful = True
+        # Legacy JEV preview frames are no longer displayed in the discussion.
+        # Keep their timing field empty so a hidden result cannot imply delivery.
         elif kind == "content_replacement" and content.strip():
             useful = True
         if useful and self.first_useful_ms is None:

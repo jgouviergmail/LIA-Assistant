@@ -99,7 +99,12 @@ function useNow(running: boolean): number {
 }
 
 /** The station: its name, where it stands and what airs — the one part announced. */
-function Station({ lng, view, name, compact = false }: {
+function Station({
+  lng,
+  view,
+  name,
+  compact = false,
+}: {
   lng: Language;
   view: RadioView;
   name: string;
@@ -489,11 +494,11 @@ export function RadioBannerSlot({ lng }: { lng: Language }) {
 
   if (!visible) return null;
   return (
-    // The gap under the bar is the wrapper's PADDING, never the bar's margin:
-    // a margin collapses out of the box whose height is published.
+    // Padding keeps the gap inside the published height. Clip the opaque
+    // background to the content box so that gap reveals the page's cosmos.
     <div
       ref={wrapperRef}
-      className="sticky z-40 rounded-lg bg-background pb-3"
+      className="sticky z-40 rounded-lg bg-background bg-clip-content pb-3"
       style={{ top: 'calc(4rem + var(--meeting-banner-h, 0px))' }}
     >
       <RadioBanner lng={lng} onDismiss={() => setDismissed(view)} />

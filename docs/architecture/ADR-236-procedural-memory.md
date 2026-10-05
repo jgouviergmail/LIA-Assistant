@@ -50,3 +50,15 @@ of the evolution program).
 - The user can read and delete every learned rule in the memories UI —
   a rule the user cannot see would be an enforced-but-hidden bound
   (ADR-184 doctrine).
+
+## Amendment — pin standing instructions at creation (2026-10-05)
+
+At the owner's request, `MemoryService.create_memory` now pins every new
+`procedural` memory automatically. This includes extracted instructions,
+manual creation and successors reclassified into this category. Other
+categories keep the unpinned default; existing rows are unchanged.
+
+The existing pin contract applies: automated extraction cannot update or
+delete the pinned rule, and cleanup/consolidation leave it alone. The person
+may still edit, unpin or delete it. Unpinned procedural memories retain the
+category protection against automated deletion.

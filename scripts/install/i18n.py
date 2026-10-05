@@ -64,6 +64,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Enable the personal radio? Programmes are produced on demand while someone listens, using the instance's configured writing and voice providers; their cost is charged to the listener (yes/no)",
         "fr": "Activer la radio personnelle ? Les émissions sont produites à la demande pendant l'écoute avec les fournisseurs de rédaction et de voix configurés sur l'instance ; leur coût est imputé à l'auditeur (yes/no)",
     },
+    "question.speaking_avatar": {
+        "en": "Offer the speaking avatar? Each person must connect their OWN Simli key and opt in in Settings; an open avatar session can consume their credits even during silence (yes/no)",
+        "fr": "Proposer l'avatar parlant ? Chaque personne doit connecter SA PROPRE clé Simli et l'activer dans les paramètres ; une session avatar ouverte peut consommer ses crédits même pendant les silences (yes/no)",
+    },
     "question.admin_password": {
         "en": "Administrator password (min {min_length} chars, {min_uppercase} uppercase, {min_digits} digits, {min_special} special; input hidden)",
         "fr": "Mot de passe administrateur (min {min_length} caractères, {min_uppercase} majuscules, {min_digits} chiffres, {min_special} spéciaux ; saisie masquée)",

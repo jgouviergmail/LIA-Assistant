@@ -334,10 +334,17 @@ def refresh_for_each_scope_claims(
         step["reason"] = scope.reason
 
 
+def _append_preview_index(indices: list[int] | None, index: int) -> None:
+    if indices is not None:
+        indices.append(index)
+
+
 def extract_item_previews_for_hitl(
     pre_exec_registry: dict[str, Any],
     for_each_steps: list[dict],
     completed_steps: dict[str, dict[str, Any]],
+    *,
+    original_indices: list[int] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Extract item previews from pre-executed registry for FOR_EACH HITL display.
@@ -388,7 +395,7 @@ def extract_item_previews_for_hitl(
     preview_fields = FOR_EACH_PREVIEW_FIELDS.get(domain, [])
 
     # Build previews for each item (no artificial limit - bounded by api_max_items_per_request)
-    for item in items:
+    for original_index, item in enumerate(items):
         if not isinstance(item, dict):
             continue
 
@@ -405,6 +412,7 @@ def extract_item_previews_for_hitl(
 
         if preview:
             previews.append(preview)
+            _append_preview_index(original_indices, original_index)
 
     logger.debug(
         "item_previews_extracted",

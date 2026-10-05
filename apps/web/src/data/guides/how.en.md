@@ -6,7 +6,7 @@
 
 **Version**: 5.2
 **Date**: 2026-10-04
-**Application**: LIA v2.5.0
+**Application**: LIA v2.6.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,10 +69,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Constraint | Architectural consequence |
 |------------|--------------------------|
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
-| Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
+| Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 616 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 332 ADRs, 50,000+ automated backend and frontend tests, native observability, 6-level HITL |
+| Production reliability | 333 ADRs, 51,000+ automated backend and frontend tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -90,10 +90,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 50,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
+| Tests | 51,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,082, 48 of them shared through conftest |
 | Documentation documents | 716 |
-| ADRs (Architecture Decision Records) | 332 |
+| ADRs (Architecture Decision Records) | 333 |
 | Prometheus metrics | 616 definitions |
 | Grafana dashboards | 31 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -696,6 +696,8 @@ Each memory is a structured document with:
 
 **Why an emotional weight?** An assistant that knows your mother is ill but treats this fact like any other piece of data is at best clumsy, at worst hurtful. The emotional weight enables the `DANGER_DIRECTIVE` (prohibition on joking, minimizing, comparing, trivializing) when a sensitive subject is touched upon.
 
+Standing instructions are **pinned when created**: automated maintenance cannot rewrite them while pinned. You can edit, unpin or delete them yourself. Even unpinned, a procedural instruction cannot be retired automatically without a successor.
+
 ### 11.3. Extraction and injection
 
 **Extraction**: after each conversation, a background process analyzes the last user message, adapted to the active personality. Cost tracked via `TrackingContext`.
@@ -754,9 +756,9 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` resolves the effective configuration via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instantiates the model, and applies specific adapters.
 
-### 12.2. 67 LLM configuration types
+### 12.2. 86 LLM configuration types
 
-Each pipeline node is independently configurable via the Admin UI — without redeployment:
+The effective registry exposes **86 configurations**: **62 chat**, **20 native decisions** and **4 for image generation, transcription or speech synthesis**. The native decisions comprise meeting-template selection and 19 other JEV uses. Each slot is independently configurable through the Admin UI, without redeployment:
 
 | Category | Configurable types |
 |----------|-------------------|
@@ -764,8 +766,12 @@ Each pipeline node is independently configurable via the Admin UI — without re
 | Response | response, hitl_question_generator |
 | Background | memory_extraction, interest_extraction, journal_extraction, journal_consolidation |
 | Agents | contacts_agent, emails_agent, calendar_agent, browser_agent, etc. |
+| Native decisions (JEV) | meeting_template_selection, jev_memory_reference_presence, jev_hitl_rejection, etc. |
+| Image and voice | image_generation, voice_transcription, voice_tts, radio_voice |
 
 Some tasks use a native decision rather than a generative chat call. The JEV registry binds each use to its own switch and model slot; a general switch can pause them all. Each operation snapshots its routing, presents bounded candidates, validates the complete answer, and falls back on uncertainty. The shared runtime counts the paid attempt and any fallback separately, while authorization and HITL remain in the normal code path.
+
+Two optional uses, off by default, ask only whether a query has no personal references to extract and whether a reply rejects every pending action. They produce neither names nor permission to act. Uncertainty preserves the existing extractor or approval classifier; rejecting only part of a batch still follows the ordinary confirmation path.
 
 ### 12.3. Token Tracking
 
@@ -776,6 +782,8 @@ The counting itself is **contractual, not incidental**: an OpenAI-compatible pro
 Pricing itself follows the provider's clock: some providers bill text models by UTC time of day, with peak windows at a multiple of the off-peak rate. Each pricing row can therefore carry optional, non-overlapping UTC time windows — midnight wrap included — that override the unit prices while active, the base columns remaining the default tariff. A window may also name the days it applies on — those of the UTC day it opens, so a window running past midnight belongs to the day it started — because peak hours can be a weekday matter: DeepSeek bills its weekends off-peak all day. One single implementation resolves the active window for both cost chokepoints: every call is valued at its own instant, the one the provider invoices, and a historical message keeps the tariff of its original hour when recomputed. The windows travel with the temporally-versioned pricing rows, are administered in the LLM pricing dialog, and the reference data ships DeepSeek's official windowed tariff (ADR-223).
 
 A tariff is only worth anything if it is **the one the provider bills**. A write to the prompt cache is billed at its price — 1.25 times the input at Anthropic and at OpenAI for the generations that report it —, counted as the fourth quantity of the single usage reader, and an AST guard refuses any pricing door that would forget it (ADR-306). The prices themselves are re-read on the providers' pages, and a correction migration replaces only a value LIA shipped, never one an administrator entered; a Google Maps call is filed at the SKU its request triggers — a route with traffic or tolls is not a plain route, a matrix is billed per element. And the pricing cache is a table **shared by every worker**: each rebuilds it from the database at startup — never from a blob older than the last migration — and every writer, tariff or exchange rate, publishes the invalidation after its commit, so an edited price reaches every worker at once, not just the one that wrote it (ADR-063).
+
+**Each provider attempt keeps its own tariff snapshot**, model, start time and exchange rate. A retry cannot reprice its predecessor. Known usage from a failed or cancelled attempt remains charged, and cache reads and writes are valued separately without counting the same tokens twice. Missing usage stays visible as missing rather than becoming a fabricated zero.
 
 ### 12.4. DB-source-of-truth admin catalogue
 
@@ -895,9 +903,15 @@ Wake word "Dis LIA": the openWakeWord architecture — a shared melspectrogram a
 
 ---
 
+### 15.3. An optional face for the voice
+
+The experimental speaking avatar uses your **personal Simli key**, after explicit activation. It accompanies voice comments and both direct and delegated Live in a floating window with three sizes, movable by pointer or keyboard. The browser sends the existing voice to Simli and uses its returned media as the single audible output. The connection stays open between replies: **silence also consumes your Simli plan**. Live standby closes it; waking opens a new connection. Radio keeps its own player. Lip movement and Android/iOS behavior still require real-device qualification; this remains a beta feature.
+
 ### A station that exists while its listener is there
 
 The radio has two layers: an instance newsroom collects public feeds, while a personal antenna chooses a programme from a deterministic grid and the listener's permitted sources. Models write and speak bounded segments; verification checks their citations, numbers and roles before they air. The player shows sources and account spend. The antenna produces only during an active session, with a timer and an instance capability switch; it keeps no replay.
+
+The editorial filter removes advertising, sponsorships, discounts and purchase pitches while retaining useful news, invoices, reservations and appointments. Mixing respects the synthesis format: raw PCM or u-law receives a WAV container carrying its declared encoding and sample rate; already encoded audio passes through unchanged before local FFmpeg assembly.
 
 ---
 
@@ -1442,13 +1456,13 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 
 **Intra-batch dedupe with per-kind arbitrage**: PostgreSQL refuses to let an `ON CONFLICT DO UPDATE` touch the same target row twice (`CardinalityViolationError`). Yet iOS legitimately emits overlapping samples (Apple Watch + iPhone reporting the same interval). A helper merges duplicates **before** the UPSERT with a per-kind strategy: **MAX** for steps (Watch and iPhone count complementary subsets of movement — MAX approximates ground truth better than SUM double-count or AVG under-count), **AVG** (rounded) for heart rate (fusion of two sensors aimed at the same signal). Collapsed duplicates are reported as `updated` in the response and tracked via `health_samples_batch_duplicates_total{kind}`.
 
-**Mixed per-sample validation**: each sample is individually accepted or rejected with its 0-based index and a bounded reason (`out_of_range | malformed | missing_field | invalid_date`). Valid siblings in the same batch persist — a transient sensor glitch does not kill the day. Raw values are never logged (GDPR-compliant), only counters per reason.
+**Mixed per-sample validation**: each sample is individually accepted or rejected with its 0-based index and a bounded reason (`out_of_range | malformed | missing_field | invalid_date`). Valid siblings in the same batch persist — a transient sensor glitch does not kill the day. Logging keeps only counters per reason, without raw values; this privacy measure does not establish GDPR compliance for every deployment.
 
 **Security**: per-token Redis sliding-window rate limit (60 req/h default, configurable), `WWW-Authenticate: Bearer` header (RFC 7235) on 401, `Retry-After` on 429, per-request sample cap with `HTTP 413` beyond. Account erasure is handled by the account-deletion service, which explicitly purges every health table (the soft-deleted account model keeps the `users` row, so the FK cascade never fires); a deleted owner's device can no longer ingest.
 
 **Visualization**: a polymorphic Python aggregator walks samples ordered by `date_start` in a window and emits one point per bucket (hour/day/week/month/year), with `AVG/MIN/MAX` over `heart_rate` samples and `SUM` over `steps` samples. Empty buckets are emitted with `has_data=False` so the frontend (`recharts`, `connectNulls={false}`) shows honest gaps rather than interpolation. The Settings component reuses the `SettingsSection` + Accordion pattern (4 sub-sections: API + tokens, Charts, Statistics, Data management) and displays the **actual aggregation window** to defuse the "stats don't move when I change period" confusion (HR is invariant when all data fits in the smallest window).
 
-**Exposure to the central loops**: a **single per-user opt-in toggle** governs four consumers at once — conversation (assistant tools), Heartbeat (a `health_signals` source), memory extraction (a `{health_context}` prompt placeholder + an optional `context_biometric` JSONB blob attached to high-emotional-weight memories), and journal (extraction + consolidation). All four receive the same **factual non-raw projection**: deltas vs baseline, directional trends, structural events (inactivity streaks, etc.) — never raw values. The rolling 28-day baseline auto-selects `bootstrap` (simple median while less than 7 days of history are available — surfaced to the LLM so it qualifies its claims) then flips to `rolling`. GDPR erasure has a single target: the `health_samples` table.
+**Exposure to the central loops**: a **single per-user opt-in toggle** governs four consumers at once — conversation (assistant tools), Heartbeat (a `health_signals` source), memory extraction (a `{health_context}` prompt placeholder + an optional `context_biometric` JSONB blob attached to high-emotional-weight memories), and journal (extraction + consolidation). All four receive the same **factual non-raw projection**: deltas vs baseline, directional trends, structural events (inactivity streaks, etc.) — never raw values. The rolling 28-day baseline auto-selects `bootstrap` (simple median while less than 7 days of history are available — surfaced to the LLM so it qualifies its claims) then flips to `rolling`. Deleting raw measurements targets the `health_samples` table; derived memories and other records have their own deletion controls.
 
 ### 23.13. Installable application (PWA)
 
@@ -1526,7 +1540,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-332 ADRs in MADR format document the major architectural decisions. Some representative examples:
+333 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1859,7 +1873,7 @@ The connection budget has a floor, not only a ceiling. Bounding the burst — wh
 
 ## 43. The live mode: two intelligences, one seam — and one policy per mode
 
-A speech-to-speech session runs on a live model the person connects with **their own key** — a connector category of its own, `live`, additive: several keys may be active, the sessions open on the one chosen, and choosing a model *is* choosing its provider. Nothing the provider bills is counted, stored or shown by the platform. The API mints a single-use credential and renders the setup; the browser replays it verbatim and opens the connection itself, so **the audio never transits the API**. Four behaviours of the provider, checked on its real API, each set a rule: a credential's constraint does not lock the system instruction; a used single-use credential cannot reconnect (every reconnection mints a fresh one for the same record); the provider silently accepts an unknown voice name (the voice is validated against a vendored, dated list); a raw browser WebSocket is accepted by one method only.
+A speech-to-speech session runs on a live model the person connects with **their own key** — a connector category of its own, `live`, additive: several keys may be active, the sessions open on the one chosen, and choosing a model *is* choosing its provider. The provider bills your personal key; the platform ledger does not record that spend. The browser shows the available usage and cost separately. The API mints a single-use credential and renders the setup; the browser replays it verbatim and opens the connection itself, so **the audio never transits the API**. Four behaviours of the provider, checked on its real API, each set a rule: a credential's constraint does not lock the system instruction; a used single-use credential cannot reconnect (every reconnection mints a fresh one for the same record); the provider silently accepts an unknown voice name (the voice is validated against a vendored, dated list); a raw browser WebSocket is accepted by one method only.
 
 The design is **one seam between two intelligences** (ADR-299). The voice model owns the conversation — listening, speaking, interrupting, filling a wait — and delegates every request for data or action to the chat engine through one declared `NON_BLOCKING` function, `send_to_lia`. The browser turns that call into an ordinary `POST /chat/stream` under the person's own cookie: the delegated turn runs in the graph (HITL, registers, quotas, archive, learning), draws itself in the thread stamped with the session, and the bridge hands the voice a bounded, flattened answer — or LIA's pending question, which *is* the answer. The voice never holds a tool, a credential or a row of its own. A session is one decision row; each delegated turn is its own run; the closing card sums the runs' own summary rows. A second provider joined without a line of the bridge moving (ADR-300): a provider **declares its wire** — `connection` (`token`: the browser opens the socket with the provider's credential; `offer`: the API mints its own nonce and exchanges the browser's SDP on the person's key) and `delegation_wire` (`tool`; or `native`, where the provider emits an id and an offset, no text, and the request is composed in the browser from the transcript) — and the seam never branches on its name. The third, ElevenLabs Agents, put the person's *agent* where a model stands: everything but the prompt and LIA's tools stays on its portal, its tools are attached to the agent by fingerprint before the mint, and its billing is declared `vendor` — the platform prices nothing, the meter shows the clock alone, and the vendor's own bill is read once at the end, after the close handshake it settles on.
 
@@ -1883,14 +1897,16 @@ An answer that carries data is rendered by the server as HTML cards, archived wi
 
 Overlays — dialogs, menus, lists, tooltips, viewers, notifications — share one glass built on the theme tokens; a preference for reduced transparency or forced colours makes a surface opaque, reduced motion removes decorative transitions, and a dialog returns focus to the control that opened it. Every renderer is tested from its real producer through registry serialisation, with explicit zeros, falses, absences and hostile inputs.
 
+A selection is claimed only when evidence establishes which items and dates it covers; an uncertain temporal filter keeps the canonical results. MCP cards name the server, its public origin and the called method across structured, list and text outputs; a declared cooldown is shared across workers. Weather symbols follow the supplied conditions. Deleting an e-mail from its card verifies the exact connected mailbox and still requires confirmation.
+
 ---
 
 ## 45. Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 332 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 50,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 333 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 51,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 332 ADRs, and the changelog (v1.0 to v2.5.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (700+ documents), 333 ADRs, and the changelog (v1.0 to v2.6.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

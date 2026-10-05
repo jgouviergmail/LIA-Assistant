@@ -1030,6 +1030,8 @@ export function handleHitlInterruptLegacy(
  * Handle voice_comment_start: Voice playback starting
  */
 export function handleVoiceCommentStart(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
+  const runId = chunk.metadata && 'run_id' in chunk.metadata ? chunk.metadata.run_id : null;
+  if (!context.isReplay && typeof runId === 'string') context.beginVoiceRun?.(runId);
   const { withContext } = context;
   logger.debug(
     'chat_voice_comment_start',
@@ -1071,6 +1073,7 @@ export function handleVoiceAudioChunk(chunk: ChatStreamChunk, context: SSEHandle
  * Handle voice_complete: Voice playback completed
  */
 export function handleVoiceComplete(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
+  if (!context.isReplay) context.endVoiceRun?.();
   const { withContext } = context;
   logger.info(
     'chat_voice_complete',

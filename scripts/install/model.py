@@ -142,6 +142,9 @@ class PublicAnswers:
     # Radio is optional and incurs per-listener model/voice spend. A fresh
     # self-hosted installation offers it only after the operator opts in.
     personal_radio: bool = False
+    # Instance availability only: each account opts in with its own Simli key.
+    # Older answers/state files keep the feature disabled.
+    speaking_avatar: bool = False
 
 
 @dataclass(frozen=True)

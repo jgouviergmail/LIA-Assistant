@@ -11,7 +11,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 const html =
-  '<div class="lia-card-binding" data-card-ref="email_a"><button class="lia-action-btn" data-action="reply">Forged label</button><button class="lia-action-btn" data-action="archive">Archive</button></div>';
+  '<div class="lia-card-binding" data-card-ref="email_a"><div class="lia-response-wrapper"><div class="lia-zones"><div class="lia-zone-actions"><button class="lia-action-btn" data-action="reply">Forged label</button><button class="lia-action-btn" data-action="archive">Archive</button></div></div></div></div>';
 const metadata = {
   run_id: 'run-a',
   lia_card_actions: {
@@ -79,6 +79,54 @@ describe('message-owned composition', () => {
   it('does not grant an action to a forged reference or another message', () => {
     display(metadata, vi.fn(), html.replace('email_a', 'email_other'));
     expect(screen.getByRole('button', { name: 'Forged label' })).toBeDisabled();
+  });
+
+  it('clears inherited ownership at an explicitly unknown nested card reference', () => {
+    display(
+      metadata,
+      vi.fn(),
+      html.replace(
+        '<div class="lia-zone-actions">',
+        '<div class="lia-card-binding lia-zone-actions" data-card-ref="email_other">'
+      )
+    );
+    expect(screen.getByRole('button', { name: 'Forged label' })).toBeDisabled();
+  });
+
+  it('opens deletion composition only when the archived email grants it', () => {
+    const value = {
+      ...metadata,
+      lia_card_actions: {
+        ...metadata.lia_card_actions,
+        items: [
+          { ...metadata.lia_card_actions.items[0], actions: ['reply', 'forward', 'delete_email'] },
+        ],
+      },
+    };
+    const { onCompose } = display(
+      value,
+      vi.fn(),
+      html.replace('data-action="reply"', 'data-action="delete_email"')
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'chat.card_actions.delete_email' }));
+    expect(onCompose).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        text: 'chat.card_actions.compose_delete_email',
+        selection: expect.objectContaining({ action: 'delete_email', registry_id: 'email_a' }),
+      })
+    );
+  });
+
+  it('does not upgrade legacy archived reply/forward permissions to deletion', () => {
+    const { onCompose } = display(
+      metadata,
+      vi.fn(),
+      html.replace('data-action="reply"', 'data-action="delete_email"')
+    );
+    const button = screen.getByRole('button', { name: 'Forged label' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onCompose).not.toHaveBeenCalled();
   });
 
   it('keeps identical registry IDs isolated across messages and metadata replacement', () => {

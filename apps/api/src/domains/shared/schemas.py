@@ -307,6 +307,9 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
         ),
     )
     voice_enabled: bool = Field(default=False, description="Voice comments (TTS) enabled")
+    speaking_avatar_enabled: bool = Field(
+        default=False, description="Personal speaking avatar enabled"
+    )
     voice_mode_enabled: bool = Field(
         default=False, description="Voice mode (wake word + STT input) enabled"
     )
@@ -415,7 +418,7 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
         """Ensure memory_enabled defaults to True if None."""
         return v if v is not None else True
 
-    @field_validator("voice_enabled", mode="before")
+    @field_validator("voice_enabled", "speaking_avatar_enabled", mode="before")
     @classmethod
     def set_voice_enabled_default(cls, v: bool | None) -> bool:
         """Ensure voice_enabled defaults to False if None."""

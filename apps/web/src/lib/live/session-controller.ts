@@ -96,6 +96,12 @@ export interface LivePlayer {
   flush(): void;
   dispose(): void;
   onSpeakingChange(listener: (speaking: boolean) => void): void;
+  /** A real generation-complete signal; a transcript's quiet is not audio EOF. */
+  finishProduction?(): void;
+  attachRemoteStream?(stream: MediaStream): () => void;
+  nativeSpeaking?(speaking: boolean): void;
+  prepareNativeResponse?(): void;
+  onAudibleChange?(listener: (speaking: boolean) => void): void;
   diagnostics?(): PcmPlayerDiagnostics | null;
 }
 
@@ -118,6 +124,12 @@ export interface LiveControllerDeps {
   wakeLanguage: () => Language | null;
   /** The ready chime, once a session its phrase woke can hear. */
   chime: () => void;
+  /**
+   * Resolves once the person's speaking avatar is ready to carry the voice, or
+   * has given up, or at its bound: the provider is connected only then, so no
+   * reply is spoken by the local player while the face still connects.
+   */
+  awaitAvatar?: () => Promise<void>;
 }
 
 interface TurnBuffer {
@@ -234,6 +246,7 @@ export class LiveSessionController {
     this.player = player;
     let session: LiveSessionStart;
     try {
+      this.store.getState().begin(null, mode);
       await player.warmup();
       this.config = await this.deps.api.get<LiveConfigResponse>('/live/config');
       this.store.getState().setExtensionMinutes(this.config.extension_minutes);
@@ -250,7 +263,7 @@ export class LiveSessionController {
       // A direct session delegates nothing: no bridge, the chat's doors unused.
       this.bridge = session.mode === 'direct' ? null : this.buildBridge(session);
       this.transport = this.deps.createTransport(session.provider, session.audio_transport);
-      if (this.transport.audio.ownership === 'managed') {
+      if (this.transport.audio.ownership === 'managed' && !player.attachRemoteStream) {
         player.dispose();
         this.player = null;
       }
@@ -268,11 +281,16 @@ export class LiveSessionController {
   private async establishInitialConnection(session: LiveSessionStart): Promise<void> {
     const transport = this.transport;
     if (!transport) return;
+    // The face connects while the microphone is asked for; the provider is
+    // connected once both are there, so the first reply is the face's.
+    const avatar = this.deps.awaitAvatar?.() ?? Promise.resolve();
     // The microphone BEFORE the connection: a native transport carries the
     // track in its offer, and a refused microphone must open no socket.
     if (transport.audio.ownership !== 'managed' && !(await this.openMicrophoneAfterPrompt())) {
       return;
     }
+    await avatar;
+    if (this.ending) return;
     try {
       this.awaitingMicrophone = transport.audio.ownership === 'managed';
       await this.connect(await this.firstCredential(session));
@@ -338,7 +356,10 @@ export class LiveSessionController {
   /** Wake a sleeping session on the person's word (its phrase wakes it by itself). */
   async wake(): Promise<void> {
     const session = this.session;
-    if (!session || this.ending) return;
+    if (!session || this.ending || this.store.getState().status !== 'standby') return;
+    // Resume during the button's gesture, before the credential/network await.
+    try { await this.player?.warmup(); }
+    catch { await this.end('error', null, 'live_audio_resume_failed'); return; }
     await this.sleeper.wake(session.session_id, 'manual');
   }
 
@@ -437,6 +458,11 @@ export class LiveSessionController {
     this.attempts = 0;
     this.awaitingMicrophone = managed;
     try {
+      // A wake word also resumes the already gesture-unlocked contexts.
+      await this.player?.warmup();
+      // The face reconnects at the wake too: it is ready before the voice.
+      await this.deps.awaitAvatar?.();
+      if (this.ending) return false;
       await this.connect(credential);
     } finally {
       this.awaitingMicrophone = false;
@@ -620,8 +646,12 @@ export class LiveSessionController {
           if (!fresh()) return;
           this.player?.enqueue(pcm, transport.audio.outputRate);
         },
+        ...(this.player?.attachRemoteStream ? { onRemoteStream: (stream: MediaStream) =>
+          fresh() ? this.player?.attachRemoteStream?.(stream) ?? (() => {}) : () => {} } : {}),
         onSpeakingChange: speaking => {
-          if (fresh()) this.setSpeaking(speaking);
+          if (!fresh()) return;
+          if (this.player?.nativeSpeaking) this.player.nativeSpeaking(speaking);
+          else this.setSpeaking(speaking);
         },
         onInteractionStatus: status => {
           if (fresh()) this.onInteractionStatus(status);
@@ -631,6 +661,9 @@ export class LiveSessionController {
         },
         onTurnComplete: () => {
           if (fresh()) this.onTurnComplete();
+        },
+        onGenerationComplete: () => {
+          if (fresh()) this.player?.finishProduction?.();
         },
         onInterrupted: () => {
           if (!fresh()) return;
@@ -707,6 +740,7 @@ export class LiveSessionController {
   private onTranscript(role: LiveTranscriptRole, text: string): void {
     if (!this.turn.startedAt) this.turn.startedAt = Date.now();
     if (role === 'user') {
+      this.player?.prepareNativeResponse?.();
       this.turn.user += text;
       if (!this.store.getState().delegating) this.store.getState().setVoiceState('recording');
     } else {

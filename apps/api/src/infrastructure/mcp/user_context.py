@@ -243,6 +243,7 @@ async def setup_user_mcp_tools(user_id: UUID) -> Token | None:
                         timeout_seconds=server.timeout_seconds,
                         app_resource_uri=tool_data.get("app_resource_uri"),
                         annotations=tool_data.get("annotations"),
+                        server_url=server.url,
                     )
 
                     manifest = _build_user_tool_manifest(
@@ -402,6 +403,7 @@ def _register_user_iterative_server(
                 timeout_seconds=server.timeout_seconds,
                 app_resource_uri=tool_data.get("app_resource_uri"),
                 annotations=tool_data.get("annotations"),
+                server_url=server.url,
             )
             ctx.tool_instances[adapter.name] = adapter
 

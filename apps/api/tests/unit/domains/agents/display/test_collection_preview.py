@@ -178,3 +178,40 @@ async def test_no_stream_writer_preserves_the_ordinary_response() -> None:
             "run",
         )
         await preview.close()
+
+
+async def test_start_freezes_registry_before_task_has_a_chance_to_run() -> None:
+    module = importlib.import_module("src.domains.agents.display.collection_preview")
+    values = registry()
+    original = values["email_1"]
+    original.payload.update(body="Original source", attendees=[{"name": "Casey"}])
+    with (
+        patch.object(
+            module,
+            "runtime_context_if_running",
+            return_value=LiaRuntimeContext(
+                user_id=uuid4(),
+                thread_id="t",
+                conversation_id="t",
+                browser_context={"viewport": "desktop"},
+            ),
+        ),
+        patch.object(module, "get_stream_writer", return_value=lambda _: None),
+        patch.object(module, "qualify_collection", AsyncMock(return_value=None)) as qualified,
+    ):
+        preview = module.CollectionPreview()
+        preview.start(
+            {"query_intelligence": {"english_query": "Emails", "immediate_intent": "search"}},
+            values,
+            "run",
+        )
+        # No await has allowed the scheduled task to read the caller's registry.
+        original.payload["body"] = "Changed source"
+        original.payload["attendees"][0]["name"] = "Changed attendee"
+        values.clear()
+        await asyncio.sleep(0.01)
+        await preview.close()
+    submitted = qualified.call_args.kwargs["items"][0]
+    assert submitted.payload["body"] == "Original source"
+    assert submitted.payload["attendees"] == [{"name": "Casey"}]
+    assert submitted is not original

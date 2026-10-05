@@ -29,6 +29,7 @@
  */
 import { test, expect, type MockRoute } from '../fixtures';
 import { liveSessionDeadlines } from '../fixtures/live';
+import { avatarRoutes, installSimliPeer, spokenWave } from '../fixtures/simli';
 
 test.use({
   launchOptions: {
@@ -327,6 +328,207 @@ function routes(
     },
   ];
 }
+
+for (const mode of ['delegated', 'direct'] as const) {
+  test(`Simli owns ${mode} PCM, persists during silence and closes on standby`, async ({
+    page,
+    context,
+    authenticate,
+    mockApi,
+  }) => {
+    await context.grantPermissions(['microphone']);
+    const frames = await installSimliPeer(page);
+    const starts: unknown[] = [];
+    const releases: unknown[] = [];
+    const standbyBodies: Array<{ url: string; body: unknown }> = [];
+    const user = await authenticate({ voice_enabled: true, speaking_avatar_enabled: true });
+    await mockApi([
+      ...routes([], [], [], [], [], null, standbyBodies),
+      ...avatarRoutes(starts, releases),
+      {
+        url: '**/api/v1/auth/me/voice-preference',
+        method: 'PATCH',
+        handler: async route => {
+          user.voice_enabled = false;
+          await route.fulfill({ json: { voice_enabled: false } });
+        },
+      },
+    ]);
+    await page.route('**/models/wake/**', route => route.fulfill({ status: 404, body: '' }));
+    let speak: () => void = () => {
+      throw new Error('provider_not_connected');
+    };
+    let setups = 0;
+    await page.routeWebSocket(/generativelanguage\.googleapis\.com/, ws => {
+      const frame = (payload: unknown) => ws.send(Buffer.from(JSON.stringify(payload)));
+      speak = () =>
+        frame({
+          serverContent: {
+            modelTurn: {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'audio/pcm;rate=24000',
+                    data: Buffer.from(spokenWave(), 'base64').subarray(44).toString('base64'),
+                  },
+                },
+              ],
+            },
+            generationComplete: true,
+            turnComplete: true,
+          },
+        });
+      ws.onMessage(message => {
+        if ((JSON.parse(String(message)) as Record<string, unknown>).setup) {
+          setups++;
+          frame({ setupComplete: {} });
+        }
+      });
+    });
+    await page.goto('/fr/dashboard/chat');
+    const avatar = page.getByRole('toolbar', {
+      name: 'Déplacer l’avatar : glisser ou utiliser les flèches',
+    });
+    await expect(avatar).toBeVisible();
+    await avatar.click();
+    await expect(avatar.getByRole('button', { name: 'Activer le son' })).toHaveCount(0);
+    await expect.poll(() => starts.length).toBe(1);
+    const localStarts = await page.evaluate(() => window.simliFixture.localStarts);
+    await page.getByRole('button', { name: 'Voix et session live' }).click();
+    await page
+      .getByRole('menuitem', {
+        name: mode === 'direct' ? 'Session Live directe (Gemini)' : 'Session Live (Gemini)',
+        exact: true,
+      })
+      .click();
+    const banner = page.getByRole('region', { name: 'Session live' });
+    await expect(banner.getByRole('status')).toContainText(
+      mode === 'direct' ? 'Session directe' : 'Tu parles avec LIA'
+    );
+    await expect.poll(() => setups).toBe(1);
+    speak();
+    await expect
+      .poll(() =>
+        frames
+          .filter(frame => Buffer.isBuffer(frame))
+          .reduce((bytes, frame) => bytes + frame.length, 0)
+      )
+      .toBe(16000);
+    expect(await page.evaluate(() => window.simliFixture.localStarts)).toBe(localStarts);
+    expect(starts).toHaveLength(1);
+    expect(releases).toHaveLength(0);
+    expect(frames).not.toContain('DONE');
+    await banner.getByRole('button', { name: 'Mettre la session en veille' }).click();
+    await expect(avatar).toHaveCount(0);
+    await expect.poll(() => releases.length).toBe(1);
+    expect(frames).toContain('DONE');
+    await banner.getByRole('button', { name: 'Réveiller', exact: true }).click();
+    await expect(banner.getByRole('status')).toContainText(
+      mode === 'direct' ? 'Session directe' : 'Tu parles avec LIA'
+    );
+    await expect(avatar).toBeVisible();
+    await avatar.click();
+    await expect(avatar.getByRole('button', { name: 'Activer le son' })).toHaveCount(0);
+    await expect.poll(() => starts.length).toBe(2);
+    await expect.poll(() => setups).toBe(2);
+    speak();
+    await expect
+      .poll(() =>
+        frames
+          .filter(frame => Buffer.isBuffer(frame))
+          .reduce((bytes, frame) => bytes + frame.length, 0)
+      )
+      .toBe(32000);
+    await banner.getByRole('button', { name: 'Terminer la session live' }).click();
+    await expect(avatar).toHaveCount(0);
+    await expect.poll(() => releases.length).toBe(2);
+    expect(standbyBodies.map(body => body.url)).toEqual(['standby', 'wake']);
+  });
+}
+
+test('a Live started cold — comments off, nothing clicked on the avatar — unlocks its stream itself and owns the next production', async ({
+  page,
+  context,
+  authenticate,
+  mockApi,
+}) => {
+  await context.grantPermissions(['microphone']);
+  const frames = await installSimliPeer(page);
+  const starts: unknown[] = [];
+  const releases: unknown[] = [];
+  const ends: unknown[] = [];
+  await authenticate({ voice_enabled: false, speaking_avatar_enabled: true });
+  await mockApi([...routes([], ends), ...avatarRoutes(starts, releases)]);
+  await page.route('**/models/wake/**', route => route.fulfill({ status: 404, body: '' }));
+  let speak: () => void = () => {
+    throw new Error('provider_not_connected');
+  };
+  let setups = 0;
+  await page.routeWebSocket(/generativelanguage\.googleapis\.com/, ws => {
+    const frame = (payload: unknown) => ws.send(Buffer.from(JSON.stringify(payload)));
+    speak = () =>
+      frame({
+        serverContent: {
+          modelTurn: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: 'audio/pcm;rate=24000',
+                  data: Buffer.from(spokenWave(), 'base64').subarray(44).toString('base64'),
+                },
+              },
+            ],
+          },
+          generationComplete: true,
+          turnComplete: true,
+        },
+      });
+    ws.onMessage(message => {
+      if ((JSON.parse(String(message)) as Record<string, unknown>).setup) {
+        setups++;
+        frame({ setupComplete: {} });
+      }
+    });
+  });
+  await page.goto('/fr/dashboard/chat');
+  const avatar = page.getByRole('toolbar', {
+    name: 'Déplacer l’avatar : glisser ou utiliser les flèches',
+  });
+  // Comments are off: no avatar window, no session, nothing to click.
+  await expect(avatar).toHaveCount(0);
+  expect(starts).toHaveLength(0);
+  await page.getByRole('button', { name: 'Voix et session live' }).click();
+  await page
+    .getByRole('menuitem', { name: 'Session Live directe (Gemini)', exact: true })
+    .click();
+  const banner = page.getByRole('region', { name: 'Session live' });
+  await expect(banner.getByRole('status')).toContainText('Session directe');
+  await expect(avatar).toBeVisible();
+  await expect.poll(() => setups).toBe(1);
+  await expect.poll(() => starts.length).toBe(1);
+  // The person only speaks from here on. The stream arrives after the
+  // gesture that started the Live; that gesture is what unlocks it (measured
+  // 2026-10-04: « Activer le son » stayed for the whole session and every
+  // reply played locally).
+  await expect(avatar.getByRole('button', { name: 'Activer le son' })).toHaveCount(0, {
+    timeout: 15_000,
+  });
+  const bytes = () =>
+    frames
+      .filter(frame => Buffer.isBuffer(frame))
+      .reduce((total, frame) => total + frame.length, 0);
+  speak();
+  // Whatever the first reply's destination, the production after it is Simli's.
+  await page.waitForTimeout(1500);
+  speak();
+  await expect.poll(bytes, { timeout: 15_000 }).toBeGreaterThanOrEqual(16000);
+  expect(releases).toHaveLength(0);
+  expect(frames).not.toContain('DONE');
+  await banner.getByRole('button', { name: 'Terminer la session live' }).click();
+  await expect(avatar).toHaveCount(0);
+  await expect.poll(() => releases.length).toBe(1);
+  expect(frames).toContain('DONE');
+});
 
 test.describe('chat live session', () => {
   test('starts, delegates a spoken request, answers the voice, ends with the card', async ({

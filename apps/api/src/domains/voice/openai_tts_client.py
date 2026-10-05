@@ -28,6 +28,7 @@ from openai import AsyncOpenAI
 
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.voice.exceptions import TTSProviderError
+from src.domains.voice.protocol import RawAudioSpec
 from src.infrastructure.observability.metrics_voice import (
     voice_tts_errors_total,
     voice_tts_latency_seconds,
@@ -95,6 +96,11 @@ class OpenAITTSClient:
     def audio_format(self) -> str:
         """Get the audio format produced by this provider."""
         return self.response_format
+
+    @property
+    def raw_audio_spec(self) -> RawAudioSpec | None:
+        """OpenAI PCM is mono signed 16-bit little-endian at 24 kHz."""
+        return RawAudioSpec(24000) if self.response_format == "pcm" else None
 
     async def synthesize(
         self,

@@ -26,7 +26,11 @@ from src.core.config import settings
 from src.core.constants import MCP_USER_TOOL_NAME_PREFIX
 from src.core.field_names import FIELD_REGISTRY_ID
 from src.domains.agents.constants import CONTEXT_DOMAIN_MCP
-from src.domains.agents.data_registry.mcp_metadata import mcp_item_payload, mcp_source_display
+from src.domains.agents.data_registry.mcp_metadata import (
+    mcp_item_payload,
+    mcp_server_origin,
+    mcp_source_display,
+)
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -35,6 +39,7 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.mcp.gated_tool import EffectGatedMCPTool
+from src.infrastructure.mcp.rate_limit import MCPRateLimitError, MCPToolExecutionError
 from src.infrastructure.mcp.tool_adapter import build_args_schema
 from src.infrastructure.mcp.utils import build_mcp_app_output, drop_none_values
 from src.infrastructure.observability.metrics_mcp import (
@@ -137,6 +142,7 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
     mcp_tool_name: str = ""
     server_name_label: str = ""  # For Prometheus labels
     server_display_name: str = ""  # Human-readable server name for card display
+    server_url: str = ""  # Public origin only; never carries endpoint credentials
     args_schema: type[BaseModel] | None = None
     timeout_seconds: int = 30
     app_resource_uri: str | None = None
@@ -156,6 +162,7 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
         timeout_seconds: int = 30,
         app_resource_uri: str | None = None,
         annotations: dict[str, Any] | None = None,
+        server_url: str = "",
     ) -> UserMCPToolAdapter:
         """
         Create a UserMCPToolAdapter from discovered tool data.
@@ -175,6 +182,7 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
             mcp_tool_name=tool_name,
             server_name_label=f"user_{server_prefix}",
             server_display_name=server_name,
+            server_url=mcp_server_origin(server_url),
             args_schema=args_model,
             timeout_seconds=timeout_seconds,
             app_resource_uri=app_resource_uri,
@@ -276,7 +284,10 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                         id=rid,
                         type=RegistryItemType.MCP_RESULT,
                         payload=mcp_item_payload(
-                            item_data, self.server_display_name, self.mcp_tool_name
+                            item_data,
+                            self.server_display_name,
+                            self.mcp_tool_name,
+                            self.server_url,
                         ),
                         meta=RegistryItemMeta(
                             source=f"mcp_{self.server_name_label}",
@@ -318,7 +329,9 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                     source=f"mcp_{self.server_name_label}",
                     domain=CONTEXT_DOMAIN_MCP,
                     tool_name=self.name,
-                    display=mcp_source_display(self.server_display_name, self.mcp_tool_name),
+                    display=mcp_source_display(
+                        self.server_display_name, self.mcp_tool_name, self.server_url
+                    ),
                 ),
             )
 
@@ -342,16 +355,35 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                 },
             )
 
+        except MCPRateLimitError as exc:
+            mcp_tool_invocations_total.labels(
+                server_name=self.server_name_label,
+                tool_name=self.mcp_tool_name,
+                status="error",
+            ).inc()
+            logger.info(
+                "user_mcp_tool_rate_limited",
+                server_id=str(self.server_id),
+                tool_name=self.mcp_tool_name,
+                retry_after=exc.retry_after,
+            )
+            return UnifiedToolOutput.failure(
+                message=str(exc),
+                error_code="RATE_LIMIT_EXCEEDED",
+                metadata={"retry_after": exc.retry_after},
+            )
+
         except Exception as exc:
             mcp_tool_invocations_total.labels(
                 server_name=self.server_name_label,
                 tool_name=self.mcp_tool_name,
                 status="error",
             ).inc()
-            mcp_connection_errors_total.labels(
-                server_name=self.server_name_label,
-                error_type=type(exc).__name__,
-            ).inc()
+            if not isinstance(exc, MCPToolExecutionError):
+                mcp_connection_errors_total.labels(
+                    server_name=self.server_name_label,
+                    error_type=type(exc).__name__,
+                ).inc()
 
             logger.warning(
                 "user_mcp_tool_error",
@@ -360,7 +392,7 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                 tool_name=self.mcp_tool_name,
                 error=str(exc),
                 error_type=type(exc).__name__,
-                exc_info=True,
+                exc_info=not isinstance(exc, MCPToolExecutionError),
             )
 
             raise

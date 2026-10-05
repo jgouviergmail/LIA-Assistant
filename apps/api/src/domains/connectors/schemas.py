@@ -112,6 +112,11 @@ class ConnectorCredentials(BaseModel):
 
     access_token: str
     account_binding: str | None = Field(default=None, exclude=True)
+    # Opaque connection-generation seed, retained only in encrypted credentials.
+    # Fresh OAuth callbacks replace it; token rotation preserves it.
+    legacy_account_generation: str | None = Field(
+        default=None, pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$", repr=False
+    )
     refresh_token: str | None = None
     token_type: str = "Bearer"
     expires_at: datetime | None = None

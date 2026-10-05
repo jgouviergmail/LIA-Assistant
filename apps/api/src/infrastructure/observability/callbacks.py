@@ -7,6 +7,7 @@ callback system for comprehensive observability.
 
 import time
 from contextlib import suppress
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -25,6 +26,7 @@ from src.core.field_names import (
     FIELD_METADATA,
     FIELD_MODEL_NAME,
 )
+from src.infrastructure.cache.pricing_cache import PricingCacheData, capture_pricing_snapshot
 from src.infrastructure.llm.inference_params import capture_inference_params, requested_model
 from src.infrastructure.observability.error_taxonomy import classify_llm_error
 from src.infrastructure.observability.logging import get_logger
@@ -75,6 +77,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         self.node_name = node_name
         self.llm = llm
         self.start_times: dict[UUID, float] = {}
+        self.pricing_snapshots: dict[UUID, PricingCacheData] = {}
         # Phase 2.1 (RC4 Fix): Store last usage for cache decorator
         # CRITICAL: Cleared on each on_llm_start to prevent memory leaks
         self._last_usage_metadata: dict[str, Any] | None = None
@@ -92,6 +95,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
     def _store_start_time(self, run_id: UUID) -> None:
         """Store start time for latency calculation (DRY helper)."""
         self.start_times[run_id] = time.time()
+        self.pricing_snapshots[run_id] = capture_pricing_snapshot()
         self._last_usage_metadata = None
 
     async def on_llm_start(
@@ -140,13 +144,17 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         self._recorded_llm_run_ids.add(run_id)
 
         # Calculate latency
-        latency = time.time() - self.start_times.pop(run_id, time.time())
+        finished_at = time.time()
+        started_at = self.start_times.pop(run_id, finished_at)
+        pricing_snapshot = self.pricing_snapshots.pop(run_id, None)
+        latency = finished_at - started_at
 
         # **Phase 2.1 - Token Tracking Alignment Fix (CRITICAL)**
         # Extract node_name from kwargs metadata (set by enrich_config_with_node_metadata)
         # This overrides self.node_name from __init__ to support dynamic node context
         metadata = kwargs.get(FIELD_METADATA, {})
         node_name = metadata.get("langgraph_node", self.node_name)
+        call_status = kwargs.get("_call_status", "success")
 
         # Extract token usage using centralized extractor (eliminates duplication)
         usage = TokenExtractor.extract(response, self.llm)
@@ -156,7 +164,9 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
             # ADR-220: this is an accounting hole, not a curiosity — on a paid
             # provider the ledger and the spend ceiling just missed the spend.
             # Count it and say it at WARNING (node_name only, never content).
-            llm_api_calls_total.labels(model="unknown", node_name=node_name, status="success").inc()
+            llm_api_calls_total.labels(
+                model="unknown", node_name=node_name, status=call_status
+            ).inc()
             llm_api_latency_seconds.labels(model="unknown", node_name=node_name).observe(latency)
             llm_calls_without_usage_total.labels(node_name=node_name).inc()
             logger.warning(
@@ -208,7 +218,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
             ).inc(cached_tokens)
 
         # Track API call success
-        llm_api_calls_total.labels(model=model_name, node_name=node_name, status="success").inc()
+        llm_api_calls_total.labels(model=model_name, node_name=node_name, status=call_status).inc()
 
         # Track latency
         llm_api_latency_seconds.labels(model=model_name, node_name=node_name).observe(latency)
@@ -219,7 +229,9 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             cached_tokens=cached_tokens,
+            at=datetime.fromtimestamp(started_at, UTC),
             cache_write_tokens=usage.cache_write_tokens,
+            snapshot=pricing_snapshot,
         )
         # Get configured currency (validated Enum: USD or EUR)
         currency = settings.default_currency.upper()
@@ -242,8 +254,26 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         **kwargs: Any,
     ) -> None:
         """Called when LLM errors."""
+        if run_id in self._recorded_llm_run_ids:
+            return
+        partial = kwargs.get("response")
+        partial_usage = (
+            TokenExtractor.extract(partial, self.llm) if isinstance(partial, LLMResult) else None
+        )
+        if isinstance(partial, LLMResult) and partial_usage is not None:
+            await self.on_llm_end(
+                partial,
+                run_id=run_id,
+                parent_run_id=parent_run_id,
+                tags=tags,
+                _call_status="error",
+                metadata=kwargs.get(FIELD_METADATA, {}),
+            )
+        else:
+            self._recorded_llm_run_ids.add(run_id)
         # Clean up start time
         self.start_times.pop(run_id, None)
+        self.pricing_snapshots.pop(run_id, None)
 
         # **Phase 2.1 - Token Tracking Alignment Fix (CRITICAL)**
         # Extract node_name from kwargs metadata (set by enrich_config_with_node_metadata)
@@ -258,18 +288,37 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
                 model_name = getattr(self.llm, "model_name", "unknown")
 
         # Track API call error
-        llm_api_calls_total.labels(model=model_name, node_name=node_name, status="error").inc()
+        if partial_usage is not None:
+            model_name = partial_usage.model_name
+        else:
+            llm_api_calls_total.labels(model=model_name, node_name=node_name, status="error").inc()
 
-        # METRICS: Classify and track specific LLM error types
+        provider = self._infer_provider(model_name)
+        error_type = self._classify_llm_error(error)
+        self._record_error_categories(error, model_name, provider, error_type)
+
+        logger.error(
+            "llm_api_call_failed",
+            run_id=str(run_id),
+            node_name=node_name,
+            model=model_name,
+            provider=provider,
+            error=str(error),
+            error_type=type(error).__name__,
+            classified_error=error_type,
+        )
+
+    @staticmethod
+    def _record_error_categories(
+        error: BaseException, model_name: str, provider: str, error_type: str
+    ) -> None:
+        """Record the classified provider error independently of usage accounting."""
         from src.infrastructure.observability.metrics_errors import (
             llm_api_errors_total,
             llm_content_filter_violations_total,
             llm_context_length_exceeded_total,
             llm_rate_limit_hit_total,
         )
-
-        provider = self._infer_provider(model_name)
-        error_type = self._classify_llm_error(error)
 
         # Track general LLM API error
         llm_api_errors_total.labels(provider=provider, error_type=error_type).inc()
@@ -295,17 +344,6 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
         # Content filter violations
         elif error_type == "content_filter":
             llm_content_filter_violations_total.labels(provider=provider).inc()
-
-        logger.error(
-            "llm_api_call_failed",
-            run_id=str(run_id),
-            node_name=node_name,
-            model=model_name,
-            provider=provider,
-            error=str(error),
-            error_type=type(error).__name__,
-            classified_error=error_type,
-        )
 
     @staticmethod
     def _infer_provider(model_name: str) -> str:
@@ -429,6 +467,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
             # values are unbounded, and it does not map to a slot.
             "llm_type": md.get(FIELD_LLM_TYPE),
             "start_time": time.time(),
+            "pricing_snapshot": capture_pricing_snapshot(),
             # ADR-263 lot 7: the parameters actually SENT. LangChain hands them
             # to every callback beside this metadata, so the register needs no
             # plumbing of its own — and reading them HERE is what makes them
@@ -600,6 +639,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 status="success",
                 params=call_ctx.get("params"),
                 requested_model=call_ctx.get("requested_model"),
+                pricing_snapshot=call_ctx.get("pricing_snapshot"),
             )
 
             # DEBUG: Confirm tokens recorded
@@ -627,13 +667,13 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         run_id: UUID,
         **kwargs: Any,
     ) -> None:
-        """Record a failed call as a zero-token row.
+        """Record known partial usage, or a zero-token observation when absent.
 
-        A failure produces no usage metadata, so without this the ledger has no
-        trace that the call happened at all -- and a policy that only ever sees
-        successes cannot tell a model that works from one that never answers
-        (ADR-244). The row carries zero tokens and zero cost: it is an
-        observation, not a charge.
+        LangChain may attach a partial streamed result with provider-reported
+        usage: that known spend is billed even though the stream failed. With
+        no usage, the row remains a zero-cost observation (ADR-244), so a
+        policy can distinguish a model that never answers without estimating
+        unknown spend.
 
         Shares ``_recorded_llm_run_ids`` with :meth:`on_llm_end`, so a run is
         recorded exactly once whichever way it ends and however many times the
@@ -648,6 +688,8 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         start_time = call_ctx.get("start_time", 0.0)
         duration_ms = (time.time() - start_time) * 1000 if start_time > 0 else 0.0
         failure_kind = classify_llm_error(error)
+        partial = kwargs.get("response")
+        usage = TokenExtractor.extract(partial) if isinstance(partial, LLMResult) else None
 
         logger.warning(
             "token_tracking_llm_error",
@@ -663,14 +705,17 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         try:
             await self.tracker.record_node_tokens(
                 node_name=call_ctx.get("node_name", "unknown"),
-                # A failed call reports no model: the one it REQUESTED is the
-                # model the failure belongs to (ADR-244 judges models on their
-                # failures too), « unknown » only when the request named none.
-                model_name=call_ctx.get("requested_model") or "unknown",
-                prompt_tokens=0,
-                completion_tokens=0,
-                cached_tokens=0,
-                cache_write_tokens=0,
+                # Prefer the partial result's reported model when present;
+                # otherwise attribute the failure to the requested model.
+                model_name=(
+                    usage.model_name
+                    if usage is not None and usage.model_name != "unknown"
+                    else call_ctx.get("requested_model") or "unknown"
+                ),
+                prompt_tokens=usage.input_tokens if usage is not None else 0,
+                completion_tokens=usage.output_tokens if usage is not None else 0,
+                cached_tokens=usage.cached_tokens if usage is not None else 0,
+                cache_write_tokens=usage.cache_write_tokens if usage is not None else 0,
                 duration_ms=duration_ms,
                 started_at=start_time if start_time > 0 else None,
                 llm_type=call_ctx.get("llm_type"),
@@ -678,6 +723,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 params=call_ctx.get("params"),
                 failure_kind=failure_kind,
                 requested_model=call_ctx.get("requested_model"),
+                pricing_snapshot=call_ctx.get("pricing_snapshot"),
             )
         except Exception as exc:  # noqa: BLE001
             logger.error(

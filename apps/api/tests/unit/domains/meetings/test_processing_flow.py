@@ -242,7 +242,9 @@ def regenerate_world(
     monkeypatch.setattr(regeneration, "synthesize_minutes", synthesize)
     tracked = AsyncMock(return_value="run-1")
     monkeypatch.setattr("src.infrastructure.proactive.tracking.track_proactive_tokens", tracked)
-    monkeypatch.setattr(processing, "get_cached_cost_usd_eur", lambda **kwargs: (0.002, 0.0017))
+    monkeypatch.setattr(
+        "src.domains.meetings.costs.get_cached_cost_usd_eur", lambda **kwargs: (0.002, 0.0017)
+    )
     return {"repo": repo, "reindex": reindex, "synthesize": synthesize, "tracked": tracked}
 
 

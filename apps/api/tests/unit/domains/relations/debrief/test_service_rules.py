@@ -503,6 +503,7 @@ class TestWhatTheUsageLogRecords:
             tokens_cache=0,
             tokens_cache_write=0,
             model_name="gpt-4.1-mini",
+            billing_records=(),
         )
         with patch("src.infrastructure.proactive.tracking.track_proactive_tokens", tracker):
             await RelationDebriefService(uuid4())._track(usage, "gerard dupont", "run-probe")
@@ -537,7 +538,12 @@ class TestWhatTheUsageLogRecords:
 
         tracker = AsyncMock()
         usage = SimpleNamespace(
-            tokens_in=1, tokens_out=1, tokens_cache=0, tokens_cache_write=0, model_name="m"
+            tokens_in=1,
+            tokens_out=1,
+            tokens_cache=0,
+            tokens_cache_write=0,
+            model_name="m",
+            billing_records=(),
         )
         with patch("src.infrastructure.proactive.tracking.track_proactive_tokens", tracker):
             await RelationDebriefService(uuid4())._track(usage, "gérard dupont", "run-probe")

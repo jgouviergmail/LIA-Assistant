@@ -71,6 +71,7 @@ class ConnectorType(str, enum.Enum):
     GEMINI_LIVE = "gemini_live"
     GPT_LIVE = "gpt_live"
     ELEVENLABS_LIVE = "elevenlabs_live"
+    SIMLI = "simli"
 
     # Legacy (deprecated - use GOOGLE_GMAIL instead)
     GMAIL = "gmail"
@@ -277,6 +278,7 @@ _KEYLESS_USER_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
 # Functional categories for mutual exclusivity
 # Only ONE connector per category can be ACTIVE at a time for a given user.
 CONNECTOR_FUNCTIONAL_CATEGORIES: dict[str, frozenset[ConnectorType]] = {
+    "avatar": frozenset({ConnectorType.SIMLI}),
     "email": frozenset(
         {ConnectorType.GOOGLE_GMAIL, ConnectorType.APPLE_EMAIL, ConnectorType.MICROSOFT_OUTLOOK}
     ),
@@ -322,6 +324,7 @@ CONNECTOR_ADDITIVE_CATEGORIES: frozenset[str] = frozenset({"live"})
 
 # Display names for functional categories (used in error messages).
 CATEGORY_DISPLAY_NAMES: dict[str, str] = {
+    "avatar": "Avatar",
     "email": "Email",
     "calendar": "Calendar",
     "contacts": "Contacts",
@@ -408,6 +411,7 @@ CONNECTOR_DISPLAY_NAMES: dict[ConnectorType, str] = {
     ConnectorType.GEMINI_LIVE: "Live (Gemini)",
     ConnectorType.GPT_LIVE: "Live (OpenAI)",
     ConnectorType.ELEVENLABS_LIVE: "Live (ElevenLabs)",
+    ConnectorType.SIMLI: "Simli",
     ConnectorType.GMAIL: "Gmail",  # Legacy
     ConnectorType.SLACK: "Slack",
     ConnectorType.NOTION: "Notion",

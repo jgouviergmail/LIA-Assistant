@@ -13,7 +13,12 @@ function exactKeys(value: Record<string, unknown>, keys: string[]): boolean {
   return Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
 }
 function action(value: unknown): value is CardComposeAction {
-  return value === 'reply' || value === 'forward' || value === 'cancel_reminder';
+  return (
+    value === 'reply' ||
+    value === 'forward' ||
+    value === 'delete_email' ||
+    value === 'cancel_reminder'
+  );
 }
 const UUID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 
@@ -75,9 +80,10 @@ function emailItem(
 ): CardActionItem | null {
   if (
     !Array.isArray(value.actions) ||
-    value.actions.length !== 2 ||
+    (value.actions.length !== 2 && value.actions.length !== 3) ||
     value.actions[0] !== 'reply' ||
-    value.actions[1] !== 'forward'
+    value.actions[1] !== 'forward' ||
+    (value.actions.length === 3 && value.actions[2] !== 'delete_email')
   )
     return null;
   const provider = value.provider;
@@ -88,7 +94,8 @@ function emailItem(
     kind: 'EMAIL',
     provider,
     account_binding: value.account_binding,
-    actions: ['reply', 'forward'],
+    actions:
+      value.actions.length === 3 ? ['reply', 'forward', 'delete_email'] : ['reply', 'forward'],
   };
 }
 

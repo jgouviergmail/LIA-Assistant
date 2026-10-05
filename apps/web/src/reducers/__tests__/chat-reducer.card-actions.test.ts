@@ -3,6 +3,7 @@ import { chatReducer } from '../chat-reducer';
 import { initialChatState } from '@/types/chat-state';
 import type { Message } from '@/types/chat';
 import type { CardActionsProjection, CardCompositionWire } from '@/types/card-actions';
+import { cardActionsFromMetadata, cardSourceMessageId } from '@/lib/card-actions';
 
 const projection: CardActionsProjection = {
   version: 1,
@@ -47,13 +48,49 @@ describe('card action ownership through SSE and retries', () => {
           metadata: {
             run_id: 'current',
             lia_card_actions: projection,
+            archived_message_id: selection.message_id,
             ...(condition === 'cancelled' ? { cancelled: true } : {}),
           },
         },
       });
-      if (condition === 'matched')
+      if (condition === 'matched' || condition === 'fallback') {
         expect(next.messages[0].metadata?.lia_card_actions).toEqual(projection);
-      else expect(next.messages[0].metadata?.lia_card_actions).toBeUndefined();
+        expect(cardSourceMessageId(next.messages[0])).toBe(selection.message_id);
+        expect(cardActionsFromMetadata(next.messages[0].metadata)).toEqual(projection);
+      } else expect(next.messages[0].metadata?.lia_card_actions).toBeUndefined();
+      expect(state.messages[0]).toEqual(before);
+    }
+  );
+
+  it.each(['unknown_run', 'other_run', 'other_row', 'hitl'] as const)(
+    'does not give another answer card actions through the %s fallback',
+    condition => {
+      const before = answer(condition === 'hitl' ? 'hitl_prompt' : 'own');
+      before.metadata =
+        condition === 'unknown_run'
+          ? {}
+          : {
+              run_id: condition === 'other_run' ? 'previous' : 'current',
+              ...(condition === 'other_row'
+                ? { message_db_id: '00000000-0000-0000-0000-000000000099' }
+                : {}),
+            };
+      const state = { ...structuredClone(initialChatState), messages: [before] };
+      const next = chatReducer(state, {
+        type: 'STREAM_DONE',
+        payload: {
+          messageId: 'missing',
+          metadata: {
+            run_id: 'current',
+            archived_message_id: selection.message_id,
+            lia_card_actions: projection,
+          },
+        },
+      });
+      expect(next.messages[0].metadata?.lia_card_actions).toBeUndefined();
+      if (condition === 'other_row')
+        expect(cardSourceMessageId(next.messages[0])).toBe('00000000-0000-0000-0000-000000000099');
+      else expect(cardSourceMessageId(next.messages[0])).toBeUndefined();
       expect(state.messages[0]).toEqual(before);
     }
   );

@@ -1377,7 +1377,7 @@
     },
     "325": {
       "title": "JEV décide, chaque usage garde son interrupteur",
-      "summary": "JEV aide LIA à choisir, orienter ou évaluer dans un périmètre précis. Chaque usage possède un interrupteur à chaud ; en cas de doute, le traitement existant reprend la main. Les aperçus conservent tous les résultats, les observateurs ne bloquent aucune extraction et une exclusion ne vaut jamais approbation. Les administrateurs voient le contexte, la réponse et la suite donnée ; chaque appel payant reste compté. Les gains de temps se vérifient sur le parcours complet avant activation."
+      "summary": "JEV aide à choisir, orienter ou évaluer parmi des choix bornés, avec un interrupteur à chaud par usage et le parcours existant en cas de doute. Deux usages facultatifs, désactivés par défaut, repèrent l’absence de références personnelles ou le refus de toutes les actions en attente ; aucun n’autorise l’exécution. Les aperçus gardent les résultats canoniques et les observateurs ne bloquent aucune écriture; les administrateurs voient contexte et issue, échecs payants et replis comptent tous deux, et les gains se vérifient sur le parcours complet avant activation."
     },
     "326": {
       "title": "Aucun texte hostile ne gèle LIA, aucune redirection ne la détourne",
@@ -1410,6 +1410,10 @@
     "333": {
       "title": "Journaux, traces et métriques se répondent, et la chaîne d'observation se surveille elle-même",
       "summary": "Une ligne de journal ouvre la trace de sa requête, une trace ouvre ses journaux et ses métriques, un point de latence ouvre l'exemple qui l'a produit : des liens mesurés hors service en production fonctionnent désormais. La chaîne qui transporte ces signaux est surveillée à son tour, avec une alerte quand des journaux se perdent, et tous les tableaux de bord suivent une même convention : une semaine d'historique et un menu commun."
+    },
+    "334": {
+      "title": "Un avatar parlant personnel, une seule sortie audible — conception proposée",
+      "summary": "La conception expérimentale implémentée relie un visage Simli choisi par la personne aux commentaires vocaux et au Live direct ou délégué, sur sa clé et sous une session bornée. Le navigateur choisit une seule destination audible ; la veille ferme la connexion, tandis qu’une session ouverte consomme le forfait personnel même pendant les silences. Radio reste à part ; la décision demeure proposée : mouvement des lèvres, acceptation du média et essais Android/iOS restent en attente."
     }
   }
 }

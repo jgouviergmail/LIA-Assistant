@@ -33,7 +33,9 @@ from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
     StructuredOutputTruncatedError,
 )
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.observability.metrics_meetings import meeting_failures_total
+from src.infrastructure.proactive.tracking import bill_captured_usage, capture_spend_on_failure
 
 logger = structlog.get_logger(__name__)
 
@@ -76,8 +78,27 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
         # The reads end before the model is asked (ADR-304): this session is
         # the job's own, and the synthesis can take minutes.
         await db.commit()
+        capture = TokenCaptureHandler()
         try:
-            synthesis = await synthesize_minutes(turns, decision.sections, context)
+            async with capture_spend_on_failure(
+                capture,
+                user_id=meeting.user_id,
+                task_type=MEETINGS_PROACTIVE_TASK_TYPE,
+                target_id=str(meeting.id),
+                model_name="unknown",
+                source="user",
+            ):
+                synthesis = await synthesize_minutes(
+                    turns, decision.sections, context, capture=capture
+                )
+                await bill_captured_usage(
+                    capture,
+                    user_id=meeting.user_id,
+                    task_type=MEETINGS_PROACTIVE_TASK_TYPE,
+                    target_id=str(meeting.id),
+                    model_name=synthesis.usage.model_name,
+                    source="user",
+                )
         except StructuredOutputTruncatedError as exc:
             # Cut at the output budget: a distinct, permanent code so the
             # reader is told WHY rather than « it failed » (ADR-275).
@@ -99,7 +120,9 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
         usage = synthesis.usage
         # A rebuild is paid like the first pass: tracked for the platform, added
         # to the meeting's own total for the user.
-        if usage.tokens_in or usage.tokens_out:
+        if not usage.billing_records and (
+            usage.tokens_in or usage.tokens_out or usage.tokens_cache
+        ):
             from src.infrastructure.proactive.tracking import track_proactive_tokens
 
             await track_proactive_tokens(
@@ -111,6 +134,7 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
                 tokens_out=usage.tokens_out,
                 tokens_cache=usage.tokens_cache,
                 tokens_cache_write=usage.tokens_cache_write,
+                billing_records=usage.billing_records,
                 model_name=usage.model_name,
                 db=db,
                 source="user",

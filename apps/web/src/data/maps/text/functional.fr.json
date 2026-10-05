@@ -80,7 +80,7 @@
     },
     "f.memory": {
       "name": "Mémoire long terme",
-      "role": "Faits, préférences et consignes de travail extraits en arrière-plan de tes conversations, et cherchés exprès quand un sujet surgit en chemin ; chaque souvenir se voit, se corrige, et garde son historique quand il change.",
+      "role": "Faits, préférences et consignes de travail retenus de tes conversations, visibles et modifiables avec leur historique. Les nouvelles consignes durables sont épinglées par défaut ; l’entretien automatique les laisse intactes. LIA les cherche aussi exprès quand un sujet surgit en chemin.",
       "goal": "Ne pas avoir à répéter ce que LIA sait déjà de toi."
     },
     "f.journals": {
@@ -175,7 +175,7 @@
     },
     "f.mcp": {
       "name": "Serveurs MCP",
-      "role": "Brancher des outils tiers au standard MCP — anciennes et nouvelles révisions du protocole, OAuth compris.",
+      "role": "Brancher des outils tiers MCP, OAuth compris ; les cartes de résultat nomment leur serveur et leur méthode. Une pause déclarée par le serveur suspend les appels entre workers.",
       "goal": "Étendre LIA sans attendre une intégration native."
     },
     "f.skills": {
@@ -255,7 +255,7 @@
     },
     "f.live": {
       "name": "Mode Live",
-      "role": "Une conversation vocale en temps réel sur ta propre clé ; chaque demande de données ou d'action est déléguée au moteur de LIA, avec les mêmes règles que le chat.",
+      "role": "Une voix en temps réel sur ta propre clé : le mode direct lit tes données sans agir ; le mode délégué confie chaque demande au moteur du chat et à ses confirmations. La veille ferme la connexion fournisseur.",
       "goal": "Parler naturellement, sans perdre la validation ni la traçabilité."
     },
     "f.telephony": {
@@ -265,7 +265,7 @@
     },
     "f.radio": {
       "name": "Radio personnelle",
-      "role": "Une station à la demande, dans ta langue : ta journée et l'actualité du monde, écrites, vérifiées et dites pour toi pendant que tu écoutes, chaque phrase avec sa source.",
+      "role": "Une station à la demande, dans ta langue : ta journée et des actualités sourcées, écrites, vérifiées et dites pendant ton écoute. Le filtre éditorial retire les invitations à acheter en gardant les informations utiles.",
       "goal": "Écouter sa journée et le monde sans rien lire, en sachant ce que ça coûte."
     },
     "f.security": {
@@ -280,7 +280,7 @@
     },
     "f.costs": {
       "name": "Coûts et quotas",
-      "role": "Chaque euro payé par la plateforme est tracé, affiché, attribué à la bonne personne ; un plafond par compte et un budget journalier pour l'instance.",
+      "role": "L’usage payé par la plateforme est attribué à sa personne, valorisé au tarif de chaque tentative et montré même quand l’usage connu finit en échec ou en annulation ; des plafonds compte et instance bornent la dépense.",
       "goal": "Aucune dépense invisible, aucune dépense sans borne."
     },
     "f.llmconfig": {
@@ -302,6 +302,11 @@
       "name": "Produit et démonstrateur",
       "role": "Le démonstrateur public, les retours sur les réponses et les mesures produit qui guident les évolutions.",
       "goal": "Montrer LIA sans risque, et l'améliorer sur des faits."
+    },
+    "f.avatar": {
+      "name": "Avatar parlant",
+      "role": "Une présence Simli expérimentale, choisie sur ta clé, pour les commentaires vocaux et le Live direct ou délégué ; une fenêtre mobile et une connexion fermée en veille. Radio garde son lecteur.",
+      "goal": "Choisir un visage en connaissant sa consommation, silences compris."
     }
   },
   "flows": {
@@ -345,8 +350,8 @@
       ]
     },
     "flow.live": {
-      "name": "Une conversation vocale en temps réel",
-      "summary": "Deux intelligences et une couture : la voix converse, le moteur de LIA agit.",
+      "name": "Une conversation Live déléguée",
+      "summary": "En mode délégué, la voix converse et le moteur de LIA agit avec ses confirmations.",
       "steps": [
         "Tu ouvres une session Live sur ta propre clé.",
         "Le modèle vocal écoute et répond dans le même souffle.",

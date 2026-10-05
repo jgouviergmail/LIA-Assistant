@@ -76,6 +76,9 @@ PromptName = Literal[
     "jev_bounded_consultation_question",
     "jev_extraction_question",
     "jev_hitl_exclusion_question",
+    "jev_hitl_reference_scope_question",
+    "jev_memory_reference_presence_question",
+    "jev_hitl_rejection_question",
     "jev_initiative_question",
     "jev_radio_question",
     "response_system_prompt_base",
@@ -310,6 +313,7 @@ PromptName = Literal[
     "radio_writer_prompt",
     "radio_analyst_prompt",
     "radio_verifier_prompt",
+    "radio_editorial_policy",
     "radio_translator_prompt",
     "radio_delivery_lines",
 ]

@@ -65,7 +65,7 @@ _runs_this_turn: ContextVar[int] = ContextVar("python_sandbox_runs", default=0)
 #: references what the tools already returned instead of re-typing it.
 _turn_data: ContextVar[dict[str, Any] | None] = ContextVar("python_sandbox_data", default=None)
 
-#: What ran this turn, for the ADMIN debug panel only (owner arbitration): the
+#: What was attempted this turn, for the ADMIN debug panel only (owner arbitration): the
 #: code the model wrote is never shown on the answer surface.
 _turn_scripts: ContextVar[list[dict[str, Any]] | None] = ContextVar(
     "python_sandbox_scripts", default=None
@@ -95,10 +95,10 @@ def reset_turn_budget() -> None:
 
 
 def drain_turn_scripts() -> list[dict[str, Any]]:
-    """What the sandbox ran this turn, for the admin debug surface.
+    """What the sandbox attempted this turn, for the admin debug surface.
 
     Returns:
-        One entry per run: purpose, code, verdict and the head of the output.
+        One entry per attempt: purpose, code, start/verdict and output head.
     """
     return list(_turn_scripts.get() or [])
 
@@ -223,14 +223,17 @@ async def run_python_tool(
             user_id=str(user_id) if user_id else None,
         )
 
-    # Charged once a container actually ran, whatever it printed.
-    _runs_this_turn.set(spent + 1)
+    # A rejected input or unavailable daemon never ran the script. Keep that
+    # refusal available to the model and admins without spending a run.
+    if result.execution_started:
+        _runs_this_turn.set(spent + 1)
     _record_script(purpose=purpose, code=code, result=result)
     logger.info(
-        "ephemeral_script_executed",
+        "ephemeral_script_executed" if result.execution_started else "ephemeral_script_refused",
         purpose_length=len(purpose),
         success=result.success,
-        run_index=spent + 1,
+        run_index=_runs_this_turn.get(),
+        execution_started=result.execution_started,
         code_bytes=len(code.encode("utf-8")),
         network=bool(network),
         user_id=str(user_id) if user_id else None,
@@ -239,13 +242,14 @@ async def run_python_tool(
 
 
 def _record_script(*, purpose: str, code: str, result: Any) -> None:
-    """Keep the run for the ADMIN debug panel — never for the answer surface."""
+    """Keep the attempt for the ADMIN debug panel — never for the answer surface."""
     recorded = list(_turn_scripts.get() or [])
     recorded.append(
         {
             "purpose": purpose,
             "code": code,
             "success": bool(result.success),
+            "execution_started": bool(result.execution_started),
             "output_head": (result.output or result.error or "")[:500],
         }
     )
@@ -270,7 +274,11 @@ def _shape_output(
     if not result.success:
         return UnifiedToolOutput(
             success=False,
-            message=f"The script failed: {result.error}",
+            message=(
+                f"The script failed: {result.error}"
+                if result.execution_started
+                else f"The script could not start: {result.error}"
+            ),
             error_code=ToolErrorCode.INVALID_INPUT,
             # A traceback quotes what the script handled: as untrusted as stdout.
             structured_data={"content_trust": "untrusted", "traceback": result.error, **network},

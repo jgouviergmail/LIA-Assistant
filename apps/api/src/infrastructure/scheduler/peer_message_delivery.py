@@ -33,6 +33,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
+from time import time
 from typing import TYPE_CHECKING, NamedTuple
 from uuid import uuid4
 
@@ -42,6 +43,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from src.core.config import settings
 from src.core.i18n import get_language_name
 from src.core.i18n_proactive import ProactiveMessages
+from src.core.llm_usage import LLMBillingRecord
 from src.domains.agents.prompts import load_prompt
 from src.domains.peers.constants import (
     PEER_CONNECTION_TASK_TYPE,
@@ -54,11 +56,12 @@ from src.domains.peers.constants import (
 from src.domains.peers.models import PeerConnectionStatus, PeerMessage
 from src.domains.peers.repository import PeersRepository
 from src.domains.users.models import User
+from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.database import get_db_context
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.llm.usage_metadata import (
     UsageTokens,
     model_name_of,
-    tokens_from_response,
 )
 from src.infrastructure.observability.metrics_registry import peers_messages_total
 from src.infrastructure.proactive.notification import NotificationDispatcher
@@ -78,15 +81,16 @@ class _DeliveryText(NamedTuple):
     usage: UsageTokens
     #: The model that answered: without it the call is priced at nothing.
     model_name: str | None
+    billing_records: tuple[LLMBillingRecord, ...] = ()
 
 
-async def _generate_delivery_text(
+async def _delivery_prompt(
     message: PeerMessage,
     sender: User,
     recipient: User,
     relay_count_today: int,
-) -> _DeliveryText:
-    """Generate the recipient-voiced delivery wording (single LLM call).
+) -> str:
+    """Compose the recipient's voice, context and retained relay directive.
 
     Args:
         message: Claimed message (content still present).
@@ -94,12 +98,10 @@ async def _generate_delivery_text(
         recipient: Recipient ORM row (language, personality, memory).
 
     Returns:
-        The text, its usage (cache writes included, ADR-306) and the model.
+        The complete system prompt, with the existing best-effort ingredients.
     """
     from src.domains.personalities.constants import default_personality_prompt
     from src.domains.personalities.service import PersonalityService
-    from src.infrastructure.llm import get_llm
-    from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 
     sender_name = sender.full_name or PEER_UNKNOWN_DISPLAY_NAME
     directive = message.content or ""
@@ -149,20 +151,64 @@ async def _generate_delivery_text(
     for block in (memory_block, portrait_block):
         if block:
             system_prompt += "\n\n" + block
+    return system_prompt
+
+
+async def _generate_delivery_text(
+    message: PeerMessage,
+    sender: User,
+    recipient: User,
+    relay_count_today: int,
+) -> _DeliveryText:
+    """Generate the recipient-voiced wording and preserve its paid attempts."""
+    from src.infrastructure.llm import get_llm
+    from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+
+    system_prompt = await _delivery_prompt(message, sender, recipient, relay_count_today)
 
     llm = get_llm("heartbeat_message")  # shared config slot, distinct metric label
-    result = await invoke_with_instrumentation(
-        llm=llm,
-        llm_type="peer_message_delivery",
-        messages=[
-            SystemMessage(content=system_prompt),
-            HumanMessage(content="Deliver the relayed message now."),
-        ],
-        session_id=f"peer_msg_{message.id}",
-        user_id=str(message.sender_id),  # spec §9: the sender owns this call
-    )
-    # ONE reader for every provider's spelling (ADR-272 corollary).
-    return _DeliveryText(result.text, tokens_from_response(result), model_name_of(llm))
+    model_name = model_name_of(llm) or "unknown"
+    started_at = time()
+    pricing_snapshot = capture_pricing_snapshot()
+    capture = TokenCaptureHandler(model_name)
+    from langchain_core.runnables import RunnableConfig
+
+    from src.infrastructure.proactive.tracking import capture_spend_on_failure
+
+    async with capture_spend_on_failure(
+        capture,
+        user_id=message.sender_id,
+        task_type="peer_message",
+        target_id=str(message.id),
+        model_name=model_name,
+        source="scheduled",
+    ):
+        result = await invoke_with_instrumentation(
+            llm=llm,
+            llm_type="peer_message_delivery",
+            messages=[
+                SystemMessage(content=system_prompt),
+                HumanMessage(content="Deliver the relayed message now."),
+            ],
+            session_id=f"peer_msg_{message.id}",
+            user_id=str(message.sender_id),
+            config=RunnableConfig(callbacks=[capture]),
+        )
+        capture.ensure_response_record(
+            result, model_name=model_name, started_at=started_at, snapshot=pricing_snapshot
+        )
+        records = capture.get_billing_records(model_name)
+        return _DeliveryText(
+            result.text,
+            UsageTokens(
+                capture.tokens_in,
+                capture.tokens_out,
+                capture.tokens_cache,
+                capture.tokens_cache_write,
+            ),
+            records[-1].model_name if records else model_name,
+            records,
+        )
 
 
 async def _revalidation_cancel_code(
@@ -299,9 +345,8 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
         message.sender_id, message.recipient_id, now=now
     )
     try:
-        text, usage, model_name = await _generate_delivery_text(
-            message, sender, recipient, relay_count
-        )
+        generated = await _generate_delivery_text(message, sender, recipient, relay_count)
+        text, usage, model_name = generated.text, generated.usage, generated.model_name
     except Exception as exc:  # noqa: BLE001 — typed retryable failure
         return await _record_retryable_failure(
             repo,
@@ -328,6 +373,7 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
             tokens_cache_write=usage.cache_write,
             # It used to be None, which priced every relayed message at zero.
             model_name=model_name,
+            billing_records=generated.billing_records,
             source="scheduled",
         )
 

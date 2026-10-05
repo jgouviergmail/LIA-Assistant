@@ -81,6 +81,7 @@ DISTINCTIVE_VALUES: dict[str, Any] = {
     "execution_mode": "react",
     "exchange_rhythm": "",  # replaced below: the default follows the instance
     "voice_enabled": True,
+    "speaking_avatar_enabled": True,
     "voice_mode_enabled": True,
     "voice_stt_mode": "remote",
     "tokens_display_enabled": True,

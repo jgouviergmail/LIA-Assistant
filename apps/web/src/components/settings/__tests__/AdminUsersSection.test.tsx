@@ -56,6 +56,7 @@ const SWITCHES: Record<AdminUserSwitch, boolean> = {
   journal_consolidation_enabled: false,
   journal_consolidation_with_history: false,
   voice_enabled: false,
+  speaking_avatar_enabled: false,
   voice_mode_enabled: false,
   phone_rich_context_enabled: false,
   heartbeat_enabled: false,

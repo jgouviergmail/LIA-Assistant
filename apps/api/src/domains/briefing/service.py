@@ -15,7 +15,7 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable, Iterable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -30,7 +30,11 @@ from src.core.time_utils import (
 from src.core.time_utils import (
     seconds_to_next_local_midnight as _seconds_to_next_local_midnight,
 )
-from src.domains.briefing.cache_keys import last_good_key, section_cache_key
+from src.domains.briefing.cache_keys import (
+    EDITORIAL_MAILS_SECTION,
+    last_good_key,
+    section_cache_key,
+)
 from src.domains.briefing.constants import (
     BRIEFING_SHARED_BUILD_WAIT_SECONDS,
     ERROR_CODE_INTERNAL,
@@ -81,10 +85,13 @@ from src.domains.briefing.schemas import (
     CardsBundle,
     CardSection,
     CardStatus,
+    MailsData,
     SynthesisResponse,
     TextSection,
     WorkboardData,
 )
+from src.domains.briefing.selected_cards import SectionPlan as _SectionPlan
+from src.domains.briefing.selected_cards import selected_cards_bundle
 from src.domains.shared.consultation_sink import consultation_collector
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.cache.redis import get_redis_cache
@@ -114,30 +121,6 @@ _ORIGIN_STALE = "stale"  # D-04: last known-good served alongside an ERROR
 # Whether a caller gathered the bundle or shared one already being gathered.
 _BUILD_OWNED = "owned"
 _BUILD_JOINED = "joined"
-
-
-class _SectionPlan(NamedTuple):
-    """How one section is obtained during a build.
-
-    Attributes:
-        name: Section name, as declared in ``SECTION_NAMES``.
-        fetcher: Produces the live payload when the cache is not used.
-        ttl: How long a successful outcome stays in the cache. Always > 0:
-            a section that is never written is invisible to the readers that
-            only read the cache.
-        force: Bypass the cache READ for this build.
-        cache_eligible: Whether being served from cache is a possible outcome
-            for this section. False for the always-live one, which would
-            otherwise make every build look 'partial' in the duration
-            histogram — a section that can never be a cache hit says nothing
-            about how warm the cache is.
-    """
-
-    name: str
-    fetcher: Callable[[], Awaitable[Any]]
-    ttl: int
-    force: bool
-    cache_eligible: bool = True
 
 
 def _resolve_user_tz(user: User) -> ZoneInfo:
@@ -200,8 +183,9 @@ class BriefingService:
     operations on a single session).
     """
 
-    def __init__(self, user: User) -> None:
+    def __init__(self, user: User, *, exclude_commercial_mails: bool = False) -> None:
         self.user = user
+        self._exclude_commercial_mails = exclude_commercial_mails
         self.user_tz = _resolve_user_tz(user)
         self.language = normalize_language(user.language)
         # UXR Lot 5 (B4): user-hidden sections are pure placeholders — no
@@ -342,9 +326,10 @@ class BriefingService:
         is a key the ADR-260 guard cannot read.
         """
         hidden = ",".join(sorted(self._hidden_sections))
+        mode = ":editorial-mails-v1" if self._exclude_commercial_mails else ""
         return (
             f"{CLAIM_PREFIX}:briefing_bundle:{self.user.id}"
-            f":{self.language}:{self.user_tz}:{hidden}"
+            f":{self.language}:{self.user_tz}:{hidden}{mode}"
         )
 
     async def _published_bundle(self) -> CardsBundle | None:
@@ -381,6 +366,7 @@ class BriefingService:
             str(self.user_tz),
             self._hidden_sections,
             force,
+            self._exclude_commercial_mails,
         )
 
     async def _record_cards_turn(self) -> None:
@@ -449,7 +435,7 @@ class BriefingService:
             ),
             _SectionPlan(
                 SECTION_MAILS,
-                lambda: fetch_mails(user=self.user, user_tz=self.user_tz, language=self.language),
+                self._fetch_mails,
                 SECTION_MAILS_TTL_SECONDS,
                 forced(SECTION_MAILS),
             ),
@@ -858,7 +844,26 @@ class BriefingService:
         Returns:
             The fully scoped Redis key.
         """
-        return section_cache_key(user_id=self.user.id, language=self.language, section=name)
+        return section_cache_key(
+            user_id=self.user.id, language=self.language, section=self._cache_section(name)
+        )
+
+    def _cache_section(self, name: str) -> str:
+        return (
+            EDITORIAL_MAILS_SECTION
+            if name == SECTION_MAILS and self._exclude_commercial_mails
+            else name
+        )
+
+    async def _fetch_mails(self) -> MailsData:
+        if self._exclude_commercial_mails:
+            return await fetch_mails(
+                user=self.user,
+                user_tz=self.user_tz,
+                language=self.language,
+                exclude_commercial_mails=True,
+            )
+        return await fetch_mails(user=self.user, user_tz=self.user_tz, language=self.language)
 
     async def read_cached_weather(self) -> CardSection | None:
         """Borrow weather for the companion; a miss NEVER starts a source fetch."""
@@ -907,23 +912,7 @@ class BriefingService:
         if sections - set(SECTION_NAMES):
             raise ValueError("unknown briefing section")
         plans = [plan for plan in self._build_plan(frozenset()) if plan.name in sections]
-        results = await asyncio.gather(
-            *(
-                self._section(
-                    plan.name,
-                    plan.fetcher,
-                    ttl=plan.ttl,
-                    force=False,
-                    respect_hidden=False,
-                    record=False,
-                    on_read=on_read,
-                )
-                for plan in plans
-            )
-        )
-        hidden = CardSection(status=CardStatus.HIDDEN, generated_at=datetime.now(UTC))
-        selected = dict(zip((plan.name for plan in plans), results, strict=True))
-        return CardsBundle(**{name: selected.get(name, hidden) for name in SECTION_NAMES})
+        return await selected_cards_bundle(plans, self._section, on_read)
 
     async def _read_cached_bundle(self) -> tuple[CardsBundle, frozenset[str]]:
         """Read the bundle from cache, and say which sections were absent.
@@ -1006,7 +995,9 @@ class BriefingService:
 
     def _last_good_key(self, name: str) -> str:
         """The long-TTL side key holding this section's last known-good payload."""
-        return last_good_key(user_id=self.user.id, language=self.language, section=name)
+        return last_good_key(
+            user_id=self.user.id, language=self.language, section=self._cache_section(name)
+        )
 
     async def _write_last_good(self, name: str, section: CardSection) -> None:
         """Remember an OK-with-data payload under the long-TTL side key.

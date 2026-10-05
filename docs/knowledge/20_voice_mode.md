@@ -23,6 +23,12 @@ LIA offers voice interaction through two input methods and configurable speech o
 - Transcription language matches the user's preferred language from Settings.
 - For paid (remote) STT, a discreet 🎤 badge on each user message bubble shows the duration and EUR cost. The cost is included in the dashboard's **Cost** tile and in the user's usage limits — no separate quota.
 
+### Is my voice data sent to external services?
+
+Wake-word detection runs in your browser; the detection model does not upload the audio it listens to. **Local speech-to-text** uses Sherpa-onnx Whisper on the LIA server. Optional **remote STT** sends your recording to ElevenLabs Scribe; it is off by default and requires your choice in Settings → Voice mode.
+
+Other voice paths have their own boundaries: spoken responses can use your configured TTS provider, **Live and Live direct** send the session audio and useful context to the selected voice provider, and an enabled **Simli avatar** receives LIA’s output audio for lip synchronisation. Those services’ processing and retention policies apply. Disabling remote STT does not disable these separate paths.
+
 ## Voice Output (TTS)
 
 | Provider | Models | Cost |
@@ -104,3 +110,15 @@ The model (choosing it is choosing its provider), the voice with a sample on eve
 - Speech-to-text (remote): your audio is transmitted to ElevenLabs (opt-in only, off by default; admin can disable globally)
 - Voice output: depends on the active TTS provider (Edge = Microsoft, OpenAI = OpenAI, ElevenLabs = ElevenLabs)
 - Live mode: your voice and LIA's answers transit directly between your browser and the live provider you connected with your own key — the audio never passes through the LIA server; the provider's usage and bill are yours, shown once, recorded nowhere
+
+## Can LIA speak through an avatar, and what does it cost?
+
+Yes, as an **experimental beta**, when your instance enables it. Connect **Simli** in Settings › Connectors using your own account key, stored encrypted, then explicitly enable the speaking avatar and choose a face. Connecting the service alone does not switch it on.
+
+The avatar uses the audio LIA already produces for **voice comments, Live and Live direct**. Its floating window moves by dragging or arrow keys and offers three sizes. Radio keeps its own player. You may need to tap **Enable audio** when your browser asks for a gesture.
+
+**💶 Personal cost:** the active connection consumes your Simli plan even during silence between answers. Live standby closes it; waking starts a new connection. Disable the avatar to close it. This charge belongs to your Simli account, outside the platform's usage limits.
+
+If the avatar is unavailable, the existing text and voice paths remain usable. Speech-driven facial realism and physical Android/iOS behaviour are still being qualified; this beta does not promise identical results on every device.
+
+**Privacy:** enabling it sends LIA's spoken output to Simli to generate the face. It does not send your microphone audio to Simli; the voice provider's own processing still applies.

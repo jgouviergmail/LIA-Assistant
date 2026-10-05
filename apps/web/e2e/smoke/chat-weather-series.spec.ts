@@ -73,12 +73,49 @@ for (const sample of [
       const series = page.locator('.lia-weather-series');
       await expect(series).toHaveCount(2);
       const first = series.first().locator('details.lia-weather-slot');
+      // A missing icon font renders the ligature names as clipped prose and
+      // changes both the layout and the contrast scan. A FontFaceSet check can
+      // succeed when no face was declared, so also require actual glyph widths.
+      await expect
+        .poll(
+          () =>
+            first
+              .locator('.lia-weather-slot__icon .material-symbols-outlined')
+              .evaluateAll(
+                symbols =>
+                  document.fonts.check('18px "Material Symbols Outlined"') &&
+                  symbols.every(
+                    symbol =>
+                      symbol.getBoundingClientRect().width <=
+                      1.5 * Number.parseFloat(getComputedStyle(symbol).fontSize)
+                  )
+              ),
+          { message: 'Weather symbols must render as loaded font glyphs, not ligature names' }
+        )
+        .toBe(true);
+      // Each provider observation keeps its own day/night glyph and condition
+      // color after markdown sanitization, including the collapsed selectors.
+      expect(
+        await first.locator('.lia-weather-slot__icon .material-symbols-outlined').allTextContents()
+      ).toEqual(['light_mode', 'partly_cloudy_night', 'thunderstorm']);
+      expect(
+        await first
+          .locator('.lia-weather-slot__icon .lia-icon')
+          .evaluateAll(symbols => symbols.map(symbol => getComputedStyle(symbol).color))
+      ).toEqual(['rgb(245, 158, 11)', 'rgb(129, 140, 248)', 'rgb(99, 102, 241)']);
       await expect(first.first()).toHaveAttribute('open', '');
       const secondSummary = first.nth(1).locator('summary').first();
       await secondSummary.focus();
       await secondSummary.press('Enter');
       await expect(secondSummary).toBeFocused();
       await expect(first.nth(1)).toHaveAttribute('open', '');
+      await expect(
+        first.nth(1).locator('.lia-weather__icon .material-symbols-outlined')
+      ).toHaveText('partly_cloudy_night');
+      await expect(first.nth(1).locator('.lia-weather__icon .lia-icon')).toHaveCSS(
+        'color',
+        'rgb(129, 140, 248)'
+      );
       await expect(first.first()).not.toHaveAttribute('open', '');
       await expect(series.nth(1).locator('details.lia-weather-slot').first()).toHaveAttribute(
         'open',
@@ -105,6 +142,12 @@ for (const sample of [
       await compare.focus();
       await compare.press('Enter');
       await expect(card.locator('table tbody tr')).toHaveCount(3);
+      const caption = card.locator('table caption');
+      await expect(caption).toBeVisible();
+      await expect(caption).toHaveCSS(
+        'color',
+        await card.evaluate(element => getComputedStyle(element).color)
+      );
       const region = card.locator('.lia-weather-comparison');
       await region.focus();
       await expect(region).toBeFocused();

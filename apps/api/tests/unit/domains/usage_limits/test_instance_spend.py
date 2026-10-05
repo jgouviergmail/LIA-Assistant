@@ -19,7 +19,9 @@ asks that ledger for permission first — a ceiling only bounds what checks it.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -161,6 +163,111 @@ class TestInstanceSpendReachesTheDailyLedger:
             )
 
         assert log.warning.called, "an unpriced instance call left no signal"
+
+
+async def test_cached_only_call_uses_its_start_tariff_and_price_generation() -> None:
+    from src.domains.usage_limits.instance_spend import record_instance_llm_call
+    from src.infrastructure.cache import pricing_cache
+
+    started = datetime(2026, 10, 5, 0, 59, tzinfo=UTC)
+    snapshot = pricing_cache.PricingCacheData(
+        models={
+            "versioned-20261001": pricing_cache.CachedModelPrice(
+                input_unit_price=1,
+                output_unit_price=2,
+                cached_input_unit_price=1,
+                time_slots=[
+                    {
+                        "start_utc": "01:00",
+                        "end_utc": "04:00",
+                        "weekdays": [1],
+                        "input_unit_price": 10,
+                        "cached_input_unit_price": None,
+                        "output_unit_price": 20,
+                    }
+                ],
+            )
+        },
+        usd_eur_rate=0.9,
+        last_refresh_ts=started.timestamp(),
+    )
+    response = SimpleNamespace(
+        usage_metadata={
+            "input_tokens": 1000,
+            "output_tokens": 0,
+            "input_token_details": {"cache_read": 1000},
+        },
+        response_metadata={"model_name": "versioned-20261001"},
+    )
+    with (
+        patch.object(
+            pricing_cache,
+            "_local_cache",
+            pricing_cache.PricingCacheData(
+                models={"versioned-20261001": pricing_cache.CachedModelPrice(100, 200, 100)},
+                usd_eur_rate=1.2,
+                last_refresh_ts=started.timestamp() + 600,
+            ),
+        ),
+        patch(
+            "src.domains.usage_limits.instance_budget.InstanceBudgetService.record_spend",
+            AsyncMock(),
+        ) as ledger,
+        _fake_session(),
+    ):
+        await record_instance_llm_call(
+            surface="catalogue",
+            model_name="versioned",
+            response=response,
+            started_at=started.timestamp(),
+            pricing_snapshot=snapshot,
+        )
+    ledger.assert_awaited_once()
+    assert float(ledger.await_args.kwargs["cost_eur"]) == pytest.approx(0.0009)
+    assert ledger.await_args.kwargs["now"] == started
+
+
+async def test_per_attempt_prices_keep_their_distinct_utc_days() -> None:
+    from src.core.llm_usage import LLMBillingRecord
+    from src.domains.usage_limits.instance_spend import record_instance_llm_spend
+
+    starts = [datetime(2026, 10, 4, 23, 59, tzinfo=UTC), datetime(2026, 10, 5, 0, 1, tzinfo=UTC)]
+    records = tuple(
+        LLMBillingRecord(
+            model_name=f"model-{i}",
+            started_at=stamp.timestamp(),
+            tokens_in=100,
+            tokens_out=10,
+            tokens_cache=0,
+            cost_usd=float(i + 1),
+            cost_eur=float(i + 1) * 0.9,
+            usd_to_eur_rate=0.9,
+        )
+        for i, stamp in enumerate(starts)
+    )
+    with (
+        patch(
+            "src.domains.usage_limits.instance_budget.InstanceBudgetService.record_spend",
+            AsyncMock(),
+        ) as ledger,
+        patch(
+            "src.domains.usage_limits.instance_spend.get_cached_cost_usd_eur",
+            side_effect=AssertionError("A captured bill must not be repriced"),
+        ),
+        _fake_session(),
+    ):
+        await record_instance_llm_spend(
+            surface="evaluation",
+            model_name="last-model",
+            tokens_in=200,
+            tokens_out=20,
+            billing_records=records,
+        )
+    assert [call.kwargs["now"] for call in ledger.await_args_list] == starts
+    assert [call.kwargs["cost_eur"] for call in ledger.await_args_list] == [
+        Decimal(".9"),
+        Decimal("1.8"),
+    ]
 
 
 class TestTheCeilingIsAskedBeforeSpending:

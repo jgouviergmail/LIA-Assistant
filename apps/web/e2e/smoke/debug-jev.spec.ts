@@ -150,8 +150,8 @@ for (const lng of ['en', 'fr'] as const) {
     await page
       .getByText(
         lng === 'fr'
-          ? 'Proposition de l’extracteur existant (avant validation)'
-          : 'Existing extractor proposal (before validation)',
+          ? 'Proposition du modèle génératif d’extraction (avant validation)'
+          : 'Generative extraction model proposal (before validation)',
         { exact: true }
       )
       .click();

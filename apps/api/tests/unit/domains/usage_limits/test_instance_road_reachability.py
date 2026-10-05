@@ -13,7 +13,7 @@ as happily on a successor that told nobody.
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from decimal import Decimal
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -54,11 +54,19 @@ def _ledger(recorded: list[Decimal]) -> Any:
     )
 
 
+@contextmanager
 def _priced() -> Any:
-    return patch(
-        "src.domains.usage_limits.instance_spend.get_cached_cost_usd_eur",
-        return_value=(0.02, 0.018),
-    )
+    with (
+        patch(
+            "src.domains.usage_limits.instance_spend.get_cached_cost_usd_eur",
+            return_value=(0.02, 0.018),
+        ),
+        patch(
+            "src.infrastructure.llm.token_capture.get_cached_cost_usd_eur",
+            return_value=(0.02, 0.018),
+        ),
+    ):
+        yield
 
 
 def _session() -> Any:

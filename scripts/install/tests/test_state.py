@@ -45,7 +45,10 @@ def _public() -> PublicAnswers:
         default_language="zh-CN",
         observability=True,
         skill_sandbox=True,
+        self_diagnostics=True,
         live_mode=True,
+        personal_radio=True,
+        speaking_avatar=True,
         server_host=None,
         web_domain="lia.example.org",
         api_domain="api.example.org",
@@ -99,6 +102,21 @@ def test_round_trip_preserves_every_field(tmp_path: Path) -> None:
 
 def test_missing_state_loads_as_none(tmp_path: Path) -> None:
     assert load_state(tmp_path / "absent.json") is None
+
+
+def test_older_state_keeps_new_capabilities_disabled(tmp_path: Path) -> None:
+    path = tmp_path / ".install-state.json"
+    save_state(path, _state())
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    for key in ("self_diagnostics", "live_mode", "personal_radio", "speaking_avatar"):
+        payload["public_answers"].pop(key)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    loaded = load_state(path)
+    assert loaded is not None
+    assert not loaded.public_answers.self_diagnostics
+    assert not loaded.public_answers.live_mode
+    assert not loaded.public_answers.personal_radio
+    assert not loaded.public_answers.speaking_avatar
 
 
 def test_atomic_save_survives_a_failed_replace(

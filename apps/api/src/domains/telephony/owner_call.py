@@ -50,6 +50,7 @@ from src.domains.telephony.models import (
 from src.domains.telephony.payload import extract_transcript_summary
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.telephony.schemas import SelfCallRelay
+from src.domains.telephony.spend import phone_call_run_id
 from src.domains.telephony.synthesis_usage import SynthUsage, track_synthesis_usage
 from src.domains.voice_sessions.session import VoiceCarrier, VoiceSession
 from src.infrastructure.observability.metrics_telephony import (
@@ -107,6 +108,9 @@ async def _synthesize(
             user_language=language,
             user_timezone=user_timezone,
             user_id=call.user_id,
+            task_type="phone_call",
+            target_id=str(call.id),
+            run_id=phone_call_run_id(call.id),
         )
         return relay, usage, True
     except Exception as exc:  # noqa: BLE001 — synthesis must not lose the call

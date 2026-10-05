@@ -151,6 +151,31 @@ class TestBudget:
         assert done == 0
         assert wired["stored"] == []
 
+    async def test_crossing_utc_midnight_reads_the_new_day_before_the_next_language(
+        self,
+        wired: dict[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            diag_module.DiagnosticsRepository,
+            "distinct_admin_languages",
+            AsyncMock(return_value=["en", "fr"]),
+        )
+        days = iter(["day-before", "day-before", "day-before", "day-after"])
+        monkeypatch.setattr(diag_module, "_budget_key", lambda: next(days, "day-after"))
+        balances = AsyncMock(side_effect=lambda key: 1.0 if key == "day-after" else 0.0)
+        monkeypatch.setattr(diag_module, "_spent_today", balances)
+        assert (
+            await diag_module.diagnose_incidents(
+                [_incident()],
+                db=MagicMock(),
+                system_prompt="Synthetic diagnosis",
+            )
+            == 1
+        )
+        assert wired["llm_calls"] == 1
+        assert balances.await_args_list[-1].args == ("day-after",)
+
 
 @pytest.mark.unit
 class TestRunbookLoader:

@@ -105,7 +105,7 @@ export interface LiveStore {
   mode: LiveSessionMode;
   requestStart: (mode?: LiveSessionMode) => void;
   consumeStart: () => LiveSessionMode | null;
-  begin: (sessionId: string, mode?: LiveSessionMode) => void;
+  begin: (sessionId: string | null, mode?: LiveSessionMode) => void;
   apply: (event: LiveEvent) => void;
   setVoiceState: (state: VoiceModeState) => void;
   /** Appends to the last caption of the same role while a turn grows, else opens a new one. */

@@ -3784,6 +3784,9 @@ RELATION_DEBRIEF_MAX_NOTABLE_FACTS_DEFAULT = 5
 # ============================================================================
 # Phase 1: LLM nano extracts personal references from query (e.g., "my wife").
 MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS = 30.0  # Nano model, strict latency budget
+# Absence-only native gate, evaluated on independent multilingual queries.
+JEV_MEMORY_REFERENCE_MIN_CONFIDENCE = 0.99
+JEV_HITL_REJECTION_MIN_CONFIDENCE = 0.99
 
 # ============================================================================
 # LOCALIZATION DEFAULTS
@@ -7041,3 +7044,8 @@ RADIO_MEDIA_SWEEP_INTERVAL_SECONDS_DEFAULT: int = 900
 # --- Scheduler job ids -------------------------------------------------------------
 SCHEDULER_JOB_RADIO_NEWSROOM_COLLECT: str = "radio_newsroom_collect"
 SCHEDULER_JOB_RADIO_MEDIA_SWEEP: str = "radio_media_sweep"
+# Speaking avatars: finite provider sessions, renewed while the voice mode is active.
+AVATAR_SESSION_LENGTH_SECONDS_DEFAULT = 3600
+AVATAR_HTTP_TIMEOUT_SECONDS_DEFAULT = 10.0
+AVATAR_CONNECT_TIMEOUT_SECONDS_DEFAULT = 15.0
+AVATAR_MINTS_PER_HOUR_DEFAULT = 6

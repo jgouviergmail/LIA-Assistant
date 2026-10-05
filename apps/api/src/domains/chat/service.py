@@ -4,7 +4,7 @@ Service layer for chat domain - token tracking and statistics.
 
 import asyncio
 from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -59,6 +59,7 @@ from src.domains.chat.tracking_records import (
     breakdown_entry,
     tts_usage_record,
 )
+from src.infrastructure.cache.pricing_cache import PricingCacheData
 from src.infrastructure.database import get_db_context
 
 # The record shapes live in their own module (they are a data contract read by
@@ -264,6 +265,7 @@ class TrackingContext:
         params: InferenceParams | None = None,
         cache_write_tokens: int = 0,
         requested_model: str | None = None,
+        pricing_snapshot: PricingCacheData | None = None,
     ) -> None:
         """
         Record token usage for a single LLM node call.
@@ -293,6 +295,14 @@ class TrackingContext:
                 configuration), kept beside ``model_name`` — what the provider
                 reported and what is billed — for the debug panel (B8).
         """
+        # Price and persist the same call-start instant, even when completion
+        # or the eventual database flush crosses a UTC tariff/day boundary.
+        billed_at = (
+            datetime.fromtimestamp(started_at, UTC)
+            if started_at is not None
+            else datetime.now(UTC) - timedelta(milliseconds=max(0.0, duration_ms))
+        )
+
         # Auto-calculate costs if not provided (modern callback path)
         # Use sync-safe pricing cache to avoid event loop issues in LangChain callbacks
         # See: ADR-039-Cost-Optimization-Token-Management.md
@@ -311,11 +321,13 @@ class TrackingContext:
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 cached_tokens=cached_tokens,
+                at=billed_at,
                 cache_write_tokens=cache_write_tokens,
+                snapshot=pricing_snapshot,
             )
 
             # Get USD/EUR rate from cache (with built-in fallback to settings)
-            usd_to_eur_rate = Decimal(str(get_cached_usd_eur_rate()))
+            usd_to_eur_rate = Decimal(str(get_cached_usd_eur_rate(pricing_snapshot)))
 
         started_offset_ms = self._run_offset_ms(started_at, duration_ms)
 
@@ -347,6 +359,7 @@ class TrackingContext:
                 reasoning_budget_tokens=params.reasoning_budget_tokens if params else None,
                 params_digest=params.params_digest if params else None,
                 requested_model=requested_model,
+                created_at=billed_at,
             )
             self._node_records.append(record)
 
@@ -1043,6 +1056,7 @@ class TrackingContext:
                 "cost_usd": record.cost_usd,
                 FIELD_COST_EUR: record.cost_eur,
                 "usd_to_eur_rate": record.usd_to_eur_rate,
+                "created_at": record.created_at,
                 # Observation columns (ADR-244). ``duration_ms`` was already
                 # measured for the debug panel; persisting it costs nothing.
                 "latency_ms": round(record.duration_ms) if record.duration_ms else None,

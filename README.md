@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.5.0</strong> — <strong>Cards that show everything, an app in the colours of the cosmos.</strong> Data-bearing answers become deterministic cards that show everything the source supplied and invent nothing, keep the complete detail behind accessible disclosures, add photo galleries, weather comparison, document previews and interactive Google routes whose cost is announced and counted, and let you reply, forward or adjust a reminder from the card itself; the model reads a semantic view, never the HTML. The landing's animated background extends to the app, overlays turn to frosted glass, the dashboard gains a Workboard card and a kept answer shows its two costs; in Grafana, logs, traces and metrics open each other and the observation pipeline watches itself; and the landing plays two videos in turn — 4 October 2026.
+  <strong>Version 2.6.0</strong> — <strong>A face for your voice, clearer sources and costs you can trace.</strong> An experimental personal Simli avatar accompanies existing voice comments and Live conversations, with explicit permission and one audible output. Cards identify the MCP server and method, weather follows the source's conditions, and deleting an e-mail still requires approval against its original mailbox. New standing instructions are pinned automatically, Radio keeps useful editorial mail while filtering purchase pitches, and each reported model attempt retains its price, including paid failures and background work — 5 October 2026.
 </p>
 
 ---
@@ -112,10 +112,10 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **54** functional domains | **800,000+** source lines (excl. tests) | **50,000+** automated tests | **332** ADRs                                                            |
-| **276** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **55** functional domains | **820,000+** source lines (excl. tests) | **51,000+** automated tests | **333** ADRs                                                            |
+| **277** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 802,541 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-02). The published technical audit does not score security.
+Source-line figure: 823,905 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-05). The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -210,7 +210,8 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 - Answers arrive over SSE with rich HTML cards, interactive widgets and a per-message cost badge.
 - A data card shows everything the source supplied and never invents a missing value — an e-mail's body, every organisation of a contact, conference join points, subtasks, a place's photos (full-screen gallery), reviews and opening hours, a route's alternatives, weather slots, generated-document previews — the detail behind native disclosures; opening one calls nothing. The model reads a versioned semantic view of the answer, never the card's HTML ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md), [HTML_CARDS](docs/technical/HTML_CARDS.md)).
-- Reply, forward or adjust a reminder from its card: the request is prepared in the composer — never sent — and the server re-checks the original message, source and account grant; a route opens as an interactive Google map whose estimated cost is announced first and every construction counted ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md)).
+- Reply, forward, move an e-mail to the trash or adjust a reminder from its card: the request is prepared in the composer, and the server re-checks the original message, source and account grant. E-mail deletion still passes through approval before changing its original mailbox. A route opens as an interactive Google map whose estimated cost is announced first and every construction counted ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md)).
+- MCP cards name the server's public origin and the called method above an accessible response disclosure; opening it reveals the received result without another call. Weather icons follow the provider's condition codes and day/night information, across current, daily and hourly forecasts.
 - In the rich HTML mode every data-bearing answer is a composed page — a lead sentence, one section per facet in the component that fits it, a closing callout — laid out on conversational turns too unless a voice is reading them ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
 - Images and PDFs can be attached (vision analysis, text extraction, strict per-user isolation).
 - Long conversations are compacted by an LLM summary that preserves identifiers, the history scrolls back page by page without limit, and each answer is shared — to the device's sheet, or to a connection through an ordinary confirmed message — or downloaded as a dated Markdown file in one click. A formatted answer keeps its headings, lists, tables, links and code in that file, its cards summed up as a heading and a few bullets; copying stays plain text ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
@@ -228,6 +229,13 @@ Every capability below is documented in an architecture decision record (ADR) or
 - Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs) streamed sentence by sentence, first audio in about a second ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
 - ElevenLabs synthesis shares an administrator-set concurrency ceiling across API workers and speech surfaces; the browser plays queued audio in sequence, even when synthesis completes out of order.
 
+#### A personal speaking avatar, experimental
+
+- Connect your own Simli account, choose a face and explicitly authorize its use. The operator must first enable the optional capability; it is off by default.
+- A floating window with three sizes follows existing voice comments and Live conversations, with touch/pointer dragging and keyboard movement. The avatar and local player share one audible destination.
+- The connection stays open while the voice mode is active; silence can consume your personal Simli credits. Live standby closes it, and waking opens a new connection. Radio is outside this integration.
+- Provider lip motion, long silence, renewal and physical Android/iOS audio remain subject to qualification ([SPEAKING_AVATAR](docs/technical/SPEAKING_AVATAR.md), [proposed ADR-334](docs/architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md)).
+
 #### Live, voice to voice
 
 - A real-time session on a live model the person connects with their own key (Gemini Live over a WebSocket, GPT-Live over WebRTC, or an ElevenLabs agent whose voice stays on its portal).
@@ -244,6 +252,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - Models write and voice the segments, while verification decides what may air. The listener chooses subjects, sources, voices and verification, sees sources and live cost, and ends the session with a timer. Production runs only while someone listens.
 - An administrator controls the capability and the guided self-host installer asks before enabling it ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md), [RADIO](docs/technical/RADIO.md)).
 - The radio settings group programme, sources, verification, voices and spending so a listener can see what will be used before starting.
+- Editorial selection excludes advertisements, sponsorships and purchase pitches while retaining genuine news, scientific reporting, invoices, reservations and appointments. Raw PCM and µ-law speech are wrapped with their actual format before mixing.
 
 #### An expressive companion
 
@@ -300,6 +309,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - Conformant to the protocol's current revision on both halves and reading tool declarations to the letter of JSON Schema 2020-12 ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md), [ADR-255](docs/architecture/ADR-255-MCP-Tool-Declaration-Conformance.md)).
 - MCP Apps rendered as sandboxed widgets behind a CSP airlock ([ADR-098](docs/architecture/ADR-098-CSP-Widget-Airlock.md)).
 - An iterative mode where a dedicated agent reads a complex server's docs before calling it ([MCP_INTEGRATION](docs/technical/MCP_INTEGRATION.md)).
+- A provider's cooldown is shared across workers for that person's server, so another concurrent request cannot restart a wait the service already imposed.
 
 #### Skills and plugins
 
@@ -395,6 +405,7 @@ The home page aggregates your sources in parallel with a per-section cache and a
 #### Long-term memory
 
 - Facts are extracted after each conversation, pinned or edited by hand, and injected by relevance with their scores visible in the debug panel ([LONG_TERM_MEMORY](docs/technical/LONG_TERM_MEMORY.md), [MEMORY_RESOLUTION](docs/technical/MEMORY_RESOLUTION.md)).
+- Newly learned standing instructions are pinned automatically. You can edit, unpin or delete them; automatic maintenance respects their protection.
 - The planner, the ReAct loop and the phone look them up on purpose through one lookup door that answers what was asked, never just the latest memories ([ADR-313](docs/architecture/ADR-313-Long-Term-Memory-As-An-Active-Lookup.md)).
 
 #### Personal journals
@@ -449,6 +460,7 @@ The home page aggregates your sources in parallel with a per-section cache and a
 - Where each module's spend is recorded is declared and guarded, never inferred.
 - The rule covers more than model tokens: every euro the platform pays for a person — a Maps lookup during a call, the briefing's weather, a photo shown, a voice synthesis — reaches their ledger whatever the path. One persistence predicate covers every family the tracker holds, and a counter fails closed into an alert ([ADR-216](docs/architecture/ADR-216-Plafond-De-Depense-D-Instance.md), [ADR-272](docs/architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md), [USAGE_LIMITS](docs/technical/USAGE_LIMITS.md)).
 - Spend uses the price the provider bills: tariffs read from the vendors' pages, a prompt-cache write billed at its price, a pricing window that names its days, a Maps call filed at the SKU its request triggers, and every tariff writer reaching every worker ([ADR-306](docs/architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md), [LLM_PRICING_MANAGEMENT](docs/technical/LLM_PRICING_MANAGEMENT.md)).
+- Every reported model attempt keeps the tariff and exchange rate captured when it started. Paid failures, retries and background work reach the same ledger, including work that finishes after a cancelled conversation; missing usage is not invented ([TOKEN_TRACKING_AND_COUNTING](docs/technical/TOKEN_TRACKING_AND_COUNTING.md)).
 
 #### Strong authentication
 
@@ -591,7 +603,7 @@ cd apps/web && pnpm dev
 
 ### Self-Hosting in Production
 
-A guided installer lives at the repository root ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md)). It asks a short questionnaire (LAN exposure, your own reverse proxy, or managed HTTPS with Caddy), generates a private `.env` and Compose overlay, applies the reference seeds atomically, creates the admin and provider keys over stdin, verifies the installation beyond `/ready` and prints a non-secret report. A complete source checkout builds the images locally; an official release directory uses prebuilt digests only when its adjacent manifest is qualified. Resume an interrupted run with `./install.sh --resume`, change the routing later with `./install.sh --reconfigure`. The shipped `.env` profiles size the connection pools against the database's memory floor as well as its ceiling, and a guard reads both profiles with the Compose file so the sizing cannot drift ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
+A guided installer lives at the repository root ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md)). It asks a short questionnaire (LAN exposure, your own reverse proxy, or managed HTTPS with Caddy), generates a private `.env` and Compose overlay, applies the reference seeds atomically, creates the admin and provider keys over stdin, verifies the installation beyond `/ready` and prints a non-secret report. The experimental speaking avatar is an optional choice, disabled by default; each person then connects their own Simli account. A complete source checkout builds the images locally; an official release directory uses prebuilt digests only when its adjacent manifest is qualified. Resume an interrupted run with `./install.sh --resume`, change the routing later with `./install.sh --reconfigure`. The shipped `.env` profiles size the connection pools against the database's memory floor as well as its ceiling, and a guard reads both profiles with the Compose file so the sizing cannot drift ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
 
 **Full guide: [docs/guides/GUIDE_SELF_HOSTING.md](docs/guides/GUIDE_SELF_HOSTING.md)** — what it installs, every setting, and what to do when a step fails. Production targets include the Raspberry Pi (ARM64) through multi-arch Docker images (`linux/amd64,linux/arm64`).
 
@@ -685,7 +697,7 @@ graph TD
 ```
 apps/api/src/
 ├── core/                 # Settings composed per domain, constants, i18n tables, recurrence engine
-├── domains/              # 49 bounded contexts (DDD)
+├── domains/              # Bounded contexts (DDD); shared helpers stay separate
 │   ├── agents/           # The LangGraph graph: nodes (router, planner, react ×4, response…), tools, prompts, orchestration
 │   ├── connectors/       # Google, Apple and Microsoft clients behind one provider resolver
 │   ├── heartbeat/ moments/ scheduled_actions/ reminders/ habits/ interests/ briefing/       # initiative
@@ -775,8 +787,8 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                                            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Backend tests           | 39,146 collected over `tests/` (`task test:markers`, 2026-10-04)                                                                                |
-| Frontend tests (vitest) | 10,860 passed across 864 files (`task test:frontend:coverage`, 2026-10-04), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Backend tests           | 40,025 collected over `tests/` (`pytest --collect-only -q`, 2026-10-05)                                                                                |
+| Frontend tests (vitest) | 11,038 collected across 889 files (`vitest list --json`, 2026-10-05), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                                           |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)                                                    |
 
@@ -875,7 +887,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-332 ADR files (ADR-001 through ADR-333 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+333 ADR files (ADR-001 through ADR-334 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

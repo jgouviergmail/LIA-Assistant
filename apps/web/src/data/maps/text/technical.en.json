@@ -159,9 +159,9 @@
     },
     "t.response": {
       "name": "Response synthesis",
-      "role": "Assembles the answer from the results and the declared contexts, states failures as they are, and declares the register that animates the face.",
+      "role": "Assembles the answer from declared results and contexts, states failures, and renders deterministic cards from received facts. Selections and temporal filters require evidence; actions verify the exact message and source binding. It also declares the tone that animates the companion.",
       "stack": ["Declared contexts", "Honesty directives", "Emotional register"],
-      "src": "efc7fbacd058"
+      "src": "1a9d36a94c1d"
     },
     "t.hitl": {
       "name": "Approval and drafts",
@@ -225,14 +225,14 @@
     },
     "t.pricing": {
       "name": "Accounting and ceilings",
-      "role": "Every paid call is bounded beforehand (account and instance), priced at the moment it is made, then recorded in the right ledger; each module declares where its spend is counted.",
+      "role": "Each paid attempt freezes its model, tariff, start time and exchange rate; known failed or cancelled usage is recorded too. Cache reads and writes stay distinct, under account and instance limits.",
       "stack": [
         "Time-of-day rates",
         "Price cache",
         "Account + instance ceilings",
         "Declared spend roads"
       ],
-      "src": "939e9074aad7"
+      "src": "8135113ee487"
     },
     "t.connclients": {
       "name": "Connector clients",
@@ -242,9 +242,9 @@
     },
     "t.mcp": {
       "name": "MCP client",
-      "role": "A pool of MCP clients per person, tool schemas read to the letter of the standard, tools gated just like the native ones.",
+      "role": "A client pool per person, standard tool schemas and native-equivalent guards; source and method metadata travel with every output shape. Server-declared cooldowns are shared through Redis.",
       "stack": ["Model Context Protocol", "Two protocol revisions", "Per-issuer OAuth"],
-      "src": "c11c5620d9c1"
+      "src": "7d42a9fb7ca7"
     },
     "t.skills": {
       "name": "Skills and plugins",
@@ -321,9 +321,9 @@
     },
     "t.radio": {
       "name": "Radio: newsroom and antenna",
-      "role": "An instance newsroom reads public feeds with no model; one antenna per listener decides through a deterministic grid, has each segment written and checked, voiced and mixed — only while someone listens.",
+      "role": "An instance newsroom filters public feeds; a station per listener writes and checks bounded segments while listening. Raw PCM/u-law carries declared audio metadata into WAV before local mixing; encoded audio stays unchanged. A deterministic schedule chooses the program.",
       "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"],
-      "src": "3779500de599"
+      "src": "6dfaa30a9b4b"
     },
     "t.postgres": {
       "name": "PostgreSQL and pgvector",
@@ -407,6 +407,12 @@
       "role": "A public demo instance whose every protection is recomputed from the source of truth, and checked on every deployment.",
       "stack": ["Isolated instance", "Protections recomputed from the source"],
       "src": "949e4004a9a1"
+    },
+    "t.avatar": {
+      "name": "Avatar: session and playback",
+      "role": "A personal session under a Redis lease; the browser sends existing voice as PCM and selects Simli media as the single audible output. Live standby closes it. Experimental: media and device acceptance remain pending.",
+      "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
+      "src": "b302c6788952"
     }
   },
   "flows": {
@@ -458,8 +464,8 @@
       "src": "0b2fe48e5758"
     },
     "tflow.live": {
-      "name": "A Live session",
-      "summary": "The browser talks directly to the provider; every request comes back to the graph.",
+      "name": "A delegated Live session",
+      "summary": "The delegated journey: the browser talks to the provider, and each request returns to the graph.",
       "steps": [
         "The person opens a Live session.",
         "The API issues a single-use credential and renders the voice's mandate.",
@@ -469,7 +475,7 @@
         "The answer, bounded and flattened, is handed back to the voice.",
         "At the end, a single closing step archives, tallies up and relays."
       ],
-      "src": "0f169cd6c55b"
+      "src": "47835695935a"
     },
     "tflow.delivery": {
       "name": "From commit to production",

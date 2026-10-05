@@ -91,13 +91,7 @@ describe('editorial i18n contract', () => {
         ...benefits,
       ];
     }),
-    ...[
-      'mechanism_label',
-      'technical_label',
-      'examples_title',
-      'examples_sub',
-      'chapter_scene',
-    ].map(key => `editorial.${key}`),
+    ...['mechanism_label', 'technical_label'].map(key => `editorial.${key}`),
     ...['title', 'sub', 'details'].map(key => `engineering.${key}`),
     ...['context', 'plan', 'verify', 'control'].flatMap(step =>
       ['title', 'body', 'gain'].map(part => `engineering.${step}_${part}`)

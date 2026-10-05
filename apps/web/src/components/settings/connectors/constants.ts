@@ -3,7 +3,7 @@
  * Extracted from UserConnectorsSection.tsx for DRY compliance.
  */
 
-import { Plug, Cloud, Book, Search, MapPin, Globe, Wind, type LucideIcon } from 'lucide-react';
+import { Plug, Cloud, Book, Search, MapPin, Globe, Wind, ScanFace, type LucideIcon } from 'lucide-react';
 
 // ============================================================================
 // CONNECTOR TYPES
@@ -27,7 +27,7 @@ export const GOOGLE_CONNECTOR_TYPES = [
  * account, so « My connectors » neither lists nor offers them (ADR-307).
  * A backend test refuses any keyless type here.
  */
-export const API_KEY_CONNECTOR_TYPES = ['openweathermap', 'perplexity', 'brave_search'] as const;
+export const API_KEY_CONNECTOR_TYPES = ['openweathermap', 'perplexity', 'brave_search', 'simli'] as const;
 
 export const APPLE_CONNECTOR_TYPES = ['apple_email', 'apple_calendar', 'apple_contacts'] as const;
 
@@ -160,6 +160,7 @@ export const CONNECTOR_ICONS: Record<string, ConnectorIconConfig> = {
   gemini_live: { emoji: '🎙️', color: 'indigo' },
   gpt_live: { emoji: '🎙️', color: 'indigo' },
   elevenlabs_live: { emoji: '🎙️', color: 'indigo' },
+  simli: { icon: ScanFace, color: 'indigo' },
 };
 
 // Uniform background class for all connector icons
@@ -208,6 +209,7 @@ export const API_KEY_CONNECTORS: readonly ApiKeyConnectorConfig[] = [
     icon: Search,
     color: 'violet',
   },
+  { type: 'simli', icon: ScanFace, color: 'indigo' },
 ] as const;
 
 // ============================================================================

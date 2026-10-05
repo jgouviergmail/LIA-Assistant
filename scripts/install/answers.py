@@ -255,6 +255,7 @@ def collect_answers(
         self_diagnostics=bool(collected.get("self_diagnostics", False)),
         live_mode=bool(collected.get("live_mode", False)),
         personal_radio=bool(collected.get("personal_radio", False)),
+        speaking_avatar=bool(collected.get("speaking_avatar", False)),
         skill_sandbox=bool(collected["skill_sandbox"]),
         server_host=(
             str(collected["server_host"]) if "server_host" in collected else None

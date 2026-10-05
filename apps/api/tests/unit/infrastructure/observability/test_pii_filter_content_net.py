@@ -187,6 +187,47 @@ class TestContentFieldNames:
         assert _filtered("info", **{field: value})[field] == value
 
 
+class TestUrlLocations:
+    @pytest.mark.parametrize("level", ["info", "warning", "error", "critical"])
+    def test_http_messages_keep_only_the_origin_and_status(self, level: str) -> None:
+        message = (
+            "HTTP Request: POST https://mcp.firecrawl.dev/fc-SENTINEL_CREDENTIAL/v2/mcp"
+            ' "HTTP/1.1 200 OK"'
+        )
+
+        result = add_pii_filter(None, level, {"event": message})
+
+        assert result["event"] == 'HTTP Request: POST https://mcp.firecrawl.dev "HTTP/1.1 200 OK"'
+
+    def test_paths_queries_fragments_and_userinfo_are_withheld_recursively(self) -> None:
+        url = "https://user:SECRET@example.org:8443/Jean-Dupont?q=health#private"
+
+        result = _filtered("warning", error=f"Failed at '{url}'", context={"links": [url]})
+
+        assert result["error"] == "Failed at 'https://example.org:8443'"
+        assert result["context"] == {"links": ["https://example.org:8443"]}
+
+    def test_debug_keeps_a_non_secret_location(self) -> None:
+        url = "https://example.org/article/Jean-Dupont?q=health#section"
+
+        assert _filtered("debug", error=url)["error"] == url
+
+    def test_debug_never_keeps_the_firecrawl_path_credential(self) -> None:
+        url = "https://mcp.firecrawl.dev/fc-SENTINEL_CREDENTIAL/v2/mcp"
+
+        result = _filtered("debug", error=url)
+
+        assert result["error"] == "https://mcp.firecrawl.dev/[REDACTED]/v2/mcp"
+
+    def test_debug_never_keeps_url_userinfo(self) -> None:
+        url = "https://user:SECRET@example.org:8443/path?lang=fr"
+
+        assert _filtered("debug", error=url)["error"] == "https://example.org:8443/path?lang=fr"
+
+    def test_ipv6_origin_stays_usable(self) -> None:
+        assert _filtered("info", error="http://[::1]:8000/private")["error"] == "http://[::1]:8000"
+
+
 @pytest.fixture()
 def configured_json_logging() -> Iterator[io.StringIO]:
     """The production chain, captured — restored afterwards like test_logging.py does."""
@@ -246,4 +287,21 @@ class TestEndToEndThroughTheProductionChain:
 
         payload = json.loads(configured_json_logging.getvalue().strip())
         assert "Jean" not in payload["event"]
-        assert "q=[REDACTED]" in payload["event"]
+        assert (
+            payload["event"] == 'HTTP Request: GET https://api.search.brave.com "HTTP/1.1 200 OK"'
+        )
+
+    def test_a_stdlib_mcp_http_line_loses_its_path_credential(
+        self, configured_json_logging: io.StringIO
+    ) -> None:
+        logging.getLogger("httpx").info(
+            "HTTP Request: POST https://mcp.firecrawl.dev/fc-SENTINEL_CREDENTIAL/v2/mcp"
+            ' "HTTP/1.1 400 Bad Request"'
+        )
+
+        payload = json.loads(configured_json_logging.getvalue().strip())
+
+        assert (
+            payload["event"]
+            == 'HTTP Request: POST https://mcp.firecrawl.dev "HTTP/1.1 400 Bad Request"'
+        )

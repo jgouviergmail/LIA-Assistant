@@ -4,7 +4,7 @@
 >
 > **Version**: 4.0
 > **Date**: 2026-05-07
-> **Updated**: TTS now lives on the LLM catalogue (ADR-081) — `voice_tts` LLM type, three providers (Edge / OpenAI / ElevenLabs), voice + tuning in `provider_config` JSONB.
+> **Configuration**: TTS lives on the LLM catalogue (ADR-081); provider families and their billing units are declared in `domains/voice/families.py`, with voice and tuning in `provider_config` JSONB.
 >
 > Related: [ADR-081](../architecture/ADR-081-Voice-TTS-Catalogue-Driven.md) | [ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md) | [ARCHITECTURE.md](../ARCHITECTURE.md) | [SMART_SERVICES.md](./SMART_SERVICES.md)
 
@@ -24,109 +24,62 @@ in the row's `provider_config` JSONB blob.
 - **LLM-catalogue-driven**: provider, model, voice IDs, and provider-
   specific tuning come from a single override row (`llm_config_overrides
   .voice_tts`) merged with `LLM_DEFAULTS`.
-- **Three providers from day 1**: Edge (free), OpenAI (`tts-1` /
-  `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2` / `eleven_turbo_v2_5`
-  / `eleven_flash_v2_5`).
+- **Provider families**: Edge, OpenAI, ElevenLabs and Gemini are declared in
+  [families.py](../../apps/api/src/domains/voice/families.py). Available models
+  come from the LLM catalogue. Gemini is token-billed and requires a caller
+  that records its reported token usage; Radio declares that capability,
+  while the voice-comment path uses the character-billed/free families.
 - **Per-provider tuning surfaces**:
   - Edge: SSML `rate` / `pitch` / `volume` strings;
   - OpenAI: `speed` (0.25–4.0) + `response_format` (mp3/opus/…);
   - ElevenLabs: `output_format` + `voice_settings` (stability /
     similarity_boost / style / use_speaker_boost).
+  - Gemini: voices and model-specific delivery controls from `controls_for()`.
 - **Dynamic voice picker**: `GET /admin/voice/voices?provider=X` returns
-  curated lists for Edge/OpenAI and a live `GET /v1/voices` for
+  curated lists for Edge/OpenAI/Gemini and a live `GET /v1/voices` for
   ElevenLabs (account-scoped).
 - **Per-user opt-in**: voice synthesis enabled per user via the
   `users.voice_mode_enabled` flag — orthogonal to the admin's TTS
   provider choice.
-- **Graceful fallback**: when a paid provider is selected but its API
-  key is missing, the factory transparently falls back to Edge (logged
-  warning) so the response surface keeps producing audio.
+- **Bounded configuration fallback**: the factory checks client availability,
+  required billing units and the provider key before synthesis. A non-strict
+  caller falls back to Edge with a warning; a strict caller such as Radio
+  refuses an unservable configuration.
 
 ### Pricing surface
 
-All TTS rows use the unified `per_1m_tokens` pricing axis (characters
-tracked as tokens — math is identical, label is generic enough). Seeded
-catalogue:
-
-| Provider | Model | Input price |
-|---|---|---|
-| edge | edge-tts | $0.00 (free) |
-| openai | tts-1 | $15.00 / 1M chars |
-| openai | tts-1-hd | $30.00 / 1M chars |
-| elevenlabs | eleven_multilingual_v2 | $100.00 / 1M chars |
-| elevenlabs | eleven_turbo_v2_5 | $50.00 / 1M chars |
-| elevenlabs | eleven_flash_v2_5 | $50.00 / 1M chars |
-
-Admins can edit prices through the same Tarification LLM Texte form used
-for chat models.
+Edge is free. OpenAI and ElevenLabs bill characters; Gemini reports input-text
+and output-audio tokens. The shared tariff axis can store both, but the caller
+must retain the family's billing units. Current prices belong to the runtime
+catalogue, editable through the Tarification LLM Texte form; they are not a
+static table in this document. See
+[LLM_PRICING_MANAGEMENT.md](LLM_PRICING_MANAGEMENT.md) and
+[billing.py](../../apps/api/src/domains/voice/billing.py).
 
 ---
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    Slots[LLM catalogue slots and provider_config] --> Factory[TTS factory: family, key and billing capability]
+    Factory --> Edge[Edge: free synthesis]
+    Factory --> Chars[OpenAI / ElevenLabs: character billing]
+    Factory --> Tokens[Gemini: reported token billing]
+    Edge --> Audio[Encoded audio or explicitly described raw samples]
+    Chars --> Audio
+    Tokens --> Audio
+    Tokens --> Billing[Known usage to the attempt ledger]
+    Audio --> Comments[Voice comments: AudioQueue]
+    Audio --> Radio[Radio: bounded mixing and segment player]
+    Comments --> Output[Shared output coordinator: local audio or personal avatar]
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         VOICE DOMAIN (v4)                                │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │                    SERVICE LAYER                                    │ │
-│  │                                                                      │ │
-│  │   VoiceCommentService                                               │ │
-│  │   ├── stream_voice_comment()    # Main streaming method             │ │
-│  │   ├── generate_voice_comment()  # LLM comment generation            │ │
-│  │   └── _get_voice_for_language() # Voice selection logic             │ │
-│  └────────────────────────────────────────────────────────────────────┘ │
-│                            │                                             │
-│                            ▼                                             │
-│  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │                    FACTORY LAYER                                    │ │
-│  │                                                                      │ │
-│  │   factory.py — driven by LLMConfigOverrideCache.voice_tts           │ │
-│  │   ├── get_tts_client()         # Returns TTSClient for the active   │ │
-│  │   │                              override (Edge/OpenAI/ElevenLabs)  │ │
-│  │   ├── get_tts_config()         # Returns parsed TTSConfig           │ │
-│  │   └── get_tts_client_sync(cfg) # Sync variant for non-async sites   │ │
-│  │                                                                      │ │
-│  │   TTSConfig(dataclass)                                              │ │
-│  │   ├── provider: "edge" | "openai" | "elevenlabs" | "gemini"         │ │
-│  │   ├── model: str                                                    │ │
-│  │   ├── voice_male, voice_female (parsed from provider_config)        │ │
-│  │   ├── rate, pitch, volume (Edge only)                               │ │
-│  │   ├── speed, response_format (OpenAI only)                          │ │
-│  │   ├── output_format, voice_settings (ElevenLabs only)               │ │
-│  │   ├── is_paid: bool         (modern flag)                           │ │
-│  │   └── mode: "standard"|"hd" (back-compat alias = "hd" if is_paid)   │ │
-│  └────────────────────────────────────────────────────────────────────┘ │
-│                            │                                             │
-│                            ▼                                             │
-│  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │                    PROTOCOL LAYER (NEW)                             │ │
-│  │                                                                      │ │
-│  │   protocol.py - TTSClient (runtime-checkable Protocol)              │ │
-│  │   ├── synthesize(text, voice_name, **kwargs) → bytes               │ │
-│  │   ├── synthesize_base64(...) → str                                  │ │
-│  │   ├── close() → None                                                │ │
-│  │   └── Properties: provider_name, audio_format                       │ │
-│  └────────────────────────────────────────────────────────────────────┘ │
-│                            │                                             │
-│            ┌───────────────┴───────────────┐                             │
-│            ▼                               ▼                             │
-│  ┌──────────────────────┐     ┌──────────────────────────┐              │
-│  │  STANDARD MODE       │     │  HD MODE                  │              │
-│  │                      │     │                           │              │
-│  │  EdgeTTSClient       │     │  OpenAITTSClient          │              │
-│  │  ├── edge-tts lib    │     │  ├── openai.audio.speech  │              │
-│  │  ├── MP3 output      │     │  ├── tts-1 / tts-1-hd     │              │
-│  │  └── GRATUIT         │     │  └── $15-30/1M chars      │              │
-│  │                      │     │                           │              │
-│  │  Voices:             │     │  Voices:                  │              │
-│  │  - fr-FR-HenriNeural │     │  - alloy, echo, fable     │              │
-│  │  - fr-FR-DeniseNeural│     │  - onyx, nova, shimmer    │              │
-│  └──────────────────────┘     └──────────────────────────┘              │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+
+[factory.py](../../apps/api/src/domains/voice/factory.py) checks configuration
+before invocation. [families.py](../../apps/api/src/domains/voice/families.py)
+declares billing units and delivery controls; the callers retain their own
+configuration slots and accounting. The avatar consumes existing comment/Live
+output, while Radio has its separate production and playback path.
 
 ---
 
@@ -299,12 +252,12 @@ from src.domains.voice.factory import get_tts_client_sync
 client = get_tts_client_sync(cfg)
 ```
 
-When the active override targets a paid provider whose API key is missing,
-the factory transparently falls back to Edge with neutral SSML tuning
-(see `_fallback_edge_config()`). The fallback emits a structured warning
-log (`openai_tts_missing_api_key_falling_back_to_edge` /
-`elevenlabs_tts_missing_api_key_falling_back_to_edge`) so operators can
-diagnose the missing-key state without losing audio output.
+`unservable_reason()` checks the family's client, billing capability and key.
+`get_tts_client_sync(..., strict=True)` raises `TTSProviderError` on failure;
+a non-strict call uses `_fallback_edge_config()` and logs
+`tts_factory_falling_back_to_edge` with the provider and reason. Token-billed
+clients require `records_tokens=True`; synthesis and accounting are joined by
+`synthesize_billed()` where that capability is declared.
 
 ### TTSClient Protocol
 
@@ -432,6 +385,25 @@ arrival order before asynchronous initialization, reserves its playback
 consumer before any await, and invalidates pending work on stop. Consequently
 a burst of SSE chunks starts only one audible source; a stale decode or end
 event cannot restart audio from a previous turn.
+
+### Optional speaking avatar and one audible destination
+
+The [speaking avatar](SPEAKING_AVATAR.md) uses the person's Simli connector and
+explicit permission to animate the comments already synthesized here. The
+dashboard owns one avatar engine; the shared
+[voice-output coordinator](../../apps/web/src/lib/voice-output/coordinator.ts)
+selects local or avatar playback once per spoken production. Every sentence of
+one answer stays on that route, so readiness changing mid-answer does not split
+its sound between players. Headerless PCM carries its actual encoding and rate
+and is wrapped for browser decoding; encoded audio uses the browser decoder.
+
+The avatar adds no TTS or LLM call. Its video stays muted; a gesture-resumed
+Web Audio context renders remote sound. After a potentially audible prefix,
+failure cancels the avatar output without replaying that prefix locally. A later
+production can use local playback. Simli credits remain the person's vendor
+expense, including possible silence consumption, outside LIA's TTS ledger.
+[ADR-334](../architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md)
+remains Proposed while real provider and physical-device media trials are pending.
 
 ### Progressive sentence streaming (ADR-082)
 
@@ -638,13 +610,10 @@ be synthesising at archive time). Two pass-through points:
 
 ## Cost Comparison
 
-| Mode | Provider | Cost per 1M chars | Cost per 1K requests* |
-|------|----------|-------------------|----------------------|
-| **standard** | Edge TTS | **$0.00** | **$0.00** |
-| **hd** | OpenAI tts-1 | $15.00 | ~$0.75 |
-| **hd** | OpenAI tts-1-hd | $30.00 | ~$1.50 |
-
-\* Assuming 50 chars average per request
+Compare the selected catalogue model using its own billing units and current
+tariff. Character counts cannot estimate Gemini audio-token charges. Speaking
+avatar credits and personal Live-provider charges belong to their respective
+accounts and are separate from this TTS ledger.
 
 ---
 
@@ -654,13 +623,13 @@ be synthesising at archive time). Two pass-through points:
 
 ```python
 # Voice TTS requests
-voice_tts_requests_total{provider="edge|openai|elevenlabs", model="..."}
+voice_tts_requests_total{provider="edge|openai|elevenlabs|gemini", model="..."}
 
 # Voice TTS latency
-voice_tts_latency_seconds{provider="edge|openai|elevenlabs"}
+voice_tts_latency_seconds{provider="edge|openai|elevenlabs|gemini"}
 
 # Voice TTS errors
-voice_tts_errors_total{provider="edge|openai|elevenlabs", error_type="..."}
+voice_tts_errors_total{provider="edge|openai|elevenlabs|gemini", error_type="..."}
 ```
 
 The `voice_tts_mode_cache_total  # N'EXISTE PAS ; metriques TTS reelles : voice_tts_requests_total, voice_tts_errors_total, voice_tts_latency_seconds` Prometheus counter was retired with
@@ -674,28 +643,12 @@ for the new override surface is observed through the existing
 
 ### Graceful Degradation
 
-```python
-# factory.py — paid provider with missing API key falls back to Edge
-def _instantiate_client(cfg: TTSConfig) -> TTSClient:
-    if cfg.provider == "openai":
-        if not LLMConfigOverrideCache.get_api_key("openai"):
-            logger.warning("openai_tts_missing_api_key_falling_back_to_edge")
-            return _instantiate_client(_fallback_edge_config())
-        return OpenAITTSClient(...)
-
-    if cfg.provider == "elevenlabs":
-        if not LLMConfigOverrideCache.get_api_key("elevenlabs"):
-            logger.warning("elevenlabs_tts_missing_api_key_falling_back_to_edge")
-            return _instantiate_client(_fallback_edge_config())
-        return ElevenLabsTTSClient(...)
-
-    if cfg.provider == "edge":
-        return EdgeTTSClient(...)
-
-    # Unknown / not-yet-implemented provider (e.g. gemini): Edge fallback
-    logger.error("tts_factory_unknown_provider", provider=cfg.provider)
-    return _instantiate_client(_fallback_edge_config())
-```
+Configuration fallback runs before provider invocation through the single
+`unservable_reason()` seam in
+[factory.py](../../apps/api/src/domains/voice/factory.py). It checks the caller's
+billing capability as well as the key. Strict callers fail visibly instead of
+substituting another provider. A synthesis failure after invocation is distinct
+from this configuration check; any known paid usage remains accountable.
 
 ### Error Recovery
 
@@ -720,7 +673,10 @@ apps/api/src/domains/voice/
 ├── client.py                  # EdgeTTSClient
 ├── openai_tts_client.py       # OpenAITTSClient
 ├── elevenlabs_tts_client.py   # ElevenLabsTTSClient (ADR-081)
-├── voices_catalog.py          # Edge / OpenAI static lists + ElevenLabs live API
+├── gemini_tts_client.py       # Token-billed GeminiTTSClient
+├── families.py                # Provider billing units and delivery controls
+├── billing.py                 # SynthesisResult and billed synthesis seam
+├── voices_catalog.py          # Curated lists + ElevenLabs live API
 ├── admin_router.py            # GET /admin/voice/voices
 └── service.py                 # VoiceCommentService
 ```

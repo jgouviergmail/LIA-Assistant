@@ -61,30 +61,33 @@ async def _scored_with_accounting[T: BaseModel](
     Returns:
         The validated evaluation.
     """
-    from langchain_core.callbacks import UsageMetadataCallbackHandler
     from langchain_core.messages import HumanMessage
 
     from src.domains.usage_limits.instance_spend import record_instance_llm_spend
-    from src.infrastructure.llm.usage_metadata import model_name_of, tokens_from_callback
+    from src.infrastructure.llm.token_capture import TokenCaptureHandler
+    from src.infrastructure.llm.usage_metadata import model_name_of
 
-    usage_handler = UsageMetadataCallbackHandler()
-    result: T = await get_structured_output(
-        llm=llm,
-        messages=[HumanMessage(content=prompt)],
-        schema=schema,
-        provider=provider,
-        node_name=node_name,
-        config={"callbacks": [usage_handler]},
-    )
-    usage = tokens_from_callback(usage_handler)
-    await record_instance_llm_spend(
-        surface=node_name,
-        model_name=model_name_of(llm),
-        tokens_in=usage.prompt,
-        tokens_out=usage.completion,
-        tokens_cache=usage.cached,
-        tokens_cache_write=usage.cache_write,
-    )
+    model_name = model_name_of(llm)
+    capture = TokenCaptureHandler(model_name)
+    try:
+        result: T = await get_structured_output(
+            llm=llm,
+            messages=[HumanMessage(content=prompt)],
+            schema=schema,
+            provider=provider,
+            node_name=node_name,
+            config={"callbacks": [capture]},
+        )
+    finally:
+        await record_instance_llm_spend(
+            surface=node_name,
+            model_name=model_name,
+            tokens_in=capture.tokens_in,
+            tokens_out=capture.tokens_out,
+            tokens_cache=capture.tokens_cache,
+            tokens_cache_write=capture.tokens_cache_write,
+            billing_records=capture.claim_billing_records(model_name or "unknown"),
+        )
     return result
 
 

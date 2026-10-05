@@ -42,6 +42,12 @@ from src.core.constants import (
     MCP_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_TOOL_NAME,
 )
+from src.infrastructure.mcp.rate_limit import (
+    MCPRateLimitError,
+    MCPServerCooldown,
+    MCPToolExecutionError,
+    quota_error,
+)
 from src.infrastructure.mcp.utils import (
     MCPModernOnlyServerError,
     build_client_info,
@@ -68,6 +74,11 @@ def _surface_root_cause(exc: Exception, *, log_event: str, **log_fields: object)
     - Anything else propagates unchanged.
     """
     root = unwrap_exception_group(exc)
+    refusal = quota_error(root, settings.mcp_rate_limit_window)
+    if refusal is not None:
+        raise refusal from exc
+    if isinstance(root, MCPToolExecutionError):
+        raise root from exc
     if is_modern_only_rejection(root):
         logger.warning(log_event, modern_only_server=True, **log_fields)
         raise MCPModernOnlyServerError() from exc
@@ -150,11 +161,12 @@ class UserMCPClientPool:
     avoiding stale session issues with the MCP SDK's anyio task groups.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cooldowns: MCPServerCooldown | None = None) -> None:
         self._entries: dict[tuple[UUID, UUID], PoolEntry] = {}
         self._connect_locks: dict[tuple[UUID, UUID], asyncio.Lock] = defaultdict(asyncio.Lock)
         self._rate_locks: dict[tuple[UUID, UUID], asyncio.Lock] = defaultdict(asyncio.Lock)
         self._call_timestamps: dict[tuple[UUID, UUID], deque[float]] = defaultdict(deque)
+        self._cooldowns = cooldowns if cooldowns is not None else MCPServerCooldown()
 
     @property
     def size(self) -> int:
@@ -186,6 +198,8 @@ class UserMCPClientPool:
                 self._entries[key].last_used = time.monotonic()
                 return self._entries[key]
 
+            await self._raise_if_cooling(key)
+
             # Check global pool limit
             max_total = settings.mcp_user_pool_max_total
             while len(self._entries) >= max_total:
@@ -197,9 +211,13 @@ class UserMCPClientPool:
                     )
 
             # Discover tools via ephemeral connection
-            tools, reference_content = await self._discover_tools(
-                url, auth, timeout_seconds, extra_headers=extra_headers
-            )
+            try:
+                tools, reference_content = await self._discover_tools(
+                    url, auth, timeout_seconds, extra_headers=extra_headers
+                )
+            except MCPRateLimitError as exc:
+                await self._cooldowns.record(key, exc.retry_after)
+                raise
             entry = PoolEntry(
                 user_id=user_id,
                 server_id=server_id,
@@ -244,6 +262,8 @@ class UserMCPClientPool:
         if not entry:
             raise RuntimeError(f"No pool entry for user={user_id}, server={server_id}")
 
+        await self._raise_if_cooling(key)
+
         # Rate limiting (per-server sliding window)
         await self._check_rate_limit(key)
 
@@ -260,6 +280,9 @@ class UserMCPClientPool:
             )
             entry.last_used = time.monotonic()
             return result
+        except MCPRateLimitError as exc:
+            await self._cooldowns.record(key, exc.retry_after)
+            raise
         finally:
             entry.active_calls = max(0, entry.active_calls - 1)
 
@@ -289,7 +312,10 @@ class UserMCPClientPool:
         if not entry:
             return None
 
+        provider_called = False
         try:
+            await self._raise_if_cooling(key)
+            provider_called = True
             return await self._execute_read_resource_ephemeral(
                 url=entry.url,
                 auth=entry.auth,
@@ -297,6 +323,17 @@ class UserMCPClientPool:
                 timeout_seconds=timeout_seconds,
                 extra_headers=entry.extra_headers,
             )
+        except MCPRateLimitError as exc:
+            # Re-reading a known deadline must not extend it by rounded seconds.
+            if provider_called:
+                await self._cooldowns.record(key, exc.retry_after)
+            logger.info(
+                "user_mcp_read_resource_rate_limited",
+                user_id=str(user_id),
+                server_id=str(server_id),
+                retry_after=exc.retry_after,
+            )
+            return None
         except Exception:
             logger.warning(
                 "user_mcp_read_resource_failed",
@@ -361,6 +398,7 @@ class UserMCPClientPool:
         self._connect_locks.pop(key, None)
         self._rate_locks.pop(key, None)
         self._call_timestamps.pop(key, None)
+        self._cooldowns.forget_local(key)
 
         if entry:
             logger.info(
@@ -420,6 +458,11 @@ class UserMCPClientPool:
     # =========================================================================
     # Private helpers
     # =========================================================================
+
+    async def _raise_if_cooling(self, key: tuple[UUID, UUID]) -> None:
+        remaining = await self._cooldowns.remaining(key)
+        if remaining > 0:
+            raise MCPRateLimitError(remaining)
 
     @staticmethod
     async def _discover_tools(
@@ -526,7 +569,7 @@ class UserMCPClientPool:
                 # Parse result content
                 if result.is_error:
                     error_text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
-                    raise RuntimeError(f"MCP tool error: {error_text}")
+                    raise MCPToolExecutionError(f"MCP tool error: {error_text}")
 
                 result_text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
             return result_text
@@ -569,7 +612,7 @@ class UserMCPClientPool:
                 timestamps.popleft()
 
             if len(timestamps) >= max_calls:
-                raise RuntimeError(f"MCP rate limit exceeded: {max_calls} calls per {window}s")
+                raise MCPRateLimitError(window - (now - timestamps[0]))
 
             timestamps.append(now)
 

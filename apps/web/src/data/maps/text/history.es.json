@@ -1720,8 +1720,8 @@
     },
     "325": {
       "title": "JEV decide y cada uso conserva su interruptor",
-      "summary": "JEV ayuda a LIA a elegir, orientar o evaluar dentro de un ámbito definido. Cada uso tiene un interruptor en caliente; ante la duda, el proceso existente toma el relevo. Las vistas previas conservan todos los resultados, los observadores no bloquean ninguna extracción y una exclusión nunca equivale a una aprobación. Los administradores ven el contexto, la respuesta y el resultado; cada llamada de pago se contabiliza. El ahorro de tiempo se comprueba en el recorrido completo antes de activar cada uso.",
-      "src": "7ebe153c5910"
+      "summary": "JEV ayuda a elegir, orientar o evaluar entre opciones acotadas, con un interruptor inmediato por uso y el recorrido existente ante la duda. Dos usos opcionales, desactivados por defecto, detectan la ausencia de referencias personales o el rechazo de todas las acciones pendientes; ninguno autoriza la ejecución. Las vistas previas conservan resultados canónicos y los observadores no bloquean escrituras; los administradores ven contexto y resultado, los fallos de pago y las alternativas cuentan, y las ventajas se verifican en el recorrido completo antes de activar.",
+      "src": "7ae74af1da6c"
     },
     "326": {
       "title": "Ningún texto hostil congela a LIA, ninguna redirección la desvía",
@@ -1762,6 +1762,11 @@
       "title": "Registros, trazas y métricas se responden, y la cadena de observación se vigila a sí misma",
       "summary": "Una línea de registro abre la traza de su petición, una traza abre sus registros y métricas, un punto de latencia abre el ejemplo que lo produjo: enlaces medidos como rotos en producción ahora funcionan. La cadena que transporta estas señales se vigila a su vez, con una alerta cuando se pierden registros, y todos los paneles siguen una misma convención: una semana de historial y un menú común.",
       "src": "9180ad307663"
+    },
+    "334": {
+      "title": "Un avatar parlante personal con una sola salida audible — diseño propuesto",
+      "summary": "El diseño experimental implementado conecta un rostro Simli elegido por la persona con comentarios de voz y Live directo o delegado, usando su clave y una sesión acotada. El navegador elige una sola salida audible; la espera cierra la conexión, mientras una sesión abierta consume el plan personal incluso en silencio. Radio sigue aparte; la decisión permanece propuesta: movimiento de labios, aceptación multimedia y pruebas Android/iOS siguen pendientes.",
+      "src": "3ed4efca88f6"
     }
   }
 }

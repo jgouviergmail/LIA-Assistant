@@ -102,23 +102,12 @@ OAuth setup is a two-step process:
 • Click "Connect OAuth" again to re-authorize
 
 ## How does LIA use MCP tools in a conversation?
-MCP tools are used **automatically** by LIA when relevant:
 
-**🧠 Smart selection:**
-• LIA analyzes your question and identifies relevant tools
-• The **server description** helps LIA choose the right MCP server
-• MCP tools are selected alongside native tools (Google, weather, etc.)
+LIA selects MCP tools alongside native tools using your question and the server's description. Write that description carefully, test discovery, and use the server switch to pause it without deleting its configuration.
 
-**📊 Result display:**
-• MCP results appear as **visual cards** in the conversation
-• Each card shows the source server and tool name
-• Content can be text or formatted JSON
+Results appear as cards that preserve lists, structured objects and simple values. They identify the server and tool, plus the method and source URL when supplied; an absent field is never invented. Opening stored detail makes no new call.
 
-**💡 Tips:**
-• Write a good **server description** to guide LIA
-• Test the connection to ensure tools are properly discovered
-• You can **enable/disable** a server via the toggle without deleting it
-• A server connected with your own account (OAuth, personal token) tells LIA so: "my repos", "my accounts" resolve to that account, with no username to provide
+A server rate limit starts a bounded cooldown shared across calls to that server, so repeated requests do not hammer it. A server connected to your personal account tells LIA which account “my repositories” or “my accounts” means.
 
 ## What are OAuth scopes and why are they important?
 OAuth scopes define the **permissions** requested during authorization:

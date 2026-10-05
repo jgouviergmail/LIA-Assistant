@@ -159,9 +159,9 @@
     },
     "t.response": {
       "name": "Sintesi della risposta",
-      "role": "Assembla la risposta a partire dai risultati e dai contesti dichiarati, riferisce i fallimenti così come sono, e dichiara il registro che anima il volto.",
+      "role": "Compone la risposta da risultati e contesti dichiarati, indica gli errori e rende schede deterministiche dai fatti ricevuti. Selezioni e filtri temporali richiedono prove; le azioni verificano il legame esatto con messaggio e fonte. Dichiara anche il tono che anima il compagno.",
       "stack": ["Contesti dichiarati", "Direttive di onestà", "Registro emotivo"],
-      "src": "efc7fbacd058"
+      "src": "1a9d36a94c1d"
     },
     "t.hitl": {
       "name": "Validazione e bozze",
@@ -229,14 +229,14 @@
     },
     "t.pricing": {
       "name": "Contabilità e tetti di spesa",
-      "role": "Ogni chiamata a pagamento è limitata prima (account e istanza), tariffata al suo istante, poi registrata nel giusto libro mastro; ogni modulo dichiara dove viene contabilizzata la sua spesa.",
+      "role": "Ogni tentativo a pagamento fissa modello, tariffa, ora d’inizio e tasso di cambio; l’uso noto fallito o annullato viene comunque registrato. Letture e scritture della cache restano distinte, sotto i limiti di account e istanza.",
       "stack": [
         "Tariffe per fascia oraria",
         "Cache dei prezzi",
         "Tetti account + istanza",
         "Vie di spesa dichiarate"
       ],
-      "src": "939e9074aad7"
+      "src": "8135113ee487"
     },
     "t.connclients": {
       "name": "Client dei connettori",
@@ -246,9 +246,9 @@
     },
     "t.mcp": {
       "name": "Client MCP",
-      "role": "Un pool di client MCP per persona, schemi degli strumenti letti alla lettera secondo lo standard, strumenti protetti come quelli nativi.",
+      "role": "Un pool di client per persona, schemi standard e le stesse protezioni degli strumenti nativi; fonte e metodo accompagnano ogni forma di uscita. Le pause dichiarate dai server sono condivise tramite Redis.",
       "stack": ["Model Context Protocol", "Due revisioni del protocollo", "OAuth per emittente"],
-      "src": "c11c5620d9c1"
+      "src": "7d42a9fb7ca7"
     },
     "t.skills": {
       "name": "Competenze e plugin",
@@ -325,9 +325,9 @@
     },
     "t.radio": {
       "name": "Radio: redazione e antenna",
-      "role": "Una redazione dell'istanza legge i feed pubblici senza modello; un'antenna per ascoltatore decide con un palinsesto deterministico, fa scrivere e verificare ogni segmento, leggerlo e mixarlo, solo finché qualcuno ascolta.",
+      "role": "Una redazione d’istanza filtra i feed pubblici; un’antenna per ascoltatore scrive e verifica segmenti limitati durante l’ascolto. PCM grezzo/u-law porta i metadati audio dichiarati in WAV prima del mix locale; l’audio codificato resta invariato. Una griglia deterministica sceglie il programma.",
       "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"],
-      "src": "3779500de599"
+      "src": "6dfaa30a9b4b"
     },
     "t.postgres": {
       "name": "PostgreSQL e pgvector",
@@ -411,6 +411,12 @@
       "role": "Un'istanza pubblica di dimostrazione in cui ogni protezione è ricalcolata dalla fonte di verità, e verificata a ogni deployment.",
       "stack": ["Istanza isolata", "Protezioni ricalcolate dalla fonte"],
       "src": "949e4004a9a1"
+    },
+    "t.avatar": {
+      "name": "Avatar: sessione e riproduzione",
+      "role": "Una sessione personale sotto lease Redis; il browser invia la voce esistente in PCM e sceglie il contenuto Simli come unica uscita udibile. La sospensione Live la chiude. Sperimentale: l’accettazione di media e dispositivi è ancora in attesa.",
+      "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
+      "src": "b302c6788952"
     }
   },
   "flows": {
@@ -462,8 +468,8 @@
       "src": "0b2fe48e5758"
     },
     "tflow.live": {
-      "name": "Una sessione Live",
-      "summary": "Il browser parla direttamente con il fornitore; ogni richiesta torna al grafo.",
+      "name": "Una sessione Live delegata",
+      "summary": "Il percorso delegato: il browser parla con il fornitore e ogni richiesta torna al grafo.",
       "steps": [
         "La persona apre una sessione Live.",
         "L'API emette un identificativo monouso e compone il mandato della voce.",
@@ -473,7 +479,7 @@
         "La risposta, limitata e appiattita, viene restituita alla voce.",
         "Alla fine, un'unica chiusura archivia, quantifica e inoltra."
       ],
-      "src": "0f169cd6c55b"
+      "src": "47835695935a"
     },
     "tflow.delivery": {
       "name": "Dal commit alla produzione",

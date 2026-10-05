@@ -18,6 +18,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.core.llm_usage import LLMBillingRecord
+
 # ---------------------------------------------------------------------------
 # LLM Structured Output
 # ---------------------------------------------------------------------------
@@ -530,6 +532,7 @@ class HeartbeatTarget:
     decision_tokens_cache: int = 0
     #: The part of ``decision_tokens_in`` Claude wrote to its prompt cache.
     decision_tokens_cache_write: int = 0
+    billing_records: tuple[LLMBillingRecord, ...] = ()
 
 
 # ---------------------------------------------------------------------------

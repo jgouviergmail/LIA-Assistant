@@ -344,6 +344,34 @@ class TestHourlyForecast:
 
 
 class TestDailyForecast:
+    async def test_hourly_api_day_and_night_labels_produce_a_daytime_daily_summary(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        hours = []
+        for hour in range(24):
+            daytime = 8 <= hour < 17
+            reading = _hour(f"2026-10-05T{hour:02d}:00:00Z", 24 if daytime else 10)
+            reading["isDaytime"] = daytime
+            reading["weatherCondition"]["description"]["text"] = (
+                "Ensoleillé" if daytime else "Dégagé"
+            )
+            hours.append(reading)
+        request_spy.return_value = {"forecastHours": hours}
+        with patch("src.domains.connectors.clients.google_weather_client.track_google_api_call"):
+            result = await client.get_daily_forecast(
+                lat=1.0, lon=2.0, days=1, user_timezone="Europe/Paris", lang="fr"
+            )
+        day = result["daily"][0]
+        assert (day["condition"], day["icon"], day["weather_main"]) == (
+            "Ensoleillé",
+            "01d",
+            "Clear",
+        )
+        assert (day["temp_min"], day["temp_max"]) == (10, 24)
+        # Daily requests still use the established hourly provider path.
+        request_spy.assert_awaited_once()
+        assert request_spy.await_args.args == ("/v1/forecast/hours:lookup",)
+
     async def test_delegates_to_the_shared_aggregation(self, client: GoogleWeatherClient) -> None:
         client.get_forecast = AsyncMock(  # type: ignore[method-assign]
             return_value={

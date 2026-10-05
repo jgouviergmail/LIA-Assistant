@@ -37,6 +37,51 @@ beforeEach(() => {
 });
 
 describe('voice TTS handlers', () => {
+  it('claims a fresh voice run before chunks and never replays that side effect', () => {
+    const { context } = buildHandlerContext();
+    const beginVoiceRun = vi.fn();
+    const chunk: ChatStreamChunk = {
+      type: 'voice_comment_start',
+      content: '',
+      metadata: { run_id: 'fresh' },
+    };
+    handleVoiceCommentStart(chunk, { ...context, beginVoiceRun });
+    handleVoiceCommentStart(chunk, { ...context, beginVoiceRun, isReplay: true });
+    expect(beginVoiceRun).toHaveBeenCalledExactlyOnceWith('fresh');
+  });
+  it('does not claim a production from absent or malformed run metadata', () => {
+    const { context } = buildHandlerContext();
+    const beginVoiceRun = vi.fn();
+    for (const metadata of [null, {}, { run_id: 42 }]) {
+      handleVoiceCommentStart(
+        { type: 'voice_comment_start', content: '', metadata },
+        { ...context, beginVoiceRun }
+      );
+    }
+    expect(beginVoiceRun).not.toHaveBeenCalled();
+  });
+  it('keeps the current voice run open when replaying an older completion', () => {
+    const { context } = buildHandlerContext();
+    let currentRunOpen = true;
+    const endVoiceRun = vi.fn(() => {
+      currentRunOpen = false;
+    });
+    const chunk: ChatStreamChunk = {
+      type: 'voice_complete',
+      content: '',
+      metadata: { chunk_count: 4 },
+    };
+
+    handleVoiceComplete(chunk, { ...context, endVoiceRun, isReplay: true });
+
+    expect(currentRunOpen).toBe(true);
+    expect(endVoiceRun).not.toHaveBeenCalled();
+
+    handleVoiceComplete(chunk, { ...context, endVoiceRun });
+
+    expect(currentRunOpen).toBe(false);
+    expect(endVoiceRun).toHaveBeenCalledExactlyOnceWith();
+  });
   it('voice_comment_start / voice_complete / voice_error are log-only (no dispatch)', () => {
     const { context, dispatch } = buildHandlerContext();
 

@@ -28,6 +28,8 @@ class JevUsage(StrEnum):
     FILTER_TICKET = "filter_ticket"
     FILTER_MCP = "filter_mcp"
     FILTER_DOCUMENT = "filter_document"
+    MEMORY_REFERENCE_PRESENCE = "memory_reference_presence"
+    HITL_REJECTION = "hitl_rejection"
 
 
 @dataclass(frozen=True)
@@ -129,6 +131,16 @@ JEV_USAGES: dict[JevUsage, JevUsageSpec] = {
         SystemSettingKey.JEV_FILTER_DOCUMENT_ENABLED,
         "jev_filter_document",
         "settings.admin.jev.usages.filter_document",
+    ),
+    JevUsage.MEMORY_REFERENCE_PRESENCE: JevUsageSpec(
+        SystemSettingKey.JEV_MEMORY_REFERENCE_PRESENCE_ENABLED,
+        "jev_memory_reference_presence",
+        "settings.admin.jev.usages.memory_reference_presence",
+    ),
+    JevUsage.HITL_REJECTION: JevUsageSpec(
+        SystemSettingKey.JEV_HITL_REJECTION_ENABLED,
+        "jev_hitl_rejection",
+        "settings.admin.jev.usages.hitl_rejection",
     ),
 }
 

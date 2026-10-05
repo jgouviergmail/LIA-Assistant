@@ -104,19 +104,19 @@ Las contribuciones al código fuente (pull requests, incidencias) son bienvenida
 
 El Operador se compromete a proteger los datos personales del Usuario conforme al Reglamento General de Protección de Datos (RGPD) y a la legislación francesa aplicable en materia de protección de datos (Loi Informatique et Libertés).
 
-**Datos recogidos**: dirección de correo electrónico, nombre de usuario, preferencias de idioma, historial de conversaciones, datos de conexión (tokens OAuth cifrados) para los servicios externos (Google, Apple, Microsoft) y datos de uso (registros de actividad, métricas de rendimiento).
+**Datos recogidos**: dirección de correo electrónico, nombre de usuario, preferencias de idioma, historial de conversaciones, credenciales cifradas de conexión a servicios externos (tokens OAuth o contraseñas de aplicación) y datos de uso (registros de actividad, métricas de rendimiento). Las funciones opcionales también pueden tratar ubicación, voz, documentos o mediciones de salud cuando el Usuario elige utilizarlas, según la Política de privacidad.
 
 **Finalidades del tratamiento**: prestación del Servicio, mejora de la experiencia de usuario, seguridad y prevención de abusos, y análisis estadístico anonimizado.
 
 **Base jurídica**: el tratamiento se basa en el consentimiento del Usuario (artículo 6.1.a del RGPD) y en la ejecución del contrato (artículo 6.1.b del RGPD).
 
-**Alojamiento y almacenamiento**: los datos se alojan en servidores situados en Francia y/o en la Unión Europea. Los tokens de acceso a servicios externos se cifran en reposo (AES-256). Las conversaciones pueden ser tratadas por proveedores de LLM situados fuera de la UE (OpenAI, Anthropic, Google, DeepSeek); en tal caso, las transferencias se amparan en garantías adecuadas (cláusulas contractuales tipo, decisiones de adecuación).
+**Alojamiento y almacenamiento**: los datos se alojan en servidores situados en Francia y/o en la Unión Europea. Las credenciales de los conectores y las claves de proveedores almacenadas se cifran con [Fernet](https://cryptography.io/en/latest/fernet/) (AES-128-CBC con autenticación HMAC-SHA256). Esta protección cubre esos secretos; las conversaciones no tienen cifrado de extremo a extremo y las copias de seguridad requieren su propia protección. Los datos necesarios para una solicitud pueden ser tratados por proveedores fuera de la UE, según los servicios y la configuración elegidos. El Operador debe evaluar las normas de transferencia aplicables y garantizar las salvaguardas exigidas, como cláusulas contractuales tipo o una decisión de adecuación aplicable.
 
-**Plazo de conservación**: los datos se conservan mientras exista la cuenta y se eliminan en un plazo de 30 días tras su supresión por el Usuario.
+**Plazo de conservación**: la supresión por el administrador elimina contenidos personales, pero conserva la fila de la cuenta, con nombre y correo electrónico, y los registros de facturación. El paso posterior de borrado definitivo elimina la fila de la cuenta. Auditorías, diagnósticos y copias de seguridad siguen sus propios procedimientos de conservación y borrado.
 
-**Derechos del Usuario**: conforme al RGPD, el Usuario dispone de los derechos de acceso, rectificación, supresión, portabilidad, limitación del tratamiento y oposición. Estos derechos pueden ejercerse por correo electrónico en la dirección indicada en la aplicación, o directamente desde los ajustes de la cuenta. El Usuario tiene además derecho a presentar una reclamación ante la CNIL, la autoridad francesa de protección de datos.
+**Derechos del Usuario**: conforme al RGPD, el Usuario tiene derechos de acceso, rectificación, supresión, portabilidad, limitación y oposición. Las solicitudes pueden dirigirse al contacto mostrado en la aplicación o al administrador de la instancia; los ajustes ofrecen los controles de autoservicio disponibles, incluida la exportación. El Usuario también puede reclamar ante la CNIL, la autoridad francesa de protección de datos.
 
-**Trazabilidad de los LLM**: el Servicio utiliza Langfuse para el trazado de las llamadas a los LLM, con fines de depuración y mejora del servicio. Estos registros no contienen datos identificativos personales y se conservan durante un tiempo limitado.
+**Trazabilidad de los LLM**: cuando está activado, Langfuse registra llamadas a los LLM para diagnóstico y mejora del Servicio. Estos diagnósticos pueden contener entradas y salidas de los modelos y metadatos vinculados a la cuenta; el filtrado de los registros técnicos no los anonimiza automáticamente. El Operador debe configurar su acceso, alojamiento y conservación.
 
 Para más detalles, consulta nuestra Política de Privacidad.
 
@@ -144,7 +144,7 @@ Dado que el Servicio es gratuito durante la fase beta, la responsabilidad del Op
 
 ## 10. Resolución y suspensión
 
-El Usuario puede eliminar su cuenta en cualquier momento desde los ajustes de la aplicación. La eliminación conlleva la supresión de todos sus datos personales en un plazo de 30 días, sin perjuicio de las obligaciones legales de conservación.
+El Usuario puede pedir la supresión de su cuenta al administrador en cualquier momento. Esta elimina los contenidos personales, pero conserva nombre, correo electrónico y registros de facturación; el paso posterior de borrado definitivo elimina la fila de la cuenta. Auditorías, diagnósticos separados, copias de seguridad y datos en poder de proveedores siguen los procedimientos descritos en la Política de privacidad.
 
 El Operador se reserva el derecho de suspender o eliminar una cuenta de usuario en los siguientes casos:
 

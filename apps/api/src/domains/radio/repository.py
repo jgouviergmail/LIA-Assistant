@@ -48,6 +48,7 @@ from src.domains.radio.models import (
     RadioPreferencesRow,
     TextState,
 )
+from src.domains.radio.newsroom.editorial_rows import editorial_rows
 from src.domains.radio.preferences import (
     VOICES_BY_ENGINE,
     RadioPreferences,
@@ -55,6 +56,7 @@ from src.domains.radio.preferences import (
     read_radio_preferences,
     with_engine_voices,
 )
+from src.domains.shared.commercial_content import editorial_excerpt, is_commercial_content
 from src.infrastructure.database.owner_lock import hold_owner_lock
 from src.infrastructure.database.session import get_db_context
 
@@ -186,26 +188,37 @@ async def news_candidates(
     """
     heard_last = _heard_last(heard_keys, heard_stories)
 
-    def read(where: ColumnElement[bool], bound: int) -> Select[tuple[RadioNewsItem, str]]:
+    def read(where: ColumnElement[bool]) -> Select[tuple[RadioNewsItem, str]]:
         return (
             select(RadioNewsItem, RadioFeed.outlet)
             .join(RadioFeed, RadioFeed.id == RadioNewsItem.feed_id)
             .where(RadioNewsItem.published_at >= since, where)
             .order_by(*heard_last, RadioNewsItem.published_at.desc(), RadioNewsItem.id.desc())
-            .limit(bound)
         )
 
     async with get_db_context() as db:
-        sources = (await db.execute(read(_sources_heard_by(user_id, disabled_feeds), limit))).all()
-        found = (
-            (await db.execute(read(_interests_of(user_id), interests_limit))).all()
-            if interests_limit > 0
-            else []
+        sources = await editorial_rows(
+            db,
+            read(_sources_heard_by(user_id, disabled_feeds)),
+            limit=limit,
+            eligible=lambda row: _stored_editorial(row[0]),
+            identity=lambda row: row[0].id,
+        )
+        found = await editorial_rows(
+            db,
+            read(_interests_of(user_id)),
+            limit=interests_limit,
+            eligible=lambda row: _stored_editorial(row[0]),
+            identity=lambda row: row[0].id,
         )
     return [
         *(_candidate(item, outlet, from_interests=False) for item, outlet in sources),
         *(_candidate(item, outlet, from_interests=True) for item, outlet in found),
     ]
+
+
+def _stored_editorial(item: RadioNewsItem) -> bool:
+    return not is_commercial_content(item.title, summary=item.summary, body=item.full_text or "")
 
 
 def _candidate(item: RadioNewsItem, outlet: str, *, from_interests: bool) -> NewsCandidate:
@@ -215,10 +228,14 @@ def _candidate(item: RadioNewsItem, outlet: str, *, from_interests: bool) -> New
         outlet=item.outlet or outlet,
         url=item.url,
         title=item.title,
-        summary=item.summary,
+        summary=editorial_excerpt(item.summary),
         published_at=item.published_at,
         fingerprint=item.fingerprint,
-        full_text=item.full_text if item.text_state == TextState.READY.value else None,
+        full_text=(
+            (editorial_excerpt(item.full_text) if item.full_text else None)
+            if item.text_state == TextState.READY.value
+            else None
+        ),
         from_interests=from_interests,
     )
 

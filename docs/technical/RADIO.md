@@ -187,6 +187,29 @@ took (the ledger's `angles` set, `AiredLedger.treated`). The discussion's writer
 chooses its story among four; the dossier and the debate read the analyst's
 points on theirs, like the analysis.
 
+## Editorial sources without commercial pitches
+
+Radio programmes leave out advertising, sponsored or commercial partnerships,
+sales, shopping deals, discount codes and commercial offers. The
+[shared content policy](../../apps/api/src/domains/shared/commercial_content.py)
+recognises explicit disclosures and sales pitches, and removes advertising
+paragraphs from otherwise useful excerpts. An economic report, a scientific
+partnership or a professional promotion remains editorial information.
+
+These checks run before feed items, interest-search results and unread mail fill
+their selection limits. The shortlist also checks previously stored news and
+custom feeds. News reads and the mail scan remain bounded. Radio's mail mode
+uses a separate cache and fallback namespace; the dashboard's ordinary mail
+cards retain their existing behaviour and the unread count describes the fetched
+messages before commercial filtering. Transactional mail and editorial newsletters
+retain their useful content while commercial inserts are left out.
+
+The existing writer, analyst and verifier prompts carry the same policy for
+mixed or less explicit content. No extra model call is introduced to classify
+commercial sources. These rules combine explicit source signals with that
+semantic policy; a keyword alone does not prove that every article mentioning
+a partnership or a reduction is advertising.
+
 ## The listener's material
 
 Two parts, decided by the source (`personal.py`): the **day** (appointments,
@@ -380,6 +403,21 @@ voice alone: a short breath before the first word (the player lowers the music
 over it), a pause after each line, a longer one between parts; the mix is
 planned purely (`audio.plan_segment`) and run through the bounded ffmpeg runner.
 
+For headerless PCM and u-law, the client declares a `RawAudioSpec` at its
+configured rate. [Audio preparation](../../apps/api/src/domains/voice/audio_output.py)
+wraps the samples unchanged in WAV before ffprobe; encoded responses pass
+through unchanged and the segment retains its single final MP3 encode. Billing
+precedes this wrapping. An incomplete raw sample sequence returned by the client
+is refused at this boundary without another synthesis; validation inside the
+provider client keeps its existing retry behaviour. The optional metadata protocol
+leaves clients whose responses already have a container on their existing path.
+Cancellation before the mix is published removes its partial MP3 and propagates;
+line files are cleaned by production, and a pre-existing final file is left intact.
+
+Radio keeps its existing segment player and cast of voices. The personal Simli
+[speaking-avatar integration](SPEAKING_AVATAR.md) covers comments and Live audio;
+it does not route Radio programmes through one face or create another synthesis.
+
 ## The station's music
 
 Four moods — `morning`, `news`, `evening`, `calm` (`formats.MusicMood`): news is
@@ -458,6 +496,11 @@ height and the button's width, and a second click meant to resume could land on
 stop (measured in Chromium: identical boxes before and after a pause, desktop and
 phone). Each figure is named for a screen reader by visually hidden text, never
 by an `aria-label` on a plain span (prohibited by ARIA 1.2, read by none).
+
+The slot's background is clipped to its content: the spacing below the bar reveals
+the dashboard background while the bar retains its opaque contrast. The spacing
+still contributes to `--radio-banner-h`, in both compact and expanded states,
+so the chat's height calculation remains the same.
 
 **The station on screen** is named by the session it carries (`station_name` on
 every session answer, frozen at the start), else the listener's language's

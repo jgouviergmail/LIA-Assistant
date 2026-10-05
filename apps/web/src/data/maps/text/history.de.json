@@ -1720,8 +1720,8 @@
     },
     "325": {
       "title": "JEV entscheidet, jeder Einsatz behält seinen Schalter",
-      "summary": "JEV hilft LIA, innerhalb klarer Grenzen auszuwählen, Anfragen zuzuordnen oder Inhalte zu bewerten. Jeder Einsatz lässt sich im laufenden Betrieb umschalten; bei Unsicherheit übernimmt der bisherige Ablauf. Vorschauen behalten alle Ergebnisse, Beobachter blockieren keine Extraktion und ein Ausschluss ist niemals eine Freigabe. Administratoren sehen Kontext, Antwort und Folge; jeder kostenpflichtige Aufruf wird erfasst. Zeitgewinne werden vor der Aktivierung über den gesamten Ablauf geprüft.",
-      "src": "7ebe153c5910"
+      "summary": "JEV hilft bei Auswahl, Orientierung oder Bewertung unter begrenzten Optionen, mit einem sofortigen Schalter je Anwendung und dem bisherigen Ablauf bei Unsicherheit. Zwei optionale, standardmäßig ausgeschaltete Anwendungen erkennen fehlende persönliche Bezüge oder die Ablehnung aller ausstehenden Aktionen; keine erlaubt die Ausführung. Vorschauen behalten kanonische Ergebnisse, Beobachter blockieren keine Schreibvorgänge; Administratoren sehen Kontext und Ergebnis, bezahlte Fehler und Rückfälle zählen beide, und Vorteile werden vor Aktivierung am gesamten Ablauf geprüft.",
+      "src": "7ae74af1da6c"
     },
     "326": {
       "title": "Kein feindlicher Text friert LIA ein, keine Weiterleitung lenkt sie um",
@@ -1762,6 +1762,11 @@
       "title": "Logs, Traces und Metriken verweisen aufeinander, und die Beobachtungskette überwacht sich selbst",
       "summary": "Eine Logzeile öffnet den Trace ihrer Anfrage, ein Trace öffnet seine Logs und Metriken, ein Latenzpunkt öffnet das Beispiel, das ihn erzeugt hat: In der Produktion als defekt gemessene Verknüpfungen funktionieren jetzt. Die Kette, die diese Signale transportiert, wird ihrerseits überwacht, mit einem Alarm, wenn Logs verloren gehen, und alle Dashboards folgen einer Konvention: eine Woche Verlauf und ein gemeinsames Menü.",
       "src": "9180ad307663"
+    },
+    "334": {
+      "title": "Ein persönlicher sprechender Avatar mit einer hörbaren Ausgabe — vorgeschlagener Entwurf",
+      "summary": "Der umgesetzte experimentelle Entwurf verbindet ein selbst gewähltes Simli-Gesicht mit Sprachkommentaren und direktem oder delegiertem Live, mit Kontoschlüssel und begrenzter Sitzung. Der Browser wählt eine hörbare Ausgabe; Standby schließt die Verbindung, während eine offene Sitzung den persönlichen Tarif auch in der Stille verbraucht. Radio bleibt getrennt; die Entscheidung bleibt vorgeschlagen: Lippenbewegungen, Medienabnahme und Android/iOS-Versuche stehen aus.",
+      "src": "3ed4efca88f6"
     }
   }
 }

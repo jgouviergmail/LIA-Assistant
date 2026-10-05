@@ -56,6 +56,7 @@ from src.domains.shared.portrait_sources import clamp_item
 WRITER_PROMPT: Final[str] = "radio_writer_prompt"
 ANALYST_PROMPT: Final[str] = "radio_analyst_prompt"
 VERIFIER_PROMPT: Final[str] = "radio_verifier_prompt"
+EDITORIAL_POLICY_PROMPT: Final[str] = "radio_editorial_policy"
 
 #: How many of the listener's stated tastes the writer is told at most (the newest first).
 STATED_TASTES_SHOWN_MAX: Final[int] = 6
@@ -206,6 +207,7 @@ def render_writer_prompt(
     """
     spec = FORMAT_SPECS[request.format]
     return template.format(
+        editorial_policy=read_prompt_file(EDITORIAL_POLICY_PROMPT),
         station_name=station.station_name,
         language_name=station.language_name,
         personality=station.personality,
@@ -278,6 +280,7 @@ def render_analyst_prompt(
         f"{request.article}"
     )
     return template.format(
+        editorial_policy=read_prompt_file(EDITORIAL_POLICY_PROMPT),
         station_name=station.station_name,
         language_name=station.language_name,
         min_points=min_points,
@@ -317,6 +320,7 @@ def render_verifier_prompt(
     )
     origin = f"radio:{pack.format.value}"
     return template.format(
+        editorial_policy=read_prompt_file(EDITORIAL_POLICY_PROMPT),
         station_name=station_name,
         facts=wrap_external_content(facts, source_url=origin, source_type="radio_facts"),
         lines=wrap_external_content(numbered, source_url=origin, source_type="radio_script"),

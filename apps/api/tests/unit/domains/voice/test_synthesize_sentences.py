@@ -7,6 +7,10 @@ failure is logged by its facts, never its message (ADR-303).
 
 from __future__ import annotations
 
+import asyncio
+import base64
+import io
+import wave
 from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -16,6 +20,7 @@ from structlog.testing import capture_logs
 
 from src.domains.voice import service as voice_service
 from src.domains.voice.exceptions import TTSProviderError
+from src.domains.voice.protocol import RawAudioSpec
 from src.domains.voice.schemas import VoiceAudioChunk
 from src.domains.voice.service import VoiceCommentService, _SynthesisMetrics
 from tests.support.structlog_capture import fresh_module_logger
@@ -77,3 +82,50 @@ async def test_a_refusal_is_logged_by_its_code_never_its_message() -> None:
         ("provider_http_error", 400, False)
     ]
     assert "the words of the answer" not in repr(logs)
+
+
+@pytest.mark.parametrize("progressive", [False, True])
+async def test_browser_pcm_comment_carries_its_rate_and_mime_without_resynthesis(
+    progressive: bool,
+) -> None:
+    samples = b"\x00\x01" * 2400
+    client = SimpleNamespace(
+        raw_audio_spec=RawAudioSpec(24000),
+        audio_format="pcm",
+        synthesize=AsyncMock(return_value=samples),
+        synthesize_base64=AsyncMock(),
+    )
+    service = VoiceCommentService(tts_client=client)
+    with (
+        patch.object(
+            service,
+            "_get_tts_config",
+            AsyncMock(
+                return_value=SimpleNamespace(is_paid=False, provider="openai", model="tts-1")
+            ),
+        ),
+        patch.object(service, "_get_voice_for_language", AsyncMock(return_value="voice")),
+        patch.object(service, "_resolve_prosody_settings", AsyncMock(return_value=None)),
+    ):
+        if progressive:
+            queue = asyncio.Queue()
+            streamer, drain = await service.start_progressive_chat_stream("fr", queue)
+            streamer.feed("Bonjour. ")
+            streamer.close_input()
+            await drain
+            chunks = [await queue.get()]
+            assert await queue.get() is None
+        else:
+            chunks = [
+                chunk
+                async for chunk in service._synthesize_sentences(
+                    ["Bonjour."], "fr", _SynthesisMetrics(), "voice_comment"
+                )
+            ]
+    assert len(chunks) == 1
+    assert chunks[0].mime_type == "audio/wav"
+    with wave.open(io.BytesIO(base64.b64decode(chunks[0].audio_base64)), "rb") as reader:
+        assert reader.getframerate() == 24000
+        assert reader.readframes(2400) == samples
+    client.synthesize.assert_awaited_once()
+    client.synthesize_base64.assert_not_awaited()

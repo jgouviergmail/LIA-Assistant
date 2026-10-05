@@ -11,7 +11,7 @@ What must hold:
   instead of drifting in silence (the failure mode this whole module exists to
   kill — ``story.*`` was stranded at v1.21.17, ``GETTING_STARTED`` at
   v1.21.21, ``pyproject.toml`` at 1.21.9);
-- exemptions are named with a reason (``privacy.*``/``terms.*`` carry a
+- exemptions are named with a reason (``terms.*`` carry a
   deliberately frozen contractual stamp);
 - derived counts (ADR files, latest ADR number, CHANGELOG entries) are checked
   against their SOURCE, never carried over from the previous release;
@@ -99,8 +99,8 @@ def _fake_repo(tmp_path: Path, version: str = "1.31.2") -> Path:
     _write(guides / "why.es.md", "# Why\n\n**Aplicación**: LIA v%s\n" % version)
     _write(guides / "story.it.md", "# Story\n\n**Applicazione**: LIA v%s\n" % version)
     _write(guides / "story.zh.md", "# Story\n\n**应用**：LIA v%s\n" % version)
-    # Deliberately frozen contractual stamps — must never follow the release.
-    _write(guides / "privacy.fr.md", "# Privacy\n\n**Application** : LIA v1.14.2\n")
+    # Policy versions and frozen contractual stamps never follow the release.
+    _write(guides / "privacy.fr.md", "# Privacy\n\n**Version** : 1.0\n")
     _write(guides / "terms.en.md", "# Terms\n\n**Application**: LIA v1.14.2\n")
 
     _write(
@@ -451,7 +451,8 @@ class TestGuideStampDiscovery:
         stems = {stamp.path.rsplit("/", 1)[-1] for stamp in stamps}
         assert {"how.en.md", "how.fr.md", "why.de.md", "why.es.md"} <= stems
         assert "story.zh.md" in stems, "full-width colon (：) must be recognized"
-        assert "privacy.fr.md" in stems, "exempt stamps must still be DISCOVERED"
+        assert "terms.en.md" in stems, "exempt stamps must still be DISCOVERED"
+        assert "privacy.fr.md" not in stems, "a policy version is not an application stamp"
 
     def test_exempt_guides_are_classified_and_never_tracked(self, tmp_path: Path) -> None:
         root = _fake_repo(tmp_path)
@@ -459,8 +460,8 @@ class TestGuideStampDiscovery:
 
         assert "apps/web/src/data/guides/privacy.fr.md" not in tracked
         assert "apps/web/src/data/guides/terms.en.md" not in tracked
-        assert "privacy" in EXEMPT_GUIDE_STEMS
-        assert EXEMPT_GUIDE_STEMS["privacy"], "an exemption must carry a written reason"
+        assert "terms" in EXEMPT_GUIDE_STEMS
+        assert EXEMPT_GUIDE_STEMS["terms"], "an exemption must carry a written reason"
 
     def test_an_unclassified_stamped_guide_fails_loudly(self, tmp_path: Path) -> None:
         """The anti-rot contract: a new stamped guide cannot drift unnoticed."""
@@ -585,7 +586,7 @@ class TestBumpVersionSurfaces:
         guides = root / "apps" / "web" / "src" / "data" / "guides"
         bump_version_surfaces(root, "1.32.0")
 
-        assert "v1.14.2" in (guides / "privacy.fr.md").read_text(encoding="utf-8")
+        assert "**Version** : 1.0" in (guides / "privacy.fr.md").read_text(encoding="utf-8")
         assert "v1.14.2" in (guides / "terms.en.md").read_text(encoding="utf-8")
         readme = (root / "README.md").read_text(encoding="utf-8")
         assert "<strong>A theme</strong>" in readme

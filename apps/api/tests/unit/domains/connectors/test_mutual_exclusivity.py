@@ -316,6 +316,7 @@ class TestFunctionalCategoriesCompleteness:
     def test_expected_categories_exist(self):
         """All expected categories are present."""
         assert set(CONNECTOR_FUNCTIONAL_CATEGORIES.keys()) == {
+            "avatar",
             "email",
             "calendar",
             "contacts",

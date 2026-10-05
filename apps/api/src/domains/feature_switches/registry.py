@@ -72,6 +72,7 @@ class PlatformCapability(str, Enum):
     MEETINGS = "meetings"
     # ADR-299 — a duplex voice session on the person's provider key.
     LIVE = "live"
+    AVATAR = "avatar"
     # B7 (2026-09-10) — thirteen features that shipped without a switch. The
     # panel offered twelve capabilities while the product had a workboard,
     # journals, habits, proactive notifications, peer connections, a
@@ -151,6 +152,13 @@ class CapabilitySpec:
 
 
 CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
+    PlatformCapability.AVATAR: CapabilitySpec(
+        capability=PlatformCapability.AVATAR,
+        family="media",
+        env_flag="avatar_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_AVATAR_ENABLED,
+        route_enforced=True,
+    ),
     PlatformCapability.STT: CapabilitySpec(
         capability=PlatformCapability.STT,
         family="media",

@@ -51,6 +51,7 @@ export interface PcmPlayerGap {
   frames: number;
   at_frames: number;
 }
+interface PcmAudioActivity { type: 'audio_activity'; active: boolean; epoch: number }
 
 /** Counts only: enough to distinguish network starvation from rendering distortion. */
 export interface PcmPlayerDiagnostics {
@@ -93,6 +94,9 @@ export function buildPcmPlayerWorkletSource(): string {
         this.firstChunkFrame = null;
         this.playingEver = false;
         this.gapFrames = 0;
+        this.observeAudio = false;
+        this.observeEpoch = 0;
+        this.audible = false;
         this.port.onmessage = (event) => {
           const message = event.data;
           if (message.type === 'chunk') {
@@ -111,6 +115,9 @@ export function buildPcmPlayerWorkletSource(): string {
               this.waitFrames = this.bufferFrames;
             }
             this.queue.push({ samples: message.samples, rate: message.rate, seq: message.seq });
+          } else if (message.type === 'observe_audio') {
+            this.observeAudio = true;
+            this.observeEpoch = message.epoch;
           } else if (message.type === 'buffer') {
             this.bufferFrames = message.frames;
           } else if (message.type === 'flush') {
@@ -126,6 +133,7 @@ export function buildPcmPlayerWorkletSource(): string {
             this.waitFrames = 0;
             this.playingEver = false;
             this.gapFrames = 0;
+            this.audible = false;
           }
         };
       }
@@ -189,6 +197,13 @@ export function buildPcmPlayerWorkletSource(): string {
           this.playingEver = true;
         }
         this.renderedFrames += output.length;
+        if (this.observeAudio) {
+          const audible = output.some(value => Math.abs(value) > 1e-7);
+          if (audible !== this.audible) {
+            this.audible = audible;
+            this.port.postMessage({ type: 'audio_activity', active: audible, epoch: this.observeEpoch });
+          }
+        }
         this.dropConsumed();
         if (this.playing && this.queue.length === 0) {
           this.playing = false;
@@ -218,6 +233,8 @@ export class PcmStreamPlayer {
   private node: AudioWorkletNode | null = null;
   private speaking = false;
   private listener: SpeakingListener | null = null;
+  private audibleListener: SpeakingListener | null = null;
+  private audioEpoch = 0;
   private seq = 0;
   private drains = 0;
   private audioMs = 0;
@@ -237,6 +254,11 @@ export class PcmStreamPlayer {
   onSpeakingChange(listener: SpeakingListener): void {
     this.listener = listener;
   }
+  /** Actual render-thread activity; zero PCM and generation signals cannot speak. */
+  onAudibleChange(listener: SpeakingListener): void {
+    this.audibleListener = listener;
+    this.node?.port.postMessage({ type: 'observe_audio', epoch: this.audioEpoch });
+  }
 
   /** Create or resume the context and load the worklet — call from a user gesture (iOS). */
   async warmup(): Promise<void> {
@@ -253,7 +275,10 @@ export class PcmStreamPlayer {
       numberOfOutputs: 1,
       outputChannelCount: [1],
     });
-    node.port.onmessage = (event: MessageEvent<PcmPlayerDrained | PcmPlayerGap>) => {
+    node.port.onmessage = (event: MessageEvent<PcmPlayerDrained | PcmPlayerGap | PcmAudioActivity>) => {
+      if (event.data?.type === 'audio_activity' && event.data.epoch === this.audioEpoch) {
+        this.audibleListener?.(event.data.active === true);
+      }
       if (event.data?.type === 'gap') {
         const gapMs = Math.round((event.data.frames / context.sampleRate) * 1000);
         this.maxGapMs = Math.max(this.maxGapMs, gapMs);
@@ -282,6 +307,7 @@ export class PcmStreamPlayer {
       node.port.postMessage(command);
     }
     this.node = node;
+    if (this.audibleListener) node.port.postMessage({ type: 'observe_audio', epoch: this.audioEpoch });
   }
 
   /** Hand one chunk (at ITS rate) to the worklet; dropped before `warmup()`. */
@@ -320,9 +346,12 @@ export class PcmStreamPlayer {
 
   /** The provider interrupted: the worklet drops everything it holds, now. */
   flush(): void {
+    this.audioEpoch++;
+    if (this.audibleListener) this.node?.port.postMessage({ type: 'observe_audio', epoch: this.audioEpoch });
     const command: PcmPlayerCommand = { type: 'flush' };
     this.node?.port.postMessage(command);
     this.setSpeaking(false);
+    this.audibleListener?.(false);
   }
 
   dispose(): void {
@@ -335,6 +364,7 @@ export class PcmStreamPlayer {
     void this.context?.close();
     this.context = null;
     this.listener = null;
+    this.audibleListener = null;
   }
 
   private setSpeaking(value: boolean): void {

@@ -8,6 +8,8 @@ import { useRadioHoldsAudio } from '@/stores/radioStore';
 import { AudioQueue, type AudioQueueState } from '@/lib/audio-queue';
 import { logger } from '@/lib/logger';
 import type { VoiceAudioChunk } from '@/types/chat';
+import { avatarEngine } from '@/lib/avatars/runtime';
+import { VoiceOutputCoordinator, type VoiceOutputSelection } from '@/lib/voice-output/coordinator';
 
 /**
  * useVoicePlayback - Hook for managing voice comment playback.
@@ -36,6 +38,8 @@ import type { VoiceAudioChunk } from '@/types/chat';
  */
 export function useVoicePlayback() {
   const audioQueueRef = useRef<AudioQueue | null>(null);
+  const [output] = useState(() => new VoiceOutputCoordinator(avatarEngine));
+  const selection = useRef<VoiceOutputSelection | null>(null);
   const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSuspended, setIsSuspended] = useState(false);
@@ -49,6 +53,15 @@ export function useVoicePlayback() {
   // ADR-324: while the radio plays, the answer stays written — two voices at
   // once is neither heard nor understood.
   const radioOnAir = useRadioHoldsAudio();
+  const beginVoiceRun = useCallback((runId: string) => {
+    audioQueueRef.current?.stop();
+    selection.current = output.begin({ source: 'comments', id: runId });
+    audioQueueRef.current?.setDecodedOutput(selection.current.output);
+  }, [output]);
+  /** `voice_complete`: the run's last clip is queued, the avatar drains once it empties. */
+  const endVoiceRun = useCallback(() => {
+    audioQueueRef.current?.endRun();
+  }, []);
 
   /**
    * Configure callbacks on an AudioQueue instance.
@@ -98,8 +111,9 @@ export function useVoicePlayback() {
         audioQueueRef.current.dispose();
         audioQueueRef.current = null;
       }
+      output.interrupt(); selection.current = null;
     };
-  }, [isEnabled, configureQueueCallbacks]);
+  }, [isEnabled, configureQueueCallbacks, output]);
 
   /**
    * Handle a voice audio chunk from SSE stream.
@@ -112,8 +126,9 @@ export function useVoicePlayback() {
       }
 
       try {
-        setIsPlaying(true);
         setError(null);
+        if (!selection.current) beginVoiceRun(crypto.randomUUID());
+        audioQueueRef.current.setDecodedOutput(selection.current?.output ?? null);
         await audioQueueRef.current.enqueue(chunk.audio_base64);
       } catch (err) {
         logger.error('voice_playback_enqueue_failed', err as Error, {
@@ -122,7 +137,7 @@ export function useVoicePlayback() {
         setError(err as Error);
       }
     },
-    [isEnabled, meetingCapturing, radioOnAir]
+    [isEnabled, meetingCapturing, radioOnAir, beginVoiceRun]
   );
 
   /**
@@ -130,12 +145,13 @@ export function useVoicePlayback() {
    * Called on user interaction or context change.
    */
   const stopPlayback = useCallback(() => {
+    output.interrupt(); selection.current = null;
     if (audioQueueRef.current) {
       audioQueueRef.current.stop();
       setIsPlaying(false);
       useEyesSignalsStore.getState().setAudioPlaying(false);
     }
-  }, []);
+  }, [output]);
 
   /**
    * Initialize the AudioQueue (must be called after user gesture).
@@ -194,6 +210,8 @@ export function useVoicePlayback() {
   }, []);
 
   return {
+    beginVoiceRun,
+    endVoiceRun,
     handleVoiceChunk,
     stopPlayback,
     initializeAudio,

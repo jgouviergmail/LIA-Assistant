@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
+import sys
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -34,6 +36,14 @@ import pytest
 from src.core.constants import EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT
 
 pytestmark = [pytest.mark.unit]
+
+
+@pytest.fixture(autouse=True)
+def _operator_switches_are_isolated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise deployment flags without opening the operator's settings store."""
+    monkeypatch.setattr(
+        "src.domains.feature_switches.registry.read_setting", AsyncMock(return_value=True)
+    )
 
 
 def _runtime(mode: str = EXECUTION_MODE_REACT) -> SimpleNamespace:
@@ -47,7 +57,7 @@ def _runtime(mode: str = EXECUTION_MODE_REACT) -> SimpleNamespace:
 
 
 def _ok(stdout: str = "3\n") -> SimpleNamespace:
-    return SimpleNamespace(success=True, output=stdout, error=None)
+    return SimpleNamespace(success=True, output=stdout, error=None, execution_started=True)
 
 
 async def _call(code: str = "print(1+2)", **kwargs: Any) -> Any:
@@ -97,6 +107,74 @@ class TestItRefusesWhenSwitchedOff:
 
 
 class TestTheTurnBudgetIsBounded:
+    @pytest.mark.parametrize("exit_code", [125, 126, 127])
+    async def test_a_real_script_with_a_reserved_exit_code_consumes_its_run(
+        self, exit_code: int, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.core.config import settings
+        from src.domains.agents.tools import python_sandbox_tools
+        from src.domains.skills.executor import SkillScriptExecutor
+
+        monkeypatch.setattr(settings, "skills_script_sandbox", "container")
+        python_sandbox_tools.reset_turn_budget()
+
+        def launch_test_python(**kwargs: Any) -> subprocess.CompletedProcess[str]:
+            argv = kwargs["cmd"]
+            return subprocess.run(
+                [sys.executable, *argv[argv.index("-c") :]],
+                input=kwargs["stdin_payload"],
+                text=True,
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+
+        with patch.object(SkillScriptExecutor, "_run_sandbox_sync", side_effect=launch_test_python):
+            result = await _call(code=f"import sys; sys.exit({exit_code})")
+
+        assert result.success is False
+        assert python_sandbox_tools.runs_spent() == 1
+        assert python_sandbox_tools.drain_turn_scripts()[0]["execution_started"] is True
+
+    async def test_an_input_refused_before_execution_costs_no_run(self) -> None:
+        from src.domains.agents.tools import python_sandbox_tools
+
+        python_sandbox_tools.reset_turn_budget()
+        refusal = SimpleNamespace(
+            success=False, output="", error="Input exceeds 100KB", execution_started=False
+        )
+        with (
+            patch(
+                "src.domains.skills.executor.SkillScriptExecutor.execute_source",
+                new_callable=AsyncMock,
+                return_value=refusal,
+            ),
+            patch.object(python_sandbox_tools, "logger") as logger,
+        ):
+            result = await _call()
+
+        assert result.success is False
+        assert python_sandbox_tools.runs_spent() == 0
+        assert logger.info.call_args.args[0] == "ephemeral_script_refused"
+        assert python_sandbox_tools.drain_turn_scripts()[0]["execution_started"] is False
+
+    async def test_an_executed_script_failure_consumes_one_run(self) -> None:
+        from src.domains.agents.tools import python_sandbox_tools
+
+        python_sandbox_tools.reset_turn_budget()
+        failure = SimpleNamespace(
+            success=False, output="", error="ZeroDivisionError", execution_started=True
+        )
+        with patch(
+            "src.domains.skills.executor.SkillScriptExecutor.execute_source",
+            new_callable=AsyncMock,
+            return_value=failure,
+        ):
+            result = await _call()
+
+        assert result.success is False
+        assert python_sandbox_tools.runs_spent() == 1
+
     async def test_a_run_beyond_the_per_turn_cap_is_refused(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -205,7 +283,10 @@ class TestWhatComesBack:
 
         python_sandbox_tools.reset_turn_budget()
         failure = SimpleNamespace(
-            success=False, output="", error="NameError: name 'total' is not defined"
+            success=False,
+            output="",
+            error="NameError: name 'total' is not defined",
+            execution_started=True,
         )
         with patch(
             "src.domains.skills.executor.SkillScriptExecutor.execute_source",
@@ -319,7 +400,9 @@ class TestTheAdminSeesTheCode:
         from src.domains.agents.tools import python_sandbox_tools
 
         python_sandbox_tools.reset_turn_budget()
-        failure = SimpleNamespace(success=False, output="", error="ZeroDivisionError")
+        failure = SimpleNamespace(
+            success=False, output="", error="ZeroDivisionError", execution_started=True
+        )
         with patch(
             "src.domains.skills.executor.SkillScriptExecutor.execute_source",
             new_callable=AsyncMock,

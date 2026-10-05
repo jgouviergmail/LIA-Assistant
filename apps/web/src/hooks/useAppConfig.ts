@@ -66,6 +66,7 @@ export interface AppConfig {
     // Live voice mode (ADR-299) — gates the Live button, the « Live mode »
     // settings section and the Live connector group.
     live_enabled?: boolean;
+    avatar_enabled?: boolean;
     // Sending by e-mail (ADR-321) — the deployment ceiling of every « Send by
     // e-mail » action; the effective state is `capabilities.email_share`.
     email_share_enabled?: boolean;

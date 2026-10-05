@@ -1720,8 +1720,8 @@
     },
     "325": {
       "title": "JEV decide, ogni utilizzo mantiene il proprio interruttore",
-      "summary": "JEV aiuta LIA a scegliere, instradare o valutare entro un ambito definito. Ogni utilizzo ha un interruttore modificabile senza riavvio; in caso di dubbio subentra il processo esistente. Le anteprime conservano tutti i risultati, gli osservatori non bloccano alcuna estrazione e un’esclusione non equivale mai a un’approvazione. Gli amministratori vedono contesto, risposta ed esito; ogni chiamata a pagamento viene contabilizzata. I risparmi di tempo si verificano sull’intero percorso prima dell’attivazione.",
-      "src": "7ebe153c5910"
+      "summary": "JEV aiuta a scegliere, orientare o valutare tra opzioni limitate, con un interruttore immediato per uso e il percorso esistente in caso di dubbio. Due usi facoltativi, disattivati per impostazione predefinita, rilevano l’assenza di riferimenti personali o il rifiuto di tutte le azioni in attesa; nessuno autorizza l’esecuzione. Le anteprime conservano risultati canonici e gli osservatori non bloccano scritture; gli amministratori vedono contesto ed esito, errori a pagamento e ripieghi contano entrambi, e i vantaggi si verificano sul percorso completo prima dell’attivazione.",
+      "src": "7ae74af1da6c"
     },
     "326": {
       "title": "Nessun testo ostile blocca LIA, nessun reindirizzamento la devia",
@@ -1762,6 +1762,11 @@
       "title": "Log, tracce e metriche si richiamano a vicenda, e la catena di osservazione sorveglia sé stessa",
       "summary": "Una riga di log apre la traccia della sua richiesta, una traccia apre i suoi log e le sue metriche, un punto di latenza apre l'esempio che l'ha prodotto: collegamenti misurati come interrotti in produzione ora funzionano. La catena che trasporta questi segnali è a sua volta sorvegliata, con un avviso quando dei log vanno persi, e tutte le dashboard seguono una stessa convenzione: una settimana di storico e un menu comune.",
       "src": "9180ad307663"
+    },
+    "334": {
+      "title": "Un avatar parlante personale con una sola uscita udibile — progetto proposto",
+      "summary": "Il progetto sperimentale implementato collega un volto Simli scelto dalla persona ai commenti vocali e a Live diretto o delegato, con la sua chiave e una sessione limitata. Il browser sceglie una sola uscita udibile; la sospensione chiude la connessione, mentre una sessione aperta consuma il piano personale anche durante i silenzi. Radio resta separata; la decisione resta proposta: movimento delle labbra, accettazione dei media e prove Android/iOS sono ancora in attesa.",
+      "src": "3ed4efca88f6"
     }
   }
 }

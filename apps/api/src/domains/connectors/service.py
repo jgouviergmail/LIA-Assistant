@@ -544,6 +544,9 @@ class ConnectorService:
             token_type=token_response.token_type,
             expires_at=expires_at,
         )
+        from src.domains.connectors.legacy_email_binding import start_legacy_email_connection
+
+        credentials = start_legacy_email_connection(connector_type, credentials)
         encrypted_credentials = encrypt_data(credentials.model_dump_json())
 
         logger.info(
@@ -753,6 +756,12 @@ class ConnectorService:
                 "Failed to decrypt connector credentials",
                 connector_id=str(connector.id),
             )
+
+        from src.core.card_composition import ensure_composition_account
+        from src.domains.connectors.legacy_email_binding import bind_legacy_email_account
+
+        credentials = bind_legacy_email_account(connector, credentials)
+        ensure_composition_account(user_id, connector_type.value, credentials.account_binding)
 
         # Provider failures belong outside the decryption handler: a temporary
         # outage must retain its own error contract and keep the row ACTIVE.
@@ -1363,6 +1372,14 @@ class ConnectorService:
         if connector.oauth_grant_id:
             return await OAuthGrantRuntime(self.db).credentials_for(connector)
 
+        from src.core.card_composition import ensure_composition_account
+        from src.domains.connectors.legacy_email_binding import bind_legacy_email_account
+
+        credentials = bind_legacy_email_account(connector, credentials)
+        ensure_composition_account(
+            connector.user_id, connector.connector_type.value, credentials.account_binding
+        )
+
         if not credentials.refresh_token:
             logger.error(
                 "oauth_refresh_missing_refresh_token",
@@ -1475,6 +1492,14 @@ class ConnectorService:
                 APIMessages.oauth_token_refresh_failed(), connector_id=str(connector.id)
             )
         new_credentials = OAuthGrantRuntime._parse_success(token_data, credentials)
+        # Provider token rotation keeps this connection generation. Reconnection
+        # constructs fresh credentials and therefore starts a new generation.
+        new_credentials = new_credentials.model_copy(
+            update={
+                "legacy_account_generation": credentials.legacy_account_generation,
+                "account_binding": credentials.account_binding,
+            }
+        )
         new_refresh_token = token_data.get("refresh_token")
         if new_refresh_token and new_refresh_token != credentials.refresh_token:
             logger.info("oauth_refresh_token_rotated", connector_id=str(connector.id))
@@ -2351,7 +2376,7 @@ class ConnectorService:
         # Build metadata
         from src.domains.connectors.api_key_verifiers import API_KEY_FUNCTIONAL_VERIFIERS
 
-        connector_metadata = metadata or {}
+        connector_metadata = dict(metadata or {})
         connector_metadata["auth_type"] = "api_key"
         connector_metadata["key_name"] = key_name
         connector_metadata["has_secret"] = bool(api_secret)
@@ -2369,7 +2394,7 @@ class ConnectorService:
             # Update existing connector
             existing.credentials_encrypted = encrypted_credentials
             existing.status = ConnectorStatus.ACTIVE
-            existing.connector_metadata = connector_metadata
+            existing.connector_metadata = (existing.connector_metadata or {}) | connector_metadata
             await self.db.flush()
             await self.db.refresh(existing)
             connector = existing

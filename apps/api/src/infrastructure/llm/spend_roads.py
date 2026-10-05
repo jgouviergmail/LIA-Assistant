@@ -74,12 +74,10 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/agents/tools/react_runner.py": SpendRoad.TURN,
     "domains/document_generation/service.py": SpendRoad.TURN,
     "domains/interests/services/extraction_service.py": SpendRoad.TURN,
-    "domains/journals/extraction_service.py": SpendRoad.TURN,
     "domains/voice/service.py": SpendRoad.TURN,
     # --- Out of turn, billed to the account that benefits ------------------
     "domains/agents/services/open_loop_extractor.py": SpendRoad.ACCOUNTED,
     "domains/briefing/llm.py": SpendRoad.ACCOUNTED,
-    "domains/psyche/service.py": SpendRoad.ACCOUNTED,
     # The personal radio (ADR-324): a session's own TrackingContext, committed
     # after every production — the run's row is the live cost the player shows.
     # ``bound_call`` also serves the radio page's article translation
@@ -95,9 +93,10 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/user_mcp/description_generation.py": SpendRoad.ACCOUNTED,
     "infrastructure/scheduler/interest_subject_clustering.py": SpendRoad.ACCOUNTED,
     "infrastructure/scheduler/peer_message_delivery.py": SpendRoad.ACCOUNTED,
-    "infrastructure/scheduler/reminder_notification.py": SpendRoad.ACCOUNTED,
     # --- Spends through a caller that accounts for it ----------------------
     "domains/heartbeat/prompts.py": SpendRoad.CALLER,
+    "domains/psyche/service.py": SpendRoad.CALLER,
+    "infrastructure/scheduler/reminder_notification.py": SpendRoad.CALLER,
     "domains/interests/proactive_task.py": SpendRoad.CALLER,
     # A reflection's tokens travel with its content to the sweep that asked for
     # it — the interest sweep or the heartbeat's enrichment — and are billed
@@ -105,6 +104,7 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     # (ADR-263 amendment 2026-09-27).
     "domains/interests/services/content_sources/llm_reflection_source.py": SpendRoad.CALLER,
     "domains/journals/consolidation_service.py": SpendRoad.CALLER,
+    "domains/journals/extraction_service.py": SpendRoad.CALLER,
     "domains/meetings/synthesis.py": SpendRoad.CALLER,
     "domains/meetings/template_resolution.py": SpendRoad.CALLER,
     "domains/meetings/transcript_rewrite.py": SpendRoad.CALLER,
@@ -171,15 +171,20 @@ INSTANCE_GATE_EXEMPT: dict[str, str] = {
 #: Named rather than implied, so the road graph terminates on a real road: a
 #: caller nobody names is indistinguishable from a spend nobody records.
 CALLER_ROAD_ACCOUNTANTS: dict[str, str] = {
-    "domains/heartbeat/prompts.py": "domains/heartbeat/proactive_task.py",
+    "domains/heartbeat/prompts.py": "domains/heartbeat/billing.py",
+    "domains/psyche/service.py": "domains/psyche/billing.py",
+    "infrastructure/scheduler/reminder_notification.py": (
+        "infrastructure/scheduler/reminder_billing.py"
+    ),
     "domains/interests/proactive_task.py": "infrastructure/proactive/runner.py",
     "domains/interests/services/content_sources/llm_reflection_source.py": (
         "infrastructure/proactive/runner.py"
     ),
-    "domains/journals/consolidation_service.py": "domains/journals/extraction_service.py",
-    "domains/meetings/synthesis.py": "domains/meetings/processing.py",
-    "domains/meetings/template_resolution.py": "domains/meetings/processing.py",
-    "domains/meetings/transcript_rewrite.py": "domains/meetings/processing.py",
+    "domains/journals/consolidation_service.py": "domains/journals/billing.py",
+    "domains/journals/extraction_service.py": "domains/journals/billing.py",
+    "domains/meetings/synthesis.py": "infrastructure/proactive/tracking.py",
+    "domains/meetings/template_resolution.py": "infrastructure/proactive/tracking.py",
+    "domains/meetings/transcript_rewrite.py": "infrastructure/proactive/tracking.py",
     "domains/relations/debrief/llm.py": "domains/relations/debrief/service.py",
     "domains/telephony/return_synthesis.py": "domains/telephony/synthesis_usage.py",
     "infrastructure/scheduler/voice_relay.py": "domains/telephony/synthesis_usage.py",

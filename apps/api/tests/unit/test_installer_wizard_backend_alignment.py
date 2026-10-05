@@ -83,12 +83,13 @@ def test_provider_base_urls_mirror_the_adapter_defaults() -> None:
 def test_new_capability_defaults_boot_the_real_settings() -> None:
     """The minimal install profile must express what the composed API loads.
 
-    Radio is a deliberate installer opt-in. The other new capabilities may use
-    their code defaults, but those defaults must remain bootable together.
+    Radio and avatars are deliberate installer opt-ins. Their finite limits
+    and the other capability defaults must remain bootable together.
     """
     from scripts.install.envgen import generate_secrets
 
     from src.core.config import Settings
+    from src.core.config.avatars import AvatarSettings
 
     profile = {}
     template = Path(repo_root_or_skip(), ".env.min.prod.example")
@@ -99,6 +100,13 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
             profile[key] = value.strip()
 
     assert profile["RADIO_ENABLED"] == "false"
+    for name, field in AvatarSettings.model_fields.items():
+        expected = field.default
+        actual = profile[name.upper()]
+        if isinstance(expected, bool):
+            assert actual == str(expected).lower()
+        else:
+            assert float(actual) == expected
     assert profile["ELEVENLABS_TTS_MAX_CONCURRENCY"] == "5"
     assert (
         int(profile["ELEVENLABS_TTS_MAX_CONCURRENCY"])
@@ -112,6 +120,7 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
         "fernet_key": secrets["FERNET_KEY"],
     }
     defaults = {
+        **{name: profile[name.upper()] for name in AvatarSettings.model_fields},
         "radio_enabled": profile["RADIO_ENABLED"],
         "elevenlabs_tts_max_concurrency": profile["ELEVENLABS_TTS_MAX_CONCURRENCY"],
         "email_share_enabled": Settings.model_fields["email_share_enabled"].default,
@@ -124,6 +133,8 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
     }
     settings = Settings(_env_file=None, **required, **defaults)
     assert settings.radio_enabled is False
+    assert settings.avatar_enabled is False
+    assert 0 < settings.avatar_idle_seconds <= settings.avatar_session_length_seconds
     assert settings.elevenlabs_tts_max_concurrency == 5
     assert settings.email_share_enabled is True
     assert settings.generated_assets_keep_max_files == 100
@@ -131,3 +142,54 @@ def test_new_capability_defaults_boot_the_real_settings() -> None:
     assert Settings(
         _env_file=None, **required, **{**defaults, "radio_enabled": "true"}
     ).radio_enabled
+
+
+@pytest.mark.parametrize("language", ("fr", "en", "es", "de", "it", "zh-CN"))
+@pytest.mark.parametrize("avatar_enabled", (False, True))
+def test_emitted_installer_defaults_load_the_composed_settings(
+    language: str, avatar_enabled: bool
+) -> None:
+    """Generated public choices and bounds must reach the real API settings."""
+    _wizard_modules()
+    from scripts.install.envgen import derive_environment, generate_secrets
+    from scripts.install.model import Exposure, InstallMode, PublicAnswers
+
+    from src.core.config import Settings
+    from src.core.config.avatars import AvatarSettings
+
+    public = PublicAnswers(
+        language="en",
+        mode=InstallMode.LOCAL,
+        exposure=Exposure.LAN,
+        admin_email="admin@ops.tld",
+        admin_name="Admin",
+        default_language=language,
+        observability=False,
+        skill_sandbox=False,
+        server_host="192.168.1.50",
+        web_domain=None,
+        api_domain=None,
+        caddy_email=None,
+        manifest_path=None,
+        speaking_avatar=avatar_enabled,
+    )
+    environment = derive_environment(public, generate_secrets())
+    values = {
+        key.lower(): value
+        for key, value in environment.items()
+        if key.lower() in Settings.model_fields
+    }
+    settings = Settings(
+        _env_file=None,
+        database_url="postgresql+asyncpg://lia:test@localhost:5432/lia",
+        redis_url="redis://localhost:6379/0",
+        **values,
+    )
+    assert settings.default_language == language
+    assert settings.radio_enabled is False
+    assert settings.live_enabled is False
+    assert settings.diagnostics_enabled is False
+    assert settings.avatar_enabled is avatar_enabled
+    for name, field in AvatarSettings.model_fields.items():
+        if name != "avatar_enabled":
+            assert getattr(settings, name) == field.default, name

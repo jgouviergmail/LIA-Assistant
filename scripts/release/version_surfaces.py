@@ -18,8 +18,8 @@ Three properties make that class of defect impossible rather than unlikely:
    guide that is neither tracked nor explicitly exempted raises
    :class:`UnknownStampError`. A guide added tomorrow reddens the build instead
    of drifting. Enumerating is exactly how the original list went stale.
-3. **Named exemptions.** ``privacy.*``/``terms.*`` carry a deliberately frozen
-   contractual stamp; the reason is written down next to the exemption, so
+3. **Named exemptions.** ``terms.*`` carry a deliberately frozen contractual
+   stamp; the reason is written down next to the exemption, so
    nobody "fixes" it with a global sweep (the ``don't glob *.md`` lesson).
 
 What this module deliberately does NOT own
@@ -85,10 +85,6 @@ STAMPED_GUIDE_STEMS: tuple[str, ...] = ("how", "why", "story")
 
 #: Stamped guides that must NOT follow the release, with the reason why.
 EXEMPT_GUIDE_STEMS: dict[str, str] = {
-    "privacy": (
-        "Contractual text with its own policy date: the stamp records the "
-        "version the policy was written against, not the current release."
-    ),
     "terms": (
         "Contractual text with its own policy date: the stamp records the "
         "version the terms were written against, not the current release."

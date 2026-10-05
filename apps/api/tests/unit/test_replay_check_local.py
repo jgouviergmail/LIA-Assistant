@@ -132,6 +132,25 @@ def test_drop_runs_even_when_replay_fails() -> None:
     assert "DROP DATABASE IF EXISTS lia_alembic_replay_check_" in runner.flat()
 
 
+@pytest.mark.parametrize(
+    "stderr", [None, "failed DATABASE_URL=postgresql://u:test-only-secret@db/test"]
+)
+def test_replay_failure_never_exposes_database_credentials(stderr: str | None) -> None:
+    class PrivateRunner(RecordingRunner):
+        def __call__(self, argv: Sequence[str], capture_output: bool = False):
+            if (
+                any("check_migrations_replay.sh" == arg.rsplit("/", 1)[-1] for arg in argv)
+                and "cp" not in argv
+            ):
+                raise subprocess.CalledProcessError(1, list(argv), stderr=stderr)
+            return super().__call__(argv, capture_output)
+
+    runner = PrivateRunner(printenv_stdout="postgresql://u:test-only-secret@db/test")
+    with pytest.raises(launcher.ReplayCheckError) as raised:
+        launcher.run_replay_check(runner)
+    assert "test-only-secret" not in str(raised.value)
+
+
 def test_drop_runs_even_when_create_fails() -> None:
     runner = RecordingRunner(fail_on="CREATE DATABASE")
     with pytest.raises(launcher.ReplayCheckError):

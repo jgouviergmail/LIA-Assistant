@@ -174,6 +174,11 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'live-mode',
     declaredIn: 'components/settings/LiveModeSettings.tsx',
   },
+  avatar: {
+    tab: 'preferences',
+    accordionValue: 'avatar',
+    declaredIn: 'components/settings/AvatarSettings.tsx',
+  },
   // The personal radio (ADR-324): what the station says, how and how often,
   // with which voices, and the sites the listener added to their newsroom.
   radio: {

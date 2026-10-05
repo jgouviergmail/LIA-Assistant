@@ -122,7 +122,7 @@ description pour les autres (`structuredErrorDetail`,
 
 > **Note**: La résolution API key utilise le DB en priorité, avec fallback `.env`. La migration `llm_config_002` a importé les clés `.env` existantes en DB. `_require_api_key()` dans `adapter.py` lève `ValueError` si aucune des deux sources n'a de clé.
 
-> **Scope de ce système**: l'Admin UI gère les **84 emplacements de modèle et de décision** du registre `LLM_TYPES_REGISTRY` (67 entrées statiques et 17 usages JEV). Les emplacements de décision natifs n'acceptent pas les paramètres de chat. Les configurations LLM d'infrastructure (Excalidraw, MCP description generation) restent dans `.env` via `MCPSettings`. Les clés API provider (OPENAI_API_KEY, etc.) sont dans `.env` comme fallback.
+> **Scope**: the Admin UI manages the model and native decision slots declared by `LLM_TYPES_REGISTRY`, including the JEV usages added from `jev_registry.py`. Native decision slots do not accept chat parameters. Infrastructure LLM configuration (Excalidraw, MCP description generation) remains in `.env` through `MCPSettings`; provider API keys remain instance fallbacks. The registry is the authority for the current slot set.
 
 ### Contraintes Provider (filtrage automatique dans `adapter.py`)
 
@@ -162,7 +162,7 @@ description pour les autres (`structuredErrorDetail`,
 
 | Fichier | Rôle |
 |---------|------|
-| `domains/llm_config/constants.py` | `LLM_TYPES_REGISTRY` (métadonnées des 84 emplacements) + `LLM_DEFAULTS` (configurations par défaut) |
+| `domains/llm_config/constants.py` | `LLM_TYPES_REGISTRY` (slot metadata, including the JEV registry expansion) + `LLM_DEFAULTS` (default configuration) |
 | `domains/llm_config/models.py` | Tables `provider_api_keys` + `llm_config_overrides` |
 | `domains/llm_config/schemas.py` | Schemas Pydantic (request/response) |
 | `domains/llm_config/cache.py` | `LLMConfigOverrideCache` — cache in-memory (sync read, async populate) |
@@ -254,7 +254,7 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 
 ## Types LLM
 
-> La liste exhaustive et à jour est `LLM_TYPES_REGISTRY` (`src/domains/llm_config/constants.py`) — 84 emplacements au 2026-09-29. Le tableau ci-dessous donne les catégories principales.
+> The current exhaustive list is `LLM_TYPES_REGISTRY` (`src/domains/llm_config/constants.py`), expanded from the native usages in `jev_registry.py`. The table below presents the main categories.
 
 ### Catégories
 

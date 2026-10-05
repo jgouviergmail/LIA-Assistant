@@ -40,7 +40,7 @@ class TestAddingUpSeveralCalls:
         accumulator.add(tokens_in=50, tokens_out=5, tokens_cache=30)
 
         assert accumulator.get_totals() == (150, 25, 30)
-        assert accumulator.total_tokens == 175
+        assert accumulator.total_tokens == 205
         assert accumulator.call_count == 2
 
     def test_the_call_count_counts_calls_not_tokens(self) -> None:
@@ -128,6 +128,7 @@ class TestHandingTheTotalsOn:
             "tokens_cache": 1,
             "tokens_cache_write": 0,
             "model_name": "gpt-test",
+            "billing_records": accumulator.billing_records,
         }
 
     def test_a_claude_cache_write_is_handed_on(self) -> None:

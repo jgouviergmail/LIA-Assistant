@@ -1,5 +1,6 @@
 /** ElevenLabs voice over the vendor SDK's native LiveKit audio tracks. */
 import type { VoiceConversation } from '@elevenlabs/client';
+import { elevenLabsAudioAdapter } from './elevenlabs-audio-adapter';
 
 import type { LiveTransport } from '../transport';
 import type {
@@ -47,6 +48,15 @@ export class ElevenLabsWebRtcTransport implements LiveTransport {
     const generation = ++this.generation;
     const current = () => generation === this.generation;
     const { Conversation } = await import('@elevenlabs/client');
+    if (!current()) return;
+    if (events.onRemoteStream) {
+      // The browser entry registers its default as a side effect. Override
+      // through the exported seam AFTER that import and BEFORE startSession.
+      const { setWebRTCAudioAdapterFactory } = await import('@elevenlabs/client/internal');
+      if (!current()) return;
+      setWebRTCAudioAdapterFactory(() => elevenLabsAudioAdapter({ onRemoteStream: stream =>
+        current() ? events.onRemoteStream?.(stream) ?? (() => {}) : () => {} }));
+    }
     const declaredTools: Record<string, (parameters: unknown) => Promise<string>> = {};
     for (const name of options.toolNames ?? []) {
       declaredTools[name] = parameters => this.delegate(name, parameters);

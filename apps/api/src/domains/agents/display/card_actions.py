@@ -30,12 +30,16 @@ class CardActionItem(BaseModel):
         default=None, pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$"
     )
     label: str = Field(default="", max_length=200)
-    actions: list[Literal["reply", "forward", "cancel_reminder"]] = Field(max_length=2)
+    actions: list[Literal["reply", "forward", "delete_email", "cancel_reminder"]] = Field(
+        max_length=3
+    )
 
     @model_validator(mode="after")
     def supported_actions(self) -> Self:
         expected = ["reply", "forward"] if self.kind == "EMAIL" else ["cancel_reminder"]
-        if self.actions != expected:
+        if self.actions != expected and not (
+            self.kind == "EMAIL" and self.actions == ["reply", "forward", "delete_email"]
+        ):
             raise ValueError("Unsupported composition action for this item")
         if self.kind == "REMINDER" and str(UUID(self.target_id)) != self.target_id.lower():
             raise ValueError("Invalid reminder target")
@@ -132,7 +136,9 @@ def _target(registry_id: str, item: object) -> CardActionItem | None:
                 "provider": provider,
                 "account_binding": account,
                 "label": " ".join(label.split())[:200] if isinstance(label, str) else "",
-                "actions": ["reply", "forward"] if kind == "EMAIL" else ["cancel_reminder"],
+                "actions": (
+                    ["reply", "forward", "delete_email"] if kind == "EMAIL" else ["cancel_reminder"]
+                ),
             }
         )
     except ValidationError:

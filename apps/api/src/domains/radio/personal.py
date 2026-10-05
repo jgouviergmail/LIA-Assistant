@@ -57,6 +57,7 @@ from src.domains.briefing.schemas import (
 )
 from src.domains.radio.constants import FACT_KEY_MAX_CHARS, FACT_TEXT_MAX_CHARS
 from src.domains.radio.facts import FactKind, RadioFact, Sensitivity
+from src.domains.shared.commercial_content import is_commercial_content
 
 
 class PersonalSource(StrEnum):
@@ -221,6 +222,8 @@ def _mails(data: MailsData) -> Iterator[PersonalDraft]:
             FactKind.EMAIL, text, f"mails:{data.total_unread_today}", Sensitivity.PERSONAL
         )
     for mail in data.items:
+        if is_commercial_content(mail.subject, email=True):
+            continue
         sender = mail.sender_name or mail.sender_email or "an unknown sender"
         text = f'Unread e-mail from {sender}: "{mail.subject}" ({mail.received_local})'
         key = f"email:{mail.id or digest(sender, mail.subject, mail.received_local)}"

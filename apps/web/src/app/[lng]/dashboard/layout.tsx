@@ -17,6 +17,7 @@ import { PersonalitySelector } from '@/components/PersonalitySelector';
 import { ConnectorHealthAlert } from '@/components/connectors/ConnectorHealthAlert';
 import { OnboardingTutorial } from '@/components/onboarding';
 import { CompanionPresence } from '@/components/companion/CompanionPresence';
+import { AvatarProvider } from '@/components/avatars/AvatarProvider';
 import { ShortcutsDock } from '@/components/shortcuts/ShortcutsDock';
 import { BroadcastProvider } from '@/lib/broadcast';
 import { BroadcastModal } from '@/components/broadcast';
@@ -187,6 +188,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
         {/* ADR-258/259: the recorder lives ABOVE the header so a recording
           survives navigation and the header's controls can read it. */}
         <MeetingRecorderProvider lng={lng} enabled={appConfig?.features?.meetings_enabled ?? false}>
+          <AvatarProvider>
           {/* No background on this root: the landing's cosmos paints the page
             ground (`AppCosmos`, fixed layers on a negative z-index that
             an in-flow background here would cover). The header stays opaque,
@@ -351,6 +353,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
             renders nothing until one is pinned. */}
             <ShortcutsDock lng={lng} />
           </div>
+          </AvatarProvider>
         </MeetingRecorderProvider>
       </AppConfigSeedContext.Provider>
     </BroadcastProvider>

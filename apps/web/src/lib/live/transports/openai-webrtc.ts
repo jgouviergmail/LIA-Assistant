@@ -121,6 +121,7 @@ export class OpenAiLiveTransport implements LiveTransport {
   private channel: RTCDataChannel | null = null;
   private events: LiveTransportEvents = {};
   private remoteAudio: HTMLAudioElement | null = null;
+  private releaseRemote: (() => void) | null = null;
   private readonly composer = new RequestComposer();
   private lastDelegationId: string | null = null;
   private speaking = false;
@@ -141,7 +142,10 @@ export class OpenAiLiveTransport implements LiveTransport {
     if (!exchange) throw new Error('live_offer_exchange_missing');
     const pc = new Peer();
     this.pc = pc;
-    pc.ontrack = event => this.attachRemote(event.streams[0]);
+    pc.ontrack = event => {
+      if (this.pc !== pc) return;
+      this.attachRemote(event.streams[0] ?? new MediaStream([event.track]));
+    };
     pc.onconnectionstatechange = () => {
       if (this.pc !== pc) return;
       if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
@@ -216,11 +220,23 @@ export class OpenAiLiveTransport implements LiveTransport {
   }
 
   private attachRemote(stream: MediaStream | undefined): void {
-    if (!stream || typeof Audio !== 'function') return;
+    if (!stream) return;
+    this.releaseRemote?.();
+    this.releaseRemote = null;
+    if (this.remoteAudio) {
+      this.remoteAudio.pause();
+      this.remoteAudio.srcObject = null;
+      this.remoteAudio = null;
+    }
+    if (this.events.onRemoteStream) {
+      this.releaseRemote = this.events.onRemoteStream(stream);
+      return;
+    }
+    if (typeof Audio !== 'function') return;
     const element = new Audio();
     element.autoplay = true;
     element.srcObject = stream;
-    void element.play().catch(() => undefined);
+    void element.play().catch(() => this.events.onError?.(new Error('live_audio_playback_blocked')));
     this.remoteAudio = element;
   }
 
@@ -371,6 +387,8 @@ export class OpenAiLiveTransport implements LiveTransport {
   }
 
   private teardown(): void {
+    this.releaseRemote?.();
+    this.releaseRemote = null;
     if (this.speakingTimer) clearTimeout(this.speakingTimer);
     this.speakingTimer = null;
     this.speaking = false;

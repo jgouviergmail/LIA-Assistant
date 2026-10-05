@@ -1,22 +1,39 @@
 # Live Voice Mode — Technical Reference
 
 A **speech-to-speech** session with LIA on the person's own provider key —
-Gemini Live and OpenAI GPT-Live today, both at once if the person holds both
-keys (the `live` connector category is additive, the sessions open on the one
-the person chose). The voice model owns the conversation — listening,
+Gemini Live, OpenAI GPT-Live or ElevenLabs Agents. Their connectors can coexist
+(the `live` category is additive); each session opens on the provider the person
+chose. The voice model owns the conversation — listening,
 speaking, interrupting, filling a wait — and delegates every request for data
 or action to the chat engine: through ONE declared function on Gemini
-(`send_to_lia`), by its own act on GPT-Live (`session.delegation.created`).
+(`send_to_lia`) and ElevenLabs, or by its own act on GPT-Live
+(`session.delegation.created`).
 The delegated turn is an ordinary chat turn, drawn in the thread, bounded by
 the quotas, filed in the registers.
 
 - Architecture decisions: [ADR-299](../architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md) (the seam), [ADR-300](../architecture/ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md) (the second provider, the additive category, the offer connection), [ADR-329](../architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md) (the standby and the wake word)
 - Specs (arbitrated with the owner, measured): `docs/superpowers/specs/2026-09-18-live-llm-connector-design.md` (§ 9), `docs/superpowers/specs/2026-09-19-live-wave2-design.md` (§ 6)
 - Feature flag: `LIVE_ENABLED` (default off); capability `live` (route-enforced, family *media*).
-- Per-user connectors `GEMINI_LIVE` and `GPT_LIVE`, category `live` (additive), in *Préférences → Mes Connecteurs*; the sessions' provider in *Préférences → Mode Live* (choosing a model IS choosing its provider).
+- Per-user connectors `GEMINI_LIVE`, `GPT_LIVE` and `ELEVENLABS_LIVE`, category `live` (additive), in *Préférences → Mes Connecteurs*; the sessions' provider in *Préférences → Mode Live* (choosing a model IS choosing its provider).
 - Provider probe (Gemini): `task live:probe` (`apps/api/scripts/live/probe.py`, reads `LIVE_PROBE_API_KEY`).
 
 ## Architecture
+
+The optional [speaking avatar](SPEAKING_AVATAR.md) is an output destination for
+the existing provider audio, independent of the Live conversation and its tools.
+The shared voice-output port accepts PCM from the WebSocket transports and
+captures borrowed output tracks on WebRTC transports without opening another
+microphone or provider session. An active Live mode has priority over voice
+comments. Standby closes the avatar connection; wake asks for a fresh one.
+
+Before connecting or waking the Live provider, the controller waits for the
+avatar to be ready, give up or reach its finite readiness bound. Readiness needs
+a real video frame, a remote audio track and a running audio context. Each spoken
+production keeps one local/avatar route, with no replay after a potentially heard
+prefix. Cleanup disposes owned capture resources without stopping borrowed tracks.
+These automated contracts do not establish real lip motion or Android/iOS audio
+behavior; [ADR-334](../architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md)
+remains Proposed pending those trials.
 
 ```mermaid
 flowchart TD

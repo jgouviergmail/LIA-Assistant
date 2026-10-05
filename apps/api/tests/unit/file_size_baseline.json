@@ -9,7 +9,7 @@
     "domains/agents/drafts/service.py": 935,
     "domains/agents/nodes/hitl_dispatch_node.py": 698,
     "domains/agents/nodes/response_node.py": 2196,
-    "domains/agents/nodes/task_orchestrator_node.py": 680,
+    "domains/agents/nodes/task_orchestrator_node.py": 673,
     "domains/agents/orchestration/parallel_executor.py": 2157,
     "domains/agents/orchestration/semantic_validator.py": 832,
     "domains/agents/orchestration/validator.py": 1023,
@@ -43,7 +43,7 @@
     "domains/conversations/service.py": 804,
     "domains/heartbeat/context_aggregator.py": 640,
     "domains/interests/services/extraction_service.py": 681,
-    "domains/journals/extraction_service.py": 706,
+    "domains/journals/extraction_service.py": 641,
     "domains/psyche/engine.py": 874,
     "domains/psyche/service.py": 913,
     "infrastructure/observability/metrics_agents.py": 798

@@ -8,11 +8,11 @@ for them (ADR-236) — "always answer me in French", "never call after 8 pm". A
 sweep that drops one of those silently changes how the assistant behaves, and
 nobody can point at the moment it happened.
 
-**A directive is corrected, never deleted.** The rule is not "this row is
-frozen" — that would also block the corrections that keep a directive true, and
-it is why pinning was considered and rejected (pinned means user-LOCKED, and
-the extractor already refuses to touch a pinned row at all). The rule is that a
-directive **never leaves the active set without a successor**:
+**A directive is corrected, never deleted automatically.** New directives are
+pinned at creation (owner request, 2026-10-05), so automated edits also leave
+them alone. The person may edit or unpin them. Existing or explicitly unpinned
+directives retain category protection: a directive **never leaves the active
+set without a successor**:
 
 | Path | A directive |
 |---|---|
@@ -20,7 +20,7 @@ directive **never leaves the active set without a successor**:
 | Consolidation (destroys the loser of a pair) | never paired |
 | Extractor `delete` | skipped, and said so |
 | `invalidate_memory` (retire with no successor) | refused |
-| `supersede_with_update` (retire WITH a successor) | allowed — this is a correction |
+| `supersede_with_update` (retire WITH a successor) | allowed only when unpinned |
 | `update_memory` (edit in place) | allowed |
 | The person deleting it themselves | allowed — it is their act |
 

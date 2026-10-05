@@ -25,10 +25,14 @@ from src.core.config import settings
 from src.core.i18n import get_language_name, normalize_language
 from src.domains.agents.prompts import load_prompt
 from src.domains.interests.models import InterestStatus, UserInterest
+from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
-from src.infrastructure.llm.usage_metadata import model_name_of, tokens_from_response
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.usage_metadata import (
+    model_name_of,
+)
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_registry import (
     interest_subject_recluster_total,
@@ -129,26 +133,49 @@ async def recluster_user_subjects(user_id: UUID) -> int:
         # interests, so passing a placeholder made the Layer-2 usage guard
         # unable to resolve anyone — no quota was consulted — and left the
         # spend attributed to nobody.
-        llm_result = await invoke_with_instrumentation(
-            llm=llm,
-            llm_type="interest_subject_clustering",
-            messages=prompt,
-            session_id=f"subj_cluster_{uuid_module.uuid4().hex[:8]}",
-            user_id=str(user_id),
-        )
-        usage = tokens_from_response(llm_result)
-        await track_proactive_tokens(
+        from time import time
+
+        model_name = model_name_of(llm) or "unknown"
+        started_at = time()
+        pricing_snapshot = capture_pricing_snapshot()
+        capture = TokenCaptureHandler(model_name)
+        from langchain_core.runnables import RunnableConfig
+
+        from src.infrastructure.proactive.tracking import capture_spend_on_failure
+
+        async with capture_spend_on_failure(
+            capture,
             user_id=user_id,
             task_type="interest_subject_clustering",
             target_id=str(user_id),
-            conversation_id=None,
-            tokens_in=usage.prompt,
-            tokens_out=usage.completion,
-            tokens_cache=usage.cached,
-            tokens_cache_write=usage.cache_write,
-            model_name=model_name_of(llm),
+            model_name=model_name,
             source="proactive",
-        )
+        ):
+            llm_result = await invoke_with_instrumentation(
+                llm=llm,
+                llm_type="interest_subject_clustering",
+                messages=prompt,
+                session_id=f"subj_cluster_{uuid_module.uuid4().hex[:8]}",
+                user_id=str(user_id),
+                config=RunnableConfig(callbacks=[capture]),
+            )
+            capture.ensure_response_record(
+                llm_result, model_name=model_name, started_at=started_at, snapshot=pricing_snapshot
+            )
+            records = capture.claim_billing_records(model_name)
+            await track_proactive_tokens(
+                user_id=user_id,
+                task_type="interest_subject_clustering",
+                target_id=str(user_id),
+                conversation_id=None,
+                tokens_in=capture.tokens_in,
+                tokens_out=capture.tokens_out,
+                tokens_cache=capture.tokens_cache,
+                tokens_cache_write=capture.tokens_cache_write,
+                model_name=records[-1].model_name if records else model_name,
+                billing_records=records,
+                source="proactive",
+            )
         assignments = parse_assignments(
             llm_result.text,
             expected_indexes={idx for idx, _ in indexed},

@@ -14,6 +14,8 @@ from src.infrastructure.llm.typesafe_client import MAX_QUESTIONS, ChoiceQuestion
 from src.infrastructure.observability.metrics_jev import jev_decisions_total
 
 MIN_CONFIDENCE = 0.99
+REFERENCE_SCOPE_MIN_CONFIDENCE = 0.80
+REFERENCE_SCOPE_KEY = "reference_scope"
 
 
 def exclusion_questions(count: int) -> dict[str, ChoiceQuestion]:
@@ -21,19 +23,29 @@ def exclusion_questions(count: int) -> dict[str, ChoiceQuestion]:
         load_prompt("jev_hitl_exclusion_question", version="v1")
     )
     return {
-        f"item_{i}": template.model_copy(
-            update={"instructions": template.instructions.format(item_key=f"item_{i}")}
-        )
-        for i in range(count)
+        **{
+            f"item_{i}": template.model_copy(
+                update={"instructions": template.instructions.format(item_key=f"item_{i}")}
+            )
+            for i in range(count)
+        },
+        REFERENCE_SCOPE_KEY: ChoiceQuestion.model_validate_json(
+            load_prompt("jev_hitl_reference_scope_question", version="v1")
+        ),
     }
 
 
 def _kept_indices(attempt: DecisionAttempt, count: int) -> list[int] | None:
-    if attempt.outcome != "success" or set(attempt.answers) != {f"item_{i}" for i in range(count)}:
+    expected = {f"item_{i}" for i in range(count)} | {REFERENCE_SCOPE_KEY}
+    if attempt.outcome != "success" or set(attempt.answers) != expected:
+        return None
+    scope = attempt.answers[REFERENCE_SCOPE_KEY]
+    if scope.choice != "clear" or scope.confidence < REFERENCE_SCOPE_MIN_CONFIDENCE:
         return None
     if any(
-        answer.confidence < MIN_CONFIDENCE or answer.choice not in {"keep", "exclude"}
-        for answer in attempt.answers.values()
+        attempt.answers[f"item_{i}"].confidence < MIN_CONFIDENCE
+        or attempt.answers[f"item_{i}"].choice not in {"keep", "exclude"}
+        for i in range(count)
     ):
         return None
     return [i for i in range(count) if attempt.answers[f"item_{i}"].choice == "keep"]
@@ -45,7 +57,7 @@ async def try_filter_items(
     run_id: str | None,
 ) -> list[int] | None:
     context = runtime_context_if_running()
-    if context is None or not run_id or not 0 < len(item_previews) <= MAX_QUESTIONS:
+    if context is None or not run_id or not 0 < len(item_previews) < MAX_QUESTIONS:
         return None
     # Snapshot the exact proposed list. Unsupported values, overflow or any
     # later mutation must not turn into a partial positional filter.
@@ -91,8 +103,11 @@ async def _record_result(
             else ("human_reconfirmation" if keep else "cancel_empty_selection")
         ),
         decision_labels={
-            f"item_{i}": str(item.get("subject") or item.get("title") or item.get("name") or i)
-            for i, item in enumerate(snapshot)
+            **{
+                f"item_{i}": str(item.get("subject") or item.get("title") or item.get("name") or i)
+                for i, item in enumerate(snapshot)
+            },
+            REFERENCE_SCOPE_KEY: "Exclusion reference scope",
         },
     )
     jev_decisions_total.labels(usage=JevUsage.HITL_EXCLUSION, outcome=outcome).inc()

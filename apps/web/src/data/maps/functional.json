@@ -478,6 +478,14 @@
       "domains": ["product"],
       "surfaces": ["/demo"],
       "deps": ["f.admin"]
+    },
+    {
+      "id": "f.avatar",
+      "group": "g.voice",
+      "icon": "smile",
+      "domains": ["avatars"],
+      "surfaces": ["/dashboard/chat", "/dashboard/settings"],
+      "deps": ["f.voice", "f.live", "f.connectors"]
     }
   ],
   "flows": [

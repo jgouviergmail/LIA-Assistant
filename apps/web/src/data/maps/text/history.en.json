@@ -1720,8 +1720,8 @@
     },
     "325": {
       "title": "JEV decides, each use keeps its own switch",
-      "summary": "JEV helps LIA choose, route or assess within a defined scope. Each use has a hot switch; when uncertain, the existing process takes over. Previews retain every result, observers never block extraction, and an exclusion never grants approval. Administrators can inspect the context, answer and outcome; every paid call is accounted for. Time savings must be checked across the complete journey before activation.",
-      "src": "7ebe153c5910"
+      "summary": "JEV helps choose, route or assess within bounded choices, with a hot switch per use and the existing path taking over on uncertainty. Optional uses, off by default, detect an absence of personal references or a rejection of every pending action; neither grants permission to execute. Previews retain canonical results and observers never suppress writes; administrators see context and outcome, paid failures and fallbacks both count, and performance is checked over the complete journey before activation.",
+      "src": "7ae74af1da6c"
     },
     "326": {
       "title": "No hostile text freezes LIA, no redirect steers her",
@@ -1762,6 +1762,11 @@
       "title": "Logs, traces and metrics answer each other, and the observation pipeline watches itself",
       "summary": "A log line opens its request's trace, a trace opens its logs and metrics, a latency point opens the example that produced it: links measured broken in production now work. The pipeline carrying these signals is watched in turn, with an alert when logs go missing, and every dashboard follows one convention: a week of history and a shared menu.",
       "src": "9180ad307663"
+    },
+    "334": {
+      "title": "A personal speaking avatar, with one audible output — proposed design",
+      "summary": "The implemented experimental design connects a personally chosen Simli face to existing voice comments and direct or delegated Live, with an account key and a bounded session. The browser selects one audible destination; standby closes the connection, while an open session consumes the personal plan even during silence. Radio stays separate; the decision remains proposed: lip movement, media acceptance and Android/iOS trials are still pending.",
+      "src": "3ed4efca88f6"
     }
   }
 }

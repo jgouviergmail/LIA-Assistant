@@ -41,3 +41,9 @@ production failures may end or limit a session. The player reports the reason.
 A short public report can still use its title or summary when the source has no
 readable full article; the station does not pretend it read text it could not
 obtain.
+
+## Does Radio include commercial content or the Simli avatar?
+
+Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and an optional verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.
+
+Advertising, sponsorships, deals and purchase pitches are filtered. Genuine invoices, reservations and editorial, scientific or economic reporting remain eligible. A speaking Simli avatar does not accompany Radio.

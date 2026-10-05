@@ -23,6 +23,7 @@ import random
 import uuid
 from contextlib import suppress
 from datetime import UTC, datetime
+from time import time
 from typing import Any
 from uuid import UUID
 
@@ -32,6 +33,7 @@ from src.core.constants import (
     INTEREST_NOTIFY_START_HOUR_DEFAULT,
 )
 from src.core.i18n import get_language_name
+from src.core.llm_usage import LLMBillingRecord
 from src.domains.habits.tick_scoring import TickSurface, should_defer_tick_for_rhythm
 from src.domains.interests.models import UserInterest
 from src.domains.interests.repository import (
@@ -48,8 +50,10 @@ from src.domains.interests.services.content_sources import (
 )
 from src.domains.interests.sources import build_sources_block
 from src.domains.moments.busy_gate import agenda_verdict
+from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.database import get_db_context
-from src.infrastructure.llm.token_utils import extract_llm_tokens
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.usage_metadata import model_name_of
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_habits import heartbeat_ticks_deferred_total
 from src.infrastructure.observability.metrics_registry import (
@@ -328,17 +332,22 @@ class InterestProactiveTask:
             content_result = generation_result.content_result
             assert content_result is not None
 
-            presented_content, presentation_tokens_in, presentation_tokens_out = (
-                await self._present_content(
-                    raw_content=content_result.content,
-                    topic=target.topic,
-                    category=target.category,
-                    source=content_result.source,
-                    citations=content_result.citations,
-                    user_language=user_language,
-                    personality_instruction=personality_instruction,
-                    user_id=user_id,
-                )
+            (
+                presented_content,
+                presentation_tokens_in,
+                presentation_tokens_out,
+                presentation_cache,
+                presentation_write,
+                presentation_records,
+            ) = await self._present_content(
+                raw_content=content_result.content,
+                topic=target.topic,
+                category=target.category,
+                source=content_result.source,
+                citations=content_result.citations,
+                user_language=user_language,
+                personality_instruction=personality_instruction,
+                user_id=user_id,
             )
 
             # Deterministic source hyperlinks (ADR-131): appended after LLM
@@ -354,6 +363,9 @@ class InterestProactiveTask:
             # Accumulate tokens from both phases: generation + presentation
             total_tokens_in = content_result.tokens_in + presentation_tokens_in
             total_tokens_out = content_result.tokens_out + presentation_tokens_out
+            total_cache = content_result.tokens_cache + presentation_cache
+            total_write = content_result.tokens_cache_write + presentation_write
+            records = content_result.billing_records + presentation_records
 
             logger.info(
                 "interest_task_content_generated",
@@ -367,7 +379,11 @@ class InterestProactiveTask:
 
             from src.core.llm_config_helper import get_llm_config_for_agent
 
-            effective_model = get_llm_config_for_agent(settings, "interest_content").model
+            effective_model = (
+                records[-1].model_name
+                if records
+                else get_llm_config_for_agent(settings, "interest_content").model
+            )
 
             return ProactiveTaskResult(
                 success=True,
@@ -376,6 +392,9 @@ class InterestProactiveTask:
                 target_id=str(target.id),
                 tokens_in=total_tokens_in,
                 tokens_out=total_tokens_out,
+                tokens_cache=total_cache,
+                tokens_cache_write=total_write,
+                billing_records=records,
                 model_name=effective_model,
                 metadata={
                     "interest_topic": target.topic,
@@ -414,7 +433,7 @@ class InterestProactiveTask:
         user_language: str,
         personality_instruction: str | None = None,
         user_id: UUID | None = None,
-    ) -> tuple[str, int, int]:
+    ) -> tuple[str, int, int, int, int, tuple[LLMBillingRecord, ...]]:
         """
         Format raw content for presentation using LLM.
 
@@ -478,21 +497,45 @@ class InterestProactiveTask:
                 prompt = prompt + "\n\n" + user_model_block
 
             llm = get_llm("interest_content")
+            model_name = model_name_of(llm) or "unknown"
+            started_at = time()
+            pricing_snapshot = capture_pricing_snapshot()
+            capture = TokenCaptureHandler(model_name)
+            from langchain_core.runnables import RunnableConfig
 
-            result = await invoke_with_instrumentation(
-                llm=llm,
-                llm_type="interest_content_presentation",
-                messages=prompt,
-                session_id=f"interest_present_{uuid.uuid4().hex[:8]}",
-                user_id="system",
+            from src.infrastructure.proactive.tracking import (
+                ambient_run_id,
+                capture_spend_on_failure,
             )
 
-            presented = result.text
-
-            # Extract token usage from LLM response
-            tokens_in, tokens_out = extract_llm_tokens(result)
-
-            return presented.strip(), tokens_in, tokens_out
+            async with capture_spend_on_failure(
+                capture,
+                user_id=user_id,
+                task_type="interest",
+                target_id="interest_presentation",
+                model_name=model_name,
+                source="proactive",
+                run_id=ambient_run_id(),
+            ):
+                result = await invoke_with_instrumentation(
+                    llm=llm,
+                    llm_type="interest_content_presentation",
+                    messages=prompt,
+                    session_id=f"interest_present_{uuid.uuid4().hex[:8]}",
+                    user_id=str(user_id) if user_id is not None else "system",
+                    config=RunnableConfig(callbacks=[capture]),
+                )
+                capture.ensure_response_record(
+                    result, model_name=model_name, started_at=started_at, snapshot=pricing_snapshot
+                )
+                return (
+                    result.text.strip(),
+                    capture.tokens_in,
+                    capture.tokens_out,
+                    capture.tokens_cache,
+                    capture.tokens_cache_write,
+                    capture.get_billing_records(model_name),
+                )
 
         except Exception as e:
             logger.warning(
@@ -500,7 +543,7 @@ class InterestProactiveTask:
                 error=str(e),
                 fallback="raw_content",
             )
-            return raw_content, 0, 0
+            return raw_content, 0, 0, 0, 0, ()
 
     async def _get_recent_notification_embeddings(
         self,

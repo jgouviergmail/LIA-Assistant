@@ -34,7 +34,7 @@
 
 Le système de sécurité de LIA vise à :
 
-1. **Protéger les données utilisateur** : Authentification robuste, chiffrement des données sensibles, GDPR compliance
+1. **Protéger les données utilisateur** : authentification robuste, chiffrement des secrets stockés et contrôles contribuant à la protection des données
 2. **Prévenir les attaques courantes** : OWASP Top 10 (XSS, CSRF, injection, etc.)
 3. **Assurer la traçabilité** : Logging sécurisé avec PII filtering, audit trails
 4. **Limiter les abus** : Rate limiting multi-niveaux (HTTP + Tool-level)
@@ -187,7 +187,7 @@ E - Elevation of Privilege (Élévation de privilèges)
 | API Abuse | Haute | Moyen | 🟡 Moyen | Rate limiting multi-niveaux (par-IP réel via la chaîne proxy de confiance — ADR-093) | ✅ |
 | IP Spoofing (rate-limit bypass) | Moyenne | Moyen | 🟡 Moyen | uvicorn `--proxy-headers` + ports loopback (XFF brut jamais lu par l'application) | ✅ |
 | Prompt Injection (contenu tiers) | Moyenne | Élevé | 🟡 Moyen | Provenance portée par la donnée : 24 types classés, défaut fermé, marquage sur les 3 surfaces atteignant le LLM + détection de 7 familles de motifs (ADR-167) | ✅ |
-| Data Breach | Faible | Critique | 🟡 Moyen | Encryption + PII filtering + GDPR | ✅ |
+| Data Breach | Faible | Critique | 🟡 Moyen | Chiffrement des secrets, filtrage des journaux et procédure d'incident à organiser par l'opérateur | Contrôles techniques |
 
 #### Chaîne proxy de confiance & frontière XSS (ADR-093, 2026-07)
 
@@ -223,9 +223,9 @@ graph LR
     end
 
     subgraph "Layer 5: Data"
-        Encryption[Encryption at Rest]
+        Encryption[Credential Encryption at Rest]
         PII[PII Protection]
-        Backup[Encrypted Backups]
+        Backup[Backups - Operator Protection]
     end
 
     subgraph "Layer 6: Monitoring"
@@ -294,13 +294,13 @@ Avantages du BFF Pattern vs JWT
 
 Sécurité:
 ✅ Cookies HTTP-only : JavaScript ne peut pas accéder (XSS protection)
-✅ SameSite=Lax : Protection CSRF automatique
+✅ SameSite=Lax : Réduit l'envoi du cookie entre sites et complète les contrôles CSRF
 ✅ Révocation instantanée : DELETE session dans Redis
 ✅ Pas de token leakage : Pas de localStorage/sessionStorage
 
 GDPR:
-✅ Data minimization : Session contient SEULEMENT user_id (pas de PII)
-✅ Right to erasure : DELETE session + user = compliance immédiate
+✅ Data minimization : Session limitée à la référence user_id et aux métadonnées techniques, sans profil complet
+✅ Right to erasure : Révocation de session et suppression des données actives du compte ; sauvegardes et diagnostics suivent leurs propres procédures
 
 Performance:
 ✅ Redis GET (~0.1-0.5ms) + PostgreSQL SELECT (~0.3-0.5ms) = ~1ms overhead
@@ -313,16 +313,17 @@ Inconvénients:
 """
 ```
 
-#### Session Store (OWASP/GDPR Compliant)
+#### Session Store : minimisation des données
 
 ```python
 # apps/api/src/infrastructure/cache/session_store.py
 
 class UserSession:
     """
-    Minimal user session data structure (OWASP/GDPR compliant).
+    Minimal user session data structure supporting data minimization.
 
-    Contains ONLY session identifier and user reference - no PII.
+    Contains session identifiers and technical metadata, not a full user profile.
+    A user reference remains account-linked data, not anonymous data.
     User data is fetched from database (PostgreSQL) on each request.
 
     Security & Privacy (2024 Best Practices):
@@ -340,7 +341,7 @@ class UserSession:
         Total overhead: ~0.5-1ms per authenticated request
 
     Trade-off:
-        +0.5-1ms latency << GDPR compliance + 90% Redis memory reduction
+        +0.5-1ms latency buys data minimization and Redis memory reduction
     """
 
     def __init__(
@@ -366,10 +367,10 @@ class UserSession:
 
 class SessionStore:
     """
-    Session store for BFF pattern with GDPR compliance.
+    Session store for BFF pattern with reduced account-linked data.
 
     Features:
-    - Minimal sessions (user_id only, no PII)
+    - Minimal sessions (user reference and technical metadata, no full profile)
     - User session index for O(1) logout-all
     - Automatic TTL synchronization with cookies
     - PostgreSQL as single source of truth
@@ -778,7 +779,7 @@ class GoogleOAuthProvider:
     Security features:
     - State parameter for CSRF protection
     - PKCE (Proof Key for Code Exchange) for authorization code flow
-    - Secure token storage in Redis (encrypted)
+    - Encrypted OAuth credential storage in PostgreSQL
     - Automatic token refresh
 
     References:
@@ -941,9 +942,9 @@ class GoogleOAuthProvider:
 
 ## Protection des données sensibles
 
-### 1. PII Filtering (GDPR Compliance)
+### 1. Filtrage des informations personnelles dans les journaux structurés
 
-Le système filtre automatiquement les informations personnelles identifiables (PII) dans tous les logs.
+Les processeurs des journaux structurés masquent les champs sensibles et motifs personnels reconnus. Ce filtrage réduit l'exposition ; il ne garantit pas l'anonymisation de toute donnée et ne s'applique pas automatiquement aux entrées et sorties conservées par les traces LLM facultatives. L'accès et la conservation de chaque stockage de diagnostic restent à configurer.
 
 ```python
 # apps/api/src/infrastructure/observability/pii_filter.py
@@ -952,7 +953,8 @@ Le système filtre automatiquement les informations personnelles identifiables (
 PII (Personally Identifiable Information) filtering for structured logs.
 
 This module provides processors for structlog to automatically detect and redact
-sensitive personal information from logs, ensuring GDPR compliance and data privacy.
+sensitive personal information in supported log fields and patterns. This is a
+data-protection control, not a guarantee of anonymity or GDPR compliance.
 
 Features:
 - Email address detection and pseudonymization (SHA-256 hash)
@@ -1222,7 +1224,9 @@ La protection des données inclut leur durabilité : la base PostgreSQL de produ
 sauvegardée automatiquement par un sidecar `pg_dump` (rotation quotidienne/hebdomadaire/mensuelle,
 planification et rétention pilotées par `.env`, section `[88]`). Les dumps sont déposés dans un
 répertoire dédié en `chmod 700` — ils restent sensibles : le chiffrement Fernet couvre les
-colonnes PII, pas le schéma ni les colonnes non chiffrées. La procédure de restauration est
+colonnes explicitement chiffrées, pas le schéma ni les autres colonnes. Le dump complet
+n'est pas chiffré par ce mécanisme ; sa protection et celle des copies hors site relèvent
+de l'opérateur. La procédure de restauration est
 **testée** (restauration dans un conteneur jetable + comparaison de schéma et de comptages via
 `task backup:verify`). RPO ≤ 24 h (paramétrable). Procédures complètes :
 [DATABASE_BACKUP_RESTORE.md](../runbooks/DATABASE_BACKUP_RESTORE.md).
@@ -1842,8 +1846,8 @@ Cryptographic Standards Used
 
 2. Token Encryption: Fernet (AES-128-CBC + HMAC-SHA256)
    - Use case: OAuth tokens, refresh tokens, API keys
-   - Key derivation: PBKDF2 with high iteration count
-   - Timestamp verification: Prevents replay attacks
+   - Key: Generated Fernet key supplied by deployment configuration
+   - Timestamp: Included in the token; expiry and replay prevention require separate controls
 
 3. Transport Security: TLS 1.3
    - Minimum version: TLS 1.2 (deprecated soon)
@@ -1851,9 +1855,9 @@ Cryptographic Standards Used
    - HSTS: Enforced in production (max-age=31536000)
 
 4. Session Security: HTTP-only Cookies
-   - HttpOnly flag: ✅ (prevents XSS)
+   - HttpOnly flag: ✅ (prevents JavaScript from reading the session cookie)
    - Secure flag: ✅ (HTTPS only in production)
-   - SameSite: Lax (prevents CSRF)
+   - SameSite: Lax (limits cross-site cookie sending, alongside other CSRF controls)
    - Session ID: UUID4 (128-bit randomness)
 """
 ```
@@ -1897,16 +1901,30 @@ result = await db.execute(query)
 
 ### Principes appliqués
 
+Ces références décrivent des contrôles techniques, pas une certification ni une
+garantie de conformité de tout déploiement. Les obligations applicables et les
+mesures organisationnelles restent à évaluer par l'opérateur de l'instance.
+
 | Principe | Article | Implémentation | Status |
 |----------|---------|----------------|--------|
 | Data Minimization | Art. 5(1)(c) | Minimal sessions (user_id only) | ✅ |
 | Purpose Limitation | Art. 5(1)(b) | Clear consent screens (OAuth) | ✅ |
-| Storage Limitation | Art. 5(1)(e) | TTL automatique (7-30 jours) | ✅ |
-| Confidentiality | Art. 32 | Encryption at rest + in transit | ✅ |
-| Right to Erasure | Art. 17 | DELETE cascade (users → data) | ✅ |
+| Storage Limitation | Art. 5(1)(e) | TTL des stockages éphémères et cycles de vie documentés des données durables | Selon le stockage et son exploitation |
+| Confidentiality | Art. 32 | Fernet pour secrets et champs désignés ; HTTPS pour les accès externes ; connexions internes et sauvegardes selon déploiement | Contrôles techniques et exploitation |
+| Right to Erasure | Art. 17 | Delete purge les contenus ; Erase retire la ligne du compte ; audits, diagnostics et sauvegardes ont leurs propres procédures | Capacités et responsabilités distinctes |
 | Right to Access | Art. 15 | User consumption export (CSV), memories export (JSON) | ✅ |
 | Data Portability | Art. 20 | `/api/v1/usage/export/*` — user exports own data (v1.9.1) | ✅ |
-| Breach Notification | Art. 33 | AlertManager (72h requirement) | ✅ |
+| Breach Notification | Art. 33 | Alertmanager fournit des alertes techniques ; évaluation de la violation et notification légale distinctes | Responsabilité de l'opérateur |
+
+Une alerte Alertmanager ne qualifie pas une violation de données et ne notifie
+pas l'autorité de contrôle. Selon l'[article 33 du RGPD](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng),
+le responsable du traitement notifie une violation à l'autorité compétente sans
+retard indu et, si possible, dans les 72 heures après en avoir pris connaissance,
+sauf si elle est peu susceptible d'entraîner un risque pour les droits et libertés
+des personnes. Le sous-traitant avertit le responsable du traitement sans retard
+indu. L'opérateur doit organiser cette évaluation, les notifications requises et
+la documentation des violations ; une surveillance technique ne les accomplit
+pas à elle seule.
 
 ### Data Minimization (Art. 5)
 
@@ -1927,7 +1945,7 @@ GDPR Data Minimization - Session Example
     "language": "fr"
 }
 Storage: ~500 bytes/session × 10k users = 5MB
-GDPR: ❌ Non-compliant (excessive PII storage)
+Data minimization: Full profile duplicated in session storage
 
 ✅ GOOD: Minimal session (current)
 {
@@ -1936,49 +1954,36 @@ GDPR: ❌ Non-compliant (excessive PII storage)
     "created_at": "2025-11-14T10:00:00Z"
 }
 Storage: ~100 bytes/session × 10k users = 1MB (80% reduction)
-GDPR: ✅ Compliant (minimal data, PostgreSQL = source of truth)
+Data minimization: Reduced session data, PostgreSQL remains the profile authority
 
 Performance: +0.5-1ms per request (PostgreSQL SELECT on PRIMARY KEY)
-Trade-off: Acceptable latency << GDPR compliance + memory reduction
+Trade-off: Acceptable latency buys data minimization and memory reduction
 """
 ```
 
 ### Right to Erasure (Art. 17)
 
-```python
-# apps/api/src/domains/users/service.py
+Le parcours administratif distingue deux opérations après désactivation du compte :
 
-async def delete_user(self, user_id: UUID) -> None:
-    """
-    Delete user and all associated data (GDPR Art. 17 compliance).
+- **Delete** : [AccountDeletionService](../../apps/api/src/domains/users/account_deletion_service.py)
+  purge les contenus personnels couverts par son plan (conversations, souvenirs,
+  documents, connecteurs, localisation, santé et registres associés), invalide les
+  accès et conserve la ligne utilisateur, notamment nom et email, ainsi que les
+  données de facturation pour le suivi du compte.
+- **Erase** : [UserService.delete_user_gdpr](../../apps/api/src/domains/users/service.py)
+  exige que cette purge ait eu lieu, puis retire la ligne utilisateur et les données
+  liées par les cascades applicables. L'action produit aussi un journal d'audit ;
+  celui-ci peut conserver des éléments d'identité. Cette suppression de ligne ne
+  démontre donc pas l'effacement de toute copie dans les audits ou diagnostics.
 
-    Cascade deletion:
-    1. Sessions (Redis): DELETE user_sessions:{user_id}
-    2. Connectors (PostgreSQL): CASCADE DELETE
-    3. Conversations (PostgreSQL): CASCADE DELETE
-    4. Messages (PostgreSQL): CASCADE DELETE
-    5. User (PostgreSQL): DELETE
-
-    Retention:
-    - Audit logs: Anonymized (email → hash) after 90 days
-    - Billing records: 7 years (legal requirement)
-    - Analytics: Aggregated only (no PII)
-    """
-    # Delete all sessions
-    redis = await get_redis_session()
-    session_store = SessionStore(redis)
-    await session_store.delete_all_user_sessions(user_id)
-
-    # Delete user (cascade to connectors, conversations, messages)
-    await self.repository.delete(user_id)
-    await self.db.commit()
-
-    logger.info(
-        "user_deleted_gdpr_compliance",
-        user_id=str(user_id),
-        reason="right_to_erasure_art_17",
-    )
-```
+Les points d'entrée et préconditions sont décrits dans le
+[routeur utilisateurs](../../apps/api/src/domains/users/router.py).
+Sauvegardes, journaux d'audit, diagnostics et données déjà transmises à un
+prestataire suivent des procédures distinctes. L'opérateur doit fixer les durées
+et motifs de conservation applicables, organiser les demandes d'effacement et
+en vérifier le résultat. Ce parcours ne fournit ni une anonymisation automatique
+des audits après un délai fixe, ni une durée légale universelle de conservation
+des données de facturation.
 
 ---
 
@@ -2021,7 +2026,7 @@ class Settings(BaseSettings):
     )
     session_cookie_httponly: bool = Field(
         default=True,
-        description="HTTP-only flag for session cookie (prevents XSS)",
+        description="HTTP-only flag preventing JavaScript access to the session cookie",
     )
     session_cookie_samesite: str = Field(
         default="lax",

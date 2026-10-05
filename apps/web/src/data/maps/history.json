@@ -2406,7 +2406,7 @@
       "adr": 325,
       "date": "2026-09-29",
       "theme": "models",
-      "functional": ["f.chat", "f.meetings", "f.radio", "f.costs", "f.admin"],
+      "functional": ["f.chat", "f.meetings", "f.radio", "f.costs", "f.admin", "f.memory", "f.hitl"],
       "technical": [
         "t.llmfactory",
         "t.catalogue",
@@ -2472,6 +2472,23 @@
       "theme": "reliability",
       "functional": [],
       "technical": ["t.dashboards", "t.logs", "t.tracing", "t.metrics", "t.alerts"]
+    },
+    {
+      "adr": 334,
+      "date": "2026-10-05",
+      "theme": "voice",
+      "functional": [
+        "f.avatar",
+        "f.voice",
+        "f.live"
+      ],
+      "technical": [
+        "t.avatar",
+        "t.voiceinfra",
+        "t.live",
+        "t.web",
+        "t.redis"
+      ]
     }
   ]
 }

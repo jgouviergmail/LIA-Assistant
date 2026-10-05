@@ -498,8 +498,10 @@ class TestTheConsolidationIsOneActOfLia:
 
         user = await _make_user(async_session, journal_last_consolidated_at=None)
         await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+        billed: list[str | None] = []
 
-        async def persist(**_kwargs: Any) -> None:
+        async def persist(**kwargs: Any) -> None:
+            billed.append(kwargs.get("parent_run_id"))
             raise RuntimeError("the ledger went away")
 
         monkeypatch.setattr(consolidation_service, "_persist_journal_tokens", persist)
@@ -519,6 +521,8 @@ class TestTheConsolidationIsOneActOfLia:
             )
         ).scalar_one()
         assert decision.outcome is DecisionOutcome.FAILED
+        assert decision.route == "journal_consolidation"
+        assert billed == [decision.run_id], "failed billing still belongs to the recorded act"
 
     async def test_a_model_call_that_never_answered_files_nothing(
         self,

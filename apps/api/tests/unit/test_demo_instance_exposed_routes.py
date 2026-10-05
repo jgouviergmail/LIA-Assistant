@@ -126,6 +126,9 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/chat/suggestions",
         "GET /api/v1/chat/users/me/statistics",
         "GET /api/v1/config",
+        # Read-only availability is needed by the dashboard even when the
+        # personal avatar capability is switched off on the public demo.
+        "GET /api/v1/avatars/config",
         "GET /api/v1/conversations/me",
         "GET /api/v1/conversations/me/messages",
         "POST /api/v1/conversations/me/messages/{message_id}/feedback",
@@ -403,6 +406,9 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
 #: "closed by decision", it is closed by omission, and that is how the gallery
 #: and the kept answers shipped to the demonstrator as empty screens.
 HIDDEN_BY_DECISION: dict[str, str] = {
+    "GET /api/v1/avatars/faces": "personal avatar catalogue stays closed on the public demonstrator",
+    "PUT /api/v1/avatars/settings": "personal avatar settings stay closed on the public demonstrator",
+    "/api/v1/avatars/sessions*": "personal avatar sessions stay closed on the public demonstrator",
     "GET /api/v1/debug/jev": (
         "native decision diagnostics stay internal; the public demonstrator has no enabled JEV usage"
     ),

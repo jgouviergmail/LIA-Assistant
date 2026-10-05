@@ -15,6 +15,8 @@ from enum import Enum
 from typing import Any, Protocol
 from uuid import UUID
 
+from src.core.llm_usage import LLMBillingRecord
+
 
 class ContentSource(str, Enum):
     """Available content sources for proactive notifications."""
@@ -74,11 +76,12 @@ class ProactiveTaskResult:
     error: str | None = None
     target_id: str | None = None
     tokens_cache_write: int = 0
+    billing_records: tuple[LLMBillingRecord, ...] = ()
 
     @property
     def total_tokens(self) -> int:
-        """Total tokens consumed (input + output)."""
-        return self.tokens_in + self.tokens_out
+        """Total tokens consumed, including separately counted cache reads."""
+        return self.tokens_in + self.tokens_out + self.tokens_cache
 
     @property
     def source_name(self) -> str:

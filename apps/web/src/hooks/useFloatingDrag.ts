@@ -49,9 +49,12 @@ export interface PixelPosition {
 
 /** Clamp a top-left pixel position so the widget stays fully on screen. */
 export function clampToViewport(pos: PixelPosition, size: { w: number; h: number }): PixelPosition {
+  const viewport = window.visualViewport;
+  const left = viewport?.offsetLeft ?? 0;
+  const top = viewport?.offsetTop ?? 0;
   return {
-    x: Math.min(Math.max(0, pos.x), Math.max(0, window.innerWidth - size.w)),
-    y: Math.min(Math.max(0, pos.y), Math.max(0, window.innerHeight - size.h)),
+    x: Math.min(Math.max(left, pos.x), Math.max(left, left + (viewport?.width ?? window.innerWidth) - size.w)),
+    y: Math.min(Math.max(top, pos.y), Math.max(top, top + (viewport?.height ?? window.innerHeight) - size.h)),
   };
 }
 
@@ -81,7 +84,8 @@ export interface FloatingDrag<T extends HTMLElement = HTMLElement> {
 export function useFloatingDrag<T extends HTMLElement>(
   rootRef: RefObject<T | null>,
   position: FloatingPosition | null,
-  setPosition: (position: FloatingPosition) => void
+  setPosition: (position: FloatingPosition) => void,
+  active = true
 ): FloatingDrag<T> {
   const [dragPos, setDragPos] = useState<PixelPosition | null>(null);
   const lastDragEndRef = useRef(0);
@@ -92,6 +96,7 @@ export function useFloatingDrag<T extends HTMLElement>(
     originX: number;
     originY: number;
     moved: boolean;
+    position: PixelPosition | null;
   } | null>(null);
 
   const commitPosition = useCallback(
@@ -120,7 +125,7 @@ export function useFloatingDrag<T extends HTMLElement>(
   // Re-clamp a custom position on screen — at mount (a position saved on a
   // larger screen may sit off this viewport) and on every resize/rotation.
   useEffect(() => {
-    if (!position) return;
+    if (!active || !position) return;
     const reclamp = () => {
       const rect = rootRef.current?.getBoundingClientRect();
       const raw = {
@@ -134,8 +139,17 @@ export function useFloatingDrag<T extends HTMLElement>(
     };
     reclamp();
     window.addEventListener('resize', reclamp);
-    return () => window.removeEventListener('resize', reclamp);
-  }, [position, commitPosition, rootRef]);
+    window.visualViewport?.addEventListener('resize', reclamp);
+    window.visualViewport?.addEventListener('scroll', reclamp);
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(reclamp) : null;
+    if (rootRef.current) observer?.observe(rootRef.current);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', reclamp);
+      window.visualViewport?.removeEventListener('resize', reclamp);
+      window.visualViewport?.removeEventListener('scroll', reclamp);
+    };
+  }, [active, position, commitPosition, rootRef]);
 
   const onPointerDown = (e: React.PointerEvent<T>) => {
     // Interactive DESCENDANTS keep their own semantics — only the surface
@@ -152,6 +166,7 @@ export function useFloatingDrag<T extends HTMLElement>(
       originX: rect.left,
       originY: rect.top,
       moved: false,
+      position: null,
     };
     rootRef.current?.setPointerCapture?.(e.pointerId);
   };
@@ -164,12 +179,11 @@ export function useFloatingDrag<T extends HTMLElement>(
     if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
     drag.moved = true;
     const rect = rootRef.current?.getBoundingClientRect();
-    setDragPos(
-      clampToViewport(
-        { x: drag.originX + dx, y: drag.originY + dy },
-        { w: rect?.width ?? 0, h: rect?.height ?? 0 }
-      )
+    drag.position = clampToViewport(
+      { x: drag.originX + dx, y: drag.originY + dy },
+      { w: rect?.width ?? 0, h: rect?.height ?? 0 }
     );
+    setDragPos(drag.position);
   };
 
   const onPointerUp = (e: React.PointerEvent<T>) => {
@@ -177,8 +191,8 @@ export function useFloatingDrag<T extends HTMLElement>(
     if (!drag || drag.pointerId !== e.pointerId) return;
     dragStateRef.current = null;
     rootRef.current?.releasePointerCapture?.(e.pointerId);
-    if (drag.moved && dragPos) {
-      commitPosition(dragPos);
+    if (drag.moved && drag.position) {
+      commitPosition(drag.position);
       lastDragEndRef.current = Date.now();
     }
     setDragPos(null);

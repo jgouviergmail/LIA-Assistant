@@ -1785,11 +1785,12 @@ async def execute_email_delete_draft(
 
     Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
     """
+    from src.domains.agents.services.card_composition_service import draft_composition_scope
     from src.domains.connectors.provider_resolver import resolve_client_for_category
 
-    client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
-
-    await client.trash_email(draft_content["message_id"])
+    async with draft_composition_scope(draft_content, user_id, deps, "delete_email"):
+        client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
+        await client.trash_email(draft_content["message_id"])
 
     # Falsy subject → APIMessages renders its localized subject-less variant.
     subject = draft_content.get("subject") or None

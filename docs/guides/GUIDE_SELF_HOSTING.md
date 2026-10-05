@@ -32,9 +32,11 @@ cd LIA-Assistant
 
 ## 1. What you are installing
 
-LIA is a multi-agent conversational assistant. Self-hosted, it runs entirely
-on your machine: your conversations, memory, documents, and provider keys stay
-in **your** PostgreSQL, and only the model calls leave your host.
+LIA is a multi-agent conversational assistant. Self-hosted, its services run
+on your machine: conversations, memory, documents, and encrypted provider keys
+are stored in **your** PostgreSQL. Model calls and enabled connectors send the
+data needed for their task to their external provider. An enabled Simli avatar
+receives the audio it animates.
 
 ### The stack the installer starts
 
@@ -208,6 +210,7 @@ anything sensitive. Each prompt is prefixed with its key (for example
 | `skill_sandbox`        | always                | `yes` / `no`                                   | `no`    |
 | `live_mode`            | always                | `yes` / `no` — the Live voice mode (ADR-299): each person talks with LIA in real time on a live model they connect with their own key | `no`    |
 | `personal_radio`       | always                | `yes` / `no` — on-demand personal radio (ADR-324); uses the instance's writing and voice providers and charges its cost to the listener | `no`    |
+| `speaking_avatar`      | always                | `yes` / `no` — offer a speaking avatar; each person connects their own Simli key and opts in in Settings | `no`    |
 | `admin_password`       | always *(hidden)*     | 10+ chars, 2 uppercase, 2 digits, 2 specials   | —       |
 | `provider_key_deepseek`| always *(hidden)*     | your DeepSeek API key                          | —       |
 | `provider_key_openai`  | always *(hidden)*     | your OpenAI API key                            | —       |
@@ -264,6 +267,8 @@ your private `.env` (mode `0600`):
 | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL` | **Deliberately empty**                |
 | `ENVIRONMENT`, `DEBUG`, `LOG_LEVEL` | `production`, `false`, `INFO`              |
 | `DIAGNOSTICS_ENABLED`, `LIVE_ENABLED`, `RADIO_ENABLED` | Your `self_diagnostics` / `live_mode` / `personal_radio` answers |
+| `AVATAR_ENABLED`        | Your `speaking_avatar` answer; each account still needs its own opt-in and Simli connector |
+| `AVATAR_MINTS_PER_HOUR`, `AVATAR_SESSION_LENGTH_SECONDS`, `AVATAR_IDLE_SECONDS`, `AVATAR_HTTP_TIMEOUT_SECONDS`, `AVATAR_CONNECT_TIMEOUT_SECONDS` | Finite defaults aligned with [the API's avatar settings](../../apps/api/src/core/config/avatars.py) |
 | `ELEVENLABS_TTS_MAX_CONCURRENCY` | The application default; lower it to your ElevenLabs account allowance before enabling its speech synthesis |
 
 The two empty `NEXT_PUBLIC_*` values are intentional: the web image is
@@ -279,6 +284,16 @@ never appear in `.env`, in a command line, in the installer state, or in the
 log. The same applies to your admin password.
 
 ### 4.6 Optional capabilities
+
+**Speaking avatar** (`speaking_avatar = yes`) makes the option available on the
+instance. Each person connects their own **Simli** key and enables the avatar
+in Settings; new accounts keep it off. The installer adds no service, instance
+credential or runtime dependency. The normal migration chain creates the
+account opt-in and connector availability before the API starts; reference
+content seeds need no change. Session and idle durations stay finite, as do
+connection and HTTP timeouts. An open session can consume personal Simli
+credits during silence; LIA does not keep a Simli credit balance or billing
+ledger. See [the speaking-avatar guide](../technical/SPEAKING_AVATAR.md).
 
 **Google and Microsoft connectors** remain optional and are configured after
 the installer. If you enable either provider, register its ordinary login and

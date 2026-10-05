@@ -60,10 +60,21 @@ def _make_ctx(n_items: int = 4) -> dict[str, Any]:
         "run_id": "run-1",
         "plan_id": "plan-1",
         "turn_id": 1,
-        "steps": [{"step_id": "s1", "tool_name": "delete_email_tool", "for_each_max": n_items}],
-        "pre_executed_steps": {"get_emails": {"emails": [{"id": f"e{i}"} for i in range(n_items)]}},
+        "steps": [
+            {
+                "step_id": "s1",
+                "tool_name": "delete_email_tool",
+                "for_each_max": n_items,
+                "for_each_source": "$steps.get_emails.emails",
+            }
+        ],
+        "pre_executed_steps": {
+            "get_emails": {
+                "emails": [{"id": f"e{i}", "subject": f"item-{i}"} for i in range(n_items)]
+            }
+        },
         "pre_exec_registry": {},
-        "item_previews": [{"label": f"item-{i}"} for i in range(n_items)],
+        "item_previews": [{"subject": f"item-{i}"} for i in range(n_items)],
         "total_affected": n_items,
         "filtered_indices": None,
         "iteration": 0,
@@ -140,7 +151,7 @@ class TestForEachConfirmReplaySafety:
             # The NEXT interrupt shows the filtered list (checkpointed before it)
             payload = _interrupt_payload(result)
             previews = payload["action_requests"][0]["item_previews"]
-            assert [p["label"] for p in previews] == ["item-0", "item-2", "item-3"]
+            assert [p["subject"] for p in previews] == ["item-0", "item-2", "item-3"]
 
             result = await graph.ainvoke(
                 Command(resume={"decision": HITL_DECISION_APPROVE}), config
@@ -149,7 +160,7 @@ class TestForEachConfirmReplaySafety:
         ctx = result[STATE_KEY_FOR_EACH_HITL_CTX]
         assert ctx["approved"] is True
         # THE INVARIANT: what is handed back for execution is what was displayed
-        assert [p["label"] for p in ctx["item_previews"]] == ["item-0", "item-2", "item-3"]
+        assert [p["subject"] for p in ctx["item_previews"]] == ["item-0", "item-2", "item-3"]
         assert ctx["filtered_indices"] == [0, 2, 3]
         assert spy.calls == ["remove item-1"], "filter must run exactly once, never replayed"
 
@@ -174,7 +185,7 @@ class TestForEachConfirmReplaySafety:
             )
             payload = _interrupt_payload(result)
             previews = payload["action_requests"][0]["item_previews"]
-            assert [p["label"] for p in previews] == ["item-2", "item-3"]
+            assert [p["subject"] for p in previews] == ["item-2", "item-3"]
 
             result = await graph.ainvoke(
                 Command(resume={"decision": HITL_DECISION_APPROVE}), config

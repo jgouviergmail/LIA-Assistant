@@ -49,6 +49,8 @@ infrastructure/logwatch/scripts/** text eol=lf
 *.tsx text eol=lf
 *.mjs text eol=lf
 *.cjs text eol=lf
+*.mts text eol=lf
+*.cts text eol=lf
 
 # JSON/YAML/TOML
 *.json text eol=lf
@@ -76,6 +78,7 @@ infrastructure/logwatch/scripts/** text eol=lf
 
 # Docker
 Dockerfile text eol=lf
+Caddyfile text eol=lf
 *.dockerfile text eol=lf
 docker-compose*.yml text eol=lf
 .dockerignore text eol=lf

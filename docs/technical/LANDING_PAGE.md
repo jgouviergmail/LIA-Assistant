@@ -115,7 +115,6 @@ catalogue est calculé depuis sa liste, jamais recopié dans la traduction.
 | Composant                                                                                 | Type   | Notes                                                                                                                                                                                                                                            |
 | ----------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `cosmic/CosmosHero`                                                                       | Server | Hero Cosmos et démonstration partagée ; le planetarium ne l'entoure que si `LANDING_PLANETARIUM_ENABLED` (`landing/constants.ts`, ÉTEINT depuis le 2026-10-01, décision du propriétaire — composant, styles et tests conservés) ; CTA propre et lien vers `#features`. |
-| `UseCasesSection`                                                                         | Server | Parcours visuel des mêmes six scènes, placé avant les chapitres : intention, contexte et résultat. Chaque carte est un lien vers le chapitre retrouvé dans `CHAPTERS` par son champ `scene`.                                                     |
 | `TechSection`                                                                             | Server | Quatre principes lisibles — relier le contexte, organiser le travail, vérifier, rendre l’action lisible — puis choix d’ingénierie détaillés et schéma d’architecture dans le dépliant facultatif. Les chiffres restent issus de `LANDING_STATS`. |
 | `ArchitectureDiagram`                                                                     | Client | Comparaison lisible de Pipeline et ReAct : trois étapes par parcours, exemples concrets et garanties communes. Met en avant rapidité, contrôle et fiabilité, sans ratio de tokens ; rendue dans le dépliant facultatif de `TechSection`.         |
 | `LandingCarousel`                                                                         | Client | Carrousel partagé de la galerie : ratio de l’actif, fond ambiant, flèches visibles, vignettes à scroll-snap, clavier et swipe, légende `aria-live`, plein écran optionnel pour les captures.                                                     |
@@ -133,16 +132,15 @@ AuthRedirect | LandingHeader (fixed) | ChapterRail (fixed, xl+)
    1. CosmosHero           — démonstration partagée, choix parmi six scènes
    1b. LandingVideoSection — vidéo de l'opérateur, montée seulement si LANDING_MEDIA_BASE_URL répond (§10)
    2. PromiseSection       — trois promesses
-   3. UseCasesSection      — mêmes situations, liens vers leurs chapitres
-   4. EditorialChapters    — features ; chapter-{act,know,anticipate,control,grow,connect}
-   5. BasicsBand           — basics
-   6. TransparencySection  — transparency, CTA intermédiaire
-   7. CosmosDay            — day, journées par profil
-   8. GallerySection       — gallery, captures réelles et présentation
-   9. TechSection          — technology, principes puis détails et architecture à la demande
-  10. ChangelogSection     — changelog
-  11. BlogPreviewSection   — blog
-  12. CosmosFinale         — CTA final
+   3. EditorialChapters    — features ; chapter-{act,know,anticipate,control,grow,connect}
+   4. BasicsBand           — basics
+   5. TransparencySection  — transparency, CTA intermédiaire
+   6. CosmosDay            — day, journées par profil
+   7. GallerySection       — gallery, captures réelles et présentation
+   8. TechSection          — technology, principes puis détails et architecture à la demande
+   9. ChangelogSection     — changelog
+  10. BlogPreviewSection   — blog
+  11. CosmosFinale         — CTA final
 </main>
 ScrollScrub (transparency, gallery, changelog) | LandingFooter | LandingEyes
 ```
@@ -552,7 +550,6 @@ apps/web/src/components/landing/
     LandingVideoSection.tsx      # Libellés côté serveur (landing.video.*)
     LandingVideo.tsx             # Section montée sur le descripteur de /api/landing-media, commandes, pilule
     use-landing-video.ts         # Descripteur, mouvement réduit, « proche » / « en vue », page chargée
-  UseCasesSection.tsx           # Même catalogue de scènes, liens vers les chapitres
   TechSection.tsx               # Principes visibles, détails dépliables, chiffres sources
   ArchitectureDiagram.tsx
   LandingCarousel.tsx

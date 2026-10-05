@@ -32,6 +32,7 @@ from src.domains.meetings.processing import (
     _Job,
 )
 from src.domains.meetings.schemas import TranscriptTurn
+from src.domains.meetings.synthesis import SynthesisUsage
 from src.domains.meetings.transcription import TranscriptionOutcome, outcome_from_row
 from src.infrastructure.observability.metrics_meetings import meeting_stt_audio_seconds_total
 
@@ -289,13 +290,12 @@ def test_completion_values_carry_the_same_checkpoint_columns(
         outcome=outcome,
         synthesis=MagicMock(
             report=MagicMock(model_dump=MagicMock(return_value={"title": "t"})),
-            usage=SimpleNamespace(
+            usage=SynthesisUsage(
                 model_name="m",
                 tokens_in=1,
                 tokens_out=1,
                 tokens_cache=0,
                 tokens_cache_write=0,
-                cost_usd=None,
             ),
         ),
         decision=SimpleNamespace(

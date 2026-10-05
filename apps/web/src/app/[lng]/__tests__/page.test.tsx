@@ -45,9 +45,6 @@ vi.mock('@/components/landing/editorial/TransparencySection', () => ({
 vi.mock('@/components/landing/editorial/GallerySection', () => ({
   GallerySection: () => <div data-testid="gallery-section" />,
 }));
-vi.mock('@/components/landing/UseCasesSection', () => ({
-  UseCasesSection: () => <div data-testid="usecases-section" />,
-}));
 vi.mock('@/components/landing/TechSection', () => ({
   TechSection: () => <div data-testid="tech-section" />,
 }));
@@ -89,7 +86,6 @@ describe('HomePage (cosmos landing)', () => {
       'cosmos-hero',
       'landing-video-section',
       'promise-section',
-      'usecases-section',
       'editorial-chapters',
       'basics-band',
       'transparency-section',

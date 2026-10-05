@@ -40,6 +40,7 @@ from src.domains.agents.tools.weather_environment_enrichment import (
 )
 from src.domains.briefing.constants import (
     BRIEFING_WEATHER_FORECAST_CNT,
+    EDITORIAL_MAIL_SCAN_MAX,
     ERROR_CODE_CONNECTOR_NETWORK,
     ERROR_CODE_CONNECTOR_OAUTH_EXPIRED,
     ERROR_CODE_CONNECTOR_RATE_LIMIT,
@@ -90,6 +91,7 @@ from src.domains.feature_switches.registry import PlatformCapability, is_capabil
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.heartbeat.geocoding import resolve_city_name
 from src.domains.reminders.service import ReminderService
+from src.domains.shared.commercial_content import commercial_mail
 from src.domains.users.user_location_service import (
     NoLocationAvailableError,
     UserLocationService,
@@ -375,6 +377,7 @@ async def fetch_mails(
     user: User,
     user_tz: ZoneInfo,
     language: str,
+    exclude_commercial_mails: bool = False,
 ) -> MailsData:
     """Fetch today's unread inbox emails from the active provider.
 
@@ -400,16 +403,31 @@ async def fetch_mails(
             )
         if not isinstance(opened, ActiveClient):
             raise ConnectorNotConfiguredError("email")
-        full_messages = await _unread_inbox(opened.client, user)
+        full_messages = await _unread_inbox(
+            opened.client,
+            user,
+            scan_max=(
+                max(settings.briefing_max_mails_items, EDITORIAL_MAIL_SCAN_MAX)
+                if exclude_commercial_mails
+                else None
+            ),
+        )
 
+    eligible = (
+        [m for m in full_messages if not commercial_mail(m)]
+        if exclude_commercial_mails
+        else full_messages
+    )
     items = [
         format_email_item(m, user_tz, language)
-        for m in full_messages[: settings.briefing_max_mails_items]
+        for m in eligible[: settings.briefing_max_mails_items]
     ]
     return MailsData(items=items, total_unread_today=len(full_messages))
 
 
-async def _unread_inbox(client: Any, user: User) -> list[dict[str, Any]]:
+async def _unread_inbox(
+    client: Any, user: User, *, scan_max: int | None = None
+) -> list[dict[str, Any]]:
     """Every unread INBOX message of an open client, full metadata.
 
     Not date-filtered: the reader wants every unread, whenever it arrived.
@@ -419,7 +437,7 @@ async def _unread_inbox(client: Any, user: User) -> list[dict[str, Any]]:
     try:
         result = await client.search_emails(
             query="is:unread in:inbox",
-            max_results=settings.briefing_max_mails_items,
+            max_results=scan_max if scan_max is not None else settings.briefing_max_mails_items,
             use_cache=True,
         )
     except (TimeoutError, httpx.HTTPError) as exc:

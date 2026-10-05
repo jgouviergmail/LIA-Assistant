@@ -150,8 +150,12 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # deployment's constants and settings (ADR-184). So a session's segments
     # share two prefixes — measured 2026-09-26, the taste below the marker was
     # re-sent uncached with every segment (ADR-324, decision 13).
+    # ``editorial_policy`` is one versioned file read from a constant name,
+    # cached per process: identical for every request of a deployment. The
+    # writer, analyst and verifier share these rules in their cached prefix.
     "radio_writer_prompt": frozenset(
         {
+            "editorial_policy",
             "station_name",
             "language_name",
             "personality",
@@ -167,8 +171,9 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     ),
     # The station and the analysis bounds (settings): one prefix per session.
     "radio_analyst_prompt": frozenset(
-        {"station_name", "language_name", "min_points", "max_points"}
+        {"station_name", "language_name", "min_points", "max_points", "editorial_policy"}
     ),
+    "radio_verifier_prompt": frozenset({"editorial_policy"}),
 }
 
 

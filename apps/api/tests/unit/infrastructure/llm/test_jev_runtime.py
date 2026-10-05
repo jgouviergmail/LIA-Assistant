@@ -80,7 +80,11 @@ async def test_paid_result_is_recorded_once_with_its_own_model_and_tariff(invali
         usage,
     )
     provider = (
-        AsyncMock(side_effect=TypeSafeError("invalid_response", usage=usage, model=config.model))
+        AsyncMock(
+            side_effect=TypeSafeError(
+                "invalid_response", usage=usage, model=config.model, reason="probability_sum"
+            )
+        )
         if invalid
         else AsyncMock(return_value=result)
     )
@@ -95,12 +99,13 @@ async def test_paid_result_is_recorded_once_with_its_own_model_and_tariff(invali
         patch.object(module, "out_of_turn_spend", return_value=tracker, create=True),
         patch.object(module, "get_cached_usd_eur_rate", return_value=0.9, create=True),
         patch("src.infrastructure.llm.typesafe_client.TypeSafeClient.choose", provider),
+        patch.object(module, "logger") as log,
     ):
         attempt = await module.choose_with_jev(
             usage=JevUsage.MEETING_TEMPLATE,
             user_id=owner,
             run_id="meeting-native",
-            state="x",
+            state="private-native-context",
             question=QUESTION,
         )
     guard.assert_awaited_once_with(owner, layer="jev_decision")
@@ -113,6 +118,17 @@ async def test_paid_result_is_recorded_once_with_its_own_model_and_tariff(invali
     assert calls[0]["call_type"] == "decision"
     assert calls[0]["status"] == ("error" if invalid else "success")
     assert (attempt.answer is None) is invalid
+    log.info.assert_called_once()
+    assert log.info.call_args.args == ("jev_decision_completed",)
+    metadata = log.info.call_args.kwargs
+    assert metadata["usage"] == JevUsage.MEETING_TEMPLATE.value
+    assert metadata["outcome"] == ("invalid_response" if invalid else "success")
+    assert metadata["invalid_response_reason"] == ("probability_sum" if invalid else None)
+    assert metadata["input_tokens"] == 1000
+    assert metadata["cost_eur"] == attempt.charge.cost_eur
+    assert "private-native-context" not in str(metadata)
+    assert "test-secret" not in str(metadata)
+    assert "instructions" not in metadata and "probabilities" not in metadata
 
 
 async def test_denied_quota_never_reaches_provider() -> None:
@@ -321,3 +337,72 @@ async def test_client_close_cannot_erase_an_already_received_bill(cancelled: boo
             calls = tracker.get_llm_calls_breakdown()
             assert len(calls) == 1
             assert calls[0]["tokens_in"] == 100
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+@pytest.mark.parametrize("invalid_answer", [False, True])
+async def test_real_transport_stream_cleanup_accounts_received_usage_once(
+    cancelled: bool, invalid_answer: bool
+) -> None:
+    import asyncio
+    from contextlib import asynccontextmanager
+
+    import httpx
+
+    owner = uuid4()
+    tracker = TrackingContext("stream-paid", owner, "chat", None, auto_commit=False)
+    config = DecisionConfiguration("jev-1.13.0", 2, SecretStr("test-secret"), PRICE)
+    error = asyncio.CancelledError if cancelled else OSError
+    http = httpx.AsyncClient()
+
+    @asynccontextmanager
+    async def closing_stream(*args, **kwargs):
+        yield httpx.Response(
+            200,
+            json={
+                "model": config.model,
+                "answers": (
+                    {}
+                    if invalid_answer
+                    else {
+                        "selection": {
+                            "type": "choice",
+                            "choice": "a",
+                            "confidence": 0.99,
+                            "probabilities": {"a": 0.999, "none": 0.001},
+                        }
+                    }
+                ),
+                "usage": {"input_tokens": 321, "output_tokens": 18},
+            },
+        )
+        raise error()
+
+    with (
+        patch.object(
+            module, "load_jev_snapshot", AsyncMock(return_value=JevSnapshot(True, "ready", config))
+        ),
+        patch.object(module, "enforce_usage_limit", AsyncMock()),
+        patch.object(module.httpx, "AsyncClient", return_value=http),
+        patch.object(http, "stream", closing_stream),
+    ):
+        async with tracker:
+            request = module.choose_with_jev(
+                usage=JevUsage.MEETING_TEMPLATE,
+                user_id=owner,
+                run_id="stream-paid",
+                state="Synthetic",
+                question=QUESTION,
+            )
+            if cancelled:
+                with pytest.raises(asyncio.CancelledError):
+                    await request
+            else:
+                attempt = await request
+                assert attempt.outcome == "transport_error" and attempt.answer is None
+            calls = tracker.get_llm_calls_breakdown()
+            assert len(calls) == 1
+            assert calls[0]["tokens_in"] == 321
+            assert calls[0]["tokens_out"] == 18
+            assert calls[0]["status"] == "error"
+            assert calls[0]["failure_kind"] == ("cancelled" if cancelled else "transport_error")

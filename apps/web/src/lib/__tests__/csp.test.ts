@@ -101,7 +101,7 @@ describe('buildConnectSrc', () => {
     'https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com';
   // Provider signaling hosts, including ElevenLabs' WebRTC LiveKit signaling.
   const LIVE_HOSTS =
-    'wss://generativelanguage.googleapis.com wss://api.elevenlabs.io wss://livekit.rtc.elevenlabs.io';
+    'wss://generativelanguage.googleapis.com wss://api.elevenlabs.io wss://livekit.rtc.elevenlabs.io wss://api.simli.ai';
   const MAPS_HOSTS = 'https://maps.googleapis.com https://maps.gstatic.com';
 
   it('includes the API origin and its websocket variant in prod', () => {

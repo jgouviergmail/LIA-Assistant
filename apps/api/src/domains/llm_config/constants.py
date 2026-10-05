@@ -1513,6 +1513,8 @@ for _slot, _name in (
     ("jev_filter_mcp", "Mcp qualification (Jev)"),
     ("jev_filter_document", "Document qualification (Jev)"),
     ("jev_initiative_utility", "Initiative utility (Jev)"),
+    ("jev_memory_reference_presence", "Memory reference presence (Jev)"),
+    ("jev_hitl_rejection", "Complete HITL rejection (Jev)"),
 ):
     LLM_TYPES_REGISTRY[_slot] = LLMTypeMetadata(
         llm_type=_slot,

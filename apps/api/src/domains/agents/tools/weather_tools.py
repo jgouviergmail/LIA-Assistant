@@ -341,6 +341,7 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 "type": "current",
                 "source": weather_source(data),
                 "icon": weather_info.get("icon"),
+                "weather_main": weather_info.get("weather_main"),
                 **environment_payload_fields(data),
             },
             meta=RegistryItemMeta(
@@ -599,6 +600,8 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                     "temp_max": temp_info.get("max", "N/A"),
                     "temp_day": temp_info.get("avg", "N/A"),
                     "description": day.get("description", "N/A"),
+                    "icon": day.get("icon"),
+                    "weather_main": day.get("weather_main"),
                     "humidity": day.get("humidity", "N/A"),
                     "wind_speed": day.get("wind_speed", "N/A"),
                     "type": "forecast",

@@ -171,21 +171,21 @@ async def test_estimate_cost_with_cached_tokens(
 
 
 @pytest.mark.asyncio
-async def test_estimate_cost_no_cached_support(
+async def test_estimate_cost_missing_cache_tariff_uses_input_price(
     async_session: AsyncSession, pricing_o1_mini_no_cache: LLMModelPricing
 ):
-    """Test cost estimation for model without cached input support."""
+    """Known cache-read usage stays billed when no separate tariff is set."""
     cost = await estimate_cost_usd(
         model="o1-mini",
         prompt_tokens=1_000_000,
         completion_tokens=500_000,
-        cached_tokens=500_000,  # Should be ignored
+        cached_tokens=500_000,  # Missing cache tariff falls back to input price
         db=async_session,
     )
 
-    # Expected: (1M / 1M) * 3.00 + (500K / 1M) * 12.00 = 3.00 + 6.00 = 9.00
-    # Cached tokens ignored because pricing.cached_input_price is None
-    assert cost == pytest.approx(9.00, abs=0.01)
+    # Ordinary input 3.00 + cached input 1.50 + output 6.00 = 10.50.
+    # None means absent tariff; an explicit zero is a distinct contract.
+    assert cost == pytest.approx(10.50, abs=0.01)
 
 
 @pytest.mark.asyncio

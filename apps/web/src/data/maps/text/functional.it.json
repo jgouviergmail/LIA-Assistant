@@ -97,9 +97,9 @@
     },
     "f.memory": {
       "name": "Memoria a lungo termine",
-      "role": "Fatti, preferenze e istruzioni di lavoro estratti in background dalle tue conversazioni, e cercati di proposito quando un argomento emerge strada facendo; ogni ricordo si vede, si corregge e conserva la sua cronologia quando cambia.",
+      "role": "Fatti, preferenze e istruzioni di lavoro appresi dalle conversazioni, visibili e modificabili con la loro storia. Le nuove istruzioni durature sono fissate per impostazione predefinita; la manutenzione automatica le lascia intatte. LIA li cerca anche espressamente quando emerge un argomento lungo il percorso.",
       "goal": "Non dover ripetere ciò che LIA sa già di te.",
-      "src": "a6453a53542e"
+      "src": "c36f79b09890"
     },
     "f.journals": {
       "name": "Diari e ritratto",
@@ -211,9 +211,9 @@
     },
     "f.mcp": {
       "name": "Server MCP",
-      "role": "Collegare strumenti di terze parti conformi allo standard MCP — vecchie e nuove revisioni del protocollo, OAuth compreso.",
+      "role": "Collegare strumenti MCP esterni, OAuth compreso; le schede dei risultati indicano server e metodo. Una pausa dichiarata dal server sospende le chiamate tra worker.",
       "goal": "Estendere LIA senza aspettare un'integrazione nativa.",
-      "src": "af65afc24b06"
+      "src": "1409a780080c"
     },
     "f.skills": {
       "name": "Competenze e plugin",
@@ -307,9 +307,9 @@
     },
     "f.live": {
       "name": "Modalità Live",
-      "role": "Una conversazione vocale in tempo reale sulla tua chiave; ogni richiesta di dati o di azione viene delegata al motore di LIA, con le stesse regole della chat.",
+      "role": "Voce in tempo reale sulla tua chiave: il modo diretto legge i dati senza agire; quello delegato affida ogni richiesta al motore del chat e alle sue conferme. La sospensione chiude la connessione al fornitore.",
       "goal": "Parlare in modo naturale, senza perdere la validazione né la tracciabilità.",
-      "src": "95d27bb242b3"
+      "src": "30523d5b1ff6"
     },
     "f.telephony": {
       "name": "Telefono",
@@ -319,9 +319,9 @@
     },
     "f.radio": {
       "name": "Radio personale",
-      "role": "Un'emittente su richiesta nella tua lingua: la tua giornata e le notizie dal mondo, scritte, verificate e lette per te mentre ascolti, ogni frase con la sua fonte.",
+      "role": "Una stazione a richiesta nella tua lingua: la giornata e notizie con fonti, scritte, verificate e lette mentre ascolti. Il filtro editoriale rimuove inviti all’acquisto e conserva informazioni utili.",
       "goal": "Ascoltare la propria giornata e il mondo senza leggere, sapendo quanto costa.",
-      "src": "3518a88aef30"
+      "src": "25415e642ab3"
     },
     "f.security": {
       "name": "Account e sicurezza",
@@ -337,9 +337,9 @@
     },
     "f.costs": {
       "name": "Costi e quote",
-      "role": "Ogni euro pagato dalla piattaforma è tracciato, mostrato, attribuito alla persona giusta; un tetto per account e un budget giornaliero per l'istanza.",
+      "role": "L’uso pagato dalla piattaforma è attribuito alla persona, valorizzato alla tariffa di ogni tentativo e mostrato anche se l’uso noto termina con un errore o un annullamento; i limiti di account e istanza contengono la spesa.",
       "goal": "Nessuna spesa invisibile, nessuna spesa senza limite.",
-      "src": "3b9c91f76ee2"
+      "src": "e0172dd83455"
     },
     "f.llmconfig": {
       "name": "Modelli e ragionamento",
@@ -364,6 +364,12 @@
       "role": "La demo pubblica, i feedback sulle risposte e le metriche di prodotto che guidano gli sviluppi.",
       "goal": "Mostrare LIA senza rischi, e migliorarla sulla base dei fatti.",
       "src": "2566c38f3406"
+    },
+    "f.avatar": {
+      "name": "Avatar parlante",
+      "role": "Una presenza Simli sperimentale, scelta sulla tua chiave, per commenti vocali e Live diretto o delegato; una finestra mobile e una connessione chiusa in sospensione. Radio conserva il proprio lettore.",
+      "goal": "Scegliere un volto conoscendone il consumo, silenzi compresi.",
+      "src": "50707626b06b"
     }
   },
   "flows": {
@@ -410,8 +416,8 @@
       "src": "d9d438a62218"
     },
     "flow.live": {
-      "name": "Una conversazione vocale in tempo reale",
-      "summary": "Due intelligenze e una cucitura: la voce conversa, il motore di LIA agisce.",
+      "name": "Una conversazione Live delegata",
+      "summary": "In modo delegato, la voce conversa e il motore di LIA agisce con le sue conferme.",
       "steps": [
         "Apri una sessione Live sulla tua chiave.",
         "Il modello vocale ascolta e risponde nello stesso respiro.",
@@ -421,7 +427,7 @@
         "Un silenzio? La sessione va in standby — non viene più fatturato nulla — e un tocco la riattiva.",
         "Alla fine, una scheda riepiloga la sessione e quanto è costata."
       ],
-      "src": "6f5ca4ae4284"
+      "src": "397fd2f1a1d4"
     },
     "flow.learn": {
       "name": "LIA impara a conoscerti",

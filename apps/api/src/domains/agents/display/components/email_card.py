@@ -531,6 +531,11 @@ class EmailCard(BaseComponent):
         return [
             {"icon": Icons.REPLY, "label": V3Messages.get_reply(language), "action": "reply"},
             {"icon": Icons.FORWARD, "label": V3Messages.get_forward(language), "action": "forward"},
+            {
+                "icon": Icons.DELETE,
+                "label": V3Messages.get_delete(language),
+                "action": "delete_email",
+            },
         ]
 
     # =========================================================================

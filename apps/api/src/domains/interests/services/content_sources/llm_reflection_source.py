@@ -21,15 +21,16 @@ References:
 
 import uuid
 from datetime import UTC, datetime
+from time import time
 
-from src.core.config import settings
 from src.core.i18n import get_language_name
-from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
 from src.domains.interests.services.content_sources.base import ContentResult
+from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
-from src.infrastructure.llm.token_utils import extract_llm_tokens
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.usage_metadata import model_name_of
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -115,58 +116,97 @@ class LLMReflectionContentSource:
             )
 
             llm = get_llm("interest_content")
+            model_name = model_name_of(llm) or "unknown"
+            started_at = time()
+            pricing_snapshot = capture_pricing_snapshot()
 
             session_id = f"llm_reflection_{uuid.uuid4().hex[:8]}"
+            capture = TokenCaptureHandler(model_name)
+            from langchain_core.runnables import RunnableConfig
 
-            result = await invoke_with_instrumentation(
-                llm=llm,
-                llm_type="interest_llm_reflection",
-                messages=prompt,
-                session_id=session_id,
-                user_id=user_id or "system",
+            from src.infrastructure.proactive.tracking import (
+                ambient_run_id,
+                bill_captured_usage,
+                capture_spend_on_failure,
             )
 
-            content = result.text
+            try:
+                owner = uuid.UUID(str(user_id)) if user_id is not None else None
+            except ValueError, TypeError:
+                owner = None
 
-            if not content or len(content.strip()) < 20:
-                logger.debug(
-                    "llm_reflection_source_empty_content",
-                    topic=topic,
-                    content_length=len(content) if content else 0,
+            async with capture_spend_on_failure(
+                capture,
+                user_id=owner,
+                task_type="interest_generation",
+                target_id=topic,
+                model_name=model_name,
+                source="proactive",
+                run_id=ambient_run_id(),
+            ):
+                result = await invoke_with_instrumentation(
+                    llm=llm,
+                    llm_type="interest_llm_reflection",
+                    messages=prompt,
+                    session_id=session_id,
+                    user_id=user_id or "system",
+                    config=RunnableConfig(callbacks=[capture]),
                 )
-                return None
+                capture.ensure_response_record(
+                    result, model_name=model_name, started_at=started_at, snapshot=pricing_snapshot
+                )
+                content = result.text
+                records = capture.get_billing_records(model_name)
 
-            content = content.strip()
-            if len(content) > 500:
-                content = content[:500] + "..."
+                if not content or len(content.strip()) < 20:
+                    logger.debug(
+                        "llm_reflection_source_empty_content",
+                        topic=topic,
+                        content_length=len(content) if content else 0,
+                    )
+                    await bill_captured_usage(
+                        capture,
+                        user_id=owner,
+                        task_type="interest_generation",
+                        target_id=topic,
+                        model_name=model_name,
+                        source="proactive",
+                        run_id=ambient_run_id(),
+                        failed=True,
+                        llm_type="interest_content",
+                    )
+                    return None
 
-            # The caller bills them, under its own run (see the module docstring).
-            tokens_in, tokens_out = extract_llm_tokens(result)
-
-            logger.info(
-                "llm_reflection_source_content_generated",
-                topic_length=len(topic),
-                content_length=len(content),
-                language=user_language,
-                user_id=user_id,
-                tokens_in=tokens_in,
-                tokens_out=tokens_out,
-            )
-
-            return ContentResult(
-                content=content,
-                source=self.source_name,
-                raw_content=content,
-                citations=[],
-                tokens_in=tokens_in,
-                tokens_out=tokens_out,
-                metadata={
-                    "model": get_llm_config_for_agent(settings, "interest_content").model,
-                    "language": user_language,
-                    "category": category or "general",
-                    "generated_at": current_datetime,
-                },
-            )
+                content = content.strip()
+                if len(content) > 500:
+                    content = content[:500] + "..."
+                paid_result = ContentResult(
+                    content=content,
+                    raw_content=content,
+                    source=self.source_name,
+                    tokens_in=capture.tokens_in,
+                    tokens_out=capture.tokens_out,
+                    tokens_cache=capture.tokens_cache,
+                    tokens_cache_write=capture.tokens_cache_write,
+                    billing_records=records,
+                    billing_capture=capture,
+                    metadata={
+                        "model": records[-1].model_name if records else model_name,
+                        "language": user_language,
+                        "category": category or "general",
+                        "generated_at": current_datetime,
+                    },
+                )
+                logger.info(
+                    "llm_reflection_source_content_generated",
+                    topic_length=len(topic),
+                    content_length=len(content),
+                    language=user_language,
+                    user_id=user_id,
+                    tokens_in=capture.tokens_in,
+                    tokens_out=capture.tokens_out,
+                )
+                return paid_result
 
         except Exception as e:
             logger.warning(

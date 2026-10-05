@@ -10,12 +10,17 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import httpx
+import structlog
 from pydantic import JsonValue
 
 from src.core.context import current_tracker
 from src.domains.llm.pricing_service import token_cost_usd
 from src.domains.llm_config.jev_registry import JEV_USAGES, JevUsage
-from src.domains.llm_config.jev_settings import DecisionConfiguration, load_jev_snapshot
+from src.domains.llm_config.jev_settings import (
+    DecisionConfiguration,
+    JevSnapshot,
+    load_jev_snapshot,
+)
 from src.infrastructure.cache.pricing_cache import get_cached_usd_eur_rate
 from src.infrastructure.llm.decision_types import DecisionAttempt, DecisionCharge
 from src.infrastructure.llm.inference_params import capture_inference_params
@@ -24,6 +29,9 @@ from src.infrastructure.llm.jev_debug_store import begin_trace, finish_trace
 from src.infrastructure.llm.typesafe_client import (
     ChoiceBatchResult,
     ChoiceQuestion,
+    DecisionUsage,
+    InvalidResponseReason,
+    TypeSafeCancelledError,
     TypeSafeClient,
     TypeSafeError,
 )
@@ -32,6 +40,8 @@ from src.infrastructure.proactive.tracking import out_of_turn_spend
 
 if TYPE_CHECKING:
     from src.domains.chat.service import TrackingContext
+
+logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
@@ -59,6 +69,17 @@ async def _complete_charge(record: Coroutine[object, object, None]) -> None:
         raise asyncio.CancelledError
 
 
+def _received_interruption(
+    error: TypeSafeError | TypeSafeCancelledError,
+) -> asyncio.CancelledError | None:
+    return error if isinstance(error, TypeSafeCancelledError) else None
+
+
+def _propagate_interruption(interruption: asyncio.CancelledError | None) -> None:
+    if interruption is not None:
+        raise interruption
+
+
 async def choose_with_jev(
     *,
     usage: JevUsage,
@@ -84,9 +105,15 @@ async def choose_many_with_jev(
     run_id: str,
     state: JsonValue,
     questions: dict[str, ChoiceQuestion],
+    snapshot: JevSnapshot | None = None,
 ) -> DecisionAttempt:
-    """One snapshot, quota gate and charge for independently evaluated questions."""
-    snapshot = await load_jev_snapshot(usage)
+    """One quota gate and charge per batch, retaining an operation's routing.
+
+    A bounded multi-batch consumer may pass its captured snapshot for this same
+    usage. New operations omit it and read the current database switches.
+    """
+    if snapshot is None:
+        snapshot = await load_jev_snapshot(usage)
     if not snapshot.requested:
         return DecisionAttempt(
             outcome="disabled" if snapshot.readiness == "ready" else snapshot.readiness
@@ -159,6 +186,36 @@ async def _record_charge(
     )
 
 
+def _log_decision_completion(
+    *,
+    run_id: str,
+    usage: JevUsage,
+    requested_model: str,
+    reported_model: str | None,
+    failure: str | None,
+    invalid_response_reason: InvalidResponseReason | None,
+    status_code: int | None,
+    started: float,
+    counters: DecisionUsage | None,
+    charge: DecisionCharge | None,
+) -> None:
+    """Publish bounded operational metadata without state or answer content."""
+    logger.info(
+        "jev_decision_completed",
+        run_id=run_id,
+        usage=usage.value,
+        requested_model=requested_model,
+        reported_model=reported_model,
+        outcome=failure or "success",
+        invalid_response_reason=invalid_response_reason,
+        status_code=status_code,
+        duration_ms=(perf_counter() - started) * 1000,
+        input_tokens=counters.input_tokens if counters else None,
+        output_tokens=counters.output_tokens if counters else None,
+        cost_eur=charge.cost_eur if charge else None,
+    )
+
+
 async def _execute_decision(
     *,
     config: DecisionConfiguration,
@@ -183,8 +240,10 @@ async def _execute_decision(
     answers, counters, model, failure = {}, None, config.model, None
     charge = None
     response_answer, status_code = None, None
+    invalid_response_reason = None
     reported_model: str | None = None
     action: JevAction = "pending"
+    interrupted: asyncio.CancelledError | None = None
     try:
         async with _decision_tracker(run_id, user_id) as tracker:
             async with httpx.AsyncClient() as http:
@@ -204,10 +263,12 @@ async def _execute_decision(
                     reported_model = result.model
                     if model != config.model:
                         answers, failure = {}, "unexpected_model"
-                except TypeSafeError as exc:
+                except (TypeSafeError, TypeSafeCancelledError) as exc:
                     counters, model, failure = exc.usage, exc.model or config.model, exc.code
                     status_code = exc.status_code
                     reported_model = exc.model
+                    invalid_response_reason = exc.reason
+                    interrupted = _received_interruption(exc)
                 # No awaited cleanup may intervene between receipt of a bill
                 # and its protected recording: closing HTTP can be cancelled too.
                 if counters is not None:
@@ -228,6 +289,7 @@ async def _execute_decision(
                     await _record_charge(
                         tracker, charge, config, usage, started_at, started, rate, failure
                     )
+                _propagate_interruption(interrupted)
     except asyncio.CancelledError:
         action, failure = "cancelled", "cancelled"
         raise
@@ -235,6 +297,18 @@ async def _execute_decision(
         action, failure = "aborted", "processing_error"
         raise
     finally:
+        _log_decision_completion(
+            run_id=run_id,
+            usage=usage,
+            requested_model=config.model,
+            reported_model=reported_model,
+            failure=failure,
+            invalid_response_reason=invalid_response_reason,
+            status_code=status_code,
+            started=started,
+            counters=counters,
+            charge=charge,
+        )
         diagnostic = await finish_trace(
             user_id,
             diagnostic,
@@ -247,6 +321,7 @@ async def _execute_decision(
             status_code=status_code,
             counters=counters,
             cost_eur=charge.cost_eur if charge else None,
+            invalid_response_reason=invalid_response_reason,
         )
     return DecisionAttempt(
         answer=answers.get("selection"),

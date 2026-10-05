@@ -188,15 +188,16 @@ class InterestAnalysisResult:
 # ============================================================================
 
 
-def _compute_analysis_cache_key(user_id: str, message_content: str) -> str:
+def _compute_analysis_cache_key(user_id: str, extractor_prompt: str) -> str:
     """
     Compute Redis cache key for interest analysis.
 
-    Key is based on user_id and hash of the analyzed message content.
-    This ensures the same message analyzed twice uses cached result.
+    Hash the effective prompt: conversation, known interests, language, date
+    and extraction policy. A repeated last message alone is not the same state.
+    The namespace excludes entries produced by the former message-only key.
     """
-    content_hash = hashlib.sha256(message_content.encode()).hexdigest()[:16]
-    return f"{REDIS_KEY_INTEREST_ANALYSIS_PREFIX}{user_id}:{content_hash}"
+    content_hash = hashlib.sha256(extractor_prompt.encode()).hexdigest()
+    return f"{REDIS_KEY_INTEREST_ANALYSIS_PREFIX}v2:{user_id}:{content_hash}"
 
 
 async def _get_cached_analysis(cache_key: str) -> InterestAnalysisResult | None:
@@ -540,24 +541,12 @@ async def _analyze_interests_core(
             analysis_skipped_reason="No user message in conversation",
         )
 
-    # Get message content for cache key
+    # Get message content for the bounded debug summary.
     message_content = (
         last_human_message.content
         if isinstance(last_human_message.content, str)
         else str(last_human_message.content)
     )
-
-    # Check cache first
-    cache_key = _compute_analysis_cache_key(user_id, message_content)
-    if use_cache:
-        cached = await _get_cached_analysis(cache_key)
-        if cached:
-            logger.debug(
-                "interest_analysis_using_cache",
-                user_id=user_id,
-                cache_key=cache_key,
-            )
-            return cached
 
     # Get minimal context: last 4 messages before the target message
     context_start = max(0, last_human_index - 3)
@@ -582,6 +571,19 @@ async def _analyze_interests_core(
 
     # Build prompt from external file
     prompt = _render_extraction_prompt(conversation, existing_texts, user_language)
+
+    # Resolve the effective state before cache lookup: identical final user
+    # text can refer to different context or a changed interest to update/delete.
+    cache_key = _compute_analysis_cache_key(user_id, prompt)
+    if use_cache:
+        cached = await _get_cached_analysis(cache_key)
+        if cached:
+            logger.debug(
+                "interest_analysis_using_cache",
+                user_id=user_id,
+                cache_key=cache_key,
+            )
+            return cached
 
     # Get extraction LLM from unified config (LLM_DEFAULTS + admin overrides)
     llm = get_llm("interest_extraction")

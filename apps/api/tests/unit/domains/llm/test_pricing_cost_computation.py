@@ -140,22 +140,14 @@ class TestArithmetic:
         with _currency_api(USD_TO_EUR):
             assert await service.calculate_token_cost("gpt-4.1-mini", 0, 0, 0) == (0.0, 0.0)
 
-    async def test_a_model_without_cached_pricing_ignores_cached_tokens(self) -> None:
-        """Characterization, and the reason it is acceptable.
-
-        When `cached_input_price` is None the cached tokens contribute nothing.
-        That is only correct because providers which do not price cache reads
-        separately report them INSIDE `input_tokens`; charging them again would
-        double-bill. Pinned here so that a provider adapter which starts
-        reporting cached tokens separately, without a cached price, fails this
-        test instead of silently under-billing.
-        """
+    async def test_a_model_without_cached_pricing_uses_input_rate(self) -> None:
+        """The shared usage reader already removed cache reads from input."""
         service = _service(_price(cached_input_price=None))
 
         with _currency_api(USD_TO_EUR):
             usd, _ = await service.calculate_token_cost("gpt-4.1-mini", 0, 0, 1_000_000)
 
-        assert usd == 0.0
+        assert usd == 1.0
 
     async def test_cached_price_is_ignored_when_no_cached_token_was_used(self) -> None:
         service = _service(_price())
@@ -247,8 +239,8 @@ class TestTheTwinsAgree:
 
         assert eur_at_date == pytest.approx(eur_now)
 
-    async def test_both_normalize_the_model_name_before_looking_it_up(self) -> None:
-        """A dated model id must hit the same pricing row as its base name."""
+    async def test_both_preserve_the_exact_model_name_for_the_lookup(self) -> None:
+        """Only the lookup may fall back: a dated model can own its tariff."""
         service = _service(_price())
 
         with _currency_api(USD_TO_EUR):
@@ -260,7 +252,7 @@ class TestTheTwinsAgree:
         looked_up_now = service.get_active_model_price.await_args.args[0]  # type: ignore[attr-defined]
         looked_up_at_date = service.get_model_price_at_date.await_args.args[0]  # type: ignore[attr-defined]
         assert looked_up_now == looked_up_at_date
-        assert "2024-09-12" not in looked_up_now
+        assert looked_up_now == "o1-mini-2024-09-12"
 
 
 class TestTimeSlotTariffs:
@@ -344,7 +336,7 @@ class TestTimeSlotTariffs:
                 )
                 assert eur_at_date == pytest.approx(eur_now)
 
-    async def test_a_slot_without_cached_price_charges_nothing_for_cache(self) -> None:
+    async def test_a_slot_without_cached_price_uses_its_own_input_rate(self) -> None:
         slots = [{**self.PEAK_SLOTS[0], "cached_input_unit_price": None}]
         service = _service(_price(time_slots=slots))
 
@@ -353,7 +345,7 @@ class TestTimeSlotTariffs:
                 "gpt-4.1-mini", 0, 0, 1_000_000, at=self.PEAK_AT
             )
 
-        assert usd == 0.0
+        assert usd == 2.0
 
     async def test_flat_pricing_is_unchanged_when_no_slots_exist(self) -> None:
         service = _service(_price())

@@ -375,10 +375,8 @@ class TestTimeSlotPricing:
         )
         assert usd == pytest.approx(CACHED_PRICE * 2)
 
-    def test_a_slot_without_cached_price_charges_nothing_for_cache(self) -> None:
-        """Mirror of the base-price rule: providers without separate cache
-        billing report cache reads inside input_tokens — charging them here
-        would double-bill during the window only."""
+    def test_a_slot_without_cached_price_uses_its_input_rate(self) -> None:
+        """Cache reads are already removed from the shared input bucket."""
         cache = pricing_cache._local_cache
         assert cache is not None
         slots = [{**PEAK_SLOTS[0], "cached_input_unit_price": None}]
@@ -392,7 +390,7 @@ class TestTimeSlotPricing:
         usd, _ = get_cached_cost_usd_eur(
             "deepseek-v4-flash", 0, 0, cached_tokens=MILLION, at=PEAK_AT
         )
-        assert usd == pytest.approx(0.0)
+        assert usd == pytest.approx(0.8)
 
     def test_flat_priced_models_ignore_the_at_parameter(self) -> None:
         peak, _ = get_cached_cost_usd_eur("gpt-4.1-mini", MILLION, MILLION, at=PEAK_AT)

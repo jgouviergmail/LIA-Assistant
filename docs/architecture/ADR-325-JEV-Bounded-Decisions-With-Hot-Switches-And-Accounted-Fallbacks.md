@@ -6,6 +6,25 @@
 visibility, accounting and evaluation. Acceptance of this architecture does not
 activate an integration or certify a production deployment.
 
+**Amendment — 2026-10-04:** The owner requested hiding the intermediate
+“first results” panel from the discussion, while retaining every JEV usage and
+its independently switchable configuration. The response node still schedules
+collection qualification and builds authorized document projections. Their
+existing diagnostics remain available in the administrative debug panel;
+the canonical registry, synthesis context and final cards retain their authority.
+Ephemeral preview frames are invisible in chat and do not count as a first useful
+delivered result. Hiding the panel neither deactivates inference nor establishes
+a cost or end-to-end latency gain.
+
+The HITL exclusion usage also judges reference scope independently from the
+per-item exclusions, over the same state in the same native batch. A singular
+reference may match several names without identifying which item the person
+meant; confident item answers alone do not resolve that ambiguity. The consumer
+requires a clear scope and valid item answers, otherwise the whole list follows
+the existing fallback. One question slot is reserved for scope, and its separate
+confidence policy does not lower the per-item policy. Debug labels expose that
+judgment. The result remains a proposal requiring the existing human confirmation.
+
 ## Context
 
 LIA spends model time on decisions which do not require prose: choosing a meeting
@@ -92,6 +111,8 @@ switch does not retroactively cancel an already running call.
 | Initiative utility | Conclude that the full existing initiative context has no useful action, suggestion or follow-up. | Otherwise the existing evaluator runs. Merely finding no action is insufficient. Oversized context uses the existing evaluator. |
 | Memory, interests, journal and open-loop observers | Compare a decision with the existing extractor's proposal. | Observation never suppresses extraction or writes. A proposal is not evidence that persistence succeeded. These observers add work and cost. |
 | HITL item exclusions | Interpret explicit exclusions from the currently proposed list. | Original item indices remain stable. Any uncertain or invalid batch falls back for the whole list. Exclusion never grants approval; confirmation remains required, and an empty list cancels. |
+| Personal-reference presence | Conclude that the query has no personal reference requiring the existing extractor. | Broad memory retrieval remains active. Relations, pronouns, implicit places and uncertainty use the original extraction and resolution. No identity, memory or action is selected. |
+| Complete HITL rejection | Recognize an explicit withdrawal of all currently proposed actions. | Partial, conditional or ambiguous replies use the existing classifier. A changed pending list invalidates the decision. This path can only reject, never approve or edit parameters. |
 
 The exact eligible paths, bounds and confidence policies are owned by their
 implementations and corpus tests, not by this table. In particular, the
@@ -123,8 +144,9 @@ Preview and observer tasks are cancelled and joined before their owner's tracker
 or stream closes; detached work cannot leak into a later turn.
 
 The ephemeral preview travels through SSE and is not conversation history or
-checkpoint state. Its presentation remains optional and independent of the final
-answer. A relevance result never removes an item from the canonical registry.
+checkpoint state. Its diagnostics remain available to administrators while the
+intermediate panel is hidden in chat. A relevance result never removes an item
+from the canonical registry or changes the final answer's authority.
 The user-facing treatment registers continue to describe actual consultations
 and actions; the administrative debug feed is not a substitute for those registers.
 
@@ -152,6 +174,14 @@ outcome preserves its original expiry, so ongoing traffic does not keep old
 contexts alive. The key family participates in account cleanup. Diagnostic work
 is bounded and best-effort and never repeats inference. Ordinary metrics and
 logs carry operational metadata, not the private decision context.
+The shared runtime logs each completed native attempt with its usage, models,
+duration, outcome, available usage and spend. An invalid response includes only
+a bounded validation reason; source content, candidate values and response bodies
+are never included in that operational event. This separates transport validation
+from consumer acceptance while retaining the existing private diagnostic feed.
+The same closed validation reason is retained in that feed and shown in the
+administrative technical details; older traces default to no reason. No raw
+provider-error body is introduced by this field.
 
 ### 6. Measure journeys before claiming a latency or quality gain
 
@@ -178,6 +208,34 @@ end-to-end gain once fallbacks and overhead are included. Collection previews an
 extraction observers are additional calls. Radio fallback frequency must be
 included in its evaluation. Production activation remains a per-usage decision
 after dev acceptance; no switch is enabled merely because tests pass.
+
+The paid synthetic review on 2026-10-04 compared the shipped builders with shorter
+questions across the registered usages. The shorter variant was not adopted:
+some task and initiative answers passed confidence gates while violating their
+functional constraints. The specific HITL scope correction was calibrated on
+12 cases and then checked on 24 new cases spanning six languages. It retained
+the same nine useful selections and blocked four incorrect admissions; no
+ambiguous request was admitted in that holdout. Native HITL cost increased by
+15.3%, with median call times of about 229 ms before and 231 ms after. These are
+single-observation synthetic results, not production precision or end-to-end
+latency measurements. Adding a necessary judgment has a measured cost.
+
+A production aggregate read at 10:30:30 UTC on the same date contained 29 native
+calls, including one accounted invalid response. All three native initiative
+attempts were followed by the generative initiative evaluator, so this sample
+showed no avoided generative initiative call. Collection qualification and
+extraction observers remained additional diagnostic work; neither establishes
+an observed saving merely because its native answer succeeded.
+
+The subsequent [value and text-billing review](../superpowers/plans/2026-10-04-jev-value-and-text-billing.md)
+added the two absence/rejection usages through the existing per-usage switch
+mechanism, initially off. The personal-reference holdout blocked seven wrong
+generative extractions without a false bypass, but its modeled cost increased
+with a warm prompt cache. The rejection experiment avoided five generative calls
+on 24 independent cases and reduced that pass's cost while increasing overall
+median latency. Neither result establishes a universal saving. Initiative prompt
+and format variants were rejected after accounting for their fallbacks. Existing
+preferences and diagnostic integrations were preserved.
 
 ## Alternatives considered
 

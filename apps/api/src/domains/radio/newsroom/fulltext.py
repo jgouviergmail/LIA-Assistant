@@ -27,6 +27,8 @@ from typing import Final
 from readability import Document
 from readability.readability import Unparseable
 
+from src.domains.shared.commercial_content import editorial_excerpt, is_commercial_content
+
 #: Below this, an extraction is not an article.
 ARTICLE_MIN_CHARS: Final[int] = 400
 #: Above this, the rest of the article is dropped (the analyst reads a bounded text,
@@ -102,6 +104,10 @@ def extract_article(content: bytes, *, charset: str | None = None) -> str | None
     text = _SPACES_RE.sub(" ", text)
     text = _BLANK_LINES_RE.sub("\n", "\n".join(line.strip() for line in text.splitlines()))
     text = text.strip()
+    # Retain a primary ad's disclosure so the desk can reject legacy/source
+    # records before its bound. Inserts in genuine articles are removed.
+    if not is_commercial_content("", body=text):
+        text = editorial_excerpt(text)
     if len(text) < ARTICLE_MIN_CHARS:
         return None
     return text[:ARTICLE_MAX_CHARS]

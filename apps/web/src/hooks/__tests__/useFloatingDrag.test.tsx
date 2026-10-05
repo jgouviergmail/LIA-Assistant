@@ -5,7 +5,7 @@
  * the SURFACE only while the surface itself holds the focus.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useRef } from 'react';
 
 import {
@@ -18,12 +18,15 @@ import {
 function Harness({
   position,
   setPosition,
+  visible = true,
 }: {
   position: FloatingPosition | null;
   setPosition: (next: FloatingPosition) => void;
+  visible?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const drag = useFloatingDrag(ref, position, setPosition);
+  const drag = useFloatingDrag(ref, position, setPosition, visible);
+  if (!visible) return null;
   return (
     <div
       ref={ref}
@@ -51,6 +54,30 @@ afterEach(() => {
 });
 
 describe('useFloatingDrag', () => {
+  it('reclamps persisted geometry when an initially hidden surface appears', () => {
+    const setPosition = vi.fn();
+    const position = { xPct: 110, yPct: 110 };
+    const { rerender } = render(<Harness position={position} setPosition={setPosition} visible={false} />);
+    expect(setPosition).not.toHaveBeenCalled();
+    rerender(<Harness position={position} setPosition={setPosition} visible />);
+    expect(setPosition).toHaveBeenCalledWith({ xPct: 100, yPct: 100 });
+  });
+  it('commits the last pointer coordinates even when move and release share a render batch', () => {
+    const setPosition = vi.fn();
+    render(<Harness position={null} setPosition={setPosition} />);
+    const surface = screen.getByTestId('surface');
+    fireEvent.pointerDown(surface, { pointerId: 1, clientX: 100, clientY: 100 });
+    act(() => {
+      fireEvent.pointerMove(surface, { pointerId: 1, clientX: 160, clientY: 140 });
+      fireEvent.pointerMove(surface, { pointerId: 1, clientX: 180, clientY: 150 });
+      fireEvent.pointerUp(surface, { pointerId: 1, clientX: 180, clientY: 150 });
+    });
+    expect(setPosition).toHaveBeenCalledTimes(1);
+    expect(setPosition).toHaveBeenCalledWith({
+      xPct: pct(80, window.innerWidth), yPct: pct(50, window.innerHeight),
+    });
+    expect(surface).toHaveAttribute('data-dragging', 'no');
+  });
   it('a drag beyond the threshold commits the spot as viewport percentages', () => {
     const setPosition = vi.fn();
     render(<Harness position={null} setPosition={setPosition} />);

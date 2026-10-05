@@ -57,7 +57,9 @@
     ".next-e2e/types/**/*.ts",
     ".next-e2e/dev/types/**/*.ts",
     ".next-e2e-diag/types/**/*.ts",
-    ".next-e2e-diag/dev/types/**/*.ts"
+    ".next-e2e-diag/dev/types/**/*.ts",
+    ".next-e2e-simli-fix/types/**/*.ts",
+    ".next-e2e-simli-fix/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

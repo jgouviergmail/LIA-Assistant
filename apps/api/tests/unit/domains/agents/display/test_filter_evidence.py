@@ -1,5 +1,7 @@
 """Evidence needed to filter a result must survive its LLM projection."""
 
+from types import SimpleNamespace
+
 import pytest
 
 from src.domains.agents.formatters.text_summary import generate_data_for_filtering
@@ -174,3 +176,250 @@ def test_real_output_builders_keep_filter_evidence(builder, items, evidence):
     assert "private-" not in rendered
     for item_id in output.registry_updates:
         assert f"[{item_id}]" in rendered
+
+
+@pytest.mark.parametrize("provider", ["google", "microsoft", "apple"])
+def test_real_mail_normalizers_and_builder_preserve_read_and_starred_states(provider):
+    from src.domains.agents.display.filter_evidence import project_filter_evidence
+    from src.domains.agents.tools.mixins import ToolOutputMixin
+    from src.domains.connectors.clients.normalizers.email_normalizer import normalize_imap_message
+    from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
+        normalize_graph_message,
+    )
+
+    messages = []
+    for read in (False, True):
+        if provider == "microsoft":
+            message = normalize_graph_message(
+                {
+                    "id": f"synthetic-{read}",
+                    "subject": "Same subject",
+                    "isRead": read,
+                    "flag": {"flagStatus": "flagged"},
+                    "body": {"content": "Same body", "contentType": "text"},
+                }
+            )
+        elif provider == "apple":
+            message = normalize_imap_message(
+                SimpleNamespace(
+                    uid=str(read),
+                    text="Same body",
+                    html="",
+                    subject="Same subject",
+                    from_="robot@example.test",
+                    to=[],
+                    cc=[],
+                    date_str="",
+                    date=None,
+                    headers={},
+                    attachments=[],
+                    flags=("\\Seen", "\\Flagged") if read else ("\\Flagged",),
+                ),
+                "INBOX",
+            )
+        else:
+            message = {
+                "id": f"synthetic-{read}",
+                "subject": "Same subject",
+                "body": "Same body",
+                "labelIds": ["INBOX", "STARRED"] + ([] if read else ["UNREAD"]),
+            }
+        messages.append(message)
+
+    class Tool(ToolOutputMixin):
+        tool_name = "synthetic_projection"
+
+    output = Tool().build_emails_output(messages)
+    items = list(output.registry_updates.values())
+    evidence = [project_filter_evidence(item.payload) for item in items]
+    assert evidence[0].data["labelIds"] != evidence[1].data["labelIds"]
+    assert "UNREAD" in evidence[0].data["labelIds"]
+    assert "UNREAD" not in evidence[1].data["labelIds"]
+    assert "STARRED" in evidence[0].data["labelIds"]
+    assert "labelIds" in evidence[0].text
+    assert "synthetic-" not in evidence[0].text
+    assert all(item.complete for item in evidence)
+
+
+def test_native_evidence_keeps_json_types_and_field_relationships():
+    from src.domains.agents.display.filter_evidence import project_filter_evidence
+
+    payload = {
+        "subject": "Meeting | attendees: false",
+        "completed": False,
+        "count": 0,
+        "optional": None,
+        "attendees": [
+            {"name": "Alex", "responseStatus": "declined"},
+            {"name": "Alex", "responseStatus": "accepted"},
+        ],
+        "_card_account_binding": "internal-secret",
+        "id": "provider-secret",
+    }
+    evidence = project_filter_evidence(payload)
+    assert evidence.complete
+    assert evidence.data == {
+        key: value for key, value in payload.items() if key not in {"id", "_card_account_binding"}
+    }
+    assert evidence.data["optional"] is None
+    assert evidence.data["completed"] is False
+    assert evidence.data["attendees"][0]["responseStatus"] == "declined"
+
+
+def test_missing_label_state_is_not_fabricated():
+    from src.domains.agents.display.filter_evidence import project_filter_evidence
+
+    evidence = project_filter_evidence({"subject": "No status returned", "body": "Content"})
+    assert "labelIds" not in evidence.data
+    assert "isRead" not in evidence.data
+
+
+def test_real_mcp_payload_excludes_reserved_display_fields_at_every_depth():
+    from src.core.field_names import FIELD_DISPLAY_ONLY
+    from src.domains.agents.data_registry.mcp_metadata import mcp_item_payload
+    from src.domains.agents.display.filter_evidence import project_filter_evidence
+
+    public = {
+        "id": "public-mcp-id",
+        "metadata": {"owner": "Lina", FIELD_DISPLAY_ONLY: {"content": "card-only metadata"}},
+        "raw_material": "steel",
+        "items": [{"_external_flag": False, FIELD_DISPLAY_ONLY: "nested card-only content"}],
+    }
+    payload = mcp_item_payload(public, "Synthetic MCP", "list_samples", "https://mcp.test")
+    evidence = project_filter_evidence(payload, preserve_fields=True)
+
+    assert evidence.complete
+    assert evidence.data == {
+        "server_name": "Synthetic MCP",
+        "tool_name": "list_samples",
+        "_mcp_structured": True,
+        "id": "public-mcp-id",
+        "metadata": {"owner": "Lina"},
+        "raw_material": "steel",
+        "items": [{"_external_flag": False}],
+    }
+    assert "card-only" not in evidence.text
+    assert "_mcp_source" not in evidence.text
+    assert payload[FIELD_DISPLAY_ONLY]["_mcp_source"]["server_url"] == "https://mcp.test"
+    assert public["metadata"][FIELD_DISPLAY_ONLY] == {"content": "card-only metadata"}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"count": 10**5000},
+        {"description": chr(0xD800)},
+        {chr(0xDFFF): "Invalid field name"},
+        {"nested": [{"description": chr(0xDFFF)}]},
+        {"unsupported": object()},
+    ],
+    ids=["large-integer", "surrogate-value", "surrogate-key", "nested-surrogate", "non-json"],
+)
+def test_unrepresentable_evidence_is_incomplete_and_never_repaired(payload):
+    from src.domains.agents.display.filter_evidence import project_filter_evidence
+
+    evidence = project_filter_evidence(payload, preserve_fields=True)
+    assert not evidence.complete
+    evidence.text.encode("utf-8")
+    assert "\\ud800" not in evidence.text and "\\udfff" not in evidence.text
+
+
+@pytest.mark.parametrize(
+    "number",
+    [float("nan"), float("inf"), float("-inf"), "NaN", "sNaN", "Infinity", "-Infinity"],
+    ids=[
+        "nan",
+        "infinity",
+        "negative-infinity",
+        "decimal-nan",
+        "decimal-snan",
+        "decimal-inf",
+        "decimal-negative-inf",
+    ],
+)
+def test_snapshot_cannot_convert_nonfinite_source_numbers_into_complete_evidence(number):
+    from decimal import Decimal
+
+    from src.domains.agents.data_registry.models import (
+        RegistryItem,
+        RegistryItemMeta,
+        RegistryItemType,
+    )
+    from src.domains.agents.display.jev_snapshot import (
+        snapshot_collection_item,
+        snapshot_filter_evidence,
+    )
+
+    value = Decimal(number) if isinstance(number, str) else number
+    source = RegistryItem(
+        id="synthetic",
+        type=RegistryItemType.EVENT,
+        payload={"attendees": [{"measure": value}]},
+        meta=RegistryItemMeta(source="synthetic"),
+    )
+    frozen = snapshot_collection_item(source)
+    evidence = snapshot_filter_evidence(frozen, preserve_fields=False)
+    assert not evidence.complete
+    assert frozen.payload == {"_jev_evidence_omitted": True}
+    assert source.payload["attendees"][0]["measure"] is value
+
+
+def test_snapshot_preserves_finite_decimal_and_ignores_reserved_card_subtrees():
+    from decimal import Decimal
+
+    from src.core.field_names import FIELD_DISPLAY_ONLY
+    from src.domains.agents.data_registry.models import (
+        RegistryItem,
+        RegistryItemMeta,
+        RegistryItemType,
+    )
+    from src.domains.agents.display.jev_snapshot import (
+        snapshot_collection_item,
+        snapshot_filter_evidence,
+    )
+
+    card_fields = {"invalid": float("nan"), "opaque": object()}
+    source = RegistryItem(
+        id="synthetic",
+        type=RegistryItemType.MCP_RESULT,
+        payload={
+            "measure": Decimal("0.0100"),
+            "metadata": {"owner": "Lina", FIELD_DISPLAY_ONLY: card_fields},
+            "items": [{"name": "Sample", FIELD_DISPLAY_ONLY: card_fields}],
+        },
+        meta=RegistryItemMeta(source="mcp_synthetic", display=card_fields),
+    )
+    frozen = snapshot_collection_item(source)
+    evidence = snapshot_filter_evidence(frozen, preserve_fields=True)
+    assert evidence.complete
+    assert evidence.data == {
+        "measure": "0.0100",
+        "metadata": {"owner": "Lina"},
+        "items": [{"name": "Sample"}],
+    }
+    assert frozen.meta.display == {}
+    assert source.meta.display == card_fields
+    assert source.payload["metadata"][FIELD_DISPLAY_ONLY] is card_fields
+
+
+def test_snapshot_rejects_nested_key_collision_before_json_can_lose_source_evidence():
+    from src.domains.agents.data_registry.models import (
+        RegistryItem,
+        RegistryItemMeta,
+        RegistryItemType,
+    )
+    from src.domains.agents.display.jev_snapshot import (
+        snapshot_collection_item,
+        snapshot_filter_evidence,
+    )
+
+    measurements = {1: "NUMERIC", "1": "TEXT"}
+    source = RegistryItem(
+        id="synthetic",
+        type=RegistryItemType.EVENT,
+        payload={"measurements": measurements},
+        meta=RegistryItemMeta(source="synthetic"),
+    )
+    evidence = snapshot_filter_evidence(snapshot_collection_item(source), preserve_fields=False)
+    assert not evidence.complete
+    assert source.payload["measurements"] == measurements and len(measurements) == 2

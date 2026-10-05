@@ -69,7 +69,8 @@ def token_cost_usd(
     Resolves the active time slot for ``at`` (if the row carries a windowed
     tariff) and prices the three token buckets additively. A slot overrides
     all three unit prices; its ``cached_input_unit_price`` may be None with
-    the same semantic as the base column (no separate cache billing).
+    the same semantic as the base column (use the input rate when no separate
+    cache rate is declared). An explicit zero remains free.
 
     Args:
         pricing: The pricing row to apply (``pricing_unit`` already checked
@@ -96,10 +97,9 @@ def token_cost_usd(
         output_price = float(pricing.output_price)
 
     input_cost_usd = (input_tokens / 1_000_000) * input_price
-    if cached_price is not None and cached_tokens > 0:
-        cached_cost_usd = (cached_tokens / 1_000_000) * cached_price
-    else:
-        cached_cost_usd = 0.0
+    cached_cost_usd = (cached_tokens / 1_000_000) * (
+        input_price if cached_price is None else cached_price
+    )
     output_cost_usd = (output_tokens / 1_000_000) * output_price
 
     return input_cost_usd + cached_cost_usd + output_cost_usd
@@ -387,7 +387,8 @@ class AsyncPricingService:
 
         from src.domains.llm.models import LLMModel, LLMModelPricing
 
-        # Normalize model name to remove date suffix (e.g., gpt-4.1-mini-2025-04-14 -> gpt-4.1-mini)
+        # Preserve an exact version's own tariff, falling back to the base
+        # name only when it has no price effective at the requested instant.
         normalized_model = normalize_model_name(model_name)
 
         # Query for pricing effective at or before the given date
@@ -396,11 +397,15 @@ class AsyncPricingService:
             select(LLMModelPricing)
             .join(LLMModelPricing.model)
             .where(
-                LLMModel.model_name == normalized_model,
+                LLMModel.model_name.in_({model_name, normalized_model}),
                 LLMModelPricing.effective_from <= at_date,
             )
             .options(selectinload(LLMModelPricing.model))
-            .order_by(LLMModelPricing.effective_from.desc())
+            .order_by(
+                (LLMModel.model_name == model_name).desc(),
+                LLMModelPricing.effective_from.desc(),
+                LLMModelPricing.id.desc(),
+            )
             .limit(1)
         )
 
@@ -474,7 +479,7 @@ class AsyncPricingService:
         model_normalized = normalize_model_name(model)
 
         # Get model pricing at historical date
-        pricing = await self.get_model_price_at_date(model_normalized, at_date)
+        pricing = await self.get_model_price_at_date(model, at_date)
 
         if not pricing:
             logger.warning(
@@ -594,7 +599,7 @@ class AsyncPricingService:
         model_normalized = normalize_model_name(model)
 
         # Get model pricing from database
-        pricing = await self.get_active_model_price(model_normalized)
+        pricing = await self.get_active_model_price(model)
 
         if not pricing:
             logger.warning(

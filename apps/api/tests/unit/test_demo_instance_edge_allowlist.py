@@ -50,6 +50,7 @@ EXPECTED_ALLOWED = {
     "/api/v1/usage/*",
     "/api/v1/capabilities",
     "/api/v1/config",
+    "/api/v1/avatars/config",
     "/api/v1/system-settings/*",
     "/api/v1/product/*",
     # The product itself. A demonstrator that shows the real assistant must

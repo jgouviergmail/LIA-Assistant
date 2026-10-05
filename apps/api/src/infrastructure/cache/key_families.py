@@ -96,6 +96,7 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # let every other worker start the same work again — the opposite of
     # what the claim is for. It expires on its own.
     "shared_flight": KeyScope.USER_RUNTIME,
+    "mcp:cooldown": KeyScope.USER_RUNTIME,
     # ADR-304: consecutive truncated Drive push drains — a circuit breaker's
     # state, not a cache (``rag`` is): a reset must not re-arm the breaker.
     "rag:drive_push": KeyScope.USER_RUNTIME,
@@ -139,6 +140,7 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # a reset — deleting a live claim would let a second session open. The
     # mint limiter bucket dies with its window.
     "live:session": KeyScope.USER_RUNTIME,
+    "avatar:owner": KeyScope.USER_RUNTIME,
     "live_mint": KeyScope.USER_RUNTIME,
     "live_sample": KeyScope.USER_RUNTIME,
     # The lookup counter of a direct live session (ADR-300 wave 4): a session's own, gone with it.
@@ -157,6 +159,7 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "skill_proposal_claim": KeyScope.USER_RUNTIME,
     # --- global ---------------------------------------------------------------
     "elevenlabs:tts_slots": KeyScope.GLOBAL,
+    "avatar:lease": KeyScope.GLOBAL,
     "llm_cache": KeyScope.GLOBAL,
     "web_search": KeyScope.GLOBAL,
     "web_fetch": KeyScope.GLOBAL,

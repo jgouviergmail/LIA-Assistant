@@ -215,6 +215,9 @@ class TestTheMapCoversWhatTheProductShips:
 
         with patch.object(svc, "_has_live_connector", AsyncMock(return_value=True)):
             probes["live"] = asyncio.run(svc._live_probe(uuid4(), frozenset()))
+        probes["avatar"] = asyncio.run(
+            svc._avatar_probe(uuid4(), frozenset({PlatformCapability.AVATAR}))
+        )
 
         assert {key: probes[key].detail for key in SWITCH_NODE_KEYS} == dict.fromkeys(
             SWITCH_NODE_KEYS, None

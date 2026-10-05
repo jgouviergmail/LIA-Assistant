@@ -34,6 +34,7 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 import feedparser
 
 from src.domains.radio.constants import URL_MAX_BYTES
+from src.domains.shared.commercial_content import editorial_excerpt, is_commercial_content
 
 #: Bounds of what an item may carry into the store.
 TITLE_MAX_CHARS: Final[int] = 300
@@ -152,6 +153,18 @@ def _key(entry: Any, url: str) -> str:
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:40]
 
 
+def _commercial_entry(entry: Any) -> bool:
+    contents = entry.get("content") or []
+    body = "\n".join(str(part.get("value") or "") for part in contents)
+    categories = [str(tag.get("term") or "") for tag in entry.get("tags") or []]
+    return is_commercial_content(
+        str(entry.get("title") or ""),
+        summary=_summary_source(entry),
+        body=body,
+        categories=categories,
+    )
+
+
 def parse_feed(content: bytes, *, feed_url: str, fetched_at: datetime) -> list[ParsedItem]:
     """Normalise every usable entry in a bounded feed body.
 
@@ -171,6 +184,8 @@ def parse_feed(content: bytes, *, feed_url: str, fetched_at: datetime) -> list[P
     items: list[ParsedItem] = []
     seen: set[str] = set()
     for entry in parsed.entries:
+        if _commercial_entry(entry):
+            continue
         url = canonical_url(str(entry.get("link") or ""), feed_url)
         title = plain_text(str(entry.get("title") or ""), TITLE_MAX_CHARS)
         if url is None or not title:
@@ -179,7 +194,7 @@ def parse_feed(content: bytes, *, feed_url: str, fetched_at: datetime) -> list[P
         if key in seen:
             continue
         seen.add(key)
-        summary = plain_text(_summary_source(entry), SUMMARY_MAX_CHARS)
+        summary = plain_text(editorial_excerpt(_summary_source(entry)), SUMMARY_MAX_CHARS)
         items.append(
             ParsedItem(
                 item_key=key,

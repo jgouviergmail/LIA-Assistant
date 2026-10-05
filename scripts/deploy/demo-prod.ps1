@@ -90,7 +90,10 @@ if (-not $seedDigest) {
 }
 $seedDigest = $seedDigest.Trim()
 
-$Compose = "DEMO_INSTANCE_ENV_FILE=.env.demo-instance.prod SEED_BUNDLE_SHA256=$seedDigest docker compose --env-file .env.demo-instance.prod -f docker-compose.demo-instance.yml"
+# Production must read the identity of the remote bundle, not the workstation
+# environment or the demo secrets file. Missing provenance refuses the command;
+# the local Compose envelope retains explicit development defaults without it.
+$Compose = ". ./provenance.env && DEMO_INSTANCE_ENV_FILE=.env.demo-instance.prod SEED_BUNDLE_SHA256=$seedDigest docker compose --env-file .env.demo-instance.prod -f docker-compose.demo-instance.yml"
 
 function Invoke-Remote {
     param([string]$Command, [string]$Label, [switch]$Diagnose)
@@ -211,7 +214,7 @@ switch ($Action) {
         # seeds are not the ones you just described" into a refusal on the
         # host, BEFORE any migration runs, instead of a bare 64-hex
         # mismatch raised inside the container afterwards (2026-08-19).
-        Invoke-Remote "SEED_BUNDLE_SHA256=$seedDigest sh scripts/deploy/preflight-demo-prod.sh" "Preflight"
+        Invoke-Remote ". ./provenance.env && SEED_BUNDLE_SHA256=$seedDigest sh scripts/deploy/preflight-demo-prod.sh" "Preflight"
 
         # `--build`, and it is the difference between serving the code that was
         # shipped and serving yesterday's. `deploy:prod` builds the three
@@ -275,7 +278,7 @@ switch ($Action) {
 
     "push-env" {
         Push-DemoEnv
-        Invoke-Remote "SEED_BUNDLE_SHA256=$seedDigest sh scripts/deploy/preflight-demo-prod.sh" "Preflight"
+        Invoke-Remote ". ./provenance.env && SEED_BUNDLE_SHA256=$seedDigest sh scripts/deploy/preflight-demo-prod.sh" "Preflight"
         Write-Host "`nFichier en place. Lancer ensuite: task demo:prod:up" -ForegroundColor Green
     }
 

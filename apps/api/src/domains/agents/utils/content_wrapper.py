@@ -129,6 +129,11 @@ def _unescape_tags(content: str) -> str:
 # 5 MB page would be a latency footgun on the response path.
 _SCAN_MAX_CHARS = 20_000
 
+# Joiners and zero-width spaces also occur in emoji, non-Latin writing and
+# newsletter layout. Their presence alone is a low-confidence observation;
+# bidi controls can reverse/reorder visible text and retain the warning.
+_BIDI_CONTROL_PATTERN = re.compile("[\u202a-\u202e\u2066-\u2069]")
+
 # Imperative "ignore what you were told" verbs across the 6 supported locales.
 # English-only detection would be a hole on a product that serves fr/es/de/it/zh:
 # the attacker writes in the language of their target, not of the framework.
@@ -286,13 +291,18 @@ def injection_notice(content: str, *, item_type: str, surface: str) -> str:
         for family in families:
             prompt_injection_patterns_total.labels(surface=surface, family=family).inc()
 
-    logger.warning(
-        "external_content_injection_pattern_detected",
-        surface=surface,
-        item_type=item_type,
-        families=list(families),
-        content_chars=len(content),
-    )
+    event_fields = {
+        "surface": surface,
+        "item_type": item_type,
+        "families": list(families),
+        "content_chars": len(content),
+    }
+    if families == ("invisible_unicode",) and not _BIDI_CONTROL_PATTERN.search(
+        content[:_SCAN_MAX_CHARS]
+    ):
+        logger.info("external_content_injection_pattern_detected", **event_fields)
+    else:
+        logger.warning("external_content_injection_pattern_detected", **event_fields)
     return f" {REGISTRY_INJECTION_NOTICE_PREFIX}{', '.join(families)}]"
 
 

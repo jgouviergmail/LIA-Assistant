@@ -314,6 +314,11 @@ if [ -n "$PYTHON_FILES" ]; then
         # A variable a migration reads AND runtime code reads is still caught,
         # because the runtime file stays in the scan.
         SCANNED_PY=$(echo "$PYTHON_FILES" | grep -v "alembic/versions/" || true)
+        # A TEST HARNESS reads test configuration, not instance settings:
+        # TEST_REDIS_URL belongs to apps/api/.env.test. Exclude test files by
+        # location, never names such as TEST_*: a runtime read of the same
+        # variable must still require documentation in .env.example.
+        SCANNED_PY=$(echo "$SCANNED_PY" | grep -vE '(^|/)tests/' || true)
         # A PROBE is not configuration either. `apps/api/scripts/<domain>/probe*.py`
         # measures a provider on a key the OPERATOR hands the script for one run
         # (`LIVE_PROBE_API_KEY`, the ElevenLabs key of a throwaway agent) and

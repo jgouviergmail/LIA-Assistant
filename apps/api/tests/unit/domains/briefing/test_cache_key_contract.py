@@ -125,7 +125,18 @@ class TestTheBuilderItself:
     def test_every_supported_language_is_covered(self) -> None:
         user_id = uuid4()
         keys = section_keys_every_language(user_id=user_id, section=SECTION_MAILS)
-        assert len(keys) == len(SUPPORTED_LANGUAGES)
+        expected = set()
+        for language in SUPPORTED_LANGUAGES:
+            normal = _service(language, user_id)
+            editorial = BriefingService(normal.user, exclude_commercial_mails=True)
+            expected.update(
+                {
+                    normal._cache_key(SECTION_MAILS),
+                    editorial._cache_key(SECTION_MAILS),
+                    editorial._last_good_key(SECTION_MAILS),
+                }
+            )
+        assert set(keys) == expected
         assert len(set(keys)) == len(keys), "two languages collided on one key"
 
     def test_two_languages_never_share_a_key(self) -> None:

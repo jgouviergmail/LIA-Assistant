@@ -235,6 +235,9 @@ async def _synthesize_direct(
             user_language=session.language,
             user_timezone=session.timezone,
             user_id=session.user_id,
+            task_type=session.origin_kind,
+            target_id=session.origin_id,
+            run_id=session.run_id,
         )
     except UsageLimitExceededError:
         return RelayOutcome.QUOTA_BLOCKED.value, None

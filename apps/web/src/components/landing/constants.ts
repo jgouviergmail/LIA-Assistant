@@ -91,6 +91,10 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-10-05 (v2.6.0): backend 40,019 collected
+ *   (pytest --collect-only -q) + frontend 11,038 collected
+ *   (vitest list --json) = 51,057 -> 51000.
+ *   Full coverage and runtime gates qualify these tests before publication.
  *   Re-measured 2026-10-04 (v2.5.0): backend 39 146 collected
  *   (`task test:markers`) + frontend 10 860 passing in 864 files
  *   (`task test:frontend:coverage`) = 50 006 -> 50000.
@@ -377,9 +381,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 616,
   uiLanguages: 6,
-  tests: 50000,
-  adrs: 332,
-  releases: 276,
+  tests: 51000,
+  adrs: 333,
+  releases: 277,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

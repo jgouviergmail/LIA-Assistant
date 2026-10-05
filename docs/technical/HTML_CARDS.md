@@ -31,18 +31,18 @@ A missing measurement, zero and false are different states. A renderer does not 
 
 | Domain | Presentation and useful detail |
 |---|---|
-| Email | Complete body, parties, attachments and source link; authorized reply/forward composition where the source account can be verified |
+| Email | Complete body, parties, attachments and source link; authorized reply/forward/deletion composition where the source account can be verified |
 | Contacts | Received names and pronunciation, every organization with supplied civil employment dates/current state, phones, addresses, birthdays, notes and source links |
 | Calendars/events | Visible calendar alias and original name, access including restricted private details, received owner/location/notification preferences, known selection/hidden states, reminder methods, source-aware clocks, civil all-day dates, attendees, every supported conference join point and recurrence facts |
 | Tasks/reminders | Full notes, received subtasks and completion, explicit provider state, stored reminder recurrence and owner's source timezone |
 | Files | Full description, owners, permission roles/identities, supplied availability/sharing/version/download facts and supplied thumbnail previews |
 | Places | Received photos with attribution, keyboard/touch gallery and fullscreen, full reviews, service flags, opening periods and source timezone |
 | Routes | Whole journey, legs, steps, transit and supplied alternatives, tolls/waypoints and complete Maps destinations |
-| Weather | Received forecast slots, comparison controls, finite measurements and source time; attribution is preserved |
+| Weather | Received forecast slots, comparison controls, finite measurements, source condition icons and source time; attribution is preserved |
 | Research | Complete received extracts, article sections/categories, sources and citation ordinals tied to their original valid destinations |
 | Hue | Read-only state and brightness meter, valid supplied color temperature/device range and exact CIE coordinates |
 | Tickets | Shared status/priority/assignment summary; full reads retain description, steps, comments and known run outcome/cost/token usage |
-| MCP | Bounded public JSON snapshots, source-authored server identity, binary metadata and explicit redaction/limit indicators |
+| MCP | Bounded public JSON snapshots, application-authored server identity/public origin and invoked method, binary metadata and explicit redaction/limit indicators |
 
 This is a policy for **received** information, not a promise that every list endpoint requests every provider field. Provider masks and detail operations keep their established scope. Internal credentials, raw binary bodies, private orchestration fields and unsupported technical records are deliberately excluded. No new light command, ticket action, provider fetch or model call is caused by opening a disclosure. Google conference identifiers and signatures do not serve as join information; only the supplied public entry points and their access codes do.
 
@@ -51,6 +51,13 @@ Microsoft native recurrence patterns remain native facts instead of a lossy inve
 ### Document previews
 
 Drive cards display an actually supplied thumbnail for every supported file family, with the existing image proxy/authentication path and a link to the source. A missing thumbnail does not cause another provider query.
+
+Weather visuals follow the provider's stable condition and day/night code through
+[weather_card.py](../../apps/api/src/domains/agents/display/components/weather_card.py).
+Canonical wind/squall and tornado conditions take precedence where an upstream
+code shares the fog family. Localized descriptions are a legacy fallback; unknown
+conditions keep a neutral default rather than inventing a sunny reading. This
+applies to current and individual forecast readings without changing their facts.
 
 Generated documents use a small read-only preview through the attachment owner/status/expiry checks. PDF previews contain the first page and can expand in the shared keyboard-accessible lightbox. CSV shows a bounded table excerpt and Excel the opening rows of its first sheet; text and Markdown show literal source text; Word shows opening paragraphs and PowerPoint its cover slide. Excerpts are explicitly named as such, and the original opening/download actions remain available. Preview errors never remove those actions.
 
@@ -154,7 +161,9 @@ MCP snapshot budgets and credential exclusions are defined in [mcp_details.py](.
 
 A composition affordance is server-selected and tied to the assistant answer that displayed the source. [card_actions.py](../../apps/api/src/domains/agents/display/card_actions.py) creates the action contract; [card_composition_service.py](../../apps/api/src/domains/agents/services/card_composition_service.py) verifies answer ownership, current conversation/run, canonical source and account grant. The request uses the typed chat context envelope; transient composition state is cleared after the request.
 
-The frontend stores draft text and its composition context together for the current account. A pending retry retains its original immutable target. Replacing an existing composition requires the established explicit confirmation. Reply/forward or reminder adjustment prepares a request/draft; it does not send or execute automatically. HITL, modification, resume and provider refresh/retry paths recheck the same binding. Disconnected or changed accounts cannot silently act through another grant. Gmail cache namespaces follow the verified grant. Sources without a sufficient structural account/mailbox binding do not offer the action.
+The frontend stores draft text and its composition context together for the current account. A pending retry retains its original immutable target. Replacing an existing composition requires the established explicit confirmation. Reply/forward/deletion or reminder adjustment prepares a request/draft; it does not send or execute automatically. Email deletion prepares the existing confirmation draft and moves the selected message to trash only after approval. Previously archived reply/forward grants retain those actions without gaining deletion. HITL, modification, resume and provider refresh/retry paths recheck the same binding. Disconnected or changed accounts cannot silently act through another connection. Gmail cache namespaces follow the verified account identity. Sources without a sufficient structural account/mailbox binding do not offer the action.
+
+Grouped OAuth connections use their verified grant. Existing Gmail/Outlook connections with per-service credentials use [legacy_email_binding.py](../../apps/api/src/domains/connectors/legacy_email_binding.py): an opaque HMAC-derived UUID scoped to the user, provider, connector row and authenticated connection generation. The generation remains inside encrypted credentials across access/refresh token rotation. Every successful new consent creates a fresh generation, even when the provider reuses its refresh token. Reads of existing credentials require no reconnect or database migration, and card projections carry no token or generation seed. Sources without a refresh credential remain unavailable. Previously archived answers without action metadata cannot acquire a target from their HTML.
 
 The model sees the versioned [composition directive](../../apps/api/src/domains/agents/prompts/v1/card_composition_context.txt) with the verified target and provider, not an arbitrary instruction extracted from card HTML. Private transport metadata does not become user prose or persist as a future instruction.
 

@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -16,8 +17,21 @@ from src.domains.agents.display.jev_qualification import (
     compatible_collection_item,
     qualify_collection,
 )
+from src.domains.agents.display.jev_snapshot import snapshot_collection_item
 
 logger = structlog.get_logger(__name__)
+
+
+def _snapshot_registry(registry: dict[str, Any], run_id: str) -> dict[str, RegistryItem]:
+    result = {}
+    for key, value in registry.items():
+        try:
+            item = RegistryItem.model_validate(value)
+        except ValidationError:
+            logger.warning("jev_preview_invalid_item", run_id=run_id)
+            continue
+        result[key] = snapshot_collection_item(item)
+    return result
 
 
 async def _publish_collection(
@@ -26,9 +40,19 @@ async def _publish_collection(
     run_id: str,
     query: str,
     items: list[RegistryItem],
+    *,
+    reference_datetime: datetime | None = None,
+    timezone: str | None = None,
 ) -> None:
     try:
-        result = await qualify_collection(user_id=user_id, run_id=run_id, query=query, items=items)
+        result = await qualify_collection(
+            user_id=user_id,
+            run_id=run_id,
+            query=query,
+            items=items,
+            reference_datetime=reference_datetime,
+            timezone=timezone,
+        )
         if result is not None:
             writer(
                 {
@@ -47,6 +71,9 @@ async def _publish(
     run_id: str,
     query: str,
     registry: dict[str, Any],
+    *,
+    reference_datetime: datetime | None = None,
+    timezone: str | None = None,
 ) -> None:
     groups: dict[RegistryItemType, list[RegistryItem]] = {}
     for value in registry.values():
@@ -59,7 +86,17 @@ async def _publish(
             groups.setdefault(item.type, []).append(item)
     async with asyncio.TaskGroup() as group:
         for items in groups.values():
-            group.create_task(_publish_collection(writer, user_id, run_id, query, items))
+            group.create_task(
+                _publish_collection(
+                    writer,
+                    user_id,
+                    run_id,
+                    query,
+                    items,
+                    reference_datetime=reference_datetime,
+                    timezone=timezone,
+                )
+            )
 
 
 class CollectionPreview:
@@ -96,7 +133,17 @@ class CollectionPreview:
         except RuntimeError:
             # A non-streaming graph invocation still produces its ordinary answer.
             return
-        self._task = asyncio.create_task(_publish(writer, context.user_id, run_id, query, registry))
+        self._task = asyncio.create_task(
+            _publish(
+                writer,
+                context.user_id,
+                run_id,
+                query,
+                _snapshot_registry(registry, run_id),
+                reference_datetime=datetime.now(UTC),
+                timezone=context.timezone,
+            )
+        )
 
     async def close(self) -> None:
         """Stop unfinished optional work before the response's tracker closes."""

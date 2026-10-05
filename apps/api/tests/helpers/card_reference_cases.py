@@ -1,6 +1,8 @@
 """Stable cross-runtime card fixtures: backend output, never hand-written HTML."""
 
+from datetime import UTC, datetime
 from typing import TypedDict
+from unittest.mock import patch
 
 from src.domains.agents.data_registry.card_payload import card_payload
 from src.domains.agents.data_registry.models import RegistryItem
@@ -51,6 +53,7 @@ def mcp_detail_domain() -> dict[str, dict[str, object]]:
         },
         "Actual MCP server",
         "list_items",
+        "https://mcp.example.test/SECRET_NOT_DISPLAYED/mcp?token=SECRET_NOT_DISPLAYED",
     )
     item = RegistryItem(
         id="mcp_reference_details",
@@ -151,7 +154,7 @@ def weather_detail_domain() -> dict[str, dict[str, object]]:
             {
                 "dt": int(datetime(2026, 10, 3, hour, tzinfo=UTC).timestamp()),
                 "main": {"temp": 0, "feels_like": -2.5, "humidity": 0, "pressure": 1008},
-                "weather": [{"description": "clear sky", "icon": "01d"}],
+                "weather": [{"description": description, "icon": code, "main": condition}],
                 "wind": {"speed": 0, "deg": 0, "gust": 2.4},
                 "visibility": 0,
                 "clouds": {"all": 0},
@@ -159,7 +162,11 @@ def weather_detail_domain() -> dict[str, dict[str, object]]:
                 "rain": {"3h": 0},
                 "snow": {"3h": 1.5},
             }
-            for hour in (18, 21, 0)
+            for hour, code, description, condition in [
+                (18, "01d", "clear sky", "Clear"),
+                (21, "02n", "few clouds", "Clouds"),
+                (0, "11n", "thunderstorm with rain", "Thunderstorm"),
+            ]
         ],
     }
     result = _format_hourly_response(raw, "Lyon", "FR", 3, "metric", user_timezone="Europe/Paris")
@@ -231,15 +238,19 @@ def route_detail_domain(language: str) -> dict[str, dict[str, object]]:
             },
         ]
     }
-    formatted = _format_route_response(
-        source,
-        "Place Bellecour",
-        "Gare de Vaise",
-        TravelMode.TRANSIT,
-        language,
-        "Europe/Paris",
-        departure_time="2026-10-05T07:30:00Z",
-    )
+    # Relative ETA labels are part of the real formatter's output. Keep the
+    # reference date fixed so tomorrow's test run still exercises this corpus.
+    with patch("src.domains.agents.tools.routes_formatting.datetime", wraps=datetime) as clock:
+        clock.now.return_value = datetime(2026, 10, 4, 12, tzinfo=UTC)
+        formatted = _format_route_response(
+            source,
+            "Place Bellecour",
+            "Gare de Vaise",
+            TravelMode.TRANSIT,
+            language,
+            "Europe/Paris",
+            departure_time="2026-10-05T07:30:00Z",
+        )
     _, item = _create_route_registry_item(
         formatted, "Place Bellecour", "Gare de Vaise", TravelMode.TRANSIT
     )

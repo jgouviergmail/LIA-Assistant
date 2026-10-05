@@ -221,6 +221,11 @@ async def assemble_segment(
         await run_ffmpeg(plan.args, timeout_s=timeout_s)
         os.replace(partial, out)
         measured = await probe_duration(out, timeout_s=timeout_s)
+    except asyncio.CancelledError:
+        # The subprocess runner has reaped ffmpeg before propagating its
+        # cancellation. Remove only this unfinished mix, never the destination.
+        partial.unlink(missing_ok=True)
+        raise
     except (FfmpegError, ValueError, OSError) as exc:
         partial.unlink(missing_ok=True)
         raise AudioAssemblyError(f"segment assembly failed: {type(exc).__name__}") from exc

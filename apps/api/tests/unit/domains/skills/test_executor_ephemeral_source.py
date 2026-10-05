@@ -16,6 +16,8 @@ acceptable for code a model wrote from an email. Fail closed, never downgrade.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -44,6 +46,21 @@ def _completed(stdout: str = "42\n", returncode: int = 0) -> SimpleNamespace:
     return SimpleNamespace(returncode=returncode, stdout=stdout, stderr="")
 
 
+def _launch_test_python(**kwargs: object) -> subprocess.CompletedProcess[str]:
+    """Run deterministic test sources through the actual launcher, without Docker."""
+    argv = kwargs["cmd"]
+    assert isinstance(argv, list)
+    image_index = argv.index("lia-api:local")
+    return subprocess.run(
+        [sys.executable, *argv[image_index + 1 :]],
+        input=str(kwargs["stdin_payload"]),
+        text=True,
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+
+
 class TestTheLegacyModeIsRefused:
     """Model-authored code never runs in the path that only isolates as root."""
 
@@ -60,11 +77,30 @@ class TestTheLegacyModeIsRefused:
             )
 
         assert result.success is False
+        assert result.execution_started is False
         assert "sandbox" in (result.error or "").lower()
         spawn.assert_not_called(), "nothing may be spawned when the sandbox is not the container"
 
 
 class TestTheSourceTravelsWithoutAFile:
+    async def test_the_launcher_preserves_future_imports_argv_and_json_stdin(self) -> None:
+        source = (
+            "from __future__ import annotations\n"
+            "import json, sys\n"
+            "print(json.dumps([sys.argv, json.load(sys.stdin)['items']]))\n"
+        )
+        with (
+            patch("src.core.config.get_settings", return_value=_settings()),
+            patch.object(SkillScriptExecutor, "_run_sandbox_sync", side_effect=_launch_test_python),
+        ):
+            result = await SkillScriptExecutor.execute_source(
+                source=source, payload={"items": {"x": 1}}, label="ephemeral"
+            )
+
+        assert result.execution_started is True
+        assert result.success is True
+        assert json.loads(result.output) == [["-c"], {"x": 1}]
+
     async def test_the_model_source_reaches_the_container_argv(self) -> None:
         source = "import json,sys; print(len(json.load(sys.stdin)['items']))"
         with (
@@ -78,6 +114,7 @@ class TestTheSourceTravelsWithoutAFile:
             )
 
         assert result.success is True
+        assert result.execution_started is True
         argv = spawn.call_args.kwargs["cmd"]
         assert argv[-1] == source, "the source is passed inline, never mounted"
         assert "--network" in argv and argv[argv.index("--network") + 1] == "none"
@@ -111,6 +148,38 @@ class TestTheSourceTravelsWithoutAFile:
 
 
 class TestTheBoundsHold:
+    @pytest.mark.parametrize("exit_code", [125, 126, 127])
+    async def test_a_script_using_a_docker_reserved_exit_code_still_started(
+        self, exit_code: int
+    ) -> None:
+        """Run the actual launcher with a deterministic test script, without Docker."""
+
+        with (
+            patch("src.core.config.get_settings", return_value=_settings()),
+            patch.object(SkillScriptExecutor, "_run_sandbox_sync", side_effect=_launch_test_python),
+        ):
+            result = await SkillScriptExecutor.execute_source(
+                source=f"import sys; sys.exit({exit_code})", payload={}, label="ephemeral"
+            )
+
+        assert result.success is False
+        assert result.execution_started is True
+        assert result.exit_code == exit_code
+        assert result.error == "Script failed"
+
+    async def test_an_unreadable_result_after_dispatch_is_charged_conservatively(self) -> None:
+        error = UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+        with (
+            patch("src.core.config.get_settings", return_value=_settings()),
+            patch.object(SkillScriptExecutor, "_run_sandbox_sync", side_effect=error),
+        ):
+            result = await SkillScriptExecutor.execute_source(
+                source="pass", payload={}, label="ephemeral"
+            )
+
+        assert result.success is False
+        assert result.execution_started is True
+
     async def test_an_oversized_source_is_refused_before_the_daemon(self) -> None:
         with (
             patch("src.core.config.get_settings", return_value=_settings()),
@@ -123,6 +192,7 @@ class TestTheBoundsHold:
             )
 
         assert result.success is False
+        assert result.execution_started is False
         spawn.assert_not_called()
 
     async def test_an_oversized_payload_is_refused(self) -> None:
@@ -138,6 +208,7 @@ class TestTheBoundsHold:
             )
 
         assert result.success is False
+        assert result.execution_started is False
         assert "exceeds" in (result.error or "").lower()
         spawn.assert_not_called()
 
@@ -155,6 +226,7 @@ class TestTheBoundsHold:
             )
 
         assert result.success is False
+        assert result.execution_started is True
         assert "NameError" in (result.error or "")
 
 

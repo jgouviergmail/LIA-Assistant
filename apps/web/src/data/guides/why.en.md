@@ -4,7 +4,7 @@
 
 **Version**: 6.2
 **Date**: 2026-10-04
-**Application**: LIA v2.5.0
+**Application**: LIA v2.6.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -125,6 +125,8 @@ Talk to LIA as you would to a human assistant — no commands to memorize, no sy
 
 When an answer carries data, it is shown as cards that display everything the source supplied — inventing nothing — and keep the detail behind a disclosure: a place's photos in a gallery, the weather compared slot by slot, a document's preview, an interactive route. Replying to an e-mail or adjusting a reminder from its card prepares the request; nothing goes out without you.
 
+The cards also show where a third-party MCP result came from and which method produced it. Dates and selected items follow the available evidence; weather symbols reflect the supplied conditions. An e-mail deletion stays bound to its exact connected mailbox and waits for your confirmation.
+
 ### 3.2. Personal connected services
 
 - **Email**: read, search, compose, send, reply, forward — via Gmail, Outlook or Apple Mail; a message arrives as clean text, and many of them are summarised message by message ("summarise my unread mail", "a synthesis of this week's newsletters"); an attachment is read on request — a document as text, a photo or a scan through the vision model
@@ -154,6 +156,8 @@ LIA offers a complete voice mode:
 - **Voice synthesis**: three admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), or ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Telegram voice messages**: send audio messages, LIA transcribes and responds
 - **Live mode**: a real-time, voice-to-voice conversation on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and hands every request to LIA, which runs it as an ordinary chat turn while you speak; a direct session lets the voice read your data itself and act on nothing. What the provider bills is shown to you, never recorded. A silence no longer closes a session: it puts it on standby — connection closed, nothing billed — until a tap wakes it with LIA's context; ending it is always yours.
+
+- **Speaking avatar, experimental**: if your instance offers it, connect your personal Simli key and activate a face for voice comments and Live, direct or delegated. Move its floating window and choose among three sizes, including with the keyboard. An open connection consumes your Simli plan even during silence; Live standby closes it and waking reconnects. Radio stays separate. Media and mobile qualification remain in progress.
 
 ### 3.5. Creation and media
 
@@ -193,7 +197,7 @@ When it diagnoses one of those incidents, it no longer works from a number alone
 
 LIA welcomes your heart-rate and step-count measurements from **any source** — the simplest integration is an iPhone Shortcuts automation pushing Apple Health, but any system able to call an API (Android automation, personal script, connected device) can send them. Sending the same data twice is harmless, and when two devices cover the same period LIA merges them without ever counting twice.
 
-The data stays inside your LIA instance — no third-party service has access — and is visualized in a dedicated Settings section, as a line chart (HR) and bar chart (steps), with a period selector (hour, day, week, month, year) and a dashed line for the period average.
+Raw measurements are stored in your LIA instance and shown in a dedicated Settings section, with a line chart for heart rate, bars for steps, period selection (hour, day, week, month, year) and a dashed period average. If you enable their use by the assistant, selected models receive a factual projection rather than raw readings.
 
 Ingestion is authenticated by a **dedicated token** that you generate from the application and can revoke at any time. The token only grants health-data ingestion — never access to the rest of your account. You can generate several, one per device, and manage them separately.
 
@@ -270,7 +274,7 @@ The administrator maintains control over consumption:
 
 ### 4.3. Your family AI
 
-Imagine: a Raspberry Pi in your living room, and the whole family enjoying an intelligent AI assistant — each with their own personalized experience, memories, conversation style, and an assistant that develops its own emotional relationship with them. All under your control, without a cloud subscription, without data leaving for a third party.
+Imagine: a Raspberry Pi in your living room, and the whole family enjoying an intelligent AI assistant — each with their own personalized experience, memories, conversation style, and an assistant that develops its own emotional relationship with them. The instance stays under your control; any remote models or services you use receive the data needed for their part of a request.
 
 ---
 
@@ -414,6 +418,8 @@ Those memories still have to arrive. A memory is only worth what it actually cap
 
 And she does not stop at what your message evokes: when a name or a subject comes up along the way — the sender of an e-mail, a place in a document — she looks it up in her memory; on the phone too, she finds what answers your question rather than her latest memories.
 
+Standing instructions are **pinned when created**: automated maintenance cannot rewrite them while pinned. You can edit, unpin or delete them yourself. Even unpinned, a procedural instruction cannot be retired automatically without a successor.
+
 ### 7.2. The Psyche Engine: a living personality
 
 This is LIA's deepest differentiator. ChatGPT, Gemini, Claude — all have a fixed personality. Every message is an emotional blank slate. LIA is different.
@@ -487,7 +493,7 @@ LIA ships with production-grade observability:
 | **Langfuse** | Specialized LLM call tracing |
 | **Alertmanager** | Email alerts on vital signals, linked runbooks |
 
-Every request is traced end-to-end, every LLM call is measured, every error is contextualized. This isn't monitoring bolted on as an afterthought — it's a **foundational architectural decision** documented across the project's Architecture Decision Records. And measurement names no one: a metric or a trace designates the route taken by its pattern, never the name or the search an address contains — the logging rule, applied to the instruments. The whole monitoring stack runs on supported versions, pinned by digest.
+Every request is traced end-to-end, every LLM call is measured, every error is contextualized. This isn't monitoring bolted on as an afterthought — it's a **foundational architectural decision** documented across the project's Architecture Decision Records. HTTP metrics and route attributes in HTTP traces use the route pattern, excluding names or search terms embedded in an address. Optional LLM traces can retain conversation context and need their own access and retention controls. The whole monitoring stack runs on supported versions, pinned by digest.
 
 That demand reaches down to the machine. A server is several processes, and "the container uses five gigabytes" does not say which one holds what: every LIA process therefore publishes what it holds in memory itself, a dashboard draws it process by process, an alert names the one that overflows — and what a process loads was measured on the target machine before being touched, never assumed.
 
@@ -529,7 +535,7 @@ LIA does not ask to be trusted on its word. The frameworks it follows are writte
 
 ### 9.1. What regulation requires
 
-**Privacy is designed into the architecture, not certified by a slogan.** Your account data lives in the database of the LIA instance you use; if you self-host, you control that server. You can export it as readable Markdown, structured JSON and files, or request its deletion; secret material is deliberately not exported. Credentials are encrypted, sessions are isolated, and the server's technical logs keep only facts — counts, codes, identifiers — never your words: a test reads every logging line in the code to make sure of it, and the metrics and traces name no one either. Whether a particular deployment meets every GDPR duty still depends on how it is operated and which providers it uses.
+**Privacy is designed into the architecture, not certified by a slogan.** Your account data lives in the database of the LIA instance you use; if you self-host, you control that server. You can export it as readable Markdown, structured JSON and files, or request its deletion; secret material is deliberately not exported. Credentials are encrypted and sessions are isolated. The server's technical logs favor counts, codes and identifiers, with controls and tests to keep personal content out. Optional LLM diagnostic traces have a different scope: they can retain model context and account-linked metadata, so their access and retention need deliberate configuration. Whether a particular deployment meets every GDPR duty still depends on how it is operated and which providers it uses.
 
 **LIA keeps records even where a law does not require this personal use case to do so.** Article 12 of the EU AI Act addresses high-risk systems; LIA's action, consultation, decision, model-parameter and integrity records are a deliberate transparency choice, not a claim of high-risk certification. They can be exported and are removed with the account, subject to the documented limits of what each record captures.
 
@@ -542,7 +548,7 @@ LIA does not ask to be trusted on its word. The frameworks it follows are writte
 | **MCP** (Model Context Protocol) | Plug in external tools, yours as much as a vendor's, without writing a line of code |
 | **Agent Plugins** (agent-plugins.org) | Install a portable package in one step — skills and MCP servers together — and uninstall it just as cleanly |
 | **agentskills.io** | Add expert competencies written in plain language |
-| **OAuth 2.1 + PKCE** | Connect your Google, Microsoft or Apple accounts without LIA ever holding your password |
+| **OAuth 2.1 + PKCE** | Connect your Google or Microsoft accounts without sharing your account password with LIA |
 | **WebAuthn / FIDO2** | Sign in with a passkey, with no password at all |
 | **OWASP Top 10** | The reference grid of web vulnerabilities, walked endpoint by endpoint |
 | **OpenTelemetry** | Observability any tool on the market can read back |

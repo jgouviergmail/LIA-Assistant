@@ -178,10 +178,12 @@ en français », « ne m'appelle jamais après 20 h ». Un balayage qui en fait
 disparaître une change le comportement de l'assistante en silence, et personne
 ne peut désigner le moment où c'est arrivé.
 
-La règle n'est pas « cette ligne est gelée » — ce serait aussi bloquer les
-corrections qui la maintiennent vraie, et c'est pourquoi l'épinglage a été
-écarté par le propriétaire (épinglé = verrouillé par l'utilisateur). La règle
-est qu'une directive **ne quitte jamais l'ensemble actif sans successeur** :
+New `procedural` memories are automatically **pinned at creation**.
+`MemoryService.create_memory` applies
+this default to extracted memories, manual creation and supersession into this
+category. Pinning also blocks automated changes; the person can still edit or
+unpin a rule. Existing and explicitly unpinned directives keep their category
+protection: they never leave the active set without a successor.
 
 | Chemin | Une directive |
 |---|---|
@@ -189,8 +191,8 @@ est qu'une directive **ne quitte jamais l'ensemble actif sans successeur** :
 | Consolidation (détruit le perdant d'une paire) | jamais appariée |
 | `delete` de l'extracteur | ignoré, et dit |
 | `invalidate_memory` (retrait sans successeur) | refusé |
-| `supersede_with_update` (retrait AVEC successeur) | autorisé — c'est une correction |
-| `update_memory` (édition sur place) | autorisé |
+| `supersede_with_update` (retrait AVEC successeur) | allowed only when unpinned |
+| `update_memory` (édition automatisée sur place) | refused while pinned; allowed after the person unpins it |
 | La personne qui la supprime elle-même | autorisé — c'est son acte |
 
 Le prédicat unique est `memories/protection.py::is_protected_from_deletion`,

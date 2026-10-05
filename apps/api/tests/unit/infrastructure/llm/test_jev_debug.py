@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from src.infrastructure.llm.typesafe_client import ChoiceAnswer, ChoiceQuestion
 
@@ -54,6 +55,31 @@ def test_response_explains_opaque_candidates_and_states_the_cut() -> None:
     assert response.probabilities[0].probability == 0.81
     assert len(response.probabilities) == 10
     assert response.omitted_candidates == 10
+
+
+def test_historical_trace_remains_readable_and_failure_reason_is_a_closed_code() -> None:
+    module = importlib.import_module("src.infrastructure.llm.jev_debug_models")
+    historical = {
+        "id": str(uuid4()),
+        "run_id": "synthetic-run",
+        "caller": "memory_extraction",
+        "usage": "observe_memory",
+        "started_at": datetime.now(UTC).isoformat(),
+        "requested_model": "jev-1.13.0",
+        "context": {"text": "synthetic", "original_characters": 9, "omitted_characters": 0},
+        "outcome": "invalid_response",
+    }
+    restored = module.JevCallTrace.model_validate(historical)
+    assert restored.invalid_response_reason is None
+    reasoned = module.JevCallTrace.model_validate(
+        {**historical, "invalid_response_reason": "probability_sum"}
+    )
+    round_trip = module.JevCallTrace.model_validate_json(reasoned.model_dump_json())
+    assert round_trip.invalid_response_reason == "probability_sum"
+    with pytest.raises(ValidationError):
+        module.JevCallTrace.model_validate(
+            {**historical, "invalid_response_reason": "arbitrary response text"}
+        )
 
 
 @pytest.mark.parametrize("action", ["fallback", "preview"])

@@ -542,7 +542,7 @@ def _types(chunks: list[ChatStreamChunk]) -> list[str]:
 
 
 @pytest.mark.asyncio
-async def test_char_jev_preview_timing_keeps_first_result_separate_from_answer() -> None:
+async def test_char_hidden_legacy_preview_does_not_advance_answer_timing() -> None:
     harness = Harness(
         script=[
             _router("actionable"),
@@ -558,8 +558,8 @@ async def test_char_jev_preview_timing_keeps_first_result_separate_from_answer()
     assert _types(chunks) == ["router_decision", "result_preview", "token", "done"]
     log.info.assert_called_once()
     measurement = log.info.call_args.kwargs
-    assert 0 <= measurement["first_visible_preview_ms"] <= measurement["first_answer_token_ms"]
-    assert measurement["first_useful_ms"] == measurement["first_visible_preview_ms"]
+    assert measurement["first_visible_preview_ms"] is None
+    assert measurement["first_useful_ms"] == measurement["first_answer_token_ms"]
     assert measurement["duration_ms"] >= measurement["first_answer_token_ms"]
     assert measurement["cost_eur"] == chunks[-1].metadata["cost_eur"]
 

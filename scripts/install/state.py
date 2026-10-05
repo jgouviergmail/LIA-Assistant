@@ -90,9 +90,11 @@ def _public_to_payload(public: PublicAnswers) -> dict[str, object]:
         "admin_name": public.admin_name,
         "default_language": public.default_language,
         "observability": public.observability,
+        "self_diagnostics": public.self_diagnostics,
         "skill_sandbox": public.skill_sandbox,
         "live_mode": public.live_mode,
         "personal_radio": public.personal_radio,
+        "speaking_avatar": public.speaking_avatar,
         "server_host": public.server_host,
         "web_domain": public.web_domain,
         "api_domain": public.api_domain,
@@ -113,9 +115,11 @@ def _payload_to_public(payload: Mapping[str, object]) -> PublicAnswers:
         admin_name=str(payload["admin_name"]),
         default_language=str(payload["default_language"]),
         observability=bool(payload["observability"]),
+        self_diagnostics=bool(payload.get("self_diagnostics", False)),
         skill_sandbox=bool(payload["skill_sandbox"]),
         live_mode=bool(payload.get("live_mode", False)),
         personal_radio=bool(payload.get("personal_radio", False)),
+        speaking_avatar=bool(payload.get("speaking_avatar", False)),
         server_host=(
             str(payload["server_host"]) if payload.get("server_host") else None
         ),

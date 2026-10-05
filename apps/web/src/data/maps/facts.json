@@ -1,7 +1,7 @@
 {
-  "version": "2.5.0",
-  "releaseDate": "2026-10-04",
-  "releases": 276,
+  "version": "2.6.0",
+  "releaseDate": "2026-10-05",
+  "releases": 277,
   "milestones": [
     {
       "version": "1.0.0",
@@ -218,10 +218,14 @@
     {
       "version": "2.5.0",
       "date": "2026-10-04"
+    },
+    {
+      "version": "2.6.0",
+      "date": "2026-10-05"
     }
   ],
-  "domains": 54,
-  "infra": 26,
+  "domains": 55,
+  "infra": 27,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
     "2": "ADR-002-BFF-Pattern-Authentication.md",
@@ -554,6 +558,7 @@
     "330": "ADR-330-Landing-Media-Served-Without-Runtime-Work.md",
     "331": "ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md",
     "332": "ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md",
-    "333": "ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md"
+    "333": "ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md",
+    "334": "ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md"
   }
 }

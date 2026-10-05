@@ -36,41 +36,20 @@ On your first login, LIA automatically detects your timezone via your browser.
 If you travel, LIA will offer to update your timezone when it detects a mismatch.
 
 ## How do I manage my stored memories?
-You have **full control** over what LIA remembers:
 
-**📋 View your memories:**
-Go to **Settings > Long-term Memory** to see everything LIA has remembered.
+You control your memories from **Settings › Long-term Memory**: read, edit, pin, export or delete them individually or in bulk.
 
-**✏️ Edit a memory:**
-• Click the edit button
-• Correct the content or category
-• Adjust usage nuances
+**📌 Pinning:** a pinned memory is protected from automatic edits and cleanup. New **standing instructions** — how LIA should work for you — are pinned as soon as they are stored. You may edit them, unpin them or delete them yourself. Even when unpinned, an instruction is protected from automatic deletion; an automatic correction must preserve a successor.
 
-**📌 Pin a memory:**
-Pinned memories are protected from automatic cleanup. Useful for important information.
-
-**🗑️ Delete:**
-• Delete individually or in bulk
-• Option to keep pinned memories
-
-**📤 Export:**
-Export all your memories for backup (GDPR compliance).
-
-**🔄 Automatic cleanup:**
-Unpinned memories are automatically purged based on a retention score (importance, recency, and actual usage) to keep the system relevant.
-
-**⚠️ Forgetting risk:**
-Memories close to being automatically forgotten are flagged in the list, so you can pin them in time.
+**🔄 Cleanup:** other unpinned memories are assessed by importance, recency and use. Those at risk of being forgotten are flagged so you can pin what matters. Resetting the conversation does not erase these memories.
 
 ## Can I delete a standing instruction I gave LIA?
-You can change it; you cannot remove it. A rule you set — "call me by my first
-name", "always answer in French" — is protected from deletion, by you and by the
-automatic housekeeping alike.
 
-That sounds like a restriction and is the opposite of one. A directive is the
-one kind of memory whose disappearance you would not notice: LIA would simply
-stop doing the thing, with nothing to point at. Editing it is the real way to
-change your mind, and it leaves a rule in place rather than a silence.
+You control your memories from **Settings › Long-term Memory**: read, edit, pin, export or delete them individually or in bulk.
+
+**📌 Pinning:** a pinned memory is protected from automatic edits and cleanup. New **standing instructions** — how LIA should work for you — are pinned as soon as they are stored. You may edit them, unpin them or delete them yourself. Even when unpinned, an instruction is protected from automatic deletion; an automatic correction must preserve a successor.
+
+**🔄 Cleanup:** other unpinned memories are assessed by importance, recency and use. Those at risk of being forgotten are flagged so you can pin what matters. Resetting the conversation does not erase these memories.
 
 ## How do I configure my geolocation and home address?
 LIA can use your **geographic location** for contextual searches:
@@ -92,7 +71,7 @@ You can also allow real-time geolocation via your browser for even more accurate
 In **Settings > Proactive notifications**, you can enable "Use my current location for weather alerts". When enabled, proactive weather notifications use your current browser position (rather than your home address) if you are more than 50 km from home and the position is less than 24 h old. The notification always names the city concerned. Your position is encrypted, never historized (each update overwrites the previous), and wiped immediately if you disable the option or remove your home address.
 
 **🔒 Privacy:**
-Your address is stored securely and only used for your proximity queries.
+Your saved address is encrypted and used by location-based features you enable. Configured services may receive the coordinates needed for those features.
 
 ## How does LIA resolve relational references?
 LIA understands **references to your loved ones** through its memory:
@@ -704,22 +683,17 @@ The recipients are stored with it: a targeted announcement is shown to them only
 **🗂️ Sent broadcasts:**
 The history shows, for each announcement, its audience, the exact number of people reached with a preview of their names, its expiry date and the delay chosen.
 
-## How do I set up my personal radio?
-When your instance offers the radio, open **Radio** from the header or dashboard.
-Choose the subjects and sites it may read, the voices and personality you prefer,
-and whether a model verifies news, every item, or none. The settings explain
-the extra cost of model verification. Your session starts only when you ask,
-shows its sources and spending while it plays, and stops at the timer you set.
-There is no scheduled edition or replay; the newsroom and antenna are part of
-the existing API service. An administrator can turn the whole capability off.
+## How does the personal radio work?
+
+Start Radio from the header, dashboard or Radio page if your instance offers it. Choose topics, sources, voices and an optional verification level. It speaks about your day and cited news only while you listen, shows sources and spending, and ends at your timer; there is no replay or scheduled edition.
+
+Advertising, sponsorships, deals and purchase pitches are filtered. Genuine invoices, reservations and editorial, scientific or economic reporting remain eligible. A speaking Simli avatar does not accompany Radio.
 
 ## Can an administrator enable JEV decisions?
-Yes. Under **Settings › Administration › JEV integrations**, the administrator
-enables each bounded use separately, then the general switch. JEV is off on a
-fresh installation and needs its own provider key, decision model and price.
-An uncertain or unavailable decision returns to LIA's existing process. Both
-a paid JEV attempt and its fallback count, and the diagnostic panel shows what
-ran. JEV does not grant permissions or approve actions.
+
+In **Settings › Administration › JEV integrations**, enable each bounded use and then the general switch. All start off and require a provider key, model and price. Two uses can detect a reference needing a memory lookup and an unambiguous refusal of the **whole** proposed action.
+
+The decision uses the exact authorised registry snapshot and the operation's frozen prices. An uncertain or unavailable answer falls back to the existing process; a paid attempt and its fallback both count. Debug shows what ran. JEV cannot grant access, approve an action or turn a partial refusal into permission.
 
 ## Can I make the interface text bigger or smaller?
 Yes. In **Settings › Preferences › Personalization**, the **Font size** section

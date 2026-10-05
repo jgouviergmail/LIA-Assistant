@@ -42,7 +42,7 @@ DECISION_FILERS: Final[dict[str, tuple[str, ...]]] = {
     "domains/agents/services/memory_extractor.py": (_CHAT_TURN, _VOICE_SESSION),
     "domains/interests/services/extraction_service.py": (_CHAT_TURN, _VOICE_SESSION),
     # A turn's journal extraction, or a consolidation (its own run, filed there).
-    "domains/journals/extraction_service.py": (
+    "domains/journals/billing.py": (
         _CHAT_TURN,
         "domains/journals/consolidation_service.py",
     ),

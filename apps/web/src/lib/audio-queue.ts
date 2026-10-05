@@ -24,6 +24,8 @@
 // ============================================================================
 // Configuration Constants
 // ============================================================================
+import type { DecodedAudioOutput } from './voice-output/types';
+import { VOICE_ENCODED_MAX_BYTES, VOICE_RUN_END_HOLD_MS } from './voice-output/types';
 
 /** Maximum attempts to auto-resume AudioContext before requiring user interaction */
 const AUDIO_MAX_RESUME_ATTEMPTS = 3;
@@ -89,8 +91,21 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 export type AudioQueueState = 'idle' | 'playing' | 'suspended' | 'error';
 
 export class AudioQueue {
+  private decodedOutput: DecodedAudioOutput | null = null;
+  private externalPlayback: AbortController | null = null;
+  /** The external output that received this run's clips, until it drained. */
+  private externalActive: DecodedAudioOutput | null = null;
+  private externalEnd: ReturnType<typeof setTimeout> | null = null;
+  private runEnded = false;
+  private encodedBytes = 0;
+  setDecodedOutput(output: DecodedAudioOutput | null): void { this.decodedOutput = output; }
+  /** The producer queued its last clip (`voice_complete`): drain the external output once it empties. */
+  endRun(): void {
+    this.runEnded = true;
+    this.maybeEndExternal();
+  }
   private context: AudioContext | null = null;
-  private queue: ArrayBuffer[] = [];
+  private queue: { data: ArrayBuffer; output: DecodedAudioOutput | null }[] = [];
   private isPlaying = false;
   private playbackGeneration = 0;
   private currentSource: AudioBufferSourceNode | null = null;
@@ -381,8 +396,16 @@ export class AudioQueue {
    */
   async enqueue(audioBase64: string): Promise<void> {
     try {
+      if (audioBase64.length > Math.ceil(VOICE_ENCODED_MAX_BYTES / 3) * 4) {
+        throw new Error('voice_audio_backlog_full');
+      }
+      const data = base64ToArrayBuffer(audioBase64);
+      if (this.encodedBytes + data.byteLength > VOICE_ENCODED_MAX_BYTES) {
+        throw new Error('voice_audio_backlog_full');
+      }
+      this.encodedBytes += data.byteLength;
       // Preserve arrival order even when the first chunk must initialize/resume audio.
-      this.queue.push(base64ToArrayBuffer(audioBase64));
+      this.queue.push({ data, output: this.decodedOutput });
       void this.playNext();
     } catch (error) {
       audioLogger.error('Failed to enqueue audio:', error);
@@ -414,6 +437,12 @@ export class AudioQueue {
   private async playNext(): Promise<void> {
     if (this.isPlaying) return;
     if (this.queue.length === 0) {
+      // An external output is still speaking what it accepted: idle comes
+      // from its drain, not from an empty queue.
+      if (this.externalActive) {
+        this.maybeEndExternal();
+        return;
+      }
       this.onStateChange?.('idle');
       this.onPlaybackComplete?.();
       return;
@@ -426,11 +455,18 @@ export class AudioQueue {
     try {
       const context = await this.preparePlayback(generation);
       if (!context || generation !== this.playbackGeneration) return;
-      const arrayBuffer = this.queue.shift()!;
-      // Decode the audio data
-      // Note: slice(0) creates a copy because decodeAudioData detaches the buffer
-      const audioBuffer = await context.decodeAudioData(arrayBuffer.slice(0));
+      const queued = this.queue.shift()!;
+      const audioBuffer = await this.decodeChunk(context, queued.data, generation);
       if (generation !== this.playbackGeneration) return;
+
+      if (queued.output) {
+        await this.playExternal(queued.output, audioBuffer, generation);
+        if (generation !== this.playbackGeneration) return;
+        this.externalPlayback = null;
+        this.isPlaying = false;
+        void this.playNext();
+        return;
+      }
 
       // Create source node
       const source = context.createBufferSource();
@@ -452,16 +488,74 @@ export class AudioQueue {
       this.onStateChange?.('playing');
     } catch (error) {
       if (generation !== this.playbackGeneration) return;
-      audioLogger.error('Failed to play audio chunk:', error);
-      this.onError?.(error as Error);
-      // Continue to next chunk even on error
-      this.currentSource?.disconnect();
-      this.currentSource = null;
-      this.isPlaying = false;
-      // An initialization failure cannot be fixed by retrying the same queue forever.
-      if (!this.context) this.queue = [];
-      void this.playNext();
+      this.handlePlaybackFailure(error, generation);
     }
+  }
+
+  private handlePlaybackFailure(error: unknown, generation: number): void {
+    audioLogger.error('Failed to play audio chunk:', error);
+    this.currentSource?.disconnect();
+    this.currentSource = null;
+    this.externalPlayback?.abort();
+    this.externalPlayback = null;
+    this.isPlaying = false;
+    // An initialization failure cannot be fixed by retrying the same queue forever.
+    if (!this.context) { this.queue = []; this.encodedBytes = 0; }
+    this.onError?.(error as Error);
+    // An observer may stop/start the queue; it then owns advancing the new generation.
+    if (generation === this.playbackGeneration) void this.playNext();
+  }
+
+  private async decodeChunk(context: AudioContext, data: ArrayBuffer, generation: number): Promise<AudioBuffer> {
+    try {
+      // decodeAudioData detaches its argument; keep the owned queued buffer intact.
+      return await context.decodeAudioData(data.slice(0));
+    } finally {
+      if (generation === this.playbackGeneration) this.encodedBytes -= data.byteLength;
+    }
+  }
+
+  private async playExternal(output: DecodedAudioOutput, buffer: AudioBuffer, generation: number): Promise<void> {
+    const controller = new AbortController();
+    this.externalPlayback = controller;
+    if (this.externalEnd) clearTimeout(this.externalEnd);
+    this.externalEnd = null;
+    this.externalActive = output;
+    // Resolves once the clip is ACCEPTED: the next clip follows at once and the
+    // output plays the run as one continuous stream.
+    await output.play(buffer, controller.signal, () => {
+      if (generation === this.playbackGeneration) this.onStateChange?.('playing');
+    });
+  }
+
+  private maybeEndExternal(): void {
+    if (!this.externalActive || this.isPlaying || this.queue.length) return;
+    if (this.externalEnd) clearTimeout(this.externalEnd);
+    this.externalEnd = null;
+    if (this.runEnded) {
+      void this.drainExternal(this.playbackGeneration);
+      return;
+    }
+    // No `voice_complete` yet: a hold tells a pause between clips from the end of the run.
+    this.externalEnd = setTimeout(() => {
+      this.externalEnd = null;
+      if (!this.queue.length && !this.isPlaying) void this.drainExternal(this.playbackGeneration);
+    }, VOICE_RUN_END_HOLD_MS);
+  }
+
+  private async drainExternal(generation: number): Promise<void> {
+    const output = this.externalActive;
+    if (!output) return;
+    this.externalActive = null;
+    try {
+      await output.end();
+    } catch (error) {
+      if (generation === this.playbackGeneration) this.onError?.(error as Error);
+    }
+    // A late clip reopened the output meanwhile: its own drain reports idle.
+    if (generation !== this.playbackGeneration || this.externalActive) return;
+    this.onStateChange?.('idle');
+    this.onPlaybackComplete?.();
   }
 
   /**
@@ -488,6 +582,14 @@ export class AudioQueue {
   stop(): void {
     // Invalidate decoding/resume continuations as well as the currently audible source.
     this.playbackGeneration++;
+    this.externalPlayback?.abort();
+    this.externalPlayback = null;
+    if (this.externalEnd) clearTimeout(this.externalEnd);
+    this.externalEnd = null;
+    this.externalActive = null;
+    this.runEnded = false;
+    this.decodedOutput = null;
+    this.encodedBytes = 0;
     // Clear queue
     this.queue = [];
 

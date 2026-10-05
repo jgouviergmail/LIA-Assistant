@@ -18,7 +18,7 @@
 import type { MockRoute } from './api-mock';
 
 /** Mirrors `AppConfig` (src/hooks/useAppConfig.ts). */
-const appConfig = {
+export const appConfig = {
   sse: { heartbeat_interval_seconds: 30 },
   rate_limits: { enabled: false, per_minute: 60, burst: 10 },
   i18n: { supported_languages: ['en', 'fr', 'de', 'es', 'it', 'zh'], default_language: 'en' },
@@ -66,6 +66,11 @@ const unlimited = { current: 0, limit: null, usage_pct: null, exceeded: false };
 export const dashboardShellMocks: MockRoute[] = [
   // App config (src/hooks/useAppConfig.ts) — chat page feature flags.
   { url: '**/api/v1/config', json: appConfig },
+  {
+    url: '**/api/v1/avatars/config',
+    json: { available: false, enabled: false, connected: false, face_id: null,
+      connector_version: null, session_length_seconds: 3600, connect_timeout_seconds: 15 },
+  },
 
   // Personality selector (src/lib/api/personality.ts).
   {

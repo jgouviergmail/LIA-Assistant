@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-type CardComposeAction = Literal["reply", "forward", "cancel_reminder"]
+type CardComposeAction = Literal["reply", "forward", "delete_email", "cancel_reminder"]
 
 
 class CardCompositionUnavailable(ValueError):
@@ -53,6 +53,7 @@ CARD_COMPOSITION_DRAFT_KEY = "_lia_card_composition"
 _COMPOSITION_DRAFTS = {
     "reply": ("EMAIL", "email_reply", "message_id"),
     "forward": ("EMAIL", "email_forward", "message_id"),
+    "delete_email": ("EMAIL", "email_delete", "message_id"),
     "cancel_reminder": ("REMINDER", "reminder_delete", "reminder_id"),
 }
 
@@ -75,6 +76,7 @@ def bind_composition_draft(content: dict[str, object], draft_type: str) -> dict[
     if selected.kind != kind or draft_type not in (
         "email_reply",
         "email_forward",
+        "email_delete",
         "reminder_delete",
     ):
         return clean

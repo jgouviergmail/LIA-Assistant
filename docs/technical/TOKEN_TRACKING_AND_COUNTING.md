@@ -959,237 +959,57 @@ class CurrencyExchangeRate(Base, TimestampMixin):
 
 ### Service Implementation
 
-**AsyncPricingService** - Cache TTL 1h :
+The current calculator lives in
+[pricing_service.py](../../apps/api/src/domains/llm/pricing_service.py), with its
+worker-local hot path in
+[pricing_cache.py](../../apps/api/src/infrastructure/cache/pricing_cache.py).
+Model lookup prefers the exact catalogue name, then its declared normalization.
+The database owns prices and currency rates; each worker rebuilds them from the
+database at startup and adopts a new generation after a published invalidation.
 
-```python
-import time
-from typing import NamedTuple
-from decimal import Decimal
-from sqlalchemy.ext.asyncio import AsyncSession
+Each physical provider attempt captures its UTC start and tariff/FX generation
+**before invocation**. Time windows, including overnight weekday ownership, are
+resolved at that start. Completion, another attempt or a delayed ledger write
+does not change that price. The provider-reported model is preferred when
+available. A missing cache-read price falls back to the selected input price;
+an explicit zero remains zero. Ordinary input excludes cache reads, and cache
+writes keep their separate tariff. See
+[LLM_PRICING_MANAGEMENT.md](LLM_PRICING_MANAGEMENT.md).
 
-class ModelPrice(NamedTuple):
-    """Container for LLM model pricing information."""
-    model_name: str
-    input_price: Decimal
-    cached_input_price: Decimal | None
-    output_price: Decimal
-    effective_from: datetime
+[TokenCaptureHandler](../../apps/api/src/infrastructure/llm/token_capture.py)
+captures usage through the shared usage-metadata reader and keeps each attempt
+individually. Its immutable
+[LLMBillingRecord](../../apps/api/src/core/llm_usage.py) carries model, start,
+token buckets, USD/EUR costs, captured FX and success/error outcome to the
+tracker. Summing several attempts consumes these priced records rather than
+repricing their combined tokens using one model or the latest cache generation.
+Duplicate callback deliveries for one physical run do not create another bill.
 
-class AsyncPricingService:
-    """
-    Async service for retrieving LLM pricing and currency rates with caching.
+#### Failed and cancelled work
 
-    Uses LRU cache to minimize database queries. Cache expires after TTL.
+A provider response can be paid even if structured-output validation fails or
+a later delivery step fails. Captured, usable counters still reach the ledgers;
+a subsequent retry has its own start and record. An error without usable usage
+does not create an invented charge.
 
-    Example:
-        >>> async with AsyncSessionLocal() as db:
-        ...     service = AsyncPricingService(db)
-        ...     price = await service.get_active_model_price("gpt-4.1-mini")
-        ...     print(f"Input: ${price.input_price}/1M")
-    """
-
-    def __init__(self, db: AsyncSession, cache_ttl_seconds: int = 3600) -> None:
-        """
-        Initialize AsyncPricingService.
-
-        Args:
-            db: SQLAlchemy async database session
-            cache_ttl_seconds: Cache time-to-live in seconds (default: 1 hour)
-        """
-        self.db = db
-        self.cache_ttl = cache_ttl_seconds
-        self._cache_timestamp: dict[str, float] = {}
-        self._model_price_cache: dict[str, ModelPrice] = {}
-        self._currency_rate_cache: dict[str, Decimal] = {}
-
-    async def get_active_model_price(self, model_name: str) -> ModelPrice | None:
-        """
-        Get active pricing for a specific LLM model (async).
-
-        Queries database for active pricing entry. Results are cached for TTL duration.
-
-        Args:
-            model_name: LLM model identifier (e.g., "gpt-4.1-mini", "o1-mini")
-
-        Returns:
-            ModelPrice if found, None if model pricing not configured
-
-        Example:
-            >>> price = await service.get_active_model_price("gpt-4.1-mini")
-            >>> if price:
-            ...     print(f"${price.input_price}/1M tokens")
-        """
-        cache_key = f"async_model_price_{model_name}"
-
-        # Check if cache entry exists and is still valid
-        if cache_key in self._cache_timestamp:
-            age = time.time() - self._cache_timestamp[cache_key]
-            if age > self.cache_ttl:
-                # Cache expired, invalidate
-                self._invalidate_cache(cache_key)
-            elif cache_key in self._model_price_cache:
-                # Cache hit within TTL
-                return self._model_price_cache[cache_key]
-
-        # Cache miss or expired - query database
-        pricing = await self._query_model_pricing(model_name)
-
-        # Store in cache
-        if pricing:
-            self._model_price_cache[cache_key] = pricing
-            self._cache_timestamp[cache_key] = time.time()
-
-        return pricing
-
-    async def calculate_token_cost(
-        self,
-        model: str,
-        input_tokens: int,
-        output_tokens: int,
-        cached_tokens: int = 0,
-    ) -> tuple[float, float]:
-        """
-        Calculate LLM token cost in USD and configured currency (EUR).
-
-        Centralized cost calculation logic used by callbacks, tracking,
-        and statistics. Single source of truth for token cost computation.
-
-        Args:
-            model: LLM model name (e.g., "gpt-4.1-mini", "o1-mini-2024-09-12")
-            input_tokens: Number of input/prompt tokens
-            output_tokens: Number of output/completion tokens
-            cached_tokens: Number of cached input tokens (default: 0)
-
-        Returns:
-            Tuple of (cost_usd, cost_eur) as floats
-
-        Example:
-            >>> service = AsyncPricingService(db)
-            >>> usd, eur = await service.calculate_token_cost("gpt-4.1-mini", 1000, 500, 200)
-            >>> print(f"${usd:.6f} / {eur:.6f}€")
-            $0.006250 / 0.005813€
-
-        Raises:
-            ValueError: If currency rate not found (no fallback available)
-        """
-        from src.core.config import settings
-        from src.core.llm_utils import normalize_model_name
-
-        # Normalize model name (remove date suffix like -2024-09-12)
-        model_normalized = normalize_model_name(model)
-
-        # Get model pricing from database
-        pricing = await self.get_active_model_price(model_normalized)
-
-        if not pricing:
-            logger.warning(
-                "llm_pricing_not_found_using_zero_cost",
-                model=model,
-                model_normalized=model_normalized,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-            )
-            return (0.0, 0.0)
-
-        # Calculate USD cost per 1 million tokens
-        input_cost_usd = (input_tokens / 1_000_000) * float(pricing.input_price)
-
-        # Cached input tokens (if supported by model)
-        if pricing.cached_input_price is not None and cached_tokens > 0:
-            cached_cost_usd = (cached_tokens / 1_000_000) * float(pricing.cached_input_price)
-        else:
-            cached_cost_usd = 0.0
-
-        output_cost_usd = (output_tokens / 1_000_000) * float(pricing.output_price)
-
-        total_cost_usd = input_cost_usd + cached_cost_usd + output_cost_usd
-
-        # Convert to EUR (configured default currency)
-        if settings.default_currency.upper() == "EUR":
-            try:
-                # Hybrid logic: Try API live → Fallback DB
-                from src.infrastructure.external.currency_api import CurrencyRateService
-
-                api = CurrencyRateService()
-                usd_to_eur_rate_decimal = await api.get_rate("USD", "EUR")
-
-                if usd_to_eur_rate_decimal:
-                    # API success - use live rate
-                    total_cost_eur = total_cost_usd * float(usd_to_eur_rate_decimal)
-                else:
-                    # Fallback to DB (last synced rate)
-                    db_rate = await self.get_active_currency_rate("USD", "EUR")
-                    total_cost_eur = total_cost_usd * float(db_rate)
-            except ValueError:
-                # No rate in DB - cannot convert, use USD for both (fallback)
-                return (total_cost_usd, total_cost_usd)
-        else:
-            # Default currency is USD - no conversion needed
-            total_cost_eur = total_cost_usd
-
-        return (total_cost_usd, total_cost_eur)
-```
+The shared
+[proactive settlement path](../../apps/api/src/infrastructure/proactive/tracking.py)
+claims pending records once before awaiting persistence and finishes a bounded
+ledger write through cancellation, then propagates cancellation. A persistence
+failure is not blindly retried because the commit may have succeeded before its
+acknowledgment. Proactive delivery and background extraction paths retain their
+own failure outcome while settling known spend. This does not promise persistence
+through a hard process kill, an unavailable database or the settlement timeout.
+See [USAGE_LIMITS.md](USAGE_LIMITS.md#paid-attempts-and-background-work).
 
 ### estimate_cost() - Estimation Rapide (In-Memory)
 
-**Fonction utilitaire pour estimations sans DB** :
-
-```python
-def estimate_cost(
-    input_tokens: int,
-    output_tokens: int,
-    model: str = "gpt-4.1-mini",
-) -> dict[str, float]:
-    """
-    Estimate LLM API cost based on token counts and model pricing.
-
-    Uses approximate pricing as of 2025. For exact pricing, use the LLM pricing service.
-
-    Args:
-        input_tokens: Number of input tokens.
-        output_tokens: Number of output tokens.
-        model: Model identifier (e.g., "gpt-4.1-mini", "gpt-4.1-mini-mini").
-
-    Returns:
-        Dictionary with cost breakdown in USD.
-
-    Example:
-        >>> cost = estimate_cost(input_tokens=1000, output_tokens=500, model="gpt-4.1-mini")
-        >>> print(f"Total cost: ${cost['total']:.4f}")
-        Total cost: $0.0015
-
-    Pricing (approximate, 2025):
-        - gpt-4.1-nano: $0.10/1M input, $0.40/1M output
-        - gpt-4.1-mini: $0.15/1M input, $0.60/1M output
-        - gpt-4.1-mini-mini: $0.15/1M input, $0.60/1M output
-        - gpt-4.1: $2.50/1M input, $10/1M output
-    """
-    # Approximate pricing (USD per 1M tokens)
-    pricing = {
-        "gpt-4.1-nano": {"input": 0.10, "output": 0.40},
-        "gpt-4.1-mini": {"input": 0.15, "output": 0.60},
-        "gpt-4.1-mini-mini": {"input": 0.15, "output": 0.60},
-        "gpt-4.1": {"input": 2.50, "output": 10.00},
-        "gpt-4.1-mini": {"input": 5.00, "output": 15.00},
-    }
-
-    model_pricing = pricing.get(model, {"input": 0.15, "output": 0.60})
-
-    input_cost = (input_tokens / 1_000_000) * model_pricing["input"]
-    output_cost = (output_tokens / 1_000_000) * model_pricing["output"]
-    total_cost = input_cost + output_cost
-
-    return {
-        "input_cost": round(input_cost, 6),
-        "output_cost": round(output_cost, 6),
-        "total": round(total_cost, 6),
-        "model": model,
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
-    }
-```
-
----
+The legacy helper in
+[token_utils.py](../../apps/api/src/domains/agents/utils/token_utils.py) uses a
+small historical static table for rough examples. It is not the accounting path
+and does not resolve catalogue prices, cache buckets, UTC windows or captured
+FX. Use the runtime calculator and per-attempt records above for ledger writes;
+do not copy the helper's historical tariffs into application billing.
 
 ## Database Models
 
@@ -1197,7 +1017,10 @@ def estimate_cost(
 
 **Table** : `token_usage_logs`
 
-**Granularité** : 1 enregistrement par appel LLM (node execution).
+**Granularity:** one physical provider attempt with usable usage, including a
+paid error. A logical operation or node may contain several attempts. The model
+definitions in [chat/models.py](../../apps/api/src/domains/chat/models.py) own the
+current schema; the illustrations below describe its logical aggregation.
 
 ```python
 from sqlalchemy import BigInteger, ForeignKey, Index, Integer, Numeric, String

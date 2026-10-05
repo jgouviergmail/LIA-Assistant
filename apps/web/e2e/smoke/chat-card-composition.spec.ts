@@ -86,7 +86,10 @@ for (const sample of [
       const input = page.getByRole('textbox').first();
       const reply = page.locator('.lia-action-btn[data-action="reply"]');
       const forward = page.locator('.lia-action-btn[data-action="forward"]');
+      const deletion = page.locator('.lia-action-btn[data-action="delete_email"]');
       await expect(reply).toBeEnabled();
+      await expect(forward).toBeEnabled();
+      await expect(deletion).toBeEnabled();
       await input.fill('Unfinished personal draft');
       await reply.focus();
       await reply.press('Enter');
@@ -158,6 +161,28 @@ for (const sample of [
       await expect(chip).not.toBeVisible();
       await expect(input).not.toHaveValue('');
       expect(bodies).toHaveLength(1);
+      await input.fill('');
+      await deletion.focus();
+      await deletion.press('Space');
+      await expect(chip).toBeVisible();
+      await expect(chip).toContainText(sample.language === 'fr' ? 'Supprimer' : 'Delete');
+      await expect(input).toHaveValue(/confirmation/);
+      await expect(input).not.toHaveValue(/canonical-email|email_reference|source-run/);
+      expect(bodies).toHaveLength(1);
+      await input.press('Enter');
+      await expect.poll(() => bodies.length).toBe(2);
+      expect(bodies[1]).toMatchObject({
+        context: {
+          card_composition: {
+            version: 1,
+            message_id: messageId,
+            run_id: 'source-run',
+            registry_id: 'email_reference',
+            action: 'delete_email',
+          },
+        },
+      });
+      await expect(chip).not.toBeVisible();
     });
   });
 }

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 import { useMeetingRecorderStore } from '@/stores/meetingRecorderStore';
+import type { VoiceAudioChunk } from '@/types/chat';
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { voice_enabled: true } }),
@@ -18,6 +19,7 @@ vi.mock('@/lib/audio-queue', () => ({
     setOnPlaybackComplete() {}
     setOnError() {}
     setOnStateChange() {}
+    setDecodedOutput() {}
     enqueue = queue.enqueue;
     dispose() {}
     stop() {}
@@ -42,13 +44,14 @@ afterEach(() => {
 });
 
 describe('useVoicePlayback while a meeting records', () => {
+  const chunk: VoiceAudioChunk = { audio_base64: 'QUJD', mime_type: 'audio/mpeg', phrase_index: 0, is_last: true };
   it('drops spoken answers during a capture and speaks again afterwards', async () => {
     const { result } = renderHook(() => useVoicePlayback());
     act(() => {
       useMeetingRecorderStore.getState().setPhase('recording');
     });
     await act(async () => {
-      await result.current.handleVoiceChunk({ audio_base64: 'QUJD', format: 'mp3' } as never);
+      await result.current.handleVoiceChunk(chunk);
     });
     expect(queue.enqueue).not.toHaveBeenCalled();
 
@@ -56,7 +59,7 @@ describe('useVoicePlayback while a meeting records', () => {
       useMeetingRecorderStore.getState().reset();
     });
     await act(async () => {
-      await result.current.handleVoiceChunk({ audio_base64: 'QUJD', format: 'mp3' } as never);
+      await result.current.handleVoiceChunk(chunk);
     });
     expect(queue.enqueue).toHaveBeenCalledTimes(1);
   });

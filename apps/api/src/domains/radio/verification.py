@@ -53,6 +53,7 @@ from src.domains.radio.script import (
     ScriptLine,
     ScriptPart,
 )
+from src.domains.shared.commercial_content import is_commercial_content
 
 
 class Violation(StrEnum):
@@ -75,6 +76,7 @@ class Violation(StrEnum):
     STORY_BEYOND_FORMAT = "story_beyond_format"
     #: The model verifier found the claim unsupported by the facts it cites.
     NOT_SUPPORTED = "not_supported"
+    COMMERCIAL_CONTENT = "commercial_content"
 
 
 class Refusal(StrEnum):
@@ -290,6 +292,8 @@ def _content_violation(
     station_name: str,
 ) -> Violation | None:
     """What is wrong with what the line asserts, measured against what it cites."""
+    if is_commercial_content(text):
+        return Violation.COMMERCIAL_CONTENT
     if _lacks_its_sources(line, cited):
         return Violation.MISSING_REF
     if line.kind is LineKind.OPINION and line.role not in OPINION_ROLES:

@@ -26,6 +26,7 @@ from src.core.constants import DEFAULT_ELEVENLABS_BASE_URL
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.voice.elevenlabs_concurrency import tts_slot
 from src.domains.voice.exceptions import TTSProviderError
+from src.domains.voice.protocol import RawAudioSpec
 from src.infrastructure.observability.metrics_voice import (
     voice_tts_errors_total,
     voice_tts_latency_seconds,
@@ -34,10 +35,8 @@ from src.infrastructure.observability.metrics_voice import (
 
 logger = structlog.get_logger(__name__)
 
-# Audio formats supported by ElevenLabs TTS that map cleanly onto LIA's
-# downstream playback. The provider exposes more variants (e.g. pcm_16000,
-# pcm_22050, mp3_22050_32) — we expose only the high-quality MP3 default
-# and leave room to extend via provider_config if a use-case ever asks.
+# The configured format is sent to the provider unchanged. Raw formats carry
+# their decoding metadata separately, for consumers which probe containers.
 _DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
 # Output formats whose decoding shape isn't MP3 (kept for future-proofing).
 _NON_MP3_FORMATS = frozenset({"pcm_16000", "pcm_22050", "pcm_24000", "pcm_44100", "ulaw_8000"})
@@ -108,6 +107,14 @@ class ElevenLabsTTSClient:
         if self._output_format in _NON_MP3_FORMATS:
             return self._output_format.split("_", 1)[0]  # "pcm" / "ulaw"
         return "mp3"
+
+    @property
+    def raw_audio_spec(self) -> RawAudioSpec | None:
+        """The rate in the configured PCM/u-law format, never a guessed rate."""
+        if self._output_format not in _NON_MP3_FORMATS:
+            return None
+        encoding, rate = self._output_format.split("_", 1)
+        return RawAudioSpec(int(rate), "ulaw" if encoding == "ulaw" else "pcm_s16le")
 
     async def synthesize(
         self,

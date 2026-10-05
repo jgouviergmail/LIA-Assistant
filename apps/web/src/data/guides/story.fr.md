@@ -4,7 +4,7 @@
 
 **Version** : 2.3
 **Date** : 2026-10-04
-**Application** : LIA v2.5.0
+**Application** : LIA v2.6.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests) — 54 domaines fonctionnels | **800 000+** |
-| Tests automatisés, exécutés à chaque commit et livraison | **50 000+** |
-| Décisions d'architecture documentées (ADR) | **332** |
-| Versions livrées à rythme régulier | **276** |
+| Lignes de source (hors tests) — 55 domaines fonctionnels | **820 000+** |
+| Tests automatisés, exécutés à chaque commit et livraison | **51 000+** |
+| Décisions d'architecture documentées (ADR) | **333** |
+| Versions livrées à rythme régulier | **277** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -54,9 +54,9 @@ Plusieurs agents peuvent travailler en même temps sur le même dépôt — deux
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 332 documentées :
+Trois décisions structurantes, parmi les 333 documentées :
 
-**Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
+**Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'auto-hébergement te donne la maîtrise du serveur ; les données du compte sont stockées sur l'instance et les identifiants des connecteurs sont chiffrés. Les services distants que tu choisis reçoivent toujours les données utiles à leur part de la demande.
 
 **Économie de l'IA — le coût par requête est un critère de conception.** Deux modes d'exécution coexistent : un pipeline déterministe et économe pour les demandes courantes, un mode agent autonome pour les demandes exploratoires — l'écart de consommation mesuré va de 1 à 4-8, à service rendu équivalent sur les cas standards. Chaque appel est compté au token, valorisé en euros, agrégé par utilisateur et par modèle, gouverné par quotas. Même une notification de deux phrases se demande sans réflexion, parce qu'un modèle qui réfléchit par défaut facture sa réflexion dans le budget de la réponse. Et le mode agent n'emporte que les outils que la question appelle — choisis par pertinence, jamais par ordre d'arrivée — parce que quatre-vingts schémas d'outils pesaient l'essentiel d'un premier appel sans être comptés. Et le compte tombe juste : chaque appel est valorisé au prix que le fournisseur facture réellement — tarifs relus sur ses pages, écriture de cache à son prix, heures creuses avec leurs jours.
 
@@ -70,11 +70,13 @@ Un système qu'on pilote aux instruments :
 - **Livraison** : déploiement conteneurisé, migrations de schéma automatisées, images publiées pour deux architectures matérielles (amd64/arm64).
 - **Chaîne logicielle** : chaque brique du serveur épinglée par son empreinte et inventoriée à chaque version ; une veille hebdomadaire lit les alertes de sécurité que publie chacune des dépendances — y compris celles qu'aucune base publique ne relaie — et une mise à jour attend un délai de prudence, sans jamais revenir en arrière ; chaque version s'installe sur des machines vierges avant d'être publiée.
 - **Coûts** : infrastructure frugale par choix — environ 150 € de matériel, zéro licence, briques open-source dimensionnées au besoin réel.
-- **Conformité** : sécurité revue point d'accès par point d'accès ; chiffrement des données personnelles ; cycle de vie des comptes aligné sur le RGPD.
+- **Protection des données** : sécurité revue point d'accès par point d'accès ; identifiants des connecteurs et clés fournisseurs chiffrés ; export et suppression du compte. Les obligations du RGPD dépendent aussi de l'exploitation de l'instance et des fournisseurs choisis.
 
 Le produit rend ses choix d'ingénierie visibles à l'échelle humaine. La conversation suit une personne entre ses appareils sans bousculer sa lecture ; la radio démarre quand elle choisit d'écouter et nomme les nouvelles dont elle s'inspire et leur coût. Un fichier généré possède une durée de vie que la personne peut prolonger délibérément. Le travail planifié et les vérifications de conditions ont des horloges distinctes. Ce sont des promesses observables, étayées par des sources, des limites et des tests, plutôt qu'une prétention à deviner ce que la personne veut.
 
 La même règle vaut pour ce qui n'est pas encore au niveau. Le mot d'activation « Dis LIA » est un petit modèle entraîné hors ligne et mesuré sur un banc dont les seuils sont publiés avant l'entraînement : le modèle français ne les atteint pas encore, alors il est livré marqué **bêta**, et le produit le dit, plutôt que d'abaisser la barre pour pouvoir écrire « terminé ». Une session vocale qui s'endort sur un silence ne coûte rien, et seule la personne la termine.
+
+Cette discipline vaut aussi pour une présence visible. Un visage Simli expérimental est un choix explicite sur la clé de la personne, branché sur la voix existante avec une seule sortie audible. Une session ouverte consomme le forfait personnel pendant les silences ; la veille Live la ferme. La présentation garde la qualification du média et du mobile en attente jusqu’à ce que les essais réels l’établissent. La même précision gouverne la dépense : chaque tentative fournisseur payante garde son tarif, et son usage connu survit à l’échec, à l’annulation ou au réessai.
 
 ## 6. La preuve
 
@@ -111,4 +113,4 @@ Ce que cette expérience change dans une pratique de direction :
 - **Entre l'interdiction générale et la confiance aveugle, il existe une voie gouvernable.** Le contrôle humain gradué se spécifie, se teste et s'audite ; c'est l'approche que dessinent les exigences réglementaires, et elle est opérationnelle dès maintenant.
 - **Un dirigeant qui pratique arbitre mieux.** Faire ou faire faire, dette acceptable ou non, promesse fournisseur crédible ou non — ces décisions gagnent en justesse quand on a éprouvé la matière. Ce projet est une façon d'entretenir cette proximité avec le terrain.
 
-*Projet personnel, mené en dehors de toute activité professionnelle. Chiffres issus de l'audit technique de juillet 2026 — tests exécutés, mesures effectuées sur le code, constats contre-vérifiés. Dépôt : [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Projet personnel, mené en dehors de toute activité professionnelle. Évaluation technique issue de l’audit de juillet 2026, constats contre-vérifiés. Les comptes structurels suivent le dépôt ; les lignes de source ont été remesurées le 2026-10-05. Dépôt : [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

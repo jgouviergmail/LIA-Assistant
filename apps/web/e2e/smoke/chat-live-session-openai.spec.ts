@@ -18,6 +18,7 @@
  */
 import { test, expect, type MockRoute } from '../fixtures';
 import { liveSessionDeadlines } from '../fixtures/live';
+import { avatarRoutes, installSimliPeer } from '../fixtures/simli';
 
 test.use({
   launchOptions: {
@@ -303,6 +304,100 @@ const FAKE_WEBRTC = `
 `;
 
 test.describe('chat live session on GPT-Live', () => {
+  test('captures a real borrowed native track continuously into Simli without local duplication', async ({
+    page,
+    context,
+    authenticate,
+    mockApi,
+  }) => {
+    await context.grantPermissions(['microphone']);
+    const frames = await installSimliPeer(page);
+    const starts: unknown[] = [];
+    const releases: unknown[] = [];
+    const ends: unknown[] = [];
+    const user = await authenticate({ voice_enabled: true, speaking_avatar_enabled: true });
+    await mockApi([
+      ...routes([], [], ends),
+      ...avatarRoutes(starts, releases),
+      {
+        url: '**/api/v1/auth/me/voice-preference',
+        method: 'PATCH',
+        handler: async route => {
+          user.voice_enabled = false;
+          await route.fulfill({ json: { voice_enabled: false } });
+        },
+      },
+      {
+        url: `**/api/v1/live/sessions/${SESSION}/offer`,
+        method: 'POST',
+        handler: async route => {
+          const body = route.request().postDataJSON() as { sdp: string };
+          const sdp = await page.evaluate(
+            sdp => window.simliFixture.answer(sdp, 'native'),
+            body.sdp
+          );
+          await route.fulfill({ json: { sdp } });
+        },
+      },
+    ]);
+    await page.goto('/fr/dashboard/chat');
+    const avatar = page.getByRole('toolbar', {
+      name: 'Déplacer l’avatar : glisser ou utiliser les flèches',
+    });
+    await expect(avatar).toBeVisible();
+    await avatar.click();
+    await expect(avatar.getByRole('button', { name: 'Activer le son' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Voix et session live' }).click();
+    await page.getByRole('menuitem', { name: 'Session Live (OpenAI)' }).click();
+    const banner = page.getByRole('region', { name: 'Session live' });
+    await expect(banner.getByRole('status')).toContainText('Tu parles avec LIA');
+    await expect
+      .poll(() => page.evaluate(() => window.simliFixture.captureFrames))
+      .toBeGreaterThan(2);
+    const localStarts = await page.evaluate(() => window.simliFixture.localStarts);
+    // Below the ElevenLabs SDK analysis threshold; capture must still preserve it.
+    const weak = Array.from({ length: 16000 }, (_, n) =>
+      Math.round(250 * Math.sin((2 * Math.PI * 700 * n) / 16000))
+    );
+    const pcm = Buffer.alloc(weak.length * 2);
+    weak.forEach((sample, n) => pcm.writeInt16LE(sample, n * 2));
+    await page.evaluate(bytes => window.simliFixture.pcm(bytes, 'native'), [...pcm]);
+    try {
+      await expect
+        .poll(() => page.evaluate(() => window.simliFixture.capturePeak))
+        .toBeGreaterThan(0);
+    } catch (error) {
+      console.log(
+        'native synthetic peer diagnostics',
+        await page.evaluate(() => window.simliFixture.nativeDiagnostics())
+      );
+      throw error;
+    }
+    await expect
+      .poll(() => frames.filter(frame => Buffer.isBuffer(frame)).length)
+      .toBeGreaterThan(3);
+    expect(starts).toHaveLength(1);
+    expect(releases).toHaveLength(0);
+    expect(frames).not.toContain('DONE');
+    const samples = frames
+      .filter(frame => Buffer.isBuffer(frame))
+      .flatMap(frame => {
+        const buffer = frame as Buffer;
+        return Array.from({ length: buffer.length / 2 }, (_, n) =>
+          Math.abs(buffer.readInt16LE(n * 2))
+        );
+      });
+    expect(Math.max(...samples)).toBeGreaterThan(0);
+    expect(Math.max(...samples)).toBeLessThan(1000);
+    expect(await page.evaluate(() => window.simliFixture.localStarts)).toBe(localStarts);
+    expect(await page.locator('audio:not([muted])').count()).toBe(0);
+    await banner.getByRole('button', { name: 'Terminer la session live' }).click();
+    await expect.poll(() => ends.length).toBe(1);
+    expect(ends[0]).not.toHaveProperty('audio_diagnostics'); // No local PCM worklet received a chunk.
+    expect(await page.evaluate(() => window.simliFixture.borrowedStops)).toBe(0);
+    await expect.poll(() => releases.length).toBe(1);
+    await page.evaluate(() => window.simliFixture.close('native'));
+  });
   test('opens through the offer exchange, composes the request, appends the answer, ends', async ({
     page,
     context,

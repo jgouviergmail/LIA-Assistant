@@ -12,7 +12,10 @@ from src.core.card_composition import (
     card_composition_ctx,
 )
 from src.domains.agents.services import card_composition_service
-from src.domains.agents.tools.emails_tools import execute_email_reply_draft
+from src.domains.agents.tools.emails_tools import (
+    execute_email_delete_draft,
+    execute_email_reply_draft,
+)
 from src.domains.agents.tools.reminder_tools import execute_reminder_delete_draft
 
 pytestmark = pytest.mark.unit
@@ -43,7 +46,9 @@ def archived(kind, target, action):
                     "label": "Received item",
                     "provider": "google_gmail" if kind == "EMAIL" else None,
                     "account_binding": str(UUID(int=4)) if kind == "EMAIL" else None,
-                    "actions": ["reply", "forward"] if kind == "EMAIL" else [action],
+                    "actions": (
+                        ["reply", "forward", "delete_email"] if kind == "EMAIL" else [action]
+                    ),
                 }
             ],
         },
@@ -65,10 +70,14 @@ def install_database(monkeypatch, metadata):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("condition", ["changed_account", "revoked", "deleted_source"])
+@pytest.mark.parametrize(
+    "action,execute",
+    [("reply", execute_email_reply_draft), ("delete_email", execute_email_delete_draft)],
+)
 async def test_later_reply_refuses_changed_or_revoked_account_and_deleted_source(
-    monkeypatch, condition
+    monkeypatch, condition, action, execute
 ):
-    metadata = None if condition == "deleted_source" else archived("EMAIL", "target", "reply")
+    metadata = None if condition == "deleted_source" else archived("EMAIL", "target", action)
     install_database(monkeypatch, metadata)
     deps = AsyncMock()
     credentials = None if condition == "revoked" else AsyncMock(account_binding=str(UUID(int=5)))
@@ -83,11 +92,43 @@ async def test_later_reply_refuses_changed_or_revoked_account_and_deleted_source
     content = {
         "message_id": "target",
         "body": "Edited",
-        CARD_COMPOSITION_DRAFT_KEY: selection("reply"),
+        CARD_COMPOSITION_DRAFT_KEY: selection(action),
     }
     with pytest.raises(CardCompositionUnavailable):
-        await execute_email_reply_draft(content, USER, deps)
+        await execute(content, USER, deps)
     resolver.assert_not_awaited()
+    assert card_composition_ctx.get() is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changed", [False, True])
+async def test_confirmed_deletion_revalidates_archived_email_before_trashing(monkeypatch, changed):
+    db = install_database(monkeypatch, archived("EMAIL", "target", "delete_email"))
+    deps = AsyncMock()
+    deps.get_connector_service.return_value.get_connector_credentials.return_value.account_binding = str(
+        UUID(int=4)
+    )
+    monkeypatch.setattr(
+        card_composition_service, "resolve_active_connector", AsyncMock(return_value="google_gmail")
+    )
+    client = AsyncMock()
+    resolver = AsyncMock(return_value=(client, "google_gmail"))
+    monkeypatch.setattr(
+        "src.domains.connectors.provider_resolver.resolve_client_for_category", resolver
+    )
+    content = {
+        "message_id": "another" if changed else "target",
+        CARD_COMPOSITION_DRAFT_KEY: selection("delete_email"),
+    }
+    if changed:
+        with pytest.raises(CardCompositionUnavailable):
+            await execute_email_delete_draft(content, USER, deps)
+        client.trash_email.assert_not_awaited()
+        resolver.assert_not_awaited()
+    else:
+        await execute_email_delete_draft(content, USER, deps)
+        client.trash_email.assert_awaited_once_with("target")
+        db.commit.assert_awaited_once()
     assert card_composition_ctx.get() is None
 
 

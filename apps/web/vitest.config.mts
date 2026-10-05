@@ -404,6 +404,14 @@ export default defineConfig({
         branches: 77,
         functions: 80,
         lines: 84,
+        // Continuous avatar PCM and exclusive phrase routing, measured inline:
+        // 99.24 / 95.45 / 100 / 100; retain a two-point margin on each axis.
+        'src/lib/voice-output/*.ts': {
+          statements: 97,
+          branches: 93,
+          functions: 98,
+          lines: 98,
+        },
         // Hot JEV switches: confirmed writes, failures, refresh and OFF recovery.
         // Measured 93.94 / 85.19 / 100 / 93.94; preserve a margin per axis.
         'src/components/settings/AdminJevSection.tsx': {

@@ -55,7 +55,7 @@ from src.domains.psyche.engine import (
 from src.domains.psyche.models import PsycheHistory, PsycheState
 from src.domains.psyche.repository import PsycheStateRepository
 from src.domains.psyche.schemas import PsycheStateSummary
-from src.infrastructure.llm.usage_metadata import model_name_of, tokens_from_response
+from src.infrastructure.llm.usage_metadata import model_name_of
 from src.infrastructure.observability.logging import get_logger
 
 # Lazy imports for generate_summary (avoid circular at module level)
@@ -804,44 +804,48 @@ class PsycheService:
         )
 
         llm = get_llm("psyche_summary")
+        from time import time
+
+        from langchain_core.runnables import RunnableConfig
+
+        from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
+        from src.infrastructure.llm.token_capture import TokenCaptureHandler
+        from src.infrastructure.proactive.tracking import capture_spend_on_failure
+
+        requested_model = model_name_of(llm) or "unknown"
+        started_at = time()
+        pricing_snapshot = capture_pricing_snapshot()
+        capture = TokenCaptureHandler(requested_model)
         try:
-            result = await invoke_with_instrumentation(
-                llm=llm,
-                llm_type="psyche_summary",
-                messages=[
-                    SystemMessage(content=prompt),
-                    HumanMessage(content="Generate the summary."),
-                ],
-                session_id=f"psyche_summary_{uuid4().hex[:8]}",
-                user_id=str(user_id),
-            )
-            summary = str(result.text)
+            async with capture_spend_on_failure(
+                capture,
+                user_id=user_id,
+                task_type="psyche_summary",
+                target_id=str(user_id),
+                model_name=requested_model,
+                source="proactive",
+            ):
+                result = await invoke_with_instrumentation(
+                    llm=llm,
+                    llm_type="psyche_summary",
+                    messages=[
+                        SystemMessage(content=prompt),
+                        HumanMessage(content="Generate the summary."),
+                    ],
+                    session_id=f"psyche_summary_{uuid4().hex[:8]}",
+                    user_id=str(user_id),
+                    config=RunnableConfig(callbacks=[capture]),
+                )
+                capture.ensure_response_record(
+                    result,
+                    model_name=requested_model,
+                    started_at=started_at,
+                    snapshot=pricing_snapshot,
+                )
+                summary = str(result.text)
+                from src.domains.psyche.billing import settle_summary_capture
 
-            # Billed to the account whose profile this is. The counts come
-            # from the one implementation that reads both provider spellings
-            # and subtracts the cache: the hand-rolled block here read the
-            # Anthropic field WITHOUT subtracting it, so a cached prompt was
-            # billed twice on every Anthropic model.
-            try:
-                usage = tokens_from_response(result)
-                if not usage.is_empty:
-                    from src.infrastructure.proactive.tracking import track_proactive_tokens
-
-                    await track_proactive_tokens(
-                        user_id=user_id,
-                        task_type="psyche_summary",
-                        target_id=str(user_id),
-                        conversation_id=None,
-                        tokens_in=usage.prompt,
-                        tokens_out=usage.completion,
-                        tokens_cache=usage.cached,
-                        tokens_cache_write=usage.cache_write,
-                        model_name=model_name_of(llm),
-                        db=self.db,
-                        source="proactive",
-                    )
-            except Exception as track_err:
-                logger.debug("psyche_summary_token_tracking_failed", error=str(track_err))
+                await settle_summary_capture(capture, user_id, requested_model, self.db)
 
             logger.info(
                 "psyche_summary_generated",

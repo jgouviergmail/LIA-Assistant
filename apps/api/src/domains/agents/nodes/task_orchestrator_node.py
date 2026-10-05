@@ -50,18 +50,19 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.for_each_hitl_prep import (
-    extract_item_previews_for_hitl,
-    filter_registry_by_items,
     is_pre_approved_lot,
     pre_execute_for_each_providers,
     refresh_for_each_scope_claims,
+)
+from src.domains.agents.nodes.for_each_preview_identity import (
+    apply_filtered_source_items,
+    original_selection_after_approval,
+    prepare_preview_context,
 )
 from src.domains.agents.orchestration import (
     create_orchestration_plan,
     map_execution_result_to_agent_result,
 )
-from src.domains.agents.orchestration.for_each_utils import parse_for_each_reference
-from src.domains.agents.tools.runtime_helpers import extract_value_by_path
 from src.domains.agents.utils.state_cleanup import (
     cleanup_dict_by_turn_id,
     cleanup_list_by_limit,
@@ -531,7 +532,9 @@ async def _handle_execution_plan(
                 # ── Approved: resume from the persisted context (no re-fetch) ──
                 pre_executed_steps = ctx.get("pre_executed_steps") or {}
                 pre_exec_registry = ctx.get("pre_exec_registry") or {}
-                filtered_indices = ctx.get("filtered_indices")
+                filtered_indices = original_selection_after_approval(
+                    ctx, for_each_steps_requiring_hitl
+                )
                 logger.info(
                     "for_each_hitl_resumed_from_ctx",
                     run_id=run_id,
@@ -572,10 +575,8 @@ async def _handle_execution_plan(
                 refresh_for_each_scope_claims(for_each_steps_requiring_hitl, item_counts)
 
                 # FIX 2026-01-30: Extract item previews for "Informed HITL"
-                item_previews = extract_item_previews_for_hitl(
-                    pre_exec_registry=pre_exec_registry,
-                    for_each_steps=for_each_steps_requiring_hitl,
-                    completed_steps=pre_executed_steps,
+                preview_context = prepare_preview_context(
+                    pre_exec_registry, for_each_steps_requiring_hitl, pre_executed_steps
                 )
 
                 logger.info(
@@ -587,7 +588,7 @@ async def _handle_execution_plan(
                     total_affected=total_affected,
                     item_counts=item_counts,
                     pre_executed_step_ids=list(pre_executed_steps.keys()),
-                    item_previews_count=len(item_previews),
+                    item_previews_count=len(preview_context["item_previews"]),
                 )
 
                 if total_affected == 0:
@@ -614,9 +615,8 @@ async def _handle_execution_plan(
                             "steps": for_each_steps_requiring_hitl,
                             "pre_executed_steps": pre_executed_steps,
                             "pre_exec_registry": pre_exec_registry,
-                            "item_previews": item_previews,
+                            **preview_context,
                             "total_affected": total_affected,
-                            "filtered_indices": None,
                             "iteration": 0,
                             "approved": False,
                         },
@@ -633,45 +633,13 @@ async def _handle_execution_plan(
             # We must update pre_executed_steps so execute_plan_parallel uses filtered data.
             # ================================================================
             if filtered_indices is not None and for_each_steps_requiring_hitl:
-                # Get for_each source to identify data location
-                for_each_source = for_each_steps_requiring_hitl[0].get("for_each_source", "")
-                provider_id, field_path = parse_for_each_reference(for_each_source)
-
-                if provider_id and field_path and provider_id in pre_executed_steps:
-                    result_data = pre_executed_steps[provider_id]
-                    original_items = extract_value_by_path(result_data, field_path)
-
-                    if original_items and isinstance(original_items, list):
-                        # Keep only items at filtered indices
-                        filtered_items = [original_items[i] for i in filtered_indices]
-
-                        # Update the step result with filtered items
-                        # field_path is simple (e.g., "emails", "events") for FOR_EACH sources
-                        if field_path in result_data:
-                            result_data[field_path] = filtered_items
-
-                        logger.info(
-                            "for_each_data_filtered_in_pre_executed_steps",
-                            run_id=run_id,
-                            provider_id=provider_id,
-                            field_path=field_path,
-                            original_count=len(original_items),
-                            filtered_count=len(filtered_items),
-                            filtered_indices=filtered_indices,
-                        )
-
-                        # ================================================================
-                        # CRITICAL: Also filter pre_exec_registry (Issue 2 Fix)
-                        # ================================================================
-                        # Without this, response_node sees all original items and generates
-                        # incorrect responses (shows list instead of confirming action).
-                        # ================================================================
-                        pre_exec_registry = filter_registry_by_items(
-                            pre_exec_registry=pre_exec_registry,
-                            filtered_items=filtered_items,
-                            field_path=field_path,
-                            run_id=run_id,
-                        )
+                pre_exec_registry = apply_filtered_source_items(
+                    pre_executed_steps,
+                    pre_exec_registry,
+                    for_each_steps_requiring_hitl,
+                    filtered_indices,
+                    run_id,
+                )
 
         # Execute plan with asyncio-based parallel execution
         # Data Registry LOT 5.2: Returns ParallelExecutionResult with completed_steps and registry

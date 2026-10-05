@@ -9,11 +9,34 @@ call, one algorithmic fallback.
 
 from __future__ import annotations
 
+from time import time
 from uuid import UUID
 
 import structlog
 
+from src.infrastructure.cache.pricing_cache import PricingCacheData, capture_pricing_snapshot
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
+
 logger = structlog.get_logger(__name__)
+
+
+def _description_prompt(tool_list: list[dict], server_name: str, account_scoped: bool) -> str:
+    """Keep the discovered tool summary and authentication scope in one prompt."""
+    tool_lines = []
+    for tool in tool_list:
+        name = tool.get("name", "")
+        description = tool.get("description", "")
+        if name:
+            tool_lines.append(f"- {name}: {description}" if description else f"- {name}")
+    auth_line = (
+        "Authentication: calls are authenticated with the user's own account "
+        "credentials - capabilities operate on the user's own data, never "
+        "describe this server as public-only."
+        if account_scoped
+        else "Authentication: none - the server serves public or anonymous data."
+    )
+    tools_text = "\n".join(tool_lines)
+    return f"Server name: {server_name}\n{auth_line}\n\nAvailable tools:\n{tools_text}"
 
 
 async def _account_description_spend(
@@ -21,6 +44,11 @@ async def _account_description_spend(
     server_name: str,
     llm: object,
     response: object,
+    *,
+    started_at: float | None = None,
+    requested_model: str | None = None,
+    pricing_snapshot: PricingCacheData | None = None,
+    billing_capture: TokenCaptureHandler | None = None,
 ) -> None:
     """Bill one description generation to the account whose server it is.
 
@@ -33,10 +61,40 @@ async def _account_description_spend(
     """
     if user_id is None:
         return
-    from src.infrastructure.llm.usage_metadata import model_name_of, tokens_from_response
+    from src.infrastructure.llm.token_capture import priced_call
+    from src.infrastructure.llm.usage_metadata import (
+        model_name_of,
+        model_name_of_response,
+        tokens_from_response,
+    )
     from src.infrastructure.proactive.tracking import track_proactive_tokens
 
     usage = tokens_from_response(response)
+    model_name = (
+        model_name_of_response(response) or requested_model or model_name_of(llm) or "unknown"
+    )
+    if billing_capture is not None:
+        records = billing_capture.claim_billing_records(model_name)
+        if not records:
+            return
+        from src.infrastructure.llm.usage_metadata import UsageTokens
+
+        usage = UsageTokens(
+            billing_capture.tokens_in,
+            billing_capture.tokens_out,
+            billing_capture.tokens_cache,
+            billing_capture.tokens_cache_write,
+        )
+        model_name = records[-1].model_name
+    else:
+        records = (
+            priced_call(
+                usage,
+                model_name,
+                started_at if started_at is not None else time(),
+                snapshot=pricing_snapshot,
+            ),
+        )
     await track_proactive_tokens(
         user_id=user_id,
         task_type="mcp_description",
@@ -46,7 +104,8 @@ async def _account_description_spend(
         tokens_out=usage.completion,
         tokens_cache=usage.cached,
         tokens_cache_write=usage.cache_write,
-        model_name=model_name_of(llm),
+        model_name=model_name,
+        billing_records=records,
         source="user",
     )
 
@@ -100,40 +159,51 @@ async def generate_domain_description(
 
         llm = get_llm("mcp_description")
 
-        # Build tool summary for the prompt
-        tool_lines: list[str] = []
-        for t in tool_list:
-            name = t.get("name", "")
-            desc = t.get("description", "")
-            if name and desc:
-                tool_lines.append(f"- {name}: {desc}")
-            elif name:
-                tool_lines.append(f"- {name}")
-        tools_text = "\n".join(tool_lines)
-
-        auth_line = (
-            "Authentication: calls are authenticated with the user's own account "
-            "credentials - capabilities operate on the user's own data, never "
-            "describe this server as public-only."
-            if account_scoped
-            else "Authentication: none - the server serves public or anonymous data."
-        )
         system_prompt = load_prompt("mcp_description_prompt")
-        user_prompt = f"Server name: {server_name}\n{auth_line}\n\nAvailable tools:\n{tools_text}"
+        user_prompt = _description_prompt(tool_list, server_name, account_scoped)
 
         from src.infrastructure.llm.invoke_helpers import (
             enrich_config_with_node_metadata,
         )
 
         invoke_config = enrich_config_with_node_metadata(None, "mcp_description_generation")
-        response = await llm.ainvoke(
-            [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt),
-            ],
-            config=invoke_config,
-        )
-        await _account_description_spend(user_id, server_name, llm, response)
+        from src.infrastructure.llm.usage_metadata import model_name_of
+
+        requested_model = model_name_of(llm)
+        started_at = time()
+        pricing_snapshot = capture_pricing_snapshot()
+        capture = TokenCaptureHandler(requested_model)
+        invoke_config["callbacks"] = [capture]
+        from src.infrastructure.proactive.tracking import capture_spend_on_failure
+
+        async with capture_spend_on_failure(
+            capture,
+            user_id=user_id,
+            task_type="mcp_description",
+            target_id=server_name[:12],
+            model_name=requested_model or "unknown",
+            source="user",
+        ):
+            response = await llm.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
+                config=invoke_config,
+            )
+            capture.ensure_response_record(
+                response,
+                model_name=requested_model or "unknown",
+                started_at=started_at,
+                snapshot=pricing_snapshot,
+            )
+            await _account_description_spend(
+                user_id,
+                server_name,
+                llm,
+                response,
+                started_at=started_at,
+                requested_model=requested_model,
+                pricing_snapshot=pricing_snapshot,
+                billing_capture=capture,
+            )
 
         generated = response.text.strip()
 

@@ -36,6 +36,7 @@ from src.core.config import settings as app_settings
 from src.core.constants import MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.services.analysis.jev_memory_presence import choose_no_memory_references
 from src.domains.agents.services.memory_reference_resolution_service import (
     ResolvedReferences,
 )
@@ -167,6 +168,8 @@ class MemoryResolver:
             return []
 
         try:
+            if await choose_no_memory_references(query):
+                return []
             prompt_template = load_prompt("memory_reference_extraction_prompt", version="v1")
             prompt_text = prompt_template.format(query=query)
 

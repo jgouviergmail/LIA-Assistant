@@ -49,6 +49,7 @@ from src.core.constants import (
 from src.core.i18n import get_language_name, normalize_language
 from src.core.i18n_dates import format_elapsed, format_short_stamp, neutral_persona
 from src.core.i18n_proactive import ProactiveMessages
+from src.core.llm_usage import LLMBillingRecord
 from src.core.recurrence import RecurrenceSpec, describe
 from src.domains.agents.prompts.prompt_loader import (
     load_prompt,
@@ -59,14 +60,13 @@ from src.domains.agents.prompts.prompt_loader import (
 # "expression 'Reminder' failed to locate a name" when User.reminders relationship
 # is resolved during the first DB query.
 from src.domains.reminders.models import Reminder  # noqa: F401
-from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
+from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot, get_cached_cost_usd_eur
 from src.infrastructure.cache.user_channel import user_notifications_channel
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.output_truncation import is_output_truncated
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
 from src.infrastructure.llm.usage_metadata import (
-    model_name_of_response,
     reasoning_tokens_of,
-    tokens_from_response,
 )
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
@@ -136,6 +136,9 @@ class ReminderMessageResult:
         tokens_cache: int = 0,
         model_name: str = "",
         tokens_cache_write: int = 0,
+        billing_records: tuple[LLMBillingRecord, ...] = (),
+        billing_capture: TokenCaptureHandler | None = None,
+        run_id: str | None = None,
     ):
         self.message = message
         self.tokens_in = tokens_in
@@ -144,6 +147,9 @@ class ReminderMessageResult:
         self.model_name = model_name
         # The part of ``tokens_in`` Claude wrote to its prompt cache (ADR-306).
         self.tokens_cache_write = tokens_cache_write
+        self.billing_records = billing_records
+        self.billing_capture = billing_capture
+        self.run_id = run_id
 
 
 async def generate_reminder_message(
@@ -156,6 +162,7 @@ async def generate_reminder_message(
     language: str,
     user_id: str | None = None,
     recurrence: RecurrenceSpec | None = None,
+    run_id: str | None = None,
 ) -> ReminderMessageResult:
     """
     Generate a personalized reminder message using LLM.
@@ -272,6 +279,9 @@ async def generate_reminder_message(
     if user_model_block:
         system_prompt += "\n\n" + user_model_block
 
+    capture: TokenCaptureHandler | None = None
+    operation_run_id = run_id or f"reminder_message_{uuid.uuid4().hex[:8]}"
+    requested_model = "unknown"
     try:
         # The response slot, asked for a SHORT answer: no reasoning where the
         # model can stop, and the answer budget only there. Until 2026-09-12
@@ -293,43 +303,83 @@ async def generate_reminder_message(
         from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
         invoke_config = enrich_config_with_node_metadata(None, "reminder_notification")
-        response = await llm.ainvoke(system_prompt, config=invoke_config)
-        # Gemini 3.x returns content as list[dict] blocks; coerce to text so the
-        # reminder message is the actual text, not a Python repr of the blocks.
-        message = coerce_content_to_text(response.content).strip()
+        from time import time
 
-        # ONE reader for every provider's usage shape (usage_metadata.py): the
-        # local copy this replaced read ``response_metadata["model"]`` -- a
-        # key LangChain never sets -- and the raw ``cached_tokens`` rather than
-        # the normalised ``input_token_details.cache_read``, so every reminder
-        # was billed to an unnamed model at zero with no cache credit.
-        tokens = tokens_from_response(response)
-        model_name = model_name_of_response(response) or ""
+        from src.infrastructure.llm.usage_metadata import model_name_of
+        from src.infrastructure.proactive.tracking import capture_spend_on_failure
 
-        # An empty answer is not a message, and a cut one is not either
-        # (ADR-275: a truncation is a refusal, never a rescue). The written
-        # sentence goes out instead -- and the spend that DID happen is kept.
-        if not message or is_output_truncated(response):
-            logger.warning(
-                "reminder_message_empty",
-                model_name=model_name,
-                truncated=is_output_truncated(response),
+        requested_model = model_name_of(llm) or "unknown"
+        started_at = time()
+        pricing_snapshot = capture_pricing_snapshot()
+        capture = TokenCaptureHandler(requested_model)
+        invoke_config["callbacks"] = [capture]
+        try:
+            owner = UUID(user_id) if user_id is not None else None
+        except ValueError, TypeError:
+            owner = None
+        async with capture_spend_on_failure(
+            capture,
+            user_id=owner,
+            task_type="reminder",
+            target_id=operation_run_id,
+            model_name=requested_model,
+            source="scheduled",
+            run_id=operation_run_id,
+        ):
+            response = await llm.ainvoke(system_prompt, config=invoke_config)
+            capture.ensure_response_record(
+                response,
+                model_name=requested_model,
+                started_at=started_at,
+                snapshot=pricing_snapshot,
+            )
+            # Gemini 3.x returns content as list[dict] blocks; coerce to text so the
+            # reminder message is the actual text, not a Python repr of the blocks.
+            message = coerce_content_to_text(response.content).strip()
+
+            # ONE reader for every provider's usage shape (usage_metadata.py): the
+            # local copy this replaced read ``response_metadata["model"]`` -- a
+            # key LangChain never sets -- and the raw ``cached_tokens`` rather than
+            # the normalised ``input_token_details.cache_read``, so every reminder
+            # was billed to an unnamed model at zero with no cache credit.
+            records = capture.get_billing_records(requested_model)
+            from src.infrastructure.llm.usage_metadata import UsageTokens
+
+            tokens = UsageTokens(
+                capture.tokens_in,
+                capture.tokens_out,
+                capture.tokens_cache,
+                capture.tokens_cache_write,
+            )
+            model_name = records[-1].model_name if records else requested_model
+
+            # An empty answer is not a message, and a cut one is not either
+            # (ADR-275: a truncation is a refusal, never a rescue). The written
+            # sentence goes out instead -- and the spend that DID happen is kept.
+            if not message or is_output_truncated(response):
+                logger.warning(
+                    "reminder_message_empty",
+                    model_name=model_name,
+                    truncated=is_output_truncated(response),
+                    tokens_out=tokens.completion,
+                    reasoning_tokens=reasoning_tokens_of(response),
+                    fallback=True,
+                )
+                message = ProactiveMessages.reminder_fallback_body(
+                    created_at_text, reminder_content, language
+                )
+
+            return ReminderMessageResult(
+                message=message,
+                tokens_in=tokens.prompt,
                 tokens_out=tokens.completion,
-                reasoning_tokens=reasoning_tokens_of(response),
-                fallback=True,
+                tokens_cache=tokens.cached,
+                model_name=model_name,
+                tokens_cache_write=tokens.cache_write,
+                billing_records=records,
+                billing_capture=capture,
+                run_id=operation_run_id,
             )
-            message = ProactiveMessages.reminder_fallback_body(
-                created_at_text, reminder_content, language
-            )
-
-        return ReminderMessageResult(
-            message=message,
-            tokens_in=tokens.prompt,
-            tokens_out=tokens.completion,
-            tokens_cache=tokens.cached,
-            model_name=model_name,
-            tokens_cache_write=tokens.cache_write,
-        )
 
     except Exception as e:
         logger.warning(
@@ -337,11 +387,19 @@ async def generate_reminder_message(
             error=str(e),
             fallback=True,
         )
-        # Fallback to simple message with creation date (no token usage)
+        records = capture.get_billing_records(requested_model) if capture else ()
         return ReminderMessageResult(
             message=ProactiveMessages.reminder_fallback_body(
                 created_at_text, reminder_content, language
-            )
+            ),
+            tokens_in=capture.tokens_in if capture else 0,
+            tokens_out=capture.tokens_out if capture else 0,
+            tokens_cache=capture.tokens_cache if capture else 0,
+            tokens_cache_write=capture.tokens_cache_write if capture else 0,
+            model_name=records[-1].model_name if records else "",
+            billing_records=records,
+            billing_capture=capture,
+            run_id=operation_run_id,
         )
 
 
@@ -406,12 +464,12 @@ async def get_relevant_memories(user_id: str, reminder_content: str) -> list[dic
 
 
 async def _account_reminder_spend(
-    db: AsyncSession,
+    db: AsyncSession | None,
     *,
     reminder_id: str,
     user_id: UUID,
     run_id: str,
-    conversation_id: UUID,
+    conversation_id: UUID | None,
     result: ReminderMessageResult,
 ) -> float:
     """Charge one reminder notification to the account it was written for.
@@ -430,54 +488,29 @@ async def _account_reminder_spend(
     hand-rolled variant.
 
     Args:
-        db: The caller's session; the write joins its transaction.
+        db: The caller's session, or None for settlement before delivery.
         reminder_id: Reminder being notified, for the log line.
         user_id: Account to bill.
         run_id: Pre-generated run id, already injected into the archived
             message's metadata — it must be reused, not regenerated, or the
             message and its cost stop pointing at each other.
-        conversation_id: Conversation the notification is archived in.
+        conversation_id: The archive's conversation, if already known.
         result: The generated message and its token usage.
 
     Returns:
         The call's cost in euros, for the archived message's metadata.
     """
-    from src.infrastructure.proactive.tracking import track_proactive_tokens
+    from src.infrastructure.scheduler.reminder_billing import account_reminder_spend
 
-    if result.tokens_in <= 0 and result.tokens_out <= 0:
-        return 0.0
-
-    cost_eur = 0.0
-    try:
-        _cost_usd, cost_eur = get_cached_cost_usd_eur(
-            model=result.model_name or "",
-            prompt_tokens=result.tokens_in,
-            completion_tokens=result.tokens_out,
-            cached_tokens=result.tokens_cache,
-            cache_write_tokens=result.tokens_cache_write,
-        )
-    except Exception as price_error:  # noqa: BLE001 — an unpriced call still happened
-        logger.warning(
-            "reminder_cost_calculation_failed",
-            reminder_id=reminder_id,
-            error=str(price_error),
-        )
-
-    await track_proactive_tokens(
+    return await account_reminder_spend(
+        db,
+        reminder_id=reminder_id,
         user_id=user_id,
-        task_type="reminder",
-        target_id=reminder_id,
-        conversation_id=conversation_id,
-        tokens_in=result.tokens_in,
-        tokens_out=result.tokens_out,
-        tokens_cache=result.tokens_cache,
-        tokens_cache_write=result.tokens_cache_write,
-        model_name=result.model_name,
-        db=db,
         run_id=run_id,
-        source="scheduled",
+        conversation_id=conversation_id,
+        result=result,
+        cost_calculator=get_cached_cost_usd_eur,
     )
-    return float(cost_eur)
 
 
 async def process_pending_reminders() -> dict[str, Any]:
@@ -708,6 +741,7 @@ async def _notify(reminder: Reminder) -> str:
         return "skipped"
 
     language = normalize_language(user.language)
+    operation_run_id = f"reminder_{reminder.id}_{uuid.uuid4().hex[:8]}"
     result = await generate_reminder_message(
         original_message=reminder.original_message,
         reminder_content=reminder.content,
@@ -718,9 +752,11 @@ async def _notify(reminder: Reminder) -> str:
         language=language,
         user_id=str(reminder.user_id),
         recurrence=reminder.recurrence_spec,
+        run_id=operation_run_id,
     )
     message = f"🔔 {result.message}"  # always the bell for a reminder
     title = get_localized_title(language)
+    await _bill_before_delivery(reminder, result, operation_run_id)
     fcm_result = await _deliver(reminder, title=title, message=message)
     await _archive(reminder, message=message, result=result, language=language)
     await _publish(reminder, title=title, message=message)
@@ -735,6 +771,21 @@ async def _notify(reminder: Reminder) -> str:
         fcm_failed=fcm_result.failure_count,
     )
     return "notified"
+
+
+async def _bill_before_delivery(
+    reminder: Reminder, result: ReminderMessageResult, run_id: str
+) -> None:
+    """Settle captured attempts before delivery can fail or be cancelled."""
+    if getattr(result, "billing_capture", None) is not None:
+        await _account_reminder_spend(
+            None,
+            reminder_id=str(reminder.id),
+            user_id=reminder.user_id,
+            run_id=run_id,
+            conversation_id=None,
+            result=result,
+        )
 
 
 async def _load_owner(reminder: Reminder) -> tuple[Any | None, Any | None]:
@@ -790,7 +841,7 @@ async def _archive(
     from src.domains.conversations.service import ConversationService
     from src.infrastructure.database.session import get_db_context
 
-    run_id = f"reminder_{reminder.id}_{uuid.uuid4().hex[:8]}"
+    run_id = getattr(result, "run_id", None) or f"reminder_{reminder.id}_{uuid.uuid4().hex[:8]}"
     try:
         conv_service = ConversationService()
         async with get_db_context() as db:

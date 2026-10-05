@@ -74,7 +74,12 @@ async def test_one_native_call_exposes_its_actual_branch(
     if scenario == "http_error":
         provider.side_effect = TypeSafeError("provider_error", status_code=503)
     elif scenario == "invalid":
-        provider.side_effect = TypeSafeError("invalid_response")
+        provider.side_effect = TypeSafeError(
+            "invalid_response",
+            reason="probability_sum",
+            usage=DecisionUsage(input_tokens=100, output_tokens=2),
+            model=config.model,
+        )
     elif scenario == "cancel_call":
         provider.side_effect = asyncio.CancelledError()
     ledger = AsyncMock()
@@ -124,7 +129,12 @@ async def test_one_native_call_exposes_its_actual_branch(
     assert (last.action, last.outcome) == (action, outcome)
     assert "never-in-debug" not in last.model_dump_json()
     assert (last.response is None) == (scenario in {"http_error", "invalid", "cancel_call"})
-    assert (last.reported_model is None) == (scenario in {"http_error", "invalid", "cancel_call"})
+    assert (last.reported_model is None) == (scenario in {"http_error", "cancel_call"})
+    if scenario == "invalid":
+        assert last.invalid_response_reason == "probability_sum"
+        assert last.input_tokens == 100 and last.output_tokens == 2
+        assert last.cost_eur is not None and last.cost_eur > 0
+        assert len(tracker.get_llm_calls_breakdown()) == 1
     if action == "selected":
         assert last.action_target == f"{MEDICAL.ref}: {MEDICAL.name}"
     elif action == "fallback":

@@ -78,6 +78,7 @@ _ROUTER_MODULES: dict[PlatformCapability, str] = {
     PlatformCapability.SKILL_LIBRARY: "src.domains.skill_library.router",
     # ADR-324 — the radio's routes ARE the listening and its settings.
     PlatformCapability.RADIO: "src.domains.radio.router",
+    PlatformCapability.AVATAR: "src.domains.avatars.router",
 }
 
 

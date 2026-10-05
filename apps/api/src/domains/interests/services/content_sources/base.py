@@ -23,7 +23,13 @@ References:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from uuid import UUID
+
+from src.core.llm_usage import LLMBillingRecord
+
+if TYPE_CHECKING:
+    from src.infrastructure.llm.token_capture import TokenCaptureHandler
 
 
 @dataclass
@@ -51,6 +57,10 @@ class ContentResult:
     # Token usage from LLM-based sources (0 for non-LLM sources like Brave/Perplexity)
     tokens_in: int = 0
     tokens_out: int = 0
+    tokens_cache: int = 0
+    tokens_cache_write: int = 0
+    billing_records: tuple[LLMBillingRecord, ...] = ()
+    billing_capture: TokenCaptureHandler | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """Validate content result."""
@@ -58,6 +68,31 @@ class ContentResult:
             raise ValueError("Content cannot be empty")
         if not self.source:
             raise ValueError("Source cannot be empty")
+
+
+async def bill_discarded_content(
+    result: ContentResult, user_id: str | UUID | None, target_id: str
+) -> None:
+    """Settle a rejected paid result once; kept results stay with their runner."""
+    if result.billing_capture is None or user_id is None:
+        return
+    try:
+        owner = UUID(str(user_id))
+    except ValueError, TypeError:
+        return
+    from src.infrastructure.proactive.tracking import ambient_run_id, bill_captured_usage
+
+    await bill_captured_usage(
+        result.billing_capture,
+        user_id=owner,
+        task_type="interest_generation",
+        target_id=target_id,
+        model_name=result.billing_records[-1].model_name if result.billing_records else "unknown",
+        source="proactive",
+        run_id=ambient_run_id(),
+        failed=True,
+        llm_type="interest_content",
+    )
 
 
 @runtime_checkable

@@ -40,6 +40,7 @@ BASE_PUBLIC = {
     "skill_sandbox": "no",
     "live_mode": "no",
     "personal_radio": "no",
+    "speaking_avatar": "no",
 }
 SECRETS = {
     "admin_password": ADMIN_PASSWORD,
@@ -137,6 +138,14 @@ def test_interactive_lan_flow_routes_secrets_through_getpass_only() -> None:
     assert not set(io.secret_served) & set(io.public_served)
 
 
+def test_speaking_avatar_opt_in_is_public_and_has_no_provider_key_question() -> None:
+    io = _ScriptedIO({**BASE_PUBLIC, "speaking_avatar": "yes"}, SECRETS)
+    public, secrets = _collect(io)
+    assert public.speaking_avatar is True
+    assert "speaking_avatar" in io.public_served
+    assert set(secrets.provider_keys) == {"deepseek", "openai"}
+
+
 @pytest.mark.parametrize(
     ("exposure", "extra"),
     [
@@ -218,6 +227,16 @@ def test_non_interactive_missing_secret_is_a_stable_error(tmp_path: Path) -> Non
         _collect(_ScriptedIO({}, {}), non_interactive=True, answers_path=answers)
     assert str(excinfo.value) == "missing_answer:provider_key_deepseek"
     assert "dk-secret" not in str(excinfo.value)
+
+
+def test_older_answers_file_keeps_speaking_avatar_disabled(tmp_path: Path) -> None:
+    previous_answers = {**BASE_PUBLIC, **SECRETS}
+    previous_answers.pop("speaking_avatar")
+    path = _write_answers(tmp_path / "answers.env", previous_answers)
+    public, _secrets = _collect(
+        _ScriptedIO({}, {}), non_interactive=True, answers_path=path
+    )
+    assert public.speaking_avatar is False
 
 
 def test_non_interactive_requires_an_answers_path() -> None:

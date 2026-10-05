@@ -279,33 +279,38 @@ class ChannelsSettings(BaseSettings):
     channel_rate_limit_per_minute: int = Field(30, env="CHANNEL_RATE_LIMIT_PER_MINUTE")
 ```
 
-### 10. voice.py (134 lignes)
+### 10. voice.py
 
-**Responsabilite** : Google Cloud TTS, Voice parameters, Voice LLM configuration
+**Responsibility:** voice-comment behavior, speech input and shared TTS transport
+bounds. The authoritative declarations live in
+[VoiceSettings](../../apps/api/src/core/config/voice.py).
 
-```python
-class VoiceSettings(BaseSettings):
-    # Feature flag
-    voice_tts_enabled: bool = Field(True, env="VOICE_TTS_ENABLED")
+TTS provider, model, voice and tuning are administered through the LLM catalogue
+and the `voice_tts` slot, as described in [VOICE.md](../technical/VOICE.md).
+The historical `VOICE_TTS_*` Google Cloud example is no longer a configuration
+contract. `ELEVENLABS_TTS_MAX_CONCURRENCY` bounds shared provider capacity across
+workers and voice surfaces. Live provider/session settings belong to
+[LiveSettings](../../apps/api/src/core/config/live.py), independently of spoken
+comments and STT.
 
-    # Google Cloud TTS
-    google_cloud_tts_api_key: str = Field("", env="GOOGLE_CLOUD_TTS_API_KEY")
-    voice_tts_voice_name: str = Field("fr-FR-Neural2-G", env="VOICE_TTS_VOICE_NAME")
-    voice_tts_pitch: float = Field(-1.5, ge=-20.0, le=20.0)
-    voice_tts_speaking_rate: float = Field(1.075, ge=0.25, le=4.0)
-    voice_tts_audio_encoding: Literal["MP3", "LINEAR16", "OGG_OPUS"] = Field("MP3")
-    voice_tts_sample_rate_hertz: int = Field(24000, ge=8000, le=48000)
+### Personal speaking avatars: avatars.py
 
-    # Voice comment LLM (fast model for comment generation)
-    voice_llm_provider: str = Field("openai", env="VOICE_LLM_PROVIDER")
-    voice_llm_model: str = Field("gpt-4.1-nano", env="VOICE_LLM_MODEL")
-    voice_llm_temperature: float = Field(0.7, ge=0.0, le=2.0)
-    voice_llm_max_tokens: int = Field(500, gt=0, le=2000)
+[AvatarSettings](../../apps/api/src/core/config/avatars.py) joins the composed
+`Settings` through multiple inheritance like the other domains. `AVATAR_ENABLED`
+is an instance ceiling, disabled by default; each account must separately
+connect its own Simli key and opt in. Session/idle lengths, HTTP/connection
+timeouts and mint limits are finite, with idle duration no greater than the
+session duration. Their defaults and accepted bounds are defined in that module
+and its shared constants, rather than copied here.
 
-    # Voice comment behavior
-    voice_max_sentences: int = Field(6, ge=1, le=10)
-    voice_sentence_delimiters: str = Field(".!?")
-```
+The [guided installer](GUIDE_SELF_HOSTING.md) asks whether to offer the avatar,
+emits those defaults and preserves the choice when resuming. Its alignment tests
+load the real composed `Settings` with the generated defaults. No instance Simli
+key, new Compose service or runtime dependency is required. The normal migration
+chain creates account permission and connector availability before the API
+starts. [SPEAKING_AVATAR.md](../technical/SPEAKING_AVATAR.md) documents ownership,
+personal credit consumption and the real-media trials still pending under
+[proposed ADR-334](../architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md).
 
 ### 11. usage_limits.py
 

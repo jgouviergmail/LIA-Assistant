@@ -1,4 +1,4 @@
-/** Early results arrive during a real ReadableStream; no provider or account API is used. */
+/** Legacy preview frames remain invisible while the ordinary answer streams. */
 import { test, expect, chatRoutes, idleNotificationStream } from '../fixtures';
 import { scanPage } from '../a11y/scan';
 
@@ -9,7 +9,11 @@ declare global {
 }
 
 for (const width of [390, 1280]) {
-  test(`qualified results remain inspectable during streaming at ${width}px`, async ({ page, authenticate, mockApi }, testInfo) => {
+  test(`JEV first-results panel stays hidden during streaming at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.setViewportSize({ width, height: 900 });
@@ -26,16 +30,24 @@ for (const width of [390, 1280]) {
       { url: '**/api/v1/skills*', json: { skills: [] } },
       { url: '**/api/v1/chat/shortcuts*', json: { shortcuts: [] } },
       { url: '**/api/v1/chat/suggestions*', json: { suggestions: [] } },
-      { url: '**/api/v1/system-settings/debug-panel-status', json: { enabled: false, user_access_available: false } },
+      {
+        url: '**/api/v1/system-settings/debug-panel-status',
+        json: { enabled: false, user_access_available: false },
+      },
     ]);
     await page.addInitScript(() => {
       const original = window.fetch.bind(window);
       window.fetch = async (input, init) => {
         const url = input instanceof Request ? input.url : String(input);
         if (!url.includes('/agents/chat/stream')) return original(input, init);
-        return new Response(new ReadableStream<Uint8Array>({
-          start(controller) { window.jevTestStream = controller; },
-        }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              window.jevTestStream = controller;
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } }
+        );
       };
     });
     await page.goto('/fr/dashboard/chat');
@@ -46,41 +58,88 @@ for (const width of [390, 1280]) {
     await page.evaluate(() => {
       const frames = [
         { type: 'token', content: 'Je prépare la synthèse.' },
-        { type: 'result_preview', content: '', metadata: { collection: {
-          kind: 'EMAIL', candidate_count: 3, evaluated_count: 2, omitted_count: 0,
-          items: [
-            { id: '1', title: 'Contrat à signer', excerpt: '<script>window.jevInjected=true</script>', verdict: 'match' },
-            { id: '2', title: 'Pièce jointe indisponible', excerpt: 'À vérifier dans la réponse finale.', verdict: 'unknown' },
-            { id: '3', title: 'Bulletin promotionnel', excerpt: 'Aucune réponse demandée.', verdict: 'non_match' },
-          ],
-        } } },
+        {
+          type: 'result_preview',
+          content: '',
+          metadata: {
+            collection: {
+              kind: 'EMAIL',
+              candidate_count: 3,
+              evaluated_count: 2,
+              omitted_count: 0,
+              items: [
+                {
+                  id: '1',
+                  title: 'Contrat à signer',
+                  excerpt: '<script>window.jevInjected=true</script>',
+                  verdict: 'match',
+                },
+                {
+                  id: '2',
+                  title: 'Pièce jointe indisponible',
+                  excerpt: 'À vérifier dans la réponse finale.',
+                  verdict: 'unknown',
+                },
+                {
+                  id: '3',
+                  title: 'Bulletin promotionnel',
+                  excerpt: 'Aucune réponse demandée.',
+                  verdict: 'non_match',
+                },
+              ],
+            },
+          },
+        },
       ];
       for (const kind of ['REMINDER', 'TICKET', 'MCP_RESULT', 'NOTE']) {
-        frames.push({ type: 'result_preview', content: '', metadata: { collection: {
-          kind, candidate_count: 1, evaluated_count: 1, omitted_count: 0,
-          items: [{ id: kind, title: `Source ${kind}`, excerpt: 'Preuve conservée', verdict: 'unknown' }],
-        } } });
+        frames.push({
+          type: 'result_preview',
+          content: '',
+          metadata: {
+            collection: {
+              kind,
+              candidate_count: 1,
+              evaluated_count: 1,
+              omitted_count: 0,
+              items: [
+                {
+                  id: kind,
+                  title: `Source ${kind}`,
+                  excerpt: 'Preuve conservée',
+                  verdict: 'unknown',
+                },
+              ],
+            },
+          },
+        });
       }
-      window.jevTestStream?.enqueue(new TextEncoder().encode(frames.map(frame => `data: ${JSON.stringify(frame)}\n\n`).join('')));
+      frames.push({ type: 'token', content: ' La réponse arrive.' });
+      window.jevTestStream?.enqueue(
+        new TextEncoder().encode(frames.map(frame => `data: ${JSON.stringify(frame)}\n\n`).join(''))
+      );
     });
     const preview = page.getByRole('complementary', { name: 'Premiers résultats' });
-    await expect(preview).toBeVisible();
-    await expect(preview.getByText('Contrat à signer')).toBeVisible();
-    await expect(preview.getByText('Pièce jointe indisponible')).toBeVisible();
+    await expect(
+      page.getByText('Je prépare la synthèse. La réponse arrive.', { exact: false })
+    ).toBeVisible();
+    await expect(preview).not.toBeAttached();
+    await expect(page.getByText('Contrat à signer')).not.toBeAttached();
+    await expect(page.getByText('Pièce jointe indisponible')).not.toBeAttached();
     for (const kind of ['REMINDER', 'TICKET', 'MCP_RESULT', 'NOTE']) {
-      await expect(preview.getByText(`Source ${kind}`)).toBeVisible();
+      await expect(page.getByText(`Source ${kind}`)).not.toBeAttached();
     }
-    const summary = preview.locator('summary');
-    await summary.focus();
-    await page.keyboard.press('Enter');
-    await expect(preview.getByText('Bulletin promotionnel')).toBeVisible();
+    await expect(page.getByText('Bulletin promotionnel')).not.toBeAttached();
     expect(await page.evaluate(() => 'jevInjected' in window)).toBe(false);
-    expect(await preview.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
-    await preview.screenshot({ path: testInfo.outputPath(`preview-${width}.png`) });
-    const { blocking, summary: report } = await scanPage(page, testInfo, `jev-preview-${width}`);
+    const { blocking, summary: report } = await scanPage(
+      page,
+      testInfo,
+      `jev-hidden-preview-${width}`
+    );
     expect(blocking, report).toEqual([]);
     await page.evaluate(() => {
-      window.jevTestStream?.enqueue(new TextEncoder().encode('data: {"type":"done","content":"","metadata":null}\n\n'));
+      window.jevTestStream?.enqueue(
+        new TextEncoder().encode('data: {"type":"done","content":"","metadata":null}\n\n')
+      );
       window.jevTestStream?.close();
     });
     await expect(preview).not.toBeAttached();

@@ -34,9 +34,9 @@ const TOC_SECTIONS = [
 ] as const;
 
 /**
- * Load privacy policy markdown content.
- * Falls back to English (not French) for non-FR/EN languages,
- * as English is more universally readable for legal documents.
+ * Load the selected privacy policy translation.
+ * Falls back to English if a requested translation is unavailable.
+ * The filesystem reader runs only on the server.
  */
 function loadGuideContent(lng: string): string {
   const guidesDir = path.join(process.cwd(), 'src', 'data', 'guides');

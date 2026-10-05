@@ -209,7 +209,6 @@ export default function ChatPage() {
     currentDebugMetrics, // Debug Panel: Scoring metrics for current request
     debugMetricsHistory, // Debug Panel: Cumulative history of all request metrics
     browserScreenshot, // Browser Screenshots: Current overlay data
-    resultPreviews,
     contextUsage, // Context-usage pill: tokens vs compaction threshold
     hydrateContextUsage, // Seeds the pill from /me/totals on page load
     checkAndResumeActiveRun, // ADR-117 Lot 2: silent reattach to an in-flight run
@@ -1031,7 +1030,6 @@ export default function ChatPage() {
                         activeStreamId={searchQuery ? null : activeStreamId}
                         streamPhase={streamPhase}
                         browserScreenshot={browserScreenshot}
-                        resultPreviews={resultPreviews}
                         // Scroll-up pagination — disabled while the user is searching
                         // (search filters client-side over already-loaded messages
                         // only, so a sentinel would conflate "no match in this page"

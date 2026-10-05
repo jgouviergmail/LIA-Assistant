@@ -63,13 +63,27 @@ for (const sample of [
       const card = page.locator('.lia-mcp');
       await expect(card).toHaveCount(1);
       await expect(card).not.toContainText('SECRET_NOT_DISPLAYED');
-      const description = card.locator('details').first().locator(':scope > summary');
+      const result = card.locator('details').first();
+      const resultTrigger = result.locator(':scope > summary');
+      await expect(result).not.toHaveAttribute('open', '');
+      await expect(card.locator('.lia-mcp__metadata a')).toHaveAttribute(
+        'href',
+        'https://mcp.example.test'
+      );
+      await expect(card.locator('.lia-mcp__metadata a')).toBeVisible();
+      await expect(card.locator('.lia-mcp__metadata code')).toHaveText('list_items');
+      await expect(card.locator('.lia-mcp__metadata code')).toBeVisible();
+      await expect(card.getByText('Received field 8', { exact: true })).toBeHidden();
+      await resultTrigger.focus();
+      await resultTrigger.press('Enter');
+      await expect(result).toHaveAttribute('open', '');
+      const description = result.locator('details').first().locator(':scope > summary');
       await description.focus();
       await description.press('Enter');
       await expect(
         card.locator('.lia-card-text').filter({ hasText: 'MCP_LAST_DESCRIPTION' })
       ).toBeVisible();
-      const fields = card.locator('details').nth(1).locator(':scope > summary');
+      const fields = result.locator('details').nth(1).locator(':scope > summary');
       if (sample.width < 500) await fields.tap();
       else {
         await fields.focus();
@@ -82,6 +96,7 @@ for (const sample of [
       await expect(card.locator('.lia-raw-block')).toContainText('MCP_LAST_NESTED');
       await expect(card.locator('.lia-raw-block')).toBeVisible();
       expect((await fields.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      expect((await resultTrigger.boundingBox())?.height).toBeGreaterThanOrEqual(44);
       await expectNoOverflow(page, `MCP ${sample.width}`);
       const accessibility = await new AxeBuilder({ page })
         .include('.lia-mcp')
@@ -89,6 +104,14 @@ for (const sample of [
         .analyze();
       expect(accessibility.violations).toEqual([]);
       await page.screenshot({ path: test.info().outputPath(`mcp-${sample.theme}.png`) });
+      if (sample.width < 500) await resultTrigger.tap();
+      else await resultTrigger.press('Space');
+      await expect(result).not.toHaveAttribute('open', '');
+      await expect(card.locator('.lia-raw-block')).toBeHidden();
+      await expect(card.locator('.lia-mcp__metadata code')).toBeVisible();
+      await resultTrigger.press('Enter');
+      await expect(card.locator('.lia-raw-block')).toBeVisible();
+      await expect(card.locator('.lia-raw-block')).toContainText('MCP_LAST_NESTED');
     });
   });
 }

@@ -65,7 +65,9 @@ export function MarkdownCardBinding({
 function supportedAction(value: unknown): CardComposeAction | null {
   if (typeof value !== 'string') return null;
   const key = value.split(':', 1)[0];
-  return key === 'reply' || key === 'forward' || key === 'cancel_reminder' ? key : null;
+  return key === 'reply' || key === 'forward' || key === 'delete_email' || key === 'cancel_reminder'
+    ? key
+    : null;
 }
 
 export function MarkdownCardButton({

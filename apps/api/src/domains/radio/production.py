@@ -58,6 +58,7 @@ from src.domains.radio.verification import (
     drop_unsupported,
     verify_script,
 )
+from src.domains.voice.audio_output import audio_for_mix, mix_audio_format
 from src.domains.voice.billing import SynthesisResult, synthesize_billed
 from src.domains.voice.exceptions import TTSProviderError
 from src.domains.voice.families import TtsBilling, family_of
@@ -412,7 +413,7 @@ async def _voice_line(
             input_tokens=result.input_tokens,
             output_tokens=result.output_tokens,
         )
-    await _write_file(path, result.audio)
+    await _write_file(path, audio_for_mix(engine.client, result.audio))
     return rendered.unrendered
 
 
@@ -561,7 +562,7 @@ async def produce_segment(
         )
 
     paths = [
-        out.with_name(f"{out.stem}.line{index:02d}.{engine.client.audio_format}")
+        out.with_name(f"{out.stem}.line{index:02d}.{mix_audio_format(engine.client)}")
         for index in range(len(verified.lines))
     ]
     gate = asyncio.Semaphore(max(1, limits.tts_concurrency))

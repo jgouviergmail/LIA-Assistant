@@ -104,7 +104,7 @@ class TestGenerateDeliveryText:
                 new=AsyncMock(side_effect=_invoke),
             ),
         ):
-            text, usage, _model = await delivery._generate_delivery_text(
+            text, usage, _model, _records = await delivery._generate_delivery_text(
                 _message(), _user(SENDER_ID, "fr", "Jerome"), _user(RECIPIENT_ID, "it", "Marie"), 3
             )
         assert text == "Ton père demande comment tu vas."

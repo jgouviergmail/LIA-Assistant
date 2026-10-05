@@ -24,6 +24,8 @@ import { isWakeWordSupported } from '@/lib/audio/wake-word/support';
 import apiClient from '@/lib/api-client';
 import { startMicCapture } from '@/lib/live/mic-capture';
 import { PcmStreamPlayer } from '@/lib/live/pcm-player';
+import { RoutedLivePlayer } from '@/lib/voice-output/live-player';
+import { avatarEngine, awaitAvatarReady } from '@/lib/avatars/runtime';
 import {
   LiveSessionController,
   type LiveChatBindings,
@@ -63,7 +65,7 @@ export function useLiveSession(bindings: LiveChatBindings): UseLiveSessionReturn
         createTransport: createLiveTransport,
         // Give iOS PCM playback headroom for uneven WebSocket arrivals; WebRTC
         // transports own their audio and never use this player.
-        createPlayer: () => new PcmStreamPlayer(isAppleMobile() ? 120 : 0),
+        createPlayer: () => new RoutedLivePlayer(new PcmStreamPlayer(isAppleMobile() ? 120 : 0), avatarEngine),
         startMic: startMicCapture,
         isSupported: isLiveSupported,
         chat: bindings,
@@ -71,6 +73,7 @@ export function useLiveSession(bindings: LiveChatBindings): UseLiveSessionReturn
         // The i18n instance is the app's singleton: its language is the current one.
         wakeLanguage: () => wakeLanguageOf(i18n.language),
         chime: playReadyChime,
+        awaitAvatar: awaitAvatarReady,
       })
   );
   useEffect(() => {

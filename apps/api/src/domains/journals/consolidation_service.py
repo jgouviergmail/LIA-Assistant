@@ -23,6 +23,7 @@ from __future__ import annotations
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
+from time import time
 from typing import TYPE_CHECKING, Any, Final
 from uuid import UUID, uuid4
 
@@ -48,11 +49,14 @@ from src.domains.journals.portrait_sources import build_portrait_source_sections
 from src.domains.journals.prompt_builders import build_consolidation_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.usage_metadata import model_name_of, model_name_of_response
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import (
     journal_consolidation_deletes_total,
     journal_portrait_compile_duration_seconds,
 )
+from src.infrastructure.proactive.tracking import settle_known_billing
 
 logger = get_logger(__name__)
 
@@ -580,30 +584,61 @@ async def consolidate_journals_for_user(
         )
 
         # Call LLM
+        requested_model = get_llm_config_for_agent(settings, "journal_consolidation").model
         llm = get_llm("journal_consolidation")
-        result = await invoke_with_instrumentation(
-            llm=llm,
-            llm_type="journal_consolidation",
-            messages=prompt,
-            user_id=str(user_id),
-        )
-        model_answered = True
+        configured_model = model_name_of(llm) or requested_model
+        llm_started_at = time()
+        from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
+
+        pricing_snapshot = capture_pricing_snapshot()
+        capture = TokenCaptureHandler(configured_model)
+        result = None
+        try:
+            result = await invoke_with_instrumentation(
+                llm=llm,
+                llm_type="journal_consolidation",
+                messages=prompt,
+                user_id=str(user_id),
+                config={"callbacks": [capture]},
+            )
+            # Billing may fail next; the received answer still owns a journal act.
+            model_answered = True
+        finally:
+            model_name = model_name_of_response(result) or configured_model
+            if result is not None:
+                capture.ensure_response_record(
+                    result,
+                    model_name=model_name,
+                    started_at=llm_started_at,
+                    snapshot=pricing_snapshot,
+                )
+            await settle_known_billing(
+                _persist_journal_tokens(
+                    user_id=str(user_id),
+                    session_id="consolidation",
+                    conversation_id=None,
+                    result=result,
+                    model_name=model_name,
+                    parent_run_id=run_id,
+                    node_name="journal_consolidation",
+                    duration_ms=(time() - llm_started_at) * 1000,
+                    started_at=llm_started_at,
+                    requested_model=requested_model,
+                    capture=capture,
+                    failed=result is None,
+                )
+            )
         result_content = result.text
 
-        # Persist token usage (use effective config, not defaults — admin overrides matter)
-        model_name = get_llm_config_for_agent(settings, "journal_consolidation").model
-        await _persist_journal_tokens(
-            user_id=str(user_id),
-            session_id="consolidation",
-            conversation_id=None,
-            result=result,
-            model_name=model_name,
-            parent_run_id=run_id,
-            node_name="journal_consolidation",
-        )
-
         # Update user's last cost
-        await _update_user_last_cost(str(user_id), result, model_name, source="consolidation")
+        await _update_user_last_cost(
+            str(user_id),
+            result,
+            model_name,
+            source="consolidation",
+            started_at=llm_started_at,
+            capture=capture,
+        )
 
         # Parse result — supports both legacy array format and the enriched
         # object format with portrait_full + portrait_brief (commit 3+).

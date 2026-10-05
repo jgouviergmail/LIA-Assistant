@@ -20,22 +20,151 @@ cannot import the chat's tracker without closing a cycle.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
-from typing import TYPE_CHECKING
+from collections.abc import AsyncIterator, Callable, Coroutine
+from contextlib import asynccontextmanager, suppress
+from datetime import UTC, datetime
+from decimal import Decimal
+from functools import wraps
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.context import current_tracker
-from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
+from src.core.llm_usage import LLMBillingRecord
+from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur, get_cached_usd_eur_rate
 from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
     from src.domains.chat.service import TrackingContext
+    from src.infrastructure.llm.token_capture import TokenCaptureHandler
     from src.infrastructure.proactive.base import ProactiveTaskResult
 
 logger = get_logger(__name__)
+
+# Bound the final ledger write; do not hold a cancelling worker indefinitely.
+_BILLING_SETTLE_SECONDS = 10.0
+_BillingParams = ParamSpec("_BillingParams")
+_BillingResult = TypeVar("_BillingResult")
+
+
+def _shield_known_billing(
+    function: Callable[_BillingParams, Coroutine[Any, Any, str | None]],
+) -> Callable[_BillingParams, Coroutine[Any, Any, str | None]]:
+    """The common funnel finishes its one write before cancellation escapes."""
+
+    @wraps(function)
+    async def settled(*args: _BillingParams.args, **kwargs: _BillingParams.kwargs) -> str | None:
+        return await settle_known_billing(function(*args, **kwargs))
+
+    return settled
+
+
+async def settle_known_billing(
+    work: Coroutine[Any, Any, _BillingResult],
+) -> _BillingResult | None:
+    """Finish a known bill through cancellation, then propagate cancellation."""
+    pending = asyncio.create_task(work)
+    deadline = asyncio.get_running_loop().time() + _BILLING_SETTLE_SECONDS
+    cancellation: asyncio.CancelledError | None = None
+    while True:
+        try:
+            async with asyncio.timeout(max(0.0, deadline - asyncio.get_running_loop().time())):
+                result = await asyncio.shield(pending)
+            break
+        except asyncio.CancelledError as exc:
+            cancellation = exc
+            if pending.done():
+                raise
+        except TimeoutError:
+            pending.cancel()
+            with suppress(asyncio.CancelledError):
+                await pending
+            logger.error("llm_billing_settle_timeout")
+            if cancellation is not None:
+                raise cancellation from None
+            return None
+    if cancellation is not None:
+        raise cancellation
+    return result
+
+
+async def bill_captured_usage(
+    capture: TokenCaptureHandler,
+    *,
+    user_id: UUID | None,
+    task_type: str,
+    target_id: str,
+    model_name: str,
+    source: str,
+    run_id: str | None = None,
+    failed: bool = False,
+    llm_type: str | None = None,
+) -> str | None:
+    """Persist only provider-reported attempts, with one owner per capture.
+
+    Claiming precedes any await. A failed or cancelled persistence is never
+    blindly replayed: it may already have committed before acknowledgement.
+    """
+    if user_id is None:
+        return None
+    records = capture.claim_billing_records(model_name)
+    if not records:
+        return None
+    return await settle_known_billing(
+        track_proactive_tokens(
+            user_id=user_id,
+            task_type=task_type,
+            target_id=target_id,
+            conversation_id=None,
+            tokens_in=sum(r.tokens_in for r in records),
+            tokens_out=sum(r.tokens_out for r in records),
+            tokens_cache=sum(r.tokens_cache for r in records),
+            tokens_cache_write=sum(r.tokens_cache_write for r in records),
+            model_name=model_name,
+            source=source,
+            run_id=run_id,
+            billing_records=records,
+            failed=failed,
+            llm_type=llm_type,
+        )
+    )
+
+
+@asynccontextmanager
+async def capture_spend_on_failure(
+    capture: TokenCaptureHandler,
+    *,
+    user_id: UUID | None,
+    task_type: str,
+    target_id: str,
+    model_name: str,
+    source: str,
+    run_id: str | None = None,
+    llm_type: str | None = None,
+) -> AsyncIterator[None]:
+    """Close known paid attempts before propagating an unsuccessful operation."""
+    try:
+        yield
+    except BaseException:
+        try:
+            await bill_captured_usage(
+                capture,
+                user_id=user_id,
+                task_type=task_type,
+                target_id=target_id,
+                model_name=model_name,
+                source=source,
+                run_id=run_id,
+                failed=True,
+                llm_type=llm_type,
+            )
+        except BaseException as exc:
+            logger.error("captured_llm_bill_failed", error_type=type(exc).__name__)
+        raise
 
 
 def out_of_turn_spend(run_id: str, user_id: UUID, session_id: str) -> TrackingContext:
@@ -157,6 +286,7 @@ async def _record_out_of_turn(
         )
 
 
+@_shield_known_billing
 async def track_proactive_tokens(
     user_id: UUID,
     task_type: str,
@@ -173,6 +303,8 @@ async def track_proactive_tokens(
     llm_type: str | None = None,
     tokens_cache_write: int = 0,
     failed: bool = False,
+    started_at: float | None = None,
+    billing_records: tuple[LLMBillingRecord, ...] = (),
 ) -> str | None:
     """
     Persist token usage from a proactive task.
@@ -231,7 +363,7 @@ async def track_proactive_tokens(
         >>> await track_proactive_tokens(..., run_id=rid)
     """
     # Skip if no tokens to track
-    if tokens_in == 0 and tokens_out == 0:
+    if tokens_in == 0 and tokens_out == 0 and tokens_cache == 0 and not billing_records:
         logger.debug(
             "proactive_tokens_skip",
             task_type=task_type,
@@ -243,25 +375,13 @@ async def track_proactive_tokens(
     # Use pre-generated run_id or generate a new one
     if run_id is None:
         run_id = generate_proactive_run_id(task_type, target_id)
+    if started_at is None:
+        started_at = datetime.now(UTC).timestamp()
 
-    # Calculate cost
-    cost_usd, cost_eur = 0.0, 0.0
-    if model_name:
-        try:
-            cost_usd, cost_eur = get_cached_cost_usd_eur(
-                model=model_name,
-                prompt_tokens=tokens_in,
-                completion_tokens=tokens_out,
-                cached_tokens=tokens_cache,
-                cache_write_tokens=tokens_cache_write,
-            )
-        except Exception as e:
-            logger.warning(
-                "proactive_tokens_cost_calculation_failed",
-                task_type=task_type,
-                model_name=model_name,
-                error=str(e),
-            )
+    records = billing_records or _fallback_billing_record(
+        task_type, model_name, started_at, tokens_in, tokens_out, tokens_cache, tokens_cache_write
+    )
+    cost_eur = sum(record.cost_eur for record in records)
 
     try:
         # Import here to avoid circular imports
@@ -275,16 +395,11 @@ async def track_proactive_tokens(
             auto_commit=False,
             db=db,  # Pass external session for transaction composition
         ) as tracker:
-            await tracker.record_node_tokens(
-                node_name=f"proactive_{task_type}",
-                model_name=model_name or "unknown",
-                llm_type=llm_type,
-                prompt_tokens=tokens_in,
-                completion_tokens=tokens_out,
-                cached_tokens=tokens_cache,
-                cache_write_tokens=tokens_cache_write,
-                cost_usd=cost_usd,
-                cost_eur=cost_eur,
+            await _record_priced_attempts(
+                tracker,
+                f"proactive_{task_type}",
+                llm_type,
+                records,
             )
             await tracker.commit()
 
@@ -318,6 +433,78 @@ async def track_proactive_tokens(
             tokens_out=tokens_out,
         )
         return None
+
+
+def _fallback_billing_record(
+    task_type: str,
+    model_name: str | None,
+    started_at: float,
+    tokens_in: int,
+    tokens_out: int,
+    tokens_cache: int,
+    tokens_cache_write: int,
+) -> tuple[LLMBillingRecord, ...]:
+    """Price one legacy reading atomically; retained attempts bypass this door."""
+    from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
+
+    snapshot = capture_pricing_snapshot()
+    usd, eur = 0.0, 0.0
+    if model_name:
+        try:
+            usd, eur = get_cached_cost_usd_eur(
+                model=model_name,
+                prompt_tokens=tokens_in,
+                completion_tokens=tokens_out,
+                cached_tokens=tokens_cache,
+                cache_write_tokens=tokens_cache_write,
+                at=datetime.fromtimestamp(started_at, UTC),
+                snapshot=snapshot,
+            )
+        except Exception as exc:
+            logger.warning(
+                "proactive_tokens_cost_calculation_failed",
+                task_type=task_type,
+                model_name=model_name,
+                error_type=type(exc).__name__,
+            )
+    return (
+        LLMBillingRecord(
+            model_name=model_name or "unknown",
+            started_at=started_at,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            tokens_cache=tokens_cache,
+            tokens_cache_write=tokens_cache_write,
+            cost_usd=usd,
+            cost_eur=eur,
+            usd_to_eur_rate=get_cached_usd_eur_rate(snapshot),
+        ),
+    )
+
+
+async def _record_priced_attempts(
+    tracker: TrackingContext,
+    node_name: str,
+    llm_type: str | None,
+    records: tuple[LLMBillingRecord, ...],
+) -> None:
+    """Persist each attempt once; aggregated display costs never re-price it."""
+    for record in records:
+        await tracker.record_node_tokens(
+            node_name=node_name,
+            model_name=record.model_name,
+            llm_type=llm_type,
+            prompt_tokens=record.tokens_in,
+            completion_tokens=record.tokens_out,
+            cached_tokens=record.tokens_cache,
+            cache_write_tokens=record.tokens_cache_write,
+            cost_usd=record.cost_usd,
+            cost_eur=record.cost_eur,
+            usd_to_eur_rate=Decimal(str(record.usd_to_eur_rate)),
+            started_at=record.started_at,
+            status=record.status,
+            failure_kind=record.failure_kind,
+        )
 
 
 async def track_proactive_tokens_from_result(
@@ -355,6 +542,7 @@ async def track_proactive_tokens_from_result(
         model_name=result.model_name,
         source=source,
         db=db,
+        billing_records=result.billing_records,
     )
 
 
@@ -388,6 +576,7 @@ class TokenAccumulator:
         self.tokens_cache = 0
         self.tokens_cache_write = 0
         self._call_count = 0
+        self.billing_records: tuple[LLMBillingRecord, ...] = ()
 
     def add(
         self,
@@ -396,6 +585,9 @@ class TokenAccumulator:
         tokens_cache: int = 0,
         model_name: str | None = None,
         tokens_cache_write: int = 0,
+        *,
+        started_at: float | None = None,
+        billing_record: LLMBillingRecord | None = None,
     ) -> None:
         """
         Add token usage from an LLM call.
@@ -415,8 +607,27 @@ class TokenAccumulator:
         self._call_count += 1
         if model_name:
             self.model_name = model_name
+        if billing_record is not None:
+            self.billing_records += (billing_record,)
+        elif tokens_in or tokens_out or tokens_cache:
+            from src.infrastructure.llm.token_capture import priced_call
+            from src.infrastructure.llm.usage_metadata import UsageTokens
 
-    def add_from_usage_metadata(self, usage_metadata: dict | None) -> None:
+            self.billing_records += (
+                priced_call(
+                    UsageTokens(tokens_in, tokens_out, tokens_cache, tokens_cache_write),
+                    self.model_name or "unknown",
+                    started_at if started_at is not None else datetime.now(UTC).timestamp(),
+                ),
+            )
+
+    def add_from_usage_metadata(
+        self,
+        usage_metadata: dict | None,
+        *,
+        started_at: float | None = None,
+        model_name: str | None = None,
+    ) -> None:
         """
         Add token usage from AIMessage.usage_metadata.
 
@@ -434,6 +645,8 @@ class TokenAccumulator:
             tokens_out=usage.completion,
             tokens_cache=usage.cached,
             tokens_cache_write=usage.cache_write,
+            started_at=started_at,
+            model_name=model_name,
         )
 
     def get_totals(self) -> tuple[int, int, int]:
@@ -447,8 +660,8 @@ class TokenAccumulator:
 
     @property
     def total_tokens(self) -> int:
-        """Total tokens consumed (input + output)."""
-        return self.tokens_in + self.tokens_out
+        """Total tokens consumed, including prompt cache reads."""
+        return self.tokens_in + self.tokens_out + self.tokens_cache
 
     @property
     def call_count(self) -> int:
@@ -469,4 +682,5 @@ class TokenAccumulator:
             "tokens_cache": self.tokens_cache,
             "tokens_cache_write": self.tokens_cache_write,
             "model_name": self.model_name,
+            "billing_records": self.billing_records,
         }

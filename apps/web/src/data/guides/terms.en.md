@@ -104,19 +104,19 @@ Contributions to the source code (pull requests, issues) are welcome and are gov
 
 The Operator is committed to protecting the User's personal data in accordance with the General Data Protection Regulation (GDPR) and applicable French data protection legislation (Loi Informatique et Libertes).
 
-**Data collected**: email address, username, language preferences, conversation history, connection data (encrypted OAuth tokens) for third-party services (Google, Apple, Microsoft), and usage data (activity logs, performance metrics).
+**Data collected**: email address, username, language preferences, conversation history, encrypted connection credentials for third-party services (OAuth tokens or application-specific passwords), and usage data (activity logs, performance metrics). Optional features can also process location, voice, documents or health measurements when the User chooses to use them, as described in the Privacy Policy.
 
 **Purposes of processing**: provision of the Service, improvement of user experience, security and abuse prevention, and anonymized statistical analysis.
 
 **Legal basis**: processing is based on the User's consent (Article 6.1.a GDPR) and on the performance of the contract (Article 6.1.b GDPR).
 
-**Hosting and storage**: data is hosted on servers located in France and/or within the European Union. Third-party service access tokens are encrypted at rest (AES-256). Conversations may be processed by LLM providers located outside the EU (OpenAI, Anthropic, Google, DeepSeek); in such cases, transfers are governed by appropriate safeguards (standard contractual clauses, adequacy decisions).
+**Hosting and storage**: data is hosted on servers located in France and/or within the European Union. Stored connector credentials and provider keys are encrypted with [Fernet](https://cryptography.io/en/latest/fernet/) (AES-128-CBC with HMAC-SHA256 authentication). This protects those secrets; conversations are not end-to-end encrypted and backups require their own protection. Data needed for a request may be processed by providers outside the EU, depending on the services and configuration selected. The Operator must assess the applicable transfer rules and ensure the required safeguards, such as standard contractual clauses or an applicable adequacy decision.
 
-**Retention period**: data is retained for the lifetime of the account and deleted within 30 days following account deletion by the User.
+**Retention period**: the administrator's deletion step purges personal content but retains the account row, including name and email, and billing records. The subsequent erasure step removes the account row. Audits, diagnostics and backups follow their own retention and erasure procedures.
 
-**User rights**: in accordance with the GDPR, the User has the right of access, rectification, erasure, portability, restriction of processing, and objection. These rights may be exercised by email at the address indicated in the application, or directly from the account settings. The User also has the right to lodge a complaint with the CNIL (Commission Nationale de l'Informatique et des Libertes), the French data protection authority.
+**User rights**: under the GDPR, the User has rights of access, rectification, erasure, portability, restriction and objection. Requests can be sent to the contact address shown in the application or to the instance administrator; settings provide the available self-service controls, including export. The User may also lodge a complaint with the CNIL, the French data protection authority.
 
-**LLM traceability**: the Service uses Langfuse for tracing LLM calls, for debugging and service improvement purposes. These traces do not contain personally identifiable data and are retained for a limited duration.
+**LLM traceability**: when enabled, Langfuse traces LLM calls for debugging and service improvement. These diagnostics can contain model inputs and outputs and account-linked metadata; technical-log redaction does not automatically anonymize them. The Operator must configure their access, hosting and retention.
 
 For further details, please refer to our Privacy Policy.
 
@@ -144,7 +144,7 @@ As the Service is free during the beta phase, the Operator's liability is strict
 
 ## 10. Termination and Suspension
 
-The User may delete their account at any time from the application settings. Deletion results in the erasure of all their personal data within 30 days, subject to any legal retention obligations.
+The User can request account deletion from the administrator at any time. Deletion purges personal content but retains name, email and billing records; the subsequent erasure step removes the account row. Audit records, separate diagnostics, backups and provider-held data follow the procedures described in the Privacy Policy.
 
 The Operator reserves the right to suspend or delete a user account in the following cases:
 

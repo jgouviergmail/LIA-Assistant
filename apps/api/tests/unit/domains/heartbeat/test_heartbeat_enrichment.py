@@ -25,6 +25,7 @@ def _target(topic: str | None) -> MagicMock:
     target.decision_tokens_out = 5
     target.decision_tokens_cache = 0
     target.decision_tokens_cache_write = 0
+    target.billing_records = ()
     return target
 
 
@@ -35,12 +36,12 @@ class TestEnrichment:
         with (
             patch(
                 "src.domains.heartbeat.proactive_task.generate_heartbeat_message",
-                new=AsyncMock(return_value=("msg with The Backrooms", 20, 10, 0, 0)),
+                new=AsyncMock(return_value=("msg with The Backrooms", 20, 10, 0, 0, ())),
             ) as gen_msg,
             patch.object(
                 task,
                 "_fetch_interest_facts",
-                new=AsyncMock(return_value=("FACTS...", ["https://a24.com/x"], 7, 3)),
+                new=AsyncMock(return_value=("FACTS...", ["https://a24.com/x"], 7, 3, 0, 0, ())),
             ),
             patch.object(task, "_get_user_personality", new=AsyncMock(return_value=None)),
         ):
@@ -59,7 +60,7 @@ class TestEnrichment:
         with (
             patch(
                 "src.domains.heartbeat.proactive_task.generate_heartbeat_message",
-                new=AsyncMock(return_value=("plain msg", 20, 10, 0, 0)),
+                new=AsyncMock(return_value=("plain msg", 20, 10, 0, 0, ())),
             ) as gen_msg,
             patch.object(task, "_fetch_interest_facts", new=AsyncMock(return_value=None)),
             patch.object(task, "_get_user_personality", new=AsyncMock(return_value=None)),
@@ -75,7 +76,7 @@ class TestEnrichment:
         with (
             patch(
                 "src.domains.heartbeat.proactive_task.generate_heartbeat_message",
-                new=AsyncMock(return_value=("plain msg", 20, 10, 0, 0)),
+                new=AsyncMock(return_value=("plain msg", 20, 10, 0, 0, ())),
             ),
             patch.object(task, "_fetch_interest_facts", new=AsyncMock()) as fetch,
             patch.object(task, "_get_user_personality", new=AsyncMock(return_value=None)),
@@ -99,7 +100,14 @@ class TestEnrichment:
             return_value=MagicMock(
                 success=True,
                 content_result=MagicMock(
-                    content="facts", citations=[], tokens_in=1, tokens_out=1, source="perplexity"
+                    content="facts",
+                    citations=[],
+                    tokens_in=1,
+                    tokens_out=1,
+                    source="perplexity",
+                    tokens_cache=0,
+                    tokens_cache_write=0,
+                    billing_records=(),
                 ),
             )
         )
@@ -128,12 +136,12 @@ class TestEnrichment:
         with (
             patch(
                 "src.domains.heartbeat.proactive_task.generate_heartbeat_message",
-                new=AsyncMock(return_value=("msg", 20, 10, 0, 0)),
+                new=AsyncMock(return_value=("msg", 20, 10, 0, 0, ())),
             ),
             patch.object(
                 task,
                 "_fetch_interest_facts",
-                new=AsyncMock(return_value=("FACTS...", [], 7, 3)),
+                new=AsyncMock(return_value=("FACTS...", [], 7, 3, 0, 0, ())),
             ),
             patch.object(task, "_get_user_personality", new=AsyncMock(return_value=None)),
         ):
@@ -177,7 +185,7 @@ class TestAFailedMessageHandsBackWhatWasSpent:
             patch.object(
                 task,
                 "_fetch_interest_facts",
-                new=AsyncMock(return_value=("FACTS...", [], 7, 3)),
+                new=AsyncMock(return_value=("FACTS...", [], 7, 3, 0, 0, ())),
             ),
             patch.object(task, "_get_user_personality", new=AsyncMock(return_value=None)),
         ):

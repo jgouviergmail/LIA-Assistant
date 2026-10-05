@@ -12,6 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { within } from '@testing-library/react';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { makeConnector } from '@/__tests__/factories';
@@ -305,13 +306,13 @@ describe('UserConnectorsSection — keyless services are not the account’s', (
     const { user } = render();
     await user.click(await screen.findByRole('button', { name: EXTERNAL_FAMILY }));
 
-    for (const type of ['openweathermap', 'perplexity', 'brave_search']) {
+    for (const type of ['openweathermap', 'perplexity', 'brave_search', 'simli']) {
       expect(await screen.findByText(`settings.connectors.${type}.label`)).toBeInTheDocument();
     }
     for (const type of KEYLESS) {
       expect(screen.queryByText(`settings.connectors.${type}.label`)).not.toBeInTheDocument();
     }
-    expect(screen.getAllByLabelText('settings.connectors.api_key.key_placeholder')).toHaveLength(3);
+    expect(screen.getAllByLabelText('settings.connectors.api_key.key_placeholder')).toHaveLength(4);
   });
 
   it('never lists a keyless row the API still returned', async () => {
@@ -343,5 +344,20 @@ describe('UserConnectorsSection — keyless services are not the account’s', (
     expect(takeUpdater(setData)({ connectors: [] })).toEqual({
       connectors: [expect.objectContaining({ id: 'owm' })],
     });
+  });
+
+  it('connects Simli through encrypted-key activation and refreshes the avatar readers', async () => {
+    post.mockResolvedValue(makeConnector({ id: 'simli-1', connector_type: 'simli' }));
+    const previous = useRevisionStore.getState().revisions.avatar;
+    const { user } = render();
+    await user.click(await screen.findByRole('button', { name: EXTERNAL_FAMILY }));
+    const group = within(screen.getByRole('group', { name: 'settings.connectors.simli.label' }));
+    await user.type(group.getByLabelText('settings.connectors.api_key.key_placeholder'), 'simli-personal-test-key');
+    await user.click(group.getByTitle('settings.connectors.api_key.activate'));
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/connectors/api-key/activate', {
+      connector_type: 'simli', api_key: 'simli-personal-test-key', key_name: 'simli_key',
+    }));
+    expect(useRevisionStore.getState().revisions.avatar).toBe(previous + 1);
+    expect(group.getByLabelText('settings.connectors.api_key.key_placeholder')).toHaveValue('');
   });
 });

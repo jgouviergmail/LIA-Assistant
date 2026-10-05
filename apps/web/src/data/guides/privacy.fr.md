@@ -3,8 +3,7 @@
 > Vos donnees. Votre assistant. Vos regles.
 
 **Version** : 1.0
-**Date** : 2026-03-29
-**Application** : LIA v1.14.2
+**Date** : 2026-10-05
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -30,13 +29,13 @@ La presente politique de confidentialite decrit comment LIA, un assistant person
 
 LIA est actuellement en phase beta et est proposee gratuitement pendant cette periode. L'application est accessible a l'adresse [https://lia.jeyswork.com](https://lia.jeyswork.com). Le code source complet est disponible publiquement, ce qui vous permet d'auditer le traitement de vos donnees a tout moment.
 
-Cette politique s'applique a l'instance hebergee de LIA. Si vous deployez votre propre instance (auto-hebergement), vous devenez responsable du traitement des donnees de cette instance et cette politique ne s'applique pas directement. Nous vous encourageons neanmoins a vous en inspirer pour votre propre conformite.
+Cette politique s'applique à l'instance hébergée de LIA. Si vous déployez votre propre instance (auto-hébergement), vous maîtrisez son exploitation et devez évaluer les obligations de protection des données applicables à votre usage ; cette politique ne s'applique pas directement. Nous vous encourageons néanmoins à vous en inspirer pour cette évaluation.
 
 En utilisant LIA, vous reconnaissez avoir lu et compris la presente politique. Si vous n'acceptez pas les termes decrits, veuillez ne pas utiliser le service.
 
 ## 2. Donnees collectees
 
-LIA collecte et traite les categories de donnees suivantes, strictement necessaires au fonctionnement du service :
+LIA traite les catégories de données suivantes pour fournir le service et les fonctions facultatives que vous choisissez d'utiliser :
 
 **Donnees de compte utilisateur :**
 - Adresse email (identifiant unique)
@@ -50,26 +49,31 @@ LIA collecte et traite les categories de donnees suivantes, strictement necessai
 - Plans d'execution generes par le systeme de planification
 - Resultats des actions effectuees par les agents (recherche d'emails, creation d'evenements, etc.)
 - Historique des conversations, sauvegarde sous forme de checkpoints dans PostgreSQL
+- Souvenirs, préférences, documents et autres contenus que vous fournissez pour personnaliser l'assistant
 
 **Donnees de connexion aux services tiers :**
-- Jetons d'acces OAuth (Google Workspace, Apple iCloud, Microsoft 365)
-- Jetons de rafraichissement pour le renouvellement automatique
-- Ces jetons sont chiffres via Fernet (chiffrement symetrique AES-128-CBC) avant stockage
+- Jetons d'accès et de rafraîchissement des services utilisant OAuth, notamment Google Workspace et Microsoft 365
+- Mots de passe d'application ou autres identifiants de connecteurs comme Apple iCloud, et clés API des fournisseurs que vous configurez
+- Ces secrets stockés sont chiffrés avec Fernet (AES-128-CBC avec authentification HMAC-SHA256)
+
+**Données des fonctions facultatives :**
+- Une adresse de domicile que vous enregistrez, et la position du navigateur si vous en autorisez l'accès ; mémoriser la dernière position connue nécessite aussi une activation volontaire. Ces champs de localisation sont chiffrés, la position mémorisée remplace la précédente sans constituer d'historique, et désactiver cette option l'efface
+- Audio, transcriptions et images ou documents utilisés dans une demande vocale, une réunion ou une demande multimodale
+- Mesures de santé si vous choisissez de connecter une source et d'utiliser ces fonctions
 
 **Donnees d'utilisation :**
-- Metriques d'utilisation anonymisees (nombre de requetes, temps de reponse)
+- Métriques opérationnelles agrégées (nombre de requêtes, temps de réponse) et relevés d'utilisation par compte
 - Compteurs de tokens LLM consommes par session
-- Journaux d'erreurs techniques (sans donnees personnelles identifiantes)
+- Journaux d'erreurs techniques avec des contrôles pour masquer les secrets et contenus personnels ; les traces de diagnostic facultatives ont une portée distincte, décrite ci-dessous
 
 **Donnees que LIA ne collecte PAS :**
-- Donnees de geolocalisation
-- Donnees biometriques
+- Gabarits biométriques d'authentification conservés par votre appareil lorsque vous utilisez une clé d'accès
 - Donnees de navigation en dehors de l'application
 - Profils publicitaires ou donnees de ciblage
 
 ## 3. Bases legales du traitement
 
-Conformement au Reglement General sur la Protection des Donnees (RGPD), chaque traitement de donnees repose sur une base legale specifique :
+Le tableau suivant indique les bases légales utilisées pour le service hébergé au titre du Règlement général sur la protection des données (RGPD) :
 
 | Traitement | Base legale | Justification |
 |---|---|---|
@@ -95,7 +99,7 @@ L'instance officielle de LIA est auto-hebergee sur un serveur physique administr
 
 **Transferts internationaux de donnees :**
 
-Lorsque vous interagissez avec LIA, certaines donnees sont transmises aux fournisseurs LLM pour le traitement du langage naturel. Ces fournisseurs peuvent avoir des serveurs localises en dehors de l'Union europeenne (notamment aux Etats-Unis). Voir la section "Fournisseurs LLM" pour plus de details.
+Lorsque vous interagissez avec LIA, les données utiles à votre demande peuvent être transmises à des fournisseurs de modèles, de voix, d'avatar, de recherche ou d'autres services, selon les fonctions et la configuration utilisées. Ces fournisseurs peuvent avoir des serveurs situés hors de l'Union européenne (notamment aux États-Unis et en Chine). Voir la section « Fournisseurs LLM » pour plus de détails.
 
 Les connexions a Google Workspace, Apple iCloud et Microsoft 365 impliquent egalement des echanges avec les serveurs de ces fournisseurs, selon leurs propres politiques de confidentialite.
 
@@ -104,23 +108,25 @@ Les connexions a Google Workspace, Apple iCloud et Microsoft 365 impliquent egal
 LIA met en oeuvre une architecture de securite multicouche concue pour proteger vos donnees a chaque etape :
 
 **Architecture BFF (Backend-for-Frontend) :**
-L'architecture BFF garantit que les jetons d'authentification et les credentials des services tiers ne transitent jamais par le navigateur. Toutes les operations sensibles sont effectuees cote serveur.
+La session applicative utilise un cookie HttpOnly, et les identifiants permanents des connecteurs ainsi que les secrets API des modèles ou de l'avatar sont gérés côté serveur. Certaines connexions vocales ou d'avatar utilisent des accès de session temporaires dans le navigateur. Les cartes Google Maps interactives reçoivent aussi une clé API destinée au navigateur après activation authentifiée ; cette clé nécessite des restrictions chez le fournisseur et des quotas adaptés.
 
 **Chiffrement des donnees sensibles :**
-- Les jetons OAuth (Google, Apple, Microsoft) sont chiffres avec Fernet (AES-128-CBC + HMAC SHA256) avant stockage en base de donnees
+- Les identifiants stockés des connecteurs, secrets fournisseurs et champs de localisation désignés sont chiffrés avec [Fernet](https://cryptography.io/en/latest/fernet/) (AES-128-CBC + authentification HMAC-SHA256)
 - Les mots de passe sont haches avec bcrypt (facteur de cout adaptatif)
-- Toutes les communications sont chiffrees en transit via TLS 1.2+
+- L'accès à l'application hébergée utilise HTTPS ; la protection des connexions internes et des sauvegardes dépend du déploiement
 
-**Filtrage PII (Personally Identifiable Information) :**
-Avant d'envoyer des donnees aux fournisseurs LLM, LIA applique un filtrage PII qui reduit les informations personnellement identifiables transmises. Ce mecanisme minimise l'exposition de vos donnees sensibles aux services tiers.
+Ce chiffrement par champ ne chiffre pas toutes les colonnes de la base. Le serveur peut lire les conversations pour les traiter ; elles ne sont pas chiffrées de bout en bout. Un opérateur disposant de la base et des clés de chiffrement peut accéder aux données stockées ; la sécurité de cet accès et des sauvegardes dépend aussi de l'exploitation de l'instance.
+
+**Informations personnelles et diagnostics :**
+Des contrôles de masquage protègent les journaux techniques ; ils n'anonymisent pas automatiquement le contexte envoyé à un modèle. Vos messages et les contenus utiles des services connectés peuvent contenir les informations personnelles nécessaires à votre demande. Si le suivi des appels LLM est activé, les outils de diagnostic peuvent aussi conserver les entrées et sorties des modèles et des métadonnées rattachées au compte. Leur accès, hébergement et conservation doivent être configurés par l'opérateur.
 
 **Sessions et authentification :**
 - Les sessions utilisateur sont stockees dans Redis avec expiration automatique
 - L'authentification repose sur des cookies securises (HttpOnly, Secure, SameSite)
-- Aucun jeton d'authentification n'est expose au JavaScript client
+- Le JavaScript client ne peut pas lire le cookie HttpOnly de la session applicative ; les accès temporaires des sessions vocales ou d'avatar activées dans le navigateur ont un autre rôle
 
 **Journalisation securisee :**
-Les journaux techniques utilisent le format structure JSON (via structlog) et sont configures pour exclure les donnees personnelles identifiantes.
+Les journaux techniques utilisent le format JSON structuré (via structlog), avec des règles pour omettre les propos de l'utilisateur et masquer les secrets et informations personnelles reconnus. Ces contrôles ne rendent pas chaque stockage de diagnostic anonyme.
 
 ## 6. Fournisseurs LLM
 
@@ -134,22 +140,22 @@ LIA utilise plusieurs fournisseurs de modeles de langage (LLM) pour traiter vos 
 | DeepSeek | Chine | Modeles de raisonnement avance |
 | Qwen (Alibaba) | Chine | Modeles de traitement linguistique |
 | Perplexity | Etats-Unis | Recherche web augmentee |
-| Ollama | Local | Modeles executes localement (aucun transfert externe) |
+| Ollama | Selon le point d'accès configuré | Inférence sur un serveur local lorsqu'il est configuré ainsi |
 
 **Ce qui est transmis aux fournisseurs LLM :**
-- Le contenu de vos messages (apres filtrage PII)
+- Le contenu de vos messages
 - Le contexte conversationnel necessaire a la coherence des reponses
-- Les resultats d'outils (resumes d'emails, details d'evenements, etc.)
+- Les résultats d'outils utiles (contenu d'emails, détails d'événements, documents, etc.), qui peuvent contenir des données personnelles
 
-**Ce qui n'est PAS transmis :**
-- Vos jetons OAuth ou mots de passe
-- Vos identifiants de compte
-- Des donnees brutes non filtrees de vos services connectes
+Les parcours vocaux, de réunion, d'image et d'avatar parlant facultatif peuvent également transmettre l'audio, le texte ou les images utiles à leurs fournisseurs respectifs. Les fonctions choisies et leur routage déterminent les services destinataires.
+
+**Utilisation des identifiants :**
+Les identifiants des connecteurs et les clés fournisseurs servent à s'authentifier auprès du service concerné ; ils ne sont pas ajoutés aux prompts des modèles comme contenu de conversation. Évitez de mettre des mots de passe ou d'autres secrets dans vos messages : les contenus que vous fournissez peuvent être inclus dans une demande envoyée à un fournisseur.
 
 **Engagement des fournisseurs :**
-Les principaux fournisseurs (OpenAI, Anthropic, Google) s'engagent contractuellement a ne pas utiliser les donnees API pour entrainer leurs modeles. Nous vous encourageons a consulter leurs politiques respectives pour plus de details.
+L'utilisation pour l'entraînement, la conservation et les autres traitements dépendent du fournisseur, du produit, des réglages du compte et du contrat ou de la politique de confidentialité applicables. Consultez ces conditions pour chaque service activé ; LIA ne peut pas garantir universellement l'absence d'entraînement à leur place.
 
-Lorsque Ollama est configure, les requetes sont traitees localement et aucune donnee ne quitte votre infrastructure.
+Choisir un point d'accès Ollama hébergé localement conserve l'inférence du modèle choisi sur ce serveur. Cela ne rend pas les autres intégrations locales : comptes connectés, recherche web, voix ou avatar distants peuvent toujours échanger des données avec leurs fournisseurs.
 
 ## 7. Conservation des donnees
 
@@ -157,15 +163,16 @@ Les durees de conservation sont definies selon la nature des donnees :
 
 | Type de donnee | Duree de conservation | Justification |
 |---|---|---|
-| Compte utilisateur | Jusqu'a suppression du compte | Execution du contrat |
+| Compte utilisateur | Les contenus personnels sont purgés à la suppression ; la ligne du compte et les relevés de facturation restent jusqu'à leur étape d'effacement ou échéance de conservation applicable | Exploitation, facturation et obligations légales applicables |
 | Historique des conversations | Jusqu'a suppression par l'utilisateur ou du compte | Continuite du service |
-| Jetons OAuth chiffres | Jusqu'a deconnexion du service ou suppression du compte | Acces aux services connectes |
-| Sessions Redis | Expiration automatique (24h d'inactivite) | Securite |
-| Journaux techniques | 30 jours glissants | Diagnostic et securite |
-| Metriques d'utilisation | 90 jours glissants (anonymisees) | Amelioration du service |
+| Identifiants chiffrés des connecteurs | Jusqu'à déconnexion du service ou suppression du compte | Accès aux services connectés |
+| Position mémorisée du navigateur | Remplacée à chaque mise à jour et effacée à la désactivation ; sa fraîcheur limite son utilisation | Demandes liées au lieu sans historique de déplacements |
+| Sessions Redis | Expiration automatique selon les réglages de session et de maintien de connexion | Sécurité |
+| Journaux techniques et traces de diagnostic facultatives | Conservation configurée pour chaque stockage de diagnostic | Diagnostic et sécurité |
+| Métriques d'utilisation | Conservation configurée pour le stockage des métriques ; les relevés par compte suivent leur cycle de vie documenté | Suivi de consommation et exploitation du service |
 
 **Suppression du compte :**
-Lorsque vous demandez la suppression de votre compte, toutes vos donnees personnelles sont supprimees de maniere irreversible, y compris : profil utilisateur, conversations, checkpoints, jetons OAuth chiffres et preferences. Cette suppression est effective sous 30 jours maximum.
+Vous pouvez demander la suppression du compte à l'administrateur. L'étape de suppression purge les contenus personnels tels que conversations, souvenirs, documents, checkpoints et identifiants stockés des connecteurs, mais conserve la ligne du compte, notamment le nom et l'email, et les relevés de facturation. L'étape d'effacement suivante retire la ligne de compte restante. Les journaux d'audit, stockages de diagnostic distincts, sauvegardes et données déjà reçues par les fournisseurs demandent leurs propres procédures de conservation et d'effacement ; aucune de ces étapes n'efface instantanément chaque copie. L'opérateur doit traiter les demandes d'effacement applicables sur ces stockages.
 
 ## 8. Vos droits
 
@@ -179,7 +186,7 @@ Conformement au RGPD, vous disposez des droits suivants :
 - **Droit d'opposition** (Art. 21) : Vous opposer au traitement de vos donnees fonde sur l'interet legitime.
 - **Droit de retirer votre consentement** : A tout moment, sans affecter la licéite du traitement effectue avant le retrait.
 
-Pour exercer ces droits, contactez-nous a l'adresse indiquee dans la section Contact. Nous repondrons dans un delai de 30 jours conformement au RGPD.
+Pour exercer ces droits, contactez-nous à l'adresse indiquée dans la section Contact. Nous répondrons sans retard indu et normalement dans le mois suivant la réception de votre demande, toute prolongation justifiée étant communiquée selon l'[article 12 du RGPD](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng).
 
 Si vous estimez que vos droits ne sont pas respectes, vous avez le droit d'introduire une reclamation aupres de la CNIL (Commission Nationale de l'Informatique et des Libertes) ou de toute autre autorite de controle competente.
 
@@ -207,7 +214,7 @@ Pour toute question relative a la protection de vos donnees personnelles, l'exer
 
 - **Email** : liamyassistant@gmail.com
 - **Site web** : [https://lia.jeyswork.com](https://lia.jeyswork.com)
-- **Code source** : [GitHub](https://github.com/jgouville/lia) (AGPL-3.0)
+- **Code source** : [GitHub](https://github.com/jgouviergmail/LIA-Assistant) (AGPL-3.0)
 
 **Responsable du traitement :**
 LIA est exploitee par un developpeur independant agissant en qualite de responsable du traitement au sens du RGPD.

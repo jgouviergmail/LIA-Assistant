@@ -39,6 +39,7 @@ from src.domains.agents.services.jev_extraction_observer import (
     start_extraction_observation,
 )
 from src.domains.llm_config.jev_registry import JevUsage
+from src.domains.shared.extraction_targets import is_synthetic_message
 
 logger = structlog.get_logger(__name__)
 
@@ -150,8 +151,12 @@ def _format_messages_tail(messages: list[BaseMessage]) -> str:
     lines: list[str] = []
     for msg in messages[-_EXTRACTION_MESSAGE_TAIL:]:
         if isinstance(msg, HumanMessage):
+            if is_synthetic_message(msg):
+                continue
             role = "USER"
         elif isinstance(msg, AIMessage):
+            if msg.additional_kwargs.get("proactive_notification"):
+                continue
             role = "ASSISTANT"
         else:
             continue
@@ -326,19 +331,29 @@ async def _run_extraction(
 
         llm = get_llm("open_loop_extraction")
         config = get_llm_config_for_agent(settings, "open_loop_extraction")
-        token_capture = TokenCaptureHandler()
+        token_capture = TokenCaptureHandler(config.model)
         observation = start_extraction_observation(system_prompt + "\n\n" + user_prompt)
-        extraction = await get_structured_output(
-            llm=llm,
-            messages=[
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt),
-            ],
-            schema=OpenLoopExtraction,
-            provider=config.provider,
-            node_name="open_loop_extraction",
-            config=RunnableConfig(callbacks=[token_capture]),
-        )
+        from src.infrastructure.proactive.tracking import capture_spend_on_failure
+
+        async with capture_spend_on_failure(
+            token_capture,
+            user_id=owner_id,
+            task_type="open_loop_extraction",
+            target_id=run_id,
+            model_name=config.model,
+            source="user",
+        ):
+            extraction = await get_structured_output(
+                llm=llm,
+                messages=[
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=user_prompt),
+                ],
+                schema=OpenLoopExtraction,
+                provider=config.provider,
+                node_name="open_loop_extraction",
+                config=RunnableConfig(callbacks=[token_capture]),
+            )
         observation.set_output(extraction.model_dump_json())
 
         # G-1: every LLM call is billed — persist the extraction spend.
@@ -355,6 +370,7 @@ async def _run_extraction(
                 tokens_cache=token_capture.tokens_cache,
                 tokens_cache_write=token_capture.tokens_cache_write,
                 model_name=config.model,
+                billing_records=token_capture.get_billing_records(config.model),
                 source="user",
             )
         except Exception as exc:  # noqa: BLE001 — tracking must not lose the extraction

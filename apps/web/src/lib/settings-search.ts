@@ -82,6 +82,7 @@ export type SettingsSectionGate =
         | 'habitsEnabled'
         | 'sandboxEgressEnabled'
         | 'liveEnabled'
+        | 'avatarEnabled'
         | 'radioEnabled';
     }
   | { kind: 'userDebugPanel' }
@@ -283,6 +284,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     keywordsKey: `${KEYWORDS_PREFIX}.live-mode`,
     group: 'voice_media',
     gate: { kind: 'instanceFlag', flag: 'liveEnabled' },
+  },
+  avatar: {
+    titleKey: 'settings.avatar.title',
+    descriptionKey: 'settings.avatar.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.avatar`,
+    group: 'voice_media',
+    gate: { kind: 'instanceFlag', flag: 'avatarEnabled' },
   },
   radio: {
     titleKey: 'radio.settings.title',
@@ -653,6 +661,7 @@ export interface SettingsSearchAvailability {
   sandboxEgressEnabled: boolean;
   /** `/config` → `features.live_enabled` (live voice mode, ADR-299). */
   liveEnabled: boolean;
+  avatarEnabled?: boolean;
   /** `/config` → the radio capability's EFFECTIVE state (ADR-324). */
   radioEnabled: boolean;
   /** `useDebugPanelEnabled()` → `userAccessAvailable`. */
@@ -723,7 +732,7 @@ export function isSectionAvailable(
 ): boolean {
   switch (gate.kind) {
     case 'instanceFlag':
-      return availability[gate.flag];
+      return availability[gate.flag] ?? false;
     case 'userDebugPanel':
       // The page renders `UserDebugSettings` in the non-superuser layout only;
       // a superuser gets the richer admin debug section in another tab.

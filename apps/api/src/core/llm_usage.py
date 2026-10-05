@@ -13,15 +13,37 @@ Here rather than in either domain: ``core`` is imported by everything, so no
 domain has to create an edge to another to describe a cost (the argument
 ``resolve_user_timezone`` and ``prompt_store`` already settled).
 
-It is a DISPLAY summary, never an accounting record. ``token_usage_logs`` is
-the record — one row per call, retained past account deletion, and one of the
-five sources the Article-12 extraction composes. Anything that needs to ADD
-costs up reads that; this only ever describes the one call beside it.
+``LLMUsage`` is a DISPLAY summary. ``LLMBillingRecord`` is the internal bridge
+from each priced provider attempt to the ledger: it retains the captured
+tariff until persistence, and is excluded from the public display DTO.
+``token_usage_logs`` remains the accounting record — one row per call, retained
+past account deletion, and one of the five sources the Article-12 extraction
+composes. The internal bridge never replaces that database record.
 """
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class LLMBillingRecord(BaseModel):
+    """Internal, immutable price of one provider attempt at its UTC start."""
+
+    model_config = ConfigDict(frozen=True)
+
+    model_name: str
+    started_at: float
+    tokens_in: int = Field(ge=0)
+    tokens_out: int = Field(ge=0)
+    tokens_cache: int = Field(ge=0)
+    tokens_cache_write: int = Field(0, ge=0)
+    cost_usd: float = Field(ge=0)
+    cost_eur: float = Field(ge=0)
+    usd_to_eur_rate: float = Field(gt=0)
+    status: Literal["success", "error"] = "success"
+    failure_kind: str | None = None
 
 
 class LLMUsage(BaseModel):
@@ -46,3 +68,5 @@ class LLMUsage(BaseModel):
         description="Computed cost in EUR using the active pricing cache.",
     )
     model_name: str | None = Field(None, description="Model identifier used for the call.")
+    billing_records: tuple[LLMBillingRecord, ...] = Field(default=(), exclude=True)
+    accounting_handled: bool = Field(default=False, exclude=True)

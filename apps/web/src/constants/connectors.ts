@@ -64,6 +64,7 @@ export const CONNECTOR_TYPES = [
   'gemini_live',
   'gpt_live',
   'elevenlabs_live',
+  'simli',
   // Future connectors (not yet implemented)
   'slack',
   'notion',
@@ -119,6 +120,7 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   gemini_live: 'Live (Gemini)',
   gpt_live: 'Live (OpenAI)',
   elevenlabs_live: 'Live (ElevenLabs)',
+  simli: 'Simli',
   // Future connectors
   slack: 'Slack',
   notion: 'Notion',
@@ -154,6 +156,7 @@ export const CONNECTOR_CATEGORIES = {
   smart_home: ['philips_hue'],
   telephony: ['elevenlabs_telephony'],
   live: ['gemini_live', 'gpt_live', 'elevenlabs_live'],
+  avatar: ['simli'],
   productivity: ['slack', 'notion'],
   development: ['github'],
 } as const;
@@ -169,6 +172,7 @@ export const CATEGORY_LABELS = {
   smart_home: 'Smart Home',
   telephony: 'Telephony',
   live: 'Live',
+  avatar: 'Avatar',
   productivity: 'Productivité',
   development: 'Développement',
 } as const;

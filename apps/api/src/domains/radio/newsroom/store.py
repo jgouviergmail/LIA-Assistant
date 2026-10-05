@@ -28,7 +28,9 @@ from src.domains.radio.models import (
 )
 from src.domains.radio.newsroom.catalogue import CatalogueFeed
 from src.domains.radio.newsroom.collector import FeedReading, FeedState, TextJob
+from src.domains.radio.newsroom.editorial_rows import editorial_rows
 from src.domains.radio.newsroom.parse import ParsedItem
+from src.domains.shared.commercial_content import is_commercial_content
 from src.infrastructure.database.session import get_db_context
 
 _ITEM_INSERT_BATCH_SIZE = 500
@@ -210,14 +212,21 @@ class NewsroomDatabase:
     async def text_jobs(self, *, limit: int) -> list[TextJob]:
         """Articles waiting to be read, the newest first."""
         async with get_db_context() as db:
-            rows = (
-                await db.execute(
-                    select(RadioNewsItem.id, RadioNewsItem.url, RadioNewsItem.text_attempts)
-                    .where(RadioNewsItem.text_state == TextState.PENDING.value)
-                    .order_by(RadioNewsItem.published_at.desc(), RadioNewsItem.id.desc())
-                    .limit(limit)
+            rows = await editorial_rows(
+                db,
+                select(
+                    RadioNewsItem.id,
+                    RadioNewsItem.url,
+                    RadioNewsItem.text_attempts,
+                    RadioNewsItem.title,
+                    RadioNewsItem.summary,
                 )
-            ).all()
+                .where(RadioNewsItem.text_state == TextState.PENDING.value)
+                .order_by(RadioNewsItem.published_at.desc(), RadioNewsItem.id.desc()),
+                limit=limit,
+                eligible=lambda row: not is_commercial_content(row.title, summary=row.summary),
+                identity=lambda row: row.id,
+            )
         return [TextJob(item_id=row.id, url=row.url, attempts=row.text_attempts) for row in rows]
 
     async def record_text(self, item_id: uuid.UUID, text: str | None, *, final: bool) -> None:

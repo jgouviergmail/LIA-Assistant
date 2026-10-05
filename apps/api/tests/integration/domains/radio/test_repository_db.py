@@ -188,6 +188,49 @@ async def test_the_bound_keeps_the_stories_the_listener_never_heard(
     ]
 
 
+async def test_commercial_rows_do_not_fill_source_and_interest_limits(
+    async_session: AsyncSession,
+) -> None:
+    """Real SQL pages refill both bounds and retain account visibility."""
+    me = await listener(async_session, "editorial")
+    other = await listener(async_session, "editorial_other")
+    public = feed("https://editorial-base.example/rss")
+    own = feed("https://editorial-own.example/rss", owner=me.id)
+    interests = feed("https://editorial-interests.example/rss", owner=me.id)
+    interests.kind = FeedKind.INTEREST.value
+    foreign = feed("https://editorial-foreign.example/rss", owner=other.id)
+    async_session.add_all([public, own, interests, foreign])
+    await async_session.flush()
+
+    commercials = []
+    for source in (own, interests):
+        for index in range(65):
+            commercial = story(source, f"promo-{index}", 1)
+            commercial.title = "Special offer: buy now"
+            commercials.append(commercial)
+    base_news = story(public, "base-news", 2)
+    own_news = story(own, "own-news", 3)
+    interest_news = story(interests, "interest-news", 4)
+    async_session.add_all(
+        commercials + [base_news, own_news, interest_news, story(foreign, "private", 0)]
+    )
+    await async_session.flush()
+
+    offered = await news_candidates(
+        me.id,
+        disabled_feeds=(),
+        since=NOW - timedelta(hours=24),
+        limit=2,
+        interests_limit=1,
+    )
+
+    assert [candidate.key for candidate in offered] == [
+        str(base_news.id),
+        str(own_news.id),
+        str(interest_news.id),
+    ]
+
+
 async def test_what_the_sources_published_is_listed_for_the_listener_s_counters(
     async_session: AsyncSession,
 ) -> None:

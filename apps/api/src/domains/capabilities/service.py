@@ -249,6 +249,7 @@ SWITCH_NODE_KEYS: tuple[str, ...] = (
     # The live voice mode (ADR-299): a session is a moment, not a record — the
     # node says whether the person can open one (a live connector is active).
     "live",
+    "avatar",
     # The personal radio (ADR-324): a session is a moment too, and nothing is
     # set up before the first one — the node is live as soon as the instance
     # offers it, and its destination is the radio's settings.
@@ -287,6 +288,7 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
     PlatformCapability.RELATION_DEBRIEF: "relations",
     PlatformCapability.BOOKMARKS: "bookmarks",
     PlatformCapability.LIVE: "live",
+    PlatformCapability.AVATAR: "avatar",
     PlatformCapability.RADIO: "radio",
 }
 
@@ -583,6 +585,25 @@ async def _live_probe(user_id: UUID, disabled: frozenset[PlatformCapability]) ->
     return CapabilityProbe("live", available=available, active=active)
 
 
+async def _avatar_probe(user_id: UUID, disabled: frozenset[PlatformCapability]) -> CapabilityProbe:
+    """The personal avatar is available under its deployment/operator ceiling."""
+    from src.domains.connectors.models import ConnectorStatus, ConnectorType
+    from src.domains.connectors.repository import ConnectorRepository
+
+    available = _offers(PlatformCapability.AVATAR, None, disabled)
+    active = False
+    if available:
+        try:
+            async with get_db_context() as db:
+                row = await ConnectorRepository(db).get_by_user_and_type(
+                    user_id, ConnectorType.SIMLI
+                )
+                active = row is not None and row.status == ConnectorStatus.ACTIVE
+        except Exception as exc:  # noqa: BLE001 — capability probes degrade on unavailable storage
+            logger.debug("capability_probe_failed", model="avatar", error_type=type(exc).__name__)
+    return CapabilityProbe("avatar", available=available, active=active)
+
+
 def _from_user(user: User, disabled: frozenset[PlatformCapability]) -> list[CapabilityProbe]:
     """Capabilities the USER row already answers — no query needed.
 
@@ -702,4 +723,9 @@ async def resolve_capabilities(user: User) -> list[CapabilityProbe]:
     # codebase's own rule — « for a handful of indexed queries, a plain
     # sequential loop is fine and simpler ».
     probes = [await _probe(node, user_id, disabled) for node in COUNTED_NODES]
-    return [*probes, *_from_user(user, disabled), await _live_probe(user_id, disabled)]
+    return [
+        *probes,
+        *_from_user(user, disabled),
+        await _live_probe(user_id, disabled),
+        await _avatar_probe(user_id, disabled),
+    ]

@@ -11,7 +11,6 @@ Places tools use uses_global_api_key=True: the connector check goes through
 is_connector_active (no OAuth credentials fetched).
 """
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -254,11 +253,17 @@ class TestSearchPlacesTool:
                 query="test",
             )
 
-            # Exceptions come back as a serialized UnifiedToolOutput with
-            # the ToolErrorCode taxonomy (never a raw traceback)
-            data = json.loads(result)
-            assert data["success"] is False
-            assert data["error_code"] == "INTERNAL_ERROR"
+            # Registry mode preserves its output contract on upstream errors
+            # and never publishes result items from a failed search.
+            assert isinstance(result, UnifiedToolOutput)
+            assert result.success is False
+            assert result.error_code == ToolErrorCode.INTERNAL_ERROR
+            assert result.registry_updates == {}
+            assert result.structured_data == {}
+            assert result.message
+            assert result.error_message == result.message
+            assert "Traceback" not in result.message
+            mock_client.search_text.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_search_withheld_by_the_instance(self, user_id):

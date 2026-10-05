@@ -239,6 +239,8 @@ LLMType = Literal[
     "jev_filter_mcp",
     "jev_filter_document",
     "jev_initiative_utility",
+    "jev_memory_reference_presence",
+    "jev_hitl_rejection",
     # Relationship debrief — daily synthesis of one contact's file (personal CRM)
     "relation_debrief",
     "vision_analysis",

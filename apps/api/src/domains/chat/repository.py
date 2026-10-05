@@ -169,6 +169,8 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                     params_digest=log_data.get("params_digest"),
                 )
                 log_entries.append(log_entry)
+                if log_data.get("created_at") is not None:
+                    log_entry.created_at = log_data["created_at"]
 
             self.db.add_all(log_entries)
             await self.db.flush()

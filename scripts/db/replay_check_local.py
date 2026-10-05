@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import re
 import sys
 import uuid
 from collections.abc import Callable, Sequence
@@ -131,7 +132,12 @@ def run_replay_check(run: Runner = _run) -> None:
         )
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or exc.stdout or "").strip()
-        raise ReplayCheckError(f"migration replay check failed: {detail or exc}") from exc
+        # CalledProcessError includes the argv, whose DATABASE_URL contains a password.
+        # Provider/process output can echo that same URL; preserve diagnostics without userinfo.
+        safe_detail = re.sub(r"(\w+(?:\+\w+)?://)[^@\s]+@", r"\1[redacted]@", detail)
+        raise ReplayCheckError(
+            f"migration replay check failed: {safe_detail or f'process exited with code {exc.returncode}'}"
+        ) from None
     finally:
         _drop_database(testdb, run)
 

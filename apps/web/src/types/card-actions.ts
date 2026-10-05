@@ -1,5 +1,5 @@
 /** Presentation targets authorize editable composition only, never execution. */
-export type CardComposeAction = 'reply' | 'forward' | 'cancel_reminder';
+export type CardComposeAction = 'reply' | 'forward' | 'delete_email' | 'cancel_reminder';
 export interface CardActionItem {
   registry_id: string;
   kind: 'EMAIL' | 'REMINDER';

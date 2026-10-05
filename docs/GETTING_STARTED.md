@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v2.5.0
+**Compatibility**: LIA v2.6.0
 
 ## Table of Contents
 
@@ -38,7 +38,9 @@ Two user-toggleable execution modes (switchable in the chat header):
 
 Both modes converge on the same streaming response (SSE) and the same HITL (Human-in-the-Loop) approval system.
 
-The guided self-host installer now asks whether to offer the **personal radio**. It is off on a fresh guided installation until the operator opts in: programmes are produced on demand in the existing API service using the configured writing and voice providers, and their cost is charged to the listener. The installer sets `RADIO_ENABLED` from that answer; no extra Compose service or boot step is needed. Configure the radio model and voice slots in the Admin UI before enabling it. See [the self-hosting guide](guides/GUIDE_SELF_HOSTING.md) and [radio design](technical/RADIO.md).
+The guided self-host installer asks whether to offer the **personal radio**. It is off on a fresh guided installation until the operator opts in: programmes are produced on demand in the existing API service using the configured writing and voice providers, and their cost is charged to the listener. The installer sets `RADIO_ENABLED` from that answer; no extra Compose service or boot step is needed. Configure the radio model and voice slots in the Admin UI before enabling it. See [the self-hosting guide](guides/GUIDE_SELF_HOSTING.md) and [radio design](technical/RADIO.md).
+
+The **speaking avatar** is also optional: the installer leaves `AVATAR_ENABLED=false` unless the operator chooses to offer it. Each person then connects their own Simli key and explicitly enables the avatar in Settings. The installer emits the finite session, idle, connection and HTTP bounds declared by [the avatar configuration](../apps/api/src/core/config/avatars.py); no instance Simli key or additional Compose service is needed. An open session can consume that person's Simli credits during silence. See [the speaking-avatar guide](technical/SPEAKING_AVATAR.md).
 
 **JEV decisions are optional after installation.** The installer leaves every JEV use off; there is no additional Compose service or bootstrap step. To use one, configure a TypeSafe (Jev) provider key, a decision model and its price in Administration, then enable that use and the general switch under **JEV integrations**. An uncertain decision uses LIA's existing path; both a paid attempt and its fallback count toward spending limits. See the [integration guide](technical/JEV_INTEGRATION.md).
 
@@ -140,7 +142,7 @@ Production reference platform: Raspberry Pi 5 (linux/arm64) — all images are m
 |---------|-------|---------|
 | **At least one LLM provider** | Configured via Admin UI after first login (keys encrypted in DB) | OpenAI / Anthropic / DeepSeek / Gemini / Qwen — see [LLM Configuration](#llm-configuration) |
 
-> The production configuration uses **DeepSeek** (primary), **OpenAI**, **Google Gemini** and **ElevenLabs** (voice). OpenAI alone is enough to start: every slot can be repointed from the Admin UI.
+> The guided installer asks for **DeepSeek and OpenAI** keys because both are required by the current reference core configuration. The manual setup can use another provider once every required slot is repointed in the Admin UI. Google Gemini and premium voice providers remain optional.
 
 #### Optional (Depending on Features)
 
@@ -153,6 +155,7 @@ Production reference platform: Raspberry Pi 5 (linux/arm64) — all images are m
 | **Perplexity** | AI-powered web search | [perplexity.ai/settings/api](https://www.perplexity.ai/settings/api) |
 | **OpenWeatherMap** | Weather (free tier) — connected per user in Settings > Connectors | [openweathermap.org/api](https://openweathermap.org/api) |
 | **Telegram** | Multi-channel chat (bot via @BotFather) | [t.me/BotFather](https://t.me/BotFather) |
+| **Simli** | Speaking avatar — each person connects their own key and opts in in Settings | [simli.com](https://www.simli.com/) |
 
 ---
 

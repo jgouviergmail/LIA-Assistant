@@ -39,6 +39,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.i18n import language_scope, normalize_language
+from src.core.llm_usage import LLMBillingRecord
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import (
@@ -499,8 +500,9 @@ class ProactiveTaskRunner:
         Returns:
             The cost in euros (0.0 when unpriced).
         """
-        cost_eur = 0.0
-        if result.model_name:
+        records: tuple[LLMBillingRecord, ...] = getattr(result, "billing_records", ())
+        cost_eur = sum((record.cost_eur for record in records), 0.0)
+        if result.model_name and not records:
             try:
                 _, cost_eur = get_cached_cost_usd_eur(
                     model=result.model_name,
@@ -591,24 +593,9 @@ class ProactiveTaskRunner:
         # person actually experiences — and it left NO action row at all, so
         # « Actions menées d'elle-même » was empty by construction whatever
         # LIA did (reported from production, 2026-09-07).
-        from src.domains.agents.effects.out_of_turn_effects import (
-            proactive_notification_effect,
+        notification_result = await self._dispatch_and_settle_on_failure(
+            user=user, result=result, target=target, db=db, run_id=run_id
         )
-
-        async with proactive_notification_effect(
-            user_id=user.id, run_id=run_id, task_type=self.task.task_type
-        ) as notified:
-            notification_result = await self._dispatch_notification(
-                user=user,
-                result=result,
-                target=target,
-                db=db,
-                push_enabled=True,
-                run_id=run_id,
-            )
-            # The explicit result, never the absence of an exception: a
-            # dispatch that reached no channel is a notification nobody got.
-            notified.delivered = bool(notification_result.success)
 
         if not notification_result.success:
             logger.warning(
@@ -688,6 +675,34 @@ class ProactiveTaskRunner:
 
         return True
 
+    async def _dispatch_and_settle_on_failure(
+        self, *, user: Any, result: Any, target: Any, db: AsyncSession, run_id: str
+    ) -> NotificationResult:
+        """A paid generation remains accounted when delivery raises or is cancelled."""
+        try:
+            from src.domains.agents.effects.out_of_turn_effects import (
+                proactive_notification_effect,
+            )
+
+            async with proactive_notification_effect(
+                user_id=user.id, run_id=run_id, task_type=self.task.task_type
+            ) as notified:
+                notification_result = await self._dispatch_notification(
+                    user=user,
+                    result=result,
+                    target=target,
+                    db=db,
+                    push_enabled=True,
+                    run_id=run_id,
+                )
+                # The explicit result, never the absence of an exception: a
+                # dispatch that reached no channel is a notification nobody got.
+                notified.delivered = bool(notification_result.success)
+            return notification_result
+        except BaseException:
+            await self._bill(user, result, target, run_id, conversation_id=None, failed=True)
+            raise
+
     async def _bill(
         self,
         user: Any,
@@ -726,6 +741,7 @@ class ProactiveTaskRunner:
             tokens_cache=result.tokens_cache,
             tokens_cache_write=result.tokens_cache_write,
             model_name=result.model_name,
+            billing_records=getattr(result, "billing_records", ()),
             run_id=run_id,
             source="proactive",
             failed=failed,

@@ -69,7 +69,7 @@ A composition affordance is selected by the server and bound to the assistant an
 that showed the source (`display/card_actions.py`). At click time
 `card_composition_service.py` re-reads that answer — owned by the account, in the
 current conversation, from its run — and the canonical source with its account grant.
-Reply, forward or a reminder adjustment PREPARES a request or a draft; nothing is sent
+Reply, forward, email deletion or a reminder adjustment PREPARES a request or a draft; nothing is sent
 or executed by the click, and HITL, modification, resume and retries re-check the same
 binding. A source whose account or mailbox cannot be bound structurally offers no
 action (Apple Mail today: an IMAP uid carries no mailbox scope in the contract). The

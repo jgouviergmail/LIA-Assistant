@@ -46,6 +46,7 @@ from typing import Final, Protocol
 from src.domains.radio.constants import FACT_TEXT_MAX_CHARS, SOURCE_LABEL_MAX_CHARS
 from src.domains.radio.facts import FactKind, RadioFact, Sensitivity, SourceRef
 from src.domains.radio.formats import FORMAT_SPECS, Material, RadioFormat
+from src.domains.shared.commercial_content import is_commercial_content
 
 
 @dataclass(frozen=True, slots=True)
@@ -235,6 +236,10 @@ class _Told:
 
 
 def _fits(candidate: NewsCandidate, need: _Need, now: datetime) -> bool:
+    if is_commercial_content(
+        candidate.title, summary=candidate.summary, body=candidate.full_text or ""
+    ):
+        return False
     age_s = (now - candidate.published_at.astimezone(UTC)).total_seconds()
     if age_s > need.max_age_s:
         return False

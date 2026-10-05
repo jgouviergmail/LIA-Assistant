@@ -5,6 +5,111 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-10-05
+
+**Un visage pour la voix, des sources plus lisibles et des coûts traçables.** L'avatar
+parlant personnel Simli accompagne les commentaires vocaux et les conversations
+Live, sur activation explicite et avec une seule restitution audible. Cette
+intégration reste expérimentale : les essais physiques et la qualification de la
+restitution réelle sont encore attendus. Les cartes identifient mieux leurs
+sources, les nouvelles consignes permanentes sont épinglées et Radio distingue
+l'information utile des sollicitations commerciales. La consommation conserve le
+prix de chaque tentative rapportée par le fournisseur, y compris en cas d'échec.
+
+### Added
+
+- **Avatar parlant personnel Simli, expérimental** : connecteur à clé personnelle
+  chiffrée, permission du compte désactivée par défaut, catalogue de visages et
+  fenêtre flottante à trois tailles, déplaçable au clavier, au toucher et à la
+  souris. Un port commun de restitution accompagne les commentaires et le Live
+  direct ou délégué sans nouveau modèle ni synthèse. Le mode actif conserve la
+  connexion ; la veille Live la ferme et le réveil en demande une nouvelle.
+  Une session ouverte peut consommer des crédits personnels pendant le silence.
+  Admission Redis partagée par clé, création sans reprise implicite, issue
+  inconnue mise en quarantaine et renouvellement après fermeture vérifiée.
+  Radio reste hors périmètre. [Conception proposée](docs/architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md)
+  et [qualification](docs/technical/SPEAKING_AVATAR.md).
+- **Supprimer depuis une carte e-mail** : la composition prépare la confirmation
+  existante avant mise à la corbeille. Le compte source est recontrôlé à la
+  préparation, à la reprise et aux opérations fournisseur ; une ancienne carte
+  n'obtient pas une permission de suppression nouvelle.
+- **Deux usages JEV indépendants et désactivés par défaut** : présence de
+  références personnelles avant résolution mémoire et refus complet d'une
+  confirmation. Une décision incertaine conserve le parcours génératif et ne
+  vaut jamais autorisation d'exécution.
+
+### Changed
+
+- **Consommation par tentative** : modèle, instant de début, tarifs et conversion
+  USD/EUR sont retenus ensemble avant l'appel. Les tokens de cache, échecs payés,
+  reprises et annulations sont comptabilisés sans repricer ni doubler une
+  tentative. Les tâches hors conversation, les synthèses et les coûts d'instance
+  suivent le même contrat ; une lecture manquante n'invente pas une consommation.
+- **Qualifications JEV** : une opération conserve son instantané de routage et
+  de prix sur tous ses lots. Le diagnostic distingue candidats, évalués,
+  inconnus et omis, ainsi que la sélection native et son résultat applicatif.
+  Les comparaisons de date et fuseau restent calculées dans le code ; les aperçus
+  conservent les données canoniques et ne deviennent pas des actions.
+- **Mémoire** : les nouvelles consignes permanentes sont épinglées dès leur
+  création. La personne peut les corriger, les désépingler ou les supprimer ; les
+  automatismes respectent l'épinglage et la protection de catégorie.
+- **Présentation publique** : le catalogue fonctionnel est conservé sans la
+  section redondante de cas d'usage. Présentations, FAQ, recherche des réglages,
+  connaissances et cartes vivantes sont actualisées dans les six langues.
+
+### Fixed
+
+- **Radio** : filtrage des publicités, partenariats, promotions et invitations à
+  acheter, sans supprimer factures, réservations, rendez-vous et véritables
+  publications éditoriales. Caches éditoriaux séparés et lecture ciblée des
+  sections nécessaires. Le PCM/µ-law TTS porte sa fréquence et son encodage avant
+  FFmpeg ; l'annulation ne supprime pas un fichier final préexistant. Le bandeau
+  ne dessine plus de bord noir autour du contenu.
+- **Cartes MCP** : origine publique du serveur et méthode restent visibles,
+  réponse sous un détail accessible, sans publier chemin, query ou identifiants
+  de l'URL de connexion. Les réponses objet, tableau et scalaire restent
+  consultables. Un cooldown partagé et borné absorbe les refus de débit sans
+  transformer un rafraîchissement en rafale d'appels.
+- **Météo** : codes du fournisseur et observation jour/nuit conduisent les
+  pictogrammes, avec brouillard, vent et orage distincts, dans les observations,
+  prévisions quotidiennes et horaires ; la traduction du texte ne choisit plus
+  le symbole.
+- **Voix et Live** : fin de production, silence, interruption, veille et reprise
+  traversent la même frontière de sortie. Les files audio conservent l'ordre et
+  nettoient leur propre média sans arrêter les pistes empruntées au fournisseur.
+- **Confidentialité des diagnostics** : les messages internes et événements
+  fournisseur passent par la rédaction des champs de contenu ; les traces de
+  l'avatar ne conservent ni voix, transcription, clé ni URL signée.
+- **Journal et facturation** : une consolidation conserve sa trace d'échec
+  lorsque le modèle a répondu mais que l'enregistrement de facturation échoue ;
+  elle ne crée pas d'acte pour un modèle qui n'a jamais répondu.
+- **Installateur** : le parcours propose l'avatar comme intégration optionnelle,
+  émet ses bornes cohérentes et conserve tous les choix après une reprise, y
+  compris le diagnostic autonome qui revenait à sa valeur par défaut.
+- **Démonstrateur** : sa construction et son exécution API utilisent la version
+  et le commit du bundle déployé ; le pilote de production refuse une provenance
+  absente au lieu de démarrer avec une identité de développement.
+- **Dépendances** : plancher `asyncssh` relevé au correctif 2.24.1 de la
+  traversée de chemins SFTP (GHSA-q8m6-9rfx-39rf) ; Starlette utilise l'import
+  actuel de `BlockingPortal`, sans masquer l'avertissement AnyIO.
+- **Veille des dépendances** : les dépôts déplacés conservent leur lecture
+  authentifiée sur la même origine ; une redirection vers un autre hôte, port
+  ou protocole ne reçoit jamais le credential. Les requêtes GitHub sont espacées
+  entre workers, une coupure réseau bénéficie d'une seule reprise et toute
+  source non lue reste un échec explicite du contrôle.
+
+### Tests
+
+- Régressions comportementales des cartes et de leur compte source, météo,
+  cooldown MCP, mémoire épinglée, JEV par lots et facturation des appels payés
+  interrompus ; mixage Radio sur vrais fichiers audio et transitions persistées.
+  Le corpus navigateur conserve une horloge de référence fixe pour ses dates
+  relatives ; la provenance démo est vérifiée par le shell et Compose réels.
+- Avatar : admission et révocation, baux partagés, annulation, conversion PCM,
+  interruption, renouvellement, une seule sortie audible et parcours navigateur
+  avec un pair WebRTC local. Ces simulations ne prouvent pas le mouvement labial
+  Simli ni la compatibilité physique Android/iOS, réservée aux essais du propriétaire.
+
 ## [2.5.0] - 2026-10-04
 
 **Des cartes qui montrent tout ce qui a été reçu et des actions qui appartiennent à leur message, une application aux couleurs du cosmos, des signaux d'observabilité qui se répondent.** Les réponses porteuses de données deviennent des cartes déterministes qui affichent tout ce que la source a fourni sans rien inventer, gardent le détail complet derrière des dépliants accessibles, s'enrichissent de galeries, de comparaisons météo, d'aperçus de documents et d'itinéraires interactifs comptés, et permettent de répondre, transférer ou ajuster un rappel depuis la carte ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md)) ; le modèle ne relit qu'une vue sémantique, jamais le HTML. Le fond animé de la page d'accueil s'étend à l'application, les surcouches adoptent un verre dépoli, le tableau de bord gagne une carte Workboard et les réglages se réorganisent ; une réponse gardée dit ses deux coûts. Dans Grafana, journaux, traces et métriques s'ouvrent les uns les autres et la chaîne d'observation se surveille elle-même ([ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md)). La page d'accueil enchaîne deux vidéos, avec un bouton pour passer à la suivante.

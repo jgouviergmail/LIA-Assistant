@@ -104,6 +104,7 @@ export const LIVE_PROVIDER_CONNECT_SRC = [
   // ElevenLabs Agents over a signed WebSocket URL (ADR-300 wave 4).
   'wss://api.elevenlabs.io',
   'wss://livekit.rtc.elevenlabs.io',
+  'wss://api.simli.ai',
 ] as const;
 
 /**

@@ -152,6 +152,12 @@ def build_questions() -> tuple[Question, ...]:
             default="no",
         ),
         Question(
+            key="speaking_avatar",
+            kind=QuestionKind.BOOL,
+            message_id="question.speaking_avatar",
+            default="no",
+        ),
+        Question(
             key="admin_password",
             kind=QuestionKind.SECRET,
             message_id="question.admin_password",

@@ -12,7 +12,7 @@
  * same promise in both footers).
  *
  * A SERVER component, like every other band of this page (`TechSection`,
- * `UseCasesSection`, `BlogPreviewSection`): the content is static editorial
+ * `BlogPreviewSection`): the content is static editorial
  * text, so it costs no client bundle and — the reason that matters — release
  * notes rendered on the server are indexable.
  *

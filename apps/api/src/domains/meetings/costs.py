@@ -4,10 +4,58 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.constants import MEETINGS_PROACTIVE_TASK_TYPE
 from src.domains.meetings.models import Meeting
 from src.domains.meetings.native_spend import selection_charges
 from src.domains.meetings.synthesis import SynthesisUsage
 from src.domains.meetings.transcription import TranscriptionOutcome
+from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
+
+
+def synthesis_cost_eur(usage: SynthesisUsage) -> float | None:
+    """Return frozen synthesis cost, or the legacy aggregate's administered cost.
+
+    A model without an administered price remains unknown rather than free
+    (ADR-185). A pass that spent no token costs an exact zero.
+    """
+    if usage.billing_records:
+        return sum(record.cost_eur for record in usage.billing_records)
+    spent = usage.tokens_in + usage.tokens_out + usage.tokens_cache
+    if spent == 0:
+        return 0.0
+    _usd, eur = get_cached_cost_usd_eur(
+        model=usage.model_name,
+        prompt_tokens=usage.tokens_in,
+        completion_tokens=usage.tokens_out,
+        cached_tokens=usage.tokens_cache,
+        cache_write_tokens=usage.tokens_cache_write,
+    )
+    return eur if eur > 0 else None
+
+
+async def track_legacy_synthesis_usage(
+    db: Any, meeting: Meeting, usage: SynthesisUsage, *, run_id: str
+) -> None:
+    """Account aggregates only when no per-attempt capture already owns the spend."""
+    from src.infrastructure.proactive.tracking import track_proactive_tokens
+
+    if usage.billing_records or not (usage.tokens_in or usage.tokens_out or usage.tokens_cache):
+        return
+    await track_proactive_tokens(
+        user_id=meeting.user_id,
+        task_type=MEETINGS_PROACTIVE_TASK_TYPE,
+        target_id=str(meeting.id),
+        conversation_id=None,
+        tokens_in=usage.tokens_in,
+        tokens_out=usage.tokens_out,
+        tokens_cache=usage.tokens_cache,
+        tokens_cache_write=usage.tokens_cache_write,
+        billing_records=usage.billing_records,
+        model_name=usage.model_name,
+        db=db,
+        run_id=run_id,
+        source="user",
+    )
 
 
 def cost_metadata(

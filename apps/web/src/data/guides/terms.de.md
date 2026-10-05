@@ -104,19 +104,19 @@ Beiträge zum Quellcode (Pull Requests, Issues) sind willkommen und richten sich
 
 Der Betreiber verpflichtet sich, die personenbezogenen Daten des Nutzers gemäß der Datenschutz-Grundverordnung (DSGVO) und dem geltenden französischen Datenschutzrecht (Loi Informatique et Libertés) zu schützen.
 
-**Erhobene Daten**: E-Mail-Adresse, Nutzername, Spracheinstellungen, Gesprächsverlauf, Verbindungsdaten (verschlüsselte OAuth-Token) für Drittdienste (Google, Apple, Microsoft) sowie Nutzungsdaten (Aktivitätsprotokolle, Leistungskennzahlen).
+**Erhobene Daten**: E-Mail-Adresse, Nutzername, Spracheinstellungen, Gesprächsverlauf, verschlüsselte Zugangsdaten zu Drittdiensten (OAuth-Token oder anwendungsspezifische Passwörter) sowie Nutzungsdaten (Aktivitätsprotokolle, Leistungskennzahlen). Optionale Funktionen können auch Standort, Sprache, Dokumente oder Gesundheitsmessungen verarbeiten, wenn der Nutzer sie verwendet, wie in der Datenschutzerklärung beschrieben.
 
 **Zwecke der Verarbeitung**: Bereitstellung des Dienstes, Verbesserung der Nutzererfahrung, Sicherheit und Missbrauchsprävention sowie anonymisierte statistische Auswertung.
 
 **Rechtsgrundlage**: Die Verarbeitung beruht auf der Einwilligung des Nutzers (Art. 6 Abs. 1 lit. a DSGVO) und auf der Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO).
 
-**Hosting und Speicherung**: Die Daten werden auf Servern in Frankreich und/oder in der Europäischen Union gespeichert. Zugriffstoken für Drittdienste werden im Ruhezustand verschlüsselt (AES-256). Unterhaltungen können von LLM-Anbietern außerhalb der EU verarbeitet werden (OpenAI, Anthropic, Google, DeepSeek); solche Übermittlungen werden durch geeignete Garantien abgesichert (Standardvertragsklauseln, Angemessenheitsbeschlüsse).
+**Hosting und Speicherung**: Die Daten werden auf Servern in Frankreich und/oder in der Europäischen Union gespeichert. Gespeicherte Konnektor-Zugangsdaten und Anbieterschlüssel werden mit [Fernet](https://cryptography.io/en/latest/fernet/) verschlüsselt (AES-128-CBC mit HMAC-SHA256-Authentifizierung). Dieser Schutz gilt für diese Geheimnisse; Unterhaltungen sind nicht Ende-zu-Ende-verschlüsselt und Sicherungen brauchen einen eigenen Schutz. Je nach gewählten Diensten und Konfiguration können für eine Anfrage benötigte Daten bei Anbietern außerhalb der EU verarbeitet werden. Der Betreiber muss die anwendbaren Übermittlungsregeln prüfen und erforderliche Garantien sicherstellen, etwa Standardvertragsklauseln oder einen anwendbaren Angemessenheitsbeschluss.
 
-**Speicherdauer**: Die Daten werden für die Dauer des Kontos gespeichert und innerhalb von 30 Tagen nach dessen Löschung durch den Nutzer gelöscht.
+**Speicherdauer**: Die Löschung durch den Administrator entfernt persönliche Inhalte, behält aber die Kontozeile mit Name und E-Mail sowie Abrechnungsdaten. Der anschließende endgültige Löschschritt entfernt die Kontozeile. Auditdaten, Diagnosen und Sicherungen folgen ihren eigenen Aufbewahrungs- und Löschverfahren.
 
-**Rechte des Nutzers**: Nach der DSGVO stehen dem Nutzer die Rechte auf Auskunft, Berichtigung, Löschung, Datenübertragbarkeit, Einschränkung der Verarbeitung und Widerspruch zu. Diese Rechte können per E-Mail an die in der Anwendung angegebene Adresse oder direkt in den Kontoeinstellungen ausgeübt werden. Der Nutzer hat zudem das Recht, Beschwerde bei der CNIL (französische Datenschutzaufsichtsbehörde) einzulegen.
+**Rechte des Nutzers**: Nach der DSGVO bestehen Rechte auf Auskunft, Berichtigung, Löschung, Übertragbarkeit, Einschränkung und Widerspruch. Anfragen können an die in der Anwendung angegebene Kontaktadresse oder den Administrator der Instanz gerichtet werden; die Einstellungen bieten verfügbare Selbstbedienungsfunktionen, darunter den Export. Der Nutzer kann sich auch bei der französischen Datenschutzbehörde CNIL beschweren.
 
-**LLM-Nachvollziehbarkeit**: Der Dienst nutzt Langfuse zur Nachverfolgung von LLM-Aufrufen zwecks Fehlersuche und Verbesserung des Dienstes. Diese Aufzeichnungen enthalten keine personenbezogenen Identifikationsdaten und werden nur begrenzt gespeichert.
+**LLM-Nachvollziehbarkeit**: Wenn aktiviert, zeichnet Langfuse LLM-Aufrufe zur Fehlersuche und Verbesserung des Dienstes auf. Diese Diagnosen können Modelleingaben und -ausgaben sowie kontobezogene Metadaten enthalten; die Bereinigung technischer Protokolle anonymisiert sie nicht automatisch. Der Betreiber muss Zugriff, Hosting und Aufbewahrung konfigurieren.
 
 Weitere Einzelheiten enthält unsere Datenschutzerklärung.
 
@@ -144,7 +144,7 @@ Da der Dienst während der Beta-Phase kostenlos ist, beschränkt sich die Haftun
 
 ## 10. Kündigung und Sperrung
 
-Der Nutzer kann sein Konto jederzeit in den Einstellungen der Anwendung löschen. Die Löschung führt vorbehaltlich gesetzlicher Aufbewahrungspflichten innerhalb von 30 Tagen zur Löschung sämtlicher personenbezogener Daten.
+Der Nutzer kann den Administrator jederzeit um Kontolöschung bitten. Dabei werden persönliche Inhalte entfernt, Name, E-Mail und Abrechnungsdaten aber behalten; der anschließende endgültige Löschschritt entfernt die Kontozeile. Auditdaten, getrennte Diagnosen, Sicherungen und Daten bei Anbietern folgen den in der Datenschutzerklärung beschriebenen Verfahren.
 
 Der Betreiber behält sich vor, ein Nutzerkonto in folgenden Fällen zu sperren oder zu löschen:
 

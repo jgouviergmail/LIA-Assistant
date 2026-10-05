@@ -58,6 +58,7 @@ import { TelephonyConnectorForm } from './connectors/TelephonyConnectorForm';
 import { LiveConnectorGroup } from './connectors/LiveConnectorGroup';
 import { isLiveConnectorType } from '@/lib/live/providers';
 import { bumpRevision } from '@/stores/revisionStore';
+import { stopAvatarForConnectorChange } from '@/lib/avatars/runtime';
 import { DisconnectConnectorConfirm } from './connectors/DisconnectConnectorConfirm';
 import { BulkReconnectDialog } from '@/components/connectors/BulkReconnectDialog';
 import { BulkConnectAccountDialog } from './connectors/BulkConnectAccountDialog';
@@ -216,8 +217,9 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
     setPendingDisconnect(null);
 
     try {
-      await deleteConnector(`/connectors/${connectorId}`);
       const removed = data?.connectors.find(c => c.id === connectorId);
+      if (removed?.connector_type === 'simli') await stopAvatarForConnectorChange();
+      await deleteConnector(`/connectors/${connectorId}`);
       setData(prev => {
         if (!prev) return prev;
         return {
@@ -227,6 +229,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
       });
       // The header's voice menu follows the live connectors (ADR-300 wave 4).
       if (removed && isLiveConnectorType(removed.connector_type)) bumpRevision('live_connectors');
+      if (removed?.connector_type === 'simli') bumpRevision('avatar');
     } catch {
       toast.error(t('settings.connectors.disconnect_error'));
     }
@@ -259,6 +262,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
         });
       }
       toast.success(t('settings.connectors.api_key.success'));
+      if (connectorType === 'simli') bumpRevision('avatar');
     } catch (error: unknown) {
       logger.error(`Failed to activate ${connectorType} connector`, error as Error, {
         component: 'UserConnectorsSection',
@@ -977,13 +981,15 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                   return (
                     <div
                       key={connector.type}
+                      role="group"
+                      aria-labelledby={`api-key-${connector.type}`}
                       className="flex flex-col gap-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <ConnectorIcon connectorType={connector.type} />
                           <div>
-                            <div className="font-medium">
+                            <div id={`api-key-${connector.type}`} className="font-medium">
                               {t(`settings.connectors.${connector.type}.label`)}
                             </div>
                             <div className="text-sm text-muted-foreground">

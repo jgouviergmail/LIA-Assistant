@@ -39,15 +39,18 @@ import os
 import re
 import subprocess
 import sys
+import threading
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from http.client import HTTPMessage
 from pathlib import Path
-from typing import Any, TypeVar
-from urllib.parse import quote
+from typing import IO, Any, TypeVar
+from urllib.parse import quote, urlsplit
 
 import yaml
 from packaging.utils import canonicalize_name
@@ -167,26 +170,81 @@ class Answer:
 Get = Callable[[str, Mapping[str, str]], Answer]
 
 
+class RequestPacer:
+    """Space request starts across workers without discarding unread sources."""
+
+    def __init__(
+        self,
+        interval: float,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self.interval = interval
+        self.clock = clock
+        self.sleep = sleep
+        self.next_start = 0.0
+        self.lock = threading.Lock()
+
+    def wait(self) -> None:
+        with self.lock:
+            delay = self.next_start - self.clock()
+            if delay > 0:
+                self.sleep(delay)
+            self.next_start = self.clock() + self.interval
+
+
+# Repository advisory pages share the account's secondary API limit. Pace actual
+# requests, including retries, while registry calls retain their own parallelism.
+_GITHUB_PACER = RequestPacer(0.5)
+
+
+def _origin(url: str) -> tuple[str, str | None, int | None]:
+    parsed = urlsplit(url)
+    port = parsed.port if parsed.port is not None else {"https": 443, "http": 80}.get(parsed.scheme)
+    return parsed.scheme, parsed.hostname, port
+
+
+class OriginRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Keep authentication on a canonical path, never across origins."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: HTTPMessage,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        authorization = req.get_header("Authorization")
+        if redirected is not None and authorization and _origin(req.full_url) == _origin(newurl):
+            redirected.add_unredirected_header("Authorization", authorization)
+        return redirected
+
+
 def http_get(url: str, headers: Mapping[str, str]) -> Answer:
     """GET with one retry on a network failure or a server error.
 
-    A credential is sent to the host asked and never to a host a redirect names:
-    urllib forwards a request's own headers to wherever it is redirected, and a
-    registry redirects its blobs to a CDN.
+    A credential stays on the requested origin when a repository moves, and
+    never follows a registry blob to a CDN or another scheme/host/port.
     """
     plain = {k: v for k, v in headers.items() if k.lower() != "authorization"}
     request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT, **plain})
     for name, value in headers.items():
         if name.lower() == "authorization":
             request.add_unredirected_header(name, value)
+    opener = urllib.request.build_opener(OriginRedirectHandler())
     for attempt in (1, 2):
+        if urlsplit(url).hostname == "api.github.com":
+            _GITHUB_PACER.wait()
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - https
+            with opener.open(request, timeout=30) as response:  # noqa: S310 - https
                 return Answer(response.status, response.read(), dict(response.headers))
         except urllib.error.HTTPError as error:
             if error.code < 500 or attempt == 2:
                 return Answer(error.code, error.read(), dict(error.headers or {}))
-        except urllib.error.URLError, TimeoutError:
+        except urllib.error.URLError, TimeoutError, ConnectionError:
             if attempt == 2:
                 raise
     raise AssertionError("unreachable")

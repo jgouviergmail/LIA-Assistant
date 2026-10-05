@@ -155,7 +155,19 @@ async def _verify_elevenlabs_live(api_key: str, _api_secret: str | None) -> tupl
 
 
 # Registry — extend as connectors gain cheap, side-effect-free verification.
+async def _verify_simli(api_key: str, _api_secret: str | None) -> tuple[bool, str]:
+    """Authenticate through ICE discovery, without creating a billable session."""
+    from src.infrastructure.simli import SimliError, SimliHttpClient
+
+    try:
+        await SimliHttpClient(api_key).ice()
+    except SimliError:
+        return False, "Simli key could not be verified"
+    return True, "Simli API key verified"
+
+
 API_KEY_FUNCTIONAL_VERIFIERS: dict[ConnectorType, ApiKeyVerifier] = {
+    ConnectorType.SIMLI: _verify_simli,
     ConnectorType.OPENWEATHERMAP: _verify_openweathermap,
     ConnectorType.BRAVE_SEARCH: _verify_brave_search,
     ConnectorType.GEMINI_LIVE: _verify_gemini_live,

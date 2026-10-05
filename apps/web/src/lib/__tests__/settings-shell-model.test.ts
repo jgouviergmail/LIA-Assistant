@@ -22,6 +22,7 @@ const ALL: SettingsSearchAvailability = {
   sandboxEgressEnabled: true,
   liveEnabled: true,
   radioEnabled: true,
+  avatarEnabled: true,
   debugUserAccess: true,
 };
 

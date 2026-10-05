@@ -97,9 +97,9 @@
     },
     "f.memory": {
       "name": "Long-term memory",
-      "role": "Facts, preferences and working instructions extracted from your conversations in the background, and looked up on purpose when a subject comes up along the way; each memory can be seen and corrected, and keeps its history when it changes.",
+      "role": "Facts, preferences and working instructions learned from your conversations, visible and editable with their history. New standing instructions are pinned by default; automated maintenance leaves them alone. LIA also searches them when a subject arises along the way.",
       "goal": "No need to repeat what LIA already knows about you.",
-      "src": "a6453a53542e"
+      "src": "c36f79b09890"
     },
     "f.journals": {
       "name": "Journals and portrait",
@@ -211,9 +211,9 @@
     },
     "f.mcp": {
       "name": "MCP servers",
-      "role": "Plug in third-party tools that follow the MCP standard — old and new revisions of the protocol, OAuth included.",
+      "role": "Connect third-party MCP tools, including OAuth; result cards name their server and method. A server-declared cooldown pauses calls across workers.",
       "goal": "Extend LIA without waiting for a native integration.",
-      "src": "af65afc24b06"
+      "src": "1409a780080c"
     },
     "f.skills": {
       "name": "Skills and plugins",
@@ -307,9 +307,9 @@
     },
     "f.live": {
       "name": "Live mode",
-      "role": "A real-time voice conversation on your own key; every request for data or action is delegated to LIA's engine, under the same rules as the chat.",
+      "role": "Real-time voice on your own key: direct mode reads your data without acting; delegated mode sends each request through the chat engine and its confirmations. Standby closes the provider connection.",
       "goal": "Talk naturally, without losing approval or traceability.",
-      "src": "95d27bb242b3"
+      "src": "30523d5b1ff6"
     },
     "f.telephony": {
       "name": "Phone",
@@ -319,9 +319,9 @@
     },
     "f.radio": {
       "name": "Personal radio",
-      "role": "An on-demand station in your language: your day and the world's news, written, checked and voiced for you while you listen, every sentence with its source.",
+      "role": "An on-demand station in your language: your day and sourced news, written, checked and voiced while you listen. Editorial filtering removes purchase pitches while keeping useful information.",
       "goal": "Hear your day and the world without reading, knowing what it costs.",
-      "src": "3518a88aef30"
+      "src": "25415e642ab3"
     },
     "f.security": {
       "name": "Accounts and security",
@@ -337,9 +337,9 @@
     },
     "f.costs": {
       "name": "Costs and quotas",
-      "role": "Every euro the platform pays is traced, shown and attributed to the right person; one ceiling per account and a daily budget for the instance.",
+      "role": "Platform-paid usage is attributed to its person, valued at each attempt’s tariff and shown even when known usage ends in failure or cancellation; account and instance limits bound spending.",
       "goal": "No invisible spending, no unbounded spending.",
-      "src": "3b9c91f76ee2"
+      "src": "e0172dd83455"
     },
     "f.llmconfig": {
       "name": "Models and reasoning",
@@ -364,6 +364,12 @@
       "role": "The public demonstrator, feedback on answers, and the product metrics that guide how LIA evolves.",
       "goal": "Show LIA without risk, and improve her based on facts.",
       "src": "2566c38f3406"
+    },
+    "f.avatar": {
+      "name": "Speaking avatar",
+      "role": "An experimental Simli presence, chosen on your own key, for voice comments and direct or delegated Live; a movable window and a connection closed in standby. Radio keeps its player.",
+      "goal": "Choose a face while knowing its consumption, silence included.",
+      "src": "50707626b06b"
     }
   },
   "flows": {
@@ -410,8 +416,8 @@
       "src": "d9d438a62218"
     },
     "flow.live": {
-      "name": "A real-time voice conversation",
-      "summary": "Two intelligences and one seam: the voice converses, LIA's engine acts.",
+      "name": "A delegated Live conversation",
+      "summary": "In delegated mode, the voice converses and the LIA engine acts with its confirmations.",
       "steps": [
         "You open a Live session on your own key.",
         "The voice model listens and answers in the same breath.",
@@ -421,7 +427,7 @@
         "A silence? The session goes on standby — nothing more is billed — and a tap wakes it.",
         "At the end, a card sums up the session and what it cost."
       ],
-      "src": "6f5ca4ae4284"
+      "src": "397fd2f1a1d4"
     },
     "flow.learn": {
       "name": "LIA gets to know you",

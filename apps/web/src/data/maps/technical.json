@@ -609,6 +609,21 @@
       "domains": ["product"],
       "infra": ["provisioning"],
       "deps": ["t.release"]
+    },
+    {
+      "id": "t.avatar",
+      "layer": "l.integrations",
+      "icon": "smile",
+      "paths": [
+        "apps/api/src/domains/avatars",
+        "apps/api/src/infrastructure/simli.py",
+        "apps/web/src/lib/avatars",
+        "apps/web/src/lib/voice-output",
+        "apps/web/src/components/avatars"
+      ],
+      "domains": ["avatars"],
+      "infra": ["simli"],
+      "deps": ["t.bff", "t.redis", "t.postgres", "t.live", "t.voiceinfra"]
     }
   ],
   "flows": [

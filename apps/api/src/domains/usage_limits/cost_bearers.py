@@ -60,6 +60,11 @@ class CostFamily:
 
 #: Every family of external spend LIA can incur, and who pays for it.
 COST_FAMILIES: dict[str, CostFamily] = {
+    "simli": CostFamily(
+        bearer=CostBearer.USER,
+        reason="Speaking avatars run on a personal connector; no platform usage is recorded.",
+        credential="ConnectorType.SIMLI",
+    ),
     # --- The deployment's own credential ------------------------------------
     "llm": CostFamily(
         bearer=CostBearer.INSTANCE,
@@ -152,6 +157,7 @@ COST_FAMILIES: dict[str, CostFamily] = {
 #: they are merged upstream before the ceiling reads them, which is why the
 #: mapping is many-to-one rather than a column per family.
 QUOTA_COLUMN_OF: dict[str, str | None] = {
+    "simli": None,
     "llm": "cycle_cost_eur",
     "tts": "cycle_cost_eur",
     "stt": "cycle_cost_eur",

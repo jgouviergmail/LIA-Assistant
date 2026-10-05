@@ -131,6 +131,8 @@ SETTING_SPECS: dict[SystemSettingKey, SettingSpec[Any]] = {
             SystemSettingKey.JEV_FILTER_MCP_ENABLED,
             SystemSettingKey.JEV_FILTER_DOCUMENT_ENABLED,
             SystemSettingKey.JEV_INITIATIVE_UTILITY_ENABLED,
+            SystemSettingKey.JEV_MEMORY_REFERENCE_PRESENCE_ENABLED,
+            SystemSettingKey.JEV_HITL_REJECTION_ENABLED,
         )
     },
     SystemSettingKey.JEV_ENABLED: SettingSpec(

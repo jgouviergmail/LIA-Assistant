@@ -133,7 +133,7 @@
     },
     "t.response": {
       "name": "Synthèse de la réponse",
-      "role": "Assemble la réponse depuis les résultats et les contextes déclarés, dit les échecs tels qu'ils sont, et déclare le registre qui anime le visage.",
+      "role": "Assemble la réponse depuis les résultats et contextes déclarés, dit les échecs et rend des cartes déterministes depuis les faits reçus. Sélections et filtres temporels exigent des preuves ; les actions revérifient la liaison exacte au message et à la source. Elle déclare aussi le registre qui anime le compagnon.",
       "stack": ["Contextes déclarés", "Directives d'honnêteté", "Registre émotionnel"]
     },
     "t.hitl": {
@@ -192,7 +192,7 @@
     },
     "t.pricing": {
       "name": "Comptabilité et plafonds",
-      "role": "Chaque appel payé est borné avant (compte et instance), tarifé à son instant, puis enregistré dans le bon grand livre ; chaque module déclare où sa dépense est comptée.",
+      "role": "Chaque tentative payante fige son modèle, son tarif, son heure de départ et son taux de change ; l’usage connu échoué ou annulé est aussi enregistré. Lectures et écritures de cache restent distinctes, sous plafonds compte et instance.",
       "stack": [
         "Tarifs horaires",
         "Cache de prix",
@@ -207,7 +207,7 @@
     },
     "t.mcp": {
       "name": "Client MCP",
-      "role": "Un pool de clients MCP par personne, des schémas d'outils lus à la lettre du standard, des outils gardés comme les natifs.",
+      "role": "Un pool de clients par personne, les schémas du standard et les mêmes gardes que les outils natifs ; source et méthode accompagnent chaque forme de sortie. Les pauses déclarées par les serveurs sont partagées par Redis.",
       "stack": ["Model Context Protocol", "Deux révisions du protocole", "OAuth par émetteur"]
     },
     "t.skills": {
@@ -274,7 +274,7 @@
     },
     "t.radio": {
       "name": "Radio : rédaction et antenne",
-      "role": "Une rédaction d'instance lit les flux publics sans modèle ; une antenne par auditeur décide par une grille déterministe, fait écrire et vérifier chaque segment, le fait dire et le mixe — seulement tant que quelqu'un écoute.",
+      "role": "Une rédaction d’instance filtre les flux publics ; une antenne par auditeur écrit et vérifie des segments bornés pendant l’écoute. Le PCM brut/u-law porte ses métadonnées audio déclarées dans un WAV avant mixage local ; l’audio encodé reste inchangé. Une grille déterministe choisit le programme.",
       "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"]
     },
     "t.postgres": {
@@ -346,6 +346,11 @@
       "name": "Démonstrateur",
       "role": "Une instance publique de démonstration dont chaque protection est recalculée depuis la source de vérité, et vérifiée à chaque déploiement.",
       "stack": ["Instance isolée", "Protections recalculées depuis la source"]
+    },
+    "t.avatar": {
+      "name": "Avatar : session et restitution",
+      "role": "Une session personnelle sous bail Redis ; le navigateur transmet la voix existante en PCM et choisit le média Simli comme seule sortie audible. La veille Live la ferme. Expérimental : l’acceptation du média et des appareils reste en attente.",
+      "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"]
     }
   },
   "flows": {
@@ -394,8 +399,8 @@
       ]
     },
     "tflow.live": {
-      "name": "Une session Live",
-      "summary": "Le navigateur parle directement au fournisseur ; chaque demande revient au graphe.",
+      "name": "Une session Live déléguée",
+      "summary": "Le parcours délégué : le navigateur parle au fournisseur et chaque demande revient au graphe.",
       "steps": [
         "La personne ouvre une session Live.",
         "L'API émet un identifiant à usage unique et rend le mandat de la voix.",

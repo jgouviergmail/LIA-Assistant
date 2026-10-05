@@ -11,8 +11,16 @@ import type { Language } from '@/i18n/settings';
 import type { JevCallTrace, JevChoicePreview } from '@/types/jev';
 import { DebugSection } from '../shared/DebugSection';
 import { JevContext } from './JevContext';
+import { JevCollectionCoverage } from './JevCollectionCoverage';
+import { JevObservedResult } from './JevObservedResult';
 
 const prefix = 'chat.debug_panel.jev.';
+
+function callOutcomeText(call: JevCallTrace): string {
+  const reason = call.invalid_response_reason ? ` · ${call.invalid_response_reason}` : '';
+  const status = call.status_code ? ` · HTTP ${call.status_code}` : '';
+  return call.outcome + reason + status;
+}
 
 function JevAnswer({ response, lng }: { response: JevChoicePreview; lng: Language }) {
   const { t } = useTranslation(lng);
@@ -105,10 +113,7 @@ function JevCall({ call, lng }: { call: JevCallTrace; lng: Language }) {
           </div>
           <div>
             <dt className="font-semibold">{t(prefix + 'outcome')}</dt>
-            <dd>
-              {call.outcome}
-              {call.status_code ? ` · HTTP ${call.status_code}` : ''}
-            </dd>
+            <dd>{callOutcomeText(call)}</dd>
           </div>
           {call.input_tokens !== null && (
             <div>
@@ -121,9 +126,7 @@ function JevCall({ call, lng }: { call: JevCallTrace; lng: Language }) {
         </dl>
       </details>
       <JevContext context={call.context} lng={lng} />
-      {call.observed_result && (
-        <JevContext context={call.observed_result} lng={lng} labelKey="observedResult" />
-      )}
+      <JevCollectionCoverage call={call} lng={lng} />
       <div className="space-y-2">
         <h3 className="font-semibold">{t(prefix + 'response')}</h3>
         {call.response ? (
@@ -146,6 +149,7 @@ function JevCall({ call, lng }: { call: JevCallTrace; lng: Language }) {
           <p className="text-muted-foreground">{t(prefix + 'noResponse')}</p>
         )}
       </div>
+      <JevObservedResult call={call} lng={lng} />
     </article>
   );
 }

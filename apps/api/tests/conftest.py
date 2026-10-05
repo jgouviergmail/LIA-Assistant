@@ -7,6 +7,8 @@ Pytest configuration and fixtures for LIA API tests.
 import os
 from pathlib import Path
 
+from tests.redis_test_url import validated_test_redis_url
+
 # Scrub the DEVELOPER environment injected by the task runner. Taskfile.yml
 # declares ``dotenv: [.env]``: every task — including the test tasks — runs
 # with the ENTIRE repo-root .env (the developer environment) exported into its
@@ -64,6 +66,11 @@ else:
     # localhost resolves to ::1 first and the Docker IPv6 proxy times out
     # with redis-py asyncio (the sync client silently falls back to IPv4).
     os.environ["REDIS_URL"] = f"redis://:{_redis_password}@127.0.0.1:6379/15"  # Test DB 15
+# Explicit disposable infrastructure survives the developer-env scrub above.
+# Validate before use: redis-py query parameters can override the path DB.
+_test_redis_url = validated_test_redis_url(os.environ.get("TEST_REDIS_URL"))
+if _test_redis_url is not None:
+    os.environ["REDIS_URL"] = _test_redis_url
 # The DB index carried by REDIS_URL is NOT what the clients open:
 # ``infrastructure/cache/redis.py`` rebuilds the URL with ``redis_cache_db`` /
 # ``redis_session_db`` (2 / 1 by default, and the root .env the Taskfile
@@ -536,7 +543,9 @@ def pytest_asyncio_loop_factories(config, item):
     """Provide the event-loop factory for async tests (pytest-asyncio >= 1.x hook).
 
     On Windows, psycopg v3 requires SelectorEventLoop instead of
-    ProactorEventLoop. Replaces the former session-scoped
+    ProactorEventLoop. Media-only modules explicitly requiring async subprocesses
+    use Proactor per item; no process-wide policy changes or PG override occur.
+    Replaces the former session-scoped
     ``event_loop_policy`` fixture override, deprecated by pytest-asyncio
     in favor of this hook. A SINGLE factory is returned so test IDs stay
     unchanged (pytest >= 8.4 hides single-parametrization via HIDDEN_PARAM
@@ -546,6 +555,8 @@ def pytest_asyncio_loop_factories(config, item):
     import sys
 
     if sys.platform == "win32":
+        if getattr(getattr(item, "module", None), "REQUIRES_ASYNC_SUBPROCESSES", False):
+            return {"proactor": asyncio.ProactorEventLoop}
 
         def _selector_loop() -> asyncio.AbstractEventLoop:
             return asyncio.SelectorEventLoop(selectors.SelectSelector())

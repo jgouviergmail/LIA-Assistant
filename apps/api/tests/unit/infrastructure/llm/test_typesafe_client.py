@@ -2,6 +2,10 @@
 
 import asyncio
 import json
+import math
+from contextlib import asynccontextmanager
+from decimal import Decimal
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -24,6 +28,58 @@ def _reply() -> dict[str, object]:
         },
         "usage": {"input_tokens": 321, "output_tokens": 18},
     }
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+async def test_received_usage_survives_response_stream_close_failure(cancelled: bool) -> None:
+    error = asyncio.CancelledError if cancelled else OSError
+
+    @asynccontextmanager
+    async def closing_stream(*args, **kwargs):
+        yield httpx.Response(200, json=_reply())
+        raise error("private cleanup text")
+
+    async with httpx.AsyncClient() as http:
+        with patch.object(http, "stream", closing_stream):
+            with pytest.raises(asyncio.CancelledError if cancelled else TypeSafeError) as caught:
+                await TypeSafeClient(http, "test-secret").choose(
+                    model="jev-1.13.0",
+                    state={"text": "Synthetic"},
+                    question=ChoiceQuestion(
+                        instructions="Select", criteria={"a": "A", "none": "N"}
+                    ),
+                    timeout_seconds=1,
+                )
+    assert caught.value.usage.input_tokens == 321
+    assert caught.value.usage.output_tokens == 18
+    assert caught.value.model == "jev-1.13.0"
+    assert "private" not in str(caught.value)
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+@pytest.mark.parametrize(
+    "raw", [b'{"usage":{"input_tokens":true,"output_tokens":18}}', b'{"usage":']
+)
+async def test_stream_close_failure_never_invents_unvalidated_usage(cancelled: bool, raw: bytes):
+    error = asyncio.CancelledError if cancelled else OSError
+
+    @asynccontextmanager
+    async def closing_stream(*args, **kwargs):
+        yield httpx.Response(200, content=raw)
+        raise error()
+
+    async with httpx.AsyncClient() as http:
+        with patch.object(http, "stream", closing_stream):
+            with pytest.raises(asyncio.CancelledError if cancelled else TypeSafeError) as caught:
+                await TypeSafeClient(http, "test-secret").choose(
+                    model="jev-1.13.0",
+                    state="Synthetic",
+                    question=ChoiceQuestion(
+                        instructions="Select", criteria={"a": "A", "none": "N"}
+                    ),
+                    timeout_seconds=1,
+                )
+    assert caught.value.usage is None
 
 
 async def test_native_contract_and_usage() -> None:
@@ -86,18 +142,17 @@ async def test_provider_failures_are_classified_without_leaking_body_or_retrying
 
 
 @pytest.mark.parametrize(
-    "choice,confidence,probabilities",
+    "choice,confidence,probabilities,reason",
     [
-        ("invented", 0.99, {"a": 0.99, "none": 0.01}),
-        ("a", float("nan"), {"a": 0.99, "none": 0.01}),
-        ("a", 0.99, {"a": 0.2, "none": 0.8}),
-        ("a", 0.99, {"a": 0.9}),
-        ("a", 0.99, {"a": 0.8, "none": 0.8}),
-        ("a", 0.99, {"a": 0.5, "none": 0.5}),
+        ("invented", 0.99, {"a": 0.99, "none": 0.01}, "unknown_choice"),
+        ("a", float("nan"), {"a": 0.99, "none": 0.01}, "answer_schema"),
+        ("a", 0.99, {"a": 0.2, "none": 0.8}, "winning_choice"),
+        ("a", 0.99, {"a": 0.9}, "option_set"),
+        ("a", 0.99, {"a": 0.8, "none": 0.8}, "probability_sum"),
     ],
 )
 async def test_invalid_answer_is_rejected_but_billable_usage_survives(
-    choice: str, confidence: float, probabilities: dict[str, float]
+    choice: str, confidence: float, probabilities: dict[str, float], reason: str
 ) -> None:
     body = _reply()
     body["answers"] = {
@@ -121,8 +176,122 @@ async def test_invalid_answer_is_rejected_but_billable_usage_survives(
                 timeout_seconds=1,
             )
     assert caught.value.code == "invalid_response"
+    assert caught.value.reason == reason
     assert caught.value.usage is not None
     assert caught.value.usage.input_tokens == 321
+
+
+@pytest.mark.parametrize(
+    "choice,confidence,probabilities,expected_confidence",
+    [
+        ("a", 0.99, {"a": 0.6, "none": 0.4}, 0.2),
+        ("a", 0.99, {"a": 0.6, "none": 0.3, "other": 0.1}, 0.4),
+        ("a", 0.1, {"a": 0.6, "none": 0.3, "other": 0.1}, 0.1),
+        ("none", 0.99, {"a": 0.5, "none": 0.5}, 0.0),
+        ("a", 0.99, {"a": 0.5, "none": 0.5, "other": 0.0}, 0.25),
+        ("none", 0.1, {"a": 0.5, "none": 0.5, "other": 0.0}, 0.1),
+        ("other", 0.99, {"a": 1 / 3, "none": 1 / 3, "other": 1 / 3}, 0.0),
+    ],
+)
+async def test_maxima_preserve_decision_and_usage_but_cannot_inflate_confidence(
+    choice: str,
+    confidence: float,
+    probabilities: dict[str, float],
+    expected_confidence: float,
+) -> None:
+    body = _reply()
+    body["answers"] = {
+        "selection": {
+            "type": "choice",
+            "choice": choice,
+            "confidence": confidence,
+            "probabilities": probabilities,
+        }
+    }
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=body))
+    ) as http:
+        result = await TypeSafeClient(http, "secret").choose(
+            model="jev-1.13.0",
+            state="Two equally plausible formats.",
+            question=ChoiceQuestion(
+                instructions="Select the supported format.",
+                criteria={key: key for key in probabilities},
+            ),
+            timeout_seconds=1,
+        )
+    assert result.answer.choice == choice
+    assert result.answer.probabilities == probabilities
+    assert result.answer.confidence == pytest.approx(expected_confidence)
+    assert result.usage.input_tokens == 321 and result.usage.output_tokens == 18
+
+
+@pytest.mark.parametrize("count", [2, 3, 5, 255])
+@pytest.mark.parametrize("threshold", [0.80, 0.95, 0.97, 0.99])
+@pytest.mark.parametrize("deficit", [0.0, 1e-12, None], ids=["exact", "below", "one-ulp-below"])
+async def test_derived_confidence_keeps_exact_policy_boundary_without_promoting_a_deficit(
+    count: int, threshold: float, deficit: float | None
+) -> None:
+    """Binary float arithmetic alone must not reject the exact accepted boundary."""
+    target = Decimal(str(threshold)) - Decimal(str(deficit or 0))
+    top = float((1 + (count - 1) * target) / count)
+    if deficit is None:
+        top = math.nextafter(top, 0.0)
+    probabilities = {"a": top, **{f"other_{i}": (1 - top) / (count - 1) for i in range(count - 1)}}
+    body = _reply()
+    body["answers"] = {
+        "selection": {
+            "type": "choice",
+            "choice": "a",
+            "confidence": 1.0,
+            "probabilities": probabilities,
+        }
+    }
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=body))
+    ) as http:
+        result = await TypeSafeClient(http, "secret").choose(
+            model="jev-1.13.0",
+            state="Boundary case.",
+            question=ChoiceQuestion(
+                instructions="Select.", criteria={key: key for key in probabilities}
+            ),
+            timeout_seconds=1,
+        )
+    assert (result.answer.confidence >= threshold) is (deficit == 0.0)
+    assert result.answer.probabilities == probabilities
+
+
+@pytest.mark.parametrize(
+    "total,accepted", [(0.9995, True), (1.0005, True), (0.998, False), (1.002, False)]
+)
+async def test_probability_sum_rounding_tolerance_is_bounded(total: float, accepted: bool) -> None:
+    body = _reply()
+    body["answers"] = {
+        "selection": {
+            "type": "choice",
+            "choice": "a",
+            "confidence": 0.99,
+            "probabilities": {"a": total * 0.9, "none": total * 0.1},
+        }
+    }
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=body))
+    ) as http:
+        client = TypeSafeClient(http, "secret")
+        decision = client.choose(
+            model="jev-1.13.0",
+            state="A format.",
+            question=ChoiceQuestion(instructions="Select.", criteria={"a": "A", "none": "None"}),
+            timeout_seconds=1,
+        )
+        if accepted:
+            assert (await decision).answer.choice == "a"
+        else:
+            with pytest.raises(TypeSafeError) as caught:
+                await decision
+            assert caught.value.reason == "probability_sum"
+            assert caught.value.usage is not None
 
 
 @pytest.mark.parametrize("counter", [-1, True, "100", 2**63])
@@ -142,6 +311,7 @@ async def test_unsafe_counters_are_not_accepted_into_the_ledger(counter: object)
                 ),
             )
     assert error.value.usage is None
+    assert error.value.reason == "envelope_schema"
 
 
 async def test_total_deadline_interrupts_a_slow_provider() -> None:

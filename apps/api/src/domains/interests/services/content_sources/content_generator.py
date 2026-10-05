@@ -36,6 +36,7 @@ from src.domains.interests.services.content_sources.base import (
     ContentGenerationContext,
     ContentResult,
     ContentSourceStrategy,
+    bill_discarded_content,
 )
 from src.domains.interests.services.content_sources.brave_source import (
     BraveSearchContentSource,
@@ -270,6 +271,7 @@ class InterestContentGenerator:
                     topic=context.topic,
                 )
                 had_duplicate = True
+                await bill_discarded_content(content, context.user_id, str(context.interest_id))
                 continue
 
             logger.info(
@@ -307,6 +309,7 @@ class InterestContentGenerator:
                     user_id=context.user_id,
                 )
                 # At least LLM produced content but it was duplicate
+                await bill_discarded_content(content, context.user_id, str(context.interest_id))
                 return None
 
             logger.info(
@@ -390,6 +393,7 @@ class InterestContentGenerator:
         started = perf_counter()
         opened = source.source_name
 
+        result: ContentResult | None = None
         try:
             kwargs: dict[str, Any] = {
                 "topic": context.topic,
@@ -401,7 +405,7 @@ class InterestContentGenerator:
             if source.source_name == "llm_reflection":
                 kwargs["category"] = context.category
 
-            result: ContentResult | None = await source.generate(**kwargs)
+            result = await source.generate(**kwargs)
 
             # Generate embedding for deduplication check
             if result and not result.embedding:
@@ -412,7 +416,11 @@ class InterestContentGenerator:
             self._record_consultation(context, opened, failed=False, started=started)
             return result
 
-        except Exception as e:
+        except BaseException as e:
+            if result is not None:
+                await bill_discarded_content(result, context.user_id, str(context.interest_id))
+            if not isinstance(e, Exception):
+                raise
             self._record_consultation(context, opened, failed=True, started=started)
             logger.warning(
                 "content_source_exception",

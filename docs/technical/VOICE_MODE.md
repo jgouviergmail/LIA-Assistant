@@ -31,7 +31,14 @@ Le Voice Mode de LIA est un système complet de saisie vocale avec :
 | **Push-to-Talk** | Activation manuelle par clic/tap | Web Audio API |
 | **VAD** | Détection fin de parole automatique | Energy-based detection |
 | **STT** | Transcription multilingue | Sherpa-onnx Whisper Small (backend) |
-| **TTS** | Synthèse vocale des réponses | Edge TTS / OpenAI HD |
+| **TTS** | Synthèse vocale des réponses | Edge TTS / OpenAI / ElevenLabs, from the LLM catalogue |
+
+Voice input remains separate from the output destination. The optional
+[speaking avatar](SPEAKING_AVATAR.md) receives already produced voice comments or
+[Live audio](LIVE_MODE.md), on the person's own Simli key and explicit permission.
+It adds no microphone, transcription, synthesis or conversation model. One shared
+output coordinator chooses a single audible route per production; the real
+provider and physical Android/iOS media trials remain pending.
 
 ### Machine d'États
 

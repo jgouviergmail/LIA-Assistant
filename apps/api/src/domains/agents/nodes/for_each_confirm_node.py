@@ -45,6 +45,12 @@ from src.domains.agents.constants import (
     STATE_KEY_FOR_EACH_HITL_CTX,
 )
 from src.domains.agents.models import MessagesState
+from src.domains.agents.nodes.for_each_preview_identity import (
+    approved_preview_context,
+    resolve_item_preview_indices,
+    selection_matches_snapshot,
+    snapshot_preview_identity,
+)
 from src.domains.agents.services.hitl.item_filter import get_item_filter_service
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.utils.state_tracking import track_state_updates
@@ -79,6 +85,21 @@ def _cancel_result(reason: str) -> dict[str, Any]:
         },
         STATE_KEY_FOR_EACH_HITL_CTX: None,
     }
+
+
+def _approval_result(ctx: dict[str, Any], iteration: int) -> dict[str, Any]:
+    approved_ctx = approved_preview_context(ctx)
+    decision = "confirm" if approved_ctx["approved"] else "edit"
+    hitl_for_each_decisions.labels(decision=decision).inc()
+    logger.info(
+        "for_each_hitl_approval_checked",
+        run_id=ctx.get("run_id", "unknown"),
+        plan_id=ctx.get("plan_id", "unknown"),
+        iteration=iteration,
+        approved=approved_ctx["approved"],
+        final_item_count=ctx.get("total_affected"),
+    )
+    return {STATE_KEY_FOR_EACH_HITL_CTX: {**approved_ctx, "iteration": iteration}}
 
 
 @trace_node(NODE_FOR_EACH_CONFIRM)
@@ -165,15 +186,7 @@ async def for_each_confirm_node(
 
     # ---- APPROVE: hand the persisted context back to the orchestrator ----
     if decision == HITL_DECISION_APPROVE:
-        hitl_for_each_decisions.labels(decision="confirm").inc()
-        logger.info(
-            "for_each_hitl_confirmed",
-            run_id=run_id,
-            plan_id=plan_id,
-            iteration=iteration,
-            final_item_count=total_affected,
-        )
-        result = {STATE_KEY_FOR_EACH_HITL_CTX: {**ctx, "approved": True}}
+        result = _approval_result(ctx, iteration)
         track_state_updates(state, result, NODE_FOR_EACH_CONFIRM, run_id)
         return result
 
@@ -202,11 +215,19 @@ async def for_each_confirm_node(
 
         filter_service = get_item_filter_service()
         try:
+            identity_snapshot = snapshot_preview_identity(ctx)
+            original_indices = resolve_item_preview_indices(identity_snapshot)
+            if original_indices is None:
+                raise ValueError("Unproven preview identity")
             indices_to_keep = await filter_service.filter(
-                item_previews=item_previews,
+                item_previews=identity_snapshot["item_previews"],
                 exclude_criteria=exclude_criteria,
                 run_id=run_id,
             )
+            if not selection_matches_snapshot(
+                indices_to_keep, len(item_previews), identity_snapshot, ctx
+            ):
+                raise ValueError("Invalid preview selection")
         except Exception as filter_error:
             logger.error(
                 "for_each_edit_filter_error",
@@ -234,12 +255,8 @@ async def for_each_confirm_node(
             track_state_updates(state, result, NODE_FOR_EACH_CONFIRM, run_id)
             return result
 
-        # Cumulative index mapping back to the ORIGINAL pre-executed items
-        previous_indices: list[int] | None = ctx.get("filtered_indices")
-        if previous_indices is None:
-            filtered_indices = list(indices_to_keep)
-        else:
-            filtered_indices = [previous_indices[i] for i in indices_to_keep]
+        # Every position is relative to the displayed list, never the source list.
+        filtered_indices = [original_indices[i] for i in indices_to_keep]
 
         logger.info(
             "for_each_edit_items_filtered",
@@ -257,6 +274,7 @@ async def for_each_confirm_node(
             STATE_KEY_FOR_EACH_HITL_CTX: {
                 **ctx,
                 "item_previews": filtered_previews,
+                "item_preview_indices": filtered_indices,
                 "total_affected": len(filtered_previews),
                 "filtered_indices": filtered_indices,
                 "iteration": iteration,

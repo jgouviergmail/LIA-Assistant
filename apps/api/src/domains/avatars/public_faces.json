@@ -1,0 +1,111 @@
+{
+  "source": "https://docs.simli.com/api-reference/preset-faces",
+  "reviewed_at": "2026-10-04",
+  "faces": [
+    {
+      "id": "cace3ef7-a4c4-425d-a8cf-a5358eb0c427",
+      "name": "Tina",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/asian_woman.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=e02235fa52f1327b4cfb060ab364ec63"
+    },
+    {
+      "id": "b9e5fba3-071a-4e35-896e-211c4d6eaa7b",
+      "name": "Laila",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/indian_woman_2.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=1c6868752203ba280e436c7bfdd2a665"
+    },
+    {
+      "id": "d2a5c7c6-fed9-4f55-bcb3-062f7cd20103",
+      "name": "Kate",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/white_woman.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=cb90417c488a7ad52a20be0701958612"
+    },
+    {
+      "id": "7e74d6e7-d559-4394-bd56-4923a3ab75ad",
+      "name": "Sabour",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/indian_man.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=7311fb8aee4caba7dea2d7477a580600"
+    },
+    {
+      "id": "1c6aa65c-d858-4721-a4d9-bda9fde03141",
+      "name": "Fred",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/black_man.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=353c99d375639a3513d5b4f14560e467"
+    },
+    {
+      "id": "5fc23ea5-8175-4a82-aaaf-cdd8c88543dc",
+      "name": "Madison",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/madison.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=8f3119eddb776e0afec44ecf8da6c3d9"
+    },
+    {
+      "id": "804c347a-26c9-4dcf-bb49-13df4bed61e8",
+      "name": "Mark",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/black_programmer.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=94213f32e0d39464bbf4d645430c29d8"
+    },
+    {
+      "id": "afdb6a3e-3939-40aa-92df-01604c23101c",
+      "name": "Zahra",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/zahra.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=9dcd291b4abf673b9e811757828fa826"
+    },
+    {
+      "id": "9d0ba12e-ebad-4bfa-b1fb-c6c5be21abca",
+      "name": "Teenager",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/teenager.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=044f6bac8fb68cc8dac13719e0e41d5f"
+    },
+    {
+      "id": "dd10cb5a-d31d-4f12-b69f-6db3383c006e",
+      "name": "Hank",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/hank.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=5864d0148bb709abead34a191313c155"
+    },
+    {
+      "id": "c65af549-9105-442a-92a3-dc6c89e34149",
+      "name": "DJ",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/dj_real.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=24eca4bde098b5d2f2be16862629466e"
+    },
+    {
+      "id": "f0ba4efe-7946-45de-9955-c04a04c367b9",
+      "name": "Doctor",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/doctor.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=54e19a0bc52face280face4275259257"
+    },
+    {
+      "id": "b1f6ad8f-ed78-430b-85ef-2ec672728104",
+      "name": "Charlotte",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/Charlotte.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=d281e1b7bbf5e3fc148536b0a2805197"
+    },
+    {
+      "id": "c295e3a2-ed11-48d5-a1bd-ff42ac7eac73",
+      "name": "Einstein",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/einstein_2.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=c9a1f0d1aa06ab3af27e1b98c64e2dd8"
+    },
+    {
+      "id": "4cce0ca0-550f-42d8-b500-834ffb35e0af",
+      "name": "Catgirl",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/catgirl.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=7e3fc02cea24460e89f540b207429ed0"
+    },
+    {
+      "id": "c7451e55-ea04-41c8-ab47-bdca3e4a03d8",
+      "name": "Cleopatra",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/Cleo_2.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=04512252cdcb501ee863e274dd5a22f2"
+    },
+    {
+      "id": "14de6eb1-0ea6-4fde-9522-8552ce691cb6",
+      "name": "Baby",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/baby.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=2e446e13d8940f7db4d6dabb8e8b3fed"
+    },
+    {
+      "id": "6926a39d-638b-49c5-9328-79efa034e9a4",
+      "name": "Big Foot",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/big_foot.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=a05fe712c8fceb9b3cd78f9243dfeee3"
+    },
+    {
+      "id": "c2f1d5d7-074b-405d-be4c-df52cd52166a",
+      "name": "Nonna",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/nonna.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=d168f7dcdff1de58e8485e4d6026b5d1"
+    },
+    {
+      "id": "121cd5ae-7df7-4ea3-a389-401a9463db52",
+      "name": "Edna",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/edna.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=c411257a415995e2f406fe53899bdc7e"
+    },
+    {
+      "id": "f1abe833-b44c-4650-a01c-191b9c3c43b8",
+      "name": "Tony",
+      "preview_image_url": "https://mintcdn.com/simli/NELbEX-teJCHwcnx/images/tony.png?fit=max&auto=format&n=NELbEX-teJCHwcnx&q=85&s=6f1b378e4b42a2ab2af140f4580303e3"
+    }
+  ]
+}

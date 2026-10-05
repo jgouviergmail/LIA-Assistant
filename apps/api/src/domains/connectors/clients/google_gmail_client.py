@@ -88,7 +88,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailSendMixin, GmailThreadsMixin
 
     @property
     def _cache_account(self) -> str:
-        """A grouped OAuth grant identifies the mailbox; legacy keys remain readable."""
+        """A verified grant or legacy connection generation identifies the mailbox."""
         binding = self.credentials.account_binding
         return f"{self.user_id}:grant:{binding}" if binding else str(self.user_id)
 

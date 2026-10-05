@@ -588,7 +588,7 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
         error: Exception,
         user_id_str: str | None,
         params: dict[str, Any],
-    ) -> str:
+    ) -> ToolOutputType:
         """
         Handle tool execution errors.
 
@@ -600,7 +600,8 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
             params: Tool parameters
 
         Returns:
-            JSON string with error details
+            Error output in the same mode as successful execution: a
+            UnifiedToolOutput for registry tools, otherwise a legacy JSON string.
         """
         # No PII at ERROR: raw params may contain recipients/bodies (DEBUG only)
         self.logger.error(
@@ -616,8 +617,9 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
             params=params,
         )
 
-        # Use standardized error handler
-        return handle_tool_exception(error, self.tool_name, params).model_dump_json()
+        # Preserve the return contract when the upstream operation fails too.
+        output = handle_tool_exception(error, self.tool_name, params)
+        return output if self.registry_enabled else output.model_dump_json()
 
     def _get_deps_or_fallback(
         self, runtime: ToolRuntime[LiaRuntimeContext, Any]

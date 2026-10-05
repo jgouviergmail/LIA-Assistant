@@ -14,6 +14,7 @@ import pytest
 
 from src.core.constants import EXTERNAL_CONTENT_CLOSE_TAG, EXTERNAL_CONTENT_OPEN_TAG
 from src.core.prompt_layout import split_at_marker
+from src.core.prompt_store import read_prompt_file
 from src.domains.radio.facts import (
     FactKind,
     FactPack,
@@ -25,6 +26,7 @@ from src.domains.radio.facts import (
 from src.domains.radio.formats import FORMAT_SPECS, JournalEdition, RadioFormat, RadioRole
 from src.domains.radio.production import WritingRequest
 from src.domains.radio.prompting import (
+    EDITORIAL_POLICY_PROMPT,
     ON_AIR_SHOWN_MAX,
     STATED_TASTE_MAX_CHARS,
     AnalysisRequest,
@@ -33,6 +35,7 @@ from src.domains.radio.prompting import (
     load_templates,
     render_analyst_prompt,
     render_fact,
+    render_verifier_prompt,
     render_writer_prompt,
 )
 
@@ -178,6 +181,32 @@ def test_every_segment_of_a_listener_shares_one_static_prefix() -> None:
     assert bulletin is not None and brief is not None
     assert bulletin.static == brief.static
     assert "bulletin" in bulletin.dynamic and "A story." not in bulletin.static
+
+
+def test_shared_editorial_policy_is_stable_and_cacheable_for_all_three_prompts() -> None:
+    policy = read_prompt_file(EDITORIAL_POLICY_PROMPT)
+    pairs = (
+        (
+            writer(RadioFormat.BULLETIN, news("n1", "A story.")),
+            writer(RadioFormat.BRIEF, news("n2", "Another story.")),
+        ),
+        (analyst("First article."), analyst("A different article.")),
+        (
+            render_verifier_prompt(
+                TEMPLATES.verifier, (), request(RadioFormat.BULLETIN).pack, station_name="A"
+            ),
+            render_verifier_prompt(
+                TEMPLATES.verifier, (), request(RadioFormat.BRIEF).pack, station_name="B"
+            ),
+        ),
+    )
+    for first, second in pairs:
+        left, right = split_at_marker(first), split_at_marker(second)
+        assert left is not None and right is not None
+        assert left.static == right.static
+        assert left.dynamic != right.dynamic
+        assert left.static.count(policy) == 1
+        assert policy not in left.dynamic and not _LEFTOVER.findall(first)
 
 
 def test_the_listeners_taste_is_in_the_shared_prefix_bounded_and_never_below_it() -> None:

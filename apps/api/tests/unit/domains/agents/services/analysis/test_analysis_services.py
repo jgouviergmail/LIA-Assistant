@@ -581,7 +581,10 @@ class TestMemoryResolver:
         resolver = MemoryResolver()
         config = MagicMock()
 
-        with patch.object(resolver, "_retrieve_memory_facts", return_value=None) as mock_retrieve:
+        with (
+            patch.object(resolver, "_retrieve_memory_facts", return_value=None) as mock_retrieve,
+            patch.object(resolver, "_extract_references", new=AsyncMock(return_value=[])),
+        ):
             with patch.object(resolver, "_resolve_memory_references") as mock_resolve:
                 resolution = await resolver.retrieve_and_resolve(
                     query="test query",

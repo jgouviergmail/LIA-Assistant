@@ -41,7 +41,7 @@ echo "==> [1/6] alembic upgrade head (replay the full chain on an empty database
 alembic upgrade head
 
 echo "==> [2/6] verify the database is at the single head"
-current="$(alembic current 2>/dev/null || true)"
+current="$(alembic current)"
 echo "    current: ${current}"
 if ! printf '%s' "${current}" | grep -q "(head)"; then
     echo "ERROR: not at head after 'upgrade head' — the chain is not fully replayable." >&2
@@ -53,7 +53,7 @@ alembic downgrade -1
 alembic upgrade head
 
 echo "==> [4/6] re-verify head after the cycle"
-if ! alembic current 2>/dev/null | grep -q "(head)"; then
+if ! alembic current | grep -q "(head)"; then
     echo "ERROR: not at head after the downgrade/upgrade cycle." >&2
     exit 1
 fi

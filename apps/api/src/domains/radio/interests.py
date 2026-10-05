@@ -41,6 +41,7 @@ from src.domains.radio.newsroom.parse import (
     plain_text,
 )
 from src.domains.radio.readers import ConsultationRecorder
+from src.domains.shared.commercial_content import editorial_excerpt, is_commercial_content
 
 logger = structlog.get_logger(__name__)
 
@@ -91,11 +92,13 @@ def interest_story(
         The story, or ``None`` for an address the newsroom would not keep or an
         empty headline.
     """
+    if is_commercial_content(title, summary=summary):
+        return None
     canonical = canonical_url(url, url)
     headline = plain_text(title, TITLE_MAX_CHARS)
     if canonical is None or not headline:
         return None
-    text = plain_text(summary, SUMMARY_MAX_CHARS)
+    text = plain_text(editorial_excerpt(summary), SUMMARY_MAX_CHARS)
     site = (urlsplit(canonical).hostname or "").removeprefix("www.")
     return InterestStory(
         item_key=hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:40],

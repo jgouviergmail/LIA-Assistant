@@ -58,6 +58,9 @@ CardLabel = (
         "field_redacted",
         "display_limited",
         "binary_not_displayed",
+        "mcp_server",
+        "mcp_method",
+        "mcp_result",
         "alternate_names",
         "department",
         "anyone",
@@ -121,6 +124,30 @@ CardLabel = (
 )
 
 _LABELS: dict[CardLabel, dict[Language, str]] = {
+    "mcp_server": {
+        "en": "MCP server",
+        "fr": "Serveur MCP",
+        "de": "MCP-Server",
+        "es": "Servidor MCP",
+        "it": "Server MCP",
+        "zh-CN": "MCP 服务器",
+    },
+    "mcp_method": {
+        "en": "Method called",
+        "fr": "Méthode appelée",
+        "de": "Aufgerufene Methode",
+        "es": "Método llamado",
+        "it": "Metodo chiamato",
+        "zh-CN": "调用的方法",
+    },
+    "mcp_result": {
+        "en": "View MCP result",
+        "fr": "Voir le résultat MCP",
+        "de": "MCP-Ergebnis anzeigen",
+        "es": "Ver resultado MCP",
+        "it": "Visualizza il risultato MCP",
+        "zh-CN": "查看 MCP 结果",
+    },
     "writerWithoutPrivateAccess": {
         "en": "Can edit (private details hidden)",
         "fr": "Modification autorisée (détails privés masqués)",

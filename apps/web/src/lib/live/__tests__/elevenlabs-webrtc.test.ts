@@ -1,11 +1,13 @@
 import { Conversation } from '@elevenlabs/client';
 import type { PartialOptions, VoiceConversation } from '@elevenlabs/client';
+import { setWebRTCAudioAdapterFactory } from '@elevenlabs/client/internal';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ElevenLabsWebRtcTransport } from '../transports/elevenlabs-webrtc';
 import type { LiveConnectOptions, LiveTransportEvents } from '../types';
 
 vi.mock('@elevenlabs/client', () => ({ Conversation: { startSession: vi.fn() } }));
+vi.mock('@elevenlabs/client/internal', () => ({ setWebRTCAudioAdapterFactory: vi.fn() }));
 
 const options: LiveConnectOptions = {
   credential: 'livekit-token',
@@ -102,5 +104,21 @@ describe('ElevenLabsWebRtcTransport', () => {
     sdkOptions.onDisconnect?.({ reason: 'agent', closeCode: 1006, closeReason: 'lost' });
     expect(onClosed).toHaveBeenCalledWith(1006, 'lost');
     expect(transport.isOpen).toBe(false);
+  });
+
+  it('installs the exported raw-audio adapter before the SDK starts the native session', async () => {
+    const transport = new ElevenLabsWebRtcTransport();
+    await transport.connect(options, { onRemoteStream: vi.fn(() => vi.fn()) });
+    expect(setWebRTCAudioAdapterFactory).toHaveBeenCalledOnce();
+    expect(vi.mocked(setWebRTCAudioAdapterFactory).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(Conversation.startSession).mock.invocationCallOrder[0]);
+    await transport.close();
+  });
+
+  it('does not start the SDK after cancellation during the browser import', async () => {
+    const transport = new ElevenLabsWebRtcTransport();
+    const connecting = transport.connect(options, {});
+    await transport.close(); await connecting;
+    expect(Conversation.startSession).not.toHaveBeenCalled();
   });
 });

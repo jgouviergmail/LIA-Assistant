@@ -47,6 +47,29 @@ User Message → Layer 0 (Router: HTTP 429)
 
 **Layer 2** is the most important for robustness — it catches ALL LLM calls that go through `invoke_with_instrumentation()`, including background services (journal extraction, memory extraction, interest processing, etc.).
 
+### Paid attempts and background work
+
+Admission limits decide whether another provider call may start; they do not
+erase the spend of calls already made. Each provider attempt retains its start,
+actual model, token buckets and captured tariff/FX through
+[LLMBillingRecord](../../apps/api/src/core/llm_usage.py). Retries and paid responses
+that fail structured-output validation remain separate accounted attempts.
+Missing provider counters are not replaced by an invented charge.
+
+Known spend also remains accounted when proactive delivery or background
+extraction fails or is cancelled after generation. The
+[shared settlement path](../../apps/api/src/infrastructure/proactive/tracking.py)
+claims each capture once and bounds the write before cancellation propagates;
+it never blindly repeats an uncertain database commit. Failed work keeps its
+failure outcome, even when its spend reaches user statistics and run summaries.
+[Token tracking](TOKEN_TRACKING_AND_COUNTING.md#service-implementation) states the
+hard-kill, database-outage and settlement-timeout limits of this guarantee.
+
+Optional native [JEV decisions](JEV_INTEGRATION.md) and their paid fallback calls
+count on their declared LIA spend routes. Personal Live vendor usage and Simli
+avatar credits have their separately documented vendor boundaries; an avatar
+adds no LIA LLM/TTS call or invented Simli quota ledger.
+
 ### Caching
 
 - Redis key: `usage_limit:{user_id}`

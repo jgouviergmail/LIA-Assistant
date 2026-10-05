@@ -8,6 +8,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from src.domains.agents.data_registry.card_payload import card_payload, restore_display_fields
+from src.domains.agents.data_registry.mcp_metadata import mcp_server_origin, mcp_source_display
 from src.domains.agents.data_registry.models import RegistryItem, RegistryItemMeta, RegistryItemType
 from src.domains.agents.display.components.base import RenderContext
 from src.domains.agents.display.components.mcp_result_card import McpResultCard
@@ -15,6 +16,74 @@ from src.domains.agents.services.context_resolution_service import _resolved_pay
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"result": '{"markdown": "LAST_MCP_FACT"}'},
+        {"result": "Plain received result: LAST_MCP_FACT"},
+        {"_mcp_structured": True, "description": "LAST_MCP_FACT", "count": 0},
+    ],
+)
+def test_all_mcp_result_content_starts_inside_a_closed_native_disclosure(data):
+    data.update(mcp_source_display("Actual server", "firecrawl_scrape", "https://mcp.test/key"))
+    soup = BeautifulSoup(McpResultCard().render(data, RenderContext(language="fr")), "html.parser")
+    card = soup.select_one(".lia-mcp")
+    details = card.select_one("details")
+    assert not details.has_attr("open")
+    assert (
+        details.find("summary", recursive=False)
+        .get_text()
+        .strip()
+        .startswith("Voir le résultat MCP")
+    )
+    assert "LAST_MCP_FACT" in details.get_text()
+    assert card.select_one(".lia-mcp__metadata a")["href"] == "https://mcp.test"
+    assert card.select_one(".lia-mcp__metadata code").get_text() == "firecrawl_scrape"
+    assert card.select_one(".lia-mcp__metadata").find_parent("details") is None
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        (
+            "https://alice:SECRET@mcp.test:8443/SECRET/mcp?key=SECRET#SECRET",
+            "https://mcp.test:8443",
+        ),
+        ("https://mcp.firecrawl.dev/fc-SECRET/v2/mcp", "https://mcp.firecrawl.dev"),
+        ("http://[::1]:8000/mcp", "http://[::1]:8000"),
+        ("https://météo.test/mcp", "https://xn--mto-bmab.test"),
+        ("javascript:alert(1)", ""),
+        ("https://mcp.test:invalid/mcp", ""),
+        ("https://[broken/mcp", ""),
+        ("https://mcp.test\\other/mcp", ""),
+        ("https://mcp.test/\nmcp", ""),
+        ("https://mcp.test/" + "a" * 2048, ""),
+        ({"url": "https://mcp.test"}, ""),
+    ],
+)
+def test_mcp_server_origin_never_exposes_endpoint_credentials(url, expected):
+    assert mcp_server_origin(url) == expected
+
+
+@pytest.mark.parametrize("language", ["en", "fr", "de", "es", "it", "zh-CN"])
+def test_mcp_disclosure_and_call_metadata_are_localized(language):
+    soup = BeautifulSoup(
+        McpResultCard().render(
+            {
+                "result": "Received fact",
+                **mcp_source_display("MCP", "read_items", "https://mcp.test"),
+            },
+            RenderContext(language=language),
+        ),
+        "html.parser",
+    )
+    assert soup.select_one("summary").get_text().strip()
+    assert len(soup.select(".lia-mcp__metadata dt")) == 2
+    if language != "en":
+        assert "View MCP result" not in soup.get_text()
+        assert "Method called" not in soup.get_text()
 
 
 def test_historical_reference_identity_comes_from_registry_metadata():
@@ -205,6 +274,7 @@ async def test_mcp_server_cannot_override_application_identity_or_structured_fla
         tool_name="list_items",
         description="Read items",
         input_schema={},
+        server_url="https://alice:SECRET_USERINFO@mcp.test/SECRET_PATH?key=SECRET_QUERY",
     )
     pool = AsyncMock()
     pool.call_tool.return_value = json.dumps(
@@ -233,8 +303,35 @@ async def test_mcp_server_cannot_override_application_identity_or_structured_fla
     payload = card_payload(RegistryItem.model_validate_json(item.model_dump_json()))
     assert payload["_mcp_source"]["server_name"] == "Actual server"
     assert payload["_mcp_source"]["tool_name"] == "list_items"
+    assert payload["_mcp_source"]["server_url"] == "https://mcp.test"
+    assert "SECRET_" not in item.model_dump_json()
     soup = BeautifulSoup(
         McpResultCard().render(payload, RenderContext(language="en")), "html.parser"
     )
     assert soup.select_one(".lia-card-top__badges").get_text().strip().endswith("Actual server")
     assert "Forged server" in soup.get_text()
+
+
+@pytest.mark.asyncio
+async def test_raw_result_identity_and_origin_survive_registry_checkpoint():
+    adapter = UserMCPToolAdapter.from_discovered_tool(
+        server_id=uuid4(),
+        user_id=uuid4(),
+        server_name="Firecrawl",
+        tool_name="firecrawl_scrape",
+        description="Scrape",
+        input_schema={},
+        server_url="https://mcp.firecrawl.dev/fc-SECRET_PATH/v2/mcp",
+    )
+    pool = AsyncMock()
+    pool.call_tool.return_value = '{"markdown":"Received article"}'
+    with patch("src.infrastructure.mcp.user_pool.get_user_mcp_pool", return_value=pool):
+        output = await adapter._arun()
+    item = next(iter(output.registry_updates.values()))
+    checkpoint = RegistryItem.model_validate_json(item.model_dump_json())
+    assert "_mcp_source" not in checkpoint.payload
+    assert "SECRET_PATH" not in checkpoint.model_dump_json()
+    resolved = _resolved_payload(checkpoint.id, checkpoint.payload, checkpoint.model_dump())
+    payload = restore_display_fields(resolved)
+    assert payload["_mcp_source"]["server_url"] == "https://mcp.firecrawl.dev"
+    assert payload["_mcp_source"]["tool_name"] == "firecrawl_scrape"

@@ -4,7 +4,7 @@
 
 **Version**: 2.3
 **Datum**: 2026-10-04
-**Anwendung**: LIA v2.5.0
+**Anwendung**: LIA v2.6.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Indikator | Wert |
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests) — 54 Fachdomänen | **800.000+** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **50.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **332** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **276** |
+| Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **820.000+** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **51.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **333** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **277** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -54,9 +54,9 @@ Mehrere Agenten können gleichzeitig am selben Repository arbeiten — zwei vers
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 332 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 333 dokumentierten:
 
-**Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
+**Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Selbsthosting gibt dir die Kontrolle über den Server; Kontodaten liegen auf der Instanz und Konnektor-Zugangsdaten sind verschlüsselt. Die gewählten externen Dienste erhalten weiterhin die Daten, die sie für ihren Teil einer Anfrage benötigen.
 
 **KI-Ökonomie — die Kosten pro Anfrage sind ein Designkriterium.** Zwei Ausführungsmodi koexistieren: eine deterministische, sparsame Pipeline für alltägliche Anfragen, ein autonomer Agentenmodus für explorative — der gemessene Verbrauchsunterschied reicht von 1 zu 4-8, bei gleichwertiger Leistung in Standardfällen. Jeder Aufruf wird pro Token gezählt, in Euro bewertet, pro Nutzer und Modell aggregiert, durch Quoten gesteuert. Selbst eine Benachrichtigung von zwei Sätzen wird ohne Nachdenken angefordert, weil ein Modell, das standardmäßig nachdenkt, sein Nachdenken innerhalb des Antwortbudgets abrechnet. Und der Agentenmodus nimmt nur die Tools mit, die die Frage verlangt — nach Relevanz gewählt, nie nach Reihenfolge des Eintreffens —, weil achtzig Tool-Schemata den Großteil eines ersten Aufrufs wogen, ohne gezählt zu werden. Und die Rechnung stimmt: Jeder Aufruf wird zu dem Preis bewertet, den der Anbieter tatsächlich berechnet – Tarife auf seinen Seiten nachgelesen, ein Cache-Schreibvorgang zu seinem Preis, Nebenzeiten mit ihren Tagen.
 
@@ -70,11 +70,13 @@ Ein System, das nach Instrumenten geflogen wird:
 - **Lieferung**: containerisiertes Deployment, automatisierte Schemamigrationen, Images für zwei Hardwarearchitekturen (amd64/arm64) veröffentlicht.
 - **Lieferkette**: jeder Baustein des Servers per Digest fixiert und mit jeder Version inventarisiert; eine wöchentliche Prüfung liest die Sicherheitshinweise, die jede Abhängigkeit veröffentlicht — auch jene, die keine öffentliche Datenbank weitergibt —, und ein Update wartet eine Karenzzeit ab, ohne je zurückzugehen; jede Version wird vor ihrer Veröffentlichung auf leeren Maschinen installiert.
 - **Kosten**: bewusst frugale Infrastruktur — etwa 150 € Hardware, null Lizenzen, Open-Source-Bausteine, dimensioniert nach dem realen Bedarf.
-- **Compliance**: Sicherheit Endpunkt für Endpunkt überprüft; personenbezogene Daten verschlüsselt; Konto-Lebenszyklus an der DSGVO ausgerichtet.
+- **Datenschutz**: Sicherheit Endpunkt für Endpunkt überprüft; Konnektor-Zugangsdaten und Anbieterschlüssel verschlüsselt; Kontoexport und Kontolöschung. Die Pflichten aus der DSGVO hängen auch vom Betrieb der Instanz und den gewählten Anbietern ab.
 
 Das Produkt zeigt seine technischen Entscheidungen im Maßstab eines Menschen. Der Chat begleitet ihn über Geräte hinweg, ohne die Lektüre zu stören; das Radio beginnt, wenn er zuhören möchte, und nennt Quellen und Kosten seiner Nachrichten. Die Lebensdauer einer erzeugten Datei lässt sich bewusst verlängern. Geplante Arbeit und Bedingungsprüfungen haben getrennte Uhren. Das sind kleine, beobachtbare Zusagen, getragen von Quellen, Grenzen und Tests, statt der Behauptung, die Assistentin wisse einfach, was jemand will.
 
 Dieselbe Regel gilt für das, was noch nicht auf dem Niveau ist. Das Aktivierungswort „Dis LIA“ ist ein kleines, offline trainiertes Modell, gemessen auf einem Prüfstand, dessen Schwellen vor dem Training veröffentlicht werden: das französische Modell erreicht sie noch nicht, also wird es als **Beta** gekennzeichnet ausgeliefert, und das Produkt sagt es, statt die Latte zu senken, um „fertig“ schreiben zu können. Eine Sprachsitzung, die bei Stille einschläft, kostet nichts, und nur die Person beendet sie.
+
+Diese Disziplin gilt auch für sichtbare Präsenz. Ein experimentelles Simli-Gesicht ist eine ausdrückliche Wahl mit dem eigenen Schlüssel, angebunden an die vorhandene Stimme mit einer einzigen hörbaren Ausgabe. Eine offene Sitzung verbraucht den persönlichen Tarif während der Stille; Live-Standby schließt sie. Die Darstellung lässt die Medien- und Mobilqualifizierung offen, bis echte Versuche sie belegen. Dieselbe Genauigkeit gilt für Ausgaben: Jeder bezahlte Anbieterversuch behält seinen Tarif, und sein bekannter Verbrauch übersteht Fehler, Abbruch oder Wiederholung.
 
 ## 6. Der Beweis
 
@@ -111,4 +113,4 @@ Was diese Erfahrung in einer Führungspraxis verändert:
 - **Zwischen Generalverbot und blindem Vertrauen gibt es einen steuerbaren Weg.** Abgestufte menschliche Kontrolle lässt sich spezifizieren, testen und auditieren; es ist der Ansatz, auf den die regulatorischen Anforderungen zulaufen, und er ist heute einsatzbereit.
 - **Eine Führungskraft, die praktiziert, entscheidet besser.** Selbst machen oder machen lassen, akzeptable Schulden oder nicht, glaubwürdiges Anbieterversprechen oder nicht — diese Entscheidungen gewinnen an Treffsicherheit, wenn man die Materie selbst erprobt hat. Dieses Projekt ist eine Art, diese Nähe zum Terrain zu pflegen.
 
-*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Zahlen aus dem technischen Audit von Juli 2026 — Tests ausgeführt, Messungen am Code vorgenommen, Befunde gegengeprüft. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit von Juli 2026, Befunde gegengeprüft. Strukturelle Zahlen folgen dem Repository; Quellcodezeilen wurden am 2026-10-05 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

@@ -646,6 +646,13 @@ Le hook `useMcpAppBridge` detecte les appels `create_view` Excalidraw et envoie 
 
 ### Parsing JSON structure (F2.4)
 
+Cards expose the configured server's public origin and called method before
+the folded response. Application-authored source metadata controls these fields;
+external result fields cannot replace it. Only scheme, host and optional port
+reach the source link: credentials, endpoint paths, queries and fragments are
+omitted. Received text and nested JSON remain available within the explicit
+snapshot bounds described in [HTML_CARDS.md](../technical/HTML_CARDS.md).
+
 `UserMCPToolAdapter._arun()` parse intelligemment les resultats JSON :
 
 ```python
@@ -701,6 +708,15 @@ if not v.startswith("https://"):
 Les credentials utilisateur (API key, bearer token, OAuth tokens) sont chiffres avec **Fernet** avant stockage en base. Le `UserMCPServerService` gere le chiffrement/dechiffrement de maniere transparente.
 
 ### Rate limiting per-server
+
+Personal MCP servers additionally honor provider quota refusals across API
+workers. HTTP 429/`Retry-After` or an explicit failed-tool quota response records
+a Redis cooldown for the account/server pair; every method on that server waits
+for the same TTL before a new connection can open. A reconnect does not clear it.
+The configured window is the fallback when a declared retry delay is unusable.
+Another refusal may extend the deadline. A Redis outage preserves only the
+cooldown already known to that worker. The agent receives the temporary refusal
+without an automatic retry and can use another source.
 
 Les deux pools (admin et user) implementent un **sliding window** par serveur avec protection TOCTOU via `asyncio.Lock` :
 
@@ -867,7 +883,14 @@ async def test_user_mcp_call(mock_get_pool):
 
 **Symptome** : `RuntimeError: Rate limit exceeded for MCP server 'xxx'`
 
-**Solution** : Augmenter `MCP_RATE_LIMIT_CALLS` et/ou `MCP_RATE_LIMIT_WINDOW` dans `.env`. Le defaut est 30 appels par 60 secondes par serveur.
+**Local admission limit:** review `MCP_RATE_LIMIT_CALLS` and
+`MCP_RATE_LIMIT_WINDOW` against the server's allowance; their defaults are owned
+by [MCP settings](../../apps/api/src/core/config/mcp.py).
+
+**Provider quota refusal:** wait for the declared cooldown or use another
+source. Raising the local allowance or calling a different method on that same
+server cannot bypass its provider limit. See the shared-cooldown contract in
+[MCP_INTEGRATION.md](../technical/MCP_INTEGRATION.md#rate-limiting).
 
 ### Pool per-user plein
 

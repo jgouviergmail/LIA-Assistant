@@ -258,6 +258,20 @@ For `streamable_http` servers:
 
 ### Rate Limiting
 
+Personal-server quota refusals also establish a shared cooldown in
+[rate_limit.py](../../apps/api/src/infrastructure/mcp/rate_limit.py).
+HTTP 429 reads `Retry-After` as seconds or an HTTP date; an explicit MCP tool
+quota error can supply a retry delay. A malformed or absent delay uses the
+configured rate-limit window. The Redis TTL is scoped to the account/server
+pair, covers every method on that server across API workers, and can only be
+extended by another refusal. Calls are rejected before opening a new connection
+until it expires, including after a reconnect. This is separate from the local
+sliding-window admission limit below. Redis outages retain the cooldown known
+to that worker; they cannot guarantee that another worker sees it.
+
+Quota refusal does not trigger a transparent retry. The adapter reports the
+temporary limit so the agent can choose another source or state the gap.
+
 Per-server sliding window rate limiting prevents abuse:
 - `MCP_RATE_LIMIT_CALLS`: Max calls per window (default: 60)
 - `MCP_RATE_LIMIT_WINDOW`: Window size in seconds (default: 60)
@@ -766,12 +780,21 @@ Located in `display/components/mcp_result_card.py`. Follows the `ReminderCard` p
 1. **Structured mode** (`_mcp_structured=True`): For JSON array results parsed by F2.4.
    - **Title**: Auto-detected from `_TITLE_FIELDS` (name, title, subject, label, display_name, full_name)
    - **Description**: Auto-detected from `_DESCRIPTION_FIELDS` (description, summary, body, text)
-   - **Details**: Up to 5 additional fields as key-value pairs, values truncated at 100 chars
+   - **Details**: Received fields and nested data remain available in the bounded native disclosure; redaction and display-limit indicators state omissions.
 
 2. **Raw mode** (fallback): For plain text or non-iterable JSON results.
    - **Badge**: Server name with puzzle piece icon (`Icons.EXTENSION`), format: "MCP · {server_name}"
    - **Title**: Humanized tool name (underscores → spaces, title case)
-   - **Content**: Auto-detects JSON (starts with `{` or `[`) → `<pre>` block; otherwise plain text with `<br>` newlines, truncated to 2000 chars
+   - **Content**: Text/JSON use the same bounded public snapshot and progressive disclosure, with explicit redaction and limit indicators.
+
+In both modes, the configured server's **public origin** and invoked **method**
+remain visible above the folded result. The origin comes from application-authored
+registry presentation metadata in
+[mcp_metadata.py](../../apps/api/src/domains/agents/data_registry/mcp_metadata.py),
+not fields supplied by the external server. It retains scheme, host and optional
+port, while dropping user information, endpoint path, query and fragment so
+credentials in a configured MCP URL cannot become a card link. Historical
+registry source/method metadata remains the fallback; a missing origin is omitted.
 
 **CSS classes** (BEM): `lia-card lia-mcp`, `lia-mcp__content`, `lia-mcp__content--json`
 

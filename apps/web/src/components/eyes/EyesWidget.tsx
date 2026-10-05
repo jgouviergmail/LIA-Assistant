@@ -23,6 +23,7 @@ import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Scaling, X } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';
+import { useAvatarRuntime } from '@/lib/avatars/runtime';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { ExpressiveEyes, type ExpressiveEyesProps } from '@/components/eyes/ExpressiveEyes';
@@ -233,10 +234,20 @@ export type EyesWidgetProps = EyesBehaviorProps & {
  * batch, while the widget's three scalar props only change on phase
  * transitions — memo turns those token flushes into no-ops here.
  */
+function useWidgetPresence(visible: boolean, surface: EyesSurface) {
+  const hiddenByAvatar = useAvatarRuntime().present && surface === 'chat';
+  const mounted = useSyncExternalStore(hydrationSubscribe, () => true, () => false);
+  const enabled = visible && !hiddenByAvatar;
+  const active = mounted && enabled;
+  useCompanionEnvironment(surface === 'chat' && active);
+  return { mounted, hiddenByAvatar, enabled, active };
+}
+
 export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   const { t } = useTranslation();
   const surface = props.surface ?? 'chat';
   const { visible, size, style: preferredStyle, setVisible, cycleSize } = useEyesWidgetStore();
+  const { mounted, hiddenByAvatar, enabled, active } = useWidgetPresence(visible, surface);
   const eyeStyle = props.styleId ?? preferredStyle;
   const position = useEyesWidgetStore(s =>
     surface === 'landing' ? s.landingPosition : s.position
@@ -247,19 +258,12 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
     chatStatus: props.chatStatus,
     streamPhase: props.streamPhase,
     hitlAwaiting: props.hitlAwaiting,
-    enabled: visible,
+    enabled,
   });
 
   // Client-only gate: the chat page is SSR'd once — defer to avoid any
   // hydration mismatch. useSyncExternalStore (server snapshot false, client
   // snapshot true) instead of a mount effect: no setState-in-effect (ratchet).
-  const mounted = useSyncExternalStore(
-    hydrationSubscribe,
-    () => true,
-    () => false
-  );
-  const active = mounted && visible;
-  useCompanionEnvironment(surface === 'chat' && active);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const drag = useEyesDrag(rootRef, surface);
@@ -300,7 +304,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
     return () => clearTimeout(id);
   }, [toolbarTapVisible]);
 
-  if (!mounted) return null;
+  if (!mounted || hiddenByAvatar) return null;
 
   if (!visible) {
     return (

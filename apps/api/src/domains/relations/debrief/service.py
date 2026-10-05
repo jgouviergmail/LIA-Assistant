@@ -509,6 +509,8 @@ class RelationDebriefService:
                 evidence=payload,
                 language=language,
                 local_date=local_date,
+                run_id=run_id,
+                target_id=hashlib.sha256(key.encode("utf-8")).hexdigest()[:16],
             )
         except Exception as exc:  # noqa: BLE001 — a failed build is a state, not a crash
             logger.warning(
@@ -634,7 +636,9 @@ class RelationDebriefService:
         the folded identity, never the display name: a target id lands in
         ``token_usage_logs``, and a person's name does not belong there.
         """
-        if not (usage.tokens_in or usage.tokens_out):
+        if getattr(usage, "accounting_handled", False) or not (
+            usage.tokens_in or usage.tokens_out or usage.tokens_cache
+        ):
             return
         from src.infrastructure.proactive.tracking import track_proactive_tokens
 
@@ -652,6 +656,7 @@ class RelationDebriefService:
             tokens_out=usage.tokens_out,
             tokens_cache=usage.tokens_cache,
             tokens_cache_write=usage.tokens_cache_write,
+            billing_records=usage.billing_records,
             model_name=usage.model_name,
             # The SLOT, not only the task: an operator reading the usage log can
             # then attribute a cost to the configuration that produced it, and

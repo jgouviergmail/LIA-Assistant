@@ -70,7 +70,7 @@ def _runtime(gate: FakeGate) -> SimpleNamespace:
 
 
 def _ok(stdout: str = "200\n") -> SimpleNamespace:
-    return SimpleNamespace(success=True, output=stdout, error=None)
+    return SimpleNamespace(success=True, output=stdout, error=None, execution_started=True)
 
 
 @asynccontextmanager
@@ -89,6 +89,9 @@ def _fresh(monkeypatch: pytest.MonkeyPatch) -> None:
     from src.domains.agents.tools import python_sandbox_tools
 
     RECORDED.clear()
+    monkeypatch.setattr(
+        "src.domains.feature_switches.registry.read_setting", AsyncMock(return_value=True)
+    )
     python_sandbox_tools.reset_turn_budget()
     monkeypatch.setattr(settings, "python_sandbox_tool_enabled", True, raising=False)
     monkeypatch.setattr(settings, "python_sandbox_egress_enabled", True, raising=False)
@@ -300,7 +303,9 @@ class TestAPermittedRun:
             patch(
                 EXECUTE,
                 new_callable=AsyncMock,
-                return_value=SimpleNamespace(success=False, output="", error="Traceback…"),
+                return_value=SimpleNamespace(
+                    success=False, output="", error="Traceback…", execution_started=True
+                ),
             ),
         ):
             result = await _call(["api.example.org"])

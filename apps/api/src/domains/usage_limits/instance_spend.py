@@ -21,13 +21,24 @@ spend, so the next author has a pattern to copy rather than a choice to make.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 import structlog
 
-from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
+from src.core.llm_usage import LLMBillingRecord
+from src.infrastructure.cache.pricing_cache import PricingCacheData, get_cached_cost_usd_eur
 from src.infrastructure.database.session import get_db_context
-from src.infrastructure.llm.usage_metadata import tokens_from_response
+from src.infrastructure.llm.usage_metadata import (
+    UsageTokens,
+    model_name_of_response,
+    sum_usage,
+    tokens_from_response,
+)
+
+if TYPE_CHECKING:
+    from src.infrastructure.llm.token_capture import TokenCaptureHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -67,6 +78,9 @@ async def record_instance_llm_spend(
     tokens_out: int,
     tokens_cache: int = 0,
     tokens_cache_write: int = 0,
+    started_at: float | None = None,
+    pricing_snapshot: PricingCacheData | None = None,
+    billing_records: tuple[LLMBillingRecord, ...] = (),
 ) -> None:
     """Add one account-less model call to the instance's daily ledger.
 
@@ -79,35 +93,32 @@ async def record_instance_llm_spend(
         tokens_cache_write: The part of ``tokens_in`` Claude wrote to its
             prompt cache, owed the write surcharge (ADR-306).
     """
-    if tokens_in <= 0 and tokens_out <= 0:
+    if tokens_in <= 0 and tokens_out <= 0 and tokens_cache <= 0 and not billing_records:
         return
 
-    cost_eur = _price(
-        surface=surface,
-        model_name=model_name,
-        tokens_in=tokens_in,
-        tokens_out=tokens_out,
-        tokens_cache=tokens_cache,
-        tokens_cache_write=tokens_cache_write,
+    cost_eur = (
+        sum((Decimal(str(record.cost_eur)) for record in billing_records), Decimal(0))
+        if billing_records
+        else _price(
+            surface=surface,
+            model_name=model_name,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            tokens_cache=tokens_cache,
+            tokens_cache_write=tokens_cache_write,
+            started_at=started_at,
+            pricing_snapshot=pricing_snapshot,
+        )
     )
     if cost_eur <= 0:
         return
 
-    try:
-        from src.domains.usage_limits.instance_budget import InstanceBudgetService
+    from src.infrastructure.proactive.tracking import settle_known_billing
 
-        async with get_db_context() as db:
-            await InstanceBudgetService.record_spend(db, cost_eur=cost_eur)
-            await db.commit()
-    except Exception as exc:  # noqa: BLE001 — accounting never breaks its caller
-        # The call already happened and the provider already billed it. The
-        # type is logged so a systematic loss stays diagnosable; the message
-        # could carry SQL and stays out (same doctrine as ``record_spend``).
-        logger.error(
-            "instance_spend_record_failed",
-            surface=surface,
-            error_type=type(exc).__name__,
-        )
+    persisted = await settle_known_billing(
+        _persist_instance_cost(surface, cost_eur, started_at, billing_records)
+    )
+    if not persisted:
         return
 
     logger.info(
@@ -120,11 +131,45 @@ async def record_instance_llm_spend(
     )
 
 
+async def _persist_instance_cost(
+    surface: str,
+    cost_eur: Decimal,
+    started_at: float | None,
+    billing_records: tuple[LLMBillingRecord, ...],
+) -> bool:
+    """Commit known account-less spend under its own call-start UTC day."""
+    from src.domains.usage_limits.instance_budget import InstanceBudgetService
+
+    try:
+        async with get_db_context() as db:
+            if billing_records:
+                for record in billing_records:
+                    await InstanceBudgetService.record_spend(
+                        db,
+                        cost_eur=Decimal(str(record.cost_eur)),
+                        now=datetime.fromtimestamp(record.started_at, UTC),
+                    )
+            else:
+                await InstanceBudgetService.record_spend(
+                    db,
+                    cost_eur=cost_eur,
+                    now=datetime.fromtimestamp(started_at, UTC) if started_at is not None else None,
+                )
+            await db.commit()
+        return True
+    except Exception as exc:  # noqa: BLE001 — accounting never breaks its caller
+        logger.error("instance_spend_record_failed", surface=surface, error_type=type(exc).__name__)
+        return False
+
+
 async def record_instance_llm_call(
     *,
     surface: str,
     model_name: str | None,
     response: object,
+    started_at: float | None = None,
+    pricing_snapshot: PricingCacheData | None = None,
+    capture: TokenCaptureHandler | None = None,
 ) -> None:
     """Record one account-less call straight from the model's answer.
 
@@ -137,14 +182,36 @@ async def record_instance_llm_call(
         model_name: Model actually used, for the price lookup.
         response: The message the model returned.
     """
-    usage = tokens_from_response(response)
+    records: tuple[LLMBillingRecord, ...] = ()
+    if capture is not None:
+        from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
+
+        capture.ensure_response_record(
+            response,
+            model_name=model_name or "unknown",
+            started_at=started_at if started_at is not None else datetime.now(UTC).timestamp(),
+            snapshot=(
+                pricing_snapshot if pricing_snapshot is not None else capture_pricing_snapshot()
+            ),
+        )
+        records = capture.claim_billing_records(model_name or "unknown")
+    if capture is None:
+        usage = tokens_from_response(response)
+    else:
+        usage = sum_usage(
+            UsageTokens(r.tokens_in, r.tokens_out, r.tokens_cache, r.tokens_cache_write)
+            for r in records
+        )
     await record_instance_llm_spend(
         surface=surface,
-        model_name=model_name,
+        model_name=model_name_of_response(response) or model_name,
         tokens_in=usage.prompt,
         tokens_out=usage.completion,
         tokens_cache=usage.cached,
         tokens_cache_write=usage.cache_write,
+        started_at=started_at,
+        pricing_snapshot=pricing_snapshot,
+        billing_records=records,
     )
 
 
@@ -156,6 +223,8 @@ def _price(
     tokens_out: int,
     tokens_cache: int,
     tokens_cache_write: int,
+    started_at: float | None = None,
+    pricing_snapshot: PricingCacheData | None = None,
 ) -> Decimal:
     """Cost of one call in euros, or zero when it cannot be priced.
 
@@ -191,6 +260,8 @@ def _price(
             completion_tokens=tokens_out,
             cached_tokens=tokens_cache,
             cache_write_tokens=tokens_cache_write,
+            at=datetime.fromtimestamp(started_at, UTC) if started_at is not None else None,
+            snapshot=pricing_snapshot,
         )
     except Exception as exc:  # noqa: BLE001 — an unpriced call is still a call
         logger.warning(

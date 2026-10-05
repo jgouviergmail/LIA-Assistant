@@ -541,7 +541,7 @@ async def _cards_of(user_id: UUID) -> SelectedCardsReader:
         user = await db.get(User, user_id)
         if user is None:
             raise LookupError("the listener's account is gone")
-    return BriefingService(user).read_selected_cards
+    return BriefingService(user, exclude_commercial_mails=True).read_selected_cards
 
 
 async def _embed_headlines(texts: list[str]) -> list[list[float]]:

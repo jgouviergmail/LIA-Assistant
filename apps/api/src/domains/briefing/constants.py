@@ -19,6 +19,7 @@ BRIEFING_CACHE_PREFIX = "briefing:v2"
 SECTION_WEATHER_TTL_SECONDS = 3600  # 1 h — slow variations + free-tier API
 SECTION_AGENDA_TTL_SECONDS = 600  # 10 min — occasional event edits
 SECTION_MAILS_TTL_SECONDS = 300  # 5 min — important but Gmail-quota friendly
+EDITORIAL_MAIL_SCAN_MAX: Final[int] = 100
 # Birthdays have NO constant TTL: the payload pre-computes `days_until`, so it
 # must expire at the reader's local midnight or day N's "in 1 day" is still on
 # screen on day N+1. `seconds_to_next_local_midnight` computes it per account

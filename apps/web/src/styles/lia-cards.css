@@ -137,6 +137,11 @@
     background: var(--lia-surface-active);
   }
 
+  /* WebKit can retain the pre-theme inherited color on summary text. */
+  .lia-collapsible__trigger > span {
+    color: var(--lia-text);
+  }
+
   .lia-collapsible__content {
     padding: var(--lia-space-md);
     border-top: 1px solid var(--lia-border-light);
@@ -883,11 +888,44 @@
     line-height: 1.6;
   }
 
+  .lia-mcp__metadata {
+    display: grid;
+    gap: var(--lia-space-sm);
+    margin: var(--lia-space-md) 0 0;
+    min-width: 0;
+
+    > div {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: var(--lia-space-xs) var(--lia-space-md);
+      min-width: 0;
+    }
+
+    dt {
+      color: var(--color-muted-foreground);
+      font-size: var(--lia-text-sm);
+    }
+
+    dd {
+      min-width: 0;
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
+    code {
+      font-size: var(--lia-text-sm);
+    }
+  }
+
   .lia-mcp-fields {
     margin: var(--lia-space-md) 0 0;
     min-width: 0;
 
     > div {
+      /* WebKit can retain an inherited light-theme colour for grid children
+         mounted inside a closed details subtree. Read the live token here. */
+      color: var(--lia-text);
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
       gap: var(--lia-space-md);
@@ -912,6 +950,13 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     font-size: var(--lia-text-sm);
+  }
+
+  /* Native WebKit details can preserve descendant boxes of nested open
+     disclosures after their ancestor closes. Author hiding also removes
+     their focus targets and forces fresh theme/layout on the next open. */
+  .lia-mcp .lia-collapsible:not([open]) > .lia-collapsible__content {
+    display: none;
   }
 
   @media (max-width: 480px) {

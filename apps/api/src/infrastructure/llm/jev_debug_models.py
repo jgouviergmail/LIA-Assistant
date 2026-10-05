@@ -5,9 +5,13 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer, ChoiceQuestion
+from src.infrastructure.llm.typesafe_client import (
+    ChoiceAnswer,
+    ChoiceQuestion,
+    InvalidResponseReason,
+)
 
 CONTEXT_CHARACTERS = 6000
 RESPONSE_CANDIDATES = 10
@@ -45,6 +49,32 @@ JevAction = Literal[
 AppliedVerdict = Literal["match", "non_match", "unknown"]
 
 
+class JevCollectionCoverage(BaseModel):
+    """Global collection counts shared by its native batches, never summed across traces."""
+
+    model_config = ConfigDict(extra="forbid")
+    candidate_count: int = Field(ge=0, description="All canonical collection candidates.")
+    evaluated_count: int = Field(ge=0, description="Candidates submitted across all batches.")
+    unevaluated_count: int = Field(ge=0, description="Candidates not submitted to JEV.")
+    omitted_count: int = Field(ge=0, description="Unevaluated candidates outside the preview.")
+    unknown_count: int = Field(ge=0, description="Evaluated candidates unknown after gates.")
+    batch_index: int | None = Field(default=None, ge=1, description="This batch, one-based.")
+    batch_count: int | None = Field(default=None, ge=1, description="Collection native batches.")
+
+    @model_validator(mode="after")
+    def consistent_counts(self) -> JevCollectionCoverage:
+        if self.candidate_count != self.evaluated_count + self.unevaluated_count:
+            raise ValueError("Collection coverage must partition candidates.")
+        if self.unknown_count > self.evaluated_count or self.omitted_count > self.unevaluated_count:
+            raise ValueError("Collection subsets exceed their population.")
+        if (self.batch_index is None) != (self.batch_count is None):
+            raise ValueError("Batch index and count must be supplied together.")
+        if self.batch_index is not None and self.batch_count is not None:
+            if self.batch_index > self.batch_count:
+                raise ValueError("Batch index exceeds count.")
+        return self
+
+
 class JevCallTrace(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: UUID = Field(description="One native attempt; decision updates keep this identity.")
@@ -63,12 +93,18 @@ class JevCallTrace(BaseModel):
     observed_result: ContextPreview | None = Field(
         default=None, description="Existing extractor model's proposal before write validation."
     )
+    collection_coverage: JevCollectionCoverage | None = Field(
+        default=None, description="Global coverage after batch join; absent on historical traces."
+    )
     response: ChoicePreview | None = Field(default=None, description="Validated provider response.")
     responses: dict[str, ChoicePreview] = Field(
         default_factory=dict, max_length=24, description="Batch answers by their request key."
     )
     outcome: str = Field(
         default="pending", max_length=100, description="Safe result or failure code."
+    )
+    invalid_response_reason: InvalidResponseReason | None = Field(
+        default=None, description="Closed validation code, never raw response or error text."
     )
     status_code: int | None = Field(default=None, description="HTTP error status when available.")
     action: JevAction = Field(

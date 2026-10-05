@@ -24,6 +24,10 @@ export interface SSEHandlerContext {
   withContext: (context?: LogContext) => LogContext;
   /** Voice playback callback for TTS audio chunks */
   handleVoiceChunk: (chunk: VoiceAudioChunk) => void;
+  /** Latch the output once per new production run; replay never acquires it. */
+  beginVoiceRun?: (runId: string) => void;
+  /** The run's last clip is queued (`voice_complete`); replay never ends a live one. */
+  endVoiceRun?: () => void;
   /** Buffer for HITL streaming questions (accumulates tokens) */
   hitlQuestionBuffer: MutableRefObject<Map<string, string>>;
   /** Accumulated execution step lines for progressive display (cleared on first token) */

@@ -20,11 +20,17 @@ from src.infrastructure.llm.jev_debug_models import (
     ContextPreview,
     JevAction,
     JevCallTrace,
+    JevCollectionCoverage,
     JevTracePage,
     choice_preview,
     context_preview,
 )
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer, ChoiceQuestion, DecisionUsage
+from src.infrastructure.llm.typesafe_client import (
+    ChoiceAnswer,
+    ChoiceQuestion,
+    DecisionUsage,
+    InvalidResponseReason,
+)
 
 logger = structlog.get_logger(__name__)
 DEBUG_IO_SECONDS = 0.25
@@ -171,6 +177,7 @@ async def record_action(
     applied_decisions: dict[str, AppliedVerdict] | None = None,
     decision_labels: dict[str, str] | None = None,
     observed_result: ContextPreview | None = None,
+    collection_coverage: JevCollectionCoverage | None = None,
 ) -> None:
     if trace is not None:
         await save_trace(
@@ -181,6 +188,7 @@ async def record_action(
                     "outcome": outcome,
                     "action_target": target[:240] if target else None,
                     "observed_result": observed_result,
+                    "collection_coverage": collection_coverage or trace.collection_coverage,
                     "applied_decisions": applied_decisions or {},
                     "decision_labels": {
                         key[:100]: value[:180]
@@ -204,6 +212,7 @@ async def finish_trace(
     status_code: int | None,
     counters: DecisionUsage | None,
     cost_eur: float | None,
+    invalid_response_reason: InvalidResponseReason | None = None,
 ) -> JevCallTrace | None:
     """Record the call even if accounting or its consumer subsequently fails."""
     if trace is None:
@@ -227,6 +236,7 @@ async def finish_trace(
                     else {}
                 ),
                 "outcome": outcome,
+                "invalid_response_reason": invalid_response_reason,
                 "action": action,
                 "status_code": status_code,
                 "input_tokens": counters.input_tokens if counters else None,

@@ -51,6 +51,7 @@ const ALL_AVAILABLE: SettingsSearchAvailability = {
   peersEnabled: true,
   sandboxEgressEnabled: true,
   liveEnabled: true,
+  avatarEnabled: true,
   radioEnabled: true,
   debugUserAccess: true,
 };
@@ -123,7 +124,8 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 66 since the font size joined Preferences / Personalization
     // (2026-09-29), right after the font family: the interface text size,
     // with a preview and a cap that follows the screen width.
-    expect(TOKENS).toHaveLength(66);
+    // 67: personal speaking-avatar settings, independently gated from Live.
+    expect(TOKENS).toHaveLength(67);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

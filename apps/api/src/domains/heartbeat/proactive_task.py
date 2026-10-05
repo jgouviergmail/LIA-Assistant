@@ -28,6 +28,7 @@ from src.core.constants import (
     HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
 )
 from src.core.i18n import normalize_language
+from src.core.llm_usage import LLMBillingRecord
 from src.domains.habits.presence import last_seen_at
 from src.domains.habits.tick_scoring import TickSurface, should_defer_tick_for_rhythm
 from src.domains.heartbeat.context_aggregator import ContextAggregator
@@ -219,8 +220,8 @@ class HeartbeatProactiveTask:
 
             # LLM Decision (structured output, cheap model)
             user_language = normalize_language(getattr(user, "language", None))
-            decision, tok_in, tok_out, tok_cache, tok_write = await get_heartbeat_decision(
-                context, user_language=user_language
+            decision, tok_in, tok_out, tok_cache, tok_write, records = await get_heartbeat_decision(
+                context, user_language=user_language, user_id=user_id
             )
 
             # Fail-open guard (ADR-135): interest_topic must be one of the
@@ -247,7 +248,9 @@ class HeartbeatProactiveTask:
                 # appear in the dashboard/user statistics. Without this, skip tokens
                 # are silently lost since the runner only calls track_proactive_tokens()
                 # on successful dispatches.
-                await self._track_skip_tokens(user_id, tok_in, tok_out, tok_cache, tok_write)
+                await self._track_skip_tokens(
+                    user_id, tok_in, tok_out, tok_cache, tok_write, records
+                )
                 return None
 
             return HeartbeatTarget(
@@ -257,6 +260,7 @@ class HeartbeatProactiveTask:
                 decision_tokens_out=tok_out,
                 decision_tokens_cache=tok_cache,
                 decision_tokens_cache_write=tok_write,
+                billing_records=records,
             )
 
         except Exception as e:
@@ -320,7 +324,7 @@ class HeartbeatProactiveTask:
         user_id: UUID,
         topic: str,
         user_language: str,
-    ) -> tuple[str, list[str], int, int] | None:
+    ) -> tuple[str, list[str], int, int, int, int, tuple[LLMBillingRecord, ...]] | None:
         """Fetch real, fresh content for an interest-centered heartbeat (ADR-135).
 
         Reuses the interest content pipeline (Perplexity/Brave/Wikipedia) under
@@ -407,6 +411,9 @@ class HeartbeatProactiveTask:
             content_result.citations,
             content_result.tokens_in,
             content_result.tokens_out,
+            content_result.tokens_cache,
+            content_result.tokens_cache_write,
+            content_result.billing_records,
         )
 
     async def generate_content(
@@ -432,14 +439,25 @@ class HeartbeatProactiveTask:
         citations: list[str] = []
         enrich_tok_in = 0
         enrich_tok_out = 0
+        enrich_cache = 0
+        enrich_write = 0
+        enrich_records: tuple[LLMBillingRecord, ...] = ()
         interest_topic = target.decision.interest_topic
         if interest_topic:
             facts = await self._fetch_interest_facts(user_id, interest_topic, user_language)
             if facts is not None:
-                facts_block, citations, enrich_tok_in, enrich_tok_out = facts
+                (
+                    facts_block,
+                    citations,
+                    enrich_tok_in,
+                    enrich_tok_out,
+                    enrich_cache,
+                    enrich_write,
+                    enrich_records,
+                ) = facts
 
         try:
-            message, msg_tok_in, msg_tok_out, msg_tok_cache, msg_tok_write = (
+            message, msg_tok_in, msg_tok_out, msg_tok_cache, msg_tok_write, msg_records = (
                 await generate_heartbeat_message(
                     message_draft=draft,
                     context=target.context,
@@ -450,7 +468,15 @@ class HeartbeatProactiveTask:
                 )
             )
         except Exception as exc:  # noqa: BLE001 — what was spent must still be billed
-            return self._failed_after_spending(target, enrich_tok_in, enrich_tok_out, exc)
+            return self._failed_after_spending(
+                target,
+                enrich_tok_in,
+                enrich_tok_out,
+                exc,
+                enrich_cache,
+                enrich_write,
+                enrich_records,
+            )
 
         if citations:
             from src.domains.interests.sources import build_sources_block
@@ -464,13 +490,18 @@ class HeartbeatProactiveTask:
         # Aggregate tokens: decision + message + enrichment phases
         total_in = target.decision_tokens_in + msg_tok_in + enrich_tok_in
         total_out = target.decision_tokens_out + msg_tok_out + enrich_tok_out
-        total_cache = target.decision_tokens_cache + msg_tok_cache
-        total_cache_write = target.decision_tokens_cache_write + msg_tok_write
+        total_cache = target.decision_tokens_cache + msg_tok_cache + enrich_cache
+        total_cache_write = target.decision_tokens_cache_write + msg_tok_write + enrich_write
+        records = target.billing_records + enrich_records + msg_records
 
         from src.core.llm_config_helper import get_llm_config_for_agent
 
         settings = get_settings()
-        model_name = get_llm_config_for_agent(settings, "heartbeat_message").model
+        model_name = (
+            records[-1].model_name
+            if records
+            else get_llm_config_for_agent(settings, "heartbeat_message").model
+        )
 
         return ProactiveTaskResult(
             success=True,
@@ -489,6 +520,7 @@ class HeartbeatProactiveTask:
             tokens_cache=total_cache,
             tokens_cache_write=total_cache_write,
             model_name=model_name,
+            billing_records=records,
             metadata={
                 "priority": target.decision.priority,
                 "sources_used": target.decision.sources_used,
@@ -517,7 +549,13 @@ class HeartbeatProactiveTask:
 
     @staticmethod
     def _failed_after_spending(
-        target: HeartbeatTarget, enrich_tok_in: int, enrich_tok_out: int, error: Exception
+        target: HeartbeatTarget,
+        enrich_tok_in: int,
+        enrich_tok_out: int,
+        error: Exception,
+        enrich_cache: int = 0,
+        enrich_write: int = 0,
+        enrich_records: tuple[LLMBillingRecord, ...] = (),
     ) -> ProactiveTaskResult:
         """A message that could not be written, carrying what was paid for before it.
 
@@ -532,15 +570,21 @@ class HeartbeatProactiveTask:
         )
         from src.core.llm_config_helper import get_llm_config_for_agent
 
+        records = target.billing_records + enrich_records
         return ProactiveTaskResult(
             success=False,
             error=f"message generation failed: {type(error).__name__}",
             source=ContentSource.HEARTBEAT,
             tokens_in=target.decision_tokens_in + enrich_tok_in,
             tokens_out=target.decision_tokens_out + enrich_tok_out,
-            tokens_cache=target.decision_tokens_cache,
-            tokens_cache_write=target.decision_tokens_cache_write,
-            model_name=get_llm_config_for_agent(get_settings(), "heartbeat_decision").model,
+            tokens_cache=target.decision_tokens_cache + enrich_cache,
+            tokens_cache_write=target.decision_tokens_cache_write + enrich_write,
+            billing_records=records,
+            model_name=(
+                records[-1].model_name
+                if records
+                else get_llm_config_for_agent(get_settings(), "heartbeat_decision").model
+            ),
         )
 
     async def on_feedback(
@@ -698,6 +742,7 @@ class HeartbeatProactiveTask:
         tokens_out: int,
         tokens_cache: int,
         tokens_cache_write: int,
+        billing_records: tuple[LLMBillingRecord, ...] = (),
     ) -> None:
         """Track decision phase tokens when the LLM decides to skip.
 
@@ -707,39 +752,17 @@ class HeartbeatProactiveTask:
         so the decision to say nothing and what it read point at one another
         (ADR-263 amendment 2026-09-27); outside a sweep, a run of their own.
         """
-        if tokens_in == 0 and tokens_out == 0:
-            return
+        from src.domains.heartbeat.billing import track_skipped_decision
 
-        try:
-            from src.core.llm_config_helper import get_llm_config_for_agent
-            from src.infrastructure.proactive.tracking import (
-                ambient_run_id,
-                track_proactive_tokens,
-            )
-
-            settings = get_settings()
-            model_name = get_llm_config_for_agent(settings, "heartbeat_decision").model
-
-            await track_proactive_tokens(
-                user_id=user_id,
-                task_type="heartbeat",
-                target_id=f"heartbeat_skip_{uuid4().hex[:8]}",
-                conversation_id=None,
-                tokens_in=tokens_in,
-                tokens_out=tokens_out,
-                tokens_cache=tokens_cache,
-                tokens_cache_write=tokens_cache_write,
-                model_name=model_name,
-                source="proactive",
-                run_id=ambient_run_id(),
-            )
-        except Exception as e:
-            # Non-fatal: token tracking failure shouldn't prevent the skip
-            logger.warning(
-                "heartbeat_skip_token_tracking_failed",
-                user_id=str(user_id),
-                error=str(e),
-            )
+        await track_skipped_decision(
+            user_id,
+            tokens_in,
+            tokens_out,
+            tokens_cache,
+            tokens_cache_write,
+            billing_records,
+            settings_reader=get_settings,
+        )
 
     async def _get_user_personality(self, user_id: UUID) -> str | None:
         """Get user's personality instruction for content presentation.

@@ -32,6 +32,7 @@ from .advanced import AdvancedSettings
 from .agents import AgentsSettings
 from .attachments import AttachmentsSettings
 from .automation import AutomationSettings
+from .avatars import AvatarSettings
 from .background_runs import BackgroundRunsSettings
 from .bookmarks import BookmarksSettings
 from .briefing import BriefingSettings
@@ -146,6 +147,7 @@ class Settings(
     TelephonySettings,
     MeetingsSettings,
     LiveSettings,
+    AvatarSettings,
     BookmarksSettings,
     EmailShareSettings,
     RadioSettings,
@@ -478,6 +480,7 @@ __all__ = [
     "AdvancedSettings",
     "VoiceSettings",
     "LiveSettings",
+    "AvatarSettings",
     "NotificationSettings",
     "MCPSettings",
     "ChannelsSettings",

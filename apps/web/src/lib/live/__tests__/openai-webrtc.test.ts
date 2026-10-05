@@ -140,6 +140,39 @@ async function connected(
 }
 
 describe('OpenAiLiveTransport', () => {
+  it('hands remote audio to an owned output without creating a second player or stopping borrowed tracks', async () => {
+    const release = vi.fn();
+    const stop = vi.fn();
+    const stream = { getTracks: () => [{ stop }] } as unknown as MediaStream;
+    const onRemoteStream = vi.fn(() => release);
+    const audio = vi.fn(function () {
+      return { play: vi.fn(async () => {}), pause: vi.fn(), srcObject: null, autoplay: false };
+    });
+    vi.stubGlobal('Audio', audio);
+    const { peer, channel } = await connected({ onReady: vi.fn(), ...{ onRemoteStream } });
+    peer.ontrack?.({ streams: [stream] });
+    expect(onRemoteStream).toHaveBeenCalledWith(stream);
+    expect(audio).not.toHaveBeenCalled();
+    channel.emit({ type: 'session.closed', reason: 'ended' });
+    expect(release).toHaveBeenCalledOnce();
+    expect(stop).not.toHaveBeenCalled();
+  });
+
+  it('releases replaced outputs and ignores remote callbacks after closure', async () => {
+    const release = vi.fn();
+    const onRemoteStream = vi.fn(() => release);
+    const { peer, channel } = await connected({ onReady: vi.fn(), onRemoteStream });
+    const lateTrack = peer.ontrack;
+    const stream = microphone();
+    lateTrack?.({ streams: [stream] });
+    lateTrack?.({ streams: [stream] });
+    expect(release).toHaveBeenCalledTimes(1);
+    channel.emit({ type: 'session.closed', reason: 'ended' });
+    lateTrack?.({ streams: [stream] });
+    expect(onRemoteStream).toHaveBeenCalledTimes(2);
+    expect(release).toHaveBeenCalledTimes(2);
+  });
+
   beforeEach(() => {
     FakePeer.instances = [];
     vi.stubGlobal('RTCPeerConnection', FakePeer);

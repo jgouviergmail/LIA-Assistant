@@ -221,3 +221,18 @@ def test_personal_radio_follows_the_wizard_answer_and_defaults_to_disabled() -> 
     public = replace(_public(Exposure.LAN), personal_radio=True)
     env = derive_environment(public, generate_secrets())
     assert env["RADIO_ENABLED"] == "true"
+
+
+def test_speaking_avatar_is_an_opt_in_without_an_instance_credential() -> None:
+    env = derive_environment(_public(), generate_secrets())
+    assert env["AVATAR_ENABLED"] == "false"
+    assert env["AVATAR_MINTS_PER_HOUR"] == "6"
+    assert env["AVATAR_SESSION_LENGTH_SECONDS"] == "3600"
+    assert env["AVATAR_IDLE_SECONDS"] == "3600"
+    assert env["AVATAR_HTTP_TIMEOUT_SECONDS"] == "10"
+    assert env["AVATAR_CONNECT_TIMEOUT_SECONDS"] == "15"
+    enabled = derive_environment(
+        replace(_public(), speaking_avatar=True), generate_secrets()
+    )
+    assert enabled["AVATAR_ENABLED"] == "true"
+    assert not any("SIMLI" in key for key in enabled)

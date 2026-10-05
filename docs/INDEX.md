@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 332 ADR files (ADR-333 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 333 ADR files (ADR-334 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -53,7 +53,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (332 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (333 ADR files) |
 
 ### Pour les Product Managers
 
@@ -108,7 +108,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [MESSAGE_WINDOWING_STRATEGY.md](./technical/MESSAGE_WINDOWING_STRATEGY.md) | Windowing par node, truncation, compaction intelligente (F4), performance | ✅ |
 | [COMPACTION_v2.md](./technical/COMPACTION_v2.md) | Compaction v2 — hardening (timeouts, retry, truncation fallback), SSE events, keepalive concurrent, sonner toast UX, runbook (2026-05) | ✅ |
 | [CONVERSATION_HISTORY_PAGINATION.md](./technical/CONVERSATION_HISTORY_PAGINATION.md) | Keyset (scroll-up) pagination on `/conversations/me/messages` — has_more/next_cursor contract, frontend sentinel + scroll-preservation, env-tunable bounds (2026-05) | ✅ |
-| [TOKEN_TRACKING_AND_COUNTING.md](./technical/TOKEN_TRACKING_AND_COUNTING.md) | Token tracking, alignment DB/Prometheus ; une écriture de cache facturée à son prix sur tous les chemins (ADR-306) | ✅ |
+| [TOKEN_TRACKING_AND_COUNTING.md](./technical/TOKEN_TRACKING_AND_COUNTING.md) | Token tracking, alignment DB/Prometheus ; une écriture de cache facturée à son prix sur tous les chemins (ADR-306); frozen pricing per physical attempt and known-spend settlement after failure/cancellation | ✅ |
 | [DATABASE_SCHEMA.md](./technical/DATABASE_SCHEMA.md) | Schema PostgreSQL complet, migrations Alembic | ✅ |
 | [STACK_TECHNIQUE.md](./technical/STACK_TECHNIQUE.md) | Référence complète versions technologies | ✅ |
 | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) | ReAct execution mode — 5-node loop (dont `react_recovery` : un tour jugé sur son résultat, un écart déclaré qui achète une passe de reprise bornée, ADR-310), cache de prompt inter-tours au rythme d'échanges que chacun choisit, historique par blocs ancrés sur le compteur de tours (ADR-308, ADR-309, ADR-311), verdict d'échec structurel (ADR-303), pipeline vs ReAct, tools, HITL, skills, mémoire à parité pipeline et budget gagné à la progression (ADR-248), scripts Python éphémères dans le bac à sable des skills (ADR-249), sortie réseau par un seul proxy avec question à trois réponses réglée dans la boucle (ADR-298) | ✅ |
@@ -137,10 +137,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [VOICE.md](./technical/VOICE.md) | Voice/TTS catalogue-driven (Edge / OpenAI / ElevenLabs, ADR-081), per-message attribution, progressive sentence streaming (ADR-082) | ✅ |
 | [WAKE_WORD_TRAINING.md](./technical/WAKE_WORD_TRAINING.md) | Comment un mot-clé est entraîné, jugé et livré (ADR-329) : pipeline openWakeWord, voix Piper et VoxCPM2, formes séparée/soudée/avec pause, corpus négatifs, augmentation, recette d'entraînement, banc et grille d'acceptation, export, et ce que chaque mesure a appris | ✅ |
 | [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT (local Sherpa + remote ElevenLabs Scribe), Wake Word, Push-to-Talk, voice_stt_mode opt-in (v1.20.x) ; le mode Live (parole à parole, ADR-299) est une troisième porte à côté, documentée dans LIVE_MODE.md | ✅ |
+| [SPEAKING_AVATAR.md](./technical/SPEAKING_AVATAR.md) | Experimental personal Simli connector, persistent mode-owned avatar window, one audible output and protected admission; [ADR-334](./architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md) remains Proposed pending real provider/device acceptance | ✅ |
 | [ROUTES.md](./technical/ROUTES.md) | Google Routes API, directions | ✅ |
 | [WEB_FETCH.md](./technical/WEB_FETCH.md) | Extraction contenu pages web (URL → Markdown), SSRF prevention | ✅ |
 | [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) | Browser automation (Playwright) — navigation, interaction, extraction JS, progressive screenshots (SSE side-channel) — evolution F7 | ✅ |
-| [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) | MCP (Model Context Protocol) — Serveurs d'outils externes, MCP Apps, Excalidraw | ✅ |
+| [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) | MCP (Model Context Protocol) — Serveurs d'outils externes, MCP Apps, Excalidraw; public server origin/called method and shared personal-server quota cooldown | ✅ |
 | [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) | Canaux de messagerie externes (Telegram) — evolution F3 | ✅ |
 | [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 ; la galerie des fichiers produits (ADR-279), retrouvée depuis la conversation et montrée en cartes (`find_generated_files_tool`, ADR-318) ; conserver un fichier au-delà de son échéance, sous deux plafonds par compte, et des cartes du chat restituées depuis la ligne du fichier (ADR-319) ; l'envoi d'un fichier généré ou d'une réponse par e-mail (ADR-321) | ✅ |
 | [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider (OpenAI GPT Image, Qwen Image 3.0) : une famille déclare l'offre d'un modèle, un client par fournisseur la sert, la préférence résolue comme intention, l'image de référence tarifée (ADR-305) ; amélioration facultative du prompt par un créneau dédié, jamais une barrière (ADR-315) ; partage d'une image avec une connexion, en copie dans sa galerie et son chat (ADR-316) ; cost tracking, attachment storage | ✅ |
@@ -162,7 +163,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [LLM_PRICING_MANAGEMENT.md](./technical/LLM_PRICING_MANAGEMENT.md) | Pricing LLM, token counting, exports | ✅ |
+| [LLM_PRICING_MANAGEMENT.md](./technical/LLM_PRICING_MANAGEMENT.md) | Pricing LLM, token counting, exports; attempt-start UTC tariff/FX snapshots and paid-failure accounting | ✅ |
 | [LLM_REASONING_IDENTITY.md](./technical/LLM_REASONING_IDENTITY.md) | Comment l'identité de raisonnement d'un modèle se saisit — cases à cocher sur l'échelle résolue de sa famille (formulaire) et deux colonnes du classeur (ADR-228), avec la garantie que la colonne ne peut que RESTREINDRE | ✅ |
 | [GOOGLE_API_TRACKING.md](./technical/GOOGLE_API_TRACKING.md) | Google Maps Platform tracking, pricing admin, consumption exports (admin + user v1.9.1) | ✅ |
 | [PROVIDER_COST_ADJUSTMENT.md](./technical/PROVIDER_COST_ADJUSTMENT.md) | Écart entre tracking interne des coûts et facturation provider réelle — investigation et recommandations | ✅ |
@@ -190,7 +191,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [LONG_TERM_MEMORY.md](./technical/LONG_TERM_MEMORY.md) | Mémoire long-terme, profil psychologique, recherche active par une seule porte (`search_memories_tool`, ADR-313) | ✅ |
+| [LONG_TERM_MEMORY.md](./technical/LONG_TERM_MEMORY.md) | Mémoire long-terme, profil psychologique, recherche active par une seule porte (`search_memories_tool`, ADR-313); new procedural directives pinned at creation, with manual edit/unpin and existing category protection | ✅ |
 | [MEMORY_RESOLUTION.md](./technical/MEMORY_RESOLUTION.md) | Résolution références, relations — architecture 3 phases (LLM extraction + recherche ciblée + résolution) | ✅ |
 | [INTERESTS.md](./technical/INTERESTS.md) | Système apprentissage centres d'intérêt | ✅ |
 | [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes ; une horloge par routine — une planification, ou les vérifications du système pour une routine sur condition (ADR-322) | ✅ |

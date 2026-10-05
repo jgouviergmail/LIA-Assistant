@@ -135,14 +135,14 @@ class WeatherCard(BaseComponent):
         "blizzard": (Icons.SNOWY, "blizzard"),
         "flurries": (Icons.SNOWY, "light-snow"),
         # Fog/Mist conditions (EN + FR)
-        "mist": (Icons.CLOUDY, "misty"),
-        "brouillard": (Icons.CLOUDY, "foggy"),
-        "brume": (Icons.CLOUDY, "misty"),
-        "fog": (Icons.CLOUDY, "foggy"),
-        "haze": (Icons.CLOUDY, "hazy"),
-        "smoke": (Icons.CLOUDY, "smoky"),
-        "dust": (Icons.CLOUDY, "dusty"),
-        "sand": (Icons.CLOUDY, "dusty"),
+        "mist": (Icons.FOGGY, "misty"),
+        "brouillard": (Icons.FOGGY, "foggy"),
+        "brume": (Icons.FOGGY, "misty"),
+        "fog": (Icons.FOGGY, "foggy"),
+        "haze": (Icons.FOGGY, "hazy"),
+        "smoke": (Icons.FOGGY, "smoky"),
+        "dust": (Icons.FOGGY, "dusty"),
+        "sand": (Icons.FOGGY, "dusty"),
         # Wind conditions
         "windy": (Icons.WIND, "windy"),
         "breezy": (Icons.WIND, "breezy"),
@@ -154,6 +154,20 @@ class WeatherCard(BaseComponent):
         "tornado": (Icons.STORMY, "tornado"),
         "hurricane": (Icons.STORMY, "hurricane"),
         "tropical storm": (Icons.STORMY, "tropical-storm"),
+    }
+
+    # Both providers expose the OWM code contract, independent of localized prose.
+    # https://openweathermap.org/api/weather-conditions
+    PROVIDER_ICONS: dict[str, tuple[str, str]] = {
+        "01": (Icons.SUNNY, "sunny"),
+        "02": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
+        "03": (Icons.CLOUDY, "cloudy"),
+        "04": (Icons.CLOUDY, "overcast"),
+        "09": (Icons.RAINY, "rainy"),
+        "10": (Icons.RAINY, "rainy"),
+        "11": (Icons.STORMY, "stormy"),
+        "13": (Icons.SNOWY, "snowy"),
+        "50": (Icons.FOGGY, "foggy"),
     }
 
     def prepare_items(self, items: Sequence[object], ctx: RenderContext) -> list[object]:
@@ -567,15 +581,29 @@ class WeatherCard(BaseComponent):
         return V3Messages.get_wind_cardinal(code, resolve_language(language)) if code else ""
 
     def _visual_for_reading(self, data: Mapping[str, object]) -> tuple[str, str]:
-        """Use the provider's night observation, independent of the viewer's clock."""
-        if data.get("icon") == "01n":
-            return "dark_mode", "clear-night"
+        """Use stable provider conditions, including its own day/night observation."""
+        main = scalar_text(data.get("weather_main")).casefold()
+        # OWM groups squalls and tornadoes under 50; Google WINDY also maps to
+        # 50. The canonical main condition distinguishes them from fog/haze.
+        if main == "squall":
+            return Icons.WIND, "windy"
+        if main == "tornado":
+            return Icons.STORMY, "tornado"
+        code = scalar_text(data.get("icon")).strip().lower()
+        if re.fullmatch(r"\d{2}[dn]", code) and code[:2] in self.PROVIDER_ICONS:
+            if code == "01n":
+                return Icons.CLEAR_NIGHT, "clear-night"
+            if code == "02n":
+                return Icons.PARTLY_CLOUDY_NIGHT, "partly-cloudy-night"
+            return self.PROVIDER_ICONS[code[:2]]
+        if main in self.WEATHER_ICONS:
+            return self.WEATHER_ICONS[main]
         return self._get_weather_visual(scalar_text(data.get("description")))
 
     def _get_weather_visual(self, description: str) -> tuple[str, str]:
         """Get icon name and CSS class for weather description."""
         if not description:
-            return Icons.PARTLY_CLOUDY, "default"
+            return Icons.CLOUDY, "default"
 
         desc_lower = description.lower()
 
@@ -583,13 +611,24 @@ class WeatherCard(BaseComponent):
         if desc_lower in self.WEATHER_ICONS:
             return self.WEATHER_ICONS[desc_lower]
 
-        # Then try partial match
-        for key, (icon_name, css_class) in self.WEATHER_ICONS.items():
+        # A compound legacy condition must keep its storm/snow signal even
+        # when it also mentions rain. Provider-backed data uses codes above.
+        if any(
+            word in desc_lower for word in ("thunder", "orage", "lightning", "tornado", "hurricane")
+        ):
+            return Icons.STORMY, "stormy"
+        if any(
+            word in desc_lower
+            for word in ("snow", "neige", "sleet", "freezing rain", "blizzard", "flurries")
+        ):
+            return Icons.SNOWY, "snowy"
+        # Prefer a qualified condition (e.g. mostly cloudy) over a generic word.
+        for key in sorted(self.WEATHER_ICONS, key=len, reverse=True):
             if key in desc_lower:
-                return icon_name, css_class
+                return self.WEATHER_ICONS[key]
 
         # Default
-        return Icons.PARTLY_CLOUDY, "default"
+        return Icons.CLOUDY, "default"
 
     def _get_uv_label(self, uv_index: Any, language: str) -> str:
         """Get human-readable UV index label."""

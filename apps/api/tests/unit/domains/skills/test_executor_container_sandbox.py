@@ -30,7 +30,6 @@ import pytest
 
 from src.core.config import Settings, get_settings
 from src.core.constants import (
-    SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE,
     SKILLS_SCRIPT_SANDBOX_DEFAULT,
     SKILLS_SCRIPT_SANDBOX_MAX_SOURCE_BYTES,
     SKILLS_SCRIPT_SANDBOX_NAME_PREFIX,
@@ -138,7 +137,8 @@ class TestSandboxCommand:
         )
 
         assert cmd[:2] == ["docker", "run"]
-        assert cmd[-3:] == ["lia-api:local", "-c", source]
+        assert cmd[-4:-2] == ["lia-api:local", "-c"]
+        assert cmd[-1] == source
         assert cmd[cmd.index("--entrypoint") + 1] == "python"
         # --interactive is what keeps stdin attached; without it the payload
         # never reaches the script and every skill silently sees EOF.
@@ -326,6 +326,7 @@ class TestContainerExecution:
             result = await self._run(skill, parameters={"x": 42})
 
         assert result.success, result.error
+        assert result.execution_started is True
         assert result.output.strip() == "ok"
         cmd = fake.call_args.args[0]
         assert cmd[:2] == ["docker", "run"]
@@ -357,6 +358,7 @@ class TestContainerExecution:
             result = await self._run(skill)
 
         assert result.success is False
+        assert result.execution_started is False
         assert result.error == "Script sandbox unavailable"
         # Exactly one attempt: no retry with a plain interpreter.
         assert fake.call_count == 1
@@ -371,6 +373,7 @@ class TestContainerExecution:
             result = await self._run(skill, timeout_seconds=30)
 
         assert result.success is False
+        assert result.execution_started is True
         assert result.error == "Timeout after 30s"
         assert result.exit_code == -1
 
@@ -427,14 +430,15 @@ class TestContainerExecution:
         assert all(name.startswith(f"--name={SKILLS_SCRIPT_SANDBOX_NAME_PREFIX}") for name in names)
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("exit_code", [125, 126, 127])
     async def test_daemon_refusal_is_not_reported_as_a_script_failure(
-        self, skill_root: Path
+        self, skill_root: Path, exit_code: int
     ) -> None:
-        """Exit 125 = the daemon refused to start it; stderr stays internal."""
+        """Startup exits without an acknowledgement keep daemon stderr internal."""
         skill = _make_skill(skill_root, "print('ok')\n")
         fake = MagicMock(
             return_value=SimpleNamespace(
-                returncode=SKILLS_SCRIPT_SANDBOX_DAEMON_ERROR_CODE,
+                returncode=exit_code,
                 stdout="",
                 stderr="Unable to find image 'lia-api:local' locally",
             )
@@ -444,6 +448,7 @@ class TestContainerExecution:
             result = await self._run(skill)
 
         assert result.success is False
+        assert result.execution_started is False
         assert result.error == "Script sandbox unavailable"
         # The image name and daemon state must not reach the LLM context.
         assert "lia-api" not in (result.error or "")
@@ -460,6 +465,7 @@ class TestContainerExecution:
             result = await self._run(skill)
 
         assert result.success is False
+        assert result.execution_started is True
         assert result.exit_code == 3
         assert result.error is not None
         assert len(result.error) == 1000

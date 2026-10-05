@@ -21,16 +21,17 @@ import re
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from time import time
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import structlog
-from langchain_core.callbacks import UsageMetadataCallbackHandler
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_DIAGNOSTICS_DIAGNOSIS_COST_PREFIX
 from src.core.i18n import get_language_name, normalize_language, resolve_language
+from src.core.llm_usage import LLMBillingRecord
 from src.domains.diagnostics.context_collector import collect_diagnosis_context
 from src.domains.diagnostics.models import Incident
 from src.domains.diagnostics.repository import DiagnosticsRepository
@@ -38,11 +39,17 @@ from src.domains.usage_limits.instance_spend import (
     is_instance_spend_blocked,
     record_instance_llm_spend,
 )
-from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
+from src.infrastructure.cache.pricing_cache import (
+    PricingCacheData,
+    capture_pricing_snapshot,
+    get_cached_cost_usd_eur,
+)
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output_with_retry
-from src.infrastructure.llm.usage_metadata import UsageTokens, tokens_from_callback
+from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.usage_metadata import UsageTokens, model_name_of
+from src.infrastructure.proactive.tracking import settle_known_billing
 from src.infrastructure.telemetry.loki import LokiClient
 from src.infrastructure.telemetry.prometheus import PrometheusClient
 
@@ -164,9 +171,42 @@ async def _tick_may_not_spend(cap: float, incidents: Sequence[Incident]) -> bool
     return False
 
 
+class _DiagnosisUsage(NamedTuple):
+    """Counters plus the already settled per-attempt bills of this diagnosis."""
+
+    prompt: int
+    completion: int
+    cached: int
+    cache_write: int
+    billing_records: tuple[LLMBillingRecord, ...]
+
+
+async def _settle_diagnosis_records(
+    capture: TokenCaptureHandler,
+    records: tuple[LLMBillingRecord, ...],
+    model_name: str | None,
+) -> None:
+    """Keep both deployment spend and the private cap for every paid attempt."""
+    await record_instance_llm_spend(
+        surface="diagnostician",
+        model_name=model_name,
+        tokens_in=capture.tokens_in,
+        tokens_out=capture.tokens_out,
+        tokens_cache=capture.tokens_cache,
+        tokens_cache_write=capture.tokens_cache_write,
+        billing_records=records,
+    )
+    for record in records:
+        key = f"{REDIS_KEY_DIAGNOSTICS_DIAGNOSIS_COST_PREFIX}{datetime.fromtimestamp(record.started_at, UTC):%Y%m%d}"
+        try:
+            await _record_spend(key, record.cost_usd)
+        except Exception as exc:
+            logger.error("diagnostics_cost_record_failed", error_type=type(exc).__name__)
+
+
 async def _invoke_diagnostician(
     llm: BaseChatModel, system: str, human: str
-) -> tuple[DiagnosisOutput, UsageTokens]:
+) -> tuple[DiagnosisOutput, UsageTokens | _DiagnosisUsage]:
     """One structured diagnostician call with real usage capture.
 
     Args:
@@ -180,16 +220,62 @@ async def _invoke_diagnostician(
         cache — the hand-rolled sum here did neither, so a cached prompt was
         billed at full price against the daily cap.
     """
-    usage_handler = UsageMetadataCallbackHandler()
-    output = await get_structured_output_with_retry(
-        llm=llm,
-        messages=[SystemMessage(content=system), HumanMessage(content=human)],
-        schema=DiagnosisOutput,
-        provider="diagnostician",
-        node_name="diagnostics_diagnosis",
-        config={"callbacks": [usage_handler]},
+    model_name = model_name_of(llm)
+    capture = TokenCaptureHandler(model_name)
+    try:
+        output = await get_structured_output_with_retry(
+            llm=llm,
+            messages=[SystemMessage(content=system), HumanMessage(content=human)],
+            schema=DiagnosisOutput,
+            provider="diagnostician",
+            node_name="diagnostics_diagnosis",
+            config={"callbacks": [capture]},
+        )
+    finally:
+        records = capture.claim_billing_records(model_name or "unknown")
+        if records:
+            await settle_known_billing(_settle_diagnosis_records(capture, records, model_name))
+    return output, _DiagnosisUsage(
+        capture.tokens_in,
+        capture.tokens_out,
+        capture.tokens_cache,
+        capture.tokens_cache_write,
+        records,
     )
-    return output, tokens_from_callback(usage_handler)
+
+
+async def _account_diagnosis_usage(
+    usage: UsageTokens | _DiagnosisUsage,
+    model_name: str,
+    started_at: float,
+    snapshot: PricingCacheData,
+    budget_key: str,
+) -> float:
+    """Use settled attempts; retain the original aggregate interface for callers."""
+    records = usage.billing_records if isinstance(usage, _DiagnosisUsage) else ()
+    if records:
+        return sum(record.cost_usd for record in records)
+    cost_usd, _cost_eur = get_cached_cost_usd_eur(
+        model_name,
+        usage.prompt,
+        usage.completion,
+        usage.cached,
+        cache_write_tokens=usage.cache_write,
+        at=datetime.fromtimestamp(started_at, UTC),
+        snapshot=snapshot,
+    )
+    await _record_spend(budget_key, cost_usd)
+    await record_instance_llm_spend(
+        surface="diagnostician",
+        model_name=model_name,
+        tokens_in=usage.prompt,
+        tokens_out=usage.completion,
+        tokens_cache=usage.cached,
+        tokens_cache_write=usage.cache_write,
+        started_at=started_at,
+        pricing_snapshot=snapshot,
+    )
+    return cost_usd
 
 
 #: Units that need no suffix: a count is read as a count.
@@ -488,6 +574,7 @@ async def diagnose_incidents(
     diagnosed = 0
 
     for incident in incidents:
+        budget_key = _budget_key()
         if await _spent_today(budget_key) >= cap:
             logger.info("diagnostics_diagnosis_budget_exhausted", cap_usd=cap)
             break
@@ -513,9 +600,12 @@ async def diagnose_incidents(
             # single incident overshoot the daily cap by every language after
             # the first — and this module's contract is that the cap gates
             # BEFORE any LLM call, not before most of them.
+            budget_key = _budget_key()
             if await _spent_today(budget_key) >= cap:
                 logger.info("diagnostics_diagnosis_budget_exhausted", cap_usd=cap)
                 break
+            started_at = time()
+            pricing_snapshot = capture_pricing_snapshot()
             try:
                 # `.replace`, not `.format`: the caller resolves `{max_actions}`
                 # the same way, and a brace added to the prompt one day (a JSON
@@ -534,27 +624,12 @@ async def diagnose_incidents(
                 break
             # Billed as it is spent: a language that ran has been paid for,
             # whether or not the languages after it get to run.
-            call_cost, _call_eur = get_cached_cost_usd_eur(
+            cost_usd += await _account_diagnosis_usage(
+                usage,
                 model_name,
-                usage.prompt,
-                usage.completion,
-                usage.cached,
-                cache_write_tokens=usage.cache_write,
-            )
-            cost_usd += call_cost
-            await _record_spend(budget_key, call_cost)
-            # The private counter above answers « how much has DIAGNOSIS spent
-            # today »; the instance ledger answers « how much has this
-            # deployment spent today ». Both are needed: the first bounds this
-            # subsystem, the second is the only one an operator can arm from
-            # the admin settings, and it saw none of this until now.
-            await record_instance_llm_spend(
-                surface="diagnostician",
-                model_name=model_name,
-                tokens_in=usage.prompt,
-                tokens_out=usage.completion,
-                tokens_cache=usage.cached,
-                tokens_cache_write=usage.cache_write,
+                started_at,
+                pricing_snapshot,
+                budget_key,
             )
             variants[language] = {
                 "diagnosis": output.diagnosis,

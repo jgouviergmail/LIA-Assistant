@@ -704,7 +704,7 @@ html.dark[data-oled] {
   color: #854d0e;
 }
 .lia-chip--attach .material-symbols-outlined {
-  color: #d97706;
+  color: inherit;
 }
 
 .lia-chip--allday {
@@ -3670,28 +3670,57 @@ a.lia-email__sender-email:hover {
   opacity: 0.9;
 }
 
-/* Weather icon coloring based on condition (main current weather icon) */
-.lia-weather--sunny .lia-weather__icon .lia-icon {
-  color: #f59e0b;
+/* Each reading owns its color, including individual daily/hourly selectors. */
+.lia-weather--sunny {
+  --lia-weather-condition-color: #f59e0b;
 }
-.lia-weather--cloudy .lia-weather__icon .lia-icon,
-.lia-weather--overcast .lia-weather__icon .lia-icon {
-  color: #94a3b8;
+.lia-weather--cloudy,
+.lia-weather--overcast,
+.lia-weather--foggy,
+.lia-weather--misty,
+.lia-weather--hazy,
+.lia-weather--smoky,
+.lia-weather--dusty {
+  --lia-weather-condition-color: #94a3b8;
 }
-.lia-weather--partly-cloudy .lia-weather__icon .lia-icon {
-  color: #60a5fa;
+.lia-weather--partly-cloudy {
+  --lia-weather-condition-color: #60a5fa;
 }
-.lia-weather--rainy .lia-weather__icon .lia-icon,
-.lia-weather--light-rain .lia-weather__icon .lia-icon,
-.lia-weather--drizzle .lia-weather__icon .lia-icon {
-  color: #3b82f6;
+.lia-weather--clear-night,
+.lia-weather--partly-cloudy-night,
+.lia-weather--night {
+  --lia-weather-condition-color: #818cf8;
 }
-.lia-weather--snowy .lia-weather__icon .lia-icon,
-.lia-weather--light-snow .lia-weather__icon .lia-icon {
-  color: #a5b4fc;
+.lia-weather--rainy,
+.lia-weather--light-rain,
+.lia-weather--heavy-rain,
+.lia-weather--drizzle {
+  --lia-weather-condition-color: #3b82f6;
 }
-.lia-weather--stormy .lia-weather__icon .lia-icon {
-  color: #6366f1;
+.lia-weather--snowy,
+.lia-weather--light-snow,
+.lia-weather--heavy-snow,
+.lia-weather--sleet,
+.lia-weather--blizzard {
+  --lia-weather-condition-color: #a5b4fc;
+}
+.lia-weather--stormy,
+.lia-weather--tornado,
+.lia-weather--hurricane,
+.lia-weather--tropical-storm {
+  --lia-weather-condition-color: #6366f1;
+}
+.lia-weather--windy,
+.lia-weather--breezy,
+.lia-weather--gusty,
+.lia-weather--default {
+  --lia-weather-condition-color: var(--lia-text-secondary);
+}
+.lia-weather__icon .lia-icon,
+.lia-weather-slot__icon .lia-icon,
+.lia-weather__day-icon--color .lia-icon,
+.lia-weather__hour-icon--color .lia-icon {
+  color: var(--lia-weather-condition-color, var(--lia-text-secondary));
 }
 
 .lia-weather__temp-block {
@@ -3940,44 +3969,6 @@ a.lia-email__sender-email:hover {
 .lia-weather__day-icon--color,
 .lia-weather__hour-icon--color {
   font-size: calc(2rem * var(--lia-text-scale, 1));
-}
-
-.lia-weather--sunny .lia-weather__day-icon--color .lia-icon,
-.lia-weather--sunny .lia-weather__hour-icon--color .lia-icon {
-  color: #f59e0b;
-}
-
-.lia-weather--cloudy .lia-weather__day-icon--color .lia-icon,
-.lia-weather--cloudy .lia-weather__hour-icon--color .lia-icon,
-.lia-weather--overcast .lia-weather__day-icon--color .lia-icon,
-.lia-weather--overcast .lia-weather__hour-icon--color .lia-icon {
-  color: #94a3b8;
-}
-
-.lia-weather--partly-cloudy .lia-weather__day-icon--color .lia-icon,
-.lia-weather--partly-cloudy .lia-weather__hour-icon--color .lia-icon {
-  color: #60a5fa;
-}
-
-.lia-weather--rainy .lia-weather__day-icon--color .lia-icon,
-.lia-weather--rainy .lia-weather__hour-icon--color .lia-icon,
-.lia-weather--light-rain .lia-weather__day-icon--color .lia-icon,
-.lia-weather--light-rain .lia-weather__hour-icon--color .lia-icon,
-.lia-weather--drizzle .lia-weather__day-icon--color .lia-icon,
-.lia-weather--drizzle .lia-weather__hour-icon--color .lia-icon {
-  color: #3b82f6;
-}
-
-.lia-weather--snowy .lia-weather__day-icon--color .lia-icon,
-.lia-weather--snowy .lia-weather__hour-icon--color .lia-icon,
-.lia-weather--light-snow .lia-weather__day-icon--color .lia-icon,
-.lia-weather--light-snow .lia-weather__hour-icon--color .lia-icon {
-  color: #a5b4fc;
-}
-
-.lia-weather--stormy .lia-weather__day-icon--color .lia-icon,
-.lia-weather--stormy .lia-weather__hour-icon--color .lia-icon {
-  color: #6366f1;
 }
 
 /* Day temps layout */
@@ -7276,10 +7267,12 @@ a:focus-visible {
 .lia-response tr:hover td {
   background: var(--lia-surface-active, rgba(0, 0, 0, 0.04));
 }
-/* The caption is the table's TITLE, so it takes the text colour: the
-   secondary tone measured 4.4:1 on the bubble at this size (axe, 2026-09-25),
-   under the 4.5:1 floor. */
-.lia-response caption {
+/* Captions name tables in HTML answers AND data cards. Cards do not carry
+   `.lia-response`, so their captions missed the explicit themed foreground.
+   Use the main text tone: the secondary tone measured below the 4.5:1 floor
+   at this size. */
+.lia-response caption,
+.markdown-content caption {
   caption-side: top;
   text-align: left;
   font-weight: 600;

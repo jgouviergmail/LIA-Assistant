@@ -184,4 +184,135 @@ describe('AudioQueue sequential playback', () => {
     expect(queue.queueLength).toBe(0);
     expect(FakeContext.latest.sources).toHaveLength(0);
   });
+
+  it('decodes every clip once into an exclusive external output and drains it once the run is over', async () => {
+    const drain = deferred<void>();
+    const output = { play: vi.fn(async () => {}), end: vi.fn(() => drain.promise) };
+    queue.setDecodedOutput(output);
+    const complete = vi.fn();
+    queue.setOnPlaybackComplete(complete);
+    const states: string[] = [];
+    queue.setOnStateChange(state => states.push(state));
+    await queue.enqueue(btoa('first'));
+    await queue.enqueue(btoa('second'));
+    await settle();
+    expect(FakeContext.latest.decodeAudioData).toHaveBeenCalledTimes(2);
+    // Accepted clips follow each other at once: one continuous remote stream.
+    expect(output.play).toHaveBeenCalledTimes(2);
+    expect(FakeContext.latest.sources).toHaveLength(0);
+    expect(output.end).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+    queue.endRun();
+    await settle();
+    expect(output.end).toHaveBeenCalledTimes(1);
+    expect(complete).not.toHaveBeenCalled();
+    expect(states).not.toContain('idle');
+    drain.resolve();
+    await settle();
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(states.at(-1)).toBe('idle');
+  });
+
+  it('without voice_complete, an emptied external run drains after the hold, and a late clip reopens it', async () => {
+    vi.useFakeTimers();
+    try {
+      const output = { play: vi.fn(async () => {}), end: vi.fn(async () => {}) };
+      queue.setDecodedOutput(output);
+      const complete = vi.fn();
+      queue.setOnPlaybackComplete(complete);
+      await queue.enqueue(btoa('only'));
+      await settle();
+      expect(output.play).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(output.end).not.toHaveBeenCalled();
+      // A clip inside the hold belongs to the same run.
+      await queue.enqueue(btoa('late'));
+      await settle();
+      expect(output.play).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(output.end).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(600);
+      await settle();
+      expect(output.end).toHaveBeenCalledTimes(1);
+      expect(complete).toHaveBeenCalledTimes(1);
+      // Stopping cancels a pending hold: no drain for a run that was cut.
+      await queue.enqueue(btoa('next'));
+      await settle();
+      queue.stop();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(output.end).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('aborts the external phrase and ignores its late drain when a new phrase starts', async () => {
+    const drain = deferred<void>();
+    const output = {
+      play: vi.fn((_buffer: AudioBuffer, _signal: AbortSignal) => drain.promise),
+      end: vi.fn(async () => {}),
+    };
+    queue.setDecodedOutput(output);
+    await queue.enqueue(btoa('old'));
+    await settle();
+    const signal = output.play.mock.calls[0][1];
+    queue.stop();
+    expect(signal.aborted).toBe(true);
+    queue.setDecodedOutput(null);
+    await queue.enqueue(btoa('local'));
+    await settle();
+    drain.resolve();
+    await settle();
+    expect(FakeContext.latest.sources).toHaveLength(1);
+    expect(queue.playing).toBe(true);
+  });
+
+  it('keeps the chosen output when a decode is pending and does not replay a failed external chunk', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await queue.initialize();
+    const decoding = deferred<DecodedAudio>();
+    FakeContext.latest.decodeAudioData.mockReturnValueOnce(decoding.promise);
+    const original = {
+      play: vi.fn(async () => {
+        throw new Error('output_failed');
+      }),
+      end: vi.fn(async () => {}),
+    };
+    const late = { play: vi.fn(async () => {}), end: vi.fn(async () => {}) };
+    queue.setDecodedOutput(original);
+    await queue.enqueue(btoa('old'));
+    await settle();
+    queue.setDecodedOutput(late);
+    decoding.resolve({ text: 'old' });
+    await settle();
+    expect(original.play).toHaveBeenCalledTimes(1);
+    expect(late.play).not.toHaveBeenCalled();
+    expect(FakeContext.latest.sources).toHaveLength(0);
+    queue.setDecodedOutput(null);
+    await queue.enqueue(btoa('next'));
+    await settle();
+    expect(FakeContext.latest.sources).toHaveLength(1);
+    expect(FakeContext.latest.sources[0].buffer?.text).toBe('next');
+  });
+
+  it('bounds encoded backlog while playback is suspended and clears it on stop', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await queue.initialize();
+    const context = FakeContext.latest;
+    context.state = 'suspended';
+    context.resume.mockImplementation(async () => {});
+    const error = vi.fn();
+    queue.setOnError(error);
+    const chunk = 'A'.repeat(524288);
+    for (let i = 0; i < 6; i++) await queue.enqueue(chunk);
+    await settle();
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error.mock.calls[0][0].message).toBe('voice_audio_backlog_full');
+    expect(queue.queueLength).toBe(5);
+    expect(context.decodeAudioData).not.toHaveBeenCalled();
+    queue.stop();
+    expect(queue.queueLength).toBe(0);
+    await queue.enqueue(chunk);
+    expect(error).toHaveBeenCalledTimes(1);
+  });
 });

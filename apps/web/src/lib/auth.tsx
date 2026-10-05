@@ -26,6 +26,7 @@ export interface User {
   /** Effective exchange rhythm (ADR-311): the person's choice, else the instance default. */
   exchange_rhythm?: ExchangeRhythm;
   voice_enabled: boolean;
+  speaking_avatar_enabled?: boolean;
   voice_mode_enabled: boolean;
   voice_stt_mode: 'local' | 'remote';
   tokens_display_enabled: boolean;

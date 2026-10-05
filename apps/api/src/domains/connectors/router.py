@@ -1405,6 +1405,10 @@ async def activate_api_key_connector(
     user_id = current_user.id
     service = ConnectorService(db)
 
+    # The route owns this transaction. Verification can wait on a provider;
+    # return the authentication read's pooled connection before that wait.
+    await db.commit()
+
     # Validate key format first
     is_valid, message = await service.validate_api_key(
         data.connector_type,
@@ -1442,6 +1446,8 @@ async def validate_api_key(
 ) -> APIKeyValidationResponse:
     """Validate API key format and connectivity."""
     service = ConnectorService(db)
+
+    await db.commit()
 
     is_valid, message = await service.validate_api_key(
         data.connector_type,

@@ -40,13 +40,24 @@ wheels/
 # Pytest / Coverage
 .cache/
 .tmp-codex/
+# Agent scratch space at the repository root (logs, throwaway pytest dirs).
+/.tmp/
 apps/api/DeveloppementLIA.tmp-codexpytest-cache/
 .pytest_cache/
 # A run given its own `-o cache_dir=.pytest_cache_<name>` (a parallel session's
 # isolation); one such directory left without read access made every
 # `git status` warn « could not open directory » (2026-10-03).
 .pytest_cache_*/
+.tox/
+.nox/
+.hypothesis/
+.benchmarks/
 .coverage
+# Parallel coverage runs and generated reports (including named local runs).
+.coverage.*
+coverage/
+coverage-*/
+.nyc_output/
 htmlcov/
 *.cover
 # Written by `task test:backend:unit:coverage` (--cov-report=xml), which is a
@@ -59,6 +70,8 @@ coverage.xml
 .dmypy.json
 dmypy.json
 .ruff_cache/
+.eslintcache
+.stylelintcache
 
 # ============================================
 # NODE.JS / NEXT.JS
@@ -67,6 +80,8 @@ dmypy.json
 # Dependencies
 node_modules/
 .pnpm-store/
+.turbo/
+.vite/
 
 # pnpm workspace — keep root lockfile, ignore workspace-specific ones
 apps/*/pnpm-lock.yaml
@@ -234,6 +249,14 @@ apps/api/data/radio/
 # Build output
 build/
 dist/
+# Task's local execution/timestamp cache.
+.task/
+
+# Scratch files and generated validation/media outputs.
+*.tmp
+*.temp
+/output/
+/tmp/pdfs/rendered*/
 
 # SBOM (generated via `task sbom:generate`)
 sbom-*.json
@@ -241,11 +264,13 @@ sbom-*.json
 # Logs
 logs/
 *.log
+*.log.*
 
 # Backup files
 *.bak
 *.backup
 *.backup.*
+*.orig
 
 # Audit securite
 AUDIT_SECURITE_CODEBASE*
@@ -313,6 +338,12 @@ LIA Pics/
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+# Playwright CLI snapshots and generated browser test reports.
+.playwright-cli/
+test-results*/
+playwright-report/
+blob-report/
+playwright/.cache/
 
 # User-imported skills (runtime data, per-user content — never in the repo)
 data/skills/users/

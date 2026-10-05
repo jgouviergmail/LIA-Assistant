@@ -45,6 +45,7 @@ ANSWERS = {
     "observability": "no",
     "skill_sandbox": "no",
     "personal_radio": "no",
+    "speaking_avatar": "no",
     "admin_password": PASSWORD,
     "provider_key_deepseek": "dk-CANARY-11",
     "provider_key_openai": "sk-CANARY-22",
@@ -134,9 +135,7 @@ def _mk(path: Path) -> Path:
 def _answers_file(root: Path, values: dict[str, str] | None = None) -> Path:
     path = root / "answers.env"
     payload = values if values is not None else ANSWERS
-    path.write_text(
-        "".join(f"{k}={v}\n" for k, v in payload.items()), encoding="utf-8"
-    )
+    path.write_text("".join(f"{k}={v}\n" for k, v in payload.items()), encoding="utf-8")
     import os
 
     if os.name == "posix":
@@ -162,7 +161,9 @@ def test_local_dry_run_generates_everything_and_starts_nothing(
     runner = _Runner()
     code = run_install(
         ["--dry-run", "--non-interactive", "--answers", str(_answers_file(root))],
-        Deps(root=root, io=io.adapter(), runner=runner, opener=_Opener(), clock=_Clock()),
+        Deps(
+            root=root, io=io.adapter(), runner=runner, opener=_Opener(), clock=_Clock()
+        ),
     )
     assert code == EXIT_OK, io.printed
     assert (root / ".env").is_file()
@@ -182,7 +183,9 @@ def test_full_local_install_hits_the_exact_ordered_surface(tmp_path: Path) -> No
     runner = _Runner()
     code = run_install(
         ["--non-interactive", "--answers", str(_answers_file(root))],
-        Deps(root=root, io=io.adapter(), runner=runner, opener=_Opener(), clock=_Clock()),
+        Deps(
+            root=root, io=io.adapter(), runner=runner, opener=_Opener(), clock=_Clock()
+        ),
     )
     assert code == EXIT_OK, io.printed
     joined = runner.joined()
@@ -258,7 +261,8 @@ def test_full_prebuilt_install_pins_images_and_sandbox(tmp_path: Path) -> None:
     override = (root / "docker-compose.install.yml").read_text(encoding="utf-8")
     assert "SKILLS_SCRIPT_SANDBOX_IMAGE=ghcr.io/example/lia/sandbox@sha256:" in override
     assert any(
-        line.startswith("docker pull ghcr.io/example/lia/sandbox@sha256:") for line in joined
+        line.startswith("docker pull ghcr.io/example/lia/sandbox@sha256:")
+        for line in joined
     ), joined
 
 
@@ -305,7 +309,9 @@ def test_resume_before_bootstrap_reprompts_exactly_three_secrets(
     runner = _Runner()
     code = run_install(
         ["--resume"],
-        Deps(root=root, io=io.adapter(), runner=runner, opener=_Opener(), clock=_Clock()),
+        Deps(
+            root=root, io=io.adapter(), runner=runner, opener=_Opener(), clock=_Clock()
+        ),
     )
     assert code == EXIT_OK, io.printed
     prompted = [p[1:].split("]", 1)[0] for p in io.secret_prompts]
