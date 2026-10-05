@@ -1,10 +1,12 @@
 /** The API boundary must remain hermetic while the browser closes its page. */
 import { createServer, type Server } from 'node:http';
-import { test as appTest, expect, idleNotificationStream } from '../fixtures';
+import { test as appTest, expect, idleNotificationStream, waitForMockGate } from '../fixtures';
 
 interface LocalServer {
   origin: string;
   escaped: string[];
+  delayedCompleted: boolean;
+  gateCancelled: boolean;
 }
 
 const test = appTest.extend<object, { localServer: LocalServer }>({
@@ -23,7 +25,12 @@ const test = appTest.extend<object, { localServer: LocalServer }>({
       const address = server.address();
       if (!address || typeof address === 'string') throw new Error('Expected a TCP server address');
       try {
-        await provide({ origin: `http://127.0.0.1:${address.port}`, escaped });
+        await provide({
+          origin: `http://127.0.0.1:${address.port}`,
+          escaped,
+          delayedCompleted: false,
+          gateCancelled: false,
+        });
       } finally {
         await new Promise<void>((resolve, reject) => {
           server.close(error => (error ? reject(error) : resolve()));
@@ -36,6 +43,70 @@ const test = appTest.extend<object, { localServer: LocalServer }>({
     },
     { scope: 'worker' },
   ],
+});
+
+test.describe.serial('callbacks finish in their owning test', () => {
+  test('a deferred response finishes after the test body', async ({
+    page,
+    localServer,
+    mockApi,
+  }) => {
+    let entered = false;
+    await mockApi([
+      {
+        url: '**/api/v1/isolation/deferred',
+        handler: async route => {
+          entered = true;
+          // Model the existing dashboard Radio fixture's four-second read.
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          await route.fulfill({ json: { ready: true } });
+          localServer.delayedCompleted = true;
+        },
+      },
+    ]);
+    await page.goto(localServer.origin);
+    await page.evaluate(() => {
+      void fetch('/api/v1/isolation/deferred').catch(() => undefined);
+    });
+    await expect.poll(() => entered).toBe(true);
+    expect(localServer.delayedCompleted).toBe(false);
+  });
+
+  test('the following test sees completion and leaves an unreleased gate', async ({
+    page,
+    localServer,
+    mockApi,
+  }) => {
+    expect(localServer.delayedCompleted).toBe(true);
+    let entered = false;
+    const gate = new Promise<void>(() => undefined);
+    await mockApi([
+      {
+        url: '**/api/v1/isolation/unreleased',
+        handler: async (route, signal) => {
+          entered = true;
+          if (!(await waitForMockGate(gate, signal))) {
+            localServer.gateCancelled = true;
+            return;
+          }
+          await route.fulfill({ json: { ready: true } });
+        },
+      },
+    ]);
+    await page.goto(localServer.origin);
+    await page.evaluate(() => {
+      void fetch('/api/v1/isolation/unreleased').catch(() => undefined);
+    });
+    await expect.poll(() => entered).toBe(true);
+    expect(localServer.gateCancelled).toBe(false);
+  });
+
+  test('the next test sees its predecessor gate cancelled', async ({ page, localServer }) => {
+    expect(localServer.delayedCompleted).toBe(true);
+    expect(localServer.gateCancelled).toBe(true);
+    await page.goto(localServer.origin);
+    await expect(page.getByRole('heading')).toHaveText('API isolation');
+  });
 });
 
 function listen(server: Server): Promise<void> {

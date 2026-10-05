@@ -12,7 +12,7 @@
  * screen carries a mark set by the test; a remount would create a fresh node
  * without it. A flag on `window` proves the page itself was never reloaded.
  */
-import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
+import { test, expect, waitForHydration, waitForMockGate, type MockRoute } from '../fixtures';
 
 const CONVERSATION_ID = '00000000-0000-4000-8000-00000000c320';
 
@@ -103,7 +103,7 @@ function syncRoutes(state: { arrived: boolean }, gate: Promise<void>): MockRoute
     { url: '**/api/v1/usage/**', json: {} },
     {
       url: '**/api/v1/notifications/stream',
-      handler: async route => {
+      handler: async (route, signal) => {
         if (signalled) {
           // A reconnection after the one signal: an idle stream.
           await route.fulfill({
@@ -113,7 +113,7 @@ function syncRoutes(state: { arrived: boolean }, gate: Promise<void>): MockRoute
           });
           return;
         }
-        await gate;
+        if (!(await waitForMockGate(gate, signal))) return;
         signalled = true;
         await route.fulfill({
           status: 200,

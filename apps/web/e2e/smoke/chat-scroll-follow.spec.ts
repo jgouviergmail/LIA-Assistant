@@ -15,7 +15,7 @@
  * jumps to the sent message, and completion aligns that question for both
  * gated and immediate answers.
  */
-import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
+import { test, expect, waitForHydration, waitForMockGate, type MockRoute } from '../fixtures';
 
 const CONVERSATION = {
   id: '00000000-0000-4000-8000-00000000c004',
@@ -96,8 +96,8 @@ function baseRoutes(gate: Promise<void>): MockRoute[] {
     {
       url: '**/api/v1/agents/chat/stream',
       method: 'POST',
-      handler: async route => {
-        await gate;
+      handler: async (route, signal) => {
+        if (!(await waitForMockGate(gate, signal))) return;
         await route.fulfill({
           status: 200,
           contentType: 'text/event-stream',

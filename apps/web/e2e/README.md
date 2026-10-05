@@ -24,6 +24,8 @@ aborts routed API reads and SSE streams that have not received a response,
 before Playwright destroys the browser context. Firefox and WebKit can otherwise
 release paused requests or send unload beacons during that destruction. The
 document stays available for failure screenshots, page context and traces.
+Finite mock callbacks finish before route cancellation; externally gated callbacks
+observe a teardown signal so a failed test cannot leave its gate waiting forever.
 [The isolation regression](smoke/api-isolation.spec.ts) uses a loopback HTTP
 server to assert that no API request escapes during the whole lifecycle,
 including teardown, while an unexpected request still receives the explicit 501.

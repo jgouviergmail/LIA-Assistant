@@ -16,10 +16,19 @@ import type { Page, Request, Route } from '@playwright/test';
 
 interface ApiIsolation {
   pending: Map<Request, Route>;
+  callbacks: Set<Promise<void>>;
+  cancellation: AbortController;
   closing: boolean;
 }
 
 const isolations = new WeakMap<Page, ApiIsolation>();
+
+function runRouteCallback(page: Page, callback: () => Promise<void>): Promise<void> {
+  const isolation = isolations.get(page);
+  const invocation = callback();
+  isolation?.callbacks.add(invocation);
+  return invocation.finally(() => isolation?.callbacks.delete(invocation));
+}
 
 async function trackRoute(page: Page, route: Route): Promise<boolean> {
   const isolation = isolations.get(page);
@@ -45,8 +54,30 @@ export interface MockRoute {
    * no index signature) is accepted — it is JSON.stringify'd verbatim.
    */
   json?: unknown;
-  /** Full manual control; when set, `status`/`json` are ignored. */
-  handler?: (route: Route) => Promise<void> | void;
+  /** Full manual control; the signal cancels externally gated callbacks during teardown. */
+  handler?: (route: Route, signal: AbortSignal) => Promise<void> | void;
+}
+
+/** An externally released test gate must also end when its owning test ends. */
+export function waitForMockGate(gate: Promise<void>, signal: AbortSignal): Promise<boolean> {
+  if (signal.aborted) return Promise.resolve(false);
+  return new Promise((resolve, reject) => {
+    const cancelled = () => {
+      signal.removeEventListener('abort', cancelled);
+      resolve(false);
+    };
+    signal.addEventListener('abort', cancelled, { once: true });
+    void gate.then(
+      () => {
+        signal.removeEventListener('abort', cancelled);
+        resolve(!signal.aborted);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', cancelled);
+        reject(error);
+      }
+    );
+  });
 }
 
 /**
@@ -70,23 +101,30 @@ export const idleNotificationStream: MockRoute = {
  * visible failure — never a silent hit on a real backend.
  */
 export async function installApiCatchAll(page: Page): Promise<void> {
-  const isolation: ApiIsolation = { pending: new Map(), closing: false };
+  const isolation: ApiIsolation = {
+    pending: new Map(),
+    callbacks: new Set(),
+    cancellation: new AbortController(),
+    closing: false,
+  };
   isolations.set(page, isolation);
   page.on('response', response => isolation.pending.delete(response.request()));
   page.on('requestfailed', request => isolation.pending.delete(request));
   page.on('close', () => isolations.delete(page));
-  await page.route('**/api/v1/**', async route => {
-    if (!(await trackRoute(page, route))) return;
-    await route.fulfill({
-      status: 501,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        error: 'unmocked_api_call',
-        method: route.request().method(),
-        url: route.request().url(),
-      }),
-    });
-  });
+  await page.route('**/api/v1/**', route =>
+    runRouteCallback(page, async () => {
+      if (!(await trackRoute(page, route))) return;
+      await route.fulfill({
+        status: 501,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'unmocked_api_call',
+          method: route.request().method(),
+          url: route.request().url(),
+        }),
+      });
+    })
+  );
 }
 
 /** Cancel paused API requests before Firefox/WebKit delete their interception. */
@@ -94,9 +132,13 @@ export async function stopApiRequests(page: Page): Promise<void> {
   const isolation = isolations.get(page);
   if (!isolation || page.isClosed()) return;
   isolation.closing = true;
+  isolation.cancellation.abort();
   // Closing a context can send unload beacons outside page routes. No further
   // network access is needed after the test; keep the document for artifacts.
   await page.context().setOffline(true);
+  // A finite callback may still be preparing its response. Let it finish in
+  // this test before aborting the routes left unanswered (including idle SSE).
+  const callbacks = await Promise.allSettled([...isolation.callbacks]);
   const pending = [...isolation.pending.values()];
   const results = await Promise.allSettled(pending.map(route => route.abort('aborted')));
   for (const result of results) {
@@ -114,6 +156,9 @@ export async function stopApiRequests(page: Page): Promise<void> {
     throw error;
   }
   isolation.pending.clear();
+  for (const callback of callbacks) {
+    if (callback.status === 'rejected') throw callback.reason;
+  }
 }
 
 /**
@@ -123,21 +168,24 @@ export async function stopApiRequests(page: Page): Promise<void> {
  */
 export async function registerRoutes(page: Page, routes: MockRoute[]): Promise<void> {
   for (const r of routes) {
-    await page.route(r.url, async (route, request) => {
-      if (r.method && request.method().toUpperCase() !== r.method.toUpperCase()) {
-        await route.fallback();
-        return;
-      }
-      if (!(await trackRoute(page, route))) return;
-      if (r.handler) {
-        await r.handler(route);
-        return;
-      }
-      await route.fulfill({
-        status: r.status ?? 200,
-        contentType: 'application/json',
-        body: JSON.stringify(r.json ?? {}),
-      });
-    });
+    await page.route(r.url, (route, request) =>
+      runRouteCallback(page, async () => {
+        if (r.method && request.method().toUpperCase() !== r.method.toUpperCase()) {
+          await route.fallback();
+          return;
+        }
+        if (!(await trackRoute(page, route))) return;
+        if (r.handler) {
+          const signal = isolations.get(page)?.cancellation.signal ?? new AbortController().signal;
+          await r.handler(route, signal);
+          return;
+        }
+        await route.fulfill({
+          status: r.status ?? 200,
+          contentType: 'application/json',
+          body: JSON.stringify(r.json ?? {}),
+        });
+      })
+    );
   }
 }
