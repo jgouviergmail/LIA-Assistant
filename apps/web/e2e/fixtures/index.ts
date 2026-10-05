@@ -7,7 +7,7 @@
  * with a deterministic user so authenticated pages render without a backend.
  */
 import { test as base, expect } from '@playwright/test';
-import { installApiCatchAll, registerRoutes, type MockRoute } from './api-mock';
+import { installApiCatchAll, registerRoutes, stopApiRequests, type MockRoute } from './api-mock';
 import { dashboardShellMocks } from './dashboard-shell';
 import { makeTestUser, type TestUser } from './test-user';
 
@@ -22,19 +22,20 @@ interface Fixtures {
 
 export const test = base.extend<Fixtures>({
   _apiIsolation: [
-    async ({ page }, use) => {
+    async ({ page }, provide) => {
       await installApiCatchAll(page);
-      await use();
+      await provide();
+      await stopApiRequests(page);
     },
-    { auto: true },
+    { auto: true, timeout: 10_000 },
   ],
 
-  mockApi: async ({ page }, use) => {
-    await use(routes => registerRoutes(page, routes));
+  mockApi: async ({ page }, provide) => {
+    await provide(routes => registerRoutes(page, routes));
   },
 
-  authenticate: async ({ page, context }, use) => {
-    await use(async overrides => {
+  authenticate: async ({ page, context }, provide) => {
+    await provide(async overrides => {
       const user = makeTestUser(overrides);
       // The real session cookie is HTTP-only and validated server-side; here
       // /auth/me is intercepted, so the value is irrelevant — we only seed a

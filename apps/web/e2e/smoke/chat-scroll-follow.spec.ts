@@ -12,7 +12,8 @@
  * assertion below fails by construction against that code.
  *
  * Preserved behavior guarded too: an OWN send from a scrolled position still
- * jumps to the sent message.
+ * jumps to the sent message, and completion aligns that question for both
+ * gated and immediate answers.
  */
 import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
 
@@ -188,32 +189,79 @@ test.describe('chat scroll follow invariant', () => {
     await expect(button).toHaveCount(0);
   });
 
-  test('sending from a scrolled position still jumps to your message', async ({
-    page,
-    authenticate,
-    mockApi,
-  }) => {
-    await authenticate();
-    await mockApi(baseRoutes(Promise.resolve())); // stream answers immediately
+  for (const delivery of ['gated', 'immediate'] as const) {
+    test(
+      delivery === 'gated'
+        ? 'sending from a scrolled position still jumps to your message'
+        : 'an immediate answer still aligns the question after completion',
+      async ({ page, authenticate, mockApi }) => {
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => {
+          release = resolve;
+        });
+        await authenticate();
+        await mockApi(baseRoutes(delivery === 'gated' ? gate : Promise.resolve()));
 
-    await page.goto('/fr/dashboard/chat');
-    await waitForHydration(page);
-    await expect(page.getByText('Message 40', { exact: false })).toBeAttached();
-    // Same unavoidable pin-window sleep as above.
-    await page.waitForTimeout(3000);
+        await page.goto('/fr/dashboard/chat');
+        await waitForHydration(page);
+        await expect(page.getByText('Message 40', { exact: false })).toBeAttached();
+        // Same unavoidable pin-window sleep as above.
+        await page.waitForTimeout(3000);
 
-    await page.mouse.move(640, 400);
-    await page.mouse.wheel(0, -3000);
-    await expect
-      .poll(async () => (await geometry(page)).distanceToBottom, { timeout: 3000 })
-      .toBeGreaterThan(500);
+        await page.mouse.move(640, 400);
+        await page.mouse.wheel(0, -3000);
+        await expect
+          .poll(async () => (await geometry(page)).distanceToBottom, { timeout: 3000 })
+          .toBeGreaterThan(500);
 
-    // An OWN send must always show the sent message (preserved behavior).
-    await page.locator('textarea').fill('Nouvelle question depuis le passe');
-    await page.keyboard.press('Enter');
-    await expect(page.getByText('Nouvelle question depuis le passe')).toBeAttached();
-    await expect
-      .poll(async () => (await geometry(page)).distanceToBottom, { timeout: 3000 })
-      .toBeLessThanOrEqual(50);
-  });
+        // An OWN send must always show the sent message (preserved behavior).
+        await page.locator('textarea').fill('Nouvelle question depuis le passe');
+        await page.keyboard.press('Enter');
+        const question = page.getByText('Nouvelle question depuis le passe');
+        await expect(question).toBeAttached();
+        if (delivery === 'gated') {
+          // Measure the OWN-send jump before the answer grows the list. An immediate
+          // SSE can complete before Playwright's first poll; stream completion has
+          // its own last-question alignment, so its bottom gap is a different state.
+          await expect
+            .poll(async () => (await geometry(page)).distanceToBottom, { timeout: 3000 })
+            .toBeLessThanOrEqual(50);
+          await expect(question).toBeInViewport();
+
+          release();
+        }
+        await expect(
+          page.getByText('Voici la suite de la reponse.', { exact: false })
+        ).toBeAttached();
+        await expect(page.locator('textarea')).toBeEnabled();
+        // Completion aligns the question below the sticky header. A short answer
+        // can limit that alignment to the scroller's maximum scroll position.
+        await expect
+          .poll(
+            () =>
+              question.evaluate(el => {
+                const wrapper = el.closest<HTMLElement>('[data-message-role="user"]');
+                const scroller = wrapper?.closest<HTMLElement>('.overflow-y-auto');
+                if (!wrapper || !scroller) return Number.MAX_SAFE_INTEGER;
+                const margin = parseFloat(getComputedStyle(wrapper).scrollMarginTop) || 0;
+                const target = Math.max(
+                  0,
+                  Math.min(
+                    scroller.scrollHeight - scroller.clientHeight,
+                    scroller.scrollTop +
+                      wrapper.getBoundingClientRect().top -
+                      scroller.getBoundingClientRect().top -
+                      scroller.clientTop -
+                      margin
+                  )
+                );
+                return Math.round(Math.abs(scroller.scrollTop - target));
+              }),
+            { timeout: 3000 }
+          )
+          .toBeLessThanOrEqual(50);
+        await expect(question).toBeInViewport();
+      }
+    );
+  }
 });

@@ -57,6 +57,11 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
   compatibles avec l’horloge mise en pause, sans retirer les règles d’accessibilité.
   Mesures après montage de l’historique, horloge de géométrie figée au chargement
   et captures sans redimensionnement ni défilement redondants.
+- Isolation API conservée pendant la fermeture des navigateurs : requêtes en
+  attente annulées, notifications de sortie bloquées et preuve par serveur local
+  sur les trois moteurs. Les appels inattendus conservent leur erreur explicite.
+  Les parcours de recherche chargent le thème du compte avant navigation ;
+  le défilement vérifie séparément l’envoi et la fin des réponses immédiates ou différées.
 - Opérations asynchrones des tests React attendues jusqu’à leur résultat ;
   interactions et changements de stores regroupés avec les mises à jour React.
 - Installateur : présence avatar émise et alignée avec les Settings ;

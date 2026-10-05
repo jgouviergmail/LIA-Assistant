@@ -19,6 +19,15 @@ Every spec intercepts `**/api/v1/**` and serves fixed payloads (`fixtures/`), so
 a single lowest-priority catch-all that fails any un-mocked API call with `501`,
 so a leaking request is a loud, visible failure — never a silent real hit.
 
+After each test, the fixture disables further network access and explicitly
+aborts routed API reads and SSE streams that have not received a response,
+before Playwright destroys the browser context. Firefox and WebKit can otherwise
+release paused requests or send unload beacons during that destruction. The
+document stays available for failure screenshots, page context and traces.
+[The isolation regression](smoke/api-isolation.spec.ts) uses a loopback HTTP
+server to assert that no API request escapes during the whole lifecycle,
+including teardown, while an unexpected request still receives the explicit 501.
+
 - `fixtures/api-mock.ts` — catch-all + `registerRoutes` (LIFO ordering explained inline).
 - `fixtures/test-user.ts` — deterministic `User` factory mirroring `src/lib/auth.tsx`.
 - `fixtures/dashboard-shell.ts` — type-correct mocks for the endpoints the
@@ -259,8 +268,8 @@ as `Dockerfile.prod`), then `PORT=3000 HOSTNAME=0.0.0.0 node
 
 ## Environment variables
 
-| Var | Default | Purpose |
-|-----|---------|---------|
-| `E2E_BASE_URL` | `https://localhost:3000` | Server under test. |
-| `E2E_MANAGED_SERVER` | unset | `1` → Playwright builds + serves the app (CI). |
-| `CI` | unset | Enables retries, GitHub reporter, `forbidOnly`. |
+| Var                  | Default                  | Purpose                                         |
+| -------------------- | ------------------------ | ----------------------------------------------- |
+| `E2E_BASE_URL`       | `https://localhost:3000` | Server under test.                              |
+| `E2E_MANAGED_SERVER` | unset                    | `1` → Playwright builds + serves the app (CI).  |
+| `CI`                 | unset                    | Enables retries, GitHub reporter, `forbidOnly`. |

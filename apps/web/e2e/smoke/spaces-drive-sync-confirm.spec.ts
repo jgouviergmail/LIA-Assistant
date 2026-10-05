@@ -78,6 +78,11 @@ function preflight(over: Record<string, unknown>) {
 function routes(report: Record<string, unknown>, syncs: string[]): MockRoute[] {
   return [
     { url: '**/api/v1/config', json: APP_CONFIG },
+    {
+      url: `**/api/v1/rag-spaces/${SPACE_ID}/drive-browse?folder_id=root`,
+      method: 'GET',
+      json: { files: [], nextPageToken: null },
+    },
     { url: `**/api/v1/rag-spaces/${SPACE_ID}/drive-sources/${SOURCE_ID}/preflight`, json: report },
     {
       url: `**/api/v1/rag-spaces/${SPACE_ID}/drive-sources/${SOURCE_ID}/sync`,
@@ -136,7 +141,9 @@ test.describe('Drive sync confirmation', () => {
     const dialog = page.getByRole('alertdialog');
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('25 fichiers vont être indexés');
-    await expect(dialog).toContainText('20 nouveaux, 5 modifiés, 8 déjà à jour, 4 non pris en charge');
+    await expect(dialog).toContainText(
+      '20 nouveaux, 5 modifiés, 8 déjà à jour, 4 non pris en charge'
+    );
     await expect(dialog).toContainText('4 dossiers');
     expect(syncs).toHaveLength(0);
 

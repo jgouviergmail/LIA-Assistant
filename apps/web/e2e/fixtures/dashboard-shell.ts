@@ -16,6 +16,7 @@
  * their real "empty/nominal" states, never a parse error.
  */
 import type { MockRoute } from './api-mock';
+import type { TelephonyCallSummary } from '../../src/types/telephony';
 
 /** Mirrors `AppConfig` (src/hooks/useAppConfig.ts). */
 export const appConfig = {
@@ -68,8 +69,15 @@ export const dashboardShellMocks: MockRoute[] = [
   { url: '**/api/v1/config', json: appConfig },
   {
     url: '**/api/v1/avatars/config',
-    json: { available: false, enabled: false, connected: false, face_id: null,
-      connector_version: null, session_length_seconds: 3600, connect_timeout_seconds: 15 },
+    json: {
+      available: false,
+      enabled: false,
+      connected: false,
+      face_id: null,
+      connector_version: null,
+      session_length_seconds: 3600,
+      connect_timeout_seconds: 15,
+    },
   },
 
   // Personality selector (src/lib/api/personality.ts).
@@ -144,6 +152,14 @@ export const dashboardShellMocks: MockRoute[] = [
   // RAG space pickers outside the spaces pages (empty catalogue). `*` does not
   // cross `/`, so `/rag-spaces/<id>` stays unmocked here (spec concern).
   { url: '**/api/v1/rag-spaces*', json: { spaces: [], total: 0 } },
+
+  // ActiveCallBanner on the chat page and the settings call history both read
+  // the same array contract (useTelephonyCalls); this account has no calls.
+  {
+    url: /\/api\/v1\/telephony\/calls(?:\?limit=\d+)?$/,
+    method: 'GET',
+    json: [] satisfies TelephonyCallSummary[],
+  },
 
   // Capability map (src/hooks/useCapabilities.ts). Read by the constellation
   // page AND, since the settings hub gained its status lines, by the settings

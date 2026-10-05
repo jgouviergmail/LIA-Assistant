@@ -12,7 +12,25 @@
  * mocks after it so they take precedence. Installing a catch-all per mock call
  * would shadow earlier specific routes — hence the single-install contract.
  */
-import type { Page, Route } from '@playwright/test';
+import type { Page, Request, Route } from '@playwright/test';
+
+interface ApiIsolation {
+  pending: Map<Request, Route>;
+  closing: boolean;
+}
+
+const isolations = new WeakMap<Page, ApiIsolation>();
+
+async function trackRoute(page: Page, route: Route): Promise<boolean> {
+  const isolation = isolations.get(page);
+  if (!isolation) return true;
+  if (isolation.closing) {
+    await route.abort('aborted');
+    return false;
+  }
+  isolation.pending.set(route.request(), route);
+  return true;
+}
 
 export interface MockRoute {
   /** Glob or RegExp matched against the full request URL. */
@@ -52,7 +70,13 @@ export const idleNotificationStream: MockRoute = {
  * visible failure — never a silent hit on a real backend.
  */
 export async function installApiCatchAll(page: Page): Promise<void> {
+  const isolation: ApiIsolation = { pending: new Map(), closing: false };
+  isolations.set(page, isolation);
+  page.on('response', response => isolation.pending.delete(response.request()));
+  page.on('requestfailed', request => isolation.pending.delete(request));
+  page.on('close', () => isolations.delete(page));
   await page.route('**/api/v1/**', async route => {
+    if (!(await trackRoute(page, route))) return;
     await route.fulfill({
       status: 501,
       contentType: 'application/json',
@@ -63,6 +87,33 @@ export async function installApiCatchAll(page: Page): Promise<void> {
       }),
     });
   });
+}
+
+/** Cancel paused API requests before Firefox/WebKit delete their interception. */
+export async function stopApiRequests(page: Page): Promise<void> {
+  const isolation = isolations.get(page);
+  if (!isolation || page.isClosed()) return;
+  isolation.closing = true;
+  // Closing a context can send unload beacons outside page routes. No further
+  // network access is needed after the test; keep the document for artifacts.
+  await page.context().setOffline(true);
+  const pending = [...isolation.pending.values()];
+  const results = await Promise.allSettled(pending.map(route => route.abort('aborted')));
+  for (const result of results) {
+    if (result.status !== 'rejected') continue;
+    const error: unknown = result.reason;
+    // A response can finish between the response event and cancellation.
+    if (error instanceof Error && error.message === 'Route is already handled!') continue;
+    if (
+      page.isClosed() &&
+      error instanceof Error &&
+      error.message.includes('Target page, context or browser has been closed')
+    ) {
+      continue;
+    }
+    throw error;
+  }
+  isolation.pending.clear();
 }
 
 /**
@@ -77,6 +128,7 @@ export async function registerRoutes(page: Page, routes: MockRoute[]): Promise<v
         await route.fallback();
         return;
       }
+      if (!(await trackRoute(page, route))) return;
       if (r.handler) {
         await r.handler(route);
         return;

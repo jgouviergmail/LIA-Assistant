@@ -50,7 +50,7 @@ for (const lng of ['en', 'fr'] as const) {
     await mockApi([
       ...chatRoutes([]),
       { url: '**/api/v1/habits/presence', json: {} },
-      { url: '**/api/v1/telephony/calls*', json: { calls: [], total: 0 } },
+      { url: '**/api/v1/telephony/calls*', method: 'GET', json: [] },
       { url: '**/api/v1/conversations/me', json: { id: '00000000-0000-4000-8000-0000000000ff' } },
       { url: '**/api/v1/notifications/broadcasts/unread', json: { broadcasts: [] } },
       idleNotificationStream,

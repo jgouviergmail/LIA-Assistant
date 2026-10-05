@@ -4,7 +4,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
-import { awaitStyledPage, expectNoOverflow } from './overflow-report';
+import { prepareTheme, awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 const references: { id: string; language: string; html: string }[] = JSON.parse(
   readFileSync(
@@ -20,7 +20,7 @@ for (const sample of [
   { width: 1280, language: 'fr', theme: 'light', font: '16px' },
   { width: 390, language: 'en', theme: 'dark', font: '16px' },
   { width: 320, language: 'fr', theme: 'oled', font: '20px' },
-]) {
+] as const) {
   test.describe(`research input at ${sample.width}px`, () => {
     test.use({ hasTouch: sample.width < 500 });
     test(`complete research in ${sample.theme}`, async ({ page, authenticate, mockApi }) => {
@@ -30,7 +30,12 @@ for (const sample of [
       if (!reference) throw new Error('Missing backend research reference');
       await page.setViewportSize({ width: sample.width, height: 1200 });
       await page.emulateMedia({ reducedMotion: 'reduce' });
-      await authenticate({ language: sample.language, response_display_mode: 'cards' });
+      await prepareTheme(page, sample.theme);
+      await authenticate({
+        language: sample.language,
+        theme: sample.theme,
+        response_display_mode: 'cards',
+      });
       await mockApi([
         ...loadedChatRoutes(),
         {
@@ -56,11 +61,17 @@ for (const sample of [
       await waitForHydration(page);
       await awaitStyledPage(page, 'research details');
       await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
-      await page.evaluate(value => {
-        document.documentElement.classList.toggle('dark', value.theme !== 'light');
-        document.documentElement.toggleAttribute('data-oled', value.theme === 'oled');
-        document.documentElement.style.fontSize = value.font;
-      }, sample);
+      // The startup preference and account agree: switching the DOM theme
+      // after hydration leaves WebKit with mixed light/dark inherited colors.
+      if (sample.theme === 'light') {
+        await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
+      } else {
+        await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+      }
+      await expect(page.locator('html[data-oled]')).toHaveCount(sample.theme === 'oled' ? 1 : 0);
+      await page.evaluate(font => {
+        document.documentElement.style.fontSize = font;
+      }, sample.font);
       await expect(page.locator('.lia-card')).toHaveCount(4);
       const article = page.locator('.lia-article');
       const articleToggle = article.locator('details').first().locator(':scope > summary');
