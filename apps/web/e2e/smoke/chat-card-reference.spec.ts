@@ -236,10 +236,11 @@ for (const sample of samples) {
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
       .analyze();
     expect(accessibility.violations).toEqual([]);
-    await page.setViewportSize({ width: sample.width, height: 4000 });
+    // Keep the audited viewport for captures. A 4000px-high WebKit backing
+    // surface plus duplicate scrolls consumed the test budget after all
+    // assertions had passed; locator screenshots already scroll each card.
     for (const domain of ['task', 'contact', 'event', 'file', 'calendar']) {
       const card = page.locator(`.lia-card.lia-${domain}`).first();
-      await card.scrollIntoViewIfNeeded();
       await card.screenshot({
         path: test.info().outputPath(`${domain}-${sample.theme}.png`),
         style: 'nextjs-portal { display: none !important; }',

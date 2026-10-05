@@ -4,7 +4,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
-import { awaitStyledPage, expectNoOverflow } from './overflow-report';
+import { prepareTheme, awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 const references: { id: string; language: string; html: string }[] = JSON.parse(
   readFileSync(
@@ -30,7 +30,12 @@ for (const sample of [
       if (!reference) throw new Error('Missing backend MCP reference');
       await page.setViewportSize({ width: sample.width, height: 1200 });
       await page.emulateMedia({ reducedMotion: 'reduce' });
-      await authenticate({ language: sample.language, response_display_mode: 'cards' });
+      await prepareTheme(page, sample.theme);
+      await authenticate({
+        language: sample.language,
+        theme: sample.theme as 'light' | 'dark' | 'oled',
+        response_display_mode: 'cards',
+      });
       await mockApi([
         ...loadedChatRoutes(),
         {
@@ -56,10 +61,6 @@ for (const sample of [
       await waitForHydration(page);
       await awaitStyledPage(page, 'MCP details');
       await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
-      await page.evaluate(theme => {
-        document.documentElement.classList.toggle('dark', theme !== 'light');
-        document.documentElement.toggleAttribute('data-oled', theme === 'oled');
-      }, sample.theme);
       const card = page.locator('.lia-mcp');
       await expect(card).toHaveCount(1);
       await expect(card).not.toContainText('SECRET_NOT_DISPLAYED');

@@ -199,6 +199,9 @@ for (const style of styles) {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.setViewportSize({ width: 375, height: 812 });
     await page.addInitScript(model => {
+      // Keep spontaneous gestures/blinks outside this geometry interval.
+      // Their random 1.9–5.6s cadence otherwise competes with the gaze oracle.
+      Math.random = () => 0.99;
       localStorage.setItem(
         'lia_eyes_widget_prefs',
         JSON.stringify({
@@ -207,7 +210,11 @@ for (const style of styles) {
         })
       );
     }, style);
-    await page.clock.install({ time: new Date('2026-09-21T12:00:00Z') });
+    const geometryTime = new Date('2026-09-21T12:00:00Z');
+    await page.clock.install({ time: geometryTime });
+    // This oracle measures the resting pose and pointer spring, before the
+    // spontaneous mouth mimics. Loading a slow page must not age the face.
+    await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 100));
     await page.goto('/en/dashboard/chat');
     const avatar = page.locator(`.lia-eyes[data-style="${style}"]`).last();
     await expect(avatar).toBeVisible();
@@ -243,6 +250,8 @@ for (const style of styles) {
           )
         );
         return {
+          expression: root.getAttribute('data-expression'),
+          gesture: root.getAttribute('data-gesture'),
           blink: Math.max(
             ...['--rig-blink-l', '--rig-blink-r'].map(key =>
               Number.parseFloat((root as HTMLElement).style.getPropertyValue(key))

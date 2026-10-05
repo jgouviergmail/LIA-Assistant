@@ -54,7 +54,11 @@ readiness is simulated. The wrapper provisions `pulseaudio` and `coturn` inside
 the disposable official container, verifies STUN with a bounded Binding request,
 and closes its services afterwards. Outside a container those packages must
 already be installed. Card scans load the selected account theme before the
-first paint; paused-clock demonstrations poll their stable step and chooser DOM.
+first paint and require the history cards before geometry measurements.
+The resting-face oracle pauses the clock before navigation and pins the random
+gesture delay beyond its measurement interval. Detail captures keep the audited viewport and let
+locator screenshots perform their own scroll, avoiding duplicate WebKit work.
+Paused-clock demonstrations poll their stable step and chooser DOM.
 The retained-result check jumps its idle wait; each reveal phase still runs
 through its animation frames and keeps its geometry assertions.
 Service workers are blocked for every engine: once the production build's

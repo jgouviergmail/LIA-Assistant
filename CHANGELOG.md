@@ -51,6 +51,8 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 - Matrice Firefox/WebKit : sortie audio native virtuelle, STUN local et silence
   du pair synthétique ; thème chargé dès l’amorçage et assertions de phase
   compatibles avec l’horloge mise en pause, sans retirer les règles d’accessibilité.
+  Mesures après montage de l’historique, horloge de géométrie figée au chargement
+  et captures sans redimensionnement ni défilement redondants.
 - Installateur : présence avatar émise et alignée avec les Settings ;
   aucun nouveau service Compose, seed, réglage obligatoire ou parcours de boot.
 

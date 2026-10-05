@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
-import { awaitStyledPage, expectNoOverflow } from './overflow-report';
+import { prepareTheme, awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 interface Reference {
   id: string;
@@ -40,8 +40,10 @@ for (const sample of samples) {
       .join('\n');
     expect(html.length).toBeGreaterThan(0);
     await page.setViewportSize({ width: sample.width, height: 1400 });
+    await prepareTheme(page, sample.theme);
     await authenticate({
       language: sample.language === 'zh-CN' ? 'zh' : sample.language,
+      theme: sample.theme as 'light' | 'dark' | 'oled',
       response_display_mode: 'html_cards',
     });
     await mockApi([
@@ -70,13 +72,14 @@ for (const sample of samples) {
     });
     await waitForHydration(page);
     await awaitStyledPage(page, 'all producer card alignment');
-    await page.evaluate(theme => {
-      document.documentElement.classList.toggle('dark', theme !== 'light');
-      document.documentElement.toggleAttribute('data-oled', theme === 'oled');
+    // Shell hydration precedes the asynchronous history render. Require the
+    // corpus before opening disclosures or measuring its painted geometry.
+    await expect(page.locator('[data-card-version="2"] > .lia-card').first()).toBeVisible();
+    await page.evaluate(() => {
       document.querySelectorAll<HTMLDetailsElement>('.lia-card details').forEach(value => {
         value.open = true;
       });
-    }, sample.theme);
+    });
     const geometry = await page.evaluate(() => {
       const issues: string[] = [];
       let measured = 0;
