@@ -8,10 +8,12 @@
  */
 import { test as base, expect } from '@playwright/test';
 import { installApiCatchAll, registerRoutes, stopApiRequests, type MockRoute } from './api-mock';
+import { createApiNetworkGuard, type ApiNetworkGuard } from './api-network-guard';
 import { dashboardShellMocks } from './dashboard-shell';
 import { makeTestUser, type TestUser } from './test-user';
 
 interface Fixtures {
+  apiNetworkGuard: ApiNetworkGuard;
   /** Auto-installed lowest-priority catch-all (un-mocked API → 501). */
   _apiIsolation: void;
   /** Register specific API mocks (win over the catch-all). */
@@ -21,10 +23,25 @@ interface Fixtures {
 }
 
 export const test = base.extend<Fixtures>({
+  apiNetworkGuard: async ({ baseURL }, provide) => {
+    if (baseURL && new URL(baseURL).protocol !== 'http:') {
+      throw new Error('Hermetic E2E requires an HTTP app server; set E2E_BASE_URL to http://...');
+    }
+    const guard = await createApiNetworkGuard();
+    try {
+      await provide(guard);
+    } finally {
+      await guard.close();
+    }
+  },
+  proxy: async ({ apiNetworkGuard }, provide) => {
+    await provide(apiNetworkGuard.proxy);
+  },
   _apiIsolation: [
-    async ({ page }, provide) => {
+    async ({ page, apiNetworkGuard }, provide) => {
       await installApiCatchAll(page);
       await provide();
+      apiNetworkGuard.quarantine();
       await stopApiRequests(page);
     },
     { auto: true, timeout: 10_000 },

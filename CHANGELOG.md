@@ -62,6 +62,8 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 - Isolation API conservée pendant la fermeture des navigateurs : requêtes en
   attente annulées, notifications de sortie bloquées et preuve par serveur local
   sur les trois moteurs. Les appels inattendus conservent leur erreur explicite.
+  Une garde de transport par contexte couvre les envois keepalive détachés de
+  Chromium et refuse les tunnels opaques sans remplacer le document d'échec.
   Les callbacks différés finissent dans leur test ; les attentes externes sont annulables.
   Les parcours de recherche chargent le thème du compte avant navigation ;
   le défilement vérifie séparément l’envoi et la fin des réponses immédiates ou différées.

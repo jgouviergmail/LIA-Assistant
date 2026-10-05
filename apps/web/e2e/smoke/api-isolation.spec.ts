@@ -1,5 +1,6 @@
 /** The API boundary must remain hermetic while the browser closes its page. */
 import { createServer, type Server } from 'node:http';
+import { connect } from 'node:net';
 import { test as appTest, expect, idleNotificationStream, waitForMockGate } from '../fixtures';
 
 interface LocalServer {
@@ -19,7 +20,20 @@ const test = appTest.extend<object, { localServer: LocalServer }>({
           response.writeHead(500).end('API request escaped the browser routes');
           return;
         }
+        if (request.url === '/isolation-stream') {
+          response.writeHead(200, { 'Content-Type': 'text/plain' });
+          response.write('Stream remains open until the context quarantines it');
+          return;
+        }
         response.writeHead(200, { 'Content-Type': 'text/html' }).end('<h1>API isolation</h1>');
+      });
+      server.on('connect', (request, socket) => {
+        escaped.push(`CONNECT ${request.url}`);
+        socket.end('HTTP/1.1 500 Tunnel escaped\r\nConnection: close\r\n\r\n');
+      });
+      server.on('upgrade', (request, socket) => {
+        escaped.push(`UPGRADE ${request.url}`);
+        socket.end('HTTP/1.1 500 Upgrade escaped\r\nConnection: close\r\n\r\n');
       });
       await listen(server);
       const address = server.address();
@@ -135,6 +149,104 @@ test('an unexpected API call retains its explicit 501 response', async ({ page, 
   });
 });
 
+test('the transport boundary rejects API reads and native pagehide sends outside page routes', async ({
+  page,
+  localServer,
+  apiNetworkGuard,
+}) => {
+  await page.goto(localServer.origin);
+  // Model the interception lost when a target is deleted, while observing real
+  // browser sends and the transport response directly on the live target.
+  await page.unrouteAll({ behavior: 'wait' });
+  const response = await page.evaluate(async () => {
+    const result = await fetch('/api/v1/isolation/transport-boundary');
+    return { status: result.status, body: await result.json() };
+  });
+  expect(response).toEqual({
+    status: 501,
+    body: {
+      error: 'unmocked_api_call',
+      method: 'GET',
+      url: `${localServer.origin}/api/v1/isolation/transport-boundary`,
+    },
+  });
+  await page.evaluate(() => {
+    window.addEventListener('pagehide', () => {
+      navigator.sendBeacon('/api/v1/avatars/sessions/release?fixture_iteration=transport', '{}');
+      void fetch('/api/v1/avatars/sessions/failure?fixture_iteration=transport', {
+        method: 'POST',
+        body: '{}',
+        keepalive: true,
+      }).catch(() => undefined);
+    });
+  });
+  await page.goto(`${localServer.origin}/after-pagehide`);
+  await expect
+    .poll(() =>
+      apiNetworkGuard.blockedRequests.filter(request => request.includes('/sessions/')).sort()
+    )
+    .toEqual([
+      `POST ${localServer.origin}/api/v1/avatars/sessions/failure?fixture_iteration=transport`,
+      `POST ${localServer.origin}/api/v1/avatars/sessions/release?fixture_iteration=transport`,
+    ]);
+  expect(localServer.escaped).toEqual([]);
+});
+
+test('opaque CONNECT and unmocked WebSocket upgrades never reach the server', async ({
+  localServer,
+  apiNetworkGuard,
+}) => {
+  const proxy = new URL(apiNetworkGuard.proxy.server);
+  const target = new URL(localServer.origin).host;
+  for (const request of [
+    `CONNECT ${target} HTTP/1.1\r\nHost: ${target}\r\n\r\n`,
+    `GET ${localServer.origin}/api/v1/isolation/socket HTTP/1.1\r\nHost: ${target}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n`,
+  ]) {
+    const response = await new Promise<string>((resolve, reject) => {
+      const socket = connect(Number(proxy.port), proxy.hostname, () => socket.write(request));
+      const chunks: Buffer[] = [];
+      socket.on('data', chunk => chunks.push(chunk));
+      socket.once('error', reject);
+      socket.once('end', () => resolve(Buffer.concat(chunks).toString()));
+    });
+    expect(response).toMatch(/^HTTP\/1\.1 501 Unmocked transport\r\n/);
+  }
+  // Chromium may also probe its configured proxy with its own denied CONNECT.
+  // These assertions observe exactly the two requests sent to this test server.
+  expect(apiNetworkGuard.blockedRequests.filter(request => request.includes(target))).toEqual([
+    `CONNECT ${target}`,
+    `UPGRADE ${localServer.origin}/api/v1/isolation/socket`,
+  ]);
+  expect(localServer.escaped).toEqual([]);
+});
+
+test.describe.serial('a cancelled upstream response stays in its owning test', () => {
+  test('quarantine ends an unfinished HTTP body without a worker error', async ({
+    page,
+    localServer,
+    apiNetworkGuard,
+  }) => {
+    await page.goto(localServer.origin);
+    const status = await page.evaluate(async () => {
+      const response = await fetch('/isolation-stream');
+      void response.text().catch(() => {
+        document.title = 'Upstream body cancelled';
+      });
+      return response.status;
+    });
+    expect(status).toBe(200);
+    apiNetworkGuard.quarantine();
+    await expect(page).toHaveTitle('Upstream body cancelled');
+    expect(localServer.escaped).toEqual([]);
+  });
+
+  test('the following context can read its document normally', async ({ page, localServer }) => {
+    await page.goto(localServer.origin);
+    await expect(page.getByRole('heading')).toHaveText('API isolation');
+    expect(localServer.escaped).toEqual([]);
+  });
+});
+
 for (const iteration of [1, 2, 3, 4, 5]) {
   test(`pending reads, SSE and unload notifications remain isolated (${iteration})`, async ({
     page,
@@ -156,24 +268,35 @@ for (const iteration of [1, 2, 3, 4, 5]) {
           pending.push(new URL(route.request().url()).pathname);
         },
       },
-      { url: '**/api/v1/avatars/sessions/release', method: 'POST', status: 204 },
-      { url: '**/api/v1/avatars/sessions/failure', method: 'POST', status: 204 },
+      {
+        url: '**/api/v1/avatars/sessions/release?fixture_iteration=*',
+        method: 'POST',
+        status: 204,
+      },
+      {
+        url: '**/api/v1/avatars/sessions/failure?fixture_iteration=*',
+        method: 'POST',
+        status: 204,
+      },
     ]);
     await page.goto(localServer.origin);
-    await page.evaluate(() => {
+    await page.evaluate(fixtureIteration => {
       new EventSource('/api/v1/notifications/stream');
       for (const name of ['config', 'health', 'messages']) {
         void fetch(`/api/v1/isolation/pending/${name}`).catch(() => undefined);
       }
       window.addEventListener('pagehide', () => {
-        navigator.sendBeacon('/api/v1/avatars/sessions/release', '{}');
-        void fetch('/api/v1/avatars/sessions/failure', {
+        navigator.sendBeacon(
+          `/api/v1/avatars/sessions/release?fixture_iteration=${fixtureIteration}`,
+          '{}'
+        );
+        void fetch(`/api/v1/avatars/sessions/failure?fixture_iteration=${fixtureIteration}`, {
           method: 'POST',
           body: '{}',
           keepalive: true,
         }).catch(() => undefined);
       });
-    });
+    }, iteration);
     await expect
       .poll(() => pending.slice().sort())
       .toEqual([

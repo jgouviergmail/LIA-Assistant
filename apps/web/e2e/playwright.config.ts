@@ -11,16 +11,14 @@ import { defineConfig, devices } from '@playwright/test';
  * Execution model:
  *  - Local proof + CI run inside the official Playwright image (glibc); the
  *    Alpine dev container cannot run Playwright's bundled browsers.
- *  - `E2E_BASE_URL` points at the server under test. When targeting the running
- *    dev container we share its network namespace, so `http://localhost:3000`
- *    is that container's `next dev`. No managed server is started in that mode.
+ *  - `E2E_BASE_URL` points at an HTTP production server. Local proofs share
+ *    the dev container's network namespace and use a separate server/port.
+ *    The transport guard refuses opaque CONNECT tunnels.
  *  - Set `E2E_MANAGED_SERVER=1` to have Playwright build+serve the app itself
  *    (used by the CI job, where the app source is present in the same image).
  */
-// The dev container serves the app over experimental HTTPS with a self-signed
-// cert (see its `pnpm run dev --experimental-https`), so the default targets
-// https and TLS errors are ignored below. CI's managed server uses http.
-const baseURL = process.env.E2E_BASE_URL ?? 'https://localhost:3000';
+// Match the managed server's IPv4 HTTP contract, also used for local proofs.
+const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3000';
 const useManagedServer = process.env.E2E_MANAGED_SERVER === '1';
 
 export default defineConfig({
@@ -63,8 +61,6 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   use: {
     baseURL,
-    // Self-signed dev cert (experimental HTTPS) — accept it for E2E only.
-    ignoreHTTPSErrors: true,
     navigationTimeout: 60_000,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

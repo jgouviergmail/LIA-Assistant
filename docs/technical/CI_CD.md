@@ -291,6 +291,14 @@ l'application lui-meme. Smoke Chromium sur PR pour la vitesse ; la **meme**
 suite rejoue chaque semaine sur Firefox/WebKit via `a11y-matrix.yml` (AC-002, `task test:e2e:browsers`),
 et la campagne manuelle NVDA/VoiceOver est dans `docs/a11y/AT_CAMPAIGN.md`.
 
+Chaque contexte navigateur utilise aussi une garde de transport locale : les
+assets passent normalement, une API HTTP hors interception reçoit `501`, les
+tunnels CONNECT sont refusés, puis la fin du test bloque les nouveaux flux avant
+la destruction du contexte. Cette frontière couvre les notifications de sortie
+qui survivent aux routes de page et au mode hors ligne de Chromium. Le document
+reste disponible pour les captures et traces d'échec ; les callbacks différés
+finissent dans leur test et les attentes externes sont annulables.
+
 L'environnement (serveur gere, IPv4, URLs d'API relatives) vit **dans la
 tache** : ce ne sont pas des reglages CI mais la facon dont la suite fonctionne,
 et les garder dans le workflow faisait diverger le run local du job.

@@ -19,11 +19,16 @@ Every spec intercepts `**/api/v1/**` and serves fixed payloads (`fixtures/`), so
 a single lowest-priority catch-all that fails any un-mocked API call with `501`,
 so a leaking request is a loud, visible failure — never a silent real hit.
 
-After each test, the fixture disables further network access and explicitly
-aborts routed API reads and SSE streams that have not received a response,
-before Playwright destroys the browser context. Firefox and WebKit can otherwise
-release paused requests or send unload beacons during that destruction. The
-document stays available for failure screenshots, page context and traces.
+Each browser context also uses a loopback transport guard. It forwards the
+page's assets and rejects HTTP API requests that escape interception with the
+same explicit `501`. Opaque CONNECT tunnels and unmocked WebSocket upgrades
+are refused. After each test it blocks new traffic and closes existing HTTP
+forwards, before Playwright destroys the context. This
+covers Chromium's detached keepalive sends, which can outlive page interception
+and its offline setting. The guard stays alive until the context has closed.
+The fixture also disables further browser network access and explicitly aborts
+routed API reads and SSE streams that have not received a response. The document
+stays available for failure screenshots, page context and traces.
 Finite mock callbacks finish before route cancellation; externally gated callbacks
 observe a teardown signal so a failed test cannot leave its gate waiting forever.
 [The isolation regression](smoke/api-isolation.spec.ts) uses a loopback HTTP
@@ -31,6 +36,7 @@ server to assert that no API request escapes during the whole lifecycle,
 including teardown, while an unexpected request still receives the explicit 501.
 
 - `fixtures/api-mock.ts` — catch-all + `registerRoutes` (LIFO ordering explained inline).
+- `fixtures/api-network-guard.ts` — context-owned transport boundary and teardown quarantine.
 - `fixtures/test-user.ts` — deterministic `User` factory mirroring `src/lib/auth.tsx`.
 - `fixtures/dashboard-shell.ts` — type-correct mocks for the endpoints the
   authenticated shell fires on every page (config, personalities, connector
@@ -90,30 +96,19 @@ fails when the manifest and the lock diverge, which is the drift guard. After
 changing a dependency, regenerate the lock inside the official image
 (`npm install --package-lock-only`) and commit both files together.
 
-## Running locally (against the dev container)
+## Running locally
 
-The dev container already serves the app over HTTPS on `:3000`. Run the suite in
-the official Playwright image sharing that container's network namespace, so
-`https://localhost:3000` is the container's `next dev`:
-
-```bash
-docker run --rm --network container:lia-web-dev \
-  -v "//d/Developpement/LIA:/repo" -w /repo/apps/web/e2e \
-  mcr.microsoft.com/playwright:v1.63.0-noble \
-  sh -c "npm ci --no-audit --no-fund && npx playwright test --reporter=list"
-```
-
-(On Git Bash, prefix with `MSYS_NO_PATHCONV=1` so the mount path is not rewritten.)
+Use an HTTP production server in the existing dev container on a separate port,
+as shown below. The suite defaults to `http://127.0.0.1:3000`; `E2E_BASE_URL`
+selects the local proof server. HTTPS targets are refused before context creation
+because their opaque tunnels cannot enforce the API transport boundary.
 
 The WHOLE repository is mounted, not `e2e/` alone: some specs read their fixtures
 outside the package (`smoke/chat-contact-photos.spec.ts` the API's contact-card
-corpus, `smoke/dashboard-radio.spec.ts` the station's music under `public/`), and
-with `e2e/` alone they fail to load (`ENOENT`, measured 2026-10-03).
+corpus, `smoke/dashboard-radio.spec.ts` the station's music under `public/`).
+On Git Bash, prefix Docker with `MSYS_NO_PATHCONV=1` to preserve mount paths.
 
-The default `baseURL` is `https://localhost:3000` with `ignoreHTTPSErrors` (the
-dev cert is self-signed). Override with `E2E_BASE_URL` to target another server.
-
-### Local PROOF runs: use a production server (recommended)
+### Production server
 
 `next dev` is unsuitable as a proof target: beyond the cache-corruption trap
 below, a page can stay **unstyled forever** (the CSS chunk never applies on a
@@ -276,6 +271,6 @@ as `Dockerfile.prod`), then `PORT=3000 HOSTNAME=0.0.0.0 node
 
 | Var                  | Default                  | Purpose                                         |
 | -------------------- | ------------------------ | ----------------------------------------------- |
-| `E2E_BASE_URL`       | `https://localhost:3000` | Server under test.                              |
+| `E2E_BASE_URL`       | `http://127.0.0.1:3000` | HTTP production server under test.               |
 | `E2E_MANAGED_SERVER` | unset                    | `1` → Playwright builds + serves the app (CI).  |
 | `CI`                 | unset                    | Enables retries, GitHub reporter, `forbidOnly`. |

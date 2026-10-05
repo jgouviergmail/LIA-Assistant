@@ -133,8 +133,8 @@ export async function stopApiRequests(page: Page): Promise<void> {
   if (!isolation || page.isClosed()) return;
   isolation.closing = true;
   isolation.cancellation.abort();
-  // Closing a context can send unload beacons outside page routes. No further
-  // network access is needed after the test; keep the document for artifacts.
+  // Keep the original document for artifacts; the context-owned proxy also
+  // guards keepalive sends that Chromium releases outside page interception.
   await page.context().setOffline(true);
   // A finite callback may still be preparing its response. Let it finish in
   // this test before aborting the routes left unanswered (including idle SSE).
