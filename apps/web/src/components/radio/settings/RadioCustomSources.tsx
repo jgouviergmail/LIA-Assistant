@@ -211,7 +211,7 @@ function SourceList({
                           stories: source.stories,
                           unheard: source.unheard,
                         })}
-                  </span>
+                  </span>{' '}
                   {source.failing && (
                     <Badge variant="warning" size="sm">
                       {t('radio.settings.news.failing')}

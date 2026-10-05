@@ -44,6 +44,7 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 - **Structure HTML** : badges en ligne, description composée des espaces RAG,
   commande d’activation des personnalités et attribut booléen des iframes
   respectent la sémantique HTML et évitent les avertissements de rendu React.
+  Les descriptions des sources Radio séparent explicitement les mots annoncés.
 
 ### Tests
 

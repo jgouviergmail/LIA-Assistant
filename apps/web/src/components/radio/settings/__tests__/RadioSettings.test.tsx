@@ -150,9 +150,7 @@ describe('RadioSettings', () => {
 
     const health = await screen.findByRole('switch', { name: 'radio.settings.source.health' });
     expect(screen.getAllByRole('switch', { name: /radio\.settings\.source\./ })).toHaveLength(4);
-    expect(
-      screen.getByRole('switch', { name: 'radio.settings.source.sent_mails' })
-    ).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'radio.settings.source.sent_mails' })).toBeChecked();
     expect(health).toBeChecked();
 
     await user.click(health);
@@ -304,7 +302,9 @@ describe('RadioSettings', () => {
 
     expect(await screen.findByText('radio.settings.news.totals')).toBeInTheDocument();
     const [wire] = screen.getAllByRole('checkbox', { name: 'radio.settings.news.with_language' });
-    expect(wire).toHaveAccessibleDescription(/radio\.settings\.news\.failing/);
+    expect(wire).toHaveAccessibleDescription(
+      'radio.settings.news.counts radio.settings.news.failing'
+    );
   });
 
   it('shows a small site mark without sending the page as a referrer, then falls back', async () => {
@@ -314,7 +314,9 @@ describe('RadioSettings', () => {
     await openSection(user, 'news');
 
     const mark = await waitFor(() => {
-      const image = container.querySelector<HTMLImageElement>('img[src="https://feeds.example/favicon.ico"]');
+      const image = container.querySelector<HTMLImageElement>(
+        'img[src="https://feeds.example/favicon.ico"]'
+      );
       expect(image).not.toBeNull();
       return image!;
     });
@@ -532,7 +534,9 @@ describe('RadioSettings', () => {
     await user.type(address, 'site.example.org');
     await user.click(screen.getByRole('button', { name: 'radio.settings.sites.check' }));
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('radio.settings.sites.rate_limited'));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('radio.settings.sites.rate_limited')
+    );
     expect(address).toHaveValue('site.example.org');
     expect(screen.queryByRole('button', { name: 'radio.settings.sites.add' })).toBeNull();
   });
@@ -558,7 +562,9 @@ describe('RadioSettings', () => {
     await user.click(screen.getByRole('button', { name: 'radio.settings.sites.check' }));
     await user.click(await screen.findByRole('button', { name: 'radio.settings.sites.add' }));
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('radio.settings.sites.rate_limited'));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('radio.settings.sites.rate_limited')
+    );
     expect(address).toHaveValue('site.example.org');
   });
 });
