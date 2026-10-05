@@ -84,7 +84,9 @@ export default defineConfig({
   // browser-matrix job (.github/workflows/a11y-matrix.yml) or on demand with
   // E2E_ALL_BROWSERS=1 — same specs, engine-diverse evidence (AC-002).
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // The full bundled renderer uses Chrome's supported new headless mode.
+    // It stays on Playwright's pinned revision and retains every audit rule.
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chromium' } },
     ...(process.env.E2E_ALL_BROWSERS === '1'
       ? [
           { name: 'firefox', use: { ...devices['Desktop Firefox'] } },

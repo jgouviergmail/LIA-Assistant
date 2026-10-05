@@ -57,6 +57,10 @@ a11y/   axe WCAG 2.x A/AA scans — smoke pages + journeys (chat, settings,
 PR scope is **Chromium** for speed. The same suite replays weekly on
 Firefox/WebKit via `.github/workflows/a11y-matrix.yml`, which runs
 `task test:e2e:browsers` (locally: the same task, or `E2E_ALL_BROWSERS=1`).
+Chromium uses the full browser bundled with the pinned Playwright image, through
+its [supported new headless mode](https://playwright.dev/docs/browsers#chromium-new-headless-mode)
+(`channel: 'chromium'`). This exercises Chrome's regular rendering path with
+the same accessibility rules, media scenarios and geometry assertions.
 On Linux, the task runs through [the native-media wrapper](../../../scripts/browser/run-native-media.sh):
 a native virtual audio sink clocks Firefox's Web Audio, and a local STUN server
 lets WebKit negotiate real loopback WebRTC. The synthetic provider continuously

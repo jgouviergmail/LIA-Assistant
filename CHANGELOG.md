@@ -57,6 +57,8 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
   compatibles avec l’horloge mise en pause, sans retirer les règles d’accessibilité.
   Mesures après montage de l’historique, horloge de géométrie figée au chargement
   et captures sans redimensionnement ni défilement redondants.
+  Chromium utilise le navigateur complet épinglé en mode headless documenté,
+  avec l’ensemble des règles axe, scénarios média et assertions géométriques.
 - Isolation API conservée pendant la fermeture des navigateurs : requêtes en
   attente annulées, notifications de sortie bloquées et preuve par serveur local
   sur les trois moteurs. Les appels inattendus conservent leur erreur explicite.
