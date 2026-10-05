@@ -651,9 +651,11 @@ Cette dépendance est limitée au
 au Pi ou au bundle d'auto-hébergement. Le
 [synthétiseur](../../scripts/wake-word/wakeword/clone.py) utilise le modèle et
 ses fichiers locaux ; le kit n'appelle ni les constructeurs de dossiers,
-ni `save_to_disk`, ni `push_to_hub`. Cette limite est consignée dans
-`scripts/audit/dependency_watch_accepted.json`, sous responsabilité du mainteneur,
-avec réexamen au 31 octobre 2026. Tout ajout de ces parcours exige de résoudre
+ni `save_to_disk`, ni `push_to_hub`. Cette limite est consignée ici sous
+responsabilité du mainteneur, avec réexamen au 31 octobre 2026. L'avis vient
+du catalogue global de Dependabot, et n'est pas une exception du registre
+automatisé des avis publiés par les dépôts que lit `deps:watch`.
+Tout ajout de ces parcours exige de résoudre
 l'alerte avant usage. Retirer l'exception dès qu'une version compatible de
 VoxCPM permet le paquet corrigé ; l'alerte GitHub reste ouverte entre-temps.
 

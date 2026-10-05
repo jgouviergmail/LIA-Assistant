@@ -18,9 +18,9 @@ VoxCPM's current dependency constraint does not admit the corrected version.
 The toolbox uses local model files and synthesis; it does not use folder-based
 dataset builders, `save_to_disk`, or `push_to_hub`. Do not add those paths with
 untrusted metadata while this constraint remains. This package never enters
-the API, Pi, or self-host bundle. The maintainer's exception and review deadline
-are recorded in [dependency_watch_accepted.json](../audit/dependency_watch_accepted.json)
-and explained in [CI_CD.md](../../docs/technical/CI_CD.md#alertes-du-kit-vocal-hors-production).
+the API, Pi, or self-host bundle. The maintainer's exception, review deadline
+and distinction from repository-published advisories are recorded in
+[CI_CD.md](../../docs/technical/CI_CD.md#alertes-du-kit-vocal-hors-production).
 
 ## The model
 
