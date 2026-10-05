@@ -14,6 +14,7 @@ import { waitFor } from '@testing-library/react';
 import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 
 import SettingsPage from '../page';
+import apiClient from '@/lib/api-client';
 
 const { toast } = vi.hoisted(() => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -70,6 +71,16 @@ function renderPage() {
 describe('Settings page — master-detail shell', () => {
   beforeEach(() => {
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    // Keep the selected sections real while routing their reads to account
+    // fixtures. A shell navigation must never start live network requests.
+    vi.spyOn(apiClient, 'get').mockImplementation(async endpoint => {
+      if (endpoint === '/chat/shortcuts') return { shortcuts: [], max_count: 4 };
+      if (endpoint === '/connectors') return { connectors: [] };
+      if (endpoint === '/auth/me/voice-mode-preference') {
+        return { stt_remote_available: true };
+      }
+      throw new Error(`Unexpected settings request: ${endpoint}`);
+    });
     window.history.replaceState({}, '', '/en/dashboard/settings');
     navState.params = new URLSearchParams();
     authState.user = { id: 'u1', email: 'u@example.test', is_superuser: false };
@@ -92,9 +103,7 @@ describe('Settings page — master-detail shell', () => {
   it('opens the picked section and records it in the URL', async () => {
     const { user } = renderPage();
     const nav = await screen.findByRole('navigation', { name: 'settings.shell.nav_label' });
-    await user.click(
-      within(nav).getByRole('button', { name: /settings\.chat_shortcuts\.title/ })
-    );
+    await user.click(within(nav).getByRole('button', { name: /settings\.chat_shortcuts\.title/ }));
 
     await waitFor(() => {
       expect(document.querySelector('#settings-section-chat-shortcuts')).not.toBeNull();
@@ -123,9 +132,7 @@ describe('Settings page — master-detail shell', () => {
   it('returns to the overview with a clean URL', async () => {
     const { user } = renderPage();
     const nav = await screen.findByRole('navigation', { name: 'settings.shell.nav_label' });
-    await user.click(
-      within(nav).getByRole('button', { name: /settings\.chat_shortcuts\.title/ })
-    );
+    await user.click(within(nav).getByRole('button', { name: /settings\.chat_shortcuts\.title/ }));
     await waitFor(() => {
       expect(document.querySelector('#settings-section-chat-shortcuts')).not.toBeNull();
     });
@@ -167,9 +174,9 @@ describe('Settings page — master-detail shell', () => {
     );
     window.history.replaceState({}, '', `/en/dashboard/settings?${navState.params}`);
     renderPage();
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(
-      'settings.connectors.bulk_reconnect.partial'
-    ));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('settings.connectors.bulk_reconnect.partial')
+    );
     expect(window.location.search).toBe('?section=connectors');
   });
 
@@ -179,9 +186,9 @@ describe('Settings page — master-detail shell', () => {
     );
     window.history.replaceState({}, '', `/en/dashboard/settings?${navState.params}`);
     renderPage();
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(
-      'settings.connectors.bulk_connect.partial'
-    ));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('settings.connectors.bulk_connect.partial')
+    );
     expect(window.location.search).toBe('?section=connectors');
   });
 
@@ -189,9 +196,11 @@ describe('Settings page — master-detail shell', () => {
     navState.params = new URLSearchParams('connector_error=account_mismatch');
     window.history.replaceState({}, '', `/en/dashboard/settings?${navState.params}`);
     renderPage();
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(
-      'settings.connectors.bulk_reconnect.account_mismatch'
-    ));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'settings.connectors.bulk_reconnect.account_mismatch'
+      )
+    );
     expect(window.location.search).toBe('?section=connectors');
   });
 });

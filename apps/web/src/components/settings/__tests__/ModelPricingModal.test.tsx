@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { ModelPricingModal } from '../AdminLLMPricingSection';
 import type { LLMModelPricing } from '../AdminLLMPricingSection';
@@ -67,11 +67,24 @@ vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: 
 // AdminLLMPricingSection.test.tsx.
 import { makeLLMPricing as editModel } from '@/__tests__/factories';
 
-function renderModal(model: LLMModelPricing | null) {
+async function renderModal(model: LLMModelPricing | null) {
   const onSubmit = vi.fn();
   const onClose = vi.fn();
-  render(<ModelPricingModal lng="en" model={model} onClose={onClose} onSubmit={onSubmit} />);
+  // Mounting reads the reasoning family even while its controls are hidden.
+  // Keep that request inside the render's act lifetime.
+  await act(async () => {
+    render(<ModelPricingModal lng="en" model={model} onClose={onClose} onSubmit={onSubmit} />);
+  });
   return { onSubmit, onClose };
+}
+
+async function changeModelName(value: string) {
+  // Changing the pair starts a fresh family read; await its state publication.
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
+      target: { value },
+    });
+  });
 }
 
 const submit = () => fireEvent.click(screen.getByText('settings.admin.llm.modal.submit_create'));
@@ -82,13 +95,11 @@ beforeEach(() => {
 });
 
 describe('add mode', () => {
-  it('renders the add title and submits the default form with a null blank cached price', () => {
-    const { onSubmit } = renderModal(null);
+  it('renders the add title and submits the default form with a null blank cached price', async () => {
+    const { onSubmit } = await renderModal(null);
     expect(screen.getByText('settings.admin.llm.modal.title_add')).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
-      target: { value: 'gpt-new' },
-    });
+    await changeModelName('gpt-new');
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '1.5' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '6.0' } });
     submit();
@@ -103,12 +114,10 @@ describe('add mode', () => {
     expect(payload.provider).toBe('openai'); // default
   });
 
-  it('re-aligns pricing_unit when the kind changes to an audio kind', () => {
-    const { onSubmit } = renderModal(null);
+  it('re-aligns pricing_unit when the kind changes to an audio kind', async () => {
+    const { onSubmit } = await renderModal(null);
     fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'tts' } });
-    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
-      target: { value: 'x' },
-    });
+    await changeModelName('x');
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '1' } });
     submit();
@@ -118,8 +127,8 @@ describe('add mode', () => {
 });
 
 describe('edit mode', () => {
-  it('renders the edit title, makes provider immutable, and preserves the cached price', () => {
-    const { onSubmit } = renderModal(editModel());
+  it('renders the edit title, makes provider immutable, and preserves the cached price', async () => {
+    const { onSubmit } = await renderModal(editModel());
     expect(screen.getByText('settings.admin.llm.modal.title_edit:claude-x')).toBeTruthy();
 
     const provider = screen.getByLabelText(
@@ -135,8 +144,8 @@ describe('edit mode', () => {
     expect(payload.model_name).toBe('claude-x');
   });
 
-  it('coerces a cleared cached price to null on submit', () => {
-    const { onSubmit } = renderModal(editModel());
+  it('coerces a cleared cached price to null on submit', async () => {
+    const { onSubmit } = await renderModal(editModel());
     fireEvent.change(screen.getByLabelText(/cached_input_label/), { target: { value: '' } });
     submitEdit();
     expect(onSubmit.mock.calls[0][0].cached_input_unit_price).toBeNull();
@@ -144,18 +153,18 @@ describe('edit mode', () => {
 });
 
 describe('reasoning gating + custom shape', () => {
-  it('hides the reasoning shape controls for a non-reasoning model (gating off)', () => {
+  it('hides the reasoning shape controls for a non-reasoning model (gating off)', async () => {
     // The template selector and the custom-shape block are gated by
     // is_reasoning_model (off by default in add mode). The gating-ON direction
     // is covered by the "custom shape" tests below, which toggle it on and then
     // find + drive the reasoning-widget controls.
-    renderModal(null);
+    await renderModal(null);
     expect(screen.queryByLabelText('Reasoning widget')).toBeNull();
     expect(screen.queryByText('Copy reasoning shape from')).toBeNull();
   });
 
   it('offers the family ladder as checkboxes, not a free-text list', async () => {
-    renderModal(null);
+    await renderModal(null);
     fireEvent.click(screen.getByLabelText('Is reasoning model'));
     // Every box is a depth this model's family really offers. The old free-text
     // field asked the operator to DECLARE a ladder the code already derives,
@@ -171,10 +180,8 @@ describe('reasoning gating + custom shape', () => {
   });
 
   it('stores nothing while every depth is kept', async () => {
-    const { onSubmit } = renderModal(null);
-    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
-      target: { value: 'm' },
-    });
+    const { onSubmit } = await renderModal(null);
+    await changeModelName('m');
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '1' } });
     fireEvent.click(screen.getByLabelText('Is reasoning model'));
@@ -194,7 +201,7 @@ describe('reasoning gating + custom shape', () => {
       reasoning_budget_range: null,
       source: 'unknown',
     });
-    renderModal(null);
+    await renderModal(null);
     fireEvent.click(screen.getByLabelText('Is reasoning model'));
     // The state that confused every reader of the old field: the column is not
     // even read here, and an empty checkbox list would look like a loading bug.
@@ -203,10 +210,8 @@ describe('reasoning gating + custom shape', () => {
   });
 
   it('emits only the depths left ticked', async () => {
-    const { onSubmit } = renderModal(null);
-    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
-      target: { value: 'm' },
-    });
+    const { onSubmit } = await renderModal(null);
+    await changeModelName('m');
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '1' } });
     fireEvent.click(screen.getByLabelText('Is reasoning model'));
@@ -222,8 +227,8 @@ describe('reasoning gating + custom shape', () => {
 });
 
 describe('capability toggles', () => {
-  it('reflects a capability switch in the submit payload', () => {
-    const { onSubmit } = renderModal(editModel({ supports_vision: true }));
+  it('reflects a capability switch in the submit payload', async () => {
+    const { onSubmit } = await renderModal(editModel({ supports_vision: true }));
     // supports_vision starts true; toggling flips it.
     fireEvent.click(screen.getByLabelText('settings.admin.llm.modal.supports_vision_label'));
     submitEdit();
@@ -237,7 +242,7 @@ describe('edit mode with a reasoning model', () => {
       is_reasoning_model: true,
       reasoning_enum_values: ['low', 'high'],
     });
-    renderModal(reasoningRow);
+    await renderModal(reasoningRow);
     // The stored narrowing arrives as ticked boxes on the model's own family
     // ladder. Nothing is fetched about templates any more: the form writes the
     // reasoning identity directly.
@@ -267,16 +272,14 @@ describe('time-slot tariffs (ADR-223)', () => {
     }
   };
 
-  const fillBasePrices = () => {
-    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
-      target: { value: 'deepseek-v4-flash' },
-    });
+  const fillBasePrices = async () => {
+    await changeModelName('deepseek-v4-flash');
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '0.22' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '0.66' } });
   };
 
-  it('is off by default and absent from an audio-billed form', () => {
-    renderModal(null);
+  it('is off by default and absent from an audio-billed form', async () => {
+    await renderModal(null);
     expect(screen.getByLabelText('settings.admin.llm.modal.time_slots_toggle_label')).toBeTruthy();
     // Switching kind to tts re-aligns pricing_unit to per_audio_hour and the
     // whole block disappears — audio always bills flat.
@@ -284,9 +287,9 @@ describe('time-slot tariffs (ADR-223)', () => {
     expect(screen.queryByLabelText('settings.admin.llm.modal.time_slots_toggle_label')).toBeNull();
   });
 
-  it('seeds one editable row on enable and submits the typed windows', () => {
-    const { onSubmit } = renderModal(null);
-    fillBasePrices();
+  it('seeds one editable row on enable and submits the typed windows', async () => {
+    const { onSubmit } = await renderModal(null);
+    await fillBasePrices();
     toggleSlots();
     fillSlotRow(0);
     submit();
@@ -307,10 +310,10 @@ describe('time-slot tariffs (ADR-223)', () => {
     ]);
   });
 
-  it('restricts a window to the working week in one press', () => {
+  it('restricts a window to the working week in one press', async () => {
     // DeepSeek bills its peaks Monday to Friday: the weekend is off-peak.
-    const { onSubmit } = renderModal(null);
-    fillBasePrices();
+    const { onSubmit } = await renderModal(null);
+    await fillBasePrices();
     toggleSlots();
     fillSlotRow(0);
     fireEvent.click(screen.getByRole('button', { name: 'recurrence.weekday_set.workdays' }));
@@ -319,8 +322,8 @@ describe('time-slot tariffs (ADR-223)', () => {
     expect(onSubmit.mock.calls[0][0].time_slots[0].weekdays).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it("shows an existing window's days, the weekend unpressed", () => {
-    renderModal(
+  it("shows an existing window's days, the weekend unpressed", async () => {
+    await renderModal(
       editModel({
         time_slots: [
           {
@@ -349,14 +352,14 @@ describe('time-slot tariffs (ADR-223)', () => {
     );
   });
 
-  it('blocks submit and announces the error when every row was removed', () => {
+  it('blocks submit and announces the error when every row was removed', async () => {
     // A row with empty required fields is stopped by NATIVE constraint
     // validation before the custom guard (both jsdom and real browsers);
     // the reachable 'incomplete' case is an emptied row list — no required
     // field remains, so only the guard stands between the admin and a
     // windowed tariff with zero windows.
-    const { onSubmit } = renderModal(null);
-    fillBasePrices();
+    const { onSubmit } = await renderModal(null);
+    await fillBasePrices();
     toggleSlots();
     fireEvent.click(
       screen.getByLabelText('settings.admin.llm.modal.time_slots_remove:1', { exact: false })
@@ -376,9 +379,9 @@ describe('time-slot tariffs (ADR-223)', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects overlapping windows with the dedicated message', () => {
-    const { onSubmit } = renderModal(null);
-    fillBasePrices();
+  it('rejects overlapping windows with the dedicated message', async () => {
+    const { onSubmit } = await renderModal(null);
+    await fillBasePrices();
     toggleSlots();
     fillSlotRow(0);
     fireEvent.click(screen.getByText('settings.admin.llm.modal.time_slots_add'));
@@ -391,8 +394,8 @@ describe('time-slot tariffs (ADR-223)', () => {
     );
   });
 
-  it('seeds the editor from an existing windowed model and clears via the toggle', () => {
-    const { onSubmit } = renderModal(
+  it('seeds the editor from an existing windowed model and clears via the toggle', async () => {
+    const { onSubmit } = await renderModal(
       editModel({
         time_slots: [
           {
@@ -418,8 +421,8 @@ describe('time-slot tariffs (ADR-223)', () => {
     expect(payload.time_slots).toHaveLength(1);
   });
 
-  it('removes a window row via its labelled remove button', () => {
-    renderModal(null);
+  it('removes a window row via its labelled remove button', async () => {
+    await renderModal(null);
     toggleSlots();
     fireEvent.click(screen.getByText('settings.admin.llm.modal.time_slots_add'));
     expect(document.getElementById('time-slot-1-start')).toBeTruthy();
@@ -432,7 +435,7 @@ describe('time-slot tariffs (ADR-223)', () => {
 });
 
 describe('mobile scroll architecture', () => {
-  it('scrolls on the overlay and centers via a min-h-full wrapper, never on the flex container itself', () => {
+  it('scrolls on the overlay and centers via a min-h-full wrapper, never on the flex container itself', async () => {
     // Regression pin for the phone-height bug: with `items-center` and
     // `overflow-y-auto` on the SAME element, a panel taller than the
     // viewport is centered first and clipped above the scroll origin —
@@ -441,7 +444,7 @@ describe('mobile scroll architecture', () => {
     // scroll range lost). The cure is structural and CSS-only, so the
     // oracle is structural: the overlay owns the scroll, an inner
     // min-h-full wrapper owns the centering.
-    renderModal(null);
+    await renderModal(null);
     const overlay = screen.getByRole('dialog');
     expect(overlay.className).toContain('overflow-y-auto');
     expect(overlay.className).not.toContain('items-center');
@@ -452,17 +455,15 @@ describe('mobile scroll architecture', () => {
 });
 
 describe('the audio pair (ADR-300)', () => {
-  const fillRequired = () => {
-    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
-      target: { value: 'gemini-live-x' },
-    });
+  const fillRequired = async () => {
+    await changeModelName('gemini-live-x');
     fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '0.75' } });
     fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '4.5' } });
   };
 
-  it('submits a whole pair as two values', () => {
-    const { onSubmit } = renderModal(null);
-    fillRequired();
+  it('submits a whole pair as two values', async () => {
+    const { onSubmit } = await renderModal(null);
+    await fillRequired();
     fireEvent.change(screen.getByLabelText(/audio_input_label/), { target: { value: '3' } });
     fireEvent.change(screen.getByLabelText(/audio_output_label/), { target: { value: '12' } });
     submit();
@@ -471,9 +472,9 @@ describe('the audio pair (ADR-300)', () => {
     expect(payload.audio_output_unit_price).toBe('12');
   });
 
-  it('blocks half a pair with an alert next to the cells, until the pair is whole', () => {
-    const { onSubmit } = renderModal(null);
-    fillRequired();
+  it('blocks half a pair with an alert next to the cells, until the pair is whole', async () => {
+    const { onSubmit } = await renderModal(null);
+    await fillRequired();
     fireEvent.change(screen.getByLabelText(/audio_input_label/), { target: { value: '3' } });
     submit();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -487,14 +488,14 @@ describe('the audio pair (ADR-300)', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it('hides the pair on an audio unit — the unit already bills the audio', () => {
-    renderModal(null);
+  it('hides the pair on an audio unit — the unit already bills the audio', async () => {
+    await renderModal(null);
     fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'tts' } });
     expect(screen.queryByLabelText(/audio_input_label/)).toBeNull();
   });
 
-  it('seeds the pair from the row being edited', () => {
-    const { onSubmit } = renderModal(
+  it('seeds the pair from the row being edited', async () => {
+    const { onSubmit } = await renderModal(
       editModel({ audio_input_unit_price: '3.000000', audio_output_unit_price: '12.000000' })
     );
     expect((screen.getByLabelText(/audio_input_label/) as HTMLInputElement).value).toBe('3.000000');

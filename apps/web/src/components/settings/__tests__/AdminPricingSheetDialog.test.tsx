@@ -6,7 +6,7 @@
  * plan nobody looked at.
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -187,7 +187,9 @@ describe('AdminPricingSheetDialog', () => {
       setup();
       await upload();
 
-      await waitFor(() => expect(screen.getByText(/unchanged.*2|2.*unchanged/i)).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByText(/unchanged.*2|2.*unchanged/i)).toBeInTheDocument()
+      );
     });
   });
 
@@ -231,9 +233,7 @@ describe('AdminPricingSheetDialog', () => {
       setup({ onPreview: vi.fn().mockRejectedValue(new Error('workbook exceeds the limit')) });
       await upload();
 
-      await waitFor(() =>
-        expect(screen.getByRole('alert')).toHaveTextContent(/exceeds the limit/)
-      );
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/exceeds the limit/));
     });
   });
 
@@ -284,7 +284,8 @@ describe('AdminPricingSheetDialog', () => {
       await userEvent.click(button);
 
       expect(held).toHaveBeenCalledTimes(1);
-      release(report({ applied: true }));
+      await act(async () => release(report({ applied: true })));
+      expect(await screen.findByText(/applied_title/)).toBeInTheDocument();
     });
 
     it('keeps the control focusable while it works', async () => {
@@ -301,7 +302,8 @@ describe('AdminPricingSheetDialog', () => {
 
       expect(button).toHaveAttribute('aria-disabled', 'true');
       expect(button).not.toBeDisabled();
-      release(report({ applied: true }));
+      await act(async () => release(report({ applied: true })));
+      expect(await screen.findByText(/applied_title/)).toBeInTheDocument();
     });
   });
 

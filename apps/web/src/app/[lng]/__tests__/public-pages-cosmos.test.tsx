@@ -24,8 +24,15 @@ vi.mock('@/components/seo/JsonLd', async importOriginal => ({
 vi.mock('@/components/landing/LandingHeader', () => ({
   LandingHeader: () => <div data-testid="landing-header" />,
 }));
+// The pre-paint script belongs to server rendering; RTL mounts client trees.
+vi.mock('@/components/landing/cosmic/CosmosDarkFirst', () => ({
+  CosmosDarkFirst: () => <div data-testid="cosmos-dark-first" />,
+}));
 vi.mock('@/components/landing/more/MoreContent', () => ({
   MoreContent: () => <div data-testid="more-content" />,
+}));
+vi.mock('@/components/showroom/LiveDemoInvitation', () => ({
+  LiveDemoInvitation: () => <div data-testid="live-demo-invitation" />,
 }));
 vi.mock('@/components/guides/StoryContent', () => ({
   StoryContent: () => <div data-testid="story-content" />,
@@ -121,6 +128,7 @@ describe('public pages — cosmos identity', () => {
     expect(container.querySelector('.cosmos-calm')).not.toBeInTheDocument();
     expect(getByTestId('more-content')).toBeInTheDocument();
     expect(getByTestId('cosmic-backdrop')).toBeInTheDocument();
+    expect(getByTestId('cosmos-dark-first')).toBeInTheDocument();
     expect(getByTestId('public-footer')).toBeInTheDocument();
     expect(getByTestId('jsonld-breadcrumb')).toBeInTheDocument();
   });
@@ -140,6 +148,7 @@ describe('public pages — cosmos identity', () => {
     // Cosmos shell preserved in both branches.
     expect(container.querySelector('.landing-page.cosmos')).toBeInTheDocument();
     expect(getByTestId('guided-showroom')).toBeInTheDocument();
+    expect(getByTestId('live-demo-invitation')).toBeInTheDocument();
     // The guided branch must never mount the credentialed TrackView emitter,
     // nor the legacy mockup/planetarium composition.
     expect(queryByTestId('track-view')).not.toBeInTheDocument();

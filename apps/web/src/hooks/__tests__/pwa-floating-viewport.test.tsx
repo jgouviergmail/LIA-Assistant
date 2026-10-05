@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { useRef } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { useEyesDrag } from '@/components/eyes/useEyesDrag';
@@ -16,6 +16,7 @@ function Eyes({ visible }: { visible: boolean }) {
   ) : null;
 }
 afterEach(() => {
+  cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   useEyesWidgetStore.getState().reset();

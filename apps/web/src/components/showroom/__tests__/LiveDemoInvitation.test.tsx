@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -73,16 +73,16 @@ describe('LiveDemoInvitation', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders nothing when the operator switched the link off', () => {
+  it('renders nothing when the operator switched the link off', async () => {
     mockLink(false, null);
-    const { container } = render(<LiveDemoInvitation lng="fr" />);
+    const { container } = await act(async () => render(<LiveDemoInvitation lng="fr" />));
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders nothing when no URL is served, even if enabled', () => {
+  it('renders nothing when no URL is served, even if enabled', async () => {
     // Defence in depth: the API already withholds the URL when off.
     mockLink(true, null);
-    const { container } = render(<LiveDemoInvitation lng="fr" />);
+    const { container } = await act(async () => render(<LiveDemoInvitation lng="fr" />));
     expect(container).toBeEmptyDOMElement();
   });
 

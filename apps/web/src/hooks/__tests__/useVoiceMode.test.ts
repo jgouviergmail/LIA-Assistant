@@ -264,25 +264,27 @@ describe('useVoiceMode — enable / wake-word listening', () => {
     useLiveStore.getState().begin('s1');
     useLiveStore.getState().apply('minted');
     useLiveStore.getState().apply('setup_complete');
+    const { result, unmount } = await renderEnabled();
     try {
-      const { result } = await renderEnabled();
       expect(result.current.state).toBe('listening');
       expect(h.wakeOptions?.enabled).toBe(false);
       expect(result.current.wakeWordState).toBe('idle');
       expect(h.services).toHaveLength(0);
     } finally {
+      unmount();
       useLiveStore.getState().reset();
     }
   });
 
   it('stands aside while the radio plays: its host saying the name must not wake LIA (ADR-324)', async () => {
     useRadioStore.getState().setView({ ...IDLE_RADIO_VIEW, status: 'playing', sessionId: 'r1' });
+    const { result, unmount } = await renderEnabled();
     try {
-      const { result } = await renderEnabled();
       expect(result.current.state).toBe('listening');
       expect(h.wakeOptions?.enabled).toBe(false);
       expect(h.services).toHaveLength(0);
     } finally {
+      unmount();
       useRadioStore.getState().setView(IDLE_RADIO_VIEW);
     }
   });

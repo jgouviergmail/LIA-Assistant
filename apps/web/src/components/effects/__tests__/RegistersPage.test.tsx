@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { RegistersPage } from '@/components/effects/RegistersPage';
@@ -84,7 +84,7 @@ describe('RegistersPage', () => {
     render(<RegistersPage lng="en" />);
     const actions = screen.getByRole('tab', { name: /Actions/ });
 
-    actions.focus();
+    act(() => actions.focus());
     await userEvent.keyboard('{ArrowRight}');
 
     expect(screen.getByRole('tab', { name: /Consultations/ })).toHaveFocus();

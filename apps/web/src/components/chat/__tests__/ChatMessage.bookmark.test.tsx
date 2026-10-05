@@ -10,7 +10,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeMessage, makeUser } from '@/__tests__/factories';
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
 import { BookmarkStateProvider } from '@/lib/bookmark-state-context';
 import { usePsycheStore } from '@/stores/psycheStore';
 import type { Message } from '@/types/chat';
@@ -26,11 +26,18 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { ChatMessage, type ChatMessageProps } from '../ChatMessage';
 
-function renderInChat(message: Message, props: Partial<ChatMessageProps> = {}, enabled = true) {
-  return renderWithProviders(
-    <BookmarkStateProvider enabled={enabled}>
-      <ChatMessage message={message} isUser={false} {...props} />
-    </BookmarkStateProvider>
+async function renderInChat(
+  message: Message,
+  props: Partial<ChatMessageProps> = {},
+  enabled = true
+) {
+  // Finish the provider's initial bookmark read before checking the action row.
+  return act(async () =>
+    renderWithProviders(
+      <BookmarkStateProvider enabled={enabled}>
+        <ChatMessage message={message} isUser={false} {...props} />
+      </BookmarkStateProvider>
+    )
   );
 }
 
@@ -42,8 +49,8 @@ beforeEach(() => {
 });
 
 describe('the bookmark toggle on a bubble', () => {
-  it('sits in the action row of an archived answer, beside copy', () => {
-    renderInChat(makeMessage({ metadata: { message_db_id: 'db-1' } }));
+  it('sits in the action row of an archived answer, beside copy', async () => {
+    await renderInChat(makeMessage({ metadata: { message_db_id: 'db-1' } }));
 
     const toggle = screen.getByTestId('bookmark-toggle');
     const copy = screen.getByRole('button', { name: 'chat.message.copy' });
@@ -51,8 +58,8 @@ describe('the bookmark toggle on a bubble', () => {
     expect(copy.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('is offered on a proactive notification too — it is an answer worth keeping', () => {
-    renderInChat(
+  it('is offered on a proactive notification too — it is an answer worth keeping', async () => {
+    await renderInChat(
       makeMessage({
         metadata: {
           type: 'proactive_interest',
@@ -66,8 +73,8 @@ describe('the bookmark toggle on a bubble', () => {
     expect(screen.getByTestId('bookmark-toggle')).toBeInTheDocument();
   });
 
-  it('is absent while the answer is still streaming', () => {
-    renderInChat(makeMessage({ metadata: { message_db_id: 'db-1' } }), {
+  it('is absent while the answer is still streaming', async () => {
+    await renderInChat(makeMessage({ metadata: { message_db_id: 'db-1' } }), {
       isActiveStream: true,
       streamPhase: 'answer',
     });
@@ -75,17 +82,17 @@ describe('the bookmark toggle on a bubble', () => {
     expect(screen.queryByTestId('bookmark-toggle')).not.toBeInTheDocument();
   });
 
-  it('is absent without an archived id, and on a bubble with nothing to keep', () => {
-    const { unmount } = renderInChat(makeMessage());
+  it('is absent without an archived id, and on a bubble with nothing to keep', async () => {
+    const { unmount } = await renderInChat(makeMessage());
     expect(screen.queryByTestId('bookmark-toggle')).not.toBeInTheDocument();
     unmount();
 
-    renderInChat(makeMessage({ content: '   ', metadata: { message_db_id: 'db-1' } }));
+    await renderInChat(makeMessage({ content: '   ', metadata: { message_db_id: 'db-1' } }));
     expect(screen.queryByTestId('bookmark-toggle')).not.toBeInTheDocument();
   });
 
-  it('is absent when the instance does not offer bookmarks', () => {
-    renderInChat(makeMessage({ metadata: { message_db_id: 'db-1' } }), {}, false);
+  it('is absent when the instance does not offer bookmarks', async () => {
+    await renderInChat(makeMessage({ metadata: { message_db_id: 'db-1' } }), {}, false);
 
     expect(screen.queryByTestId('bookmark-toggle')).not.toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalled();

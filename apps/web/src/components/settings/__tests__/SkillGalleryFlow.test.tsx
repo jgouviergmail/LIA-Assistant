@@ -4,9 +4,10 @@
  * fallback, URL-import dialog contract, and the pure mappers.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import apiClient from '@/lib/api-client';
 
 const { useSkills } = vi.hoisted(() => ({ useSkills: vi.fn() }));
 vi.mock('@/hooks/useSkills', async importOriginal => {
@@ -68,8 +69,15 @@ function renderSkills() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Keep the plugin ownership query real without starting a live request.
+  vi.spyOn(apiClient, 'get').mockImplementation(async endpoint => {
+    expect(endpoint).toBe('/plugins');
+    return { plugins: [], total: 0 };
+  });
   useAppConfig.mockReturnValue({ config: null, loading: false, error: null });
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('SkillsSettings gallery', () => {
   it('opens the detail modal from a card, with provenance warning for user skills', async () => {

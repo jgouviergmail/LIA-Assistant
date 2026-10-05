@@ -15,7 +15,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { fireEvent, renderWithProviders, screen } from '@/__tests__/test-utils';
 import enDict from '../../../../locales/en/translation.json';
 import frDict from '../../../../locales/fr/translation.json';
 import { HeartbeatSourceSwitches } from '../HeartbeatSourceSwitches';
@@ -88,7 +88,7 @@ describe('HeartbeatSourceSwitches — writing the decision', () => {
     const onChange = vi.fn();
     renderWithProviders(<HeartbeatSourceSwitches {...makeProps({ onChange })} />);
 
-    switchFor('emails').click();
+    fireEvent.click(switchFor('emails'));
 
     expect(onChange).toHaveBeenCalledWith(['emails']);
   });
@@ -101,7 +101,7 @@ describe('HeartbeatSourceSwitches — writing the decision', () => {
       />
     );
 
-    switchFor('emails').click();
+    fireEvent.click(switchFor('emails'));
 
     expect(onChange).toHaveBeenCalledWith(['weather']);
   });
@@ -114,7 +114,7 @@ describe('HeartbeatSourceSwitches — writing the decision', () => {
       <HeartbeatSourceSwitches {...makeProps({ onChange, disabledSources: ['calendar'] })} />
     );
 
-    switchFor('weather').click();
+    fireEvent.click(switchFor('weather'));
 
     expect(onChange).toHaveBeenCalledWith(['calendar', 'weather']);
   });
@@ -130,7 +130,7 @@ describe('HeartbeatSourceSwitches — writing the decision', () => {
     expect(target).toHaveAttribute('aria-disabled', 'true');
     expect(target).toBeEnabled();
 
-    target.click();
+    fireEvent.click(target);
 
     expect(onChange).not.toHaveBeenCalled();
   });

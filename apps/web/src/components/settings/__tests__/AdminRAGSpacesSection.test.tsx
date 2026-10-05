@@ -17,7 +17,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import { mutationResult, mutateSpy } from '@/__tests__/api-mocks';
 import type { ReindexStatus, SystemSpace, SystemStaleness } from '../AdminRAGSpacesSection';
 
@@ -224,6 +224,13 @@ describe('AdminRAGSpacesSection — global reindex', () => {
     await screen.findByText('handbook');
     await user.click(screen.getByRole('button', { name: `${I18N}.reindexButton` }));
     await screen.findByText(`${I18N}.reindexConfirmTitle`);
+    const dialog = screen.getByRole('alertdialog');
+    const warning = within(dialog).getByText(`${I18N}.reindexConfirmWarning`);
+    // Radix's default description is a paragraph; this compound description
+    // needs a block container so its warning and list remain valid HTML.
+    expect(warning.parentElement?.tagName).toBe('DIV');
+    expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
+    expect(dialog.querySelector('p p, p ul')).toBeNull();
     expect(triggerReindex).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'common.cancel' }));
     expect(triggerReindex).not.toHaveBeenCalled();

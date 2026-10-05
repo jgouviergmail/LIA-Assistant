@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 
 import type { BriefingPreferences } from '@/types/briefing';
 
@@ -54,13 +54,21 @@ describe('BriefingGridSettings', () => {
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ hidden: ['mails', 'weather'] }));
   });
 
-  it('persists a keyboard move through the hook', () => {
+  it('persists a keyboard move through the hook', async () => {
     renderSettings();
     // The i18n stub echoes keys without interpolation — every down button
     // shares the same accessible name; index 0 is the weather row.
-    fireEvent.click(screen.getAllByRole('button', { name: 'settings.briefing_grid.move_down' })[0]);
+    await act(async () => {
+      fireEvent.click(
+        screen.getAllByRole('button', { name: 'settings.briefing_grid.move_down' })[0]
+      );
+    });
     expect(save).toHaveBeenCalledWith(
       expect.objectContaining({ order: ['agenda', 'weather', 'mails'] })
+    );
+    expect(screen.getByText('settings.briefing_grid.position')).toHaveAttribute(
+      'aria-live',
+      'polite'
     );
   });
 

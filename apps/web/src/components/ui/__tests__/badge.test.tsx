@@ -13,6 +13,21 @@ describe('Badge', () => {
     expect(screen.getByText('New')).toBeInTheDocument();
   });
 
+  it('can be composed inside a paragraph without invalid HTML nesting', () => {
+    const { container } = renderWithProviders(
+      <p>
+        Session{' '}
+        <Badge icon={<span aria-hidden="true">●</span>} pulse>
+          Active
+        </Badge>
+      </p>
+    );
+    const badge = screen.getByText('Active');
+    expect(badge.tagName).toBe('SPAN');
+    expect(container.querySelector('p')).toContainElement(badge);
+    expect(container.querySelector('p div')).toBeNull();
+  });
+
   it('renders a leading icon when provided', () => {
     renderWithProviders(<Badge icon={<span data-testid="dot" />}>Live</Badge>);
     expect(screen.getByTestId('dot')).toBeInTheDocument();

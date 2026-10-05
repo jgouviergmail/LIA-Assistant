@@ -24,15 +24,7 @@ import {
   translatePersonality,
 } from '@/lib/api/personality';
 import { PersonalityResponse, PersonalityCreate, PersonalityUpdate } from '@/types/personality';
-import {
-  Drama,
-  GripVertical,
-  Languages,
-  Pencil,
-  Plus,
-  Star,
-  Trash2,
-} from 'lucide-react';
+import { Drama, GripVertical, Languages, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { logger } from '@/lib/logger';
 import { usePersonalityStore } from '@/stores/personalityStore';
@@ -441,20 +433,25 @@ export default function AdminPersonalitiesSection({ lng }: BaseSettingsProps) {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleActive(personality)}
-                          disabled={isPending}
-                          className="h-8 px-2"
+                        <div
+                          className="inline-flex h-8 items-center px-2"
                           title={
                             personality.is_active
                               ? t('settings.admin.personalities.tooltips.deactivate')
                               : t('settings.admin.personalities.tooltips.activate')
                           }
                         >
-                          <Switch checked={personality.is_active} className="pointer-events-none" />
-                        </Button>
+                          <Switch
+                            checked={personality.is_active}
+                            onCheckedChange={() => handleToggleActive(personality)}
+                            disabled={isPending}
+                            aria-label={
+                              personality.is_active
+                                ? t('settings.admin.personalities.tooltips.deactivate')
+                                : t('settings.admin.personalities.tooltips.activate')
+                            }
+                          />
+                        </div>
                         {!personality.is_default && (
                           <>
                             <Button

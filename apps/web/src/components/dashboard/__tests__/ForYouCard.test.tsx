@@ -7,13 +7,40 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '@/__tests__/test-utils';
 import { openCardActions, runCardAction } from '../cards/__tests__/card-actions-harness';
 
 import { ForYouCard } from '../cards/ForYouCard';
 import { settingsSectionHref } from '@/lib/settings-sections';
 import type { CardSection, ForYouData } from '@/types/briefing';
+import type { AppConfig } from '@/hooks/useAppConfig';
+
+const config: AppConfig = {
+  sse: { heartbeat_interval_seconds: 30 },
+  rate_limits: { enabled: false, per_minute: 60, burst: 10 },
+  i18n: { supported_languages: ['fr'], default_language: 'fr' },
+  features: {
+    tool_approval_enabled: true,
+    attachments_enabled: true,
+    rag_spaces_enabled: false,
+    rag_spaces_embedding_model: '',
+    journals_enabled: false,
+    activity_timeline_enabled: false,
+  },
+  api_version: 'test',
+};
+
+// Keep the configuration read real, with a hermetic transport fixture.
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  default: {
+    get: vi.fn(async (endpoint: string) => {
+      expect(endpoint).toBe('/config');
+      return config;
+    }),
+  },
+}));
 
 const push = vi.fn();
 
@@ -125,8 +152,10 @@ describe('ForYouCard', () => {
     openChat.mockClear();
   });
 
-  it('renders loops with direction-aware intents and opens the chat on click', () => {
-    renderWithProviders(<ForYouCard {...cardProps} section={section(fullData)} />);
+  it('renders loops with direction-aware intents and opens the chat on click', async () => {
+    await act(async () =>
+      renderWithProviders(<ForYouCard {...cardProps} section={section(fullData)} />)
+    );
 
     const owed = screen.getByRole('button', {
       name: /intents\.loop_owed\|subject=rappeler le plombier/,
@@ -141,12 +170,14 @@ describe('ForYouCard', () => {
     ).toBeInTheDocument();
   });
 
-  it('sends the commitments heading to the ledger section, not to the settings root', () => {
+  it('sends the commitments heading to the ledger section, not to the settings root', async () => {
     // The heading used to link to a bare `/dashboard/settings`, dropping the
     // reader at the top of ~30 collapsed accordions. `open-loops` is a
     // declared token, so the page activates the right tab, expands the
     // section and scrolls it clear of the sticky chrome.
-    renderWithProviders(<ForYouCard {...cardProps} section={section(fullData)} />);
+    await act(async () =>
+      renderWithProviders(<ForYouCard {...cardProps} section={section(fullData)} />)
+    );
 
     const heading = screen.getByRole('link', {
       name: 'dashboard.briefing.cards.for_you.loops_title',
@@ -154,8 +185,10 @@ describe('ForYouCard', () => {
     expect(heading).toHaveAttribute('href', settingsSectionHref('fr', 'open-loops'));
   });
 
-  it('shows only the UPCOMING automation — past runs are not displayed', () => {
-    renderWithProviders(<ForYouCard {...cardProps} section={section(fullData)} />);
+  it('shows only the UPCOMING automation — past runs are not displayed', async () => {
+    await act(async () =>
+      renderWithProviders(<ForYouCard {...cardProps} section={section(fullData)} />)
+    );
 
     // Past executions (owner arbitration 2026-07-30): present in the payload,
     // absent from the card.
@@ -169,16 +202,18 @@ describe('ForYouCard', () => {
     expect(screen.queryByText('dashboard.briefing.cards.for_you.next_up')).not.toBeInTheDocument();
   });
 
-  it('renders no automations block at all when only past runs exist', () => {
-    renderWithProviders(
-      <ForYouCard {...cardProps} section={section({ ...fullData, next_automation: null })} />
+  it('renders no automations block at all when only past runs exist', async () => {
+    await act(async () =>
+      renderWithProviders(
+        <ForYouCard {...cardProps} section={section({ ...fullData, next_automation: null })} />
+      )
     );
     expect(
       screen.queryByText('dashboard.briefing.cards.for_you.automations_title')
     ).not.toBeInTheDocument();
   });
 
-  it('falls back to the next-up label when no local time is provided', () => {
+  it('falls back to the next-up label when no local time is provided', async () => {
     const data = {
       ...fullData,
       next_automation: {
@@ -189,7 +224,9 @@ describe('ForYouCard', () => {
         next_trigger_local: null,
       },
     };
-    renderWithProviders(<ForYouCard {...cardProps} section={section(data)} />);
+    await act(async () =>
+      renderWithProviders(<ForYouCard {...cardProps} section={section(data)} />)
+    );
 
     expect(screen.getByText('dashboard.briefing.cards.for_you.next_up')).toBeInTheDocument();
   });
@@ -374,7 +411,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
     await runCardAction(user, 'dashboard.briefing.actions.loop_done');
 
     expect(close).toHaveBeenCalledTimes(1);
-    release(true);
+    await act(async () => release(true));
   });
 
   it('marks the busy chip aria-disabled rather than disabled', async () => {
@@ -394,7 +431,7 @@ describe('acting on a commitment where the reader is looking at it', () => {
     });
     await waitFor(() => expect(done).toHaveAttribute('aria-disabled', 'true'));
     expect(done).not.toBeDisabled();
-    release(true);
+    await act(async () => release(true));
   });
 
   it('keeps the keyboard inside the card once the row is gone', async () => {

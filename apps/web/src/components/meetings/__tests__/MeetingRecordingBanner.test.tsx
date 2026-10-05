@@ -6,12 +6,23 @@
  * the six-locale parity gate owns the wording.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import type { UseMeetingRecorderReturn } from '@/hooks/useMeetingRecorder';
+import apiClient from '@/lib/api-client';
 
 import { MeetingRecordingBanner } from '../MeetingRecordingBanner';
+
+beforeEach(() => {
+  // The format picker reads the real library hook even in phase-only tests.
+  vi.spyOn(apiClient, 'get').mockImplementation(async endpoint => {
+    expect(endpoint).toBe('/meetings/templates');
+    return { items: [], max_user_templates: 50 };
+  });
+});
+
+afterEach(() => vi.restoreAllMocks());
 
 function recorder(over: Partial<UseMeetingRecorderReturn> = {}): UseMeetingRecorderReturn {
   return {

@@ -41,6 +41,9 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 - **Galerie** : URLs de captures révisées et autorisation locale ciblée dans
   l’optimiseur d’images pour servir les images actualisées. Le lecteur agrandi
   est monté hors des sections animées pour couvrir tout le viewport.
+- **Structure HTML** : badges en ligne, description composée des espaces RAG,
+  commande d’activation des personnalités et attribut booléen des iframes
+  respectent la sémantique HTML et évitent les avertissements de rendu React.
 
 ### Tests
 
@@ -53,6 +56,8 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
   compatibles avec l’horloge mise en pause, sans retirer les règles d’accessibilité.
   Mesures après montage de l’historique, horloge de géométrie figée au chargement
   et captures sans redimensionnement ni défilement redondants.
+- Opérations asynchrones des tests React attendues jusqu’à leur résultat ;
+  interactions et changements de stores regroupés avec les mises à jour React.
 - Installateur : présence avatar émise et alignée avec les Settings ;
   aucun nouveau service Compose, seed, réglage obligatoire ou parcours de boot.
 

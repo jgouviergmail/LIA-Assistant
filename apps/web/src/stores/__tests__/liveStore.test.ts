@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { LIVE_CAPTIONS_MAX } from '@/lib/constants';
 
 import { effectiveVoiceState, useLiveHoldsMicrophone, useLiveStore } from '../liveStore';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 describe('liveStore', () => {
   beforeEach(() => {
@@ -172,9 +172,10 @@ describe('liveStore', () => {
     store.apply('setup_complete');
     store.setVoiceState('speaking');
     expect(effectiveVoiceState('listening')).toBe('speaking');
-    expect(renderHook(() => useLiveHoldsMicrophone()).result.current).toBe(true);
-    store.finish('ended');
+    const { result } = renderHook(() => useLiveHoldsMicrophone());
+    expect(result.current).toBe(true);
+    act(() => store.finish('ended'));
     expect(effectiveVoiceState('listening')).toBe('listening');
-    expect(renderHook(() => useLiveHoldsMicrophone()).result.current).toBe(false);
+    expect(result.current).toBe(false);
   });
 });

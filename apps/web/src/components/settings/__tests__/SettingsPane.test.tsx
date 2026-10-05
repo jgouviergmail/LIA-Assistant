@@ -20,6 +20,7 @@ import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import type { SettingsSearchAvailability } from '@/lib/settings-search';
 
 import { SettingsPane, SECTION_SETTLE_DEADLINE_MS } from '../SettingsPane';
+import apiClient from '@/lib/api-client';
 
 // The chat-shortcuts fixture section would fetch into the void under fake
 // timers and pollute stderr; its own tests cover the hook. Shape mirrors
@@ -64,9 +65,12 @@ function advance(ms: number) {
 describe('SettingsPane', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    // The real voice-mode section probes availability once on mount.
+    vi.spyOn(apiClient, 'get').mockResolvedValue({ stt_remote_available: true });
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('mounts the selected section, open, with its anchor id', () => {
@@ -80,12 +84,16 @@ describe('SettingsPane', () => {
   });
 
   it('offers a way back below the desktop breakpoint', () => {
-    renderWithProviders(<SettingsPane lng="en" availability={AVAILABLE} token="chat-shortcuts" onBack={() => {}} />);
+    renderWithProviders(
+      <SettingsPane lng="en" availability={AVAILABLE} token="chat-shortcuts" onBack={() => {}} />
+    );
     expect(screen.getByRole('button', { name: /settings\.shell\.back/ })).toBeInTheDocument();
   });
 
   it('says so honestly when the section renders nothing, after the settling deadline', () => {
-    renderWithProviders(<SettingsPane lng="en" availability={AVAILABLE} token="haptics" onBack={() => {}} />);
+    renderWithProviders(
+      <SettingsPane lng="en" availability={AVAILABLE} token="haptics" onBack={() => {}} />
+    );
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
 
     advance(SECTION_SETTLE_DEADLINE_MS + 500);
@@ -95,7 +103,9 @@ describe('SettingsPane', () => {
 
   it('routes the empty-state action back to the overview', () => {
     const onBack = vi.fn();
-    renderWithProviders(<SettingsPane lng="en" availability={AVAILABLE} token="haptics" onBack={onBack} />);
+    renderWithProviders(
+      <SettingsPane lng="en" availability={AVAILABLE} token="haptics" onBack={onBack} />
+    );
     advance(SECTION_SETTLE_DEADLINE_MS + 500);
 
     fireEvent.click(screen.getByRole('button', { name: /settings\.shell\.browse_all/ }));
@@ -104,7 +114,13 @@ describe('SettingsPane', () => {
 
   it('moves focus onto the settled section when asked — the search-pick contract', () => {
     const { container } = renderWithProviders(
-      <SettingsPane lng="en" availability={AVAILABLE} token="chat-shortcuts" onBack={() => {}} focusRequest={1} />
+      <SettingsPane
+        lng="en"
+        availability={AVAILABLE}
+        token="chat-shortcuts"
+        onBack={() => {}}
+        focusRequest={1}
+      />
     );
     advance(500);
     const anchor = container.querySelector<HTMLElement>('#settings-section-chat-shortcuts');
@@ -112,12 +128,14 @@ describe('SettingsPane', () => {
   });
 
   it('does not steal focus for a plain selection or deep link', () => {
-    renderWithProviders(<SettingsPane lng="en" availability={AVAILABLE} token="chat-shortcuts" onBack={() => {}} />);
+    renderWithProviders(
+      <SettingsPane lng="en" availability={AVAILABLE} token="chat-shortcuts" onBack={() => {}} />
+    );
     advance(500);
     expect(document.activeElement).toBe(document.body);
   });
 
-  it('honours one focus request ONCE — the next rail pick must not steal focus', () => {
+  it('honours one focus request ONCE — the next rail pick must not steal focus', async () => {
     // The counter stays at its value after a search pick; a later selection
     // re-runs the settling effect with the same number, and focusing again
     // would yank the caret off the rail button the reader just clicked.
@@ -133,15 +151,17 @@ describe('SettingsPane', () => {
     advance(500);
     expect(document.activeElement?.id).toBe('settings-section-chat-shortcuts');
 
-    rerender(
-      <SettingsPane
-        lng="en"
-        availability={AVAILABLE}
-        token="voice-mode"
-        onBack={() => {}}
-        focusRequest={1}
-      />
-    );
+    await act(async () => {
+      rerender(
+        <SettingsPane
+          lng="en"
+          availability={AVAILABLE}
+          token="voice-mode"
+          onBack={() => {}}
+          focusRequest={1}
+        />
+      );
+    });
     advance(500);
     expect(container.querySelector('#settings-section-voice-mode')).not.toBeNull();
     expect(document.activeElement?.id).not.toBe('settings-section-voice-mode');

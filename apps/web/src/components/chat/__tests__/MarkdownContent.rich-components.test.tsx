@@ -60,13 +60,15 @@ const RICH_FIXTURE = [
 ].join('\n');
 
 describe('MarkdownContent — rich component vocabulary', () => {
-  it('renders every advertised component with its classes intact', () => {
+  it('renders every advertised component with its classes intact', async () => {
     const { container } = render(RICH_FIXTURE);
+    // The same fixture mounts a lazy CodeBlock. Its resolved content is part
+    // of the rendered response and must settle before this test tears it down.
+    await screen.findByTestId('codeblock');
 
     expect(screen.getByRole('heading', { name: 'Synthèse', level: 2 })).toBeTruthy();
     expect(
-      container.querySelector('.lia-callout.lia-callout-success .lia-callout__title')
-        ?.textContent
+      container.querySelector('.lia-callout.lia-callout-success .lia-callout__title')?.textContent
     ).toBe('Tout est prêt');
     expect(container.querySelector('.lia-chip.lia-chip--green')).not.toBeNull();
     expect(container.querySelector('.lia-chip .material-symbols-outlined')?.textContent).toBe(
@@ -80,9 +82,7 @@ describe('MarkdownContent — rich component vocabulary', () => {
     expect(container.querySelectorAll('.lia-columns > div')).toHaveLength(2);
     expect(container.querySelectorAll('ol.lia-steps > li')).toHaveLength(2);
     expect(container.querySelector('.lia-stat .lia-stat__value')?.textContent).toBe('12');
-    expect(container.querySelector('.lia-stat .lia-stat__label')?.textContent).toBe(
-      'rendez-vous'
-    );
+    expect(container.querySelector('.lia-stat .lia-stat__label')?.textContent).toBe('rendez-vous');
 
     const details = container.querySelector('details.lia-collapsible');
     expect(details?.hasAttribute('open')).toBe(true);

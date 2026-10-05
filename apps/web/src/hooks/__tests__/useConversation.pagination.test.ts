@@ -271,11 +271,13 @@ describe('useConversation — readNewestPage (ADR-320)', () => {
     });
     const { result } = renderHook(() => useConversation());
 
-    await expect(result.current.readNewestPage()).rejects.toThrow('boom');
-    await expect(result.current.loadConversationPage()).resolves.toEqual({
-      messages: [],
-      hasMore: false,
-      nextCursor: null,
+    await act(async () => {
+      await expect(result.current.readNewestPage()).rejects.toThrow('boom');
+      await expect(result.current.loadConversationPage()).resolves.toEqual({
+        messages: [],
+        hasMore: false,
+        nextCursor: null,
+      });
     });
   });
 
@@ -286,10 +288,12 @@ describe('useConversation — readNewestPage (ADR-320)', () => {
     });
     const { result } = renderHook(() => useConversation());
 
-    await expect(result.current.readNewestPage()).resolves.toEqual({
-      messages: [],
-      hasMore: false,
-      nextCursor: null,
+    await act(async () => {
+      await expect(result.current.readNewestPage()).resolves.toEqual({
+        messages: [],
+        hasMore: false,
+        nextCursor: null,
+      });
     });
   });
 });

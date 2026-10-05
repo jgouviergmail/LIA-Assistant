@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { makeUser } from '@/__tests__/factories';
 import type { User } from '@/lib/auth';
 
@@ -34,6 +34,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   get.mockResolvedValue({ stt_remote_available: true });
   patch.mockResolvedValue({});
+  useAuth.mockReturnValue(authed());
 });
 
 describe('VoiceModeSettings — enable switch', () => {
@@ -87,16 +88,20 @@ describe('VoiceModeSettings — STT picker', () => {
     expect(patch).not.toHaveBeenCalled();
   });
 
-  it("says how to cut LIA's voice by voice, and that the wake word is in beta", () => {
-    renderWithProviders(<VoiceModeSettings lng="fr" />);
+  it("says how to cut LIA's voice by voice, and that the wake word is in beta", async () => {
+    await act(async () => {
+      renderWithProviders(<VoiceModeSettings lng="fr" />);
+    });
     expect(screen.getByText('settings.voice_mode.stop_note')).toBeInTheDocument();
     expect(screen.getByText('settings.voice_mode.enable_description')).toBeInTheDocument();
     expect(screen.getByText('settings.voice_mode.wake_beta')).toBeInTheDocument();
     expect(screen.getByText('settings.voice_mode.wake_beta_note')).toBeInTheDocument();
   });
 
-  it('never names a phrase in a language no model ships for', () => {
-    renderWithProviders(<VoiceModeSettings lng="de" />);
+  it('never names a phrase in a language no model ships for', async () => {
+    await act(async () => {
+      renderWithProviders(<VoiceModeSettings lng="de" />);
+    });
     expect(screen.getByText('settings.voice_mode.enable_description_no_model')).toBeInTheDocument();
     expect(screen.queryByText('settings.voice_mode.enable_description')).toBeNull();
     expect(screen.queryByText('settings.voice_mode.stop_note')).toBeNull();
@@ -105,9 +110,11 @@ describe('VoiceModeSettings — STT picker', () => {
 });
 
 describe('VoiceModeSettings — titled sub-blocks', () => {
-  it('names the engine picker and the hands-free switch by their titles, each with a theme icon', () => {
+  it('names the engine picker and the hands-free switch by their titles, each with a theme icon', async () => {
     useAuth.mockReturnValue(authed());
-    renderWithProviders(<VoiceModeSettings lng="en" />);
+    await act(async () => {
+      renderWithProviders(<VoiceModeSettings lng="en" />);
+    });
     const engine = screen.getByRole('group', { name: 'settings.voice_mode.stt_mode_label' });
     expect(engine).toContainElement(screen.getByRole('button', { name: /stt_mode_local/ }));
     expect(screen.getByRole('switch', { name: 'settings.voice_mode.enable' })).toBeInTheDocument();

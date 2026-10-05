@@ -56,12 +56,10 @@ describe('RadioDashboardCard', () => {
   });
 
   it('gives the language’s name to a station the listener never named', async () => {
-    renderWithProviders(<RadioDashboardCard lng="en" enabled />);
-    await vi.waitFor(() => expect(api.get).toHaveBeenCalled());
-    // Let the answer land: the name is the language's AFTER the settings arrived.
     await act(async () => {
-      await Promise.resolve();
+      renderWithProviders(<RadioDashboardCard lng="en" enabled />);
     });
+    expect(api.get).toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: 'radio.station_name' })).toBeInTheDocument();
   });
 

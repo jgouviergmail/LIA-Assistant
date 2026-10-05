@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { cleanup, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import type { UseMeetingRecorderReturn } from '@/hooks/useMeetingRecorder';
 import { useMeetingRecorderStore, type PersistedRecording } from '@/stores/meetingRecorderStore';
 import type { MeetingTemplateSummary } from '@/types/meetings';
@@ -92,6 +92,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   useMeetingRecorderStore.getState().reset();
 });
 

@@ -13,11 +13,14 @@
  *  4. without a handler nothing clickable is rendered, so no dead control.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement } from 'react';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
+import { makePsycheState } from '@/__tests__/factories';
 import type { Message } from '@/types/chat';
+import { usePsycheStore } from '@/stores/psycheStore';
 
 // Declared inside `vi.hoisted` (it runs before the module mocks) and reused by
 // the assertions, so the expected wording exists in exactly one place.
@@ -61,6 +64,35 @@ vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: () => ({ mutate: vi.f
 
 import { ChatMessageList } from '../ChatMessageList';
 
+async function render(ui: ReactElement) {
+  // The list also hydrates psyche state through microtask-started API reads.
+  return act(async () => renderWithProviders(ui));
+}
+
+const psycheState = makePsycheState();
+
+beforeEach(() => {
+  usePsycheStore.getState().reset();
+  // The real hydration hooks run; unrelated psyche reads stay hermetic.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const endpoint = String(input);
+      if (endpoint.endsWith('/psyche/state')) return Response.json(psycheState);
+      if (endpoint.endsWith('/psyche/settings'))
+        return Response.json({
+          psyche_enabled: false,
+          psyche_display_avatar: true,
+          psyche_sensitivity: 50,
+          psyche_stability: 50,
+        });
+      throw new Error(`Unexpected API read: ${endpoint}`);
+    })
+  );
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
 function message(overrides: Partial<Message> = {}): Message {
   return {
     id: 'm1',
@@ -72,8 +104,8 @@ function message(overrides: Partial<Message> = {}): Message {
 }
 
 describe('empty-chat starters', () => {
-  it('offers a way in when the conversation is empty', () => {
-    renderWithProviders(<ChatMessageList messages={[]} onStarterPick={vi.fn()} />);
+  it('offers a way in when the conversation is empty', async () => {
+    await render(<ChatMessageList messages={[]} onStarterPick={vi.fn()} />);
 
     expect(screen.getByRole('group', { name: 'Essayez par exemple' })).toBeInTheDocument();
     expect(
@@ -89,7 +121,7 @@ describe('empty-chat starters', () => {
 
   it('hands back the exact phrase the user read', async () => {
     const onStarterPick = vi.fn();
-    renderWithProviders(<ChatMessageList messages={[]} onStarterPick={onStarterPick} />);
+    await render(<ChatMessageList messages={[]} onStarterPick={onStarterPick} />);
 
     await userEvent.click(screen.getByRole('button', { name: CONTENT['chat.starters.reminder'] }));
 
@@ -97,29 +129,29 @@ describe('empty-chat starters', () => {
     expect(onStarterPick).toHaveBeenCalledTimes(1);
   });
 
-  it('never resolves a translation key as a starter', () => {
+  it('never resolves a translation key as a starter', async () => {
     // A missing key would render "chat.starters.explain" as a clickable phrase
     // and send that to the model.
-    renderWithProviders(<ChatMessageList messages={[]} onStarterPick={vi.fn()} />);
+    await render(<ChatMessageList messages={[]} onStarterPick={vi.fn()} />);
     const group = screen.getByRole('group', { name: 'Essayez par exemple' });
     expect(group.textContent).not.toContain('chat.starters');
   });
 
-  it('disappears as soon as the conversation has content', () => {
+  it('disappears as soon as the conversation has content', async () => {
     // Beginner scaffolding must not survive into a real conversation.
-    renderWithProviders(<ChatMessageList messages={[message()]} onStarterPick={vi.fn()} />);
+    await render(<ChatMessageList messages={[message()]} onStarterPick={vi.fn()} />);
     expect(screen.queryByRole('group', { name: 'Essayez par exemple' })).not.toBeInTheDocument();
   });
 
-  it('renders nothing clickable without a handler', () => {
-    renderWithProviders(<ChatMessageList messages={[]} />);
+  it('renders nothing clickable without a handler', async () => {
+    await render(<ChatMessageList messages={[]} />);
     expect(screen.queryByRole('group', { name: 'Essayez par exemple' })).not.toBeInTheDocument();
     // The greeting itself is untouched.
     expect(screen.getByText('Commencez une conversation')).toBeInTheDocument();
   });
 
-  it('keeps the buttons out of any form submission path', () => {
-    renderWithProviders(<ChatMessageList messages={[]} onStarterPick={vi.fn()} />);
+  it('keeps the buttons out of any form submission path', async () => {
+    await render(<ChatMessageList messages={[]} onStarterPick={vi.fn()} />);
     for (const button of screen.getAllByRole('button')) {
       expect(button).toHaveAttribute('type', 'button');
     }

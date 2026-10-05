@@ -66,13 +66,11 @@ describe('RadioBudgetFields', () => {
 
   it('says nothing when the instance sets no bound', async () => {
     serve({ limit_eur: 0, spent_eur: 0 });
-    const { container } = renderWithProviders(<RadioBudgetFields lng="fr" />);
-
-    await vi.waitFor(() => expect(mockApi.get).toHaveBeenCalled());
-    // Nothing shows while it loads either: let the answer land before judging.
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
-    });
+    // Finish the read before judging: the loading state is empty too.
+    const { container } = await act(async () =>
+      renderWithProviders(<RadioBudgetFields lng="fr" />)
+    );
+    expect(mockApi.get).toHaveBeenCalled();
     expect(container).toBeEmptyDOMElement();
   });
 });

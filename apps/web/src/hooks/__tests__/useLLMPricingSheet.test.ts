@@ -31,7 +31,15 @@ const PLAN = {
   pricing_changes: ['gpt-4.1-mini'],
 };
 
-const REPORT = { applied: false, plan: PLAN, created: [], updated: [], deactivated: [], reactivated: [], unchanged: 3 };
+const REPORT = {
+  applied: false,
+  plan: PLAN,
+  created: [],
+  updated: [],
+  deactivated: [],
+  reactivated: [],
+  unchanged: 3,
+};
 
 function file(name = 'catalogue.xlsx'): File {
   return new File(['x'], name, {
@@ -111,10 +119,7 @@ describe('useLLMPricingSheet', () => {
 
     it('reports it is working while the upload is in flight', async () => {
       let release: (value: unknown) => void = () => {};
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockReturnValue(new Promise(resolve => (release = resolve)))
-      );
+      vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(resolve => (release = resolve))));
       const { result } = renderHook(() => useLLMPricingSheet());
 
       act(() => {
@@ -132,14 +137,20 @@ describe('useLLMPricingSheet', () => {
       mockFetch({ detail: 'workbook exceeds the limit' }, false, 400);
       const { result } = renderHook(() => useLLMPricingSheet());
 
-      await expect(result.current.preview(file())).rejects.toThrow(/limit/);
+      await act(async () => {
+        await expect(result.current.preview(file())).rejects.toThrow(/limit/);
+      });
+      expect(result.current.busy).toBe(false);
     });
 
     it('surfaces a network failure', async () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
       const { result } = renderHook(() => useLLMPricingSheet());
 
-      await expect(result.current.preview(file())).rejects.toThrow(/offline/);
+      await act(async () => {
+        await expect(result.current.preview(file())).rejects.toThrow(/offline/);
+      });
+      expect(result.current.busy).toBe(false);
     });
 
     it('stops reporting busy after a failure', async () => {
@@ -183,7 +194,10 @@ describe('useLLMPricingSheet', () => {
       mockFetch({ detail: 'the catalogue changed since this plan was reviewed' }, false, 400);
       const { result } = renderHook(() => useLLMPricingSheet());
 
-      await expect(result.current.apply(file(), 'stale')).rejects.toThrow(/changed/);
+      await act(async () => {
+        await expect(result.current.apply(file(), 'stale')).rejects.toThrow(/changed/);
+      });
+      expect(result.current.busy).toBe(false);
     });
   });
 });

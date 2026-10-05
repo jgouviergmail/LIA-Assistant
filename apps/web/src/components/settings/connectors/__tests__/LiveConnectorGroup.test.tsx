@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
 import { Accordion } from '@/components/ui/accordion';
 
 const h = vi.hoisted(() => ({
@@ -107,7 +107,8 @@ describe('LiveConnectorGroup', () => {
     await user.click(screen.getByRole('button', { name: 'cancel' }));
     expect(screen.queryByTestId('live-form')).not.toBeInTheDocument();
     await user.click(screen.getAllByTitle('settings.connectors.live.connect')[0]);
-    h.form?.onSuccess?.();
+    act(() => h.form?.onSuccess?.());
     expect(refetch).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('live-form')).not.toBeInTheDocument();
   });
 });

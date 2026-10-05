@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
 import { BoardFilters } from '@/components/workboard/BoardFilters';
 import type { BoardFilters as Filters } from '@/types/workboard';
 
@@ -192,8 +192,10 @@ describe('on a phone the block folds', () => {
     const { container } = renderFolded();
 
     const details = container.querySelector('details') as HTMLDetailsElement;
-    details.open = true;
-    details.dispatchEvent(new Event('toggle', { bubbles: false }));
+    act(() => {
+      details.open = true;
+      details.dispatchEvent(new Event('toggle', { bubbles: false }));
+    });
 
     await screen.findByLabelText('workboard.filters.search');
     expect(screen.getByRole('combobox', { name: 'workboard.filters.side' })).toBeInTheDocument();

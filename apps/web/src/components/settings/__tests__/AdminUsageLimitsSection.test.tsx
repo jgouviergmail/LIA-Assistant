@@ -52,9 +52,7 @@ function listOf(users: AdminUserUsageLimitResponse[]) {
 }
 
 function render() {
-  return renderWithProviders(
-    <AdminUsageLimitsSection lng="en" />
-  );
+  return renderWithProviders(<AdminUsageLimitsSection lng="en" />);
 }
 
 beforeEach(() => {
@@ -67,7 +65,7 @@ beforeEach(() => {
 
 describe('AdminUsageLimitsSection — table states', () => {
   it('lists the returned rows', async () => {
-    await render();
+    render();
     expect(await screen.findByText('a@b.co')).toBeInTheDocument();
   });
 

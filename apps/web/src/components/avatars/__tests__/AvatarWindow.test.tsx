@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup as cleanupReact, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AvatarWindow } from '../AvatarWindow';
 import { AvatarEngine } from '@/lib/avatars/engine';
@@ -26,13 +26,14 @@ beforeEach(() => {
   useAvatarWindowStore.setState({ size: 'sm', position: null });
 });
 afterEach(() => {
+  cleanupReact();
   cleanup();
   vi.restoreAllMocks();
 });
 it.each([
   ['en', 'Change size'],
   ['fr', 'Changer la taille'],
-])('cycles sizes through a named control in %s and keeps video muted', (locale, label) => {
+])('cycles sizes through a named control in %s and keeps video muted', async (locale, label) => {
   language.value = locale;
   const attach = vi.fn();
   const deps: AvatarEngineDeps = {
@@ -70,7 +71,7 @@ it.each([
     unmount();
     engine.dispose();
   };
-  render(<AvatarWindow />);
+  await act(async () => render(<AvatarWindow />));
   const surface = screen.getByRole('toolbar');
   expect(surface).toBeVisible();
   expect(

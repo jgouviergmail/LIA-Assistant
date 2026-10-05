@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
 
 const { useRegistryItem } = vi.hoisted(() => ({ useRegistryItem: vi.fn() }));
 vi.mock('@/lib/registry-context', () => ({ useRegistryItem }));
@@ -47,6 +47,7 @@ const MAP_ITEM = {
 beforeEach(() => vi.clearAllMocks());
 
 afterEach(() => {
+  vi.restoreAllMocks();
   delete (window as unknown as Record<string, unknown>).crossOriginIsolated;
   delete (HTMLIFrameElement.prototype as unknown as Record<string, unknown>).credentialless;
 });
@@ -75,6 +76,8 @@ describe('SkillAppWidget', () => {
 
   describe('cross-origin frame under COEP', () => {
     it('embeds the frame when the engine supports `credentialless` (Chromium)', () => {
+      // Keep console output visible and fail if React rejects the prop shape.
+      const consoleError = vi.spyOn(console, 'error');
       setEngine({ isolated: true, credentialless: true });
       useRegistryItem.mockReturnValue(MAP_ITEM);
       renderWithProviders(<SkillAppWidget registryId="r1" />);
@@ -82,11 +85,13 @@ describe('SkillAppWidget', () => {
       const frame = document.querySelector('iframe');
       expect(frame).not.toBeNull();
       expect(frame).toHaveAttribute('src', MAP_ITEM.payload.frame_url);
+      expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-popups allow-same-origin');
       // The attribute is what makes the embed work under require-corp. React
       // renders it as a boolean attribute (Next's bundled build, and the
       // standalone one since 19.3), which drops an empty value: presence is
       // the whole contract.
       expect(frame!.hasAttribute('credentialless')).toBe(true);
+      expect(consoleError).not.toHaveBeenCalled();
       expect(screen.queryByText('skill_apps.frame_unsupported')).toBeNull();
     });
 
@@ -140,14 +145,20 @@ describe('SkillAppWidget', () => {
       expect(document.querySelector('iframe')).not.toBeNull();
     });
 
-    it('never withholds a srcDoc frame — it embeds nothing cross-origin', () => {
+    it('never withholds a srcDoc frame — it embeds nothing cross-origin', async () => {
       setEngine({ isolated: true, credentialless: false });
       useRegistryItem.mockReturnValue({
         type: 'SKILL_APP',
         payload: { skill_name: 'tic-tac-toe', html_content: '<p>game</p>' },
       });
-      renderWithProviders(<SkillAppWidget registryId="r1" />);
+      // jsdom dispatches the srcDoc frame's load asynchronously; the watchdog
+      // handles that event with a React update during the initial mount.
+      await act(async () => renderWithProviders(<SkillAppWidget registryId="r1" />));
       expect(document.querySelector('iframe')).not.toBeNull();
+      expect(document.querySelector('iframe')).toHaveAttribute(
+        'sandbox',
+        'allow-scripts allow-popups'
+      );
       expect(screen.queryByText('skill_apps.frame_unsupported')).toBeNull();
     });
   });

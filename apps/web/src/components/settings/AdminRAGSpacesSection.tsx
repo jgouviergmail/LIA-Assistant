@@ -2,13 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  AlertTriangle,
-  CheckCircle,
-  Database,
-  LibraryBig,
-  RefreshCw,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle, Database, LibraryBig, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -391,12 +385,14 @@ export default function AdminRAGSpacesSection({ lng }: BaseSettingsProps) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('settings.admin.ragSpaces.reindexConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>{t('settings.admin.ragSpaces.reindexConfirmWarning')}</p>
-              <ul className="list-disc pl-4 text-sm space-y-1">
-                <li>{t('settings.admin.ragSpaces.reindexConfirmCost')}</li>
-                <li>{t('settings.admin.ragSpaces.reindexConfirmDowntime')}</li>
-              </ul>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>{t('settings.admin.ragSpaces.reindexConfirmWarning')}</p>
+                <ul className="list-disc pl-4 text-sm space-y-1">
+                  <li>{t('settings.admin.ragSpaces.reindexConfirmCost')}</li>
+                  <li>{t('settings.admin.ragSpaces.reindexConfirmDowntime')}</li>
+                </ul>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

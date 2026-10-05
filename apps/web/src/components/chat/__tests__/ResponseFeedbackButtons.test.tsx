@@ -85,7 +85,7 @@ describe('ResponseFeedbackButtons', () => {
     );
   });
 
-  it('renders in-flow chips and a full-width correction row (PERSO layout)', () => {
+  it('renders in-flow chips and a full-width correction row (PERSO layout)', async () => {
     const { container } = render(<ResponseFeedbackButtons messageDbId="msg-1" />);
     // No overlay wrapper — the chips sit in the bubble's action row.
     expect(container.querySelector('.absolute')).toBeNull();
@@ -94,9 +94,12 @@ describe('ResponseFeedbackButtons', () => {
     const input = screen.getByRole('textbox', { name: 'chat.feedback.comment_placeholder' });
     // The correction line wraps under the row (flex-wrap parent + w-full).
     expect(input.parentElement?.className).toMatch(/w-full/);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'chat.feedback.down' })).not.toBeDisabled()
+    );
   });
 
-  it('closes the correction input on Escape without sending', () => {
+  it('closes the correction input on Escape without sending', async () => {
     render(<ResponseFeedbackButtons messageDbId="msg-1" />);
     fireEvent.click(screen.getByRole('button', { name: 'chat.feedback.down' }));
 
@@ -104,6 +107,9 @@ describe('ResponseFeedbackButtons', () => {
     fireEvent.keyDown(input, { key: 'Escape' });
 
     expect(screen.queryByRole('textbox')).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'chat.feedback.down' })).not.toBeDisabled()
+    );
     expect(mutate).toHaveBeenCalledTimes(1); // only the verdict, no comment
   });
 });

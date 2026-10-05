@@ -125,6 +125,19 @@ describe('AdminPersonalitiesSection — protected default', () => {
 });
 
 describe('AdminPersonalitiesSection — row actions', () => {
+  it('toggles activity through one named switch, including keyboard activation', async () => {
+    const { user } = await renderLoaded();
+    const toggle = screen.getByRole('switch', { name: `${TIP}.deactivate` });
+    expect(toggle).toBeChecked();
+    expect(toggle.closest('button')?.parentElement?.closest('button')).toBeNull();
+
+    toggle.focus();
+    await user.keyboard(' ');
+
+    await waitFor(() => expect(updatePersonality).toHaveBeenCalledWith('p1', { is_active: false }));
+    expect(toast.success).toHaveBeenCalledWith(`${I18N}.success.deactivated`);
+  });
+
   it('deletes a non-default personality once confirmed and refreshes', async () => {
     // W4b: the destructive path now goes through the in-app dialog, so the
     // test presses the confirming button instead of stubbing window.confirm.

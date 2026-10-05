@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import type { MeetingTemplate, MeetingTemplateSummary } from '@/types/meetings';
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
@@ -125,9 +125,9 @@ async function openCategory(
 }
 
 describe('TemplatesPage', () => {
-  it('announces the first load', () => {
+  it('announces the first load', async () => {
     library.isLoading = true;
-    renderWithProviders(<TemplatesPage params={params} />);
+    await act(async () => renderWithProviders(<TemplatesPage params={params} />));
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 

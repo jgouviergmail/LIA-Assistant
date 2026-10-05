@@ -45,14 +45,14 @@ const badgeVariants = cva(
 );
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {
+  extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeVariants> {
   icon?: React.ReactNode;
   pulse?: boolean;
 }
 
 function Badge({ className, variant, size, icon, pulse, children, ...props }: BadgeProps) {
   return (
-    <div className={cn(badgeVariants({ variant, size }), className)} {...props}>
+    <span className={cn(badgeVariants({ variant, size }), className)} {...props}>
       {pulse && (
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
@@ -61,7 +61,7 @@ function Badge({ className, variant, size, icon, pulse, children, ...props }: Ba
       )}
       {icon && <span className="inline-flex">{icon}</span>}
       {children}
-    </div>
+    </span>
   );
 }
 

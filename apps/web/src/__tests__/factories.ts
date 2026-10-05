@@ -14,6 +14,37 @@ import type { AdminUserUsageLimitResponse } from '@/types/usage-limits';
 import type { LLMModelPricing } from '@/components/settings/AdminLLMPricingSection';
 import type { Message, MessageAttachmentMeta } from '@/types/chat';
 import type { ScheduledAction } from '@/hooks/useScheduledActions';
+import type { PsycheState } from '@/types/psyche';
+
+/** A neutral server snapshot for tests that hydrate the companion's store. */
+export function makePsycheState(over: Partial<PsycheState> = {}): PsycheState {
+  return {
+    id: 'psyche-1',
+    user_id: 'u1',
+    trait_openness: 0.5,
+    trait_conscientiousness: 0.5,
+    trait_extraversion: 0.5,
+    trait_agreeableness: 0.5,
+    trait_neuroticism: 0.5,
+    mood_pleasure: 0,
+    mood_arousal: 0,
+    mood_dominance: 0,
+    mood_label: 'neutral',
+    mood_color: '#9ca3af',
+    active_emotions: [],
+    relationship_stage: 'ORIENTATION',
+    relationship_depth: 0,
+    relationship_warmth_active: 0,
+    relationship_trust: 0,
+    relationship_interaction_count: 0,
+    drive_curiosity: 0.5,
+    drive_engagement: 0.5,
+    self_efficacy: {},
+    created_at: '2026-07-19T08:00:00Z',
+    updated_at: '2026-07-19T08:00:00Z',
+    ...over,
+  };
+}
 
 /**
  * A fully-populated, authenticated {@link User}. Required fields carry neutral

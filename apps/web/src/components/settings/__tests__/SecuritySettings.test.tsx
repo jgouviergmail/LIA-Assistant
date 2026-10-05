@@ -5,11 +5,12 @@
  * (confirm dialog → delete → toast, plus the error path).
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import userEvent from '@testing-library/user-event';
 import type { PasskeyCredential } from '@/hooks/useWebAuthn';
+import apiClient from '@/lib/api-client';
 
 const { useAuthFeatures, usePasskeys, useWebAuthn } = vi.hoisted(() => ({
   useAuthFeatures: vi.fn(),
@@ -24,6 +25,8 @@ vi.mock('@/components/auth/StepUpDialog', () => ({
 }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
+const { logger } = vi.hoisted(() => ({ logger: { error: vi.fn() } }));
+vi.mock('@/lib/logger', () => ({ logger }));
 
 import { SecuritySettings } from '../SecuritySettings';
 
@@ -54,7 +57,20 @@ function passkeysHook(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useAuthFeatures.mockReturnValue({ features: { mfa_enabled: true, federated_signin_enabled: true }, loading: false });
+  // Keep the real security sub-sections mounted, with hermetic status reads.
+  vi.spyOn(apiClient, 'get').mockImplementation(async endpoint => {
+    if (endpoint === '/auth/totp/status') {
+      return { active: false, confirmed_at: null, backup_codes_remaining: 0 };
+    }
+    if (endpoint === '/auth/step-up/status') {
+      return { methods: [], password_set: false, step_up_valid_until: null };
+    }
+    throw new Error(`Unexpected security request: ${endpoint}`);
+  });
+  useAuthFeatures.mockReturnValue({
+    features: { mfa_enabled: true, federated_signin_enabled: true },
+    loading: false,
+  });
   usePasskeys.mockReturnValue(passkeysHook());
   useWebAuthn.mockReturnValue({
     registerPasskey: vi.fn().mockResolvedValue(passkey()),
@@ -62,21 +78,35 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => vi.restoreAllMocks());
+
+async function renderSettings() {
+  let view: ReturnType<typeof renderWithProviders> | undefined;
+  await act(async () => {
+    view = renderWithProviders(<SecuritySettings />);
+  });
+  if (!view) throw new Error('Security settings did not render');
+  return view;
+}
+
 describe('SecuritySettings — gating', () => {
-  it('renders nothing when the instance has MFA disabled', () => {
-    useAuthFeatures.mockReturnValue({ features: { mfa_enabled: false, federated_signin_enabled: true }, loading: false });
-    const { container } = renderWithProviders(<SecuritySettings />);
+  it('renders nothing when the instance has MFA disabled', async () => {
+    useAuthFeatures.mockReturnValue({
+      features: { mfa_enabled: false, federated_signin_enabled: true },
+      loading: false,
+    });
+    const { container } = await renderSettings();
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders the section title and empty state when enabled with no passkeys', () => {
-    renderWithProviders(<SecuritySettings />);
+  it('renders the section title and empty state when enabled with no passkeys', async () => {
+    await renderSettings();
     expect(screen.getByText('settings.security.passkeys.title')).toBeInTheDocument();
     expect(screen.getByText('settings.security.passkeys.empty')).toBeInTheDocument();
   });
 
-  it('renders itself as the open settings card the shell deep-links to', () => {
-    const { container } = renderWithProviders(<SecuritySettings />);
+  it('renders itself as the open settings card the shell deep-links to', async () => {
+    const { container } = await renderSettings();
 
     // The anchor id is the deep-link contract (`?section=security-auth`): the
     // pane polls it to tell an absent section from a slow one.
@@ -90,13 +120,13 @@ describe('SecuritySettings — gating', () => {
 });
 
 describe('SecuritySettings — list', () => {
-  it('shows each passkey with label, synced badge and accessible actions', () => {
+  it('shows each passkey with label, synced badge and accessible actions', async () => {
     usePasskeys.mockReturnValue(
       passkeysHook({
         passkeys: [passkey(), passkey({ id: 'pk-2', label: null, backed_up: false })],
       })
     );
-    renderWithProviders(<SecuritySettings />);
+    await renderSettings();
 
     expect(screen.getByText('iPhone')).toBeInTheDocument();
     // Unnamed credential falls back to the translated placeholder name.
@@ -118,7 +148,7 @@ describe('SecuritySettings — enrollment', () => {
     const registerPasskey = vi.fn().mockResolvedValue(passkey());
     useWebAuthn.mockReturnValue({ registerPasskey, authenticateWithPasskey: vi.fn() });
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings />);
+    await renderSettings();
 
     await user.click(screen.getByRole('button', { name: /settings\.security\.passkeys\.add$/ }));
     await user.type(screen.getByLabelText('settings.security.passkeys.label_input'), 'PC bureau');
@@ -136,7 +166,7 @@ describe('SecuritySettings — enrollment', () => {
     const registerPasskey = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
     useWebAuthn.mockReturnValue({ registerPasskey, authenticateWithPasskey: vi.fn() });
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings />);
+    await renderSettings();
 
     await user.click(screen.getByRole('button', { name: /settings\.security\.passkeys\.add$/ }));
     await user.click(
@@ -146,6 +176,10 @@ describe('SecuritySettings — enrollment', () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.security.passkeys.add_error')
     );
+    expect(logger.error).toHaveBeenCalledWith('Passkey enrollment failed', expect.any(Error), {
+      component: 'SecuritySettings',
+    });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
 
@@ -154,7 +188,7 @@ describe('SecuritySettings — revocation', () => {
     const deletePasskey = vi.fn().mockResolvedValue(undefined);
     usePasskeys.mockReturnValue(passkeysHook({ passkeys: [passkey()], deletePasskey }));
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings />);
+    await renderSettings();
 
     await user.click(
       screen.getByRole('button', { name: 'settings.security.passkeys.revoke_aria' })
@@ -173,7 +207,7 @@ describe('SecuritySettings — revocation', () => {
     const deletePasskey = vi.fn().mockRejectedValue(new Error('500'));
     usePasskeys.mockReturnValue(passkeysHook({ passkeys: [passkey()], deletePasskey }));
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings />);
+    await renderSettings();
 
     await user.click(
       screen.getByRole('button', { name: 'settings.security.passkeys.revoke_aria' })
@@ -185,6 +219,9 @@ describe('SecuritySettings — revocation', () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('settings.security.passkeys.revoke_error')
     );
+    expect(logger.error).toHaveBeenCalledWith('Passkey revocation failed', expect.any(Error), {
+      component: 'SecuritySettings',
+    });
   });
 });
 
@@ -193,7 +230,7 @@ describe('SecuritySettings — rename', () => {
     const renamePasskey = vi.fn().mockResolvedValue(undefined);
     usePasskeys.mockReturnValue(passkeysHook({ passkeys: [passkey()], renamePasskey }));
     const user = userEvent.setup();
-    renderWithProviders(<SecuritySettings />);
+    await renderSettings();
 
     await user.click(
       screen.getByRole('button', { name: 'settings.security.passkeys.rename_aria' })
