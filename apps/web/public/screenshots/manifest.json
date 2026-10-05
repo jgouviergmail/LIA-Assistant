@@ -1,0 +1,96 @@
+{
+  "revision": "a1866e0ec71522fa",
+  "capturedAt": "2026-10-05T14:43:58.831Z",
+  "fixtureTime": "2026-10-05T07:30:00Z",
+  "locale": "en",
+  "theme": "light",
+  "data": "Fictional demonstration data only; no account or backend access.",
+  "sourceCommit": "8834071f3f9415f0374e1fee35d654584182c023",
+  "sourceIncludesLocalChanges": true,
+  "images": [
+    {
+      "file": "homepage.png",
+      "sha256": "8613bf69f7333ff052dd2731ce014c2be8c98dca4da23215b70898bb624e5cd4",
+      "width": 1440,
+      "height": 2265
+    },
+    {
+      "file": "chat.png",
+      "sha256": "a439a43712088e7408e499ebe5543e0cc7273745559d2e8f6d22a4db69968e73",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "chat-debug-panel.png",
+      "sha256": "ead10878c02eabb41212cc4aaff4b3ff7b1c3fe5aa74618626898553a1c2f061",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "chat-interactive-skills.png",
+      "sha256": "20957413132a9c81244867d0127e235fcbd42ba0a91502b8e02190af9384ac90",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "settings-preferences.png",
+      "sha256": "f6e38303e73b8066f8a983373f6f3b7cf43fa5b89bfcce8536144aac32fc1d5c",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "settings-features.png",
+      "sha256": "49a31814808587e66dfb8436d78ba7c249f6f3e7c66eb47e156a2bfca1ad88b2",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "settings-features-memory.png",
+      "sha256": "541e7a46ebc7cfd561b07e3888a428f887381109f46ba35c588abc342c15bb87",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "settings-features-psyche.png",
+      "sha256": "6c8a8c83cf814c10f75fe9e05092a3125b6835554f4b2754eda41f2f9f90a00a",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "settings-administration.png",
+      "sha256": "7f1b2588ff87484bf8b800446cf62fda9f38e7970f134d4a2c4493367cab047b",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "settings-administration-oneclick.png",
+      "sha256": "82f1aa36f42219a6c25adb75ff5784d5e4409dc6387d7fbe89d0336f341bc4ba",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "settings-administration-llm.png",
+      "sha256": "08ceef5648d3c173d9cfce6ea52ce12872a45481e8d2ea64914ec5b166e4baee",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "faq.png",
+      "sha256": "41847c94956124ee8ac3cc894f3a9353dc2a3ec948bde680dc61d8c6376f1322",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "dashboard-wide.png",
+      "sha256": "c9439e6f2ae4236ad1f077d6b7868c113670887a6d6555a3c761b8ae2a05d116",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "dashboard-narrow.png",
+      "sha256": "4130ed6a222c9cb9dc143765e0819dd0d00d9a153569087d908f55ae00f7ffdd",
+      "width": 390,
+      "height": 4543
+    }
+  ]
+}

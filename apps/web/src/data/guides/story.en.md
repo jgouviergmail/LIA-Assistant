@@ -4,7 +4,7 @@
 
 **Version**: 2.3
 **Date**: 2026-10-04
-**Application**: LIA v2.6.0
+**Application**: LIA v2.6.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Source lines (excluding tests) — 55 functional domains | **820,000+** |
 | Automated tests, run on every commit and release | **51,000+** |
 | Documented architecture decisions (ADR) | **333** |
-| Versions shipped at a steady pace | **277** |
+| Versions shipped at a steady pace | **278** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -76,7 +76,7 @@ The product makes its engineering choices visible at a human scale. A conversati
 
 The same rule holds for what is not yet up to standard. The wake word "Dis LIA" is a small model trained offline and measured on a bench whose thresholds are published before training: the French model does not reach them yet, so it ships marked **beta**, and the product says so, rather than lowering the bar to be able to write "done". A voice session that falls asleep on a silence costs nothing, and only the person ends it.
 
-That discipline also applies to a visible presence. An experimental Simli face is an explicit choice on the person’s own key, connected to the existing voice with one audible output. An open session consumes the personal plan during silence; Live standby closes it. The presentation keeps media and mobile qualification pending until real trials establish it. The same precision governs spending: each paid provider attempt keeps its own tariff, and known usage survives failure, cancellation or retry.
+A visible presence must remain a controlled choice: the experimental Simli avatar uses existing speech and a personal key, with one audible output. Stopping it shows confirmed or pending closure; an open connection can consume the plan even during silence. Live standby closes it. Floating controls adapt to the available space without erasing the chosen placement. Qualification with the provider and real devices remains explicit. The same need for evidence applies to spending: each paid attempt retains its price and known usage, even after failure or cancellation.
 
 ## 6. The proof
 

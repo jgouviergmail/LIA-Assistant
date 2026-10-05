@@ -4,7 +4,7 @@
 
 **Version**: 6.2
 **Date**: 2026-10-04
-**Application**: LIA v2.6.0
+**Application**: LIA v2.6.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -157,7 +157,7 @@ LIA offers a complete voice mode:
 - **Telegram voice messages**: send audio messages, LIA transcribes and responds
 - **Live mode**: a real-time, voice-to-voice conversation on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and hands every request to LIA, which runs it as an ordinary chat turn while you speak; a direct session lets the voice read your data itself and act on nothing. What the provider bills is shown to you, never recorded. A silence no longer closes a session: it puts it on standby — connection closed, nothing billed — until a tap wakes it with LIA's context; ending it is always yours.
 
-- **Speaking avatar, experimental**: if your instance offers it, connect your personal Simli key and activate a face for voice comments and Live, direct or delegated. Move its floating window and choose among three sizes, including with the keyboard. An open connection consumes your Simli plan even during silence; Live standby closes it and waking reconnects. Radio stays separate. Media and mobile qualification remain in progress.
+- **Speaking avatar, experimental**: if your instance offers it, connect your personal Simli key and activate a face for voice comments and Live, direct or delegated. Move its floating window and choose among three sizes, including with the keyboard. An open connection consumes your Simli plan even during silence; Live standby closes it and waking reconnects. Radio stays separate. Media and mobile qualification remain in progress. The “Stop avatar session” button remains available in the window and shows whether closure is confirmed or still pending. If it remains pending, wait and try again; unconfirmed closure is not proof that Simli has stopped billing.
 
 ### 3.5. Creation and media
 

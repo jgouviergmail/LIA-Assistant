@@ -35,6 +35,7 @@ import { ResetConversationConfirm } from '@/components/chat/ResetConversationCon
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { FeatureErrorBoundary } from '@/components/errors';
+import { stopAvatarCommentsForChatFailure } from '@/lib/avatars/runtime';
 
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig, type AppConfig } from '@/hooks/useAppConfig';
@@ -774,7 +775,7 @@ export default function ChatPage() {
   }
 
   return (
-    <FeatureErrorBoundary feature="chat">
+    <FeatureErrorBoundary feature="chat" onError={stopAvatarCommentsForChatFailure}>
       {/* The shell is sized on the DYNAMIC viewport: `100vh` is the height the
           page would have with the browser's URL bar retracted, so while that
           bar is visible — the state a page loads in on mobile — the bottom of

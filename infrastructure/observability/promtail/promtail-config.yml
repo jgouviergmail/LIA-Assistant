@@ -49,7 +49,7 @@ scrape_configs:
       # stops at a backslash: the API's lines arrive JSON-escaped, and eating the
       # `\` of an escaped quote would break the line's JSON.
       - replace:
-          expression: '(?i)[?&](?:token|access_token|refresh_token|id_token|code|code_verifier|code_challenge|secret|client_secret|password|passwd|pwd|api_key|apikey|key|appid|state|sig|signature|session|sessionid|jwt|authorization|lat|lng|lon|latitude|longitude|origin|dest|destination)=([^&\s#"''\\]+)'
+          expression: '(?i)[?&](?:token|ticket|session_token|access_token|refresh_token|id_token|code|code_verifier|code_challenge|secret|client_secret|password|passwd|pwd|api_key|apikey|key|appid|state|sig|signature|session|sessionid|jwt|authorization|lat|lng|lon|latitude|longitude|origin|dest|destination)=([^&\s#"''\\]+)'
           replace: '[REDACTED]'
 
       # Stage 2: JSON parsing (the API's structlog lines).

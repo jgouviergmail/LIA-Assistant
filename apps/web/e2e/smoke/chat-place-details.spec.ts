@@ -85,7 +85,9 @@ for (const sample of samples) {
       await summary.focus();
       await summary.press('Enter');
       await expect(summary).toBeFocused();
-      expect((await summary.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      // Firefox can report 43.999969 for a 44px box; compare at subpixel precision.
+      const height = (await summary.boundingBox())?.height ?? 0;
+      expect(Math.round(height * 1000)).toBeGreaterThanOrEqual(44_000);
     }
     await expect(card.getByText('A warm welcome.', { exact: false })).toBeVisible();
     await expect(card.getByRole('link', { name: 'Camille', exact: true })).toHaveAttribute(

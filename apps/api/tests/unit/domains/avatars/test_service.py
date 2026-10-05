@@ -12,6 +12,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from src.core.exceptions import AuthorizationError, ExternalServiceError, ResourceConflictError
 from src.domains.avatars.accounts import AvatarAccount, AvatarAccountStore
 from src.domains.avatars.client import SimliClient, SimliError
+from src.domains.avatars.control_store import AvatarControlStore, RelayEnvelope
 from src.domains.avatars.leases import AvatarLease, AvatarLeaseStore, LeasePhase
 from src.domains.avatars.schemas import (
     AvatarHeartbeatRequest,
@@ -24,6 +25,71 @@ from src.domains.live.session_store import LiveSessionRecord, LiveSessionStore
 from src.infrastructure.rate_limiting.redis_limiter import RedisRateLimiter
 
 pytestmark = pytest.mark.unit
+
+
+async def test_controlled_release_never_frees_a_socket_that_has_not_closed(setup):
+    service, account, request, client = setup
+    lease = AvatarLease(
+        user_id=account.user_id,
+        owner_id=request.owner_id,
+        digest=account.credential_digest,
+        credential_version="epoch",
+        phase=LeasePhase.READY,
+        controlled=True,
+    )
+    service.leases.get.return_value = lease
+    service.controls.stop.return_value = False
+    with patch("src.domains.avatars.service.asyncio.sleep", new=AsyncMock()):
+        assert not await service.release(
+            account.user_id, AvatarLeaseRequest(owner_id=request.owner_id, lease_id=lease.lease_id)
+        )
+    service.leases.release.assert_not_awaited()
+    client.active_count.assert_not_awaited()
+
+
+async def test_lost_browser_can_discover_only_its_account_session_without_minting(setup):
+    service, account, request, client = setup
+    lease = AvatarLease(
+        user_id=account.user_id,
+        owner_id=request.owner_id,
+        digest=account.credential_digest,
+        credential_version="epoch",
+        phase=LeasePhase.READY,
+        controlled=True,
+    )
+    service.leases.current.return_value = lease
+    service.controls.phase.return_value = "closed"
+    status = await service.status(account.user_id)
+    assert (
+        status is not None
+        and status.lease_id == lease.lease_id
+        and status.control_phase == "closed"
+    )
+    service.leases.current.assert_awaited_once_with(account.user_id, account.credential_digest)
+    client.token.assert_not_awaited()
+
+
+async def test_release_acknowledges_its_completed_generation_after_server_cleanup(setup):
+    service, account, request, client = setup
+    lease = AvatarLease(
+        user_id=account.user_id,
+        owner_id=request.owner_id,
+        digest=account.credential_digest,
+        credential_version="epoch",
+        phase=LeasePhase.READY,
+        controlled=True,
+    )
+    service.leases.get.return_value = None
+    service.controls.completed.return_value = RelayEnvelope(
+        lease=lease, token="test-only", api_key="test-only"
+    )
+    assert await service.release(
+        account.user_id, AvatarLeaseRequest(owner_id=request.owner_id, lease_id=lease.lease_id)
+    )
+    service.controls.completed.assert_awaited_once_with(
+        account.user_id, request.owner_id, lease.lease_id
+    )
+    service.leases.release.assert_not_awaited()
 
 
 @pytest.fixture
@@ -43,15 +109,20 @@ def setup():
     client.ice.return_value = [IceServer(urls="stun:fixture.invalid")]
     client.active_count.return_value = 0
     client.token.return_value = "test-token"
+    controls = AsyncMock(spec=AvatarControlStore)
+    controls.issue.return_value = "test-relay-ticket"
+    controls.stop.return_value = True
     request = AvatarSessionRequest(owner_id=uuid4(), source="comments")
     with patch("src.domains.avatars.service.SimliClient", return_value=client):
-        yield AvatarService(accounts, leases, live, limiter), snapshot, request, client
+        yield AvatarService(accounts, leases, live, limiter, controls), snapshot, request, client
 
 
 async def test_valid_mode_mints_once_and_rechecks_credentials_before_publish(setup):
     service, account, request, client = setup
     response = await service.start(account.user_id, request)
-    assert response.session_token == "test-token"
+    assert response.session_token == "test-relay-ticket"
+    assert response.server_relay is True
+    assert service.controls.issue.call_args.args[1] == "test-token"
     client.token.assert_awaited_once_with(account.face_id)
     assert service.accounts.read.await_count == 2
     assert service.leases.claim.await_count == 1
@@ -153,7 +224,7 @@ async def test_live_uses_its_authenticated_record_and_does_not_require_comments_
     request = AvatarSessionRequest(
         owner_id=request.owner_id, source="live", live_session_id=session_id
     )
-    assert (await service.start(account.user_id, request)).session_token == "test-token"
+    assert (await service.start(account.user_id, request)).session_token == "test-relay-ticket"
     client.token.assert_awaited_once()
 
 

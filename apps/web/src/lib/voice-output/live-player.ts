@@ -2,12 +2,19 @@ import type { LivePlayer } from '../live/session-controller';
 import type { AvatarEngine } from '../avatars/engine';
 import type { SimliPlayout } from '../avatars/playout';
 import { RemotePcmCapture } from './remote-capture';
-import { LIVE_PCM_PRODUCTION_HOLD_MS, LIVE_PCM_TAIL_HOLD_MS } from './types';
+import { LivePcmQueue } from './live-pcm-queue';
+import { outputFailureCode } from '../avatars/output-failure';
+import {
+  LIVE_PCM_PRODUCTION_HOLD_MS,
+  LIVE_PCM_TAIL_HOLD_MS,
+  LIVE_PCM_MAX_QUEUED_SECONDS,
+} from './types';
 import { logger } from '@/lib/logger';
 
 interface Route {
   target: AvatarEngine | null;
   phrase: SimliPlayout | null;
+  queue: LivePcmQueue | null;
   failed: boolean;
 }
 
@@ -32,7 +39,6 @@ export class RoutedLivePlayer implements LivePlayer {
   private disposed = false;
   private epoch = 0;
   private pending: { pcm: ArrayBuffer; rate: number }[] = [];
-  private pendingBytes = 0;
   private pendingTarget: AvatarEngine | null = null;
   private pendingDone = false;
   private readonly capture: RemotePcmCapture;
@@ -60,7 +66,7 @@ export class RoutedLivePlayer implements LivePlayer {
       () => {
         this.flush();
         this.nativeFallback = true;
-        this.avatar()?.outputFailed();
+        this.avatar()?.outputFailed('avatar_capture_failed');
       }
     );
     local.onAudibleChange?.(value => {
@@ -224,9 +230,9 @@ export class RoutedLivePlayer implements LivePlayer {
       return;
     }
     try {
-      this.route.phrase?.pushPcm(pcm);
-    } catch {
-      this.failed();
+      this.route.queue?.push(pcm);
+    } catch (error) {
+      this.failed(error);
     }
   }
   private select(rate: number, target: AvatarEngine | null): Route {
@@ -241,19 +247,29 @@ export class RoutedLivePlayer implements LivePlayer {
       native: this.native,
       rate,
     });
-    if (!target?.ready) return { target: null, phrase: null, failed: false };
+    if (!target?.ready) return { target: null, phrase: null, queue: null, failed: false };
     const epoch = this.epoch;
+    const phrase = target.streaming(rate, () => {
+      if (epoch === this.epoch && !this.disposed) this.notify(true);
+    });
     return {
       target,
       failed: false,
-      phrase: target.streaming(rate, () => {
-        if (epoch === this.epoch && !this.disposed) this.notify(true);
+      phrase,
+      queue: new LivePcmQueue(phrase, error => {
+        if (epoch !== this.epoch) return;
+        this.failed(error);
+        if (this.draining) this.drainNext(epoch);
       }),
     };
   }
   private queueNext(pcm: ArrayBuffer, rate: number): void {
-    if (this.pendingBytes + pcm.byteLength > rate * 10) {
-      this.failed();
+    if (
+      this.pending.reduce((seconds, item) => seconds + item.pcm.byteLength / (item.rate * 2), 0) +
+        pcm.byteLength / (rate * 2) >
+      LIVE_PCM_MAX_QUEUED_SECONDS
+    ) {
+      this.failed(new Error('avatar_pcm_backlog_full'));
       return;
     }
     if (!this.pending.length) {
@@ -261,7 +277,6 @@ export class RoutedLivePlayer implements LivePlayer {
       this.pendingTarget = candidate?.ready ? candidate : null;
     }
     this.pending.push({ pcm: pcm.slice(0), rate });
-    this.pendingBytes += pcm.byteLength;
     this.pendingDone = false;
   }
   /**
@@ -314,14 +329,16 @@ export class RoutedLivePlayer implements LivePlayer {
     }
     this.draining = true;
     const epoch = this.epoch;
-    void route.phrase
-      .finish()
-      .catch(() => {
-        if (epoch === this.epoch) this.failed();
-      })
-      .finally(() => {
-        this.drainNext(epoch);
-      });
+    route.queue?.finish(() => {
+      void route.phrase
+        ?.finish()
+        .catch(error => {
+          if (epoch === this.epoch) this.failed(error);
+        })
+        .finally(() => {
+          this.drainNext(epoch);
+        });
+    });
   }
   private drainNext(epoch: number): void {
     if (epoch !== this.epoch) return;
@@ -330,31 +347,33 @@ export class RoutedLivePlayer implements LivePlayer {
       queued: this.pending.length,
     });
     this.draining = false;
+    this.route?.queue?.dispose();
     this.route = null;
     this.notify(false);
     const pending = this.pending;
     const target = this.pendingTarget;
     const done = this.pendingDone;
     this.pending = [];
-    this.pendingBytes = 0;
     this.pendingTarget = null;
     this.pendingDone = false;
     if (pending.length) this.route = this.select(pending[0].rate, target);
     for (const item of pending) this.enqueue(item.pcm, item.rate);
     if (done) this.finishProduction();
   }
-  private failed(): void {
+  private failed(error?: unknown): void {
+    const code = outputFailureCode(error);
     logger.warn('voice_output_route_failed', {
       component: 'RoutedLivePlayer',
       route: this.route?.target ? 'avatar' : 'local',
+      code,
     });
     if (this.route) {
       this.route.failed = true;
+      this.route.queue?.dispose();
       this.route.phrase?.cancel();
-      this.route.target?.outputFailed();
+      this.route.target?.outputFailed(code);
     }
     this.pending = [];
-    this.pendingBytes = 0;
     this.pendingTarget = null;
     this.pendingDone = false;
     this.notify(false);
@@ -368,13 +387,13 @@ export class RoutedLivePlayer implements LivePlayer {
   flush(): void {
     this.epoch++;
     this.disarmBoundary();
+    this.route?.queue?.dispose();
     this.route?.phrase?.cancel();
     this.route?.target?.interrupt();
     this.route = null;
     this.draining = false;
     this.productionDone = false;
     this.pending = [];
-    this.pendingBytes = 0;
     this.pendingTarget = null;
     this.pendingDone = false;
     this.local.flush();

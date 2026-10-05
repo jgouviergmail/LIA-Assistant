@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v2.6.0
+**Compatibility**: LIA v2.6.1
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 
 The guided self-host installer asks whether to offer the **personal radio**. It is off on a fresh guided installation until the operator opts in: programmes are produced on demand in the existing API service using the configured writing and voice providers, and their cost is charged to the listener. The installer sets `RADIO_ENABLED` from that answer; no extra Compose service or boot step is needed. Configure the radio model and voice slots in the Admin UI before enabling it. See [the self-hosting guide](guides/GUIDE_SELF_HOSTING.md) and [radio design](technical/RADIO.md).
 
-The **speaking avatar** is also optional: the installer leaves `AVATAR_ENABLED=false` unless the operator chooses to offer it. Each person then connects their own Simli key and explicitly enables the avatar in Settings. The installer emits the finite session, idle, connection and HTTP bounds declared by [the avatar configuration](../apps/api/src/core/config/avatars.py); no instance Simli key or additional Compose service is needed. An open session can consume that person's Simli credits during silence. See [the speaking-avatar guide](technical/SPEAKING_AVATAR.md).
+The **speaking avatar** is also optional: the installer leaves `AVATAR_ENABLED=false` unless the operator chooses to offer it. Each person then connects their own Simli key and explicitly enables the avatar in Settings. The installer emits the finite session, idle, connection, HTTP and validated-presence bounds declared by [the avatar configuration](../apps/api/src/core/config/avatars.py); no instance Simli key or additional Compose service is needed. The API controls the signalling/audio relay; any reverse proxy must forward WebSocket upgrades for `/api/v1/avatars/ws`, as for the existing voice WebSocket. An open session can consume that person's Simli credits during silence, and the window's stop control shows confirmed or pending closure. See [the speaking-avatar guide](technical/SPEAKING_AVATAR.md).
 
 **JEV decisions are optional after installation.** The installer leaves every JEV use off; there is no additional Compose service or bootstrap step. To use one, configure a TypeSafe (Jev) provider key, a decision model and its price in Administration, then enable that use and the general switch under **JEV integrations**. An uncertain decision uses LIA's existing path; both a paid attempt and its fallback count toward spending limits. See the [integration guide](technical/JEV_INTEGRATION.md).
 

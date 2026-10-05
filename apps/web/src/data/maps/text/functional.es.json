@@ -367,9 +367,9 @@
     },
     "f.avatar": {
       "name": "Avatar que habla",
-      "role": "Una presencia experimental de Simli, elegida con tu propia clave, para comentarios de voz y Live directo o delegado; una ventana móvil y una conexión cerrada en espera. Radio conserva su reproductor.",
+      "role": "Una presencia Simli experimental, elegida con tu clave, para comentarios de voz y Live. Una ventana accesible de tres tamaños muestra el cierre confirmado o pendiente; la espera cierra la conexión. Radio conserva su reproductor.",
       "goal": "Elegir un rostro conociendo su consumo, incluidos los silencios.",
-      "src": "50707626b06b"
+      "src": "193ba4c65edd"
     }
   },
   "flows": {

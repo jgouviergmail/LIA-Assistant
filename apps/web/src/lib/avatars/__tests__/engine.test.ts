@@ -64,6 +64,31 @@ function fixture() {
   return { engine, media, wire, deps, changed: () => changed(), callbacks: () => callbacks };
 }
 afterEach(() => vi.useRealTimers());
+it('closes comments on a chat failure but preserves an independently valid Live demand', async () => {
+  const f = fixture();
+  f.engine.setDemand(demand);
+  await settle();
+  f.engine.chatFailed();
+  await settle();
+  expect(f.wire.close).toHaveBeenCalledOnce();
+  expect(f.engine.failure).toBe('avatar_chat_failed');
+  f.engine.setDemand({ ...demand, source: 'live', live_id: 'live' });
+  await settle();
+  expect(f.deps.api.start).toHaveBeenCalledTimes(2);
+  f.engine.chatFailed();
+  expect(f.wire.close).toHaveBeenCalledOnce();
+  f.engine.dispose();
+  await settle();
+});
+it('a chat failure before the queued open prevents minting altogether', async () => {
+  const f = fixture();
+  f.engine.setDemand(demand);
+  f.engine.chatFailed();
+  await settle();
+  expect(f.deps.api.start).not.toHaveBeenCalled();
+  f.engine.dispose();
+  await settle();
+});
 it('reports only a fixed lifecycle failure code when the transport closes', async () => {
   const f = fixture();
   f.engine.setDemand(demand);
@@ -256,4 +281,36 @@ it('a drain interrupted by a new production resolves quietly and keeps the conne
   expect(logger.warn).not.toHaveBeenCalledWith('avatar_unavailable', expect.anything());
   f.engine.dispose();
   await settle();
+});
+
+it('stopping an owned generation never discovers and stops a successor from another tab', async () => {
+  const f = fixture();
+  const stopCurrent = vi.fn(async () => true);
+  f.deps.api.stopCurrent = stopCurrent;
+  f.engine.setDemand(demand);
+  await settle();
+  expect(await f.engine.stop()).toBe(true);
+  expect(f.deps.api.release).toHaveBeenCalledWith(expect.objectContaining({ lease_id: 'l' }));
+  expect(stopCurrent).not.toHaveBeenCalled();
+  f.engine.dispose();
+});
+it('pagehide cleanup without an owned generation never stops another tab', async () => {
+  const f = fixture();
+  const stopCurrent = vi.fn(async () => true);
+  f.deps.api.stopCurrent = stopCurrent;
+  expect(await f.engine.stop(false)).toBe(true);
+  expect(stopCurrent).not.toHaveBeenCalled();
+  f.engine.dispose();
+});
+it('explicit stop can recover an open generation after a refused reload', async () => {
+  const f = fixture();
+  const stopCurrent = vi.fn(async () => true);
+  f.deps.api.stopCurrent = stopCurrent;
+  vi.mocked(f.deps.api.start).mockRejectedValue(new AvatarStartError('avatar_start_busy', true));
+  f.engine.setDemand(demand);
+  await settle();
+  expect(f.engine.state).toBe('unavailable');
+  expect(await f.engine.stop()).toBe(true);
+  expect(stopCurrent).toHaveBeenCalledOnce();
+  f.engine.dispose();
 });

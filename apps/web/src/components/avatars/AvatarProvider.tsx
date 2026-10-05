@@ -73,10 +73,15 @@ function AccountAvatar({ account, voiceEnabled }: { account: string; voiceEnable
     };
     document.addEventListener('pointerdown', unlock);
     document.addEventListener('keydown', unlock);
+    const hide = () => {
+      void engine.stop(false);
+    };
+    window.addEventListener('pagehide', hide);
     return () => {
       stopLive();
       document.removeEventListener('pointerdown', unlock);
       document.removeEventListener('keydown', unlock);
+      window.removeEventListener('pagehide', hide);
       updateOwned.current = null;
       unmount();
       engine.dispose();

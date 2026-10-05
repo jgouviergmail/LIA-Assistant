@@ -16,6 +16,7 @@ export interface AvatarFace {
   preview_image_url?: string | null;
 }
 export interface AvatarSession {
+  server_relay?: boolean;
   session_token: string;
   lease_id: string;
   ice_servers: RTCIceServer[];

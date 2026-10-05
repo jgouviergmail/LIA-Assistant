@@ -32,6 +32,7 @@ class AvatarLease(BaseModel):
     credential_version: str
     face_id: UUID | None = None
     phase: LeasePhase = LeasePhase.MINTING
+    controlled: bool = False
 
 
 class AvatarLeaseStore:
@@ -88,6 +89,13 @@ class AvatarLeaseStore:
         if lease.phase is not LeasePhase.READY:
             return False
         return await self.abandon_before_post(lease)
+
+    async def current(self, user_id: UUID, digest: str) -> AvatarLease | None:
+        record = await self.redis.get(self._key(digest))
+        if record is None:
+            return None
+        lease = AvatarLease.model_validate_json(record)
+        return lease if lease.user_id == user_id else None
 
     async def abandon_before_post(self, lease: AvatarLease) -> bool:
         """Only safe before attempting POST, or after verified provider closure."""

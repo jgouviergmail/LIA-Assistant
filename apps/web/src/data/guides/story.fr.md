@@ -4,7 +4,7 @@
 
 **Version** : 2.3
 **Date** : 2026-10-04
-**Application** : LIA v2.6.0
+**Application** : LIA v2.6.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Lignes de source (hors tests) — 55 domaines fonctionnels | **820 000+** |
 | Tests automatisés, exécutés à chaque commit et livraison | **51 000+** |
 | Décisions d'architecture documentées (ADR) | **333** |
-| Versions livrées à rythme régulier | **277** |
+| Versions livrées à rythme régulier | **278** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -76,7 +76,7 @@ Le produit rend ses choix d'ingénierie visibles à l'échelle humaine. La conve
 
 La même règle vaut pour ce qui n'est pas encore au niveau. Le mot d'activation « Dis LIA » est un petit modèle entraîné hors ligne et mesuré sur un banc dont les seuils sont publiés avant l'entraînement : le modèle français ne les atteint pas encore, alors il est livré marqué **bêta**, et le produit le dit, plutôt que d'abaisser la barre pour pouvoir écrire « terminé ». Une session vocale qui s'endort sur un silence ne coûte rien, et seule la personne la termine.
 
-Cette discipline vaut aussi pour une présence visible. Un visage Simli expérimental est un choix explicite sur la clé de la personne, branché sur la voix existante avec une seule sortie audible. Une session ouverte consomme le forfait personnel pendant les silences ; la veille Live la ferme. La présentation garde la qualification du média et du mobile en attente jusqu’à ce que les essais réels l’établissent. La même précision gouverne la dépense : chaque tentative fournisseur payante garde son tarif, et son usage connu survit à l’échec, à l’annulation ou au réessai.
+Une présence visible doit rester un choix maîtrisé : l’avatar Simli expérimental utilise la voix existante et la clé personnelle, avec une seule sortie audible. Son arrêt expose une fermeture confirmée ou en attente ; une connexion ouverte peut consommer le forfait même dans le silence. La veille Live la ferme. Les éléments flottants s’adaptent à l’espace disponible sans effacer le placement choisi. La qualification sur le fournisseur et les appareils réels reste explicite. La même exigence de preuve vaut pour la dépense : chaque tentative payante conserve son tarif et son usage connu, même après un échec ou une annulation.
 
 ## 6. La preuve
 

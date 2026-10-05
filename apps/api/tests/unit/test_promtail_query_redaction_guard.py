@@ -214,3 +214,15 @@ def test_the_corpus_exercises_both_stages() -> None:
     assert credentials >= 4
     assert content >= 3
     assert untouched == ["status code=200 ok, token=free-text-not-a-query-parameter"]
+
+
+@pytest.mark.parametrize("parameter", ["ticket", "session_token"])
+def test_avatar_socket_credentials_are_masked_at_the_api_and_collector(parameter):
+    value = "test-only-single-use-secret"
+    line = f"WebSocket /api/v1/avatars/ws?{parameter}={value}&enableSFU=true"
+    stage = _credential_stage()
+    collected = re.sub(
+        stage["expression"], lambda match: match.group(0).replace(value, REDACTED), line
+    )
+    assert value not in collected
+    assert collected == sanitize_url_query(line)

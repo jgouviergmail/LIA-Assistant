@@ -4,7 +4,7 @@
 
 **Versione**: 2.3
 **Data**: 2026-10-04
-**Applicazione**: LIA v2.6.0
+**Applicazione**: LIA v2.6.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Righe di codice sorgente (esclusi i test) — 55 domini funzionali | **820.000+** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **51.000+** |
 | Decisioni di architettura documentate (ADR) | **333** |
-| Versioni rilasciate a ritmo regolare | **277** |
+| Versioni rilasciate a ritmo regolare | **278** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -76,7 +76,7 @@ Il prodotto rende visibili le scelte tecniche alla misura di una persona. La con
 
 La stessa regola vale per ciò che non è ancora all'altezza. La parola di attivazione «Dis LIA» è un piccolo modello addestrato offline e misurato su un banco le cui soglie sono pubblicate prima dell'addestramento: il modello francese non le raggiunge ancora, quindi è distribuito con il marchio **beta**, e il prodotto lo dice, invece di abbassare l'asticella per poter scrivere «finito». Una sessione vocale che si addormenta su un silenzio non costa nulla, e solo la persona la termina.
 
-Questa disciplina vale anche per una presenza visibile. Un volto Simli sperimentale è una scelta esplicita sulla chiave della persona, collegato alla voce esistente con una sola uscita udibile. Una sessione aperta consuma il piano personale durante i silenzi; la sospensione Live la chiude. La presentazione mantiene in attesa la qualifica dei media e dei dispositivi mobili finché prove reali non la dimostrano. La stessa precisione governa la spesa: ogni tentativo a pagamento del fornitore conserva la propria tariffa, e l’uso noto sopravvive al fallimento, all’annullamento o al nuovo tentativo.
+Una presenza visibile deve restare una scelta controllabile: l’avatar Simli sperimentale usa la voce esistente e la chiave personale, con una sola uscita udibile. Il suo arresto mostra una chiusura confermata o in attesa; una connessione aperta può consumare il piano anche nel silenzio. La sospensione Live la chiude. Gli elementi flottanti si adattano allo spazio senza cancellare la posizione scelta. La verifica con il fornitore e sui dispositivi reali resta esplicitamente aperta. La stessa esigenza di prova vale per la spesa: ogni tentativo pagato conserva il prezzo e l’uso noto, anche dopo un errore o un annullamento.
 
 ## 6. La prova
 

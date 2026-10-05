@@ -1,7 +1,7 @@
 {
-  "version": "2.6.0",
+  "version": "2.6.1",
   "releaseDate": "2026-10-05",
-  "releases": 277,
+  "releases": 278,
   "milestones": [
     {
       "version": "1.0.0",
@@ -221,6 +221,10 @@
     },
     {
       "version": "2.6.0",
+      "date": "2026-10-05"
+    },
+    {
+      "version": "2.6.1",
       "date": "2026-10-05"
     }
   ],

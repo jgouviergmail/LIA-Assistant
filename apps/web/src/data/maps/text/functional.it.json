@@ -367,9 +367,9 @@
     },
     "f.avatar": {
       "name": "Avatar parlante",
-      "role": "Una presenza Simli sperimentale, scelta sulla tua chiave, per commenti vocali e Live diretto o delegato; una finestra mobile e una connessione chiusa in sospensione. Radio conserva il proprio lettore.",
+      "role": "Una presenza Simli sperimentale, scelta con la tua chiave, per commenti vocali e Live. Una finestra accessibile in tre dimensioni mostra la chiusura confermata o in attesa; la sospensione chiude la connessione. Radio mantiene il suo lettore.",
       "goal": "Scegliere un volto conoscendone il consumo, silenzi compresi.",
-      "src": "50707626b06b"
+      "src": "193ba4c65edd"
     }
   },
   "flows": {

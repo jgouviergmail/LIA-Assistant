@@ -206,9 +206,11 @@ No key, and no data without your word.
 ## In a Live session, what does the provider see and what does LIA keep?
 
 **🔑 The provider, on your key:**
-your voice and LIA's answers transit directly between your browser and the live provider you connected with your own key — the audio never passes through the LIA server. The provider receives the mandate LIA renders for the session (how to behave, what to hand over) and, in a direct session, the tools' declarations and the results it reads for you. Its own usage and its bill are yours and shown to you once; the platform records none of it.
+
+your voice and LIA's answers transit directly between your browser and the live provider you connected with your own key — without the avatar, the audio uses this direct Live path. With the avatar enabled, LIA’s spoken output also crosses the API-controlled Simli relay. The provider receives the mandate LIA renders for the session (how to behave, what to hand over) and, in a direct session, the tools' declarations and the results it reads for you. Its own usage and its bill are yours and shown to you once; the platform records none of it.
 
 **🧾 LIA, on your account:**
+
 each request you delegated is an ordinary chat turn — kept, confirmed, counted, filed in the registers like a typed one. The voice-only exchanges of a Live session are archived as visible lines; in a direct session nothing is archived while you speak, and your words are relayed at the end as a message from you. The registers record the session and the capabilities read, never the audio nor a transcript of it. Deleting your account removes all of it.
 
 **🎭 Optional speaking avatar:** after your explicit opt-in, LIA's spoken output is also sent to Simli, on your personal connector, to generate the face. Your microphone audio is not sent to Simli. Disable the avatar to close that connection; its active time, silence included, uses your personal Simli plan.

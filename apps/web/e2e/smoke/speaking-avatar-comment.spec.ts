@@ -79,7 +79,7 @@ for (const [width, format] of [
     await awaitStyledPage(page, 'speaking avatar');
     const widget = page.getByRole('toolbar', { name: 'Move avatar: drag or use arrow keys' });
     await expect(widget).toBeVisible();
-    expect(starts).toHaveLength(1);
+    await expect.poll(() => starts.length).toBe(1);
     try {
       await expect
         .poll(() =>

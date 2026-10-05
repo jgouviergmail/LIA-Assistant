@@ -26,6 +26,8 @@ export interface TestUser {
   response_display_mode: string;
   onboarding_completed: boolean;
   language: string;
+  /** Persisted display mode when a scenario exercises an account preference. */
+  theme?: 'light' | 'dark' | 'system' | 'oled';
   timezone: string;
   /** Settings section tokens pinned to the floating dock (ADR-277). */
   settings_shortcuts: string[];

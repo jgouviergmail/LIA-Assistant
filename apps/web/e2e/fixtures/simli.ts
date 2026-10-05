@@ -37,6 +37,11 @@ export const avatarConfig = {
 
 export function avatarRoutes(starts: unknown[], releases: unknown[]): MockRoute[] {
   return [
+    {
+      url: '**/api/v1/avatars/sessions/current',
+      handler: route => route.fulfill({ contentType: 'application/json', body: 'null' }),
+    },
+    { url: '**/api/v1/avatars/sessions/failure', method: 'POST', status: 204 },
     { url: '**/api/v1/avatars/config', json: avatarConfig },
     {
       url: '**/api/v1/avatars/sessions',
@@ -46,6 +51,7 @@ export function avatarRoutes(starts: unknown[], releases: unknown[]): MockRoute[
         await route.fulfill({
           json: {
             session_token: 'hermetic-simli',
+            server_relay: true,
             lease_id: crypto.randomUUID(),
             ice_servers: fixtureIceServers,
             max_session_seconds: 3600,
@@ -84,7 +90,7 @@ export async function installSimliPeer(page: Page) {
       constructor(url: string | URL, protocols?: string | string[]) {
         rtcSteps.push({ step: 'socket-construct', ms: Math.round(performance.now() - rtcBegan) });
         super(url, protocols);
-        if (!String(url).startsWith('wss://api.simli.ai/')) return;
+        if (!String(url).includes('/api/v1/avatars/ws')) return;
         for (const name of ['open', 'error', 'close'])
           this.addEventListener(name, () =>
             rtcSteps.push({ step: `socket-${name}`, ms: Math.round(performance.now() - rtcBegan) })
@@ -279,6 +285,12 @@ export async function installSimliPeer(page: Page) {
         const peer = new NativePeer({ iceServers });
         const audio = new AudioContext();
         const destination = audio.createMediaStreamDestination();
+        // WebKit waits for the audio track before presenting the combined stream.
+        // A real provider sends silence while idle; keep the native peer clocked too.
+        const silence = audio.createConstantSource();
+        silence.offset.value = 0;
+        silence.connect(destination);
+        silence.start();
         const entry: Peer = {
           peer,
           audio,
@@ -373,14 +385,14 @@ export async function installSimliPeer(page: Page) {
     };
   }, fixtureIceServers);
   const frames: (string | Buffer)[] = [];
-  await page.routeWebSocket('wss://api.simli.ai/compose/webrtc/p2p*', ws => {
+  await page.routeWebSocket('**/api/v1/avatars/ws?ticket=*', ws => {
     ws.onMessage(async message => {
       frames.push(message);
       if (typeof message !== 'string') {
         await page.evaluate(bytes => window.simliFixture.pcm(bytes), [...message]);
         return;
       }
-      if (message === 'SKIP') return;
+      if (message === 'SKIP' || message === 'PING') return;
       if (message === 'DONE') {
         await page.evaluate(() => window.simliFixture.close());
         return;

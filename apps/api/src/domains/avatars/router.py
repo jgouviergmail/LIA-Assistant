@@ -1,18 +1,22 @@
 """Cookie-authenticated personal avatar control. Every response is non-cacheable."""
 
+import structlog
 from fastapi import APIRouter, Depends, Response
 
 from src.core.session_dependencies import get_current_active_session_for_stream
 from src.domains.avatars.accounts import AvatarAccountStore
+from src.domains.avatars.control_store import AvatarControlStore
 from src.domains.avatars.leases import AvatarLeaseStore
 from src.domains.avatars.schemas import (
     AvatarConfig,
     AvatarFace,
+    AvatarFailureReport,
     AvatarHeartbeatRequest,
     AvatarLeaseRequest,
     AvatarLeaseResponse,
     AvatarSessionRequest,
     AvatarSessionResponse,
+    AvatarSessionStatus,
     AvatarSettingsRequest,
 )
 from src.domains.avatars.service import AvatarService
@@ -38,6 +42,7 @@ async def avatar_service() -> AvatarService:
         AvatarLeaseStore(redis),
         LiveSessionStore(redis),
         await get_rate_limiter(),
+        AvatarControlStore(redis),
     )
 
 
@@ -97,3 +102,25 @@ async def release(
     service: AvatarService = Depends(avatar_service),
 ) -> AvatarLeaseResponse:
     return AvatarLeaseResponse(released=await service.release(user.id, payload))
+
+
+@router.get("/sessions/current", response_model=AvatarSessionStatus | None)
+async def current_session(
+    user: User = Depends(get_current_active_session_for_stream),
+    service: AvatarService = Depends(avatar_service),
+) -> AvatarSessionStatus | None:
+    return await service.status(user.id)
+
+
+@router.post("/sessions/failure", status_code=204)
+async def failure_report(
+    payload: AvatarFailureReport,
+    user: User = Depends(get_current_active_session_for_stream),
+) -> None:
+    structlog.get_logger(__name__).warning(
+        "avatar_client_failure",
+        user_id=str(user.id),
+        owner_id=str(payload.owner_id),
+        lease_id=str(payload.lease_id),
+        code=payload.code,
+    )

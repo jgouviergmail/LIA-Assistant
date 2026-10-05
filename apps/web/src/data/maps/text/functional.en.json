@@ -367,9 +367,9 @@
     },
     "f.avatar": {
       "name": "Speaking avatar",
-      "role": "An experimental Simli presence, chosen on your own key, for voice comments and direct or delegated Live; a movable window and a connection closed in standby. Radio keeps its player.",
+      "role": "An experimental Simli presence, chosen on your own key, for voice comments and Live. A three-size window stays accessible and shows confirmed or pending closure; standby closes the connection. Radio keeps its own player.",
       "goal": "Choose a face while knowing its consumption, silence included.",
-      "src": "50707626b06b"
+      "src": "193ba4c65edd"
     }
   },
   "flows": {

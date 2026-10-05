@@ -2,6 +2,8 @@
 **/node_modules
 
 # Build outputs
+.tmp/
+output/
 **/.next
 # Trailing glob on purpose: per-session proof dists are named .next-e2e,
 # .next-e2e-md, .next-e2e-cap... A bare `.next-e2e` matched only the first one

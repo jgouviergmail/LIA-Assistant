@@ -305,7 +305,7 @@
     },
     "f.avatar": {
       "name": "Avatar parlant",
-      "role": "Une présence Simli expérimentale, choisie sur ta clé, pour les commentaires vocaux et le Live direct ou délégué ; une fenêtre mobile et une connexion fermée en veille. Radio garde son lecteur.",
+      "role": "Une présence Simli expérimentale, choisie sur ta clé, pour les commentaires vocaux et le Live. Une fenêtre à trois tailles reste accessible et affiche l’arrêt confirmé ou en attente ; la veille ferme la connexion. Radio garde son lecteur.",
       "goal": "Choisir un visage en connaissant sa consommation, silences compris."
     }
   },

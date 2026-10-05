@@ -46,6 +46,17 @@ a11y/   axe WCAG 2.x A/AA scans — smoke pages + journeys (chat, settings,
 PR scope is **Chromium** for speed. The same suite replays weekly on
 Firefox/WebKit via `.github/workflows/a11y-matrix.yml`, which runs
 `task test:e2e:browsers` (locally: the same task, or `E2E_ALL_BROWSERS=1`).
+On Linux, the task runs through [the native-media wrapper](../../../scripts/browser/run-native-media.sh):
+a native virtual audio sink clocks Firefox's Web Audio, and a local STUN server
+lets WebKit negotiate real loopback WebRTC. The synthetic provider continuously
+sends silence while idle, then the actual PCM under test; no audio or video
+readiness is simulated. The wrapper provisions `pulseaudio` and `coturn` inside
+the disposable official container, verifies STUN with a bounded Binding request,
+and closes its services afterwards. Outside a container those packages must
+already be installed. Card scans load the selected account theme before the
+first paint; paused-clock demonstrations poll their stable step and chooser DOM.
+The retained-result check jumps its idle wait; each reveal phase still runs
+through its animation frames and keeps its geometry assertions.
 Service workers are blocked for every engine: once the production build's
 offline worker controls a page, WebKit sends the requests it hands back by a
 path `page.route` never sees. The manual NVDA/VoiceOver campaign protocol is
@@ -196,6 +207,40 @@ MSYS_NO_PATHCONV=1 docker run --rm --network container:lia-web-dev \
   sh -c "npm ci --no-audit --no-fund && npx playwright test \
     smoke/public-demo-showroom.spec.ts a11y/axe-public-demo-showroom.spec.ts --reporter=list"
 ```
+
+## Public screenshots
+
+The README and landing share the images described in
+`public/screenshots/manifest.json`. The capture program renders the current Docker
+UI with handwritten examples in `capture/public-screenshot-data.ts`: no login,
+account, production API, provider call or credential file is read. API requests are
+fulfilled locally; unknown API and external requests fail the campaign. Public
+Google font downloads are the only external requests permitted. Voice WebSockets
+are simulated locally and service-worker registration is disabled. The interactive
+game uses the actual system skill's HTML generator and keeps its opaque sandbox.
+
+From PowerShell at the repository root, with Docker dev running:
+
+```powershell
+./scripts/capture_public_screenshots.ps1
+# Inspect every PNG in output/playwright/public-screenshots, then:
+./scripts/capture_public_screenshots.ps1 -Publish
+```
+
+The script builds a separate production bundle in Docker, uses a disposable
+official Playwright container, and leaves the dev server running. `-WebContainer`
+and `-Port` select the local runtime; `-SkipBuild` reuses an already current bundle.
+Browser requests use a fake session cookie, a fixed demonstration clock, English
+labels and the light theme. No account configuration is changed.
+
+The capture fails on browser errors, unexpected requests, untranslated fixture
+labels, visible failure states, credential-like strings or non-demo email domains.
+Visual review remains required for layout, chronology and cropped content.
+Publication validates the report and PNG hashes, synchronizes README, landing,
+legacy `v2` images and both dashboard formats, then generates the manifest. Its
+content revision invalidates landing image caches when images change without an
+application version bump. Rebuild the frontend after publication to include that
+revision in the deployed bundle.
 
 ## Running in CI
 

@@ -410,9 +410,9 @@
     },
     "t.avatar": {
       "name": "Avatar: session and playback",
-      "role": "A personal session under a Redis lease; the browser sends existing voice as PCM and selects Simli media as the single audible output. Live standby closes it. Experimental: media and device acceptance remain pending.",
+      "role": "The API owns the Simli connection under a Redis lease: single-use ticket, encrypted token, relayed signalling and PCM, verified stop and bounded presence. The browser chooses one audible output and preserves the preferred position through mobile keyboard changes. Media and real-device qualification remain pending.",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
-      "src": "b302c6788952"
+      "src": "36a9b358e3f7"
     }
   },
   "flows": {

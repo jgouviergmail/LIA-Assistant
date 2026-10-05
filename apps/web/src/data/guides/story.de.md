@@ -4,7 +4,7 @@
 
 **Version**: 2.3
 **Datum**: 2026-10-04
-**Anwendung**: LIA v2.6.0
+**Anwendung**: LIA v2.6.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Quellcodezeilen (ohne Tests) — 55 Fachdomänen | **820.000+** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **51.000+** |
 | Dokumentierte Architekturentscheidungen (ADR) | **333** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **277** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **278** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -76,7 +76,7 @@ Das Produkt zeigt seine technischen Entscheidungen im Maßstab eines Menschen. D
 
 Dieselbe Regel gilt für das, was noch nicht auf dem Niveau ist. Das Aktivierungswort „Dis LIA“ ist ein kleines, offline trainiertes Modell, gemessen auf einem Prüfstand, dessen Schwellen vor dem Training veröffentlicht werden: das französische Modell erreicht sie noch nicht, also wird es als **Beta** gekennzeichnet ausgeliefert, und das Produkt sagt es, statt die Latte zu senken, um „fertig“ schreiben zu können. Eine Sprachsitzung, die bei Stille einschläft, kostet nichts, und nur die Person beendet sie.
 
-Diese Disziplin gilt auch für sichtbare Präsenz. Ein experimentelles Simli-Gesicht ist eine ausdrückliche Wahl mit dem eigenen Schlüssel, angebunden an die vorhandene Stimme mit einer einzigen hörbaren Ausgabe. Eine offene Sitzung verbraucht den persönlichen Tarif während der Stille; Live-Standby schließt sie. Die Darstellung lässt die Medien- und Mobilqualifizierung offen, bis echte Versuche sie belegen. Dieselbe Genauigkeit gilt für Ausgaben: Jeder bezahlte Anbieterversuch behält seinen Tarif, und sein bekannter Verbrauch übersteht Fehler, Abbruch oder Wiederholung.
+Eine sichtbare Präsenz muss eine kontrollierbare Wahl bleiben: Der experimentelle Simli-Avatar nutzt die vorhandene Sprache und einen persönlichen Schlüssel mit einer hörbaren Ausgabe. Sein Stopp zeigt eine bestätigte oder ausstehende Schließung; eine offene Verbindung kann das Kontingent auch während der Stille verbrauchen. Live-Standby schließt sie. Schwebende Elemente passen sich dem Platz an, ohne die gewählte Position zu löschen. Die Prüfung beim Anbieter und auf echten Geräten bleibt ausdrücklich offen. Dieselbe Belegpflicht gilt für Ausgaben: Jeder bezahlte Versuch behält seinen Preis und die bekannte Nutzung, auch nach Fehler oder Abbruch.
 
 ## 6. Der Beweis
 

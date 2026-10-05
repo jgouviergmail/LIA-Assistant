@@ -16,6 +16,7 @@ from src.core.exceptions import (
 )
 from src.domains.avatars.accounts import AvatarAccount, AvatarAccountStore
 from src.domains.avatars.client import SimliClient, SimliError
+from src.domains.avatars.control_store import AvatarControlStore
 from src.domains.avatars.face_catalogue import merge_faces
 from src.domains.avatars.leases import AvatarLease, AvatarLeaseStore, LeasePhase
 from src.domains.avatars.schemas import (
@@ -25,6 +26,7 @@ from src.domains.avatars.schemas import (
     AvatarLeaseRequest,
     AvatarSessionRequest,
     AvatarSessionResponse,
+    AvatarSessionStatus,
     AvatarSource,
 )
 from src.domains.connectors.api_key_use import stamp_api_key_use
@@ -41,11 +43,13 @@ class AvatarService:
         leases: AvatarLeaseStore,
         live: LiveSessionStore,
         limiter: RedisRateLimiter,
+        controls: AvatarControlStore,
     ) -> None:
         self.accounts = accounts
         self.leases = leases
         self.live = live
         self.limiter = limiter
+        self.controls = controls
 
     async def start(self, user_id: UUID, payload: AvatarSessionRequest) -> AvatarSessionResponse:
         try:
@@ -65,6 +69,7 @@ class AvatarService:
             digest=account.credential_digest,
             credential_version=account.credential_version or "",
             face_id=account.face_id,
+            controlled=True,
         )
         ttl = (
             settings.avatar_session_length_seconds
@@ -93,12 +98,16 @@ class AvatarService:
                 account.face_id,
             ):
                 raise AuthorizationError("avatar_configuration_changed")
-            if await self.leases.mark(lease, LeasePhase.READY) is None:
-                raise ResourceConflictError("avatar", "avatar_lease_expired")
             if account.connector_id is not None:
                 await stamp_api_key_use(account.connector_id)
+            ticket = await self.controls.issue(
+                lease.model_copy(update={"phase": LeasePhase.READY}), token, account.api_key, ttl
+            )
+            if await self.leases.mark(lease, LeasePhase.READY) is None:
+                await self.controls.stop(lease)
+                raise ResourceConflictError("avatar", "avatar_lease_expired")
             return AvatarSessionResponse(
-                session_token=token,
+                session_token=ticket,
                 lease_id=lease.lease_id,
                 ice_servers=ice,
                 max_session_seconds=settings.avatar_session_length_seconds,
@@ -178,27 +187,63 @@ class AvatarService:
                 or lease.digest != account.credential_digest
             ):
                 raise ResourceConflictError("avatar", "avatar_lease_expired")
+            if lease.controlled and not await self.controls.touch(lease.lease_id):
+                raise ResourceConflictError("avatar", "avatar_lease_expired")
         except RedisError:
             raise ExternalServiceError("simli", "avatar_admission_unavailable") from None
 
     async def release(self, user_id: UUID, payload: AvatarLeaseRequest) -> bool:
         try:
             lease = await self.leases.get(user_id, payload.owner_id)
-            if (
-                lease is None
-                or lease.phase is not LeasePhase.READY
-                or (payload.lease_id is not None and lease.lease_id != payload.lease_id)
+            if lease is None:
+                completed = (
+                    await self.controls.completed(user_id, payload.owner_id, payload.lease_id)
+                    if payload.lease_id
+                    else None
+                )
+                return (
+                    completed is not None
+                    and await SimliClient(completed.api_key).active_count() == 0
+                )
+            if lease.phase is not LeasePhase.READY or (
+                payload.lease_id is not None and lease.lease_id != payload.lease_id
             ):
                 return False
             account = await self.accounts.read(user_id, credentials=True)
             if account.api_key is None or account.credential_digest != lease.digest:
                 return False
-            # Browser DONE/close alone is never proof that billing stopped.
+            if not await self._close_controlled(lease):
+                return False
+            # The ticket is revoked and the server's socket has closed; verify provider inactivity too.
             if await SimliClient(account.api_key).active_count() != 0:
                 return False
             return await self.leases.release(lease)
-        except RedisError, SimliError, AuthorizationError:
+        except RedisError, SimliError, AuthorizationError, ValueError:
             return False
+
+    async def _close_controlled(self, lease: AvatarLease) -> bool:
+        if not lease.controlled:
+            return True
+        for _ in range(40):
+            if await self.controls.stop(lease):
+                return True
+            await asyncio.sleep(0.1)
+        return await self.controls.stop(lease)
+
+    async def status(self, user_id: UUID) -> AvatarSessionStatus | None:
+        account = await self.accounts.read(user_id, credentials=True)
+        if not account.api_key:
+            return None
+        lease = await self.leases.current(user_id, account.credential_digest)
+        if lease is None:
+            return None
+        return AvatarSessionStatus(
+            owner_id=lease.owner_id,
+            lease_id=lease.lease_id,
+            phase=lease.phase.value,
+            controlled=lease.controlled,
+            control_phase=await self.controls.phase(lease.lease_id) if lease.controlled else None,
+        )
 
     async def config(self, user_id: UUID) -> AvatarConfig:
         account = await self.accounts.read(user_id)

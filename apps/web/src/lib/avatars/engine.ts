@@ -5,9 +5,13 @@ import type { SimliTransportEvents } from './simli-transport';
 import type { AvatarSession } from './types';
 import { SimliPlayout, pushDecoded } from './playout';
 import { logger } from '@/lib/logger';
+import { outputFailureCode, type AvatarOutputFailure } from './output-failure';
 
 type AvatarFailureCode =
   | AvatarStartFailure
+  | AvatarOutputFailure
+  | 'avatar_chat_failed'
+  | 'avatar_stopped'
   | 'avatar_connection_timeout'
   | 'avatar_transport_failed'
   | 'avatar_transport_closed'
@@ -115,7 +119,12 @@ export class AvatarEngine {
     if (demand && sameAvatar(previous, demand) && this.retain(demand, previous)) {
       return;
     }
-    if (!sameAvatar(previous, demand)) this.failed = null;
+    if (
+      !sameAvatar(previous, demand) ||
+      previous?.source !== demand?.source ||
+      previous?.live_id !== demand?.live_id
+    )
+      this.failed = null;
     if (this.connection && !sameAvatar(this.connection.demand, demand))
       this.stopWire(this.connection);
     if (!demand) this.publish('off');
@@ -192,8 +201,8 @@ export class AvatarEngine {
           if (fresh())
             logger.debug('avatar_provider_control', { component: 'AvatarEngine', control });
         },
-        onError: () => {
-          if (fresh()) this.fail(connection, 'avatar_transport_failed');
+        onError: code => {
+          if (fresh()) this.fail(connection, outputFailureCode(new Error(code)));
         },
         onClosed: () => {
           if (fresh()) this.fail(connection, 'avatar_transport_closed');
@@ -245,6 +254,10 @@ export class AvatarEngine {
     if (this.connection !== connection || connection.closing) return;
     logger.warn('avatar_unavailable', { component: 'AvatarEngine', code });
     this.failureCode = code;
+    void this.deps.api.reportFailure?.(
+      { owner_id: connection.owner, ...(connection.lease ? { lease_id: connection.lease } : {}) },
+      code
+    );
     this.failed = this.demand;
     this.stopWire(connection);
     this.publish(this.demand ? 'unavailable' : 'off');
@@ -298,15 +311,40 @@ export class AvatarEngine {
   async settled(): Promise<void> {
     await this.reconcile();
     // Wait only for this engine's bounded API/close operation, never for speech.
-    const deadline = performance.now() + 12_000;
+    const deadline = performance.now() + 35_000;
     while (this.busy && performance.now() < deadline)
       await new Promise(resolve => setTimeout(resolve, 20));
   }
   send(packet: Uint8Array): boolean {
     return this.ready && !!this.connection?.wire?.sendPcm(packet);
   }
-  outputFailed(): void {
-    if (this.connection) this.fail(this.connection);
+  outputFailed(code: AvatarOutputFailure = 'avatar_output_failed'): void {
+    if (this.connection) this.fail(this.connection, code);
+  }
+  /** The floating stop control survives a failed chat subtree and a PWA reload. */
+  async stop(recoverCurrent = true): Promise<boolean> {
+    const attempt = this.connection ?? this.blocked;
+    if (this.connection) this.fail(this.connection, 'avatar_stopped');
+    else {
+      this.failed = this.demand;
+      this.failureCode = 'avatar_stopped';
+      this.publish(this.demand ? 'unavailable' : 'off');
+    }
+    await this.settled();
+    // Closing an owned attempt must never discover and stop a successor that
+    // another tab opened during its release. Account recovery is explicit only.
+    if (attempt && !attempt.refused) return !this.busy && this.blocked === null;
+    if (!recoverCurrent) return !this.busy;
+    return this.deps.api.stopCurrent ? await this.deps.api.stopCurrent() : this.blocked === null;
+  }
+  chatFailed(): void {
+    if (this.demand?.source !== 'comments') return;
+    if (this.connection) this.fail(this.connection, 'avatar_chat_failed');
+    else {
+      this.failed = this.demand;
+      this.failureCode = 'avatar_chat_failed';
+      this.publish('unavailable');
+    }
   }
   streaming(sampleRate: number, onAudible: () => void): SimliPlayout {
     if (!this.ready) throw new Error('avatar_output_unavailable');
@@ -322,8 +360,9 @@ export class AvatarEngine {
    */
   openPhrase(sampleRate: number, onAudible: () => void): AvatarPhrase {
     const playout = this.streaming(sampleRate, onAudible);
-    const failed = (signal: AbortSignal | null): never => {
-      if (!signal?.aborted && this.phrase === playout && this.connection) this.fail(this.connection);
+    const failed = (signal: AbortSignal | null, error: unknown): never => {
+      if (!signal?.aborted && this.phrase === playout && this.connection)
+        this.fail(this.connection, outputFailureCode(error));
       if (this.phrase === playout) this.phrase = null;
       throw new Error(signal?.aborted ? 'avatar_phrase_cancelled' : 'avatar_playback_failed');
     };
@@ -337,20 +376,20 @@ export class AvatarEngine {
         });
         try {
           await pushDecoded(playout, buffer, signal);
-        } catch {
-          failed(signal);
+        } catch (error) {
+          failed(signal, error);
         }
       },
       finish: async () => {
         try {
           await playout.finish();
-        } catch {
+        } catch (error) {
           // A phrase interrupted meanwhile (a new production, a stop, a mode
           // switch) has nothing left to drain: that is not a failure, and it
           // never closes the connection (measured 2026-10-04: an interrupted
           // drain was logged as `avatar_playback_failed`).
           if (playout.cancelled) return;
-          failed(null);
+          failed(null, error);
         } finally {
           if (this.phrase === playout) this.phrase = null;
         }

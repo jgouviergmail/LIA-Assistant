@@ -65,3 +65,10 @@ it('persists only display geometry and restores working setters', async () => {
   expect(result).toMatchObject(stored.state);
   expect(typeof result.setSize).toBe('function');
 });
+
+it('does not publish a new state for an unchanged placement', () => {
+  useAvatarWindowStore.getState().setPosition({ xPct: 20, yPct: 30 });
+  const saved = useAvatarWindowStore.getState();
+  saved.setPosition({ xPct: 20, yPct: 30 });
+  expect(useAvatarWindowStore.getState()).toBe(saved);
+});

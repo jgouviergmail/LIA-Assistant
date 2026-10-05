@@ -21,6 +21,8 @@ export const AVATAR_PCM_PACKET_BYTES = 6000;
  * a throttled background tab and keep an interruption's SKIP cheap.
  */
 export const AVATAR_PCM_LEAD_MAX_SECONDS = 4;
+/** Synchronous Live bursts may queue a response locally, never unbounded audio. */
+export const LIVE_PCM_MAX_QUEUED_SECONDS = 30;
 /**
  * A transport refusing every packet this long is dead for this phrase. The
  * socket's own close/error events are the primary signal; this is the net. A

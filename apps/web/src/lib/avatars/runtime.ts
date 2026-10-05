@@ -30,6 +30,9 @@ export function mountAvatarEngine(engine: AvatarEngine): () => void {
 export function avatarEngine(): AvatarEngine | null {
   return snapshot.engine;
 }
+export function stopAvatarCommentsForChatFailure(): void {
+  snapshot.engine?.chatFailed();
+}
 export function useAvatarRuntime(): AvatarRuntime {
   return useSyncExternalStore(
     listener => {

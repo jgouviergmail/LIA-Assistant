@@ -349,7 +349,7 @@
     },
     "t.avatar": {
       "name": "Avatar : session et restitution",
-      "role": "Une session personnelle sous bail Redis ; le navigateur transmet la voix existante en PCM et choisit le média Simli comme seule sortie audible. La veille Live la ferme. Expérimental : l’acceptation du média et des appareils reste en attente.",
+      "role": "L’API possède la connexion Simli sous bail Redis : ticket à usage unique, jeton chiffré, signalisation et PCM relayés, arrêt vérifié et présence bornée. Le navigateur choisit une sortie audible et conserve le placement préféré malgré le clavier mobile. La qualification du média et des appareils réels reste en attente.",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"]
     }
   },

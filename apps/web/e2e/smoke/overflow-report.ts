@@ -137,6 +137,14 @@ export async function awaitStyledPage(page: Page, label: string): Promise<void> 
   await page.evaluate(() => document.fonts.ready);
 }
 
+/** Load the selected user theme through the app's blocking startup scripts. */
+export async function prepareTheme(page: Page, theme: string): Promise<void> {
+  await page.addInitScript(selected => {
+    localStorage.setItem('theme', selected === 'light' ? 'light' : 'dark');
+    localStorage.setItem('theme-oled', selected === 'oled' ? '1' : '0');
+  }, theme);
+}
+
 export async function expectNoOverflow(page: Page, phase: string): Promise<void> {
   const report = await overflowReport(page);
   expect

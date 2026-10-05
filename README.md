@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 2.6.0</strong> — <strong>A face for your voice, clearer sources and costs you can trace.</strong> An experimental personal Simli avatar accompanies existing voice comments and Live conversations, with explicit permission and one audible output. Cards identify the MCP server and method, weather follows the source's conditions, and deleting an e-mail still requires approval against its original mailbox. New standing instructions are pinned automatically, Radio keeps useful editorial mail while filtering purchase pitches, and each reported model attempt retains its price, including paid failures and background work — 5 October 2026.
+  <strong>Version 2.6.1</strong> — <strong>Continuous speech, a controllable avatar and an interface within reach.</strong> Long Live answers keep their audio in order. The experimental Simli avatar has an explicit stop control with confirmed or pending closure, and its connection is controlled by the API. Floating windows adapt to the mobile keyboard without overwriting your preferred position. Updated public screenshots use fictional demonstration data. Provider and physical Android/iOS qualification of the avatar remains pending — 5 October 2026, 17:00 CEST.
 </p>
 
 ---
@@ -113,9 +113,9 @@ The result is measured, not proclaimed:
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
 | **55** functional domains | **820,000+** source lines (excl. tests) | **51,000+** automated tests | **333** ADRs                                                            |
-| **277** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **278** versions shipped  | **6 languages**, parity enforced in CI  | **616** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
-Source-line figure: 823,905 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-05). The published technical audit does not score security.
+Source-line figure: 824,758 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-05). The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -124,14 +124,17 @@ Source-line figure: 823,905 physical lines in Python, TypeScript, JavaScript and
 
 ## Screenshots
 
+Current interface, captured with fictional demonstration data. No personal account
+is used. See the [capture workflow](apps/web/e2e/README.md#public-screenshots) to refresh them.
+
 <p align="center">
   <img src="docs/assets/screenshot-homepage.png" alt="Dashboard — Homepage with usage statistics" width="800" />
   <br /><em>Dashboard — Homepage with quick access, usage statistics, and personalized greeting</em>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-chat.png" alt="Chat — Multi-agent conversation with debug panel" width="800" />
-  <br /><em>Chat — Multi-agent conversation with real-time debug panel (right sidebar)</em>
+  <img src="docs/assets/screenshot-chat.png" alt="Chat — Conversation with appointment cards" width="800" />
+  <br /><em>Chat — Conversation with appointment cards and practical next steps</em>
 </p>
 
 <details>
@@ -139,22 +142,22 @@ Source-line figure: 823,905 physical lines in Python, TypeScript, JavaScript and
 
 <p align="center">
   <img src="docs/assets/screenshot-chat-debug-panel.png" alt="Chat — Debug panel detail" width="800" />
-  <br /><em>Chat — Debug panel: per-message routing, tool calls, token cost and reasoning timeline</em>
+  <br /><em>Chat — Debug panel: query analysis, routing, execution phases and token cost</em>
 </p>
 
 <p align="center">
   <img src="docs/assets/screenshot-chat-interactive-skills.png" alt="Chat — Interactive skill widgets" width="800" />
-  <br /><em>Chat — Interactive skill widgets: maps, dashboards, calendars and mini-apps rendered inline</em>
+  <br /><em>Chat — An interactive skill mini-app rendered directly in the conversation</em>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-settings-preferences.png" alt="Settings — Preferences (connectors, MCP, themes)" width="800" />
-  <br /><em>Settings — Preferences: connectors, MCP servers, language, timezone, and themes</em>
+  <img src="docs/assets/screenshot-settings-preferences.png" alt="Settings — Personalization and account preferences" width="800" />
+  <br /><em>Settings — Personalization, language, appearance, notifications and security</em>
 </p>
 
 <p align="center">
   <img src="docs/assets/screenshot-settings-features.png" alt="Settings — Features (memory, interests, notifications)" width="800" />
-  <br /><em>Settings — Features: LIA Style, long-term memory, interests, proactive notifications, scheduled actions, sub-agents, channels</em>
+  <br /><em>Settings — Memory, personality, interests, automation and extensions</em>
 </p>
 
 <p align="center">
@@ -169,17 +172,17 @@ Source-line figure: 823,905 physical lines in Python, TypeScript, JavaScript and
 
 <p align="center">
   <img src="docs/assets/screenshot-settings-administration.png" alt="Settings — Administration panel" width="800" />
-  <br /><em>Settings — Administration: LLM config, RAG Spaces, users, connectors, pricing, skills, voice, broadcast, debug</em>
+  <br /><em>Settings — Administration: users, connectors, models, pricing, content and platform controls</em>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-settings-administration-oneclick.png" alt="Settings — One-click administration" width="800" />
-  <br /><em>Administration — One-click simplicity: every admin action is accessible in a single click, no technical skills required</em>
+  <img src="docs/assets/screenshot-settings-administration-oneclick.png" alt="Administration — Platform capability switches" width="800" />
+  <br /><em>Administration — Enable or disable platform capabilities without a deployment</em>
 </p>
 
 <p align="center">
   <img src="docs/assets/screenshot-settings-administration-llm.png" alt="Settings — LLM Configuration with multi-provider support" width="800" />
-  <br /><em>Administration — LLM Configuration: 7 providers (OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama), per-node model selection</em>
+  <br /><em>Administration — LLM Configuration: provider credentials and model selection for each operation</em>
 </p>
 
 <p align="center">
@@ -233,13 +236,14 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 - Connect your own Simli account, choose a face and explicitly authorize its use. The operator must first enable the optional capability; it is off by default.
 - A floating window with three sizes follows existing voice comments and Live conversations, with touch/pointer dragging and keyboard movement. The avatar and local player share one audible destination.
+- The window keeps its explicit stop control even when the chat encounters an error, and reports confirmed or pending closure. Mobile keyboard, rotation and zoom adjustments preserve the chosen placement.
 - The connection stays open while the voice mode is active; silence can consume your personal Simli credits. Live standby closes it, and waking opens a new connection. Radio is outside this integration.
 - Provider lip motion, long silence, renewal and physical Android/iOS audio remain subject to qualification ([SPEAKING_AVATAR](docs/technical/SPEAKING_AVATAR.md), [proposed ADR-334](docs/architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md)).
 
 #### Live, voice to voice
 
 - A real-time session on a live model the person connects with their own key (Gemini Live over a WebSocket, GPT-Live over WebRTC, or an ElevenLabs agent whose voice stays on its portal).
-- The audio never transits the server.
+- The Live provider connection carries audio directly between the browser and provider. With the optional avatar enabled, LIA's spoken output also passes through the API-controlled Simli relay; its provider token stays encrypted server-side.
 - The voice model owns the conversation and delegates every request for data or action to the chat engine through one declared function, so the delegated turn runs in the graph with its approvals, registers and quotas and is drawn in the thread while the person speaks.
 - A provider declares its wire and the seam never branches on its name.
 - A direct session holds the read-only tools itself and acts on nothing.

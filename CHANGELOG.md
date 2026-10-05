@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-10-05
+
+**Une voix continue, un avatar maîtrisé et une interface à portée de main.**
+Cette version fiabilise la restitution existante, le contrôle de la session Simli
+et le placement des fenêtres sur mobile. L’avatar demeure expérimental : les
+essais fournisseur et physiques Android/iOS restent à qualifier.
+
+### Changed
+
+- **Contrôle de la session avatar** : l’API possède le WebSocket fournisseur ;
+  un ticket à usage unique remplace le jeton fournisseur dans le navigateur.
+  Le jeton et la clé de fermeture restent chiffrés côté serveur. Signalisation
+  et PCM traversent le relais ; le média WebRTC retourné reste fournisseur–navigateur.
+  Présence validée, révocation du ticket et fermeture de la génération exacte
+  permettent de réconcilier une session après rechargement sans prendre celle
+  d’un autre onglet. Un arrêt brutal du serveur reste borné par le plafond fournisseur.
+- **Présentation publique** : captures renouvelées avec données fictives,
+  manifeste de révision et workflow de capture reproductible ; galerie, README,
+  documentation, FAQ, présentations et cartes vivantes actualisés dans six langues.
+
+### Fixed
+
+- **Avatar** : bouton d’arrêt conservé hors de la frontière d’erreur du chat,
+  avec résultat confirmé ou en attente ; erreurs sûres, contrôle de présence
+  et fermeture vérifiée avant libération du bail. Les traces de signalisation
+  masquent le ticket de connexion.
+- **Live et restitution** : file PCM bornée et cadencée par la lecture réelle
+  pour les longues réponses ; ordre conservé, fin et annulation nettoyées,
+  absence de reprise locale d’un préfixe potentiellement déjà audible.
+- **Mobile et PWA** : placement de l’avatar, du compagnon et des raccourcis
+  borné au viewport visuel, y compris clavier, rotation, zoom et panoramique.
+  Les ajustements temporaires ne réécrivent pas la préférence ; instantanés
+  géométriques stables et coordonnées finies évitent les boucles de rendu.
+- **Galerie** : URLs de captures révisées et autorisation locale ciblée dans
+  l’optimiseur d’images pour servir les images actualisées. Le lecteur agrandi
+  est monté hors des sections animées pour couvrir tout le viewport.
+
+### Tests
+
+- Contrats avatar PostgreSQL, Redis et WebSocket, arrêt et restitution,
+  longues réponses Live, stabilité de disposition et préférences flottantes.
+- Parcours navigateur hermétiques : clavier/PWA et avatar sur média simulé.
+  Ils ne certifient ni mouvement des lèvres fournisseur ni compatibilité matérielle.
+- Matrice Firefox/WebKit : sortie audio native virtuelle, STUN local et silence
+  du pair synthétique ; thème chargé dès l’amorçage et assertions de phase
+  compatibles avec l’horloge mise en pause, sans retirer les règles d’accessibilité.
+- Installateur : présence avatar émise et alignée avec les Settings ;
+  aucun nouveau service Compose, seed, réglage obligatoire ou parcours de boot.
+
+Le contexte de build web exclut les artefacts temporaires de validation et de
+capture ; un build de production sans cache conserve l’installation figée.
+
 ## [2.6.0] - 2026-10-05
 
 **Un visage pour la voix, des sources plus lisibles et des coûts traçables.** L'avatar

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.core.exceptions import ValidationError
 from src.domains.avatars.accounts import AvatarAccountStore
+from src.domains.avatars.control_store import AvatarControlStore
 from src.domains.avatars.leases import AvatarLeaseStore
 from src.domains.avatars.schemas import AvatarSessionRequest, AvatarSettingsRequest
 from src.domains.avatars.service import AvatarService
@@ -141,10 +142,12 @@ async def test_preferences_round_trip_and_http_waits_release_owned_units_without
         live.get.return_value = None
         limiter = AsyncMock(spec=RedisRateLimiter)
         limiter.acquire.return_value = True
-        token = await AvatarService(accounts, leases, live, limiter).start(
+        controls = AsyncMock(spec=AvatarControlStore)
+        controls.issue.return_value = "test-relay-ticket"
+        token = await AvatarService(accounts, leases, live, limiter, controls).start(
             uid, AvatarSessionRequest(owner_id=uuid4(), source="comments")
         )
-        assert token.session_token == "test-token"
+        assert token.session_token == "test-relay-ticket"
         assert inspect(user).session is caller.sync_session
         await caller.rollback()
         await caller.refresh(user)

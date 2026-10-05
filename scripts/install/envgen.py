@@ -136,6 +136,7 @@ def derive_environment(
         "AVATAR_IDLE_SECONDS": "3600",
         "AVATAR_HTTP_TIMEOUT_SECONDS": "10",
         "AVATAR_CONNECT_TIMEOUT_SECONDS": "15",
+        "AVATAR_PRESENCE_TIMEOUT_SECONDS": "120",
         # Shared across workers and voice surfaces. A self-hoster using
         # ElevenLabs can lower this to the allowance of their own account.
         "ELEVENLABS_TTS_MAX_CONCURRENCY": "5",

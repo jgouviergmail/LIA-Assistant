@@ -38,6 +38,7 @@ function Harness({
       onPointerMove={drag.onPointerMove}
       onPointerUp={drag.onPointerUp}
       onKeyDown={drag.onKeyDown}
+      style={drag.displayPos ? { left: drag.displayPos.x, top: drag.displayPos.y } : undefined}
       data-dragging={drag.dragPos ? 'yes' : 'no'}
       data-recent={drag.wasRecentDrag() ? 'yes' : 'no'}
     >
@@ -57,10 +58,16 @@ describe('useFloatingDrag', () => {
   it('reclamps persisted geometry when an initially hidden surface appears', () => {
     const setPosition = vi.fn();
     const position = { xPct: 110, yPct: 110 };
-    const { rerender } = render(<Harness position={position} setPosition={setPosition} visible={false} />);
+    const { rerender } = render(
+      <Harness position={position} setPosition={setPosition} visible={false} />
+    );
     expect(setPosition).not.toHaveBeenCalled();
     rerender(<Harness position={position} setPosition={setPosition} visible />);
-    expect(setPosition).toHaveBeenCalledWith({ xPct: 100, yPct: 100 });
+    expect(setPosition).not.toHaveBeenCalled();
+    expect(screen.getByTestId('surface')).toHaveStyle({
+      left: `${window.innerWidth}px`,
+      top: `${window.innerHeight}px`,
+    });
   });
   it('commits the last pointer coordinates even when move and release share a render batch', () => {
     const setPosition = vi.fn();
@@ -74,7 +81,8 @@ describe('useFloatingDrag', () => {
     });
     expect(setPosition).toHaveBeenCalledTimes(1);
     expect(setPosition).toHaveBeenCalledWith({
-      xPct: pct(80, window.innerWidth), yPct: pct(50, window.innerHeight),
+      xPct: pct(80, window.innerWidth),
+      yPct: pct(50, window.innerHeight),
     });
     expect(surface).toHaveAttribute('data-dragging', 'no');
   });
@@ -185,10 +193,11 @@ describe('useFloatingDrag', () => {
 
     render(<Harness position={{ xPct: 100, yPct: 10 }} setPosition={setPosition} />);
 
-    expect(setPosition).toHaveBeenCalledTimes(1);
-    const [next] = setPosition.mock.calls[0] as [FloatingPosition];
-    expect(next.xPct).toBeCloseTo(pct(window.innerWidth - 100, window.innerWidth), 5);
-    expect(next.yPct).toBeCloseTo(10, 5);
+    expect(setPosition).not.toHaveBeenCalled();
+    expect(screen.getByTestId('surface')).toHaveStyle({
+      left: `${window.innerWidth - 100}px`,
+      top: `${window.innerHeight / 10}px`,
+    });
   });
 
   it('leaves a spot that is already on screen alone', () => {

@@ -1765,8 +1765,8 @@
     },
     "334": {
       "title": "A personal speaking avatar, with one audible output — proposed design",
-      "summary": "The implemented experimental design connects a personally chosen Simli face to existing voice comments and direct or delegated Live, with an account key and a bounded session. The browser selects one audible destination; standby closes the connection, while an open session consumes the personal plan even during silence. Radio stays separate; the decision remains proposed: lip movement, media acceptance and Android/iOS trials are still pending.",
-      "src": "3ed4efca88f6"
+      "summary": "An optional Simli face accompanies existing speech on a personal key with one audible output. The API controls the connection and its stop; the window shows confirmed or pending closure because silence can consume the plan. The decision remains proposed until provider and real-device qualification; Radio keeps its own player.",
+      "src": "23fbe214bd46"
     }
   }
 }

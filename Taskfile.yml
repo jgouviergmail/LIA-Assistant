@@ -770,9 +770,10 @@ tasks:
     # own (no typecheck, its own base URL): a second definition of the suite,
     # red for weeks without anyone running it. It runs the suite's task now.
     cmds:
-      - task: test:e2e
-        vars:
-          E2E_ALL_BROWSERS: "1"
+      - cmd: bash scripts/browser/run-native-media.sh task test:e2e E2E_ALL_BROWSERS=1
+        platforms: [linux]
+      - cmd: task test:e2e E2E_ALL_BROWSERS=1
+        platforms: [windows, darwin]
 
   test:e2e:showroom:
     desc: Guided showroom P0 — CLEAN managed build, telemetry OFF (zero-API oracle + axe)

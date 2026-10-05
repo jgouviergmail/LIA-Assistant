@@ -1413,7 +1413,7 @@
     },
     "334": {
       "title": "Un avatar parlant personnel, une seule sortie audible — conception proposée",
-      "summary": "La conception expérimentale implémentée relie un visage Simli choisi par la personne aux commentaires vocaux et au Live direct ou délégué, sur sa clé et sous une session bornée. Le navigateur choisit une seule destination audible ; la veille ferme la connexion, tandis qu’une session ouverte consomme le forfait personnel même pendant les silences. Radio reste à part ; la décision demeure proposée : mouvement des lèvres, acceptation du média et essais Android/iOS restent en attente."
+      "summary": "Un visage Simli optionnel accompagne la voix existante, sur la clé personnelle et avec une seule sortie audible. L’API contrôle la connexion et son arrêt ; la fenêtre expose une fermeture confirmée ou en attente, car le silence peut consommer le forfait. La décision demeure proposée jusqu’à la qualification du fournisseur et des appareils réels ; Radio garde son lecteur."
     }
   }
 }

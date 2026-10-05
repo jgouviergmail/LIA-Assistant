@@ -16,6 +16,8 @@ class AvatarSettings(BaseSettings):
 
     avatar_enabled: bool = Field(default=False)
     avatar_mints_per_hour: int = Field(default=AVATAR_MINTS_PER_HOUR_DEFAULT, ge=1, le=60)
+    # More than one missed mobile timer; pagehide/disconnect requests stop immediately.
+    avatar_presence_timeout_seconds: int = Field(default=120, ge=60, le=600)
     avatar_session_length_seconds: int = Field(
         default=AVATAR_SESSION_LENGTH_SECONDS_DEFAULT, ge=30, le=3600
     )

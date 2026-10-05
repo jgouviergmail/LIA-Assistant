@@ -4,7 +4,7 @@
 
 **Versión**: 6.2
 **Fecha**: 2026-10-04
-**Aplicación**: LIA v2.6.0
+**Aplicación**: LIA v2.6.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -157,7 +157,7 @@ LIA ofrece un modo vocal completo:
 - **Mensajes de voz en Telegram**: envía mensajes de audio, LIA los transcribe y responde
 - **Modo Live**: una conversación en tiempo real, de viva voz, sobre un modelo live que conectas con **tu propia clave** — Gemini Live, GPT-Live o un agente de ElevenLabs. La voz lleva la conversación y confía cada petición a LIA, que la ejecuta como un turno de chat ordinario mientras hablas; una sesión directa deja que la voz lea tus datos por sí misma sin actuar sobre nada. Lo que el proveedor factura se te muestra, nunca se registra. Un silencio ya no cierra una sesión: la pone en espera — conexión cerrada, nada facturado — hasta que un toque la despierta con el contexto de LIA; terminarla siempre te corresponde a ti.
 
-- **Avatar parlante, experimental**: si tu instancia lo ofrece, conecta tu clave personal de Simli y activa un rostro para los comentarios de voz y Live, directo o delegado. Mueve su ventana flotante y elige entre tres tamaños, también con el teclado. Una conexión abierta consume tu plan de Simli incluso durante los silencios; la espera de Live la cierra y al despertar vuelve a conectarse. Radio sigue aparte. La validación multimedia y móvil continúa.
+- **Avatar parlante, experimental**: si tu instancia lo ofrece, conecta tu clave personal de Simli y activa un rostro para los comentarios de voz y Live, directo o delegado. Mueve su ventana flotante y elige entre tres tamaños, también con el teclado. Una conexión abierta consume tu plan de Simli incluso durante los silencios; la espera de Live la cierra y al despertar vuelve a conectarse. Radio sigue aparte. La validación multimedia y móvil continúa. El botón «Detener la sesión del avatar» sigue disponible en la ventana e indica si el cierre está confirmado o pendiente. Si sigue pendiente, espera y vuelve a intentarlo; un cierre sin confirmar no demuestra que Simli haya dejado de facturar.
 
 ### 3.5. Creación y medios
 

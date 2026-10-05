@@ -25,6 +25,7 @@ from src.domains.auth.profile_image_router import router as profile_image_router
 from src.domains.auth.router import router as auth_router
 from src.domains.auth.sessions_router import router as sessions_router
 from src.domains.auth.step_up_router import router as step_up_router
+from src.domains.avatars.relay import router as avatar_relay_router
 from src.domains.avatars.router import router as avatars_router
 from src.domains.briefing.router import router as briefing_router
 from src.domains.capabilities.router import router as capabilities_router
@@ -76,6 +77,7 @@ api_router.include_router(sessions_router)  # Device sessions "My devices" (D2)
 api_router.include_router(users_router)
 api_router.include_router(connectors_router)
 api_router.include_router(avatars_router)
+api_router.include_router(avatar_relay_router)
 api_router.include_router(agents_router)
 # The effect register (ADR-263): read-only, user-scoped, always mounted. It is
 # how a user checks what was done for them without taking the executor's word.

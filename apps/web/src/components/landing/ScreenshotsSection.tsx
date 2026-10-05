@@ -2,6 +2,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { LandingCarousel, type CarouselSlide } from './LandingCarousel';
+import screenshotManifest from '../../../public/screenshots/manifest.json';
 
 /**
  * The app captures of the "LIA, en vrai" gallery — real screenshots, listed
@@ -35,7 +36,7 @@ export function ScreenshotsSection() {
     const label = t(`landing.screenshots.items.${key}`);
     // The name of the view IS the caption here: it says which screen is on
     // screen, which is exactly what changes when the carousel moves.
-    return { key, src, label, caption: label };
+    return { key, src: `${src}?v=${screenshotManifest.revision}`, label, caption: label };
   });
 
   return (

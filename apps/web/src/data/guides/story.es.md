@@ -4,7 +4,7 @@
 
 **Versión**: 2.3
 **Fecha**: 2026-10-04
-**Aplicación**: LIA v2.6.0
+**Aplicación**: LIA v2.6.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Líneas de código fuente (sin tests) — 55 dominios funcionales | **820.000+** |
 | Tests automatizados, ejecutados en cada commit y entrega | **51.000+** |
 | Decisiones de arquitectura documentadas (ADR) | **333** |
-| Versiones entregadas a ritmo regular | **277** |
+| Versiones entregadas a ritmo regular | **278** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -76,7 +76,7 @@ El producto hace visibles sus decisiones técnicas a escala humana. La conversac
 
 La misma regla vale para lo que aún no está a la altura. La palabra de activación «Dis LIA» es un pequeño modelo entrenado sin conexión y medido en un banco cuyos umbrales se publican antes del entrenamiento: el modelo francés aún no los alcanza, así que se entrega marcado como **beta**, y el producto lo dice, en lugar de bajar el listón para poder escribir «terminado». Una sesión de voz que se duerme con un silencio no cuesta nada, y solo la persona la termina.
 
-Esta disciplina también se aplica a una presencia visible. Un rostro experimental de Simli es una elección explícita con la clave de la persona, conectado a la voz existente con una sola salida audible. Una sesión abierta consume el plan personal durante los silencios; la espera de Live la cierra. La presentación mantiene pendiente la validación multimedia y móvil hasta que las pruebas reales la acrediten. La misma precisión gobierna el gasto: cada intento de pago al proveedor conserva su tarifa, y su uso conocido sobrevive al fallo, la cancelación o el reintento.
+Una presencia visible debe seguir siendo una elección controlable: el avatar Simli experimental utiliza la voz existente y la clave personal, con una sola salida audible. Su parada muestra un cierre confirmado o pendiente; una conexión abierta puede consumir el plan incluso en silencio. La espera Live la cierra. Los elementos flotantes se adaptan al espacio sin borrar la posición elegida. La validación con el proveedor y dispositivos reales sigue explícitamente pendiente. La misma exigencia de pruebas rige el gasto: cada intento pagado conserva su precio y uso conocido, incluso tras un fallo o una cancelación.
 
 ## 6. La prueba
 

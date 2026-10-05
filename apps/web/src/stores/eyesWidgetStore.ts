@@ -11,6 +11,7 @@
  */
 
 import { create } from 'zustand';
+import { normalizeFloatingPosition, sameFloatingPosition } from '@/lib/floating-position';
 import { persist } from 'zustand/middleware';
 
 import { EYES_WIDGET_PREFS_KEY } from '@/lib/constants';
@@ -68,14 +69,6 @@ const DEFAULTS = {
   landingPosition: null as EyesPosition | null,
 };
 
-function clampPosition(position: EyesPosition): EyesPosition {
-  return { xPct: clampPct(position.xPct), yPct: clampPct(position.yPct) };
-}
-
-function clampPct(value: number): number {
-  return Math.min(100, Math.max(0, value));
-}
-
 export const useEyesWidgetStore = create<EyesWidgetStore>()(
   persist(
     set => ({
@@ -99,9 +92,17 @@ export const useEyesWidgetStore = create<EyesWidgetStore>()(
         if (isValidEyeStyle(style)) set({ style });
       },
 
-      setPosition: position => set({ position: clampPosition(position) }),
+      setPosition: value =>
+        set(s => {
+          const position = normalizeFloatingPosition(value);
+          return sameFloatingPosition(s.position, position) ? s : { position };
+        }),
 
-      setLandingPosition: position => set({ landingPosition: clampPosition(position) }),
+      setLandingPosition: value =>
+        set(s => {
+          const landingPosition = normalizeFloatingPosition(value);
+          return sameFloatingPosition(s.landingPosition, landingPosition) ? s : { landingPosition };
+        }),
 
       reset: () => set(DEFAULTS),
     }),
@@ -121,6 +122,8 @@ export const useEyesWidgetStore = create<EyesWidgetStore>()(
         return {
           ...current,
           ...p,
+          position: normalizeFloatingPosition(p?.position),
+          landingPosition: normalizeFloatingPosition(p?.landingPosition),
           style: isValidEyeStyle(p?.style) ? p.style : DEFAULT_EYE_STYLE,
         };
       },

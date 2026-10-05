@@ -47,6 +47,35 @@ function target() {
   };
 }
 afterEach(() => vi.useRealTimers());
+it('waits for a valid 30-second buffered response past the old ten-second deadline', async () => {
+  vi.useFakeTimers();
+  const t = target();
+  Object.defineProperty(t.media, 'clock', { get: () => performance.now() / 1000 });
+  const phrase = new SimliPlayout(t, 16000, vi.fn());
+  for (let i = 0; i < 6; i++) phrase.pushPcm(new Int16Array(80000).fill(100).buffer);
+  t.sound();
+  const done = vi.fn();
+  const finish = phrase.finish().then(done);
+  await vi.advanceTimersByTimeAsync(12000);
+  expect(done).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(18500);
+  t.silence();
+  await vi.advanceTimersByTimeAsync(40);
+  await finish;
+  expect(done).toHaveBeenCalledOnce();
+  expect(t.packets.reduce((bytes, packet) => bytes + packet.length, 0)).toBe(30 * 32000);
+});
+it('bounds a genuinely frozen playback clock even after remote sound was heard', async () => {
+  vi.useFakeTimers();
+  const t = target();
+  const phrase = new SimliPlayout(t, 16000, vi.fn());
+  phrase.push([new Float32Array(16000).fill(0.01)]);
+  t.sound();
+  const rejected = expect(phrase.finish()).rejects.toThrow('avatar_clock_stalled');
+  await vi.advanceTimersByTimeAsync(10100);
+  await rejected;
+  expect(t.media.mute).toHaveBeenCalled();
+});
 it('preserves quiet samples and an interior pause until the sample clock drains', async () => {
   vi.useFakeTimers();
   const t = target();
@@ -112,7 +141,7 @@ it('bounds a provider which accepts voiced PCM but never returns sound', async (
   const phrase = new SimliPlayout(t, 16000, vi.fn());
   phrase.push([new Float32Array(1600).fill(0.02)]);
   const finish = phrase.finish();
-  const rejected = expect(finish).rejects.toThrow('avatar_drain_timeout');
+  const rejected = expect(finish).rejects.toThrow('avatar_no_remote_sound');
   await vi.advanceTimersByTimeAsync(10_100);
   await rejected;
   expect(t.media.mute).toHaveBeenCalledOnce();

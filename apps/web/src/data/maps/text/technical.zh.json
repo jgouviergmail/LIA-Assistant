@@ -389,9 +389,9 @@
     },
     "t.avatar": {
       "name": "虚拟形象：会话与播放",
-      "role": "由 Redis 租约约束的个人会话；浏览器以 PCM 发送现有语音，并选择 Simli 媒体作为唯一可听输出。Live 待机会关闭连接。仍属实验性功能：媒体和设备验收尚未完成。",
+      "role": "API 在 Redis 租约下拥有 Simli 连接：一次性票据、加密令牌、信令及 PCM 转发、经验证的停止和有界在线状态。浏览器选择一个可听输出，并在移动键盘变化时保留偏好位置。媒体和真实设备验证仍待完成。",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
-      "src": "b302c6788952"
+      "src": "36a9b358e3f7"
     }
   },
   "flows": {

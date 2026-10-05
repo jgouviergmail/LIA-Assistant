@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import screenshotManifest from './public/screenshots/manifest.json';
 
 import {
   APP_HEADERS_SOURCE,
@@ -22,13 +23,7 @@ const envOrigins = process.env.NEXT_PUBLIC_ALLOWED_DEV_ORIGINS
   ? process.env.NEXT_PUBLIC_ALLOWED_DEV_ORIGINS.split(',').map(o => o.trim())
   : [];
 // Note: Wildcard patterns may not work in Next.js 16, use explicit origins
-const allowedDevOrigins = [
-  ...new Set([
-    ...envOrigins,
-    'localhost',
-    '127.0.0.1',
-  ]),
-];
+const allowedDevOrigins = [...new Set([...envOrigins, 'localhost', '127.0.0.1'])];
 
 // --- Content-Security-Policy (audit wave 3, A4 + widget airlock) ---
 // Both policies (strict app CSP + permissive widget-frame CSP) live in
@@ -55,6 +50,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  images: {
+    localPatterns: [
+      { pathname: '/**', search: '' },
+      // Permit only the gallery's current content revision, keeping other
+      // query-bearing image URLs outside the optimizer's allowlist.
+      { pathname: '/screenshots/*.png', search: `?v=${screenshotManifest.revision}` },
+    ],
+  },
 
   // E2E: let a production build/serve coexist with the running dev server in
   // the same bind-mounted tree. The hermetic E2E suite builds with
@@ -142,24 +145,22 @@ const nextConfig: NextConfig = {
           // SEC-025: HSTS on the frontend (the public HTTPS response lacked it;
           // the API already sends it). Production only — see hstsMaxAge above.
           // Starts with a short max-age and NO includeSubDomains/preload.
-          ...(isDev
-            ? []
-            : [{ key: 'Strict-Transport-Security', value: buildHsts(hstsMaxAge) }]),
+          ...(isDev ? [] : [{ key: 'Strict-Transport-Security', value: buildHsts(hstsMaxAge) }]),
           {
             key: 'X-DNS-Prefetch-Control',
-            value: 'on'
+            value: 'on',
           },
           {
             key: 'X-Frame-Options',
-            value: 'SAMEORIGIN'
+            value: 'SAMEORIGIN',
           },
           {
             key: 'X-Content-Type-Options',
-            value: 'nosniff'
+            value: 'nosniff',
           },
           {
             key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin'
+            value: 'origin-when-cross-origin',
           },
           // COOP/COEP headers for WASM SharedArrayBuffer (Sherpa-onnx voice mode)
           // Note: OAuth uses redirect flow (not popups), so COOP won't break auth
@@ -171,19 +172,19 @@ const nextConfig: NextConfig = {
           //   below); its CDN subresources proved COEP-compatible pre-CSP
           {
             key: 'Cross-Origin-Embedder-Policy',
-            value: coepMode
+            value: coepMode,
           },
           {
             key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin'
+            value: 'same-origin',
           },
           // Strict CSP (audit A4) — see src/lib/csp.ts for the rationale of
           // each directive
           {
             key: 'Content-Security-Policy',
-            value: buildAppCsp(isDev, process.env.NEXT_PUBLIC_API_URL)
-          }
-        ]
+            value: buildAppCsp(isDev, process.env.NEXT_PUBLIC_API_URL),
+          },
+        ],
       },
       {
         // Widget airlock (see src/lib/csp.ts + ADR-098): third-party MCP App
@@ -194,7 +195,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: buildWidgetFrameCsp()
+            value: buildWidgetFrameCsp(),
           },
           // Parent responses carry a COEP value (see coepMode above); a nested
           // document must itself enable COEP or the browser refuses to load it
@@ -203,24 +204,24 @@ const nextConfig: NextConfig = {
           // combinations (ADR-136) — the shell loads and receives its payload.
           {
             key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp'
+            value: 'require-corp',
           },
           {
             key: 'X-Content-Type-Options',
-            value: 'nosniff'
+            value: 'nosniff',
           },
           // Legacy twin of frame-ancestors 'self' (belt and braces)
           {
             key: 'X-Frame-Options',
-            value: 'SAMEORIGIN'
+            value: 'SAMEORIGIN',
           },
           // The shell never needs to leak the app's URLs to widget CDNs
           {
             key: 'Referrer-Policy',
-            value: 'no-referrer'
-          }
-        ]
-      }
+            value: 'no-referrer',
+          },
+        ],
+      },
     ];
   },
 
@@ -232,7 +233,8 @@ const nextConfig: NextConfig = {
     // Use HTTP for rewrites to avoid self-signed cert issues
     // Next.js rewrites don't honor NODE_TLS_REJECT_UNAUTHORIZED
     // API_URL_SERVER_HTTP is HTTP variant, API_URL_SERVER may be HTTPS
-    const apiUrl = process.env.API_URL_SERVER_HTTP || process.env.API_URL_SERVER || 'http://api:8000';
+    const apiUrl =
+      process.env.API_URL_SERVER_HTTP || process.env.API_URL_SERVER || 'http://api:8000';
 
     return [
       {

@@ -231,6 +231,7 @@ def test_speaking_avatar_is_an_opt_in_without_an_instance_credential() -> None:
     assert env["AVATAR_IDLE_SECONDS"] == "3600"
     assert env["AVATAR_HTTP_TIMEOUT_SECONDS"] == "10"
     assert env["AVATAR_CONNECT_TIMEOUT_SECONDS"] == "15"
+    assert env["AVATAR_PRESENCE_TIMEOUT_SECONDS"] == "120"
     enabled = derive_environment(
         replace(_public(), speaking_avatar=True), generate_secrets()
     )

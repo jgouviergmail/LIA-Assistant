@@ -1765,8 +1765,8 @@
     },
     "334": {
       "title": "Un avatar parlante personale con una sola uscita udibile — progetto proposto",
-      "summary": "Il progetto sperimentale implementato collega un volto Simli scelto dalla persona ai commenti vocali e a Live diretto o delegato, con la sua chiave e una sessione limitata. Il browser sceglie una sola uscita udibile; la sospensione chiude la connessione, mentre una sessione aperta consuma il piano personale anche durante i silenzi. Radio resta separata; la decisione resta proposta: movimento delle labbra, accettazione dei media e prove Android/iOS sono ancora in attesa.",
-      "src": "3ed4efca88f6"
+      "summary": "Un volto Simli opzionale accompagna la voce esistente con una chiave personale e una sola uscita udibile. L’API controlla connessione e arresto; la finestra mostra la chiusura confermata o in attesa perché il silenzio può consumare il piano. La decisione resta proposta fino alla verifica del fornitore e dei dispositivi reali; Radio mantiene il suo lettore.",
+      "src": "23fbe214bd46"
     }
   }
 }

@@ -414,9 +414,9 @@
     },
     "t.avatar": {
       "name": "Avatar: sessione e riproduzione",
-      "role": "Una sessione personale sotto lease Redis; il browser invia la voce esistente in PCM e sceglie il contenuto Simli come unica uscita udibile. La sospensione Live la chiude. Sperimentale: l’accettazione di media e dispositivi è ancora in attesa.",
+      "role": "L’API possiede la connessione Simli con una concessione Redis: ticket monouso, token cifrato, segnalazione e PCM inoltrati, arresto verificato e presenza limitata. Il browser sceglie un’uscita udibile e conserva la posizione preferita durante i cambiamenti della tastiera mobile. La verifica dei media e dei dispositivi reali resta in attesa.",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
-      "src": "b302c6788952"
+      "src": "36a9b358e3f7"
     }
   },
   "flows": {

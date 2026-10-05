@@ -207,7 +207,7 @@ function EyesRestoreDot(props: { label: string; onShow: () => void; surface: Eye
       onPointerCancel={drag.onPointerUp}
       onKeyDown={drag.onKeyDown}
       aria-label={props.label}
-      style={widgetStyle(drag.dragPos, position, null)}
+      style={widgetStyle(drag.displayPos, position, null)}
       className={cn(
         'group fixed z-30 flex h-11 w-11 cursor-grab touch-none items-end justify-end active:cursor-grabbing',
         !drag.dragPos && !position && FALLBACK_ANCHOR_CLASSES[props.surface]
@@ -236,7 +236,11 @@ export type EyesWidgetProps = EyesBehaviorProps & {
  */
 function useWidgetPresence(visible: boolean, surface: EyesSurface) {
   const hiddenByAvatar = useAvatarRuntime().present && surface === 'chat';
-  const mounted = useSyncExternalStore(hydrationSubscribe, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    hydrationSubscribe,
+    () => true,
+    () => false
+  );
   const enabled = visible && !hiddenByAvatar;
   const active = mounted && enabled;
   useCompanionEnvironment(surface === 'chat' && active);
@@ -266,14 +270,14 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   // snapshot true) instead of a mount effect: no setState-in-effect (ratchet).
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const drag = useEyesDrag(rootRef, surface);
+  const drag = useEyesDrag(rootRef, surface, active);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const resolvedSize = resolveEyesSize(size, isDesktop, surface);
 
   // Default docked spot: centered between the header's left cluster and the
   // delete button. Only measured while no custom position is stored — and
   // only on the chat: the landing has no dock, its default is a corner.
-  const anchorEnabled = surface === 'chat' && visible && !position && !drag.dragPos;
+  const anchorEnabled = surface === 'chat' && active && !position && !drag.dragPos;
   const anchorPos = useEyesAnchor(rootRef, anchorEnabled);
 
   // Desktop cursor parallax — gated, expiring (see useEyesParallax).
@@ -315,7 +319,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   const resolved = resolveGaze(behavior, gazeFree ? parallax : null);
   // The positioning resolver is also the authority on whether a fallback is
   // needed; duplicating its three cases in the JSX can disagree with it.
-  const placement = widgetStyle(drag.dragPos, position, anchorPos);
+  const placement = widgetStyle(drag.displayPos, position, anchorPos);
 
   return (
     <div

@@ -75,6 +75,29 @@ async function expectUnclippedScene(scene: Locator, label: string): Promise<void
   expect(clipped, `${label}: text clipped inside its illustration`).toEqual([]);
 }
 
+/** Poll the stable list: WebKit's locator polling can wait on the paused fake RAF. */
+async function expectDemoStep(steps: Locator, expected: string): Promise<void> {
+  await expect
+    .poll(() =>
+      steps.evaluate(root => root.querySelector('[aria-current="step"]')?.textContent?.trim() ?? '')
+    )
+    .toBe(expected);
+}
+
+async function expectSelectedScene(chooser: Locator, title: string): Promise<void> {
+  await expect
+    .poll(() =>
+      chooser.evaluate(
+        (root, selected) =>
+          Array.from(root.querySelectorAll('button'))
+            .find(button => button.textContent?.trim() === selected)
+            ?.getAttribute('aria-pressed'),
+        title
+      )
+    )
+    .toBe('true');
+}
+
 async function exerciseDemoScenes(page: Page, width: number): Promise<void> {
   const chooser = page.getByRole('group', { name: 'Choisir une situation' });
   const player = chooser.locator('..');
@@ -93,27 +116,30 @@ async function exerciseDemoScenes(page: Page, width: number): Promise<void> {
   for (const title of SCENES) {
     const choice = chooser.getByRole('button', { name: title, exact: true });
     await choice.click();
-    await expect(choice).toHaveAttribute('aria-pressed', 'true');
+    await expectSelectedScene(chooser, title);
     await player.getByRole('button', { name: 'Rejouer la démonstration' }).click();
-    await expect(steps.locator('[aria-current="step"]')).toHaveText('Ta demande');
+    await page.clock.runFor(1);
+    await expectDemoStep(steps, 'Ta demande');
     await expectNoOverflow(page, `${width}px ${title}: request`);
     await expectUnclippedScene(scene, `${width}px ${title}: request`);
 
     await page.clock.runFor(1700);
-    await expect(steps.locator('[aria-current="step"]')).toHaveText('Le contexte');
+    await expectDemoStep(steps, 'Le contexte');
     await expectNoOverflow(page, `${width}px ${title}: context`);
     await expectUnclippedScene(scene, `${width}px ${title}: context`);
 
     await page.clock.runFor(2400);
-    await expect(steps.locator('[aria-current="step"]')).toHaveText('Le résultat');
+    await expectDemoStep(steps, 'Le résultat');
     await expectNoOverflow(page, `${width}px ${title}: result`);
     await expectUnclippedScene(scene, `${width}px ${title}: result`);
     await expect(scene.getByText(title, { exact: true })).toBeVisible();
     // The result remains available for reading, without cycling to another
     // scenario or letting a later animation frame push content off-screen.
-    await page.clock.runFor(10_000);
-    await expect(choice).toHaveAttribute('aria-pressed', 'true');
-    await expect(steps.locator('[aria-current="step"]')).toHaveText('Le résultat');
+    // This assertion checks retention after idle time, not each decorative
+    // frame. Advance the elapsed time without replaying 600 unrelated RAFs.
+    await page.clock.fastForward(10_000);
+    await expectSelectedScene(chooser, title);
+    await expectDemoStep(steps, 'Le résultat');
     await expectUnclippedScene(scene, `${width}px ${title}: retained result`);
   }
 }

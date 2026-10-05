@@ -367,9 +367,9 @@
     },
     "f.avatar": {
       "name": "Sprechender Avatar",
-      "role": "Eine experimentelle Simli-Präsenz, mit deinem eigenen Schlüssel gewählt, für Sprachkommentare und direktes oder delegiertes Live; ein verschiebbares Fenster und eine im Standby geschlossene Verbindung. Radio behält seinen Player.",
+      "role": "Eine experimentelle Simli-Präsenz auf deinem Schlüssel für Sprachkommentare und Live. Das erreichbare Fenster in drei Größen zeigt bestätigte oder ausstehende Schließung; Standby schließt die Verbindung. Radio behält seinen Player.",
       "goal": "Ein Gesicht wählen und seinen Verbrauch kennen, auch während der Stille.",
-      "src": "50707626b06b"
+      "src": "193ba4c65edd"
     }
   },
   "flows": {

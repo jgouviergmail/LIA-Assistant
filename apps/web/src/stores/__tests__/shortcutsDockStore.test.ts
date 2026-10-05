@@ -42,3 +42,10 @@ describe('shortcutsDockStore', () => {
     expect(useShortcutsDockStore.getState().minimized).toBe(false);
   });
 });
+
+it('does not publish a new state for an unchanged placement', () => {
+  useShortcutsDockStore.getState().setPosition({ xPct: 20, yPct: 30 });
+  const saved = useShortcutsDockStore.getState();
+  saved.setPosition({ xPct: 20, yPct: 30 });
+  expect(useShortcutsDockStore.getState()).toBe(saved);
+});

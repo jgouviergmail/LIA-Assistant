@@ -85,6 +85,8 @@ _STATE_FIELD_NAMES = {
 # a free-text `code=200` is never touched.
 _SENSITIVE_QUERY_PARAMS = (
     "token",
+    "ticket",
+    "session_token",
     "access_token",
     "refresh_token",
     "id_token",

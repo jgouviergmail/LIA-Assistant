@@ -4,7 +4,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
-import { awaitStyledPage, expectNoOverflow } from './overflow-report';
+import { prepareTheme, awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 interface Reference {
   id: string;
@@ -41,7 +41,12 @@ for (const sample of samples) {
     );
     if (!reference) throw new Error('Missing native Microsoft reference');
     await page.setViewportSize({ width: sample.width, height: 1400 });
-    await authenticate({ language: sample.language, response_display_mode: 'html_cards' });
+    await prepareTheme(page, sample.theme);
+    await authenticate({
+      language: sample.language,
+      theme: sample.theme as 'light' | 'dark' | 'oled',
+      response_display_mode: 'html_cards',
+    });
     await mockApi([
       ...loadedChatRoutes(),
       {
@@ -67,10 +72,7 @@ for (const sample of samples) {
     await waitForHydration(page);
     await awaitStyledPage(page, 'native Microsoft facts');
     await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
-    await page.evaluate(theme => {
-      document.documentElement.classList.toggle('dark', theme !== 'light');
-      document.documentElement.toggleAttribute('data-oled', theme === 'oled');
-    }, sample.theme);
+
     for (const summary of await page.locator('.lia-card summary').all()) {
       if (sample.width === 320) await summary.tap();
       else {
@@ -117,7 +119,12 @@ for (const sample of samples) {
     );
     if (!reference) throw new Error('Missing backend snapshot reference');
     await page.setViewportSize({ width: sample.width, height: 1200 });
-    await authenticate({ language: sample.language, response_display_mode: 'cards' });
+    await prepareTheme(page, sample.theme);
+    await authenticate({
+      language: sample.language,
+      theme: sample.theme as 'light' | 'dark' | 'oled',
+      response_display_mode: 'cards',
+    });
     await mockApi([
       ...loadedChatRoutes(),
       {
@@ -142,10 +149,7 @@ for (const sample of samples) {
     await page.goto(`/${sample.language}/dashboard/chat`);
     await waitForHydration(page);
     await awaitStyledPage(page, 'read-only snapshots');
-    await page.evaluate(theme => {
-      document.documentElement.classList.toggle('dark', theme !== 'light');
-      document.documentElement.toggleAttribute('data-oled', theme === 'oled');
-    }, sample.theme);
+
     await expect(page.locator('[data-card-version="2"] > .lia-card')).toHaveCount(2);
     await expect(page.getByText('Lampe du bureau', { exact: true })).toBeVisible();
     await expect(page.getByText('Préparer la visite', { exact: true })).toBeVisible();
@@ -176,7 +180,12 @@ for (const sample of samples) {
     );
     if (!reference) throw new Error('Missing backend detail reference');
     await page.setViewportSize({ width: sample.width, height: 1800 });
-    await authenticate({ language: sample.language, response_display_mode: 'cards' });
+    await prepareTheme(page, sample.theme);
+    await authenticate({
+      language: sample.language,
+      theme: sample.theme as 'light' | 'dark' | 'oled',
+      response_display_mode: 'cards',
+    });
     await mockApi([
       ...loadedChatRoutes(),
       {
@@ -201,10 +210,7 @@ for (const sample of samples) {
     await page.goto(`/${sample.language}/dashboard/chat`);
     await waitForHydration(page);
     await awaitStyledPage(page, 'complete card details');
-    await page.evaluate(theme => {
-      document.documentElement.classList.toggle('dark', theme !== 'light');
-      document.documentElement.toggleAttribute('data-oled', theme === 'oled');
-    }, sample.theme);
+
     await expect(page.locator('[data-card-version="2"] > .lia-card')).toHaveCount(5);
     for (const summary of await page.locator('.lia-card summary').all()) {
       await summary.focus();
@@ -253,7 +259,12 @@ for (const sample of samples) {
     );
     if (!reference) throw new Error('Missing backend reference');
     await page.setViewportSize({ width: sample.width, height: 900 });
-    await authenticate({ language: sample.language, response_display_mode: 'html_cards' });
+    await prepareTheme(page, sample.theme);
+    await authenticate({
+      language: sample.language,
+      theme: sample.theme as 'light' | 'dark' | 'oled',
+      response_display_mode: 'html_cards',
+    });
     await mockApi([
       ...loadedChatRoutes(),
       {
@@ -278,10 +289,6 @@ for (const sample of samples) {
     await page.goto(`/${sample.language}/dashboard/chat`);
     await waitForHydration(page);
     await awaitStyledPage(page, 'backend reference cards');
-    await page.evaluate(theme => {
-      document.documentElement.classList.toggle('dark', theme !== 'light');
-      document.documentElement.toggleAttribute('data-oled', theme === 'oled');
-    }, sample.theme);
 
     const cards = page.locator('[data-card-version="2"] > .lia-card');
     await expect(cards).toHaveCount(4);

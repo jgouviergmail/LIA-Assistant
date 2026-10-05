@@ -4,7 +4,7 @@
 
 **Versione**: 6.2
 **Data**: 2026-10-04
-**Applicazione**: LIA v2.6.0
+**Applicazione**: LIA v2.6.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -157,7 +157,7 @@ LIA offre una modalità vocale completa:
 - **Messaggi vocali Telegram**: invia messaggi audio, LIA li trascrive e risponde
 - **Modalità Live**: una conversazione in tempo reale, a viva voce, su un modello live che colleghi con **la tua chiave** — Gemini Live, GPT-Live o un agente ElevenLabs. La voce tiene la conversazione e affida ogni richiesta a LIA, che la esegue come un normale turno di chat mentre parli; una sessione diretta lascia che la voce legga i tuoi dati da sola senza agire su nulla. Ciò che il fornitore fattura ti è mostrato, mai registrato. Un silenzio non chiude più una sessione: la mette in standby — connessione chiusa, nulla fatturato — finché un tocco non la riattiva con il contesto di LIA; terminarla spetta sempre a te.
 
-- **Avatar parlante, sperimentale**: se la tua istanza lo offre, collega la tua chiave Simli personale e attiva un volto per i commenti vocali e Live, diretto o delegato. Sposta la finestra flottante e scegli tra tre dimensioni, anche con la tastiera. Una connessione aperta consuma il tuo piano Simli anche durante i silenzi; la sospensione Live la chiude e il risveglio la riapre. Radio resta separata. La qualifica dei media e dei dispositivi mobili prosegue.
+- **Avatar parlante, sperimentale**: se la tua istanza lo offre, collega la tua chiave Simli personale e attiva un volto per i commenti vocali e Live, diretto o delegato. Sposta la finestra flottante e scegli tra tre dimensioni, anche con la tastiera. Una connessione aperta consuma il tuo piano Simli anche durante i silenzi; la sospensione Live la chiude e il risveglio la riapre. Radio resta separata. La qualifica dei media e dei dispositivi mobili prosegue. Il pulsante «Arresta la sessione avatar» resta disponibile nella finestra e indica se la chiusura è confermata o ancora in attesa. Se rimane in attesa, aspetta e riprova; una chiusura non confermata non dimostra che Simli abbia smesso di fatturare.
 
 ### 3.5. Creazione e media
 

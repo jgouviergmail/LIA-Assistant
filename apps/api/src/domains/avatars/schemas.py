@@ -72,6 +72,7 @@ class AvatarSessionRequest(AvatarCommand):
 
 
 class AvatarSessionResponse(BaseModel):
+    server_relay: bool = True
     session_token: str = Field(min_length=1, max_length=8192, repr=False)
     lease_id: UUID
     ice_servers: list[IceServer]
@@ -89,3 +90,17 @@ class AvatarHeartbeatRequest(AvatarSessionRequest):
 
 class AvatarLeaseResponse(BaseModel):
     released: bool
+
+
+class AvatarSessionStatus(BaseModel):
+    owner_id: UUID
+    lease_id: UUID
+    phase: str
+    controlled: bool
+    control_phase: str | None = None
+
+
+class AvatarFailureReport(AvatarLeaseRequest):
+    code: str = Field(
+        pattern=r"^(avatar_(start_(busy|failed|rate_limited)|connection_timeout|transport_(failed|closed)|connect_failed|heartbeat_failed|output_failed|no_remote_sound|clock_stalled|drain_timeout|output_unavailable|pcm_backlog_full|capture_failed|chat_failed|stopped|rtc_failed|media_failed|socket_failed|socket_closed|bad_answer|provider_closed|send_failed)|voice_pcm_(backlog_full|send_failed|send_stalled))$"
+    )

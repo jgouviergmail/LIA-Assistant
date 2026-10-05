@@ -21,8 +21,9 @@ from a local preference for window position or appearance.
 1. **Personal connector and explicit permission.** Simli uses the account's own
    encrypted connector credential. The deployment ceiling is `AVATAR_ENABLED`,
    disabled by default, and the account separately opts in and selects a face.
-   Temporary session tokens and ICE credentials are returned with `no-store`;
-   the long-lived key never reaches browser storage or a public environment value.
+   Single-use relay tickets and ICE credentials are returned with `no-store`;
+   provider tokens and keys stay encrypted server-side. The backend owns the
+   provider WebSocket, while WebRTC media still reaches the browser directly.
 2. **One owner and one audible output.** The authenticated dashboard owns the
    engine and floating window. A shared voice-output port accepts already produced
    audio from comments or Live, converts actual decoded/captured audio to the
@@ -38,14 +39,23 @@ from a local preference for window position or appearance.
    scoped to a digest of the actual personal key. Failed or cancelled token
    creation can have an unknown remote outcome and quarantines admission until
    the finite lease expires. Release requires provider evidence of no active
-   session. Redis failure disables avatar admission while retaining text/voice.
+   session and closure of the exact server-controlled relay. Authenticated
+   discovery and stop reconcile a closed generation after reload without taking
+   over another tab. A late closure acknowledgement cannot release a newer lease.
+   Loss of validated presence closes the relay; a worker hard kill still relies
+   on the finite provider cap. Redis failure disables avatar admission while
+   retaining text/voice.
 5. **Separate cost and media boundaries.** An open Simli session may consume the
    person's credits during silence. Settings state this consequence. Existing
    LIA model and TTS accounting continues; LIA does not invent a Simli tariff,
    credit balance or usage ledger. Radio remains outside this integration.
 6. **Accessible geometry, bounded diagnostics.** The window has three sizes,
    pointer/touch dragging and keyboard movement, clamped to the visual viewport.
-   Only bounded geometry persists locally. Diagnostics contain route selection,
+   Viewport correction is temporary and does not rewrite saved positions; hidden
+   widgets suspend layout observation. Live PCM has a bounded scheduler and
+   duration-aware drain with independent media failure guards. The explicit stop
+   control remains outside the chat boundary and reports confirmation. Only
+   bounded geometry persists locally. Diagnostics contain route selection,
    sample counts and lifecycle codes, never voice, transcript, keys or signed URLs.
 
 ## Consequences and acceptance boundary
@@ -57,5 +67,7 @@ without losing its settings. Public copy calls the integration experimental.
 Automated HTTP/signalling tests and a browser loopback WebRTC peer can establish
 ownership, cancellation, one audible destination, standby, CSP and window behavior.
 They cannot establish Simli's real lip motion, provider silence behavior, finite-cap
-renewal or physical device audio output. Those checks remain pending and must be
+renewal, effective billing cessation after a hard crash, or physical device audio
+output. API and web must be deployed together; previously minted browser tokens
+cannot gain server control retroactively. Those checks remain pending and must be
 recorded in the qualification document before this ADR becomes Accepted.

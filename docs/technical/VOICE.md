@@ -397,6 +397,14 @@ one answer stays on that route, so readiness changing mid-answer does not split
 its sound between players. Headerless PCM carries its actual encoding and rate
 and is wrapped for browser decoding; encoded audio uses the browser decoder.
 
+The API owns the Simli signalling socket and relays the synthesized PCM through
+a single-use browser ticket. The provider token remains encrypted server-side;
+returned WebRTC media goes between Simli and the browser. The avatar window keeps
+its explicit stop control outside the chat error boundary and reports confirmed
+or pending closure. Provider inactivity and the exact relay generation must both
+be verified before the lease is released. An open connection may still consume
+personal credits while closure is unconfirmed.
+
 The avatar adds no TTS or LLM call. Its video stays muted; a gesture-resumed
 Web Audio context renders remote sound. After a potentially audible prefix,
 failure cancels the avatar output without replaying that prefix locally. A later

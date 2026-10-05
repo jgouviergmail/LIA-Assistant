@@ -268,7 +268,7 @@ your private `.env` (mode `0600`):
 | `ENVIRONMENT`, `DEBUG`, `LOG_LEVEL` | `production`, `false`, `INFO`              |
 | `DIAGNOSTICS_ENABLED`, `LIVE_ENABLED`, `RADIO_ENABLED` | Your `self_diagnostics` / `live_mode` / `personal_radio` answers |
 | `AVATAR_ENABLED`        | Your `speaking_avatar` answer; each account still needs its own opt-in and Simli connector |
-| `AVATAR_MINTS_PER_HOUR`, `AVATAR_SESSION_LENGTH_SECONDS`, `AVATAR_IDLE_SECONDS`, `AVATAR_HTTP_TIMEOUT_SECONDS`, `AVATAR_CONNECT_TIMEOUT_SECONDS` | Finite defaults aligned with [the API's avatar settings](../../apps/api/src/core/config/avatars.py) |
+| `AVATAR_MINTS_PER_HOUR`, `AVATAR_SESSION_LENGTH_SECONDS`, `AVATAR_IDLE_SECONDS`, `AVATAR_HTTP_TIMEOUT_SECONDS`, `AVATAR_CONNECT_TIMEOUT_SECONDS`, `AVATAR_PRESENCE_TIMEOUT_SECONDS` | Finite defaults aligned with [the API's avatar settings](../../apps/api/src/core/config/avatars.py), including the server-controlled relay's validated-presence bound |
 | `ELEVENLABS_TTS_MAX_CONCURRENCY` | The application default; lower it to your ElevenLabs account allowance before enabling its speech synthesis |
 
 The two empty `NEXT_PUBLIC_*` values are intentional: the web image is

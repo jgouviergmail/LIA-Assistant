@@ -11,6 +11,7 @@
  */
 
 import { create } from 'zustand';
+import { normalizeFloatingPosition, sameFloatingPosition } from '@/lib/floating-position';
 import { persist } from 'zustand/middleware';
 
 import type { FloatingPosition } from '@/hooks/useFloatingDrag';
@@ -32,17 +33,16 @@ const DEFAULTS = {
   minimized: false,
 };
 
-function clampPct(value: number): number {
-  return Math.min(100, Math.max(0, value));
-}
-
 export const useShortcutsDockStore = create<ShortcutsDockStore>()(
   persist(
     set => ({
       ...DEFAULTS,
 
-      setPosition: position =>
-        set({ position: { xPct: clampPct(position.xPct), yPct: clampPct(position.yPct) } }),
+      setPosition: value =>
+        set(s => {
+          const position = normalizeFloatingPosition(value);
+          return sameFloatingPosition(s.position, position) ? s : { position };
+        }),
 
       setMinimized: minimized => set({ minimized }),
 
@@ -51,6 +51,14 @@ export const useShortcutsDockStore = create<ShortcutsDockStore>()(
     {
       name: SHORTCUTS_DOCK_PREFS_KEY,
       partialize: s => ({ position: s.position, minimized: s.minimized }),
+      merge: (stored, current) => {
+        const saved = stored as Partial<typeof current> | undefined;
+        return {
+          ...current,
+          minimized: saved?.minimized === true,
+          position: normalizeFloatingPosition(saved?.position),
+        };
+      },
     }
   )
 );

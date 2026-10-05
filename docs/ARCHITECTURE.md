@@ -138,6 +138,25 @@ async def router_node(state: MessagesState) -> dict:
     return {"routing_history": [response]}
 ```
 
+### Restitution vocale et disposition flottante
+
+Le [domaine avatar](technical/SPEAKING_AVATAR.md) ajoute un visage optionnel à
+la voix existante, avec une seule sortie audible. L’API possède la connexion
+Simli : ticket à usage unique, jeton chiffré, relais de signalisation et de PCM,
+présence validée et fermeture de la génération exacte avant libération du bail
+Redis. Le média WebRTC retourné relie le fournisseur au navigateur. Une file PCM
+bornée suit la lecture réelle des longues réponses Live ; une interruption ne
+rejoue jamais un préfixe déjà potentiellement entendu. Le bouton d’arrêt et son
+résultat restent accessibles hors de la frontière d’erreur du chat. L’intégration
+reste expérimentale, sous [ADR-334](architecture/ADR-334-Personal-Speaking-Avatar-And-One-Audible-Output.md).
+
+Avatar, compagnon animé et raccourcis partagent une géométrie flottante dans
+`apps/web/src/hooks/floating-layout.ts` et `apps/web/src/lib/floating-position.ts`.
+Les mesures sont mises en cache puis renouvelées sur événement de viewport ou
+redimensionnement. Le clavier, le zoom et la rotation corrigent la position
+affichée sans réécrire la préférence de la personne ; seuls ses déplacements
+explicites la changent. Ce contrat s’applique au navigateur comme à la PWA.
+
 ### 3. Separation of Concerns
 
 **Layered Architecture** :

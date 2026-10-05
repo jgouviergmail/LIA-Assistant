@@ -19,7 +19,8 @@ export type EyesDrag = FloatingDrag<HTMLDivElement>;
 /** Generic over the surface: the widget is a `div`, its restore dot a `button`. */
 export function useEyesDrag<T extends HTMLElement = HTMLDivElement>(
   rootRef: RefObject<T | null>,
-  surface: EyesSurface = 'chat'
+  surface: EyesSurface = 'chat',
+  active = true
 ): FloatingDrag<T> {
   const position = useEyesWidgetStore(s =>
     surface === 'landing' ? s.landingPosition : s.position
@@ -27,5 +28,5 @@ export function useEyesDrag<T extends HTMLElement = HTMLDivElement>(
   const setPosition = useEyesWidgetStore(s =>
     surface === 'landing' ? s.setLandingPosition : s.setPosition
   );
-  return useFloatingDrag(rootRef, position, setPosition);
+  return useFloatingDrag(rootRef, position, setPosition, active);
 }

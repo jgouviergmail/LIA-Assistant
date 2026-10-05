@@ -216,7 +216,7 @@ it('bounds the next response queue and recovers locally only at its boundary', a
       })
   );
   f.player.finishProduction();
-  f.player.enqueue(new ArrayBuffer(160000), 16000);
+  for (let i = 0; i < 6; i++) f.player.enqueue(new ArrayBuffer(160000), 16000);
   f.player.enqueue(new ArrayBuffer(2), 16000);
   expect(f.wire.close).toHaveBeenCalledOnce();
   expect(f.local.enqueue).not.toHaveBeenCalled();

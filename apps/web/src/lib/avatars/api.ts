@@ -7,6 +7,8 @@ export interface AvatarLeaseIdentity {
   lease_id?: string;
 }
 export interface AvatarApi {
+  stopCurrent?(): Promise<boolean>;
+  reportFailure?(identity: AvatarLeaseIdentity, code: string): Promise<void>;
   start(owner: string, demand: AvatarDemand, signal: AbortSignal): Promise<AvatarSession>;
   heartbeat(
     identity: AvatarLeaseIdentity,
@@ -47,7 +49,21 @@ function safeStartError(error: unknown): AvatarStartError {
 }
 export const avatarApi: AvatarApi = {
   start: async (owner, demand, signal) => {
+    let posted = false;
     try {
+      const previous = await apiClient.get<AvatarSessionStatus | null>(
+        '/avatars/sessions/current',
+        { signal }
+      );
+      if (
+        previous?.controlled &&
+        previous.phase === 'ready' &&
+        previous.control_phase === 'closed'
+      ) {
+        if (!(await avatarApi.release(previous)))
+          throw new AvatarStartError('avatar_start_busy', true);
+      }
+      posted = true;
       return await apiClient.post<AvatarSession>(
         '/avatars/sessions',
         {
@@ -57,7 +73,9 @@ export const avatarApi: AvatarApi = {
         { signal }
       );
     } catch (error) {
-      throw safeStartError(error);
+      if (error instanceof AvatarStartError) throw error;
+      const failure = safeStartError(error);
+      throw posted ? failure : new AvatarStartError(failure.code, true);
     }
   },
   heartbeat: (identity, demand, signal) =>
@@ -73,9 +91,13 @@ export const avatarApi: AvatarApi = {
     try {
       const result = await apiClient.post<{ released: boolean }>(
         '/avatars/sessions/release',
-        identity,
         {
-          timeout: 5000,
+          owner_id: identity.owner_id,
+          ...(identity.lease_id ? { lease_id: identity.lease_id } : {}),
+        },
+        {
+          timeout: 15000,
+          keepalive: true,
         }
       );
       return result.released === true;
@@ -83,4 +105,31 @@ export const avatarApi: AvatarApi = {
       return false;
     }
   },
+  stopCurrent: async () => {
+    try {
+      const current = await apiClient.get<AvatarSessionStatus | null>('/avatars/sessions/current');
+      if (!current) return true;
+      if (!current.controlled || current.phase !== 'ready') return false;
+      return await avatarApi.release(current);
+    } catch {
+      return false;
+    }
+  },
+  reportFailure: async (identity, code) => {
+    try {
+      await apiClient.post(
+        '/avatars/sessions/failure',
+        { ...identity, code },
+        { timeout: 5000, keepalive: true }
+      );
+    } catch {
+      /* Diagnostics never prevent cleanup. */
+    }
+  },
 };
+
+interface AvatarSessionStatus extends AvatarLeaseIdentity {
+  phase: 'minting' | 'ready' | 'unknown';
+  controlled: boolean;
+  control_phase: 'pending' | 'open' | 'closed' | null;
+}

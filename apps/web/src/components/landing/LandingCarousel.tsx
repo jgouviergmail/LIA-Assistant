@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Expand } from 'lucide-react';
@@ -58,8 +59,8 @@ interface Frame {
 }
 
 /**
- * App captures are 1106x1258 (~7/8 — the taller home page lands in the ambient
- * bands); deck slides are 4128x2304, which is exactly 43/24.
+ * App captures include viewport and full-page views, fitted inside a portrait
+ * frame with ambient bands. The presentation uses a wide frame.
  */
 const FRAMES: Record<CarouselVariant, Frame> = {
   portrait: {
@@ -314,14 +315,19 @@ export function LandingCarousel({
         ))}
       </div>
 
-      {zoomable && expanded && (
-        <ImageLightbox
-          src={active.src}
-          alt={active.label}
-          isOpen={expanded}
-          onClose={() => setExpanded(false)}
-        />
-      )}
+      {/* Landing scroll effects can make a fixed descendant relative to the
+          section. Mount the viewer outside that hierarchy to fill the screen. */}
+      {zoomable &&
+        expanded &&
+        createPortal(
+          <ImageLightbox
+            src={active.src}
+            alt={active.label}
+            isOpen={expanded}
+            onClose={() => setExpanded(false)}
+          />,
+          document.body
+        )}
     </div>
   );
 }

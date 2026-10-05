@@ -1765,8 +1765,8 @@
     },
     "334": {
       "title": "Un avatar parlante personal con una sola salida audible — diseño propuesto",
-      "summary": "El diseño experimental implementado conecta un rostro Simli elegido por la persona con comentarios de voz y Live directo o delegado, usando su clave y una sesión acotada. El navegador elige una sola salida audible; la espera cierra la conexión, mientras una sesión abierta consume el plan personal incluso en silencio. Radio sigue aparte; la decisión permanece propuesta: movimiento de labios, aceptación multimedia y pruebas Android/iOS siguen pendientes.",
-      "src": "3ed4efca88f6"
+      "summary": "Un rostro Simli opcional acompaña la voz existente con una clave personal y una sola salida audible. La API controla la conexión y su parada; la ventana muestra el cierre confirmado o pendiente porque el silencio puede consumir el plan. La decisión sigue propuesta hasta validar el proveedor y los dispositivos reales; Radio conserva su reproductor.",
+      "src": "23fbe214bd46"
     }
   }
 }

@@ -29,7 +29,7 @@ function pause(signal: AbortSignal): Promise<void> {
 }
 
 /**
- * A phrase owns its converter, its remote clock and its drain. It spans one
+ * A phrase owns its converter, its estimated playback clock and its drain. It spans one
  * PRODUCTION — every clip of a spoken answer, every chunk of a Live reply —
  * so the face never idles and restarts between two sentences of one answer
  * (measured 2026-10-04: ~0.3 s of drain plus ~0.3 s of remote onset per clip).
@@ -43,7 +43,7 @@ export class SimliPlayout {
   private readonly sender: PcmSendQueue;
   private readonly controller = new AbortController();
   private firstSent: number | null = null;
-  /** Local clock at which the remote has played everything submitted, before `delay`. */
+  /** Estimated local-clock end of the submitted audio, before `delay`. */
   private scheduledEnd = 0;
   private delay = 1;
   private expectsSound = false;
@@ -87,7 +87,7 @@ export class SimliPlayout {
   get pendingBytes(): number {
     return this.sender.pendingBytes;
   }
-  /** Seconds of submitted audio the remote has not played yet, before `delay`. */
+  /** Estimated seconds of submitted audio remaining, before `delay`. */
   get lead(): number {
     return Math.max(0, this.scheduledEnd - this.target.media.clock);
   }
@@ -135,17 +135,7 @@ export class SimliPlayout {
           throw new Error('avatar_drain_timeout');
         await pause(this.controller.signal);
       }
-      // The actual remote audio clock must advance through the submitted tail.
-      // A pause before this point is interior silence, not an end signal.
-      while (
-        (this.expectsSound && !this.heard) ||
-        this.target.media.clock < this.scheduledEnd + this.delay + 0.08 ||
-        !this.target.media.quiet
-      ) {
-        if (!this.target.ready || performance.now() - started > 10_000)
-          throw new Error('avatar_drain_timeout');
-        await pause(this.controller.signal);
-      }
+      await this.drainOutput(started);
       if (this.error) throw this.error;
     } finally {
       logger.debug('avatar_audio_submitted', {
@@ -157,6 +147,34 @@ export class SimliPlayout {
       });
       this.sender.dispose();
       this.target.media.mute();
+    }
+  }
+  private needsDrain(): boolean {
+    return (
+      (this.expectsSound && !this.heard) ||
+      this.target.media.clock < this.scheduledEnd + this.delay + 0.08 ||
+      !this.target.media.quiet
+    );
+  }
+  private async drainOutput(started: number): Promise<void> {
+    const remaining = Math.max(0, this.scheduledEnd + this.delay + 0.08 - this.target.media.clock);
+    const deadline = performance.now() + remaining * 1000 + 10_000;
+    let clock = this.target.media.clock;
+    let advancedAt = performance.now();
+    // This clock estimates the tail. Observed sound and readiness are independent
+    // guards: a running local clock alone never proves remote playback.
+    while (this.needsDrain()) {
+      const now = performance.now();
+      if (!this.target.ready) throw new Error('avatar_output_unavailable');
+      if (this.target.media.clock > clock) {
+        clock = this.target.media.clock;
+        advancedAt = now;
+      }
+      if (this.expectsSound && !this.heard && now - started > 10_000)
+        throw new Error('avatar_no_remote_sound');
+      if (now - advancedAt > 10_000) throw new Error('avatar_clock_stalled');
+      if (now > deadline) throw new Error('avatar_drain_timeout');
+      await pause(this.controller.signal);
     }
   }
   cancel(): void {

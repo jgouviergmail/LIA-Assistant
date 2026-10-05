@@ -4,7 +4,7 @@
 
 **Version** : 6.2
 **Date** : 2026-10-04
-**Application** : LIA v2.6.0
+**Application** : LIA v2.6.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -157,7 +157,7 @@ LIA propose un mode vocal complet :
 - **Messages vocaux Telegram** : envoie des messages audio, LIA les transcrit et répond
 - **Mode Live** : une conversation en temps réel, de vive voix, sur un modèle live que tu connectes avec **ta propre clé** — Gemini Live, GPT-Live ou un agent ElevenLabs. La voix tient la conversation et confie chaque demande à LIA, qui la traite comme un tour de chat ordinaire pendant que tu parles ; une session directe laisse la voix lire tes données elle-même sans agir sur rien. Ce que le fournisseur facture t'est montré, jamais enregistré. Un silence ne clôt plus une session : il la met en veille — connexion fermée, rien de facturé — jusqu'à ce qu'un toucher la réveille avec le contexte de LIA ; c'est toujours toi qui la termines.
 
-- **Avatar parlant, expérimental** : si ton instance le propose, connecte ta clé Simli personnelle et active un visage pour les commentaires vocaux et le Live, direct ou délégué. Déplace sa fenêtre flottante et choisis parmi trois tailles, au clavier aussi. Une connexion ouverte consomme ton forfait Simli même pendant les silences ; la veille Live la ferme et le réveil reconnecte. Radio reste à part. La qualification du média et des appareils mobiles se poursuit.
+- **Avatar parlant, expérimental** : si ton instance le propose, connecte ta clé Simli personnelle et active un visage pour les commentaires vocaux et le Live, direct ou délégué. Déplace sa fenêtre flottante et choisis parmi trois tailles, au clavier aussi. Une connexion ouverte consomme ton forfait Simli même pendant les silences ; la veille Live la ferme et le réveil reconnecte. Radio reste à part. La qualification du média et des appareils mobiles se poursuit. Le bouton « Arrêter la session avatar » reste disponible dans la fenêtre et indique si la fermeture est confirmée ou encore en attente. Si elle reste en attente, patiente puis réessaie ; une fermeture non confirmée ne prouve pas que Simli a cessé de facturer.
 
 ### 3.5. Création et médias
 

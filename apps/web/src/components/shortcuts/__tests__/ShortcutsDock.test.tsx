@@ -147,8 +147,8 @@ describe('ShortcutsDock — it unfolds towards the room it has (2026-09-10)', ()
     fireEvent.click(screen.getByRole('button', { name: 'shortcuts_dock.restore' }));
 
     const capsule = dock();
-    expect(capsule.style.bottom).toMatch(/^calc\((100% - 80%|20%) - 44px\)$/);
-    expect(capsule.style.top).toBe('');
+    expect(parseFloat(capsule.style.top)).toBeCloseTo(window.innerHeight * 0.8);
+    expect(capsule.style.bottom).toBe('');
     // The stored spot is untouched: folding again puts the button back.
     expect(useShortcutsDockStore.getState().position).toEqual({ xPct: 90, yPct: 80 });
   });
@@ -160,7 +160,7 @@ describe('ShortcutsDock — it unfolds towards the room it has (2026-09-10)', ()
 
     fireEvent.click(screen.getByRole('button', { name: 'shortcuts_dock.restore' }));
 
-    expect(dock().style.top).toBe('20%');
+    expect(parseFloat(dock().style.top)).toBeCloseTo(window.innerHeight * 0.2);
     expect(dock().style.bottom).toBe('');
   });
 

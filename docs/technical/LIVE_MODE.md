@@ -54,7 +54,9 @@ flowchart TD
     API -- summary card, decision row, learning pass --> Chat
 ```
 
-**The audio never transits the API.** On a `token` connection the API mints
+**The Live provider audio connection is browser-to-provider.** With the optional
+[avatar](SPEAKING_AVATAR.md) enabled, LIA's spoken output also passes through the
+API-controlled Simli relay. On a `token` connection the API mints
 the provider's single-use credential and renders the setup the browser replays
 verbatim; on an `offer` connection it mints its own single-use nonce and
 exchanges the browser's SDP on the person's key. The CSP allowlists a
@@ -396,6 +398,21 @@ stateDiagram-v2
 | `components/settings/LiveModeSettings.tsx`, `components/settings/LiveDurationFields.tsx`, `hooks/useLiveConnectorSettings.ts`, `hooks/useLiveConnectorDraft.ts`, `hooks/useLivePreferences.ts`, `hooks/useVoiceSample.ts` | The « Live mode » section: the union of models grouped by brand, the voices of the provider under edit (a stale listing for another provider is withheld), the sample on every voice change, **a model switched to coming back with what its connector remembers** (voice, level, durations — else the provider's first voice and the instance defaults), the two durations under the billing warning (`0` = no limit; the API's bounds shown, a value in the gap or past the maximum said under the field and withheld from the save; the typed text kept apart from the number so a cleared field never snaps back), the reflexes a provider can honour, the save on `PUT /live/connectors/{provider}`. |
 | `components/settings/connectors/LiveConnectorForm.tsx`, `hooks/useLiveConnector.ts`, `LiveConnectorGroup.tsx` | The connector form (told which provider it sets up; key → listing → choose → sample → activate) and its group: the connected ones, and an available card per provider not yet set up. |
 | `e2e/smoke/chat-live-session.spec.ts`, `e2e/smoke/chat-live-session-openai.spec.ts`, `e2e/smoke/chat-live-session-elevenlabs.spec.ts` | The hermetic journeys: Gemini played by `page.routeWebSocket` (binary frames) — a delegated session and a DIRECT one (the third menu entry, `{mode: direct}` posted, `toolCall` → the tool door → `toolResponse`, nothing in the thread, no Stop); GPT-Live by a fake `RTCPeerConnection` (the offer exchange, the text-less delegation, the appended answer, `session.close`); ElevenLabs by `page.routeWebSocket` on the signed URL (the initiation first, the pong, `client_tool_call` → the thread → `client_tool_result` with the note, `agent_response` as a caption). |
+
+### Long answers and the optional avatar output
+
+`lib/voice-output/live-pcm-queue.ts` accepts synchronous provider callbacks into
+a bounded queue and feeds the avatar in small packets paced by observed playback.
+Its limits come from `lib/voice-output/types.ts`; a stalled media clock or full
+backlog fails the current production rather than accumulating unbounded audio.
+Completion drains accepted packets, while cancellation disposes the queue and its
+timer. The output route is chosen once per production: a potentially audible
+prefix is never replayed locally after an avatar failure. A subsequent production
+can choose local speech. The native provider stream keeps its original owner.
+
+The [speaking-avatar guide](SPEAKING_AVATAR.md) explains the separately controlled
+Simli connection, its visible stop acknowledgement and personal cost. Avatar
+qualification on real provider media and physical devices remains pending.
 
 ## What the thread shows
 

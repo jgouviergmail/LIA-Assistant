@@ -13,9 +13,10 @@ const language = vi.hoisted(() => ({ value: 'en' }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) =>
-      key === 'settings.avatar.window_cycle_size'
-        ? (language.value === 'fr' ? frTranslations : enTranslations).settings.avatar
-            .window_cycle_size
+      key === 'settings.avatar.window_cycle_size' || key === 'settings.avatar.window_stop'
+        ? (language.value === 'fr' ? frTranslations : enTranslations).settings.avatar[
+            key.split('.').at(-1) as 'window_cycle_size' | 'window_stop'
+          ]
         : key,
   }),
 }));
@@ -72,6 +73,14 @@ it.each([
   render(<AvatarWindow />);
   const surface = screen.getByRole('toolbar');
   expect(surface).toBeVisible();
+  expect(
+    screen.getByRole('button', {
+      name:
+        locale === 'fr'
+          ? frTranslations.settings.avatar.window_stop
+          : enTranslations.settings.avatar.window_stop,
+    })
+  ).toBeVisible();
   const resize = screen.getByRole('button', { name: label });
   for (const [size, width] of [
     ['md', 240],

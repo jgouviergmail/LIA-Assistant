@@ -282,7 +282,9 @@ describe('EyesWidget — the landing surface', () => {
     expect(useEyesWidgetStore.getState().landingPosition).not.toBeNull();
     expect(useEyesWidgetStore.getState().position).toBeNull();
     // ...and the widget now sits at that percentage, still fixed.
-    expect(group.style.left).toMatch(/%$/);
+    expect(parseFloat(group.style.left)).toBeCloseTo(
+      (window.innerWidth * (useEyesWidgetStore.getState().landingPosition?.xPct ?? 0)) / 100
+    );
     expect(group.className).toContain('fixed');
   });
 
@@ -291,8 +293,8 @@ describe('EyesWidget — the landing surface', () => {
     useEyesWidgetStore.getState().setLandingPosition({ xPct: 70, yPct: 80 });
     renderOnLanding();
     const group = screen.getByRole('group', { name: 'eyes.widget_label' });
-    expect(group.style.left).toBe('70%');
-    expect(group.style.top).toBe('80%');
+    expect(parseFloat(group.style.left)).toBeCloseTo(window.innerWidth * 0.7);
+    expect(parseFloat(group.style.top)).toBeCloseTo(window.innerHeight * 0.8);
   });
 
   it('lets the mount FORCE a look over the persisted preference', () => {
@@ -1066,7 +1068,7 @@ describe('EyesWidget — the restore dot moves too (2026-09-10)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'eyes.minimize' }));
     const dot = screen.getByRole('button', { name: 'eyes.restore' });
 
-    expect(dot.style.left).toBe('30%');
+    expect(parseFloat(dot.style.left)).toBeCloseTo(window.innerWidth * 0.3);
     expect(dot.className).not.toContain('bottom-32');
     fireEvent.click(dot);
 

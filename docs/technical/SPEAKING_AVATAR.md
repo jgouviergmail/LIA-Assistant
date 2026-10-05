@@ -19,14 +19,26 @@ when the account, credential version and face are unchanged. Live standby closes
 the connection even if comments were enabled; wake requests a fresh connection.
 Stopping a response sends `SKIP`; disabling the mode, leaving the dashboard or
 revoking permission closes the owned connection with `DONE` and disposes its
-media. A source EOF never closes the session.
+media. A source EOF never closes the session. The window also keeps an explicit
+stop control outside the chat error boundary, with confirmed or unconfirmed
+closure feedback. A chat error stops comments; an independently active Live
+conversation retains its own demand. `pagehide` requests best-effort cleanup;
+the server also observes validated presence independently of that request.
 
 The window supports small, medium and large presets, pointer/touch dragging and
 arrow keys. Like the animated companion, one compact button cycles through the
 sizes, revealed on hover, keyboard focus or a tap on touch screens. The video
 fills the frame without a permanent title or size-selection row.
 Geometry is clamped to the visual viewport on appearance, resizing,
-rotation and zoom. Only bounded window geometry is stored locally. The animated
+rotation, zoom and keyboard panning. These corrections are temporary pixel
+coordinates; only a human drag or keyboard movement changes the saved preference.
+Hidden widgets do not subscribe to layout changes. Shared stores reject non-finite
+coordinates and leave identical placements unchanged. React reads a cached geometry
+snapshot; DOM measurements run on attachment, viewport events and widget resizing.
+Reading live DOM dimensions from `getSnapshot` can otherwise make subpixel layout
+changes during keyboard or media transitions recurse into a React update loop.
+Only bounded window geometry
+is stored locally. The animated
 Eyes widget is hidden while the Simli window is present, without changing Eyes
 preferences. Simli is optional; a missing connector or disabled opt-in preserves
 the existing voice path.
@@ -46,9 +58,16 @@ startup. No platform Simli key is configured and no browser environment variable
 contains a long-lived key.
 
 The authenticated `/avatars` API exposes configuration, available faces,
-preferences, session creation, heartbeat and verified release. The connector key
+preferences, session creation, heartbeat, current-session discovery, safe failure
+codes and verified release. The connector key
 uses the existing encrypted credential infrastructure. Session responses contain
-only a temporary token and ICE credentials and are marked `no-store`.
+a short-lived, single-use relay ticket and ICE credentials and are marked
+`no-store`. The provider token stays encrypted server-side, together with the
+credential snapshot needed to close that exact session. `/avatars/ws` consumes
+the ticket atomically and owns the provider WebSocket; WebRTC media continues
+between the provider and browser. PCM and signalling transit the API relay.
+The relay strictly bounds message sizes, accepts a single offer, and cancels and
+awaits its owned tasks during cleanup.
 Preferences persist the account opt-in and the face UUID; the catalogue merges
 a reviewed public catalogue with the account's private faces and account agents.
 Account names take precedence when an agent refers to a public face. The static
@@ -66,7 +85,13 @@ accounts sharing that key cannot open concurrent owned sessions. Redis failure
 disables avatar admission while leaving text and voice available. A failed or
 cancelled token POST has an unknown outcome and is quarantined until its finite
 lease expires: it is never automatically retried. A matching ready lease is
-released only after Simli reports zero active sessions. A browser close is not
+released only after its relay is closed and Simli reports zero active sessions.
+A ticket never consumed before expiry is atomically made unusable. After reload,
+current-session discovery can reconcile that closed generation; it cannot
+silently replace an open session belonging to another tab. Explicit stop can
+request closure of the authenticated account's controlled generation without
+remembering an old browser owner id. Late acknowledgements verify the exact
+user, owner and lease and cannot release a newer generation. A browser close is not
 proof that a vendor session ended. Manual retry still passes those controls.
 Known refusals before mint, including the local rate limit, do not quarantine a
 session that was never created. The UI distinguishes these refusals from an
@@ -75,9 +100,16 @@ unknown provider outcome.
 Finite provider caps require sequential renewal. The engine closes and verifies
 the previous session before minting a replacement, preserving the window and
 gesture-unlocked context. An unverifiable release stops renewal instead of
-overlapping paid sessions. Revocation is cooperative: the existing token cannot
-be remotely revoked by this API, so the browser closes on refresh/heartbeat; an
-unreachable or modified client remains bounded by the provider session cap.
+overlapping paid sessions. The server relay sends `SKIP` then `DONE` on stop,
+connection loss, revoked access or expired validated presence, and verifies the
+provider counter before releasing admission. Browser pings do not renew the
+HTTP-authenticated presence record. Presence grace is configured by
+`avatar_presence_timeout_seconds`; the provider session cap remains the fallback
+if a worker dies or the provider becomes unreachable. This is not an assertion
+that a real provider bill stops immediately: that requires provider qualification.
+Legacy sessions minted with a directly exposed provider token cannot acquire this
+control retroactively; API and web changes must be deployed together and old
+sessions must reach their finite cap before recovery is assumed.
 
 ## Audio contract
 
@@ -106,7 +138,12 @@ cadence. The packetizer holds an unpadded partial packet only until the clip
 ends or the provider stream pauses (`LIVE_PCM_TAIL_HOLD_MS`); backpressure is
 the socket's own, bounded in memory and in time (`AVATAR_PCM_SEND_STALL_MS`).
 Encoded queues and PCM queues are bounded, and epochs discard stale work after
-cancellation or account changes.
+cancellation or account changes. Live PCM callbacks enqueue into a bounded local
+scheduler (`LIVE_PCM_MAX_QUEUED_SECONDS`) which respects the same submitted lead;
+ending a production first drains this scheduler. Final playout waits for the
+estimated remaining audio plus observed startup latency, with separate bounds
+for missing sound, a stalled local clock and unavailable media. The local
+AudioContext clock estimates duration; it does not prove provider sample playback.
 
 Voice comments decode each clip once through `AudioQueue`. Raw PCM comments
 are wrapped in a WAV container using their actual configured
@@ -157,6 +194,17 @@ chosen output route, decoded rate/frame count, submitted PCM sample count and
 observed remote audio, and record only whitelisted provider controls. They contain
 no voice content, transcript, identifier, key, ICE credential or signed URL.
 
+### Paced Live audio
+
+`LivePcmQueue` in `lib/voice-output/live-pcm-queue.ts` keeps accepted Live chunks
+in order and feeds one phrase in bounded packets. It follows the observed remote
+media clock rather than the speed of synchronous SDK callbacks. Queue and lead
+limits come from `lib/voice-output/types.ts`; a stalled clock or full backlog
+fails that production. Finish drains accepted chunks; interruption disposes the
+queue and timer. The failure boundary retains the no-replay rule for a prefix
+that may already have been heard. Tests exercise long answers, slow playback,
+cancellation and the next production; they do not establish vendor lip motion.
+
 ## Cost and privacy
 
 An open session can consume personal Simli credits during silence. The user-facing
@@ -169,7 +217,9 @@ rule. Limits protect admission and resource use; they do not estimate the bill.
 Fixed vendor origins, bounded responses, no redirects, no implicit POST retries,
 strict typed payloads and safe error codes protect the service. Tokens, ICE
 credentials, keys and audio are ephemeral; diagnostics do not log their content.
-Only Simli's exact WebSocket origin is added to the production CSP.
+The provider WebSocket uses a fixed server-side origin. Browser failure reports
+accept only enumerated codes and generation identifiers; exception text, SDP and
+signed URLs are never reported.
 
 ## Qualification
 

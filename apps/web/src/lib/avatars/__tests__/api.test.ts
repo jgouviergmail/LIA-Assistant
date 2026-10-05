@@ -2,9 +2,10 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import type { AvatarDemand } from '../activation-policy';
 
 const post = vi.hoisted(() => vi.fn());
+const get = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/api-client', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
-  apiClient: { post },
+  apiClient: { post, get },
 }));
 import { avatarApi } from '../api';
 import { ApiError } from '@/lib/api-client';
@@ -19,7 +20,52 @@ const live: AvatarDemand = {
 };
 beforeEach(() => {
   post.mockReset();
+  get.mockReset();
+  get.mockResolvedValue(null);
   post.mockResolvedValue({ released: true });
+});
+it('reconciles a closed owned generation after reload before creating any new session', async () => {
+  get.mockResolvedValueOnce({
+    owner_id: 'old',
+    lease_id: 'old-lease',
+    phase: 'ready',
+    controlled: true,
+    control_phase: 'closed',
+  });
+  await avatarApi.start('new', live, new AbortController().signal);
+  expect(post.mock.calls.map(call => call[0])).toEqual([
+    '/avatars/sessions/release',
+    '/avatars/sessions',
+  ]);
+  expect(post.mock.calls[0][1]).toEqual({ owner_id: 'old', lease_id: 'old-lease' });
+});
+it('does not mint when closure could not be verified, and never retries an uncertain mint', async () => {
+  get.mockResolvedValueOnce({
+    owner_id: 'old',
+    lease_id: 'old-lease',
+    phase: 'ready',
+    controlled: true,
+    control_phase: 'closed',
+  });
+  post.mockResolvedValueOnce({ released: false });
+  await expect(avatarApi.start('new', live, new AbortController().signal)).rejects.toMatchObject({
+    beforeMint: true,
+  });
+  expect(post).toHaveBeenCalledOnce();
+});
+it('permits explicit stop after reload, but refuses an unknown or legacy generation', async () => {
+  get.mockResolvedValueOnce({
+    owner_id: 'old',
+    lease_id: 'lease',
+    phase: 'ready',
+    controlled: true,
+    control_phase: 'open',
+  });
+  expect(await avatarApi.stopCurrent?.()).toBe(true);
+  post.mockClear();
+  get.mockResolvedValueOnce({ owner_id: 'old', phase: 'unknown', controlled: true });
+  expect(await avatarApi.stopCurrent?.()).toBe(false);
+  expect(post).not.toHaveBeenCalled();
 });
 
 it('serializes Live admission with the authenticated server schema, excluding credential metadata', async () => {
@@ -50,7 +96,10 @@ it('uses the mounted heartbeat and release endpoints with their owner and lease'
     { signal }
   );
   expect(await avatarApi.release(identity)).toBe(true);
-  expect(post).toHaveBeenCalledWith('/avatars/sessions/release', identity, { timeout: 5000 });
+  expect(post).toHaveBeenCalledWith('/avatars/sessions/release', identity, {
+    timeout: 15000,
+    keepalive: true,
+  });
 });
 it('distinguishes a definite pre-mint rate refusal from an ambiguous network failure without exposing response data', async () => {
   post.mockRejectedValueOnce(

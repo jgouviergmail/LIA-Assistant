@@ -3,6 +3,7 @@ import type { SimliControl } from './simli-protocol';
 import { parseSimliSignal } from './simli-protocol';
 import { AVATAR_PCM_MAX_BACKLOG_BYTES, AVATAR_PCM_PACKET_BYTES } from '../voice-output/types';
 import { logger } from '@/lib/logger';
+import { apiEndpointUrl } from '@/lib/api-client';
 
 const ICE_TIMEOUT_MS = 5000;
 const TERMINAL_CONTROLS: readonly SimliControl[] = ['STOP', 'RATE', 'ERROR', 'CLOSING'];
@@ -52,6 +53,7 @@ export class SimliTransport {
   private removeAbort: (() => void) | null = null;
   private tracks = new Set<MediaStreamTrack>();
   private presentation: MediaStream | null = null;
+  private ping: ReturnType<typeof setInterval> | null = null;
   constructor(readonly events: SimliTransportEvents) {}
 
   async connect(session: AvatarSession, signal: AbortSignal): Promise<void> {
@@ -87,7 +89,8 @@ export class SimliTransport {
         session.session_token,
         pc.localDescription?.sdp,
         epoch,
-        controller.signal
+        controller.signal,
+        session.server_relay === true
       );
     } catch {
       const cancelled = signal.aborted || controller.signal.aborted;
@@ -129,11 +132,17 @@ export class SimliTransport {
     token: string,
     sdp: string | undefined,
     epoch: number,
-    signal: AbortSignal
+    signal: AbortSignal,
+    relay: boolean
   ): Promise<void> {
     if (!token || token.length > 8192 || !sdp) throw new Error('avatar_bad_credential');
+    const relayUrl = new URL(apiEndpointUrl('/avatars/ws'), window.location.href);
+    relayUrl.protocol = relayUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    relayUrl.searchParams.set('ticket', token);
     const ws = new WebSocket(
-      `wss://api.simli.ai/compose/webrtc/p2p?session_token=${encodeURIComponent(token)}&enableSFU=true`
+      relay
+        ? relayUrl.href
+        : `wss://api.simli.ai/compose/webrtc/p2p?session_token=${encodeURIComponent(token)}&enableSFU=true`
     );
     this.ws = ws;
     ws.binaryType = 'arraybuffer';
@@ -149,6 +158,10 @@ export class SimliTransport {
         }
         try {
           ws.send(JSON.stringify({ type: 'offer', sdp }));
+          if (relay)
+            this.ping = setInterval(() => {
+              if (ws.readyState === 1) ws.send('PING');
+            }, 15_000);
           settled();
           resolve();
         } catch {
@@ -217,6 +230,8 @@ export class SimliTransport {
   }
 
   close(): void {
+    if (this.ping) clearInterval(this.ping);
+    this.ping = null;
     if (!this.controller) return;
     this.epoch++;
     const controller = this.controller;

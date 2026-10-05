@@ -1765,8 +1765,8 @@
     },
     "334": {
       "title": "Ein persönlicher sprechender Avatar mit einer hörbaren Ausgabe — vorgeschlagener Entwurf",
-      "summary": "Der umgesetzte experimentelle Entwurf verbindet ein selbst gewähltes Simli-Gesicht mit Sprachkommentaren und direktem oder delegiertem Live, mit Kontoschlüssel und begrenzter Sitzung. Der Browser wählt eine hörbare Ausgabe; Standby schließt die Verbindung, während eine offene Sitzung den persönlichen Tarif auch in der Stille verbraucht. Radio bleibt getrennt; die Entscheidung bleibt vorgeschlagen: Lippenbewegungen, Medienabnahme und Android/iOS-Versuche stehen aus.",
-      "src": "3ed4efca88f6"
+      "summary": "Ein optionales Simli-Gesicht begleitet die vorhandene Sprache mit persönlichem Schlüssel und einer hörbaren Ausgabe. Die API kontrolliert Verbindung und Stopp; das Fenster zeigt bestätigte oder ausstehende Schließung, da Stille das Kontingent verbrauchen kann. Die Entscheidung bleibt bis zur Anbieter- und Geräteprüfung vorgeschlagen; Radio behält seinen Player.",
+      "src": "23fbe214bd46"
     }
   }
 }

@@ -117,10 +117,9 @@ export function ShortcutsDock({ lng }: ShortcutsDockProps) {
     },
     [setPosition]
   );
-  // While it grows up the hook is handed no spot: its keyboard step and its
-  // re-clamp then read the capsule's REAL rect instead of a top the capsule
-  // is not at.
-  const drag = useFloatingDrag(rootRef, growUp ? null : position, commitPosition);
+  // The folded height anchors upward expansion; viewport correction is
+  // temporary and a drag still commits the capsule's actual top.
+  const drag = useFloatingDrag(rootRef, position, commitPosition, true, growUp ? FOLDED_PX : 0);
 
   // Client-only gate: the layout is SSR'd once, and the persisted spot only
   // exists in the browser — render nothing on the server, so nothing can
@@ -157,7 +156,7 @@ export function ShortcutsDock({ lng }: ShortcutsDockProps) {
         onPointerCancel={drag.onPointerUp}
         onKeyDown={drag.onKeyDown}
         aria-label={t('shortcuts_dock.restore')}
-        style={dockStyle(drag.dragPos, position)}
+        style={dockStyle(drag.displayPos, position)}
         className={cn(
           GLASS,
           'flex h-11 w-11 cursor-grab touch-none items-center justify-center text-primary transition-colors hover:bg-accent/70 active:cursor-grabbing',
@@ -181,7 +180,7 @@ export function ShortcutsDock({ lng }: ShortcutsDockProps) {
         onPointerUp={drag.onPointerUp}
         onPointerCancel={drag.onPointerUp}
         onKeyDown={drag.onKeyDown}
-        style={dockStyle(drag.dragPos, position, growUp)}
+        style={dockStyle(drag.displayPos, position, growUp)}
         className={cn(
           GLASS,
           'lia-shortcuts-dock flex select-none touch-none flex-col items-center gap-0.5 p-1',

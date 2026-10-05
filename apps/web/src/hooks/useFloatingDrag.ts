@@ -17,14 +17,20 @@
  *    real drag commits the position as viewport percentages
  *  - keyboard: arrow keys on the SURFACE ITSELF move it by fixed steps — not
  *    from a focused descendant, where the arrows belong to the control
- *  - a committed position is re-clamped on screen at mount and on resize
- *    (change-guarded: an unconditional commit would loop — commit stores a
- *    fresh object, which re-runs the effect)
+ *  - viewport corrections are temporary; only a human move writes preferences
  *  - `wasRecentDrag()` lets the caller suppress a click-like gesture right
  *    after a drop (the eyes' dblclick wink, the dock's tap)
  */
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type RefObject,
+} from 'react';
 
 /** Pointer travel below this stays a click. */
 export const DRAG_THRESHOLD_PX = 5;
@@ -36,31 +42,20 @@ export const DRAG_DBLCLICK_SUPPRESS_MS = 400;
 /** What a press on one of these starts is theirs, never a drag. */
 const INTERACTIVE_SELECTOR = 'button, a, input, select, textarea, [role="button"]';
 
-/** Widget anchor position as percentages of the viewport (top-left corner). */
-export interface FloatingPosition {
-  xPct: number;
-  yPct: number;
-}
-
-export interface PixelPosition {
-  x: number;
-  y: number;
-}
-
-/** Clamp a top-left pixel position so the widget stays fully on screen. */
-export function clampToViewport(pos: PixelPosition, size: { w: number; h: number }): PixelPosition {
-  const viewport = window.visualViewport;
-  const left = viewport?.offsetLeft ?? 0;
-  const top = viewport?.offsetTop ?? 0;
-  return {
-    x: Math.min(Math.max(left, pos.x), Math.max(left, left + (viewport?.width ?? window.innerWidth) - size.w)),
-    y: Math.min(Math.max(top, pos.y), Math.max(top, top + (viewport?.height ?? window.innerHeight) - size.h)),
-  };
-}
+import {
+  clampToViewport,
+  type FloatingPosition,
+  type PixelPosition,
+} from '@/lib/floating-position';
+import { createFloatingLayout } from './floating-layout';
+export { clampToViewport } from '@/lib/floating-position';
+export type { FloatingPosition, PixelPosition } from '@/lib/floating-position';
 
 export interface FloatingDrag<T extends HTMLElement = HTMLElement> {
   /** Live pixel position during a drag (null → committed position). */
   dragPos: PixelPosition | null;
+  /** Visible layout position; keyboard/pan/rotation never overwrites the saved spot. */
+  displayPos: PixelPosition | null;
   onPointerDown: (e: React.PointerEvent<T>) => void;
   onPointerMove: (e: React.PointerEvent<T>) => void;
   onPointerUp: (e: React.PointerEvent<T>) => void;
@@ -85,7 +80,8 @@ export function useFloatingDrag<T extends HTMLElement>(
   rootRef: RefObject<T | null>,
   position: FloatingPosition | null,
   setPosition: (position: FloatingPosition) => void,
-  active = true
+  active = true,
+  bottomAnchorHeight = 0
 ): FloatingDrag<T> {
   const [dragPos, setDragPos] = useState<PixelPosition | null>(null);
   const lastDragEndRef = useRef(0);
@@ -109,9 +105,22 @@ export function useFloatingDrag<T extends HTMLElement>(
     [setPosition]
   );
 
+  const layout = useMemo(
+    () => createFloatingLayout(position, active, bottomAnchorHeight),
+    [active, position, bottomAnchorHeight]
+  );
+  // A folded/unfolded or hidden/restored surface can replace the ref's node.
+  // Check attachment after commits; an unchanged node performs no layout read.
+  useLayoutEffect(() => layout.refreshElement(rootRef.current));
+  const measured = useSyncExternalStore(layout.subscribe, layout.getSnapshot, () => '');
+  const displayPos = useMemo(() => {
+    const [x, y] = measured.split(',').map(Number);
+    return dragPos ?? (measured ? { x, y } : null);
+  }, [dragPos, measured]);
+
   /** Current top-left in pixels (custom position or measured default spot). */
   const currentPixelPosition = useCallback((): PixelPosition => {
-    if (dragPos) return dragPos;
+    if (displayPos) return displayPos;
     if (position) {
       return {
         x: (position.xPct / 100) * window.innerWidth,
@@ -120,36 +129,7 @@ export function useFloatingDrag<T extends HTMLElement>(
     }
     const rect = rootRef.current?.getBoundingClientRect();
     return rect ? { x: rect.left, y: rect.top } : { x: 0, y: 0 };
-  }, [dragPos, position, rootRef]);
-
-  // Re-clamp a custom position on screen — at mount (a position saved on a
-  // larger screen may sit off this viewport) and on every resize/rotation.
-  useEffect(() => {
-    if (!active || !position) return;
-    const reclamp = () => {
-      const rect = rootRef.current?.getBoundingClientRect();
-      const raw = {
-        x: (position.xPct / 100) * window.innerWidth,
-        y: (position.yPct / 100) * window.innerHeight,
-      };
-      const clamped = clampToViewport(raw, { w: rect?.width ?? 0, h: rect?.height ?? 0 });
-      if (Math.abs(clamped.x - raw.x) > 0.5 || Math.abs(clamped.y - raw.y) > 0.5) {
-        commitPosition(clamped);
-      }
-    };
-    reclamp();
-    window.addEventListener('resize', reclamp);
-    window.visualViewport?.addEventListener('resize', reclamp);
-    window.visualViewport?.addEventListener('scroll', reclamp);
-    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(reclamp) : null;
-    if (rootRef.current) observer?.observe(rootRef.current);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', reclamp);
-      window.visualViewport?.removeEventListener('resize', reclamp);
-      window.visualViewport?.removeEventListener('scroll', reclamp);
-    };
-  }, [active, position, commitPosition, rootRef]);
+  }, [displayPos, position, rootRef]);
 
   const onPointerDown = (e: React.PointerEvent<T>) => {
     // Interactive DESCENDANTS keep their own semantics — only the surface
@@ -225,5 +205,13 @@ export function useFloatingDrag<T extends HTMLElement>(
     []
   );
 
-  return { dragPos, onPointerDown, onPointerMove, onPointerUp, onKeyDown, wasRecentDrag };
+  return {
+    dragPos,
+    displayPos,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onKeyDown,
+    wasRecentDrag,
+  };
 }

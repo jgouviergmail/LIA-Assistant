@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { normalizeFloatingPosition, sameFloatingPosition } from '@/lib/floating-position';
 import { persist } from 'zustand/middleware';
 import type { FloatingPosition } from '@/hooks/useFloatingDrag';
 
@@ -17,24 +18,7 @@ function geometry(value: unknown): { size: AvatarSize; position: FloatingPositio
   if (!value || typeof value !== 'object') return { size: 'sm', position: null };
   const size = 'size' in value && (value.size === 'md' || value.size === 'lg') ? value.size : 'sm';
   const p = 'position' in value ? value.position : null;
-  if (
-    !p ||
-    typeof p !== 'object' ||
-    !('xPct' in p) ||
-    !('yPct' in p) ||
-    typeof p.xPct !== 'number' ||
-    typeof p.yPct !== 'number' ||
-    !Number.isFinite(p.xPct) ||
-    !Number.isFinite(p.yPct)
-  )
-    return { size, position: null };
-  return {
-    size,
-    position: {
-      xPct: Math.max(0, Math.min(100, p.xPct)),
-      yPct: Math.max(0, Math.min(100, p.yPct)),
-    },
-  };
+  return { size, position: normalizeFloatingPosition(p) };
 }
 /** Geometry only: no account opt-in, face, stream or credential is persisted. */
 export const useAvatarWindowStore = create<WindowState>()(
@@ -43,7 +27,11 @@ export const useAvatarWindowStore = create<WindowState>()(
       size: 'sm',
       position: null,
       setSize: size => set({ size }),
-      setPosition: position => set({ position }),
+      setPosition: value =>
+        set(s => {
+          const position = normalizeFloatingPosition(value);
+          return sameFloatingPosition(s.position, position) ? s : { position };
+        }),
     }),
     {
       name: AVATAR_WINDOW_STORAGE_KEY,

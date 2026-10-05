@@ -4,7 +4,7 @@
 
 **Version**: 6.2
 **Datum**: 2026-10-04
-**Anwendung**: LIA v2.6.0
+**Anwendung**: LIA v2.6.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -157,7 +157,7 @@ LIA bietet einen vollständigen Sprachmodus:
 - **Telegram-Sprachnachrichten**: Sende Audiobotschaften, LIA transkribiert sie und antwortet
 - **Live-Modus**: ein Echtzeitgespräch von Stimme zu Stimme auf einem Live-Modell, das du mit **deinem eigenen Schlüssel** verbindest – Gemini Live, GPT-Live oder ein ElevenLabs-Agent. Die Stimme führt das Gespräch und reicht jede Bitte an LIA weiter, die sie als gewöhnlichen Chat-Zug ausführt, während du sprichst; eine direkte Sitzung lässt die Stimme deine Daten selbst lesen, ohne zu handeln. Was der Anbieter berechnet, wird dir gezeigt, nie aufgezeichnet. Eine Stille beendet keine Sitzung mehr: sie versetzt sie in den Standby — Verbindung geschlossen, nichts berechnet —, bis ein Tippen sie mit LIAs Kontext weckt; beenden tust immer du sie.
 
-- **Sprechender Avatar, experimentell**: Wenn deine Instanz ihn anbietet, verbinde deinen persönlichen Simli-Schlüssel und aktiviere ein Gesicht für Sprachkommentare sowie direktes oder delegiertes Live. Verschiebe das schwebende Fenster und wähle zwischen drei Größen, auch per Tastatur. Eine offene Verbindung verbraucht deinen Simli-Tarif selbst während der Stille; Live-Standby schließt sie, Aufwecken verbindet erneut. Radio bleibt getrennt. Die Medien- und Mobilqualifizierung läuft noch.
+- **Sprechender Avatar, experimentell**: Wenn deine Instanz ihn anbietet, verbinde deinen persönlichen Simli-Schlüssel und aktiviere ein Gesicht für Sprachkommentare sowie direktes oder delegiertes Live. Verschiebe das schwebende Fenster und wähle zwischen drei Größen, auch per Tastatur. Eine offene Verbindung verbraucht deinen Simli-Tarif selbst während der Stille; Live-Standby schließt sie, Aufwecken verbindet erneut. Radio bleibt getrennt. Die Medien- und Mobilqualifizierung läuft noch. Die Schaltfläche „Avatar-Sitzung stoppen“ bleibt im Fenster verfügbar und zeigt eine bestätigte oder noch ausstehende Schließung an. Warte bei ausstehender Schließung und versuche es erneut; sie beweist noch nicht, dass Simli die Abrechnung beendet hat.
 
 ### 3.5. Erstellung und Medien
 

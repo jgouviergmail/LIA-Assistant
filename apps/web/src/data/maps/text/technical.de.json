@@ -423,9 +423,9 @@
     },
     "t.avatar": {
       "name": "Avatar: Sitzung und Wiedergabe",
-      "role": "Eine persönliche Sitzung unter Redis-Lease; der Browser sendet die vorhandene Stimme als PCM und wählt Simli-Medien als einzige hörbare Ausgabe. Live-Standby schließt sie. Experimentell: Medien- und Geräteabnahme stehen aus.",
+      "role": "Die API besitzt die Simli-Verbindung unter einer Redis-Lease: Einmal-Ticket, verschlüsseltes Token, weitergeleitete Signalisierung und PCM, geprüfter Stopp und begrenzte Anwesenheit. Der Browser wählt eine hörbare Ausgabe und erhält die Wunschposition bei mobiler Tastatur. Medien- und Geräteprüfung stehen noch aus.",
       "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"],
-      "src": "b302c6788952"
+      "src": "36a9b358e3f7"
     }
   },
   "flows": {
