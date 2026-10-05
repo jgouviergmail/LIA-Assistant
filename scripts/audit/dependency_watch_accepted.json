@@ -1,6 +1,14 @@
 [
   {
     "kind": "advisory",
+    "subject": "pip:datasets@3.6.0",
+    "ref": "GHSA-379c-qx7v-6h59",
+    "reason": "The wake-word GPU synthesis toolbox only: VoxCPM 2.0.3 requires datasets >=3,<4, incompatible with the published fix. The toolbox uses local model files and synthesis, never folder-based dataset builders, save_to_disk or push_to_hub. Never in the API, Pi or self-host bundle. Adding those paths requires resolving the advisory first. Lifted when VoxCPM permits a corrected datasets version; the GitHub alert remains open.",
+    "owner": "maintainer",
+    "review_by": "2026-10-31"
+  },
+  {
+    "kind": "advisory",
     "subject": "npm:@bufbuild/protobuf@1.10.1",
     "ref": "GHSA-8985-cp8g-g88x",
     "reason": "Reached through @elevenlabs/client -> livekit-client, which declares the 1.x line; fixed only in 2.x. Its input is the voice vendor's server. @elevenlabs/client is pinned exactly because its protocol was measured (dependency spec, section 6). Lifted by an @elevenlabs/client release whose livekit-client moves to protobuf 2.",

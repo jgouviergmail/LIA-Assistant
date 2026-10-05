@@ -636,6 +636,27 @@ overrides register, to exactly what `package.json` declares.
 |------|------------------|--------------------|-------------|---------------|
 | `GHSA-vfj7-8cjw-p6xm` (high, CVE-2026-93687) | `braces` ≤ 3.0.3: `eslint-config-next` → `@next/eslint-plugin-next` (pins `fast-glob` 3.3.1) → `micromatch` → `braces`, a development dependency only | A stack overflow on deeply nested brace patterns. The only caller is ESLint's Next.js plugin, globbing the repository's own page directories with patterns the repository writes; nothing reaches it at run time, and no `braces` release fixes it (3.0.3 is the latest) | A `braces` release fixes it, or `@next/eslint-plugin-next` leaves `fast-glob` 3 — review by 2026-11-30 | release v2.4.0 (2026-10-03) |
 
+### Alertes du kit vocal hors production
+
+Les alertes globales de Dependabot complètent les avis publiés dans les dépôts
+que lit `task deps:watch`. Le kit GPU du mot d'éveil a une exception distincte
+de celles de pnpm : [GHSA-379c-qx7v-6h59](https://github.com/advisories/GHSA-379c-qx7v-6h59)
+vise les constructeurs de datasets à partir de dossiers et de métadonnées non
+fiables. [VoxCPM](https://pypi.org/pypi/voxcpm/json) impose une génération de
+`datasets` incompatible avec le correctif publié ; forcer sa résolution rendrait
+le lockfile contraire au contrat du fournisseur.
+
+Cette dépendance est limitée au
+[lock GPU](../../scripts/wake-word/requirements-gpu.lock.txt), jamais à l'API,
+au Pi ou au bundle d'auto-hébergement. Le
+[synthétiseur](../../scripts/wake-word/wakeword/clone.py) utilise le modèle et
+ses fichiers locaux ; le kit n'appelle ni les constructeurs de dossiers,
+ni `save_to_disk`, ni `push_to_hub`. Cette limite est consignée dans
+`scripts/audit/dependency_watch_accepted.json`, sous responsabilité du mainteneur,
+avec réexamen au 31 octobre 2026. Tout ajout de ces parcours exige de résoudre
+l'alerte avant usage. Retirer l'exception dès qu'une version compatible de
+VoxCPM permet le paquet corrigé ; l'alerte GitHub reste ouverte entre-temps.
+
 ### Gardes de dependances (sans reseau)
 
 Quatre gardes du programme dependances (lot 3), dans `apps/api/tests/unit/`, tournent avec la

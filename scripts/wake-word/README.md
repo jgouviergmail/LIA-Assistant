@@ -10,6 +10,18 @@ The whole procedure — data, training, measurement, shipping — and the measur
 that shaped it are explained in
 [docs/technical/WAKE_WORD_TRAINING.md](../../docs/technical/WAKE_WORD_TRAINING.md).
 
+## Security boundary of the GPU toolbox
+
+The GPU toolbox carries a `datasets` advisory
+([GHSA-379c-qx7v-6h59](https://github.com/advisories/GHSA-379c-qx7v-6h59)):
+VoxCPM's current dependency constraint does not admit the corrected version.
+The toolbox uses local model files and synthesis; it does not use folder-based
+dataset builders, `save_to_disk`, or `push_to_hub`. Do not add those paths with
+untrusted metadata while this constraint remains. This package never enters
+the API, Pi, or self-host bundle. The maintainer's exception and review deadline
+are recorded in [dependency_watch_accepted.json](../audit/dependency_watch_accepted.json)
+and explained in [CI_CD.md](../../docs/technical/CI_CD.md#alertes-du-kit-vocal-hors-production).
+
 ## The model
 
 openWakeWord's pipeline (Apache-2.0), re-trained per language:
