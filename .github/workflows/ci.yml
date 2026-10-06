@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Qualify the exact release branch when main advances independently.
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -165,6 +167,10 @@ jobs:
           retention-days: 7
 
   test-backend:
+    # Authenticate coverage with a short-lived GitHub identity, scoped to this job.
+    permissions:
+      contents: read
+      id-token: write
     name: Test Backend
     runs-on: ubuntu-24.04
     needs: lint-backend
@@ -259,8 +265,8 @@ jobs:
         with:
           files: ./apps/api/coverage.xml
           flags: backend
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          use_oidc: true
 
   test-backend-integration:
     name: Test Backend Integration
@@ -428,6 +434,10 @@ jobs:
           bash ../../scripts/db/check_migrations_replay.sh
 
   test-frontend:
+    # Authenticate coverage with a short-lived GitHub identity, scoped to this job.
+    permissions:
+      contents: read
+      id-token: write
     name: Test Frontend
     runs-on: ubuntu-24.04
     needs: lint-frontend
@@ -470,8 +480,8 @@ jobs:
         with:
           files: ./apps/web/coverage/coverage-final.json
           flags: frontend
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          use_oidc: true
 
   code-hygiene:
     name: Code Hygiene

@@ -27,6 +27,11 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 
 ### Fixed
 
+- **Couverture CI** : uploads backend et frontend authentifiés par OIDC
+  GitHub, sans secret permanent absent ; un refus de publication du rapport
+  échoue explicitement au lieu d’être ignoré. Le lancement manuel de la même
+  CI permet de qualifier le commit exact d’une branche de release lorsque
+  `main` avance en parallèle.
 - **Dépendances CSS** : correctifs de déni de service pour `source-map-js`
   ([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q))
   et le parseur de sélecteurs utilisé par Typography
@@ -65,8 +70,10 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 - Matrice Firefox/WebKit : sortie audio native virtuelle, STUN local et silence
   du pair synthétique ; thème chargé dès l’amorçage et assertions de phase
   compatibles avec l’horloge mise en pause, sans retirer les règles d’accessibilité.
-  Mesures après montage de l’historique, horloge de géométrie figée au chargement
-  et captures sans redimensionnement ni défilement redondants.
+  Horloges suspendues avant navigation, geste de lecture après montage de
+  l’historique et alignement mesuré après les deux peintures différées.
+  Captures de cartes dimensionnées à leur contenu après les contrôles axe,
+  puis retour au viewport audité ; seuils, délais et règles conservés.
   Chromium utilise le navigateur complet épinglé en mode headless documenté,
   avec l’ensemble des règles axe, scénarios média et assertions géométriques.
 - Isolation API conservée pendant la fermeture des navigateurs : requêtes en

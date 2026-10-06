@@ -166,6 +166,11 @@ concurrency:
 ```
 
 Un nouveau push annule le run CI en cours sur la meme branche.
+Le lancement manuel accepte aussi une branche de release :
+`gh workflow run ci.yml --ref codex/release-v2-6-1`. Il execute les memes taches
+que le push, sans changer leurs seuils. Avant de taguer, verifier le `headSha`
+et la conclusion de ce run : une CI verte sur un autre commit ne qualifie pas
+la release. Cette voie conserve son perimetre quand `main` avance en parallele.
 
 ### Permissions
 
@@ -174,7 +179,9 @@ permissions:
   contents: read
 ```
 
-Principe du moindre privilege : le `GITHUB_TOKEN` n'a acces qu'en lecture.
+Principe du moindre privilege : le `GITHUB_TOKEN` n'a acces qu'en lecture
+par defaut. Seuls les jobs backend et frontend demandent aussi `id-token: write`
+pour authentifier leur upload Codecov par OIDC.
 
 ### Jobs detail
 
@@ -234,6 +241,14 @@ certifiant l'unicite de la source.
 Doctrine ratchet (jamais de baisse, >= 2 points de marge avant de monter) :
 voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Rapport uploade sur
 [Codecov](https://codecov.io).
+
+Les deux uploads s’authentifient par l’identité OIDC éphémère de GitHub Actions
+(`use_oidc: true`), avec `id-token: write` limité aux jobs backend et frontend.
+Aucun secret `CODECOV_TOKEN` n’est nécessaire. L’action épinglée détecte les PR
+issues de forks et conserve leur parcours public sans jeton ; elle n’y demande
+pas d’identité OIDC. Un refus d’upload fait échouer le job (`fail_ci_if_error: true`)
+au lieu de laisser une CI verte avec un rapport refusé. Voir la
+[configuration officielle OIDC](https://github.com/codecov/codecov-action#using-oidc).
 
 `task test:markers` (F006) ferme un angle mort du garde-fou par chemins : un
 fichier de test peut vivre sous une racine executee en CI et rester
@@ -310,6 +325,14 @@ CJS et ESM : blocs d’au plus 1 048 576 unités de code UTF-16, longueur et emp
 assemblage, fermeture de la page même en cas d’échec. Une version ou source
 inconnue est refusée avant toute écriture. Toutes les règles et données axe sont
 conservées ; `task test:e2e` vérifie aussi les contrats de ce patch.
+
+Les tests d'animation suspendent l'horloge avant navigation. Le geste de
+lecture intervient apres le montage de l'historique, dans la fenetre de
+stabilisation controlee ; l'alignement final est mesure apres ses deux peintures.
+Les captures de cartes interviennent apres les controles fonctionnels et axe :
+leur viewport ne grandit que si la carte le requiert, puis revient a sa taille
+auditee. Ces synchronisations conservent les seuils geometriques et les regles
+d'accessibilite sur les trois moteurs.
 
 L'environnement (serveur gere, IPv4, URLs d'API relatives) vit **dans la
 tache** : ce ne sont pas des reglages CI mais la facon dont la suite fonctionne,
@@ -774,7 +797,7 @@ hook (`--no-verify`) ou clone sans installer les hooks, la CI rattrape.
 | ----------------------------------------------------------------------- | :------------------------------------------: | :----------------------: | :------: | --------------------------------------------------------------------- |
 | Ruff / Black / MyPy (`src/ tests/`)                                     |                      ✓                       |            ✓             |    ✓     | Aligne                                                                |
 | Ratchet MyPy-debt (F020)                                                |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
-| Tests unitaires                                                         |         ✓ (rapides, xdist, sans cov)         | ✓ (+ cov, plancher 60 %) |    ✓     | Le hook troque la couverture contre le parallelisme                   |
+| Tests unitaires                                                         |         ✓ (rapides, xdist, sans cov)         | ✓ (+ cov, plancher du Taskfile) |    ✓     | Le hook troque la couverture contre le parallelisme                   |
 | Gate de markers (F006)                                                  |                      —                       |            ✓             |    ✓     | Meme tache                                                            |
 | ESLint                                                                  |                      ✓                       |            ✓             |    ✓     | Aligne                                                                |
 | TypeScript                                                              |                      ✓                       |            ✓             |    ✓     | Non incremental des le script `type-check`                            |
@@ -808,7 +831,6 @@ sensibles a la plateforme dans un conteneur Linux.
 | Secret            | Usage                                         |
 | ----------------- | --------------------------------------------- |
 | `TEST_FERNET_KEY` | Encryption key pour les tests backend         |
-| `CODECOV_TOKEN`   | Upload coverage vers Codecov                  |
 | `GITHUB_TOKEN`    | Auto-genere, utilise par Gitleaks et releases |
 
 ---
@@ -841,7 +863,7 @@ task lint:ci-parity         # le workflow orchestre, il n'implemente pas
 
 # Tests seuls
 task test:backend:unit:fast     # rapide, xdist, sans couverture (perimetre du hook)
-task test:backend:unit:coverage # la commande CI a l'identique, plancher 60 % inclus
+task test:backend:unit:coverage # la commande CI et son plancher de couverture
 task test:markers               # gate F006 : aucun test ne tourne dans zero job
 task test:frontend              # Vitest
 task test:frontend:coverage     # + les seuils de couverture par fichier
