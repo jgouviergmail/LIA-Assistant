@@ -180,8 +180,8 @@ permissions:
 ```
 
 Principe du moindre privilege : le `GITHUB_TOKEN` n'a acces qu'en lecture
-par defaut. Seuls les jobs backend et frontend demandent aussi `id-token: write`
-pour authentifier leur upload Codecov par OIDC.
+par defaut. Les rapports de couverture sont des artifacts GitHub Actions ;
+leur archivage ne demande ni identité OIDC ni secret de service externe.
 
 ### Jobs detail
 
@@ -239,16 +239,17 @@ six valeurs fausses differentes — dont ce paragraphe, qui annoncait 60 % tout 
 certifiant l'unicite de la source.
 
 Doctrine ratchet (jamais de baisse, >= 2 points de marge avant de monter) :
-voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Rapport uploade sur
-[Codecov](https://codecov.io).
+voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Les seuils bloquants
+restent ceux des tâches et de leur configuration de couverture.
 
-Les deux uploads s’authentifient par l’identité OIDC éphémère de GitHub Actions
-(`use_oidc: true`), avec `id-token: write` limité aux jobs backend et frontend.
-Aucun secret `CODECOV_TOKEN` n’est nécessaire. L’action épinglée détecte les PR
-issues de forks et conserve leur parcours public sans jeton ; elle n’y demande
-pas d’identité OIDC. Un refus d’upload fait échouer le job (`fail_ci_if_error: true`)
-au lieu de laisser une CI verte avec un rapport refusé. Voir la
-[configuration officielle OIDC](https://github.com/codecov/codecov-action#using-oidc).
+Les jobs archivent les rapports avec `actions/upload-artifact`, épinglée au
+commit déclaré dans le workflow : `backend-coverage` contient
+`apps/api/coverage.xml` ; `frontend-coverage` contient
+`coverage/coverage-final.json` et `coverage/lcov.info` produits sous `apps/web`.
+Les artifacts sont téléchargeables depuis le run pendant sept jours, y compris
+après un échec des tests (`if: always()`). Une absence de rapport fait échouer
+l’archivage (`if-no-files-found: error`) ; une erreur de test reste bloquante.
+Aucun compte ni jeton de service externe n’est nécessaire.
 
 `task test:markers` (F006) ferme un angle mort du garde-fou par chemins : un
 fichier de test peut vivre sous une racine executee en CI et rester
@@ -349,8 +350,9 @@ La tache appelle le script dedie `pnpm test:coverage`, jamais
 silencieusement le flag — aucun rapport n'est produit (piege corrige en
 v1.21.26, ADR-116). Elle applique les **seuils de couverture ratchet** de
 `apps/web/vitest.config.mts` (reducers/sse-handlers/stores verrouilles a 100 %,
-hooks aux valeurs mesurees, plancher global) et uploade
-`coverage/coverage-final.json` vers Codecov.
+hooks aux valeurs mesurees, plancher global) et archive
+`coverage/coverage-final.json` et `coverage/lcov.info` dans l’artifact
+GitHub Actions `frontend-coverage`.
 
 La tache **vide `NEXT_PUBLIC_API_URL`**. Ce Taskfile declare `dotenv: - .env`
 globalement, donc chaque tache herite de l'environnement du developpeur, que le
@@ -460,7 +462,12 @@ declaration aux entrees de construction ; seule l'image prouve une execution.
 Sa version est ecrite (`GITLEAKS_VERSION`) et tenue egale a celle de `task security:secrets`, son
 jumeau local que lance le hook pre-push (`test_one_value_one_owner_guard.py`). Un faux positif se
 traite par `# gitleaks:allow` en fin de ligne, ou par empreinte exacte dans `.gitleaksignore`
-quand la ligne est deja commitee.
+quand la ligne est deja commitee. Une empreinte historique comporte le commit,
+le fichier, la règle et la ligne, avec le motif de la revue : elle ne peut
+masquer une nouvelle valeur dans un autre commit. Le lancement manuel scanne
+tout l’historique ; le hook scanne les commits effectivement envoyés. Après
+une revue historique, `task security:secrets RANGE=--all` vérifie le registre
+et une valeur synthétique nouvellement commitée doit encore être refusée.
 
 ---
 

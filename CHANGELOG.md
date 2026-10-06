@@ -27,11 +27,14 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 
 ### Fixed
 
-- **Couverture CI** : uploads backend et frontend authentifiés par OIDC
-  GitHub, sans secret permanent absent ; un refus de publication du rapport
-  échoue explicitement au lieu d’être ignoré. Le lancement manuel de la même
-  CI permet de qualifier le commit exact d’une branche de release lorsque
-  `main` avance en parallèle.
+- **Couverture CI** : rapports backend XML et frontend JSON/LCOV archivés
+  dans GitHub Actions pendant sept jours, avec erreur explicite si le rapport
+  manque. Les seuils restent imposés par les mêmes tâches locales et CI.
+  Le lancement manuel de la même CI permet de qualifier le commit exact
+  d’une branche de release lorsque `main` avance en parallèle.
+- **Scan de secrets** : faux positifs historiques examinés individuellement
+  et enregistrés par empreinte exacte de commit, fichier, règle et ligne ;
+  scan complet conservé et détection d’une nouvelle valeur synthétique vérifiée.
 - **Dépendances CSS** : correctifs de déni de service pour `source-map-js`
   ([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q))
   et le parseur de sélecteurs utilisé par Typography

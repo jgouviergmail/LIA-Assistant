@@ -167,10 +167,6 @@ jobs:
           retention-days: 7
 
   test-backend:
-    # Authenticate coverage with a short-lived GitHub identity, scoped to this job.
-    permissions:
-      contents: read
-      id-token: write
     name: Test Backend
     runs-on: ubuntu-24.04
     needs: lint-backend
@@ -259,14 +255,14 @@ jobs:
       - name: Hermetic installer gate (ADR-215)
         run: task test:install:hermetic
 
-      - name: Upload coverage
+      - name: Archive backend coverage
         if: always()
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          files: ./apps/api/coverage.xml
-          flags: backend
-          fail_ci_if_error: true
-          use_oidc: true
+          name: backend-coverage
+          path: apps/api/coverage.xml
+          retention-days: 7
+          if-no-files-found: error
 
   test-backend-integration:
     name: Test Backend Integration
@@ -434,10 +430,6 @@ jobs:
           bash ../../scripts/db/check_migrations_replay.sh
 
   test-frontend:
-    # Authenticate coverage with a short-lived GitHub identity, scoped to this job.
-    permissions:
-      contents: read
-      id-token: write
     name: Test Frontend
     runs-on: ubuntu-24.04
     needs: lint-frontend
@@ -466,7 +458,7 @@ jobs:
 
       # The task runs the dedicated `test:coverage` script, NOT
       # `pnpm test -- --coverage`: pnpm forwards the literal `--` to vitest,
-      # which silently ignores the flag (no report, Codecov uploads nothing).
+      # which silently ignores the flag (no coverage report is produced).
       # It also blanks NEXT_PUBLIC_API_URL, which the Taskfile's global
       # `dotenv: .env` would otherwise inject locally and which measurably
       # changes branch coverage — here the variable is absent either way, so
@@ -474,14 +466,16 @@ jobs:
       - name: Run Vitest
         run: task test:frontend:coverage
 
-      - name: Upload coverage
+      - name: Archive frontend coverage
         if: always()
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          files: ./apps/web/coverage/coverage-final.json
-          flags: frontend
-          fail_ci_if_error: true
-          use_oidc: true
+          name: frontend-coverage
+          path: |
+            apps/web/coverage/coverage-final.json
+            apps/web/coverage/lcov.info
+          retention-days: 7
+          if-no-files-found: error
 
   code-hygiene:
     name: Code Hygiene

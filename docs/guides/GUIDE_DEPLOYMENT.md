@@ -1089,235 +1089,36 @@ processus est tué : il n'y a jamais de verrou fantôme à nettoyer à la main.
 
 ### GitHub Actions Workflow
 
-**Fichier .github/workflows/ci.yml** :
+La définition exécutable est [ci.yml](../../.github/workflows/ci.yml).
+Elle appelle les tâches du [Taskfile](../../Taskfile.yml), qui possède les
+commandes et seuils ; [CI_CD.md](../technical/CI_CD.md) décrit les jobs et
+permissions. Les versions des runtimes, images et actions sont épinglées dans
+ces sources. Pour reproduire les contrôles locaux :
 
-```yaml
-name: CI/CD Pipeline
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME_API: ${{ github.repository }}/api
-  IMAGE_NAME_WEB: ${{ github.repository }}/web
-
-jobs:
-  # ============================================================================
-  # Lint & Type Check
-  # ============================================================================
-
-  lint-backend:
-    name: Lint Backend
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        working-directory: ./apps/api
-        run: |
-          # ADR-112 : on installe le LOCKFILE compile, pas pyproject
-          # (pyproject ne declare aucune dependance).
-          pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt
-
-      - name: Run Ruff
-        working-directory: ./apps/api
-        run: ruff check .
-
-      - name: Run Black
-        working-directory: ./apps/api
-        run: black --check .
-
-      - name: Run MyPy
-        working-directory: ./apps/api
-        run: mypy src
-
-  # ============================================================================
-  # Tests
-  # ============================================================================
-
-  test-backend:
-    name: Test Backend
-    runs-on: ubuntu-24.04
-    services:
-      postgres:
-        image: pgvector/pgvector:<version>-pg16-bookworm@sha256:<digest>  # the production pin
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
-        ports:
-          - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        working-directory: ./apps/api
-        run: pip install --require-hashes --no-binary urllib3-future -r requirements-dev.lock.txt   # ADR-112
-
-      - name: Run tests with coverage
-        working-directory: ./apps/api
-        env:
-          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
-          REDIS_URL: redis://localhost:6379/15
-        run: |
-          pytest --cov=src --cov-report=xml --cov-report=term-missing
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./apps/api/coverage.xml
-          flags: backend
-
-  # ============================================================================
-  # Build & Push Docker Images
-  # ============================================================================
-
-  build-api:
-    name: Build API Image
-    runs-on: ubuntu-24.04
-    needs: [lint-backend, test-backend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./apps/api
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  build-web:
-    name: Build Web Image
-    runs-on: ubuntu-24.04
-    needs: [lint-backend]  # Frontend has own lint job
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_WEB }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./apps/web
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  # ============================================================================
-  # Deploy to Production (ECS)
-  # ============================================================================
-
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-24.04
-    needs: [build-api, build-web]
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: https://app.yourdomain.com
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Deploy API to ECS
-        run: |
-          aws ecs update-service \
-            --cluster lia-cluster \
-            --service lia-api \
-            --force-new-deployment
-
-      - name: Wait for deployment
-        run: |
-          aws ecs wait services-stable \
-            --cluster lia-cluster \
-            --services lia-api
-
-      - name: Notify success
-        if: success()
-        run: echo "✅ Deployment successful!"
+```bash
+task ci:fast
+task test:install
+task test:install:backend-contracts
 ```
+
+Les jobs de tests archivent `backend-coverage` (XML) et `frontend-coverage`
+(JSON et LCOV) dans GitHub Actions pendant sept jours. Les seuils de couverture
+et l’archivage sont bloquants ; un rapport absent fait échouer le job.
 
 ### Pipeline Stages
 
-1. **Lint & Type Check** : Ruff, Black, MyPy, ESLint
-2. **Tests** : Pytest (backend), Vitest (frontend), coverage ≥80%
-3. **Build** : Docker multi-stage builds
-4. **Push** : GitHub Container Registry (ghcr.io)
-5. **Deploy** : ECS Fargate update-service
-6. **Verify** : Health checks, smoke tests
+1. **Qualité** : lint, types, documentation, traductions et garde-fous.
+2. **Tests** : suites backend/frontend, couverture, intégration, migrations
+   depuis une base vide, parcours navigateur et accessibilité.
+3. **Construction CI** : vérification des images API, web et bac à sable.
+4. **Candidats de release** : [release.yml](../../.github/workflows/release.yml)
+   construit les images multiarchitectures et enregistre leurs digests.
+5. **Installation de zéro** :
+   [installer-disposable-smoke.yml](../../.github/workflows/installer-disposable-smoke.yml)
+   qualifie amd64/arm64, construction locale et images préconstruites.
+6. **Publication** : promotion des digests qualifiés et release GitHub.
+7. **Exploitation** : `task deploy:prod` exécute le parcours de déploiement
+   configuré ; contrôler le manifeste, les images exécutées et la disponibilité.
 
 ---
 
