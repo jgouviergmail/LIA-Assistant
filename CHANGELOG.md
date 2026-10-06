@@ -27,6 +27,9 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 
 ### Fixed
 
+- **Radio** : amorçage silencieux stéréo aligné sur les morceaux de la station,
+  pour fiabiliser le démarrage natif sous WebKit. Le geste de lecture, les
+  deux pistes et la protection contre une pause tardive sont conservés.
 - **Couverture CI** : rapports backend XML et frontend JSON archivés
   dans GitHub Actions pendant sept jours, avec erreur explicite si le rapport
   manque. Les seuils restent imposés par les mêmes tâches locales et CI.
@@ -61,6 +64,9 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 
 ### Tests
 
+- **Radio** : format WAV, silence, durée, correspondance des canaux avec les
+  morceaux livrés et résolution tardive de la lecture contrôlés ; parcours
+  natifs avec lecture, redimensionnement et arrêt conservés.
 - **Garde de croissance linéaire** : temps CPU du thread mesuré sur plusieurs
   appels et tailles alternées, avec médiane des ratios, pour distinguer le
   travail du code des variations de charge sous xdist ; plafond de durée réelle,

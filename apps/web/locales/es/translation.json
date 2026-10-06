@@ -8250,17 +8250,18 @@
             "i6": "<b>🔧 También corregido</b> — la selección de herramientas y la clasificación ReAct se habían vuelto ciegas por una caché de embeddings escrita en la dimensión equivocada; el validador semántico se saltaba cada turno desde un cambio de septiembre; una respuesta ambigua a una confirmación se leía como una modificación; una llamada Live que nadie contestaba no dejaba ninguna notificación; una pestaña abierta retenía una conexión a la base de datos durante toda su vida; el certificado de desarrollo se renovaba por su edad y no por su caducidad."
           }
         },
-          "v2_6_1": {
-            "title": "v2.6.1 — Voz continua, un avatar controlable y una interfaz al alcance",
-            "date": "6 de octubre de 2026 · 13:00 CEST",
-            "count": "4",
-            "items": {
-              "i1": "<b>🎭 Una parada visible para el avatar</b> — La ventana conserva el botón de parada incluso si el chat encuentra un error. Indica si el cierre está confirmado o pendiente; una sesión abierta puede consumir tu plan Simli, incluso durante el silencio.",
-              "i2": "<b>🎧 Respuestas Live continuas</b> — Las respuestas largas mantienen sus fragmentos de audio en orden. El avatar sigue la reproducción sin repetir la misma frase tras una interrupción; si falla la salida, la siguiente respuesta puede volver a la voz local.",
-              "i3": "<b>📱 Elementos flotantes accesibles</b> — Avatar, compañero animado y accesos directos se adaptan al área visible al abrir el teclado, girar la pantalla o ampliar. Estos ajustes temporales conservan la posición que elegiste.",
-              "i4": "<b>🖼️ La interfaz actual en imágenes</b> — La galería y la documentación muestran las pantallas actuales con datos ficticios de demostración. Las capturas actualizadas se cargan con su propia revisión para evitar mostrar una imagen antigua. El visor ampliado ocupa toda la pantalla en ordenador y móvil."
-            }
-          },
+        "v2_6_1": {
+          "title": "v2.6.1 — Voz continua, un avatar controlable y una interfaz al alcance",
+          "date": "6 de octubre de 2026 · 20:56 CEST",
+          "count": "5",
+          "items": {
+            "i1": "<b>🎭 Una parada visible para el avatar</b> — La ventana conserva el botón de parada incluso si el chat encuentra un error. Indica si el cierre está confirmado o pendiente; una sesión abierta puede consumir tu plan Simli, incluso durante el silencio.",
+            "i2": "<b>🎧 Respuestas Live continuas</b> — Las respuestas largas mantienen sus fragmentos de audio en orden. El avatar sigue la reproducción sin repetir la misma frase tras una interrupción; si falla la salida, la siguiente respuesta puede volver a la voz local.",
+            "i3": "<b>📱 Elementos flotantes accesibles</b> — Avatar, compañero animado y accesos directos se adaptan al área visible al abrir el teclado, girar la pantalla o ampliar. Estos ajustes temporales conservan la posición que elegiste.",
+            "i4": "<b>🖼️ La interfaz actual en imágenes</b> — La galería y la documentación muestran las pantallas actuales con datos ficticios de demostración. Las capturas actualizadas se cargan con su propia revisión para evitar mostrar una imagen antigua. El visor ampliado ocupa toda la pantalla en ordenador y móvil.",
+            "i5": "<b>📻 Un inicio más estable para Radio</b> — La música empieza a reproducirse con mayor fiabilidad. Puedes minimizar o ampliar el reproductor, cambiar el tamaño de la ventana mientras escuchas y detener Radio con sus controles habituales."
+          }
+        },
         "v2_6_0": {
           "title": "v2.6.0 — Un rostro que habla, tarjetas fieles y cada intento pagado contabilizado",
           "date": "5 de octubre de 2026 · 06:58 CEST",

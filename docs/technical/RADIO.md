@@ -8,10 +8,10 @@ parts fit.
 
 ## Two tiers
 
-| Tier | Scope | Cost |
-|---|---|---|
-| **Newsroom** | the instance: reads public feeds (catalogue + the sites listeners added), stores items and their full text | no model, no per-person cost |
-| **Antenna** | one listener's session: decides, writes, checks, voices and mixes one segment at a time | billed to the listener (ADR-272) |
+| Tier         | Scope                                                                                                      | Cost                             |
+| ------------ | ---------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| **Newsroom** | the instance: reads public feeds (catalogue + the sites listeners added), stores items and their full text | no model, no per-person cost     |
+| **Antenna**  | one listener's session: decides, writes, checks, voices and mixes one segment at a time                    | billed to the listener (ADR-272) |
 
 The antenna runs only while someone listens: a session ends when the player
 stops reporting, stays paused too long, the timer's farewell has aired, a
@@ -21,33 +21,33 @@ no failure (decision 33).
 
 ## Modules (`apps/api/src/domains/radio/`)
 
-| Module | Role |
-|---|---|
-| `formats.py` | the formats, their material, roles, durations, frequencies, and the music mood under each (`music_mood`) |
-| `grid.py` | the deterministic running order (pure) |
-| `session.py`, `programme.py`, `pacing.py` | the session's state machine, planned slots, lookahead |
-| `orchestrator.py` | one session's loop, the single writer of its state |
-| `runner.py` | runs loops in a worker under a lease (`held_claim`), stops them at shutdown |
-| `service.py`, `view.py`, `schemas.py` | the doors (start, report, stop, audio) and their wire shapes |
-| `router.py`, `errors.py`, `listener_settings.py` | the routes, their coded refusals, what a settings write checks |
-| `adapters.py`, `wiring.py`, `settings_view.py` | the ports on the platform (account, slots, voices, ledger), one radio per worker, the settings as the pure modules take them |
-| `jobs.py`, `consultations.py` | the newsroom pass and the media sweep; the reads filed on the `radio` consultation surface |
-| `live_store.py`, `codec.py`, `aired.py` | Redis state: session record, inbox, published state and segments, the aired ledger (what a listener heard, across sessions, and what each angle programme took) |
-| `articles.py` | the radio page's article: the text the newsroom kept, translated on opening, once per story and language |
-| `setup.py`, `setup_builder.py`, `preferences.py`, `options.py` | the frozen per-session setup, the listener's settings, what settings may offer |
-| `sources_view.py`, `names.py` | what each source holds for the listener (pure); the character rules of a name the station says (the station's, a site's) |
-| `interests.py`, `interest_search.py` | the listener's interests as stories: a search result filed as a feed item (pure), searched with the listener's own key when a session starts |
-| `budget.py` | the listener's radio's own rolling-day bound |
-| `antenna.py` | one slot's segment: desk → pack → write → check → voice → mix |
-| `news_desk.py` | every news format's shortlist, the stories an angle comes back to, the exhausted desk (pure; read off the loop) |
-| `flash.py` | a news flash: when LIA writes to the listener, the station breaks in (pure; out of the running order) |
-| `packs.py`, `editorial.py`, `facts.py`, `personal.py` | what a segment may say: facts, packs per format, news shortlists, the listener's material |
-| `meanings.py` | two headlines of one event, read by meaning: the relation, and the headlines' vectors every listener shares |
-| `day_source.py`, `readers/` | reading the listener's day and personal corner, and — for the journal's noon and evening editions — what was done today and what lies ahead |
-| `prompting.py`, `writing.py`, `analysis.py`, `checking.py` | the three model calls (writer, analyst, verifier) |
-| `script.py`, `verification.py`, `numbers.py` | the writer's answer, the deterministic editor, how a figure compares across languages and units |
-| `production.py`, `delivery.py`, `cast.py`, `audio.py`, `media.py` | voices, delivery, the voice-only mix, session audio files |
-| `newsroom/` | catalogue, safe fetch, robots.txt, parsing, full text, collector, site discovery |
+| Module                                                            | Role                                                                                                                                                            |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `formats.py`                                                      | the formats, their material, roles, durations, frequencies, and the music mood under each (`music_mood`)                                                        |
+| `grid.py`                                                         | the deterministic running order (pure)                                                                                                                          |
+| `session.py`, `programme.py`, `pacing.py`                         | the session's state machine, planned slots, lookahead                                                                                                           |
+| `orchestrator.py`                                                 | one session's loop, the single writer of its state                                                                                                              |
+| `runner.py`                                                       | runs loops in a worker under a lease (`held_claim`), stops them at shutdown                                                                                     |
+| `service.py`, `view.py`, `schemas.py`                             | the doors (start, report, stop, audio) and their wire shapes                                                                                                    |
+| `router.py`, `errors.py`, `listener_settings.py`                  | the routes, their coded refusals, what a settings write checks                                                                                                  |
+| `adapters.py`, `wiring.py`, `settings_view.py`                    | the ports on the platform (account, slots, voices, ledger), one radio per worker, the settings as the pure modules take them                                    |
+| `jobs.py`, `consultations.py`                                     | the newsroom pass and the media sweep; the reads filed on the `radio` consultation surface                                                                      |
+| `live_store.py`, `codec.py`, `aired.py`                           | Redis state: session record, inbox, published state and segments, the aired ledger (what a listener heard, across sessions, and what each angle programme took) |
+| `articles.py`                                                     | the radio page's article: the text the newsroom kept, translated on opening, once per story and language                                                        |
+| `setup.py`, `setup_builder.py`, `preferences.py`, `options.py`    | the frozen per-session setup, the listener's settings, what settings may offer                                                                                  |
+| `sources_view.py`, `names.py`                                     | what each source holds for the listener (pure); the character rules of a name the station says (the station's, a site's)                                        |
+| `interests.py`, `interest_search.py`                              | the listener's interests as stories: a search result filed as a feed item (pure), searched with the listener's own key when a session starts                    |
+| `budget.py`                                                       | the listener's radio's own rolling-day bound                                                                                                                    |
+| `antenna.py`                                                      | one slot's segment: desk → pack → write → check → voice → mix                                                                                                   |
+| `news_desk.py`                                                    | every news format's shortlist, the stories an angle comes back to, the exhausted desk (pure; read off the loop)                                                 |
+| `flash.py`                                                        | a news flash: when LIA writes to the listener, the station breaks in (pure; out of the running order)                                                           |
+| `packs.py`, `editorial.py`, `facts.py`, `personal.py`             | what a segment may say: facts, packs per format, news shortlists, the listener's material                                                                       |
+| `meanings.py`                                                     | two headlines of one event, read by meaning: the relation, and the headlines' vectors every listener shares                                                     |
+| `day_source.py`, `readers/`                                       | reading the listener's day and personal corner, and — for the journal's noon and evening editions — what was done today and what lies ahead                     |
+| `prompting.py`, `writing.py`, `analysis.py`, `checking.py`        | the three model calls (writer, analyst, verifier)                                                                                                               |
+| `script.py`, `verification.py`, `numbers.py`                      | the writer's answer, the deterministic editor, how a figure compares across languages and units                                                                 |
+| `production.py`, `delivery.py`, `cast.py`, `audio.py`, `media.py` | voices, delivery, the voice-only mix, session audio files                                                                                                       |
+| `newsroom/`                                                       | catalogue, safe fetch, robots.txt, parsing, full text, collector, site discovery                                                                                |
 
 ## A session's life
 
@@ -451,6 +451,12 @@ client (`media-src` allows `blob:`); a report every few seconds and at every
 boundary; a session the API opened after the listener pressed stop is stopped
 at once.
 
+Playback permission is acquired synchronously within the start gesture using
+a cached silent stereo WAV (0.1 s, 8 kHz, PCM8). Its two channels match every
+shipped music track, keeping the Web Audio decks on the same channel layout
+when music replaces silence. A completed priming play pauses only if its
+silent source is still selected; a late completion cannot pause a new segment.
+
 **A news flash** is not queued: its audio is fetched as soon as an answer names
 it, and it airs the moment it is ready — cutting the programme on air, which
 resumes from the position where it stopped (`playSegment(url, startAt)`: the
@@ -471,14 +477,14 @@ gesture; it neither skips the programme nor escapes as an unhandled rejection.
 Where it shows — all behind ONE predicate, `radioAvailable` (`lib/radio/availability.ts`:
 the operator's switch when published, else the deployment's ceiling):
 
-| Surface | Component |
-|---|---|
-| Header, from `lg` | `RadioControl` (the click takes the permission to play) |
-| Logo menu, below `lg` | `DashboardMobileNavMenu` (the recorder's action, then the radio's) |
-| Under the header, every dashboard page | `RadioBannerSlot` — publishes `--radio-banner-h`, which the chat's full-height shell subtracts |
-| Home page, under the quick-access bar, right above « My dashboard » | `RadioDashboardCard`, handed to `TodayBriefing` as its `aboveBriefing` |
-| `/dashboard/radio` | `RadioPage` (says the radio is not offered where it is not) |
-| Settings › Voice & Media | `RadioSettings` |
+| Surface                                                             | Component                                                                                      |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Header, from `lg`                                                   | `RadioControl` (the click takes the permission to play)                                        |
+| Logo menu, below `lg`                                               | `DashboardMobileNavMenu` (the recorder's action, then the radio's)                             |
+| Under the header, every dashboard page                              | `RadioBannerSlot` — publishes `--radio-banner-h`, which the chat's full-height shell subtracts |
+| Home page, under the quick-access bar, right above « My dashboard » | `RadioDashboardCard`, handed to `TodayBriefing` as its `aboveBriefing`                         |
+| `/dashboard/radio`                                                  | `RadioPage` (says the radio is not offered where it is not)                                    |
+| Settings › Voice & Media                                            | `RadioSettings`                                                                                |
 
 A refusal the API names (`detail.code`) is told in the listener's words with the
 bound it published (`lib/radio/errors.ts`); a start refusal stays on the bar.
@@ -600,16 +606,16 @@ All under `/radio`, behind the capability switch, each answering for the caller 
 (another account's session, segment or site reads as absent). None holds a request
 session (ADR-304).
 
-| Route | Refusals (`detail.code`) |
-|---|---|
-| `POST /sessions` | `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`, `radio_budget_reached` (429, + `max_eur`, `lifts_at`) |
-| `POST /sessions/{id}/playhead`, `POST /sessions/{id}/stop` | — (404 when not the caller's) |
-| `GET /sessions/{id}/segments/{seq}/audio` | — (`Cache-Control: no-store`) |
-| `GET /options`, `GET /preferences`, `GET /budget` | — |
-| `GET /articles/{id}` | — (404 when the story is not the caller's to read: the catalogue's, or one of their own sites') |
-| `PUT /preferences` | `radio_timer_too_long` (+ `max_minutes`), `radio_voice_unknown`, `radio_personality_unknown`; 422 for an unticked address that is not a base source |
-| `GET /sources` (every source and what it holds), `PATCH /sources/{id}` (rename, pause), `DELETE /sources/{id}`, `DELETE /heard` | — (404 when the site is not the caller's) |
-| `POST /sources/preview`, `POST /sources` (rate-limited per account) | `radio_source_refused` (+ `outcome`), `radio_source_limit` (+ `max_sources`) |
+| Route                                                                                                                           | Refusals (`detail.code`)                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /sessions`                                                                                                                | `radio_instance_full`, `radio_no_voice`, `radio_voice_unavailable`, `radio_budget_reached` (429, + `max_eur`, `lifts_at`)                           |
+| `POST /sessions/{id}/playhead`, `POST /sessions/{id}/stop`                                                                      | — (404 when not the caller's)                                                                                                                       |
+| `GET /sessions/{id}/segments/{seq}/audio`                                                                                       | — (`Cache-Control: no-store`)                                                                                                                       |
+| `GET /options`, `GET /preferences`, `GET /budget`                                                                               | —                                                                                                                                                   |
+| `GET /articles/{id}`                                                                                                            | — (404 when the story is not the caller's to read: the catalogue's, or one of their own sites')                                                     |
+| `PUT /preferences`                                                                                                              | `radio_timer_too_long` (+ `max_minutes`), `radio_voice_unknown`, `radio_personality_unknown`; 422 for an unticked address that is not a base source |
+| `GET /sources` (every source and what it holds), `PATCH /sources/{id}` (rename, pause), `DELETE /sources/{id}`, `DELETE /heard` | — (404 when the site is not the caller's)                                                                                                           |
+| `POST /sources/preview`, `POST /sources` (rate-limited per account)                                                             | `radio_source_refused` (+ `outcome`), `radio_source_limit` (+ `max_sources`)                                                                        |
 
 Every code has a sentence in the six languages (`tests/unit/domains/radio/test_errors.py`).
 
@@ -640,10 +646,10 @@ administered in their own category of the LLM settings.
 
 ## Background jobs
 
-| Job | What it does |
-|---|---|
-| `radio_newsroom_collect` | one newsroom pass per `RADIO_NEWSROOM_INTERVAL_SECONDS`, under the capability read at every tick; no lock (a bounded pass on the leader) |
-| `radio_media_sweep` | removes the session directories no live session claims and nobody touched for `RADIO_MEDIA_ORPHAN_AGE_SECONDS`; removes nothing when the live sessions cannot be read |
+| Job                      | What it does                                                                                                                                                          |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `radio_newsroom_collect` | one newsroom pass per `RADIO_NEWSROOM_INTERVAL_SECONDS`, under the capability read at every tick; no lock (a bounded pass on the leader)                              |
+| `radio_media_sweep`      | removes the session directories no live session claims and nobody touched for `RADIO_MEDIA_ORPHAN_AGE_SECONDS`; removes nothing when the live sessions cannot be read |
 
 Both are registered by `infrastructure/startup/scheduler_radio.py`, only where
 `RADIO_ENABLED` is true. A stopping worker cancels its session loops within
