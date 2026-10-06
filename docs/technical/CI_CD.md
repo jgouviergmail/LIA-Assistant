@@ -235,6 +235,14 @@ Doctrine ratchet (jamais de baisse, >= 2 points de marge avant de monter) :
 voir [GUIDE_TESTING](../guides/GUIDE_TESTING.md) et ADR-113. Rapport uploade sur
 [Codecov](https://codecov.io).
 
+Les deux uploads s’authentifient par l’identité OIDC éphémère de GitHub Actions
+(`use_oidc: true`), avec `id-token: write` limité aux jobs backend et frontend.
+Aucun secret `CODECOV_TOKEN` n’est nécessaire. L’action épinglée détecte les PR
+issues de forks et conserve leur parcours public sans jeton ; elle n’y demande
+pas d’identité OIDC. Un refus d’upload fait échouer le job (`fail_ci_if_error: true`)
+au lieu de laisser une CI verte avec un rapport refusé. Voir la
+[configuration officielle OIDC](https://github.com/codecov/codecov-action#using-oidc).
+
 `task test:markers` (F006) ferme un angle mort du garde-fou par chemins : un
 fichier de test peut vivre sous une racine executee en CI et rester
 **entierement deselectionne** par l'expression de markers du job. Le gate
@@ -808,7 +816,6 @@ sensibles a la plateforme dans un conteneur Linux.
 | Secret            | Usage                                         |
 | ----------------- | --------------------------------------------- |
 | `TEST_FERNET_KEY` | Encryption key pour les tests backend         |
-| `CODECOV_TOKEN`   | Upload coverage vers Codecov                  |
 | `GITHUB_TOKEN`    | Auto-genere, utilise par Gitleaks et releases |
 
 ---

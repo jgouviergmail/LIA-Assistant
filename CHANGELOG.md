@@ -27,6 +27,9 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 
 ### Fixed
 
+- **Couverture CI** : uploads backend et frontend authentifiés par OIDC
+  GitHub, sans secret permanent absent ; un refus de publication du rapport
+  échoue explicitement au lieu d’être ignoré.
 - **Dépendances CSS** : correctifs de déni de service pour `source-map-js`
   ([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q))
   et le parseur de sélecteurs utilisé par Typography
