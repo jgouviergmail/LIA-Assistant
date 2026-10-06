@@ -16,7 +16,7 @@ env:
   # from sdist so it does NOT clobber the genuine urllib3 package. Must pair
   # with `--no-binary urllib3-future` on every lockfile install. See
   # apps/api/requirements.txt.
-  URLLIB3_NO_OVERRIDE: "1"
+  URLLIB3_NO_OVERRIDE: '1'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -33,7 +33,7 @@ jobs:
       - name: Set up Python 3.14
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14"
+          python-version: '3.14'
           cache: pip
           cache-dependency-path: apps/api/requirements-dev.lock.txt
 
@@ -72,7 +72,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: "24"
+          node-version: '24'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -116,7 +116,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: "24"
+          node-version: '24'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -142,7 +142,7 @@ jobs:
       # differently from this job.
       - name: Run E2E + a11y smoke
         env:
-          CI: "true"
+          CI: 'true'
         run: task test:e2e
 
       # Guided showroom P0 (public-web-showroom program): two SEQUENTIAL clean
@@ -150,12 +150,12 @@ jobs:
       # oracle needs its own fresh artifact (E2E_FORCE_FRESH in the tasks).
       - name: Showroom contract — telemetry OFF (zero-API + axe)
         env:
-          CI: "true"
+          CI: 'true'
         run: task test:e2e:showroom
 
       - name: Showroom contract — telemetry ON (credential-less collector)
         env:
-          CI: "true"
+          CI: 'true'
         run: task test:e2e:showroom:telemetry
 
       - name: Upload Playwright report
@@ -199,7 +199,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
       REDIS_URL: redis://localhost:6379
-      REDIS_PASSWORD: ""
+      REDIS_PASSWORD: ''
       SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
       # Fallback = the throwaway PUBLIC test key from apps/api/.env.test: the
       # TEST_FERNET_KEY repo secret is optional (absent on forks/this repo), and
@@ -214,7 +214,7 @@ jobs:
       - name: Set up Python 3.14
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14"
+          python-version: '3.14'
           cache: pip
           cache-dependency-path: apps/api/requirements-dev.lock.txt
 
@@ -305,9 +305,9 @@ jobs:
       # F019: this job provisions PostgreSQL as a service — it PROMISES a DB, so an
       # unreachable DB / Testcontainers error must FAIL the job, not silently skip
       # whole DB test groups (conftest.py::_db_unavailable honours this flag).
-      LIA_REQUIRE_DB: "1"
+      LIA_REQUIRE_DB: '1'
       REDIS_URL: redis://localhost:6379
-      REDIS_PASSWORD: ""
+      REDIS_PASSWORD: ''
       SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
       # Fallback = the throwaway PUBLIC test key from apps/api/.env.test: the
       # TEST_FERNET_KEY repo secret is optional (absent on forks/this repo), and
@@ -322,7 +322,7 @@ jobs:
       - name: Set up Python 3.14
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14"
+          python-version: '3.14'
           cache: pip
           cache-dependency-path: apps/api/requirements-dev.lock.txt
 
@@ -386,7 +386,7 @@ jobs:
       # precedence over the .env copied below, routing alembic to the service.
       DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_db
       REDIS_URL: redis://localhost:6379
-      REDIS_PASSWORD: ""
+      REDIS_PASSWORD: ''
       SECRET_KEY: test-secret-key-minimum-32-characters-long-for-testing
       # Fallback = the throwaway PUBLIC test key from apps/api/.env.test: the
       # TEST_FERNET_KEY repo secret is optional (absent on forks/this repo), and
@@ -401,7 +401,7 @@ jobs:
       - name: Set up Python 3.14
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14"
+          python-version: '3.14'
           cache: pip
           cache-dependency-path: apps/api/requirements-dev.lock.txt
 
@@ -443,7 +443,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: "24"
+          node-version: '24'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -471,9 +471,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-coverage
-          path: |
-            apps/web/coverage/coverage-final.json
-            apps/web/coverage/lcov.info
+          path: apps/web/coverage/coverage-final.json
           retention-days: 7
           if-no-files-found: error
 
@@ -487,7 +485,7 @@ jobs:
       - name: Set up Python 3.14
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14"
+          python-version: '3.14'
 
       - name: Install Task
         uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
@@ -622,7 +620,7 @@ jobs:
       - name: Set up Python 3.10
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
       - name: Wizard self-check under the 3.10 floor
         run: python -B scripts/install/tests_py310.py
@@ -637,7 +635,7 @@ jobs:
       - name: Set up Python 3.14
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14"
+          python-version: '3.14'
 
       - name: Install Task
         uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0

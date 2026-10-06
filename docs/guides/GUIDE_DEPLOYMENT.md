@@ -1102,7 +1102,7 @@ task test:install:backend-contracts
 ```
 
 Les jobs de tests archivent `backend-coverage` (XML) et `frontend-coverage`
-(JSON et LCOV) dans GitHub Actions pendant sept jours. Les seuils de couverture
+(JSON) dans GitHub Actions pendant sept jours. Les seuils de couverture
 et l’archivage sont bloquants ; un rapport absent fait échouer le job.
 
 ### Pipeline Stages

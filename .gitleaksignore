@@ -240,3 +240,8 @@ eda9c50d554d03285a1f4f2c9f1dbe8b901e188a:apps/api/tests/unit/domains/notificatio
 # private leaked password; runtime password hardening was not assessed by this
 # read-only triage.
 046ba4d40e952ad30e0df230216e4da25e102380:scripts/monitoring/validate_grafana_provisioning.sh:curl-auth-user:251
+
+# The first-parent merge diff repeats the already reviewed Firebase token
+# fixture from eda9c50. The entire test module is byte-identical; messaging
+# is mocked and the deterministic sample is never sent to Firebase.
+fdf43ae46ee1eaec0db8612e69cca137497c57fe:apps/api/tests/unit/domains/notifications/test_service_event_loop.py:generic-api-key:50

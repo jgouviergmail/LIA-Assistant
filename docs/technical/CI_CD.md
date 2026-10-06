@@ -245,7 +245,7 @@ restent ceux des tâches et de leur configuration de couverture.
 Les jobs archivent les rapports avec `actions/upload-artifact`, épinglée au
 commit déclaré dans le workflow : `backend-coverage` contient
 `apps/api/coverage.xml` ; `frontend-coverage` contient
-`coverage/coverage-final.json` et `coverage/lcov.info` produits sous `apps/web`.
+`coverage/coverage-final.json` produit sous `apps/web`.
 Les artifacts sont téléchargeables depuis le run pendant sept jours, y compris
 après un échec des tests (`if: always()`). Une absence de rapport fait échouer
 l’archivage (`if-no-files-found: error`) ; une erreur de test reste bloquante.
@@ -351,7 +351,7 @@ silencieusement le flag — aucun rapport n'est produit (piege corrige en
 v1.21.26, ADR-116). Elle applique les **seuils de couverture ratchet** de
 `apps/web/vitest.config.mts` (reducers/sse-handlers/stores verrouilles a 100 %,
 hooks aux valeurs mesurees, plancher global) et archive
-`coverage/coverage-final.json` et `coverage/lcov.info` dans l’artifact
+`coverage/coverage-final.json` dans l’artifact
 GitHub Actions `frontend-coverage`.
 
 La tache **vide `NEXT_PUBLIC_API_URL`**. Ce Taskfile declare `dotenv: - .env`

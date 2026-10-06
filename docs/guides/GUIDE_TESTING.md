@@ -2172,7 +2172,7 @@ Une cible non atteinte se discute en revue ; le plancher, lui, rougit la CI.
 ### Coverage en CI
 
 Le job `test-backend` archive le rapport XML dans l’artifact GitHub Actions
-`backend-coverage`. Le job frontend archive les rapports JSON et LCOV dans
+`backend-coverage`. Le job frontend archive le rapport JSON dans
 `frontend-coverage`. Conservés sept jours, avec archivage tenté même après un échec des
 tests, ces artifacts sont téléchargeables depuis le run ; leur absence fait
 échouer l’archivage. Les seuils bloquants restent ceux de

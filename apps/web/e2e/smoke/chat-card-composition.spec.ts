@@ -158,6 +158,12 @@ for (const sample of [
         },
       });
       await expect(chip).not.toBeVisible();
+      // The captured POST only proves that sending started. Wait for the reply
+      // and the unlocked composer before selecting another archived card.
+      await expect(page.getByText('Draft requested', { exact: true })).toBeVisible();
+      await expect(input).toBeEditable();
+      await expect(input).toHaveValue('');
+      await expect(forward).toBeEnabled();
       await forward.click();
       await expect(chip).toBeVisible();
       await chip.getByRole('button').click();

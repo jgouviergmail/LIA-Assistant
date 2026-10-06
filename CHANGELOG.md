@@ -27,7 +27,7 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
 
 ### Fixed
 
-- **Couverture CI** : rapports backend XML et frontend JSON/LCOV archivés
+- **Couverture CI** : rapports backend XML et frontend JSON archivés
   dans GitHub Actions pendant sept jours, avec erreur explicite si le rapport
   manque. Les seuils restent imposés par les mêmes tâches locales et CI.
   Le lancement manuel de la même CI permet de qualifier le commit exact
@@ -77,6 +77,10 @@ essais fournisseur et physiques Android/iOS restent à qualifier.
   l’historique et alignement mesuré après les deux peintures différées.
   Captures de cartes dimensionnées à leur contenu après les contrôles axe,
   puis retour au viewport audité ; seuils, délais et règles conservés.
+  Le compagnon conserve chaque frame active ; les périodes de repos sont
+  avancées sous la limite du rig, avec la même durée virtuelle totale.
+  La composition attend la réponse et la réouverture effective du formulaire
+  avant de sélectionner une seconde carte archivée.
   Chromium utilise le navigateur complet épinglé en mode headless documenté,
   avec l’ensemble des règles axe, scénarios média et assertions géométriques.
 - Isolation API conservée pendant la fermeture des navigateurs : requêtes en
