@@ -10,14 +10,20 @@ no-store`` always set.
 from __future__ import annotations
 
 import uuid
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
 from redis.asyncio import Redis
 
 from src.core.config import settings
+from src.domains.agents.nodes.react_egress_question import build_interrupt_payload
+from src.domains.agents.services.hitl.question_generator import HitlQuestionGenerator
+from src.domains.agents.services.streaming.service import StreamingService
 from src.domains.agents.utils.hitl_store import HITLStore
 from src.domains.users.models import User
+from tests.helpers.hitl_interactions import StaticDraftInteraction
 
 pytestmark = pytest.mark.integration
 
@@ -61,6 +67,79 @@ def _interrupt_data(message_id: str) -> dict:
 
 
 class TestPendingHitlEndpoint:
+    @pytest.mark.parametrize(
+        "available,expected",
+        [
+            (True, ["confirm", "confirm_without_data", "cancel"]),
+            (False, ["confirm_without_data", "cancel"]),
+        ],
+    )
+    async def test_scheduled_egress_stream_round_trips_through_redis_and_http(
+        self,
+        authenticated_client: tuple[AsyncClient, User],
+        redis_client: Redis,
+        monkeypatch: pytest.MonkeyPatch,
+        available: bool,
+        expected: list[str],
+    ) -> None:
+        client, _user = authenticated_client
+        conversation_id = uuid.uuid4()
+
+        async def _get_test_redis() -> Redis:
+            return redis_client
+
+        async def _resolve_conversation(_user_id: uuid.UUID) -> str:
+            return str(conversation_id)
+
+        monkeypatch.setattr("src.infrastructure.cache.redis.get_redis_cache", _get_test_redis)
+        monkeypatch.setattr(
+            "src.infrastructure.cache.get_conversation_id_cached", _resolve_conversation
+        )
+        store = HITLStore(redis_client, ttl_seconds=60)
+        payload = build_interrupt_payload(
+            {
+                "draft_id": "draft-egress",
+                "draft_type": "sandbox_egress",
+                "step_id": "step-egress",
+                "draft_content": {
+                    "hosts_unknown": ["example.org"],
+                    "data_summary": {"available": available},
+                },
+            },
+            user_language="fr",
+        )
+        interaction = StaticDraftInteraction(MagicMock(spec=HitlQuestionGenerator))
+        service = StreamingService(hitl_store=store)
+        try:
+            with (
+                patch(
+                    "src.domains.agents.services.streaming.service._get_hitl_registry"
+                ) as registry,
+                patch("src.domains.agents.services.streaming.service._get_hitl_question_generator"),
+            ):
+                registry.return_value.from_action_type.return_value = interaction
+                chunks = [
+                    chunk
+                    async for chunk in service._handle_hitl_interrupt(
+                        {"__interrupt__": [SimpleNamespace(value=payload, id="scheduled-egress")]},
+                        conversation_id,
+                        "scheduled-run",
+                    )
+                ]
+            live = next(c.metadata for c in chunks if c.type == "hitl_interrupt_metadata")
+            response = await client.get("/api/v1/agents/hitl/pending")
+            assert response.status_code == 200
+            body = response.json()
+            assert live is not None
+            assert body["message_id"] == live["message_id"]
+            request = body["action_requests"][0]
+            assert [a["action"] for a in request["available_actions"]] == expected
+            assert request["available_actions"] == live["action_requests"][0]["available_actions"]
+            assert request["step_id"] == "step-egress"
+            assert response.headers["cache-control"] == "no-store"
+        finally:
+            await store.delete_interrupt(str(conversation_id))
+
     async def test_no_conversation_returns_null(
         self, authenticated_client: tuple[AsyncClient, User]
     ):

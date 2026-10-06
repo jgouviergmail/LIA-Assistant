@@ -17,7 +17,7 @@ import {
   ContextUsage,
   StreamPhase,
 } from '@/types/chat-state';
-import { normalizeHitlPayload } from '@/lib/hitl-payload';
+import { usePendingHitlSync } from '@/hooks/usePendingHitlSync';
 import { withCardCompositionContext, withCompositionUserMetadata } from '@/lib/card-actions';
 import type { HitlDecisionWire } from '@/types/hitl';
 import type { CapabilityDirectiveWire } from '@/types/directive';
@@ -29,13 +29,7 @@ import {
   persistDebugMetricsHistory,
 } from '@/reducers/chat-reducer';
 import { validateReducerAction } from '@/reducers/chat-reducer-errors';
-import {
-  cancelActiveRun,
-  chatSSEClient,
-  ChatStreamError,
-  fetchActiveRun,
-  fetchPendingHitl,
-} from '@/lib/api/chat';
+import { cancelActiveRun, chatSSEClient, ChatStreamError, fetchActiveRun } from '@/lib/api/chat';
 import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useLiaGender } from '@/hooks/useLiaGender';
@@ -149,7 +143,7 @@ export interface UseChatReturn {
   /**
    * Rehydrate the approval card after a page reload: fetches the pending
    * interrupt (GET /agents/hitl/pending) and re-arms the card when one is
-   * pending. Safe no-op on null/failure — progressive enhancement only.
+   * pending. A confirmed absence clears an awaiting card; a failed read keeps it.
    */
   hydratePendingHitl: () => Promise<void>;
   /**
@@ -257,8 +251,14 @@ export const useChat = ({
   } = useGeolocation();
 
   // Voice playback for TTS audio streaming
-  const { handleVoiceChunk, beginVoiceRun, endVoiceRun, stopPlayback, warmupAudio, recordUserInteraction } =
-    useVoicePlayback();
+  const {
+    handleVoiceChunk,
+    beginVoiceRun,
+    endVoiceRun,
+    stopPlayback,
+    warmupAudio,
+    recordUserInteraction,
+  } = useVoicePlayback();
 
   // LIA gender preference (for TTS voice selection)
   const { isMale: liaIsMale } = useLiaGender();
@@ -287,40 +287,56 @@ export const useChat = ({
     stateRef.current = state;
   }, [state]);
 
+  const { hydratePendingHitl, cancelPendingHitlSync } = usePendingHitlSync(stateRef, baseDispatch);
+
   /**
    * Validated dispatch wrapper - logs errors before passing to pure reducer.
    * This maintains reducer purity while enabling error detection.
    */
-  const dispatch: Dispatch<ChatAction> = useCallback((action: ChatAction) => {
-    // Validate action against current state (development only)
-    if (process.env.NODE_ENV === 'development') {
-      const errors = validateReducerAction(stateRef.current, action);
-      errors.forEach(validationError => {
-        const logContext = {
-          errorType: validationError.type,
-          action: validationError.action,
-          severity: validationError.severity,
-          ...validationError.context,
-        };
+  const dispatch: Dispatch<ChatAction> = useCallback(
+    (action: ChatAction) => {
+      if (
+        [
+          'SEND_MESSAGE',
+          'CLEAR_MESSAGES',
+          'HITL_AWAITING',
+          'HITL_SUBMITTING',
+          'HITL_EXPIRED',
+        ].includes(action.type)
+      ) {
+        cancelPendingHitlSync();
+      }
+      // Validate action against current state (development only)
+      if (process.env.NODE_ENV === 'development') {
+        const errors = validateReducerAction(stateRef.current, action);
+        errors.forEach(validationError => {
+          const logContext = {
+            errorType: validationError.type,
+            action: validationError.action,
+            severity: validationError.severity,
+            ...validationError.context,
+          };
 
-        // Log with appropriate severity level
-        switch (validationError.severity) {
-          case 'error':
-            logger.error('reducer_validation_error', undefined, logContext);
-            break;
-          case 'warning':
-            logger.warn('reducer_validation_warning', logContext);
-            break;
-          case 'debug':
-            logger.debug('reducer_validation_debug', logContext);
-            break;
-        }
-      });
-    }
+          // Log with appropriate severity level
+          switch (validationError.severity) {
+            case 'error':
+              logger.error('reducer_validation_error', undefined, logContext);
+              break;
+            case 'warning':
+              logger.warn('reducer_validation_warning', logContext);
+              break;
+            case 'debug':
+              logger.debug('reducer_validation_debug', logContext);
+              break;
+          }
+        });
+      }
 
-    // Pass to pure reducer
-    baseDispatch(action);
-  }, []);
+      // Pass to pure reducer
+      baseDispatch(action);
+    },
+    [cancelPendingHitlSync]
+  );
 
   /**
    * Resolve a stream error to a user-facing, localized message.
@@ -456,7 +472,15 @@ export const useChat = ({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, withContext, stopPlayback, handleVoiceChunk, beginVoiceRun, endVoiceRun, resolveStreamErrorMessage] // dispatch excluded: stable from useReducer
+    [
+      t,
+      withContext,
+      stopPlayback,
+      handleVoiceChunk,
+      beginVoiceRun,
+      endVoiceRun,
+      resolveStreamErrorMessage,
+    ] // dispatch excluded: stable from useReducer
   );
 
   /**
@@ -963,20 +987,6 @@ export const useChat = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [] // dispatch excluded: stable from useReducer
   );
-
-  /**
-   * HITL card rehydration (Lot 1 P1-V1) — called by the chat page at mount,
-   * alongside history loading. The wire payload is normalized here; out-of-
-   * scope kinds (clarification…) yield null and no card appears.
-   */
-  const hydratePendingHitl = useCallback(async () => {
-    const pending = await fetchPendingHitl();
-    const normalized = normalizeHitlPayload(pending);
-    if (normalized) {
-      dispatch({ type: 'HITL_AWAITING', payload: { payload: normalized } });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // dispatch excluded: stable from useReducer
 
   /** Wire→canonical action mapping (mirror of the backend alias table). */
   const canonicalHitlAction = (wireAction: string): 'confirm' | 'cancel' =>

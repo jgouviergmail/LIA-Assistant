@@ -4,7 +4,7 @@
  */
 
 import { ChatStreamChunk, ChatRequest } from '@/types/chat';
-import { redirectToLogin } from '@/lib/api-client';
+import apiClient, { redirectToLogin } from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { CHAT_SSE_STALL_TIMEOUT_MS } from '@/lib/constants';
 
@@ -77,7 +77,6 @@ async function usageLimitError(response: Response): Promise<ChatStreamError> {
       );
 }
 
-
 /** Active background run of the user's conversation (ADR-117 Lot 2). */
 export interface ActiveRunStatus {
   active: boolean;
@@ -121,27 +120,11 @@ export async function cancelActiveRun(): Promise<{ cancelled: boolean }> {
  * Fetch the pending HITL interrupt for approval-card rehydration (Lot 1
  * P1-V1). The `hitl_interrupt_metadata` SSE chunk is not part of archived
  * history — after a reload only this endpoint can rebuild the card. Returns
- * the raw wire payload (normalized by lib/hitl-payload) or null when nothing
- * is pending / on any failure (the card is a progressive enhancement — the
- * text channel never depends on it).
+ * the raw wire payload (normalized by lib/hitl-payload), null when nothing
+ * is pending, and rejects on failure so a failed read cannot erase a card.
  */
-export async function fetchPendingHitl(): Promise<unknown | null> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/agents/hitl/pending`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-    if (!response.ok) {
-      return null;
-    }
-    return (await response.json()) as unknown;
-  } catch (error) {
-    logger.warn('pending_hitl_fetch_failed', {
-      component: 'ChatSSEClient',
-      error: String(error),
-    });
-    return null;
-  }
+export async function fetchPendingHitl(signal?: AbortSignal): Promise<unknown | null> {
+  return apiClient.get<unknown>('/agents/hitl/pending', { signal });
 }
 
 export async function fetchActiveRun(): Promise<ActiveRunStatus> {

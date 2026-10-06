@@ -643,6 +643,14 @@ export default defineConfig({
           functions: 96,
           lines: 91,
         },
+        // Pending HITL synchronization — measured 2026-10-06:
+        // 100 / 83.33 / 100 / 100; keep the two-point ratchet margin.
+        'src/hooks/usePendingHitlSync.ts': {
+          statements: 98,
+          branches: 81,
+          functions: 98,
+          lines: 98,
+        },
         'src/hooks/useConversation.ts': {
           statements: 98,
           branches: 91,

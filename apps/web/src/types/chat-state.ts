@@ -370,6 +370,10 @@ export type ChatAction =
   // HITL approval card (Lot 1 P1-V1). Last-wins: a new interrupt replaces
   // any previous card state.
   | { type: 'HITL_AWAITING'; payload: { payload: NormalizedHitlPayload } }
+  | {
+      type: 'HITL_SYNC';
+      payload: { payload: NormalizedHitlPayload | null; expected: HitlCardState };
+    }
   // Button pressed — buttons lock while the decision request is in flight.
   | { type: 'HITL_SUBMITTING'; payload: { action: 'confirm' | 'cancel' } }
   // Typed error from the backend: the decision no longer matches the pending

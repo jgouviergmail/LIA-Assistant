@@ -16,7 +16,9 @@ route module. Two entry points:
 from __future__ import annotations
 
 from src.core.config import settings
+from src.core.exceptions import CacheError
 from src.core.i18n import normalize_language
+from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.utils import hitl_cache
@@ -60,13 +62,16 @@ def hitl_stale_chunks(user_language: str) -> list[ChatStreamChunk]:
     ]
 
 
-async def check_pending_hitl_uncached(conversation_id: str) -> dict | None:
+async def check_pending_hitl_uncached(
+    conversation_id: str, *, raise_on_error: bool = False
+) -> dict | None:
     """Check for a pending HITL interrupt with an authoritative Redis read.
 
     Detects whether the conversation has a pending HITL interrupt stored in
     Redis awaiting a user response. Returns the flattened interrupt payload
     (action_requests + interrupt_ts and, for newer interrupts, message_id)
-    or None. Never raises: a Redis error degrades to "nothing pending".
+    or None. Routing guards fail open by default; the card endpoint requests
+    a strict read so an outage cannot be mistaken for an answered question.
 
     Args:
         conversation_id: Conversation UUID string.
@@ -110,6 +115,11 @@ async def check_pending_hitl_uncached(conversation_id: str) -> dict | None:
             conversation_id=conversation_id,
             error=str(e),
         )
+        if raise_on_error:
+            raise CacheError(
+                operation="hitl_pending",
+                detail=APIMessages.service_unavailable("Redis"),
+            ) from e
 
     return None
 

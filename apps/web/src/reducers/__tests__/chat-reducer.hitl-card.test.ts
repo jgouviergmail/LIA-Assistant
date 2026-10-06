@@ -65,6 +65,95 @@ function submittingState(action: 'confirm' | 'cancel' = 'confirm'): ChatState {
 }
 
 describe('chatReducer — HITL_AWAITING', () => {
+  it('automatic messages after the question preserve its awaiting actions', () => {
+    const armed = awaitingState();
+    const page = chatReducer(armed, {
+      type: 'MERGE_SERVER_PAGE',
+      payload: { messages: [makeMessage('automatic', 'assistant')] },
+    });
+    const appended = chatReducer(page, {
+      type: 'APPEND_MESSAGE',
+      payload: { message: makeMessage('reminder', 'assistant') },
+    });
+    expect(appended.hitl).toBe(armed.hitl);
+  });
+
+  it('a repeated authoritative read does not re-arm an expired question', () => {
+    const expired = chatReducer(awaitingState(), { type: 'HITL_EXPIRED' });
+    const next = chatReducer(expired, {
+      type: 'HITL_SYNC',
+      payload: { expected: expired.hitl, payload: makePayload() },
+    });
+    expect(next.hitl.status).toBe('expired');
+  });
+
+  it('a reconciliation does not unlock a submitted decision', () => {
+    const submitting = submittingState();
+    const next = chatReducer(submitting, {
+      type: 'HITL_SYNC',
+      payload: { expected: submitting.hitl, payload: makePayload({ messageId: 'other' }) },
+    });
+    expect(next.hitl.status).toBe('submitting');
+  });
+
+  it('a reconciliation does not re-arm a question being answered by text', () => {
+    const resolved = chatReducer(awaitingState(), {
+      type: 'SEND_MESSAGE',
+      payload: { message: makeMessage('reply') },
+    });
+    const idle = { ...resolved, status: 'idle' as const };
+    const next = chatReducer(idle, {
+      type: 'HITL_SYNC',
+      payload: { expected: idle.hitl, payload: makePayload() },
+    });
+    expect(next.hitl.status).toBe('resolved');
+  });
+
+  it('a stale reconciliation cannot replace a newer card', () => {
+    const old = awaitingState();
+    const fresh = chatReducer(old, {
+      type: 'HITL_AWAITING',
+      payload: { payload: makePayload({ messageId: 'fresh' }) },
+    });
+    const next = chatReducer(fresh, {
+      type: 'HITL_SYNC',
+      payload: { expected: old.hitl, payload: makePayload() },
+    });
+    expect(next.hitl.payload?.messageId).toBe('fresh');
+  });
+
+  it('a pending read during a new turn cannot arm the old question', () => {
+    const sending = chatReducer(frozenState(), {
+      type: 'SEND_MESSAGE',
+      payload: { message: makeMessage('new-turn') },
+    });
+    const next = chatReducer(sending, {
+      type: 'HITL_SYNC',
+      payload: { expected: sending.hitl, payload: makePayload() },
+    });
+    expect(next.hitl.status).toBe('none');
+  });
+
+  it('a confirmed absence retains an explicit expiry explanation', () => {
+    const expired = chatReducer(awaitingState(), { type: 'HITL_EXPIRED' });
+    const next = chatReducer(expired, {
+      type: 'HITL_SYNC',
+      payload: { expected: expired.hitl, payload: null },
+    });
+    expect(next.hitl.status).toBe('expired');
+  });
+
+  it('a fresh question replaces an expired one without accepting it', () => {
+    const expired = chatReducer(awaitingState(), { type: 'HITL_EXPIRED' });
+    const next = chatReducer(expired, {
+      type: 'HITL_SYNC',
+      payload: { expected: expired.hitl, payload: makePayload({ messageId: 'fresh' }) },
+    });
+    expect(next.hitl.status).toBe('awaiting');
+    expect(next.hitl.payload?.messageId).toBe('fresh');
+    expect(next.hitl.submittedAction).toBeNull();
+  });
+
   it('none → awaiting with the normalized payload', () => {
     const payload = makePayload();
     const next = chatReducer(frozenState(), { type: 'HITL_AWAITING', payload: { payload } });

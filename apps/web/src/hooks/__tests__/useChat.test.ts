@@ -25,7 +25,7 @@ const h = vi.hoisted(() => {
   const reattachStream = vi.fn();
   const fetchActiveRun = vi.fn(async () => ({ active: false }) as Record<string, unknown>);
   const cancelActiveRun = vi.fn(async () => ({ cancelled: false }));
-  const fetchPendingHitl = vi.fn(async () => null as unknown);
+  const fetchPendingHitl = vi.fn(async (_signal?: AbortSignal) => null as unknown);
   return {
     streamChat,
     cancel,
@@ -63,7 +63,7 @@ vi.mock('@/lib/api/chat', async importOriginal => {
     ...actual,
     fetchActiveRun: () => h.fetchActiveRun(),
     cancelActiveRun: () => h.cancelActiveRun(),
-    fetchPendingHitl: () => h.fetchPendingHitl(),
+    fetchPendingHitl: (signal?: AbortSignal) => h.fetchPendingHitl(signal),
     chatSSEClient: {
       streamChat: (...args: unknown[]) => h.streamChat(...args),
       cancel: (...args: unknown[]) => h.cancel(...args),
@@ -1220,6 +1220,158 @@ describe('useChat — connector error notices (Lot 3 P3)', () => {
 });
 
 describe('useChat — pending HITL rehydration (Lot 1 P1-V1)', () => {
+  const pending = (id: string) => ({
+    message_id: id,
+    action_requests: [{ type: 'tool_confirmation', tool_name: 'send_email_tool', tool_args: {} }],
+  });
+
+  it('a superseded read is aborted and cannot replace the latest server answer', async () => {
+    let resolve!: (value: unknown) => void;
+    h.fetchPendingHitl.mockImplementationOnce(
+      () =>
+        new Promise<unknown>(r => {
+          resolve = r;
+        })
+    );
+    const { result } = renderHook(() => useChat());
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.hydratePendingHitl();
+    });
+    const signal = h.fetchPendingHitl.mock.calls[0][0];
+    h.fetchPendingHitl.mockResolvedValueOnce(pending('newest-question'));
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+    expect(signal?.aborted).toBe(true);
+    await act(async () => {
+      resolve(pending('old-question'));
+      await first;
+    });
+    expect(result.current.hitl.payload?.messageId).toBe('newest-question');
+  });
+
+  it('unmount aborts the pending read and retained hydration cannot restart it', async () => {
+    let resolve!: (value: unknown) => void;
+    h.fetchPendingHitl.mockImplementationOnce(
+      () =>
+        new Promise<unknown>(r => {
+          resolve = r;
+        })
+    );
+    const { result, unmount } = renderHook(() => useChat());
+    const hydrate = result.current.hydratePendingHitl;
+    let first!: Promise<void>;
+    act(() => {
+      first = hydrate();
+    });
+    const signal = h.fetchPendingHitl.mock.calls[0][0];
+    unmount();
+    expect(signal?.aborted).toBe(true);
+    await act(async () => {
+      resolve(pending('late'));
+      await first;
+      await hydrate();
+    });
+    expect(h.fetchPendingHitl).toHaveBeenCalledOnce();
+  });
+
+  it('clears an awaiting card when the server confirms it was answered elsewhere', async () => {
+    h.fetchPendingHitl.mockResolvedValueOnce(pending('remote-question'));
+    const { result } = renderHook(() => useChat());
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+    expect(result.current.hitl.status).toBe('awaiting');
+    h.fetchPendingHitl.mockResolvedValueOnce(null);
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+    expect(result.current.hitl.status).toBe('none');
+  });
+
+  it('a late pending read cannot replace a newer live interruption', async () => {
+    let resolve!: (value: unknown) => void;
+    h.fetchPendingHitl.mockImplementationOnce(
+      () =>
+        new Promise<unknown>(r => {
+          resolve = r;
+        })
+    );
+    const { result } = renderHook(() => useChat());
+    let hydration!: Promise<void>;
+    act(() => {
+      hydration = result.current.hydratePendingHitl();
+    });
+    scriptStream([
+      { type: 'hitl_interrupt_metadata', content: '', metadata: pending('live-newer') },
+    ]);
+    await act(async () => {
+      await result.current.sendMessage('Prepare the draft');
+    });
+    await act(async () => {
+      resolve(pending('remote-older'));
+      await hydration;
+    });
+    expect(result.current.hitl.payload?.messageId).toBe('live-newer');
+  });
+
+  it('a late pending read cannot re-arm a question after a typed reply completed', async () => {
+    h.fetchPendingHitl.mockResolvedValueOnce(pending('old-question'));
+    const { result } = renderHook(() => useChat());
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+    let resolve!: (value: unknown) => void;
+    h.fetchPendingHitl.mockImplementationOnce(
+      () =>
+        new Promise<unknown>(r => {
+          resolve = r;
+        })
+    );
+    let hydration!: Promise<void>;
+    act(() => {
+      hydration = result.current.hydratePendingHitl();
+    });
+    scriptStream([token('Cancelled'), done()]);
+    await act(async () => {
+      await result.current.sendMessage('Cancel');
+    });
+    await act(async () => {
+      resolve(pending('old-question'));
+      await hydration;
+    });
+    expect(result.current.hitl.status).toBe('none');
+  });
+
+  it('a transport failure preserves an awaiting card', async () => {
+    h.fetchPendingHitl.mockResolvedValueOnce(pending('still-pending'));
+    const { result } = renderHook(() => useChat());
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+    h.fetchPendingHitl.mockRejectedValueOnce(new TypeError('Network unavailable'));
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+    expect(result.current.hitl.status).toBe('awaiting');
+    expect(result.current.hitl.payload?.messageId).toBe('still-pending');
+  });
+
+  it('an invalid successful response cannot erase an awaiting card', async () => {
+    h.fetchPendingHitl.mockResolvedValueOnce(pending('valid-question'));
+    const { result } = renderHook(() => useChat());
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+    h.fetchPendingHitl.mockResolvedValueOnce({ invalid: true });
+    await act(async () => {
+      await result.current.hydratePendingHitl();
+    });
+    expect(result.current.hitl.status).toBe('awaiting');
+    expect(result.current.hitl.payload?.messageId).toBe('valid-question');
+  });
+
   it('hydratePendingHitl arms the card from a pending interrupt', async () => {
     h.fetchPendingHitl.mockResolvedValueOnce({
       message_id: 'hitl_pending_1',

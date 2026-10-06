@@ -14,7 +14,8 @@
  * No backend, LLM, or paid provider is contacted.
  */
 import type { Route } from '@playwright/test';
-import { test, expect, type MockRoute } from '../fixtures';
+import AxeBuilder from '@axe-core/playwright';
+import { test, expect, waitForHydration, waitForMockGate, type MockRoute } from '../fixtures';
 
 const CONVERSATION = {
   id: '00000000-0000-4000-8000-00000000c001',
@@ -208,6 +209,151 @@ test.describe('chat HITL approval card', () => {
 const EGRESS_CARD = 'section[aria-label="Brouillon à valider"]';
 
 test.describe('chat HITL egress question (ADR-298)', () => {
+  for (const width of [1280, 390]) {
+    test(`scheduled question stays actionable after later messages at ${width}px`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      let release!: () => void;
+      const gate = new Promise<void>(resolve => {
+        release = resolve;
+      });
+      const state = { pending: false, arrived: false, later: false, unavailable: false };
+      const decisions: Array<{ message_id?: string; action?: string }> = [];
+      let pendingReads = 0;
+      const question = 'Un script souhaite accéder à Internet pour vérifier un service.';
+      const rows = () =>
+        [
+          ...(state.arrived
+            ? [
+                {
+                  id: '00000000-0000-4000-8000-000000000101',
+                  conversation_id: CONVERSATION.id,
+                  role: 'assistant',
+                  content: question,
+                  created_at: '2026-10-06T09:00:00Z',
+                  message_metadata: { is_hitl_question: true },
+                },
+                {
+                  id: '00000000-0000-4000-8000-000000000102',
+                  conversation_id: CONVERSATION.id,
+                  role: 'assistant',
+                  content: 'Un rappel publié après la question',
+                  created_at: '2026-10-06T09:01:00Z',
+                  message_metadata: null,
+                },
+              ]
+            : []),
+          ...(state.later
+            ? [
+                {
+                  id: '00000000-0000-4000-8000-000000000103',
+                  conversation_id: CONVERSATION.id,
+                  role: 'assistant',
+                  content: 'Une autre notification',
+                  created_at: '2026-10-06T09:02:00Z',
+                  message_metadata: null,
+                },
+              ]
+            : []),
+        ].reverse();
+      const routes = baseRoutes(null, sseDone).map(route => {
+        if (route.url === '**/api/v1/agents/hitl/pending')
+          return {
+            ...route,
+            handler: async (r: Route) => {
+              pendingReads += 1;
+              await r.fulfill({
+                status: state.unavailable ? 503 : 200,
+                contentType: 'application/json',
+                body: JSON.stringify(state.pending ? PENDING_SANDBOX_EGRESS : null),
+              });
+            },
+          };
+        if (route.url === '**/api/v1/conversations/me/messages*')
+          return {
+            ...route,
+            handler: async (r: Route) => {
+              const messages = rows();
+              await r.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                  messages,
+                  conversation_id: CONVERSATION.id,
+                  total_count: messages.length,
+                  has_more: false,
+                  next_cursor: null,
+                }),
+              });
+            },
+          };
+        if (route.url === '**/api/v1/agents/chat/stream')
+          return {
+            ...route,
+            handler: async (r: Route) => {
+              const body = r.request().postDataJSON() as {
+                hitl_decision?: { message_id?: string; action?: string };
+              };
+              decisions.push(body.hitl_decision ?? {});
+              state.pending = false;
+              await r.fulfill({ status: 200, contentType: 'text/event-stream', body: sseDone() });
+            },
+          };
+        return route;
+      });
+      routes.push({
+        url: '**/api/v1/notifications/stream',
+        handler: async (route, signal) => {
+          if (!(await waitForMockGate(gate, signal))) return;
+          await route.fulfill({
+            status: 200,
+            contentType: 'text/event-stream',
+            body: `event: notification\ndata: ${JSON.stringify({ type: 'conversation_updated', conversation_id: CONVERSATION.id })}\n\n`,
+          });
+        },
+      });
+      await authenticate();
+      await mockApi(routes);
+      await page.goto('/fr/dashboard/chat');
+      await waitForHydration(page);
+      await expect.poll(() => pendingReads).toBeGreaterThan(0);
+      await expect(page.locator(EGRESS_CARD)).toHaveCount(0);
+
+      state.pending = true;
+      state.arrived = true;
+      release();
+      const card = page.locator(EGRESS_CARD);
+      await expect(card.getByRole('button', { name: 'Autoriser sans les données' })).toBeEnabled();
+      await expect(
+        page.getByText('Un rappel publié après la question', { exact: true })
+      ).toBeAttached();
+
+      state.later = true;
+      state.unavailable = true;
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+      await expect(page.getByText('Une autre notification', { exact: true })).toBeAttached();
+      await expect(card.getByRole('button', { name: 'Autoriser avec les données' })).toBeEnabled();
+      await expect(card.getByRole('button', { name: 'Refuser' })).toBeEnabled();
+      const accessibility = await new AxeBuilder({ page }).include(EGRESS_CARD).analyze();
+      expect(accessibility.violations).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`scheduled-egress-${width}.png`) });
+
+      state.unavailable = false;
+      const withoutData = card.getByRole('button', { name: 'Autoriser sans les données' });
+      await withoutData.focus();
+      await withoutData.press('Enter');
+      await expect.poll(() => decisions.length).toBe(1);
+      expect(decisions[0]).toEqual({
+        message_id: PENDING_SANDBOX_EGRESS.message_id,
+        action: 'confirm_without_data',
+      });
+      await expect(card).toHaveCount(0);
+    });
+  }
+
   test('names the hosts, the purpose, the data — and sends the second answer verbatim', async ({
     page,
     authenticate,

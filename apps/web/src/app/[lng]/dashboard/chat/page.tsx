@@ -391,6 +391,7 @@ export default function ChatPage() {
     isLoadingOlder,
     messages,
     readNewestPage,
+    hydratePendingHitl,
     mergeServerPage,
     clearMessages,
     setApiTotals,

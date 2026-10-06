@@ -78,6 +78,15 @@ network, which a raw socket walks around.
   `last_used_at`); past `PYTHON_SANDBOX_MAX_GRANTS_PER_USER` an approval holds
   for its run alone and says so (`one_shot`). The data scope of a run is the
   MINIMUM over its hosts.
+- **The pending card follows the thread, including scheduled runs** (amendment
+  2026-10-06). A conversation sync reconciles the authoritative pending-HITL
+  endpoint as well as archived messages; a question followed by a reminder
+  remains actionable. The stored interrupt retains the published actions and
+  its replay context, and older draft records recover actions from the same
+  contract as the live stream. A failed read preserves the current card;
+  only a confirmed absence clears it. Aborted or superseded reads cannot
+  revive a question after a reply, reset or newer interrupt. No permission is
+  inferred from a notification or an archived question.
 - **A permission is settled IN the loop, never dispatched as an action**
   (`nodes/react_egress_question.py`). The first delivery handed the draft to
   the dispatch every mutation draft takes, and it was measured wrong on

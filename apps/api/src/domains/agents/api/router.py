@@ -55,6 +55,7 @@ from src.domains.agents.api.session_watch import (
     session_still_valid,
 )
 from src.domains.agents.api.sse_keepalive import KeepalivePulse, iter_with_keepalive
+from src.domains.agents.services.hitl.action_requests import with_available_actions
 from src.domains.agents.utils import generate_run_id
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.domains.users.models import User
@@ -1073,13 +1074,13 @@ async def get_pending_hitl_interrupt(
     if not conversation_id:
         return None
 
-    pending = await check_pending_hitl_uncached(conversation_id)
+    pending = await check_pending_hitl_uncached(conversation_id, raise_on_error=True)
     if not pending or not pending.get(FIELD_ACTION_REQUESTS):
         return None
 
     return PendingHitlResponse(
         message_id=pending.get("message_id"),
-        action_requests=pending.get(FIELD_ACTION_REQUESTS, []),
+        action_requests=with_available_actions(pending.get(FIELD_ACTION_REQUESTS, [])),
         interrupt_ts=pending.get("interrupt_ts"),
         generated_question=pending.get("generated_question"),
     )

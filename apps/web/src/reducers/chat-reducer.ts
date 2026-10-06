@@ -28,6 +28,7 @@ import { withCardActionDoneMetadata, retryCompositionMetadata } from '@/lib/card
 import { capTraceSteps } from '@/types/execution-trace';
 import { Message } from '@/types/chat';
 import { mergeServerPage } from '@/lib/chat-merge';
+import { syncPendingHitl } from './chat-reducer-hitl';
 import { generateUUID } from '@/lib/utils';
 import { DEBUG_METRICS_HISTORY_KEY } from '@/lib/constants';
 
@@ -676,6 +677,7 @@ const ACTION_HANDLERS: ChatActionHandlers = {
       : state,
 
   HITL_CLEAR: state => ({ ...state, hitl: initialHitlCardState }),
+  HITL_SYNC: syncPendingHitl,
 
   ADD_APPROVAL_MESSAGE: (state, action) => ({
     ...state,

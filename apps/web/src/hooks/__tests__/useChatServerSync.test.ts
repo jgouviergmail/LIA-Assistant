@@ -53,6 +53,7 @@ function options(overrides: Partial<UseChatServerSyncOptions> = {}): UseChatServ
     setHasMoreOlder: vi.fn(),
     setOldestCursor: vi.fn(),
     onNotification: vi.fn(),
+    hydratePendingHitl: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -96,6 +97,36 @@ describe('useChatServerSync — notifications keep their toast and ask for a syn
 });
 
 describe('useChatServerSync — the thread sync signals', () => {
+  it('a slow pending-approval read does not delay newly archived messages', async () => {
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const page = { messages: [], hasMore: false, nextCursor: null };
+    const opts = options({
+      readNewestPage: vi.fn(async () => page),
+      hydratePendingHitl: () => pending,
+    });
+    renderHook(() => useChatServerSync(opts));
+    let delivered: unknown;
+    const reading = (syncOptions.last?.readNewestPage as () => Promise<unknown>)().then(value => {
+      delivered = value;
+    });
+    try {
+      await vi.waitFor(() => expect(delivered).toEqual(page), { timeout: 500 });
+    } finally {
+      release();
+      await reading;
+    }
+  });
+  it('a server-page read also reconciles the pending approval', async () => {
+    const opts = options({
+      readNewestPage: vi.fn(async () => ({ messages: [], hasMore: false, nextCursor: null })),
+    });
+    renderHook(() => useChatServerSync(opts));
+    await (syncOptions.last?.readNewestPage as () => Promise<unknown>)();
+    expect(opts.hydratePendingHitl).toHaveBeenCalledOnce();
+  });
   it('a change asks for a sync, a reset asks for a reset', () => {
     renderHook(() => useChatServerSync(options()));
 

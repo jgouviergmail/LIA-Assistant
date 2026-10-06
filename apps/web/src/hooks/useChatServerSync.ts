@@ -79,6 +79,8 @@ export interface UseChatServerSyncOptions {
   setOldestCursor: (cursor: string | null) => void;
   /** Every notification (the expressive eyes' ping). */
   onNotification: (notification: Notification) => void;
+  /** Reconcile the pending approval alongside messages received elsewhere. */
+  hydratePendingHitl: () => Promise<void>;
 }
 
 export function useChatServerSync(options: UseChatServerSyncOptions): void {
@@ -97,7 +99,14 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
     setHasMoreOlder,
     setOldestCursor,
     onNotification,
+    hydratePendingHitl,
   } = options;
+
+  const readSyncedPage = useCallback(async () => {
+    const page = await readNewestPage();
+    void hydratePendingHitl();
+    return page;
+  }, [readNewestPage, hydratePendingHitl]);
 
   const syncReplacedPage = useCallback(
     (page: ConversationPage) => {
@@ -121,7 +130,7 @@ export function useChatServerSync(options: UseChatServerSyncOptions): void {
     enabled: signedIn && apiAvailable,
     blocked: isTyping || historyView || isLoadingOlder,
     messages,
-    readNewestPage,
+    readNewestPage: readSyncedPage,
     mergeServerPage,
     onPageReplaced: syncReplacedPage,
     onReset: syncReset,

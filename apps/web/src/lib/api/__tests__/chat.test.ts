@@ -579,10 +579,15 @@ describe('run-control endpoints', () => {
   });
 
   it.each([
-    ['nothing is pending', () => new Response(null, { status: 404 })],
+    ['the server is unavailable', () => new Response(null, { status: 500 })],
     ['the request throws', () => Promise.reject(new Error('offline'))],
-  ])('returns null when %s', async (_label, make) => {
+  ])('rejects when %s so a failure cannot erase an awaiting card', async (_label, make) => {
     fetchMock.mockImplementation(() => Promise.resolve(make()));
+    await expect(fetchPendingHitl()).rejects.toThrow();
+  });
+
+  it('returns null only when the server confirms no pending interruption', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(null));
     await expect(fetchPendingHitl()).resolves.toBeNull();
   });
 

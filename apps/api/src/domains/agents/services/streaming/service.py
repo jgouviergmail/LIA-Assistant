@@ -34,6 +34,7 @@ from src.domains.agents.data_registry.message_widgets import (
     extract_persistable_widgets,
 )
 from src.domains.agents.display.card_actions import with_card_action_metadata
+from src.domains.agents.services.hitl.action_requests import with_available_actions
 from src.domains.agents.services.hitl.interactions.text_tokens import text_tokens
 from src.domains.agents.services.streaming.trace_capture import TraceCapture
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -2341,7 +2342,9 @@ class StreamingService:
             await self.hitl_store.save_interrupt(
                 thread_id=str(conversation_id),
                 interrupt_data={
-                    "action_requests": action_requests,
+                    "action_requests": with_available_actions(
+                        action_requests, metadata.get("action_requests", [])
+                    ),
                     "count": len(action_requests),
                     FIELD_RUN_ID: run_id,
                     "interrupt_ts": str(time.time()),
