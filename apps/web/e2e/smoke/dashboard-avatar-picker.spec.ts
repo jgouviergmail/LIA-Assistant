@@ -111,13 +111,18 @@ test.describe('hero avatar picker', () => {
     await expect(group).toBeAttached();
     expect(await opacityOf(group)).toBeLessThan(0.05);
 
-    // Focus lands inside the group WITHOUT any pointer involved. If the reveal
-    // were hover-only, this control would be permanently invisible to anyone
-    // navigating by keyboard while still occupying a tab stop — the worst of
-    // both worlds.
-    await page.getByRole('button', { name: 'Feminine portrait' }).focus();
-
-    await expect.poll(async () => await opacityOf(group), { timeout: 3_000 }).toBeGreaterThan(0.95);
+    // Start outside the hero, then use real Tab navigation to reveal the
+    // picker and reach both portraits without any pointer input.
+    const beforeHero = page.getByRole('button', { name: 'Sign out', exact: true });
+    await beforeHero.focus();
+    await expect(beforeHero).toBeFocused({ timeout: 3_000 });
+    for (const name of ["Switch LIA's avatar", 'Feminine portrait', 'Masculine portrait']) {
+      await page.keyboard.press('Tab');
+      await expect(page.getByRole('button', { name, exact: true })).toBeFocused({ timeout: 3_000 });
+      await expect
+        .poll(async () => await opacityOf(group), { timeout: 3_000 })
+        .toBeGreaterThan(0.95);
+    }
   });
 
   test('is always visible and a full 44 px target on touch', async ({
